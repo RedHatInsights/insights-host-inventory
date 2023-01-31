@@ -119,6 +119,26 @@ paths:
                 $ref: '#/components/schemas/CreateHostOut'
         '404':
           description: Not Found.
+  /hosts/stats:
+    get:
+      operationId: api.host.host_stats
+      tags:
+        - hosts
+      summary: Count the number of puptoo-reported hosts incl staleness
+      description: >-
+        Counts the number of hosts reported by puptoo, including those that
+        are currently in stale and stale-warning states.
+        Required permissions: inventory:hosts:read
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Host count statistics.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HostStatsOutput'
   '/hosts/{host_id_list}':
     get:
       tags:
@@ -1125,6 +1145,26 @@ components:
             type: array
             items:
               $ref: '#/components/schemas/HostOut'
+    HostStatsOutput:
+      title: Host count statistics
+      description: >-
+        A count of the total number of hosts, and those currently in stale
+        and stale-warning state, for the puptoo uploader.
+      type: object
+      required:
+        - total
+        - stale
+        - warning
+      properties:
+        total:
+          description: The total number of hosts uploaded through puptoo
+          type: integer
+        stale:
+          description: The number of currently stale hosts uploaded through puptoo
+          type: integer
+        warning:
+          description: The number of currently stale-warn hosts uploaded through puptoo
+          type: integer
     SystemProfileByHostOut:
       title: A host system profile query result
       description: Structure of the output of the host system profile query
