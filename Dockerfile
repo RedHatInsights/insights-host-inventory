@@ -1,5 +1,7 @@
 FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
 
+ARG TEST_IMAGE=false
+
 USER root
 
 # install postgresql from centos if not building on RHSM system
@@ -10,18 +12,33 @@ RUN FULL_RHEL=$(microdnf repolist --enabled | grep rhel-8) ; \
         sed -i 's/^\(enabled.*\)/\1\npriority=200/;' /etc/yum.repos.d/CentOS*.repo ; \
     fi
 
-RUN microdnf module enable postgresql:13 python38:3.8 && \
-    microdnf install --setopt=tsflags=nodocs -y postgresql python38 && \
-    microdnf install -y rsync tar procps-ng make snappy && \
-    microdnf upgrade -y && \
-    microdnf clean all
+ENV APP_ROOT=/opt/app-root/src
+WORKDIR $APP_ROOT
 
-WORKDIR /opt/app-root/src
+RUN microdnf module enable postgresql:13 python38:3.8 && \
+    microdnf upgrade -y && \
+    microdnf install --setopt=tsflags=nodocs -y postgresql python38 rsync tar procps-ng make snappy && \
+    rpm -qa | sort > packages-before-devel-install.txt && \
+    microdnf install --setopt=tsflags=nodocs -y libpq-devel python38-devel gcc && \
+    rpm -qa | sort > packages-after-devel-install.txt
+
 COPY . .
 
-RUN python -m pip install --upgrade pip && \
+ENV PIP_NO_CACHE_DIR=1
+ENV PIPENV_CLEAR=1
+ENV PIPENV_VENV_IN_PROJECT=1
+
+RUN python -m pip install --upgrade pip setuptools wheel && \
     python -m pip install pipenv && \
     pipenv install --system --dev
+
+# allows unit tests to run successfully within the container if image is built in "test" environment
+RUN if [ "$TEST_IMAGE" = "true" ]; then chgrp -R 0 $APP_ROOT && chmod -R g=u $APP_ROOT; fi
+
+# remove devel packages that were only necessary for psycopg2 to compile
+RUN microdnf remove -y $( comm -13 packages-before-devel-install.txt packages-after-devel-install.txt ) && \
+    rm packages-before-devel-install.txt packages-after-devel-install.txt && \
+    microdnf clean all
 
 USER 1001
 
