@@ -237,7 +237,7 @@ class Config:
         if self._runtime_environment == RuntimeEnvironment.TEST:
             self.bypass_rbac = True
             self.bypass_tenant_translation = True
-            self.bypass_unleash = True
+            self.unleash_token = None
 
     def _build_base_url_path(self):
         app_name = os.getenv("APP_NAME", "inventory")
@@ -303,7 +303,7 @@ class Config:
             self.logger.info("RBAC Retry Times: %s", self.rbac_retries)
             self.logger.info("RBAC Timeout Seconds: %s", self.rbac_timeout)
 
-            self.logger.info("Unleash (feature flags) Bypassed: %s", self.bypass_unleash)
+            self.logger.info("Unleash (feature flags) Bypassed: %s", self.unleash_token is None)
 
             self.logger.info(
                 "Bypassing tenant translation for hosts missing org_id: %s", self.bypass_tenant_translation
