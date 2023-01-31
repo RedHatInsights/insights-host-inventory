@@ -12,7 +12,7 @@ from api import flask_json_response
 from api import metrics
 from api.host_query import build_paginated_host_list_response
 from api.host_query import staleness_timestamps
-from api.host_query_db import get_all_hosts
+from api.host_query_db import get_all_hosts, get_host_stats
 from api.host_query_xjoin import get_host_ids_list as get_host_ids_list_xjoin
 from api.host_query_xjoin import get_host_list as get_host_list_xjoin
 from api.host_query_xjoin import get_host_list_by_id_list
@@ -109,6 +109,14 @@ def get_host_list(
         flask.abort(400, str(e))
 
     json_data = build_paginated_host_list_response(total, page, per_page, host_list, additional_fields)
+    return flask_json_response(json_data)
+
+
+@api_operation
+@rbac(Permission.READ)
+@metrics.api_request_time.time()
+def get_host_list_stats():
+    json_data = get_host_stats()
     return flask_json_response(json_data)
 
 

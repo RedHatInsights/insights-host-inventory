@@ -2,7 +2,9 @@ from app.auth import get_current_identity
 from app.instrumentation import log_get_host_list_succeeded
 from app.logging import get_logger
 from app.models import Host
+from datetime import datetime, timezone
 from lib.host_repository import update_query_for_owner_id
+from sqlalchemy import func
 
 __all__ = ("get_all_hosts", "params_to_order_by")
 
@@ -18,6 +20,44 @@ def get_all_hosts():
 
     log_get_host_list_succeeded(logger, ids_list)
     return ids_list
+
+
+def get_host_stats():
+    """
+    Get the host statistics.
+
+    This hopefully saves the Dashboard three separate API calls, each of which
+    reach out to XJoin, and get (a single row of) data which is then thrown
+    away because all the Dashboard wants is the count.
+    """
+    query = _find_all_hosts()
+    cfg = inventory_config()
+    # Get the main stats we're interested in.  If there was a way to have
+    # these as one query rather than three separate queries that'd be great!
+    all_hosts = query(func.count(Host.id)).filter(
+        {"per_reporter_staleness": {
+            "reporter": {"eq": "puptoo"},
+        }}
+    )
+    stale_hosts = query(func.count(Host.id)).filter(
+        {"per_reporter_staleness": {
+            "reporter": {"eq": "puptoo"},
+            "stale_timestamp": {"gt": str((
+                datetime.now(timezone.utc) - cfg.culling_stale_warning_offset_delta
+            ).isoformat())},
+        }}
+    )
+    warn_hosts = query(func.count(Host.id)).filter(
+        {"per_reporter_staleness": {
+            "reporter": {"eq": "puptoo"},
+            "stale_timestamp": {"gt": str((
+                datetime.now(timezone.utc) - cfg.culling_culled_offset_delta
+            ).isoformat())},
+        }}
+    )
+    # Maybe there's also a way to take the all_hosts query and clone it before
+    # adding the staleness condition?
+    return {'total': all_hosts, 'stale': stale_hosts, 'warning': warn_hosts}
 
 
 def params_to_order_by(order_by=None, order_how=None):
