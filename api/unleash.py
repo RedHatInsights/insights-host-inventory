@@ -10,7 +10,7 @@ from lib.middleware import rbac
 @api_operation
 @rbac(Permission.READ)
 @metrics.api_request_time.time()
-def get_test_toggle():
+def get_inventory_groups_toggle():
     # TODO: Remove once it's no longer useful.
     # This endpoint just exists to make it easier to check the connection to the Unleash server.
     flag_value, using_fallback = get_flag_value(FLAG_INVENTORY_GROUPS)

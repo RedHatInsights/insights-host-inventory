@@ -63,6 +63,21 @@ class Config:
             self.kafka_sasl_mechanism = "PLAIN"
             self.kafka_security_protocol = "PLAINTEXT"
 
+        unleash_configs = dict(
+            UNLEASH_URL=os.getenv("UNLEASH_URL"),
+            UNLEASH_TOKEN=os.getenv("UNLEASH_TOKEN"),
+        )
+        unleash = cfg.featureFlags
+        if unleash:
+            UNLEASH_URL = f"{unleash.hostname}:{unleash.port}/api"
+            if unleash.port == 443:
+                UNLEASH_URL = f"https://{UNLEASH_URL}"
+            else:
+                UNLEASH_URL = f"http://{UNLEASH_URL}"
+
+            self.unleash_url = unleash_configs["UNLEASH_URL"] or UNLEASH_URL
+            self.unleash_token = unleash_configs["UNLEASH_TOKEN"] or unleash.clientAccessToken
+
     def non_clowder_config(self):
         self.metrics_port = 9126
         self.metrics_path = "/metrics"
@@ -88,6 +103,9 @@ class Config:
         self.kafka_sasl_password = os.environ.get("KAFKA_SASL_PASSWORD", "")
         self.kafka_security_protocol = os.environ.get("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT").upper()
         self.kafka_sasl_mechanism = os.environ.get("KAFKA_SASL_MECHANISM", "PLAIN").upper()
+
+        self.unleash_url = os.environ.get("UNLEASH_URL", "http://unleash:4242/api")
+        self.unleash_token = os.environ.get("UNLEASH_TOKEN", "")
 
     def __init__(self, runtime_environment):
         self.logger = get_logger(__name__)
@@ -216,16 +234,10 @@ class Config:
             self.pendo_timeout = int(os.environ.get("PENDO_TIMEOUT", "240"))
             self.pendo_request_size = int(os.environ.get("PENDO_REQUEST_SIZE", "500"))
 
-        self.unleash_url = os.environ.get("UNLEASH_URL", "http://unleash:4242/api")
-        self.unleash_token = os.environ.get("UNLEASH_TOKEN", "")
-        self.bypass_unleash = (
-            os.environ.get("BYPASS_UNLEASH", "false").lower() == "true" if self.unleash_token else True
-        )
-
         if self._runtime_environment == RuntimeEnvironment.TEST:
-            self.bypass_rbac = "true"
-            self.bypass_tenant_translation = "true"
-            self.bypass_unleash = "true"
+            self.bypass_rbac = True
+            self.bypass_tenant_translation = True
+            self.bypass_unleash = True
 
     def _build_base_url_path(self):
         app_name = os.getenv("APP_NAME", "inventory")

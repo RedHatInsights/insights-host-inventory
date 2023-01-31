@@ -9,6 +9,7 @@ objects:
     name: ${CLOWDAPP_NAME}
   spec:
     envName: ${ENV_NAME}
+    featureFlags: true
     testing:
       iqePlugin: host-inventory
     dependencies:
