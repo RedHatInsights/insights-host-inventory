@@ -7,6 +7,7 @@ from unittest.mock import patch
 from pytest import mark
 from yaml import safe_load
 
+from lib.feature_flags import FLAG_FALLBACK_VALUES
 from lib.feature_flags import get_flag_value
 from lib.feature_flags import UNLEASH
 from utils.deploy import main as deploy
@@ -84,7 +85,7 @@ resourceTemplates:
 
 
 Args = namedtuple("Args", ("promo_code", "targets"))
-TEST_FEATURE_FLAG = ("foo.bar.test-feature", False)
+TEST_FEATURE_FLAG = "foo.bar.test-feature"
 
 
 def _run_deploy(promo_code, targets, inp_):
@@ -129,6 +130,7 @@ def test_deploy_formatting_is_not_changed():
     assert _head(result) == _head(DEPLOY_YML)
 
 
+@patch.dict(FLAG_FALLBACK_VALUES, {TEST_FEATURE_FLAG: False})
 def test_feature_flag_no_fallback(enable_unleash):
     unleash_mock = MagicMock()
     unleash_mock.is_enabled.return_value = True
@@ -138,6 +140,7 @@ def test_feature_flag_no_fallback(enable_unleash):
         assert not using_fallback
 
 
+@patch.dict(FLAG_FALLBACK_VALUES, {TEST_FEATURE_FLAG: False})
 def test_feature_flag_error_fallback(enable_unleash):
     unleash_mock = MagicMock()
     unleash_mock.is_enabled.side_effect = ConnectionError("something went wrong :<")
@@ -147,6 +150,7 @@ def test_feature_flag_error_fallback(enable_unleash):
         assert using_fallback
 
 
+@patch.dict(FLAG_FALLBACK_VALUES, {TEST_FEATURE_FLAG: False})
 def test_feature_uninitialized_fallback(enable_unleash):
     with patch.object(UNLEASH, "client", None):
         flag_value, using_fallback = get_flag_value(TEST_FEATURE_FLAG)
