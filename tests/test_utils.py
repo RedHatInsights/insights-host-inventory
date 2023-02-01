@@ -138,10 +138,17 @@ def test_feature_flag_no_fallback(enable_unleash):
         assert not using_fallback
 
 
-def test_feature_flag_fallback(enable_unleash):
+def test_feature_flag_error_fallback(enable_unleash):
     unleash_mock = MagicMock()
     unleash_mock.is_enabled.side_effect = ConnectionError("something went wrong :<")
     with patch.object(UNLEASH, "client", unleash_mock):
+        flag_value, using_fallback = get_flag_value(TEST_FEATURE_FLAG)
+        assert not flag_value
+        assert using_fallback
+
+
+def test_feature_uninitialized_fallback(enable_unleash):
+    with patch.object(UNLEASH, "client", None):
         flag_value, using_fallback = get_flag_value(TEST_FEATURE_FLAG)
         assert not flag_value
         assert using_fallback

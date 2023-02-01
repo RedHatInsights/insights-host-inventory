@@ -17,7 +17,7 @@ def init_unleash_app(app):
 # Raise an error if the toggle is not found on the configured Unleash server.
 # Without this fallback function, is_enabled just returns False without error.
 def custom_fallback(feature_name: str, context: dict) -> bool:
-    raise ConnectionError(f"Could not contact Unleash server, or feature toggle {feature_name} not found!")
+    raise ConnectionError("Could not contact Unleash server, or feature toggle not found.")
 
 
 # Gets a feature flag's value from Unleash, if available.
@@ -25,18 +25,21 @@ def custom_fallback(feature_name: str, context: dict) -> bool:
 #   (<feature_flag_name>, <fallback_value>)
 # Returns a tuple containing the flag's value and whether or not the fallback value was used.
 def get_flag_value(feature_flag: Tuple[str, bool]) -> Tuple[bool, bool]:
-    # Set defaults
-    flag_value = feature_flag[1]
+    # Get flag name and default to fallback value
+    flag_name, flag_value = feature_flag
     using_fallback = True
 
     # Attempt to get the feature flag via Unleash
     try:
-        if hasattr(UNLEASH, "client"):
+        if UNLEASH.client:
             flag_value = UNLEASH.client.is_enabled(feature_flag[0], fallback_function=custom_fallback)
             using_fallback = False
-    except ConnectionError as ce:
-        logger.warning(ce)
-    finally:
+    except ConnectionError:
         # Either Unleash wasn't initialized, or there was a connection error.
-        # Use the fallback value.
+        # Default to the fallback value.
+        logger.warning(
+            f"Either could not connect to Unleash server, or feature toggle {flag_name} not found."
+            f"Falling back to default value of {flag_value}"
+        )
+    finally:
         return flag_value, using_fallback
