@@ -18,7 +18,7 @@ logger = get_logger(__name__)
 
 TAGS_QUERY = """
     query hostTags (
-        $hostFilter: HostFilter,
+        $hostFilter: [HostFilter],
         $filter: TagAggregationFilter,
         $order_by: HOST_TAGS_ORDER_BY,
         $order_how: ORDER_DIR,

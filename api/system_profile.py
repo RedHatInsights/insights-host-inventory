@@ -30,7 +30,7 @@ logger = get_logger(__name__)
 
 SAP_SYSTEM_QUERY = """
     query hostSystemProfile (
-        $hostFilter: HostFilter
+        $hostFilter: [HostFilter]
         $limit: Int
         $offset: Int
     ) {
@@ -58,7 +58,7 @@ SAP_SYSTEM_QUERY = """
 
 SAP_SIDS_QUERY = """
     query hostSystemProfile (
-        $hostFilter: HostFilter
+        $hostFilter: [HostFilter]
         $filter: SapSidFilter
         $limit: Int
         $offset: Int
@@ -88,7 +88,7 @@ SAP_SIDS_QUERY = """
 
 OPERATING_SYSTEM_QUERY = """
     query hostSystemProfile (
-        $hostFilter: HostFilter
+        $hostFilter: [HostFilter]
         $limit: Int
         $offset: Int
     ) {
