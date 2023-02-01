@@ -106,7 +106,7 @@ def filtering_datetime_mock(mocker):
 
 @pytest.fixture(scope="function")
 def assert_tag_query_host_filter_single_call(mocker, api_get, graphql_tag_query_empty_response):
-    def _assert_tag_query_host_filter_single_call(url, host_filter=({"OR": mocker.ANY},), filter=None, status=200):
+    def _assert_tag_query_host_filter_single_call(url, host_filter={"OR": mocker.ANY}, filter=None, status=200):
         response_status, _ = api_get(url)
 
         assert response_status == status
@@ -126,10 +126,10 @@ def assert_tag_query_host_filter_for_field(mocker, assert_tag_query_host_filter_
     def _assert_tag_query_host_filter_for_field(url, field, matcher, value, status=200):
         return assert_tag_query_host_filter_single_call(
             url=url,
-            host_filter=(
-                {field: {matcher: value.casefold() if field in CASEFOLDED_FIELDS else value}},
-                {"OR": mocker.ANY},
-            ),
+            host_filter={
+                "AND": ({field: {matcher: value.casefold() if field in CASEFOLDED_FIELDS else value}},),
+                "OR": mocker.ANY,
+            },
             status=status,
         )
 

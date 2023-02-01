@@ -8,11 +8,16 @@ from api import build_collection_response
 from api import custom_escape
 from api import flask_json_response
 from api import metrics
-from api.filtering.filtering import query_filters
+from api.filtering.filtering import build_registered_with_filter
+from api.filtering.filtering import build_system_profile_filter
+from api.filtering.filtering import build_tag_query_dict_tuple
+from api.host_query_xjoin import owner_id_filter
 from app import Permission
 from app.auth import get_current_identity
+from app.auth.identity import IdentityType
 from app.config import Config
 from app.environment import RuntimeEnvironment
+from app.exceptions import ValidationException
 from app.instrumentation import log_get_operating_system_failed
 from app.instrumentation import log_get_operating_system_succeeded
 from app.instrumentation import log_get_sap_sids_failed
@@ -23,6 +28,7 @@ from app.logging import get_logger
 from app.xjoin import check_pagination
 from app.xjoin import graphql_query
 from app.xjoin import pagination_params
+from app.xjoin import staleness_filter
 from lib.middleware import rbac
 from lib.system_profile_validate import validate_sp_for_branch
 
@@ -30,14 +36,12 @@ logger = get_logger(__name__)
 
 SAP_SYSTEM_QUERY = """
     query hostSystemProfile (
-        $hostFilter: [HostFilter]
+        $hostFilter: HostFilter
         $limit: Int
         $offset: Int
     ) {
         hostSystemProfile (
-            hostFilter: {
-                AND: $hostFilter,
-            }
+            hostFilter: $hostFilter
         ) {
             sap_system (
                 limit: $limit
@@ -58,15 +62,13 @@ SAP_SYSTEM_QUERY = """
 
 SAP_SIDS_QUERY = """
     query hostSystemProfile (
-        $hostFilter: [HostFilter]
+        $hostFilter: HostFilter
         $filter: SapSidFilter
         $limit: Int
         $offset: Int
     ) {
         hostSystemProfile (
-            hostFilter: {
-                AND: $hostFilter,
-            }
+            hostFilter: $hostFilter
         ) {
             sap_sids (
                 filter: $filter
@@ -88,14 +90,12 @@ SAP_SIDS_QUERY = """
 
 OPERATING_SYSTEM_QUERY = """
     query hostSystemProfile (
-        $hostFilter: [HostFilter]
+        $hostFilter: HostFilter
         $limit: Int
         $offset: Int
     ) {
         hostSystemProfile (
-            hostFilter: {
-                AND: $hostFilter,
-            }
+            hostFilter: $hostFilter
         ) {
             operating_system (
                 limit: $limit
@@ -119,33 +119,47 @@ OPERATING_SYSTEM_QUERY = """
 """
 
 
-def _get_query_variables(tags, page, per_page, staleness, registered_with, filter):
-    limit, offset = pagination_params(page, per_page)
-
-    all_filters = query_filters(
-        tags=tags,
-        staleness=staleness,
-        registered_with=registered_with,
-        filter=filter,
-    )
-
-    return {
-        "hostFilter": all_filters,
-        "limit": limit,
-        "offset": offset,
-    }
-
-
 @api_operation
 @rbac(Permission.READ)
 @metrics.api_request_time.time()
 def get_sap_system(tags=None, page=None, per_page=None, staleness=None, registered_with=None, filter=None):
-    variables = _get_query_variables(tags, page, per_page, staleness, registered_with, filter)
+    limit, offset = pagination_params(page, per_page)
+
+    variables = {
+        "hostFilter": {
+            # we're not indexing null timestamps in ES
+            "OR": list(staleness_filter(staleness))
+        },
+        "limit": limit,
+        "offset": offset,
+    }
+    hostfilter_and_variables = ()
+
+    if tags:
+        hostfilter_and_variables = ({"OR": build_tag_query_dict_tuple(tags)},)
+
+    if registered_with:
+        hostfilter_and_variables += build_registered_with_filter(registered_with)
+
+    if filter:
+        for key in filter:
+            if key == "system_profile":
+                hostfilter_and_variables += build_system_profile_filter(filter["system_profile"])
+            else:
+                raise ValidationException("filter key is invalid")
+
+    current_identity = get_current_identity()
+    if current_identity.identity_type == IdentityType.SYSTEM:
+        hostfilter_and_variables += owner_id_filter()
+
+    if hostfilter_and_variables != ():
+        variables["hostFilter"]["AND"] = hostfilter_and_variables
 
     response = graphql_query(SAP_SYSTEM_QUERY, variables, log_get_sap_system_failed)
+
     data = response["hostSystemProfile"]
 
-    check_pagination(variables["offset"], data["sap_system"]["meta"]["total"])
+    check_pagination(offset, data["sap_system"]["meta"]["total"])
 
     log_get_sap_system_succeeded(logger, data)
     return flask_json_response(
@@ -157,16 +171,50 @@ def get_sap_system(tags=None, page=None, per_page=None, staleness=None, register
 @rbac(Permission.READ)
 @metrics.api_request_time.time()
 def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=None, registered_with=None, filter=None):
-    variables = _get_query_variables(tags, page, per_page, staleness, registered_with, filter)
+    limit, offset = pagination_params(page, per_page)
 
-    # Add search filter (only applies to SAP SIDs endpoint)
+    variables = {
+        "hostFilter": {
+            # we're not indexing null timestamps in ES
+            "OR": list(staleness_filter(staleness))
+        },
+        "limit": limit,
+        "offset": offset,
+    }
+
+    hostfilter_and_variables = ()
+
+    if tags:
+        hostfilter_and_variables = ({"OR": build_tag_query_dict_tuple(tags)},)
+
+    if registered_with:
+        hostfilter_and_variables += build_registered_with_filter(registered_with)
+
     if search:
-        variables["filter"] = {"search": {"regex": f".*{custom_escape(search)}.*"}}
+        variables["filter"] = {
+            # Escaped so that the string literals are not interpreted as regex
+            "search": {"regex": f".*{custom_escape(search)}.*"}
+        }
+
+    if filter:
+        for key in filter:
+            if key == "system_profile":
+                hostfilter_and_variables += build_system_profile_filter(filter["system_profile"])
+            else:
+                raise ValidationException("filter key is invalid")
+
+    current_identity = get_current_identity()
+    if current_identity.identity_type == IdentityType.SYSTEM:
+        hostfilter_and_variables += owner_id_filter()
+
+    if hostfilter_and_variables != ():
+        variables["hostFilter"]["AND"] = hostfilter_and_variables
 
     response = graphql_query(SAP_SIDS_QUERY, variables, log_get_sap_sids_failed)
+
     data = response["hostSystemProfile"]
 
-    check_pagination(variables["offset"], data["sap_sids"]["meta"]["total"])
+    check_pagination(offset, data["sap_sids"]["meta"]["total"])
 
     log_get_sap_sids_succeeded(logger, data)
     return flask_json_response(
@@ -185,14 +233,46 @@ def get_operating_system(
     registered_with: Optional[str] = None,
     filter=None,
 ):
-    variables = _get_query_variables(tags, page, per_page, staleness, registered_with, filter)
+    limit, offset = pagination_params(page, per_page)
+
+    variables = {
+        "hostFilter": {
+            # we're not indexing null timestamps in ES
+            "OR": list(staleness_filter(staleness))
+        },
+        "limit": limit,
+        "offset": offset,
+    }
+    hostfilter_and_variables = ()
+
+    if tags:
+        hostfilter_and_variables = ({"OR": build_tag_query_dict_tuple(tags)},)
+
+    if registered_with:
+        variables["hostFilter"]["NOT"] = {"insights_id": {"eq": None}}
+
+    if filter:
+        for key in filter:
+            if key == "system_profile":
+                hostfilter_and_variables += build_system_profile_filter(filter["system_profile"])
+            else:
+                raise ValidationException("filter key is invalid")
+
+    current_identity = get_current_identity()
+    if current_identity.identity_type == IdentityType.SYSTEM:
+        hostfilter_and_variables += owner_id_filter()
+
+    if hostfilter_and_variables != ():
+        variables["hostFilter"]["AND"] = hostfilter_and_variables
 
     response = graphql_query(OPERATING_SYSTEM_QUERY, variables, log_get_operating_system_failed)
+
     data = response["hostSystemProfile"]
 
-    check_pagination(variables["offset"], data["operating_system"]["meta"]["total"])
+    check_pagination(offset, data["operating_system"]["meta"]["total"])
 
     log_get_operating_system_succeeded(logger, data)
+
     return flask_json_response(
         build_collection_response(
             data["operating_system"]["data"], page, per_page, data["operating_system"]["meta"]["total"]
