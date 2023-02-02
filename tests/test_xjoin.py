@@ -399,7 +399,10 @@ def test_query_variables_tags(tags, query_param, mocker, graphql_query_empty_res
             "order_how": mocker.ANY,
             "limit": mocker.ANY,
             "offset": mocker.ANY,
-            "filter": tag_filters + (mocker.ANY,),
+            "filter": (
+                {"OR": tag_filters},
+                mocker.ANY,
+            ),
             "fields": mocker.ANY,
         },
         mocker.ANY,
@@ -425,7 +428,7 @@ def test_query_variables_tags_with_search(field, mocker, graphql_query_empty_res
             "order_how": mocker.ANY,
             "limit": mocker.ANY,
             "offset": mocker.ANY,
-            "filter": (search_any, tag_filter, mocker.ANY),
+            "filter": (search_any, {"OR": (tag_filter,)}, mocker.ANY),
             "fields": mocker.ANY,
         },
         mocker.ANY,
@@ -904,7 +907,17 @@ def test_query_variables_tags_simple(mocker, assert_tag_query_host_filter_single
         host_filter={
             "OR": mocker.ANY,
             "AND": (
-                {"tag": {"namespace": {"eq": "insights-client"}, "key": {"eq": "os"}, "value": {"eq": "fedora"}}},
+                {
+                    "OR": (
+                        {
+                            "tag": {
+                                "namespace": {"eq": "insights-client"},
+                                "key": {"eq": "os"},
+                                "value": {"eq": "fedora"},
+                            }
+                        },
+                    )
+                },
             ),
         },
     )
@@ -915,7 +928,13 @@ def test_query_variables_tags_with_special_characters_unescaped(mocker, assert_t
     assert_tag_query_host_filter_single_call(
         build_tags_url(query=f"?tags={tags_query}"),
         host_filter={
-            "AND": ({"tag": {"namespace": {"eq": ";?:@&+$"}, "key": {"eq": "-_.!~*'()"}, "value": {"eq": "#"}}},),
+            "AND": (
+                {
+                    "OR": (
+                        {"tag": {"namespace": {"eq": ";?:@&+$"}, "key": {"eq": "-_.!~*'()"}, "value": {"eq": "#"}}},
+                    ),
+                },
+            ),
             "OR": mocker.ANY,
         },
     )
@@ -930,7 +949,13 @@ def test_query_variables_tags_with_special_characters_escaped(mocker, assert_tag
     assert_tag_query_host_filter_single_call(
         build_tags_url(query=f"?tags={tags_query}"),
         host_filter={
-            "AND": ({"tag": {"namespace": {"eq": ";,/?:@&=+$"}, "key": {"eq": "-_.!~*'()"}, "value": {"eq": "#"}}},),
+            "AND": (
+                {
+                    "OR": (
+                        {"tag": {"namespace": {"eq": ";,/?:@&=+$"}, "key": {"eq": "-_.!~*'()"}, "value": {"eq": "#"}}},
+                    ),
+                },
+            ),
             "OR": mocker.ANY,
         },
     )
@@ -941,8 +966,18 @@ def test_query_variables_tags_collection_multi(mocker, assert_tag_query_host_fil
         build_tags_url(query="?tags=Sat/env=prod&tags=insights-client/os=fedora"),
         host_filter={
             "AND": (
-                {"tag": {"namespace": {"eq": "Sat"}, "key": {"eq": "env"}, "value": {"eq": "prod"}}},
-                {"tag": {"namespace": {"eq": "insights-client"}, "key": {"eq": "os"}, "value": {"eq": "fedora"}}},
+                {
+                    "OR": (
+                        {"tag": {"namespace": {"eq": "Sat"}, "key": {"eq": "env"}, "value": {"eq": "prod"}}},
+                        {
+                            "tag": {
+                                "namespace": {"eq": "insights-client"},
+                                "key": {"eq": "os"},
+                                "value": {"eq": "fedora"},
+                            }
+                        },
+                    )
+                },
             ),
             "OR": mocker.ANY,
         },
@@ -954,13 +989,17 @@ def test_query_variables_tags_collection_encoded_commas(mocker, assert_tag_query
         build_tags_url(query="?tags=Sat/env=prod%2Cstage&tags=insights-client/Location=Santa%20Fe%2C%20NM"),
         host_filter={
             "AND": (
-                {"tag": {"namespace": {"eq": "Sat"}, "key": {"eq": "env"}, "value": {"eq": "prod,stage"}}},
                 {
-                    "tag": {
-                        "namespace": {"eq": "insights-client"},
-                        "key": {"eq": "Location"},
-                        "value": {"eq": "Santa Fe, NM"},
-                    }
+                    "OR": (
+                        {"tag": {"namespace": {"eq": "Sat"}, "key": {"eq": "env"}, "value": {"eq": "prod,stage"}}},
+                        {
+                            "tag": {
+                                "namespace": {"eq": "insights-client"},
+                                "key": {"eq": "Location"},
+                                "value": {"eq": "Santa Fe, NM"},
+                            }
+                        },
+                    )
                 },
             ),
             "OR": mocker.ANY,
@@ -972,7 +1011,11 @@ def test_query_variables_tags_without_namespace(mocker, assert_tag_query_host_fi
     assert_tag_query_host_filter_single_call(
         build_tags_url(query="?tags=env=prod"),
         host_filter={
-            "AND": ({"tag": {"namespace": {"eq": None}, "key": {"eq": "env"}, "value": {"eq": "prod"}}},),
+            "AND": (
+                {
+                    "OR": ({"tag": {"namespace": {"eq": None}, "key": {"eq": "env"}, "value": {"eq": "prod"}}},),
+                },
+            ),
             "OR": mocker.ANY,
         },
     )
@@ -982,7 +1025,11 @@ def test_query_variables_tags_without_value(mocker, assert_tag_query_host_filter
     assert_tag_query_host_filter_single_call(
         build_tags_url(query="?tags=Sat/env"),
         host_filter={
-            "AND": ({"tag": {"namespace": {"eq": "Sat"}, "key": {"eq": "env"}, "value": {"eq": None}}},),
+            "AND": (
+                {
+                    "OR": ({"tag": {"namespace": {"eq": "Sat"}, "key": {"eq": "env"}, "value": {"eq": None}}},),
+                },
+            ),
             "OR": mocker.ANY,
         },
     )
@@ -992,7 +1039,11 @@ def test_query_variables_tags_with_only_key(mocker, assert_tag_query_host_filter
     assert_tag_query_host_filter_single_call(
         build_tags_url(query="?tags=env"),
         host_filter={
-            "AND": ({"tag": {"namespace": {"eq": None}, "key": {"eq": "env"}, "value": {"eq": None}}},),
+            "AND": (
+                {
+                    "OR": ({"tag": {"namespace": {"eq": None}, "key": {"eq": "env"}, "value": {"eq": None}}},),
+                },
+            ),
             "OR": mocker.ANY,
         },
     )
@@ -1081,7 +1132,6 @@ def test_tags_query_variables_registered_with(mocker, assert_tag_query_host_filt
 def test_tags_query_variables_registered_with_per_reporter(
     mocker, assert_tag_query_host_filter_single_call, reporters
 ):
-
     tags_url = build_tags_url(query="?" + "&".join([f"registered_with={reporter}" for reporter in reporters]))
 
     prs_array = _build_prs_array(mocker, reporters)
@@ -1206,7 +1256,7 @@ def test_system_profile_sap_system_endpoint_tags(
 
     response_status, response_data = api_get(url)
 
-    tag_filters = tuple({"tag": item} for item in tags)
+    tag_filters = ({"OR": tuple({"tag": item} for item in tags)},)
     assert response_status == 200
     graphql_system_profile_sap_system_query_empty_response.assert_called_once_with(
         SAP_SYSTEM_QUERY, {"hostFilter": {"OR": mocker.ANY, "AND": tag_filters}, "limit": 50, "offset": 0}, mocker.ANY
@@ -1311,7 +1361,7 @@ def test_system_profile_sap_sids_endpoint_tags(
 
     response_status, response_data = api_get(url)
 
-    tag_filters = tuple({"tag": item} for item in tags)
+    tag_filters = ({"OR": tuple({"tag": item} for item in tags)},)
     assert response_status == 200
     graphql_system_profile_sap_sids_query_empty_response.assert_called_once_with(
         SAP_SIDS_QUERY, {"hostFilter": {"OR": mocker.ANY, "AND": tag_filters}, "limit": 50, "offset": 0}, mocker.ANY
@@ -1720,7 +1770,7 @@ def test_xjoin_search_using_hostfilters_tags(
     tag_filters = tuple({"tag": item} for item in tags)
 
     graphql_query_empty_response.assert_called_once_with(
-        HOST_IDS_QUERY, {"filter": tag_filters, "limit": mocker.ANY, "offset": 0}, mocker.ANY
+        HOST_IDS_QUERY, {"filter": ({"OR": tag_filters},), "limit": mocker.ANY, "offset": 0}, mocker.ANY
     )
 
 

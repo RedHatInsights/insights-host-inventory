@@ -437,7 +437,6 @@ def test_unindexed_fields_fail_gracefully(api_get):
 
 # This test verifies that the [contains] operation is accepted for a string array field such as cpu_flags
 def test_get_hosts_contains_works_on_string_array(patch_xjoin_post, api_get, subtests):
-
     url_builders = (
         build_hosts_url,
         build_system_profile_sap_sids_url,

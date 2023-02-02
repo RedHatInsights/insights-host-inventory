@@ -110,7 +110,6 @@ def _get_prs_that_require_validation(owner, repo):
 
 
 def main(logger):
-
     config = _init_config()
 
     # Get list of PRs that require validation
@@ -122,7 +121,6 @@ def main(logger):
 
     # For each PR in prs_to_validate, validate the parsed hosts and leave a comment on the PR
     for pr_number in prs_to_validate:
-
         consumer = KafkaConsumer(
             bootstrap_servers=config.bootstrap_servers,
             api_version=(0, 10, 1),
