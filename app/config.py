@@ -63,20 +63,18 @@ class Config:
             self.kafka_sasl_mechanism = "PLAIN"
             self.kafka_security_protocol = "PLAINTEXT"
 
-        unleash_configs = dict(
-            unleash_url=os.getenv("UNLEASH_URL"),
-            unleash_token=os.getenv("UNLEASH_TOKEN"),
-        )
+        # Feature flags
         unleash = cfg.featureFlags
         if unleash:
+            self.unleash_token = unleash.clientAccessToken
             unleash_url = f"{unleash.hostname}:{unleash.port}/api"
             if unleash.port in (80, 8080):
-                unleash_url = f"http://{unleash_url}"
+                self.unleash_url = f"http://{unleash_url}"
             else:
-                unleash_url = f"https://{unleash_url}"
-
-            self.unleash_url = unleash_configs["UNLEASH_URL"] or unleash_url
-            self.unleash_token = unleash_configs["UNLEASH_TOKEN"] or unleash.clientAccessToken
+                self.unleash_url = f"https://{unleash_url}"
+        else:
+            self.unleash_url = os.getenv("UNLEASH_URL")
+            self.unleash_token = os.getenv("UNLEASH_TOKEN")
 
     def non_clowder_config(self):
         self.metrics_port = 9126
