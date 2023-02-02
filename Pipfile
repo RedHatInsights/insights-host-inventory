@@ -12,7 +12,7 @@ flask-limiter = "~=1.0.1"
 flask-script = "~=2.0.6"
 flask-api = "==1.1"  # Not semver
 flask-sqlalchemy = "~=2.4.0"
-psycopg2-binary = "~=2.8.3"
+psycopg2 = "~=2.8.3"
 flask-migrate = "~=2.5.2"
 itsdangerous = "~=1.1.0"
 gunicorn = "~=19.9.0"
