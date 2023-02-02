@@ -165,7 +165,6 @@ class LimitedHost(db.Model):
         tags={},
         system_profile_facts=None,
     ):
-
         self.canonical_facts = canonical_facts
 
         if display_name:

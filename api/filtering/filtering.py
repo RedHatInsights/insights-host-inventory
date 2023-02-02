@@ -52,7 +52,6 @@ def _integer_filter(field_name, field_value, operation, spec=None):
 
 
 def _timestamp_filter(field_name, field_value, operation, spec=None):
-
     if not is_timestamp(field_value):
         _invalid_value_error(field_name, field_value)
 
