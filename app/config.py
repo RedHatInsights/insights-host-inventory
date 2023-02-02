@@ -64,18 +64,18 @@ class Config:
             self.kafka_security_protocol = "PLAINTEXT"
 
         unleash_configs = dict(
-            UNLEASH_URL=os.getenv("UNLEASH_URL"),
-            UNLEASH_TOKEN=os.getenv("UNLEASH_TOKEN"),
+            unleash_url=os.getenv("UNLEASH_URL"),
+            unleash_token=os.getenv("UNLEASH_TOKEN"),
         )
         unleash = cfg.featureFlags
         if unleash:
-            UNLEASH_URL = f"{unleash.hostname}:{unleash.port}/api"
-            if unleash.port == 443:
-                UNLEASH_URL = f"https://{UNLEASH_URL}"
+            unleash_url = f"{unleash.hostname}:{unleash.port}/api"
+            if unleash.port in (80, 8080):
+                unleash_url = f"http://{unleash_url}"
             else:
-                UNLEASH_URL = f"http://{UNLEASH_URL}"
+                unleash_url = f"https://{unleash_url}"
 
-            self.unleash_url = unleash_configs["UNLEASH_URL"] or UNLEASH_URL
+            self.unleash_url = unleash_configs["UNLEASH_URL"] or unleash_url
             self.unleash_token = unleash_configs["UNLEASH_TOKEN"] or unleash.clientAccessToken
 
     def non_clowder_config(self):
