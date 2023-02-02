@@ -28,7 +28,6 @@ def init_payload_tracker(config, producer=None):
 
 
 def get_payload_tracker(account=None, org_id=None, request_id=None):
-
     if _CFG.payload_tracker_enabled is False or request_id is None:
         return NullPayloadTracker()
 
@@ -145,7 +144,6 @@ class KafkaPayloadTracker(PayloadTracker):
 
     def _construct_message(self, status, status_message=None):
         try:
-
             if self._request_id is None:
                 logger.debug("request_id is None...ignoring payload_tracker data")
                 return None
