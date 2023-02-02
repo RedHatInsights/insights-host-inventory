@@ -47,7 +47,7 @@ def method_to_raise_exception():
 def assert_payload_tracker_is_disabled(tracker, kafka_producer, null_producer, subtests):
     methods_to_test = get_payload_tracker_methods(tracker)
 
-    for (method_to_test, _) in methods_to_test:
+    for method_to_test, _ in methods_to_test:
         with subtests.test(method_to_test=method_to_test):
             method_to_test(status_message="expected_status_msg")
 

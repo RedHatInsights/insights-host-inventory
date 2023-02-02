@@ -82,7 +82,6 @@ def get_host_list(
     filter=None,
     fields=None,
 ):
-
     total = 0
     host_list = ()
 
@@ -337,7 +336,6 @@ def merge_facts(host_id_list, namespace, body):
 
 
 def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
-
     current_identity = get_current_identity()
     query = Host.query.filter(
         (Host.org_id == current_identity.org_id)
@@ -378,7 +376,6 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
 @rbac(Permission.READ)
 @metrics.api_request_time.time()
 def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
-
     host_list, total = get_host_tags_list_by_id_list(host_id_list, page, per_page, order_by, order_how)
     counts = {host_id: len(host_tags) for host_id, host_tags in host_list.items()}
 
@@ -389,7 +386,6 @@ def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_
 @rbac(Permission.READ)
 @metrics.api_request_time.time()
 def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=None, search=None):
-
     host_list, total = get_host_tags_list_by_id_list(host_id_list, page, per_page, order_by, order_how)
     filtered_list = {host_id: Tag.filter_tags(host_tags, search) for host_id, host_tags in host_list.items()}
 
@@ -405,7 +401,6 @@ def _build_paginated_host_tags_response(total, page, per_page, tags_list):
 @rbac(Permission.WRITE)
 @metrics.api_request_time.time()
 def host_checkin(body):
-
     current_identity = get_current_identity()
     canonical_facts = deserialize_canonical_facts(body)
     existing_host = find_existing_host(current_identity, canonical_facts)

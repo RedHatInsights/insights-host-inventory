@@ -19,7 +19,6 @@ def custom_fields_parser(root_key, key_path, val):
 
 
 class customURIParser(OpenAPIURIParser):
-
     # Override resolve_params to allow reserved characters in query params
     def resolve_params(self, params, _in):
         """

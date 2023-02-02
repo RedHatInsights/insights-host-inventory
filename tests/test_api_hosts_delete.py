@@ -378,7 +378,6 @@ def test_delete_host_with_RBAC_bypassed_as_system(
 def test_delete_hosts_chunk_size(
     event_producer_mock, db_create_multiple_hosts, api_delete_host, mocker, inventory_config
 ):
-
     inventory_config.host_delete_chunk_size = 5
 
     query_wrapper = DeleteQueryWrapper(mocker)

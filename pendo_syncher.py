@@ -116,7 +116,6 @@ def pendo_sync(select_query, config, logger, interrupt=lambda: False):
 
 
 def run(config, logger, session, shutdown_handler):
-
     query = session.query(Host.org_id, func.count(Host.id))
 
     pendo_sync(query, config, logger, shutdown_handler.shut_down)
@@ -124,7 +123,6 @@ def run(config, logger, session, shutdown_handler):
 
 
 def main(logger):
-
     config = _init_config()
     registry = CollectorRegistry()
 

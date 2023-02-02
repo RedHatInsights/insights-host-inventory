@@ -1894,7 +1894,7 @@ class EventProducerTests(TestCase):
         poll = self.event_producer._kafka_producer.poll
         host_id = self.basic_host["id"]
 
-        for (event_type, host) in (
+        for event_type, host in (
             (EventType.created, self.basic_host),
             (EventType.updated, self.basic_host),
             (EventType.delete, deserialize_host(self.basic_host)),
@@ -1922,7 +1922,7 @@ class EventProducerTests(TestCase):
         poll = self.event_producer._kafka_producer.poll
         host_id = self.basic_host["id"]
 
-        for (event_type, host) in (
+        for event_type, host in (
             (EventType.created, self.basic_host),
             (EventType.updated, self.basic_host),
             (EventType.delete, deserialize_host(self.basic_host)),

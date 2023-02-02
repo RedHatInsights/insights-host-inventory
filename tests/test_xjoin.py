@@ -1132,7 +1132,6 @@ def test_tags_query_variables_registered_with(mocker, assert_tag_query_host_filt
 def test_tags_query_variables_registered_with_per_reporter(
     mocker, assert_tag_query_host_filter_single_call, reporters
 ):
-
     tags_url = build_tags_url(query="?" + "&".join([f"registered_with={reporter}" for reporter in reporters]))
 
     prs_array = _build_prs_array(mocker, reporters)
