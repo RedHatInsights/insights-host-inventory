@@ -430,7 +430,7 @@ class ConfigTestCase(TestCase):
 
 
 @patch("app.db.get_engine")
-@patch("app.Config", **{"return_value.mgmt_url_path_prefix": "/", "return_value.unleash_token": ""})
+@patch("app.Config", **{"return_value.mgmt_url_path_prefix": "/"})
 class CreateAppConfigTestCase(TestCase):
     def test_config_is_assigned(self, config, get_engine):
         app = create_app(RuntimeEnvironment.TEST)

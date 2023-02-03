@@ -14,28 +14,6 @@ The `python-snappy` package requires the core Snappy library to be installed on 
 sudo dnf install snappy
 ```
 
-### pg_config
-
-Local development also requires the `pg_config` file, which is installed with the postgres developer library. To install this, use the command appropriate to your system:
-
-#### Fedora/Centos
-
-```bash
-sudo dnf install libpq-devel
-```
-
-#### Debian/Ubuntu
-
-```bash
-sudo apt-get install libpq-dev
-```
-
-#### MacOS (using Homebrew)
-
-```bash
-brew install postgresql
-```
-
 ### Install dependencies
 
 This project uses pipenv to manage the development and deployment environments.

@@ -89,11 +89,6 @@ def enable_org_id_translation(inventory_config):
 
 
 @pytest.fixture(scope="function")
-def enable_unleash(inventory_config):
-    inventory_config.unleash_token = "mockUnleashTokenValue"
-
-
-@pytest.fixture(scope="function")
 def user_identity_mock(flask_app):
     flask_app.user_identity = MockUserIdentity()
     yield flask_app.user_identity
