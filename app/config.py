@@ -63,19 +63,6 @@ class Config:
             self.kafka_sasl_mechanism = "PLAIN"
             self.kafka_security_protocol = "PLAINTEXT"
 
-        # Feature flags
-        unleash = cfg.featureFlags
-        if unleash:
-            self.unleash_token = unleash.clientAccessToken
-            unleash_url = f"{unleash.hostname}:{unleash.port}/api"
-            if unleash.port in (80, 8080):
-                self.unleash_url = f"http://{unleash_url}"
-            else:
-                self.unleash_url = f"https://{unleash_url}"
-        else:
-            self.unleash_url = os.getenv("UNLEASH_URL")
-            self.unleash_token = os.getenv("UNLEASH_TOKEN")
-
     def non_clowder_config(self):
         self.metrics_port = 9126
         self.metrics_path = "/metrics"
@@ -101,9 +88,6 @@ class Config:
         self.kafka_sasl_password = os.environ.get("KAFKA_SASL_PASSWORD", "")
         self.kafka_security_protocol = os.environ.get("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT").upper()
         self.kafka_sasl_mechanism = os.environ.get("KAFKA_SASL_MECHANISM", "PLAIN").upper()
-
-        self.unleash_url = os.environ.get("UNLEASH_URL", "http://unleash:4242/api")
-        self.unleash_token = os.environ.get("UNLEASH_TOKEN", "")
 
     def __init__(self, runtime_environment):
         self.logger = get_logger(__name__)
@@ -233,9 +217,8 @@ class Config:
             self.pendo_request_size = int(os.environ.get("PENDO_REQUEST_SIZE", "500"))
 
         if self._runtime_environment == RuntimeEnvironment.TEST:
-            self.bypass_rbac = True
-            self.bypass_tenant_translation = True
-            self.unleash_token = None
+            self.bypass_rbac = "true"
+            self.bypass_tenant_translation = "true"
 
     def _build_base_url_path(self):
         app_name = os.getenv("APP_NAME", "inventory")
@@ -300,8 +283,6 @@ class Config:
             self.logger.info("RBAC Endpoint: %s", self.rbac_endpoint)
             self.logger.info("RBAC Retry Times: %s", self.rbac_retries)
             self.logger.info("RBAC Timeout Seconds: %s", self.rbac_timeout)
-
-            self.logger.info("Unleash (feature flags) Bypassed: %s", self.unleash_token is None)
 
             self.logger.info(
                 "Bypassing tenant translation for hosts missing org_id: %s", self.bypass_tenant_translation
