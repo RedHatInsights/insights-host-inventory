@@ -65,6 +65,7 @@ class Config:
 
         # Feature flags
         unleash = cfg.featureFlags
+        self.unleash_cache_directory = os.getenv("UNLEASH_CACHE_DIR", "/tmp/.unleashcache")
         if unleash:
             self.unleash_token = unleash.clientAccessToken
             unleash_url = f"{unleash.hostname}:{unleash.port}/api"
