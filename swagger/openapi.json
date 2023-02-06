@@ -1192,6 +1192,9 @@
     },
     "/unleash/inventory_groups_toggle": {
       "get": {
+        "tags": [
+          "unleash"
+        ],
         "summary": "Check whether the Groups feature is enabled",
         "description": "Returns the value of the hbi.api.inventory-groups toggle, if able to be retrieved.",
         "operationId": "api.unleash.get_inventory_groups_toggle",
