@@ -52,7 +52,6 @@ def _integer_filter(field_name, field_value, operation, spec=None):
 
 
 def _timestamp_filter(field_name, field_value, operation, spec=None):
-
     if not is_timestamp(field_value):
         _invalid_value_error(field_name, field_value)
 
@@ -374,7 +373,8 @@ def query_filters(
         query_filters = ()
 
     if tags:
-        query_filters += build_tag_query_dict_tuple(tags)
+        tag_filters = build_tag_query_dict_tuple(tags)
+        query_filters += ({"OR": tag_filters},)
     if staleness:
         staleness_filters = tuple(staleness_filter(staleness))
         query_filters += ({"OR": staleness_filters},)

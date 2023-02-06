@@ -208,7 +208,6 @@ def update_system_profile(host_data, platform_metadata):
         processing_status_message="updating host system profile",
         current_operation="updating host system profile",
     ) as payload_tracker_processing_ctx:
-
         try:
             input_host = deserialize_host(host_data, schema=LimitedHostSchema)
             input_host.id = host_data.get("id")
@@ -241,7 +240,6 @@ def add_host(host_data, platform_metadata):
     with PayloadTrackerProcessingContext(
         payload_tracker, processing_status_message="adding/updating host", current_operation="adding/updating host"
     ) as payload_tracker_processing_ctx:
-
         try:
             identity = _get_identity(host_data, platform_metadata)
             # basic-auth does not need owner_id

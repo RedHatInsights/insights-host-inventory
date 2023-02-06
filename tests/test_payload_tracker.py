@@ -61,7 +61,7 @@ def test_payload_tracker_producer_raises_exception(payload_tracker, tracker_date
 
     methods_to_test = get_payload_tracker_methods(tracker)
 
-    for (method_to_test, _) in methods_to_test:
+    for method_to_test, _ in methods_to_test:
         with subtests.test(method_to_test=method_to_test):
             # This method should NOT raise an exception...even though
             # the producer is causing an exception
@@ -78,7 +78,7 @@ def test_payload_tracker_json_raises_exception(mocker, payload_tracker, tracker_
 
     methods_to_test = get_payload_tracker_methods(tracker)
 
-    for (method_to_test, _) in methods_to_test:
+    for method_to_test, _ in methods_to_test:
         with subtests.test(method_to_test=method_to_test):
             # This method should NOT raise an exception...even though
             # the producer is causing an exception
@@ -93,7 +93,7 @@ def test_payload_tracker_account_is_none(payload_tracker, tracker_datetime_mock,
 
     methods_to_test = get_payload_tracker_methods(tracker)
 
-    for (method_to_test, expected_status) in methods_to_test:
+    for method_to_test, expected_status in methods_to_test:
         with subtests.test(method_to_test=method_to_test):
             method_to_test()
 

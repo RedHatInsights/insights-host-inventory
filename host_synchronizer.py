@@ -58,7 +58,6 @@ def _excepthook(logger, type, value, traceback):
 
 @synchronize_fail_count.count_exceptions()
 def run(config, logger, session, event_producer, shutdown_handler):
-
     query = session.query(Host)
 
     update_count = synchronize_hosts(
@@ -69,7 +68,6 @@ def run(config, logger, session, event_producer, shutdown_handler):
 
 
 def main(logger):
-
     config = _init_config()
     registry = CollectorRegistry()
 
