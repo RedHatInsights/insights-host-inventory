@@ -206,7 +206,7 @@ def create_app(runtime_environment):
         flask_app.config["UNLEASH_ENVIRONMENT"] = "default"
         flask_app.config["UNLEASH_URL"] = app_config.unleash_url
         flask_app.config["UNLEASH_CUSTOM_HEADERS"] = {"Authorization": app_config.unleash_token}
-        if app_config.unleash_cache_directory:
+        if hasattr(app_config, "unleash_cache_directory"):
             flask_app.config["UNLEASH_CACHE_DIRECTORY"] = app_config.unleash_cache_directory
         init_unleash_app(flask_app)
     else:
