@@ -1189,6 +1189,33 @@
           }
         }
       }
+    },
+    "/unleash/inventory_groups_toggle": {
+      "get": {
+        "tags": [
+          "unleash"
+        ],
+        "summary": "Check whether the Groups feature is enabled",
+        "description": "Returns the value of the hbi.api.inventory-groups toggle, if able to be retrieved.",
+        "operationId": "api.unleash.get_inventory_groups_toggle",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The value of the Inventory Groups toggle",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnleashToggleOut"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2237,6 +2264,19 @@
         "nullable": true,
         "items": {
           "type": "string"
+        }
+      },
+      "UnleashToggleOut": {
+        "title": "Unleash Toggle Out",
+        "properties": {
+          "flag_value": {
+            "description": "The value of the feature flag toggle",
+            "type": "boolean"
+          },
+          "using_fallback_value": {
+            "description": "Whether the fallback value was used, if the Unleash server could not be accessed",
+            "type": "boolean"
+          }
         }
       },
       "GroupIn": {
