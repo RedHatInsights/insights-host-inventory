@@ -1189,6 +1189,33 @@
           }
         }
       }
+    },
+    "/unleash/inventory_groups_toggle": {
+      "get": {
+        "tags": [
+          "unleash"
+        ],
+        "summary": "Check whether the Groups feature is enabled",
+        "description": "Returns the value of the hbi.api.inventory-groups toggle, if able to be retrieved.",
+        "operationId": "api.unleash.get_inventory_groups_toggle",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The value of the Inventory Groups toggle",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnleashToggleOut"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1231,6 +1258,15 @@
         },
         "description": "A number of items to return per page."
       },
+      "hostId": {
+        "in": "path",
+        "name": "host_id",
+        "description": "Host (system) ID.",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/HostId"
+        }
+      },
       "hostIdList": {
         "in": "path",
         "name": "host_id_list",
@@ -1239,9 +1275,7 @@
         "schema": {
           "type": "array",
           "items": {
-            "type": "string",
-            "pattern": "^[0-9a-fA-F]{8}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{12}$|^[0-9a-fA-F]{8}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{12}$",
-            "format": "uuid"
+            "$ref": "#/components/schemas/HostId"
           }
         }
       },
@@ -1514,9 +1548,7 @@
         "description": "Group ID.",
         "required": true,
         "schema": {
-          "type": "string",
-          "pattern": "^[0-9a-fA-F]{8}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{12}$|^[0-9a-fA-F]{8}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{12}$",
-          "format": "uuid"
+          "$ref": "#/components/schemas/HostId"
         }
       },
       "groupIdList": {
@@ -1527,9 +1559,7 @@
         "schema": {
           "type": "array",
           "items": {
-            "type": "string",
-            "pattern": "^[0-9a-fA-F]{8}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{12}$|^[0-9a-fA-F]{8}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{12}$",
-            "format": "uuid"
+            "$ref": "#/components/schemas/HostId"
           }
         }
       }
@@ -2023,7 +2053,7 @@
                 "description": "Reporting source of the last checkin status, stale_timestamp, and last_check_in.",
                 "type": "object",
                 "additionalProperties": {
-                  "$ref": "#components/schemas/PerReporterStaleness"
+                  "$ref": "#/components/schemas/PerReporterStaleness"
                 }
               }
             },
@@ -2223,6 +2253,8 @@
       "GroupId": {
         "description": "A durable and reliable platform-wide group identifier. Applications should use this identifier to reference groups.",
         "type": "string",
+        "pattern": "^[0-9a-fA-F]{8}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{12}$|^[0-9a-fA-F]{8}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{12}$",
+        "format": "uuid",
         "example": "3f01b55457674041b75e41829bcee1dc"
       },
       "GroupName": {
@@ -2231,12 +2263,32 @@
         "nullable": true,
         "example": "sre-group"
       },
+      "HostId": {
+        "description": "A durable and reliable platform-wide group identifier. Applications should use this identifier to reference hosts.",
+        "type": "string",
+        "pattern": "^[0-9a-fA-F]{8}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{12}$|^[0-9a-fA-F]{8}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{12}$",
+        "format": "uuid",
+        "example": "bA6deCFc19564430AB814bf8F70E8cEf"
+      },
       "HostIds": {
         "description": "A comma separated list of host IDs that belong to the group.",
         "type": "array",
         "nullable": true,
         "items": {
-          "type": "string"
+          "$ref": "#/components/schemas/HostId"
+        }
+      },
+      "UnleashToggleOut": {
+        "title": "Unleash Toggle Out",
+        "properties": {
+          "flag_value": {
+            "description": "The value of the feature flag toggle",
+            "type": "boolean"
+          },
+          "using_fallback_value": {
+            "description": "Whether the fallback value was used, if the Unleash server could not be accessed",
+            "type": "boolean"
+          }
         }
       },
       "GroupIn": {

@@ -9,6 +9,7 @@ objects:
     name: ${CLOWDAPP_NAME}
   spec:
     envName: ${ENV_NAME}
+    featureFlags: true
     testing:
       iqePlugin: host-inventory
     dependencies:
@@ -80,6 +81,14 @@ objects:
           value: ${BYPASS_TENANT_TRANSLATION}
         - name: CLOWDER_ENABLED
           value: "true"
+        - name: UNLEASH_URL
+          value: ${UNLEASH_URL}
+        - name: UNLEASH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: ${UNLEASH_SECRET_NAME}
+              key: CLIENT_ACCESS_TOKEN
+              optional: true
         resources:
           limits:
             cpu: ${CPU_LIMIT}
@@ -162,6 +171,14 @@ objects:
           value: ${BYPASS_TENANT_TRANSLATION}
         - name: CLOWDER_ENABLED
           value: "true"
+        - name: UNLEASH_URL
+          value: ${UNLEASH_URL}
+        - name: UNLEASH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: ${UNLEASH_SECRET_NAME}
+              key: CLIENT_ACCESS_TOKEN
+              optional: true
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -235,6 +252,14 @@ objects:
           value: ${BYPASS_TENANT_TRANSLATION}
         - name: CLOWDER_ENABLED
           value: "true"
+        - name: UNLEASH_URL
+          value: ${UNLEASH_URL}
+        - name: UNLEASH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: ${UNLEASH_SECRET_NAME}
+              key: CLIENT_ACCESS_TOKEN
+              optional: true
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -302,6 +327,14 @@ objects:
           value: ${BYPASS_TENANT_TRANSLATION}
         - name: CLOWDER_ENABLED
           value: "true"
+        - name: UNLEASH_URL
+          value: ${UNLEASH_URL}
+        - name: UNLEASH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: ${UNLEASH_SECRET_NAME}
+              key: CLIENT_ACCESS_TOKEN
+              optional: true
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -371,6 +404,14 @@ objects:
             value: ${KAFKA_SASL_MECHANISM}
           - name: CLOWDER_ENABLED
             value: "true"
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - name: UNLEASH_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: ${UNLEASH_SECRET_NAME}
+                key: CLIENT_ACCESS_TOKEN
+                optional: true
         resources:
           limits:
             cpu: ${CPU_LIMIT}
@@ -445,6 +486,14 @@ objects:
             value: ${KAFKA_SASL_MECHANISM}
           - name: CLOWDER_ENABLED
             value: "true"
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - name: UNLEASH_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: ${UNLEASH_SECRET_NAME}
+                key: CLIENT_ACCESS_TOKEN
+                optional: true
         resources:
           limits:
             cpu: ${CPU_LIMIT}
@@ -484,6 +533,14 @@ objects:
                 fieldPath: metadata.namespace
           - name: CLOWDER_ENABLED
             value: "true"
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - name: UNLEASH_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: ${UNLEASH_SECRET_NAME}
+                key: CLIENT_ACCESS_TOKEN
+                optional: true
         resources:
           limits:
             cpu: ${CPU_LIMIT}
@@ -538,6 +595,14 @@ objects:
             value: "true"
           - name: SCRIPT_CHUNK_SIZE
             value: ${SCRIPT_CHUNK_SIZE}
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - name: UNLEASH_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: ${UNLEASH_SECRET_NAME}
+                key: CLIENT_ACCESS_TOKEN
+                optional: true
         resources:
           limits:
             cpu: ${CPU_LIMIT}
@@ -792,6 +857,13 @@ parameters:
   value: '16380'
 - name: SCRIPT_CHUNK_SIZE
   value: '500'
+
+# Feature flags
+- description: Unleash secret name
+  name: UNLEASH_SECRET_NAME
+  value: bypass
+- description: Unleash API url
+  name: UNLEASH_URL
 
 #floorist
 - name: MEMORY_LIMIT_FLOO
