@@ -39,7 +39,6 @@ def _delete_host(session, event_producer, host):
             event = build_event(EventType.delete, host)
             insights_id = host.canonical_facts.get("insights_id")
             headers = message_headers(EventType.delete, insights_id)
-            # add back "wait=True", if needed.
             event_producer.write_event(event, str(host.id), headers, wait=True)
             delete_query.session.commit()
             return host_deleted
@@ -51,10 +50,10 @@ def _delete_host(session, event_producer, host):
         raise KafkaException("Kafka server not available.  Stopping host deletions.")
 
 
-def _deleted_by_this_query(host):
-    # This process of checking for an already deleted host relies
+def _deleted_by_this_query(model):
+    # This process of checking for an alreadydeleted host relies
     # on checking the session after it has been updated by the commit()
     # function and marked the deleted hosts as expired.  It is after this
     # change that the host is called by a new query and, if deleted by a
-    # different process, triggers the ObjectDeletedError and is not emited.
-    return not instance_state(host).expired
+    # different process, triggers the ObjectDeletedError and is not emitted.
+    return not instance_state(model).expired
