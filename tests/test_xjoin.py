@@ -1742,6 +1742,50 @@ def test_xjoin_search_query_using_hostfilter_display_name(
     )
 
 
+def test_query_hosts_filter_updated_start_end(mocker, subtests, api_get, graphql_query_empty_response):
+    query_params = (
+        "?updated_start=2022-02-08T09:00:00.000Z",
+        "?updated_end=2023-02-08T09:00:00.000Z",
+        "?updated_start=2022-02-08T09:00:00.000Z&updated_end=2023-02-08T09:00:00.000Z",
+    )
+    graphql_queries = (
+        {"modified_on": {"gte": "2022-02-08T09:00:00.000Z"}},
+        {"modified_on": {"lte": "2023-02-08T09:00:00.000Z"}},
+        {"modified_on": {"gte": "2022-02-08T09:00:00.000Z", "lte": "2023-02-08T09:00:00.000Z"}},
+    )
+
+    for param, query in zip(query_params, graphql_queries):
+        with subtests.test(param=param, query=query):
+            url = build_hosts_url(query=param)
+
+            response_status, response_data = api_get(url)
+
+            assert response_status == 200
+
+            graphql_query_empty_response.assert_called_once_with(
+                HOST_QUERY,
+                {
+                    "order_by": mocker.ANY,
+                    "order_how": mocker.ANY,
+                    "limit": mocker.ANY,
+                    "offset": mocker.ANY,
+                    "filter": ({"OR": mocker.ANY}, query),
+                    "fields": mocker.ANY,
+                },
+                mocker.ANY,
+            )
+            graphql_query_empty_response.reset_mock()
+
+
+def test_query_hosts_filter_updated_error(api_get):
+    url = build_hosts_url(query="?updated_start=2023-02-08T09:00:00.000Z&updated_end=2020-02-08T09:00:00.000Z")
+
+    # This request should return an HTTP 400 because the start time is after the end time.
+    response_status, _ = api_get(url)
+
+    assert response_status == 400
+
+
 @pytest.mark.parametrize(
     "tags,query_param",
     (
