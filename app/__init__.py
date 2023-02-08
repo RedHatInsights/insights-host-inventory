@@ -205,7 +205,7 @@ def create_app(runtime_environment):
         flask_app.config["UNLEASH_APP_NAME"] = "host-inventory-api"
         flask_app.config["UNLEASH_ENVIRONMENT"] = "default"
         flask_app.config["UNLEASH_URL"] = app_config.unleash_url
-        flask_app.config["UNLEASH_CUSTOM_HEADERS"] = {"Authorization": app_config.unleash_token}
+        flask_app.config["UNLEASH_CUSTOM_HEADERS"] = {"Authorization": f"Bearer {app_config.unleash_token}"}
         if hasattr(app_config, "unleash_cache_directory"):
             flask_app.config["UNLEASH_CACHE_DIRECTORY"] = app_config.unleash_cache_directory
         init_unleash_app(flask_app)
