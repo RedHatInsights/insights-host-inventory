@@ -61,6 +61,8 @@ paths:
         - $ref: '#/components/parameters/insightsId'
         - $ref: '#/components/parameters/providerId'
         - $ref: '#/components/parameters/providerType'
+        - $ref: '#/components/parameters/updatedStart'
+        - $ref: '#/components/parameters/updatedEnd'
         - $ref: '#/components/parameters/registered_with'
         - $ref: '#/components/parameters/stalenessNoDefaultsParam'
         - $ref: '#/components/parameters/tagsParam'
@@ -568,6 +570,8 @@ paths:
         - $ref: '#/components/parameters/insightsId'
         - $ref: '#/components/parameters/providerId'
         - $ref: '#/components/parameters/providerType'
+        - $ref: '#/components/parameters/updatedStart'
+        - $ref: '#/components/parameters/updatedEnd'
         - $ref: '#/components/parameters/registered_with'
         - $ref: '#/components/parameters/filter_param'
       responses:

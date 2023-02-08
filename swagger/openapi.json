@@ -120,6 +120,12 @@
             "$ref": "#/components/parameters/providerType"
           },
           {
+            "$ref": "#/components/parameters/updatedStart"
+          },
+          {
+            "$ref": "#/components/parameters/updatedEnd"
+          },
+          {
             "$ref": "#/components/parameters/registered_with"
           },
           {
@@ -948,6 +954,12 @@
           },
           {
             "$ref": "#/components/parameters/providerType"
+          },
+          {
+            "$ref": "#/components/parameters/updatedStart"
+          },
+          {
+            "$ref": "#/components/parameters/updatedEnd"
           },
           {
             "$ref": "#/components/parameters/registered_with"

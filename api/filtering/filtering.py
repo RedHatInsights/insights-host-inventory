@@ -3,6 +3,7 @@ from datetime import datetime
 from datetime import timezone
 from enum import Enum
 from functools import partial
+from typing import Tuple
 from uuid import UUID
 
 from dateutil import parser
@@ -303,7 +304,7 @@ def build_registered_with_filter(registered_with):
     return ({"OR": prs_list},)
 
 
-def _build_modified_on_filter(updated_start=None, updated_end=None):
+def _build_modified_on_filter(updated_start: str = None, updated_end: str = None) -> Tuple:
     if updated_start and updated_end and parser.isoparse(updated_start) >= parser.isoparse(updated_end):
         raise ValueError("updated_start cannot be after updated_end.")
     modified_on_filter = {}
