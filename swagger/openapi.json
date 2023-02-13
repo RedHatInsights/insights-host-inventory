@@ -890,6 +890,44 @@
         }
       }
     },
+    "/resource_types": {
+      "get": null,
+      "operationId": "api.resource_type.get_resource_type_list",
+      "tags": [
+        "resource_types"
+      ],
+      "summary": "Read the entire list of resource types",
+      "description": "Read the entire list of all resource types available to the account. <br /><br /> Required permissions: inventory:*:*",
+      "security": [
+        {
+          "ApiKeyAuth": []
+        }
+      ],
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/perPageParam"
+        },
+        {
+          "$ref": "#/components/parameters/pageParam"
+        },
+        {
+          "$ref": "#/components/parameters/orderByParam"
+        },
+        {
+          "$ref": "#/components/parameters/orderHowParam"
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Successfully read the resource types list.",
+          "content": {
+            "application/json": {
+              "schema": null
+            }
+          }
+        }
+      }
+    },
     "/tags": {
       "get": {
         "tags": [

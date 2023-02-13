@@ -125,6 +125,15 @@ def log_get_operating_system_failed(logger):
     logger.debug("operating_system not found", extra={"access_rule": get_control_rule()})
 
 
+# get resource_types
+def log_get_resource_type_list_succeeded(logger, results_list):
+    logger.debug("Found hosts: %s", results_list, extra={"access_rule": get_control_rule()})
+
+
+def log_get_resource_type_list_failed(logger):
+    logger.debug("hosts not found", extra={"access_rule": get_control_rule()})
+
+
 # sparse system_profile
 def log_get_sparse_system_profile_succeeded(logger, data):
     logger.debug("Found sparse system_profile: %s", data, extra={"access_rule": get_control_rule()})
