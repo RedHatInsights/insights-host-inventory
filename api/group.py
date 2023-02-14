@@ -40,14 +40,14 @@ def update_group_details(group_id, group_daty):
 @api_operation
 @rbac(Permission.WRITE)
 @metrics.api_request_time.time()
-def delete_group(group_id):
+def delete_groups(group_id_list):
     if not get_flag_value(FLAG_INVENTORY_GROUPS)[0]:
         return flask.Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
-    delete_count = delete_group_list([group_id], inventory_config().host_delete_chunk_size)
+    delete_count = delete_group_list(group_id_list, inventory_config().host_delete_chunk_size)
 
     if delete_count == 0:
-        flask.abort(status.HTTP_404_NOT_FOUND, "Group not found for deletion.")
+        flask.abort(status.HTTP_404_NOT_FOUND, "No groups found for deletion.")
 
     return flask.Response(None, status.HTTP_200_OK)
 

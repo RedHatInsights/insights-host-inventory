@@ -80,9 +80,9 @@ def api_delete_all_hosts(flask_client):
 
 
 @pytest.fixture(scope="function")
-def api_delete_group(flask_client):
-    def _api_delete_group(group_id, identity=USER_IDENTITY, query_parameters=None, extra_headers=None):
-        url = f"{GROUP_URL}/{group_id}"
+def api_delete_groups(flask_client):
+    def _api_delete_group(group_id_list, identity=USER_IDENTITY, query_parameters=None, extra_headers=None):
+        url = f"{GROUP_URL}/{','.join([str(group_id) for group_id in group_id_list])}"
         return do_request(
             flask_client.delete, url, identity, query_parameters=query_parameters, extra_headers=extra_headers
         )
