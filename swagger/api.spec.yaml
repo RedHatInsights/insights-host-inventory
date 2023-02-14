@@ -843,7 +843,7 @@ components:
         type: string
         enum:
           - name
-          - updated
+          - updated_at
           - host_ids
       description: Ordering field name
     orderHowParam:
