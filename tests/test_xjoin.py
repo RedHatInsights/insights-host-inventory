@@ -1744,14 +1744,18 @@ def test_xjoin_search_query_using_hostfilter_display_name(
 
 def test_query_hosts_filter_updated_start_end(mocker, subtests, api_get, graphql_query_empty_response):
     query_params = (
-        "?updated_start=2022-02-08T09:00:00.000Z",
-        "?updated_end=2023-02-08T09:00:00.000Z",
-        "?updated_start=2022-02-08T09:00:00.000Z&updated_end=2023-02-08T09:00:00.000Z",
+        "?updated_start=2022-02-08T09:12:34.567890Z",
+        "?updated_end=2023-02-08T09:12:34.567890Z",
+        "?updated_start=2022-02-08T09:12:34.567890Z&updated_end=2023-02-08T09:12:34.567890Z",
+        "?updated_start=2022-02-08T09:12:34",
+        "?updated_end=2023-02-08",
     )
     graphql_queries = (
-        {"modified_on": {"gte": "2022-02-08T09:00:00.000Z"}},
-        {"modified_on": {"lte": "2023-02-08T09:00:00.000Z"}},
-        {"modified_on": {"gte": "2022-02-08T09:00:00.000Z", "lte": "2023-02-08T09:00:00.000Z"}},
+        {"modified_on": {"gte": "2022-02-08T09:12:34.567890+00:00"}},
+        {"modified_on": {"lte": "2023-02-08T09:12:34.567890+00:00"}},
+        {"modified_on": {"gte": "2022-02-08T09:12:34.567890+00:00", "lte": "2023-02-08T09:12:34.567890+00:00"}},
+        {"modified_on": {"gte": "2022-02-08T09:12:34"}},
+        {"modified_on": {"lte": "2023-02-08T00:00:00"}},
     )
 
     for param, query in zip(query_params, graphql_queries):
