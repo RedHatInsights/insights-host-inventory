@@ -29,11 +29,11 @@ def get_group(group_id):
     pass
 
 
-def patch_group_by_id(group_id, group_dat):
+def patch_group_by_id(group_id, group_data):
     pass
 
 
-def update_group_details(group_id, group_daty):
+def update_group_details(group_id, group_data):
     pass
 
 
