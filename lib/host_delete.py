@@ -51,9 +51,9 @@ def _delete_host(session, event_producer, host):
 
 
 def _deleted_by_this_query(model):
-    # This process of checking for an alreadydeleted host relies
+    # This process of checking for an already deleted object relies
     # on checking the session after it has been updated by the commit()
-    # function and marked the deleted hosts as expired.  It is after this
+    # function and marked the deleted objects as expired.  It is after this
     # change that the host is called by a new query and, if deleted by a
     # different process, triggers the ObjectDeletedError and is not emitted.
     return not instance_state(model).expired
