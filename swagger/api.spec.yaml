@@ -27,7 +27,7 @@ paths:
         - $ref: '#/components/parameters/branchId'
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
-        - $ref: '#/components/parameters/orderByParam'
+        - $ref: '#/components/parameters/hostOrderByParam'
         - $ref: '#/components/parameters/orderHowParam'
         - $ref: '#/components/parameters/stalenessParam'
         - $ref: '#/components/parameters/tagsParam'
@@ -136,7 +136,7 @@ paths:
         - $ref: '#/components/parameters/branchId'
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
-        - $ref: '#/components/parameters/orderByParam'
+        - $ref: '#/components/parameters/hostOrderByParam'
         - $ref: '#/components/parameters/orderHowParam'
         - $ref: '#/components/parameters/fields_param'
       responses:
@@ -274,7 +274,7 @@ paths:
         - $ref: '#/components/parameters/hostIdList'
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
-        - $ref: '#/components/parameters/orderByParam'
+        - $ref: '#/components/parameters/hostOrderByParam'
         - $ref: '#/components/parameters/orderHowParam'
         - $ref: '#/components/parameters/branchId'
         - $ref: '#/components/parameters/fields_param'
@@ -305,7 +305,7 @@ paths:
         - $ref: '#/components/parameters/hostIdList'
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
-        - $ref: '#/components/parameters/orderByParam'
+        - $ref: '#/components/parameters/hostOrderByParam'
         - $ref: '#/components/parameters/orderHowParam'
         - $ref: '#/components/parameters/searchParam'
       responses:
@@ -333,7 +333,7 @@ paths:
         - $ref: '#/components/parameters/hostIdList'
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
-        - $ref: '#/components/parameters/orderByParam'
+        - $ref: '#/components/parameters/hostOrderByParam'
         - $ref: '#/components/parameters/orderHowParam'
       responses:
         '200':
@@ -360,7 +360,7 @@ paths:
         - $ref: '#/components/parameters/groupName'
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
-        - $ref: '#/components/parameters/orderByParam'
+        - $ref: '#/components/parameters/groupOrderByParam'
         - $ref: '#/components/parameters/orderHowParam'
       responses:
         '200':
@@ -824,7 +824,7 @@ components:
       required: true
       schema:
         type: string
-    orderByParam:
+    hostOrderByParam:
       name: order_by
       in: query
       required: false
@@ -834,6 +834,17 @@ components:
           - display_name
           - updated
           - operating_system
+      description: Ordering field name
+    groupOrderByParam:
+      name: order_by
+      in: query
+      required: false
+      schema:
+        type: string
+        enum:
+          - name
+          - updated
+          - host_ids
       description: Ordering field name
     orderHowParam:
       name: order_how
@@ -1478,7 +1489,7 @@ components:
       description: >-
         A group’s human-readable name.
       type: string
-      nullable: true
+      nullable: false
       example: sre-group
     HostId:
       description: >-
