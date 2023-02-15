@@ -17,6 +17,7 @@ from app.auth.identity import IdentityType
 from tests.helpers.test_utils import now
 
 HOST_URL = "/api/inventory/v1/hosts"
+GROUP_URL = "/api/inventory/v1/groups"
 TAGS_URL = "/api/inventory/v1/tags"
 SYSTEM_PROFILE_URL = "/api/inventory/v1/system_profile"
 

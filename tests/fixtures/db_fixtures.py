@@ -157,7 +157,7 @@ def models_datetime_mock(mocker):
 
 @pytest.fixture(scope="function")
 def db_create_group(flask_app):
-    def _db_create_group(identity=SYSTEM_IDENTITY, name=None):
+    def _db_create_group(name, identity=SYSTEM_IDENTITY):
         group = db_group(org_id=identity["org_id"], account=identity["account_number"], name=name)
         db.session.add(group)
         db.session.commit()

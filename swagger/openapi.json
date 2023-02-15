@@ -54,7 +54,7 @@
             "$ref": "#/components/parameters/pageParam"
           },
           {
-            "$ref": "#/components/parameters/orderByParam"
+            "$ref": "#/components/parameters/hostOrderByParam"
           },
           {
             "$ref": "#/components/parameters/orderHowParam"
@@ -247,7 +247,7 @@
             "$ref": "#/components/parameters/pageParam"
           },
           {
-            "$ref": "#/components/parameters/orderByParam"
+            "$ref": "#/components/parameters/hostOrderByParam"
           },
           {
             "$ref": "#/components/parameters/orderHowParam"
@@ -469,7 +469,7 @@
             "$ref": "#/components/parameters/pageParam"
           },
           {
-            "$ref": "#/components/parameters/orderByParam"
+            "$ref": "#/components/parameters/hostOrderByParam"
           },
           {
             "$ref": "#/components/parameters/orderHowParam"
@@ -525,7 +525,7 @@
             "$ref": "#/components/parameters/pageParam"
           },
           {
-            "$ref": "#/components/parameters/orderByParam"
+            "$ref": "#/components/parameters/hostOrderByParam"
           },
           {
             "$ref": "#/components/parameters/orderHowParam"
@@ -575,7 +575,7 @@
             "$ref": "#/components/parameters/pageParam"
           },
           {
-            "$ref": "#/components/parameters/orderByParam"
+            "$ref": "#/components/parameters/hostOrderByParam"
           },
           {
             "$ref": "#/components/parameters/orderHowParam"
@@ -622,7 +622,7 @@
             "$ref": "#/components/parameters/pageParam"
           },
           {
-            "$ref": "#/components/parameters/orderByParam"
+            "$ref": "#/components/parameters/groupOrderByParam"
           },
           {
             "$ref": "#/components/parameters/orderHowParam"
@@ -805,32 +805,6 @@
             "description": "Group not found."
           }
         }
-      },
-      "delete": {
-        "operationId": "api.group.delete_group",
-        "tags": [
-          "groups"
-        ],
-        "summary": "Delete a group [Not Implemented]",
-        "description": "Delete a group. [Not Implemented] <br /><br /> Required permissions: inventory:groups:write",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/groupId"
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Group was successfully deleted."
-          },
-          "400": {
-            "description": "Invalid request."
-          }
-        }
       }
     },
     "/groups/{group_id_list}": {
@@ -867,6 +841,32 @@
           },
           "404": {
             "description": "Groups not found."
+          }
+        }
+      },
+      "delete": {
+        "operationId": "api.group.delete_groups",
+        "tags": [
+          "groups"
+        ],
+        "summary": "Delete a list of groups [Not Implemented]",
+        "description": "Delete a list of groups. [Not Implemented] <br /><br /> Required permissions: inventory:groups:write",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/groupIdList"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The groups were successfully deleted."
+          },
+          "400": {
+            "description": "Invalid request."
           }
         }
       }
@@ -1395,7 +1395,7 @@
           "type": "string"
         }
       },
-      "orderByParam": {
+      "hostOrderByParam": {
         "name": "order_by",
         "in": "query",
         "required": false,
@@ -1405,6 +1405,20 @@
             "display_name",
             "updated",
             "operating_system"
+          ]
+        },
+        "description": "Ordering field name"
+      },
+      "groupOrderByParam": {
+        "name": "order_by",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "name",
+            "updated_at",
+            "host_ids"
           ]
         },
         "description": "Ordering field name"
@@ -2296,7 +2310,7 @@
       "GroupName": {
         "description": "A group’s human-readable name.",
         "type": "string",
-        "nullable": true,
+        "nullable": false,
         "example": "sre-group"
       },
       "HostId": {

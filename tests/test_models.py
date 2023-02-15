@@ -544,7 +544,7 @@ def test_create_delete_group_happy(db_create_group, db_get_group, db_delete_grou
     group_name = "Host Group 1"
 
     # Verify that the group is created successfully
-    created_group = db_create_group(name=group_name)
+    created_group = db_create_group(group_name)
     assert db_get_group(created_group.id).name == group_name
 
     # Verify that the same group is deleted successfully
@@ -556,24 +556,21 @@ def test_create_group_no_name(db_create_group):
     # Make sure we can't create a group with an empty name
 
     with pytest.raises(ValidationException):
-        db_create_group(name=None)
+        db_create_group(None)
 
 
 def test_create_group_existing_name_diff_org(db_create_group, db_get_group):
     # Make sure we can't create two groups with the same name in the same org
     group_name = "TestGroup_diff_org"
 
-    group1 = db_create_group(name=group_name)
+    group1 = db_create_group(group_name)
     assert db_get_group(group1.id).name == group_name
 
     diff_identity = deepcopy(SYSTEM_IDENTITY)
     diff_identity["org_id"] = "diff_id"
     diff_identity["account"] = "diff_id"
 
-    group2 = db_create_group(
-        diff_identity,
-        name=group_name,
-    )
+    group2 = db_create_group(group_name, diff_identity)
 
     assert db_get_group(group2.id).name == group_name
 
@@ -581,9 +578,9 @@ def test_create_group_existing_name_diff_org(db_create_group, db_get_group):
 def test_create_group_existing_name_same_org(db_create_group):
     # Make sure we can't create two groups with the same name in the same org
     group_name = "TestGroup"
-    db_create_group(name=group_name)
+    db_create_group(group_name)
     with pytest.raises(IntegrityError):
-        db_create_group(name=group_name)
+        db_create_group(group_name)
 
 
 def test_add_delete_host_group_happy(
@@ -599,7 +596,7 @@ def test_add_delete_host_group_happy(
     group_name = "Test Group Happy"
 
     # Create a group to associate with the hosts
-    created_group = db_create_group(name=group_name)
+    created_group = db_create_group(group_name)
     created_host_list = []
 
     for index in range(hosts_to_create):

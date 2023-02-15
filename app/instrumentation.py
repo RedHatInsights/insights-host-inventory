@@ -89,6 +89,15 @@ def log_get_host_list_failed(logger):
     logger.debug("hosts not found", extra={"access_rule": get_control_rule()})
 
 
+# delete group
+def log_group_delete_succeeded(logger, group_id, control_rule):
+    logger.info("Deleted group: %s", group_id, extra={"access_rule": control_rule})
+
+
+def log_group_delete_failed(logger, group_id, control_rule):
+    logger.info("Group %s already deleted. Delete event not emitted.", group_id, extra={"access_rule": control_rule})
+
+
 # get tags
 def log_get_tags_succeeded(logger, data):
     logger.debug("Found tags: %s", data, extra={"access_rule": get_control_rule()})
