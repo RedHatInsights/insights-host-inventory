@@ -8,6 +8,7 @@ from app import Permission
 from lib.feature_flags import FLAG_INVENTORY_GROUPS
 from lib.feature_flags import get_flag_value
 from lib.group_repository import delete_group_list
+from lib.group_repository import remove_hosts_from_group
 from lib.middleware import rbac
 
 
@@ -49,12 +50,23 @@ def delete_groups(group_id_list):
     if delete_count == 0:
         flask.abort(status.HTTP_404_NOT_FOUND, "No groups found for deletion.")
 
-    return flask.Response(None, status.HTTP_200_OK)
+    return flask.Response(None, status.HTTP_204_NO_CONTENT)
 
 
 def get_groups_by_id(group_id_list):
     pass
 
 
+@api_operation
+@rbac(Permission.WRITE)
+@metrics.api_request_time.time()
 def delete_hosts_from_group(group_id, host_id_list):
-    pass
+    if not get_flag_value(FLAG_INVENTORY_GROUPS)[0]:
+        return flask.Response(None, status.HTTP_501_NOT_IMPLEMENTED)
+
+    delete_count = remove_hosts_from_group(group_id, host_id_list)
+
+    if delete_count == 0:
+        flask.abort(status.HTTP_404_NOT_FOUND, "Hosts not found in group.")
+
+    return flask.Response(None, status.HTTP_204_NO_CONTENT)
