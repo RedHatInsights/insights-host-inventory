@@ -3,7 +3,10 @@ from datetime import datetime
 from datetime import timezone
 from enum import Enum
 from functools import partial
+from typing import Tuple
 from uuid import UUID
+
+from dateutil import parser
 
 from api.filtering.custom_filters import build_operating_system_filter
 from api.filtering.filtering_common import lookup_graphql_operations
@@ -301,6 +304,21 @@ def build_registered_with_filter(registered_with):
     return ({"OR": prs_list},)
 
 
+def _build_modified_on_filter(updated_start: str = None, updated_end: str = None) -> Tuple:
+    updated_start_date = parser.isoparse(updated_start) if updated_start else None
+    updated_end_date = parser.isoparse(updated_end) if updated_end else None
+
+    if updated_start_date and updated_end_date and updated_start_date >= updated_end_date:
+        raise ValueError("updated_start cannot be after updated_end.")
+    modified_on_filter = {}
+    if updated_start_date:
+        modified_on_filter["gte"] = updated_start_date.isoformat()
+    if updated_end_date:
+        modified_on_filter["lte"] = updated_end_date.isoformat()
+
+    return ({"modified_on": modified_on_filter},)
+
+
 def build_tag_query_dict_tuple(tags):
     query_tag_tuple = ()
     for string_tag in tags:
@@ -336,6 +354,8 @@ def query_filters(
     insights_id,
     provider_id,
     provider_type,
+    updated_start,
+    updated_end,
     tags,
     staleness,
     registered_with,
@@ -385,6 +405,8 @@ def query_filters(
         query_filters += ({"provider_type": {"eq": provider_type.casefold()}},)
     if provider_id:
         query_filters += ({"provider_id": {"eq": provider_id.casefold()}},)
+    if updated_start or updated_end:
+        query_filters += _build_modified_on_filter(updated_start, updated_end)
 
     for key in filter:
         if key == "system_profile":
