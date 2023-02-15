@@ -39,6 +39,12 @@
             "$ref": "#/components/parameters/providerType"
           },
           {
+            "$ref": "#/components/parameters/updatedStart"
+          },
+          {
+            "$ref": "#/components/parameters/updatedEnd"
+          },
+          {
             "$ref": "#/components/parameters/branchId"
           },
           {
@@ -112,6 +118,12 @@
           },
           {
             "$ref": "#/components/parameters/providerType"
+          },
+          {
+            "$ref": "#/components/parameters/updatedStart"
+          },
+          {
+            "$ref": "#/components/parameters/updatedEnd"
           },
           {
             "$ref": "#/components/parameters/registered_with"
@@ -944,6 +956,12 @@
             "$ref": "#/components/parameters/providerType"
           },
           {
+            "$ref": "#/components/parameters/updatedStart"
+          },
+          {
+            "$ref": "#/components/parameters/updatedEnd"
+          },
+          {
             "$ref": "#/components/parameters/registered_with"
           },
           {
@@ -1349,6 +1367,24 @@
         },
         "description": "Filter by provider_type",
         "required": false
+      },
+      "updatedStart": {
+        "in": "query",
+        "name": "updated_start",
+        "schema": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "description": "Only show hosts last modified after the given date"
+      },
+      "updatedEnd": {
+        "in": "query",
+        "name": "updated_end",
+        "schema": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "description": "Only show hosts last modified before the given date"
       },
       "factsNamespace": {
         "in": "path",

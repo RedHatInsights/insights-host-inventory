@@ -105,6 +105,8 @@ def test_get_list_of_tags_with_host_filters(patch_xjoin_post, api_get, subtests)
         f"?insights_id={generate_uuid()}",
         f"?provider_id={generate_uuid()}",
         f"?provider_type={ProviderType.AZURE.value}",
+        "?updated_start=2020-01-19T15:00:00.000Z",
+        "?updated_start=2022-02-08T09:00:00.000Z",
     ):
         with subtests.test(query=query):
             url = build_tags_url(query=query)
