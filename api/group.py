@@ -26,10 +26,6 @@ def create_group(group_data):
     pass
 
 
-def get_group(group_id):
-    pass
-
-
 def patch_group_by_id(group_id, group_data):
     pass
 

@@ -400,26 +400,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/GroupOut'
   '/groups/{group_id}':
-    get:
-      operationId: api.group.get_group
-      tags:
-        - groups
-      summary: Find a group by its ID [Not Implemented]
-      description: >-
-        Find a group by its ID. [Not Implemented]
-        <br /><br />
-        Required permissions: inventory:groups:read
-      security:
-        - ApiKeyAuth: []
-      parameters:
-        - $ref: '#/components/parameters/groupId'
-      responses:
-        '200':
-          description: Successfully searched for group.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/GroupOut'
     patch:
       operationId: api.group.patch_group_by_id
       tags:
