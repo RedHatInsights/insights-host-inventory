@@ -46,3 +46,5 @@ pendo_fetching_failure = Counter(
 )
 
 delete_duplicate_host_count = Counter("inventory_delete_duplicate_host_count", "The total amount of hosts deleted")
+
+create_group_count = Counter("inventory_create_group_count", "The total amount of groups created")
