@@ -7,6 +7,7 @@ from app import inventory_config
 from app import Permission
 from lib.feature_flags import FLAG_INVENTORY_GROUPS
 from lib.feature_flags import get_flag_value
+from lib.group_repository import add_group
 from lib.group_repository import delete_group_list
 from lib.group_repository import remove_hosts_from_group
 from lib.middleware import rbac
@@ -22,8 +23,19 @@ def get_group_list(
     pass
 
 
+@api_operation
+@rbac(Permission.WRITE)
+@metrics.api_request_time.time()
 def create_group(group_data):
-    pass
+    if not get_flag_value(FLAG_INVENTORY_GROUPS)[0]:
+        return flask.Response(None, status.HTTP_501_NOT_IMPLEMENTED)
+
+    created_group = add_group(group_data)
+
+    if not created_group:
+        flask.abort(status.HTTP_400_BAD_REQUEST, "Group could not be created.")
+
+    return flask.Response(created_group, status.HTTP_201_CREATED)
 
 
 def patch_group_by_id(group_id, group_data):

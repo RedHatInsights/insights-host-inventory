@@ -1,4 +1,5 @@
 from app.auth import get_current_identity
+from app.exceptions import InventoryException
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_group_delete_failed
 from app.instrumentation import log_group_delete_succeeded
@@ -9,6 +10,7 @@ from app.models import Group
 from app.models import HostGroupAssoc
 from lib.db import session_guard
 from lib.host_delete import _deleted_by_this_query
+from lib.metrics import create_group_count
 from lib.metrics import delete_group_count
 from lib.metrics import delete_group_processing_time
 from lib.metrics import delete_host_group_count
@@ -16,6 +18,39 @@ from lib.metrics import delete_host_group_processing_time
 
 
 logger = get_logger(__name__)
+
+
+# def _get_group_by_name(name):
+#     return Group.query.filter((Group.org_id == get_current_identity().org_id) & Group.name == name)
+
+
+def add_group(group_data):
+    logger.debug("Creating a new group")
+
+    group_name, host_ids = group_data
+
+    select_query = Group.query.filter((Group.org_id == get_current_identity().org_id) & Group.name == group_name)
+
+    if select_query.first():
+        raise InventoryException(title="Invalid request", detail="Group name is already taken.")
+
+    with session_guard(select_query.session):
+        created_group = select_query.session.add(name=group_name, host_ids=host_ids)
+
+        if created_group:
+            select_query.session.commit()
+            create_group_count.inc()
+            logger.debug("Created group:%s", created_group)
+
+            # this needs to be improved
+            # also have to check if the hosts don't already belong to a group
+            # try/catch to notify customers that the hosts couldn't be added if something goes wrong?
+            for host_id in host_ids:
+                select_query.session.query(HostGroupAssoc).add(group_id=created_group.id, host_id=host_id)
+        else:
+            select_query.session.rollback()
+
+        return created_group
 
 
 def _remove_all_hosts_from_group(session, group):
