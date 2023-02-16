@@ -23,10 +23,9 @@ def custom_fallback(feature_name: str, context: dict) -> bool:
 
 
 # Gets a feature flag's value from Unleash, if available.
-# Accepts a feature flag in the format:
-#   (<feature_flag_name>, <fallback_value>)
+# Accepts a string with the name of the feature flag.
 # Returns a tuple containing the flag's value and whether or not the fallback value was used.
-def get_flag_value(flag_name: str) -> Tuple[bool, bool]:
+def get_flag_value_and_fallback(flag_name: str) -> Tuple[bool, bool]:
     # Get flag name and default to fallback value
     flag_value = FLAG_FALLBACK_VALUES[flag_name]
     using_fallback = True
@@ -45,3 +44,25 @@ def get_flag_value(flag_name: str) -> Tuple[bool, bool]:
         )
     finally:
         return flag_value, using_fallback
+
+
+# Gets a feature flag's value from Unleash, if available.
+# Accepts a string with the name of the feature flag.
+# Returns the value of the feature flag, whether it's the fallback or real value.
+def get_flag_value(flag_name: str) -> bool:
+    # Get flag name and default to fallback value
+    flag_value = FLAG_FALLBACK_VALUES[flag_name]
+
+    # Attempt to get the feature flag via Unleash
+    try:
+        if UNLEASH.client:
+            flag_value = UNLEASH.client.is_enabled(flag_name, fallback_function=custom_fallback)
+    except ConnectionError:
+        # Either Unleash wasn't initialized, or there was a connection error.
+        # Default to the fallback value.
+        logger.warning(
+            f"Either could not connect to Unleash server, or feature toggle {flag_name} not found."
+            f"Falling back to default value of {flag_value}"
+        )
+    finally:
+        return flag_value

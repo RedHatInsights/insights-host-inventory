@@ -8,7 +8,7 @@ from pytest import mark
 from yaml import safe_load
 
 from lib.feature_flags import FLAG_FALLBACK_VALUES
-from lib.feature_flags import get_flag_value
+from lib.feature_flags import get_flag_value_and_fallback
 from lib.feature_flags import UNLEASH
 from utils.deploy import main as deploy
 
@@ -135,7 +135,7 @@ def test_feature_flag_no_fallback(enable_unleash):
     unleash_mock = MagicMock()
     unleash_mock.is_enabled.return_value = True
     with patch.object(UNLEASH, "client", unleash_mock):
-        flag_value, using_fallback = get_flag_value(TEST_FEATURE_FLAG)
+        flag_value, using_fallback = get_flag_value_and_fallback(TEST_FEATURE_FLAG)
         assert flag_value
         assert not using_fallback
 
@@ -145,7 +145,7 @@ def test_feature_flag_error_fallback(enable_unleash):
     unleash_mock = MagicMock()
     unleash_mock.is_enabled.side_effect = ConnectionError("something went wrong :<")
     with patch.object(UNLEASH, "client", unleash_mock):
-        flag_value, using_fallback = get_flag_value(TEST_FEATURE_FLAG)
+        flag_value, using_fallback = get_flag_value_and_fallback(TEST_FEATURE_FLAG)
         assert not flag_value
         assert using_fallback
 
@@ -153,6 +153,6 @@ def test_feature_flag_error_fallback(enable_unleash):
 @patch.dict(FLAG_FALLBACK_VALUES, {TEST_FEATURE_FLAG: False})
 def test_feature_uninitialized_fallback(enable_unleash):
     with patch.object(UNLEASH, "client", None):
-        flag_value, using_fallback = get_flag_value(TEST_FEATURE_FLAG)
+        flag_value, using_fallback = get_flag_value_and_fallback(TEST_FEATURE_FLAG)
         assert not flag_value
         assert using_fallback

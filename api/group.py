@@ -42,7 +42,7 @@ def update_group_details(group_id, group_data):
 @rbac(Permission.WRITE)
 @metrics.api_request_time.time()
 def delete_groups(group_id_list):
-    if not get_flag_value(FLAG_INVENTORY_GROUPS)[0]:
+    if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return flask.Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
     delete_count = delete_group_list(group_id_list, inventory_config().host_delete_chunk_size)
@@ -61,7 +61,7 @@ def get_groups_by_id(group_id_list):
 @rbac(Permission.WRITE)
 @metrics.api_request_time.time()
 def delete_hosts_from_group(group_id, host_id_list):
-    if not get_flag_value(FLAG_INVENTORY_GROUPS)[0]:
+    if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return flask.Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
     delete_count = remove_hosts_from_group(group_id, host_id_list)
