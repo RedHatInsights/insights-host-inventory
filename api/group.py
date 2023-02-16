@@ -67,6 +67,6 @@ def delete_hosts_from_group(group_id, host_id_list):
     delete_count = remove_hosts_from_group(group_id, host_id_list)
 
     if delete_count == 0:
-        flask.abort(status.HTTP_404_NOT_FOUND, "Hosts not found in group.")
+        flask.abort(status.HTTP_404_NOT_FOUND, "Group or hosts not found.")
 
     return flask.Response(None, status.HTTP_204_NO_CONTENT)

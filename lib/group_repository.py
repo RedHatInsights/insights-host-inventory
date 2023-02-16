@@ -80,8 +80,10 @@ def remove_hosts_from_group(group_id, host_id_list):
 
     # First, find the group to make sure the org_id matches
     found_group = group_query.one_or_none()
+    if not found_group:
+        return 0
 
-    host_group_query = HostGroupAssoc.filter(
+    host_group_query = HostGroupAssoc.query.filter(
         HostGroupAssoc.group_id == found_group.id, HostGroupAssoc.host_id.in_(host_id_list)
     )
     with session_guard(host_group_query.session), delete_group_processing_time.time():
