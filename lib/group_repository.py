@@ -11,6 +11,8 @@ from lib.db import session_guard
 from lib.host_delete import _deleted_by_this_query
 from lib.metrics import delete_group_count
 from lib.metrics import delete_group_processing_time
+from lib.metrics import delete_host_group_count
+from lib.metrics import delete_host_group_processing_time
 
 
 logger = get_logger(__name__)
@@ -29,7 +31,7 @@ def _delete_host_group_assoc(session, assoc):
     delete_query.delete(synchronize_session="fetch")
     assoc_deleted = _deleted_by_this_query(assoc)
     if assoc_deleted:
-        delete_group_count.inc()
+        delete_host_group_count.inc()
         delete_query.session.commit()
     else:
         delete_query.session.rollback()
@@ -86,7 +88,7 @@ def remove_hosts_from_group(group_id, host_id_list):
     host_group_query = HostGroupAssoc.query.filter(
         HostGroupAssoc.group_id == found_group.id, HostGroupAssoc.host_id.in_(host_id_list)
     )
-    with session_guard(host_group_query.session), delete_group_processing_time.time():
+    with session_guard(host_group_query.session), delete_host_group_processing_time.time():
         for assoc in host_group_query.all():
             if _delete_host_group_assoc(host_group_query.session, assoc):
                 deletion_count += 1
