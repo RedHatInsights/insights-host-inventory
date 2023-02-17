@@ -27,6 +27,7 @@ def get_group_list(
 @rbac(Permission.WRITE)
 @metrics.api_request_time.time()
 def create_group(group_data):
+    # the [0] has to stay while Asa's recent changes aren't merged
     if not get_flag_value(FLAG_INVENTORY_GROUPS)[0]:
         return flask.Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
