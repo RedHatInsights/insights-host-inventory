@@ -89,6 +89,26 @@ def log_get_host_list_failed(logger):
     logger.debug("hosts not found", extra={"access_rule": get_control_rule()})
 
 
+# create group
+def log_add_group_succeeded(logger, group_id, control_rule):
+    logger.info(f"Created group: {group_id}", extra={"access_rule": control_rule})
+
+
+def log_add_group_failed(logger, group_id, control_rule):
+    logger.info(f"Error adding group {group_id}.", extra={"access_rule": control_rule})
+
+
+# create host_group_assoc
+def log_host_group_add_succeeded(logger, host_id, group_id, control_rule):
+    logger.info(f"Added association between host {host_id} and group {group_id}", extra={"access_rule": control_rule})
+
+
+def log_host_group_add_failed(logger, host_id, group_id, control_rule):
+    logger.info(
+        f"Failed to add association between host {host_id} and group {group_id}", extra={"access_rule": control_rule}
+    )
+
+
 # delete group
 def log_group_delete_succeeded(logger, group_id, control_rule):
     logger.info("Deleted group: %s", group_id, extra={"access_rule": control_rule})
