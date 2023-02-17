@@ -60,7 +60,6 @@ def run(config, logger, org_ids_session, hosts_session, misc_session, event_prod
 
 
 def main(logger):
-
     config = _init_config()
     registry = CollectorRegistry()
 

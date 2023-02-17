@@ -136,7 +136,7 @@ def get_sap_system(tags=None, page=None, per_page=None, staleness=None, register
     hostfilter_and_variables = ()
 
     if tags:
-        hostfilter_and_variables = build_tag_query_dict_tuple(tags)
+        hostfilter_and_variables = ({"OR": build_tag_query_dict_tuple(tags)},)
 
     if registered_with:
         hostfilter_and_variables += build_registered_with_filter(registered_with)
@@ -185,7 +185,7 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
     hostfilter_and_variables = ()
 
     if tags:
-        hostfilter_and_variables = build_tag_query_dict_tuple(tags)
+        hostfilter_and_variables = ({"OR": build_tag_query_dict_tuple(tags)},)
 
     if registered_with:
         hostfilter_and_variables += build_registered_with_filter(registered_with)
@@ -246,7 +246,7 @@ def get_operating_system(
     hostfilter_and_variables = ()
 
     if tags:
-        hostfilter_and_variables = build_tag_query_dict_tuple(tags)
+        hostfilter_and_variables = ({"OR": build_tag_query_dict_tuple(tags)},)
 
     if registered_with:
         variables["hostFilter"]["NOT"] = {"insights_id": {"eq": None}}

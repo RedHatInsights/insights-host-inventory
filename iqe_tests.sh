@@ -32,7 +32,7 @@ CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
 curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh && source .cicd_bootstrap.sh
 
 function check_image () {
-  for i in {1..30}
+  for i in {1..60}
   do
     echo "Try number $i"
     echo "Checking if image '$IMAGE:$IMAGE_TAG' already exists in quay.io..."
@@ -63,5 +63,15 @@ fi
 # Deploy ephemeral env and run IQE tests
 source $CICD_ROOT/deploy_ephemeral_env.sh
 bonfire namespace extend $NAMESPACE --duration 3h
+
+# Workaround for bonfire CICD script issue: https://github.com/RedHatInsights/bonfire/issues/283
+# Restart `oc logs -f` after 1 hour
+sed -i \
+'s/oc_wrapper logs -n $NAMESPACE $POD -c $CONTAINER -f &/ \
+oc_wrapper logs -n $NAMESPACE $POD -c $CONTAINER -f \&\n \
+LOGS_PID=$!\n sleep 3600\n kill $LOGS_PID\n \
+oc_wrapper logs -n $NAMESPACE $POD -c $CONTAINER -f \&/' \
+$CICD_ROOT/cji_smoke_test.sh
+
 source $CICD_ROOT/cji_smoke_test.sh
 source $CICD_ROOT/post_test_results.sh

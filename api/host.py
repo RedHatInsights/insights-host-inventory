@@ -72,6 +72,8 @@ def get_host_list(
     insights_id=None,
     provider_id=None,
     provider_type=None,
+    updated_start=None,
+    updated_end=None,
     tags=None,
     page=1,
     per_page=100,
@@ -82,7 +84,6 @@ def get_host_list(
     filter=None,
     fields=None,
 ):
-
     total = 0
     host_list = ()
 
@@ -94,6 +95,8 @@ def get_host_list(
             insights_id,
             provider_id,
             provider_type,
+            updated_start,
+            updated_end,
             tags,
             page,
             per_page,
@@ -122,6 +125,8 @@ def delete_hosts_by_filter(
     insights_id=None,
     provider_id=None,
     provider_type=None,
+    updated_start=None,
+    updated_end=None,
     registered_with=None,
     staleness=None,
     tags=None,
@@ -152,6 +157,8 @@ def delete_hosts_by_filter(
             insights_id,
             provider_id,
             provider_type,
+            updated_start,
+            updated_end,
             registered_with,
             staleness,
             tags,
@@ -240,7 +247,7 @@ def delete_all_hosts(confirm_delete_all=None):
 @api_operation
 @rbac(Permission.WRITE)
 @metrics.api_request_time.time()
-def delete_by_id(host_id_list):
+def delete_host_by_id(host_id_list):
     delete_count = _delete_host_list(host_id_list)
 
     if not delete_count:
@@ -290,7 +297,7 @@ def _emit_patch_event(serialized_host, host_id, insights_id):
 @api_operation
 @rbac(Permission.WRITE)
 @metrics.api_request_time.time()
-def patch_by_id(host_id_list, body):
+def patch_host_by_id(host_id_list, body):
     try:
         validated_patch_host_data = PatchHostSchema().load(body)
     except ValidationError as e:
@@ -337,7 +344,6 @@ def merge_facts(host_id_list, namespace, body):
 
 
 def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
-
     current_identity = get_current_identity()
     query = Host.query.filter(
         (Host.org_id == current_identity.org_id)
@@ -378,7 +384,6 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
 @rbac(Permission.READ)
 @metrics.api_request_time.time()
 def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
-
     host_list, total = get_host_tags_list_by_id_list(host_id_list, page, per_page, order_by, order_how)
     counts = {host_id: len(host_tags) for host_id, host_tags in host_list.items()}
 
@@ -389,7 +394,6 @@ def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_
 @rbac(Permission.READ)
 @metrics.api_request_time.time()
 def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=None, search=None):
-
     host_list, total = get_host_tags_list_by_id_list(host_id_list, page, per_page, order_by, order_how)
     filtered_list = {host_id: Tag.filter_tags(host_tags, search) for host_id, host_tags in host_list.items()}
 
@@ -405,7 +409,6 @@ def _build_paginated_host_tags_response(total, page, per_page, tags_list):
 @rbac(Permission.WRITE)
 @metrics.api_request_time.time()
 def host_checkin(body):
-
     current_identity = get_current_identity()
     canonical_facts = deserialize_canonical_facts(body)
     existing_host = find_existing_host(current_identity, canonical_facts)

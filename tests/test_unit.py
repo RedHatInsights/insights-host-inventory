@@ -430,7 +430,7 @@ class ConfigTestCase(TestCase):
 
 
 @patch("app.db.get_engine")
-@patch("app.Config", **{"return_value.mgmt_url_path_prefix": "/"})
+@patch("app.Config", **{"return_value.mgmt_url_path_prefix": "/", "return_value.unleash_token": ""})
 class CreateAppConfigTestCase(TestCase):
     def test_config_is_assigned(self, config, get_engine):
         app = create_app(RuntimeEnvironment.TEST)
@@ -1894,7 +1894,7 @@ class EventProducerTests(TestCase):
         poll = self.event_producer._kafka_producer.poll
         host_id = self.basic_host["id"]
 
-        for (event_type, host) in (
+        for event_type, host in (
             (EventType.created, self.basic_host),
             (EventType.updated, self.basic_host),
             (EventType.delete, deserialize_host(self.basic_host)),
@@ -1922,7 +1922,7 @@ class EventProducerTests(TestCase):
         poll = self.event_producer._kafka_producer.poll
         host_id = self.basic_host["id"]
 
-        for (event_type, host) in (
+        for event_type, host in (
             (EventType.created, self.basic_host),
             (EventType.updated, self.basic_host),
             (EventType.delete, deserialize_host(self.basic_host)),

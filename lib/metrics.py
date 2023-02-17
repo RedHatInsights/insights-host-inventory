@@ -22,6 +22,21 @@ delete_host_processing_time = Summary(
 )
 host_reaper_fail_count = Counter("inventory_reaper_fail_count", "The total amount of Host Reaper failures.")
 
+# Inventory Groups
+create_group_count = Counter("inventory_create_group_count", "The total amount of groups created")
+update_group_count = Counter("inventory_update_group_count", "The total amount of groups updated")
+delete_group_count = Counter("inventory_delete_group_count", "The total amount of groups deleted")
+delete_group_processing_time = Summary(
+    "inventory_delete_group_commit_seconds", "Time spent deleting groups from the database"
+)
+
+create_host_group_count = Counter("inventory_create_host_group_count", "The total amount of host-groups created")
+update_host_group_count = Counter("inventory_update_host_group_count", "The total amount of host_groups updated")
+delete_host_group_count = Counter("inventory_delete_host_group_count", "The total amount of host_groups deleted")
+delete_host_group_processing_time = Summary(
+    "inventory_delete_host_group_commit_seconds", "Time spent deleting host-groups from the database"
+)
+
 # synchronization counter
 synchronize_host_count = Counter("inventory_synchronize_host_count", "The total amount of hosts synchronized")
 synchronize_fail_count = Counter("inventory_synchronize_fail_count", "The total amount of synchronization failures")

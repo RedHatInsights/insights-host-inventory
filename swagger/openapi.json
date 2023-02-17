@@ -39,6 +39,12 @@
             "$ref": "#/components/parameters/providerType"
           },
           {
+            "$ref": "#/components/parameters/updatedStart"
+          },
+          {
+            "$ref": "#/components/parameters/updatedEnd"
+          },
+          {
             "$ref": "#/components/parameters/branchId"
           },
           {
@@ -48,7 +54,7 @@
             "$ref": "#/components/parameters/pageParam"
           },
           {
-            "$ref": "#/components/parameters/orderByParam"
+            "$ref": "#/components/parameters/hostOrderByParam"
           },
           {
             "$ref": "#/components/parameters/orderHowParam"
@@ -112,6 +118,12 @@
           },
           {
             "$ref": "#/components/parameters/providerType"
+          },
+          {
+            "$ref": "#/components/parameters/updatedStart"
+          },
+          {
+            "$ref": "#/components/parameters/updatedEnd"
           },
           {
             "$ref": "#/components/parameters/registered_with"
@@ -235,7 +247,7 @@
             "$ref": "#/components/parameters/pageParam"
           },
           {
-            "$ref": "#/components/parameters/orderByParam"
+            "$ref": "#/components/parameters/hostOrderByParam"
           },
           {
             "$ref": "#/components/parameters/orderHowParam"
@@ -269,7 +281,7 @@
         ],
         "summary": "Delete hosts by IDs",
         "description": "Delete hosts by IDs <br /><br /> Required permissions: inventory:hosts:write",
-        "operationId": "api.host.delete_by_id",
+        "operationId": "api.host.delete_host_by_id",
         "security": [
           {
             "ApiKeyAuth": []
@@ -301,7 +313,7 @@
         ],
         "summary": "Update a host",
         "description": "Update a host <br /><br /> Required permissions: inventory:hosts:write",
-        "operationId": "api.host.patch_by_id",
+        "operationId": "api.host.patch_host_by_id",
         "security": [
           {
             "ApiKeyAuth": []
@@ -457,7 +469,7 @@
             "$ref": "#/components/parameters/pageParam"
           },
           {
-            "$ref": "#/components/parameters/orderByParam"
+            "$ref": "#/components/parameters/hostOrderByParam"
           },
           {
             "$ref": "#/components/parameters/orderHowParam"
@@ -513,7 +525,7 @@
             "$ref": "#/components/parameters/pageParam"
           },
           {
-            "$ref": "#/components/parameters/orderByParam"
+            "$ref": "#/components/parameters/hostOrderByParam"
           },
           {
             "$ref": "#/components/parameters/orderHowParam"
@@ -563,7 +575,7 @@
             "$ref": "#/components/parameters/pageParam"
           },
           {
-            "$ref": "#/components/parameters/orderByParam"
+            "$ref": "#/components/parameters/hostOrderByParam"
           },
           {
             "$ref": "#/components/parameters/orderHowParam"
@@ -579,6 +591,280 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Invalid request."
+          }
+        }
+      }
+    },
+    "/groups": {
+      "get": {
+        "operationId": "api.group.get_group_list",
+        "tags": [
+          "groups"
+        ],
+        "summary": "Read the entire list of groups [Not Implemented]",
+        "description": "Read the entire list of all groups available to the account. [Not Implemented] <br /><br /> Required permissions: inventory:groups:read",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/groupName"
+          },
+          {
+            "$ref": "#/components/parameters/perPageParam"
+          },
+          {
+            "$ref": "#/components/parameters/pageParam"
+          },
+          {
+            "$ref": "#/components/parameters/groupOrderByParam"
+          },
+          {
+            "$ref": "#/components/parameters/orderHowParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully read the groups list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupQueryOutput"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "api.group.create_group",
+        "tags": [
+          "groups"
+        ],
+        "summary": "Create a new group matching the provided name and list of hosts IDs [Not Implemented]",
+        "description": "Creates a new group containing the hosts associated with the host IDs provided. [Not Implemented] <br /><br /> Required permissions: inventory:groups:write",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "description": "Data required to create a record for a group.",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateGroup"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successfully created new Group.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/groups/{group_id}": {
+      "patch": {
+        "operationId": "api.group.patch_group_by_id",
+        "tags": [
+          "groups"
+        ],
+        "summary": "Merge group information [Not Implemented]",
+        "description": "Merge group information. [Not Implemented] <br /><br /> Required permissions: inventory:groups:write",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/groupId"
+          }
+        ],
+        "requestBody": {
+          "description": "A dictionary with the new information to merge with the original one.",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully merged group information.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request."
+          },
+          "404": {
+            "description": "Group not found."
+          }
+        }
+      },
+      "put": {
+        "operationId": "api.group.update_group_details",
+        "tags": [
+          "groups"
+        ],
+        "summary": "Replace group information [Not Implemented]",
+        "description": "Replace information from a group. [Not Implemented] <br /><br /> Required permissions: inventory:groups:write",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/groupId"
+          }
+        ],
+        "requestBody": {
+          "description": "A dictionary with the information to replace the original one.",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully replaced group information.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request."
+          },
+          "404": {
+            "description": "Group not found."
+          }
+        }
+      }
+    },
+    "/groups/{group_id_list}": {
+      "get": {
+        "operationId": "api.group.get_groups_by_id",
+        "tags": [
+          "groups"
+        ],
+        "summary": "Find groups by their IDs [Not Implemented]",
+        "description": "Find one or more groups by their IDs. [Not Implemented] <br /><br /> Required permissions: inventory:groups:read",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/groupIdList"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully searched for groups.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupQueryOutput"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request."
+          },
+          "404": {
+            "description": "Groups not found."
+          }
+        }
+      },
+      "delete": {
+        "operationId": "api.group.delete_groups",
+        "tags": [
+          "groups"
+        ],
+        "summary": "Delete a list of groups [Not Implemented]",
+        "description": "Delete a list of groups. [Not Implemented] <br /><br /> Required permissions: inventory:groups:write",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/groupIdList"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The groups were successfully deleted."
+          },
+          "400": {
+            "description": "Invalid request."
+          }
+        }
+      }
+    },
+    "/groups/{group_id}/{host_id_list}": {
+      "delete": {
+        "operationId": "api.group.delete_hosts_from_group",
+        "tags": [
+          "groups"
+        ],
+        "summary": "Delete one or more hosts from a group [Not Implemented]",
+        "description": "Delete one or more hosts from a group. [Not Implemented] <br /><br /> Required permissions: inventory:groups:write",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/groupId"
+          },
+          {
+            "$ref": "#/components/parameters/hostIdList"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successfully deleted hosts."
           },
           "400": {
             "description": "Invalid request."
@@ -638,6 +924,12 @@
           },
           {
             "$ref": "#/components/parameters/providerType"
+          },
+          {
+            "$ref": "#/components/parameters/updatedStart"
+          },
+          {
+            "$ref": "#/components/parameters/updatedEnd"
           },
           {
             "$ref": "#/components/parameters/registered_with"
@@ -885,6 +1177,33 @@
           }
         }
       }
+    },
+    "/unleash/inventory_groups_toggle": {
+      "get": {
+        "tags": [
+          "unleash"
+        ],
+        "summary": "Check whether the Groups feature is enabled",
+        "description": "Returns the value of the hbi.api.inventory-groups toggle, if able to be retrieved.",
+        "operationId": "api.unleash.get_inventory_groups_toggle",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The value of the Inventory Groups toggle",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnleashToggleOut"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -927,17 +1246,24 @@
         },
         "description": "A number of items to return per page."
       },
+      "hostId": {
+        "in": "path",
+        "name": "host_id",
+        "description": "Host (system) ID.",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/NonStrictUUID"
+        }
+      },
       "hostIdList": {
         "in": "path",
         "name": "host_id_list",
-        "description": "A comma separated list of host IDs.",
+        "description": "A comma-separated list of host IDs.",
         "required": true,
         "schema": {
           "type": "array",
           "items": {
-            "type": "string",
-            "pattern": "^[0-9a-fA-F]{8}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{12}$|^[0-9a-fA-F]{8}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{12}$",
-            "format": "uuid"
+            "$ref": "#/components/schemas/NonStrictUUID"
           }
         }
       },
@@ -1012,6 +1338,24 @@
         "description": "Filter by provider_type",
         "required": false
       },
+      "updatedStart": {
+        "in": "query",
+        "name": "updated_start",
+        "schema": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "description": "Only show hosts last modified after the given date"
+      },
+      "updatedEnd": {
+        "in": "query",
+        "name": "updated_end",
+        "schema": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "description": "Only show hosts last modified before the given date"
+      },
       "factsNamespace": {
         "in": "path",
         "name": "namespace",
@@ -1021,7 +1365,7 @@
           "type": "string"
         }
       },
-      "orderByParam": {
+      "hostOrderByParam": {
         "name": "order_by",
         "in": "query",
         "required": false,
@@ -1031,6 +1375,20 @@
             "display_name",
             "updated",
             "operating_system"
+          ]
+        },
+        "description": "Ordering field name"
+      },
+      "groupOrderByParam": {
+        "name": "order_by",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "name",
+            "updated_at",
+            "host_ids"
           ]
         },
         "description": "Ordering field name"
@@ -1194,6 +1552,36 @@
         },
         "description": "Confirmation to delete all hosts on the account",
         "required": false
+      },
+      "groupName": {
+        "in": "query",
+        "name": "name",
+        "schema": {
+          "type": "string"
+        },
+        "description": "Filter by group name",
+        "required": false
+      },
+      "groupId": {
+        "in": "path",
+        "name": "group_id",
+        "description": "Group ID.",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/NonStrictUUID"
+        }
+      },
+      "groupIdList": {
+        "in": "path",
+        "name": "group_id_list",
+        "description": "A comma-separated list of group IDs.",
+        "required": true,
+        "schema": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/NonStrictUUID"
+          }
+        }
       }
     },
     "schemas": {
@@ -1441,6 +1829,18 @@
         "nullable": true,
         "example": "aws"
       },
+      "AccountNumber": {
+        "description": "A Red Hat Account number that owns the host.",
+        "type": "string",
+        "nullable": true,
+        "example": "000102",
+        "deprecated": true
+      },
+      "OrgId": {
+        "description": "The Org ID of the tenant that owns the host.",
+        "type": "string",
+        "example": "000102"
+      },
       "CanonicalFactsIn": {
         "allOf": [
           {
@@ -1625,16 +2025,10 @@
                 "nullable": true
               },
               "account": {
-                "description": "A Red Hat Account number that owns the host.",
-                "type": "string",
-                "nullable": true,
-                "example": "000102",
-                "deprecated": true
+                "$ref": "#/components/schemas/AccountNumber"
               },
               "org_id": {
-                "description": "The Org ID of the tenant that owns the host.",
-                "type": "string",
-                "example": "000102"
+                "$ref": "#/components/schemas/OrgId"
               },
               "id": {
                 "description": "A durable and reliable platform-wide host identifier. Applications should use this identifier to reference hosts.",
@@ -1685,7 +2079,7 @@
                 "description": "Reporting source of the last checkin status, stale_timestamp, and last_check_in.",
                 "type": "object",
                 "additionalProperties": {
-                  "$ref": "#components/schemas/PerReporterStaleness"
+                  "$ref": "#/components/schemas/PerReporterStaleness"
                 }
               }
             },
@@ -1881,6 +2275,141 @@
             }
           ]
         }
+      },
+      "GroupName": {
+        "description": "A group’s human-readable name.",
+        "type": "string",
+        "nullable": false,
+        "example": "sre-group"
+      },
+      "NonStrictUUID": {
+        "type": "string",
+        "pattern": "^[0-9a-fA-F]{8}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{12}$|^[0-9a-fA-F]{8}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{12}$",
+        "format": "uuid",
+        "example": "bA6deCFc19564430AB814bf8F70E8cEf"
+      },
+      "GroupId": {
+        "description": "A durable and reliable platform-wide group identifier. Applications should use this identifier to reference groups.",
+        "$ref": "#/components/schemas/NonStrictUUID"
+      },
+      "HostId": {
+        "description": "A durable and reliable platform-wide group identifier. Applications should use this identifier to reference hosts.",
+        "$ref": "#/components/schemas/NonStrictUUID"
+      },
+      "HostIds": {
+        "description": "A comma-separated list of host IDs that belong to the group.",
+        "type": "array",
+        "nullable": true,
+        "items": {
+          "$ref": "#/components/schemas/NonStrictUUID"
+        }
+      },
+      "UnleashToggleOut": {
+        "title": "Unleash Toggle Out",
+        "properties": {
+          "flag_value": {
+            "description": "The value of the feature flag toggle",
+            "type": "boolean"
+          },
+          "using_fallback_value": {
+            "description": "Whether the fallback value was used, if the Unleash server could not be accessed",
+            "type": "boolean"
+          }
+        }
+      },
+      "GroupIn": {
+        "title": "Group In",
+        "description": "Data of a single group belonging to an account.",
+        "type": "object",
+        "allOf": [
+          {
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/GroupId"
+              },
+              "name": {
+                "$ref": "#/components/schemas/GroupName"
+              },
+              "host_ids": {
+                "$ref": "#/components/schemas/HostIds"
+              }
+            }
+          }
+        ]
+      },
+      "GroupOut": {
+        "title": "Group Out",
+        "description": "Data of a single group belonging to an account.",
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/GroupId"
+          },
+          "name": {
+            "$ref": "#/components/schemas/GroupName"
+          },
+          "host_ids": {
+            "$ref": "#/components/schemas/HostIds"
+          },
+          "account": {
+            "$ref": "#/components/schemas/AccountNumber"
+          },
+          "org_id": {
+            "$ref": "#/components/schemas/OrgId"
+          },
+          "created_at": {
+            "description": "A timestamp when the entry was created.",
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "description": "A timestamp when the entry was last updated.",
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "GroupQueryOutput": {
+        "title": "An Inventory Groups query result",
+        "description": "A paginated group search query result with group entries and their Inventory metadata.",
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PaginationOut"
+          },
+          {
+            "type": "object",
+            "required": [
+              "results"
+            ],
+            "properties": {
+              "results": {
+                "description": "Actual group search query result entries.",
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/GroupOut"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "CreateGroup": {
+        "title": "Group creation data",
+        "description": "Data required to create a group.",
+        "type": "object",
+        "allOf": [
+          {
+            "properties": {
+              "name": {
+                "$ref": "#/components/schemas/GroupName"
+              },
+              "host_ids": {
+                "$ref": "#/components/schemas/HostIds"
+              }
+            }
+          }
+        ]
       },
       "SystemProfile": {
         "title": "SystemProfile",

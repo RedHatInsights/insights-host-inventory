@@ -1,6 +1,7 @@
 import pytest
 
 from tests.helpers.api_utils import do_request
+from tests.helpers.api_utils import GROUP_URL
 from tests.helpers.api_utils import HOST_URL
 from tests.helpers.api_utils import MockUserIdentity
 from tests.helpers.test_utils import USER_IDENTITY
@@ -79,6 +80,30 @@ def api_delete_all_hosts(flask_client):
 
 
 @pytest.fixture(scope="function")
+def api_delete_groups(flask_client):
+    def _api_delete_group(group_id_list, identity=USER_IDENTITY, query_parameters=None, extra_headers=None):
+        url = f"{GROUP_URL}/{','.join([str(group_id) for group_id in group_id_list])}"
+        return do_request(
+            flask_client.delete, url, identity, query_parameters=query_parameters, extra_headers=extra_headers
+        )
+
+    return _api_delete_group
+
+
+@pytest.fixture(scope="function")
+def api_remove_hosts_from_group(flask_client):
+    def _api_remove_hosts_from_group(
+        group_id, host_id_list, identity=USER_IDENTITY, query_parameters=None, extra_headers=None
+    ):
+        url = f"{GROUP_URL}/{group_id}/{','.join([str(host_id) for host_id in host_id_list])}"
+        return do_request(
+            flask_client.delete, url, identity, query_parameters=query_parameters, extra_headers=extra_headers
+        )
+
+    return _api_remove_hosts_from_group
+
+
+@pytest.fixture(scope="function")
 def enable_rbac(inventory_config):
     inventory_config.bypass_rbac = False
 
@@ -86,6 +111,11 @@ def enable_rbac(inventory_config):
 @pytest.fixture(scope="function")
 def enable_org_id_translation(inventory_config):
     inventory_config.bypass_tenant_translation = False
+
+
+@pytest.fixture(scope="function")
+def enable_unleash(inventory_config):
+    inventory_config.unleash_token = "mockUnleashTokenValue"
 
 
 @pytest.fixture(scope="function")
