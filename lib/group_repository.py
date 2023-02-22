@@ -1,8 +1,13 @@
+from typing import List
+
+from sqlalchemy.orm.scoping import scoped_session
+
 from app.auth import get_current_identity
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_group_delete_failed
 from app.instrumentation import log_group_delete_succeeded
 from app.logging import get_logger
+from app.models import db
 from app.models import Group
 from app.models import HostGroupAssoc
 from lib.db import session_guard
@@ -14,12 +19,12 @@ from lib.metrics import delete_group_processing_time
 logger = get_logger(__name__)
 
 
-def _remove_all_hosts_from_group(session, group):
+def _remove_all_hosts_from_group(session: scoped_session, group: Group):
     delete_query = session.query(HostGroupAssoc).filter(HostGroupAssoc.group_id == group.id)
     delete_query.delete(synchronize_session="fetch")
 
 
-def _delete_group(session, group):
+def _delete_group(session: scoped_session, group: Group) -> bool:
     # First, remove all hosts from the requested group.
     _remove_all_hosts_from_group(session, group)
 
@@ -36,7 +41,7 @@ def _delete_group(session, group):
     return group_deleted
 
 
-def delete_group_list(group_id_list, chunk_size):
+def delete_group_list(group_id_list: List[str], chunk_size: int) -> int:
     deletion_count = 0
     select_query = Group.query.filter((Group.org_id == get_current_identity().org_id) & Group.id.in_(group_id_list))
 
@@ -54,3 +59,34 @@ def delete_group_list(group_id_list, chunk_size):
                         log_group_delete_failed(logger, group.id, get_control_rule())
 
     return deletion_count
+
+
+def get_group_by_id_from_db(group_id: str) -> Group:
+    current_identity = get_current_identity()
+    query = Group.query.filter(Group.org_id == current_identity.org_id, Group.id == group_id)
+    return query.one_or_none()
+
+
+def db_create_host_group_assoc(host_id: str, group_id: str) -> HostGroupAssoc:
+    host_group = HostGroupAssoc(host_id=host_id, group_id=group_id)
+    db.session.add(host_group)
+    db.session.commit()
+    return host_group
+
+
+def db_get_assoc_for_group(group_id: str) -> List[HostGroupAssoc]:
+    return HostGroupAssoc.query.filter(HostGroupAssoc.group_id == group_id).all()
+
+
+def replace_host_list_for_group(
+    session: scoped_session, group: Group, host_id_list: List[str]
+) -> List[HostGroupAssoc]:
+    with session_guard(session):
+        # TODO: Should we only remove hosts that aren't in host_id_list?
+        # Does it really matter, since they'll immediately be recreated before the commit?
+        _remove_all_hosts_from_group(session, group)
+        assoc_list = []
+        for host_id in host_id_list:
+            assoc_list.append(db_create_host_group_assoc(host_id, group.id))
+
+    return assoc_list

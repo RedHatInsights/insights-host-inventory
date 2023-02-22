@@ -91,6 +91,15 @@ def api_delete_groups(flask_client):
 
 
 @pytest.fixture(scope="function")
+def api_patch_group(flask_client):
+    def _api_patch_group(group_id, group_data, identity=USER_IDENTITY, query_parameters=None, extra_headers=None):
+        url = f"{GROUP_URL}/{group_id}"
+        return do_request(flask_client.patch, url, identity, group_data, query_parameters, extra_headers)
+
+    return _api_patch_group
+
+
+@pytest.fixture(scope="function")
 def enable_rbac(inventory_config):
     inventory_config.bypass_rbac = False
 

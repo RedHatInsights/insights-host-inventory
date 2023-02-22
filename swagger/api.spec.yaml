@@ -434,7 +434,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/groupId'
       requestBody:
-        description: A dictionary with the new information to merge with the original one.
+        description: A dictionary with new information to merge with the original group.
         required: true
         content:
           application/json:
@@ -1541,8 +1541,6 @@ components:
       type: object
       allOf:
         - properties:
-            id:
-              $ref: "#/components/schemas/GroupId"
             name:
               $ref: "#/components/schemas/GroupName"
             host_ids:
