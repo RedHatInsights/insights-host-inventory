@@ -62,7 +62,7 @@ def patch_group_by_id(group_id, body):
 
     # Next, replace the host-group associations
     assoc_list = []
-    if host_id_list:
+    if host_id_list is not None:
         assoc_list = replace_host_list_for_group(db.session, group_to_update, host_id_list)
 
     if db.session.is_modified(group_to_update) or any(db.session.is_modified(assoc) for assoc in assoc_list):

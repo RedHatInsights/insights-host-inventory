@@ -9,7 +9,7 @@ from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 @pytest.mark.parametrize(
     "num_hosts",
-    [1, 3, 5],
+    [0, 3, 5],
 )
 def test_patch_group_happy_path(db_create_group, db_create_host, api_patch_group, db_get_group, num_hosts):
     group_id = db_create_group("test_group").id
