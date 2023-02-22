@@ -98,6 +98,20 @@ def log_group_delete_failed(logger, group_id, control_rule):
     logger.info("Group %s already deleted. Delete event not emitted.", group_id, extra={"access_rule": control_rule})
 
 
+# delete host_group_assoc
+def log_host_group_delete_succeeded(logger, host_id, group_id, control_rule):
+    logger.info(
+        f"Removed association between host {host_id} and group {group_id}", extra={"access_rule": control_rule}
+    )
+
+
+def log_host_group_delete_failed(logger, host_id, group_id, control_rule):
+    logger.info(
+        f"Failed to remove association between host {host_id} and group {group_id}",
+        extra={"access_rule": control_rule},
+    )
+
+
 # get tags
 def log_get_tags_succeeded(logger, data):
     logger.debug("Found tags: %s", data, extra={"access_rule": get_control_rule()})
