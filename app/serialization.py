@@ -278,3 +278,11 @@ def _deserialize_tags_dict(tags):
 
 def _serialize_tags(tags):
     return [tag.data() for tag in Tag.create_tags_from_nested(tags)]
+
+
+def serialize_group(input_group, host_id_list):
+    serialized_group = {**input_group}
+    serialized_group["id"] = _serialize_uuid(input_group.get("id"))
+    serialized_group["host_ids"] = host_id_list
+
+    return serialized_group
