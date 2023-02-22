@@ -94,8 +94,8 @@ def log_add_group_succeeded(logger, group_id, control_rule):
     logger.info(f"Created group: {group_id}", extra={"access_rule": control_rule})
 
 
-def log_add_group_failed(logger, group_id, control_rule):
-    logger.info(f"Error adding group {group_id}.", extra={"access_rule": control_rule})
+def log_add_group_failed(logger, group_name, control_rule):
+    logger.info(f"Error adding group '{group_name}'.", extra={"access_rule": control_rule})
 
 
 # create host_group_assoc

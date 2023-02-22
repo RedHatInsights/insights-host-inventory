@@ -1,17 +1,22 @@
+from uuid import UUID
+
+from sqlalchemy import inspect
+
 from app.auth import get_current_identity
-from app.exceptions import InventoryException
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_add_group_failed
 from app.instrumentation import log_add_group_succeeded
 from app.instrumentation import log_group_delete_failed
 from app.instrumentation import log_group_delete_succeeded
-from app.instrumentation import log_host_group_delete_failed
-from app.instrumentation import log_host_group_delete_succeeded
 from app.instrumentation import log_host_group_add_failed
 from app.instrumentation import log_host_group_add_succeeded
+from app.instrumentation import log_host_group_delete_failed
+from app.instrumentation import log_host_group_delete_succeeded
 from app.logging import get_logger
+from app.models import db
 from app.models import Group
 from app.models import HostGroupAssoc
+from app.serialization import serialize_group
 from lib.db import session_guard
 from lib.host_delete import _deleted_by_this_query
 from lib.metrics import create_group_count
@@ -24,49 +29,80 @@ from lib.metrics import delete_host_group_processing_time
 logger = get_logger(__name__)
 
 
-def _add_group(session, group_data):
-    group_name, host_ids = group_data
+def _get_group_from_id(group_id, org_id):
+    return Group.query.filter((Group.org_id == org_id) & (Group.id == group_id)).one_or_none()
 
-    created_group = session.add(name=group_name, host_ids=host_ids)
 
-    if created_group:
-        create_group_count.inc()
-        created_group.session.commit()
+def _get_group_from_name(group_name, org_id):
+    return Group.query.filter((Group.org_id == org_id) & (Group.name == group_name)).one_or_none()
+
+
+def _is_valid_uuid(host_id):
+    try:
+        uuid_obj = UUID(host_id)
+    except ValueError:
+        return False
+    return str(uuid_obj) == host_id
+
+
+def _object_as_dict(obj):
+    return {c.key: getattr(obj, c.key) for c in inspect(obj).mapper.column_attrs}
+
+
+def add_hosts_to_group(group_id, host_ids):
+    with session_guard(db.session):
+        group_query_result = _get_group_from_id(group_id, get_current_identity().org_id)
+        assoc_query = HostGroupAssoc.query.filter(HostGroupAssoc.host_id.in_(host_ids))
 
         for host_id in host_ids:
             # check if the host doesn't already exist in the HostGroupAssoc table
             # i.e. isn't already associated with a group
-            assoc_query = created_group.session.query(HostGroupAssoc).filter(HostGroupAssoc.host_id == host_id)
+            if _is_valid_uuid(host_id) and host_id not in assoc_query.all():
+                new_hostgroupassoc = HostGroupAssoc(group_id=group_query_result.id, host_id=host_id)
 
-            if not assoc_query.first():
-                created_group.session.query(HostGroupAssoc).add(group_id=created_group.id, host_id=host_id)
-                log_host_group_add_succeeded(logger, host_id, created_group.id, get_control_rule())
+                assoc_query.session.add(new_hostgroupassoc)
+                assoc_query.session.commit()
+
+                log_host_group_add_succeeded(logger, host_id, group_query_result.id, get_control_rule())
             else:
-                log_host_group_add_failed(logger, host_id, created_group.id, get_control_rule())
-    else:
-        created_group.session.rollback()
+                log_host_group_add_failed(logger, host_id, group_query_result.id, get_control_rule())
 
-    return created_group
+        return serialize_group(_object_as_dict(group_query_result), host_ids)
+
+
+def _validate_group_name(name, org_id):
+    group_exists = _get_group_from_name(name, org_id)
+    return name and not group_exists
+
+
+def _add_group(session, group_data):
+    new_group_name = group_data.get("name")
+    new_group_org_id = get_current_identity().org_id
+    new_group_account = get_current_identity().account_number
+
+    if not _validate_group_name(new_group_name, new_group_org_id):
+        return 0
+
+    created_group = Group(name=new_group_name, org_id=new_group_org_id, account=new_group_account)
+
+    session.add(created_group)
+    session.commit()
+    create_group_count.inc()
+
+    return created_group.id
 
 
 def add_group(group_data):
     logger.debug("Creating a new group")
 
-    select_query = Group.query.filter(
-        (Group.org_id == get_current_identity().org_id) & Group.name == group_data.group_name
-    )
-
-    if select_query.one_or_none():
-        raise InventoryException(title="Invalid request", detail="Group name is already taken.")
-
-    with session_guard(select_query.session):
-        created_group = _add_group(select_query.session, group_data)
-        if created_group:
-            log_add_group_succeeded(logger, group_data.id, get_control_rule())
+    with session_guard(db.session):
+        created_group_id = _add_group(db.session, group_data)
+        if created_group_id:
+            log_add_group_succeeded(logger, created_group_id, get_control_rule())
         else:
-            log_add_group_failed(logger, group_data.id, get_control_rule())
+            log_add_group_failed(logger, group_data.get("name"), get_control_rule())
 
-        return created_group
+        return created_group_id
 
 
 def _remove_all_hosts_from_group(session, group):

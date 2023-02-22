@@ -8,6 +8,7 @@ from app import Permission
 from lib.feature_flags import FLAG_INVENTORY_GROUPS
 from lib.feature_flags import get_flag_value
 from lib.group_repository import add_group
+from lib.group_repository import add_hosts_to_group
 from lib.group_repository import delete_group_list
 from lib.group_repository import remove_hosts_from_group
 from lib.middleware import rbac
@@ -26,17 +27,18 @@ def get_group_list(
 @api_operation
 @rbac(Permission.WRITE)
 @metrics.api_request_time.time()
-def create_group(group_data):
-    # the [0] has to stay while Asa's recent changes aren't merged
-    if not get_flag_value(FLAG_INVENTORY_GROUPS)[0]:
+def create_group(body):
+    if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return flask.Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
-    created_group = add_group(group_data)
+    created_group_id = add_group(body)
 
-    if not created_group:
+    if not created_group_id:
         flask.abort(status.HTTP_400_BAD_REQUEST, "Group could not be created.")
 
-    return flask.Response(created_group, status.HTTP_201_CREATED)
+    updated_group = add_hosts_to_group(created_group_id, body.get("host_ids"))
+
+    return flask.Response(updated_group, status.HTTP_201_CREATED)
 
 
 def patch_group_by_id(group_id, group_data):
