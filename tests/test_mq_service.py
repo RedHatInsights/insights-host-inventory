@@ -238,7 +238,7 @@ def test_handle_message_unicode_not_damaged(mocker, flask_app, subtests, db_get_
             add_host.reset_mock()
             add_host.return_value = ({"id": host_id}, host_id, None, AddHostResult.updated)
             handle_message(message, mocker.Mock(), mocker.Mock(), add_host)
-            add_host.assert_called_once_with(json.loads(message)["data"], mocker.ANY)
+            add_host.assert_called_once_with(json.loads(message)["data"], mocker.ANY, {})
 
 
 def test_handle_message_verify_metadata_pass_through(mq_create_or_update_host):

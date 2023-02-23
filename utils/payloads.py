@@ -592,5 +592,31 @@ def build_mq_payload(payload_builder=build_host_chunk):
     return json.dumps(message).encode("utf-8")
 
 
+def build_mq_payload_with_args(payload_builder=build_host_chunk):
+    host_payload = build_host_payload(payload_builder)
+    message1 = {
+        "operation": "add_host",
+        "platform_metadata": {
+            "request_id": random_uuid(),
+            "archive_url": "http://s3.aws.com/redhat/insights/1234567",
+            "b64_identity": apiKey.decode("ascii"),
+        },
+        "data": host_payload,
+    }
+    message2 = {
+        "operation": "add_host",
+        "operation_args": {
+            "defer_to_reporter": "puptoo",
+        },
+        "platform_metadata": {
+            "request_id": random_uuid(),
+            "archive_url": "http://s3.aws.com/redhat/insights/1234567",
+            "b64_identity": apiKey.decode("ascii"),
+        },
+        "data": host_payload,
+    }
+    return json.dumps(message1).encode("utf-8"), json.dumps(message2).encode("utf-8")
+
+
 def build_http_payload(payload_builder=build_host_chunk):
     return build_host_payload(payload_builder)

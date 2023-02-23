@@ -47,7 +47,9 @@ NULL = None
 logger = get_logger(__name__)
 
 
-def add_host(input_host, identity, staleness_offset, update_system_profile=True, fields=DEFAULT_FIELDS):
+def add_host(
+    input_host, identity, staleness_offset, update_system_profile=True, fields=DEFAULT_FIELDS, operation_args={}
+):
     """
     Add or update a host
 
@@ -59,6 +61,13 @@ def add_host(input_host, identity, staleness_offset, update_system_profile=True,
         existing_host = find_existing_host(identity, input_host.canonical_facts)
 
         if existing_host:
+            defer_to_reporter = operation_args.get("defer_to_reporter", None)
+            if defer_to_reporter is not None:
+                logger.debug("host_repository.add_host: defer_to_reporter = %s", defer_to_reporter)
+                if not existing_host.reporter_stale(defer_to_reporter):
+                    logger.debug("host_repository.add_host: setting update_system_profile = False")
+                    update_system_profile = False
+
             return update_existing_host(existing_host, input_host, staleness_offset, update_system_profile, fields)
         else:
             return create_new_host(input_host, staleness_offset, fields)
