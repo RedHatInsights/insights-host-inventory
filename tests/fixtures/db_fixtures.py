@@ -202,8 +202,8 @@ def db_delete_group(flask_app):
 @pytest.fixture(scope="function")
 def db_create_group_with_hosts(db_create_group, db_create_host, db_create_host_group_assoc, db_get_group):
     def _db_create_group_with_hosts(group_name, num_hosts):
-        group_id = db_create_group("test_group").id
-        host_id_list = [str(db_create_host().id), str(db_create_host().id)]
+        group_id = db_create_group(group_name).id
+        host_id_list = [str(db_create_host().id) for _ in range(num_hosts)]
         for host_id in host_id_list:
             db_create_host_group_assoc(host_id, group_id)
 
