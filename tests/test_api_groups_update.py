@@ -60,7 +60,7 @@ def test_patch_group_wrong_org_id_for_group(db_create_group_with_hosts, db_creat
     assert_response_status(response_status, 404)
 
 
-def test_patch_group_existing_name_same_org(db_create_group_with_hosts, db_create_host, api_patch_group):
+def test_patch_group_existing_name_different_org(db_create_group_with_hosts, db_create_host, api_patch_group):
     # Create a group with 2 hosts
     group = db_create_group_with_hosts("test_group", 2)
     assert len(group.hosts) == 2
