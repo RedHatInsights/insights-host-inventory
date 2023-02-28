@@ -662,7 +662,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateGroup"
+                "$ref": "#/components/schemas/GroupIn"
               }
             }
           }
@@ -2386,23 +2386,6 @@
                 "items": {
                   "$ref": "#/components/schemas/GroupOut"
                 }
-              }
-            }
-          }
-        ]
-      },
-      "CreateGroup": {
-        "title": "Group creation data",
-        "description": "Data required to create a group.",
-        "type": "object",
-        "allOf": [
-          {
-            "properties": {
-              "name": {
-                "$ref": "#/components/schemas/GroupName"
-              },
-              "host_ids": {
-                "$ref": "#/components/schemas/HostIds"
               }
             }
           }
