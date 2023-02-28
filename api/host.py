@@ -140,6 +140,8 @@ def delete_hosts_by_filter(
             insights_id,
             provider_id,
             provider_type,
+            updated_start,
+            updated_end,
             registered_with,
             staleness,
             tags,

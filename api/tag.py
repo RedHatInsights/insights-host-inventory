@@ -1,3 +1,5 @@
+import flask
+
 from api import api_operation
 from api import build_collection_response
 from api import custom_escape
@@ -86,20 +88,24 @@ def get_tags(
         },
     }
 
-    hostfilter_and_variables = query_filters(
-        fqdn,
-        display_name,
-        hostname_or_id,
-        insights_id,
-        provider_id,
-        provider_type,
-        updated_start,
-        updated_end,
-        tags,
-        None,
-        registered_with,
-        filter,
-    )
+    try:
+        hostfilter_and_variables = query_filters(
+            fqdn,
+            display_name,
+            hostname_or_id,
+            insights_id,
+            provider_id,
+            provider_type,
+            updated_start,
+            updated_end,
+            tags,
+            None,
+            registered_with,
+            filter,
+        )
+    except ValueError as e:
+        log_get_tags_failed(logger)
+        flask.abort(400, str(e))
 
     if search:
         variables["filter"] = {
