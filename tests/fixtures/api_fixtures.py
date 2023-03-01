@@ -95,7 +95,7 @@ def api_remove_hosts_from_group(flask_client):
     def _api_remove_hosts_from_group(
         group_id, host_id_list, identity=USER_IDENTITY, query_parameters=None, extra_headers=None
     ):
-        url = f"{GROUP_URL}/{group_id}/{','.join([str(host_id) for host_id in host_id_list])}"
+        url = f"{GROUP_URL}/{group_id}/hosts/{','.join([str(host_id) for host_id in host_id_list])}"
         return do_request(
             flask_client.delete, url, identity, query_parameters=query_parameters, extra_headers=extra_headers
         )
