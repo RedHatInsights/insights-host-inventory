@@ -214,6 +214,15 @@ def log_patch_host_failed(logger, host_id_list):
     logger.debug("Failed to find hosts during patch operation - hosts: %s", host_id_list)
 
 
+# patch group
+def log_patch_group_success(logger, group_id):
+    logger.info(f"Patched group: {group_id}")
+
+
+def log_patch_group_failed(logger, group_id):
+    logger.debug(f"Failed to find group during patch operation: {group_id}")
+
+
 def rbac_failure(logger, error_message=None):
     logger.error("Failed to fetch RBAC permissions: %s", error_message)
     rbac_fetching_failure.inc()
