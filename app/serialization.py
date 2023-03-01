@@ -137,6 +137,18 @@ def serialize_host(host, staleness_timestamps, fields=DEFAULT_FIELDS):
     return serialized_host
 
 
+def serialize_group(group):
+    return {
+        "id": _serialize_uuid(group.id),
+        "org_id": group.org_id,
+        "account": group.account,
+        "name": group.name,
+        "host_ids": [_serialize_uuid(host.id) for host in group.hosts],
+        "created_on": _serialize_datetime(group.created_on),
+        "modified_on": _serialize_datetime(group.modified_on),
+    }
+
+
 def serialize_host_system_profile(host):
     return {"id": _serialize_uuid(host.id), "system_profile": host.system_profile_facts or {}}
 

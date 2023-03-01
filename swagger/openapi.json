@@ -662,7 +662,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateGroup"
+                "$ref": "#/components/schemas/GroupIn"
               }
             }
           }
@@ -700,7 +700,7 @@
           }
         ],
         "requestBody": {
-          "description": "A dictionary with the new information to merge with the original one.",
+          "description": "A dictionary with new information to merge with the original group.",
           "required": true,
           "content": {
             "application/json": {
@@ -2324,9 +2324,6 @@
         "allOf": [
           {
             "properties": {
-              "id": {
-                "$ref": "#/components/schemas/GroupId"
-              },
               "name": {
                 "$ref": "#/components/schemas/GroupName"
               },
@@ -2389,23 +2386,6 @@
                 "items": {
                   "$ref": "#/components/schemas/GroupOut"
                 }
-              }
-            }
-          }
-        ]
-      },
-      "CreateGroup": {
-        "title": "Group creation data",
-        "description": "Data required to create a group.",
-        "type": "object",
-        "allOf": [
-          {
-            "properties": {
-              "name": {
-                "$ref": "#/components/schemas/GroupName"
-              },
-              "host_ids": {
-                "$ref": "#/components/schemas/HostIds"
               }
             }
           }
