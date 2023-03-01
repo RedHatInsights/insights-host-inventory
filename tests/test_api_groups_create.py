@@ -1,27 +1,37 @@
+import pytest
+
 from tests.helpers.api_utils import assert_response_status
 
 
-def test_create_group_without_hosts(api_create_group, db_get_hosts_for_group):
+def test_create_group_without_hosts(api_create_group, db_get_group_by_name, db_get_hosts_for_group):
     group_data = {"name": "my_awesome_group", "host_ids": []}
 
     response_status, _ = api_create_group(group_data)
 
     assert_response_status(response_status, expected_status=201)
 
+    retrieved_group = db_get_group_by_name(group_data.get("name"))
+    # don't use this until migration
+    # assert [str(host.id) for host in retrieved_group.hosts] == []]
+    assert db_get_hosts_for_group(retrieved_group.id) == []
 
-def test_create_group_with_hosts(db_create_host, api_create_group):
+
+def test_create_group_with_hosts(db_create_host, api_create_group, db_get_hosts_for_group, db_get_group_by_name):
     host1 = db_create_host()
     host2 = db_create_host()
+    host_id_list = [str(host1.id), str(host2.id)]
 
-    group_data = {"name": "my_awesome_group", "host_ids": [str(host1.id), str(host2.id)]}
+    group_data = {"name": "my_awesome_group", "host_ids": host_id_list}
 
     response_status, _ = api_create_group(group_data)
 
     assert_response_status(response_status, expected_status=201)
-    # check if hosts were associated with created group
+
+    retrieved_group = db_get_group_by_name(group_data.get("name"))
+    assert [str(host.id) for host in db_get_hosts_for_group(retrieved_group.id)] == host_id_list
 
 
-def test_create_invalid_group(api_create_group):
+def test_create_invalid_group_name(api_create_group):
     group_data = {"name": "", "host_ids": []}
 
     response_status, _ = api_create_group(group_data)
@@ -29,8 +39,12 @@ def test_create_invalid_group(api_create_group):
     assert_response_status(response_status, expected_status=400)
 
 
-def test_create_group_invalid_host_ids(api_create_group):
-    group_data = {"name": "my_awesome_group", "host_ids": ["notauuid"]}
+@pytest.mark.parametrize(
+    "host_ids",
+    [["", "3578"], ["notauuid"]],
+)
+def test_create_group_invalid_host_ids(api_create_group, host_ids):
+    group_data = {"name": "my_awesome_group", "host_ids": host_ids}
 
     response_status, _ = api_create_group(group_data)
 

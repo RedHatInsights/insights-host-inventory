@@ -14,16 +14,18 @@ from app.exceptions import InventoryException
 from app.instrumentation import log_patch_group_failed
 from app.instrumentation import log_patch_group_success
 from app.logging import get_logger
+from app.models import CreateGroupSchema
 from app.models import PatchGroupSchema
 from lib.feature_flags import FLAG_INVENTORY_GROUPS
 from lib.feature_flags import get_flag_value
 from lib.group_repository import add_group
-from lib.group_repository import add_hosts_to_group
 from lib.group_repository import delete_group_list
 from lib.group_repository import get_group_by_id_from_db
 from lib.group_repository import remove_hosts_from_group
 from lib.group_repository import replace_host_list_for_group
 from lib.middleware import rbac
+
+logger = get_logger(__name__)
 
 
 logger = get_logger(__name__)
@@ -46,14 +48,20 @@ def create_group(body):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return flask.Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
-    created_group_id = add_group(body)
+    # from Asa's PR
+    try:
+        validated_create_group_data = CreateGroupSchema().load(body)
+    except ValidationError as e:
+        logger.exception(f"Input validation error while creating group: {body}")
+        return flask.Response({"detail": str(e.messages)}, status.HTTP_400_BAD_REQUEST)
 
-    if not created_group_id:
+    created_group_id = add_group(validated_create_group_data)
+    created_group = get_group_by_id_from_db(created_group_id)
+
+    if not created_group:
         flask.abort(status.HTTP_400_BAD_REQUEST, "Group could not be created.")
 
-    updated_group = add_hosts_to_group(created_group_id, body.get("host_ids"))
-
-    return flask.Response(updated_group, status.HTTP_201_CREATED)
+    return flask.Response(build_group_response(created_group), status.HTTP_201_CREATED)
 
 
 @api_operation

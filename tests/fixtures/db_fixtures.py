@@ -69,11 +69,19 @@ def db_get_host_by_insights_id(flask_app):
 
 
 @pytest.fixture(scope="function")
-def db_get_group(flask_app):
-    def _db_get_group(group_id):
+def db_get_group_by_id(flask_app):
+    def _db_get_group_by_id(group_id):
         return Group.query.get(group_id)
 
-    return _db_get_group
+    return _db_get_group_by_id
+
+
+@pytest.fixture(scope="function")
+def db_get_group_by_name(flask_app):
+    def _db_get_group_by_name(group_name):
+        return Group.query.filter(Group.name == group_name).first()
+
+    return _db_get_group_by_name
 
 
 @pytest.fixture(scope="function")
