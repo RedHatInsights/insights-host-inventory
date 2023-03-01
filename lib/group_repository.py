@@ -30,19 +30,12 @@ logger = get_logger(__name__)
 
 
 def add_hosts_to_group(group: Group, host_id_list: List[str]) -> List[HostGroupAssoc]:
-    assoc_list = []
-
     for host_id in host_id_list:
-        # just try to create the assoc and log if an exception is raised
         try:
-            new_host_group_assoc = db_create_host_group_assoc(group_id=group.id, host_id=host_id)
-            db.session.add(new_host_group_assoc)
+            db_create_host_group_assoc(group_id=group.id, host_id=host_id)
             log_host_group_add_succeeded(logger, host_id, group.id, get_control_rule())
-            assoc_list.append(new_host_group_assoc)
         except Exception:
             log_host_group_add_failed(logger, host_id, group.id, get_control_rule())
-
-    return assoc_list
 
 
 def _add_group(session: scoped_session, group_name: str) -> Group:
@@ -51,7 +44,6 @@ def _add_group(session: scoped_session, group_name: str) -> Group:
     new_group = Group(name=group_name, org_id=current_org_id, account=current_account)
 
     session.add(new_group)
-    # see on the tests if the group is still created and committed if the hosts fail
     create_group_count.inc()
 
     created_group = Group.query.filter(Group.name == group_name, Group.org_id == current_org_id).one_or_none()
@@ -62,7 +54,6 @@ def _add_group(session: scoped_session, group_name: str) -> Group:
 def add_group(group_data) -> Group:
     logger.debug("Creating a new group")
     group_name = group_data.get("name")
-    host_id_list = group_data.get("host_ids")
 
     with session_guard(db.session):
         created_group = _add_group(db.session, group_name)
@@ -71,12 +62,7 @@ def add_group(group_data) -> Group:
         else:
             log_add_group_failed(logger, group_name, get_control_rule())
 
-        if host_id_list:
-            # should I create this variable elsewhere to avoid an error in the second if?
-            assoc_list = add_hosts_to_group(created_group, host_id_list)
-
-        # not sure if the first clause works
-        if db.session.is_modified(created_group) or any(db.session.is_modified(assoc) for assoc in assoc_list):
+        if db.session.is_modified(created_group):
             db.session.commit()
 
         return created_group.id

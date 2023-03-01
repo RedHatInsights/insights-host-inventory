@@ -19,6 +19,7 @@ from app.models import PatchGroupSchema
 from lib.feature_flags import FLAG_INVENTORY_GROUPS
 from lib.feature_flags import get_flag_value
 from lib.group_repository import add_group
+from lib.group_repository import add_hosts_to_group
 from lib.group_repository import delete_group_list
 from lib.group_repository import get_group_by_id_from_db
 from lib.group_repository import remove_hosts_from_group
@@ -48,7 +49,6 @@ def create_group(body):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return flask.Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
-    # from Asa's PR
     try:
         validated_create_group_data = CreateGroupSchema().load(body)
     except ValidationError as e:
@@ -57,6 +57,10 @@ def create_group(body):
 
     created_group_id = add_group(validated_create_group_data)
     created_group = get_group_by_id_from_db(created_group_id)
+    host_id_list = validated_create_group_data.get("host_ids")
+
+    if host_id_list:
+        add_hosts_to_group(created_group, host_id_list)
 
     if not created_group:
         flask.abort(status.HTTP_400_BAD_REQUEST, "Group could not be created.")
