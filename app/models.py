@@ -415,12 +415,20 @@ class Group(db.Model):
         if input_group.account is not None:
             self.account = input_group.account
 
+    def patch(self, patch_data):
+        logger.debug("patching group (id=%s) with data: %s", self.id, patch_data)
+        if not patch_data:
+            raise InventoryException(title="Bad Request", detail="Patch json document cannot be empty.")
+
+        self.name = patch_data.get("name")
+
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     account = db.Column(db.String(10))
     org_id = db.Column(db.String(36), nullable=False)
     name = db.Column(db.String(255), nullable=False)
     created_on = db.Column(db.DateTime(timezone=True), default=_time_now)
     modified_on = db.Column(db.DateTime(timezone=True), default=_time_now, onupdate=_time_now)
+    hosts = orm.relationship("Host", secondary="hosts_groups")
 
 
 class HostGroupAssoc(db.Model):
@@ -672,6 +680,14 @@ class HostSchema(LimitedHostSchema):
 class PatchHostSchema(MarshmallowSchema):
     ansible_host = fields.Str(validate=marshmallow_validate.Length(min=0, max=255))
     display_name = fields.Str(validate=marshmallow_validate.Length(min=1, max=200))
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
+class PatchGroupSchema(MarshmallowSchema):
+    name = fields.Str(validate=marshmallow_validate.Length(min=1, max=255))
+    host_ids = fields.List(fields.Str(validate=verify_uuid_format))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

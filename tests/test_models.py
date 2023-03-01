@@ -14,6 +14,7 @@ from app.models import CanonicalFactsSchema
 from app.models import Host
 from app.models import HostSchema
 from app.models import LimitedHost
+from app.models import PatchGroupSchema
 from app.utils import Tag
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import now
@@ -631,3 +632,17 @@ def test_add_delete_host_group_happy(
     retrieved_host_list = db_get_hosts_for_group(created_group.id)
     assert len(retrieved_host_list) == 1
     assert created_host_list[0].id == retrieved_host_list[0].id
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"name": ""},  # Name cannot be blank
+        {"name": "a" * 256},  # Name must be 255 chars or less
+        {"host_ids": ["asdf", "foobar"]},  # Host IDs must be in UUID format
+        {"foo": "bar"},  # Field does not exist
+    ],
+)
+def test_patch_group_schema_validation(data):
+    with pytest.raises(MarshmallowValidationError):
+        PatchGroupSchema().load(data)

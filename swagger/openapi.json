@@ -662,7 +662,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateGroup"
+                "$ref": "#/components/schemas/GroupIn"
               }
             }
           }
@@ -682,36 +682,6 @@
       }
     },
     "/groups/{group_id}": {
-      "get": {
-        "operationId": "api.group.get_group",
-        "tags": [
-          "groups"
-        ],
-        "summary": "Find a group by its ID [Not Implemented]",
-        "description": "Find a group by its ID. [Not Implemented] <br /><br /> Required permissions: inventory:groups:read",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/groupId"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successfully searched for group.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GroupOut"
-                }
-              }
-            }
-          }
-        }
-      },
       "patch": {
         "operationId": "api.group.patch_group_by_id",
         "tags": [
@@ -730,7 +700,7 @@
           }
         ],
         "requestBody": {
-          "description": "A dictionary with the new information to merge with the original one.",
+          "description": "A dictionary with new information to merge with the original group.",
           "required": true,
           "content": {
             "application/json": {
@@ -1282,18 +1252,18 @@
         "description": "Host (system) ID.",
         "required": true,
         "schema": {
-          "$ref": "#/components/schemas/HostId"
+          "$ref": "#/components/schemas/NonStrictUUID"
         }
       },
       "hostIdList": {
         "in": "path",
         "name": "host_id_list",
-        "description": "A comma separated list of host IDs.",
+        "description": "A comma-separated list of host IDs.",
         "required": true,
         "schema": {
           "type": "array",
           "items": {
-            "$ref": "#/components/schemas/HostId"
+            "$ref": "#/components/schemas/NonStrictUUID"
           }
         }
       },
@@ -1598,18 +1568,18 @@
         "description": "Group ID.",
         "required": true,
         "schema": {
-          "$ref": "#/components/schemas/HostId"
+          "$ref": "#/components/schemas/NonStrictUUID"
         }
       },
       "groupIdList": {
         "in": "path",
         "name": "group_id_list",
-        "description": "A comma separated list of group IDs.",
+        "description": "A comma-separated list of group IDs.",
         "required": true,
         "schema": {
           "type": "array",
           "items": {
-            "$ref": "#/components/schemas/HostId"
+            "$ref": "#/components/schemas/NonStrictUUID"
           }
         }
       }
@@ -1859,6 +1829,18 @@
         "nullable": true,
         "example": "aws"
       },
+      "AccountNumber": {
+        "description": "A Red Hat Account number that owns the host.",
+        "type": "string",
+        "nullable": true,
+        "example": "000102",
+        "deprecated": true
+      },
+      "OrgId": {
+        "description": "The Org ID of the tenant that owns the host.",
+        "type": "string",
+        "example": "000102"
+      },
       "CanonicalFactsIn": {
         "allOf": [
           {
@@ -2043,16 +2025,10 @@
                 "nullable": true
               },
               "account": {
-                "description": "A Red Hat Account number that owns the host.",
-                "type": "string",
-                "nullable": true,
-                "example": "000102",
-                "deprecated": true
+                "$ref": "#/components/schemas/AccountNumber"
               },
               "org_id": {
-                "description": "The Org ID of the tenant that owns the host.",
-                "type": "string",
-                "example": "000102"
+                "$ref": "#/components/schemas/OrgId"
               },
               "id": {
                 "description": "A durable and reliable platform-wide host identifier. Applications should use this identifier to reference hosts.",
@@ -2300,32 +2276,32 @@
           ]
         }
       },
-      "GroupId": {
-        "description": "A durable and reliable platform-wide group identifier. Applications should use this identifier to reference groups.",
-        "type": "string",
-        "pattern": "^[0-9a-fA-F]{8}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{12}$|^[0-9a-fA-F]{8}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{12}$",
-        "format": "uuid",
-        "example": "3f01b55457674041b75e41829bcee1dc"
-      },
       "GroupName": {
         "description": "A group’s human-readable name.",
         "type": "string",
         "nullable": false,
         "example": "sre-group"
       },
-      "HostId": {
-        "description": "A durable and reliable platform-wide group identifier. Applications should use this identifier to reference hosts.",
+      "NonStrictUUID": {
         "type": "string",
         "pattern": "^[0-9a-fA-F]{8}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{12}$|^[0-9a-fA-F]{8}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{12}$",
         "format": "uuid",
         "example": "bA6deCFc19564430AB814bf8F70E8cEf"
       },
+      "GroupId": {
+        "description": "A durable and reliable platform-wide group identifier. Applications should use this identifier to reference groups.",
+        "$ref": "#/components/schemas/NonStrictUUID"
+      },
+      "HostId": {
+        "description": "A durable and reliable platform-wide group identifier. Applications should use this identifier to reference hosts.",
+        "$ref": "#/components/schemas/NonStrictUUID"
+      },
       "HostIds": {
-        "description": "A comma separated list of host IDs that belong to the group.",
+        "description": "A comma-separated list of host IDs that belong to the group.",
         "type": "array",
         "nullable": true,
         "items": {
-          "$ref": "#/components/schemas/HostId"
+          "$ref": "#/components/schemas/NonStrictUUID"
         }
       },
       "UnleashToggleOut": {
@@ -2348,9 +2324,6 @@
         "allOf": [
           {
             "properties": {
-              "id": {
-                "$ref": "#/components/schemas/GroupId"
-              },
               "name": {
                 "$ref": "#/components/schemas/GroupName"
               },
@@ -2374,6 +2347,12 @@
           },
           "host_ids": {
             "$ref": "#/components/schemas/HostIds"
+          },
+          "account": {
+            "$ref": "#/components/schemas/AccountNumber"
+          },
+          "org_id": {
+            "$ref": "#/components/schemas/OrgId"
           },
           "created_at": {
             "description": "A timestamp when the entry was created.",
@@ -2407,23 +2386,6 @@
                 "items": {
                   "$ref": "#/components/schemas/GroupOut"
                 }
-              }
-            }
-          }
-        ]
-      },
-      "CreateGroup": {
-        "title": "Group creation data",
-        "description": "Data required to create a group.",
-        "type": "object",
-        "allOf": [
-          {
-            "properties": {
-              "name": {
-                "$ref": "#/components/schemas/GroupName"
-              },
-              "host_ids": {
-                "$ref": "#/components/schemas/HostIds"
               }
             }
           }

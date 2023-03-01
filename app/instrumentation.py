@@ -98,6 +98,20 @@ def log_group_delete_failed(logger, group_id, control_rule):
     logger.info("Group %s already deleted. Delete event not emitted.", group_id, extra={"access_rule": control_rule})
 
 
+# delete host_group_assoc
+def log_host_group_delete_succeeded(logger, host_id, group_id, control_rule):
+    logger.info(
+        f"Removed association between host {host_id} and group {group_id}", extra={"access_rule": control_rule}
+    )
+
+
+def log_host_group_delete_failed(logger, host_id, group_id, control_rule):
+    logger.info(
+        f"Failed to remove association between host {host_id} and group {group_id}",
+        extra={"access_rule": control_rule},
+    )
+
+
 # get tags
 def log_get_tags_succeeded(logger, data):
     logger.debug("Found tags: %s", data, extra={"access_rule": get_control_rule()})
@@ -198,6 +212,15 @@ def log_patch_host_success(logger, host_id_list):
 
 def log_patch_host_failed(logger, host_id_list):
     logger.debug("Failed to find hosts during patch operation - hosts: %s", host_id_list)
+
+
+# patch group
+def log_patch_group_success(logger, group_id):
+    logger.info(f"Patched group: {group_id}")
+
+
+def log_patch_group_failed(logger, group_id):
+    logger.debug(f"Failed to find group during patch operation: {group_id}")
 
 
 def rbac_failure(logger, error_message=None):
