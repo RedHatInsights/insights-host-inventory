@@ -30,7 +30,9 @@ class Config:
         self.rbac_endpoint = ""
         for endpoint in cfg.endpoints:
             if endpoint.app == "rbac":
-                self.rbac_endpoint = f"https://{endpoint.hostname}:{endpoint.tlsPort}"
+                protocol = "https" if cfg.tlsCAPath else "http"
+                port = endpoint.tlsPort if cfg.tlsCAPath else endpoint.port
+                self.rbac_endpoint = f"{protocol}://{endpoint.hostname}:{port}"
                 break
 
         broker_cfg = cfg.kafka.brokers[0]
