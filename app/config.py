@@ -35,6 +35,10 @@ class Config:
                 self.rbac_endpoint = f"{protocol}://{endpoint.hostname}:{port}"
                 break
 
+        # ca-certs location
+        if cfg.tlsCAPath:
+            os.environ["REQUESTS_CA_BUNDLE"] = cfg.tlsCAPath
+
         broker_cfg = cfg.kafka.brokers[0]
         self.bootstrap_servers = f"{broker_cfg.hostname}:{broker_cfg.port}"
 

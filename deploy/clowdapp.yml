@@ -89,8 +89,6 @@ objects:
               name: ${UNLEASH_SECRET_NAME}
               key: CLIENT_ACCESS_TOKEN
               optional: true
-        - name: REQUESTS_CA_BUNDLE
-          value: ${REQUESTS_CA_BUNDLE}
         resources:
           limits:
             cpu: ${CPU_LIMIT}
@@ -181,8 +179,6 @@ objects:
               name: ${UNLEASH_SECRET_NAME}
               key: CLIENT_ACCESS_TOKEN
               optional: true
-        - name: REQUESTS_CA_BUNDLE
-          value: ${REQUESTS_CA_BUNDLE}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -264,8 +260,6 @@ objects:
               name: ${UNLEASH_SECRET_NAME}
               key: CLIENT_ACCESS_TOKEN
               optional: true
-        - name: REQUESTS_CA_BUNDLE
-          value: ${REQUESTS_CA_BUNDLE}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -341,8 +335,6 @@ objects:
               name: ${UNLEASH_SECRET_NAME}
               key: CLIENT_ACCESS_TOKEN
               optional: true
-        - name: REQUESTS_CA_BUNDLE
-          value: ${REQUESTS_CA_BUNDLE}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -420,8 +412,6 @@ objects:
                 name: ${UNLEASH_SECRET_NAME}
                 key: CLIENT_ACCESS_TOKEN
                 optional: true
-          - name: REQUESTS_CA_BUNDLE
-            value: ${REQUESTS_CA_BUNDLE}
         resources:
           limits:
             cpu: ${CPU_LIMIT}
@@ -504,8 +494,6 @@ objects:
                 name: ${UNLEASH_SECRET_NAME}
                 key: CLIENT_ACCESS_TOKEN
                 optional: true
-          - name: REQUESTS_CA_BUNDLE
-            value: ${REQUESTS_CA_BUNDLE}
         resources:
           limits:
             cpu: ${CPU_LIMIT}
@@ -553,8 +541,6 @@ objects:
                 name: ${UNLEASH_SECRET_NAME}
                 key: CLIENT_ACCESS_TOKEN
                 optional: true
-          - name: REQUESTS_CA_BUNDLE
-            value: ${REQUESTS_CA_BUNDLE}
         resources:
           limits:
             cpu: ${CPU_LIMIT}
@@ -617,8 +603,6 @@ objects:
                 name: ${UNLEASH_SECRET_NAME}
                 key: CLIENT_ACCESS_TOKEN
                 optional: true
-          - name: REQUESTS_CA_BUNDLE
-            value: ${REQUESTS_CA_BUNDLE}
         resources:
           limits:
             cpu: ${CPU_LIMIT}
@@ -912,5 +896,3 @@ parameters:
 - name: FLOORIST_LOGLEVEL
   description: Floorist loglevel config
   value: 'INFO'
-- name: REQUESTS_CA_BUNDLE
-  value: '/cdapp/certs/service-ca.crt'
