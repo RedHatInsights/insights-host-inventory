@@ -106,7 +106,8 @@ def test_get_list_of_tags_with_host_filters(patch_xjoin_post, api_get, subtests)
         f"?provider_id={generate_uuid()}",
         f"?provider_type={ProviderType.AZURE.value}",
         "?updated_start=2020-01-19T15:00:00.000Z",
-        "?updated_start=2022-02-08T09:00:00.000Z",
+        "?updated_end=2022-02-08T09:00:00.000Z",
+        "?updated_start=2022-01-19T15:00:00.000Z&updated_end=2022-01-19T15:00:00.000Z",
     ):
         with subtests.test(query=query):
             url = build_tags_url(query=query)
@@ -114,6 +115,18 @@ def test_get_list_of_tags_with_host_filters(patch_xjoin_post, api_get, subtests)
 
             assert_response_status(response_status, 200)
             assert response_data["total"] == 1
+
+
+def test_get_tags_invalid_start_end(patch_xjoin_post, api_get, subtests):
+    patch_xjoin_post(response={"data": {"hostTags": {"meta": {"total": 1}, "data": []}}})
+    """
+    Validate that the /tags endpoint properly handles updated_start and updated_end validation errors.
+    """
+
+    url = build_tags_url(query="?updated_start=2022-01-19T15:00:00.000Z&updated_end=2020-01-19T15:00:00.000Z")
+    response_status, _ = api_get(url)
+
+    assert_response_status(response_status, 400)
 
 
 def test_get_filtered_by_search_tags_of_multiple_hosts(api_get, patch_xjoin_post, mocker, subtests):
