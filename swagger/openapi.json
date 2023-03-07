@@ -800,7 +800,7 @@
         }
       }
     },
-    "/groups/{group_id}/{host_id_list}": {
+    "/groups/{group_id}/hosts/{host_id_list}": {
       "delete": {
         "operationId": "api.group.delete_hosts_from_group",
         "tags": [
