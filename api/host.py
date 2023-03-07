@@ -69,6 +69,7 @@ def get_host_list(
     provider_type=None,
     updated_start=None,
     updated_end=None,
+    group_name=None,  # To be implemented
     tags=None,
     page=1,
     per_page=100,
@@ -122,6 +123,7 @@ def delete_hosts_by_filter(
     provider_type=None,
     updated_start=None,
     updated_end=None,
+    group_name=None,  # To be implemented
     registered_with=None,
     staleness=None,
     tags=None,

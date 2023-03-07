@@ -26,6 +26,7 @@ paths:
         - $ref: '#/components/parameters/providerType'
         - $ref: '#/components/parameters/updatedStart'
         - $ref: '#/components/parameters/updatedEnd'
+        - $ref: '#/components/parameters/groupName'
         - $ref: '#/components/parameters/branchId'
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
@@ -63,6 +64,7 @@ paths:
         - $ref: '#/components/parameters/providerType'
         - $ref: '#/components/parameters/updatedStart'
         - $ref: '#/components/parameters/updatedEnd'
+        - $ref: '#/components/parameters/groupName'
         - $ref: '#/components/parameters/registered_with'
         - $ref: '#/components/parameters/stalenessNoDefaultsParam'
         - $ref: '#/components/parameters/tagsParam'
@@ -431,37 +433,6 @@ paths:
           description: Invalid request.
         '404':
           description: Group not found.
-    put:
-      operationId: api.group.update_group_details
-      tags:
-        - groups
-      summary: Replace group information [Not Implemented]
-      description: >-
-        Replace information from a group. [Not Implemented]
-        <br /><br />
-        Required permissions: inventory:groups:write
-      security:
-        - ApiKeyAuth: []
-      parameters:
-        - $ref: '#/components/parameters/groupId'
-      requestBody:
-        description: A dictionary with the information to replace the original one.
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/GroupIn'
-      responses:
-        '200':
-          description: Successfully replaced group information.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/GroupOut'
-        '400':
-          description: Invalid request.
-        '404':
-          description: Group not found.
   '/groups/{group_id_list}':
     get:
       operationId: api.group.get_groups_by_id
@@ -552,6 +523,7 @@ paths:
         - $ref: '#/components/parameters/providerType'
         - $ref: '#/components/parameters/updatedStart'
         - $ref: '#/components/parameters/updatedEnd'
+        - $ref: '#/components/parameters/groupName'
         - $ref: '#/components/parameters/registered_with'
         - $ref: '#/components/parameters/filter_param'
       responses:

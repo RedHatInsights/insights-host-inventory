@@ -74,10 +74,6 @@ def patch_group_by_id(group_id, body):
     return flask_json_response(build_group_response(updated_group), status.HTTP_200_OK)
 
 
-def update_group_details(group_id, group_data):
-    pass
-
-
 @api_operation
 @rbac(Permission.WRITE)
 @metrics.api_request_time.time()
