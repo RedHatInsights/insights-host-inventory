@@ -14,8 +14,7 @@ from app.exceptions import InventoryException
 from app.instrumentation import log_patch_group_failed
 from app.instrumentation import log_patch_group_success
 from app.logging import get_logger
-from app.models import CreateGroupSchema
-from app.models import PatchGroupSchema
+from app.models import GroupSchema
 from lib.feature_flags import FLAG_INVENTORY_GROUPS
 from lib.feature_flags import get_flag_value
 from lib.group_repository import add_group
@@ -50,22 +49,40 @@ def create_group(body):
         return flask.Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
     try:
-        validated_create_group_data = CreateGroupSchema().load(body)
+        validated_create_group_data = GroupSchema().load(body)
     except ValidationError as e:
         logger.exception(f"Input validation error while creating group: {body}")
-        return flask.Response({"detail": str(e.messages)}, status.HTTP_400_BAD_REQUEST)
+        return flask.Response(
+            {
+                "status": status.HTTP_406_NOT_ACCEPTABLE,
+                "title": ValidationError,
+                "detail": str(e.messages),
+                "type": "unknown",
+            },
+            status.HTTP_406_NOT_ACCEPTABLE,
+        )
 
-    created_group_id = add_group(validated_create_group_data)
+    try:
+        created_group_id = add_group(validated_create_group_data)
+    except IntegrityError:
+        logger.exception(f"A group with details {validated_create_group_data} already exists.")
+        return (
+            {
+                "status": status.HTTP_400_BAD_REQUEST,
+                "title": "Integrity error",
+                "detail": f"A group with details {validated_create_group_data} already exists.",
+                "type": "unknown",
+            },
+            status.HTTP_400_BAD_REQUEST,
+        )
+
     created_group = get_group_by_id_from_db(created_group_id)
     host_id_list = validated_create_group_data.get("host_ids")
 
     if host_id_list:
         add_hosts_to_group(created_group, host_id_list)
 
-    if not created_group:
-        flask.abort(status.HTTP_400_BAD_REQUEST, "Group could not be created.")
-
-    return flask.Response(build_group_response(created_group), status.HTTP_201_CREATED)
+    return flask_json_response(build_group_response(created_group), status.HTTP_201_CREATED)
 
 
 @api_operation
@@ -73,7 +90,7 @@ def create_group(body):
 @metrics.api_request_time.time()
 def patch_group_by_id(group_id, body):
     try:
-        validated_patch_group_data = PatchGroupSchema().load(body)
+        validated_patch_group_data = GroupSchema().load(body)
     except ValidationError as e:
         logger.exception(f"Input validation error while patching group: {group_id} - {body}")
         return ({"status": 400, "title": "Bad Request", "detail": str(e.messages), "type": "unknown"}, 400)

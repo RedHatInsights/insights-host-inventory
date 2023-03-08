@@ -38,34 +38,19 @@ def add_hosts_to_group(group: Group, host_id_list: List[str]) -> List[HostGroupA
             log_host_group_add_failed(logger, host_id, group.id, get_control_rule())
 
 
-def _add_group(session: scoped_session, group_name: str) -> Group:
-    current_org_id = get_current_identity().org_id
-    current_account = get_current_identity().account_number
-    new_group = Group(name=group_name, org_id=current_org_id, account=current_account)
-
-    session.add(new_group)
-    create_group_count.inc()
-
-    created_group = Group.query.filter(Group.name == group_name, Group.org_id == current_org_id).one_or_none()
-
-    return created_group
-
-
 def add_group(group_data) -> Group:
     logger.debug("Creating a new group")
     group_name = group_data.get("name")
+    org_id = get_current_identity().org_id
+    account = get_current_identity().account_number
 
     with session_guard(db.session):
-        created_group = _add_group(db.session, group_name)
-        if created_group:
-            log_add_group_succeeded(logger, created_group.id, get_control_rule())
-        else:
-            log_add_group_failed(logger, group_name, get_control_rule())
+        new_group = Group(name=group_name, org_id=org_id, account=account)
+        db.session.add(new_group)
 
-        if db.session.is_modified(created_group):
-            db.session.commit()
+    created_group = Group.query.filter(Group.name == group_name, Group.org_id == org_id).one_or_none()
 
-        return created_group.id
+    return created_group
 
 
 def _remove_all_hosts_from_group(session, group):

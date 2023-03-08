@@ -705,15 +705,7 @@ class PatchHostSchema(MarshmallowSchema):
         super().__init__(*args, **kwargs)
 
 
-class CreateGroupSchema(MarshmallowSchema):
-    name = fields.Str(validate=marshmallow_validate.Length(min=1, max=255))
-    host_ids = fields.List(fields.Str(validate=verify_uuid_format))
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-
-class PatchGroupSchema(MarshmallowSchema):
+class GroupSchema(MarshmallowSchema):
     name = fields.Str(validate=marshmallow_validate.Length(min=1, max=255))
     host_ids = fields.List(fields.Str(validate=verify_uuid_format))
 

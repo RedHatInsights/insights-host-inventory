@@ -90,22 +90,27 @@ def log_get_host_list_failed(logger):
 
 
 # create group
-def log_add_group_succeeded(logger, group_id, control_rule):
-    logger.info(f"Created group: {group_id}", extra={"access_rule": control_rule})
+def log_create_group_succeeded(logger, group_id, control_rule):
+    logger.info("Created group: %s", group_id, extra={"access_rule": control_rule})
 
 
-def log_add_group_failed(logger, group_name, control_rule):
-    logger.info(f"Error adding group '{group_name}'.", extra={"access_rule": control_rule})
+def log_create_group_failed(logger, group_name, control_rule):
+    logger.info("Error adding group '%s'.", group_name, extra={"access_rule": control_rule})
 
 
 # create host_group_assoc
 def log_host_group_add_succeeded(logger, host_id, group_id, control_rule):
-    logger.info(f"Added association between host {host_id} and group {group_id}", extra={"access_rule": control_rule})
+    logger.info(
+        "Added association between host %s and group %s", host_id, group_id, extra={"access_rule": control_rule}
+    )
 
 
 def log_host_group_add_failed(logger, host_id, group_id, control_rule):
     logger.info(
-        f"Failed to add association between host {host_id} and group {group_id}", extra={"access_rule": control_rule}
+        "Failed to add association between host %s and group %s",
+        host_id,
+        group_id,
+        extra={"access_rule": control_rule},
     )
 
 

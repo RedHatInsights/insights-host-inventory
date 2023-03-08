@@ -18,7 +18,7 @@ def test_delete_with_invalid_group_id(api_delete_groups):
     assert_response_status(response_status, expected_status=400)
 
 
-def test_delete_group_ids(db_create_group, db_get_group, api_delete_groups):
+def test_delete_group_ids(db_create_group, db_get_group_by_id, api_delete_groups):
     group_list = [db_create_group(f"test_group{g_index}") for g_index in range(3)]
 
     response_status, response_data = api_delete_groups([group.id for group in group_list])
@@ -26,7 +26,7 @@ def test_delete_group_ids(db_create_group, db_get_group, api_delete_groups):
     assert_response_status(response_status, expected_status=204)
 
     for group in group_list:
-        assert not db_get_group(group.id)
+        assert not db_get_group_by_id(group.id)
 
 
 def test_remove_hosts_from_existing_group(

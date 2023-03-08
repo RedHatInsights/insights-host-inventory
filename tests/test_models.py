@@ -11,10 +11,10 @@ from sqlalchemy.exc import IntegrityError
 from app import db
 from app.exceptions import ValidationException
 from app.models import CanonicalFactsSchema
+from app.models import GroupSchema
 from app.models import Host
 from app.models import HostSchema
 from app.models import LimitedHost
-from app.models import PatchGroupSchema
 from app.utils import Tag
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import now
@@ -541,16 +541,16 @@ def test_invalid_ip_addresses(ip_addresses):
         CanonicalFactsSchema().load({"ip_addresses": ip_addresses})
 
 
-def test_create_delete_group_happy(db_create_group, db_get_group, db_delete_group):
+def test_create_delete_group_happy(db_create_group, db_get_group_by_id, db_delete_group):
     group_name = "Host Group 1"
 
     # Verify that the group is created successfully
     created_group = db_create_group(group_name)
-    assert db_get_group(created_group.id).name == group_name
+    assert db_get_group_by_id(created_group.id).name == group_name
 
     # Verify that the same group is deleted successfully
     db_delete_group(created_group.id)
-    assert db_get_group(created_group.id) is None
+    assert db_get_group_by_id(created_group.id) is None
 
 
 def test_create_group_no_name(db_create_group):
@@ -560,12 +560,12 @@ def test_create_group_no_name(db_create_group):
         db_create_group(None)
 
 
-def test_create_group_existing_name_diff_org(db_create_group, db_get_group):
+def test_create_group_existing_name_diff_org(db_create_group, db_get_group_by_id):
     # Make sure we can't create two groups with the same name in the same org
     group_name = "TestGroup_diff_org"
 
     group1 = db_create_group(group_name)
-    assert db_get_group(group1.id).name == group_name
+    assert db_get_group_by_id(group1.id).name == group_name
 
     diff_identity = deepcopy(SYSTEM_IDENTITY)
     diff_identity["org_id"] = "diff_id"
@@ -573,7 +573,7 @@ def test_create_group_existing_name_diff_org(db_create_group, db_get_group):
 
     group2 = db_create_group(group_name, diff_identity)
 
-    assert db_get_group(group2.id).name == group_name
+    assert db_get_group_by_id(group2.id).name == group_name
 
 
 def test_create_group_existing_name_same_org(db_create_group):
@@ -643,6 +643,6 @@ def test_add_delete_host_group_happy(
         {"foo": "bar"},  # Field does not exist
     ],
 )
-def test_patch_group_schema_validation(data):
+def test_group_schema_validation(data):
     with pytest.raises(MarshmallowValidationError):
-        PatchGroupSchema().load(data)
+        GroupSchema().load(data)
