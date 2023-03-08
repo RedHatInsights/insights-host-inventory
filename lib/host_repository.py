@@ -6,6 +6,7 @@ from sqlalchemy import not_
 from sqlalchemy import or_
 
 from app import inventory_config
+from app.auth import get_current_identity
 from app.auth.identity import IdentityType
 from app.culling import staleness_to_conditions
 from app.exceptions import InventoryException
@@ -271,3 +272,9 @@ def update_system_profile(input_host, identity, staleness_offset, fields):
             raise InventoryException(
                 title="Invalid request", detail="Could not find an existing host with the provided facts."
             )
+
+
+def get_host_list_by_id_list_from_db(host_id_list):
+    current_identity = get_current_identity()
+    query = Host.query.filter((Host.org_id == current_identity.org_id) & Host.id.in_(host_id_list))
+    return find_non_culled_hosts(update_query_for_owner_id(current_identity, query))

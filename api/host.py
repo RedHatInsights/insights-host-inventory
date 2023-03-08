@@ -46,6 +46,7 @@ from app.utils import Tag
 from lib.host_delete import delete_hosts
 from lib.host_repository import find_existing_host
 from lib.host_repository import find_non_culled_hosts
+from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.host_repository import update_query_for_owner_id
 from lib.middleware import rbac
 
@@ -54,12 +55,6 @@ FactOperations = Enum("FactOperations", ("merge", "replace"))
 TAG_OPERATIONS = ("apply", "remove")
 
 logger = get_logger(__name__)
-
-
-def _get_host_list_by_id_list_from_db(host_id_list):
-    current_identity = get_current_identity()
-    query = Host.query.filter((Host.org_id == current_identity.org_id) & Host.id.in_(host_id_list))
-    return find_non_culled_hosts(update_query_for_owner_id(current_identity, query))
 
 
 @api_operation
@@ -140,6 +135,8 @@ def delete_hosts_by_filter(
             insights_id,
             provider_id,
             provider_type,
+            updated_start,
+            updated_end,
             registered_with,
             staleness,
             tags,
@@ -192,7 +189,7 @@ def _delete_host_list(host_id_list):
     with PayloadTrackerContext(
         payload_tracker, received_status_message="delete operation", current_operation="delete"
     ):
-        query = _get_host_list_by_id_list_from_db(host_id_list)
+        query = get_host_list_by_id_list_from_db(host_id_list)
 
         deletion_count = 0
 
@@ -304,7 +301,7 @@ def patch_host_by_id(host_id_list, body):
         logger.exception(f"Input validation error while patching host: {host_id_list} - {body}")
         return ({"status": 400, "title": "Bad Request", "detail": str(e.messages), "type": "unknown"}, 400)
 
-    query = _get_host_list_by_id_list_from_db(host_id_list)
+    query = get_host_list_by_id_list_from_db(host_id_list)
 
     hosts_to_update = query.all()
 

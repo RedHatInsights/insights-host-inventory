@@ -308,7 +308,7 @@ def _build_modified_on_filter(updated_start: str = None, updated_end: str = None
     updated_start_date = parser.isoparse(updated_start) if updated_start else None
     updated_end_date = parser.isoparse(updated_end) if updated_end else None
 
-    if updated_start_date and updated_end_date and updated_start_date >= updated_end_date:
+    if updated_start_date and updated_end_date and updated_start_date > updated_end_date:
         raise ValueError("updated_start cannot be after updated_end.")
     modified_on_filter = {}
     if updated_start_date:

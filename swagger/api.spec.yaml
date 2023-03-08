@@ -391,7 +391,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateGroup'
+              $ref: '#/components/schemas/GroupIn'
       responses:
         '201':
           description: Successfully created new Group.
@@ -414,7 +414,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/groupId'
       requestBody:
-        description: A dictionary with the new information to merge with the original one.
+        description: A dictionary with new information to merge with the original group.
         required: true
         content:
           application/json:
@@ -505,7 +505,7 @@ paths:
           description: The groups were successfully deleted.
         '400':
           description: Invalid request.
-  '/groups/{group_id}/{host_id_list}':
+  '/groups/{group_id}/hosts/{host_id_list}':
     delete:
       operationId: api.group.delete_hosts_from_group
       tags:
@@ -1524,8 +1524,6 @@ components:
       type: object
       allOf:
         - properties:
-            id:
-              $ref: "#/components/schemas/GroupId"
             name:
               $ref: "#/components/schemas/GroupName"
             host_ids:
@@ -1571,18 +1569,6 @@ components:
             type: array
             items:
               $ref: '#/components/schemas/GroupOut'
-    CreateGroup:
-      title: Group creation data
-      description: >-
-        Data required to create a group.
-      type: object
-      allOf:
-        - properties:
-            name:
-              $ref: "#/components/schemas/GroupName"
-            host_ids:
-              $ref: "#/components/schemas/HostIds"
-
     # include renames for system_profile
     SystemProfile:
       $ref: 'system_profile.spec.yaml#/$defs/SystemProfile'
