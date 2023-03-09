@@ -101,38 +101,31 @@ def serialize_host(host, staleness_timestamps, fields=DEFAULT_FIELDS):
 
     serialized_host = {**serialize_canonical_facts(host.canonical_facts)}
 
-    if "id" in fields:
-        serialized_host["id"] = _serialize_uuid(host.id)
-    if "account" in fields:
-        serialized_host["account"] = host.account
-    if "org_id" in fields:
-        serialized_host["org_id"] = host.org_id
-    if "display_name" in fields:
-        serialized_host["display_name"] = host.display_name
-    if "ansible_host" in fields:
-        serialized_host["ansible_host"] = host.ansible_host
-    if "facts" in fields:
-        serialized_host["facts"] = serialize_facts(host.facts)
-    if "reporter" in fields:
-        serialized_host["reporter"] = host.reporter
-    if "per_reporter_staleness" in fields:
-        serialized_host["per_reporter_staleness"] = host.per_reporter_staleness
-    if "stale_timestamp" in fields:
-        serialized_host["stale_timestamp"] = stale_timestamp and _serialize_datetime(stale_timestamp)
-    if "stale_warning_timestamp" in fields:
-        serialized_host["stale_warning_timestamp"] = stale_timestamp and _serialize_datetime(stale_warning_timestamp)
-    if "culled_timestamp" in fields:
-        serialized_host["culled_timestamp"] = stale_timestamp and _serialize_datetime(culled_timestamp)
-        # without astimezone(timezone.utc) the isoformat() method does not include timezone offset even though iso-8601
-        # requires it
-    if "created" in fields:
-        serialized_host["created"] = _serialize_datetime(host.created_on)
-    if "updated" in fields:
-        serialized_host["updated"] = _serialize_datetime(host.modified_on)
-    if "tags" in fields:
-        serialized_host["tags"] = _serialize_tags(host.tags)
-    if "system_profile" in fields:
-        serialized_host["system_profile"] = host.system_profile_facts or {}
+    for field in fields:
+        if field == "id":
+            serialized_host["id"] = _serialize_uuid(host.id)
+        elif field == "created":
+            serialized_host["created"] = _serialize_datetime(host.created_on)
+        elif field == "updated":
+            serialized_host["updated"] = _serialize_datetime(host.modified_on)
+        elif field == "stale_timestamp":
+            serialized_host["stale_timestamp"] = stale_timestamp and _serialize_datetime(stale_timestamp)
+        elif field == "stale_warning_timestamp":
+            serialized_host["stale_warning_timestamp"] = stale_timestamp and _serialize_datetime(
+                stale_warning_timestamp
+            )
+        elif field == "culled_timestamp":
+            serialized_host["culled_timestamp"] = stale_timestamp and _serialize_datetime(culled_timestamp)
+            # without astimezone(timezone.utc) the isoformat() method does not include timezone offset even though
+            # iso-8601 requires it
+        elif field == "tags":
+            serialized_host["tags"] = _serialize_tags(host.tags)
+        elif field == "facts":
+            serialized_host["facts"] = serialize_facts(host.facts)
+        elif field == "system_profile":
+            serialized_host["system_profile"] = host.system_profile_facts or {}
+        elif isinstance(getattr(host, field), str):
+            serialized_host[field] = getattr(host, field)
 
     return serialized_host
 
