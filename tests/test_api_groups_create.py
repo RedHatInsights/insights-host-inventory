@@ -35,7 +35,7 @@ def test_create_invalid_group_name(api_create_group):
 
     response_status, _ = api_create_group(group_data)
 
-    assert_response_status(response_status, expected_status=406)
+    assert_response_status(response_status, expected_status=400)
 
 
 @pytest.mark.parametrize(

@@ -5,8 +5,6 @@ from sqlalchemy.orm.scoping import scoped_session
 
 from app.auth import get_current_identity
 from app.instrumentation import get_control_rule
-from app.instrumentation import log_add_group_failed
-from app.instrumentation import log_add_group_succeeded
 from app.instrumentation import log_group_delete_failed
 from app.instrumentation import log_group_delete_succeeded
 from app.instrumentation import log_host_group_add_failed
@@ -19,7 +17,6 @@ from app.models import Group
 from app.models import HostGroupAssoc
 from lib.db import session_guard
 from lib.host_delete import _deleted_by_this_query
-from lib.metrics import create_group_count
 from lib.metrics import delete_group_count
 from lib.metrics import delete_group_processing_time
 from lib.metrics import delete_host_group_count

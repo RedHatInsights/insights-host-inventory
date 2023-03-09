@@ -11,6 +11,9 @@ from app import db
 from app import inventory_config
 from app import Permission
 from app.exceptions import InventoryException
+from app.instrumentation import get_control_rule
+from app.instrumentation import log_add_group_failed
+from app.instrumentation import log_add_group_succeeded
 from app.instrumentation import log_patch_group_failed
 from app.instrumentation import log_patch_group_success
 from app.logging import get_logger
@@ -23,10 +26,8 @@ from lib.group_repository import delete_group_list
 from lib.group_repository import get_group_by_id_from_db
 from lib.group_repository import remove_hosts_from_group
 from lib.group_repository import replace_host_list_for_group
+from lib.metrics import create_group_count
 from lib.middleware import rbac
-
-logger = get_logger(__name__)
-
 
 logger = get_logger(__name__)
 
@@ -54,17 +55,20 @@ def create_group(body):
         logger.exception(f"Input validation error while creating group: {body}")
         return flask.Response(
             {
-                "status": status.HTTP_406_NOT_ACCEPTABLE,
-                "title": ValidationError,
+                "status": status.HTTP_400_BAD_REQUEST,
+                "title": "Validation Error",
                 "detail": str(e.messages),
                 "type": "unknown",
             },
-            status.HTTP_406_NOT_ACCEPTABLE,
+            status.HTTP_400_BAD_REQUEST,
         )
 
     try:
-        created_group_id = add_group(validated_create_group_data)
+        created_group = add_group(validated_create_group_data)
+        log_add_group_succeeded(logger, created_group.id, get_control_rule())
+        create_group_count.inc()
     except IntegrityError:
+        log_add_group_failed(logger, validated_create_group_data.get("name"), get_control_rule())
         logger.exception(f"A group with details {validated_create_group_data} already exists.")
         return (
             {
@@ -75,8 +79,19 @@ def create_group(body):
             },
             status.HTTP_400_BAD_REQUEST,
         )
+    except Exception as e:
+        log_add_group_failed(logger, validated_create_group_data.get("name"), get_control_rule())
+        logger.exception(f"Error adding group with details {validated_create_group_data}")
+        return (
+            {
+                "status": status.HTTP_400_BAD_REQUEST,
+                "title": f"Error adding group with details {validated_create_group_data}",
+                "detail": str(e.messages),
+                "type": "unknown",
+            },
+            status.HTTP_400_BAD_REQUEST,
+        )
 
-    created_group = get_group_by_id_from_db(created_group_id)
     host_id_list = validated_create_group_data.get("host_ids")
 
     if host_id_list:
