@@ -42,38 +42,38 @@ def run(config, logger, session, consumer, event_producer, shutdown_handler):
 
     # Seek to beginning
     logger.debug(f"Partitions for topic {config.event_topic}:")
-    logger.debug(consumer.partitions_for_topic(config.event_topic))
-    for partition_id in consumer.partitions_for_topic(config.event_topic):
-        logger.debug(f"Appending partition {partition_id} for topic: {config.event_topic}")
-        partitions.append(TopicPartition(config.event_topic, partition_id))
+    filtered_topics = consumer.list_topics(config.event_topic)
+    partitions_dict = filtered_topics.topics[config.event_topic].partitions
+    for partition_id in partitions_dict.keys():
+        logger.debug(f"Partition ID: {partition_id}:")
+        # Confluent-Kafka has not implemented seekToBeginning, so we're required
+        # to use the internal value for the beginning, which is -2.
+        partitions.append(TopicPartition(config.event_topic, partition_id, -2))
 
     consumer.assign(partitions)
     partitions = consumer.assignment()
-    consumer.seek_to_beginning(*partitions)
     total_messages_processed = 0
 
     logger.debug("About to start the consumer loop")
     while num_messages > 0 and not shutdown_handler.shut_down():
-        num_messages = 0
-        for partition, messages in consumer.poll(timeout_ms=60000, max_records=500).items():
-            for message in messages:
-                try:
-                    sync_event_message(json.loads(message.value), session, event_producer)
-                    # TODO: Metrics
-                    # metrics.ingress_message_handler_success.inc()
-                except OperationalError as oe:
-                    """sqlalchemy.exc.OperationalError: This error occurs when an
-                    authentication failure occurs or the DB is not accessible.
-                    """
-                    logger.error(f"Could not access DB {str(oe)}")
-                    sys.exit(3)
-                except Exception:
-                    # TODO: Metrics
-                    # metrics.ingress_message_handler_failure.inc()
-                    logger.exception("Unable to process message", extra={"incoming_message": message.value})
+        new_messages = consumer.consume(timeout=10)
+        for message in new_messages:
+            try:
+                sync_event_message(json.loads(message.value()), session, event_producer)
+                # TODO: Metrics
+                # metrics.ingress_message_handler_success.inc()
+            except OperationalError as oe:
+                """sqlalchemy.exc.OperationalError: This error occurs when an
+                authentication failure occurs or the DB is not accessible.
+                """
+                logger.error(f"Could not access DB {str(oe)}")
+                sys.exit(3)
+            except Exception:
+                # TODO: Metrics
+                # metrics.ingress_message_handler_failure.inc()
+                logger.exception("Unable to process message", extra={"incoming_message": message.value()})
 
-            num_messages += len(messages)
-
+        num_messages = len(new_messages)
         total_messages_processed += num_messages
 
     logger.info(f"Event topic rebuild complete. Processed {total_messages_processed} messages.")
