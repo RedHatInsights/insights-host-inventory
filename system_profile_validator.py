@@ -148,7 +148,7 @@ def main(logger):
         try:
             test_results = validate_sp_schemas(
                 consumer,
-                {config.kafka_consumer_topic, config.additional_validation_topic},
+                [config.kafka_consumer_topic, config.additional_validation_topic],
                 schemas,
                 VALIDATE_DAYS,
                 config.sp_validator_max_messages,

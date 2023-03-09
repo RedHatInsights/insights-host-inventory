@@ -271,7 +271,7 @@ def test_validate_sp_for_branch(mocker, partitions, messages_per_partition_per_p
 
     validation_results = validate_sp_for_branch(
         fake_consumer,
-        topics={config.host_ingress_topic},
+        topics=[config.host_ingress_topic],
         repo_fork="test_repo",
         repo_branch="test_branch",
         days=3,
@@ -296,7 +296,7 @@ def test_validate_sp_no_data(mocker):
     with pytest.raises(expected_exception=ValueError) as excinfo:
         validate_sp_for_branch(
             fake_consumer,
-            topics={config.host_ingress_topic},
+            topics=[config.host_ingress_topic],
             repo_fork="foo",
             repo_branch="bar",
             days=3,
@@ -315,7 +315,7 @@ def test_validate_sp_for_missing_branch_or_repo(mocker):
     with pytest.raises(expected_exception=ValueError) as excinfo:
         validate_sp_for_branch(
             fake_consumer,
-            topics={config.host_ingress_topic},
+            topics=[config.host_ingress_topic],
             repo_fork="foo",
             repo_branch="bar",
             days=3,
