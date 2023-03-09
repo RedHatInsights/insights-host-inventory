@@ -12,7 +12,9 @@ from tests.helpers.test_utils import SYSTEM_IDENTITY
     [0, 3, 5],
 )
 @pytest.mark.parametrize("patch_name", [True, False])
-def test_patch_group_happy_path(db_create_group, db_create_host, api_patch_group, db_get_group_by_id, num_hosts, patch_name):
+def test_patch_group_happy_path(
+    db_create_group, db_create_host, api_patch_group, db_get_group_by_id, num_hosts, patch_name
+):
     group_id = db_create_group("test_group").id
     assert len(db_get_group_by_id(group_id).hosts) == 0
 

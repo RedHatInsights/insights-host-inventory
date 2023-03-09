@@ -1349,7 +1349,7 @@
           "type": "string",
           "enum": [
             "name",
-            "updated_at",
+            "updated",
             "host_ids"
           ]
         },
@@ -2325,12 +2325,12 @@
           "org_id": {
             "$ref": "#/components/schemas/OrgId"
           },
-          "created_at": {
+          "created": {
             "description": "A timestamp when the entry was created.",
             "type": "string",
             "format": "date-time"
           },
-          "updated_at": {
+          "updated": {
             "description": "A timestamp when the entry was last updated.",
             "type": "string",
             "format": "date-time"

@@ -4,6 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.scoping import scoped_session
 
 from app.auth import get_current_identity
+from app.exceptions import InventoryException
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_group_delete_failed
 from app.instrumentation import log_group_delete_succeeded
@@ -14,6 +15,7 @@ from app.instrumentation import log_host_group_delete_succeeded
 from app.logging import get_logger
 from app.models import db
 from app.models import Group
+from app.models import Host
 from app.models import HostGroupAssoc
 from lib.db import session_guard
 from lib.host_delete import _deleted_by_this_query
@@ -26,17 +28,30 @@ from lib.metrics import delete_host_group_processing_time
 logger = get_logger(__name__)
 
 
-def add_hosts_to_group(group: Group, host_id_list: List[str]) -> List[HostGroupAssoc]:
+def add_hosts_to_group(group_id: str, host_id_list: List[str]):
+    current_org_id = get_current_identity().org_id
+
     for host_id in host_id_list:
-        try:
-            db_create_host_group_assoc(group_id=group.id, host_id=host_id)
-            log_host_group_add_succeeded(logger, host_id, group.id, get_control_rule())
-        except Exception:
-            log_host_group_add_failed(logger, host_id, group.id, get_control_rule())
+        # Check if the host belongs to the current org_id
+        host = Host.query.filter(Host.org_id == current_org_id, Host.id == host_id).one_or_none()
+        if host:
+            try:
+                db_create_host_group_assoc(host_id, group_id)
+            except IntegrityError:
+                log_host_group_add_failed(logger, host_id, group_id)
+                raise InventoryException(
+                    title="Invalid request", detail=f"Host with ID {host_id} is already associated with another group."
+                )
+        else:
+            raise InventoryException(
+                title="Invalid request", detail=f"Could not find an existing host with ID {host_id}."
+            )
+
+    log_host_group_add_succeeded(logger, host_id_list, group_id)
 
 
 def add_group(group_data) -> Group:
-    logger.debug("Creating a new group")
+    logger.debug("Creating a new group: %s", group_data)
     group_name = group_data.get("name")
     org_id = get_current_identity().org_id
     account = get_current_identity().account_number
@@ -44,13 +59,20 @@ def add_group(group_data) -> Group:
     with session_guard(db.session):
         new_group = Group(name=group_name, org_id=org_id, account=account)
         db.session.add(new_group)
+        db.session.flush()
+
+        host_id_list = group_data.get("host_ids")
+
+        # Add hosts to group
+        if host_id_list:
+            add_hosts_to_group(new_group.id, host_id_list)
 
     created_group = Group.query.filter(Group.name == group_name, Group.org_id == org_id).one_or_none()
 
     return created_group
 
 
-def _remove_all_hosts_from_group(session, group):
+def _remove_all_hosts_from_group(session: scoped_session, group: Group):
     delete_query = session.query(HostGroupAssoc).filter(HostGroupAssoc.group_id == group.id)
     delete_query.delete(synchronize_session="fetch")
 

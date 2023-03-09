@@ -11,17 +11,15 @@ from app import db
 from app import inventory_config
 from app import Permission
 from app.exceptions import InventoryException
-from app.instrumentation import get_control_rule
-from app.instrumentation import log_add_group_failed
-from app.instrumentation import log_add_group_succeeded
+from app.instrumentation import log_create_group_failed
+from app.instrumentation import log_create_group_succeeded
 from app.instrumentation import log_patch_group_failed
 from app.instrumentation import log_patch_group_success
 from app.logging import get_logger
-from app.models import GroupSchema
+from app.models import InputGroupSchema
 from lib.feature_flags import FLAG_INVENTORY_GROUPS
 from lib.feature_flags import get_flag_value
 from lib.group_repository import add_group
-from lib.group_repository import add_hosts_to_group
 from lib.group_repository import delete_group_list
 from lib.group_repository import get_group_by_id_from_db
 from lib.group_repository import remove_hosts_from_group
@@ -49,8 +47,9 @@ def create_group(body):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return flask.Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
+    # Validate group input data
     try:
-        validated_create_group_data = GroupSchema().load(body)
+        validated_create_group_data = InputGroupSchema().load(body)
     except ValidationError as e:
         logger.exception(f"Input validation error while creating group: {body}")
         return (
@@ -64,38 +63,43 @@ def create_group(body):
         )
 
     try:
+        # Create group with validated data
         created_group = add_group(validated_create_group_data)
-        log_add_group_succeeded(logger, created_group.id, get_control_rule())
         create_group_count.inc()
-    except IntegrityError:
-        log_add_group_failed(logger, validated_create_group_data.get("name"), get_control_rule())
-        logger.exception(f"A group with details {validated_create_group_data} already exists.")
+
+        log_create_group_succeeded(logger, created_group.id)
+    except IntegrityError as inte:
+        group_name = validated_create_group_data.get("name")
+        host_id_list = validated_create_group_data.get("host_ids")
+
+        if group_name in str(inte.params):
+            error_message = f"A group with name {group_name} already exists."
+        else:
+            error_message = f"A group with host list {host_id_list} already exists."
+
+        log_create_group_failed(logger, group_name)
+        logger.exception(error_message)
+
         return (
             {
                 "status": status.HTTP_400_BAD_REQUEST,
                 "title": "Integrity error",
-                "detail": f"A group with details {validated_create_group_data} already exists.",
+                "detail": error_message,
                 "type": "unknown",
             },
             status.HTTP_400_BAD_REQUEST,
         )
-    except Exception as e:
-        log_add_group_failed(logger, validated_create_group_data.get("name"), get_control_rule())
-        logger.exception(f"Error adding group with details {validated_create_group_data}")
+    except InventoryException as inve:
+        logger.exception(inve.detail)
         return (
             {
                 "status": status.HTTP_400_BAD_REQUEST,
-                "title": f"Error adding group with details {validated_create_group_data}",
-                "detail": str(e.messages),
+                "title": inve.title,
+                "detail": inve.detail,
                 "type": "unknown",
             },
             status.HTTP_400_BAD_REQUEST,
         )
-
-    host_id_list = validated_create_group_data.get("host_ids")
-
-    if host_id_list:
-        add_hosts_to_group(created_group, host_id_list)
 
     return flask_json_response(build_group_response(created_group), status.HTTP_201_CREATED)
 
@@ -105,7 +109,7 @@ def create_group(body):
 @metrics.api_request_time.time()
 def patch_group_by_id(group_id, body):
     try:
-        validated_patch_group_data = GroupSchema().load(body)
+        validated_patch_group_data = InputGroupSchema().load(body)
     except ValidationError as e:
         logger.exception(f"Input validation error while patching group: {group_id} - {body}")
         return ({"status": 400, "title": "Bad Request", "detail": str(e.messages), "type": "unknown"}, 400)

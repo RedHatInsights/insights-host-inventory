@@ -11,9 +11,9 @@ from sqlalchemy.exc import IntegrityError
 from app import db
 from app.exceptions import ValidationException
 from app.models import CanonicalFactsSchema
-from app.models import GroupSchema
 from app.models import Host
 from app.models import HostSchema
+from app.models import InputGroupSchema
 from app.models import LimitedHost
 from app.utils import Tag
 from tests.helpers.test_utils import generate_uuid
@@ -645,4 +645,4 @@ def test_add_delete_host_group_happy(
 )
 def test_group_schema_validation(data):
     with pytest.raises(MarshmallowValidationError):
-        GroupSchema().load(data)
+        InputGroupSchema().load(data)
