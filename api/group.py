@@ -53,7 +53,7 @@ def create_group(body):
         validated_create_group_data = GroupSchema().load(body)
     except ValidationError as e:
         logger.exception(f"Input validation error while creating group: {body}")
-        return flask.Response(
+        return (
             {
                 "status": status.HTTP_400_BAD_REQUEST,
                 "title": "Validation Error",
