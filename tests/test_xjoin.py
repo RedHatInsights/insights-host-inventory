@@ -1747,6 +1747,7 @@ def test_query_hosts_filter_updated_start_end(mocker, subtests, api_get, graphql
         "?updated_start=2022-02-08T09:12:34.567890Z",
         "?updated_end=2023-02-08T09:12:34.567890Z",
         "?updated_start=2022-02-08T09:12:34.567890Z&updated_end=2023-02-08T09:12:34.567890Z",
+        "?updated_start=2022-02-08T09:12:34.567890Z&updated_end=2022-02-08T09:12:34.567890Z",
         "?updated_start=2022-02-08T09:12:34",
         "?updated_end=2023-02-08",
     )
@@ -1754,6 +1755,7 @@ def test_query_hosts_filter_updated_start_end(mocker, subtests, api_get, graphql
         {"modified_on": {"gte": "2022-02-08T09:12:34.567890+00:00"}},
         {"modified_on": {"lte": "2023-02-08T09:12:34.567890+00:00"}},
         {"modified_on": {"gte": "2022-02-08T09:12:34.567890+00:00", "lte": "2023-02-08T09:12:34.567890+00:00"}},
+        {"modified_on": {"gte": "2022-02-08T09:12:34.567890+00:00", "lte": "2022-02-08T09:12:34.567890+00:00"}},
         {"modified_on": {"gte": "2022-02-08T09:12:34"}},
         {"modified_on": {"lte": "2023-02-08T00:00:00"}},
     )
