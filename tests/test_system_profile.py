@@ -260,7 +260,7 @@ def test_validate_sp_for_branch(mocker, partitions, messages_per_partition_per_p
     get_schema_from_url_mock.return_value = system_profile_specification()
     config = Config(RuntimeEnvironment.SERVICE)
     fake_consumer = create_kafka_consumer_mock(
-        mocker, config, partitions, messages_per_partition_per_poll, number_of_polls
+        mocker, config.host_ingress_topic, partitions, messages_per_partition_per_poll, number_of_polls
     )
     max_messages_to_poll = 50
 
@@ -289,7 +289,7 @@ def test_validate_sp_for_branch(mocker, partitions, messages_per_partition_per_p
 
 def test_validate_sp_no_data(mocker):
     config = Config(RuntimeEnvironment.SERVICE)
-    fake_consumer = create_kafka_consumer_mock(mocker, config, 1, 0)
+    fake_consumer = create_kafka_consumer_mock(mocker, config.host_ingress_topic, 1, 0)
     get_schema_from_url_mock = mocker.patch("lib.system_profile_validate.get_schema_from_url")
     get_schema_from_url_mock.return_value = system_profile_specification()
 
@@ -310,7 +310,7 @@ def test_validate_sp_for_missing_branch_or_repo(mocker):
     get_schema_from_url_mock = mocker.patch("lib.system_profile_validate.get_schema_from_url")
     get_schema_from_url_mock.side_effect = ValueError("Schema not found at URL!")
     config = Config(RuntimeEnvironment.SERVICE)
-    fake_consumer = create_kafka_consumer_mock(mocker, config, 1, 10)
+    fake_consumer = create_kafka_consumer_mock(mocker, config.host_ingress_topic, 1, 10)
 
     with pytest.raises(expected_exception=ValueError) as excinfo:
         validate_sp_for_branch(

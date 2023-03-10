@@ -218,7 +218,7 @@ def assert_synchronize_event_is_valid(
 
 
 def create_kafka_consumer_mock(
-    mocker, config, number_of_partitions, messages_per_partition, number_of_polls=5, message_list=None
+    mocker, topic, number_of_partitions, messages_per_partition, number_of_polls=5, message_list=None
 ):
     fake_consumer = mocker.Mock()
     mock_consume = []
@@ -228,12 +228,12 @@ def create_kafka_consumer_mock(
     partitions = []
 
     for partition_id in range(number_of_partitions):
-        partition = TopicPartition(config.host_ingress_topic, partition_id)
+        partition = TopicPartition(topic, partition_id)
         partitions_dict[partition_id] = partition
         partitions.append(partition)
 
     fake_consumer.list_topics.return_value = SimpleNamespace(
-        topics={config.host_ingress_topic: SimpleNamespace(partitions=partitions_dict)}
+        topics={topic: SimpleNamespace(partitions=partitions_dict)}
     )
 
     fake_consumer.partitions_for_topic.return_value = set(range(number_of_partitions))
