@@ -99,7 +99,7 @@ def get_tags(
             updated_start,
             updated_end,
             tags,
-            None,    # Staleness to not use the default values
+            None,  # Staleness to not use the default values
             registered_with,
             filter,
         )

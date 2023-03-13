@@ -2,12 +2,12 @@ default_language_version:
   python: python3.8
 repos:
 - repo: https://github.com/asottile/reorder_python_imports
-  rev: v3.0.1
+  rev: v3.9.0
   hooks:
   - id: reorder-python-imports
     args: [--py38-plus]
 - repo: https://github.com/asottile/pyupgrade
-  rev: v2.31.1
+  rev: v3.3.1
   hooks:
   - id: pyupgrade
     args: [--py38-plus]
@@ -18,21 +18,24 @@ repos:
     args: [--line-length, "119"]
     require_serial: true
 - repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v2.2.3
+  rev: v4.4.0
   hooks:
   - id: trailing-whitespace
   - id: end-of-file-fixer
   - id: check-yaml
   - id: debug-statements
+- repo: https://github.com/PyCQA/flake8
+  rev: 6.0.0
+  hooks:
   - id: flake8
--   repo: https://github.com/APIDevTools/swagger-cli
-    rev: v4.0.4
-    hooks:
-    - id: swagger-validation
-      args: ["bundle", "swagger/api.spec.yaml", "-o", "swagger/openapi.json"]
--   repo: https://github.com/APIDevTools/swagger-cli
-    rev: v4.0.4
-    hooks:
-    - id: swagger-validation
-      files: swagger/openapi.json$
-      exclude: swagger/inventory-schemas/
+- repo: https://github.com/APIDevTools/swagger-cli
+  rev: v4.0.4
+  hooks:
+  - id: swagger-validation
+    args: ["bundle", "swagger/api.spec.yaml", "-o", "swagger/openapi.json"]
+- repo: https://github.com/APIDevTools/swagger-cli
+  rev: v4.0.4
+  hooks:
+  - id: swagger-validation
+    files: swagger/openapi.json$
+    exclude: swagger/inventory-schemas/
