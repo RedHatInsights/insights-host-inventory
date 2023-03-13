@@ -291,11 +291,12 @@ def validate_schema(repo_fork="RedHatInsights", repo_branch="master", days=1, ma
         flask.abort(403, "This endpoint is restricted to HBI Admins.")
 
     consumer = KafkaConsumer(
-        bootstrap_servers=config.bootstrap_servers,
-        api_version=(0, 10, 1),
-        value_deserializer=lambda m: m.decode(),
-        **config.validator_kafka_consumer,
+        {
+            "bootstrap.servers": config.bootstrap_servers,
+            **config.validator_kafka_consumer,
+        }
     )
+
     try:
         response = validate_sp_for_branch(
             consumer,
