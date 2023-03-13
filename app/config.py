@@ -30,8 +30,14 @@ class Config:
         self.rbac_endpoint = ""
         for endpoint in cfg.endpoints:
             if endpoint.app == "rbac":
-                self.rbac_endpoint = f"http://{endpoint.hostname}:{endpoint.port}"
+                protocol = "https" if cfg.tlsCAPath else "http"
+                port = endpoint.tlsPort if cfg.tlsCAPath else endpoint.port
+                self.rbac_endpoint = f"{protocol}://{endpoint.hostname}:{port}"
                 break
+
+        # ca-certs location
+        if cfg.tlsCAPath:
+            os.environ["REQUESTS_CA_BUNDLE"] = cfg.tlsCAPath
 
         broker_cfg = cfg.kafka.brokers[0]
         self.bootstrap_servers = f"{broker_cfg.hostname}:{broker_cfg.port}"
