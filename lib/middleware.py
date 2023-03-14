@@ -51,8 +51,10 @@ def get_rbac_permissions():
     try:
         with outbound_http_metric.time():
             rbac_response = request_session.get(
-                url=rbac_url(), headers=request_header, timeout=inventory_config().rbac_timeout,
-                verify=LoadedConfig.tlsCAPath
+                url=rbac_url(),
+                headers=request_header,
+                timeout=inventory_config().rbac_timeout,
+                verify=LoadedConfig.tlsCAPath,
             )
     except Exception as e:
         rbac_failure(logger, e)
