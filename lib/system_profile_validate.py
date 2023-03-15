@@ -38,60 +38,56 @@ def get_schema(fork, branch):
 
 def validate_sp_schemas(consumer, topics, schemas, days=1, max_messages=10000):
     total_message_count = 0
-    partitions = []
     test_results = {branch: {} for branch in schemas.keys()}
     seek_date = datetime.now() + timedelta(days=(-1 * days))
 
     logger.info("Validating messages from these topics:")
-
-    for topic in topics:
-        logger.info(topic)
-        for partition_id in consumer.partitions_for_topic(topic) or []:
-            partitions.append(TopicPartition(topic, partition_id))
+    partitions = []
+    for topic_name in topics:
+        logger.info(topic_name)
+        filtered_topics = consumer.list_topics(topic_name)
+        partitions_dict = filtered_topics.topics[topic_name].partitions
+        for partition_id in partitions_dict.keys():
+            partitions.append(TopicPartition(topic_name, partition_id, int(seek_date.timestamp()) * 1000))
 
     consumer.assign(partitions)
     partitions = consumer.assignment()
 
-    start_offsets = consumer.offsets_for_times({tp: seek_date.timestamp() * 1000 for tp in partitions})
-    end_offsets = consumer.end_offsets(partitions)
+    start_offsets = consumer.offsets_for_times(partitions)
 
-    for tp in partitions:
+    for tp in start_offsets:
         try:
-            consumer.seek(tp, start_offsets[tp].offset)
+            consumer.seek(tp)
         except AttributeError:
             logger.debug("No data in partition for the given date.")
 
     logger.info("Beginning validation...")
 
     while total_message_count < max_messages:
-        new_message_count = 0
-        for partition, partition_messages in consumer.poll(timeout_ms=60000, max_records=500).items():
-            if consumer.position(partition) >= end_offsets[partition]:
-                continue
+        new_messages = consumer.consume(timeout=10)
+        new_message_count = len(new_messages)
+        logger.info(f"Consumed {new_message_count} messages from the queue.")
 
-            new_message_count += len(partition_messages)
-            logger.info(f"Polled {new_message_count} messages from the queue.")
-
-            for message in partition_messages:
-                try:
-                    host = OperationSchema().load(json.loads(message.value))["data"]
-                    if not host.get("reporter"):
-                        host["reporter"] = "unknown_reporter"
-                    for branch, sp_spec in schemas.items():
-                        if host["reporter"] not in test_results[branch].keys():
-                            test_results[branch][host["reporter"]] = TestResult()
-                        try:
-                            deserialize_host(host, system_profile_spec=sp_spec)
-                            test_results[branch][host["reporter"]].pass_count += 1
-                        except InventoryException as ie:
-                            test_results[branch][host["reporter"]].fail_count += 1
-                            logger.info(f"Message failed validation: {ie.detail}")
-                        except Exception as e:
-                            logger.info(f"Message caused an unexpected exception: {e}")
-                except json.JSONDecodeError:
-                    logger.exception("Unable to parse json message from message queue.")
-                except ValidationError:
-                    logger.exception("Unable to parse operation from message.")
+        for message in new_messages:
+            try:
+                host = OperationSchema().load(json.loads(message.value()))["data"]
+                if not host.get("reporter"):
+                    host["reporter"] = "unknown_reporter"
+                for branch, sp_spec in schemas.items():
+                    if host["reporter"] not in test_results[branch].keys():
+                        test_results[branch][host["reporter"]] = TestResult()
+                    try:
+                        deserialize_host(host, system_profile_spec=sp_spec)
+                        test_results[branch][host["reporter"]].pass_count += 1
+                    except InventoryException as ie:
+                        test_results[branch][host["reporter"]].fail_count += 1
+                        logger.info(f"Message failed validation: {ie.detail}")
+                    except Exception as e:
+                        logger.info(f"Message caused an unexpected exception: {e}")
+            except json.JSONDecodeError:
+                logger.exception("Unable to parse json message from message queue.")
+            except ValidationError:
+                logger.exception("Unable to parse operation from message.")
 
         if new_message_count == 0:
             break

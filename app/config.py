@@ -30,7 +30,9 @@ class Config:
         self.rbac_endpoint = ""
         for endpoint in cfg.endpoints:
             if endpoint.app == "rbac":
-                self.rbac_endpoint = f"http://{endpoint.hostname}:{endpoint.port}"
+                protocol = "https" if cfg.tlsCAPath else "http"
+                port = endpoint.tlsPort if cfg.tlsCAPath else endpoint.port
+                self.rbac_endpoint = f"{protocol}://{endpoint.hostname}:{port}"
                 break
 
         broker_cfg = cfg.kafka.brokers[0]
@@ -185,7 +187,7 @@ class Config:
             ),
             "enable.auto.commit": False,
             "max.poll.interval.ms": int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS", "300000")),
-            "max_partition_fetch_bytes": int(os.environ.get("KAFKA_CONSUMER_MAX_PARTITION_FETCH_BYTES", "3145728")),
+            "max.partition.fetch.bytes": int(os.environ.get("KAFKA_CONSUMER_MAX_PARTITION_FETCH_BYTES", "3145728")),
             "session.timeout.ms": int(os.environ.get("KAFKA_CONSUMER_SESSION_TIMEOUT_MS", "10000")),
             "heartbeat.interval.ms": int(os.environ.get("KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS", "3000")),
             **self.kafka_ssl_configs,

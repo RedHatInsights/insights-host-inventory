@@ -23,7 +23,7 @@ def test_no_delete_when_hosts_present(mocker, db_create_host, inventory_config):
         db_create_host(host=host)
         event_list.append(build_event(EventType.created, host))
 
-    consumer_mock = create_kafka_consumer_mock(mocker, inventory_config, 1, 0, 1, event_list)
+    consumer_mock = create_kafka_consumer_mock(mocker, inventory_config.event_topic, 1, 0, 1, event_list)
 
     rebuild_events_run(
         inventory_config,
@@ -61,7 +61,7 @@ def test_creates_delete_event_when_missing_from_db(
             event_list.append(build_event(EventType.updated, missing_host))
             missing_hosts_id_list.append(missing_host.id)
 
-    consumer_mock = create_kafka_consumer_mock(mocker, inventory_config, 1, 0, 1, event_list)
+    consumer_mock = create_kafka_consumer_mock(mocker, inventory_config.event_topic, 1, 0, 1, event_list)
 
     rebuild_events_run(
         inventory_config,

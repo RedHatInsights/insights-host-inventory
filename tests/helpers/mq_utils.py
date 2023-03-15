@@ -218,39 +218,41 @@ def assert_synchronize_event_is_valid(
 
 
 def create_kafka_consumer_mock(
-    mocker, config, number_of_partitions, messages_per_partition, number_of_polls=5, message_list=None
+    mocker, topic, number_of_partitions, messages_per_partition, number_of_polls=5, message_list=None
 ):
     fake_consumer = mocker.Mock()
-    mock_poll = {}
+    mock_consume = []
     poll_result_list = []
     mock_start_offsets = {}
-    mock_end_offsets = {}
+    partitions_dict = {}
     partitions = []
 
-    fake_consumer.topics.return_value = {config.host_ingress_topic}
-
     for partition_id in range(number_of_partitions):
-        partitions.append(TopicPartition(config.host_ingress_topic, partition_id))
+        partition = TopicPartition(topic, partition_id)
+        partitions_dict[partition_id] = partition
+        partitions.append(partition)
+
+    fake_consumer.list_topics.return_value = SimpleNamespace(
+        topics={topic: SimpleNamespace(partitions=partitions_dict)}
+    )
 
     fake_consumer.partitions_for_topic.return_value = set(range(number_of_partitions))
     fake_consumer.assignment.return_value = set(partitions)
 
-    for partition in partitions:
-        if message_list:
-            mock_poll[partition] = [SimpleNamespace(value=message) for message in message_list]
-        else:
-            mock_poll[partition] = [
-                SimpleNamespace(value=json.dumps(wrap_message(minimal_host().data())))
-                for _ in range(messages_per_partition)
-            ]
-        mock_start_offsets[partition] = SimpleNamespace(offset=1)
-        mock_end_offsets[partition] = 100
+    if message_list:
+        mock_consume = [mocker.Mock(**{"value.return_value": message}) for message in message_list]
+    else:
+        mock_consume = [
+            mocker.Mock(**{"value.return_value": json.dumps(wrap_message(minimal_host().data()))})
+            for _ in range(number_of_partitions * messages_per_partition)
+        ]
 
-    poll_result_list.extend([mock_poll] * number_of_polls)
+    for partition in partitions:
+        mock_start_offsets[partition] = SimpleNamespace(offset=1)
+
+    poll_result_list.extend([mock_consume] * number_of_polls)
     poll_result_list.append({})
 
-    fake_consumer.poll.side_effect = poll_result_list
+    fake_consumer.consume.side_effect = poll_result_list
     fake_consumer.offsets_for_times.return_value = mock_start_offsets
-    fake_consumer.end_offsets.return_value = mock_end_offsets
-    fake_consumer.position.return_value = 1
     return fake_consumer

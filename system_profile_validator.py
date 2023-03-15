@@ -122,11 +122,12 @@ def main(logger):
     # For each PR in prs_to_validate, validate the parsed hosts and leave a comment on the PR
     for pr_number in prs_to_validate:
         consumer = KafkaConsumer(
-            bootstrap_servers=config.bootstrap_servers,
-            api_version=(0, 10, 1),
-            value_deserializer=lambda m: m.decode(),
-            **config.validator_kafka_consumer,
+            {
+                "bootstrap.servers": config.bootstrap_servers,
+                **config.validator_kafka_consumer,
+            }
         )
+
         sp_spec = None
 
         # Get spec file from PR
@@ -147,7 +148,7 @@ def main(logger):
         try:
             test_results = validate_sp_schemas(
                 consumer,
-                {config.kafka_consumer_topic, config.additional_validation_topic},
+                [config.kafka_consumer_topic, config.additional_validation_topic],
                 schemas,
                 VALIDATE_DAYS,
                 config.sp_validator_max_messages,
