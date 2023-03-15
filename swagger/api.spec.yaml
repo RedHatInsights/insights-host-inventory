@@ -26,7 +26,7 @@ paths:
         - $ref: '#/components/parameters/providerType'
         - $ref: '#/components/parameters/updatedStart'
         - $ref: '#/components/parameters/updatedEnd'
-        - $ref: '#/components/parameters/groupName'
+        - $ref: '#/components/parameters/groupNameExplicit'
         - $ref: '#/components/parameters/branchId'
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
@@ -64,7 +64,7 @@ paths:
         - $ref: '#/components/parameters/providerType'
         - $ref: '#/components/parameters/updatedStart'
         - $ref: '#/components/parameters/updatedEnd'
-        - $ref: '#/components/parameters/groupName'
+        - $ref: '#/components/parameters/groupNameExplicit'
         - $ref: '#/components/parameters/registered_with'
         - $ref: '#/components/parameters/stalenessNoDefaultsParam'
         - $ref: '#/components/parameters/tagsParam'
@@ -523,7 +523,7 @@ paths:
         - $ref: '#/components/parameters/providerType'
         - $ref: '#/components/parameters/updatedStart'
         - $ref: '#/components/parameters/updatedEnd'
-        - $ref: '#/components/parameters/groupName'
+        - $ref: '#/components/parameters/groupNameExplicit'
         - $ref: '#/components/parameters/registered_with'
         - $ref: '#/components/parameters/filter_param'
       responses:
@@ -950,6 +950,13 @@ components:
     groupName:
       in: query
       name: name
+      schema:
+        type: string
+      description: Filter by group name
+      required: false
+    groupNameExplicit:
+      in: query
+      name: group_name
       schema:
         type: string
       description: Filter by group name
