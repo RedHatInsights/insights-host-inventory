@@ -67,6 +67,7 @@ def get_tags(
     provider_type=None,
     updated_start=None,
     updated_end=None,
+    group_name=None,  # To be implemented
     order_by=None,
     order_how=None,
     page=None,
