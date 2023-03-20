@@ -3,6 +3,7 @@ from sqlalchemy.orm.base import instance_state
 
 from app.logging import get_logger
 from app.models import Host
+from app.models import HostGroupAssoc
 from app.queue.events import build_event
 from app.queue.events import EventType
 from app.queue.events import message_headers
@@ -30,9 +31,11 @@ def delete_hosts(select_query, event_producer, chunk_size, interrupt=lambda: Fal
 
 
 def _delete_host(session, event_producer, host):
-    delete_query = session.query(Host).filter(Host.id == host.id)
+    assoc_delete_query = session.query(HostGroupAssoc).filter(HostGroupAssoc.host_id == host.id)
+    host_delete_query = session.query(Host).filter(Host.id == host.id)
     if kafka_available():
-        delete_query.delete(synchronize_session="fetch")
+        assoc_delete_query.delete(synchronize_session="fetch")
+        host_delete_query.delete(synchronize_session="fetch")
         host_deleted = _deleted_by_this_query(host)
         if host_deleted:
             delete_host_count.inc()
@@ -40,10 +43,10 @@ def _delete_host(session, event_producer, host):
             insights_id = host.canonical_facts.get("insights_id")
             headers = message_headers(EventType.delete, insights_id)
             event_producer.write_event(event, str(host.id), headers, wait=True)
-            delete_query.session.commit()
+            session.commit()
             return host_deleted
         else:
-            delete_query.session.rollback()
+            session.rollback()
             return host_deleted
     else:
         logger.error(f"host with {host.id} NOT deleted because Kafka server not available.")
