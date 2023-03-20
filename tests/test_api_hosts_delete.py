@@ -440,6 +440,77 @@ def test_delete_with_callback_receiving_error(
     message_not_produced_mock.assert_called_once_with(event_producer_logger, error, None, message, host.id, headers)
 
 
+def test_delete_host_that_belongs_to_group_success(
+    event_producer_mock,
+    db_create_group,
+    db_create_host,
+    db_get_hosts_for_group,
+    db_create_host_group_assoc,
+    api_delete_host,
+):
+    # If successful, the host should be removed from the group,
+    # and then deleted in the same transaction.
+
+    # Create a group and 3 hosts
+    group_id = db_create_group("test_group").id
+    host_id_list = [db_create_host().id for _ in range(3)]
+
+    # Add all 3 hosts to the group
+    for host_id in host_id_list:
+        db_create_host_group_assoc(host_id, group_id)
+
+    # Confirm that the associations exist
+    hosts_before = db_get_hosts_for_group(group_id)
+    assert len(hosts_before) == 3
+
+    # Delete the first host
+    response_status, _ = api_delete_host(host_id_list[0])
+    assert response_status == 200
+
+    # Confirm that the group does not contain the first host
+    hosts_after = db_get_hosts_for_group(group_id)
+    assert len(hosts_after) == 2
+    assert host_id_list[0] not in [host.id for host in hosts_after]
+
+
+def test_delete_host_that_belongs_to_group_fail(
+    event_producer_mock,
+    mocker,
+    db_create_group,
+    db_create_host,
+    db_get_hosts_for_group,
+    db_create_host_group_assoc,
+    api_delete_host,
+):
+    # If something goes wrong, the whole thing should roll back,
+    # and the host should still be a part of the group.
+
+    # Create a group and 3 hosts
+    group_id = db_create_group("test_group").id
+    host_id_list = [db_create_host().id for _ in range(3)]
+
+    # Add all 3 hosts to the group
+    for host_id in host_id_list:
+        db_create_host_group_assoc(host_id, group_id)
+
+    # Confirm that the associations exist
+    hosts_before = db_get_hosts_for_group(group_id)
+    assert len(hosts_before) == 3
+
+    # Patch it so the DB deletion fails
+    mocker.patch("lib.host_delete.delete_hosts", return_value=False)
+    deleted_by_this_query_mock = mocker.patch("lib.host_delete._deleted_by_this_query")
+    deleted_by_this_query_mock.side_effect = False
+
+    # Delete the first host
+    api_delete_host(host_id_list[0])
+
+    # Confirm that the group contains all 3 hosts
+    hosts_after = db_get_hosts_for_group(group_id)
+    assert len(hosts_after) == 3
+    assert host_id_list[0] in [host.id for host in hosts_after]
+
+
 class DeleteHostsMock:
     @classmethod
     def create_mock(cls, hosts_ids_to_delete):
