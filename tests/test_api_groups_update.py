@@ -11,30 +11,45 @@ from tests.helpers.test_utils import SYSTEM_IDENTITY
     "num_hosts",
     [0, 3, 5],
 )
-def test_patch_group_happy_path(db_create_group, db_create_host, api_patch_group, db_get_group, num_hosts):
+@pytest.mark.parametrize("patch_name", [True, False])
+def test_patch_group_happy_path(db_create_group, db_create_host, api_patch_group, db_get_group, num_hosts, patch_name):
     group_id = db_create_group("test_group").id
     assert len(db_get_group(group_id).hosts) == 0
 
     host_id_list = [str(db_create_host().id)]
 
-    patch_doc = {"name": "modified_group", "host_ids": host_id_list}
+    patch_doc = {"host_ids": host_id_list}
+    if patch_name:
+        patch_doc["name"] = "modified_group"
 
     response_status, response_data = api_patch_group(group_id, patch_doc)
     assert_response_status(response_status, 200)
     retrieved_group = db_get_group(group_id)
-    assert retrieved_group.name == "modified_group"
+
+    if patch_name:
+        assert retrieved_group.name == "modified_group"
+    else:
+        assert retrieved_group.name == "test_group"
+
     assert str(retrieved_group.hosts[0].id) == host_id_list[0]
 
     # Patch again with different hosts and re-validate
     host_id_list = [str(db_create_host().id) for _ in range(num_hosts)]
 
-    patch_doc = {"name": "modified_again", "host_ids": host_id_list}
+    patch_doc = {"host_ids": host_id_list}
+    if patch_name:
+        patch_doc["name"] = "modified_again"
 
     response_status, response_data = api_patch_group(group_id, patch_doc)
     assert_response_status(response_status, 200)
     assert_group_response(response_data, db_get_group(group_id))
     retrieved_group = db_get_group(group_id)
-    assert retrieved_group.name == "modified_again"
+
+    if patch_name:
+        assert retrieved_group.name == "modified_again"
+    else:
+        assert retrieved_group.name == "test_group"
+
     assert [str(host.id) for host in retrieved_group.hosts] == host_id_list
 
     assert_response_status(response_status, 200)

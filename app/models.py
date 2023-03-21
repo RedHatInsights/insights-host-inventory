@@ -420,7 +420,8 @@ class Group(db.Model):
         if not patch_data:
             raise InventoryException(title="Bad Request", detail="Patch json document cannot be empty.")
 
-        self.name = patch_data.get("name")
+        if "name" in patch_data:
+            self.name = patch_data["name"]
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     account = db.Column(db.String(10))

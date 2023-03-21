@@ -57,8 +57,8 @@ def patch_group_by_id(group_id, body):
         return flask.abort(status.HTTP_404_NOT_FOUND)
 
     # Separate out the host IDs because they're not stored on the Group
-    host_id_list = validated_patch_group_data.pop("host_ids", None)
     group_to_update.patch(validated_patch_group_data)
+    host_id_list = validated_patch_group_data.get("host_ids")
 
     # Next, replace the host-group associations
     assoc_list = []
