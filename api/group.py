@@ -1,6 +1,7 @@
 import flask
 from flask_api import status
 from marshmallow import ValidationError
+from sqlalchemy.exc import IntegrityError
 
 from api import api_operation
 from api import flask_json_response
@@ -9,6 +10,7 @@ from api.group_query import build_group_response
 from app import db
 from app import inventory_config
 from app import Permission
+from app.exceptions import InventoryException
 from app.instrumentation import log_patch_group_failed
 from app.instrumentation import log_patch_group_success
 from app.logging import get_logger
@@ -54,21 +56,32 @@ def patch_group_by_id(group_id, body):
 
     if not group_to_update:
         log_patch_group_failed(logger, group_id)
-        return flask.abort(status.HTTP_404_NOT_FOUND)
+        flask.abort(status.HTTP_404_NOT_FOUND)
 
     # Separate out the host IDs because they're not stored on the Group
-    host_id_list = validated_patch_group_data.pop("host_ids", None)
     group_to_update.patch(validated_patch_group_data)
+    host_id_list = validated_patch_group_data.get("host_ids")
 
     # Next, replace the host-group associations
     assoc_list = []
     if host_id_list is not None:
-        assoc_list = replace_host_list_for_group(db.session, group_to_update, host_id_list)
+        try:
+            assoc_list = replace_host_list_for_group(db.session, group_to_update, host_id_list)
+        except InventoryException as ie:
+            log_patch_group_failed(logger, group_id)
+            flask.abort(status.HTTP_400_BAD_REQUEST, str(ie.detail))
 
     if db.session.is_modified(group_to_update) or any(db.session.is_modified(assoc) for assoc in assoc_list):
-        db.session.commit()
-        # TODO: Emit patch event for group, and one per assoc
+        try:
+            db.session.commit()
+        except IntegrityError:
+            log_patch_group_failed(logger, group_id)
+            flask.abort(
+                status.HTTP_400_BAD_REQUEST,
+                f"Group with name '{validated_patch_group_data.get('name')}' already exists.",
+            )
 
+    # TODO: Emit patch event for group, and one per assoc
     updated_group = get_group_by_id_from_db(group_id)
     log_patch_group_success(logger, group_id)
     return flask_json_response(build_group_response(updated_group), status.HTTP_200_OK)

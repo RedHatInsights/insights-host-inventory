@@ -390,8 +390,8 @@ class Host(LimitedHost):
 class Group(db.Model):
     __tablename__ = "groups"
     __table_args__ = (
-        UniqueConstraint("name", "org_id"),
         Index("idxgrouporgid", "org_id"),
+        Index("idx_groups_org_id_name_nocase", "org_id", text("lower(name)"), unique=True),
     )
 
     def __init__(
@@ -420,7 +420,8 @@ class Group(db.Model):
         if not patch_data:
             raise InventoryException(title="Bad Request", detail="Patch json document cannot be empty.")
 
-        self.name = patch_data.get("name")
+        if "name" in patch_data:
+            self.name = patch_data["name"]
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     account = db.Column(db.String(10))
@@ -436,6 +437,7 @@ class HostGroupAssoc(db.Model):
     __table_args__ = (
         Index("idxhostsgroups", "host_id", "group_id"),
         Index("idxgroups_hosts", "group_id", "host_id"),
+        UniqueConstraint("host_id", name="hosts_groups_unique_host_id"),
     )
 
     def __init__(

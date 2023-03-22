@@ -1,8 +1,10 @@
 from typing import List
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.scoping import scoped_session
 
 from app.auth import get_current_identity
+from app.exceptions import InventoryException
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_group_delete_failed
 from app.instrumentation import log_group_delete_succeeded
@@ -130,6 +132,11 @@ def replace_host_list_for_group(
         _remove_all_hosts_from_group(session, group)
         assoc_list = []
         for host_id in host_id_list:
-            assoc_list.append(db_create_host_group_assoc(host_id, group.id))
+            try:
+                assoc_list.append(db_create_host_group_assoc(host_id, group.id))
+            except IntegrityError:
+                raise InventoryException(
+                    title="Invalid request", detail=f"Host with ID {host_id} is already associated with another group."
+                )
 
     return assoc_list
