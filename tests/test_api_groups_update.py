@@ -95,6 +95,35 @@ def test_patch_group_existing_name_different_org(db_create_group_with_hosts, db_
     assert_response_status(response_status, 404)
 
 
+@pytest.mark.parametrize("patch_name", ["existing_group", "EXISTING_GROUP"])
+def test_patch_group_existing_name_same_org(db_create_group, api_patch_group, db_get_group, patch_name):
+    # Create 2 groups
+    db_create_group("existing_group").id
+    new_id = db_create_group("another_group").id
+
+    response_status, response_body = api_patch_group(new_id, {"name": patch_name})
+
+    # There's already a group with that name (case-insensitive), so we should get an HTTP 400.
+    # Make sure the group name is mentioned in the response.
+    assert_response_status(response_status, 400)
+    assert patch_name in response_body["detail"]
+
+
+def test_patch_group_hosts_from_different_group(db_create_group_with_hosts, api_patch_group):
+    # Create 2 groups
+    host_to_move_id = str(db_create_group_with_hosts("existing_group", 3).hosts[0].id)
+    new_id = db_create_group_with_hosts("new_group", 1).id
+
+    patch_doc = {"host_ids": [host_to_move_id]}
+
+    response_status, response_body = api_patch_group(new_id, patch_doc)
+
+    # There's already a group with that name, so we should get an HTTP 400.
+    # Make sure the host ID at fault is mentioned in the response.
+    assert_response_status(response_status, 400)
+    assert str(host_to_move_id) in response_body["detail"]
+
+
 def test_patch_group_no_name(db_create_group_with_hosts, api_patch_group, db_get_group):
     group = db_create_group_with_hosts("test_group", 2)
     patch_doc = {"name": ""}
