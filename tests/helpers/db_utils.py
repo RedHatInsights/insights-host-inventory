@@ -14,6 +14,7 @@ from app.utils import HostWrapper
 from lib.host_repository import find_existing_host
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import now
+from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
 
 DB_FACTS_NAMESPACE = "ns1"
@@ -111,6 +112,20 @@ def update_host_in_db(host_id, **data_to_update):
     return host
 
 
+def db_base_host(insights_id, reporter, system_profile, stale_timestamp):
+    host = Host(
+        org_id=SYSTEM_IDENTITY["account_number"],
+        canonical_facts={"insights_id": insights_id},
+        display_name="display_name",
+        reporter=reporter,
+        system_profile_facts=system_profile,
+        stale_timestamp=stale_timestamp,
+    )
+    db.session.add(host)
+    db.session.commit()
+    return host
+
+
 def serialize_db_host(host, inventory_config):
     staleness_offset = Timestamps.from_config(inventory_config)
     serialized_host = serialize_host(host, staleness_offset)
@@ -136,4 +151,5 @@ def assert_host_exists_in_db(host_id, search_canonical_facts, identity=USER_IDEN
     identity = Identity(identity)
     found_host = find_existing_host(identity, search_canonical_facts)
 
+    assert found_host
     assert host_id == found_host.id

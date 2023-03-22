@@ -34,6 +34,10 @@ USER_IDENTITY = {
     "user": {"email": "tuser@redhat.com", "first_name": "test"},
 }
 
+YUM_REPO1 = {"id": "repo1", "name": "repo1", "gpgcheck": True, "enabled": True, "base_url": "http://rpms.redhat.com"}
+
+YUM_REPO2 = {"id": "repo2", "name": "repo2", "gpgcheck": True, "enabled": True, "base_url": "http://rpms.redhat.com"}
+
 SATELLITE_IDENTITY = deepcopy(SYSTEM_IDENTITY)
 SATELLITE_IDENTITY["system"]["cert_type"] = "satellite"
 
@@ -131,9 +135,7 @@ def valid_system_profile():
         "katello_agent_running": False,
         "satellite_managed": False,
         "cloud_provider": "Maclean's Music",
-        "yum_repos": [
-            {"id": "repo1", "name": "repo1", "gpgcheck": True, "enabled": True, "base_url": "http://rpms.redhat.com"}
-        ],
+        "yum_repos": [YUM_REPO1],
         "dnf_modules": [{"name": "postgresql", "stream": "11"}, {"name": "java", "stream": "8"}],
         "installed_products": [
             {"name": "eap", "id": "123", "status": "UP"},
@@ -151,6 +153,22 @@ def valid_system_profile():
         "selinux_config_file": "enforcing",
         "system_update_method": "yum",
     }
+
+
+def original_and_updated_system_profile(owner_id):
+    #
+    # Updated system profile is a subset of the original system profile.
+    #
+    updated_system_profile = valid_system_profile()
+    updated_system_profile["owner_id"] = owner_id
+
+    #
+    # Original system profile has an additional yum repo.
+    #
+    original_system_profile = deepcopy(updated_system_profile)
+    original_system_profile["yum_repos"].append(YUM_REPO2)
+
+    return original_system_profile, updated_system_profile
 
 
 def get_encoded_idstr(identity=SYSTEM_IDENTITY):

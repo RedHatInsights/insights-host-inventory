@@ -26,12 +26,13 @@ def mq_create_or_update_host(flask_app, event_producer_mock, notification_event_
         return_all_data=False,
         event_producer=event_producer_mock,
         message_operation=add_host,
+        operation_args=None,
         notification_event_producer=notification_event_producer_mock,
     ):
         if not platform_metadata:
             platform_metadata = get_platform_metadata()
 
-        message = wrap_message(host_data.data(), platform_metadata=platform_metadata)
+        message = wrap_message(host_data.data(), platform_metadata=platform_metadata, operation_args=operation_args)
         handle_message(json.dumps(message), event_producer, notification_event_producer, message_operation)
         event = json.loads(event_producer.event)
 
