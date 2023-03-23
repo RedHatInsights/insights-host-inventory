@@ -108,10 +108,10 @@ def log_host_group_add_succeeded(logger, host_id_list, group_id):
     )
 
 
-def log_host_group_add_failed(logger, host_id, group_id):
+def log_host_group_add_failed(logger, host_id_list, group_id):
     logger.info(
-        "Failed to add association between host %s and group %s",
-        host_id,
+        "Failed to add association between host list %s and group %s",
+        host_id_list,
         group_id,
         extra={"access_rule": get_control_rule()},
     )

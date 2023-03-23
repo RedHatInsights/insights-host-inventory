@@ -31,21 +31,29 @@ logger = get_logger(__name__)
 def add_hosts_to_group(group_id: str, host_id_list: List[str]):
     current_org_id = get_current_identity().org_id
 
-    for host_id in host_id_list:
-        # Check if the host belongs to the current org_id
-        host = Host.query.filter(Host.org_id == current_org_id, Host.id == host_id).one_or_none()
-        if host:
-            try:
-                db_create_host_group_assoc(host_id, group_id)
-            except IntegrityError:
-                log_host_group_add_failed(logger, host_id, group_id)
-                raise InventoryException(
-                    title="Invalid request", detail=f"Host with ID {host_id} is already associated with another group."
-                )
-        else:
-            raise InventoryException(
-                title="Invalid request", detail=f"Could not find an existing host with ID {host_id}."
-            )
+    # Check if the hosts exist in Inventory and have correct org_id
+    host_query = Host.query.filter((Host.org_id == current_org_id) & Host.id.in_(host_id_list)).all()
+    found_ids_set = {str(host.id) for host in host_query}
+    if found_ids_set != set(host_id_list):
+        nonexistent_hosts = set(host_id_list) - found_ids_set
+        log_host_group_add_failed(logger, host_id_list, group_id)
+        raise InventoryException(
+            title="Invalid request", detail=f"Could not find existing host(s) with ID {nonexistent_hosts}."
+        )
+
+    # Check if the hosts are already associated with another group
+    assoc_query = HostGroupAssoc.query.filter(HostGroupAssoc.host_id.in_(host_id_list)).all()
+    if assoc_query:
+        taken_hosts = [str(assoc.host_id) for assoc in assoc_query]
+        log_host_group_add_failed(logger, host_id_list, group_id)
+        raise InventoryException(
+            title="Invalid request",
+            detail=f"The following subset of hosts are already associated with another group: {taken_hosts}.",
+        )
+
+    host_group_assoc = [HostGroupAssoc(host_id=host_id, group_id=group_id) for host_id in host_id_list]
+    db.session.add_all(host_group_assoc)
+    db.session.flush()
 
     log_host_group_add_succeeded(logger, host_id_list, group_id)
 
@@ -65,9 +73,12 @@ def add_group(group_data) -> Group:
 
         # Add hosts to group
         if host_id_list:
-            add_hosts_to_group(new_group.id, host_id_list)
+            # gets the ID of the group inside the session
+            created_group = Group.query.filter((Group.name == group_name) & (Group.org_id == org_id)).one_or_none()
+            add_hosts_to_group(created_group.id, host_id_list)
 
-    created_group = Group.query.filter(Group.name == group_name, Group.org_id == org_id).one_or_none()
+    # gets the ID of the group after it has been committed
+    created_group = Group.query.filter((Group.name == group_name) & (Group.org_id == org_id)).one_or_none()
 
     return created_group
 

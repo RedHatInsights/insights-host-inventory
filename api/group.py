@@ -52,15 +52,7 @@ def create_group(body):
         validated_create_group_data = InputGroupSchema().load(body)
     except ValidationError as e:
         logger.exception(f"Input validation error while creating group: {body}")
-        return (
-            {
-                "status": status.HTTP_400_BAD_REQUEST,
-                "title": "Validation Error",
-                "detail": str(e.messages),
-                "type": "unknown",
-            },
-            status.HTTP_400_BAD_REQUEST,
-        )
+        return error_json_response("Validation Error", str(e.messages))
 
     try:
         # Create group with validated data
@@ -79,27 +71,11 @@ def create_group(body):
 
         log_create_group_failed(logger, group_name)
         logger.exception(error_message)
+        return error_json_response("Integrity error", error_message)
 
-        return (
-            {
-                "status": status.HTTP_400_BAD_REQUEST,
-                "title": "Integrity error",
-                "detail": error_message,
-                "type": "unknown",
-            },
-            status.HTTP_400_BAD_REQUEST,
-        )
     except InventoryException as inve:
         logger.exception(inve.detail)
-        return (
-            {
-                "status": status.HTTP_400_BAD_REQUEST,
-                "title": inve.title,
-                "detail": inve.detail,
-                "type": "unknown",
-            },
-            status.HTTP_400_BAD_REQUEST,
-        )
+        return error_json_response(inve.title, inve.detail)
 
     return flask_json_response(build_group_response(created_group), status.HTTP_201_CREATED)
 
@@ -182,3 +158,7 @@ def delete_hosts_from_group(group_id, host_id_list):
         flask.abort(status.HTTP_404_NOT_FOUND, "Group or hosts not found.")
 
     return flask.Response(None, status.HTTP_204_NO_CONTENT)
+
+
+def error_json_response(title, detail, status=status.HTTP_400_BAD_REQUEST):
+    return flask_json_response({"title": title, "detail": detail}, status)
