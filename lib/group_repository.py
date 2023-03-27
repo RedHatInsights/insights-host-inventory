@@ -16,6 +16,7 @@ from app.models import Group
 from app.models import HostGroupAssoc
 from lib.db import session_guard
 from lib.host_delete import _deleted_by_this_query
+from lib.host_repository import find_existing_host_by_id
 from lib.metrics import delete_group_count
 from lib.metrics import delete_group_processing_time
 from lib.metrics import delete_host_group_count
@@ -132,6 +133,8 @@ def replace_host_list_for_group(
         _remove_all_hosts_from_group(session, group)
         assoc_list = []
         for host_id in host_id_list:
+            if not find_existing_host_by_id(get_current_identity(), host_id):
+                raise InventoryException(title="Invalid request", detail=f"Host with ID {host_id} does not exist.")
             try:
                 assoc_list.append(db_create_host_group_assoc(host_id, group.id))
             except IntegrityError:

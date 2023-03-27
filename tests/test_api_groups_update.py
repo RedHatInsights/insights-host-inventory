@@ -4,6 +4,7 @@ import pytest
 
 from tests.helpers.api_utils import assert_group_response
 from tests.helpers.api_utils import assert_response_status
+from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
@@ -135,3 +136,35 @@ def test_patch_group_no_name(db_create_group_with_hosts, api_patch_group, db_get
 
     # Assert that the group's name hasn't been modified
     assert db_get_group(group.id).name == "test_group"
+
+
+@pytest.mark.parametrize("host_in_other_org", [True, False])
+def test_patch_group_hosts_in_diff_org(
+    db_create_group_with_hosts, api_patch_group, db_create_host, db_get_group, host_in_other_org
+):
+    # Create a group
+    group = db_create_group_with_hosts("test_group", 2)
+
+    # Make an identity with a different org_id and account
+    diff_identity = deepcopy(SYSTEM_IDENTITY)
+    diff_identity["org_id"] = "diff_id"
+    diff_identity["account"] = "diff_id"
+
+    # Create some hosts in the same org
+    host_id_list = [str(db_create_host().id) for _ in range(3)]
+
+    if host_in_other_org:
+        # Create a host in a different org
+        invalid_host_id = db_create_host(identity=diff_identity).id
+    else:
+        # Append a UUID not associated with any host
+        invalid_host_id = generate_uuid()
+
+    host_id_list.append(str(invalid_host_id))
+    patch_doc = {"host_ids": host_id_list}
+
+    response_status, response_data = api_patch_group(group.id, patch_doc)
+
+    # It can't find that host in the current org
+    assert_response_status(response_status, 400)
+    assert response_data["detail"] == f"Host with ID {invalid_host_id} does not exist."
