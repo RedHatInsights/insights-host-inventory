@@ -15,7 +15,7 @@ from app.queue.queue import event_loop
 from app.queue.queue import handle_message
 from app.queue.queue import update_system_profile
 from lib.host_repository import AddHostResult
-from tests.helpers.db_utils import db_base_host
+from tests.helpers.db_utils import create_reference_host_in_db
 from tests.helpers.mq_utils import assert_mq_host_data
 from tests.helpers.mq_utils import expected_headers
 from tests.helpers.mq_utils import FakeMessage
@@ -28,11 +28,11 @@ from tests.helpers.test_utils import get_encoded_idstr
 from tests.helpers.test_utils import get_platform_metadata
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
-from tests.helpers.test_utils import original_and_updated_system_profile
 from tests.helpers.test_utils import SATELLITE_IDENTITY
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import valid_system_profile
+from tests.helpers.test_utils import YUM_REPO2
 
 
 OWNER_ID = SYSTEM_IDENTITY["system"]["cn"]
@@ -397,17 +397,20 @@ def test_add_host_without_defer_to(event_datetime_mock, models_datetime_mock, mq
     Tests adding (updating) a host without "defer_to" option - system profile should be updated.
     """
     expected_insights_id = generate_uuid()
-    original_system_profile, updated_system_profile = original_and_updated_system_profile(OWNER_ID)
+    original_system_profile = valid_system_profile(owner_id=OWNER_ID)
+    updated_system_profile = valid_system_profile(owner_id=OWNER_ID, additional_yum_repo=YUM_REPO2)
     puptoo_stale_timestamp = models_datetime_mock + timedelta(days=1)
 
-    existing_host = db_base_host(expected_insights_id, "puptoo", original_system_profile, puptoo_stale_timestamp)
+    existing_host = create_reference_host_in_db(
+        expected_insights_id, "puptoo", original_system_profile, puptoo_stale_timestamp
+    )
     existing_host_id = existing_host.id
     returned_host = existing_host
 
     assert returned_host.system_profile_facts == original_system_profile
 
     host = minimal_host(
-        org_id=SYSTEM_IDENTITY["account_number"],
+        org_id=SYSTEM_IDENTITY["org_id"],
         insights_id=expected_insights_id,
         system_profile=updated_system_profile,
     )
@@ -424,17 +427,20 @@ def test_add_host_defer_to(event_datetime_mock, models_datetime_mock, mq_create_
     Tests adding (updating) a host with "defer_to" option - system profile should not be updated.
     """
     expected_insights_id = generate_uuid()
-    original_system_profile, updated_system_profile = original_and_updated_system_profile(OWNER_ID)
+    original_system_profile = valid_system_profile(owner_id=OWNER_ID)
+    updated_system_profile = valid_system_profile(owner_id=OWNER_ID, additional_yum_repo=YUM_REPO2)
     puptoo_stale_timestamp = models_datetime_mock + timedelta(days=1)
 
-    existing_host = db_base_host(expected_insights_id, "puptoo", original_system_profile, puptoo_stale_timestamp)
+    existing_host = create_reference_host_in_db(
+        expected_insights_id, "puptoo", original_system_profile, puptoo_stale_timestamp
+    )
     existing_host_id = existing_host.id
     returned_host = db_get_host(existing_host_id)
 
     assert returned_host.system_profile_facts == original_system_profile
 
     host = minimal_host(
-        org_id=SYSTEM_IDENTITY["account_number"],
+        org_id=SYSTEM_IDENTITY["org_id"],
         insights_id=expected_insights_id,
         system_profile=updated_system_profile,
     )
@@ -454,17 +460,20 @@ def test_add_host_defer_to_wrong_reporter(
     but base host not reported by specified reporter - system profile should be updated.
     """
     expected_insights_id = generate_uuid()
-    original_system_profile, updated_system_profile = original_and_updated_system_profile(OWNER_ID)
+    original_system_profile = valid_system_profile(owner_id=OWNER_ID)
+    updated_system_profile = valid_system_profile(owner_id=OWNER_ID, additional_yum_repo=YUM_REPO2)
     stale_timestamp = models_datetime_mock + timedelta(days=1)
 
-    existing_host = db_base_host(expected_insights_id, "yupana", original_system_profile, stale_timestamp)
+    existing_host = create_reference_host_in_db(
+        expected_insights_id, "yupana", original_system_profile, stale_timestamp
+    )
     existing_host_id = existing_host.id
     returned_host = db_get_host(existing_host_id)
 
     assert returned_host.system_profile_facts == original_system_profile
 
     host = minimal_host(
-        org_id=SYSTEM_IDENTITY["account_number"],
+        org_id=SYSTEM_IDENTITY["org_id"],
         insights_id=expected_insights_id,
         system_profile=updated_system_profile,
     )
@@ -481,14 +490,17 @@ def test_add_host_defer_to_stale(event_datetime_mock, models_datetime_mock, mq_c
     Tests adding (updating) a host with "defer_to" option, but reporter stale - system profile should be updated.
     """
     expected_insights_id = generate_uuid()
-    original_system_profile, updated_system_profile = original_and_updated_system_profile(OWNER_ID)
+    original_system_profile = valid_system_profile(owner_id=OWNER_ID)
+    updated_system_profile = valid_system_profile(owner_id=OWNER_ID, additional_yum_repo=YUM_REPO2)
     puptoo_stale_timestamp = models_datetime_mock - timedelta(days=1)
 
-    existing_host = db_base_host(expected_insights_id, "puptoo", original_system_profile, puptoo_stale_timestamp)
+    existing_host = create_reference_host_in_db(
+        expected_insights_id, "puptoo", original_system_profile, puptoo_stale_timestamp
+    )
     existing_host_id = existing_host.id
 
     host = minimal_host(
-        org_id=SYSTEM_IDENTITY["account_number"],
+        org_id=SYSTEM_IDENTITY["org_id"],
         insights_id=expected_insights_id,
         system_profile=updated_system_profile,
     )

@@ -88,8 +88,8 @@ def minimal_host(**values):
     return HostWrapper(data)
 
 
-def valid_system_profile():
-    return {
+def valid_system_profile(owner_id=None, additional_yum_repo=None):
+    system_profile = {
         "owner_id": "afe768a2-1c5e-4480-988b-21c3d6cfacf4",
         "rhc_client_id": "044e36dc-4e2b-4e69-8948-9c65a7bf4976",
         "rhc_config_state": "044e36dc-4e2b-4e69-8948-9c65a7bf4976",
@@ -154,21 +154,13 @@ def valid_system_profile():
         "system_update_method": "yum",
     }
 
+    if additional_yum_repo:
+        system_profile["yum_repos"].append(additional_yum_repo)
 
-def original_and_updated_system_profile(owner_id):
-    #
-    # Updated system profile is a subset of the original system profile.
-    #
-    updated_system_profile = valid_system_profile()
-    updated_system_profile["owner_id"] = owner_id
+    if owner_id:
+        system_profile["owner_id"] = owner_id
 
-    #
-    # Original system profile has an additional yum repo.
-    #
-    original_system_profile = deepcopy(updated_system_profile)
-    original_system_profile["yum_repos"].append(YUM_REPO2)
-
-    return original_system_profile, updated_system_profile
+    return system_profile
 
 
 def get_encoded_idstr(identity=SYSTEM_IDENTITY):

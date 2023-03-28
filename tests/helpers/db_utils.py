@@ -112,9 +112,9 @@ def update_host_in_db(host_id, **data_to_update):
     return host
 
 
-def db_base_host(insights_id, reporter, system_profile, stale_timestamp):
+def create_reference_host_in_db(insights_id, reporter, system_profile, stale_timestamp):
     host = Host(
-        org_id=SYSTEM_IDENTITY["account_number"],
+        org_id=SYSTEM_IDENTITY["org_id"],
         canonical_facts={"insights_id": insights_id},
         display_name="display_name",
         reporter=reporter,
