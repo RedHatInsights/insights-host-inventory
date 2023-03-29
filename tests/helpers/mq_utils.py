@@ -74,11 +74,14 @@ class MockFuture:
         self._fire(self.errbacks)
 
 
-def wrap_message(host_data, operation="add_host", platform_metadata=None):
+def wrap_message(host_data, operation="add_host", platform_metadata=None, operation_args=None):
     message = {"operation": operation, "data": host_data}
 
     if platform_metadata:
         message["platform_metadata"] = platform_metadata
+
+    if operation_args:
+        message["operation_args"] = operation_args
 
     return message
 

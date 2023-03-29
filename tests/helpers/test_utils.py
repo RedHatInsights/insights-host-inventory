@@ -34,6 +34,10 @@ USER_IDENTITY = {
     "user": {"email": "tuser@redhat.com", "first_name": "test"},
 }
 
+YUM_REPO1 = {"id": "repo1", "name": "repo1", "gpgcheck": True, "enabled": True, "base_url": "http://rpms.redhat.com"}
+
+YUM_REPO2 = {"id": "repo2", "name": "repo2", "gpgcheck": True, "enabled": True, "base_url": "http://rpms.redhat.com"}
+
 SATELLITE_IDENTITY = deepcopy(SYSTEM_IDENTITY)
 SATELLITE_IDENTITY["system"]["cert_type"] = "satellite"
 
@@ -84,8 +88,8 @@ def minimal_host(**values):
     return HostWrapper(data)
 
 
-def valid_system_profile():
-    return {
+def valid_system_profile(owner_id=None, additional_yum_repo=None):
+    system_profile = {
         "owner_id": "afe768a2-1c5e-4480-988b-21c3d6cfacf4",
         "rhc_client_id": "044e36dc-4e2b-4e69-8948-9c65a7bf4976",
         "rhc_config_state": "044e36dc-4e2b-4e69-8948-9c65a7bf4976",
@@ -131,9 +135,7 @@ def valid_system_profile():
         "katello_agent_running": False,
         "satellite_managed": False,
         "cloud_provider": "Maclean's Music",
-        "yum_repos": [
-            {"id": "repo1", "name": "repo1", "gpgcheck": True, "enabled": True, "base_url": "http://rpms.redhat.com"}
-        ],
+        "yum_repos": [YUM_REPO1],
         "dnf_modules": [{"name": "postgresql", "stream": "11"}, {"name": "java", "stream": "8"}],
         "installed_products": [
             {"name": "eap", "id": "123", "status": "UP"},
@@ -151,6 +153,14 @@ def valid_system_profile():
         "selinux_config_file": "enforcing",
         "system_update_method": "yum",
     }
+
+    if additional_yum_repo:
+        system_profile["yum_repos"].append(additional_yum_repo)
+
+    if owner_id:
+        system_profile["owner_id"] = owner_id
+
+    return system_profile
 
 
 def get_encoded_idstr(identity=SYSTEM_IDENTITY):
