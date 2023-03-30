@@ -12,9 +12,11 @@ from tests.helpers.test_utils import SYSTEM_IDENTITY
     [0, 3, 5],
 )
 @pytest.mark.parametrize("patch_name", [True, False])
-def test_patch_group_happy_path(db_create_group, db_create_host, api_patch_group, db_get_group, num_hosts, patch_name):
+def test_patch_group_happy_path(
+    db_create_group, db_create_host, api_patch_group, db_get_group_by_id, num_hosts, patch_name
+):
     group_id = db_create_group("test_group").id
-    assert len(db_get_group(group_id).hosts) == 0
+    assert len(db_get_group_by_id(group_id).hosts) == 0
 
     host_id_list = [str(db_create_host().id)]
 
@@ -24,7 +26,7 @@ def test_patch_group_happy_path(db_create_group, db_create_host, api_patch_group
 
     response_status, response_data = api_patch_group(group_id, patch_doc)
     assert_response_status(response_status, 200)
-    retrieved_group = db_get_group(group_id)
+    retrieved_group = db_get_group_by_id(group_id)
 
     if patch_name:
         assert retrieved_group.name == "modified_group"
@@ -42,8 +44,8 @@ def test_patch_group_happy_path(db_create_group, db_create_host, api_patch_group
 
     response_status, response_data = api_patch_group(group_id, patch_doc)
     assert_response_status(response_status, 200)
-    assert_group_response(response_data, db_get_group(group_id))
-    retrieved_group = db_get_group(group_id)
+    assert_group_response(response_data, db_get_group_by_id(group_id))
+    retrieved_group = db_get_group_by_id(group_id)
 
     if patch_name:
         assert retrieved_group.name == "modified_again"
@@ -96,7 +98,7 @@ def test_patch_group_existing_name_different_org(db_create_group_with_hosts, db_
 
 
 @pytest.mark.parametrize("patch_name", ["existing_group", "EXISTING_GROUP"])
-def test_patch_group_existing_name_same_org(db_create_group, api_patch_group, db_get_group, patch_name):
+def test_patch_group_existing_name_same_org(db_create_group, api_patch_group, patch_name):
     # Create 2 groups
     db_create_group("existing_group").id
     new_id = db_create_group("another_group").id
@@ -124,7 +126,7 @@ def test_patch_group_hosts_from_different_group(db_create_group_with_hosts, api_
     assert str(host_to_move_id) in response_body["detail"]
 
 
-def test_patch_group_no_name(db_create_group_with_hosts, api_patch_group, db_get_group):
+def test_patch_group_no_name(db_create_group_with_hosts, api_patch_group, db_get_group_by_id):
     group = db_create_group_with_hosts("test_group", 2)
     patch_doc = {"name": ""}
 
@@ -134,4 +136,4 @@ def test_patch_group_no_name(db_create_group_with_hosts, api_patch_group, db_get
     assert_response_status(response_status, 400)
 
     # Assert that the group's name hasn't been modified
-    assert db_get_group(group.id).name == "test_group"
+    assert db_get_group_by_id(group.id).name == "test_group"

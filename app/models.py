@@ -705,7 +705,7 @@ class PatchHostSchema(MarshmallowSchema):
         super().__init__(*args, **kwargs)
 
 
-class PatchGroupSchema(MarshmallowSchema):
+class InputGroupSchema(MarshmallowSchema):
     name = fields.Str(validate=marshmallow_validate.Length(min=1, max=255))
     host_ids = fields.List(fields.Str(validate=verify_uuid_format))
 

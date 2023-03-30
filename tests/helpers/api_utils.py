@@ -419,8 +419,8 @@ def assert_group_response(response, expected_group):
     assert response["org_id"] == expected_group.org_id
     assert response["account"] == expected_group.account
     assert response["name"] == expected_group.name
-    assert response["created_on"] == expected_group.created_on.isoformat()
-    assert response["modified_on"] == expected_group.modified_on.isoformat()
+    assert response["created"] == expected_group.created_on.isoformat()
+    assert response["updated"] == expected_group.modified_on.isoformat()
 
     expected_host_ids = [str(host.id) for host in expected_group.hosts]
 
