@@ -63,8 +63,6 @@ def test_patch_group_happy_path(
     assert retrieved_group.modified_on > orig_modified_on
 
     # Confirm that the updated date on the json data matches the date in the DB
-    print(">>> response data:")
-    print(response_data)
     assert parser.isoparse(response_data["updated"]) == retrieved_group.modified_on
 
 
