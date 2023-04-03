@@ -1,6 +1,7 @@
 from copy import deepcopy
 
 import pytest
+from dateutil import parser
 
 from tests.helpers.api_utils import assert_group_response
 from tests.helpers.api_utils import assert_response_status
@@ -56,7 +57,11 @@ def test_patch_group_happy_path(db_create_group, db_create_host, api_patch_group
     assert [str(host.id) for host in retrieved_group.hosts] == host_id_list
 
     assert_response_status(response_status, 200)
+    # Assert that the modified_on date has been updated
     assert retrieved_group.modified_on > orig_modified_on
+
+    # Confirm that the modified_date on the json data matches the date in the DB
+    assert parser.isoparse(response_data["modified_on"]) == retrieved_group.modified_on
 
 
 def test_patch_group_wrong_org_id_for_group(db_create_group_with_hosts, db_create_host, api_patch_group):
