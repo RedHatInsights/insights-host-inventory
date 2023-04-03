@@ -1,6 +1,5 @@
 from typing import List
 
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.scoping import scoped_session
 
 from app.auth import get_current_identity
@@ -114,9 +113,12 @@ def get_group_by_id_from_db(group_id: str) -> Group:
 
 
 def db_create_host_group_assoc(host_id: str, group_id: str) -> HostGroupAssoc:
+    if HostGroupAssoc.query.filter(HostGroupAssoc.host_id == host_id).one_or_none():
+        raise InventoryException(
+            title="Invalid request", detail=f"Host with ID {host_id} is already associated with another group."
+        )
     host_group = HostGroupAssoc(host_id=host_id, group_id=group_id)
     db.session.add(host_group)
-    db.session.commit()
     return host_group
 
 
@@ -135,11 +137,9 @@ def replace_host_list_for_group(
         for host_id in host_id_list:
             if not find_existing_host_by_id(get_current_identity(), host_id):
                 raise InventoryException(title="Invalid request", detail=f"Host with ID {host_id} does not exist.")
-            try:
-                assoc_list.append(db_create_host_group_assoc(host_id, group.id))
-            except IntegrityError:
-                raise InventoryException(
-                    title="Invalid request", detail=f"Host with ID {host_id} is already associated with another group."
-                )
+
+            assoc_list.append(db_create_host_group_assoc(host_id, group.id))
+            # Update modified_on timestamp on the group
+            group.update_modified_on()
 
     return assoc_list

@@ -14,7 +14,9 @@ from tests.helpers.test_utils import SYSTEM_IDENTITY
 )
 @pytest.mark.parametrize("patch_name", [True, False])
 def test_patch_group_happy_path(db_create_group, db_create_host, api_patch_group, db_get_group, num_hosts, patch_name):
-    group_id = db_create_group("test_group").id
+    group = db_create_group("test_group")
+    group_id = group.id
+    orig_modified_on = group.modified_on
     assert len(db_get_group(group_id).hosts) == 0
 
     host_id_list = [str(db_create_host().id)]
@@ -54,6 +56,7 @@ def test_patch_group_happy_path(db_create_group, db_create_host, api_patch_group
     assert [str(host.id) for host in retrieved_group.hosts] == host_id_list
 
     assert_response_status(response_status, 200)
+    assert retrieved_group.modified_on > orig_modified_on
 
 
 def test_patch_group_wrong_org_id_for_group(db_create_group_with_hosts, db_create_host, api_patch_group):
@@ -144,17 +147,19 @@ def test_patch_group_hosts_in_diff_org(
 ):
     # Create a group
     group = db_create_group_with_hosts("test_group", 2)
+    orig_modified_on = group.modified_on
+    group_id = group.id
 
     # Make an identity with a different org_id and account
     diff_identity = deepcopy(SYSTEM_IDENTITY)
     diff_identity["org_id"] = "diff_id"
     diff_identity["account"] = "diff_id"
 
-    # Create some hosts in the same org
+    # Create 3 hosts in the same org
     host_id_list = [str(db_create_host().id) for _ in range(3)]
 
     if host_in_other_org:
-        # Create a host in a different org
+        # Create one host in a different org
         invalid_host_id = db_create_host(identity=diff_identity).id
     else:
         # Append a UUID not associated with any host
@@ -163,8 +168,15 @@ def test_patch_group_hosts_in_diff_org(
     host_id_list.append(str(invalid_host_id))
     patch_doc = {"host_ids": host_id_list}
 
-    response_status, response_data = api_patch_group(group.id, patch_doc)
+    response_status, response_data = api_patch_group(group_id, patch_doc)
 
     # It can't find that host in the current org
     assert_response_status(response_status, 400)
     assert response_data["detail"] == f"Host with ID {invalid_host_id} does not exist."
+    retrieved_group = db_get_group(group_id)
+
+    # There should still only be 2 hosts on the group
+    assert len(retrieved_group.hosts) == 2
+
+    # The group
+    assert db_get_group(group_id).modified_on == orig_modified_on
