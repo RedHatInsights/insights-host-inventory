@@ -11,7 +11,7 @@ from api import metrics
 from api.filtering.filtering import build_registered_with_filter
 from api.filtering.filtering import build_system_profile_filter
 from api.filtering.filtering import build_tag_query_dict_tuple
-from api.host_query_xjoin import owner_id_filter
+from api.filtering.filtering import owner_id_filter
 from app import Permission
 from app.auth import get_current_identity
 from app.auth.identity import IdentityType

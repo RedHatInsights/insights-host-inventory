@@ -6,10 +6,7 @@ from api import custom_escape
 from api import flask_json_response
 from api import metrics
 from api.filtering.filtering import query_filters
-from api.host_query_xjoin import owner_id_filter
 from app import Permission
-from app.auth import get_current_identity
-from app.auth.identity import IdentityType
 from app.instrumentation import log_get_tags_failed
 from app.instrumentation import log_get_tags_succeeded
 from app.logging import get_logger
@@ -113,10 +110,6 @@ def get_tags(
             # Escaped so that the string literals are not interpreted as regex
             "search": {"regex": f".*{custom_escape(search)}.*"}
         }
-
-    current_identity = get_current_identity()
-    if current_identity.identity_type == IdentityType.SYSTEM:
-        hostfilter_and_variables += owner_id_filter()
 
     if hostfilter_and_variables != ():
         variables["hostFilter"]["AND"] = hostfilter_and_variables

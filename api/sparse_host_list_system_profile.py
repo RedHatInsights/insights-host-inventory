@@ -1,6 +1,6 @@
 import flask
 
-from api.host_query_xjoin import owner_id_filter
+from api.filtering.filtering import owner_id_filter
 from app.auth import get_current_identity
 from app.auth.identity import IdentityType
 from app.instrumentation import log_get_sparse_system_profile_failed

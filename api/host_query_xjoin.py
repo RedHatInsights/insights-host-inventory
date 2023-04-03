@@ -2,8 +2,6 @@ import flask
 
 from api.filtering.filtering import host_id_list_query_filter
 from api.filtering.filtering import query_filters
-from app.auth import get_current_identity
-from app.auth.identity import IdentityType
 from app.instrumentation import log_get_host_list_failed
 from app.logging import get_logger
 from app.serialization import deserialize_host_xjoin as deserialize_host
@@ -199,27 +197,17 @@ def get_host_list(
         filter,
     )
 
-    current_identity = get_current_identity()
-    if current_identity.identity_type == IdentityType.SYSTEM:
-        all_filters += owner_id_filter()
-
     return get_host_list_using_filters(all_filters, page, per_page, param_order_by, param_order_how, fields)
 
 
 def get_host_list_by_id_list(host_id_list, page, per_page, param_order_by, param_order_how, fields=None):
     all_filters = host_id_list_query_filter(host_id_list)
-    current_identity = get_current_identity()
-    if current_identity.identity_type == IdentityType.SYSTEM:
-        all_filters += owner_id_filter()
 
     return get_host_list_using_filters(all_filters, page, per_page, param_order_by, param_order_how, fields)
 
 
 def get_host_tags_list_by_id_list(host_id_list, page, per_page, param_order_by, param_order_how):
     all_filters = host_id_list_query_filter(host_id_list)
-    current_identity = get_current_identity()
-    if current_identity.identity_type == IdentityType.SYSTEM:
-        all_filters += owner_id_filter()
 
     return get_host_tags_list_using_filters(all_filters, page, per_page, param_order_by, param_order_how)
 
@@ -253,10 +241,6 @@ def get_host_ids_list(
         filter,
     )
 
-    current_identity = get_current_identity()
-    if current_identity.identity_type == IdentityType.SYSTEM:
-        all_filters += owner_id_filter()
-
     id_list = []
     offset = 0
     total = 1
@@ -270,7 +254,3 @@ def get_host_ids_list(
         offset += 100
 
     return id_list
-
-
-def owner_id_filter():
-    return ({"spf_owner_id": {"eq": get_current_identity().system["cn"]}},)
