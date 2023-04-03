@@ -53,6 +53,7 @@ SYSTEM_IDENTITY = {"auth_type": "cert-auth", "system": {"cert_type": "system"}, 
 
 class OperationSchema(Schema):
     operation = fields.Str(required=True)
+    operation_args = fields.Dict()
     platform_metadata = fields.Dict()
     data = fields.Dict(required=True)
 
@@ -200,7 +201,7 @@ def sync_event_message(message, session, event_producer):
     return
 
 
-def update_system_profile(host_data, platform_metadata):
+def update_system_profile(host_data, platform_metadata, operation_args={}):
     payload_tracker = get_payload_tracker(request_id=threadctx.request_id)
 
     with PayloadTrackerProcessingContext(
@@ -234,7 +235,7 @@ def update_system_profile(host_data, platform_metadata):
             raise
 
 
-def add_host(host_data, platform_metadata):
+def add_host(host_data, platform_metadata, operation_args={}):
     payload_tracker = get_payload_tracker(request_id=threadctx.request_id)
 
     with PayloadTrackerProcessingContext(
@@ -250,7 +251,7 @@ def add_host(host_data, platform_metadata):
             staleness_timestamps = Timestamps.from_config(inventory_config())
             log_add_host_attempt(logger, input_host)
             output_host, host_id, insights_id, add_result = host_repository.add_host(
-                input_host, identity, staleness_timestamps, fields=EGRESS_HOST_FIELDS
+                input_host, identity, staleness_timestamps, fields=EGRESS_HOST_FIELDS, operation_args=operation_args
             )
             log_add_update_host_succeeded(logger, add_result, host_data, output_host)
             payload_tracker_processing_ctx.inventory_id = output_host["id"]
@@ -286,7 +287,9 @@ def handle_message(message, event_producer, notification_event_producer, message
         try:
             host = validated_operation_msg["data"]
 
-            output_host, host_id, insights_id, operation_result = message_operation(host, platform_metadata)
+            output_host, host_id, insights_id, operation_result = message_operation(
+                host, platform_metadata, validated_operation_msg.get("operation_args", {})
+            )
             event_type = operation_results_to_event_type(operation_result)
             event = build_event(event_type, output_host, platform_metadata=platform_metadata)
 

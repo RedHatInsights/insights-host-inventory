@@ -144,8 +144,8 @@ def serialize_group(group):
         "account": group.account,
         "name": group.name,
         "host_ids": [_serialize_uuid(host.id) for host in group.hosts],
-        "created_on": _serialize_datetime(group.created_on),
-        "modified_on": _serialize_datetime(group.modified_on),
+        "created": _serialize_datetime(group.created_on),
+        "updated": _serialize_datetime(group.modified_on),
     }
 
 

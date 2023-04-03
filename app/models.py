@@ -7,6 +7,7 @@ from enum import Enum
 from os.path import join
 
 from connexion.decorators.validation import coerce_type
+from dateutil.parser import isoparse
 from flask_sqlalchemy import SQLAlchemy
 from jsonschema import draft4_format_checker
 from jsonschema import RefResolver
@@ -380,6 +381,23 @@ class Host(LimitedHost):
             self.system_profile_facts = {**self.system_profile_facts, **input_system_profile}
         orm.attributes.flag_modified(self, "system_profile_facts")
 
+    def reporter_stale(self, reporter):
+        prs = self.per_reporter_staleness.get(reporter, None)
+        if not prs:
+            # No reports from reporter, its considered stale.
+            logger.debug("Reports from %s are stale", reporter)
+            return True
+
+        pr_stale_timestamp = isoparse(prs["stale_timestamp"])
+        timezone = pr_stale_timestamp.tzinfo
+        logger.debug("per_reporter_staleness[%s]['stale_timestamp']: %s", reporter, pr_stale_timestamp)
+        if datetime.now(timezone) > pr_stale_timestamp:
+            logger.debug("Reports from %s are stale", reporter)
+            return True
+
+        logger.debug("Reports from %s are not stale", reporter)
+        return False
+
     def __repr__(self):
         return (
             f"<Host id='{self.id}' account='{self.account}' org_id='{self.org_id}' display_name='{self.display_name}' "
@@ -690,7 +708,7 @@ class PatchHostSchema(MarshmallowSchema):
         super().__init__(*args, **kwargs)
 
 
-class PatchGroupSchema(MarshmallowSchema):
+class InputGroupSchema(MarshmallowSchema):
     name = fields.Str(validate=marshmallow_validate.Length(min=1, max=255))
     host_ids = fields.List(fields.Str(validate=verify_uuid_format))
 

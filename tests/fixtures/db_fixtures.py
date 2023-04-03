@@ -69,11 +69,19 @@ def db_get_host_by_insights_id(flask_app):
 
 
 @pytest.fixture(scope="function")
-def db_get_group(flask_app):
-    def _db_get_group(group_id):
+def db_get_group_by_id(flask_app):
+    def _db_get_group_by_id(group_id):
         return Group.query.get(group_id)
 
-    return _db_get_group
+    return _db_get_group_by_id
+
+
+@pytest.fixture(scope="function")
+def db_get_group_by_name(flask_app):
+    def _db_get_group_by_name(group_name):
+        return Group.query.filter(Group.name == group_name).first()
+
+    return _db_get_group_by_name
 
 
 @pytest.fixture(scope="function")
@@ -200,13 +208,13 @@ def db_delete_group(flask_app):
 
 
 @pytest.fixture(scope="function")
-def db_create_group_with_hosts(db_create_group, db_create_host, db_create_host_group_assoc, db_get_group):
+def db_create_group_with_hosts(db_create_group, db_create_host, db_create_host_group_assoc, db_get_group_by_id):
     def _db_create_group_with_hosts(group_name, num_hosts):
         group_id = db_create_group(group_name).id
         host_id_list = [str(db_create_host().id) for _ in range(num_hosts)]
         for host_id in host_id_list:
             db_create_host_group_assoc(host_id, group_id)
 
-        return db_get_group(group_id)
+        return db_get_group_by_id(group_id)
 
     return _db_create_group_with_hosts
