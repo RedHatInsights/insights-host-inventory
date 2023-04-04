@@ -1,6 +1,5 @@
 from typing import List
 
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.scoping import scoped_session
 
 from app.auth import get_current_identity
@@ -19,6 +18,7 @@ from app.models import Host
 from app.models import HostGroupAssoc
 from lib.db import session_guard
 from lib.host_delete import _deleted_by_this_query
+from lib.host_repository import find_existing_host_by_id
 from lib.metrics import delete_group_count
 from lib.metrics import delete_group_processing_time
 from lib.metrics import delete_host_group_count
@@ -171,9 +171,12 @@ def get_group_by_id_from_db(group_id: str) -> Group:
 
 
 def db_create_host_group_assoc(host_id: str, group_id: str) -> HostGroupAssoc:
+    if HostGroupAssoc.query.filter(HostGroupAssoc.host_id == host_id).one_or_none():
+        raise InventoryException(
+            title="Invalid request", detail=f"Host with ID {host_id} is already associated with another group."
+        )
     host_group = HostGroupAssoc(host_id=host_id, group_id=group_id)
     db.session.add(host_group)
-    db.session.commit()
     return host_group
 
 
@@ -190,11 +193,11 @@ def replace_host_list_for_group(
         _remove_all_hosts_from_group(session, group)
         assoc_list = []
         for host_id in host_id_list:
-            try:
-                assoc_list.append(db_create_host_group_assoc(host_id, group.id))
-            except IntegrityError:
-                raise InventoryException(
-                    title="Invalid request", detail=f"Host with ID {host_id} is already associated with another group."
-                )
+            if not find_existing_host_by_id(get_current_identity(), host_id):
+                raise InventoryException(title="Invalid request", detail=f"Host with ID {host_id} does not exist.")
+
+            assoc_list.append(db_create_host_group_assoc(host_id, group.id))
+            # Update modified_on timestamp on the group
+            group.update_modified_on()
 
     return assoc_list

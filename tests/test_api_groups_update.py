@@ -1,9 +1,11 @@
 from copy import deepcopy
 
 import pytest
+from dateutil import parser
 
 from tests.helpers.api_utils import assert_group_response
 from tests.helpers.api_utils import assert_response_status
+from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
@@ -13,9 +15,11 @@ from tests.helpers.test_utils import SYSTEM_IDENTITY
 )
 @pytest.mark.parametrize("patch_name", [True, False])
 def test_patch_group_happy_path(
-    db_create_group, db_create_host, api_patch_group, db_get_group_by_id, num_hosts, patch_name
+    db_create_group, db_create_host, db_get_group_by_id, api_patch_group, num_hosts, patch_name
 ):
-    group_id = db_create_group("test_group").id
+    group = db_create_group("test_group")
+    group_id = group.id
+    orig_modified_on = group.modified_on
     assert len(db_get_group_by_id(group_id).hosts) == 0
 
     host_id_list = [str(db_create_host().id)]
@@ -55,6 +59,11 @@ def test_patch_group_happy_path(
     assert [str(host.id) for host in retrieved_group.hosts] == host_id_list
 
     assert_response_status(response_status, 200)
+    # Assert that the modified_on date has been updated
+    assert retrieved_group.modified_on > orig_modified_on
+
+    # Confirm that the updated date on the json data matches the date in the DB
+    assert parser.isoparse(response_data["updated"]) == retrieved_group.modified_on
 
 
 def test_patch_group_wrong_org_id_for_group(db_create_group_with_hosts, db_create_host, api_patch_group):
@@ -137,3 +146,44 @@ def test_patch_group_no_name(db_create_group_with_hosts, api_patch_group, db_get
 
     # Assert that the group's name hasn't been modified
     assert db_get_group_by_id(group.id).name == "test_group"
+
+
+@pytest.mark.parametrize("host_in_other_org", [True, False])
+def test_patch_group_hosts_in_diff_org(
+    db_create_group_with_hosts, api_patch_group, db_create_host, db_get_group_by_id, host_in_other_org
+):
+    # Create a group
+    group = db_create_group_with_hosts("test_group", 2)
+    orig_modified_on = group.modified_on
+    group_id = group.id
+
+    # Make an identity with a different org_id and account
+    diff_identity = deepcopy(SYSTEM_IDENTITY)
+    diff_identity["org_id"] = "diff_id"
+    diff_identity["account"] = "diff_id"
+
+    # Create 3 hosts in the same org
+    host_id_list = [str(db_create_host().id) for _ in range(3)]
+
+    if host_in_other_org:
+        # Create one host in a different org
+        invalid_host_id = db_create_host(identity=diff_identity).id
+    else:
+        # Append a UUID not associated with any host
+        invalid_host_id = generate_uuid()
+
+    host_id_list.append(str(invalid_host_id))
+    patch_doc = {"host_ids": host_id_list}
+
+    response_status, response_data = api_patch_group(group_id, patch_doc)
+
+    # It can't find that host in the current org
+    assert_response_status(response_status, 400)
+    assert response_data["detail"] == f"Host with ID {invalid_host_id} does not exist."
+    retrieved_group = db_get_group_by_id(group_id)
+
+    # There should still only be 2 hosts on the group
+    assert len(retrieved_group.hosts) == 2
+
+    # The group
+    assert db_get_group_by_id(group_id).modified_on == orig_modified_on
