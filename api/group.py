@@ -17,6 +17,7 @@ from app.instrumentation import log_patch_group_failed
 from app.instrumentation import log_patch_group_success
 from app.logging import get_logger
 from app.models import InputGroupSchema
+from lib.db import session_guard
 from lib.feature_flags import FLAG_INVENTORY_GROUPS
 from lib.feature_flags import get_flag_value
 from lib.group_repository import add_group
@@ -97,28 +98,25 @@ def patch_group_by_id(group_id, body):
         log_patch_group_failed(logger, group_id)
         flask.abort(status.HTTP_404_NOT_FOUND)
 
-    # Separate out the host IDs because they're not stored on the Group
-    group_to_update.patch(validated_patch_group_data)
-    host_id_list = validated_patch_group_data.get("host_ids")
+    try:
+        with session_guard(db.session):
+            # Separate out the host IDs because they're not stored on the Group
+            group_to_update.patch(validated_patch_group_data)
+            host_id_list = validated_patch_group_data.get("host_ids")
 
-    # Next, replace the host-group associations
-    assoc_list = []
-    if host_id_list is not None:
-        try:
-            assoc_list = replace_host_list_for_group(db.session, group_to_update, host_id_list)
-        except InventoryException as ie:
-            log_patch_group_failed(logger, group_id)
-            flask.abort(status.HTTP_400_BAD_REQUEST, str(ie.detail))
+            # Next, replace the host-group associations
+            if host_id_list is not None:
+                replace_host_list_for_group(db.session, group_to_update, host_id_list)
 
-    if db.session.is_modified(group_to_update) or any(db.session.is_modified(assoc) for assoc in assoc_list):
-        try:
-            db.session.commit()
-        except IntegrityError:
-            log_patch_group_failed(logger, group_id)
-            flask.abort(
-                status.HTTP_400_BAD_REQUEST,
-                f"Group with name '{validated_patch_group_data.get('name')}' already exists.",
-            )
+    except InventoryException as ie:
+        log_patch_group_failed(logger, group_id)
+        flask.abort(status.HTTP_400_BAD_REQUEST, str(ie.detail))
+    except IntegrityError:
+        log_patch_group_failed(logger, group_id)
+        flask.abort(
+            status.HTTP_400_BAD_REQUEST,
+            f"Group with name '{validated_patch_group_data.get('name')}' already exists.",
+        )
 
     # TODO: Emit patch event for group, and one per assoc
     updated_group = get_group_by_id_from_db(group_id)

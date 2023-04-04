@@ -427,6 +427,9 @@ class Group(db.Model):
         self.account = account
         self.name = name
 
+    def update_modified_on(self):
+        self.modified_on = _time_now()
+
     def update(self, input_group):
         if input_group.name is not None:
             self.name = input_group.name
