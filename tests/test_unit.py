@@ -1060,6 +1060,24 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             },
             "stale_timestamp": now().isoformat(),
             "reporter": "some reporter",
+            "groups": [
+                {
+                    "id": str(uuid4()),
+                    "org_id": "3340851",
+                    "account": "some acct",
+                    "name": "group 1",
+                    "created_on": now().isoformat(),
+                    "modified_on": now().isoformat(),
+                },
+                {
+                    "id": str(uuid4()),
+                    "org_id": "3340851",
+                    "account": "some acct",
+                    "name": "group 2",
+                    "created_on": now().isoformat(),
+                    "modified_on": now().isoformat(),
+                },
+            ],
         }
         host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
         result = deserialize_host({}, host_schema)
@@ -1079,6 +1097,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             host_input["system_profile"],
             host_input["stale_timestamp"],
             host_input["reporter"],
+            host_input["groups"],
         )
 
     def test_without_facts(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
@@ -1099,6 +1118,24 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             },
             "stale_timestamp": now().isoformat(),
             "reporter": "some reporter",
+            "groups": [
+                {
+                    "id": str(uuid4()),
+                    "org_id": "3340851",
+                    "account": "some acct",
+                    "name": "group 1",
+                    "created_on": now().isoformat(),
+                    "modified_on": now().isoformat(),
+                },
+                {
+                    "id": str(uuid4()),
+                    "org_id": "3340851",
+                    "account": "some acct",
+                    "name": "group 2",
+                    "created_on": now().isoformat(),
+                    "modified_on": now().isoformat(),
+                },
+            ],
         }
         host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
 
@@ -1119,6 +1156,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             host_input["system_profile"],
             host_input["stale_timestamp"],
             host_input["reporter"],
+            host_input["groups"],
         )
 
     def test_without_tags(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
@@ -1139,6 +1177,24 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             },
             "stale_timestamp": now().isoformat(),
             "reporter": "some reporter",
+            "groups": [
+                {
+                    "id": str(uuid4()),
+                    "org_id": "3340851",
+                    "account": "some acct",
+                    "name": "group 1",
+                    "created_on": now().isoformat(),
+                    "modified_on": now().isoformat(),
+                },
+                {
+                    "id": str(uuid4()),
+                    "org_id": "3340851",
+                    "account": "some acct",
+                    "name": "group 2",
+                    "created_on": now().isoformat(),
+                    "modified_on": now().isoformat(),
+                },
+            ],
         }
         host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
 
@@ -1159,6 +1215,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             host_input["system_profile"],
             host_input["stale_timestamp"],
             host_input["reporter"],
+            host_input["groups"],
         )
 
     def test_without_display_name(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
@@ -1182,6 +1239,24 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             },
             "stale_timestamp": now().isoformat(),
             "reporter": "some reporter",
+            "groups": [
+                {
+                    "id": str(uuid4()),
+                    "org_id": "3340851",
+                    "account": "some acct",
+                    "name": "group 1",
+                    "created_on": now().isoformat(),
+                    "modified_on": now().isoformat(),
+                },
+                {
+                    "id": str(uuid4()),
+                    "org_id": "3340851",
+                    "account": "some acct",
+                    "name": "group 2",
+                    "created_on": now().isoformat(),
+                    "modified_on": now().isoformat(),
+                },
+            ],
         }
         host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
 
@@ -1202,6 +1277,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             host_input["system_profile"],
             host_input["stale_timestamp"],
             host_input["reporter"],
+            host_input["groups"],
         )
 
     def test_without_system_profile(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
@@ -1214,6 +1290,69 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                 {"namespace": "NS1", "key": "key1", "value": "value1"},
                 {"namespace": "NS2", "key": "key2", "value": "value2"},
             ],
+            "facts": {
+                "some namespace": {"some key": "some value"},
+                "another namespace": {"another key": "another value"},
+            },
+            "stale_timestamp": now().isoformat(),
+            "reporter": "some reporter",
+            "groups": [
+                {
+                    "id": str(uuid4()),
+                    "org_id": "3340851",
+                    "account": "some acct",
+                    "name": "group 1",
+                    "created_on": now().isoformat(),
+                    "modified_on": now().isoformat(),
+                },
+                {
+                    "id": str(uuid4()),
+                    "org_id": "3340851",
+                    "account": "some acct",
+                    "name": "group 2",
+                    "created_on": now().isoformat(),
+                    "modified_on": now().isoformat(),
+                },
+            ],
+        }
+        host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
+
+        result = deserialize_host({}, host_schema)
+        self.assertEqual(host.return_value, result)
+
+        deserialize_canonical_facts.assert_called_once_with(host_input)
+        deserialize_facts.assert_called_once_with(host_input["facts"])
+        deserialize_tags.assert_called_once_with(host_input["tags"])
+        host.assert_called_once_with(
+            deserialize_canonical_facts.return_value,
+            host_input["display_name"],
+            host_input["ansible_host"],
+            host_input["account"],
+            host_input["org_id"],
+            deserialize_facts.return_value,
+            deserialize_tags.return_value,
+            {},
+            host_input["stale_timestamp"],
+            host_input["reporter"],
+            host_input["groups"],
+        )
+
+    def test_without_groups(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
+        host_input = {
+            "display_name": "some display name",
+            "ansible_host": "some ansible host",
+            "account": "some account",
+            "org_id": "3340851",
+            "tags": [
+                {"namespace": "NS1", "key": "key1", "value": "value1"},
+                {"namespace": "NS2", "key": "key2", "value": "value2"},
+            ],
+            "system_profile": {
+                "number_of_cpus": 1,
+                "number_of_sockets": 2,
+                "cores_per_socket": 3,
+                "system_memory_bytes": 4,
+            },
             "facts": {
                 "some namespace": {"some key": "some value"},
                 "another namespace": {"another key": "another value"},
@@ -1237,9 +1376,10 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             host_input["org_id"],
             deserialize_facts.return_value,
             deserialize_tags.return_value,
-            {},
+            host_input["system_profile"],
             host_input["stale_timestamp"],
             host_input["reporter"],
+            {},
         )
 
     def test_without_culling_fields(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
