@@ -40,6 +40,7 @@ DEFAULT_FIELDS = (
     "culled_timestamp",
     "created",
     "updated",
+    "groups",
 )
 
 
@@ -82,7 +83,7 @@ def deserialize_host_xjoin(data):
         stale_timestamp=_deserialize_datetime(data["stale_timestamp"]),
         reporter=data["reporter"],
         per_reporter_staleness=data.get("per_reporter_staleness", {}) or {},
-        groups=data.get("groups", {}) or {},
+        groups=data.get("groups", []),
     )
     for field in ("created_on", "modified_on"):
         setattr(host, field, _deserialize_datetime(data[field]))
@@ -135,7 +136,7 @@ def serialize_host(host, staleness_timestamps, fields=DEFAULT_FIELDS):
     if "system_profile" in fields:
         serialized_host["system_profile"] = host.system_profile_facts or {}
     if "groups" in fields:
-        serialized_host["groups"] = host.groups or {}
+        serialized_host["groups"] = host.groups or []
 
     return serialized_host
 

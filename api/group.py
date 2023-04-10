@@ -1,4 +1,5 @@
 import flask
+from flask import current_app
 from flask_api import status
 from marshmallow import ValidationError
 from sqlalchemy.exc import IntegrityError
@@ -57,7 +58,7 @@ def create_group(body):
 
     try:
         # Create group with validated data
-        created_group = add_group(validated_create_group_data)
+        created_group = add_group(validated_create_group_data, current_app.event_producer)
         create_group_count.inc()
 
         log_create_group_succeeded(logger, created_group.id)
@@ -106,7 +107,7 @@ def patch_group_by_id(group_id, body):
 
             # Next, replace the host-group associations
             if host_id_list is not None:
-                replace_host_list_for_group(db.session, group_to_update, host_id_list)
+                replace_host_list_for_group(db.session, group_to_update, host_id_list, current_app.event_producer)
 
     except InventoryException as ie:
         log_patch_group_failed(logger, group_id)
@@ -131,7 +132,9 @@ def delete_groups(group_id_list):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return flask.Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
-    delete_count = delete_group_list(group_id_list, inventory_config().host_delete_chunk_size)
+    delete_count = delete_group_list(
+        group_id_list, inventory_config().host_delete_chunk_size, current_app.event_producer
+    )
 
     if delete_count == 0:
         flask.abort(status.HTTP_404_NOT_FOUND, "No groups found for deletion.")
@@ -150,7 +153,7 @@ def delete_hosts_from_group(group_id, host_id_list):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return flask.Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
-    delete_count = remove_hosts_from_group(group_id, host_id_list)
+    delete_count = remove_hosts_from_group(group_id, host_id_list, current_app.event_producer)
 
     if delete_count == 0:
         flask.abort(status.HTTP_404_NOT_FOUND, "Group or hosts not found.")

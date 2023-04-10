@@ -1,3 +1,4 @@
+import json
 from copy import deepcopy
 
 import pytest
@@ -7,8 +8,9 @@ from tests.helpers.api_utils import assert_response_status
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
-def test_create_group_without_hosts(api_create_group, db_get_group_by_name):
-    group_data = {"name": "my_awesome_group", "host_ids": []}
+def test_create_group_without_hosts(api_create_group, db_get_group_by_name, event_producer, mocker):
+    mocker.patch.object(event_producer, "write_event")
+    group_data = {"name": "my_awesokme_group", "host_ids": []}
 
     response_status, response_data = api_create_group(group_data)
 
@@ -17,8 +19,12 @@ def test_create_group_without_hosts(api_create_group, db_get_group_by_name):
     retrieved_group = db_get_group_by_name(group_data.get("name"))
     assert_group_response(response_data, retrieved_group)
 
+    # No hosts modified, so no events should be written.
+    assert event_producer.write_event.call_count == 0
 
-def test_create_group_with_hosts(db_create_host, api_create_group, db_get_group_by_name):
+
+def test_create_group_with_hosts(db_create_host, api_create_group, db_get_group_by_name, mocker, event_producer):
+    mocker.patch.object(event_producer, "write_event")
     host1 = db_create_host()
     host2 = db_create_host()
     host_id_list = [str(host1.id), str(host2.id)]
@@ -31,6 +37,12 @@ def test_create_group_with_hosts(db_create_host, api_create_group, db_get_group_
 
     retrieved_group = db_get_group_by_name(group_data["name"])
     assert_group_response(response_data, retrieved_group)
+    assert event_producer.write_event.call_count == 2
+    for call_arg in event_producer.write_event.call_args_list:
+        host = json.loads(call_arg[0][0])["host"]
+        assert host["id"] in host_id_list
+        assert host["groups"][0]["name"] == group_data["name"]
+        assert host["groups"][0]["id"] == str(retrieved_group.id)
 
 
 def test_create_group_invalid_name(api_create_group):
@@ -64,7 +76,8 @@ def test_create_group_taken_name(api_create_group):
     "host_ids",
     [["", "3578"], ["notauuid"]],
 )
-def test_create_group_invalid_host_ids(api_create_group, host_ids):
+def test_create_group_invalid_host_ids(api_create_group, host_ids, event_producer, mocker):
+    mocker.patch.object(event_producer, "write_event")
     group_data = {"name": "my_awesome_group", "host_ids": host_ids}
 
     response_status, response_data = api_create_group(group_data)
@@ -72,8 +85,14 @@ def test_create_group_invalid_host_ids(api_create_group, host_ids):
     assert_response_status(response_status, expected_status=400)
     assert any(s in response_data["detail"] for s in host_ids)
 
+    # No hosts modified, so no events should be written.
+    assert event_producer.write_event.call_count == 0
 
-def test_create_group_with_host_from_another_group(db_create_group_with_hosts, api_create_group):
+
+def test_create_group_with_host_from_another_group(
+    db_create_group_with_hosts, api_create_group, event_producer, mocker
+):
+    mocker.patch.object(event_producer, "write_event")
     # Create a group with 2 hosts
     group = db_create_group_with_hosts("test_group", 2)
     assert len(group.hosts) == 2
@@ -92,8 +111,12 @@ def test_create_group_with_host_from_another_group(db_create_group_with_hosts, a
     assert_response_status(response_status, 400)
     assert taken_host_id in response_body["detail"]
 
+    # No hosts modified, so no events should be written.
+    assert event_producer.write_event.call_count == 0
 
-def test_create_group_with_host_from_another_org(db_create_host, api_create_group):
+
+def test_create_group_with_host_from_another_org(db_create_host, api_create_group, event_producer, mocker):
+    mocker.patch.object(event_producer, "write_event")
     host = db_create_host()
     host_id = str(host.id)
 
@@ -108,3 +131,6 @@ def test_create_group_with_host_from_another_org(db_create_host, api_create_grou
 
     assert_response_status(response_status, 400)
     assert host_id in response_body["detail"]
+
+    # No hosts modified, so no events should be written.
+    assert event_producer.write_event.call_count == 0

@@ -1707,3 +1707,22 @@ def test_create_invalid_host_produces_message(mocker, event_datetime_mock, mq_cr
     with pytest.raises(ValidationException):
         mq_create_or_update_host(host, notification_event_producer=mock_notification_event_producer)
     mock_notification_event_producer.write_event.assert_called_once()
+
+
+def test_groups_empty_for_new_host(mq_create_or_update_host, db_get_host):
+    expected_insights_id = generate_uuid()
+    host = minimal_host(insights_id=expected_insights_id)
+
+    created_key, created_event, _ = mq_create_or_update_host(host, return_all_data=True)
+    assert db_get_host(created_key).groups == []
+    assert created_event["host"]["groups"] == []
+
+
+def test_groups_not_overwritten_for_existing_hosts(
+    mq_create_or_update_host, db_create_host, db_get_host, db_create_group, db_create_host_group_assoc
+):
+    # Create a group with a host in it
+    # Modify one value on the host (ansible_hostname)
+    # Update the host via MQ
+    # Assert that the "groups" field is unchanged
+    assert False

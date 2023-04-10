@@ -49,6 +49,7 @@ class SerializedHostSchema(Schema):
     tags = fields.List(fields.Nested(TagsSchema))
     system_profile = fields.Dict()
     per_reporter_staleness = fields.Dict()
+    groups = fields.List(fields.Dict())
 
 
 class HostEventMetadataSchema(Schema):

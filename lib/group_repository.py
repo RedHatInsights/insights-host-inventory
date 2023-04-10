@@ -2,6 +2,7 @@ from typing import List
 
 from sqlalchemy.orm.scoping import scoped_session
 
+from api.host_query import staleness_timestamps
 from app.auth import get_current_identity
 from app.exceptions import InventoryException
 from app.instrumentation import get_control_rule
@@ -16,9 +17,17 @@ from app.models import db
 from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
+from app.queue.event_producer import EventProducer
+from app.queue.events import build_event
+from app.queue.events import EventType
+from app.queue.events import message_headers
+from app.queue.queue import EGRESS_HOST_FIELDS
+from app.serialization import serialize_group
+from app.serialization import serialize_host
 from lib.db import session_guard
 from lib.host_delete import _deleted_by_this_query
 from lib.host_repository import find_existing_host_by_id
+from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.metrics import delete_group_count
 from lib.metrics import delete_group_processing_time
 from lib.metrics import delete_host_group_count
@@ -28,7 +37,18 @@ from lib.metrics import delete_host_group_processing_time
 logger = get_logger(__name__)
 
 
-def add_hosts_to_group(group_id: str, host_id_list: List[str]):
+def _produce_host_update_events(event_producer, host_id_list, group_id_list=[]):
+    serialized_groups = [serialize_group(get_group_by_id_from_db(group_id)) for group_id in group_id_list]
+    host_list = get_host_list_by_id_list_from_db(host_id_list)
+    for host in host_list:
+        host.groups = serialized_groups
+        serialized_host = serialize_host(host, staleness_timestamps(), EGRESS_HOST_FIELDS)
+        headers = message_headers(EventType.updated, serialized_host["insights_id"])
+        event = build_event(EventType.updated, serialized_host)
+        event_producer.write_event(event, serialized_host["id"], headers, wait=True)
+
+
+def add_hosts_to_group(group_id: str, host_id_list: List[str], event_producer: EventProducer):
     current_org_id = get_current_identity().org_id
 
     # Check if the hosts exist in Inventory and have correct org_id
@@ -55,10 +75,12 @@ def add_hosts_to_group(group_id: str, host_id_list: List[str]):
     db.session.add_all(host_group_assoc)
     db.session.flush()
 
+    # Produce kafka messages updating the "groups" field for each host
+    _produce_host_update_events(event_producer, host_id_list, [group_id])
     log_host_group_add_succeeded(logger, host_id_list, group_id)
 
 
-def add_group(group_data) -> Group:
+def add_group(group_data, event_producer) -> Group:
     logger.debug("Creating a new group: %s", group_data)
     group_name = group_data.get("name")
     org_id = get_current_identity().org_id
@@ -75,7 +97,7 @@ def add_group(group_data) -> Group:
         if host_id_list:
             # gets the ID of the group inside the session
             created_group = Group.query.filter((Group.name == group_name) & (Group.org_id == org_id)).one_or_none()
-            add_hosts_to_group(created_group.id, host_id_list)
+            add_hosts_to_group(created_group.id, host_id_list, event_producer)
 
     # gets the ID of the group after it has been committed
     created_group = Group.query.filter((Group.name == group_name) & (Group.org_id == org_id)).one_or_none()
@@ -83,65 +105,56 @@ def add_group(group_data) -> Group:
     return created_group
 
 
-def _remove_all_hosts_from_group(session: scoped_session, group: Group):
-    delete_query = session.query(HostGroupAssoc).filter(HostGroupAssoc.group_id == group.id)
-    delete_query.delete(synchronize_session="fetch")
+def _remove_all_hosts_from_group(session: scoped_session, event_producer: EventProducer, group: Group):
+    host_ids_to_delete = session.query(HostGroupAssoc.host_id).filter(HostGroupAssoc.group_id == group.id).all()
+    remove_hosts_from_group(group.id, host_ids_to_delete, event_producer)
 
 
-def _delete_host_group_assoc(session, assoc):
-    # TODO: Produce Kafka message upon deletion; don't delete if Kafka is not available
+def _delete_host_group_assoc(session, event_producer, assoc):
     delete_query = session.query(HostGroupAssoc).filter(
         HostGroupAssoc.group_id == assoc.group_id, HostGroupAssoc.host_id == assoc.host_id
     )
     delete_query.delete(synchronize_session="fetch")
     assoc_deleted = _deleted_by_this_query(assoc)
-    if assoc_deleted:
-        delete_host_group_count.inc()
-        delete_query.session.commit()
-    else:
-        delete_query.session.rollback()
+
+    # TODO: _produce_host_update_events(event_producer, [host_id], [])
 
     return assoc_deleted
 
 
-def _delete_group(session: scoped_session, group: Group) -> bool:
+def _delete_group(session: scoped_session, event_producer: EventProducer, group: Group) -> bool:
     # First, remove all hosts from the requested group.
-    _remove_all_hosts_from_group(session, group)
+    group_id = group.id
+    _remove_all_hosts_from_group(session, event_producer, group)
 
-    # TODO: Produce Kafka message upon deletion; don't delete if Kafka is not available
-    delete_query = session.query(Group).filter(Group.id == group.id)
+    delete_query = session.query(Group).filter(Group.id == group_id)
     delete_query.delete(synchronize_session="fetch")
     group_deleted = _deleted_by_this_query(group)
-    if group_deleted:
-        delete_group_count.inc()
-        delete_query.session.commit()
-    else:
-        delete_query.session.rollback()
-
     return group_deleted
 
 
-def delete_group_list(group_id_list: List[str], chunk_size: int) -> int:
+def delete_group_list(group_id_list: List[str], chunk_size: int, event_producer: EventProducer) -> int:
     deletion_count = 0
-    select_query = Group.query.filter((Group.org_id == get_current_identity().org_id) & Group.id.in_(group_id_list))
+    select_query = db.session.query(Group).filter(
+        (Group.org_id == get_current_identity().org_id) & Group.id.in_(group_id_list)
+    )
 
-    # Do this for one group at a time, because once we add Kafka integration,
-    # we'll need to send a message for each group.
-    # We may also need to send a message for each HostGroupAssoc that we remove.
-    with session_guard(select_query.session):
+    with session_guard(db.session):
         while select_query.count():
             for group in select_query.limit(chunk_size):
+                group_id = group.id
                 with delete_group_processing_time.time():
-                    if _delete_group(select_query.session, group):
+                    if _delete_group(db.session, event_producer, group):
                         deletion_count += 1
-                        log_group_delete_succeeded(logger, group.id, get_control_rule())
+                        delete_group_count.inc()
+                        log_group_delete_succeeded(logger, group_id, get_control_rule())
                     else:
-                        log_group_delete_failed(logger, group.id, get_control_rule())
+                        log_group_delete_failed(logger, group_id, get_control_rule())
 
     return deletion_count
 
 
-def remove_hosts_from_group(group_id, host_id_list):
+def remove_hosts_from_group(group_id, host_id_list, event_producer):
     deletion_count = 0
     group_query = Group.query.filter(Group.org_id == get_current_identity().org_id, Group.id == group_id)
 
@@ -153,10 +166,13 @@ def remove_hosts_from_group(group_id, host_id_list):
     host_group_query = HostGroupAssoc.query.filter(
         HostGroupAssoc.group_id == found_group.id, HostGroupAssoc.host_id.in_(host_id_list)
     )
-    with session_guard(host_group_query.session), delete_host_group_processing_time.time():
+    with session_guard(db.session), delete_host_group_processing_time.time():
         for assoc in host_group_query.all():
-            if _delete_host_group_assoc(host_group_query.session, assoc):
+            host_id = assoc.host_id
+            if _delete_host_group_assoc(db.session, event_producer, assoc):
                 deletion_count += 1
+                delete_host_group_count.inc()
+                _produce_host_update_events(event_producer, [host_id], [])
                 log_host_group_delete_succeeded(logger, assoc.host_id, assoc.group_id, get_control_rule())
             else:
                 log_host_group_delete_failed(logger, assoc.host_id, assoc.group_id, get_control_rule())
@@ -185,12 +201,12 @@ def db_get_assoc_for_group(group_id: str) -> List[HostGroupAssoc]:
 
 
 def replace_host_list_for_group(
-    session: scoped_session, group: Group, host_id_list: List[str]
+    session: scoped_session, group: Group, host_id_list: List[str], event_producer: EventProducer
 ) -> List[HostGroupAssoc]:
     with session_guard(session):
         # TODO: Should we only remove hosts that aren't in host_id_list?
         # Does it really matter, since they'll immediately be recreated before the commit?
-        _remove_all_hosts_from_group(session, group)
+        _remove_all_hosts_from_group(session, event_producer, group)
         assoc_list = []
         for host_id in host_id_list:
             if not find_existing_host_by_id(get_current_identity(), host_id):
@@ -200,4 +216,5 @@ def replace_host_list_for_group(
             # Update modified_on timestamp on the group
             group.update_modified_on()
 
+    _produce_host_update_events(event_producer, host_id_list, [group.id])
     return assoc_list
