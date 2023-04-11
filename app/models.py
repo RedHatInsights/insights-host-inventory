@@ -165,6 +165,7 @@ class LimitedHost(db.Model):
         facts=None,
         tags={},
         system_profile_facts=None,
+        groups=None,
     ):
         self.canonical_facts = canonical_facts
 
@@ -179,6 +180,7 @@ class LimitedHost(db.Model):
         self.facts = facts or {}
         self.tags = tags
         self.system_profile_facts = system_profile_facts or {}
+        self.groups = groups or {}
 
     def _update_ansible_host(self, ansible_host):
         if ansible_host is not None:
@@ -196,6 +198,7 @@ class LimitedHost(db.Model):
     tags = db.Column(JSONB)
     canonical_facts = db.Column(JSONB)
     system_profile_facts = db.Column(JSONB)
+    groups = db.Column(JSONB)
 
 
 class Host(LimitedHost):
@@ -216,6 +219,7 @@ class Host(LimitedHost):
         stale_timestamp=None,
         reporter=None,
         per_reporter_staleness=None,
+        groups=None,
     ):
         if not canonical_facts:
             raise ValidationException("At least one of the canonical fact fields must be present.")
@@ -227,7 +231,7 @@ class Host(LimitedHost):
             raise ValidationException("The tags field cannot be null.")
 
         super().__init__(
-            canonical_facts, display_name, ansible_host, account, org_id, facts, tags, system_profile_facts
+            canonical_facts, display_name, ansible_host, account, org_id, facts, tags, system_profile_facts, groups
         )
 
         # without reporter and stale_timestamp host payload is invalid.
@@ -580,6 +584,7 @@ class LimitedHostSchema(CanonicalFactsSchema):
     facts = fields.List(fields.Nested(FactsSchema))
     system_profile = fields.Dict()
     tags = fields.Raw()
+    groups = fields.Dict(many=True)
 
     def __init__(self, system_profile_schema=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -648,6 +653,7 @@ class LimitedHostSchema(CanonicalFactsSchema):
             facts=facts,
             tags=tags,
             system_profile_facts=data.get("system_profile", {}),
+            groups=data.get("groups", {}),
         )
 
     @pre_load
@@ -692,6 +698,7 @@ class HostSchema(LimitedHostSchema):
             data.get("system_profile", {}),
             data["stale_timestamp"],
             data["reporter"],
+            data.get("groups", {}),
         )
 
     @validates("stale_timestamp")
