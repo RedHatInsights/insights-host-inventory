@@ -76,7 +76,10 @@ def _get_identity(host, metadata):
     if metadata and "b64_identity" in metadata:
         identity = _decode_id(metadata["b64_identity"])
     else:
-        if host.get("reporter") == "rhsm-conduit" and host.get("subscription_manager_id"):
+        reporter = host.get("reporter")
+        if (reporter == "rhsm-conduit" or reporter == "rhsm-system-profile-bridge") and host.get(
+            "subscription_manager_id"
+        ):
             identity = deepcopy(SYSTEM_IDENTITY)
             if "account" in host:
                 identity["account_number"] = host["account"]
@@ -110,7 +113,10 @@ def _set_owner(host, identity):
     elif not host["system_profile"].get("owner_id"):
         host["system_profile"]["owner_id"] = cn
     else:
-        if host.get("reporter") == "rhsm-conduit" and host.get("subscription_manager_id"):
+        reporter = host.get("reporter")
+        if (reporter == "rhsm-conduit" or reporter == "rhsm-system-profile-bridge") and host.get(
+            "subscription_manager_id"
+        ):
             host["system_profile"]["owner_id"] = _formatted_uuid(host.get("subscription_manager_id"))
         else:
             if host["system_profile"]["owner_id"] != cn:
