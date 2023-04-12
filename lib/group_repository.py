@@ -207,8 +207,6 @@ def replace_host_list_for_group(
 ) -> List[HostGroupAssoc]:
     group_id = group.id
     with session_guard(session):
-        # TODO: Should we only remove hosts that aren't in host_id_list?
-        # Does it really matter, since they'll immediately be recreated before the commit?
         _remove_all_hosts_from_group(event_producer, group)
         assoc_list = []
         for host_id in host_id_list:
@@ -221,3 +219,21 @@ def replace_host_list_for_group(
 
     _produce_host_update_events(event_producer, host_id_list, [group_id])
     return assoc_list
+
+
+def patch_group(group: Group, patch_data: dict, event_producer: EventProducer):
+    group_id = group.id
+    new_host_ids = patch_data.get("host_ids")
+
+    # Set new group name if provided
+    if group.patch(patch_data) and new_host_ids is None:
+        # If anything was updated, and the host list is not being replaced,
+        # send update messages to existing hosts. Otherwise, wait until the host list is replaced
+        # so we don't produce messages that will be instantly obsoleted.
+        existing_host_ids = db.session.query(HostGroupAssoc.host_id).filter(HostGroupAssoc.group_id == group_id).all()
+        if new_host_ids is None:
+            _produce_host_update_events(event_producer, existing_host_ids, [group_id])
+
+    # Next, replace the host-group associations and produce update messages
+    if new_host_ids is not None:
+        replace_host_list_for_group(db.session, group, new_host_ids, event_producer)

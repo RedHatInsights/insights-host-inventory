@@ -23,8 +23,8 @@ from lib.feature_flags import get_flag_value
 from lib.group_repository import add_group
 from lib.group_repository import delete_group_list
 from lib.group_repository import get_group_by_id_from_db
+from lib.group_repository import patch_group
 from lib.group_repository import remove_hosts_from_group
-from lib.group_repository import replace_host_list_for_group
 from lib.metrics import create_group_count
 from lib.middleware import rbac
 
@@ -101,12 +101,7 @@ def patch_group_by_id(group_id, body):
     try:
         with session_guard(db.session):
             # Separate out the host IDs because they're not stored on the Group
-            group_to_update.patch(validated_patch_group_data)
-            host_id_list = validated_patch_group_data.get("host_ids")
-
-            # Next, replace the host-group associations
-            if host_id_list is not None:
-                replace_host_list_for_group(db.session, group_to_update, host_id_list, current_app.event_producer)
+            patch_group(group_to_update, validated_patch_group_data, current_app.event_producer)
 
     except InventoryException as ie:
         log_patch_group_failed(logger, group_id)
@@ -118,7 +113,6 @@ def patch_group_by_id(group_id, body):
             f"Group with name '{validated_patch_group_data.get('name')}' already exists.",
         )
 
-    # TODO: Emit patch event for group, and one per assoc
     updated_group = get_group_by_id_from_db(group_id)
     log_patch_group_success(logger, group_id)
     return flask_json_response(build_group_response(updated_group), status.HTTP_200_OK)

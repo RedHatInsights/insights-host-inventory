@@ -201,3 +201,34 @@ def test_patch_group_hosts_in_diff_org(
 
     # The group
     assert db_get_group_by_id(group_id).modified_on == orig_modified_on
+
+
+def test_patch_group_name_only(
+    db_create_group_with_hosts, db_get_group_by_id, api_patch_group, event_producer, mocker
+):
+    # Create a group with one host
+    mocker.patch.object(event_producer, "write_event")
+    group = db_create_group_with_hosts("test_group", 1)
+    group_id = group.id
+    orig_modified_on = group.modified_on
+
+    host_id = str(group.hosts[0].id)
+    patch_doc = {"name": "modified_group"}
+
+    response_status, response_data = api_patch_group(group_id, patch_doc)
+    assert_response_status(response_status, 200)
+    retrieved_group = db_get_group_by_id(group_id)
+
+    assert retrieved_group.name == "modified_group"
+    assert str(retrieved_group.hosts[0].id) == host_id
+    assert retrieved_group.modified_on > orig_modified_on
+
+    # Confirm that the updated date on the json data matches the date in the DB
+    assert parser.isoparse(response_data["updated"]) == retrieved_group.modified_on
+
+    # Validate the event_producer's message
+    assert event_producer.write_event.call_count == 1
+    host = json.loads(event_producer.write_event.call_args_list[0][0][0])["host"]
+    assert host["id"] == host_id
+    assert host["groups"][0]["id"] == str(group_id)
+    assert host["groups"][0]["name"] == "modified_group"

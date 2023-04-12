@@ -447,6 +447,7 @@ class Group(db.Model):
 
         if "name" in patch_data:
             self.name = patch_data["name"]
+            return True
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     account = db.Column(db.String(10))
