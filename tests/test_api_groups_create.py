@@ -10,7 +10,7 @@ from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 def test_create_group_without_hosts(api_create_group, db_get_group_by_name, event_producer, mocker):
     mocker.patch.object(event_producer, "write_event")
-    group_data = {"name": "my_awesokme_group", "host_ids": []}
+    group_data = {"name": "my_awesome_group", "host_ids": []}
 
     response_status, response_data = api_create_group(group_data)
 
