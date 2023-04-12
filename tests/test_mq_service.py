@@ -535,13 +535,15 @@ def test_add_host_with_wrong_owner(mocker, event_datetime_mock, mq_create_or_upd
 
 
 @pytest.mark.parametrize(
-    "with_account",
-    (
-        True,
-        False,
-    ),
+    "with_account, rhsm_reporter",
+    [
+        (True, "rhsm-conduit"),
+        (False, "rhsm-conduit"),
+        (True, "rhsm-system-profile-bridge"),
+        (False, "rhsm-system-profile-bridge"),
+    ],
 )
-def test_add_host_rhsm_conduit_without_cn(event_datetime_mock, mq_create_or_update_host, with_account):
+def test_add_host_rhsm_conduit_without_cn(event_datetime_mock, mq_create_or_update_host, with_account, rhsm_reporter):
     """
     Tests adding a host with reporter rhsm-conduit and no cn
     """
@@ -553,11 +555,11 @@ def test_add_host_rhsm_conduit_without_cn(event_datetime_mock, mq_create_or_upda
     if with_account:
         host = minimal_host(
             account=SYSTEM_IDENTITY.get("account_number"),
-            reporter="rhsm-conduit",
+            reporter=rhsm_reporter,
             subscription_manager_id=sub_mangager_id,
         )
     else:
-        host = minimal_host(reporter="rhsm-conduit", subscription_manager_id=sub_mangager_id)
+        host = minimal_host(reporter=rhsm_reporter, subscription_manager_id=sub_mangager_id)
 
     key, event, headers = mq_create_or_update_host(host, platform_metadata=metadata_without_b64, return_all_data=True)
 
@@ -565,7 +567,8 @@ def test_add_host_rhsm_conduit_without_cn(event_datetime_mock, mq_create_or_upda
     assert event["host"]["system_profile"]["owner_id"] == "09152341-475c-4671-a376-df609374c349"
 
 
-def test_add_host_rhsm_conduit_owner_id(event_datetime_mock, mq_create_or_update_host):
+@pytest.mark.parametrize("rhsm_reporter", ("rhsm-conduit", "rhsm-system-profile-bridge"))
+def test_add_host_rhsm_conduit_owner_id(event_datetime_mock, mq_create_or_update_host, rhsm_reporter):
     """
     Tests adding a host with reporter rhsm-conduit
     """
@@ -573,7 +576,7 @@ def test_add_host_rhsm_conduit_owner_id(event_datetime_mock, mq_create_or_update
 
     host = minimal_host(
         account=SYSTEM_IDENTITY["account_number"],
-        reporter="rhsm-conduit",
+        reporter=rhsm_reporter,
         subscription_manager_id=sub_mangager_id,
         system_profile={"owner_id": OWNER_ID},
     )
@@ -1461,11 +1464,12 @@ def test_no_identity_and_no_rhsm_reporter(mocker, event_datetime_mock, flask_app
 
 
 # Adding a host requires identity or rhsm-conduit reporter, which does not have identity
-def test_rhsm_reporter_and_no_platform_metadata(mocker, flask_app):
+@pytest.mark.parametrize("rhsm_reporter", ("rhsm-conduit", "rhsm-system-profile-bridge"))
+def test_rhsm_reporter_and_no_platform_metadata(mocker, flask_app, rhsm_reporter):
     host = minimal_host(
         account=SYSTEM_IDENTITY["account_number"],
         insights_id=generate_uuid(),
-        reporter="rhsm-conduit",
+        reporter=rhsm_reporter,
         subscription_manager_id=OWNER_ID,
     )
 
@@ -1475,7 +1479,8 @@ def test_rhsm_reporter_and_no_platform_metadata(mocker, flask_app):
     handle_message(json.dumps(message), mocker.Mock(), mocker.Mock())
 
 
-def test_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_app):
+@pytest.mark.parametrize("rhsm_reporter", ("rhsm-conduit", "rhsm-system-profile-bridge"))
+def test_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_app, rhsm_reporter):
     expected_insights_id = generate_uuid()
     host_id = generate_uuid()
     timestamp_iso = event_datetime_mock.isoformat()
@@ -1495,7 +1500,7 @@ def test_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_app):
     host = minimal_host(
         account=SYSTEM_IDENTITY["account_number"],
         insights_id=expected_insights_id,
-        reporter="rhsm-conduit",
+        reporter=rhsm_reporter,
         subscription_manager_id=OWNER_ID,
     )
 
