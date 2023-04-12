@@ -40,6 +40,11 @@ logger = get_logger(__name__)
 def _produce_host_update_events(event_producer, host_id_list, group_id_list=[]):
     serialized_groups = [serialize_group(get_group_by_id_from_db(group_id)) for group_id in group_id_list]
     host_list = get_host_list_by_id_list_from_db(host_id_list)
+
+    # Update groups data on each host record
+    Host.query.filter(Host.id.in_(host_id_list)).update({"groups": serialized_groups}, synchronize_session="fetch")
+
+    # Send messages
     for host in host_list:
         host.groups = serialized_groups
         serialized_host = serialize_host(host, staleness_timestamps(), EGRESS_HOST_FIELDS)
@@ -105,8 +110,8 @@ def add_group(group_data, event_producer) -> Group:
     return created_group
 
 
-def _remove_all_hosts_from_group(session: scoped_session, event_producer: EventProducer, group: Group):
-    host_ids_to_delete = session.query(HostGroupAssoc.host_id).filter(HostGroupAssoc.group_id == group.id).all()
+def _remove_all_hosts_from_group(event_producer: EventProducer, group: Group):
+    host_ids_to_delete = db.session.query(HostGroupAssoc.host_id).filter(HostGroupAssoc.group_id == group.id).all()
     remove_hosts_from_group(group.id, host_ids_to_delete, event_producer)
 
 
@@ -117,39 +122,38 @@ def _delete_host_group_assoc(session, event_producer, assoc):
     delete_query.delete(synchronize_session="fetch")
     assoc_deleted = _deleted_by_this_query(assoc)
 
-    # TODO: _produce_host_update_events(event_producer, [host_id], [])
+    _produce_host_update_events(event_producer, [assoc.host_id], [])
 
     return assoc_deleted
 
 
-def _delete_group(session: scoped_session, event_producer: EventProducer, group: Group) -> bool:
+def _delete_group(event_producer: EventProducer, group: Group) -> bool:
     # First, remove all hosts from the requested group.
     group_id = group.id
-    _remove_all_hosts_from_group(session, event_producer, group)
+    _remove_all_hosts_from_group(event_producer, group)
 
-    delete_query = session.query(Group).filter(Group.id == group_id)
+    delete_query = db.session.query(Group).filter(Group.id == group_id)
     delete_query.delete(synchronize_session="fetch")
-    group_deleted = _deleted_by_this_query(group)
-    return group_deleted
+    return _deleted_by_this_query(group)
 
 
-def delete_group_list(group_id_list: List[str], chunk_size: int, event_producer: EventProducer) -> int:
+def delete_group_list(group_id_list: List[str], event_producer: EventProducer) -> int:
     deletion_count = 0
-    select_query = db.session.query(Group).filter(
-        (Group.org_id == get_current_identity().org_id) & Group.id.in_(group_id_list)
-    )
 
     with session_guard(db.session):
-        while select_query.count():
-            for group in select_query.limit(chunk_size):
-                group_id = group.id
-                with delete_group_processing_time.time():
-                    if _delete_group(db.session, event_producer, group):
-                        deletion_count += 1
-                        delete_group_count.inc()
-                        log_group_delete_succeeded(logger, group_id, get_control_rule())
-                    else:
-                        log_group_delete_failed(logger, group_id, get_control_rule())
+        for group in (
+            db.session.query(Group)
+            .filter(Group.org_id == get_current_identity().org_id, Group.id.in_(group_id_list))
+            .all()
+        ):
+            group_id = group.id
+            with delete_group_processing_time.time():
+                if _delete_group(event_producer, group):
+                    deletion_count += 1
+                    delete_group_count.inc()
+                    log_group_delete_succeeded(logger, group_id, get_control_rule())
+                else:
+                    log_group_delete_failed(logger, group_id, get_control_rule())
 
     return deletion_count
 
@@ -166,13 +170,11 @@ def remove_hosts_from_group(group_id, host_id_list, event_producer):
     host_group_query = HostGroupAssoc.query.filter(
         HostGroupAssoc.group_id == found_group.id, HostGroupAssoc.host_id.in_(host_id_list)
     )
-    with session_guard(db.session), delete_host_group_processing_time.time():
+    with delete_host_group_processing_time.time():
         for assoc in host_group_query.all():
-            host_id = assoc.host_id
             if _delete_host_group_assoc(db.session, event_producer, assoc):
                 deletion_count += 1
                 delete_host_group_count.inc()
-                _produce_host_update_events(event_producer, [host_id], [])
                 log_host_group_delete_succeeded(logger, assoc.host_id, assoc.group_id, get_control_rule())
             else:
                 log_host_group_delete_failed(logger, assoc.host_id, assoc.group_id, get_control_rule())
@@ -203,18 +205,19 @@ def db_get_assoc_for_group(group_id: str) -> List[HostGroupAssoc]:
 def replace_host_list_for_group(
     session: scoped_session, group: Group, host_id_list: List[str], event_producer: EventProducer
 ) -> List[HostGroupAssoc]:
+    group_id = group.id
     with session_guard(session):
         # TODO: Should we only remove hosts that aren't in host_id_list?
         # Does it really matter, since they'll immediately be recreated before the commit?
-        _remove_all_hosts_from_group(session, event_producer, group)
+        _remove_all_hosts_from_group(event_producer, group)
         assoc_list = []
         for host_id in host_id_list:
             if not find_existing_host_by_id(get_current_identity(), host_id):
                 raise InventoryException(title="Invalid request", detail=f"Host with ID {host_id} does not exist.")
 
-            assoc_list.append(db_create_host_group_assoc(host_id, group.id))
+            assoc_list.append(db_create_host_group_assoc(host_id, group_id))
             # Update modified_on timestamp on the group
             group.update_modified_on()
 
-    _produce_host_update_events(event_producer, host_id_list, [group.id])
+    _produce_host_update_events(event_producer, host_id_list, [group_id])
     return assoc_list

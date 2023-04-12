@@ -21,14 +21,14 @@ def test_delete_with_invalid_group_id(api_delete_groups):
 
 
 def test_delete_group_ids(db_create_group, db_get_group_by_id, api_delete_groups, event_producer):
-    group_list = [db_create_group(f"test_group{g_index}") for g_index in range(3)]
+    group_id_list = [str(db_create_group(f"test_group{g_index}").id) for g_index in range(3)]
 
-    response_status, response_data = api_delete_groups([group.id for group in group_list])
+    response_status, response_data = api_delete_groups(group_id_list)
 
     assert_response_status(response_status, expected_status=204)
 
-    for group in group_list:
-        assert not db_get_group_by_id(group.id)
+    for group_id in group_id_list:
+        assert not db_get_group_by_id(group_id)
 
 
 def test_remove_hosts_from_existing_group(

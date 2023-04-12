@@ -9,7 +9,6 @@ from api import flask_json_response
 from api import metrics
 from api.group_query import build_group_response
 from app import db
-from app import inventory_config
 from app import Permission
 from app.exceptions import InventoryException
 from app.instrumentation import log_create_group_failed
@@ -132,9 +131,7 @@ def delete_groups(group_id_list):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return flask.Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
-    delete_count = delete_group_list(
-        group_id_list, inventory_config().host_delete_chunk_size, current_app.event_producer
-    )
+    delete_count = delete_group_list(group_id_list, current_app.event_producer)
 
     if delete_count == 0:
         flask.abort(status.HTTP_404_NOT_FOUND, "No groups found for deletion.")
@@ -153,7 +150,8 @@ def delete_hosts_from_group(group_id, host_id_list):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return flask.Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
-    delete_count = remove_hosts_from_group(group_id, host_id_list, current_app.event_producer)
+    with session_guard(db.session):
+        delete_count = remove_hosts_from_group(group_id, host_id_list, current_app.event_producer)
 
     if delete_count == 0:
         flask.abort(status.HTTP_404_NOT_FOUND, "Group or hosts not found.")

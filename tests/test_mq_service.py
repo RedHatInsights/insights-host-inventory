@@ -1718,11 +1718,18 @@ def test_groups_empty_for_new_host(mq_create_or_update_host, db_get_host):
     assert created_event["host"]["groups"] == []
 
 
-def test_groups_not_overwritten_for_existing_hosts(
-    mq_create_or_update_host, db_create_host, db_get_host, db_create_group, db_create_host_group_assoc
-):
-    # Create a group with a host in it
-    # Modify one value on the host (ansible_hostname)
-    # Update the host via MQ
-    # Assert that the "groups" field is unchanged
-    assert False
+def test_groups_not_overwritten_for_existing_hosts(mq_create_or_update_host, db_get_host, db_create_group_with_hosts):
+    # Create a group with a host in it;
+    # Modify one value on the host and update via MQ;
+    # Assert that the modified field is changed & the "groups" field is unchanged
+    group = db_create_group_with_hosts("existing_group", 1)
+    host = group.hosts[0]
+    group_id = str(group.id)
+    host_id = str(host.id)
+
+    update_data = minimal_host(insights_id=host.canonical_facts["insights_id"], ansible_host="updated.ansible.host")
+    created_key, created_event, _ = mq_create_or_update_host(update_data, return_all_data=True)
+
+    assert created_key == host_id
+    assert created_event["host"]["ansible_host"] == "updated.ansible.host"
+    assert created_event["host"]["groups"][0]["id"] == group_id

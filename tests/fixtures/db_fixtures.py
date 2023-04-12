@@ -11,6 +11,7 @@ from app.config import RuntimeEnvironment
 from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
+from app.serialization import serialize_group
 from tests.helpers.db_utils import db_group
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.db_utils import minimal_db_host_dict
@@ -175,10 +176,14 @@ def db_create_group(flask_app):
 
 
 @pytest.fixture(scope="function")
-def db_create_host_group_assoc(flask_app):
+def db_create_host_group_assoc(flask_app, db_get_group_by_id):
     def _db_create_host_group_assoc(host_id, group_id):
         host_group = HostGroupAssoc(host_id=host_id, group_id=group_id)
         db.session.add(host_group)
+
+        serialized_groups = [serialize_group(db_get_group_by_id(group_id))]
+        db.session.query(Host).filter(Host.id == host_id).update({"groups": serialized_groups})
+
         db.session.commit()
         return host_group
 
@@ -188,11 +193,12 @@ def db_create_host_group_assoc(flask_app):
 @pytest.fixture(scope="function")
 def db_remove_hosts_from_group(flask_app):
     def _db_remove_hosts_from_group(host_id_list, group_id):
+        db.session.query(Host).filter(Host.id.in_(host_id_list)).update({"groups": []}, synchronize_session=False)
         delete_query = db.session.query(HostGroupAssoc).filter(
             HostGroupAssoc.group_id == group_id, HostGroupAssoc.host_id.in_(host_id_list)
         )
         delete_query.delete(synchronize_session="fetch")
-        delete_query.session.commit()
+        db.session.commit()
 
     return _db_remove_hosts_from_group
 
