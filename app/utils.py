@@ -189,6 +189,14 @@ class HostWrapper:
     def updated(self, updated):
         self.__data["updated"] = updated
 
+    @property
+    def groups(self):
+        return self.__data.get("groups")
+
+    @groups.setter
+    def groups(self, groups):
+        self.__data["groups"] = groups
+
     def to_json(self):
         return json.dumps(self.__data)
 

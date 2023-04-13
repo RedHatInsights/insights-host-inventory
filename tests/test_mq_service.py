@@ -1712,3 +1712,29 @@ def test_create_invalid_host_produces_message(mocker, event_datetime_mock, mq_cr
     with pytest.raises(ValidationException):
         mq_create_or_update_host(host, notification_event_producer=mock_notification_event_producer)
     mock_notification_event_producer.write_event.assert_called_once()
+
+
+def test_groups_empty_for_new_host(mq_create_or_update_host, db_get_host):
+    expected_insights_id = generate_uuid()
+    host = minimal_host(insights_id=expected_insights_id)
+
+    created_key, created_event, _ = mq_create_or_update_host(host, return_all_data=True)
+    assert db_get_host(created_key).groups == []
+    assert created_event["host"]["groups"] == []
+
+
+def test_groups_not_overwritten_for_existing_hosts(mq_create_or_update_host, db_get_host, db_create_group_with_hosts):
+    # Create a group with a host in it;
+    # Modify one value on the host and update via MQ;
+    # Assert that the modified field is changed & the "groups" field is unchanged
+    group = db_create_group_with_hosts("existing_group", 1)
+    host = group.hosts[0]
+    group_id = str(group.id)
+    host_id = str(host.id)
+
+    update_data = minimal_host(insights_id=host.canonical_facts["insights_id"], ansible_host="updated.ansible.host")
+    created_key, created_event, _ = mq_create_or_update_host(update_data, return_all_data=True)
+
+    assert created_key == host_id
+    assert created_event["host"]["ansible_host"] == "updated.ansible.host"
+    assert created_event["host"]["groups"][0]["id"] == group_id

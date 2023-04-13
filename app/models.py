@@ -180,7 +180,7 @@ class LimitedHost(db.Model):
         self.facts = facts or {}
         self.tags = tags
         self.system_profile_facts = system_profile_facts or {}
-        self.groups = groups or {}
+        self.groups = groups or []
 
     def _update_ansible_host(self, ansible_host):
         if ansible_host is not None:
@@ -447,6 +447,7 @@ class Group(db.Model):
 
         if "name" in patch_data:
             self.name = patch_data["name"]
+            return True
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     account = db.Column(db.String(10))
@@ -584,7 +585,7 @@ class LimitedHostSchema(CanonicalFactsSchema):
     facts = fields.List(fields.Nested(FactsSchema))
     system_profile = fields.Dict()
     tags = fields.Raw()
-    groups = fields.Dict(many=True)
+    groups = fields.List(fields.Dict())
 
     def __init__(self, system_profile_schema=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -653,7 +654,7 @@ class LimitedHostSchema(CanonicalFactsSchema):
             facts=facts,
             tags=tags,
             system_profile_facts=data.get("system_profile", {}),
-            groups=data.get("groups", {}),
+            groups=data.get("groups", []),
         )
 
     @pre_load
@@ -698,7 +699,7 @@ class HostSchema(LimitedHostSchema):
             data.get("system_profile", {}),
             data["stale_timestamp"],
             data["reporter"],
-            data.get("groups", {}),
+            data.get("groups", []),
         )
 
     @validates("stale_timestamp")

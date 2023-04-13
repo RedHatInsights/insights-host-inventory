@@ -1,4 +1,6 @@
-import flask
+from flask import abort
+from flask import current_app
+from flask import Response
 from flask_api import status
 from marshmallow import ValidationError
 from sqlalchemy.exc import IntegrityError
@@ -8,7 +10,6 @@ from api import flask_json_response
 from api import metrics
 from api.group_query import build_group_response
 from app import db
-from app import inventory_config
 from app import Permission
 from app.exceptions import InventoryException
 from app.instrumentation import log_create_group_failed
@@ -23,8 +24,8 @@ from lib.feature_flags import get_flag_value
 from lib.group_repository import add_group
 from lib.group_repository import delete_group_list
 from lib.group_repository import get_group_by_id_from_db
+from lib.group_repository import patch_group
 from lib.group_repository import remove_hosts_from_group
-from lib.group_repository import replace_host_list_for_group
 from lib.metrics import create_group_count
 from lib.middleware import rbac
 
@@ -46,7 +47,7 @@ def get_group_list(
 @metrics.api_request_time.time()
 def create_group(body):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
-        return flask.Response(None, status.HTTP_501_NOT_IMPLEMENTED)
+        return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
     # Validate group input data
     try:
@@ -57,7 +58,7 @@ def create_group(body):
 
     try:
         # Create group with validated data
-        created_group = add_group(validated_create_group_data)
+        created_group = add_group(validated_create_group_data, current_app.event_producer)
         create_group_count.inc()
 
         log_create_group_succeeded(logger, created_group.id)
@@ -96,29 +97,23 @@ def patch_group_by_id(group_id, body):
 
     if not group_to_update:
         log_patch_group_failed(logger, group_id)
-        flask.abort(status.HTTP_404_NOT_FOUND)
+        abort(status.HTTP_404_NOT_FOUND)
 
     try:
         with session_guard(db.session):
             # Separate out the host IDs because they're not stored on the Group
-            group_to_update.patch(validated_patch_group_data)
-            host_id_list = validated_patch_group_data.get("host_ids")
-
-            # Next, replace the host-group associations
-            if host_id_list is not None:
-                replace_host_list_for_group(db.session, group_to_update, host_id_list)
+            patch_group(group_to_update, validated_patch_group_data, current_app.event_producer)
 
     except InventoryException as ie:
         log_patch_group_failed(logger, group_id)
-        flask.abort(status.HTTP_400_BAD_REQUEST, str(ie.detail))
+        abort(status.HTTP_400_BAD_REQUEST, str(ie.detail))
     except IntegrityError:
         log_patch_group_failed(logger, group_id)
-        flask.abort(
+        abort(
             status.HTTP_400_BAD_REQUEST,
             f"Group with name '{validated_patch_group_data.get('name')}' already exists.",
         )
 
-    # TODO: Emit patch event for group, and one per assoc
     updated_group = get_group_by_id_from_db(group_id)
     log_patch_group_success(logger, group_id)
     return flask_json_response(build_group_response(updated_group), status.HTTP_200_OK)
@@ -129,14 +124,14 @@ def patch_group_by_id(group_id, body):
 @metrics.api_request_time.time()
 def delete_groups(group_id_list):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
-        return flask.Response(None, status.HTTP_501_NOT_IMPLEMENTED)
+        return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
-    delete_count = delete_group_list(group_id_list, inventory_config().host_delete_chunk_size)
+    delete_count = delete_group_list(group_id_list, current_app.event_producer)
 
     if delete_count == 0:
-        flask.abort(status.HTTP_404_NOT_FOUND, "No groups found for deletion.")
+        abort(status.HTTP_404_NOT_FOUND, "No groups found for deletion.")
 
-    return flask.Response(None, status.HTTP_204_NO_CONTENT)
+    return Response(None, status.HTTP_204_NO_CONTENT)
 
 
 def get_groups_by_id(group_id_list):
@@ -148,14 +143,15 @@ def get_groups_by_id(group_id_list):
 @metrics.api_request_time.time()
 def delete_hosts_from_group(group_id, host_id_list):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
-        return flask.Response(None, status.HTTP_501_NOT_IMPLEMENTED)
+        return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
-    delete_count = remove_hosts_from_group(group_id, host_id_list)
+    with session_guard(db.session):
+        delete_count = remove_hosts_from_group(group_id, host_id_list, current_app.event_producer)
 
     if delete_count == 0:
-        flask.abort(status.HTTP_404_NOT_FOUND, "Group or hosts not found.")
+        abort(status.HTTP_404_NOT_FOUND, "Group or hosts not found.")
 
-    return flask.Response(None, status.HTTP_204_NO_CONTENT)
+    return Response(None, status.HTTP_204_NO_CONTENT)
 
 
 def error_json_response(title, detail, status=status.HTTP_400_BAD_REQUEST):

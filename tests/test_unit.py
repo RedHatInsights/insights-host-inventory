@@ -1379,7 +1379,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             host_input["system_profile"],
             host_input["stale_timestamp"],
             host_input["reporter"],
-            {},
+            [],
         )
 
     def test_without_culling_fields(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
@@ -1481,6 +1481,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "account": "some acct",
             "org_id": "3340851",
             "reporter": "insights",
+            "groups": [],
         }
         host_init_data = {
             "canonical_facts": canonical_facts,
@@ -1535,7 +1536,13 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
         self.assertEqual(expected, actual)
 
     def test_with_only_required_fields(self):
-        unchanged_data = {"display_name": None, "org_id": "some org_id", "account": None, "reporter": "yupana"}
+        unchanged_data = {
+            "display_name": None,
+            "org_id": "some org_id",
+            "account": None,
+            "reporter": "yupana",
+            "groups": [],
+        }
         host_init_data = {
             "stale_timestamp": now(),
             "canonical_facts": {"fqdn": "some fqdn"},
@@ -1633,6 +1640,7 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
             "account": "some acct",
             "org_id": "3340851",
             "reporter": "some reporter",
+            "groups": [],
         }
         host_init_data = {
             "canonical_facts": canonical_facts,
