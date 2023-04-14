@@ -422,10 +422,6 @@ def assert_group_response(response, expected_group):
     assert response["created"] == expected_group.created_on.isoformat()
     assert response["updated"] == expected_group.modified_on.isoformat()
 
-    expected_host_ids = [str(host.id) for host in expected_group.hosts]
-
-    assert response["host_ids"] == expected_host_ids
-
 
 ClassMock = mock.MagicMock
 

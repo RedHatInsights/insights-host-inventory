@@ -90,19 +90,20 @@ def test_create_group_invalid_host_ids(api_create_group, host_ids, event_produce
 
 
 def test_create_group_with_host_from_another_group(
-    db_create_group_with_hosts, api_create_group, event_producer, mocker
+    db_create_group_with_hosts, db_get_hosts_for_group, api_create_group, event_producer, mocker
 ):
     mocker.patch.object(event_producer, "write_event")
     # Create a group with 2 hosts
     group = db_create_group_with_hosts("test_group", 2)
-    assert len(group.hosts) == 2
+    hosts_in_group = db_get_hosts_for_group(group.id)
+    assert len(hosts_in_group) == 2
 
     # Make an identity with a different org_id and account
     diff_identity = deepcopy(SYSTEM_IDENTITY)
     diff_identity["org_id"] = "diff_id"
     diff_identity["account"] = "diff_id"
 
-    taken_host_id = str(group.hosts[0].id)
+    taken_host_id = str(hosts_in_group[0].id)
 
     group_data = {"name": "test_group_2", "host_ids": [taken_host_id]}
 
