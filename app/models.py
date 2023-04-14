@@ -455,6 +455,7 @@ class Group(db.Model):
     name = db.Column(db.String(255), nullable=False)
     created_on = db.Column(db.DateTime(timezone=True), default=_time_now)
     modified_on = db.Column(db.DateTime(timezone=True), default=_time_now, onupdate=_time_now)
+    hosts = orm.relationship("Host", secondary="hosts_groups")
 
 
 class HostGroupAssoc(db.Model):

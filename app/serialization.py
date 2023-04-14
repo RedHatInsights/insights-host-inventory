@@ -147,6 +147,7 @@ def serialize_group(group):
         "org_id": group.org_id,
         "account": group.account,
         "name": group.name,
+        "host_count": len(group.hosts),
         "created": _serialize_datetime(group.created_on),
         "updated": _serialize_datetime(group.modified_on),
     }

@@ -1487,6 +1487,10 @@ components:
       nullable: true
       items:
         $ref: '#/components/schemas/NonStrictUUID'
+    HostCount:
+      description: The number of hosts associated with the group.
+      type: integer
+      example: 3
     UnleashToggleOut:
       title: Unleash Toggle Out
       properties:
@@ -1517,8 +1521,8 @@ components:
           $ref: "#/components/schemas/GroupId"
         name:
           $ref: "#/components/schemas/GroupName"
-        host_ids:
-          $ref: "#/components/schemas/HostIds"
+        host_count:
+          $ref: "#/components/schemas/HostCount"
         account:
           $ref: "#/components/schemas/AccountNumber"
         org_id:
