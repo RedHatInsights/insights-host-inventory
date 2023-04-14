@@ -368,6 +368,7 @@ def query_filters(
     provider_type=None,
     updated_start=None,
     updated_end=None,
+    group_name=None,
     tags=None,
     staleness=None,
     registered_with=None,
@@ -419,6 +420,8 @@ def query_filters(
         query_filters += ({"provider_id": {"eq": provider_id.casefold()}},)
     if updated_start or updated_end:
         query_filters += _build_modified_on_filter(updated_start, updated_end)
+    if group_name:
+        query_filters += ({"group": {"name": {"eq": group_name}}},)
 
     for key in filter:
         if key == "system_profile":

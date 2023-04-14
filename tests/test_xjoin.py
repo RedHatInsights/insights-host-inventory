@@ -869,6 +869,13 @@ def test_tags_query_host_filters_casefolding(assert_tag_query_host_filter_for_fi
     )
 
 
+def test_tags_query_group_name_filter(assert_tag_query_host_filter_single_call, mocker):
+    assert_tag_query_host_filter_single_call(
+        build_tags_url(query="?group_name=coolgroup"),
+        host_filter={"OR": mocker.ANY, "AND": ({"group": {"name": {"eq": "coolgroup"}}},)},
+    )
+
+
 @pytest.mark.parametrize(
     "staleness,expected",
     (
@@ -1792,6 +1799,28 @@ def test_query_hosts_filter_updated_error(api_get):
     response_status, _ = api_get(url)
 
     assert response_status == 400
+
+
+def test_query_variables_group_name(mocker, graphql_query_empty_response, api_get):
+    group_name = "pog group"
+
+    url = build_hosts_url(query=f"?group_name={quote(group_name)}")
+    response_status, _ = api_get(url)
+
+    assert response_status == 200
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            "filter": ({"OR": mocker.ANY}, {"group": {"name": {"eq": f"{group_name}"}}}),
+            "fields": mocker.ANY,
+        },
+        mocker.ANY,
+    )
 
 
 @pytest.mark.parametrize(
