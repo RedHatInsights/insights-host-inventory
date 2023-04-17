@@ -244,10 +244,10 @@ def test_patch_group_same_hosts(
     host_id_list = [str(host.id) for host in group.hosts]
 
     patch_doc = {"host_ids": host_id_list}
-    response_status, response_data = api_patch_group(group_id, patch_doc)
+    response_status, _ = api_patch_group(group_id, patch_doc)
     assert_response_status(response_status, 200)
 
-    # Validate that only 2 messages were sent out, updating the group data
+    # Validate that we only sent 1 message per host
     assert event_producer.write_event.call_count == 5
     for call_arg in event_producer.write_event.call_args_list:
         host = json.loads(call_arg[0][0])["host"]
