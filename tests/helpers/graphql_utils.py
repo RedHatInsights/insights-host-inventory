@@ -2,6 +2,7 @@ from api.host_query_xjoin import QUERY as HOST_QUERY
 from tests.helpers.api_utils import get_valid_auth_header
 from tests.helpers.test_utils import USER_IDENTITY
 
+EMPTY_GROUPS_RESPONSE = {"hostGroups": {"meta": {"total": 0}, "data": []}}
 EMPTY_HOSTS_RESPONSE = {"hosts": {"meta": {"total": 0}, "data": []}}
 TAGS_EMPTY_RESPONSE = {"hostTags": {"meta": {"count": 0, "total": 0}, "data": []}}
 SYSTEM_PROFILE_SAP_SYSTEM_EMPTY_RESPONSE = {

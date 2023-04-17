@@ -37,8 +37,11 @@ from lib.middleware import rbac
 logger = get_logger(__name__)
 
 
+@api_operation
+@rbac(Permission.READ)
+@metrics.api_request_time.time()
 def get_group_list(
-    group_name=None,
+    name=None,
     page=1,
     per_page=100,
     order_by=None,
@@ -48,7 +51,7 @@ def get_group_list(
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
     try:
-        group_list, total = get_filtered_group_list(group_name, page, per_page, order_by, order_how)
+        group_list, total = get_filtered_group_list(name, page, per_page, order_by, order_how)
     except ValueError as e:
         log_get_group_list_failed(logger)
         abort(400, str(e))
@@ -153,7 +156,13 @@ def delete_groups(group_id_list):
 @api_operation
 @rbac(Permission.READ)
 @metrics.api_request_time.time()
-def get_groups_by_id(group_id_list, page, per_page, order_by, order_how):
+def get_groups_by_id(
+    group_id_list,
+    page=1,
+    per_page=100,
+    order_by=None,
+    order_how=None,
+):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 

@@ -69,7 +69,8 @@ def get_group_list_using_filters(all_filters, page, per_page, param_order_by, pa
 
 
 def get_group_list_by_id_list(group_id_list, page, per_page, order_by, order_how):
-    pass
+    all_filters = query_filters(group_ids=group_id_list)
+    return get_group_list_using_filters(all_filters, page, per_page, order_by, order_how)
 
 
 def get_filtered_group_list(group_name, page, per_page, order_by, order_how):

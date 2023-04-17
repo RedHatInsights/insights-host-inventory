@@ -97,6 +97,7 @@ def get_tags(
             updated_start,
             updated_end,
             group_name,
+            None,
             tags,
             None,  # Staleness to not use the default values
             registered_with,

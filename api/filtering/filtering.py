@@ -359,6 +359,21 @@ def host_id_list_query_filter(host_id_list):
     return all_filters
 
 
+def group_id_list_query_filter(group_id_list):
+    return (
+        {
+            "OR": [
+                {
+                    "group": {
+                        "id": {"eq": group_id},
+                    }
+                }
+                for group_id in group_id_list
+            ],
+        },
+    )
+
+
 def query_filters(
     fqdn=None,
     display_name=None,
@@ -369,6 +384,7 @@ def query_filters(
     updated_start=None,
     updated_end=None,
     group_name=None,
+    group_ids=None,
     tags=None,
     staleness=None,
     registered_with=None,
@@ -422,12 +438,15 @@ def query_filters(
         query_filters += _build_modified_on_filter(updated_start, updated_end)
     if group_name:
         query_filters += ({"group": {"name": {"eq": group_name}}},)
+    if group_ids:
+        query_filters += group_id_list_query_filter(group_ids)
 
-    for key in filter:
-        if key == "system_profile":
-            query_filters += build_system_profile_filter(filter["system_profile"])
-        else:
-            raise ValidationException("filter key is invalid")
+    if filter:
+        for key in filter:
+            if key == "system_profile":
+                query_filters += build_system_profile_filter(filter["system_profile"])
+            else:
+                raise ValidationException("filter key is invalid")
 
     current_identity = get_current_identity()
     if current_identity.identity_type == IdentityType.SYSTEM:

@@ -6,6 +6,7 @@ import pytest
 
 from api.tag import TAGS_QUERY
 from tests.helpers.graphql_utils import CASEFOLDED_FIELDS
+from tests.helpers.graphql_utils import EMPTY_GROUPS_RESPONSE
 from tests.helpers.graphql_utils import EMPTY_HOSTS_RESPONSE
 from tests.helpers.graphql_utils import SYSTEM_PROFILE_SAP_SIDS_EMPTY_RESPONSE
 from tests.helpers.graphql_utils import SYSTEM_PROFILE_SAP_SYSTEM_EMPTY_RESPONSE
@@ -28,6 +29,11 @@ def graphql_query(mocker):
 @pytest.fixture(scope="function")
 def graphql_query_empty_response(graphql_query):
     return graphql_query(return_value=EMPTY_HOSTS_RESPONSE)
+
+
+@pytest.fixture(scope="function")
+def graphql_query_empty_group_response(graphql_query):
+    return graphql_query(return_value=EMPTY_GROUPS_RESPONSE, func="api.group_query.graphql_query")
 
 
 @pytest.fixture(scope="function")
