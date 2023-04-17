@@ -752,6 +752,18 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/groupIdList"
+          },
+          {
+            "$ref": "#/components/parameters/perPageParam"
+          },
+          {
+            "$ref": "#/components/parameters/pageParam"
+          },
+          {
+            "$ref": "#/components/parameters/groupOrderByParam"
+          },
+          {
+            "$ref": "#/components/parameters/orderHowParam"
           }
         ],
         "responses": {

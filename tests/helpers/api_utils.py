@@ -386,6 +386,10 @@ def build_host_id_list_for_url(host_list_or_id):
     return str(host_list_or_id)
 
 
+def build_groups_url(group_id=None, query=None):
+    return _build_url(base_url=GROUP_URL, host_list_or_id=group_id, query=query)
+
+
 def get_id_list_from_hosts(host_list):
     return [str(h.id) for h in host_list]
 

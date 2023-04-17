@@ -9,11 +9,16 @@ from api import api_operation
 from api import flask_json_response
 from api import metrics
 from api.group_query import build_group_response
+from api.group_query import build_paginated_group_list_response
+from api.group_query import get_filtered_group_list
+from api.group_query import get_group_list_by_id_list
 from app import db
 from app import Permission
 from app.exceptions import InventoryException
 from app.instrumentation import log_create_group_failed
 from app.instrumentation import log_create_group_succeeded
+from app.instrumentation import log_get_group_list_failed
+from app.instrumentation import log_get_group_list_succeeded
 from app.instrumentation import log_patch_group_failed
 from app.instrumentation import log_patch_group_success
 from app.logging import get_logger
@@ -39,7 +44,18 @@ def get_group_list(
     order_by=None,
     order_how=None,
 ):
-    pass
+    if not get_flag_value(FLAG_INVENTORY_GROUPS):
+        return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
+
+    try:
+        group_list, total = get_filtered_group_list(group_name, page, per_page, order_by, order_how)
+    except ValueError as e:
+        log_get_group_list_failed(logger)
+        abort(400, str(e))
+
+    log_get_group_list_succeeded(logger, group_list)
+
+    return flask_json_response(build_paginated_group_list_response(total, page, per_page, group_list))
 
 
 @api_operation
@@ -134,8 +150,22 @@ def delete_groups(group_id_list):
     return Response(None, status.HTTP_204_NO_CONTENT)
 
 
-def get_groups_by_id(group_id_list):
-    pass
+@api_operation
+@rbac(Permission.READ)
+@metrics.api_request_time.time()
+def get_groups_by_id(group_id_list, page, per_page, order_by, order_how):
+    if not get_flag_value(FLAG_INVENTORY_GROUPS):
+        return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
+
+    try:
+        group_list, total = get_group_list_by_id_list(group_id_list, page, per_page, order_by, order_how)
+    except ValueError as e:
+        log_get_group_list_failed(logger)
+        abort(400, str(e))
+
+    log_get_group_list_succeeded(logger, group_list)
+
+    return flask_json_response(build_paginated_group_list_response(total, page, per_page, group_list))
 
 
 @api_operation
