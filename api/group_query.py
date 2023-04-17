@@ -40,7 +40,13 @@ QUERY = """query hostGroups (
     }
 }"""
 
-__all__ = ("build_paginated_group_list_response", "build_group_response", "get_group_list_by_id_list")
+__all__ = (
+    "build_paginated_group_list_response",
+    "build_group_response",
+    "get_group_list_by_id_list",
+    "get_group_list_using_filters",
+    "get_filtered_group_list",
+)
 
 
 def get_group_list_using_filters(all_filters, page, per_page, param_order_by, param_order_how):
