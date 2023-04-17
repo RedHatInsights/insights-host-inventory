@@ -232,3 +232,25 @@ def test_patch_group_name_only(
     assert host["id"] == host_id
     assert host["groups"][0]["id"] == str(group_id)
     assert host["groups"][0]["name"] == "modified_group"
+
+
+def test_patch_group_same_hosts(
+    db_create_group_with_hosts, db_get_group_by_id, api_patch_group, event_producer, mocker
+):
+    # Create a group with hosts
+    mocker.patch.object(event_producer, "write_event")
+    group = db_create_group_with_hosts("test_group", 5)
+    group_id = group.id
+    host_id_list = [str(host.id) for host in group.hosts]
+
+    patch_doc = {"host_ids": host_id_list}
+    response_status, response_data = api_patch_group(group_id, patch_doc)
+    assert_response_status(response_status, 200)
+
+    # Validate that only 2 messages were sent out, updating the group data
+    assert event_producer.write_event.call_count == 5
+    for call_arg in event_producer.write_event.call_args_list:
+        host = json.loads(call_arg[0][0])["host"]
+        assert host["id"] in host_id_list
+        assert host["groups"][0]["id"] == str(group_id)
+        assert parser.isoparse(host["groups"][0]["updated"]) == db_get_group_by_id(group_id).modified_on
