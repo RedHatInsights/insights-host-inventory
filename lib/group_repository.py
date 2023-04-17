@@ -111,22 +111,23 @@ def add_group(group_data, event_producer) -> Group:
     return created_group
 
 
-def _remove_all_hosts_from_group(
-    event_producer: EventProducer, group: Group, omit_mq_event_for_hosts: List[uuid.UUID] = []
-):
-    host_ids_to_delete = db.session.query(HostGroupAssoc.host_id).filter(HostGroupAssoc.group_id == group.id).all()
-    remove_hosts_from_group(group.id, host_ids_to_delete, event_producer, omit_mq_event_for_hosts)
+def _remove_all_hosts_from_group(event_producer: EventProducer, group: Group, omit_hosts: List[uuid.UUID] = []):
+    host_ids_to_delete = (
+        db.session.query(HostGroupAssoc.host_id)
+        .filter(HostGroupAssoc.group_id == group.id, ~HostGroupAssoc.host_id.in_(omit_hosts))
+        .all()
+    )
+    remove_hosts_from_group(group.id, host_ids_to_delete, event_producer)
 
 
-def _delete_host_group_assoc(session, event_producer, assoc, omit_mq_event=False):
+def _delete_host_group_assoc(session, event_producer, assoc):
     delete_query = session.query(HostGroupAssoc).filter(
         HostGroupAssoc.group_id == assoc.group_id, HostGroupAssoc.host_id == assoc.host_id
     )
     delete_query.delete(synchronize_session="fetch")
     assoc_deleted = _deleted_by_this_query(assoc)
 
-    if not omit_mq_event:
-        _produce_host_update_events(event_producer, [assoc.host_id], [])
+    _produce_host_update_events(event_producer, [assoc.host_id], [])
 
     return assoc_deleted
 
@@ -162,7 +163,7 @@ def delete_group_list(group_id_list: List[str], event_producer: EventProducer) -
     return deletion_count
 
 
-def remove_hosts_from_group(group_id, host_id_list, event_producer, omit_mq_event_for_hosts=[]):
+def remove_hosts_from_group(group_id, host_id_list, event_producer):
     deletion_count = 0
     group_query = Group.query.filter(Group.org_id == get_current_identity().org_id, Group.id == group_id)
 
@@ -176,7 +177,7 @@ def remove_hosts_from_group(group_id, host_id_list, event_producer, omit_mq_even
     )
     with delete_host_group_processing_time.time():
         for assoc in host_group_query.all():
-            if _delete_host_group_assoc(db.session, event_producer, assoc, assoc.host_id in omit_mq_event_for_hosts):
+            if _delete_host_group_assoc(db.session, event_producer, assoc):
                 deletion_count += 1
                 delete_host_group_count.inc()
                 log_host_group_delete_succeeded(logger, assoc.host_id, assoc.group_id, get_control_rule())
@@ -193,12 +194,17 @@ def get_group_by_id_from_db(group_id: str) -> Group:
 
 
 def db_create_host_group_assoc(host_id: str, group_id: str) -> HostGroupAssoc:
-    if HostGroupAssoc.query.filter(HostGroupAssoc.host_id == host_id).one_or_none():
-        raise InventoryException(
-            title="Invalid request", detail=f"Host with ID {host_id} is already associated with another group."
-        )
-    host_group = HostGroupAssoc(host_id=host_id, group_id=group_id)
-    db.session.add(host_group)
+    host_group = HostGroupAssoc.query.filter(
+        HostGroupAssoc.host_id == host_id, HostGroupAssoc.group_id == group_id
+    ).one_or_none()
+    if not host_group:
+        if HostGroupAssoc.query.filter(HostGroupAssoc.host_id == host_id).one_or_none():
+            raise InventoryException(
+                title="Invalid request", detail=f"Host with ID {host_id} is already associated with another group."
+            )
+        host_group = HostGroupAssoc(host_id=host_id, group_id=group_id)
+        db.session.add(host_group)
+
     return host_group
 
 
