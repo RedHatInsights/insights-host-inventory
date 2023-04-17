@@ -134,7 +134,8 @@ def test_patch_group_existing_name_same_org(db_create_group, api_patch_group, pa
     assert patch_name in response_body["detail"]
 
 
-def test_patch_group_hosts_from_different_group(db_create_group_with_hosts, api_patch_group, event_producer):
+def test_patch_group_hosts_from_different_group(db_create_group_with_hosts, api_patch_group, event_producer, mocker):
+    mocker.patch.object(event_producer, "write_event")
     # Create 2 groups
     host_to_move_id = str(db_create_group_with_hosts("existing_group", 3).hosts[0].id)
     new_id = db_create_group_with_hosts("new_group", 1).id
@@ -148,8 +149,12 @@ def test_patch_group_hosts_from_different_group(db_create_group_with_hosts, api_
     assert_response_status(response_status, 400)
     assert str(host_to_move_id) in response_body["detail"]
 
+    # Make sure no events got produced
+    assert event_producer.write_event.call_count == 0
 
-def test_patch_group_no_name(db_create_group_with_hosts, api_patch_group, db_get_group_by_id):
+
+def test_patch_group_no_name(db_create_group_with_hosts, api_patch_group, db_get_group_by_id, event_producer, mocker):
+    mocker.patch.object(event_producer, "write_event")
     group = db_create_group_with_hosts("test_group", 2)
     patch_doc = {"name": ""}
 
@@ -161,11 +166,22 @@ def test_patch_group_no_name(db_create_group_with_hosts, api_patch_group, db_get
     # Assert that the group's name hasn't been modified
     assert db_get_group_by_id(group.id).name == "test_group"
 
+    # Make sure no events got produced
+    assert event_producer.write_event.call_count == 0
+
 
 @pytest.mark.parametrize("host_in_other_org", [True, False])
 def test_patch_group_hosts_in_diff_org(
-    db_create_group_with_hosts, api_patch_group, db_create_host, db_get_group_by_id, host_in_other_org, event_producer
+    db_create_group_with_hosts,
+    api_patch_group,
+    db_create_host,
+    db_get_group_by_id,
+    host_in_other_org,
+    event_producer,
+    mocker,
 ):
+    mocker.patch.object(event_producer, "write_event")
+
     # Create a group
     group = db_create_group_with_hosts("test_group", 2)
     orig_modified_on = group.modified_on
@@ -201,6 +217,9 @@ def test_patch_group_hosts_in_diff_org(
 
     # The group
     assert db_get_group_by_id(group_id).modified_on == orig_modified_on
+
+    # Make sure no events got produced
+    assert event_producer.write_event.call_count == 0
 
 
 def test_patch_group_name_only(
