@@ -140,6 +140,7 @@ def delete_hosts_by_filter(
             provider_type,
             updated_start,
             updated_end,
+            group_name,
             registered_with,
             staleness,
             tags,
