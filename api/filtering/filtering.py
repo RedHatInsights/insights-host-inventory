@@ -421,7 +421,7 @@ def query_filters(
     if updated_start or updated_end:
         query_filters += _build_modified_on_filter(updated_start, updated_end)
     if group_name:
-        query_filters += ({"group": {"name": {"eq": group_name}}},)
+        query_filters += ({"group": {"name": {"eq_lc": group_name}}},)
 
     for key in filter:
         if key == "system_profile":

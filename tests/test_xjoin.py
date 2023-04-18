@@ -872,7 +872,7 @@ def test_tags_query_host_filters_casefolding(assert_tag_query_host_filter_for_fi
 def test_tags_query_group_name_filter(assert_tag_query_host_filter_single_call, mocker):
     assert_tag_query_host_filter_single_call(
         build_tags_url(query="?group_name=coolgroup"),
-        host_filter={"OR": mocker.ANY, "AND": ({"group": {"name": {"eq": "coolgroup"}}},)},
+        host_filter={"OR": mocker.ANY, "AND": ({"group": {"name": {"eq_lc": "coolgroup"}}},)},
     )
 
 
@@ -1816,7 +1816,7 @@ def test_query_variables_group_name(mocker, graphql_query_empty_response, api_ge
             "order_how": mocker.ANY,
             "limit": mocker.ANY,
             "offset": mocker.ANY,
-            "filter": ({"OR": mocker.ANY}, {"group": {"name": {"eq": f"{group_name}"}}}),
+            "filter": ({"OR": mocker.ANY}, {"group": {"name": {"eq_lc": f"{group_name}"}}}),
             "fields": mocker.ANY,
         },
         mocker.ANY,
