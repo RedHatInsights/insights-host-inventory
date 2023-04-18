@@ -43,7 +43,7 @@ def test_query_variables_group_name(mocker, graphql_query_empty_group_response, 
             "offset": mocker.ANY,
             "order_by": mocker.ANY,
             "order_how": mocker.ANY,
-            "hostFilter": ({"group": {"name": {"eq": f"{group_name}"}}},),
+            "hostFilter": ({"group": {"name": {"eq_lc": f"{group_name}"}}},),
         },
         mocker.ANY,
     )
