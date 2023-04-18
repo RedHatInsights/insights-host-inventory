@@ -108,6 +108,7 @@ def test_get_list_of_tags_with_host_filters(patch_xjoin_post, api_get, subtests)
         "?updated_start=2020-01-19T15:00:00.000Z",
         "?updated_end=2022-02-08T09:00:00.000Z",
         "?updated_start=2022-01-19T15:00:00.000Z&updated_end=2022-01-19T15:00:00.000Z",
+        "?group_name=coolgroup",
     ):
         with subtests.test(query=query):
             url = build_tags_url(query=query)
