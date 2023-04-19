@@ -13,20 +13,20 @@ from app.xjoin import params_to_order
 
 logger = get_logger(__name__)
 
-QUERY = """query hostGroups (
+QUERY = """query Query (
     $hostFilter: HostFilter,
     $order_by: HOST_GROUPS_ORDER_BY,
     $order_how: ORDER_DIR,
     $limit: Int,
-    $offset: Int) {
+    $offset: Int
+) {
     hostGroups (
         hostFilter: $hostFilter,
         order_by: $order_by,
         order_how: $order_how,
         limit: $limit,
         offset: $offset
-    )
-    {
+    ) {
         meta {
             count,
             total
