@@ -372,3 +372,7 @@ make update-schema
 
 This will pull the latest version of the System Profile schema from inventory-schemas and update files as necessary.
 Open a PR with these changes, and it will be reviewed and merged as per [the standard process](#release-process).
+
+## Debug API Code using Ephemeral Cluster
+
+Instructions for setting up development environment for stepping through API code is provided [here](docs/connect_to_k8s_env.md)
