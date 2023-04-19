@@ -14,14 +14,16 @@ from app.xjoin import pagination_params
 logger = get_logger(__name__)
 
 QUERY = """query Query (
-    $hostFilter: HostFilter,
+    $hostFilter: [HostFilter!],
     $order_by: HOST_GROUPS_ORDER_BY,
     $order_how: ORDER_DIR,
     $limit: Int,
     $offset: Int
 ) {
     hostGroups (
-        hostFilter: $hostFilter,
+        hostFilter: {
+            AND: $hostFilter,
+        }
         order_by: $order_by,
         order_how: $order_how,
         limit: $limit,
