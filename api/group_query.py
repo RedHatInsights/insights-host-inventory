@@ -7,8 +7,8 @@ from app.serialization import deserialize_group_xjoin
 from app.serialization import serialize_group
 from app.xjoin import check_pagination
 from app.xjoin import graphql_query
+from app.xjoin import groups_params_to_order
 from app.xjoin import pagination_params
-from app.xjoin import params_to_order
 
 
 logger = get_logger(__name__)
@@ -51,7 +51,7 @@ __all__ = (
 
 def get_group_list_using_filters(all_filters, page, per_page, param_order_by, param_order_how):
     limit, offset = pagination_params(page, per_page)
-    xjoin_order_by, xjoin_order_how = params_to_order(param_order_by, param_order_how)
+    xjoin_order_by, xjoin_order_how = groups_params_to_order(param_order_by, param_order_how)
 
     variables = {
         "limit": limit,

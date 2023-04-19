@@ -819,7 +819,6 @@ components:
         type: string
         enum:
           - name
-          - updated
           - host_ids
       description: Ordering field name
     orderHowParam:

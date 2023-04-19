@@ -31,7 +31,15 @@ ORDER_BY_MAPPING = {
     "operating_system": "operating_system",
 }
 
+GROUPS_ORDER_BY_MAPPING = {
+    None: "group",
+    "name": "group",
+    "host_ids": "count",
+}
+
 ORDER_HOW_MAPPING = {"modified_on": "DESC", "display_name": "ASC", "operating_system": "DESC"}
+
+GROUPS_ORDER_HOW_MAPPING = {"group": "DESC", "count": "DESC"}
 
 
 def check_pagination(offset, total):
@@ -78,6 +86,23 @@ def params_to_order(param_order_by, param_order_how):
 
     try:
         xjoin_order_how = param_order_how or ORDER_HOW_MAPPING[xjoin_order_by]
+    except KeyError:
+        raise ValueError(f'Unsupported ordering direction "{param_order_how}": use "ASC" or "DESC".')
+
+    return xjoin_order_by, xjoin_order_how
+
+
+def groups_params_to_order(param_order_by, param_order_how):
+    if param_order_how and not param_order_by:
+        raise ValueError("Providing ordering direction without a column is not supported. ")
+
+    try:
+        xjoin_order_by = GROUPS_ORDER_BY_MAPPING[param_order_by]
+    except KeyError:
+        raise ValueError(f'Unsupported ordering column: can not order by "{param_order_by}"')
+
+    try:
+        xjoin_order_how = param_order_how or GROUPS_ORDER_HOW_MAPPING[xjoin_order_by]
     except KeyError:
         raise ValueError(f'Unsupported ordering direction "{param_order_how}": use "ASC" or "DESC".')
 
