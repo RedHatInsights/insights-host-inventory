@@ -100,9 +100,8 @@ def patch_group_by_id(group_id, body):
         abort(status.HTTP_404_NOT_FOUND)
 
     try:
-        with session_guard(db.session):
-            # Separate out the host IDs because they're not stored on the Group
-            patch_group(group_to_update, validated_patch_group_data, current_app.event_producer)
+        # Separate out the host IDs because they're not stored on the Group
+        patch_group(group_to_update, validated_patch_group_data, current_app.event_producer)
 
     except InventoryException as ie:
         log_patch_group_failed(logger, group_id)

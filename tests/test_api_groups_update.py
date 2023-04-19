@@ -209,7 +209,7 @@ def test_patch_group_hosts_in_diff_org(
 
     # It can't find that host in the current org
     assert_response_status(response_status, 400)
-    assert response_data["detail"] == f"Host with ID {invalid_host_id} does not exist."
+    assert str(invalid_host_id) in response_data["detail"]
     retrieved_group = db_get_group_by_id(group_id)
 
     # There should still only be 2 hosts on the group
@@ -251,3 +251,54 @@ def test_patch_group_name_only(
     assert host["id"] == host_id
     assert host["groups"][0]["id"] == str(group_id)
     assert host["groups"][0]["name"] == "modified_group"
+
+
+def test_patch_group_same_hosts(
+    db_create_group_with_hosts, db_get_group_by_id, api_patch_group, event_producer, mocker
+):
+    # Create a group with hosts
+    mocker.patch.object(event_producer, "write_event")
+    group = db_create_group_with_hosts("test_group", 5)
+    group_id = group.id
+    host_id_list = [str(host.id) for host in group.hosts]
+
+    patch_doc = {"name": "modified_group", "host_ids": host_id_list}
+    response_status, _ = api_patch_group(group_id, patch_doc)
+    assert_response_status(response_status, 200)
+
+    # Validate that we only sent 1 message per host
+    assert event_producer.write_event.call_count == 5
+    for call_arg in event_producer.write_event.call_args_list:
+        host = json.loads(call_arg[0][0])["host"]
+        assert host["id"] in host_id_list
+        assert host["groups"][0]["id"] == str(group_id)
+        assert parser.isoparse(host["groups"][0]["updated"]) == db_get_group_by_id(group_id).modified_on
+
+
+def test_patch_group_both_add_and_remove_hosts(
+    db_create_group_with_hosts, db_get_group_by_id, db_create_host, api_patch_group, event_producer, mocker
+):
+    # Create a group with hosts
+    mocker.patch.object(event_producer, "write_event")
+    group = db_create_group_with_hosts("test_group", 3)
+    group_id = group.id
+    original_host_id_list = [str(host.id) for host in group.hosts]
+
+    # Two hosts dropped, one host persists, two hosts added
+    new_host_id_list = [original_host_id_list[0], str(db_create_host().id), str(db_create_host().id)]
+
+    patch_doc = {"name": "modified_group", "host_ids": new_host_id_list}
+    response_status, _ = api_patch_group(group_id, patch_doc)
+    assert_response_status(response_status, 200)
+
+    # We should have sent 5 messages:
+    # 2 for the removed hosts, 1 for the persisting host, 2 for new hosts
+    assert event_producer.write_event.call_count == 5
+    for call_arg in event_producer.write_event.call_args_list:
+        host = json.loads(call_arg[0][0])["host"]
+        if host["id"] in new_host_id_list:
+            assert host["id"] in new_host_id_list
+            assert host["groups"][0]["id"] == str(group_id)
+            assert parser.isoparse(host["groups"][0]["updated"]) == db_get_group_by_id(group_id).modified_on
+        else:
+            assert host["groups"] == []

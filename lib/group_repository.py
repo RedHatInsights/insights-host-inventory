@@ -1,7 +1,5 @@
 from typing import List
 
-from sqlalchemy.orm.scoping import scoped_session
-
 from api.host_query import staleness_timestamps
 from app.auth import get_current_identity
 from app.exceptions import InventoryException
@@ -26,7 +24,6 @@ from app.serialization import serialize_group
 from app.serialization import serialize_host
 from lib.db import session_guard
 from lib.host_delete import _deleted_by_this_query
-from lib.host_repository import find_existing_host_by_id
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.metrics import delete_group_count
 from lib.metrics import delete_group_processing_time
@@ -80,8 +77,6 @@ def add_hosts_to_group(group_id: str, host_id_list: List[str], event_producer: E
     db.session.add_all(host_group_assoc)
     db.session.flush()
 
-    # Produce kafka messages updating the "groups" field for each host
-    _produce_host_update_events(event_producer, host_id_list, [group_id])
     log_host_group_add_succeeded(logger, host_id_list, group_id)
 
 
@@ -107,6 +102,9 @@ def add_group(group_data, event_producer) -> Group:
     # gets the ID of the group after it has been committed
     created_group = Group.query.filter((Group.name == group_name) & (Group.org_id == org_id)).one_or_none()
 
+    # Produce update messages once the DB session has been closed
+    _produce_host_update_events(event_producer, host_id_list, group_id_list=[created_group.id])
+
     return created_group
 
 
@@ -121,8 +119,6 @@ def _delete_host_group_assoc(session, event_producer, assoc):
     )
     delete_query.delete(synchronize_session="fetch")
     assoc_deleted = _deleted_by_this_query(assoc)
-
-    _produce_host_update_events(event_producer, [assoc.host_id], [])
 
     return assoc_deleted
 
@@ -202,38 +198,37 @@ def db_get_assoc_for_group(group_id: str) -> List[HostGroupAssoc]:
     return HostGroupAssoc.query.filter(HostGroupAssoc.group_id == group_id).all()
 
 
-def replace_host_list_for_group(
-    session: scoped_session, group: Group, host_id_list: List[str], event_producer: EventProducer
-) -> List[HostGroupAssoc]:
-    group_id = group.id
-    with session_guard(session):
-        _remove_all_hosts_from_group(event_producer, group)
-        assoc_list = []
-        for host_id in host_id_list:
-            if not find_existing_host_by_id(get_current_identity(), host_id):
-                raise InventoryException(title="Invalid request", detail=f"Host with ID {host_id} does not exist.")
-
-            assoc_list.append(db_create_host_group_assoc(host_id, group_id))
-            # Update modified_on timestamp on the group
-            group.update_modified_on()
-
-    _produce_host_update_events(event_producer, host_id_list, [group_id])
-    return assoc_list
-
-
 def patch_group(group: Group, patch_data: dict, event_producer: EventProducer):
     group_id = group.id
-    new_host_ids = patch_data.get("host_ids")
+    host_id_data = patch_data.get("host_ids")
+    new_host_ids = {host_id for host_id in host_id_data} if host_id_data is not None else None
 
-    # Set new group name if provided
-    if group.patch(patch_data) and new_host_ids is None:
+    existing_host_uuids = db.session.query(HostGroupAssoc.host_id).filter(HostGroupAssoc.group_id == group_id).all()
+    existing_host_ids = {str(host_id[0]) for host_id in existing_host_uuids}
+
+    with session_guard(db.session):
+        # Patch Group data, if provided
+        group_patched = group.patch(patch_data)
+
+        # Update host list, if provided
+        if new_host_ids is not None:
+            remove_hosts_from_group(group_id, list(existing_host_ids - new_host_ids), event_producer)
+            add_hosts_to_group(group_id, list(new_host_ids - existing_host_ids), event_producer)
+
+    # Send MQ messages
+    if group_patched and host_id_data is None:
         # If anything was updated, and the host list is not being replaced,
         # send update messages to existing hosts. Otherwise, wait until the host list is replaced
         # so we don't produce messages that will be instantly obsoleted.
-        existing_host_ids = db.session.query(HostGroupAssoc.host_id).filter(HostGroupAssoc.group_id == group_id).all()
-        if new_host_ids is None:
-            _produce_host_update_events(event_producer, existing_host_ids, [group_id])
+        _produce_host_update_events(event_producer, existing_host_ids, [group_id])
+    elif new_host_ids is not None:
+        # If host IDs were provided, we need to update the host list.
+        # First, update the modified date for the group
+        group.update_modified_on()
+        db.session.add(group)
 
-    # Next, replace the host-group associations and produce update messages
-    if new_host_ids is not None:
-        replace_host_list_for_group(db.session, group, new_host_ids, event_producer)
+        deleted_host_uuids = [str(host_id) for host_id in (existing_host_ids - new_host_ids)]
+        _produce_host_update_events(event_producer, deleted_host_uuids, [])
+
+        added_host_uuids = [str(host_id) for host_id in new_host_ids]
+        _produce_host_update_events(event_producer, added_host_uuids, [group_id])
