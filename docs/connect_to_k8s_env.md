@@ -1,12 +1,10 @@
 # Deploy Host Inventory to a Kubernetes Namespace in Ephemeral Cluster
+Debugging the Host Inventory API code needs database, kakfa broker, Kafka Zookeeper, Debezium Connector, and xjoin-search. Following is a list of high level steps necessary to debug local API code using an Ephemeral namespace. The steps are the same for resources running in minikube.
 
-Debugging the Host Inventory API code needs database, kakfa broker, Kafka Zookeeper, Debezium Connector, and xjoin-search.  Following is a list high level steps necessary to debug local API code using an Ephemeral namespace.  The steps are the same for resources runnign in minikube.  
-
-1. Login to Epheremal cluster.
+1. Login to Ephemeral cluster.
 2. Reserve a namespace:
     ```bash
-        bonfire namespace reserve  # the default reservation time is 1 hour
-        bonfire namesapce extend -d xx <namespace>
+        bonfire namespace reserve -d xxh    # the default reservation time is one hour
    ```
 3. Deploy host-inventory:
     ```bash
@@ -25,8 +23,8 @@ Debugging the Host Inventory API code needs database, kakfa broker, Kafka Zookee
     ```bash
         make run_inv_mq_service_test_producer
     ```
-    The `make` command complain that kafka broker not available and shoud provide the address, which should look like `env-ephemeral-spxayh-509fc239-kafka-0.env-ephemeral-spxayh-509fc239-kafka-brokers.ephemeral-spxayh.svc`
-7. Add the the Kafka broker address to your local `/etc/hosts` file
+    The `make` command complains that the kafka broker is not available and should provide the address, which should look like `env-ephemeral-spxayh-509fc239-kafka-0.env-ephemeral-spxayh-509fc239-kafka-brokers.ephemeral-spxayh.svc`
+7. Add the Kafka broker address to your local `/etc/hosts` file
     ```bash
         127.0.0.1 env-ephemeral-spxayh-509fc239-kafka-0.env-ephemeral-spxayh-509fc239-kafka-brokers.ephemeral-spxayh.svc
     ```
@@ -55,9 +53,9 @@ Debugging the Host Inventory API code needs database, kakfa broker, Kafka Zookee
     Note: index name, "xjoin.inventory.hosts" may be different in your case.
 
 # Setup Development environment for Debugging API Code
-This section describes how to launch debugger using `vscode` to execute the local API server which in turn uses resources deployed in the ephemeral namespace.
-1. Load the `host-inventory` project to vscode
-2. Add a launch configuration to run the api-server (run.py) with the following environment variables:
+This section describes how to launch debugger using `VS Code` to execute the local API server which in turn uses resources deployed in the ephemeral namespace.
+1. Load the `host-inventory` project to VS Code
+2. Add a launch configuration to run the api-server `run.py` with the following environment variables:
     ```bash
     {
         "version": "0.2.0",
