@@ -324,12 +324,11 @@ def build_fields_query_parameters(fields=None):
     return query_parameters
 
 
-def _build_url(base_url=HOST_URL, path=None, host_list_or_id=None, query=None):
+def _build_url(base_url=HOST_URL, path=None, id_list=None, query=None):
     url = base_url
 
-    if host_list_or_id:
-        url_host_id_list = build_host_id_list_for_url(host_list_or_id)
-        url = f"{url}/{url_host_id_list}"
+    if id_list:
+        url = f"{url}/{id_list}"
 
     if path:
         url = f"{url}{path}"
@@ -340,20 +339,23 @@ def _build_url(base_url=HOST_URL, path=None, host_list_or_id=None, query=None):
     return url
 
 
-def build_hosts_url(host_list_or_id=None, query=None):
-    return _build_url(host_list_or_id=host_list_or_id, query=query)
+def build_hosts_url(host_list_or_id=None, path=None, query=None):
+    if host_list_or_id:
+        host_list_or_id = build_host_id_list_for_url(host_list_or_id)
+
+    return _build_url(id_list=host_list_or_id, path=path, query=query)
 
 
 def build_host_checkin_url():
-    return _build_url(base_url=HOST_URL, path="/checkin")
+    return build_hosts_url(path="/checkin")
 
 
 def build_host_tags_url(host_list_or_id, query=None):
-    return _build_url(path="/tags", host_list_or_id=host_list_or_id, query=query)
+    return build_hosts_url(path="/tags", host_list_or_id=host_list_or_id, query=query)
 
 
 def build_tags_count_url(host_list_or_id, query=None):
-    return _build_url(path="/tags/count", host_list_or_id=host_list_or_id, query=query)
+    return build_hosts_url(path="/tags/count", host_list_or_id=host_list_or_id, query=query)
 
 
 def build_tags_url(query=None):
@@ -361,7 +363,7 @@ def build_tags_url(query=None):
 
 
 def build_system_profile_url(host_list_or_id, query=None):
-    return _build_url(path="/system_profile", host_list_or_id=host_list_or_id, query=query)
+    return build_hosts_url(path="/system_profile", host_list_or_id=host_list_or_id, query=query)
 
 
 def build_system_profile_sap_system_url(query=None):
@@ -373,7 +375,7 @@ def build_system_profile_sap_sids_url(query=None):
 
 
 def build_facts_url(host_list_or_id, namespace, query=None):
-    return _build_url(path=f"/facts/{namespace}", host_list_or_id=host_list_or_id, query=query)
+    return build_hosts_url(path=f"/facts/{namespace}", host_list_or_id=host_list_or_id, query=query)
 
 
 def build_host_id_list_for_url(host_list_or_id):
@@ -387,7 +389,7 @@ def build_host_id_list_for_url(host_list_or_id):
 
 
 def build_groups_url(group_id=None, query=None):
-    return _build_url(base_url=GROUP_URL, host_list_or_id=group_id, query=query)
+    return _build_url(base_url=GROUP_URL, id_list=group_id, query=query)
 
 
 def get_id_list_from_hosts(host_list):
