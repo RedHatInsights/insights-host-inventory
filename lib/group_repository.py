@@ -202,20 +202,6 @@ def get_group_by_id_from_db(group_id: str) -> Group:
     return query.one_or_none()
 
 
-def db_create_host_group_assoc(host_id: str, group_id: str) -> HostGroupAssoc:
-    if HostGroupAssoc.query.filter(HostGroupAssoc.host_id == host_id).one_or_none():
-        raise InventoryException(
-            title="Invalid request", detail=f"Host with ID {host_id} is already associated with another group."
-        )
-    host_group = HostGroupAssoc(host_id=host_id, group_id=group_id)
-    db.session.add(host_group)
-    return host_group
-
-
-def db_get_assoc_for_group(group_id: str) -> List[HostGroupAssoc]:
-    return HostGroupAssoc.query.filter(HostGroupAssoc.group_id == group_id).all()
-
-
 def patch_group(group: Group, patch_data: dict, event_producer: EventProducer):
     group_id = group.id
     host_id_data = patch_data.get("host_ids")
