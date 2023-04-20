@@ -64,7 +64,7 @@ def get_tags(
     provider_type=None,
     updated_start=None,
     updated_end=None,
-    group_name=None,  # To be implemented
+    group_name=None,
     order_by=None,
     order_how=None,
     page=None,
@@ -96,6 +96,7 @@ def get_tags(
             provider_type,
             updated_start,
             updated_end,
+            group_name,
             tags,
             None,  # Staleness to not use the default values
             registered_with,
