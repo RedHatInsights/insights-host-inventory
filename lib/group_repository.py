@@ -108,12 +108,12 @@ def add_group(group_data, event_producer) -> Group:
     return created_group
 
 
-def _remove_all_hosts_from_group(event_producer: EventProducer, group: Group):
+def _remove_all_hosts_from_group(group: Group):
     host_ids_to_delete = db.session.query(HostGroupAssoc.host_id).filter(HostGroupAssoc.group_id == group.id).all()
-    remove_hosts_from_group(group.id, host_ids_to_delete, event_producer)
+    _remove_hosts_from_group(group.id, host_ids_to_delete)
 
 
-def _delete_host_group_assoc(session, event_producer, assoc):
+def _delete_host_group_assoc(session, assoc):
     delete_query = session.query(HostGroupAssoc).filter(
         HostGroupAssoc.group_id == assoc.group_id, HostGroupAssoc.host_id == assoc.host_id
     )
@@ -123,10 +123,10 @@ def _delete_host_group_assoc(session, event_producer, assoc):
     return assoc_deleted
 
 
-def _delete_group(event_producer: EventProducer, group: Group) -> bool:
+def _delete_group(group: Group) -> bool:
     # First, remove all hosts from the requested group.
     group_id = group.id
-    _remove_all_hosts_from_group(event_producer, group)
+    _remove_all_hosts_from_group(group)
 
     delete_query = db.session.query(Group).filter(Group.id == group_id)
     delete_query.delete(synchronize_session="fetch")
@@ -135,47 +135,65 @@ def _delete_group(event_producer: EventProducer, group: Group) -> bool:
 
 def delete_group_list(group_id_list: List[str], event_producer: EventProducer) -> int:
     deletion_count = 0
+    deleted_host_ids = []
 
     with session_guard(db.session):
+        deleted_host_ids = (
+            db.session.query(HostGroupAssoc.host_id)
+            .filter(Group.org_id == get_current_identity().org_id, HostGroupAssoc.group_id.in_(group_id_list))
+            .all()
+        )
+
         for group in (
             db.session.query(Group)
             .filter(Group.org_id == get_current_identity().org_id, Group.id.in_(group_id_list))
             .all()
         ):
             group_id = group.id
+
             with delete_group_processing_time.time():
-                if _delete_group(event_producer, group):
+                if _delete_group(group):
                     deletion_count += 1
                     delete_group_count.inc()
                     log_group_delete_succeeded(logger, group_id, get_control_rule())
                 else:
                     log_group_delete_failed(logger, group_id, get_control_rule())
 
+    _produce_host_update_events(event_producer, deleted_host_ids, [])
     return deletion_count
 
 
 def remove_hosts_from_group(group_id, host_id_list, event_producer):
-    deletion_count = 0
+    removed_host_ids = []
+    with session_guard(db.session):
+        removed_host_ids = _remove_hosts_from_group(group_id, host_id_list)
+
+    _produce_host_update_events(event_producer, removed_host_ids, [])
+    return len(removed_host_ids)
+
+
+def _remove_hosts_from_group(group_id, host_id_list):
+    removed_host_ids = []
     group_query = Group.query.filter(Group.org_id == get_current_identity().org_id, Group.id == group_id)
 
     # First, find the group to make sure the org_id matches
     found_group = group_query.one_or_none()
     if not found_group:
-        return 0
+        return []
 
     host_group_query = HostGroupAssoc.query.filter(
         HostGroupAssoc.group_id == found_group.id, HostGroupAssoc.host_id.in_(host_id_list)
     )
     with delete_host_group_processing_time.time():
         for assoc in host_group_query.all():
-            if _delete_host_group_assoc(db.session, event_producer, assoc):
-                deletion_count += 1
+            if _delete_host_group_assoc(db.session, assoc):
+                removed_host_ids.append(assoc.host_id)
                 delete_host_group_count.inc()
                 log_host_group_delete_succeeded(logger, assoc.host_id, assoc.group_id, get_control_rule())
             else:
                 log_host_group_delete_failed(logger, assoc.host_id, assoc.group_id, get_control_rule())
 
-    return deletion_count
+    return removed_host_ids
 
 
 def get_group_by_id_from_db(group_id: str) -> Group:
@@ -212,7 +230,7 @@ def patch_group(group: Group, patch_data: dict, event_producer: EventProducer):
 
         # Update host list, if provided
         if new_host_ids is not None:
-            remove_hosts_from_group(group_id, list(existing_host_ids - new_host_ids), event_producer)
+            _remove_hosts_from_group(group_id, list(existing_host_ids - new_host_ids))
             add_hosts_to_group(group_id, list(new_host_ids - existing_host_ids), event_producer)
 
     # Send MQ messages
