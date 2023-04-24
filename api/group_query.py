@@ -3,18 +3,11 @@ from sqlalchemy import asc
 from sqlalchemy import desc
 from sqlalchemy import func
 
-from api.filtering.filtering import query_filters
 from app import db
 from app.auth import get_current_identity
-from app.instrumentation import log_get_group_list_failed
 from app.logging import get_logger
 from app.models import Group
-from app.serialization import deserialize_group_xjoin
 from app.serialization import serialize_group
-from app.xjoin import check_pagination
-from app.xjoin import graphql_query
-from app.xjoin import groups_params_to_order
-from app.xjoin import pagination_params
 
 
 logger = get_logger(__name__)
@@ -59,45 +52,10 @@ GROUPS_ORDER_HOW_MAPPING = {Group.name: asc, Group.hosts: desc}
 __all__ = (
     "build_paginated_group_list_response",
     "build_group_response",
-    "get_group_list_by_id_list",
-    "get_group_list_using_filters",
-    "get_filtered_group_list",
+    "get_group_list_by_id_list_db",
+    "get_filtered_group_list_db",
+    "get_group_list_from_db",
 )
-
-
-def get_group_list_using_filters(all_filters, page, per_page, param_order_by, param_order_how):
-    limit, offset = pagination_params(page, per_page)
-    xjoin_order_by, xjoin_order_how = groups_params_to_order(param_order_by, param_order_how)
-
-    variables = {
-        "limit": limit,
-        "offset": offset,
-        "order_by": xjoin_order_by,
-        "order_how": xjoin_order_how,
-        "hostFilter": all_filters,
-    }
-    response = graphql_query(QUERY, variables, log_get_group_list_failed)
-    if response is None or "hostGroups" not in response:
-        # Log an error implicating xjoin, then abort with status 503
-        logger.error("xjoin-search responded with invalid format")
-        abort(503)
-
-    response = response["hostGroups"]
-
-    total = response["meta"]["total"]
-    check_pagination(offset, total)
-
-    return map(deserialize_group_xjoin, response["data"]), total
-
-
-def get_group_list_by_id_list(group_id_list, page, per_page, order_by, order_how):
-    all_filters = query_filters(group_ids=group_id_list)
-    return get_group_list_using_filters(all_filters, page, per_page, order_by, order_how)
-
-
-def get_filtered_group_list(group_name, page, per_page, order_by, order_how):
-    all_filters = query_filters(group_name=group_name)
-    return get_group_list_using_filters(all_filters, page, per_page, order_by, order_how)
 
 
 def get_group_list_from_db(filters, page, per_page, param_order_by, param_order_how):
