@@ -10,8 +10,8 @@ from api import flask_json_response
 from api import metrics
 from api.group_query import build_group_response
 from api.group_query import build_paginated_group_list_response
-from api.group_query import get_filtered_group_list
-from api.group_query import get_group_list_by_id_list
+from api.group_query import get_filtered_group_list_db
+from api.group_query import get_group_list_by_id_list_db
 from app import db
 from app import Permission
 from app.exceptions import InventoryException
@@ -51,7 +51,7 @@ def get_group_list(
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
     try:
-        group_list, total = get_filtered_group_list(name, page, per_page, order_by, order_how)
+        group_list, total = get_filtered_group_list_db(name, page, per_page, order_by, order_how)
     except ValueError as e:
         log_get_group_list_failed(logger)
         abort(400, str(e))
@@ -167,7 +167,7 @@ def get_groups_by_id(
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
     try:
-        group_list, total = get_group_list_by_id_list(group_id_list, page, per_page, order_by, order_how)
+        group_list, total = get_group_list_by_id_list_db(group_id_list, page, per_page, order_by, order_how)
     except ValueError as e:
         log_get_group_list_failed(logger)
         abort(400, str(e))

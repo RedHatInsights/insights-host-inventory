@@ -39,7 +39,7 @@ GROUPS_ORDER_BY_MAPPING = {
 
 ORDER_HOW_MAPPING = {"modified_on": "DESC", "display_name": "ASC", "operating_system": "DESC"}
 
-GROUPS_ORDER_HOW_MAPPING = {"group": "DESC", "count": "DESC"}
+GROUPS_ORDER_HOW_MAPPING = {"group": "ASC", "count": "DESC"}
 
 
 def check_pagination(offset, total):
