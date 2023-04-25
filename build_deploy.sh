@@ -21,7 +21,7 @@ podman login -u="$RH_REGISTRY_USER" -p="$RH_REGISTRY_TOKEN" registry.redhat.io
 podman build --pull=true -f Dockerfile -t "${IMAGE}:${IMAGE_TAG}" .
 podman push "${IMAGE}:${IMAGE_TAG}"
 
-if [[ $GIT_BRANCH == *"security-compliance"*]]; then
+if [[ $GIT_BRANCH == *"security-compliance"* ]]; then
     podman tag "${IMAGE}:${IMAGE_TAG}" "${IMAGE}:security-compliance"
     podman push "${IMAGE}:security-compliance"
 else
