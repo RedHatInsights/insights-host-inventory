@@ -505,7 +505,7 @@ $defs:
         enum: [red, green]
         maxLength: 5
         description: Indicates the greenboot status of an edge device.
-        example: 'green, red, purple'
+        example: 'green, red'
       greenboot_fallback_detected:
         type: boolean
         description: Indicates whether greenboot detected a rolled back update on an edge device.

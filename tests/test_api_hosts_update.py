@@ -39,16 +39,19 @@ from tests.helpers.test_utils import SYSTEM_IDENTITY
 )
 def test_update_fields(patch_doc, event_producer_mock, db_create_host, db_get_host, api_patch):
     host = db_create_host()
+    host2 = db_create_host()
 
-    url = build_hosts_url(host_list_or_id=host.id)
+    url = build_hosts_url(host_list_or_id=[host, host2])
     response_status, response_data = api_patch(url, patch_doc)
 
     assert_response_status(response_status, expected_status=200)
 
     record = db_get_host(host.id)
+    record2 = db_get_host(host2.id)
 
     for key in patch_doc:
         assert getattr(record, key) == patch_doc[key]
+        assert getattr(record2, key) == patch_doc[key]
 
 
 @pytest.mark.parametrize(
