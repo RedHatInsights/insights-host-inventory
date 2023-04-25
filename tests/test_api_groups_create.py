@@ -9,9 +9,24 @@ from tests.helpers.api_utils import assert_response_status
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
-def test_create_group_without_hosts(api_create_group, db_get_group_by_name, event_producer, mocker):
+def test_create_group_with_empty_host_list(api_create_group, db_get_group_by_name, event_producer, mocker):
     mocker.patch.object(event_producer, "write_event")
     group_data = {"name": "my_awesome_group", "host_ids": []}
+
+    response_status, response_data = api_create_group(group_data)
+
+    assert_response_status(response_status, expected_status=201)
+
+    retrieved_group = db_get_group_by_name(group_data.get("name"))
+    assert_group_response(response_data, retrieved_group)
+
+    # No hosts modified, so no events should be written.
+    assert event_producer.write_event.call_count == 0
+
+
+def test_create_group_without_hosts_in_request_body(api_create_group, db_get_group_by_name, event_producer, mocker):
+    mocker.patch.object(event_producer, "write_event")
+    group_data = {"name": "my_awesome_group"}
 
     response_status, response_data = api_create_group(group_data)
 

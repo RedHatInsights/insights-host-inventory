@@ -92,7 +92,7 @@ def add_group(group_data, event_producer) -> Group:
         db.session.add(new_group)
         db.session.flush()
 
-        host_id_list = group_data.get("host_ids")
+        host_id_list = group_data.get("host_ids", [])
 
         # Add hosts to group
         if host_id_list:
