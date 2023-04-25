@@ -2763,7 +2763,7 @@
             ],
             "maxLength": 5,
             "description": "Indicates the greenboot status of an edge device.",
-            "example": "green, red, purple"
+            "example": "green, red"
           },
           "greenboot_fallback_detected": {
             "type": "boolean",
