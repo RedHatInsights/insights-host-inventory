@@ -180,9 +180,9 @@ paths:
     patch:
       tags:
         - hosts
-      summary: Update a host
+      summary: Update hosts
       description: >-
-        Update a host
+        Update hosts
         <br /><br />
         Required permissions: inventory:hosts:write
       operationId: api.host.patch_host_by_id
@@ -192,7 +192,7 @@ paths:
         - $ref: '#/components/parameters/hostIdList'
         - $ref: '#/components/parameters/branchId'
       requestBody:
-        description: A group of fields to be updated on the host
+        description: A group of fields to be updated on the hosts
         required: true
         content:
           application/json:
@@ -200,7 +200,7 @@ paths:
               $ref: '#/components/schemas/PatchHostIn'
       responses:
         '200':
-          description: Successfully updated the host.
+          description: Successfully updated the hosts.
         '400':
           description: Invalid request.
         '404':
@@ -327,9 +327,9 @@ paths:
     get:
       tags:
         - hosts
-      summary: Get the number of tags on a host
+      summary: Get the number of tags on a host or hosts
       description: >-
-        Get the number of tags on a host
+        Get the number of tags on a host or hosts
         <br /><br />
         Required permissions: inventory:hosts:read
       operationId: api.host.get_host_tag_count
