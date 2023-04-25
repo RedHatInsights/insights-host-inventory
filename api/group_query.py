@@ -1,4 +1,3 @@
-from flask import abort
 from sqlalchemy import asc
 from sqlalchemy import desc
 from sqlalchemy import func
@@ -74,9 +73,6 @@ def get_group_list_from_db(filters, page, per_page, param_order_by, param_order_
 
     # Get the total number of groups that would be returned using just the filters
     total = db.session.query(func.count(Group.id)).filter(*filters).scalar()
-
-    if len(group_list) == 0:
-        abort(404)
 
     return group_list, total
 

@@ -34,9 +34,12 @@ def test_query_variables_group_name_not_found(db_create_group, api_get):
     db_create_group("testGroup")
     query = "?name=different_group"
 
-    response_status, _ = api_get(build_groups_url(query=query))
+    response_status, response_data = api_get(build_groups_url(query=query))
 
-    assert_response_status(response_status, 404)
+    assert_response_status(response_status, 200)
+    assert response_data["total"] == 0
+    assert response_data["count"] == 0
+    assert len(response_data["results"]) == 0
 
 
 @pytest.mark.parametrize(
@@ -64,9 +67,12 @@ def test_group_id_list_filter_not_found(db_create_group, api_get):
     for idx in range(10):
         db_create_group(f"extraGroup_{idx}")
 
-    response_status, _ = api_get(GROUP_URL + "/" + generate_uuid())
+    response_status, response_data = api_get(GROUP_URL + "/" + generate_uuid())
 
-    assert response_status == 404
+    assert response_status == 200
+    assert response_data["total"] == 0
+    assert response_data["count"] == 0
+    assert len(response_data["results"]) == 0
 
 
 def test_group_query_pagination(subtests, db_create_group, api_get):
