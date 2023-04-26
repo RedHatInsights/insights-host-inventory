@@ -42,12 +42,11 @@ QUERY = """query Query (
 }"""
 
 GROUPS_ORDER_BY_MAPPING = {
-    None: Group.name,
     "name": Group.name,
     "host_ids": func.count(HostGroupAssoc.host_id),
 }
 
-GROUPS_ORDER_HOW_MAPPING = {"asc": asc, "desc": desc, Group.name: asc, Group.hosts: desc}
+GROUPS_ORDER_HOW_MAPPING = {"asc": asc, "desc": desc, "name": asc, "host_ids": desc}
 
 __all__ = (
     "build_paginated_group_list_response",
@@ -59,9 +58,12 @@ __all__ = (
 
 
 def get_group_list_from_db(filters, page, per_page, param_order_by, param_order_how):
-    order_by = GROUPS_ORDER_BY_MAPPING[param_order_by]
+    order_by_str = param_order_by or "name"
+    order_by = GROUPS_ORDER_BY_MAPPING[order_by_str]
     order_how_func = (
-        GROUPS_ORDER_HOW_MAPPING[param_order_how.lower()] if param_order_how else GROUPS_ORDER_HOW_MAPPING[order_by]
+        GROUPS_ORDER_HOW_MAPPING[param_order_how.lower()]
+        if param_order_how
+        else GROUPS_ORDER_HOW_MAPPING[order_by_str]
     )
 
     # Order the list of groups, then offset and limit based on page and per_page

@@ -31,20 +31,33 @@ def test_query_variables_group_name(db_create_group, api_get):
 
 
 @pytest.mark.parametrize(
-    "order_how",
-    ["ASC", "DESC"],
+    "order_how_query,reverse_list",
+    [
+        (
+            "&order_how=ASC",
+            False,
+        ),
+        (
+            "&order_how=DESC",
+            True,
+        ),
+        (
+            "",
+            False,
+        ),
+    ],
 )
-def test_sort_by_name(db_create_group, api_get, order_how):
+def test_sort_by_name(db_create_group, api_get, order_how_query, reverse_list):
     num_groups = 5
 
     # Create a list of groups. The names have an int appended for easier sorting.
     group_id_list = [str(db_create_group(f"testGroup{idx}").id) for idx in range(num_groups)]
 
     # If ordering in descending order, we expect the groups in reverse order.
-    if order_how == "DESC":
+    if reverse_list:
         group_id_list.reverse()
 
-    query = f"?order_by=name&order_how={order_how}"
+    query = f"?order_by=name{order_how_query}"
 
     response_status, response_data = api_get(build_groups_url(query=query))
 
@@ -56,20 +69,33 @@ def test_sort_by_name(db_create_group, api_get, order_how):
 
 
 @pytest.mark.parametrize(
-    "order_how",
-    ["ASC", "DESC"],
+    "order_how_query,reverse_list",
+    [
+        (
+            "&order_how=ASC",
+            False,
+        ),
+        (
+            "&order_how=DESC",
+            True,
+        ),
+        (
+            "",
+            True,
+        ),
+    ],
 )
-def test_sort_by_host_ids(db_create_group_with_hosts, api_get, db_get_group_by_id, order_how):
+def test_sort_by_host_ids(db_create_group_with_hosts, api_get, db_get_group_by_id, order_how_query, reverse_list):
     num_groups = 5
 
     # Create a list of groups. The names are randomized, but each group has one more host than the previous.
     group_id_list = [str(db_create_group_with_hosts(f"group{generate_uuid()}", idx).id) for idx in range(num_groups)]
 
     # If ordering in descending order, we expect the groups in reverse order.
-    if order_how == "DESC":
+    if reverse_list:
         group_id_list.reverse()
 
-    query = f"?order_by=host_ids&order_how={order_how}"
+    query = f"?order_by=host_ids{order_how_query}"
     response_status, response_data = api_get(build_groups_url(query=query))
 
     assert_response_status(response_status, 200)
