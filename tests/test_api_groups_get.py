@@ -36,6 +36,8 @@ def test_query_variables_group_name(db_create_group, api_get):
 )
 def test_sort_by_name(db_create_group, api_get, order_how):
     num_groups = 5
+
+    # Create a list of groups. The names have an int appended for easier sorting.
     group_id_list = [str(db_create_group(f"testGroup{idx}").id) for idx in range(num_groups)]
 
     # If ordering in descending order, we expect the groups in reverse order.
@@ -51,6 +53,32 @@ def test_sort_by_name(db_create_group, api_get, order_how):
     assert response_data["count"] == num_groups
     for idx in range(num_groups):
         assert response_data["results"][idx]["id"] == group_id_list[idx]
+
+
+@pytest.mark.parametrize(
+    "order_how",
+    ["ASC", "DESC"],
+)
+def test_sort_by_host_ids(db_create_group_with_hosts, api_get, db_get_group_by_id, order_how):
+    num_groups = 5
+
+    # Create a list of groups. The names are randomized, but each group has one more host than the previous.
+    group_id_list = [str(db_create_group_with_hosts(f"group{generate_uuid()}", idx).id) for idx in range(num_groups)]
+
+    # If ordering in descending order, we expect the groups in reverse order.
+    if order_how == "DESC":
+        group_id_list.reverse()
+
+    query = f"?order_by=host_ids&order_how={order_how}"
+    response_status, response_data = api_get(build_groups_url(query=query))
+
+    assert_response_status(response_status, 200)
+    assert response_data["total"] == num_groups
+    assert response_data["count"] == num_groups
+    for idx in range(num_groups):
+        group_data = response_data["results"][idx]
+        assert group_data["id"] == group_id_list[idx]
+        assert group_data["host_count"] == len(db_get_group_by_id(group_id_list[idx]).hosts)
 
 
 def test_query_variables_group_name_not_found(db_create_group, api_get):

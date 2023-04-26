@@ -6,6 +6,7 @@ from app import db
 from app.auth import get_current_identity
 from app.logging import get_logger
 from app.models import Group
+from app.models import HostGroupAssoc
 from app.serialization import serialize_group
 
 
@@ -43,7 +44,7 @@ QUERY = """query Query (
 GROUPS_ORDER_BY_MAPPING = {
     None: Group.name,
     "name": Group.name,
-    "host_ids": Group.hosts,
+    "host_ids": func.count(HostGroupAssoc.host_id),
 }
 
 GROUPS_ORDER_HOW_MAPPING = {"asc": asc, "desc": desc, Group.name: asc, Group.hosts: desc}
@@ -65,8 +66,9 @@ def get_group_list_from_db(filters, page, per_page, param_order_by, param_order_
 
     # Order the list of groups, then offset and limit based on page and per_page
     group_list = (
-        db.session.query(Group)
+        Group.query.join(HostGroupAssoc, isouter=True)
         .filter(*filters)
+        .group_by(Group.id)
         .order_by(order_how_func(order_by))
         .offset((page - 1) * per_page)
         .limit(per_page)
