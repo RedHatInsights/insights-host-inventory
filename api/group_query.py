@@ -46,7 +46,7 @@ GROUPS_ORDER_BY_MAPPING = {
     "host_ids": Group.hosts,
 }
 
-GROUPS_ORDER_HOW_MAPPING = {Group.name: asc, Group.hosts: desc}
+GROUPS_ORDER_HOW_MAPPING = {"asc": asc, "desc": desc, Group.name: asc, Group.hosts: desc}
 
 __all__ = (
     "build_paginated_group_list_response",
@@ -59,7 +59,9 @@ __all__ = (
 
 def get_group_list_from_db(filters, page, per_page, param_order_by, param_order_how):
     order_by = GROUPS_ORDER_BY_MAPPING[param_order_by]
-    order_how_func = param_order_how or GROUPS_ORDER_HOW_MAPPING[order_by]
+    order_how_func = (
+        GROUPS_ORDER_HOW_MAPPING[param_order_how.lower()] if param_order_how else GROUPS_ORDER_HOW_MAPPING[order_by]
+    )
 
     # Order the list of groups, then offset and limit based on page and per_page
     group_list = (

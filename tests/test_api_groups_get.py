@@ -30,6 +30,29 @@ def test_query_variables_group_name(db_create_group, api_get):
     assert response_data["results"][0]["id"] == str(group_id)
 
 
+@pytest.mark.parametrize(
+    "order_how",
+    ["ASC", "DESC"],
+)
+def test_sort_by_name(db_create_group, api_get, order_how):
+    num_groups = 5
+    group_id_list = [str(db_create_group(f"testGroup{idx}").id) for idx in range(num_groups)]
+
+    # If ordering in descending order, we expect the groups in reverse order.
+    if order_how == "DESC":
+        group_id_list.reverse()
+
+    query = f"?order_by=name&order_how={order_how}"
+
+    response_status, response_data = api_get(build_groups_url(query=query))
+
+    assert_response_status(response_status, 200)
+    assert response_data["total"] == num_groups
+    assert response_data["count"] == num_groups
+    for idx in range(num_groups):
+        assert response_data["results"][idx]["id"] == group_id_list[idx]
+
+
 def test_query_variables_group_name_not_found(db_create_group, api_get):
     db_create_group("testGroup")
     query = "?name=different_group"
