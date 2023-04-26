@@ -69,11 +69,14 @@ def test_remove_hosts_from_existing_group(
         assert len(host["groups"]) == 0
 
 
-def test_remove_hosts_from_nonexistent_group(db_create_host, api_remove_hosts_from_group):
+def test_remove_hosts_from_nonexistent_group(db_create_host, api_remove_hosts_from_group, event_producer, mocker):
+    mocker.patch.object(event_producer, "write_event")
     # Test against nonexistent group
     host_id = db_create_host().id
     response_status, _ = api_remove_hosts_from_group(generate_uuid(), [host_id])
     assert response_status == 404
+
+    assert event_producer.write_event.call_count == 0
 
 
 def test_remove_hosts_from_someone_elses_group(
