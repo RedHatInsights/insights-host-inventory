@@ -50,6 +50,16 @@ QUERY = """query Query(
             reporter,
             per_reporter_staleness,
             system_profile_facts (filter: $fields),
+            groups {
+                data {
+                    id,
+                    name,
+                    account,
+                    org_id,
+                    created_on,
+                    modified_on
+                },
+            },
         }
     }
 }"""

@@ -84,7 +84,7 @@ def deserialize_host_xjoin(data):
         stale_timestamp=_deserialize_datetime(data["stale_timestamp"]),
         reporter=data["reporter"],
         per_reporter_staleness=data.get("per_reporter_staleness", {}) or {},
-        groups=data.get("groups", []),
+        groups=data["groups"]["data"] if "groups" in data else [],
     )
     for field in ("created_on", "modified_on"):
         setattr(host, field, _deserialize_datetime(data[field]))
