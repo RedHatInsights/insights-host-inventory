@@ -60,7 +60,7 @@
             "$ref": "#/components/parameters/hostOrderByParam"
           },
           {
-            "$ref": "#/components/parameters/orderHowParam"
+            "$ref": "#/components/parameters/hostOrderHowParam"
           },
           {
             "$ref": "#/components/parameters/stalenessParam"
@@ -256,7 +256,7 @@
             "$ref": "#/components/parameters/hostOrderByParam"
           },
           {
-            "$ref": "#/components/parameters/orderHowParam"
+            "$ref": "#/components/parameters/hostOrderHowParam"
           },
           {
             "$ref": "#/components/parameters/fields_param"
@@ -478,7 +478,7 @@
             "$ref": "#/components/parameters/hostOrderByParam"
           },
           {
-            "$ref": "#/components/parameters/orderHowParam"
+            "$ref": "#/components/parameters/hostOrderHowParam"
           },
           {
             "$ref": "#/components/parameters/branchId"
@@ -534,7 +534,7 @@
             "$ref": "#/components/parameters/hostOrderByParam"
           },
           {
-            "$ref": "#/components/parameters/orderHowParam"
+            "$ref": "#/components/parameters/hostOrderHowParam"
           },
           {
             "$ref": "#/components/parameters/searchParam"
@@ -584,7 +584,7 @@
             "$ref": "#/components/parameters/hostOrderByParam"
           },
           {
-            "$ref": "#/components/parameters/orderHowParam"
+            "$ref": "#/components/parameters/hostOrderHowParam"
           }
         ],
         "responses": {
@@ -631,7 +631,7 @@
             "$ref": "#/components/parameters/groupOrderByParam"
           },
           {
-            "$ref": "#/components/parameters/orderHowParam"
+            "$ref": "#/components/parameters/groupOrderHowParam"
           }
         ],
         "responses": {
@@ -752,6 +752,18 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/groupIdList"
+          },
+          {
+            "$ref": "#/components/parameters/perPageParam"
+          },
+          {
+            "$ref": "#/components/parameters/pageParam"
+          },
+          {
+            "$ref": "#/components/parameters/groupOrderByParam"
+          },
+          {
+            "$ref": "#/components/parameters/groupOrderHowParam"
           }
         ],
         "responses": {
@@ -1349,13 +1361,12 @@
           "type": "string",
           "enum": [
             "name",
-            "updated",
             "host_ids"
           ]
         },
         "description": "Ordering field name"
       },
-      "orderHowParam": {
+      "hostOrderHowParam": {
         "name": "order_how",
         "in": "query",
         "required": false,
@@ -1367,6 +1378,19 @@
           ]
         },
         "description": "Direction of the ordering; defaults to ASC for display_name, and to DESC for updated and operating_system"
+      },
+      "groupOrderHowParam": {
+        "name": "order_how",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "ASC",
+            "DESC"
+          ]
+        },
+        "description": "Direction of the ordering; defaults to ASC for name, and to DESC for host_ids"
       },
       "stalenessParam": {
         "name": "staleness",
@@ -2275,6 +2299,11 @@
           "$ref": "#/components/schemas/NonStrictUUID"
         }
       },
+      "HostCount": {
+        "description": "The number of hosts associated with the group.",
+        "type": "integer",
+        "example": 3
+      },
       "UnleashToggleOut": {
         "title": "Unleash Toggle Out",
         "properties": {
@@ -2316,8 +2345,8 @@
           "name": {
             "$ref": "#/components/schemas/GroupName"
           },
-          "host_ids": {
-            "$ref": "#/components/schemas/HostIds"
+          "host_count": {
+            "$ref": "#/components/schemas/HostCount"
           },
           "account": {
             "$ref": "#/components/schemas/AccountNumber"

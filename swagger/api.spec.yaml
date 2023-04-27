@@ -31,7 +31,7 @@ paths:
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/hostOrderByParam'
-        - $ref: '#/components/parameters/orderHowParam'
+        - $ref: '#/components/parameters/hostOrderHowParam'
         - $ref: '#/components/parameters/stalenessParam'
         - $ref: '#/components/parameters/tagsParam'
         - $ref: '#/components/parameters/registered_with'
@@ -143,7 +143,7 @@ paths:
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/hostOrderByParam'
-        - $ref: '#/components/parameters/orderHowParam'
+        - $ref: '#/components/parameters/hostOrderHowParam'
         - $ref: '#/components/parameters/fields_param'
       responses:
         '200':
@@ -281,7 +281,7 @@ paths:
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/hostOrderByParam'
-        - $ref: '#/components/parameters/orderHowParam'
+        - $ref: '#/components/parameters/hostOrderHowParam'
         - $ref: '#/components/parameters/branchId'
         - $ref: '#/components/parameters/fields_param'
       responses:
@@ -312,7 +312,7 @@ paths:
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/hostOrderByParam'
-        - $ref: '#/components/parameters/orderHowParam'
+        - $ref: '#/components/parameters/hostOrderHowParam'
         - $ref: '#/components/parameters/searchParam'
       responses:
         '200':
@@ -340,7 +340,7 @@ paths:
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/hostOrderByParam'
-        - $ref: '#/components/parameters/orderHowParam'
+        - $ref: '#/components/parameters/hostOrderHowParam'
       responses:
         '200':
           description: Successfully found tag count.
@@ -367,7 +367,7 @@ paths:
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/groupOrderByParam'
-        - $ref: '#/components/parameters/orderHowParam'
+        - $ref: '#/components/parameters/groupOrderHowParam'
       responses:
         '200':
           description: Successfully read the groups list.
@@ -447,6 +447,10 @@ paths:
         - ApiKeyAuth: []
       parameters:
         - $ref: '#/components/parameters/groupIdList'
+        - $ref: '#/components/parameters/perPageParam'
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/groupOrderByParam'
+        - $ref: '#/components/parameters/groupOrderHowParam'
       responses:
         '200':
           description: Successfully searched for groups.
@@ -815,10 +819,9 @@ components:
         type: string
         enum:
           - name
-          - updated
           - host_ids
       description: Ordering field name
-    orderHowParam:
+    hostOrderHowParam:
       name: order_how
       in: query
       required: false
@@ -830,6 +833,18 @@ components:
       description: >-
         Direction of the ordering; defaults to ASC for display_name, and to DESC
         for updated and operating_system
+    groupOrderHowParam:
+      name: order_how
+      in: query
+      required: false
+      schema:
+        type: string
+        enum:
+          - ASC
+          - DESC
+      description: >-
+        Direction of the ordering; defaults to ASC for name, and to DESC
+        for host_ids
     stalenessParam:
       name: staleness
       in: query
@@ -1487,6 +1502,10 @@ components:
       nullable: true
       items:
         $ref: '#/components/schemas/NonStrictUUID'
+    HostCount:
+      description: The number of hosts associated with the group.
+      type: integer
+      example: 3
     UnleashToggleOut:
       title: Unleash Toggle Out
       properties:
@@ -1517,8 +1536,8 @@ components:
           $ref: "#/components/schemas/GroupId"
         name:
           $ref: "#/components/schemas/GroupName"
-        host_ids:
-          $ref: "#/components/schemas/HostIds"
+        host_count:
+          $ref: "#/components/schemas/HostCount"
         account:
           $ref: "#/components/schemas/AccountNumber"
         org_id:

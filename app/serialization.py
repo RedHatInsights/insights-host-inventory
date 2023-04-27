@@ -6,6 +6,7 @@ from marshmallow import ValidationError
 from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
 from app.models import CanonicalFactsSchema
+from app.models import Group
 from app.models import Host as Host
 from app.models import HostSchema
 from app.utils import Tag
@@ -91,6 +92,18 @@ def deserialize_host_xjoin(data):
     return host
 
 
+def deserialize_group_xjoin(data):
+    group = Group(
+        org_id=data["org_id"],
+        name=data["name"],
+        account=data.get("account"),
+    )
+    for field in ("created_on", "modified_on"):
+        setattr(group, field, _deserialize_datetime(data[field]))
+    group.id = data["id"]
+    return group
+
+
 def serialize_host(host, staleness_timestamps, fields=DEFAULT_FIELDS):
     if host.stale_timestamp:
         stale_timestamp = staleness_timestamps.stale_timestamp(host.stale_timestamp)
@@ -147,7 +160,7 @@ def serialize_group(group):
         "org_id": group.org_id,
         "account": group.account,
         "name": group.name,
-        "host_ids": [_serialize_uuid(host.id) for host in group.hosts],
+        "host_count": len(group.hosts),
         "created": _serialize_datetime(group.created_on),
         "updated": _serialize_datetime(group.modified_on),
     }

@@ -1,7 +1,101 @@
+from sqlalchemy import asc
+from sqlalchemy import desc
+from sqlalchemy import func
+
+from app import db
+from app.auth import get_current_identity
+from app.logging import get_logger
+from app.models import Group
+from app.models import HostGroupAssoc
 from app.serialization import serialize_group
 
 
-__all__ = ("build_paginated_group_list_response", "build_group_response")
+logger = get_logger(__name__)
+
+QUERY = """query Query (
+    $hostFilter: [HostFilter!],
+    $order_by: HOST_GROUPS_ORDER_BY,
+    $order_how: ORDER_DIR,
+    $limit: Int,
+    $offset: Int
+) {
+    hostGroups (
+        hostFilter: {
+            AND: $hostFilter,
+        }
+        order_by: $order_by,
+        order_how: $order_how,
+        limit: $limit,
+        offset: $offset
+    ) {
+        meta {
+            count,
+            total
+        }
+        data {
+            group {
+                id, name, account, org_id, created_on, modified_on
+            },
+            count
+        }
+    }
+}"""
+
+GROUPS_ORDER_BY_MAPPING = {
+    "name": Group.name,
+    "host_ids": func.count(HostGroupAssoc.host_id),
+}
+
+GROUPS_ORDER_HOW_MAPPING = {"asc": asc, "desc": desc, "name": asc, "host_ids": desc}
+
+__all__ = (
+    "build_paginated_group_list_response",
+    "build_group_response",
+    "get_group_list_by_id_list_db",
+    "get_filtered_group_list_db",
+    "get_group_list_from_db",
+)
+
+
+def get_group_list_from_db(filters, page, per_page, param_order_by, param_order_how):
+    order_by_str = param_order_by or "name"
+    order_by = GROUPS_ORDER_BY_MAPPING[order_by_str]
+    order_how_func = (
+        GROUPS_ORDER_HOW_MAPPING[param_order_how.lower()]
+        if param_order_how
+        else GROUPS_ORDER_HOW_MAPPING[order_by_str]
+    )
+
+    # Order the list of groups, then offset and limit based on page and per_page
+    group_list = (
+        Group.query.join(HostGroupAssoc, isouter=True)
+        .filter(*filters)
+        .group_by(Group.id)
+        .order_by(order_how_func(order_by))
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+        .all()
+    )
+
+    # Get the total number of groups that would be returned using just the filters
+    total = db.session.query(func.count(Group.id)).filter(*filters).scalar()
+
+    return group_list, total
+
+
+def get_group_list_by_id_list_db(group_id_list, page, per_page, order_by, order_how):
+    filters = (
+        Group.org_id == get_current_identity().org_id,
+        Group.id.in_(group_id_list),
+    )
+    return get_group_list_from_db(filters, page, per_page, order_by, order_how)
+
+
+def get_filtered_group_list_db(group_name, page, per_page, order_by, order_how):
+    filters = (Group.org_id == get_current_identity().org_id,)
+    if group_name:
+        filters += (Group.name == group_name,)
+    return get_group_list_from_db(filters, page, per_page, order_by, order_how)
 
 
 def build_paginated_group_list_response(total, page, per_page, group_list):
