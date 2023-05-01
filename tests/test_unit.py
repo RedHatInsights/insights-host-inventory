@@ -52,7 +52,6 @@ from app.serialization import _deserialize_tags_dict
 from app.serialization import _deserialize_tags_list
 from app.serialization import _serialize_datetime
 from app.serialization import _serialize_uuid
-from app.serialization import DEFAULT_FIELDS
 from app.serialization import deserialize_canonical_facts
 from app.serialization import deserialize_host
 from app.serialization import serialize_canonical_facts
@@ -1508,7 +1507,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             setattr(host, k, v)
 
         config = CullingConfig(stale_warning_offset_delta=timedelta(days=7), culled_offset_delta=timedelta(days=14))
-        actual = serialize_host(host, Timestamps(config), DEFAULT_FIELDS + ("tags",))
+        actual = serialize_host(host, Timestamps(config), False, ("tags",))
         expected = {
             **canonical_facts,
             **unchanged_data,
@@ -1561,7 +1560,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             setattr(host, k, v)
 
         config = CullingConfig(stale_warning_offset_delta=timedelta(days=7), culled_offset_delta=timedelta(days=14))
-        actual = serialize_host(host, Timestamps(config), DEFAULT_FIELDS + ("tags",))
+        actual = serialize_host(host, Timestamps(config), False, ("tags",))
         expected = {
             **host_init_data["canonical_facts"],
             "insights_id": None,
@@ -1603,7 +1602,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                     setattr(host, k, v)
 
                 config = CullingConfig(timedelta(days=stale_warning_offset_days), timedelta(days=culled_offset_days))
-                serialized = serialize_host(host, Timestamps(config))
+                serialized = serialize_host(host, Timestamps(config), False)
                 self.assertEqual(
                     self._timestamp_to_str(self._add_days(stale_timestamp, stale_warning_offset_days)),
                     serialized["stale_warning_timestamp"],
@@ -1670,7 +1669,7 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
                 "stale_timestamp.culled_timestamp": now() + timedelta(hours=2),
             }
         )
-        actual = serialize_host(host, staleness_offset, DEFAULT_FIELDS + ("tags",))
+        actual = serialize_host(host, staleness_offset, False, ("tags",))
         expected = {
             **canonical_facts,
             **unchanged_data,

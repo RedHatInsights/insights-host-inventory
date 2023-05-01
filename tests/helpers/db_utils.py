@@ -5,12 +5,9 @@ from random import randint
 from sqlalchemy.exc import InvalidRequestError
 
 from app.auth.identity import Identity
-from app.culling import Timestamps
 from app.models import db
 from app.models import Group
 from app.models import Host
-from app.serialization import serialize_host
-from app.utils import HostWrapper
 from lib.host_repository import find_existing_host
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import now
@@ -124,13 +121,6 @@ def create_reference_host_in_db(insights_id, reporter, system_profile, stale_tim
     db.session.add(host)
     db.session.commit()
     return host
-
-
-def serialize_db_host(host, inventory_config):
-    staleness_offset = Timestamps.from_config(inventory_config)
-    serialized_host = serialize_host(host, staleness_offset)
-
-    return HostWrapper(serialized_host)
 
 
 def get_expected_facts_after_update(method, namespace, facts, new_facts):

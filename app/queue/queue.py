@@ -38,7 +38,6 @@ from app.queue.events import operation_results_to_event_type
 from app.queue.notifications import build_notification_event
 from app.queue.notifications import notification_message_headers
 from app.queue.notifications import NotificationType
-from app.serialization import DEFAULT_FIELDS
 from app.serialization import deserialize_canonical_facts
 from app.serialization import deserialize_host
 from lib import host_repository
@@ -46,7 +45,6 @@ from lib import host_repository
 
 logger = get_logger(__name__)
 
-EGRESS_HOST_FIELDS = DEFAULT_FIELDS + ("tags", "system_profile")
 CONSUMER_POLL_TIMEOUT_SECONDS = 1
 SYSTEM_IDENTITY = {"auth_type": "cert-auth", "system": {"cert_type": "system"}, "type": "System"}
 
@@ -221,7 +219,7 @@ def update_system_profile(host_data, platform_metadata, operation_args={}):
             staleness_timestamps = Timestamps.from_config(inventory_config())
             identity = create_mock_identity_with_org_id(input_host.org_id)
             output_host, host_id, insights_id, update_result = host_repository.update_system_profile(
-                input_host, identity, staleness_timestamps, EGRESS_HOST_FIELDS
+                input_host, identity, staleness_timestamps
             )
             log_update_system_profile_success(logger, output_host)
             payload_tracker_processing_ctx.inventory_id = output_host["id"]
@@ -257,7 +255,7 @@ def add_host(host_data, platform_metadata, operation_args={}):
             staleness_timestamps = Timestamps.from_config(inventory_config())
             log_add_host_attempt(logger, input_host)
             output_host, host_id, insights_id, add_result = host_repository.add_host(
-                input_host, identity, staleness_timestamps, fields=EGRESS_HOST_FIELDS, operation_args=operation_args
+                input_host, identity, staleness_timestamps, operation_args=operation_args
             )
             log_add_update_host_succeeded(logger, add_result, host_data, output_host)
             payload_tracker_processing_ctx.inventory_id = output_host["id"]

@@ -32,15 +32,15 @@ class EventProducer:
     def __init__(self, config, topic):
         logger.info("Starting EventProducer()")
         self._kafka_producer = KafkaProducer({"bootstrap.servers": config.bootstrap_servers, **config.kafka_producer})
-        self.egress_topic = topic
+        self.mq_topic = topic
 
     def write_event(self, event, key, headers, *, wait=False):
-        logger.debug("Topic: %s, key: %s, event: %s, headers: %s", self.egress_topic, key, event, headers)
+        logger.debug("Topic: %s, key: %s, event: %s, headers: %s", self.mq_topic, key, event, headers)
 
         k = key.encode("utf-8") if key else None
         v = event.encode("utf-8")
         h = _encode_headers(headers)
-        topic = self.egress_topic
+        topic = self.mq_topic
 
         try:
             messageDetails = MessageDetails(topic, v, h, k)
