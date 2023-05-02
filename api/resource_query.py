@@ -24,10 +24,10 @@ def build_paginated_resource_list_response(
             "count": total,
         },
         "links": {
-            "first:": f"{link_base}?page=1",
-            "previous:": f"{link_base}?page={page-1}" if page > 1 else None,
-            "next:": f"{link_base}?page={page+1}" if page < total_pages else None,
-            "last:": f"{link_base}?page={total_pages}",
+            "first": f"{link_base}?page=1",
+            "previous": f"{link_base}?page={page-1}" if page > 1 else None,
+            "next": f"{link_base}?page={page+1}" if page < total_pages else None,
+            "last": f"{link_base}?page={total_pages}",
         },
         "data": resource_list,
     }

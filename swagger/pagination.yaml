@@ -76,7 +76,7 @@ components:
       properties:
         count:
           description: The total number of objects returned by the query.
-          type: string
+          type: integer
     Links:
       description: A collection of pagination links for resource-types endpoints
       type: object
@@ -92,9 +92,11 @@ components:
         previous:
           description: The URI path for the previous page in the pagination
           type: string
+          nullable: true
         next:
           description: The URI path for the next page in the pagination
           type: string
+          nullable: true
         last:
           description: The URI path for the last page in the pagination
           type: string

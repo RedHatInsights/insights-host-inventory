@@ -843,11 +843,11 @@
         }
       }
     },
-    "/resource_types": {
+    "/resource-types": {
       "get": {
         "operationId": "api.resource_type.get_resource_type_list",
         "tags": [
-          "resource_types"
+          "resource-types"
         ],
         "summary": "Get the list of resource types",
         "description": "Returns the list of available RBAC resource types. <br /><br /> Required permissions: inventory:*:*",
@@ -878,11 +878,11 @@
         }
       }
     },
-    "/resource_types/inventory-groups": {
+    "/resource-types/inventory-groups": {
       "get": {
         "operationId": "api.resource_type.get_resource_type_groups_list",
         "tags": [
-          "resource_types"
+          "resource-types"
         ],
         "summary": "Get the list of inventory groups in resource-types format",
         "description": "Returns the list of groups in the current account. <br /><br /> Required permissions: inventory:*:*",
@@ -2506,7 +2506,7 @@
                 "properties": {
                   "count": {
                     "description": "The total number of objects returned by the query.",
-                    "type": "string"
+                    "type": "integer"
                   }
                 }
               },
@@ -2526,11 +2526,13 @@
                   },
                   "previous": {
                     "description": "The URI path for the previous page in the pagination",
-                    "type": "string"
+                    "type": "string",
+                    "nullable": true
                   },
                   "next": {
                     "description": "The URI path for the next page in the pagination",
-                    "type": "string"
+                    "type": "string",
+                    "nullable": true
                   },
                   "last": {
                     "description": "The URI path for the last page in the pagination",

@@ -501,11 +501,11 @@ paths:
         '400':
           description: Invalid request.
 
-  /resource_types:
+  /resource-types:
     get:
       operationId: api.resource_type.get_resource_type_list
       tags:
-        - resource_types
+        - resource-types
       summary: Get the list of resource types
       description: >-
         Returns the list of available RBAC resource types.
@@ -523,11 +523,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ResourceTypesQueryOutput'
-  /resource_types/inventory-groups:
+  /resource-types/inventory-groups:
     get:
       operationId: api.resource_type.get_resource_type_groups_list
       tags:
-        - resource_types
+        - resource-types
       summary: Get the list of inventory groups in resource-types format
       description: >-
         Returns the list of groups in the current account.
