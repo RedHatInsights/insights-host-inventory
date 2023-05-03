@@ -1,7 +1,5 @@
 from typing import List
 
-from sqlalchemy.orm import scoped_session
-
 from api.host_query import staleness_timestamps
 from app.auth import get_current_identity
 from app.exceptions import InventoryException
@@ -258,11 +256,12 @@ def db_get_hosts_assoc_for_group(group_id: str) -> list:
     ]
 
 
-def add_host_list_for_group(session: scoped_session, group: Group, host_id_list: List[str]) -> List[HostGroupAssoc]:
+def add_host_list_for_group(group: Group, host_id_list: List[str]) -> List[HostGroupAssoc]:
     assoc_list = []
-    group_hosts_associated = db_get_hosts_assoc_for_group(group.id)
+    group_hosts_associated = group.hosts
     for host_id in host_id_list:
-        if find_existing_host_by_id(get_current_identity(), host_id):
+        host = find_existing_host_by_id(get_current_identity(), host_id)
+        if host:
             try:
                 assoc_list.append(db_create_host_group_assoc(host_id, group.id))
 
@@ -271,7 +270,7 @@ def add_host_list_for_group(session: scoped_session, group: Group, host_id_list:
             except InventoryException:
                 # happens when host_id is already associated
                 # throw the exception *only* if host is associated to a different group
-                if host_id not in group_hosts_associated:
+                if host not in group_hosts_associated:
                     raise InventoryException(
                         title="Invalid request",
                         detail=f"Host with ID {host_id} already associated to a different group ({group.id}).",
@@ -281,7 +280,3 @@ def add_host_list_for_group(session: scoped_session, group: Group, host_id_list:
             raise InventoryException(title="Invalid request", detail=f"Host with ID {host_id} does not exist.")
 
     return assoc_list
-
-
-def get_hosts_from_db(host_ids: List[str]):
-    return Host.query.filter(Host.id.in_(host_ids))

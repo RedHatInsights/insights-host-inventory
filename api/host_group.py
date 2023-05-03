@@ -12,7 +12,7 @@ from app.instrumentation import log_patch_group_failed
 from app.logging import get_logger
 from lib.group_repository import add_host_list_for_group
 from lib.group_repository import get_group_by_id_from_db
-from lib.group_repository import get_hosts_from_db
+from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.middleware import rbac
 
 logger = get_logger(__name__)
@@ -29,13 +29,13 @@ def add_hosts_to_group(group_id, body):
         return flask.abort(status.HTTP_404_NOT_FOUND)
 
     host_id_list = body
-    if not get_hosts_from_db(host_id_list):
+    if not get_host_list_by_id_list_from_db(host_id_list):
         return flask.abort(status.HTTP_404_NOT_FOUND)
 
     # Next, add the host-group associations
     assoc_list = []
     if host_id_list is not None:
-        assoc_list = add_host_list_for_group(db.session, group_to_update, host_id_list)
+        assoc_list = add_host_list_for_group(group_to_update, host_id_list)
 
     if any(db.session.is_modified(assoc) for assoc in assoc_list):
         db.session.commit()
