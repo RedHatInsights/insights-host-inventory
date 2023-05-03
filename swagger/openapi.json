@@ -843,6 +843,55 @@
         }
       }
     },
+    "/groups/{group_id}/hosts": {
+      "post": {
+        "operationId": "api.host_group.add_hosts_to_group",
+        "tags": [
+          "groups"
+        ],
+        "summary": "Add host IDs to the provided group",
+        "description": "Adds the host list in the request body to the provided group. <br /><br /> Required permissions: inventory:groups:write",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/groupId"
+          }
+        ],
+        "requestBody": {
+          "description": "A list of hosts IDs to associate with the provided group.",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HostIds"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully associated hosts with group.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request."
+          },
+          "404": {
+            "description": "Group not found."
+          }
+        }
+      }
+    },
     "/tags": {
       "get": {
         "tags": [
