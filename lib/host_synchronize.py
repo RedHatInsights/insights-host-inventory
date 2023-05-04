@@ -6,7 +6,6 @@ from app.models import Host
 from app.queue.events import build_event
 from app.queue.events import EventType
 from app.queue.events import message_headers
-from app.queue.queue import EGRESS_HOST_FIELDS
 from app.serialization import serialize_host
 from lib.metrics import synchronize_host_count
 
@@ -22,7 +21,7 @@ def synchronize_hosts(select_query, event_producer, chunk_size, config, interrup
 
     while len(host_list) > 0 and not interrupt():
         for host in host_list:
-            serialized_host = serialize_host(host, Timestamps.from_config(config), EGRESS_HOST_FIELDS)
+            serialized_host = serialize_host(host, Timestamps.from_config(config))
             event = build_event(EventType.updated, serialized_host)
             insights_id = host.canonical_facts.get("insights_id")
             headers = message_headers(EventType.updated, insights_id)
