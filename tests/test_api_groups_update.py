@@ -86,6 +86,7 @@ def test_patch_group_happy_path(
         host = json.loads(call_arg[0][0])["host"]
         assert host["id"] in host_id_list
         assert host["groups"][0]["id"] == str(group_id)
+        assert "host_count" not in host["groups"][0]
 
 
 def test_patch_group_wrong_org_id_for_group(
