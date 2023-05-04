@@ -39,7 +39,6 @@ from app.payload_tracker import PayloadTrackerProcessingContext
 from app.queue.events import build_event
 from app.queue.events import EventType
 from app.queue.events import message_headers
-from app.queue.queue import EGRESS_HOST_FIELDS
 from app.serialization import deserialize_canonical_facts
 from app.serialization import serialize_host
 from app.utils import Tag
@@ -319,7 +318,7 @@ def patch_host_by_id(host_id_list, body):
 
         if db.session.is_modified(host):
             db.session.commit()
-            serialized_host = serialize_host(host, staleness_timestamps(), EGRESS_HOST_FIELDS)
+            serialized_host = serialize_host(host, staleness_timestamps())
             _emit_patch_event(serialized_host, host.id, host.canonical_facts.get("insights_id"))
 
     log_patch_host_success(logger, host_id_list)
@@ -374,7 +373,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
 
         if db.session.is_modified(host):
             db.session.commit()
-            serialized_host = serialize_host(host, staleness_timestamps(), EGRESS_HOST_FIELDS)
+            serialized_host = serialize_host(host, staleness_timestamps())
             _emit_patch_event(serialized_host, host.id, host.canonical_facts.get("insights_id"))
 
     logger.debug("hosts_to_update:%s", hosts_to_update)
@@ -418,7 +417,7 @@ def host_checkin(body):
     if existing_host:
         existing_host._update_modified_date()
         db.session.commit()
-        serialized_host = serialize_host(existing_host, staleness_timestamps(), EGRESS_HOST_FIELDS)
+        serialized_host = serialize_host(existing_host, staleness_timestamps())
         _emit_patch_event(serialized_host, existing_host.id, existing_host.canonical_facts.get("insights_id"))
         return flask_json_response(serialized_host, 201)
     else:

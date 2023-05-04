@@ -13,7 +13,6 @@ from app.exceptions import InventoryException
 from app.logging import get_logger
 from app.models import db
 from app.models import Host
-from app.serialization import DEFAULT_FIELDS
 from app.serialization import serialize_host
 from lib import metrics
 from lib.db import session_guard
@@ -47,9 +46,7 @@ NULL = None
 logger = get_logger(__name__)
 
 
-def add_host(
-    input_host, identity, staleness_offset, update_system_profile=True, fields=DEFAULT_FIELDS, operation_args={}
-):
+def add_host(input_host, identity, staleness_offset, update_system_profile=True, operation_args={}):
     """
     Add or update a host
 
@@ -68,9 +65,9 @@ def add_host(
                     logger.debug("host_repository.add_host: setting update_system_profile = False")
                     update_system_profile = False
 
-            return update_existing_host(existing_host, input_host, staleness_offset, update_system_profile, fields)
+            return update_existing_host(existing_host, input_host, staleness_offset, update_system_profile)
         else:
-            return create_new_host(input_host, staleness_offset, fields)
+            return create_new_host(input_host, staleness_offset)
 
 
 @metrics.host_dedup_processing_time.time()
@@ -166,7 +163,7 @@ def find_non_culled_hosts(query):
 
 
 @metrics.new_host_commit_processing_time.time()
-def create_new_host(input_host, staleness_offset, fields):
+def create_new_host(input_host, staleness_offset):
     logger.debug("Creating a new host")
 
     input_host.save()
@@ -175,14 +172,14 @@ def create_new_host(input_host, staleness_offset, fields):
     metrics.create_host_count.inc()
     logger.debug("Created host:%s", input_host)
 
-    output_host = serialize_host(input_host, staleness_offset, fields)
+    output_host = serialize_host(input_host, staleness_offset)
     insights_id = input_host.canonical_facts.get("insights_id")
 
     return output_host, input_host.id, insights_id, AddHostResult.created
 
 
 @metrics.update_host_commit_processing_time.time()
-def update_existing_host(existing_host, input_host, staleness_offset, update_system_profile, fields):
+def update_existing_host(existing_host, input_host, staleness_offset, update_system_profile):
     logger.debug("Updating an existing host")
     logger.debug(f"existing host = {existing_host}")
 
@@ -192,7 +189,7 @@ def update_existing_host(existing_host, input_host, staleness_offset, update_sys
     metrics.update_host_count.inc()
     logger.debug("Updated host:%s", existing_host)
 
-    output_host = serialize_host(existing_host, staleness_offset, fields)
+    output_host = serialize_host(existing_host, staleness_offset)
     insights_id = existing_host.canonical_facts.get("insights_id")
 
     return output_host, existing_host.id, insights_id, AddHostResult.updated
@@ -252,7 +249,7 @@ def update_query_for_owner_id(identity, query):
         return query
 
 
-def update_system_profile(input_host, identity, staleness_offset, fields):
+def update_system_profile(input_host, identity, staleness_offset):
     if not input_host.system_profile_facts:
         raise InventoryException(
             title="Invalid request", detail="Cannot update System Profile, since no System Profile data was provided."
@@ -274,7 +271,7 @@ def update_system_profile(input_host, identity, staleness_offset, fields):
             metrics.update_host_count.inc()
             logger.debug("Updated system profile for host:%s", existing_host)
 
-            output_host = serialize_host(existing_host, staleness_offset, fields)
+            output_host = serialize_host(existing_host, staleness_offset)
             insights_id = existing_host.canonical_facts.get("insights_id")
             return output_host, existing_host.id, insights_id, AddHostResult.updated
         else:

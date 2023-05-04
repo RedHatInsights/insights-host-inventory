@@ -44,6 +44,11 @@ DEFAULT_FIELDS = (
     "groups",
 )
 
+ADDITIONAL_HOST_MQ_FIELDS = (
+    "tags",
+    "system_profile",
+)
+
 
 def deserialize_host(raw_data, schema=HostSchema, system_profile_spec=None):
     try:
@@ -104,7 +109,7 @@ def deserialize_group_xjoin(data):
     return group
 
 
-def serialize_host(host, staleness_timestamps, fields=DEFAULT_FIELDS):
+def serialize_host(host, staleness_timestamps, for_mq=True, additional_fields=tuple()):
     if host.stale_timestamp:
         stale_timestamp = staleness_timestamps.stale_timestamp(host.stale_timestamp)
         stale_warning_timestamp = staleness_timestamps.stale_warning_timestamp(host.stale_timestamp)
@@ -115,6 +120,10 @@ def serialize_host(host, staleness_timestamps, fields=DEFAULT_FIELDS):
         culled_timestamp = None
 
     serialized_host = {**serialize_canonical_facts(host.canonical_facts)}
+
+    fields = DEFAULT_FIELDS + additional_fields
+    if for_mq:
+        fields += ADDITIONAL_HOST_MQ_FIELDS
 
     if "id" in fields:
         serialized_host["id"] = _serialize_uuid(host.id)
@@ -149,7 +158,13 @@ def serialize_host(host, staleness_timestamps, fields=DEFAULT_FIELDS):
     if "system_profile" in fields:
         serialized_host["system_profile"] = host.system_profile_facts or {}
     if "groups" in fields:
-        serialized_host["groups"] = host.groups or []
+        # For MQ messages, we don't include the host_count field.
+        if for_mq:
+            serialized_host["groups"] = [
+                {key: group[key] for key in group if key != "host_count"} for group in host.groups
+            ]
+        else:
+            serialized_host["groups"] = host.groups or []
 
     return serialized_host
 

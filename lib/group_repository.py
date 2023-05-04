@@ -19,7 +19,6 @@ from app.queue.event_producer import EventProducer
 from app.queue.events import build_event
 from app.queue.events import EventType
 from app.queue.events import message_headers
-from app.queue.queue import EGRESS_HOST_FIELDS
 from app.serialization import serialize_group
 from app.serialization import serialize_host
 from lib.db import session_guard
@@ -45,7 +44,7 @@ def _produce_host_update_events(event_producer, host_id_list, group_id_list=[]):
     # Send messages
     for host in host_list:
         host.groups = serialized_groups
-        serialized_host = serialize_host(host, staleness_timestamps(), EGRESS_HOST_FIELDS)
+        serialized_host = serialize_host(host, staleness_timestamps())
         headers = message_headers(EventType.updated, serialized_host["insights_id"])
         event = build_event(EventType.updated, serialized_host)
         event_producer.write_event(event, serialized_host["id"], headers, wait=True)
