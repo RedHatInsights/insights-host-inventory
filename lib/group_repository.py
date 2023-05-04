@@ -24,12 +24,12 @@ from app.serialization import serialize_group
 from app.serialization import serialize_host
 from lib.db import session_guard
 from lib.host_delete import _deleted_by_this_query
+from lib.host_repository import find_existing_host_by_id
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.metrics import delete_group_count
 from lib.metrics import delete_group_processing_time
 from lib.metrics import delete_host_group_count
 from lib.metrics import delete_host_group_processing_time
-
 
 logger = get_logger(__name__)
 
@@ -237,3 +237,46 @@ def patch_group(group: Group, patch_data: dict, event_producer: EventProducer):
 
         added_host_uuids = [str(host_id) for host_id in new_host_ids]
         _produce_host_update_events(event_producer, added_host_uuids, [group_id])
+
+
+def db_create_host_group_assoc(host_id: str, group_id: str) -> HostGroupAssoc:
+    if HostGroupAssoc.query.filter(HostGroupAssoc.host_id == host_id).one_or_none():
+        raise InventoryException(
+            title="Invalid request", detail=f"Host with ID {host_id} is already associated with another group."
+        )
+    host_group = HostGroupAssoc(host_id=host_id, group_id=group_id)
+    db.session.add(host_group)
+    return host_group
+
+
+def db_get_hosts_assoc_for_group(group_id: str) -> list:
+    return [
+        str(host_id[0])
+        for host_id in HostGroupAssoc.query.filter(HostGroupAssoc.group_id == group_id).values("host_id")
+    ]
+
+
+def add_host_list_for_group(group: Group, host_id_list: List[str]) -> List[HostGroupAssoc]:
+    assoc_list = []
+    group_hosts_associated = group.hosts
+    for host_id in host_id_list:
+        host = find_existing_host_by_id(get_current_identity(), host_id)
+        if host:
+            try:
+                assoc_list.append(db_create_host_group_assoc(host_id, group.id))
+
+                # Update modified_on timestamp on the group
+                group.update_modified_on()
+            except InventoryException:
+                # happens when host_id is already associated
+                # throw the exception *only* if host is associated to a different group
+                if host not in group_hosts_associated:
+                    raise InventoryException(
+                        title="Invalid request",
+                        detail=f"Host with ID {host_id} already associated to a different group ({group.id}).",
+                    )
+        else:
+            # Only raises the exception if the list contains only 1 host.
+            raise InventoryException(title="Invalid request", detail=f"Host with ID {host_id} does not exist.")
+
+    return assoc_list
