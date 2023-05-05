@@ -1,4 +1,5 @@
-import flask
+from flask import abort
+from flask import Response
 from flask_api import status
 
 from api import api_operation
@@ -10,6 +11,8 @@ from app import Permission
 from app.instrumentation import log_host_group_add_succeeded
 from app.instrumentation import log_patch_group_failed
 from app.logging import get_logger
+from lib.feature_flags import FLAG_INVENTORY_GROUPS
+from lib.feature_flags import get_flag_value
 from lib.group_repository import add_host_list_for_group
 from lib.group_repository import get_group_by_id_from_db
 from lib.host_repository import get_host_list_by_id_list_from_db
@@ -22,15 +25,18 @@ logger = get_logger(__name__)
 @rbac(Permission.WRITE)
 @metrics.api_request_time.time()
 def add_hosts_to_group(group_id, body):
+    if not get_flag_value(FLAG_INVENTORY_GROUPS):
+        return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
+
     group_to_update = get_group_by_id_from_db(group_id)
 
     if not group_to_update:
         log_patch_group_failed(logger, group_id)
-        return flask.abort(status.HTTP_404_NOT_FOUND)
+        return abort(status.HTTP_404_NOT_FOUND)
 
     host_id_list = body
     if not get_host_list_by_id_list_from_db(host_id_list):
-        return flask.abort(status.HTTP_404_NOT_FOUND)
+        return abort(status.HTTP_404_NOT_FOUND)
 
     # Next, add the host-group associations
     assoc_list = []
