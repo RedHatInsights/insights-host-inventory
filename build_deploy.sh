@@ -5,6 +5,7 @@ set -exv
 IMAGE="quay.io/cloudservices/insights-inventory"
 IMAGE_TAG=$(git rev-parse --short=7 HEAD)
 SMOKE_TEST_TAG="latest"
+SECURITY_COMPLIANCE_TAG="sc-$(date +%Y%m%d)"
 
 if [[ -z "$QUAY_USER" || -z "$QUAY_TOKEN" ]]; then
     echo "QUAY_USER and QUAY_TOKEN must be set"
@@ -22,8 +23,8 @@ podman build --pull=true -f Dockerfile -t "${IMAGE}:${IMAGE_TAG}" .
 podman push "${IMAGE}:${IMAGE_TAG}"
 
 if [[ $GIT_BRANCH == *"security-compliance"* ]]; then
-    podman tag "${IMAGE}:${IMAGE_TAG}" "${IMAGE}:security-compliance"
-    podman push "${IMAGE}:security-compliance"
+    podman tag "${IMAGE}:${IMAGE_TAG}" "${IMAGE}:${SECURITY_COMPLIANCE_TAG}"
+    podman push "${IMAGE}:${SECURITY_COMPLIANCE_TAG}"
 else
     # To enable backwards compatibility with ci, qa, and smoke, always push latest and qa tags
     podman tag "${IMAGE}:${IMAGE_TAG}" "${IMAGE}:latest"
