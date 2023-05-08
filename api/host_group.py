@@ -26,6 +26,9 @@ logger = get_logger(__name__)
 @rbac(Permission.WRITE)
 @metrics.api_request_time.time()
 def add_host_list_to_group(group_id, body):
+    if not get_flag_value(FLAG_INVENTORY_GROUPS):
+        return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
+
     group_to_update = get_group_by_id_from_db(group_id)
 
     if not group_to_update:
