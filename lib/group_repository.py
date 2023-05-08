@@ -50,7 +50,7 @@ def _produce_host_update_events(event_producer, host_id_list, group_id_list=[]):
         event_producer.write_event(event, serialized_host["id"], headers, wait=True)
 
 
-def add_hosts_to_group(group_id: str, host_id_list: List[str], event_producer: EventProducer):
+def _add_hosts_to_group(group_id: str, host_id_list: List[str]):
     current_org_id = get_current_identity().org_id
 
     # Check if the hosts exist in Inventory and have correct org_id
@@ -64,7 +64,9 @@ def add_hosts_to_group(group_id: str, host_id_list: List[str], event_producer: E
         )
 
     # Check if the hosts are already associated with another group
-    assoc_query = HostGroupAssoc.query.filter(HostGroupAssoc.host_id.in_(host_id_list)).all()
+    assoc_query = HostGroupAssoc.query.filter(
+        HostGroupAssoc.host_id.in_(host_id_list), HostGroupAssoc.group_id != group_id
+    ).all()
     if assoc_query:
         taken_hosts = [str(assoc.host_id) for assoc in assoc_query]
         log_host_group_add_failed(logger, host_id_list, group_id)
@@ -73,11 +75,29 @@ def add_hosts_to_group(group_id: str, host_id_list: List[str], event_producer: E
             detail=f"The following subset of hosts are already associated with another group: {taken_hosts}.",
         )
 
-    host_group_assoc = [HostGroupAssoc(host_id=host_id, group_id=group_id) for host_id in host_id_list]
+    # Fitler out hosts that are already in the group
+    assoc_query = HostGroupAssoc.query.filter(
+        HostGroupAssoc.host_id.in_(host_id_list), HostGroupAssoc.group_id == group_id
+    ).all()
+    ids_already_in_this_group = [str(assoc.host_id) for assoc in assoc_query]
+
+    host_group_assoc = [
+        HostGroupAssoc(host_id=host_id, group_id=group_id)
+        for host_id in host_id_list
+        if host_id not in ids_already_in_this_group
+    ]
     db.session.add_all(host_group_assoc)
     db.session.flush()
 
     log_host_group_add_succeeded(logger, host_id_list, group_id)
+
+
+def add_hosts_to_group(group_id: str, host_id_list: List[str], event_producer: EventProducer):
+    with session_guard(db.session):
+        _add_hosts_to_group(group_id, host_id_list)
+
+    # Produce update messages once the DB session has been closed
+    _produce_host_update_events(event_producer, host_id_list, group_id_list=[group_id])
 
 
 def add_group(group_data, event_producer) -> Group:
@@ -97,7 +117,7 @@ def add_group(group_data, event_producer) -> Group:
         if host_id_list:
             # gets the ID of the group inside the session
             created_group = Group.query.filter((Group.name == group_name) & (Group.org_id == org_id)).one_or_none()
-            add_hosts_to_group(created_group.id, host_id_list, event_producer)
+            _add_hosts_to_group(created_group.id, host_id_list)
 
     # gets the ID of the group after it has been committed
     created_group = Group.query.filter((Group.name == group_name) & (Group.org_id == org_id)).one_or_none()
@@ -217,7 +237,7 @@ def patch_group(group: Group, patch_data: dict, event_producer: EventProducer):
         # Update host list, if provided
         if new_host_ids is not None:
             _remove_hosts_from_group(group_id, list(existing_host_ids - new_host_ids))
-            add_hosts_to_group(group_id, list(new_host_ids - existing_host_ids), event_producer)
+            _add_hosts_to_group(group_id, list(new_host_ids - existing_host_ids))
 
     # Send MQ messages
     if group_patched and host_id_data is None:

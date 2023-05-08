@@ -482,7 +482,7 @@ paths:
           description: Invalid request.
   '/groups/{group_id}/hosts/{host_id_list}':
     delete:
-      operationId: api.group.delete_hosts_from_group
+      operationId: api.host_group.delete_hosts_from_group
       tags:
         - groups
       summary: Delete one or more hosts from a group [Not Implemented]
@@ -502,7 +502,7 @@ paths:
           description: Invalid request.
   '/groups/{group_id}/hosts':
     post:
-      operationId: api.host_group.add_hosts_to_group
+      operationId: api.host_group.add_host_list_to_group
       tags:
         - groups
       summary: Add host IDs to the provided group
