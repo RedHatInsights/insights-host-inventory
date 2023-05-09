@@ -103,6 +103,9 @@ def create_group(body):
 @rbac(Permission.WRITE)
 @metrics.api_request_time.time()
 def patch_group_by_id(group_id, body):
+    if not get_flag_value(FLAG_INVENTORY_GROUPS):
+        return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
+
     try:
         validated_patch_group_data = InputGroupSchema().load(body)
     except ValidationError as e:
