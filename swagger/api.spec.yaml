@@ -1569,7 +1569,7 @@ components:
       description: >-
         A durable and reliable platform-wide group identifier. Applications
         should use this identifier to reference groups.
-      $ref: '#/components/schemas/HyphenatedUuid'
+      $ref: '#/components/schemas/NonStrictUUID'
     HostId:
       description: >-
         A durable and reliable platform-wide group identifier. Applications
@@ -1629,14 +1629,6 @@ components:
           description: A timestamp when the entry was last updated.
           type: string
           format: date-time
-    ResourceTypeGroupOut:
-      title: Resource-Type Group Out
-      description: >-
-        Data of a single group, in RBAC resource-type format.
-      type: object
-      properties:
-        value:
-          $ref: "#/components/schemas/GroupId"
     GroupQueryOutput:
       title: An Inventory Groups query result
       description: >-
@@ -1700,7 +1692,7 @@ components:
             description: Actual group search query result entries.
             type: array
             items:
-              $ref: '#/components/schemas/ResourceTypeGroupOut'
+              $ref: '#/components/schemas/GroupOut'
     # include renames for system_profile
     SystemProfile:
       $ref: 'system_profile.spec.yaml#/$defs/SystemProfile'

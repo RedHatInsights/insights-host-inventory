@@ -14,6 +14,7 @@ from app.instrumentation import log_get_group_list_succeeded
 from app.instrumentation import log_get_resource_type_list_failed
 from app.instrumentation import log_get_resource_type_list_succeeded
 from app.logging import get_logger
+from app.serialization import serialize_group
 from lib.feature_flags import FLAG_INVENTORY_GROUPS
 from lib.feature_flags import get_flag_value
 from lib.middleware import rbac
@@ -62,7 +63,5 @@ def get_resource_type_groups_list(
     log_get_group_list_succeeded(logger, group_list)
 
     return flask_json_response(
-        build_paginated_resource_list_response(
-            total, page, per_page, [{"value": str(group.id)} for group in group_list]
-        )
+        build_paginated_resource_list_response(total, page, per_page, [serialize_group(group) for group in group_list])
     )
