@@ -281,3 +281,12 @@ def log_db_access_failure(logger, message, host_data):
 def pendo_failure(logger, error_message=None):
     logger.error("Failed to send Pendo data: %s", error_message)
     pendo_fetching_failure.inc()
+
+
+# get resource_types
+def log_get_resource_type_list_succeeded(logger, results_list):
+    logger.debug("Got resource types: %s", results_list, extra={"access_rule": get_control_rule()})
+
+
+def log_get_resource_type_list_failed(logger):
+    logger.debug("Resource types not found", extra={"access_rule": get_control_rule()})
