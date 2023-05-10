@@ -892,6 +892,82 @@
         }
       }
     },
+    "/resource-types": {
+      "get": {
+        "operationId": "api.resource_type.get_resource_type_list",
+        "tags": [
+          "resource-types"
+        ],
+        "summary": "Get the list of resource types",
+        "description": "Returns the list of available RBAC resource types. <br /><br /> Required permissions: inventory:*:*",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/perPageParam"
+          },
+          {
+            "$ref": "#/components/parameters/pageParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully read the resource types list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceTypesQueryOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/resource-types/inventory-groups": {
+      "get": {
+        "operationId": "api.resource_type.get_resource_type_groups_list",
+        "tags": [
+          "resource-types"
+        ],
+        "summary": "Get the list of inventory groups in resource-types format",
+        "description": "Returns the list of groups in the current account. <br /><br /> Required permissions: inventory:*:*",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/perPageParam"
+          },
+          {
+            "$ref": "#/components/parameters/pageParam"
+          },
+          {
+            "$ref": "#/components/parameters/groupOrderByParam"
+          },
+          {
+            "$ref": "#/components/parameters/groupOrderHowParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully read the resource-types groups list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceTypesGroupsQueryOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/tags": {
       "get": {
         "tags": [
@@ -2430,6 +2506,123 @@
             ],
             "properties": {
               "results": {
+                "description": "Actual group search query result entries.",
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/GroupOut"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "ResourceTypesOut": {
+        "title": "A resource type query result",
+        "description": "Data describing a single resource-types RBAC object.",
+        "type": "object",
+        "properties": {
+          "value": {
+            "description": "The name of the resource type",
+            "type": "string"
+          },
+          "path": {
+            "description": "The path for the RBAC endpoint for the resource type",
+            "type": "string"
+          },
+          "count": {
+            "type": "integer"
+          }
+        }
+      },
+      "ResourceTypesQueryOutput": {
+        "title": "A resource-types query result",
+        "description": "A paginated list of resource-types RBAC objects.",
+        "type": "object",
+        "allOf": [
+          {
+            "type": "object",
+            "required": [
+              "meta",
+              "links"
+            ],
+            "properties": {
+              "meta": {
+                "description": "The metadata for resource-types responses",
+                "type": "object",
+                "required": [
+                  "count"
+                ],
+                "properties": {
+                  "count": {
+                    "description": "The total number of objects returned by the query.",
+                    "type": "integer"
+                  }
+                }
+              },
+              "links": {
+                "description": "A collection of pagination links for resource-types endpoints",
+                "type": "object",
+                "required": [
+                  "first",
+                  "previous",
+                  "next",
+                  "last"
+                ],
+                "properties": {
+                  "first": {
+                    "description": "The URI path for the first page in the pagination",
+                    "type": "string"
+                  },
+                  "previous": {
+                    "description": "The URI path for the previous page in the pagination",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "next": {
+                    "description": "The URI path for the next page in the pagination",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "last": {
+                    "description": "The URI path for the last page in the pagination",
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "description": "Actual resource-types object data.",
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ResourceTypesOut"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "ResourceTypesGroupsQueryOutput": {
+        "title": "An Inventory Groups query result in resource-types response format",
+        "description": "A paginated group search query result with group entries and their Inventory metadata in paginated resource-types response format.",
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ResourceTypesQueryOutput/allOf/0"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
                 "description": "Actual group search query result entries.",
                 "type": "array",
                 "items": {

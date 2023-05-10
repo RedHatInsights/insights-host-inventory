@@ -20,6 +20,7 @@ HOST_URL = "/api/inventory/v1/hosts"
 GROUP_URL = "/api/inventory/v1/groups"
 TAGS_URL = "/api/inventory/v1/tags"
 SYSTEM_PROFILE_URL = "/api/inventory/v1/system_profile"
+RESOURCE_TYPES_URL = "/api/inventory/v1/resource-types"
 
 SHARED_SECRET = "SuperSecretStuff"
 
@@ -392,6 +393,14 @@ def build_groups_url(group_id=None, query=None):
     return _build_url(base_url=GROUP_URL, id_list=group_id, query=query)
 
 
+def build_resource_types_url(query=None):
+    return _build_url(base_url=RESOURCE_TYPES_URL, query=query)
+
+
+def build_resource_types_groups_url(query=None):
+    return _build_url(base_url=RESOURCE_TYPES_URL + "/inventory-groups", query=query)
+
+
 def get_id_list_from_hosts(host_list):
     return [str(h.id) for h in host_list]
 
@@ -428,6 +437,30 @@ def assert_group_response(response, expected_group):
     assert response["created"] == expected_group.created_on.isoformat()
     assert response["updated"] == expected_group.modified_on.isoformat()
     assert response["host_count"] == len(expected_group.hosts)
+
+
+def assert_resource_types_pagination(
+    response_data: dict, expected_page: int, expected_number_of_pages: int, expected_path_base: str
+):
+    # Assert that the top level fields exist
+    assert "meta" in response_data
+    assert "links" in response_data
+    assert "data" in response_data
+
+    links = response_data["links"]
+    assert links["first"] == f"{expected_path_base}?page=1"
+
+    if expected_page > 1:
+        assert links["previous"] == f"{expected_path_base}?page={expected_page-1}"
+    else:
+        assert links["previous"] is None
+
+    if expected_page < expected_number_of_pages:
+        assert links["next"] == f"{expected_path_base}?page={expected_page+1}"
+    else:
+        assert links["next"] is None
+
+    assert links["last"] == f"{expected_path_base}?page={expected_number_of_pages}"
 
 
 ClassMock = mock.MagicMock
