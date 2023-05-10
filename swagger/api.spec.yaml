@@ -355,9 +355,9 @@ paths:
       operationId: api.group.get_group_list
       tags:
         - groups
-      summary: Read the entire list of groups [Not Implemented]
+      summary: Read the entire list of groups
       description: >-
-        Read the entire list of all groups available to the account. [Not Implemented]
+        Read the entire list of all groups available to the account.
         <br /><br />
         Required permissions: inventory:groups:read
       security:
@@ -379,9 +379,9 @@ paths:
       operationId: api.group.create_group
       tags:
         - groups
-      summary: Create a new group matching the provided name and list of hosts IDs [Not Implemented]
+      summary: Create a new group matching the provided name and list of hosts IDs
       description: >-
-        Creates a new group containing the hosts associated with the host IDs provided. [Not Implemented]
+        Creates a new group containing the hosts associated with the host IDs provided.
         <br /><br />
         Required permissions: inventory:groups:write
       security:
@@ -406,9 +406,9 @@ paths:
       operationId: api.group.patch_group_by_id
       tags:
         - groups
-      summary: Merge group information [Not Implemented]
+      summary: Merge group information
       description: >-
-        Merge group information. [Not Implemented]
+        Merge group information.
         <br /><br />
         Required permissions: inventory:groups:write
       security:
@@ -438,9 +438,9 @@ paths:
       operationId: api.group.get_groups_by_id
       tags:
         - groups
-      summary: Find groups by their IDs [Not Implemented]
+      summary: Find groups by their IDs
       description: >-
-        Find one or more groups by their IDs. [Not Implemented]
+        Find one or more groups by their IDs.
         <br /><br />
         Required permissions: inventory:groups:read
       security:
@@ -466,9 +466,9 @@ paths:
       operationId: api.group.delete_groups
       tags:
         - groups
-      summary: Delete a list of groups [Not Implemented]
+      summary: Delete a list of groups
       description: >-
-        Delete a list of groups. [Not Implemented]
+        Delete a list of groups.
         <br /><br />
         Required permissions: inventory:groups:write
       security:
@@ -485,9 +485,9 @@ paths:
       operationId: api.group.delete_hosts_from_group
       tags:
         - groups
-      summary: Delete one or more hosts from a group [Not Implemented]
+      summary: Delete one or more hosts from a group
       description: >-
-        Delete one or more hosts from a group. [Not Implemented]
+        Delete one or more hosts from a group.
         <br /><br />
         Required permissions: inventory:groups:write
       security:
