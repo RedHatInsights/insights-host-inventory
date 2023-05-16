@@ -57,7 +57,7 @@ logger = get_logger(__name__)
 
 
 @api_operation
-@rbac(Permission.READ)
+@rbac(Permission.HOSTS_READ)
 @metrics.api_request_time.time()
 def get_host_list(
     display_name=None,
@@ -112,7 +112,7 @@ def get_host_list(
 
 
 @api_operation
-@rbac(Permission.WRITE)
+@rbac(Permission.HOSTS_WRITE)
 @metrics.api_request_time.time()
 def delete_hosts_by_filter(
     display_name=None,
@@ -217,7 +217,7 @@ def _delete_host_list(host_id_list):
 
 
 @api_operation
-@rbac(Permission.WRITE)
+@rbac(Permission.HOSTS_WRITE)
 @metrics.api_request_time.time()
 def delete_all_hosts(confirm_delete_all=None):
     if not confirm_delete_all:
@@ -246,7 +246,7 @@ def delete_all_hosts(confirm_delete_all=None):
 
 
 @api_operation
-@rbac(Permission.WRITE)
+@rbac(Permission.HOSTS_WRITE)
 @metrics.api_request_time.time()
 def delete_host_by_id(host_id_list):
     delete_count = _delete_host_list(host_id_list)
@@ -258,7 +258,7 @@ def delete_host_by_id(host_id_list):
 
 
 @api_operation
-@rbac(Permission.READ)
+@rbac(Permission.HOSTS_READ)
 @metrics.api_request_time.time()
 def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None, fields=None):
     try:
@@ -276,7 +276,7 @@ def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=
 
 
 @api_operation
-@rbac(Permission.READ)
+@rbac(Permission.HOSTS_READ)
 @metrics.api_request_time.time()
 def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None, fields=None):
     try:
@@ -296,7 +296,7 @@ def _emit_patch_event(serialized_host, host_id, insights_id):
 
 
 @api_operation
-@rbac(Permission.WRITE)
+@rbac(Permission.HOSTS_WRITE)
 @metrics.api_request_time.time()
 def patch_host_by_id(host_id_list, body):
     try:
@@ -326,14 +326,14 @@ def patch_host_by_id(host_id_list, body):
 
 
 @api_operation
-@rbac(Permission.WRITE)
+@rbac(Permission.HOSTS_WRITE)
 @metrics.api_request_time.time()
 def replace_facts(host_id_list, namespace, body):
     return update_facts_by_namespace(FactOperations.replace, host_id_list, namespace, body)
 
 
 @api_operation
-@rbac(Permission.WRITE)
+@rbac(Permission.HOSTS_WRITE)
 @metrics.api_request_time.time()
 def merge_facts(host_id_list, namespace, body):
     if not body:
@@ -382,7 +382,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
 
 
 @api_operation
-@rbac(Permission.READ)
+@rbac(Permission.HOSTS_READ)
 @metrics.api_request_time.time()
 def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
     host_list, total = get_host_tags_list_by_id_list(host_id_list, page, per_page, order_by, order_how)
@@ -392,7 +392,7 @@ def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_
 
 
 @api_operation
-@rbac(Permission.READ)
+@rbac(Permission.HOSTS_READ)
 @metrics.api_request_time.time()
 def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=None, search=None):
     host_list, total = get_host_tags_list_by_id_list(host_id_list, page, per_page, order_by, order_how)
@@ -407,7 +407,7 @@ def _build_paginated_host_tags_response(total, page, per_page, tags_list):
 
 
 @api_operation
-@rbac(Permission.WRITE)
+@rbac(Permission.HOSTS_WRITE)
 @metrics.api_request_time.time()
 def host_checkin(body):
     current_identity = get_current_identity()

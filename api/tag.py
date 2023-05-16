@@ -51,7 +51,7 @@ TAGS_QUERY = """
 
 
 @api_operation
-@rbac(Permission.READ)
+@rbac(Permission.HOSTS_READ)
 @metrics.api_request_time.time()
 def get_tags(
     search=None,

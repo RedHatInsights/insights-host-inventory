@@ -115,7 +115,7 @@ OPERATING_SYSTEM_QUERY = """
 
 
 @api_operation
-@rbac(Permission.READ)
+@rbac(Permission.HOSTS_READ)
 @metrics.api_request_time.time()
 def get_sap_system(tags=None, page=None, per_page=None, staleness=None, registered_with=None, filter=None):
     limit, offset = pagination_params(page, per_page)
@@ -147,7 +147,7 @@ def get_sap_system(tags=None, page=None, per_page=None, staleness=None, register
 
 
 @api_operation
-@rbac(Permission.READ)
+@rbac(Permission.HOSTS_READ)
 @metrics.api_request_time.time()
 def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=None, registered_with=None, filter=None):
     limit, offset = pagination_params(page, per_page)
@@ -185,7 +185,7 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
 
 
 @api_operation
-@rbac(Permission.READ)
+@rbac(Permission.HOSTS_READ)
 @metrics.api_request_time.time()
 def get_operating_system(
     tags=None,
@@ -227,7 +227,7 @@ def get_operating_system(
 
 
 @api_operation
-@rbac(Permission.READ)
+@rbac(Permission.HOSTS_READ)
 @metrics.schema_validation_time.time()
 def validate_schema(repo_fork="RedHatInsights", repo_branch="master", days=1, max_messages=10000):
     # Use the identity header to make sure the user is someone from our team.

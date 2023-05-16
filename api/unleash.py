@@ -8,7 +8,7 @@ from lib.middleware import rbac
 
 
 @api_operation
-@rbac(Permission.READ)
+@rbac(Permission.HOSTS_READ)
 @metrics.api_request_time.time()
 def get_inventory_groups_toggle():
     # TODO: Remove once it's no longer useful.

@@ -18,6 +18,14 @@
       {
         "resourceDefinitions": [],
         "permission": "inventory:hosts:write"
+      },
+      {
+          "resourceDefinitions": [],
+          "permission": "inventory:groups:read"
+      },
+      {
+        "resourceDefinitions": [],
+        "permission": "inventory:groups:write"
     }
   ]
 }

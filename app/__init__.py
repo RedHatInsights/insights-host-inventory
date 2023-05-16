@@ -50,10 +50,13 @@ custom_filter_fields = ["operating_system"]
 
 
 class Permission(Enum):
-    READ = "inventory:hosts:read"
-    WRITE = "inventory:hosts:write"
-    ADMIN = "inventory:*:*"
+    HOSTS_READ = "inventory:hosts:read"
+    HOSTS_WRITE = "inventory:hosts:write"
     HOSTS_ALL = "inventory:hosts:*"
+    GROUPS_READ = "inventory:groups:read"
+    GROUPS_WRITE = "inventory:groups:write"
+    GROUPS_ALL = "inventory:groups:*"
+    ADMIN = "inventory:*:*"
 
 
 def initialize_metrics(config):
@@ -71,8 +74,8 @@ def initialize_metrics(config):
             notification_type=notification_type.name, topic=notification_topic_name
         )
 
-    rbac_access_denied.labels(required_permission=Permission.READ.value)
-    rbac_access_denied.labels(required_permission=Permission.WRITE.value)
+    rbac_access_denied.labels(required_permission=Permission.HOSTS_READ.value)
+    rbac_access_denied.labels(required_permission=Permission.HOSTS_WRITE.value)
 
 
 def render_exception(exception):
