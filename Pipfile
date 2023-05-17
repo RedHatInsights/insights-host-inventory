@@ -10,7 +10,7 @@ flask-restful = "~=0.3.7"
 requests = "~=2.25.1"
 flask-limiter = "~=1.0.1"
 flask-script = "~=2.0.6"
-flask-api = "==1.1"  # Not semver
+flask-api = "==2.0"  # Not semver
 flask-sqlalchemy = "~=2.5.1"
 psycopg2 = "~=2.9.6"
 flask-migrate = "~=2.5.2"
