@@ -63,8 +63,8 @@ class Config:
         except AttributeError:
             self.kafka_sasl_username = ""
             self.kafka_sasl_password = ""
-            self.kafka_sasl_mechanism = ""
-            self.kafka_security_protocol = "PLAINTEXT"
+            self.kafka_sasl_mechanism = "PLAIN"
+            self.kafka_security_protocol = ""
             self.logger.info("There was Attribute error")
         self.logger.info(f"kafka_sasl_mechanism: {self.kafka_sasl_mechanism}")
         self.logger.info(f"kafka_security_protocol: {self.kafka_security_protocol}")
