@@ -28,6 +28,7 @@ from lib.group_repository import add_group
 from lib.group_repository import delete_group_list
 from lib.group_repository import get_group_by_id_from_db
 from lib.group_repository import patch_group
+from lib.group_repository import remove_hosts_from_group
 from lib.metrics import create_group_count
 from lib.middleware import rbac
 
