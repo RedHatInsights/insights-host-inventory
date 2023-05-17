@@ -72,6 +72,7 @@ def get_group_list_from_db(filters, page, per_page, param_order_by, param_order_
         .filter(*filters)
         .group_by(Group.id)
         .order_by(order_how_func(order_by))
+        .order_by(Group.id)
         .offset((page - 1) * per_page)
         .limit(per_page)
         .all()
