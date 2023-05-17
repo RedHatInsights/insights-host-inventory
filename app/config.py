@@ -64,7 +64,7 @@ class Config:
             self.kafka_sasl_username = ""
             self.kafka_sasl_password = ""
             self.kafka_sasl_mechanism = "PLAIN"
-            self.kafka_security_protocol = "SASL_PLAINTEXT"
+            self.kafka_security_protocol = "SASL_SSL"
             self.logger.info("There was Attribute error")
         self.logger.info(f"kafka_sasl_mechanism: {self.kafka_sasl_mechanism}")
         self.logger.info(f"kafka_security_protocol: {self.kafka_security_protocol}")
