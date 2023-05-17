@@ -67,8 +67,6 @@ class Config:
 
         # Feature flags
         unleash = cfg.featureFlags
-        self.logger.info(f"unleash: {unleash}")
-        self.logger.info(f"bool(unleash): {bool(unleash)}")
         self.unleash_cache_directory = os.getenv("UNLEASH_CACHE_DIR", "/tmp/.unleashcache")
         if unleash:
             self.unleash_token = unleash.clientAccessToken
@@ -80,7 +78,6 @@ class Config:
         else:
             self.unleash_url = os.getenv("UNLEASH_URL")
             self.unleash_token = os.getenv("UNLEASH_TOKEN")
-        self.logger.info(f"unleash_token: {self.unleash_token}")
 
     def non_clowder_config(self):
         self.metrics_port = 9126
@@ -136,6 +133,8 @@ class Config:
         self.bypass_rbac = os.environ.get("BYPASS_RBAC", "false").lower() == "true"
         self.rbac_retries = os.environ.get("RBAC_RETRIES", 2)
         self.rbac_timeout = os.environ.get("RBAC_TIMEOUT", 10)
+
+        self.bypass_unleash = os.environ.get("BYPASS_UNLEASH", "false").lower() == "true"
 
         self.bypass_tenant_translation = os.environ.get("BYPASS_TENANT_TRANSLATION", "false").lower() == "true"
         self.tenant_translator_url = os.environ.get("TENANT_TRANSLATOR_URL", "http://localhost:8892/internal/orgIds")
@@ -241,7 +240,7 @@ class Config:
         if self._runtime_environment == RuntimeEnvironment.TEST:
             self.bypass_rbac = True
             self.bypass_tenant_translation = True
-            self.unleash_token = None
+            self.bypass_unleash = True
 
     def _build_base_url_path(self):
         app_name = os.getenv("APP_NAME", "inventory")
@@ -307,7 +306,8 @@ class Config:
             self.logger.info("RBAC Retry Times: %s", self.rbac_retries)
             self.logger.info("RBAC Timeout Seconds: %s", self.rbac_timeout)
 
-            self.logger.info("Unleash (feature flags) Bypassed: %s", self.unleash_token is None)
+            self.logger.info("Unleash (feature flags) Bypassed by config: %s", self.bypass_unleash)
+            self.logger.info("Unleash (feature flags) Bypassed by missing token: %s", self.unleash_token is None)
 
             self.logger.info(
                 "Bypassing tenant translation for hosts missing org_id: %s", self.bypass_tenant_translation

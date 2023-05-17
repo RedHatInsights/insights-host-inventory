@@ -29,9 +29,8 @@ from app.queue.metrics import notification_event_producer_failure
 from app.queue.metrics import notification_event_producer_success
 from app.queue.metrics import rbac_access_denied
 from app.queue.notifications import NotificationType
+from lib.feature_flags import init_unleash_app
 from lib.handlers import register_shutdown
-
-# from lib.feature_flags import init_unleash_app
 
 
 logger = get_logger(__name__)
@@ -202,19 +201,22 @@ def create_app(runtime_environment):
     flask_app.config["UNINDEXED_FIELDS"] = unindexed_fields
 
     # Configure Unleash (feature flags)
-    if app_config.unleash_token:
+    if not app_config.bypass_unleash and app_config.unleash_token:
         flask_app.config["UNLEASH_APP_NAME"] = "host-inventory-api"
         flask_app.config["UNLEASH_ENVIRONMENT"] = "default"
         flask_app.config["UNLEASH_URL"] = app_config.unleash_url
         flask_app.config["UNLEASH_CUSTOM_HEADERS"] = {"Authorization": f"Bearer {app_config.unleash_token}"}
         if hasattr(app_config, "unleash_cache_directory"):
             flask_app.config["UNLEASH_CACHE_DIRECTORY"] = app_config.unleash_cache_directory
-        # init_unleash_app(flask_app)
+        init_unleash_app(flask_app)
     else:
-        logger.warning(
-            "WARNING: No API token was provided for Unleash server connection.  "
-            "Feature flag toggles will default to their fallback values."
+        unleash_fallback_msg = (
+            "Unleash is bypassed by config value."
+            if app_config.bypass_unleash
+            else "No API token was provided for Unleash server connection."
         )
+        unleash_fallback_msg += " Feature flag toggles will default to their fallback values."
+        logger.warning(unleash_fallback_msg)
 
     db.init_app(flask_app)
 
