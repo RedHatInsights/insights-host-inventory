@@ -59,11 +59,15 @@ class Config:
             self.kafka_sasl_password = broker_cfg.sasl.password
             self.kafka_sasl_mechanism = broker_cfg.sasl.saslMechanism
             self.kafka_security_protocol = broker_cfg.sasl.securityProtocol
+            self.logger.info("There wasn't Attribute error")
         except AttributeError:
             self.kafka_sasl_username = ""
             self.kafka_sasl_password = ""
             self.kafka_sasl_mechanism = "PLAIN"
             self.kafka_security_protocol = "PLAINTEXT"
+            self.logger.info("There was Attribute error")
+        self.logger.info(f"kafka_sasl_mechanism: {self.kafka_sasl_mechanism}")
+        self.logger.info(f"kafka_security_protocol: {self.kafka_security_protocol}")
 
         # Feature flags
         unleash = cfg.featureFlags
@@ -150,6 +154,8 @@ class Config:
             "sasl.username": self.kafka_sasl_username,
             "sasl.password": self.kafka_sasl_password,
         }
+        self.logger.info(f"sasl.mechanism: {self.kafka_ssl_configs['sasl.mechanism']}")
+        self.logger.info(f"security.protocol: {self.kafka_ssl_configs['security.protocol']}")
 
         # https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md
         self.kafka_consumer = {
