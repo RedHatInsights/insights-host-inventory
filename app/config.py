@@ -67,6 +67,8 @@ class Config:
 
         # Feature flags
         unleash = cfg.featureFlags
+        self.logger.info(f"unleash: {unleash}")
+        self.logger.info(f"bool(unleash): {bool(unleash)}")
         self.unleash_cache_directory = os.getenv("UNLEASH_CACHE_DIR", "/tmp/.unleashcache")
         if unleash:
             self.unleash_token = unleash.clientAccessToken
@@ -78,6 +80,7 @@ class Config:
         else:
             self.unleash_url = os.getenv("UNLEASH_URL")
             self.unleash_token = os.getenv("UNLEASH_TOKEN")
+        self.logger.info(f"unleash_token: {self.unleash_token}")
 
     def non_clowder_config(self):
         self.metrics_port = 9126
