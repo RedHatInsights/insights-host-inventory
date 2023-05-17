@@ -170,3 +170,58 @@ def test_group_query_pagination(subtests, db_create_group, api_get):
                 assert len(response_data["results"]) == per_page
                 for idx in range(per_page):
                     assert response_data["results"][idx]["name"] == f"testGroup_{((page-1)*per_page + idx):03}"
+
+
+@pytest.mark.parametrize(
+    "order_how_query,reverse_list",
+    [
+        (
+            "&order_how=ASC",
+            False,
+        ),
+        (
+            "&order_how=DESC",
+            True,
+        ),
+    ],
+)
+def test_sort_by_host_ids_with_pagination(
+    subtests, db_create_group_with_hosts, api_get, order_how_query, reverse_list
+):
+    """
+    Create groups with hosts using tuples
+    return group ids and sort it as expected
+    each group id is in its right index inside the group_id_list
+    mimicing the API respose
+    """
+
+    group_id_list = []
+    groups_set = [(4, 0), (3, 1), (2, 2)]
+
+    if reverse_list:
+        groups_set.reverse()
+
+    for group_set in groups_set:
+        num_groups = group_set[0]
+        num_hosts = group_set[1]
+        temp_id_list = [
+            str(db_create_group_with_hosts(f"group{generate_uuid()}", num_hosts).id) for idx in range(num_groups)
+        ]
+        temp_id_list.sort()
+        group_id_list += temp_id_list
+
+    for per_page in [2, 3]:
+        start = 0
+        end = per_page
+        for page in [1, 2, 3]:
+            with subtests.test():
+                query = f"?page={page}&per_page={per_page}&order_by=host_ids{order_how_query}"
+                response_status, response_data = api_get(build_groups_url(query=query))
+                assert response_status == 200
+                assert response_data["total"] == len(group_id_list)
+                assert response_data["count"] == per_page
+                assert len(response_data["results"]) == per_page
+                res = [d["id"] for d in response_data["results"]]  # Get only the ids from the results array
+                assert res == group_id_list[start:end]  # compare the ids with the group_id_list
+                start = end
+                end = end + per_page
