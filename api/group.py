@@ -28,6 +28,7 @@ from lib.group_repository import add_group
 from lib.group_repository import delete_group_list
 from lib.group_repository import get_group_by_id_from_db
 from lib.group_repository import patch_group
+from lib.group_repository import remove_hosts_from_group
 from lib.metrics import create_group_count
 from lib.middleware import rbac
 
@@ -35,7 +36,7 @@ logger = get_logger(__name__)
 
 
 @api_operation
-@rbac(Permission.READ)
+@rbac(Permission.GROUPS_READ)
 @metrics.api_request_time.time()
 def get_group_list(
     name=None,
@@ -59,7 +60,7 @@ def get_group_list(
 
 
 @api_operation
-@rbac(Permission.WRITE)
+@rbac(Permission.GROUPS_WRITE)
 @metrics.api_request_time.time()
 def create_group(body):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
@@ -99,7 +100,7 @@ def create_group(body):
 
 
 @api_operation
-@rbac(Permission.WRITE)
+@rbac(Permission.GROUPS_WRITE)
 @metrics.api_request_time.time()
 def patch_group_by_id(group_id, body):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
@@ -138,7 +139,7 @@ def patch_group_by_id(group_id, body):
 
 
 @api_operation
-@rbac(Permission.WRITE)
+@rbac(Permission.GROUPS_WRITE)
 @metrics.api_request_time.time()
 def delete_groups(group_id_list):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
@@ -153,7 +154,7 @@ def delete_groups(group_id_list):
 
 
 @api_operation
-@rbac(Permission.READ)
+@rbac(Permission.GROUPS_READ)
 @metrics.api_request_time.time()
 def get_groups_by_id(
     group_id_list,
@@ -174,6 +175,21 @@ def get_groups_by_id(
     log_get_group_list_succeeded(logger, group_list)
 
     return flask_json_response(build_paginated_group_list_response(total, page, per_page, group_list))
+
+
+@api_operation
+@rbac(Permission.GROUPS_WRITE)
+@metrics.api_request_time.time()
+def delete_hosts_from_group(group_id, host_id_list):
+    if not get_flag_value(FLAG_INVENTORY_GROUPS):
+        return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
+
+    delete_count = remove_hosts_from_group(group_id, host_id_list, current_app.event_producer)
+
+    if delete_count == 0:
+        abort(status.HTTP_404_NOT_FOUND, "Group or hosts not found.")
+
+    return Response(None, status.HTTP_204_NO_CONTENT)
 
 
 def _error_json_response(title, detail, status=status.HTTP_400_BAD_REQUEST):

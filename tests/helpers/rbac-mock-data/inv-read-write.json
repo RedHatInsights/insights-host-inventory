@@ -1,6 +1,6 @@
 {
   "meta": {
-      "count": 1,
+      "count": 2,
       "limit": 1000,
       "offset": 0
   },
@@ -14,6 +14,18 @@
       {
           "resourceDefinitions": [],
           "permission": "inventory:hosts:read"
-      }
+      },
+      {
+        "resourceDefinitions": [],
+        "permission": "inventory:hosts:write"
+      },
+      {
+          "resourceDefinitions": [],
+          "permission": "inventory:groups:read"
+      },
+      {
+        "resourceDefinitions": [],
+        "permission": "inventory:groups:write"
+    }
   ]
 }

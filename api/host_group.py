@@ -23,7 +23,7 @@ logger = get_logger(__name__)
 
 
 @api_operation
-@rbac(Permission.WRITE)
+@rbac(Permission.GROUPS_WRITE)
 @metrics.api_request_time.time()
 def add_host_list_to_group(group_id, body):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
@@ -49,7 +49,7 @@ def add_host_list_to_group(group_id, body):
 
 
 @api_operation
-@rbac(Permission.WRITE)
+@rbac(Permission.GROUPS_WRITE)
 @metrics.api_request_time.time()
 def delete_hosts_from_group(group_id, host_id_list):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
