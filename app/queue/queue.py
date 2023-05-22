@@ -85,7 +85,8 @@ def _get_identity(host, metadata):
             identity["system"]["cn"] = _formatted_uuid(host.get("subscription_manager_id"))
         elif metadata:
             raise ValueError(
-                "When identity is not provided, reporter MUST be rhsm-conduit with a subscription_manager_id.\n"
+                "When identity is not provided, reporter MUST be rhsm-conduit or rhsm-system-profile-bridge,"
+                " with a subscription_manager_id.\n"
                 f"Host Data: {host}"
             )
         else:
