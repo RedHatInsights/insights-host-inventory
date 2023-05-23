@@ -17,7 +17,7 @@ flask-migrate = "~=2.5.2"
 itsdangerous = "~=1.1.0"
 gunicorn = "~=20.1.0"
 connexion = {version = "~=2.7",extras = ["swagger-ui"]}
-markupsafe = "==2.0.1" # Using v2.1.0 breaks Jinja2
+markupsafe = "==2.1.2" # Using v2.1.0 breaks Jinja2
 openapi-schema-validator = "< 0.2"
 openapi-spec-validator = "< 0.4.0" # those are a pain
 pyyaml = "~=5.4"
