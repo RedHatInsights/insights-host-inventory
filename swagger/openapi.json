@@ -2201,6 +2201,13 @@
                 "additionalProperties": {
                   "$ref": "#/components/schemas/PerReporterStaleness"
                 }
+              },
+              "groups": {
+                "description": "The groups that the host belongs to, if any.",
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/GroupOut"
+                }
               }
             },
             "required": [
