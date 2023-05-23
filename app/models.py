@@ -53,7 +53,7 @@ SPECIFICATION_DIR = "./swagger/"
 SYSTEM_PROFILE_SPECIFICATION_FILE = "system_profile.spec.yaml"
 
 # set edge host stale_timestamp way out in future to Year 2260
-EDGE_HOST_STALE_TIMESTAMP = datetime(2260, 1, 1, tzinfo=timezone.utc)
+# EDGE_HOST_STALE_TIMESTAMP = datetime(2260, 1, 1, tzinfo=timezone.utc)
 
 
 class ProviderType(str, Enum):
@@ -309,10 +309,7 @@ class Host(LimitedHost):
                 self.replace_facts_in_namespace(input_namespace, input_facts)
 
     def _update_stale_timestamp(self, stale_timestamp, reporter):
-        if self.system_profile_facts and self.system_profile_facts.get("host_type") == "edge":
-            self.stale_timestamp = EDGE_HOST_STALE_TIMESTAMP
-        else:
-            self.stale_timestamp = stale_timestamp
+        self.stale_timestamp = stale_timestamp
         self.reporter = reporter
 
     def _update_per_reporter_staleness(self, reporter):
