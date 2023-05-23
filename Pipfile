@@ -7,7 +7,7 @@ name = "pypi"
 flask = "~=1.1.0"
 jsonify = "==0.5"  # Not semver
 flask-restful = "~=0.3.7"
-requests = "~=2.25.1"
+requests = "~=2.31.0"
 flask-limiter = "~=1.0.1"
 flask-script = "~=2.0.6"
 flask-api = "==2.0"  # Not semver
