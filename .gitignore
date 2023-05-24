@@ -13,3 +13,6 @@ swagger/inventory-schemas/
 coverage.xml
 
 sonarqube/
+
+.vscode/
+temp/
