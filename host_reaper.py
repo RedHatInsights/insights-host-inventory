@@ -23,7 +23,6 @@ from lib.db import session_guard
 from lib.handlers import register_shutdown
 from lib.handlers import ShutdownHandler
 from lib.host_delete import delete_hosts
-from lib.host_repository import exclude_edge_filter
 from lib.host_repository import stale_timestamp_filter
 from lib.metrics import delete_host_count
 from lib.metrics import delete_host_processing_time
@@ -66,7 +65,7 @@ def _excepthook(logger, type, value, traceback):
 @host_reaper_fail_count.count_exceptions()
 def run(config, logger, session, event_producer, shutdown_handler):
     conditions = Conditions.from_config(config)
-    query_filter = exclude_edge_filter(stale_timestamp_filter(*conditions.culled()))
+    query_filter = stale_timestamp_filter(*conditions.culled())
     query = session.query(Host).filter(query_filter)
 
     events = delete_hosts(query, event_producer, config.host_delete_chunk_size, shutdown_handler.shut_down)
