@@ -6,10 +6,25 @@ from datetime import timezone
 __all__ = ("Conditions", "staleness_to_conditions", "Timestamps")
 
 
-class _Config(namedtuple("_Config", ("stale_warning_offset_delta", "culled_offset_delta"))):
+class _Config(
+    namedtuple(
+        "_Config",
+        (
+            "stale_warning_offset_delta",
+            "culled_offset_delta",
+            "edge_stale_warning_offset_delta",
+            "edge_culled_offset_delta",
+        ),
+    )
+):
     @classmethod
     def from_config(cls, config):
-        return cls(config.culling_stale_warning_offset_delta, config.culling_culled_offset_delta)
+        return cls(
+            config.culling_stale_warning_offset_delta,
+            config.culling_culled_offset_delta,
+            config.edge_culling_stale_warning_offset_delta,
+            config.edge_culling_culled_offset_delta,
+        )
 
 
 class _WithConfig:
@@ -35,6 +50,12 @@ class Timestamps(_WithConfig):
 
     def culled_timestamp(self, stale_timestamp):
         return self._add_time(stale_timestamp, self.config.culled_offset_delta)
+
+    def edge_stale_warning_timestamp(self, stale_timestamp):
+        return self._add_time(stale_timestamp, self.config.edge_stale_warning_offset_delta)
+
+    def edge_culled_timestamp(self, stale_timestamp):
+        return self._add_time(stale_timestamp, self.config.edge_culled_offset_delta)
 
 
 class Conditions(_WithConfig):

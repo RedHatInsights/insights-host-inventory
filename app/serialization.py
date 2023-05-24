@@ -111,9 +111,14 @@ def deserialize_group_xjoin(data):
 
 def serialize_host(host, staleness_timestamps, for_mq=True, additional_fields=tuple()):
     if host.stale_timestamp:
-        stale_timestamp = staleness_timestamps.stale_timestamp(host.stale_timestamp)
-        stale_warning_timestamp = staleness_timestamps.stale_warning_timestamp(host.stale_timestamp)
-        culled_timestamp = staleness_timestamps.culled_timestamp(host.stale_timestamp)
+        if host.system_profile_facts.get("host_type") == "edge":
+            stale_timestamp = staleness_timestamps.stale_timestamp(host.stale_timestamp)
+            stale_warning_timestamp = staleness_timestamps.edge_stale_warning_timestamp(host.stale_timestamp)
+            culled_timestamp = staleness_timestamps.edge_culled_timestamp(host.stale_timestamp)
+        else:
+            stale_timestamp = staleness_timestamps.stale_timestamp(host.stale_timestamp)
+            stale_warning_timestamp = staleness_timestamps.stale_warning_timestamp(host.stale_timestamp)
+            culled_timestamp = staleness_timestamps.culled_timestamp(host.stale_timestamp)
     else:
         stale_timestamp = None
         stale_warning_timestamp = None

@@ -223,6 +223,15 @@ class Config:
             minutes=int(os.environ.get("CULLING_CULLED_OFFSET_MINUTES", "0")),
         )
 
+        self.edge_culling_stale_warning_offset_delta = timedelta(
+            days=int(os.environ.get("EDGE_CULLING_STALE_WARNING_OFFSET_DAYS", "120")),
+            minutes=int(os.environ.get("EDGE_CULLING_STALE_WARNING_OFFSET_MINUTES", "0")),
+        )
+        self.edge_culling_culled_offset_delta = timedelta(
+            days=int(os.environ.get("EDGE_CULLING_CULLED_OFFSET_DAYS", "180")),
+            minutes=int(os.environ.get("EDGE_CULLING_CULLED_OFFSET_MINUTES", "0")),
+        )
+
         self.xjoin_graphql_url = os.environ.get("XJOIN_GRAPHQL_URL", "http://localhost:4000/graphql")
 
         self.host_delete_chunk_size = int(os.getenv("HOST_DELETE_CHUNK_SIZE", "1000"))
