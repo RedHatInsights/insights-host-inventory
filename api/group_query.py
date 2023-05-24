@@ -57,7 +57,11 @@ __all__ = (
 )
 
 
-def get_group_list_from_db(filters, page, per_page, param_order_by, param_order_how):
+def get_group_list_from_db(filters, page, per_page, param_order_by, param_order_how, rbac_filter):
+    # Apply RBAC group ID filter, if provided
+    if rbac_filter and "groups" in rbac_filter:
+        filters += (Group.id.in_(rbac_filter["groups"]),)
+
     order_by_str = param_order_by or "name"
     order_by = GROUPS_ORDER_BY_MAPPING[order_by_str]
     order_how_func = (
@@ -84,23 +88,19 @@ def get_group_list_from_db(filters, page, per_page, param_order_by, param_order_
     return group_list, total
 
 
-def get_total_group_count_db():
-    return Group.query.filter(Group.org_id == get_current_identity().org_id).count()
-
-
-def get_group_list_by_id_list_db(group_id_list, page, per_page, order_by, order_how):
+def get_group_list_by_id_list_db(group_id_list, page, per_page, order_by, order_how, rbac_filter):
     filters = (
         Group.org_id == get_current_identity().org_id,
         Group.id.in_(group_id_list),
     )
-    return get_group_list_from_db(filters, page, per_page, order_by, order_how)
+    return get_group_list_from_db(filters, page, per_page, order_by, order_how, rbac_filter)
 
 
-def get_filtered_group_list_db(group_name, page, per_page, order_by, order_how):
+def get_filtered_group_list_db(group_name, page, per_page, order_by, order_how, rbac_filter):
     filters = (Group.org_id == get_current_identity().org_id,)
     if group_name:
-        filters += (func.lower(Group.name).contains(func.lower(group_name)),)
-    return get_group_list_from_db(filters, page, per_page, order_by, order_how)
+        filters += (Group.name == group_name,)
+    return get_group_list_from_db(filters, page, per_page, order_by, order_how, rbac_filter)
 
 
 def build_paginated_group_list_response(total, page, per_page, group_list):

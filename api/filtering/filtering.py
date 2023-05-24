@@ -337,7 +337,7 @@ def owner_id_filter():
     return ({"spf_owner_id": {"eq": get_current_identity().system["cn"]}},)
 
 
-def host_id_list_query_filter(host_id_list):
+def host_id_list_query_filter(host_id_list, rbac_filter):
     all_filters = (
         {
             "stale_timestamp": {
@@ -351,6 +351,11 @@ def host_id_list_query_filter(host_id_list):
             ],
         },
     )
+
+    if rbac_filter:
+        for key in rbac_filter:
+            if key == "groups":
+                all_filters += group_id_list_query_filter(rbac_filter["groups"])
 
     current_identity = get_current_identity()
     if current_identity.identity_type == IdentityType.SYSTEM:
@@ -389,6 +394,7 @@ def query_filters(
     staleness=None,
     registered_with=None,
     filter=None,
+    rbac_filter=None,
 ):
     num_ids = 0
     for id_param in [fqdn, display_name, hostname_or_id, insights_id]:
@@ -447,6 +453,11 @@ def query_filters(
                 query_filters += build_system_profile_filter(filter["system_profile"])
             else:
                 raise ValidationException("filter key is invalid")
+
+    if rbac_filter:
+        for key in rbac_filter:
+            if key == "groups":
+                query_filters += group_id_list_query_filter(rbac_filter["groups"])
 
     current_identity = get_current_identity()
     if current_identity.identity_type == IdentityType.SYSTEM:

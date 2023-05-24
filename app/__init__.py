@@ -49,14 +49,16 @@ SPEC_TYPES_LOOKUP = {"string": str, "integer": int, "boolean": bool, "array": li
 custom_filter_fields = ["operating_system"]
 
 
-class Permission(Enum):
-    HOSTS_READ = "inventory:hosts:read"
-    HOSTS_WRITE = "inventory:hosts:write"
-    HOSTS_ALL = "inventory:hosts:*"
-    GROUPS_READ = "inventory:groups:read"
-    GROUPS_WRITE = "inventory:groups:write"
-    GROUPS_ALL = "inventory:groups:*"
-    ADMIN = "inventory:*:*"
+class RbacPermission(Enum):
+    READ = "read"
+    WRITE = "write"
+    ADMIN = "*"
+
+
+class RbacResourceType(Enum):
+    HOSTS = "hosts"
+    GROUPS = "groups"
+    ALL = "*"
 
 
 def initialize_metrics(config):
@@ -74,8 +76,12 @@ def initialize_metrics(config):
             notification_type=notification_type.name, topic=notification_topic_name
         )
 
-    rbac_access_denied.labels(required_permission=Permission.HOSTS_READ.value)
-    rbac_access_denied.labels(required_permission=Permission.HOSTS_WRITE.value)
+    rbac_access_denied.labels(
+        required_permission=f"inventory:{RbacResourceType.HOSTS.value}:{RbacPermission.READ.value}"
+    )
+    rbac_access_denied.labels(
+        required_permission=f"inventory:{RbacResourceType.HOSTS.value}:{RbacPermission.WRITE.value}"
+    )
 
 
 def render_exception(exception):

@@ -7,7 +7,8 @@ from api import api_operation
 from api import flask_json_response
 from api import metrics
 from api.group_query import build_group_response
-from app import Permission
+from app import RbacPermission
+from app import RbacResourceType
 from app.instrumentation import log_host_group_add_succeeded
 from app.instrumentation import log_patch_group_failed
 from app.logging import get_logger
@@ -18,16 +19,19 @@ from lib.group_repository import get_group_by_id_from_db
 from lib.group_repository import remove_hosts_from_group
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.middleware import rbac
+from lib.middleware import rbac_group_id_check
 
 logger = get_logger(__name__)
 
 
 @api_operation
-@rbac(Permission.GROUPS_WRITE)
+@rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def add_host_list_to_group(group_id, body):
+def add_host_list_to_group(group_id, body, rbac_filter=None):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
+
+    rbac_group_id_check(rbac_filter, set(group_id))
 
     group_to_update = get_group_by_id_from_db(group_id)
 
@@ -49,11 +53,13 @@ def add_host_list_to_group(group_id, body):
 
 
 @api_operation
-@rbac(Permission.GROUPS_WRITE)
+@rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def delete_hosts_from_group(group_id, host_id_list):
+def delete_hosts_from_group(group_id, host_id_list, rbac_filter=None):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
+
+    rbac_group_id_check(rbac_filter, set(group_id))
 
     delete_count = remove_hosts_from_group(group_id, host_id_list, current_app.event_producer)
 

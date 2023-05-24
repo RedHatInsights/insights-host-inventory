@@ -8,7 +8,8 @@ from api import metrics
 from api.group_query import get_filtered_group_list_db
 from api.resource_query import build_paginated_resource_list_response
 from api.resource_query import get_resources_types
-from app import Permission
+from app import RbacPermission
+from app import RbacResourceType
 from app.instrumentation import log_get_group_list_failed
 from app.instrumentation import log_get_group_list_succeeded
 from app.instrumentation import log_get_resource_type_list_failed
@@ -23,7 +24,7 @@ logger = get_logger(__name__)
 
 
 @api_operation
-@rbac(Permission.ADMIN)
+@rbac(RbacResourceType.ALL, RbacPermission.ADMIN)
 @metrics.api_request_time.time()
 def get_resource_type_list(
     page=1,
@@ -45,17 +46,20 @@ def get_resource_type_list(
 
 
 @api_operation
-@rbac(Permission.ADMIN)
+@rbac(RbacResourceType.ALL, RbacPermission.ADMIN)
 @metrics.api_request_time.time()
 def get_resource_type_groups_list(
     page=1,
-    per_page=10,
+    per_page=100,
+    order_by=None,
+    order_how=None,
+    rbac_filter=None,
 ):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
     try:
-        group_list, total = get_filtered_group_list_db(None, page, per_page, "name", "ASC")
+        group_list, total = get_filtered_group_list_db(None, page, per_page, order_by, order_how, rbac_filter)
     except ValueError as e:
         log_get_group_list_failed(logger)
         flask.abort(400, str(e))

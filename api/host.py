@@ -20,7 +20,8 @@ from api.host_query_xjoin import get_host_tags_list_by_id_list
 from api.sparse_host_list_system_profile import get_sparse_system_profile
 from app import db
 from app import inventory_config
-from app import Permission
+from app import RbacPermission
+from app import RbacResourceType
 from app.auth import get_current_identity
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_get_host_list_failed
@@ -57,7 +58,7 @@ logger = get_logger(__name__)
 
 
 @api_operation
-@rbac(Permission.HOSTS_READ)
+@rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_host_list(
     display_name=None,
@@ -78,6 +79,7 @@ def get_host_list(
     registered_with=None,
     filter=None,
     fields=None,
+    rbac_filter=None,
 ):
     total = 0
     host_list = ()
@@ -102,6 +104,7 @@ def get_host_list(
             registered_with,
             filter,
             fields,
+            rbac_filter,
         )
     except ValueError as e:
         log_get_host_list_failed(logger)
@@ -112,7 +115,7 @@ def get_host_list(
 
 
 @api_operation
-@rbac(Permission.HOSTS_WRITE)
+@rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def delete_hosts_by_filter(
     display_name=None,
@@ -128,6 +131,7 @@ def delete_hosts_by_filter(
     staleness=None,
     tags=None,
     filter=None,
+    rbac_filter=None,
 ):
     if not any(
         [
@@ -164,6 +168,7 @@ def delete_hosts_by_filter(
             staleness,
             tags,
             filter,
+            rbac_filter,
         )
 
     except ValueError as err:
@@ -174,7 +179,7 @@ def delete_hosts_by_filter(
         flask.abort(503)
 
     try:
-        delete_count = _delete_host_list(ids_list) if ids_list else 0
+        delete_count = _delete_host_list(ids_list, rbac_filter) if ids_list else 0
     except KafkaError:
         logger.error("Kafka server not available")
         flask.abort(503)
@@ -184,7 +189,8 @@ def delete_hosts_by_filter(
     return flask_json_response(json_data, status.HTTP_202_ACCEPTED)
 
 
-def _delete_host_list(host_id_list):
+def _delete_host_list(host_id_list, rbac_filter):
+    # TODO: Handle RBAC filter
     current_identity = get_current_identity()
     payload_tracker = get_payload_tracker(
         account=current_identity.account_number, org_id=current_identity.org_id, request_id=threadctx.request_id
@@ -217,9 +223,9 @@ def _delete_host_list(host_id_list):
 
 
 @api_operation
-@rbac(Permission.HOSTS_WRITE)
+@rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def delete_all_hosts(confirm_delete_all=None):
+def delete_all_hosts(confirm_delete_all=None, rbac_filter=None):
     if not confirm_delete_all:
         logger.error("To delete all hosts, provide confirm_delete_all=true in the request.")
         flask.abort(400, "To delete all hosts, provide confirm_delete_all=true in the request.")
@@ -235,7 +241,7 @@ def delete_all_hosts(confirm_delete_all=None):
         flask.abort(503)
 
     try:
-        delete_count = _delete_host_list(ids_list)
+        delete_count = _delete_host_list(ids_list, rbac_filter)
     except KafkaError:
         logger.error("Kafka server not available")
         flask.abort(503)
@@ -246,10 +252,10 @@ def delete_all_hosts(confirm_delete_all=None):
 
 
 @api_operation
-@rbac(Permission.HOSTS_WRITE)
+@rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def delete_host_by_id(host_id_list):
-    delete_count = _delete_host_list(host_id_list)
+def delete_host_by_id(host_id_list, rbac_filter=None):
+    delete_count = _delete_host_list(host_id_list, rbac_filter)
 
     if not delete_count:
         flask.abort(status.HTTP_404_NOT_FOUND, "No hosts found for deletion.")
@@ -258,12 +264,12 @@ def delete_host_by_id(host_id_list):
 
 
 @api_operation
-@rbac(Permission.HOSTS_READ)
+@rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
-def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None, fields=None):
+def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None, fields=None, rbac_filter=None):
     try:
         host_list, total, additional_fields = get_host_list_by_id_list(
-            host_id_list, page, per_page, order_by, order_how, fields
+            host_id_list, page, per_page, order_by, order_how, fields, rbac_filter
         )
     except ValueError as e:
         log_get_host_list_failed(logger)
@@ -276,9 +282,11 @@ def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=
 
 
 @api_operation
-@rbac(Permission.HOSTS_READ)
+@rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
-def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None, fields=None):
+def get_host_system_profile_by_id(
+    host_id_list, page=1, per_page=100, order_by=None, order_how=None, fields=None, rbac_filter=None
+):
     try:
         total, response_list = get_sparse_system_profile(host_id_list, page, per_page, order_by, order_how, fields)
     except ValueError as e:
@@ -296,9 +304,10 @@ def _emit_patch_event(serialized_host, host_id, insights_id):
 
 
 @api_operation
-@rbac(Permission.HOSTS_WRITE)
+@rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def patch_host_by_id(host_id_list, body):
+def patch_host_by_id(host_id_list, body, rbac_filter=None):
+    # TODO: Handle RBAC filter
     try:
         validated_patch_host_data = PatchHostSchema().load(body)
     except ValidationError as e:
@@ -326,16 +335,16 @@ def patch_host_by_id(host_id_list, body):
 
 
 @api_operation
-@rbac(Permission.HOSTS_WRITE)
+@rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def replace_facts(host_id_list, namespace, body):
+def replace_facts(host_id_list, namespace, body, rbac_filter=None):
     return update_facts_by_namespace(FactOperations.replace, host_id_list, namespace, body)
 
 
 @api_operation
-@rbac(Permission.HOSTS_WRITE)
+@rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def merge_facts(host_id_list, namespace, body):
+def merge_facts(host_id_list, namespace, body, rbac_filter=None):
     if not body:
         error_msg = "ERROR: Invalid request.  Merging empty facts into existing facts is a no-op."
         logger.debug(error_msg)
@@ -382,20 +391,20 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
 
 
 @api_operation
-@rbac(Permission.HOSTS_READ)
+@rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
-def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
-    host_list, total = get_host_tags_list_by_id_list(host_id_list, page, per_page, order_by, order_how)
+def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_how=None, rbac_filter=None):
+    host_list, total = get_host_tags_list_by_id_list(host_id_list, page, per_page, order_by, order_how, rbac_filter)
     counts = {host_id: len(host_tags) for host_id, host_tags in host_list.items()}
 
     return _build_paginated_host_tags_response(total, page, per_page, counts)
 
 
 @api_operation
-@rbac(Permission.HOSTS_READ)
+@rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
-def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=None, search=None):
-    host_list, total = get_host_tags_list_by_id_list(host_id_list, page, per_page, order_by, order_how)
+def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=None, search=None, rbac_filter=None):
+    host_list, total = get_host_tags_list_by_id_list(host_id_list, page, per_page, order_by, order_how, rbac_filter)
     filtered_list = {host_id: Tag.filter_tags(host_tags, search) for host_id, host_tags in host_list.items()}
 
     return _build_paginated_host_tags_response(total, page, per_page, filtered_list)
@@ -407,9 +416,9 @@ def _build_paginated_host_tags_response(total, page, per_page, tags_list):
 
 
 @api_operation
-@rbac(Permission.HOSTS_WRITE)
+@rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def host_checkin(body):
+def host_checkin(body, rbac_filter=None):
     current_identity = get_current_identity()
     canonical_facts = deserialize_canonical_facts(body)
     existing_host = find_existing_host(current_identity, canonical_facts)
