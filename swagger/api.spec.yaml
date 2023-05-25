@@ -546,7 +546,7 @@ paths:
       security:
         - ApiKeyAuth: []
       parameters:
-        - $ref: '#/components/parameters/perPageParam'
+        - $ref: '#/components/parameters/resourceTypesPerPageParam'
         - $ref: '#/components/parameters/pageParam'
       responses:
         '200':
@@ -568,7 +568,7 @@ paths:
       security:
         - ApiKeyAuth: []
       parameters:
-        - $ref: '#/components/parameters/perPageParam'
+        - $ref: '#/components/parameters/resourceTypesPerPageParam'
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/groupOrderByParam'
         - $ref: '#/components/parameters/groupOrderHowParam'
@@ -786,6 +786,8 @@ components:
       $ref: 'pagination.yaml#/components/parameters/pageParam'
     perPageParam:
       $ref: 'pagination.yaml#/components/parameters/perPageParam'
+    resourceTypesPerPageParam:
+      $ref: 'pagination.yaml#/components/parameters/resourceTypesPerPageParam'
     hostId:
       in: path
       name: host_id

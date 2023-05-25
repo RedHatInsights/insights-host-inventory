@@ -1,6 +1,6 @@
 from math import ceil
 
-RESOURCES_TYPES_GROUPS_PATH = "/inventory/v1/resource-types/inventory-groups/"
+RESOURCES_TYPES_GROUPS_PATH = "/inventory/v1/resource-types/inventory-groups"
 
 
 def get_resources_types():
@@ -24,10 +24,10 @@ def build_paginated_resource_list_response(
             "count": total,
         },
         "links": {
-            "first": f"{link_base}?page=1",
-            "previous": f"{link_base}?page={page-1}" if page > 1 else None,
-            "next": f"{link_base}?page={page+1}" if page < total_pages else None,
-            "last": f"{link_base}?page={total_pages}",
+            "first": f"{link_base}?per_page={per_page}&page=1",
+            "previous": f"{link_base}?per_page={per_page}&page={page-1}" if page > 1 else None,
+            "next": f"{link_base}?per_page={per_page}&page={page+1}" if page < total_pages else None,
+            "last": f"{link_base}?per_page={per_page}&page={total_pages}",
         },
         "data": resource_list,
     }

@@ -8,7 +8,7 @@ def test_basic_resource_types_query(api_get):
     response_status, response_data = api_get(build_resource_types_url())
 
     assert_response_status(response_status, 200)
-    assert_resource_types_pagination(response_data, 1, 1, "/inventory/v1/resource-types/inventory-groups/")
+    assert_resource_types_pagination(response_data, 1, 10, 1, "/inventory/v1/resource-types")
 
 
 def test_resource_types_groups_data(api_get, db_create_group):
@@ -22,7 +22,7 @@ def test_resource_types_groups_data(api_get, db_create_group):
     for group_result in response_data["data"]:
         assert group_result["id"] in group_id_list
 
-    assert_resource_types_pagination(response_data, 1, 1, "/inventory/v1/resource-types/inventory-groups/")
+    assert_resource_types_pagination(response_data, 1, 10, 1, "/inventory/v1/resource-types/inventory-groups")
 
 
 def test_resource_types_groups_pagination(api_get, db_create_group, subtests):
@@ -42,7 +42,11 @@ def test_resource_types_groups_pagination(api_get, db_create_group, subtests):
 
                 assert_response_status(response_status, 200)
                 assert_resource_types_pagination(
-                    response_data, page, int(num_groups / per_page), "/inventory/v1/resource-types/inventory-groups/"
+                    response_data,
+                    page,
+                    per_page,
+                    int(num_groups / per_page),
+                    "/inventory/v1/resource-types/inventory-groups",
                 )
 
                 for idx in range(per_page):
