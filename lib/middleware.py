@@ -70,11 +70,10 @@ def get_rbac_permissions():
     return resp_data["data"]
 
 
-def rbac(resource_type, required_permission):
+def rbac(resource_type, required_permission, permission_base="inventory"):
     def other_func(func):
         @wraps(func)
         def modified_func(*args, **kwargs):
-            permission_base = "inventory"
             if inventory_config().bypass_rbac:
                 return func(*args, **kwargs)
 

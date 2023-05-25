@@ -24,7 +24,7 @@ logger = get_logger(__name__)
 
 
 @api_operation
-@rbac(RbacResourceType.ALL, RbacPermission.ADMIN)
+@rbac(RbacResourceType.ALL, RbacPermission.ADMIN, "rbac")
 @metrics.api_request_time.time()
 def get_resource_type_list(
     page=1,
@@ -46,7 +46,7 @@ def get_resource_type_list(
 
 
 @api_operation
-@rbac(RbacResourceType.ALL, RbacPermission.ADMIN)
+@rbac(RbacResourceType.ALL, RbacPermission.ADMIN, "rbac")
 @metrics.api_request_time.time()
 def get_resource_type_groups_list(
     page=1,
