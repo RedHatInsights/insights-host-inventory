@@ -39,7 +39,7 @@ brew install postgresql
 ### Install dependencies
 
 This project uses pipenv to manage the development and deployment environments.
-To set the project up for development, we recommend using [pyenv](https://github.com/pyenv/pyenv) to install/manage the appropriate python (currently 3.8.x), pip and pipenv version. Once you have pipenv, do the following:
+To set the project up for development, we recommend using [pyenv](https://github.com/pyenv/pyenv) to install/manage the appropriate python (currently 3.9.x), pip and pipenv version. Once you have pipenv, do the following:
 
 ```bash
 pipenv install --dev

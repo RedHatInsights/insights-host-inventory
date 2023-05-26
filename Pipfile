@@ -50,4 +50,4 @@ ttictoc = "~=0.4.1"
 sqlalchemy-utils = "==0.41.0"
 
 [requires]
-python_version = "3.8"
+python_version = "3.9"
