@@ -190,7 +190,6 @@ def delete_hosts_by_filter(
 
 
 def _delete_host_list(host_id_list, rbac_filter):
-    # TODO: Handle RBAC filter
     current_identity = get_current_identity()
     payload_tracker = get_payload_tracker(
         account=current_identity.account_number, org_id=current_identity.org_id, request_id=threadctx.request_id
@@ -199,7 +198,7 @@ def _delete_host_list(host_id_list, rbac_filter):
     with PayloadTrackerContext(
         payload_tracker, received_status_message="delete operation", current_operation="delete"
     ):
-        query = get_host_list_by_id_list_from_db(host_id_list)
+        query = get_host_list_by_id_list_from_db(host_id_list, rbac_filter)
 
         deletion_count = 0
 
@@ -307,14 +306,13 @@ def _emit_patch_event(serialized_host, host_id, insights_id):
 @rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def patch_host_by_id(host_id_list, body, rbac_filter=None):
-    # TODO: Handle RBAC filter
     try:
         validated_patch_host_data = PatchHostSchema().load(body)
     except ValidationError as e:
         logger.exception(f"Input validation error while patching host: {host_id_list} - {body}")
         return ({"status": 400, "title": "Bad Request", "detail": str(e.messages), "type": "unknown"}, 400)
 
-    query = get_host_list_by_id_list_from_db(host_id_list)
+    query = get_host_list_by_id_list_from_db(host_id_list, rbac_filter)
 
     hosts_to_update = query.all()
 
