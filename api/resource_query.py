@@ -1,5 +1,7 @@
 from math import ceil
 
+from api.group_query import get_total_group_count_db
+
 RESOURCES_TYPES_GROUPS_PATH = "/inventory/v1/resource-types/inventory-groups"
 
 
@@ -8,7 +10,7 @@ def get_resources_types():
         {
             "value": "inventory-groups",
             "path": RESOURCES_TYPES_GROUPS_PATH,
-            "count": 1,
+            "count": get_total_group_count_db(),
         }
     ]
     return data, 1

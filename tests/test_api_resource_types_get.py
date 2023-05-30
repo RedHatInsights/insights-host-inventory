@@ -1,12 +1,22 @@
+import pytest
+
 from tests.helpers.api_utils import assert_resource_types_pagination
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_resource_types_groups_url
 from tests.helpers.api_utils import build_resource_types_url
 
 
-def test_basic_resource_types_query(api_get):
+@pytest.mark.parametrize(
+    "num_groups",
+    [0, 1, 10],
+)
+def test_basic_resource_types_query(api_get, db_create_group, num_groups):
+    for idx in range(num_groups):
+        db_create_group(f"testGroup_{idx}")
+
     response_status, response_data = api_get(build_resource_types_url())
 
+    assert response_data["data"][0]["count"] == num_groups
     assert_response_status(response_status, 200)
     assert_resource_types_pagination(response_data, 1, 10, 1, "/inventory/v1/resource-types")
 
@@ -35,7 +45,7 @@ def test_resource_types_groups_pagination(api_get, db_create_group, subtests):
     for per_page in [1, 5, 10]:
         for page in [1, 2, 3]:
             with subtests.test():
-                query = f"?page={page}&per_page={per_page}&order_by=name"
+                query = f"?page={page}&per_page={per_page}"
                 response_status, response_data = response_status, response_data = api_get(
                     build_resource_types_groups_url(query=query)
                 )

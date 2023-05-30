@@ -946,12 +946,6 @@
           },
           {
             "$ref": "#/components/parameters/pageParam"
-          },
-          {
-            "$ref": "#/components/parameters/groupOrderByParam"
-          },
-          {
-            "$ref": "#/components/parameters/groupOrderHowParam"
           }
         ],
         "responses": {
