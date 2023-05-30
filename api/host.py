@@ -33,6 +33,7 @@ from app.instrumentation import log_patch_host_success
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
+from app.models import HostGroupAssoc
 from app.models import PatchHostSchema
 from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
@@ -336,7 +337,7 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
 @rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def replace_facts(host_id_list, namespace, body, rbac_filter=None):
-    return update_facts_by_namespace(FactOperations.replace, host_id_list, namespace, body)
+    return update_facts_by_namespace(FactOperations.replace, host_id_list, namespace, body, rbac_filter)
 
 
 @api_operation
@@ -348,16 +349,28 @@ def merge_facts(host_id_list, namespace, body, rbac_filter=None):
         logger.debug(error_msg)
         return error_msg, 400
 
-    return update_facts_by_namespace(FactOperations.merge, host_id_list, namespace, body)
+    return update_facts_by_namespace(FactOperations.merge, host_id_list, namespace, body, rbac_filter)
 
 
-def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
+def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rbac_filter):
     current_identity = get_current_identity()
-    query = Host.query.filter(
-        (Host.org_id == current_identity.org_id)
-        & Host.id.in_(host_id_list)
-        & Host.facts.has_key(namespace)  # noqa: W601 JSONB query filter, not a dict
-    )
+    filters = (
+        Host.org_id == current_identity.org_id,
+        Host.id.in_(host_id_list),
+        Host.facts.has_key(namespace),
+    )  # noqa: W601 JSONB query filter, not a dict
+
+    query = Host.query.join(HostGroupAssoc, isouter=True).filter(*filters).group_by(Host.id)
+
+    if rbac_filter and "groups" in rbac_filter:
+        count_before_rbac_filter = find_non_culled_hosts(update_query_for_owner_id(current_identity, query)).count()
+        filters += (HostGroupAssoc.group_id.in_(rbac_filter["groups"]),)
+        query = Host.query.join(HostGroupAssoc, isouter=True).filter(*filters).group_by(Host.id)
+        if (
+            count_before_rbac_filter
+            != find_non_culled_hosts(update_query_for_owner_id(current_identity, query)).count()
+        ):
+            flask.abort(status.HTTP_403_FORBIDDEN, "You do not have access to all of the requested hosts.")
 
     hosts_to_update = find_non_culled_hosts(update_query_for_owner_id(current_identity, query)).all()
 

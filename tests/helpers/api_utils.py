@@ -46,10 +46,6 @@ TAGS = [
     ],
 ]
 
-UUID_1 = "00000000-0000-0000-0000-000000000001"
-UUID_2 = "00000000-0000-0000-0000-000000000002"
-UUID_3 = "00000000-0000-0000-0000-000000000003"
-
 READ_ALLOWED_RBAC_RESPONSE_FILES = (
     "tests/helpers/rbac-mock-data/inv-read-write.json",
     "tests/helpers/rbac-mock-data/inv-read-only.json",
