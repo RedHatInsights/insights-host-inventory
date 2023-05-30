@@ -1,6 +1,8 @@
 import json
 
 from tests.helpers.api_utils import assert_response_status
+from tests.helpers.api_utils import create_mock_rbac_response
+from tests.helpers.api_utils import WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.test_utils import generate_uuid
 
 
@@ -104,3 +106,54 @@ def test_remove_hosts_from_someone_elses_group(
 
     # No hosts removed, so no messages should have been sent
     assert event_producer.write_event.call_count == 0
+
+
+def test_delete_groups_RBAC_denied(subtests, mocker, db_create_group, api_delete_groups, enable_rbac):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    group_id_list = [str(db_create_group(f"test_group{g_index}").id) for g_index in range(3)]
+
+    for response_file in WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+
+            response_status, _ = api_delete_groups(group_id_list)
+
+            assert_response_status(response_status, 403)
+
+
+def test_delete_groups_RBAC_allowed_specific_groups(
+    mocker, db_create_group, api_delete_groups, enable_rbac, event_producer
+):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    group_id_list = [str(db_create_group(f"test_group{g_index}").id) for g_index in range(3)]
+
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-groups-write-resource-defs-template.json"
+    )
+    # Grant permissions to all 3 groups
+    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = group_id_list
+
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+    response_status, _ = api_delete_groups(group_id_list)
+
+    # Should be allowed
+    assert_response_status(response_status, 204)
+
+
+def test_delete_groups_RBAC_denied_specific_groups(mocker, db_create_group, api_delete_groups, enable_rbac):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    group_id_list = [str(db_create_group(f"test_group{g_index}").id) for g_index in range(3)]
+
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-groups-write-resource-defs-template.json"
+    )
+    # Only grant permission to one group in the list
+    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = [group_id_list[1]]
+
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+    response_status, _ = api_delete_groups(group_id_list)
+
+    # Should be denied because access is not granted to two of the groups
+    assert_response_status(response_status, 403)

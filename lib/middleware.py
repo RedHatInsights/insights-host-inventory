@@ -140,6 +140,6 @@ def rbac_group_id_check(rbac_filter: dict, requested_ids: set) -> None:
     if rbac_filter and "groups" in rbac_filter:
         # Find the IDs that are in requested_ids but not rbac_filter
         disallowed_ids = requested_ids.difference(rbac_filter["groups"])
-        if disallowed_ids:
+        if len(disallowed_ids) > 0:
             joined_ids = ", ".join(disallowed_ids)
             abort(status.HTTP_403_FORBIDDEN, f"You do not have access to the the following groups: {joined_ids}")

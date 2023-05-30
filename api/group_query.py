@@ -88,6 +88,10 @@ def get_group_list_from_db(filters, page, per_page, param_order_by, param_order_
     return group_list, total
 
 
+def get_total_group_count_db():
+    return Group.query.filter(Group.org_id == get_current_identity().org_id).count()
+
+
 def get_group_list_by_id_list_db(group_id_list, page, per_page, order_by, order_how, rbac_filter):
     filters = (
         Group.org_id == get_current_identity().org_id,

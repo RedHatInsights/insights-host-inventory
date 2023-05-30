@@ -31,7 +31,7 @@ def add_host_list_to_group(group_id, body, rbac_filter=None):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
-    rbac_group_id_check(rbac_filter, set(group_id))
+    rbac_group_id_check(rbac_filter, {group_id})
 
     group_to_update = get_group_by_id_from_db(group_id)
 
@@ -59,7 +59,7 @@ def delete_hosts_from_group(group_id, host_id_list, rbac_filter=None):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
-    rbac_group_id_check(rbac_filter, set(group_id))
+    rbac_group_id_check(rbac_filter, {group_id})
 
     delete_count = remove_hosts_from_group(group_id, host_id_list, current_app.event_producer)
 
