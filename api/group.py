@@ -65,7 +65,7 @@ def get_group_list(
 @api_operation
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def create_group(body):
+def create_group(body, rbac_filter=None):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
