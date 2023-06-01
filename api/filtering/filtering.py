@@ -365,18 +365,25 @@ def host_id_list_query_filter(host_id_list, rbac_filter):
 
 
 def group_id_list_query_filter(group_id_list):
-    return (
-        {
-            "OR": [
-                {
-                    "group": {
-                        "id": {"eq": group_id},
-                    }
+    _query_filter = {
+        "OR": [
+            {
+                "group": {
+                    "id": {"eq": group_id},
                 }
-                for group_id in group_id_list
-            ],
+            }
+            for group_id in group_id_list
+        ],
+    }
+    _query_filter["OR"].append(
+        {
+            "group": {
+                "hasSome": {"is": False},
+            }
         },
     )
+
+    return (_query_filter,)
 
 
 def query_filters(
