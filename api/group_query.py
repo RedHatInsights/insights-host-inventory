@@ -34,7 +34,7 @@ QUERY = """query Query (
         }
         data {
             group {
-                id, name, account, org_id, created, updated
+                id, name, account, org_id,
             },
             count
         }
