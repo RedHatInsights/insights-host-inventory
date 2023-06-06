@@ -6,6 +6,7 @@ Create Date: 2023-06-06 11:26:53.810997
 
 """
 from alembic import op
+from sqlalchemy import or_
 from sqlalchemy.dialects.postgresql import JSONB
 
 from app.models import Host
@@ -22,11 +23,11 @@ def upgrade():
     with session() as s:
         # For all hosts that have an empty string in their `groups` field,
         # set the `groups` field to an empty array instead.
-        s.query(Host).filter(Host.groups == JSONB.NULL).update({Host.groups: []})
-        s.query(Host).filter(Host.groups == {}).update({Host.groups: []})
+        s.query(Host).filter(or_(Host.groups == JSONB.NULL, Host.groups == {})).update({Host.groups: []})
         op.alter_column("hosts", "groups", nullable=False)
 
 
 def downgrade():
     # Nothing to do; we don't want to un-correct the data
+    op.alter_column("hosts", "groups", nullable=True)
     pass
