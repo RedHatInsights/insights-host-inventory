@@ -5,6 +5,9 @@ Revises: b48ad9e4c8c5
 Create Date: 2023-06-06 11:26:53.810997
 
 """
+from alembic import op
+from sqlalchemy.dialects.postgresql import JSONB
+
 from app.models import Host
 from migrations.helpers import session
 
@@ -19,7 +22,9 @@ def upgrade():
     with session() as s:
         # For all hosts that have an empty string in their `groups` field,
         # set the `groups` field to an empty array instead.
-        s.query(Host).filter(Host.groups == "").update({Host.groups: []})
+        s.query(Host).filter(Host.groups == JSONB.NULL).update({Host.groups: []})
+        s.query(Host).filter(Host.groups == {}).update({Host.groups: []})
+        op.alter_column("hosts", "groups", nullable=False)
 
 
 def downgrade():
