@@ -18,7 +18,7 @@ def test_basic_group_query(db_create_group, api_get):
         assert group_result["id"] in group_id_list
 
 
-@pytest.mark.parametrize("search", ["testGroup", "test", "Group", "ro"])
+@pytest.mark.parametrize("search", ["testGroup", "TesT", "Group", "ro"])
 def test_query_variables_group_name(db_create_group, api_get, search):
     group_id = db_create_group("testGroup").id
     query = f"?name={search}"
