@@ -440,7 +440,11 @@ def assert_group_response(response, expected_group):
 
 
 def assert_resource_types_pagination(
-    response_data: dict, expected_page: int, expected_number_of_pages: int, expected_path_base: str
+    response_data: dict,
+    expected_page: int,
+    expected_per_page: int,
+    expected_number_of_pages: int,
+    expected_path_base: str,
 ):
     # Assert that the top level fields exist
     assert "meta" in response_data
@@ -448,19 +452,19 @@ def assert_resource_types_pagination(
     assert "data" in response_data
 
     links = response_data["links"]
-    assert links["first"] == f"{expected_path_base}?page=1"
+    assert links["first"] == f"{expected_path_base}?per_page={expected_per_page}&page=1"
 
     if expected_page > 1:
-        assert links["previous"] == f"{expected_path_base}?page={expected_page-1}"
+        assert links["previous"] == f"{expected_path_base}?per_page={expected_per_page}&page={expected_page-1}"
     else:
         assert links["previous"] is None
 
     if expected_page < expected_number_of_pages:
-        assert links["next"] == f"{expected_path_base}?page={expected_page+1}"
+        assert links["next"] == f"{expected_path_base}?per_page={expected_per_page}&page={expected_page+1}"
     else:
         assert links["next"] is None
 
-    assert links["last"] == f"{expected_path_base}?page={expected_number_of_pages}"
+    assert links["last"] == f"{expected_path_base}?per_page={expected_per_page}&page={expected_number_of_pages}"
 
 
 ClassMock = mock.MagicMock
