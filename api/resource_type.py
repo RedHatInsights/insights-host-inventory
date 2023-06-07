@@ -27,7 +27,7 @@ logger = get_logger(__name__)
 @metrics.api_request_time.time()
 def get_resource_type_list(
     page=1,
-    per_page=100,
+    per_page=10,
 ):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
@@ -39,7 +39,9 @@ def get_resource_type_list(
         log_get_resource_type_list_failed(logger)
         flask.abort(400, str(e))
 
-    return flask_json_response(build_paginated_resource_list_response(total, page, per_page, resource_list))
+    return flask_json_response(
+        build_paginated_resource_list_response(total, page, per_page, resource_list, "/inventory/v1/resource-types")
+    )
 
 
 @api_operation
@@ -47,15 +49,13 @@ def get_resource_type_list(
 @metrics.api_request_time.time()
 def get_resource_type_groups_list(
     page=1,
-    per_page=100,
-    order_by=None,
-    order_how=None,
+    per_page=10,
 ):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
     try:
-        group_list, total = get_filtered_group_list_db(None, page, per_page, order_by, order_how)
+        group_list, total = get_filtered_group_list_db(None, page, per_page, "name", "ASC")
     except ValueError as e:
         log_get_group_list_failed(logger)
         flask.abort(400, str(e))
