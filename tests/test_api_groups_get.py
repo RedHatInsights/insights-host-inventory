@@ -18,9 +18,10 @@ def test_basic_group_query(db_create_group, api_get):
         assert group_result["id"] in group_id_list
 
 
-def test_query_variables_group_name(db_create_group, api_get):
+@pytest.mark.parametrize("search", ["testGroup", "test", "Group", "ro"])
+def test_query_variables_group_name(db_create_group, api_get, search):
     group_id = db_create_group("testGroup").id
-    query = "?name=testGroup"
+    query = f"?name={search}"
 
     response_status, response_data = api_get(build_groups_url(query=query))
 

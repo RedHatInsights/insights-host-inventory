@@ -99,7 +99,7 @@ def get_group_list_by_id_list_db(group_id_list, page, per_page, order_by, order_
 def get_filtered_group_list_db(group_name, page, per_page, order_by, order_how):
     filters = (Group.org_id == get_current_identity().org_id,)
     if group_name:
-        filters += (Group.name == group_name,)
+        filters += (Group.name.contains(group_name),)
     return get_group_list_from_db(filters, page, per_page, order_by, order_how)
 
 
