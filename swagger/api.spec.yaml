@@ -1426,6 +1426,12 @@ components:
               type: object
               additionalProperties:
                 $ref: '#/components/schemas/PerReporterStaleness'
+            groups:
+              description: >-
+                The groups that the host belongs to, if any.
+              type: array
+              items:
+                $ref: '#/components/schemas/GroupOut'
           required:
             - org_id
     HostOut:
@@ -1615,8 +1621,6 @@ components:
           $ref: "#/components/schemas/GroupId"
         name:
           $ref: "#/components/schemas/GroupName"
-        host_count:
-          $ref: "#/components/schemas/HostCount"
         account:
           $ref: "#/components/schemas/AccountNumber"
         org_id:
