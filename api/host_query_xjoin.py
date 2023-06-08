@@ -55,7 +55,9 @@ QUERY = """query Query(
                     id,
                     name,
                     account,
-                    org_id
+                    org_id,
+                    created,
+                    updated
                 },
             },
         }
