@@ -1426,6 +1426,12 @@ components:
               type: object
               additionalProperties:
                 $ref: '#/components/schemas/PerReporterStaleness'
+            groups:
+              description: >-
+                The groups that the host belongs to, if any.
+              type: array
+              items:
+                $ref: '#/components/schemas/GroupOutLessHostCount'
           required:
             - org_id
     HostOut:
@@ -1617,6 +1623,28 @@ components:
           $ref: "#/components/schemas/GroupName"
         host_count:
           $ref: "#/components/schemas/HostCount"
+        account:
+          $ref: "#/components/schemas/AccountNumber"
+        org_id:
+          $ref: "#/components/schemas/OrgId"
+        created:
+          description: A timestamp when the entry was created.
+          type: string
+          format: date-time
+        updated:
+          description: A timestamp when the entry was last updated.
+          type: string
+          format: date-time
+    GroupOutLessHostCount:
+      title: Group Out without Host Count
+      description: >-
+        Data of a single group belonging to an account.
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/GroupId"
+        name:
+          $ref: "#/components/schemas/GroupName"
         account:
           $ref: "#/components/schemas/AccountNumber"
         org_id:
