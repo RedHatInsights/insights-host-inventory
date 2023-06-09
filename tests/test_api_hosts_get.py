@@ -474,3 +474,14 @@ def test_get_hosts_contains_invalid_on_string_not_array(patch_xjoin_post, api_ge
 
 def test_get_hosts_timestamp_invalid_value_graceful_rejection(patch_xjoin_post, api_get):
     assert 400 == api_get(build_hosts_url(query="?filter[system_profile][last_boot_time][eq]=foo"))[0]
+
+
+@pytest.mark.parametrize(
+    "query_params",
+    ("?updated_start=0199-03-04T04:56:02.000Z&updated_end=0199-03-04T04:56:02.000Z"),
+)
+def test_get_hosts_too_old_date_params(query_params, api_get):
+    url = build_hosts_url(query=query_params)
+
+    response_code, _ = api_get(url)
+    assert_response_status(response_code, 200)
