@@ -276,6 +276,30 @@ $defs:
           type: string
           maxLength: 30
           example: "ex1, ex2, ex3"
+      systemd:
+        description: Object for whole system systemd state, as reported by systemctl status --all
+        type: object
+        required:
+          - state
+          - jobs_queued
+          - failed
+        properties:
+          state:
+            description: The state of the systemd subsystem
+            type: string
+            maxLength: 12
+            enum: [initializing, starting, running, degraded, maintenance, stopping]
+            example: 'initializing, starting, running, degraded, maintenance, stopping'
+          jobs_queued:
+            description: The number of jobs jobs_queued
+            example: 4
+            type: integer
+            minimum: 0
+          failed:
+            description: The number of jobs failed
+            example: 1
+            type: integer
+            minimum: 0
       operating_system:
         description: Object for OS details. Supports range operations
         type: object
