@@ -1192,6 +1192,34 @@ def test_tags_response_pagination_index_error(mocker, graphql_tag_query_with_res
     )
 
 
+# WIP
+def test_query_all_hosts_with_rbac_group_restriction(
+    mocker, assert_query_host_filter_single_call, enable_rbac, api_get, db_create_group_with_hosts
+):
+    # Create a group and 3 hosts
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    group_id = str(db_create_group_with_hosts("new_group", 3).id)
+
+    # Make a list of allowed group IDs (including some mock ones)
+    group_id_list = [generate_uuid(), group_id, generate_uuid()]
+
+    # Grant permissions to all 3 groups
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-groups-write-resource-defs-template.json"
+    )
+    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = [group_id_list[1]]
+    mock_rbac_response[1]["resourceDefinitions"][0]["attributeFilter"]["value"] = [group_id_list[1]]
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    assert_query_host_filter_single_call(
+        HOST_URL,
+        filter=(
+            {"OR": mocker.ANY},
+            {"OR": [{"group": {"id": {"eq": group_id_list[1]}}}, {"group": {"hasSome": {"is": False}}}]},
+        ),
+    )
+
+
 def test_tags_RBAC_allowed(
     subtests, mocker, graphql_tag_query_empty_response, enable_rbac, assert_tag_query_host_filter_single_call
 ):
