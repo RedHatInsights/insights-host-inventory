@@ -24,15 +24,7 @@
       "permission": "inventory:groups:write"
     },
     {
-      "resourceDefinitions": [
-        {
-          "attributeFilter": {
-            "key": "group.id",
-            "value": [],
-            "operation": "in"
-          }
-        }
-      ],
+      "resourceDefinitions": [],
       "permission": "inventory:hosts:read"
     }
   ]

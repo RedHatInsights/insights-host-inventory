@@ -1205,10 +1205,10 @@ def test_query_all_hosts_with_rbac_group_restriction(
 
     # Grant permissions to all 3 groups
     mock_rbac_response = create_mock_rbac_response(
-        "tests/helpers/rbac-mock-data/inv-groups-write-resource-defs-template.json"
+        "tests/helpers/rbac-mock-data/inv-hosts-read-resource-defs-template.json"
     )
     mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = [group_id_list[1]]
-    mock_rbac_response[1]["resourceDefinitions"][0]["attributeFilter"]["value"] = [group_id_list[1]]
+
     get_rbac_permissions_mock.return_value = mock_rbac_response
 
     assert_query_host_filter_single_call(
