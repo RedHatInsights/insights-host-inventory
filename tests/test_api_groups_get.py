@@ -55,7 +55,8 @@ def test_get_groups_RBAC_allowed_specific_groups(mocker, db_create_group, api_ge
         assert group_result["id"] in group_id_list
 
 
-def test_query_variables_group_name(db_create_group, api_get):
+@pytest.mark.parametrize("search", ["testGroup", "TesT", "Group", "ro"])
+def test_query_variables_group_name(db_create_group, api_get, search):
     group_id = db_create_group("testGroup").id
     query = f"?name={search}"
 
