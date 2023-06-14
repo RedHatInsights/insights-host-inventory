@@ -7,7 +7,7 @@ from dateutil import parser
 from tests.helpers.api_utils import assert_group_response
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
-from tests.helpers.api_utils import WRITE_PROHIBITED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
@@ -162,7 +162,7 @@ def test_create_group_RBAC_denied(subtests, mocker, api_create_group, db_get_gro
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     group_data = {"name": "my_awesome_group", "host_ids": []}
 
-    for response_file in WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
+    for response_file in GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
 
         with subtests.test():

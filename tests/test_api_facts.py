@@ -6,8 +6,8 @@ from tests.helpers.api_utils import build_facts_url
 from tests.helpers.api_utils import build_host_id_list_for_url
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import get_id_list_from_hosts
-from tests.helpers.api_utils import WRITE_ALLOWED_RBAC_RESPONSE_FILES
-from tests.helpers.api_utils import WRITE_PROHIBITED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import HOST_WRITE_ALLOWED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import HOST_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.db_utils import DB_FACTS
 from tests.helpers.db_utils import DB_FACTS_NAMESPACE
 from tests.helpers.db_utils import DB_NEW_FACTS
@@ -138,7 +138,7 @@ def test_replace_facts_on_multiple_culled_hosts(db_create_multiple_hosts, db_get
 def test_put_facts_with_RBAC_allowed(subtests, mocker, api_put, db_create_host, enable_rbac, event_producer_mock):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
-    for response_file in WRITE_ALLOWED_RBAC_RESPONSE_FILES:
+    for response_file in HOST_WRITE_ALLOWED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
         host = db_create_host(extra_data={"facts": DB_FACTS})
         url = build_facts_url(host_list_or_id=host.id, namespace=DB_FACTS_NAMESPACE)
@@ -183,7 +183,7 @@ def test_put_facts_with_RBAC_denied(
 
     updated_facts = {"updatedfact1": "updatedvalue1", "updatedfact2": "updatedvalue2"}
 
-    for response_file in WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
+    for response_file in HOST_WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
         host = db_create_host(extra_data={"facts": DB_FACTS})
         url = build_facts_url(host_list_or_id=host.id, namespace=DB_FACTS_NAMESPACE)

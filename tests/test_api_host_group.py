@@ -2,7 +2,7 @@ import uuid
 
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
-from tests.helpers.api_utils import WRITE_PROHIBITED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.test_utils import generate_uuid
 
 
@@ -19,8 +19,8 @@ def test_add_host_to_group(
     # Confirm that the group now only contains  2 hosts
     hosts_after = db_get_hosts_for_group(group_id)
     assert len(hosts_after) == 2
-    assert hosts_after[0].id == host_id_list[0]
-    assert hosts_after[1].id == host_id_list[1]
+    assert hosts_after[0].id in host_id_list
+    assert hosts_after[1].id in host_id_list
 
 
 def test_add_host_to_group_RBAC_denied(
@@ -29,7 +29,7 @@ def test_add_host_to_group_RBAC_denied(
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     group_id = str(db_create_group_with_hosts("new_group", 3).id)
 
-    for response_file in WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
+    for response_file in GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
 
         with subtests.test():

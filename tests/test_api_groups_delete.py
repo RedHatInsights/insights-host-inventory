@@ -2,7 +2,7 @@ import json
 
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
-from tests.helpers.api_utils import WRITE_PROHIBITED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.test_utils import generate_uuid
 
 
@@ -112,7 +112,7 @@ def test_delete_groups_RBAC_denied(subtests, mocker, db_create_group, api_delete
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     group_id_list = [str(db_create_group(f"test_group{g_index}").id) for g_index in range(3)]
 
-    for response_file in WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
+    for response_file in GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
 
         with subtests.test():

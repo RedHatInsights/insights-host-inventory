@@ -15,8 +15,8 @@ from tests.helpers.api_utils import build_host_id_list_for_url
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import get_id_list_from_hosts
-from tests.helpers.api_utils import WRITE_ALLOWED_RBAC_RESPONSE_FILES
-from tests.helpers.api_utils import WRITE_PROHIBITED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import HOST_WRITE_ALLOWED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import HOST_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.db_utils import DB_FACTS
 from tests.helpers.db_utils import DB_FACTS_NAMESPACE
 from tests.helpers.db_utils import db_host
@@ -442,7 +442,7 @@ def test_add_facts_to_multiple_culled_hosts(db_create_multiple_hosts, db_get_hos
 def test_patch_host_with_RBAC_allowed(subtests, mocker, api_patch, db_create_host, event_producer_mock, enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
-    for response_file in WRITE_ALLOWED_RBAC_RESPONSE_FILES:
+    for response_file in HOST_WRITE_ALLOWED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
@@ -460,7 +460,7 @@ def test_patch_host_with_RBAC_denied(
 ):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
-    for response_file in WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
+    for response_file in HOST_WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response

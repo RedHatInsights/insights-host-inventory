@@ -46,26 +46,75 @@ TAGS = [
     ],
 ]
 
-READ_ALLOWED_RBAC_RESPONSE_FILES = (
+HOST_READ_ALLOWED_RBAC_RESPONSE_FILES = (
     "tests/helpers/rbac-mock-data/inv-read-write.json",
     "tests/helpers/rbac-mock-data/inv-read-only.json",
     "tests/helpers/rbac-mock-data/inv-admin.json",
     "tests/helpers/rbac-mock-data/inv-hosts-splat.json",
     "tests/helpers/rbac-mock-data/inv-star-read.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-read-groups-write.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-read-only.json",
 )
-READ_PROHIBITED_RBAC_RESPONSE_FILES = (
+HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES = (
     "tests/helpers/rbac-mock-data/inv-none.json",
     "tests/helpers/rbac-mock-data/inv-write-only.json",
     "tests/helpers/rbac-mock-data/inv-star-write.json",
+    "tests/helpers/rbac-mock-data/inv-groups-read-only.json",
+    "tests/helpers/rbac-mock-data/inv-groups-write-only.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-write-groups-read.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-write-only.json",
 )
-WRITE_ALLOWED_RBAC_RESPONSE_FILES = (
+HOST_WRITE_ALLOWED_RBAC_RESPONSE_FILES = (
     "tests/helpers/rbac-mock-data/inv-read-write.json",
     "tests/helpers/rbac-mock-data/inv-write-only.json",
     "tests/helpers/rbac-mock-data/inv-admin.json",
     "tests/helpers/rbac-mock-data/inv-hosts-splat.json",
     "tests/helpers/rbac-mock-data/inv-star-write.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-write-groups-read.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-write-only.json",
 )
-WRITE_PROHIBITED_RBAC_RESPONSE_FILES = (
+HOST_WRITE_PROHIBITED_RBAC_RESPONSE_FILES = (
+    "tests/helpers/rbac-mock-data/inv-none.json",
+    "tests/helpers/rbac-mock-data/inv-read-only.json",
+    "tests/helpers/rbac-mock-data/inv-star-read.json",
+    "tests/helpers/rbac-mock-data/inv-groups-read-only.json",
+    "tests/helpers/rbac-mock-data/inv-groups-write-only.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-read-groups-write.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-read-only.json",
+)
+
+GROUP_READ_ALLOWED_RBAC_RESPONSE_FILES = (
+    "tests/helpers/rbac-mock-data/inv-admin.json",
+    "tests/helpers/rbac-mock-data/inv-groups-read-only.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-write-groups-read.json",
+    "tests/helpers/rbac-mock-data/inv-read-only.json",
+    "tests/helpers/rbac-mock-data/inv-star-read.json",
+)
+GROUP_READ_PROHIBITED_RBAC_RESPONSE_FILES = (
+    "tests/helpers/rbac-mock-data/inv-none.json",
+    "tests/helpers/rbac-mock-data/inv-groups-write-only.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-read-groups-write.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-read-only.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-splat.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-write-only.json",
+    "tests/helpers/rbac-mock-data/inv-none.json",
+    "tests/helpers/rbac-mock-data/inv-star-write.json",
+    "tests/helpers/rbac-mock-data/inv-write-only.json",
+)
+GROUP_WRITE_ALLOWED_RBAC_RESPONSE_FILES = (
+    "tests/helpers/rbac-mock-data/inv-admin.json",
+    "tests/helpers/rbac-mock-data/inv-groups-write-only.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-read-groups-write.json",
+    "tests/helpers/rbac-mock-data/inv-read-write.json",
+    "tests/helpers/rbac-mock-data/inv-star-write.json",
+)
+GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES = (
+    "tests/helpers/rbac-mock-data/inv-none.json",
+    "tests/helpers/rbac-mock-data/inv-groups-read-only.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-read-only.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-splat.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-write-groups-read.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-write-only.json",
     "tests/helpers/rbac-mock-data/inv-none.json",
     "tests/helpers/rbac-mock-data/inv-read-only.json",
     "tests/helpers/rbac-mock-data/inv-star-read.json",

@@ -11,8 +11,8 @@ from lib.host_delete import delete_hosts
 from lib.host_repository import get_host_list_by_id_list_from_db
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
-from tests.helpers.api_utils import WRITE_ALLOWED_RBAC_RESPONSE_FILES
-from tests.helpers.api_utils import WRITE_PROHIBITED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import HOST_WRITE_ALLOWED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import HOST_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.db_utils import db_host
 from tests.helpers.graphql_utils import XJOIN_HOSTS_RESPONSE_FOR_FILTERING
 from tests.helpers.mq_utils import assert_delete_event_is_valid
@@ -324,7 +324,7 @@ def test_delete_host_with_RBAC_allowed(
 ):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
-    for response_file in WRITE_ALLOWED_RBAC_RESPONSE_FILES:
+    for response_file in HOST_WRITE_ALLOWED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
@@ -345,7 +345,7 @@ def test_delete_host_with_RBAC_denied(
 ):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
-    for response_file in WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
+    for response_file in HOST_WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response

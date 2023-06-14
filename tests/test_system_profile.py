@@ -11,9 +11,9 @@ from tests.helpers.api_utils import build_system_profile_sap_sids_url
 from tests.helpers.api_utils import build_system_profile_sap_system_url
 from tests.helpers.api_utils import build_system_profile_url
 from tests.helpers.api_utils import create_mock_rbac_response
+from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_URL
-from tests.helpers.api_utils import READ_ALLOWED_RBAC_RESPONSE_FILES
-from tests.helpers.api_utils import READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import SYSTEM_PROFILE_URL
 from tests.helpers.graphql_utils import xjoin_host_response
 from tests.helpers.graphql_utils import XJOIN_INVALID_SYSTEM_PROFILE
@@ -125,7 +125,7 @@ def test_get_system_profile_sap_system_with_RBAC_allowed(
 
     url = build_system_profile_sap_system_url()
 
-    for response_file in READ_ALLOWED_RBAC_RESPONSE_FILES:
+    for response_file in HOST_READ_ALLOWED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
@@ -142,7 +142,7 @@ def test_get_system_profile_sap_sids_with_RBAC_allowed(
 
     url = build_system_profile_sap_sids_url()
 
-    for response_file in READ_ALLOWED_RBAC_RESPONSE_FILES:
+    for response_file in HOST_READ_ALLOWED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
@@ -158,7 +158,7 @@ def test_get_system_profile_with_RBAC_denied(subtests, mocker, api_get, enable_r
     urls = (build_system_profile_sap_system_url(), build_system_profile_sap_sids_url())
 
     for url in urls:
-        for response_file in READ_PROHIBITED_RBAC_RESPONSE_FILES:
+        for response_file in HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES:
             mock_rbac_response = create_mock_rbac_response(response_file)
             with subtests.test():
                 get_rbac_permissions_mock.return_value = mock_rbac_response
@@ -193,7 +193,7 @@ def test_get_system_profile_RBAC_allowed(mocker, subtests, api_get, enable_rbac)
 
     host_id = generate_uuid()
 
-    for response_file in READ_ALLOWED_RBAC_RESPONSE_FILES:
+    for response_file in HOST_READ_ALLOWED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
 
         with subtests.test():
@@ -211,7 +211,7 @@ def test_get_system_profile_RBAC_denied(mocker, subtests, api_get, enable_rbac):
 
     host_id = generate_uuid()
 
-    for response_file in READ_PROHIBITED_RBAC_RESPONSE_FILES:
+    for response_file in HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
 
         with subtests.test():

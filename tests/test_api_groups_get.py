@@ -3,8 +3,8 @@ import pytest
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_groups_url
 from tests.helpers.api_utils import create_mock_rbac_response
+from tests.helpers.api_utils import GROUP_READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import GROUP_URL
-from tests.helpers.api_utils import READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.test_utils import generate_uuid
 
 
@@ -23,7 +23,7 @@ def test_basic_group_query(db_create_group, api_get):
 def test_get_groups_RBAC_denied(subtests, mocker, api_get, enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
-    for response_file in READ_PROHIBITED_RBAC_RESPONSE_FILES:
+    for response_file in GROUP_READ_PROHIBITED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
 
         with subtests.test():
