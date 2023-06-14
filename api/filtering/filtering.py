@@ -373,15 +373,17 @@ def group_id_list_query_filter(group_id_list):
                 }
             }
             for group_id in group_id_list
+            if group_id is not None
         ],
     }
-    _query_filter["OR"].append(
-        {
-            "group": {
-                "hasSome": {"is": False},
-            }
-        },
-    )
+    if None in group_id_list:
+        _query_filter["OR"].append(
+            {
+                "group": {
+                    "hasSome": {"is": False},
+                }
+            },
+        )
 
     return (_query_filter,)
 
