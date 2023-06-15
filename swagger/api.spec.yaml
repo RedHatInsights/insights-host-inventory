@@ -1618,7 +1618,7 @@ components:
       type: object
       allOf:
       - properties:
-          group:
+          group_out:
             $ref: "#/components/schemas/GroupOut"
           host_count:
             $ref: "#/components/schemas/HostCount"

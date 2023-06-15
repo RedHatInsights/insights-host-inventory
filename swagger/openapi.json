@@ -2479,7 +2479,7 @@
         "allOf": [
           {
             "properties": {
-              "group": {
+              "group_out": {
                 "$ref": "#/components/schemas/GroupOut"
               },
               "host_count": {
