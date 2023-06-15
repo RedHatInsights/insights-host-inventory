@@ -400,7 +400,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GroupOut'
+                $ref: '#/components/schemas/GroupOutWithHostCount'
   '/groups/{group_id}':
     patch:
       operationId: api.group.patch_group_by_id
@@ -428,7 +428,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GroupOut'
+                $ref: '#/components/schemas/GroupOutWithHostCount'
         '400':
           description: Invalid request.
         '404':
@@ -527,7 +527,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GroupOut'
+                $ref: '#/components/schemas/GroupOutWithHostCount'
         '400':
           description: Invalid request.
         '404':
@@ -1431,7 +1431,7 @@ components:
                 The groups that the host belongs to, if any.
               type: array
               items:
-                $ref: '#/components/schemas/GroupOutLessHostCount'
+                $ref: '#/components/schemas/GroupOut'
           required:
             - org_id
     HostOut:
@@ -1611,32 +1611,19 @@ components:
               $ref: "#/components/schemas/GroupName"
             host_ids:
               $ref: "#/components/schemas/HostIds"
-    GroupOut:
-      title: Group Out
+    GroupOutWithHostCount:
+      title: Group properties with host count
       description: >-
         Data of a single group belonging to an account.
       type: object
-      properties:
-        id:
-          $ref: "#/components/schemas/GroupId"
-        name:
-          $ref: "#/components/schemas/GroupName"
-        host_count:
-          $ref: "#/components/schemas/HostCount"
-        account:
-          $ref: "#/components/schemas/AccountNumber"
-        org_id:
-          $ref: "#/components/schemas/OrgId"
-        created:
-          description: A timestamp when the entry was created.
-          type: string
-          format: date-time
-        updated:
-          description: A timestamp when the entry was last updated.
-          type: string
-          format: date-time
-    GroupOutLessHostCount:
-      title: Group Out without Host Count
+      allOf:
+      - properties:
+          group:
+            $ref: "#/components/schemas/GroupOut"
+          host_count:
+            $ref: "#/components/schemas/HostCount"
+    GroupOut:
+      title: Group Out Properties
       description: >-
         Data of a single group belonging to an account.
       type: object
@@ -1673,7 +1660,7 @@ components:
             description: Actual group search query result entries.
             type: array
             items:
-              $ref: '#/components/schemas/GroupOut'
+              $ref: '#/components/schemas/GroupOutWithHostCount'
     ResourceTypesOut:
       title: A resource type query result
       description: >-
@@ -1720,7 +1707,7 @@ components:
             description: Actual group search query result entries.
             type: array
             items:
-              $ref: '#/components/schemas/GroupOut'
+              $ref: '#/components/schemas/GroupOutWithHostCount'
     # include renames for system_profile
     SystemProfile:
       $ref: 'system_profile.spec.yaml#/$defs/SystemProfile'

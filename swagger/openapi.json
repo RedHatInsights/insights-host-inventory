@@ -679,7 +679,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GroupOut"
+                  "$ref": "#/components/schemas/GroupOutWithHostCount"
                 }
               }
             }
@@ -722,7 +722,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GroupOut"
+                  "$ref": "#/components/schemas/GroupOutWithHostCount"
                 }
               }
             }
@@ -878,7 +878,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GroupOut"
+                  "$ref": "#/components/schemas/GroupOutWithHostCount"
                 }
               }
             }
@@ -2212,7 +2212,7 @@
                 "description": "The groups that the host belongs to, if any.",
                 "type": "array",
                 "items": {
-                  "$ref": "#/components/schemas/GroupOutLessHostCount"
+                  "$ref": "#/components/schemas/GroupOut"
                 }
               }
             },
@@ -2472,40 +2472,25 @@
           }
         ]
       },
-      "GroupOut": {
-        "title": "Group Out",
+      "GroupOutWithHostCount": {
+        "title": "Group properties with host count",
         "description": "Data of a single group belonging to an account.",
         "type": "object",
-        "properties": {
-          "id": {
-            "$ref": "#/components/schemas/GroupId"
-          },
-          "name": {
-            "$ref": "#/components/schemas/GroupName"
-          },
-          "host_count": {
-            "$ref": "#/components/schemas/HostCount"
-          },
-          "account": {
-            "$ref": "#/components/schemas/AccountNumber"
-          },
-          "org_id": {
-            "$ref": "#/components/schemas/OrgId"
-          },
-          "created": {
-            "description": "A timestamp when the entry was created.",
-            "type": "string",
-            "format": "date-time"
-          },
-          "updated": {
-            "description": "A timestamp when the entry was last updated.",
-            "type": "string",
-            "format": "date-time"
+        "allOf": [
+          {
+            "properties": {
+              "group": {
+                "$ref": "#/components/schemas/GroupOut"
+              },
+              "host_count": {
+                "$ref": "#/components/schemas/HostCount"
+              }
+            }
           }
-        }
+        ]
       },
-      "GroupOutLessHostCount": {
-        "title": "Group Out without Host Count",
+      "GroupOut": {
+        "title": "Group Out Properties",
         "description": "Data of a single group belonging to an account.",
         "type": "object",
         "properties": {
@@ -2551,7 +2536,7 @@
                 "description": "Actual group search query result entries.",
                 "type": "array",
                 "items": {
-                  "$ref": "#/components/schemas/GroupOut"
+                  "$ref": "#/components/schemas/GroupOutWithHostCount"
                 }
               }
             }
@@ -2668,7 +2653,7 @@
                 "description": "Actual group search query result entries.",
                 "type": "array",
                 "items": {
-                  "$ref": "#/components/schemas/GroupOut"
+                  "$ref": "#/components/schemas/GroupOutWithHostCount"
                 }
               }
             }
