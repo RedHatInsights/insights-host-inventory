@@ -15,6 +15,7 @@ from app.logging import get_logger
 from app.logging import threadctx
 from app.queue.event_producer import EventProducer
 from app.queue.queue import sync_event_message
+from lib.db import session_guard
 from lib.handlers import register_shutdown
 from lib.handlers import ShutdownHandler
 
@@ -35,7 +36,7 @@ def _init_db(config):
     return sessionmaker(bind=engine)
 
 
-def run(config, logger, consumer, event_producer, shutdown_handler):
+def run(config, logger, session, consumer, event_producer, shutdown_handler):
     num_messages = 1
     partitions = []
 
@@ -58,7 +59,7 @@ def run(config, logger, consumer, event_producer, shutdown_handler):
         new_messages = consumer.consume(timeout=10)
         for message in new_messages:
             try:
-                sync_event_message(json.loads(message.value()), event_producer)
+                sync_event_message(json.loads(message.value()), session, event_producer)
                 # TODO: Metrics
                 # metrics.ingress_message_handler_success.inc()
             except OperationalError as oe:
@@ -81,6 +82,10 @@ def run(config, logger, consumer, event_producer, shutdown_handler):
 def main(logger):
     application = create_app(RuntimeEnvironment.JOB)
     config = application.config["INVENTORY_CONFIG"]
+    Session = _init_db(config)
+    session = Session()
+    # TODO: Metrics
+    # start_http_server(config.metrics_port)
 
     consumer = KafkaConsumer(
         {
@@ -89,6 +94,7 @@ def main(logger):
         }
     )
 
+    register_shutdown(session.get_bind().dispose, "Closing database")
     consumer_shutdown = partial(consumer.close, autocommit=True)
     register_shutdown(consumer_shutdown, "Closing consumer")
     event_producer = EventProducer(config, config.event_topic)
@@ -96,7 +102,8 @@ def main(logger):
     shutdown_handler = ShutdownHandler()
     shutdown_handler.register()
 
-    run(config, logger, consumer, event_producer, shutdown_handler)
+    with session_guard(session):
+        run(config, logger, session, consumer, event_producer, shutdown_handler)
 
 
 if __name__ == "__main__":

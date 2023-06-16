@@ -3,6 +3,7 @@ from unittest import mock
 
 import pytest
 
+from app import db
 from app import threadctx
 from app.queue.events import build_event
 from app.queue.events import EventType
@@ -27,6 +28,7 @@ def test_no_delete_when_hosts_present(mocker, db_create_host, inventory_config):
     rebuild_events_run(
         inventory_config,
         mock.Mock(),
+        db.session,
         consumer_mock,
         event_producer_mock,
         shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
@@ -64,6 +66,7 @@ def test_creates_delete_event_when_missing_from_db(
     rebuild_events_run(
         inventory_config,
         mock.Mock(),
+        db.session,
         consumer_mock,
         event_producer_mock,
         shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
