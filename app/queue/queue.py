@@ -189,10 +189,10 @@ def parse_operation_message(message):
     return parsed_operation
 
 
-def sync_event_message(message, session, event_producer):
+def sync_event_message(message, event_producer):
     if message["type"] != EventType.delete.name:
         host_id = message["host"]["id"]
-        query = session.query(Host).filter((Host.org_id == message["host"]["org_id"]) & (Host.id == UUID(host_id)))
+        query = Host.query.filter((Host.org_id == message["host"]["org_id"]) & (Host.id == UUID(host_id)))
         # If the host doesn't exist in the DB, produce a Delete event.
         if not query.count():
             host = deserialize_host({k: v for k, v in message["host"].items() if v}, schema=LimitedHostSchema)
