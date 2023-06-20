@@ -451,9 +451,12 @@ def query_filters(
         query_filters += ({"provider_id": {"eq": provider_id.casefold()}},)
     if updated_start or updated_end:
         # Need to check if date is less then 1970, since ElasticSearch doesn't
-        # allow query above this year. See ticket #ESSNTL-4458
-        if parser.isoparse(updated_start).year > 1970 and parser.isoparse(updated_end).year > 1970:
-            query_filters += _build_modified_on_filter(updated_start, updated_end)
+        # allow timestamps before above this year. See ticket #ESSNTL-4458
+        if parser.isoparse(updated_start).year > 1970 or parser.isoparse(updated_end).year > 1970:
+            query_filters += _build_modified_on_filter(
+                updated_start=updated_start if parser.isoparse(updated_start).year > 1970 else None,
+                updated_end=updated_end if parser.isoparse(updated_end).year > 1970 else None,
+            )
     if group_name:
         query_filters += ({"group": {"name": string_contains_lc(group_name)}},)
     if group_ids:
