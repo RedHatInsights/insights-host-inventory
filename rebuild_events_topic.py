@@ -4,6 +4,7 @@ from functools import partial
 
 from confluent_kafka import Consumer as KafkaConsumer
 from confluent_kafka import TopicPartition
+from confluent_kafka.error import ProduceError
 from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import sessionmaker
@@ -56,7 +57,7 @@ def run(config, logger, session, consumer, event_producer, shutdown_handler):
 
     logger.debug("About to start the consumer loop")
     while num_messages > 0 and not shutdown_handler.shut_down():
-        new_messages = consumer.consume(timeout=10)
+        new_messages = consumer.consume(num_messages=config.script_chunk_size, timeout=10)
         for message in new_messages:
             try:
                 sync_event_message(json.loads(message.value()), session, event_producer)
@@ -72,6 +73,12 @@ def run(config, logger, session, consumer, event_producer, shutdown_handler):
                 # TODO: Metrics
                 # metrics.ingress_message_handler_failure.inc()
                 logger.exception("Unable to process message", extra={"incoming_message": message.value()})
+
+        try:
+            # pace the events production speed as flush completes sending all buffered records.
+            event_producer._kafka_producer.flush(300)
+        except ProduceError:
+            raise ProduceError("ProduceError: Failed to flush produced Kafka messages within 300 seconds")
 
         num_messages = len(new_messages)
         total_messages_processed += num_messages
