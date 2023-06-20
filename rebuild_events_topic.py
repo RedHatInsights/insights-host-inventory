@@ -58,22 +58,19 @@ def run(config, logger, session, consumer, event_producer, shutdown_handler):
     logger.debug("About to start the consumer loop")
     while num_messages > 0 and not shutdown_handler.shut_down():
         new_messages = consumer.consume(num_messages=config.script_chunk_size, timeout=10)
-        for message in new_messages:
-            try:
-                sync_event_message(json.loads(message.value()), session, event_producer)
-                # TODO: Metrics
-                # metrics.ingress_message_handler_success.inc()
-            except OperationalError as oe:
-                """sqlalchemy.exc.OperationalError: This error occurs when an
-                authentication failure occurs or the DB is not accessible.
-                """
-                logger.error(f"Could not access DB {str(oe)}")
-                sys.exit(3)
-            except Exception:
-                # TODO: Metrics
-                # metrics.ingress_message_handler_failure.inc()
-                logger.exception("Unable to process message", extra={"incoming_message": message.value()})
+        with session_guard(session):
+            for message in new_messages:
+                try:
+                    sync_event_message(json.loads(message.value()), session, event_producer)
 
+                except OperationalError as oe:
+                    """sqlalchemy.exc.OperationalError: This error occurs when an
+                    authentication failure occurs or the DB is not accessible.
+                    """
+                    logger.error(f"Could not access DB {str(oe)}")
+                    sys.exit(3)
+                except Exception:
+                    logger.exception("Unable to process message", extra={"incoming_message": message.value()})
         try:
             # pace the events production speed as flush completes sending all buffered records.
             event_producer._kafka_producer.flush(300)
@@ -109,8 +106,7 @@ def main(logger):
     shutdown_handler = ShutdownHandler()
     shutdown_handler.register()
 
-    with session_guard(session):
-        run(config, logger, session, consumer, event_producer, shutdown_handler)
+    run(config, logger, session, consumer, event_producer, shutdown_handler)
 
 
 if __name__ == "__main__":
