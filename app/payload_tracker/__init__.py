@@ -154,7 +154,7 @@ class KafkaPayloadTracker(PayloadTracker):
 
             message = {
                 "service": self._service_name,
-                "request_id": self._request_id.replace("-", ""), # payload tracker can not use dashes in request_id
+                "request_id": self._request_id.replace("-", ""),  # payload tracker can not use dashes in request_id
                 "status": status,
                 "date": datetime.utcnow().isoformat(),
             }
