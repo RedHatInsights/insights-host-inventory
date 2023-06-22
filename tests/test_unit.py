@@ -679,10 +679,10 @@ class TagFilterTagsTestCase(TestCase):
         self._base_structured_to_filtered_test(structured_tags, expected_filtered_tags, "key1")
 
     def test_complex_filter(self):
-        structured_tags = [Tag("NS1", "key1", "val"), Tag(None), Tag("NS2", "key2"), Tag("NS3", "key3", "value3")]
-        expected_filtered_tags = [Tag("NS1", "key1", "val"), Tag("NS3", "key3", "value3")]
+        structured_tags = [Tag("NS1", "key1", "val"), Tag(None), Tag("NS2", "key2"), Tag("NS3", "key3", "Value3")]
+        expected_filtered_tags = [Tag("NS1", "key1", "val"), Tag("NS3", "key3", "Value3")]
 
-        self._base_structured_to_filtered_test(structured_tags, expected_filtered_tags, "val")
+        self._base_structured_to_filtered_test(structured_tags, expected_filtered_tags, "vA")
 
     def test_empty_filter(self):
         structured_tags = [Tag("NS1", "key1", "val"), Tag(None), Tag("NS2", "key2"), Tag("NS3", "key3", "value3")]
@@ -705,7 +705,7 @@ class TagFilterTagsTestCase(TestCase):
 
         # key
         structured_tags = [Tag("NS1", "key1", "val"), Tag(None), Tag("NS2", "Key2"), Tag("NS3", "key3", "value3")]
-        expected_filtered_tags = [Tag("NS2", "Key2")]
+        expected_filtered_tags = [Tag("NS1", "key1", "val"), Tag("NS2", "Key2"), Tag("NS3", "key3", "value3")]
 
         self._base_structured_to_filtered_test(structured_tags, expected_filtered_tags, "K")
 
@@ -1065,16 +1065,16 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                     "org_id": "3340851",
                     "account": "some acct",
                     "name": "group 1",
-                    "created_on": now().isoformat(),
-                    "modified_on": now().isoformat(),
+                    "created": now().isoformat(),
+                    "updated": now().isoformat(),
                 },
                 {
                     "id": str(uuid4()),
                     "org_id": "3340851",
                     "account": "some acct",
                     "name": "group 2",
-                    "created_on": now().isoformat(),
-                    "modified_on": now().isoformat(),
+                    "created": now().isoformat(),
+                    "updated": now().isoformat(),
                 },
             ],
         }
@@ -1123,16 +1123,16 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                     "org_id": "3340851",
                     "account": "some acct",
                     "name": "group 1",
-                    "created_on": now().isoformat(),
-                    "modified_on": now().isoformat(),
+                    "created": now().isoformat(),
+                    "updated": now().isoformat(),
                 },
                 {
                     "id": str(uuid4()),
                     "org_id": "3340851",
                     "account": "some acct",
                     "name": "group 2",
-                    "created_on": now().isoformat(),
-                    "modified_on": now().isoformat(),
+                    "created": now().isoformat(),
+                    "updated": now().isoformat(),
                 },
             ],
         }
@@ -1182,16 +1182,16 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                     "org_id": "3340851",
                     "account": "some acct",
                     "name": "group 1",
-                    "created_on": now().isoformat(),
-                    "modified_on": now().isoformat(),
+                    "created": now().isoformat(),
+                    "updated": now().isoformat(),
                 },
                 {
                     "id": str(uuid4()),
                     "org_id": "3340851",
                     "account": "some acct",
                     "name": "group 2",
-                    "created_on": now().isoformat(),
-                    "modified_on": now().isoformat(),
+                    "created": now().isoformat(),
+                    "updated": now().isoformat(),
                 },
             ],
         }
@@ -1244,16 +1244,16 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                     "org_id": "3340851",
                     "account": "some acct",
                     "name": "group 1",
-                    "created_on": now().isoformat(),
-                    "modified_on": now().isoformat(),
+                    "created": now().isoformat(),
+                    "updated": now().isoformat(),
                 },
                 {
                     "id": str(uuid4()),
                     "org_id": "3340851",
                     "account": "some acct",
                     "name": "group 2",
-                    "created_on": now().isoformat(),
-                    "modified_on": now().isoformat(),
+                    "created": now().isoformat(),
+                    "updated": now().isoformat(),
                 },
             ],
         }
@@ -1301,16 +1301,16 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                     "org_id": "3340851",
                     "account": "some acct",
                     "name": "group 1",
-                    "created_on": now().isoformat(),
-                    "modified_on": now().isoformat(),
+                    "created": now().isoformat(),
+                    "updated": now().isoformat(),
                 },
                 {
                     "id": str(uuid4()),
                     "org_id": "3340851",
                     "account": "some acct",
                     "name": "group 2",
-                    "created_on": now().isoformat(),
-                    "modified_on": now().isoformat(),
+                    "created": now().isoformat(),
+                    "updated": now().isoformat(),
                 },
             ],
         }
@@ -1535,60 +1535,68 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
         self.assertEqual(expected, actual)
 
     def test_with_only_required_fields(self):
-        unchanged_data = {
-            "display_name": None,
-            "org_id": "some org_id",
-            "account": None,
-            "reporter": "yupana",
-            "groups": [],
-        }
-        host_init_data = {
-            "stale_timestamp": now(),
-            "canonical_facts": {"fqdn": "some fqdn"},
-            **unchanged_data,
-            "facts": {},
-        }
-        host = Host(**host_init_data)
+        self.maxDiff = None
 
-        host_attr_data = {
-            "id": uuid4(),
-            "created_on": now(),
-            "modified_on": now(),
-            "per_reporter_staleness": host.per_reporter_staleness,
-        }
-        for k, v in host_attr_data.items():
-            setattr(host, k, v)
+        for group_data in ({"groups": None}, {"groups": ""}, {"groups": {}}, {"groups": []}, {}):
+            with self.subTest(group_data=group_data):
+                unchanged_data = {
+                    "display_name": None,
+                    "org_id": "some org_id",
+                    "account": None,
+                    "reporter": "yupana",
+                }
+                host_init_data = {
+                    "stale_timestamp": now(),
+                    "canonical_facts": {"fqdn": "some fqdn"},
+                    **unchanged_data,
+                    "facts": {},
+                }
+                host = Host(**host_init_data)
 
-        config = CullingConfig(stale_warning_offset_delta=timedelta(days=7), culled_offset_delta=timedelta(days=14))
-        actual = serialize_host(host, Timestamps(config), False, ("tags",))
-        expected = {
-            **host_init_data["canonical_facts"],
-            "insights_id": None,
-            "subscription_manager_id": None,
-            "satellite_id": None,
-            "bios_uuid": None,
-            "ip_addresses": None,
-            "mac_addresses": None,
-            "ansible_host": None,
-            "provider_id": None,
-            "provider_type": None,
-            **unchanged_data,
-            "facts": [],
-            "tags": [],
-            "id": str(host_attr_data["id"]),
-            "created": self._timestamp_to_str(host_attr_data["created_on"]),
-            "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
-            "stale_timestamp": self._timestamp_to_str(host_init_data["stale_timestamp"]),
-            "stale_warning_timestamp": self._timestamp_to_str(
-                self._add_days(host_init_data["stale_timestamp"], config.stale_warning_offset_delta.days)
-            ),
-            "culled_timestamp": self._timestamp_to_str(
-                self._add_days(host_init_data["stale_timestamp"], config.culled_offset_delta.days)
-            ),
-            "per_reporter_staleness": host_attr_data["per_reporter_staleness"],
-        }
+                host_attr_data = {
+                    "id": uuid4(),
+                    "created_on": now(),
+                    "modified_on": now(),
+                    "per_reporter_staleness": host.per_reporter_staleness,
+                    **group_data,
+                }
+                for k, v in host_attr_data.items():
+                    setattr(host, k, v)
 
-        self.assertEqual(expected, actual)
+                config = CullingConfig(
+                    stale_warning_offset_delta=timedelta(days=7), culled_offset_delta=timedelta(days=14)
+                )
+                actual = serialize_host(host, Timestamps(config), True, ("tags",))
+                expected = {
+                    **host_init_data["canonical_facts"],
+                    "insights_id": None,
+                    "subscription_manager_id": None,
+                    "system_profile": {},
+                    "satellite_id": None,
+                    "bios_uuid": None,
+                    "ip_addresses": None,
+                    "mac_addresses": None,
+                    "ansible_host": None,
+                    "provider_id": None,
+                    "provider_type": None,
+                    **unchanged_data,
+                    "facts": [],
+                    "groups": [],
+                    "tags": [],
+                    "id": str(host_attr_data["id"]),
+                    "created": self._timestamp_to_str(host_attr_data["created_on"]),
+                    "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
+                    "stale_timestamp": self._timestamp_to_str(host_init_data["stale_timestamp"]),
+                    "stale_warning_timestamp": self._timestamp_to_str(
+                        self._add_days(host_init_data["stale_timestamp"], config.stale_warning_offset_delta.days)
+                    ),
+                    "culled_timestamp": self._timestamp_to_str(
+                        self._add_days(host_init_data["stale_timestamp"], config.culled_offset_delta.days)
+                    ),
+                    "per_reporter_staleness": host_attr_data["per_reporter_staleness"],
+                }
+
+                self.assertEqual(expected, actual)
 
     def test_stale_timestamp_config(self):
         for stale_warning_offset_days, culled_offset_days in ((1, 2), (7, 14), (100, 1000)):

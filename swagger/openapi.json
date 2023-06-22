@@ -679,7 +679,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GroupOut"
+                  "$ref": "#/components/schemas/GroupOutWithHostCount"
                 }
               }
             }
@@ -722,7 +722,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GroupOut"
+                  "$ref": "#/components/schemas/GroupOutWithHostCount"
                 }
               }
             }
@@ -878,7 +878,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GroupOut"
+                  "$ref": "#/components/schemas/GroupOutWithHostCount"
                 }
               }
             }
@@ -907,7 +907,7 @@
         ],
         "parameters": [
           {
-            "$ref": "#/components/parameters/perPageParam"
+            "$ref": "#/components/parameters/resourceTypesPerPageParam"
           },
           {
             "$ref": "#/components/parameters/pageParam"
@@ -942,16 +942,10 @@
         ],
         "parameters": [
           {
-            "$ref": "#/components/parameters/perPageParam"
+            "$ref": "#/components/parameters/resourceTypesPerPageParam"
           },
           {
             "$ref": "#/components/parameters/pageParam"
-          },
-          {
-            "$ref": "#/components/parameters/groupOrderByParam"
-          },
-          {
-            "$ref": "#/components/parameters/groupOrderHowParam"
           }
         ],
         "responses": {
@@ -1342,6 +1336,18 @@
           "minimum": 1,
           "maximum": 100,
           "default": 50
+        },
+        "description": "A number of items to return per page."
+      },
+      "resourceTypesPerPageParam": {
+        "name": "per_page",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 10
         },
         "description": "A number of items to return per page."
       },
@@ -2201,6 +2207,13 @@
                 "additionalProperties": {
                   "$ref": "#/components/schemas/PerReporterStaleness"
                 }
+              },
+              "groups": {
+                "description": "The groups that the host belongs to, if any.",
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/GroupOut"
+                }
               }
             },
             "required": [
@@ -2459,8 +2472,25 @@
           }
         ]
       },
+      "GroupOutWithHostCount": {
+        "title": "Group properties with host count",
+        "description": "Data of a single group belonging to an account.",
+        "type": "object",
+        "allOf": [
+          {
+            "properties": {
+              "group_out": {
+                "$ref": "#/components/schemas/GroupOut"
+              },
+              "host_count": {
+                "$ref": "#/components/schemas/HostCount"
+              }
+            }
+          }
+        ]
+      },
       "GroupOut": {
-        "title": "Group Out",
+        "title": "Group Out Properties",
         "description": "Data of a single group belonging to an account.",
         "type": "object",
         "properties": {
@@ -2469,9 +2499,6 @@
           },
           "name": {
             "$ref": "#/components/schemas/GroupName"
-          },
-          "host_count": {
-            "$ref": "#/components/schemas/HostCount"
           },
           "account": {
             "$ref": "#/components/schemas/AccountNumber"
@@ -2509,7 +2536,7 @@
                 "description": "Actual group search query result entries.",
                 "type": "array",
                 "items": {
-                  "$ref": "#/components/schemas/GroupOut"
+                  "$ref": "#/components/schemas/GroupOutWithHostCount"
                 }
               }
             }
@@ -2626,7 +2653,7 @@
                 "description": "Actual group search query result entries.",
                 "type": "array",
                 "items": {
-                  "$ref": "#/components/schemas/GroupOut"
+                  "$ref": "#/components/schemas/GroupOutWithHostCount"
                 }
               }
             }
@@ -2734,6 +2761,43 @@
               "type": "string",
               "maxLength": 30,
               "example": "ex1, ex2, ex3"
+            }
+          },
+          "systemd": {
+            "description": "Object for whole system systemd state, as reported by systemctl status --all",
+            "type": "object",
+            "required": [
+              "state",
+              "jobs_queued",
+              "failed"
+            ],
+            "properties": {
+              "state": {
+                "description": "The state of the systemd subsystem",
+                "type": "string",
+                "maxLength": 12,
+                "enum": [
+                  "initializing",
+                  "starting",
+                  "running",
+                  "degraded",
+                  "maintenance",
+                  "stopping"
+                ],
+                "example": "initializing, starting, running, degraded, maintenance, stopping"
+              },
+              "jobs_queued": {
+                "description": "The number of jobs jobs_queued",
+                "example": 4,
+                "type": "integer",
+                "minimum": 0
+              },
+              "failed": {
+                "description": "The number of jobs failed",
+                "example": 1,
+                "type": "integer",
+                "minimum": 0
+              }
             }
           },
           "operating_system": {
