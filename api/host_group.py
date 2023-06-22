@@ -26,6 +26,14 @@ logger = get_logger(__name__)
 @rbac(Permission.GROUPS_WRITE)
 @metrics.api_request_time.time()
 def add_host_list_to_group(group_id, body):
+    if type(body) is not list:
+        return abort(status.HTTP_400_BAD_REQUEST, f"Body content must be an array with groups UUIDs, not {type(body)}")
+
+    if len(body) == 0:
+        return abort(
+            status.HTTP_400_BAD_REQUEST, "Body content must be an array with groups UUIDs, not an empty array"
+        )
+
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 

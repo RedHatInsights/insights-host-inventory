@@ -629,6 +629,7 @@ objects:
     - name: floorist
       schedule: ${FLOORIST_SCHEDULE}
       suspend: ${{FLOORIST_SUSPEND}}
+      disabled: ${{FLOORIST_DISABLED}}
       concurrencyPolicy: Forbid
       podSpec:
         image: ${FLOORIST_IMAGE}:${FLOORIST_IMAGE_TAG}
@@ -915,3 +916,6 @@ parameters:
 - name: FLOORIST_LOGLEVEL
   description: Floorist loglevel config
   value: 'INFO'
+- name: FLOORIST_DISABLED
+  description: Determines whether to build the Floorist Job.
+  value: 'false'
