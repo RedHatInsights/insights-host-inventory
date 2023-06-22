@@ -31,7 +31,7 @@ def upgrade():
         ),
         sa.Column("enabled", sa.Boolean, default=True),
         sa.Column("created_on", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("updated_on", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("modified_on", sa.DateTime(timezone=True), nullable=False),
         sa.UniqueConstraint("org_id", "name"),
     )
 

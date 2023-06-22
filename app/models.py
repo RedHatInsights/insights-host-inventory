@@ -527,7 +527,7 @@ class AssignmentRule(db.Model):
     filter = db.Column(JSONB, nullable=False)
     enabled = db.Column(db.Boolean(), default=True)
     created_on = db.Column(db.DateTime(timezone=True), default=_time_now)
-    updated_on = db.Column(db.DateTime(timezone=True), default=_time_now, onupdate=_time_now)
+    modified_on = db.Column(db.DateTime(timezone=True), default=_time_now, onupdate=_time_now)
 
 
 class DiskDeviceSchema(MarshmallowSchema):

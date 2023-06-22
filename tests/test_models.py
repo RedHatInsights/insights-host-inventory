@@ -652,8 +652,6 @@ def test_create_assignment_rule(db_create_group, db_create_assignment_rule, db_g
     group_name = "MainGroup"
     group = db_create_group(group_name)
 
-    # I'm leaving the filter as this dummy because I couldn't quite understand how to format it, help is appreciated
-    # the intended format is in the jira card
     ar = db_create_assignment_rule("default assignment", group.id, {"facts": {"fqdn": "54321"}})
     assert db_get_assignment_rule(ar.id)
 
