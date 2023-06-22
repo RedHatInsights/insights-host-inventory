@@ -1179,19 +1179,11 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             "groups": [
                 {
                     "id": str(uuid4()),
-                    "org_id": "3340851",
-                    "account": "some acct",
                     "name": "group 1",
-                    "created": now().isoformat(),
-                    "updated": now().isoformat(),
                 },
                 {
                     "id": str(uuid4()),
-                    "org_id": "3340851",
-                    "account": "some acct",
                     "name": "group 2",
-                    "created": now().isoformat(),
-                    "updated": now().isoformat(),
                 },
             ],
         }
@@ -1241,19 +1233,11 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             "groups": [
                 {
                     "id": str(uuid4()),
-                    "org_id": "3340851",
-                    "account": "some acct",
                     "name": "group 1",
-                    "created": now().isoformat(),
-                    "updated": now().isoformat(),
                 },
                 {
                     "id": str(uuid4()),
-                    "org_id": "3340851",
-                    "account": "some acct",
                     "name": "group 2",
-                    "created": now().isoformat(),
-                    "updated": now().isoformat(),
                 },
             ],
         }

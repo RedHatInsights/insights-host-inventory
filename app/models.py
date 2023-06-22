@@ -165,7 +165,7 @@ class LimitedHost(db.Model):
         facts=None,
         tags={},
         system_profile_facts=None,
-        groups=None,
+        groups=[],
     ):
         self.canonical_facts = canonical_facts
 
@@ -180,7 +180,7 @@ class LimitedHost(db.Model):
         self.facts = facts or {}
         self.tags = tags
         self.system_profile_facts = system_profile_facts or {}
-        self.groups = groups or []
+        self.groups = [{key: group[key] for key in group if key in ["id", "name"]} for group in groups]
 
     def _update_ansible_host(self, ansible_host):
         if ansible_host is not None:
@@ -219,7 +219,7 @@ class Host(LimitedHost):
         stale_timestamp=None,
         reporter=None,
         per_reporter_staleness=None,
-        groups=None,
+        groups=[],
     ):
         if not canonical_facts:
             raise ValidationException("At least one of the canonical fact fields must be present.")
