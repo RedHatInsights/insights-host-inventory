@@ -208,3 +208,17 @@ def test_add_missing_host_to_existing_group(db_create_group, api_add_hosts_to_gr
 def test_with_empty_data(api_add_hosts_to_group, event_producer):
     response_status, _ = api_add_hosts_to_group(None, None)
     assert response_status == 400
+
+
+def test_add_empty_body_to_group(db_create_group, api_add_hosts_to_group):
+    group_id = db_create_group("test_group").id
+    response_status, _ = api_add_hosts_to_group(group_id, None)
+
+    assert response_status == 400
+
+
+def test_add_empty_array_to_group(db_create_group, api_add_hosts_to_group):
+    group_id = db_create_group("test_group").id
+    response_status, _ = api_add_hosts_to_group(group_id, [])
+
+    assert response_status == 400

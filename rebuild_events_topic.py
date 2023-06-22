@@ -4,6 +4,7 @@ from functools import partial
 
 from confluent_kafka import Consumer as KafkaConsumer
 from confluent_kafka import TopicPartition
+from confluent_kafka.error import ProduceError
 from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import sessionmaker
@@ -56,22 +57,25 @@ def run(config, logger, session, consumer, event_producer, shutdown_handler):
 
     logger.debug("About to start the consumer loop")
     while num_messages > 0 and not shutdown_handler.shut_down():
-        new_messages = consumer.consume(timeout=10)
-        for message in new_messages:
-            try:
-                sync_event_message(json.loads(message.value()), session, event_producer)
-                # TODO: Metrics
-                # metrics.ingress_message_handler_success.inc()
-            except OperationalError as oe:
-                """sqlalchemy.exc.OperationalError: This error occurs when an
-                authentication failure occurs or the DB is not accessible.
-                """
-                logger.error(f"Could not access DB {str(oe)}")
-                sys.exit(3)
-            except Exception:
-                # TODO: Metrics
-                # metrics.ingress_message_handler_failure.inc()
-                logger.exception("Unable to process message", extra={"incoming_message": message.value()})
+        new_messages = consumer.consume(num_messages=config.script_chunk_size, timeout=10)
+        with session_guard(session):
+            for message in new_messages:
+                try:
+                    sync_event_message(json.loads(message.value()), session, event_producer)
+
+                except OperationalError as oe:
+                    """sqlalchemy.exc.OperationalError: This error occurs when an
+                    authentication failure occurs or the DB is not accessible.
+                    """
+                    logger.error(f"Could not access DB {str(oe)}")
+                    sys.exit(3)
+                except Exception:
+                    logger.exception("Unable to process message", extra={"incoming_message": message.value()})
+        try:
+            # pace the events production speed as flush completes sending all buffered records.
+            event_producer._kafka_producer.flush(300)
+        except ProduceError:
+            raise ProduceError("ProduceError: Failed to flush produced Kafka messages within 300 seconds")
 
         num_messages = len(new_messages)
         total_messages_processed += num_messages
@@ -102,8 +106,7 @@ def main(logger):
     shutdown_handler = ShutdownHandler()
     shutdown_handler.register()
 
-    with session_guard(session):
-        run(config, logger, session, consumer, event_producer, shutdown_handler)
+    run(config, logger, session, consumer, event_producer, shutdown_handler)
 
 
 if __name__ == "__main__":

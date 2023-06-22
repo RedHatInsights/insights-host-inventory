@@ -679,10 +679,10 @@ class TagFilterTagsTestCase(TestCase):
         self._base_structured_to_filtered_test(structured_tags, expected_filtered_tags, "key1")
 
     def test_complex_filter(self):
-        structured_tags = [Tag("NS1", "key1", "val"), Tag(None), Tag("NS2", "key2"), Tag("NS3", "key3", "value3")]
-        expected_filtered_tags = [Tag("NS1", "key1", "val"), Tag("NS3", "key3", "value3")]
+        structured_tags = [Tag("NS1", "key1", "val"), Tag(None), Tag("NS2", "key2"), Tag("NS3", "key3", "Value3")]
+        expected_filtered_tags = [Tag("NS1", "key1", "val"), Tag("NS3", "key3", "Value3")]
 
-        self._base_structured_to_filtered_test(structured_tags, expected_filtered_tags, "val")
+        self._base_structured_to_filtered_test(structured_tags, expected_filtered_tags, "vA")
 
     def test_empty_filter(self):
         structured_tags = [Tag("NS1", "key1", "val"), Tag(None), Tag("NS2", "key2"), Tag("NS3", "key3", "value3")]
@@ -705,7 +705,7 @@ class TagFilterTagsTestCase(TestCase):
 
         # key
         structured_tags = [Tag("NS1", "key1", "val"), Tag(None), Tag("NS2", "Key2"), Tag("NS3", "key3", "value3")]
-        expected_filtered_tags = [Tag("NS2", "Key2")]
+        expected_filtered_tags = [Tag("NS1", "key1", "val"), Tag("NS2", "Key2"), Tag("NS3", "key3", "value3")]
 
         self._base_structured_to_filtered_test(structured_tags, expected_filtered_tags, "K")
 

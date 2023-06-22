@@ -679,7 +679,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GroupOut"
+                  "$ref": "#/components/schemas/GroupOutWithHostCount"
                 }
               }
             }
@@ -722,7 +722,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GroupOut"
+                  "$ref": "#/components/schemas/GroupOutWithHostCount"
                 }
               }
             }
@@ -878,7 +878,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GroupOut"
+                  "$ref": "#/components/schemas/GroupOutWithHostCount"
                 }
               }
             }
@@ -2207,6 +2207,13 @@
                 "additionalProperties": {
                   "$ref": "#/components/schemas/PerReporterStaleness"
                 }
+              },
+              "groups": {
+                "description": "The groups that the host belongs to, if any.",
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/GroupOut"
+                }
               }
             },
             "required": [
@@ -2465,8 +2472,25 @@
           }
         ]
       },
+      "GroupOutWithHostCount": {
+        "title": "Group properties with host count",
+        "description": "Data of a single group belonging to an account.",
+        "type": "object",
+        "allOf": [
+          {
+            "properties": {
+              "group_out": {
+                "$ref": "#/components/schemas/GroupOut"
+              },
+              "host_count": {
+                "$ref": "#/components/schemas/HostCount"
+              }
+            }
+          }
+        ]
+      },
       "GroupOut": {
-        "title": "Group Out",
+        "title": "Group Out Properties",
         "description": "Data of a single group belonging to an account.",
         "type": "object",
         "properties": {
@@ -2475,9 +2499,6 @@
           },
           "name": {
             "$ref": "#/components/schemas/GroupName"
-          },
-          "host_count": {
-            "$ref": "#/components/schemas/HostCount"
           },
           "account": {
             "$ref": "#/components/schemas/AccountNumber"
@@ -2515,7 +2536,7 @@
                 "description": "Actual group search query result entries.",
                 "type": "array",
                 "items": {
-                  "$ref": "#/components/schemas/GroupOut"
+                  "$ref": "#/components/schemas/GroupOutWithHostCount"
                 }
               }
             }
@@ -2632,7 +2653,7 @@
                 "description": "Actual group search query result entries.",
                 "type": "array",
                 "items": {
-                  "$ref": "#/components/schemas/GroupOut"
+                  "$ref": "#/components/schemas/GroupOutWithHostCount"
                 }
               }
             }
