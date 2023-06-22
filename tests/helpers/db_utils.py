@@ -99,18 +99,13 @@ def db_group_dict(**values):
 
 
 def db_assignment_rule(**values):
-    data = db_assignment_rule_dict(**values)
-    return AssignmentRule(**data)
-
-
-def db_assignment_rule_dict(**values):
     data = {**values}
     if "org_id" in values:
         data["org_id"] = values.get("org_id")
     else:
         data["org_id"] = USER_IDENTITY["org_id"]
 
-    return data
+    return AssignmentRule(**data)
 
 
 def update_host_in_db(host_id, **data_to_update):
