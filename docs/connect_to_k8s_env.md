@@ -31,7 +31,7 @@ Debugging Host Inventory code requires a database, kakfa broker, Kafka Zookeeper
     ```bash
         ./dev/setup-clowder.sh
     ```
-4.  No need to run because `setup-clowder.sh` runs `forward-ports-clowder.sh`
+4.  No need to run `port-forwards` because `setup-clowder.sh` runs `forward-ports-clowder.sh`
 
 ## Common Steps
 5. In the host-inventory project directory, run:
