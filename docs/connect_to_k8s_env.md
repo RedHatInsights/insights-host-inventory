@@ -101,4 +101,4 @@ This section describes how to launch debugger using `VS Code` to execute the loc
     }
     ```
 3. Launch the api-server on a port different from the one used by the host-inventory-service
-4. Use `curl` statements provided above to debug and step through the local code.
+4. Use the `curl` statements provided above to debug and step through the local code.
