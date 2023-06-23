@@ -18,7 +18,7 @@ Debugging local code requires stopping the same code running in Kubernetes.  How
     ```
     In the editor, find `replicas: 1` and change it to `replicas: 0`.
     If there are more `mq-services` stop them also.
-    Verify that `host-inventory-mq-*` pods are NOT listed in the output of `k get po -n <namespace>
+    Verify that `host-inventory-mq-*` pods are NOT listed in the output of `kubectl get po -n <namespace>`
 4. In `VS Code`, start `inv_mq_service.py` in debug mode and set a break point; e.g. in `./app/queue/queue.py>handle-message`.
 5. Start a new terminal and go to the `insights-host-inventory` project director and run `pipenv shell` and create a host:
     ```
