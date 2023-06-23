@@ -646,3 +646,24 @@ def test_add_delete_host_group_happy(
 def test_group_schema_validation(data):
     with pytest.raises(MarshmallowValidationError):
         InputGroupSchema().load(data)
+
+
+def test_create_assignment_rule(db_create_group, db_create_assignment_rule, db_get_assignment_rule):
+    group_name = "MainGroup"
+    group = db_create_group(group_name)
+
+    ar = db_create_assignment_rule("default assignment", group.id, {"AND": [{"fqdn": {"eq": "foo.bar.com"}}]})
+    assert db_get_assignment_rule(ar.id)
+
+
+def test_delete_assignment_rule(
+    db_create_group, db_create_assignment_rule, db_get_assignment_rule, db_delete_assignment_rule
+):
+    group_name = "MainGroup"
+    group = db_create_group(group_name)
+
+    ar = db_create_assignment_rule("default assignment", group.id, {"AND": [{"fqdn": {"eq": "foo.bar.com"}}]})
+    assert db_get_assignment_rule(ar.id)
+
+    db_delete_assignment_rule(ar.id)
+    assert not db_get_assignment_rule(ar.id)
