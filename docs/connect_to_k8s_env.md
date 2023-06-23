@@ -23,7 +23,7 @@ Debugging Host Inventory code requires a database, kakfa broker, Kafka Zookeeper
         - memory: 16384
         - cpus: 6
    ```
-2. For using `Minikube` as the target cluster, clone the [xjoin-operator](https://github.com/thearifismail/xjoin-operator) code:
+2. For using `Minikube` as the target cluster, clone the [xjoin-operator](https://github.com/RedHatInsights/xjoin-operator) code:
     ```bash
         bonfire namespace reserve -d xxh    # the default reservation time is one hour
    ```
