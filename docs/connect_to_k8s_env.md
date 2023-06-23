@@ -1,6 +1,7 @@
-# Deploy Host Inventory to a Kubernetes Namespace in Ephemeral Cluster
-Debugging the Host Inventory API code needs database, kakfa broker, Kafka Zookeeper, Debezium Connector, and xjoin-search. Following is a list of high level steps necessary to debug local API code using an Ephemeral namespace. The steps are the same for resources running in minikube.
+# Deploying Host Inventory and Xjoin-search to Kubernetes Namespaces.
+Debugging Host Inventory code requires a database, kakfa broker, Kafka Zookeeper, Debezium Connector, and xjoin-search.  These required services are deployed to Ephemeral cluster or Minikube using [Kubernetes operators](https://www.redhat.com/en/topics/containers/what-is-a-kubernetes-operator) and [bonfire](https://github.com/RedHatInsights/bonfire). Following is a list of high level steps necessary to deploy host-inventory and xjoin-search into an Ephemeral cluster or Minikube.
 
+## Ephemeral Cluster
 1. Login to Ephemeral cluster.
 2. Reserve a namespace:
     ```bash
@@ -14,6 +15,25 @@ Debugging the Host Inventory API code needs database, kakfa broker, Kafka Zookee
     ```bash
         forward-ports-clowder.sh <namespace>
     ```
+## Minikube
+1. Start 'Minikube' with the following suggested [configuration](https://minikube.sigs.k8s.io/docs/handbook/config/):
+    ```bash
+        - disk-size: 200GB
+        - driver: kvm2
+        - memory: 16384
+        - cpus: 6
+   ```
+2. For using `Minikube` as the target cluster, clone the [xjoin-operator](https://github.com/thearifismail/xjoin-operator) code:
+    ```bash
+        bonfire namespace reserve -d xxh    # the default reservation time is one hour
+   ```
+3. `cd` into the `xjoin-operator` directory and run:
+    ```bash
+        ./dev/setup-clowder.sh
+    ```
+4.  No need to run because `setup-clowder.sh` runs `forward-ports-clowder.sh`
+
+## Common Steps
 5. In the host-inventory project directory, run:
     ```bash
         pipenv install --dev
@@ -81,4 +101,4 @@ This section describes how to launch debugger using `VS Code` to execute the loc
     }
     ```
 3. Launch the api-server on a port different from the one used by the host-inventory-service
-4. Use the `curl` statements provided above to debug and step through the local code.
+4. Use `curl` statements provided above to debug and step through the local code.

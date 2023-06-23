@@ -373,6 +373,10 @@ make update-schema
 This will pull the latest version of the System Profile schema from inventory-schemas and update files as necessary.
 Open a PR with these changes, and it will be reviewed and merged as per [the standard process](#release-process).
 
-## Debug API Code using Ephemeral Cluster
+## Deploying Host Inventory and Xjoin-search to Kubernetes Namespaces
 
-Instructions for setting up development environment for stepping through API code is provided [here](docs/connect_to_k8s_env.md)
+A list of high level steps is provided [here](docs/connect_to_k8s_env.md)
+
+## Debugging Local Code with Services Deployed to Kubernetes Namespaces
+
+This section relies on successful deployment of host-inventory and xjoin-search following the instructions in the [previous section](#deploying-host-inventory-and-xjoin-search-to-kubernetes-cluster-ephmeral).  To make local code work with the services running in Kubernetes requires some actions provided [here](docs/debug_local_code.md)
