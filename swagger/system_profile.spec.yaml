@@ -386,6 +386,14 @@ $defs:
         type: string
         maxLength: 100
         example: "aws, ms, ibm"
+      public_ipv4_addresses:
+        type: array
+        items:
+          description: The external IPv4 address of the system
+          type: string
+          maxLength: 15
+          example: "12.23.31.32"
+          format: ipv4
       yum_repos:
         type: array  # technically a set, ordering is not important
         x-indexed: false
