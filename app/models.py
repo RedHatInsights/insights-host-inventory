@@ -505,9 +505,6 @@ class AssignmentRule(db.Model):
         self.group_id = group_id
         self.filter = filter
 
-    def update_modified_on(self):
-        self.modified_on = _time_now()
-
     def update(self, input_ar):
         if input_ar.name is not None:
             self.name = input_ar.name
