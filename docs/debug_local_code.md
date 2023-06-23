@@ -1,5 +1,5 @@
 # Debugging Local Code with Services Deployed into Kubernetes Namespaces
-Instructions in this page requires host-inventory and xjoin-search are running in Ephemeral cluster or Minikube.
+The instructions in this page require host-inventory and xjoin-search to be running in an Ephemeral cluster or Minikube.
 
 Debugging local code requires stopping the same code running in Kubernetes.  However, stopping such services is tricky when the services have been deployed using Kubernetes operators and requires disabling `auto reconciliation` by the service operator.  For this write-up, `inventory-mq-service` has been used as an example.
 
