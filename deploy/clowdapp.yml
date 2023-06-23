@@ -30,6 +30,7 @@ objects:
         - --workers=${GUNICORN_WORKERS}
         - --threads=${GUNICORN_THREADS}
         - --limit-request-field_size=${GUNICORN_REQUEST_FIELD_LIMIT}
+        - --limit-request-line=${GUNICORN_REQUEST_LINE_LIMIT}
         - --worker-tmp-dir=/gunicorn
         - -c
         - gunicorn.conf.py
@@ -872,6 +873,8 @@ parameters:
   value: '8'
 - name: GUNICORN_REQUEST_FIELD_LIMIT
   value: '16380'
+- name: GUNICORN_REQUEST_LINE_LIMIT
+  value: '8190'
 - name: SCRIPT_CHUNK_SIZE
   value: '500'
 
