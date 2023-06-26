@@ -1,5 +1,5 @@
 # Deploying Host Inventory and Xjoin-search to Kubernetes Namespaces.
-Debugging Host Inventory code requires a database, kakfa broker, Kafka Zookeeper, Debezium Connector, and xjoin-search.  These required services are deployed to Kubernetes using [Kubernetes operators](https://www.redhat.com/en/topics/containers/what-is-a-kubernetes-operator) and [bonfire](https://github.com/RedHatInsights/bonfire). 
+Debugging Host Inventory code requires a database, kakfa broker, Kafka Zookeeper, Debezium Connector, and xjoin-search.  These required services are deployed to Kubernetes using [Kubernetes operators](https://www.redhat.com/en/topics/containers/what-is-a-kubernetes-operator) and [bonfire](https://github.com/RedHatInsights/bonfire).
 
 ## Kubernetes Setup
 ### Option 1: Minikube

@@ -26,4 +26,4 @@ Debugging local code requires stopping the same code running in Kubernetes.  How
         make run_inv_mq_service_test_producer
     ```
     Debugger should stop at the breakpoint set above.
-6.  When done debugging, simply enable auto-reconciliation by setting `disabled: false` in the clowdenvironment. 
+6.  When done debugging, simply enable auto-reconciliation by setting `disabled: false` in the clowdenvironment.
