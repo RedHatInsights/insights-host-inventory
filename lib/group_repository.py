@@ -1,3 +1,5 @@
+from datetime import datetime
+from datetime import timezone
 from typing import List
 
 from api.host_query import staleness_timestamps
@@ -255,3 +257,11 @@ def patch_group(group: Group, patch_data: dict, event_producer: EventProducer):
 
         added_host_uuids = [str(host_id) for host_id in new_host_ids]
         _produce_host_update_events(event_producer, added_host_uuids, [group_id])
+
+
+def update_group_update_time(group_id: str) -> Group:
+    with session_guard(db.session):
+        group = get_group_by_id_from_db(group_id)
+        group.modified_on = datetime.now(timezone.utc)
+        db.session.add(group)
+        db.session.commit()
