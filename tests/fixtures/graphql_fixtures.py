@@ -4,6 +4,7 @@ from datetime import timezone
 
 import pytest
 
+from api.host_query_xjoin import QUERY
 from api.tag import TAGS_QUERY
 from tests.helpers.graphql_utils import CASEFOLDED_FIELDS
 from tests.helpers.graphql_utils import EMPTY_GROUPS_RESPONSE
@@ -108,6 +109,27 @@ def filtering_datetime_mock(mocker):
     date = datetime(2019, 12, 16, 10, 10, 6, 754201, tzinfo=timezone.utc)
     mock = mocker.patch("api.filtering.filtering.datetime", **{"now.return_value": date})
     return mock.now.return_value
+
+
+@pytest.fixture(scope="function")
+def assert_query_host_filter_single_call(mocker, api_get, graphql_query_empty_response):
+    def _assert_query_host_filter_single_call(url, filter={"OR": mocker.ANY}, status=200):
+        response_status, _ = api_get(url)
+
+        assert response_status == status
+
+        graphql_vars = {
+            "order_by": "modified_on",
+            "order_how": "DESC",
+            "limit": 50,
+            "offset": 0,
+            "filter": filter,
+            "fields": [],
+        }
+
+        graphql_query_empty_response.assert_called_once_with(QUERY, graphql_vars, mocker.ANY)
+
+    return _assert_query_host_filter_single_call
 
 
 @pytest.fixture(scope="function")
