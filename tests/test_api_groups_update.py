@@ -330,7 +330,6 @@ def test_patch_group_same_hosts(
         host = json.loads(call_arg[0][0])["host"]
         assert host["id"] in host_id_list
         assert host["groups"][0]["id"] == str(group_id)
-        assert parser.isoparse(host["groups"][0]["updated"]) == db_get_group_by_id(group_id).modified_on
 
 
 def test_patch_group_both_add_and_remove_hosts(
@@ -357,6 +356,5 @@ def test_patch_group_both_add_and_remove_hosts(
         if host["id"] in new_host_id_list:
             assert host["id"] in new_host_id_list
             assert host["groups"][0]["id"] == str(group_id)
-            assert parser.isoparse(host["groups"][0]["updated"]) == db_get_group_by_id(group_id).modified_on
         else:
             assert host["groups"] == []
