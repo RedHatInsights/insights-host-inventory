@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 import pytest
 
 from api import custom_escape
@@ -15,11 +17,11 @@ from tests.helpers.api_utils import build_system_profile_sap_system_url
 from tests.helpers.api_utils import build_system_profile_url
 from tests.helpers.api_utils import build_tags_url
 from tests.helpers.api_utils import create_mock_rbac_response
+from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_URL
 from tests.helpers.api_utils import quote
 from tests.helpers.api_utils import quote_everything
-from tests.helpers.api_utils import READ_ALLOWED_RBAC_RESPONSE_FILES
-from tests.helpers.api_utils import READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import TAGS_URL
 from tests.helpers.graphql_utils import assert_called_with_headers
 from tests.helpers.graphql_utils import assert_graph_query_single_call_with_staleness
@@ -1192,12 +1194,94 @@ def test_tags_response_pagination_index_error(mocker, graphql_tag_query_with_res
     )
 
 
+# WIP
+def test_query_all_hosts_with_rbac_group_restriction(
+    mocker, assert_query_host_filter_single_call, enable_rbac, db_create_group_with_hosts
+):
+    # Create a group and 3 hosts
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    group_id = str(db_create_group_with_hosts("new_group", 3).id)
+
+    # Make a list of allowed group IDs (including some mock ones)
+    group_id_list = [generate_uuid(), group_id, generate_uuid()]
+
+    # Grant permissions to one of the groups
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-hosts-read-resource-defs-template.json"
+    )
+    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = [group_id_list[1]]
+
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    assert_query_host_filter_single_call(
+        HOST_URL,
+        filter=(
+            {"OR": mocker.ANY},
+            {"OR": [{"group": {"id": {"eq": group_id_list[1]}}}]},
+        ),
+    )
+
+
+def test_query_all_hosts_with_rbac_one_group_and_ungrouped(
+    mocker, assert_query_host_filter_single_call, enable_rbac, db_create_group_with_hosts
+):
+    # Create a group and 3 hosts
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+
+    # Make a list of allowed group IDs (including some mock ones)
+    group_id_list = [generate_uuid(), None]
+
+    # Grant permissions to one of the groups
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-hosts-read-resource-defs-template.json"
+    )
+    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = group_id_list
+
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    assert_query_host_filter_single_call(
+        HOST_URL,
+        filter=(
+            {"OR": mocker.ANY},
+            {"OR": [{"group": {"id": {"eq": group_id_list[0]}}}, {"group": {"hasSome": {"is": False}}}]},
+        ),
+    )
+
+
+def test_query_all_hosts_with_rbac_multiple_permissions(
+    mocker, assert_query_host_filter_single_call, enable_rbac, api_get, db_create_group_with_hosts
+):
+    # Create a group and 3 hosts
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    group_id = str(db_create_group_with_hosts("new_group", 3).id)
+
+    # Make a list of allowed group IDs (including some mock ones)
+    group_id_list = [generate_uuid(), group_id, generate_uuid()]
+
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-groups-write-resource-defs-template.json"
+    )
+
+    # Limit group-write permissions to one group, but grant unrestricted host-read
+    mock_rbac_response[1]["resourceDefinitions"] = deepcopy(mock_rbac_response[0]["resourceDefinitions"])
+    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = [group_id_list[1]]
+
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    # groups:write permission is limited to the above groups,
+    # but hosts:read permission is unaffected. The API call should be unrestricted.
+    assert_query_host_filter_single_call(
+        HOST_URL,
+        filter=({"OR": mocker.ANY},),
+    )
+
+
 def test_tags_RBAC_allowed(
     subtests, mocker, graphql_tag_query_empty_response, enable_rbac, assert_tag_query_host_filter_single_call
 ):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
-    for response_file in READ_ALLOWED_RBAC_RESPONSE_FILES:
+    for response_file in HOST_READ_ALLOWED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
@@ -1212,10 +1296,42 @@ def test_tags_RBAC_allowed(
             graphql_tag_query_empty_response.reset_mock()
 
 
+def test_tags_RBAC_allowed_specific_groups(
+    mocker, graphql_tag_query_empty_response, enable_rbac, assert_tag_query_host_filter_single_call
+):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    group_id_list = [generate_uuid(), None]
+
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-hosts-read-resource-defs-template.json"
+    )
+
+    # Grant host-read access to that group, and ungrouped hosts
+    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = group_id_list
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    assert_tag_query_host_filter_single_call(
+        build_tags_url(query="?registered_with=insights"),
+        host_filter={
+            "OR": mocker.ANY,
+            "AND": (
+                {"OR": [{"NOT": {"insights_id": {"eq": None}}}]},
+                {
+                    "OR": [
+                        {"group": {"id": {"eq": group_id_list[0]}}},
+                        {"group": {"hasSome": {"is": False}}},
+                    ]
+                },
+            ),
+        },
+    )
+    graphql_tag_query_empty_response.reset_mock()
+
+
 def test_tags_RBAC_denied(subtests, mocker, graphql_tag_query_empty_response, api_get, enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
-    for response_file in READ_PROHIBITED_RBAC_RESPONSE_FILES:
+    for response_file in HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response

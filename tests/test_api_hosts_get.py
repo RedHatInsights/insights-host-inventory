@@ -15,9 +15,9 @@ from tests.helpers.api_utils import build_system_profile_sap_system_url
 from tests.helpers.api_utils import build_system_profile_url
 from tests.helpers.api_utils import build_tags_url
 from tests.helpers.api_utils import create_mock_rbac_response
+from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_URL
-from tests.helpers.api_utils import READ_ALLOWED_RBAC_RESPONSE_FILES
-from tests.helpers.api_utils import READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.graphql_utils import XJOIN_HOSTS_RESPONSE
 from tests.helpers.graphql_utils import XJOIN_SYSTEM_PROFILE_SAP_SIDS
 from tests.helpers.graphql_utils import XJOIN_SYSTEM_PROFILE_SAP_SYSTEM
@@ -192,7 +192,7 @@ def test_query_variables_registered_with_using_unknown_reporter(api_get):
 def test_get_hosts_with_RBAC_allowed(subtests, mocker, db_create_host, api_get, enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
-    for response_file in READ_ALLOWED_RBAC_RESPONSE_FILES:
+    for response_file in HOST_READ_ALLOWED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
@@ -211,7 +211,7 @@ def test_get_hosts_with_RBAC_denied(subtests, mocker, db_create_host, api_get, e
         "lib.host_repository.find_hosts_by_staleness", wraps=find_hosts_by_staleness
     )
 
-    for response_file in READ_PROHIBITED_RBAC_RESPONSE_FILES:
+    for response_file in HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response

@@ -6,6 +6,8 @@ from dateutil import parser
 
 from tests.helpers.api_utils import assert_group_response
 from tests.helpers.api_utils import assert_response_status
+from tests.helpers.api_utils import create_mock_rbac_response
+from tests.helpers.api_utils import GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
@@ -154,3 +156,20 @@ def test_create_group_with_host_from_another_org(db_create_host, api_create_grou
 
     # No hosts modified, so no events should be written.
     assert event_producer.write_event.call_count == 0
+
+
+def test_create_group_RBAC_denied(subtests, mocker, api_create_group, db_get_group_by_name, enable_rbac):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    group_data = {"name": "my_awesome_group", "host_ids": []}
+
+    for response_file in GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+
+            response_status, _ = api_create_group(group_data)
+
+            assert_response_status(response_status, 403)
+
+            assert not db_get_group_by_name("my_awesome_group")

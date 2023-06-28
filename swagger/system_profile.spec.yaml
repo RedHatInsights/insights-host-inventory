@@ -388,6 +388,7 @@ $defs:
         example: "aws, ms, ibm"
       public_ipv4_addresses:
         type: array
+        x-indexed: false
         items:
           description: The external IPv4 address of the system
           type: string
