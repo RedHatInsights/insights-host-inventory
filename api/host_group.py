@@ -17,7 +17,6 @@ from lib.feature_flags import get_flag_value
 from lib.group_repository import add_hosts_to_group
 from lib.group_repository import get_group_by_id_from_db
 from lib.group_repository import remove_hosts_from_group
-from lib.group_repository import update_group_update_time
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.middleware import rbac
 from lib.middleware import rbac_group_id_check
@@ -55,7 +54,6 @@ def add_host_list_to_group(group_id, body, rbac_filter=None):
     # Next, add the host-group associations
     if host_id_list is not None:
         add_hosts_to_group(group_id, body, current_app.event_producer)
-        update_group_update_time(group_id)
 
     updated_group = get_group_by_id_from_db(group_id)
     log_host_group_add_succeeded(logger, host_id_list, group_id)
@@ -76,5 +74,4 @@ def delete_hosts_from_group(group_id, host_id_list, rbac_filter=None):
     if delete_count == 0:
         abort(status.HTTP_404_NOT_FOUND, "Group or hosts not found.")
 
-    update_group_update_time(group_id)
     return Response(None, status.HTTP_204_NO_CONTENT)

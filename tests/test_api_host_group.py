@@ -1,5 +1,7 @@
 import uuid
 
+from dateutil.parser import parse
+
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
@@ -107,18 +109,22 @@ def test_add_associated_host_to_same_group(
     mocker.patch.object(event_producer, "write_event")
 
     # Create a group and 3 hosts
-    group_id = db_create_group("test_group").id
+    group = db_create_group("test_group")
+    group_id = group.id
     host_id_list = [db_create_host().id for _ in range(3)]
 
     # Add 1 host to the group
     db_create_host_group_assoc(host_id_list[1], group_id)
+
+    # get update time with 1 host in the group
+    first_update = group.modified_on
 
     # Confirm that the association exists
     hosts_before = db_get_hosts_for_group(group_id)
     assert len(hosts_before) == 1
 
     # Confirm that the API is allowed to add the hosts even though one is associated
-    response_status, _ = api_add_hosts_to_group(group_id, [str(host) for host in host_id_list])
+    response_status, updated_group = api_add_hosts_to_group(group_id, [str(host) for host in host_id_list])
     assert response_status == 200
 
     # Confirm the host count afterwards
@@ -126,6 +132,9 @@ def test_add_associated_host_to_same_group(
 
     # Make sure that the events were produced
     assert event_producer.write_event.call_count == 3
+
+    second_update = parse(updated_group["updated"])
+    assert second_update > first_update
 
 
 def test_add_associated_host_to_different_group(
@@ -186,35 +195,6 @@ def test_add_host_list_with_one_associated_host_to_group(
     # Confirm that the group now only contains  2 hosts
     hosts_after = db_get_hosts_for_group(group_id)
     assert len(hosts_after) == 3
-
-
-def test_update_time_after_adding_host_to_group(
-    db_create_group,
-    db_create_host,
-    api_add_hosts_to_group,
-    event_producer,
-):
-    # Create a group and 3 hosts
-    group = db_create_group("test_group")
-    group_id = group.id
-    host_id_list = [db_create_host().id for _ in range(3)]
-
-    response_status, group = api_add_hosts_to_group(group_id, [str(host) for host in host_id_list])
-
-    assert response_status == 200
-    assert group["host_count"] == 3
-
-    # add 4 host to the same group
-    response_status, updated_group = api_add_hosts_to_group(group_id, [str(db_create_host().id)])
-    assert response_status == 200
-    assert updated_group["host_count"] == 4
-
-    # compare the two update times
-    from dateutil.parser import parse
-
-    first_update = parse(group["updated"])
-    second_update = parse(updated_group["updated"])
-    assert second_update > first_update
 
 
 def test_add_host_to_missing_group(db_create_host, api_add_hosts_to_group, event_producer):

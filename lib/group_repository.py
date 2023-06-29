@@ -1,5 +1,3 @@
-from datetime import datetime
-from datetime import timezone
 from typing import List
 
 from api.host_query import staleness_timestamps
@@ -88,6 +86,11 @@ def _add_hosts_to_group(group_id: str, host_id_list: List[str]):
         if host_id not in ids_already_in_this_group
     ]
     db.session.add_all(host_group_assoc)
+
+    # update the group's update time.
+    group = _update_group_update_time(group_id)
+    db.session.add(group)
+
     db.session.flush()
 
     log_host_group_add_succeeded(logger, host_id_list, group_id)
@@ -214,6 +217,11 @@ def _remove_hosts_from_group(group_id, host_id_list):
             else:
                 log_host_group_delete_failed(logger, assoc.host_id, assoc.group_id, get_control_rule())
 
+    # update the group's update time.
+    group = _update_group_update_time(group_id)
+    db.session.add(group)
+    db.session.flush()
+
     return removed_host_ids
 
 
@@ -259,9 +267,7 @@ def patch_group(group: Group, patch_data: dict, event_producer: EventProducer):
         _produce_host_update_events(event_producer, added_host_uuids, [group_id])
 
 
-def update_group_update_time(group_id: str) -> Group:
-    with session_guard(db.session):
-        group = get_group_by_id_from_db(group_id)
-        group.modified_on = datetime.now(timezone.utc)
-        db.session.add(group)
-        db.session.commit()
+def _update_group_update_time(group_id: str) -> Group:
+    group = get_group_by_id_from_db(group_id)
+    group.update_modified_on()
+    return group
