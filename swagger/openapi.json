@@ -1297,6 +1297,89 @@
           }
         }
       }
+    },
+    "/assignment-rules": {
+      "get": {
+        "operationId": "api.assignment_rule.get_assignment_rule_list",
+        "tags": [
+          "assignment-rules"
+        ],
+        "summary": "Read the entire list of assignment-rules [Not Implemented]",
+        "description": "Read the entire list of all assignment-rules available to the account. [Not Implemented] <br /><br /> Required permissions: inventory:assignment-rules:read",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/assignmentRuleName"
+          },
+          {
+            "$ref": "#/components/parameters/perPageParam"
+          },
+          {
+            "$ref": "#/components/parameters/pageParam"
+          },
+          {
+            "$ref": "#/components/parameters/assignmentRuleOrderByParam"
+          },
+          {
+            "$ref": "#/components/parameters/assignmentRuleOrderHowParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully read the assignment-rules list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupQueryOutput"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "api.assignment_rule.create_assignment_rule",
+        "tags": [
+          "assignment-rules"
+        ],
+        "summary": "Create a new assignment-rule matching the provided name and list of hosts IDs ??? [Not Implemented]",
+        "description": "Creates a new assignment-rule containing the hosts associated with the host IDs provided. [Not Implemented] <br /><br /> Required permissions: inventory:assignment-rules:write",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "description": "Data required to create a record for a assignment-rule.",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successfully created new Group.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupOutWithHostCount"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1497,6 +1580,19 @@
         },
         "description": "Ordering field name"
       },
+      "assignmentRuleOrderByParam": {
+        "name": "order_by",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "name",
+            "host_ids"
+          ]
+        },
+        "description": "Ordering field name"
+      },
       "hostOrderHowParam": {
         "name": "order_how",
         "in": "query",
@@ -1511,6 +1607,19 @@
         "description": "Direction of the ordering; defaults to ASC for display_name, and to DESC for updated and operating_system"
       },
       "groupOrderHowParam": {
+        "name": "order_how",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "ASC",
+            "DESC"
+          ]
+        },
+        "description": "Direction of the ordering; defaults to ASC for name, and to DESC for host_ids"
+      },
+      "assignmentRuleOrderHowParam": {
         "name": "order_how",
         "in": "query",
         "required": false,
@@ -1701,6 +1810,45 @@
         "in": "path",
         "name": "group_id_list",
         "description": "A comma-separated list of group IDs.",
+        "required": true,
+        "schema": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/NonStrictUUID"
+          }
+        }
+      },
+      "assignmentRuleName": {
+        "in": "query",
+        "name": "name",
+        "schema": {
+          "type": "string"
+        },
+        "description": "Filter by assignement-rule name",
+        "required": false
+      },
+      "assignmentRuleNameExplicit": {
+        "in": "query",
+        "name": "assignment_rule_name",
+        "schema": {
+          "type": "string"
+        },
+        "description": "Filter by assignment-rule name",
+        "required": false
+      },
+      "assignmentRuleId": {
+        "in": "path",
+        "name": "assignment_rule_id",
+        "description": "assignment-rule ID.",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/NonStrictUUID"
+        }
+      },
+      "assignmentRuleIdList": {
+        "in": "path",
+        "name": "assignment_rule_id_list",
+        "description": "A comma-separated list of assignment-rule IDs.",
         "required": true,
         "schema": {
           "type": "array",
@@ -2415,6 +2563,12 @@
         "nullable": false,
         "example": "sre-group"
       },
+      "AssignmentRuleName": {
+        "description": "A assignement-rule’s human-readable name.",
+        "type": "string",
+        "nullable": false,
+        "example": "sre-assignment-rule"
+      },
       "NonStrictUUID": {
         "type": "string",
         "pattern": "^[0-9a-fA-F]{8}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{12}$|^[0-9a-fA-F]{8}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{12}$",
@@ -2422,6 +2576,10 @@
         "example": "bA6deCFc19564430AB814bf8F70E8cEf"
       },
       "GroupId": {
+        "description": "A durable and reliable platform-wide group identifier. Applications should use this identifier to reference groups.",
+        "$ref": "#/components/schemas/NonStrictUUID"
+      },
+      "AssignmentRuleId": {
         "description": "A durable and reliable platform-wide group identifier. Applications should use this identifier to reference groups.",
         "$ref": "#/components/schemas/NonStrictUUID"
       },
@@ -2472,6 +2630,23 @@
           }
         ]
       },
+      "AssignmentRuleIn": {
+        "title": "Assignment Rule In",
+        "description": "Data of a single assignment-rule belonging to an account.",
+        "type": "object",
+        "allOf": [
+          {
+            "properties": {
+              "name": {
+                "$ref": "#/components/schemas/AssignmentRuleName"
+              },
+              "host_ids": {
+                "$ref": "#/components/schemas/HostIds"
+              }
+            }
+          }
+        ]
+      },
       "GroupOutWithHostCount": {
         "title": "Group properties with host count",
         "description": "Data of a single group belonging to an account.",
@@ -2481,6 +2656,23 @@
             "properties": {
               "group_out": {
                 "$ref": "#/components/schemas/GroupOut"
+              },
+              "host_count": {
+                "$ref": "#/components/schemas/HostCount"
+              }
+            }
+          }
+        ]
+      },
+      "AssignmentRuleOutWithHostCount": {
+        "title": "Group properties with host count",
+        "description": "Data of a single group belonging to an account.",
+        "type": "object",
+        "allOf": [
+          {
+            "properties": {
+              "group_out": {
+                "$ref": "#/components/schemas/AssignmentRuleOut"
               },
               "host_count": {
                 "$ref": "#/components/schemas/HostCount"
@@ -2534,6 +2726,85 @@
             "properties": {
               "results": {
                 "description": "Actual group search query result entries.",
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/GroupOutWithHostCount"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "AssignmentRuleOut": {
+        "title": "Assignment Rule Out Properties",
+        "description": "Data of a single assingment-rule belonging to an account.",
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/AssignmentRuleId"
+          },
+          "name": {
+            "$ref": "#/components/schemas/AssignmentRuleName"
+          },
+          "account": {
+            "$ref": "#/components/schemas/AccountNumber"
+          },
+          "org_id": {
+            "$ref": "#/components/schemas/OrgId"
+          },
+          "created": {
+            "description": "A timestamp when the entry was created.",
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated": {
+            "description": "A timestamp when the entry was last updated.",
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AssignmentQueryOutput": {
+        "title": "An Inventory Assignment Rules query result",
+        "description": "A paginated assignment-rule search query result with assignment-rule entries and their Inventory metadata.",
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PaginationOut"
+          },
+          {
+            "type": "object",
+            "required": [
+              "results"
+            ],
+            "properties": {
+              "results": {
+                "description": "Actual assignment-rule search query result entries.",
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/AssignmentRuleOutWithHostCount"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "AssignmentRuleQueryOutput": {
+        "title": "An Inventory Assignment Rules query result",
+        "description": "A paginated assignment-rule search query result with assignment-rule entries and their Inventory metadata.",
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PaginationOut"
+          },
+          {
+            "type": "object",
+            "required": [
+              "results"
+            ],
+            "properties": {
+              "results": {
+                "description": "Actual assignment-rule search query result entries.",
                 "type": "array",
                 "items": {
                   "$ref": "#/components/schemas/GroupOutWithHostCount"

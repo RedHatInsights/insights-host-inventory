@@ -1669,7 +1669,7 @@ components:
       type: string
       nullable: false
       example: sre-group
-    AssignemntRuleName:
+    AssignmentRuleName:
       description: >-
         A assignement-rule’s human-readable name.
       type: string
