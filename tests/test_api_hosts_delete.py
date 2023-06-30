@@ -518,7 +518,7 @@ def test_delete_host_RBAC_allowed_specific_groups(
     db_create_host,
     db_get_hosts_for_group,
     enable_rbac,
-    event_producer,
+    event_producer_mock,
 ):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     host_id = db_create_host().id
@@ -544,7 +544,7 @@ def test_delete_host_RBAC_allowed_specific_groups(
 
 
 def test_delete_host_RBAC_denied_specific_groups(
-    mocker, db_create_host, db_get_host, api_delete_host, enable_rbac, event_producer
+    mocker, db_create_host, db_get_host, api_delete_host, enable_rbac, event_producer_mock
 ):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     host_id = db_create_host().id
