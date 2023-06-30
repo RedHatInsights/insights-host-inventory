@@ -86,7 +86,8 @@ def _add_hosts_to_group(group_id: str, host_id_list: List[str]):
         if host_id not in ids_already_in_this_group
     ]
     db.session.add_all(host_group_assoc)
-    db.session.flush()
+
+    _update_group_update_time(group_id)
 
     log_host_group_add_succeeded(logger, host_id_list, group_id)
 
@@ -212,6 +213,8 @@ def _remove_hosts_from_group(group_id, host_id_list):
             else:
                 log_host_group_delete_failed(logger, assoc.host_id, assoc.group_id, get_control_rule())
 
+    _update_group_update_time(group_id)
+
     return removed_host_ids
 
 
@@ -255,3 +258,10 @@ def patch_group(group: Group, patch_data: dict, event_producer: EventProducer):
 
         added_host_uuids = [str(host_id) for host_id in new_host_ids]
         _produce_host_update_events(event_producer, added_host_uuids, [group_id])
+
+
+def _update_group_update_time(group_id: str):
+    group = get_group_by_id_from_db(group_id)
+    group.update_modified_on()
+    db.session.add(group)
+    db.session.flush()
