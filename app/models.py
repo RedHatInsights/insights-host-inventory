@@ -165,7 +165,7 @@ class LimitedHost(db.Model):
         facts=None,
         tags={},
         system_profile_facts=None,
-        groups=None,
+        groups=[],
     ):
         self.canonical_facts = canonical_facts
 
@@ -219,7 +219,7 @@ class Host(LimitedHost):
         stale_timestamp=None,
         reporter=None,
         per_reporter_staleness=None,
-        groups=None,
+        groups=[],
     ):
         if not canonical_facts:
             raise ValidationException("At least one of the canonical fact fields must be present.")
