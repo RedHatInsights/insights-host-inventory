@@ -84,7 +84,7 @@ def _get_identity(host, metadata):
             identity["org_id"] = host.get("org_id")
             identity["system"]["cn"] = _formatted_uuid(host.get("subscription_manager_id"))
         elif metadata:
-            raise ValueError(
+            raise ValidationException(
                 "When identity is not provided, reporter MUST be rhsm-conduit or rhsm-system-profile-bridge,"
                 " with a subscription_manager_id.\n"
                 f"Host Data: {host}"
@@ -307,9 +307,6 @@ def handle_message(message, event_producer, notification_event_producer, message
                 extra={"host": {"reporter": host.get("reporter")}},
             )
             send_kafka_error_message(notification_event_producer, host=host, detail=str(ve.detail))
-            raise
-        except ValueError as ve:
-            logger.error("Value error while adding or updating host: %s", ve, extra={"reporter": host.get("reporter")})
             raise
         except InventoryException as ie:
             send_kafka_error_message(notification_event_producer, host, str(ie.detail))
