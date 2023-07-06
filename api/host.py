@@ -321,7 +321,7 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
 
     if not hosts_to_update:
         log_patch_host_failed(logger, host_id_list)
-        return flask.abort(status.HTTP_404_NOT_FOUND)
+        return flask.abort(status.HTTP_404_NOT_FOUND, "Requested host not found.")
 
     for host in hosts_to_update:
         host.patch(validated_patch_host_data)
