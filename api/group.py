@@ -5,6 +5,7 @@ from flask_api import status
 from marshmallow import ValidationError
 from sqlalchemy.exc import IntegrityError
 
+from api import _error_json_response
 from api import api_operation
 from api import flask_json_response
 from api import metrics
@@ -209,7 +210,3 @@ def delete_hosts_from_group(group_id, host_id_list, rbac_filter=None):
         abort(status.HTTP_404_NOT_FOUND, "Group or hosts not found.")
 
     return Response(None, status.HTTP_204_NO_CONTENT)
-
-
-def _error_json_response(title, detail, status=status.HTTP_400_BAD_REQUEST):
-    return flask_json_response({"title": title, "detail": detail}, status)
