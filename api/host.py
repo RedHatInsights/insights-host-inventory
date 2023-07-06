@@ -288,7 +288,9 @@ def get_host_system_profile_by_id(
     host_id_list, page=1, per_page=100, order_by=None, order_how=None, fields=None, rbac_filter=None
 ):
     try:
-        total, response_list = get_sparse_system_profile(host_id_list, page, per_page, order_by, order_how, fields)
+        total, response_list = get_sparse_system_profile(
+            host_id_list, page, per_page, order_by, order_how, fields, rbac_filter
+        )
     except ValueError as e:
         log_get_host_list_failed(logger)
         flask.abort(400, str(e))
