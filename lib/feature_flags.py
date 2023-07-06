@@ -9,6 +9,9 @@ logger = get_logger(__name__)
 
 FLAG_INVENTORY_GROUPS = "hbi.api.inventory-groups"
 
+# TODO: check if needed?
+FLAG_INVENTORY_ASSIGNMENT_RULE = "hbi.api.inventory-assignment-rule"
+
 FLAG_FALLBACK_VALUES = {FLAG_INVENTORY_GROUPS: True}
 
 
