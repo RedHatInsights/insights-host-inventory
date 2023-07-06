@@ -8,6 +8,7 @@ from tests.helpers.api_utils import assert_group_response
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
+from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
@@ -173,3 +174,20 @@ def test_create_group_RBAC_denied(subtests, mocker, api_create_group, db_get_gro
             assert_response_status(response_status, 403)
 
             assert not db_get_group_by_name("my_awesome_group")
+
+
+def test_create_group_RBAC_denied_attribute_filter(mocker, api_create_group, enable_rbac):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+
+    # Mock the RBAC response with a groups-write permission that has an attributeFilter
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-groups-write-resource-defs-template.json"
+    )
+    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = [generate_uuid(), generate_uuid()]
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    group_data = {"name": "my_awesome_group", "host_ids": []}
+    response_status, _ = api_create_group(group_data)
+
+    # Access denied because of the attributeFilter
+    assert_response_status(response_status, 403)
