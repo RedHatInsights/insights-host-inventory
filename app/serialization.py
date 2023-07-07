@@ -181,15 +181,15 @@ def serialize_group(group):
     }
 
 
-def serialize_assignment_rule(group):
+def serialize_assignment_rule(rule):
     return {
-        "id": _serialize_uuid(group.id),
-        "org_id": group.org_id,
-        "account": group.account,
-        "name": group.name,
-        "host_count": len(group.hosts),
-        "created": _serialize_datetime(group.created_on),
-        "updated": _serialize_datetime(group.modified_on),
+        "id": _serialize_uuid(rule.id),
+        "org_id": rule.org_id,
+        "account": rule.account,
+        "name": rule.name,
+        "description": rule.description,
+        "created": _serialize_datetime(rule.created_on),
+        "updated": _serialize_datetime(rule.modified_on),
     }
 
 

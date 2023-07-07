@@ -98,6 +98,15 @@ def log_get_group_list_failed(logger):
     logger.info("Groups not found", extra={"access_rule": get_control_rule()})
 
 
+# get asssignment-rules
+def log_get_assignment_rules_list_succeeded(logger, results_list):
+    logger.info("Found assignment-rules: %s", results_list, extra={"access_rule": get_control_rule()})
+
+
+def log_get_assignment_rules_list_failed(logger):
+    logger.info("assignment-rules not found", extra={"access_rule": get_control_rule()})
+
+
 # create group
 def log_create_group_succeeded(logger, group_id):
     logger.info("Created group: %s", group_id, extra={"access_rule": get_control_rule()})
