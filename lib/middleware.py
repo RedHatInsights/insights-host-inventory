@@ -108,11 +108,24 @@ def rbac(resource_type, required_permission, permission_base="inventory"):
                     # Get the list of allowed Group IDs from the attribute filter.
                     groups_attribute_filter = set()
                     for resourceDefinition in rbac_permission["resourceDefinitions"]:
-                        if (
-                            "attributeFilter" in resourceDefinition
-                            and resourceDefinition["attributeFilter"].get("key") == "group.id"
-                        ):
-                            groups_attribute_filter.update(resourceDefinition["attributeFilter"]["value"])
+                        if "attributeFilter" in resourceDefinition:
+                            if resourceDefinition["attributeFilter"].get("key") != "group.id":
+                                abort(
+                                    status.HTTP_503_SERVICE_UNAVAILABLE,
+                                    "Invalid value for attributeFilter.key in RBAC response.",
+                                )
+                            elif resourceDefinition["attributeFilter"].get("operation") != "in":
+                                abort(
+                                    status.HTTP_503_SERVICE_UNAVAILABLE,
+                                    "Invalid value for attributeFilter.operation in RBAC response.",
+                                )
+                            elif not isinstance(resourceDefinition["attributeFilter"]["value"], list):
+                                abort(
+                                    status.HTTP_503_SERVICE_UNAVAILABLE,
+                                    "Did not receive a list for attributeFilter.value in RBAC response.",
+                                )
+                            else:
+                                groups_attribute_filter.update(resourceDefinition["attributeFilter"]["value"])
 
                     if groups_attribute_filter:
                         # If the RBAC permission is applicable and is limited to specific group IDs,

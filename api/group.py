@@ -69,6 +69,11 @@ def create_group(body, rbac_filter=None):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
+    # If there is an attribute filter on the RBAC permissions,
+    # the user should not be allowed to create a group.
+    if rbac_filter is not None:
+        return Response(None, status.HTTP_403_FORBIDDEN)
+
     # Validate group input data
     try:
         validated_create_group_data = InputGroupSchema().load(body)
