@@ -286,6 +286,54 @@ def test_query_variables_provider_id(mocker, graphql_query_empty_response, api_g
     )
 
 
+def test_query_variables_updated_too_old_timestamp(mocker, graphql_query_empty_response, api_get):
+    # testing both timestamp with too old.
+    url = build_hosts_url(query="?updated_start=0199-03-04T04:56:02.000Z&updated_end=0199-03-04T04:56:02.000Z")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            "filter": (mocker.ANY,),
+            "fields": mocker.ANY,
+        },
+        mocker.ANY,
+    )
+
+    # testing updated_end with too old.
+    url = build_hosts_url(query="?updated_start=2001-03-04T04:56:02.000Z&updated_end=0199-03-04T04:56:02.000Z")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 400
+
+    graphql_query_empty_response.reset_mock()
+
+    # testing updated_start with too old.
+    url = build_hosts_url(query="?updated_start=0199-03-04T04:56:02.000Z&updated_end=2010-03-04T04:56:02.000Z")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            "filter": (mocker.ANY, {"modified_on": {"lte": "2010-03-04T04:56:02+00:00"}}),
+            "fields": mocker.ANY,
+        },
+        mocker.ANY,
+    )
+
+
 @pytest.mark.parametrize(
     "provider",
     (

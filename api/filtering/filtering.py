@@ -306,19 +306,19 @@ def build_registered_with_filter(registered_with):
     return ({"OR": prs_list},)
 
 
-def _build_modified_on_filter(updated_start: str = None, updated_end: str = None) -> Tuple:
+def _build_modified_on_filter(updated_start: str, updated_end: str) -> Tuple:
     updated_start_date = parser.isoparse(updated_start) if updated_start else None
     updated_end_date = parser.isoparse(updated_end) if updated_end else None
 
     if updated_start_date and updated_end_date and updated_start_date > updated_end_date:
         raise ValueError("updated_start cannot be after updated_end.")
     modified_on_filter = {}
-    if updated_start_date:
+    if updated_start_date and updated_start_date.year > 1970:
         modified_on_filter["gte"] = updated_start_date.isoformat()
-    if updated_end_date:
+    if updated_end_date and updated_end_date.year > 1970:
         modified_on_filter["lte"] = updated_end_date.isoformat()
 
-    return ({"modified_on": modified_on_filter},)
+    return ({"modified_on": modified_on_filter},) if modified_on_filter else ()
 
 
 def build_tag_query_dict_tuple(tags):
