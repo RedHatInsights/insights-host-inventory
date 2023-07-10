@@ -1,3 +1,5 @@
+from sqlalchemy import asc
+from sqlalchemy import desc
 from sqlalchemy import func
 
 from app import db
@@ -5,16 +7,30 @@ from app.auth import get_current_identity
 from app.models import AssignmentRule
 from app.serialization import serialize_assignment_rule
 
+ASSIGNMENT_RULES_ORDER_BY_MAPPING = {
+    "org_id": AssignmentRule.org_id,
+    "account": AssignmentRule.account,
+    "name": AssignmentRule.name,
+    "group_id": AssignmentRule.group_id,
+}
+
+ASSIGNMENT_RULES_ORDER_HOW_MAPPING = {"org_id": asc, "account": desc, "name": asc, "group_id": asc}
+
 
 def get_assignment_rules_list_db(filters, page, per_page, param_order_by, param_order_how, rbac_filter):
     if rbac_filter and "assignment_rules" in rbac_filter:
         filters += (AssignmentRule.id.in_(rbac_filter["assignment_rules"]),)
 
+    order_by_str = param_order_by or "name"
+    order_by = ASSIGNMENT_RULES_ORDER_BY_MAPPING[order_by_str]
+    order_how_func = (
+        ASSIGNMENT_RULES_ORDER_HOW_MAPPING[param_order_how.lower()]
+        if param_order_how
+        else ASSIGNMENT_RULES_ORDER_HOW_MAPPING[order_by_str]
+    )
+
     assingnment_rules_list = (
-        AssignmentRule.query
-        .offset(page - 1)
-        .limit(per_page)
-        .all()
+        AssignmentRule.query.filter(*filters).order_by(order_how_func(order_by)).offset(page - 1).limit(per_page).all()
     )
 
     # Get the total number of assignment-rules that would be returned using just the filters

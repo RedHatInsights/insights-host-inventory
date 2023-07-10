@@ -5,12 +5,12 @@ from flask_api import status
 from api import api_operation
 from api import flask_json_response
 from api import metrics
-from api.assignment_rule_query import build_paginated_assignmentrule_list_response, get_filtered_assignment_rule_list_db
-from api.group_query import build_paginated_group_list_response
+from api.assignment_rule_query import build_paginated_assignmentrule_list_response
+from api.assignment_rule_query import get_filtered_assignment_rule_list_db
 from app import RbacPermission
 from app import RbacResourceType
-from app.instrumentation import log_get_assignment_rules_list_succeeded, log_get_group_list_failed
-from app.instrumentation import log_get_group_list_succeeded
+from app.instrumentation import log_get_assignment_rules_list_succeeded
+from app.instrumentation import log_get_group_list_failed
 from app.logging import get_logger
 from lib.feature_flags import FLAG_INVENTORY_ASSIGNMENT_RULES
 from lib.feature_flags import get_flag_value
@@ -64,9 +64,7 @@ def get_assignment_rule_list(
 
     try:
         # TODO: is rbac_filter needed
-        rule_list, total = get_filtered_assignment_rule_list_db(
-            name, page, per_page, order_by, order_how, rbac_filter
-        )
+        rule_list, total = get_filtered_assignment_rule_list_db(name, page, per_page, order_by, order_how, rbac_filter)
     except ValueError as e:
         log_get_group_list_failed(logger)
         abort(400, str(e))

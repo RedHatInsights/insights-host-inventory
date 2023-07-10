@@ -188,6 +188,8 @@ def serialize_assignment_rule(rule):
         "account": rule.account,
         "name": rule.name,
         "description": rule.description,
+        "group_id": _serialize_uuid(rule.group_id),
+        "filter": rule.filter,
         "created": _serialize_datetime(rule.created_on),
         "updated": _serialize_datetime(rule.modified_on),
     }

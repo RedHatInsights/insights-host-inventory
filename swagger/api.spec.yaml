@@ -51,7 +51,6 @@ paths:
       summary: Delete the entire list of hosts filtered by the given parameters
       description: >-
         Delete the entire list of hosts filtered by the given parameters.
-        <br /><br />
         Required permissions: inventory:hosts:write
       security:
         - ApiKeyAuth: []
@@ -788,33 +787,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GroupQueryOutput'
-    post:
-      operationId: api.assignment_rule.create_assignment_rule
-      tags:
-        - assignment-rules
-      summary: Create a new assignment-rule matching the provided name and list of hosts IDs ??? [Not Implemented]
-      description: >-
-        Creates a new assignment-rule containing the hosts associated with the host IDs provided. [Not Implemented]
-        <br /><br />
-        Required permissions: inventory:assignment-rules:write
-      security:
-        - ApiKeyAuth: []
-        - BearerAuth: []
-      requestBody:
-        description: Data required to create a record for a assignment-rule.
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/GroupIn'
-      responses:
-        '201':
-          description: Successfully created new Group.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/GroupOutWithHostCount'
+                $ref: '#/components/schemas/AssignmentRuleQueryOutput'
 components:
   securitySchemes:
     BearerAuth:
@@ -951,16 +924,6 @@ components:
           - name
           - host_ids
       description: Ordering field name
-    assignmentRuleOrderByParam:
-      name: order_by
-      in: query
-      required: false
-      schema:
-        type: string
-        enum:
-          - name
-          - host_ids
-      description: Ordering field name
     hostOrderHowParam:
       name: order_how
       in: query
@@ -985,6 +948,18 @@ components:
       description: >-
         Direction of the ordering; defaults to ASC for name, and to DESC
         for host_ids
+    assignmentRuleOrderByParam:
+      name: order_by
+      in: query
+      required: false
+      schema:
+        type: string
+        enum:
+          - org_id
+          - account
+          - name
+          - group_id
+      description: Ordering field name
     assignmentRuleOrderHowParam:
       name: order_how
       in: query
@@ -1151,13 +1126,13 @@ components:
         type: string
       description: Filter by assignement-rule name
       required: false
-    assignmentRuleNameExplicit:
-      in: query
-      name: assignment_rule_name
-      schema:
-        type: string
-      description: Filter by assignment-rule name
-      required: false
+    # assignmentRuleNameExplicit:
+    #   in: query
+    #   name: assignment_rule_name
+    #   schema:
+    #     type: string
+    #   description: Filter by assignment-rule name
+    #   required: false
     assignmentRuleId:
       in: path
       name: assignment_rule_id
@@ -1748,7 +1723,7 @@ components:
           host_count:
             $ref: "#/components/schemas/HostCount"
     AssignmentRuleOutWithHostCount:
-      title: Group properties with host count
+      title: AssignmentRule properties with host count
       description: >-
         Data of a single group belonging to an account.
       type: object
@@ -1797,6 +1772,27 @@ components:
             type: array
             items:
               $ref: '#/components/schemas/GroupOutWithHostCount'
+    # TODO
+    # Add all the fields like this sample
+    # {
+    #     "total": 1,
+    #     "count": 1,
+    #     "page": 1,
+    #     "per_page": 50,
+    #     "results": [
+    #         {
+    #             "id": "4a630e69-7c5f-4e9f-99be-bd486fb376e2",
+    #             "org_id": "test",
+    #             "account": "test",
+    #             "name": "my_assignment_rule",
+    #             "description": "This is my first assignment rule of Monday",
+    #             "group_id": "3a630e69-7c5f-4e9f-99be-bd486fb376e1",
+    #             "filter": {},
+    #             "created": "2023-07-10T14:41:18.957000+00:00",
+    #             "updated": "2023-07-10T14:39:40.713000+00:00"
+    #         }
+    #     ]
+    # }
     AssignmentRuleOut:
       title: Assignment Rule Out Properties
       description: >-
