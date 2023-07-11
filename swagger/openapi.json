@@ -1297,6 +1297,44 @@
           }
         }
       }
+    },
+    "/assignment-rules": {
+      "post": {
+        "operationId": "api.assignment_rule.create_assignment_rule",
+        "summary": "Create Assignment Rule object",
+        "description": "Create Assignment Rule object using post request",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "description": "Data required to create Assignment Rule object",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignmentRuleIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Assignment Rule created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssignmentRuleOut"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2448,6 +2486,87 @@
                 "$ref": "#/components/schemas/HostIds"
               }
             }
+          }
+        ]
+      },
+      "AssignmentRuleIn": {
+        "title": "Assignment Rule In",
+        "description": "Data for a single Assignment Rule",
+        "type": "object",
+        "allOf": [
+          {
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1
+              },
+              "group_id": {
+                "$ref": "#/components/schemas/GroupId"
+              },
+              "filter": {
+                "type": "object"
+              },
+              "enabled": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "name",
+              "group_id",
+              "filter",
+              "enabled"
+            ]
+          }
+        ]
+      },
+      "AssignmentRuleOut": {
+        "title": "Assignment Rule response",
+        "description": "Data for a single Assignment Rule response",
+        "type": "object",
+        "allOf": [
+          {
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/NonStrictUUID"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1
+              },
+              "group_id": {
+                "$ref": "#/components/schemas/GroupId"
+              },
+              "filter": {
+                "type": "object"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "created_on": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "modified_on": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "name",
+              "group_id",
+              "filter",
+              "enabled",
+              "created_on",
+              "modified_on"
+            ]
           }
         ]
       },
