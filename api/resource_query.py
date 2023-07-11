@@ -1,6 +1,8 @@
 from math import ceil
 
-RESOURCES_TYPES_GROUPS_PATH = "/inventory/v1/resource-types/inventory-groups/"
+from api.group_query import get_total_group_count_db
+
+RESOURCES_TYPES_GROUPS_PATH = "/inventory/v1/resource-types/inventory-groups"
 
 
 def get_resources_types():
@@ -8,7 +10,7 @@ def get_resources_types():
         {
             "value": "inventory-groups",
             "path": RESOURCES_TYPES_GROUPS_PATH,
-            "count": 1,
+            "count": get_total_group_count_db(),
         }
     ]
     return data, 1
@@ -24,10 +26,10 @@ def build_paginated_resource_list_response(
             "count": total,
         },
         "links": {
-            "first": f"{link_base}?page=1",
-            "previous": f"{link_base}?page={page-1}" if page > 1 else None,
-            "next": f"{link_base}?page={page+1}" if page < total_pages else None,
-            "last": f"{link_base}?page={total_pages}",
+            "first": f"{link_base}?per_page={per_page}&page=1",
+            "previous": f"{link_base}?per_page={per_page}&page={page-1}" if page > 1 else None,
+            "next": f"{link_base}?per_page={per_page}&page={page+1}" if page < total_pages else None,
+            "last": f"{link_base}?per_page={per_page}&page={total_pages}",
         },
         "data": resource_list,
     }

@@ -154,7 +154,7 @@ class KafkaPayloadTracker(PayloadTracker):
 
             message = {
                 "service": self._service_name,
-                "request_id": self._request_id,
+                "request_id": self._request_id.replace("-", ""),  # payload tracker can not use dashes in request_id
                 "status": status,
                 "date": datetime.utcnow().isoformat(),
             }
@@ -185,6 +185,7 @@ class KafkaPayloadTracker(PayloadTracker):
 
         try:
             self._producer.produce(self._topic, message.encode("utf-8"))
+            self._producer.poll(0)
         except Exception:
             logger.exception("Error sending payload tracker message")
             metrics.payload_tracker_message_send_failure.inc()

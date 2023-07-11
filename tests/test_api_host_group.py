@@ -1,5 +1,12 @@
 import uuid
 
+from dateutil.parser import parse
+
+from tests.helpers.api_utils import assert_response_status
+from tests.helpers.api_utils import create_mock_rbac_response
+from tests.helpers.api_utils import GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
+from tests.helpers.test_utils import generate_uuid
+
 
 def test_add_host_to_group(
     db_create_group, db_create_host, db_get_hosts_for_group, api_add_hosts_to_group, event_producer
@@ -14,8 +21,80 @@ def test_add_host_to_group(
     # Confirm that the group now only contains  2 hosts
     hosts_after = db_get_hosts_for_group(group_id)
     assert len(hosts_after) == 2
-    assert hosts_after[0].id == host_id_list[0]
-    assert hosts_after[1].id == host_id_list[1]
+    assert hosts_after[0].id in host_id_list
+    assert hosts_after[1].id in host_id_list
+
+
+def test_add_host_to_group_RBAC_denied(
+    subtests, mocker, db_create_host, db_create_group_with_hosts, api_add_hosts_to_group, enable_rbac
+):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    group_id = str(db_create_group_with_hosts("new_group", 3).id)
+
+    for response_file in GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+            host_id_list = [db_create_host().id for _ in range(3)]
+            response_status, _ = api_add_hosts_to_group(group_id, [str(host) for host in host_id_list[0:2]])
+
+            assert_response_status(response_status, 403)
+
+
+def test_add_host_to_group_RBAC_allowed_specific_groups(
+    mocker,
+    db_create_group_with_hosts,
+    api_add_hosts_to_group,
+    db_create_host,
+    db_get_hosts_for_group,
+    enable_rbac,
+    event_producer,
+):
+    # Create a group and 3 hosts
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    group_id = str(db_create_group_with_hosts("new_group", 3).id)
+
+    # Make a list of allowed group IDs (including some mock ones)
+    group_id_list = [generate_uuid(), group_id, generate_uuid()]
+
+    # Grant permissions to all 3 groups
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-groups-write-resource-defs-template.json"
+    )
+    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = group_id_list
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    host_id_list = [db_create_host().id for _ in range(3)]
+
+    response_status, _ = api_add_hosts_to_group(group_id, [str(host) for host in host_id_list[0:2]])
+
+    # Should be allowed
+    assert_response_status(response_status, 200)
+    # Group should now have 5 hosts
+    hosts_after = db_get_hosts_for_group(group_id)
+    assert len(hosts_after) == 5
+
+
+def test_add_host_to_group_RBAC_denied_specific_groups(
+    mocker, db_create_group_with_hosts, api_add_hosts_to_group, db_create_host, enable_rbac
+):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    group_id = str(db_create_group_with_hosts("new_group", 3).id)
+
+    # Deny access to created group
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-groups-write-resource-defs-template.json"
+    )
+    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = [generate_uuid(), generate_uuid()]
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    host_id_list = [db_create_host().id for _ in range(3)]
+
+    response_status, _ = api_add_hosts_to_group(group_id, [str(host) for host in host_id_list[0:2]])
+
+    # Access was not granted
+    assert_response_status(response_status, 403)
 
 
 def test_add_associated_host_to_same_group(
@@ -30,18 +109,22 @@ def test_add_associated_host_to_same_group(
     mocker.patch.object(event_producer, "write_event")
 
     # Create a group and 3 hosts
-    group_id = db_create_group("test_group").id
+    group = db_create_group("test_group")
+    group_id = group.id
     host_id_list = [db_create_host().id for _ in range(3)]
 
     # Add 1 host to the group
     db_create_host_group_assoc(host_id_list[1], group_id)
+
+    # get update time with 1 host in the group
+    first_update = group.modified_on
 
     # Confirm that the association exists
     hosts_before = db_get_hosts_for_group(group_id)
     assert len(hosts_before) == 1
 
     # Confirm that the API is allowed to add the hosts even though one is associated
-    response_status, _ = api_add_hosts_to_group(group_id, [str(host) for host in host_id_list])
+    response_status, updated_group = api_add_hosts_to_group(group_id, [str(host) for host in host_id_list])
     assert response_status == 200
 
     # Confirm the host count afterwards
@@ -49,6 +132,9 @@ def test_add_associated_host_to_same_group(
 
     # Make sure that the events were produced
     assert event_producer.write_event.call_count == 3
+
+    second_update = parse(updated_group["updated"])
+    assert second_update > first_update
 
 
 def test_add_associated_host_to_different_group(
@@ -130,4 +216,18 @@ def test_add_missing_host_to_existing_group(db_create_group, api_add_hosts_to_gr
 
 def test_with_empty_data(api_add_hosts_to_group, event_producer):
     response_status, _ = api_add_hosts_to_group(None, None)
+    assert response_status == 400
+
+
+def test_add_empty_body_to_group(db_create_group, api_add_hosts_to_group):
+    group_id = db_create_group("test_group").id
+    response_status, _ = api_add_hosts_to_group(group_id, None)
+
+    assert response_status == 400
+
+
+def test_add_empty_array_to_group(db_create_group, api_add_hosts_to_group):
+    group_id = db_create_group("test_group").id
+    response_status, _ = api_add_hosts_to_group(group_id, [])
+
     assert response_status == 400

@@ -306,19 +306,19 @@ def build_registered_with_filter(registered_with):
     return ({"OR": prs_list},)
 
 
-def _build_modified_on_filter(updated_start: str = None, updated_end: str = None) -> Tuple:
+def _build_modified_on_filter(updated_start: str, updated_end: str) -> Tuple:
     updated_start_date = parser.isoparse(updated_start) if updated_start else None
     updated_end_date = parser.isoparse(updated_end) if updated_end else None
 
     if updated_start_date and updated_end_date and updated_start_date > updated_end_date:
         raise ValueError("updated_start cannot be after updated_end.")
     modified_on_filter = {}
-    if updated_start_date:
+    if updated_start_date and updated_start_date.year > 1970:
         modified_on_filter["gte"] = updated_start_date.isoformat()
-    if updated_end_date:
+    if updated_end_date and updated_end_date.year > 1970:
         modified_on_filter["lte"] = updated_end_date.isoformat()
 
-    return ({"modified_on": modified_on_filter},)
+    return ({"modified_on": modified_on_filter},) if modified_on_filter else ()
 
 
 def build_tag_query_dict_tuple(tags):
@@ -337,7 +337,7 @@ def owner_id_filter():
     return ({"spf_owner_id": {"eq": get_current_identity().system["cn"]}},)
 
 
-def host_id_list_query_filter(host_id_list):
+def host_id_list_query_filter(host_id_list, rbac_filter):
     all_filters = (
         {
             "stale_timestamp": {
@@ -352,6 +352,11 @@ def host_id_list_query_filter(host_id_list):
         },
     )
 
+    if rbac_filter:
+        for key in rbac_filter:
+            if key == "groups":
+                all_filters += group_id_list_query_filter(rbac_filter["groups"])
+
     current_identity = get_current_identity()
     if current_identity.identity_type == IdentityType.SYSTEM:
         all_filters += owner_id_filter()
@@ -360,18 +365,27 @@ def host_id_list_query_filter(host_id_list):
 
 
 def group_id_list_query_filter(group_id_list):
-    return (
-        {
-            "OR": [
-                {
-                    "group": {
-                        "id": {"eq": group_id},
-                    }
+    _query_filter = {
+        "OR": [
+            {
+                "group": {
+                    "id": {"eq": group_id},
                 }
-                for group_id in group_id_list
-            ],
-        },
-    )
+            }
+            for group_id in group_id_list
+            if group_id is not None
+        ],
+    }
+    if None in group_id_list:
+        _query_filter["OR"].append(
+            {
+                "group": {
+                    "hasSome": {"is": False},
+                }
+            },
+        )
+
+    return (_query_filter,)
 
 
 def query_filters(
@@ -389,6 +403,7 @@ def query_filters(
     staleness=None,
     registered_with=None,
     filter=None,
+    rbac_filter=None,
 ):
     num_ids = 0
     for id_param in [fqdn, display_name, hostname_or_id, insights_id]:
@@ -447,6 +462,11 @@ def query_filters(
                 query_filters += build_system_profile_filter(filter["system_profile"])
             else:
                 raise ValidationException("filter key is invalid")
+
+    if rbac_filter:
+        for key in rbac_filter:
+            if key == "groups":
+                query_filters += group_id_list_query_filter(rbac_filter["groups"])
 
     current_identity = get_current_identity()
     if current_identity.identity_type == IdentityType.SYSTEM:

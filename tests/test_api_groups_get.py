@@ -2,6 +2,8 @@ import pytest
 
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_groups_url
+from tests.helpers.api_utils import create_mock_rbac_response
+from tests.helpers.api_utils import GROUP_READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import GROUP_URL
 from tests.helpers.test_utils import generate_uuid
 
@@ -18,9 +20,45 @@ def test_basic_group_query(db_create_group, api_get):
         assert group_result["id"] in group_id_list
 
 
-def test_query_variables_group_name(db_create_group, api_get):
+def test_get_groups_RBAC_denied(subtests, mocker, api_get, enable_rbac):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+
+    for response_file in GROUP_READ_PROHIBITED_RBAC_RESPONSE_FILES:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+
+            response_status, _ = api_get(build_groups_url())
+
+            assert_response_status(response_status, 403)
+
+
+def test_get_groups_RBAC_allowed_specific_groups(mocker, db_create_group, api_get, enable_rbac):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    group_id_list = [str(db_create_group(f"testGroup_{idx}").id) for idx in range(5)]
+
+    # Grant permission to first 2 groups
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-groups-read-resource-defs-template.json"
+    )
+    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = group_id_list[:2]
+
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    response_status, response_data = api_get(build_groups_url())
+
+    assert_response_status(response_status, 200)
+    assert response_data["total"] == 2
+    assert response_data["count"] == 2
+    for group_result in response_data["results"]:
+        assert group_result["id"] in group_id_list
+
+
+@pytest.mark.parametrize("search", ["testGroup", "TesT", "Group", "ro"])
+def test_query_variables_group_name(db_create_group, api_get, search):
     group_id = db_create_group("testGroup").id
-    query = "?name=testGroup"
+    query = f"?name={search}"
 
     response_status, response_data = api_get(build_groups_url(query=query))
 

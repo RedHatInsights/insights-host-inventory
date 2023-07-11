@@ -163,10 +163,10 @@ def serialize_host(host, staleness_timestamps, for_mq=True, additional_fields=tu
     if "system_profile" in fields:
         serialized_host["system_profile"] = host.system_profile_facts or {}
     if "groups" in fields:
-        # For MQ messages, we don't include the host_count field.
-        if for_mq:
+        # For MQ messages, we only include name and ID.
+        if for_mq and host.groups:
             serialized_host["groups"] = [
-                {key: group[key] for key in group if key != "host_count"} for group in host.groups
+                {key: group[key] for key in group if key in ["name", "id"]} for group in host.groups
             ]
         else:
             serialized_host["groups"] = host.groups or []

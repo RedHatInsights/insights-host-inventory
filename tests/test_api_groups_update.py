@@ -6,6 +6,7 @@ from dateutil import parser
 
 from tests.helpers.api_utils import assert_group_response
 from tests.helpers.api_utils import assert_response_status
+from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 
@@ -169,6 +170,47 @@ def test_patch_group_hosts_from_different_group(
     assert event_producer.write_event.call_count == 0
 
 
+def test_patch_groups_RBAC_allowed_specific_groups(
+    mocker, db_create_group_with_hosts, api_patch_group, enable_rbac, event_producer
+):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    group_id = str(db_create_group_with_hosts("new_group", 3).id)
+    # Make a list of allowed group IDs (including some mock ones)
+    group_id_list = [generate_uuid(), group_id, generate_uuid()]
+
+    # Grant permissions to all 3 groups
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-groups-write-resource-defs-template.json"
+    )
+    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = group_id_list
+
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+    patch_doc = {"name": "new_name"}
+
+    response_status, _ = api_patch_group(group_id, patch_doc)
+
+    # Should be allowed
+    assert_response_status(response_status, 200)
+
+
+def test_patch_groups_RBAC_denied_specific_groups(mocker, db_create_group_with_hosts, api_patch_group, enable_rbac):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    group_id = str(db_create_group_with_hosts("new_group", 3).id)
+
+    # Deny access to created group
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-groups-write-resource-defs-template.json"
+    )
+    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = [generate_uuid(), generate_uuid()]
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    patch_doc = {"name": "new_name"}
+    response_status, _ = api_patch_group(group_id, patch_doc)
+
+    # Access was not granted
+    assert_response_status(response_status, 403)
+
+
 def test_patch_group_no_name(db_create_group_with_hosts, api_patch_group, db_get_group_by_id, event_producer, mocker):
     mocker.patch.object(event_producer, "write_event")
     group = db_create_group_with_hosts("test_group", 2)
@@ -288,7 +330,6 @@ def test_patch_group_same_hosts(
         host = json.loads(call_arg[0][0])["host"]
         assert host["id"] in host_id_list
         assert host["groups"][0]["id"] == str(group_id)
-        assert parser.isoparse(host["groups"][0]["updated"]) == db_get_group_by_id(group_id).modified_on
 
 
 def test_patch_group_both_add_and_remove_hosts(
@@ -315,6 +356,5 @@ def test_patch_group_both_add_and_remove_hosts(
         if host["id"] in new_host_id_list:
             assert host["id"] in new_host_id_list
             assert host["groups"][0]["id"] == str(group_id)
-            assert parser.isoparse(host["groups"][0]["updated"]) == db_get_group_by_id(group_id).modified_on
         else:
             assert host["groups"] == []

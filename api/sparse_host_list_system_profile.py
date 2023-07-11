@@ -1,8 +1,6 @@
 import flask
 
-from api.filtering.filtering import owner_id_filter
-from app.auth import get_current_identity
-from app.auth.identity import IdentityType
+from api.filtering.filtering import host_id_list_query_filter
 from app.instrumentation import log_get_sparse_system_profile_failed
 from app.instrumentation import log_get_sparse_system_profile_succeeded
 from app.logging import get_logger
@@ -69,7 +67,7 @@ SYSTEM_PROFILE_FULL_QUERY = """
 """
 
 
-def get_sparse_system_profile(host_id_list, page, per_page, order_by, order_how, fields):
+def get_sparse_system_profile(host_id_list, page, per_page, order_by, order_how, fields, rbac_filter):
     limit, offset = pagination_params(page, per_page)
 
     try:
@@ -77,10 +75,7 @@ def get_sparse_system_profile(host_id_list, page, per_page, order_by, order_how,
     except ValueError as e:
         flask.abort(400, str(e))
 
-    host_filter = [{"OR": [{"id": {"eq": host_id}} for host_id in host_id_list]}]
-    current_identity = get_current_identity()
-    if current_identity.identity_type == IdentityType.SYSTEM:
-        host_filter.append(owner_id_filter()[0])
+    host_filter = host_id_list_query_filter(host_id_list, rbac_filter)
 
     sp_query = SYSTEM_PROFILE_FULL_QUERY
     variables = {

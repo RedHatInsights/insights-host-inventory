@@ -11,8 +11,8 @@ from lib.host_delete import delete_hosts
 from lib.host_repository import get_host_list_by_id_list_from_db
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
-from tests.helpers.api_utils import WRITE_ALLOWED_RBAC_RESPONSE_FILES
-from tests.helpers.api_utils import WRITE_PROHIBITED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import HOST_WRITE_ALLOWED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import HOST_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.db_utils import db_host
 from tests.helpers.graphql_utils import XJOIN_HOSTS_RESPONSE_FOR_FILTERING
 from tests.helpers.mq_utils import assert_delete_event_is_valid
@@ -324,7 +324,7 @@ def test_delete_host_with_RBAC_allowed(
 ):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
-    for response_file in WRITE_ALLOWED_RBAC_RESPONSE_FILES:
+    for response_file in HOST_WRITE_ALLOWED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
@@ -345,7 +345,7 @@ def test_delete_host_with_RBAC_denied(
 ):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
-    for response_file in WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
+    for response_file in HOST_WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
@@ -510,6 +510,60 @@ def test_delete_host_that_belongs_to_group_fail(
     assert host_id_list[0] in [host.id for host in hosts_after]
 
 
+def test_delete_host_RBAC_allowed_specific_groups(
+    mocker,
+    db_create_group,
+    db_create_host_group_assoc,
+    api_delete_host,
+    db_create_host,
+    db_get_hosts_for_group,
+    enable_rbac,
+    event_producer_mock,
+):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    host_id = db_create_host().id
+    group_id = db_create_group("test_test").id
+    db_create_host_group_assoc(host_id, group_id)
+
+    # Make a list of allowed group IDs (including some mock ones)
+    group_id_list = [generate_uuid(), str(group_id), generate_uuid()]
+
+    # Grant permissions to all 3 groups
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-hosts-write-resource-defs-template.json"
+    )
+    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = group_id_list
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    response_status, _ = api_delete_host(host_id)
+
+    # Should be allowed
+    assert_response_status(response_status, 200)
+    # Group should now have 0 hosts
+    assert len(db_get_hosts_for_group(group_id)) == 0
+
+
+def test_delete_host_RBAC_denied_specific_groups(
+    mocker, db_create_host, db_get_host, api_delete_host, enable_rbac, event_producer_mock
+):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    host_id = db_create_host().id
+
+    # Deny access to created group
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-hosts-write-resource-defs-template.json"
+    )
+    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = [generate_uuid(), generate_uuid()]
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    response_status, _ = api_delete_host(host_id)
+
+    # If the user doesn't have access to the group, the host can't be found. Should this be 404 or 403?
+    assert_response_status(response_status, expected_status=404)
+
+    assert db_get_host(host_id)
+
+
 class DeleteHostsMock:
     @classmethod
     def create_mock(cls, hosts_ids_to_delete):
@@ -548,7 +602,7 @@ class DeleteQueryWrapper:
         self.query = None
         self.mocker = mocker
 
-    def mock_get_host_list_by_id_list(self, host_id_list):
-        self.query = get_host_list_by_id_list_from_db(host_id_list)
+    def mock_get_host_list_by_id_list(self, host_id_list, rbac_filter=None):
+        self.query = get_host_list_by_id_list_from_db(host_id_list, rbac_filter)
         self.query.limit = self.mocker.Mock(wraps=self.query.limit)
         return self.query
