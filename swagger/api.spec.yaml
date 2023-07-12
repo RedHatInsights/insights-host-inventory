@@ -1814,27 +1814,6 @@ components:
             type: array
             items:
               $ref: '#/components/schemas/GroupOutWithHostCount'
-    # TODO
-    # Add all the fields like this sample
-    # {
-    #     "total": 1,
-    #     "count": 1,
-    #     "page": 1,
-    #     "per_page": 50,
-    #     "results": [
-    #         {
-    #             "id": "4a630e69-7c5f-4e9f-99be-bd486fb376e2",
-    #             "org_id": "test",
-    #             "account": "test",
-    #             "name": "my_assignment_rule",
-    #             "description": "This is my first assignment rule of Monday",
-    #             "group_id": "3a630e69-7c5f-4e9f-99be-bd486fb376e1",
-    #             "filter": {},
-    #             "created": "2023-07-10T14:41:18.957000+00:00",
-    #             "updated": "2023-07-10T14:39:40.713000+00:00"
-    #         }
-    #     ]
-    # }
     AssignmentRuleQueryOutput:
       title: An Inventory Assignment Rules query result
       description: >-
