@@ -1126,13 +1126,6 @@ components:
         type: string
       description: Filter by assignement-rule name
       required: false
-    # assignmentRuleNameExplicit:
-    #   in: query
-    #   name: assignment_rule_name
-    #   schema:
-    #     type: string
-    #   description: Filter by assignment-rule name
-    #   required: false
     assignmentRuleId:
       in: path
       name: assignment_rule_id
@@ -1709,8 +1702,20 @@ components:
         - properties:
             name:
               $ref: "#/components/schemas/AssignmentRuleName"
-            host_ids:
-              $ref: "#/components/schemas/HostIds"
+            description:
+              type: string
+              minLength: 1
+            group_id:
+              $ref: "#/components/schemas/GroupId"
+            filter:
+              type: object
+            enabled:
+              type: boolean
+          required:
+            - name
+            - group_id
+            - filter
+            - enabled
     GroupOutWithHostCount:
       title: Group properties with host count
       description: >-
@@ -1722,17 +1727,33 @@ components:
             $ref: "#/components/schemas/GroupOut"
           host_count:
             $ref: "#/components/schemas/HostCount"
-    AssignmentRuleOutWithHostCount:
-      title: AssignmentRule properties with host count
+    AssignmentRuleOut:
+      title: Assignment Rule response
       description: >-
-        Data of a single group belonging to an account.
+        Data of a single assignement-rule belonging to an account.
       type: object
       allOf:
       - properties:
-          group_out:
-            $ref: "#/components/schemas/AssignmentRuleOut"
-          host_count:
-            $ref: "#/components/schemas/HostCount"
+          id:
+            $ref: '#/components/schemas/NonStrictUUID'
+          name:
+            type: string
+            minLength: 1
+          description:
+            type: string
+            minLength: 1
+          group_id:
+            $ref: "#/components/schemas/GroupId"
+          filter:
+            type: object
+          enabled:
+            type: boolean
+          created_on:
+            type: string
+            format: date-time
+          modified_on:
+            type: string
+            format: date-time
     GroupOut:
       title: Group Out Properties
       description: >-
@@ -1793,45 +1814,6 @@ components:
     #         }
     #     ]
     # }
-    AssignmentRuleOut:
-      title: Assignment Rule Out Properties
-      description: >-
-        Data of a single assingment-rule belonging to an account.
-      type: object
-      properties:
-        id:
-          $ref: "#/components/schemas/AssignmentRuleId"
-        name:
-          $ref: "#/components/schemas/AssignmentRuleName"
-        account:
-          $ref: "#/components/schemas/AccountNumber"
-        org_id:
-          $ref: "#/components/schemas/OrgId"
-        created:
-          description: A timestamp when the entry was created.
-          type: string
-          format: date-time
-        updated:
-          description: A timestamp when the entry was last updated.
-          type: string
-          format: date-time
-    AssignmentQueryOutput:
-      title: An Inventory Assignment Rules query result
-      description: >-
-        A paginated assignment-rule search query result with assignment-rule entries and their
-        Inventory metadata.
-      type: object
-      allOf:
-      - $ref: '#/components/schemas/PaginationOut'
-      - type: object
-        required:
-          - results
-        properties:
-          results:
-            description: Actual assignment-rule search query result entries.
-            type: array
-            items:
-              $ref: '#/components/schemas/AssignmentRuleOutWithHostCount'
     AssignmentRuleQueryOutput:
       title: An Inventory Assignment Rules query result
       description: >-
@@ -1848,7 +1830,7 @@ components:
             description: Actual assignment-rule search query result entries.
             type: array
             items:
-              $ref: '#/components/schemas/GroupOutWithHostCount'
+              $ref: '#/components/schemas/AssignmentRuleOut'
     ResourceTypesOut:
       title: A resource type query result
       description: >-
