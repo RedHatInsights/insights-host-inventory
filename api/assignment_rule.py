@@ -1,10 +1,14 @@
 from flask import abort
 from flask import Response
 from flask_api import status
+from marshmallow import ValidationError
+from sqlalchemy.exc import IntegrityError
 
 from api import api_operation
+from api import error_json_response
 from api import flask_json_response
 from api import metrics
+from api.assignment_rule_query import add_assignment_rule
 from api.assignment_rule_query import build_paginated_assignmentrule_list_response
 from api.assignment_rule_query import get_filtered_assignment_rule_list_db
 from app import RbacPermission
@@ -12,30 +16,11 @@ from app import RbacResourceType
 from app.instrumentation import log_get_assignment_rules_list_succeeded
 from app.instrumentation import log_get_group_list_failed
 from app.logging import get_logger
+from app.models import InputAssignmentRule
 from lib.feature_flags import FLAG_INVENTORY_ASSIGNMENT_RULES
 from lib.feature_flags import get_flag_value
 from lib.middleware import rbac
 
-# from flask import current_app
-# from marshmallow import ValidationError
-# from sqlalchemy.exc import IntegrityError
-# from api.group_query import build_group_response
-# from api.group_query import get_filtered_group_list_db
-# from api.group_query import get_group_list_by_id_list_db
-# from app.exceptions import InventoryException
-# from app.instrumentation import log_create_group_failed
-# from app.instrumentation import log_create_group_succeeded
-# from app.instrumentation import log_patch_group_failed
-# from app.instrumentation import log_patch_group_success
-# from app.models import InputGroupSchema
-# from lib.feature_flags import FLAG_INVENTORY_GROUPS
-# from lib.group_repository import add_group
-# from lib.group_repository import delete_group_list
-# from lib.group_repository import get_group_by_id_from_db
-# from lib.group_repository import patch_group
-# from lib.group_repository import remove_hosts_from_group
-# from lib.metrics import create_group_count
-# from lib.middleware import rbac_group_id_check
 
 logger = get_logger(__name__)
 
@@ -78,7 +63,27 @@ def get_assignment_rule_list(
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def create_assignment_rule(body, rbac_filter=None):
-    return True
+    # return True
+    try:
+        validated_create_assignment_rule = InputAssignmentRule().load(body)
+    except ValidationError as e:
+        logger.exception(f"Input validation error while creating assignment rule: {body}")
+        return error_json_response("Validation Error", str(e.messages))
+
+    try:
+        created_assignment_rule = add_assignment_rule(validated_create_assignment_rule)
+    except IntegrityError as error:
+        group_id = validated_create_assignment_rule.get("group_id")
+        name = validated_create_assignment_rule.get("name")
+        if group_id in str(error.args):
+            error_message = f"Group with UUID {group_id} does not exists."
+            response_status = status.HTTP_404_NOT_FOUND
+        if name in str(error.args):
+            error_message = f"A assignment rule with name {name} alredy exists."
+            response_status = status.HTTP_403_FORBIDDEN
+        return error_json_response("Integrity error", str(error_message), response_status)
+
+    return flask_json_response(created_assignment_rule, status.HTTP_201_CREATED)
 
 
 @api_operation
@@ -113,8 +118,4 @@ def get_assignment_rules_by_id(
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def delete_hosts_from_assignment_rule(assignment_rule_id, host_id_list, rbac_filter=None):
-    return True
-
-
-def _error_json_response(title, detail, status=status.HTTP_400_BAD_REQUEST):
     return True

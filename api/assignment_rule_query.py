@@ -4,8 +4,12 @@ from sqlalchemy import func
 
 from app import db
 from app.auth import get_current_identity
+from app.logging import get_logger
 from app.models import AssignmentRule
 from app.serialization import serialize_assignment_rule
+from lib.db import session_guard
+
+logger = get_logger(__name__)
 
 ASSIGNMENT_RULES_ORDER_BY_MAPPING = {
     "org_id": AssignmentRule.org_id,
@@ -55,3 +59,26 @@ def build_paginated_assignmentrule_list_response(total, page, per_page, rules_li
         "per_page": per_page,
         "results": rule_list_json,
     }
+
+
+def add_assignment_rule(assign_rule_data) -> AssignmentRule:
+    logger.debug(f"Creating assignment rule: {assign_rule_data}")
+    org_id = get_current_identity().org_id
+    account = get_current_identity().account_number
+    assign_rule_name = assign_rule_data.get("name")
+    filter = assign_rule_data.get("filter", {})
+    group_id = assign_rule_data.get("group_id")
+    description = assign_rule_data.get("description", None)
+
+    with session_guard(db.session):
+        new_assignment_rule = AssignmentRule(
+            org_id=org_id, account=account, name=assign_rule_name, group_id=group_id, filter=filter
+        )
+        new_assignment_rule.description = description
+        db.session.add(new_assignment_rule)
+        db.session.flush()
+
+    new_assignment_rule = AssignmentRule.query.filter(
+        (AssignmentRule.name == assign_rule_name) & (AssignmentRule.org_id == org_id)
+    ).one_or_none()
+    return serialize_assignment_rule(new_assignment_rule)

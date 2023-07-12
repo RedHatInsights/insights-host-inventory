@@ -4,6 +4,7 @@ from functools import wraps
 
 import flask
 import ujson
+from flask_api import status
 
 from api.metrics import api_request_count
 from app.logging import get_logger
@@ -71,3 +72,7 @@ def build_collection_response(data, page, per_page, total):
 
 def custom_escape(expression):
     return reduce(lambda x, y: x + "\\" + y if y in ESCAPE_CHARS else x + y, expression, "")
+
+
+def error_json_response(title, detail, status=status.HTTP_400_BAD_REQUEST):
+    return {"error": title, "detail": detail, "status": status}

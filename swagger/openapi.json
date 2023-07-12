@@ -1340,6 +1340,42 @@
             }
           }
         }
+      },
+      "post": {
+        "operationId": "api.assignment_rule.create_assignment_rule",
+        "summary": "Create Assignment Rule object",
+        "description": "Create Assignment Rule object using post request",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "description": "Data required to create Assignment Rule object",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignmentRuleIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Assignment Rule created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssignmentRuleOut"
+                }
+              }
+            }
+          }
+        }
       }
     }
   },
