@@ -767,7 +767,10 @@ paths:
     post:
       operationId: api.assignment_rule.create_assignment_rule
       summary: Create Assignment Rule object
-      description: Create Assignment Rule object using post request
+      description: >-
+        Create Assignment Rule object using post request
+        <br /><br />
+        Required permissions: inventory:groups:write
       security:
         - ApiKeyAuth: []
         - BearerAuth: []
@@ -1630,9 +1633,12 @@ components:
             name:
               type: string
               minLength: 1
+              maxLength: 255
             description:
               type: string
               minLength: 1
+              maxLength: 255
+              nullable: true
             group_id:
               $ref: "#/components/schemas/GroupId"
             filter:
@@ -1653,12 +1659,17 @@ components:
         - properties:
             id:
               $ref: '#/components/schemas/NonStrictUUID'
+            org_id:
+              $ref: '#/components/schemas/OrgId'
+            account:
+              $ref: '#/components/schemas/AccountNumber'
             name:
               type: string
               minLength: 1
             description:
               type: string
               minLength: 1
+              nullable: true
             group_id:
               $ref: "#/components/schemas/GroupId"
             filter:
