@@ -8,7 +8,7 @@ from lib.db import session_guard
 logger = get_logger(__name__)
 
 
-def add_assignment_rule(assign_rule_data, event_producer) -> AssignmentRule:
+def add_assignment_rule(assign_rule_data) -> AssignmentRule:
     logger.debug(f"Creating assignment rule: {assign_rule_data}")
     org_id = get_current_identity().org_id
     account = get_current_identity().account_number
@@ -16,6 +16,7 @@ def add_assignment_rule(assign_rule_data, event_producer) -> AssignmentRule:
     filter = assign_rule_data.get("filter", {})
     group_id = assign_rule_data.get("group_id")
     description = assign_rule_data.get("description", None)
+
     with session_guard(db.session):
         new_assignment_rule = AssignmentRule(
             org_id=org_id, account=account, name=assign_rule_name, group_id=group_id, filter=filter

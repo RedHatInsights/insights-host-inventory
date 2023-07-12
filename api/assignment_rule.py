@@ -1,4 +1,3 @@
-from flask import current_app
 from flask_api import status
 from marshmallow import ValidationError
 from sqlalchemy.exc import IntegrityError
@@ -6,16 +5,20 @@ from sqlalchemy.exc import IntegrityError
 from api import _error_json_response
 from api import api_operation
 from api import flask_json_response
+from app import RbacPermission
+from app import RbacResourceType
 from app.logging import get_logger
 from app.models import InputAssignmentRule
 from app.serialization import serialize_assignment_rule
 from lib.assignment_rule_repository import add_assignment_rule
+from lib.middleware import rbac
 
 
 logger = get_logger(__name__)
 
 
 @api_operation
+@rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 def create_assignment_rule(body, rbac_filter=None):
     try:
         validated_create_assignment_rule = InputAssignmentRule().load(body)
@@ -27,6 +30,12 @@ def create_assignment_rule(body, rbac_filter=None):
         created_assignment_rule = add_assignment_rule(validated_create_assignment_rule)
         created_assignment_rule = serialize_assignment_rule(created_assignment_rule)
     except IntegrityError as error:
-        return _error_json_response("Integrity Error", str(error))
+        group_id = validated_create_assignment_rule.get("group_id")
+        name = validated_create_assignment_rule.get("name")
+        if group_id in str(error.args):
+            error_message = f"Group with UUID {group_id} does not exists."
+        if name in str(error.args):
+            error_message = f"A assignment rule with name {name} alredy exists."
+        return _error_json_response("Integrity error", str(error_message))
 
     return flask_json_response(created_assignment_rule, status.HTTP_201_CREATED)
