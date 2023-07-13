@@ -42,9 +42,13 @@ def create_assignment_rule(body, rbac_filter=None):
         created_assignment_rule = serialize_assignment_rule(created_assignment_rule)
     except IntegrityError as error:
         group_id = validated_create_assignment_rule.get("group_id")
-        name = validated_create_assignment_rule.get("name")
         if group_id in str(error.args):
-            error_message = f"Group with UUID {group_id} does not exists."
+            if "ForeignKeyViolation" in str(error.args):
+                error_message = f"Group with UUID {group_id} does not exists."
+            if "UniqueViolation" in str(error.args):
+                error_message = f"Assignment rules for group with UUID {group_id} already exist."
+
+        name = validated_create_assignment_rule.get("name")
         if name in str(error.args):
             error_message = f"A assignment rule with name {name} alredy exists."
         log_post_assignment_rule_failed(logger)
