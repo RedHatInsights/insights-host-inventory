@@ -9,6 +9,8 @@ from api import flask_json_response
 from api import metrics
 from app import RbacPermission
 from app import RbacResourceType
+from app.instrumentation import log_post_assignment_rule_failed
+from app.instrumentation import log_post_assignment_rule_succeeded
 from app.logging import get_logger
 from app.models import InputAssignmentRule
 from app.serialization import serialize_assignment_rule
@@ -32,6 +34,7 @@ def create_assignment_rule(body, rbac_filter=None):
         validated_create_assignment_rule = InputAssignmentRule().load(body)
     except ValidationError as e:
         logger.exception(f"Input validation error while creating assignment rule: {body}")
+        log_post_assignment_rule_failed(logger)
         return _error_json_response("Validation Error", str(e.messages))
 
     try:
@@ -44,6 +47,8 @@ def create_assignment_rule(body, rbac_filter=None):
             error_message = f"Group with UUID {group_id} does not exists."
         if name in str(error.args):
             error_message = f"A assignment rule with name {name} alredy exists."
+        log_post_assignment_rule_failed(logger)
         return _error_json_response("Integrity error", str(error_message))
 
+    log_post_assignment_rule_succeeded(logger, created_assignment_rule.get("id"))
     return flask_json_response(created_assignment_rule, status.HTTP_201_CREATED)
