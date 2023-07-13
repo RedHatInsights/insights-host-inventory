@@ -3,9 +3,9 @@ from flask_api import status
 from marshmallow import ValidationError
 from sqlalchemy.exc import IntegrityError
 
-from api import _error_json_response
 from api import api_operation
 from api import flask_json_response
+from api import json_error_response
 from api import metrics
 from app import RbacPermission
 from app import RbacResourceType
@@ -35,7 +35,7 @@ def create_assignment_rule(body, rbac_filter=None):
     except ValidationError as e:
         logger.exception(f"Input validation error while creating assignment rule: {body}")
         log_post_assignment_rule_failed(logger)
-        return _error_json_response("Validation Error", str(e.messages))
+        return json_error_response("Validation Error", str(e.messages), status.HTTP_400_BAD_REQUEST)
 
     try:
         created_assignment_rule = add_assignment_rule(validated_create_assignment_rule)
@@ -44,15 +44,15 @@ def create_assignment_rule(body, rbac_filter=None):
         group_id = validated_create_assignment_rule.get("group_id")
         if group_id in str(error.args):
             if "ForeignKeyViolation" in str(error.args):
-                error_message = f"Group with UUID {group_id} does not exists."
+                error_message = f"Group with UUID {group_id} does not exist."
             if "UniqueViolation" in str(error.args):
                 error_message = f"Assignment rules for group with UUID {group_id} already exist."
 
         name = validated_create_assignment_rule.get("name")
         if name in str(error.args):
-            error_message = f"A assignment rule with name {name} alredy exists."
+            error_message = f"An assignment rule with name {name} already exists."
         log_post_assignment_rule_failed(logger)
-        return _error_json_response("Integrity error", str(error_message))
+        return json_error_response("Integrity error", str(error_message), status.HTTP_400_BAD_REQUEST)
 
     log_post_assignment_rule_succeeded(logger, created_assignment_rule.get("id"))
     return flask_json_response(created_assignment_rule, status.HTTP_201_CREATED)
