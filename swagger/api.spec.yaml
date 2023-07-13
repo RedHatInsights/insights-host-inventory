@@ -1681,7 +1681,7 @@ components:
         A paginated list of resource-types RBAC objects.
       type: object
       allOf:
-      - $ref: 'pagination.yaml#/components/schemas/ResourceTypesPaginationOut'
+      - $ref: '#/components/schemas/ResourceTypesPaginationOut'
       - type: object
         required:
           - data
@@ -1698,7 +1698,7 @@ components:
         Inventory metadata in paginated resource-types response format.
       type: object
       allOf:
-      - $ref: 'pagination.yaml#/components/schemas/ResourceTypesPaginationOut'
+      - $ref: '#/components/schemas/ResourceTypesPaginationOut'
       - type: object
         required:
           - data
@@ -1736,6 +1736,8 @@ components:
       $ref: 'pagination.yaml#/components/schemas/Page'
     PerPage:
       $ref: 'pagination.yaml#/components/schemas/PerPage'
+    ResourceTypesPaginationOut:
+      $ref: 'pagination.yaml#/components/schemas/ResourceTypesPaginationOut'
 
 
   responses:
