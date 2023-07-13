@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from api import _error_json_response
 from api import api_operation
 from api import flask_json_response
+from api import metrics
 from app import RbacPermission
 from app import RbacResourceType
 from app.logging import get_logger
@@ -22,6 +23,7 @@ logger = get_logger(__name__)
 
 @api_operation
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
+@metrics.api_request_time.time()
 def create_assignment_rule(body, rbac_filter=None):
     if not get_flag_value(FLAG_INVENTORY_ASSIGNMENT_RULES):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
