@@ -1,3 +1,4 @@
+from flask import Response
 from flask_api import status
 from marshmallow import ValidationError
 from sqlalchemy.exc import IntegrityError
@@ -11,6 +12,8 @@ from app.logging import get_logger
 from app.models import InputAssignmentRule
 from app.serialization import serialize_assignment_rule
 from lib.assignment_rule_repository import add_assignment_rule
+from lib.feature_flags import FLAG_INVENTORY_ASSIGNMENT_RULES
+from lib.feature_flags import get_flag_value
 from lib.middleware import rbac
 
 
@@ -20,6 +23,9 @@ logger = get_logger(__name__)
 @api_operation
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 def create_assignment_rule(body, rbac_filter=None):
+    if not get_flag_value(FLAG_INVENTORY_ASSIGNMENT_RULES):
+        return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
+
     try:
         validated_create_assignment_rule = InputAssignmentRule().load(body)
     except ValidationError as e:
