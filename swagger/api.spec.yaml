@@ -1774,6 +1774,13 @@ components:
           modified_on:
             type: string
             format: date-time
+        required:
+          - name
+          - group_id
+          - filter
+          - enabled
+          - created_on
+          - modified_on
     GroupOut:
       title: Group Out Properties
       description: >-
