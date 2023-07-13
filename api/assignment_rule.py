@@ -5,8 +5,8 @@ from marshmallow import ValidationError
 from sqlalchemy.exc import IntegrityError
 
 from api import api_operation
-from api import error_json_response
 from api import flask_json_response
+from api import json_response
 from api import metrics
 from api.assignment_rule_query import add_assignment_rule
 from api.assignment_rule_query import build_paginated_assignmentrule_list_response
@@ -68,7 +68,7 @@ def create_assignment_rule(body, rbac_filter=None):
         validated_create_assignment_rule = InputAssignmentRule().load(body)
     except ValidationError as e:
         logger.exception(f"Input validation error while creating assignment rule: {body}")
-        return error_json_response("Validation Error", str(e.messages))
+        return json_response("Validation Error", str(e.messages))
 
     try:
         created_assignment_rule = add_assignment_rule(validated_create_assignment_rule)
@@ -81,7 +81,7 @@ def create_assignment_rule(body, rbac_filter=None):
         if name in str(error.args):
             error_message = f"A assignment rule with name {name} alredy exists."
             response_status = status.HTTP_403_FORBIDDEN
-        return error_json_response("Integrity error", str(error_message), response_status)
+        return json_response("Integrity error", str(error_message), response_status)
 
     return flask_json_response(created_assignment_rule, status.HTTP_201_CREATED)
 

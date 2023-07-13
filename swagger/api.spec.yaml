@@ -771,8 +771,7 @@ paths:
       summary: Read the entire list of assignment-rules [Not Implemented]
       description: >-
         Read the entire list of all assignment-rules available to the account. [Not Implemented]
-        <br /><br />
-        Required permissions: inventory:assignment-rules:read
+        Required permissions: inventory:groups:read
       security:
         - ApiKeyAuth: []
       parameters:
