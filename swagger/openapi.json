@@ -1492,7 +1492,7 @@
           "type": "string",
           "enum": [
             "name",
-            "host_ids"
+            "host_count"
           ]
         },
         "description": "Ordering field name"
@@ -1521,7 +1521,7 @@
             "DESC"
           ]
         },
-        "description": "Direction of the ordering; defaults to ASC for name, and to DESC for host_ids"
+        "description": "Direction of the ordering; defaults to ASC for name, and to DESC for host_count"
       },
       "stalenessParam": {
         "name": "staleness",
@@ -2478,10 +2478,10 @@
         "type": "object",
         "allOf": [
           {
+            "$ref": "#/components/schemas/GroupOut"
+          },
+          {
             "properties": {
-              "group_out": {
-                "$ref": "#/components/schemas/GroupOut"
-              },
               "host_count": {
                 "$ref": "#/components/schemas/HostCount"
               }
@@ -2567,56 +2567,7 @@
         "type": "object",
         "allOf": [
           {
-            "type": "object",
-            "required": [
-              "meta",
-              "links"
-            ],
-            "properties": {
-              "meta": {
-                "description": "The metadata for resource-types responses",
-                "type": "object",
-                "required": [
-                  "count"
-                ],
-                "properties": {
-                  "count": {
-                    "description": "The total number of objects returned by the query.",
-                    "type": "integer"
-                  }
-                }
-              },
-              "links": {
-                "description": "A collection of pagination links for resource-types endpoints",
-                "type": "object",
-                "required": [
-                  "first",
-                  "previous",
-                  "next",
-                  "last"
-                ],
-                "properties": {
-                  "first": {
-                    "description": "The URI path for the first page in the pagination",
-                    "type": "string"
-                  },
-                  "previous": {
-                    "description": "The URI path for the previous page in the pagination",
-                    "type": "string",
-                    "nullable": true
-                  },
-                  "next": {
-                    "description": "The URI path for the next page in the pagination",
-                    "type": "string",
-                    "nullable": true
-                  },
-                  "last": {
-                    "description": "The URI path for the last page in the pagination",
-                    "type": "string"
-                  }
-                }
-              }
-            }
+            "$ref": "#/components/schemas/ResourceTypesPaginationOut"
           },
           {
             "type": "object",
@@ -2641,7 +2592,7 @@
         "type": "object",
         "allOf": [
           {
-            "$ref": "#/components/schemas/ResourceTypesQueryOutput/allOf/0"
+            "$ref": "#/components/schemas/ResourceTypesPaginationOut"
           },
           {
             "type": "object",
@@ -3519,6 +3470,58 @@
       "PerPage": {
         "type": "integer",
         "description": "The number of items to return per page"
+      },
+      "ResourceTypesPaginationOut": {
+        "type": "object",
+        "required": [
+          "meta",
+          "links"
+        ],
+        "properties": {
+          "meta": {
+            "description": "The metadata for resource-types responses",
+            "type": "object",
+            "required": [
+              "count"
+            ],
+            "properties": {
+              "count": {
+                "description": "The total number of objects returned by the query.",
+                "type": "integer"
+              }
+            }
+          },
+          "links": {
+            "description": "A collection of pagination links for resource-types endpoints",
+            "type": "object",
+            "required": [
+              "first",
+              "previous",
+              "next",
+              "last"
+            ],
+            "properties": {
+              "first": {
+                "description": "The URI path for the first page in the pagination",
+                "type": "string"
+              },
+              "previous": {
+                "description": "The URI path for the previous page in the pagination",
+                "type": "string",
+                "nullable": true
+              },
+              "next": {
+                "description": "The URI path for the next page in the pagination",
+                "type": "string",
+                "nullable": true
+              },
+              "last": {
+                "description": "The URI path for the last page in the pagination",
+                "type": "string"
+              }
+            }
+          }
+        }
       }
     },
     "responses": {

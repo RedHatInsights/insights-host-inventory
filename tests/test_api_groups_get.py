@@ -123,7 +123,7 @@ def test_sort_by_name(db_create_group, api_get, order_how_query, reverse_list):
         ),
     ],
 )
-def test_sort_by_host_ids(db_create_group_with_hosts, api_get, db_get_group_by_id, order_how_query, reverse_list):
+def test_sort_by_host_count(db_create_group_with_hosts, api_get, db_get_group_by_id, order_how_query, reverse_list):
     num_groups = 5
 
     # Create a list of groups. The names are randomized, but each group has one more host than the previous.
@@ -133,7 +133,7 @@ def test_sort_by_host_ids(db_create_group_with_hosts, api_get, db_get_group_by_i
     if reverse_list:
         group_id_list.reverse()
 
-    query = f"?order_by=host_ids{order_how_query}"
+    query = f"?order_by=host_count{order_how_query}"
     response_status, response_data = api_get(build_groups_url(query=query))
 
     assert_response_status(response_status, 200)
@@ -223,7 +223,7 @@ def test_group_query_pagination(subtests, db_create_group, api_get):
         ),
     ],
 )
-def test_sort_by_host_ids_with_pagination(
+def test_sort_by_host_count_with_pagination(
     subtests, db_create_group_with_hosts, api_get, order_how_query, reverse_list
 ):
     """
@@ -253,7 +253,7 @@ def test_sort_by_host_ids_with_pagination(
         end = per_page
         for page in [1, 2, 3]:
             with subtests.test():
-                query = f"?page={page}&per_page={per_page}&order_by=host_ids{order_how_query}"
+                query = f"?page={page}&per_page={per_page}&order_by=host_count{order_how_query}"
                 response_status, response_data = api_get(build_groups_url(query=query))
                 assert response_status == 200
                 assert response_data["total"] == len(group_id_list)

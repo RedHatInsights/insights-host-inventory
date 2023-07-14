@@ -43,10 +43,10 @@ QUERY = """query Query (
 
 GROUPS_ORDER_BY_MAPPING = {
     "name": Group.name,
-    "host_ids": func.count(HostGroupAssoc.host_id),
+    "host_count": func.count(HostGroupAssoc.host_id),
 }
 
-GROUPS_ORDER_HOW_MAPPING = {"asc": asc, "desc": desc, "name": asc, "host_ids": desc}
+GROUPS_ORDER_HOW_MAPPING = {"asc": asc, "desc": desc, "name": asc, "host_count": desc}
 
 __all__ = (
     "build_paginated_group_list_response",
