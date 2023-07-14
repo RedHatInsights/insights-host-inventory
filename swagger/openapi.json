@@ -1492,7 +1492,7 @@
           "type": "string",
           "enum": [
             "name",
-            "host_ids"
+            "host_count"
           ]
         },
         "description": "Ordering field name"
@@ -1521,7 +1521,7 @@
             "DESC"
           ]
         },
-        "description": "Direction of the ordering; defaults to ASC for name, and to DESC for host_ids"
+        "description": "Direction of the ordering; defaults to ASC for name, and to DESC for host_count"
       },
       "stalenessParam": {
         "name": "staleness",
@@ -2478,10 +2478,10 @@
         "type": "object",
         "allOf": [
           {
+            "$ref": "#/components/schemas/GroupOut"
+          },
+          {
             "properties": {
-              "group_out": {
-                "$ref": "#/components/schemas/GroupOut"
-              },
               "host_count": {
                 "$ref": "#/components/schemas/HostCount"
               }

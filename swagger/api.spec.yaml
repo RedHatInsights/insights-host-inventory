@@ -898,7 +898,7 @@ components:
         type: string
         enum:
           - name
-          - host_ids
+          - host_count
       description: Ordering field name
     hostOrderHowParam:
       name: order_how
@@ -923,7 +923,7 @@ components:
           - DESC
       description: >-
         Direction of the ordering; defaults to ASC for name, and to DESC
-        for host_ids
+        for host_count
     stalenessParam:
       name: staleness
       in: query
@@ -1617,9 +1617,8 @@ components:
         Data of a single group belonging to an account.
       type: object
       allOf:
+      - $ref: "#/components/schemas/GroupOut"
       - properties:
-          group_out:
-            $ref: "#/components/schemas/GroupOut"
           host_count:
             $ref: "#/components/schemas/HostCount"
     GroupOut:
