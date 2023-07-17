@@ -498,6 +498,26 @@ def test_patch_host_with_RBAC_denied_specific_groups(mocker, api_patch, db_creat
     assert response_data["detail"] == "Requested host not found."
 
 
+def test_patch_host_with_RBAC_allowed_ungrouped(mocker, api_patch, db_create_host, event_producer_mock, enable_rbac):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+
+    # Grant write access specifically to ungrouped hosts
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-hosts-write-resource-defs-template.json"
+    )
+    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = [None]
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    # Create an ungrouped host
+    host = db_create_host()
+    url = build_hosts_url(host_list_or_id=host.id)
+
+    new_display_name = "fred_flintstone"
+    response_status, response_data = api_patch(url, {"display_name": new_display_name})
+
+    assert_response_status(response_status, 200)
+
+
 def test_patch_host_with_RBAC_bypassed_as_system(api_patch, db_create_host, event_producer_mock, enable_rbac):
     host = db_create_host(
         SYSTEM_IDENTITY, extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}}

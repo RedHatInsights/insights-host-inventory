@@ -72,7 +72,10 @@ def create_group(body, rbac_filter=None):
     # If there is an attribute filter on the RBAC permissions,
     # the user should not be allowed to create a group.
     if rbac_filter is not None:
-        return Response(None, status.HTTP_403_FORBIDDEN)
+        return Response(
+            "Unfiltered inventory:groups:write RBAC permission is required in order to create new groups.",
+            status.HTTP_403_FORBIDDEN,
+        )
 
     # Validate group input data
     try:
