@@ -16,6 +16,7 @@ import dateutil.parser
 from app.auth.identity import IdentityType
 from tests.helpers.test_utils import now
 
+ASSIGNMENT_RULE_URL = "/api/inventory/v1/assignment-rules"
 HOST_URL = "/api/inventory/v1/hosts"
 GROUP_URL = "/api/inventory/v1/groups"
 TAGS_URL = "/api/inventory/v1/tags"
@@ -442,6 +443,10 @@ def build_groups_url(group_id=None, query=None):
     return _build_url(base_url=GROUP_URL, id_list=group_id, query=query)
 
 
+def build_assignment_rules_url(assignment_rules_id=None, query=None):
+    return _build_url(base_url=ASSIGNMENT_RULE_URL, id_list=assignment_rules_id, query=query)
+
+
 def build_resource_types_url(query=None):
     return _build_url(base_url=RESOURCE_TYPES_URL, query=query)
 
@@ -532,14 +537,3 @@ class MockUserIdentity(ClassMock):
 
     def assert_called_once_with(param, value):
         super.assert_called_once_with(param, value)
-
-
-class MockSystemIdentity:
-    def __init__(self):
-        self.is_trusted_system = False
-        self.account_number = "test"
-        self.identity_type = "System"
-        self.system = {"cert_type": "system", "cn": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"}
-
-    def assert_called_once_with(self, identity, param, value):
-        return True

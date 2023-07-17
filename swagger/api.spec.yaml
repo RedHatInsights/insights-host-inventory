@@ -781,7 +781,7 @@ paths:
         - $ref: '#/components/parameters/assignmentRuleOrderByParam'
         - $ref: '#/components/parameters/assignmentRuleOrderHowParam'
       responses:
-        '200':
+        '201':
           description: Successfully read the assignment-rules list.
           content:
             application/json:
@@ -1755,7 +1755,7 @@ components:
       allOf:
       - properties:
           id:
-            $ref: '#/components/schemas/NonStrictUUID'
+            $ref: '#/components/schemas/AssignmentRuleId'
           name:
             type: string
             minLength: 1

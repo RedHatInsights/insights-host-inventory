@@ -1329,7 +1329,7 @@
           }
         ],
         "responses": {
-          "200": {
+          "201": {
             "description": "Successfully read the assignment-rules list.",
             "content": {
               "application/json": {
@@ -2678,7 +2678,7 @@
           {
             "properties": {
               "id": {
-                "$ref": "#/components/schemas/NonStrictUUID"
+                "$ref": "#/components/schemas/AssignmentRuleId"
               },
               "name": {
                 "type": "string",
