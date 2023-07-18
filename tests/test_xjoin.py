@@ -922,7 +922,7 @@ def test_tags_query_host_filters_casefolding(assert_tag_query_host_filter_for_fi
 def test_tags_query_group_name_filter(assert_tag_query_host_filter_single_call, mocker):
     assert_tag_query_host_filter_single_call(
         build_tags_url(query="?group_name=coolgroup"),
-        host_filter={"OR": mocker.ANY, "AND": ({"group": {"name": {"matches_lc": "*coolgroup*"}}},)},
+        host_filter={"OR": mocker.ANY, "AND": ({"OR": [{"group": {"name": {"matches_lc": "*coolgroup*"}}}]},)},
     )
 
 
@@ -1965,10 +1965,12 @@ def test_query_hosts_filter_updated_error(api_get):
     assert response_status == 400
 
 
-def test_query_variables_group_name(mocker, graphql_query_empty_response, api_get):
-    group_name = "pog group"
+@pytest.mark.parametrize("group_names", (["pog group"], ["group1", "group2", "group3"]))
+def test_query_variables_group_name(mocker, graphql_query_empty_response, api_get, group_names):
+    group_name_params = "&".join([f"group_name={quote(name)}" for name in group_names])
+    group_filter = [{"group": {"name": {"matches_lc": f"*{name}*"}}} for name in group_names]
 
-    url = build_hosts_url(query=f"?group_name={quote(group_name)}")
+    url = build_hosts_url(query=f"?{group_name_params}")
     response_status, _ = api_get(url)
 
     assert response_status == 200
@@ -1980,7 +1982,7 @@ def test_query_variables_group_name(mocker, graphql_query_empty_response, api_ge
             "order_how": mocker.ANY,
             "limit": mocker.ANY,
             "offset": mocker.ANY,
-            "filter": ({"OR": mocker.ANY}, {"group": {"name": {"matches_lc": f"*{group_name}*"}}}),
+            "filter": ({"OR": mocker.ANY}, {"OR": group_filter}),
             "fields": mocker.ANY,
         },
         mocker.ANY,

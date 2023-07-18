@@ -452,7 +452,7 @@ def query_filters(
     if updated_start or updated_end:
         query_filters += _build_modified_on_filter(updated_start, updated_end)
     if group_name:
-        query_filters += ({"group": {"name": string_contains_lc(group_name)}},)
+        query_filters += ({"OR": [{"group": {"name": string_contains_lc(name)}} for name in group_name]},)
     if group_ids:
         query_filters += group_id_list_query_filter(group_ids)
 
