@@ -1,16 +1,17 @@
-import uuid
-import pytest
-
+# import uuid
+# import pytest
 from tests.helpers.api_utils import assert_response_status
-from tests.helpers.api_utils import ASSIGNMENT_RULE_URL
 from tests.helpers.api_utils import build_assignment_rules_url
+
+# from tests.helpers.api_utils import ASSIGNMENT_RULE_URL
+
 
 def test_basic_assignment_rule_query(db_create_assignment_rule, db_create_group, api_get):
     group = db_create_group("TestGroup")
     filter = {"AND": [{"fqdn": {"eq": "foo.bar.com"}}]}
 
     assignment_rule_id_list = [
-        str(db_create_assignment_rule(f"assignment {idx}", group.id, filter).id) for idx in range(3)
+        str(db_create_assignment_rule(f"assignment {idx}", group.id, filter, True).id) for idx in range(3)
     ]
     response_status, response_data = api_get(build_assignment_rules_url())
 

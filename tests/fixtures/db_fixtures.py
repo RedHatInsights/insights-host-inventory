@@ -238,8 +238,7 @@ def db_create_group_with_hosts(db_create_group, db_create_host, db_create_host_g
 
 @pytest.fixture(scope="function")
 def db_create_assignment_rule(flask_app):
-    def _db_create_assignment_rule(name, group_id, filter):
-        enabled = True
+    def _db_create_assignment_rule(name, group_id, filter, enabled):
         assignment_rule = db_assignment_rule(name=name, group_id=group_id, filter=filter, enabled=enabled)
         db.session.add(assignment_rule)
         db.session.commit()
