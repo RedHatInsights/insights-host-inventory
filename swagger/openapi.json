@@ -215,7 +215,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CreateHostOut"
+                  "$ref": "#/components/schemas/HostOut"
                 }
               }
             }
@@ -2128,8 +2128,8 @@
           }
         ]
       },
-      "CreateHostOut": {
-        "title": "Create Host Out",
+      "HostOut": {
+        "title": "Host Out",
         "description": "Data of a single host belonging to an account. Represents the hosts without its Inventory metadata.",
         "type": "object",
         "allOf": [
@@ -2219,27 +2219,6 @@
             "required": [
               "org_id"
             ]
-          }
-        ]
-      },
-      "HostOut": {
-        "title": "A Host Inventory entry",
-        "description": "A database entry representing a single host with its Inventory metadata.",
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/CreateHostOut"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "facts": {
-                "description": "A set of facts belonging to the host.",
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/FactSet"
-                }
-              }
-            }
           }
         ]
       },
