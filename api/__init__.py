@@ -74,9 +74,5 @@ def custom_escape(expression):
     return reduce(lambda x, y: x + "\\" + y if y in ESCAPE_CHARS else x + y, expression, "")
 
 
-# def json_response(title, detail, status=status.HTTP_400_BAD_REQUEST):
-#     return flask_json_response({"title": title, "detail": detail, "status": status}, status)
-
-
-def json_response(detail, status=status.HTTP_400_BAD_REQUEST):
-    return flask_json_response({"detail": detail}, status)
+def json_error_response(title, detail, status=status.HTTP_400_BAD_REQUEST):
+    return flask_json_response({"title": title, "detail": detail}, status)
