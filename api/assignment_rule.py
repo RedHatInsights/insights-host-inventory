@@ -20,19 +20,11 @@ from lib.middleware import rbac
 logger = get_logger(__name__)
 
 
-# TODO: hbi.group-assignment-rule from Rich Oliveri
-#   1. what paramters as input?
-#   2. does it need its feature flag?
-#   3. Rename the function to "get_assignment_rules"
 @api_operation
 @rbac(RbacResourceType.GROUPS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_assignment_rule_list(
-    enabled=True,  # check for this default value.
     name=None,
-    filter=None,
-    created_on=None,
-    modified_on=None,
     page=1,
     per_page=100,
     order_by=None,
@@ -67,14 +59,14 @@ def create_assignment_rule(body, rbac_filter=None):
 @api_operation
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def patch_assignment_rule_by_id(group_id, body, rbac_filter=None):
+def patch_assignment_rule_by_id(assignment_rule_id, body, rbac_filter=None):
     return True
 
 
 @api_operation
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def delete_assignment_rules(group_id_list, rbac_filter=None):
+def delete_assignment_rules(assignment_rule_id_list, rbac_filter=None):
     return True
 
 
@@ -82,7 +74,7 @@ def delete_assignment_rules(group_id_list, rbac_filter=None):
 @rbac(RbacResourceType.GROUPS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_assignment_rules_by_id(
-    group_id_list,
+    assignment_rule_id_list,
     page=1,
     per_page=100,
     order_by=None,
