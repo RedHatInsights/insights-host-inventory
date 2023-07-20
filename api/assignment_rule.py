@@ -35,11 +35,10 @@ def get_assignment_rule_list(
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
     try:
-        # TODO: is rbac_filter needed
         rule_list, total = get_filtered_assignment_rule_list_db(name, page, per_page, order_by, order_how, rbac_filter)
     except ValueError as e:
         log_get_group_list_failed(logger)
-        abort(400, str(e))
+        abort(status.HTTP_400_BAD_REQUEST, str(e))
 
     log_get_assignment_rules_list_succeeded(logger, rule_list)
 
