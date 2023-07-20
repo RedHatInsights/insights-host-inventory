@@ -1299,6 +1299,48 @@
       }
     },
     "/assignment-rules": {
+      "get": {
+        "operationId": "api.assignment_rule.get_assignment_rules_list",
+        "tags": [
+          "assignment-rules"
+        ],
+        "summary": "Read the entire list of assignment-rules [Not Implemented]",
+        "description": "Read the entire list of all assignment-rules available to the account. [Not Implemented] Required permissions: inventory:groups:read",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/assignmentRuleName"
+          },
+          {
+            "$ref": "#/components/parameters/perPageParam"
+          },
+          {
+            "$ref": "#/components/parameters/pageParam"
+          },
+          {
+            "$ref": "#/components/parameters/assignmentRuleOrderByParam"
+          },
+          {
+            "$ref": "#/components/parameters/assignmentRuleOrderHowParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully read the assignment-rules list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssignmentRuleQueryOutput"
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "operationId": "api.assignment_rule.create_assignment_rule",
         "summary": "Create Assignment Rule object",
@@ -1561,6 +1603,34 @@
         },
         "description": "Direction of the ordering; defaults to ASC for name, and to DESC for host_count"
       },
+      "assignmentRuleOrderByParam": {
+        "name": "order_by",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "org_id",
+            "account",
+            "name",
+            "group_id"
+          ]
+        },
+        "description": "Ordering field name"
+      },
+      "assignmentRuleOrderHowParam": {
+        "name": "order_how",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "ASC",
+            "DESC"
+          ]
+        },
+        "description": "Direction of the ordering; defaults to ASC for name, and to DESC for host_ids"
+      },
       "stalenessParam": {
         "name": "staleness",
         "in": "query",
@@ -1730,6 +1800,24 @@
         "in": "path",
         "name": "group_id",
         "description": "Group ID.",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/NonStrictUUID"
+        }
+      },
+      "assignmentRuleName": {
+        "in": "query",
+        "name": "name",
+        "schema": {
+          "type": "string"
+        },
+        "description": "Filter by assignement-rule name",
+        "required": false
+      },
+      "assignmentRuleId": {
+        "in": "path",
+        "name": "assignment_rule_id",
+        "description": "assignment-rule ID.",
         "required": true,
         "schema": {
           "$ref": "#/components/schemas/NonStrictUUID"
@@ -2645,6 +2733,31 @@
                 "type": "array",
                 "items": {
                   "$ref": "#/components/schemas/GroupOutWithHostCount"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "AssignmentRuleQueryOutput": {
+        "title": "An Inventory Assignment Rules query result",
+        "description": "A paginated assignment-rule search query result with assignment-rule entries and their Inventory metadata.",
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PaginationOut"
+          },
+          {
+            "type": "object",
+            "required": [
+              "results"
+            ],
+            "properties": {
+              "results": {
+                "description": "Actual assignment-rule search query result entries.",
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/AssignmentRuleOut"
                 }
               }
             }

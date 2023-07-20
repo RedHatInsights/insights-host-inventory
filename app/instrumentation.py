@@ -292,9 +292,18 @@ def log_get_resource_type_list_failed(logger):
     logger.debug("Resource types not found", extra={"access_rule": get_control_rule()})
 
 
+# asssignment-rules
 def log_post_assignment_rule_succeeded(logger, id):
     logger.info(f"Assignment rule created: {id}", extra={"access_rule": get_control_rule()})
 
 
 def log_post_assignment_rule_failed(logger):
     logger.info("Failed to create assignment rule", extra={"access_rule": get_control_rule()})
+
+
+def log_get_assignment_rules_list_succeeded(logger, results_list):
+    logger.info("Found assignment-rules: %s", results_list, extra={"access_rule": get_control_rule()})
+
+
+def log_get_assignment_rules_list_failed(logger):
+    logger.info("assignment-rules not found", extra={"access_rule": get_control_rule()})
