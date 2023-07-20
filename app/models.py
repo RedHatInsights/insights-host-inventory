@@ -771,3 +771,14 @@ class InputGroupSchema(MarshmallowSchema):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+
+class InputAssignmentRule(MarshmallowSchema):
+    name = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=255))
+    description = fields.Str(validate=marshmallow_validate.Length(max=255))
+    group_id = fields.Str(required=True, validate=verify_uuid_format)
+    filter = fields.Dict(required=True)
+    enabled = fields.Bool()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
