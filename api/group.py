@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 
 from api import api_operation
 from api import flask_json_response
+from api import json_error_response
 from api import metrics
 from api.group_query import build_group_response
 from api.group_query import build_paginated_group_list_response
@@ -82,7 +83,7 @@ def create_group(body, rbac_filter=None):
         validated_create_group_data = InputGroupSchema().load(body)
     except ValidationError as e:
         logger.exception(f"Input validation error while creating group: {body}")
-        return _error_json_response("Validation Error", str(e.messages))
+        return json_error_response("Validation Error", str(e.messages), status.HTTP_400_BAD_REQUEST)
 
     try:
         # Create group with validated data
@@ -101,11 +102,11 @@ def create_group(body, rbac_filter=None):
 
         log_create_group_failed(logger, group_name)
         logger.exception(error_message)
-        return _error_json_response("Integrity error", error_message)
+        return json_error_response("Integrity error", error_message, status.HTTP_400_BAD_REQUEST)
 
     except InventoryException as inve:
         logger.exception(inve.detail)
-        return _error_json_response(inve.title, inve.detail)
+        return json_error_response(inve.title, inve.detail, status.HTTP_400_BAD_REQUEST)
 
     return flask_json_response(build_group_response(created_group), status.HTTP_201_CREATED)
 
@@ -212,7 +213,3 @@ def delete_hosts_from_group(group_id, host_id_list, rbac_filter=None):
         abort(status.HTTP_404_NOT_FOUND, "Group or hosts not found.")
 
     return Response(None, status.HTTP_204_NO_CONTENT)
-
-
-def _error_json_response(title, detail, status=status.HTTP_400_BAD_REQUEST):
-    return flask_json_response({"title": title, "detail": detail}, status)
