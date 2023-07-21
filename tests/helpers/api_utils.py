@@ -16,11 +16,13 @@ import dateutil.parser
 from app.auth.identity import IdentityType
 from tests.helpers.test_utils import now
 
-HOST_URL = "/api/inventory/v1/hosts"
-GROUP_URL = "/api/inventory/v1/groups"
-TAGS_URL = "/api/inventory/v1/tags"
-SYSTEM_PROFILE_URL = "/api/inventory/v1/system_profile"
-RESOURCE_TYPES_URL = "/api/inventory/v1/resource-types"
+BASE_URL = "/api/inventory/v1"
+HOST_URL = f"{BASE_URL}/hosts"
+GROUP_URL = f"{BASE_URL}/groups"
+TAGS_URL = f"{BASE_URL}/tags"
+SYSTEM_PROFILE_URL = f"{BASE_URL}/system_profile"
+RESOURCE_TYPES_URL = f"{BASE_URL}/resource-types"
+ASSIGN_RULE_URL = f"{BASE_URL}/assignment-rules"
 
 SHARED_SECRET = "SuperSecretStuff"
 
@@ -280,6 +282,16 @@ def assert_paginated_response_counts(response_data, expected_per_page, expected_
     assert response_data["total"] == expected_total
     assert response_data["count"] == expected_per_page
     assert len(response_data["results"]) == expected_per_page
+
+
+def assert_assign_rule_response(response_data, expected_data):
+    assert response_data["name"] == expected_data["name"]
+    assert response_data["description"] == expected_data["description"]
+    assert response_data["group_id"] == expected_data["group_id"]
+    assert response_data["filter"] == expected_data["filter"]
+    assert response_data["enabled"] == expected_data["enabled"]
+    assert "created_on" in response_data
+    assert "modified_on" in response_data
 
 
 def api_per_page_test(api_get, subtests, url, per_page, num_pages):

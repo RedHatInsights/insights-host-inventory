@@ -54,6 +54,21 @@ def test_RBAC_invalid_attribute_filter(mocker, api_get, field, enable_rbac):
 
     get_rbac_permissions_mock.return_value = mock_rbac_response
 
-    response_status, response_data = api_get(build_hosts_url())
+    response_status, _ = api_get(build_hosts_url())
+
+    assert_response_status(response_status, 503)
+
+
+def test_RBAC_invalid_UUIDs(mocker, api_get, enable_rbac):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-hosts-read-resource-defs-template.json"
+    )
+    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = ["not a UUID"]
+
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    response_status, _ = api_get(build_hosts_url())
 
     assert_response_status(response_status, 503)
