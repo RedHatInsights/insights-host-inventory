@@ -45,7 +45,7 @@
             "$ref": "#/components/parameters/updatedEnd"
           },
           {
-            "$ref": "#/components/parameters/groupNameExplicit"
+            "$ref": "#/components/parameters/groupNameListParam"
           },
           {
             "$ref": "#/components/parameters/branchId"
@@ -129,7 +129,7 @@
             "$ref": "#/components/parameters/updatedEnd"
           },
           {
-            "$ref": "#/components/parameters/groupNameExplicit"
+            "$ref": "#/components/parameters/groupNameListParam"
           },
           {
             "$ref": "#/components/parameters/registered_with"
@@ -1022,7 +1022,7 @@
             "$ref": "#/components/parameters/updatedEnd"
           },
           {
-            "$ref": "#/components/parameters/groupNameExplicit"
+            "$ref": "#/components/parameters/groupNameListParam"
           },
           {
             "$ref": "#/components/parameters/registered_with"
@@ -1717,14 +1717,17 @@
         "description": "Filter by group name",
         "required": false
       },
-      "groupNameExplicit": {
+      "groupNameListParam": {
         "in": "query",
         "name": "group_name",
-        "schema": {
-          "type": "string"
-        },
         "description": "Filter by group name",
-        "required": false
+        "required": false,
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       },
       "groupId": {
         "in": "path",
