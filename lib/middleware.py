@@ -1,5 +1,6 @@
 from functools import partial
 from functools import wraps
+from uuid import UUID
 
 from app_common_python import LoadedConfig
 from flask import abort
@@ -125,7 +126,17 @@ def rbac(resource_type, required_permission, permission_base="inventory"):
                                     "Did not receive a list for attributeFilter.value in RBAC response.",
                                 )
                             else:
+                                # Add the IDs to the filter, but validate that they're all actually UUIDs.
                                 groups_attribute_filter.update(resourceDefinition["attributeFilter"]["value"])
+                                try:
+                                    for gid in groups_attribute_filter:
+                                        if gid is not None:
+                                            UUID(gid)
+                                except ValueError:
+                                    abort(
+                                        status.HTTP_503_SERVICE_UNAVAILABLE,
+                                        "Received invalid UUIDs for attributeFilter value in RBAC response.",
+                                    )
 
                     if groups_attribute_filter:
                         # If the RBAC permission is applicable and is limited to specific group IDs,

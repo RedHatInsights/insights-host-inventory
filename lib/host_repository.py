@@ -288,7 +288,11 @@ def get_host_list_by_id_list_from_db(host_id_list, rbac_filter=None):
         Host.id.in_(host_id_list),
     )
     if rbac_filter and "groups" in rbac_filter:
-        filters += (HostGroupAssoc.group_id.in_(rbac_filter["groups"]),)
+        rbac_group_filters = (HostGroupAssoc.group_id.in_(rbac_filter["groups"]),)
+        if None in rbac_filter["groups"]:
+            rbac_group_filters += (HostGroupAssoc.group_id.is_(None),)
+
+        filters += (or_(*rbac_group_filters),)
 
     query = Host.query.join(HostGroupAssoc, isouter=True).filter(*filters).group_by(Host.id)
     return find_non_culled_hosts(update_query_for_owner_id(current_identity, query))
