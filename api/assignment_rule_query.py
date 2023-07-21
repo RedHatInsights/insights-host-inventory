@@ -19,6 +19,7 @@ ASSIGNMENT_RULES_ORDER_BY_MAPPING = {
 }
 
 ASSIGNMENT_RULES_ORDER_HOW_MAPPING = {"org_id": asc, "account": desc, "name": asc, "group_id": asc}
+ASSIGNMENT_RULES_ORDER_HOW_NEW = {"asc": asc, "desc": desc}
 
 
 def get_assignment_rules_list_db(filters, page, per_page, param_order_by, param_order_how, rbac_filter):
@@ -28,7 +29,7 @@ def get_assignment_rules_list_db(filters, page, per_page, param_order_by, param_
     order_by_str = param_order_by or "name"
     order_by = ASSIGNMENT_RULES_ORDER_BY_MAPPING[order_by_str]
     order_how_func = (
-        ASSIGNMENT_RULES_ORDER_HOW_MAPPING[param_order_how.lower()]
+        ASSIGNMENT_RULES_ORDER_HOW_NEW[param_order_how.lower()]
         if param_order_how
         else ASSIGNMENT_RULES_ORDER_HOW_MAPPING[order_by_str]
     )
