@@ -135,7 +135,7 @@ def rbac(resource_type, required_permission, permission_base="inventory"):
                                 except ValueError:
                                     abort(
                                         status.HTTP_503_SERVICE_UNAVAILABLE,
-                                        "Received invalid UUIDs for attributeFilter value in RBAC response.",
+                                        "Received invalid UUIDs for attributeFilter.value in RBAC response.",
                                     )
 
                     if groups_attribute_filter:
