@@ -1992,7 +1992,8 @@ def test_query_hosts_filter_updated_error(api_get):
 )
 def test_query_variables_group_name(mocker, graphql_query_empty_response, api_get, group_names, group_filter):
     group_name_params = "&".join([f"group_name={quote(name)}" for name in group_names])
-    url = build_hosts_url(query=f"?{group_name_params}")
+    # Verify that empty group_name values play nicely with other params (like fqdn)
+    url = build_hosts_url(query=f"?{group_name_params}&fqdn=foo.bar.com")
     response_status, _ = api_get(url)
 
     assert response_status == 200
@@ -2004,7 +2005,7 @@ def test_query_variables_group_name(mocker, graphql_query_empty_response, api_ge
             "order_how": mocker.ANY,
             "limit": mocker.ANY,
             "offset": mocker.ANY,
-            "filter": ({"OR": mocker.ANY}, {"OR": group_filter}),
+            "filter": ({"fqdn": {"eq": "foo.bar.com"}}, {"OR": mocker.ANY}, {"OR": group_filter}),
             "fields": mocker.ANY,
         },
         mocker.ANY,
