@@ -158,10 +158,10 @@ def serialize_host(host, staleness_timestamps, for_mq=True, additional_fields=tu
     if "system_profile" in fields:
         serialized_host["system_profile"] = host.system_profile_facts or {}
     if "groups" in fields:
-        # For MQ messages, we don't include the host_count field.
+        # For MQ messages, we only include name and ID.
         if for_mq and host.groups:
             serialized_host["groups"] = [
-                {key: group[key] for key in group if key != "host_count"} for group in host.groups
+                {key: group[key] for key in group if key in ["name", "id"]} for group in host.groups
             ]
         else:
             serialized_host["groups"] = host.groups or []
@@ -310,3 +310,18 @@ def _deserialize_tags_dict(tags):
 
 def _serialize_tags(tags):
     return [tag.data() for tag in Tag.create_tags_from_nested(tags)]
+
+
+def serialize_assignment_rule(assign_rule):
+    return {
+        "id": _serialize_uuid(assign_rule.id),
+        "org_id": assign_rule.org_id,
+        "account": assign_rule.account,
+        "name": assign_rule.name,
+        "description": assign_rule.description,
+        "group_id": _serialize_uuid(assign_rule.group_id),
+        "filter": assign_rule.filter,
+        "enabled": assign_rule.enabled,
+        "created_on": _serialize_datetime(assign_rule.created_on),
+        "modified_on": _serialize_datetime(assign_rule.modified_on),
+    }

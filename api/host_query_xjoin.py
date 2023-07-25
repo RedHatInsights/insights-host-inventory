@@ -192,6 +192,7 @@ def get_host_list(
     registered_with,
     filter,
     fields,
+    rbac_filter,
 ):
     all_filters = query_filters(
         fqdn,
@@ -208,19 +209,22 @@ def get_host_list(
         staleness,
         registered_with,
         filter,
+        rbac_filter,
     )
 
     return get_host_list_using_filters(all_filters, page, per_page, param_order_by, param_order_how, fields)
 
 
-def get_host_list_by_id_list(host_id_list, page, per_page, param_order_by, param_order_how, fields=None):
-    all_filters = host_id_list_query_filter(host_id_list)
+def get_host_list_by_id_list(
+    host_id_list, page, per_page, param_order_by, param_order_how, fields=None, rbac_filter=None
+):
+    all_filters = host_id_list_query_filter(host_id_list, rbac_filter)
 
     return get_host_list_using_filters(all_filters, page, per_page, param_order_by, param_order_how, fields)
 
 
-def get_host_tags_list_by_id_list(host_id_list, page, per_page, param_order_by, param_order_how):
-    all_filters = host_id_list_query_filter(host_id_list)
+def get_host_tags_list_by_id_list(host_id_list, page, per_page, param_order_by, param_order_how, rbac_filter):
+    all_filters = host_id_list_query_filter(host_id_list, rbac_filter)
 
     return get_host_tags_list_using_filters(all_filters, page, per_page, param_order_by, param_order_how)
 
@@ -239,6 +243,7 @@ def get_host_ids_list(
     staleness,
     tags,
     filter,
+    rbac_filter,
 ):
     all_filters = query_filters(
         fqdn,
@@ -255,6 +260,7 @@ def get_host_ids_list(
         staleness,
         registered_with,
         filter,
+        rbac_filter,
     )
 
     id_list = []

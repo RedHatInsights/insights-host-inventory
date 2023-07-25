@@ -26,7 +26,7 @@ paths:
         - $ref: '#/components/parameters/providerType'
         - $ref: '#/components/parameters/updatedStart'
         - $ref: '#/components/parameters/updatedEnd'
-        - $ref: '#/components/parameters/groupNameExplicit'
+        - $ref: '#/components/parameters/groupNameListParam'
         - $ref: '#/components/parameters/branchId'
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
@@ -64,7 +64,7 @@ paths:
         - $ref: '#/components/parameters/providerType'
         - $ref: '#/components/parameters/updatedStart'
         - $ref: '#/components/parameters/updatedEnd'
-        - $ref: '#/components/parameters/groupNameExplicit'
+        - $ref: '#/components/parameters/groupNameListParam'
         - $ref: '#/components/parameters/registered_with'
         - $ref: '#/components/parameters/stalenessNoDefaultsParam'
         - $ref: '#/components/parameters/tagsParam'
@@ -122,7 +122,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CreateHostOut'
+                $ref: '#/components/schemas/HostOut'
         '404':
           description: Not Found.
   '/hosts/{host_id_list}':
@@ -400,7 +400,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GroupOut'
+                $ref: '#/components/schemas/GroupOutWithHostCount'
   '/groups/{group_id}':
     patch:
       operationId: api.group.patch_group_by_id
@@ -428,7 +428,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GroupOut'
+                $ref: '#/components/schemas/GroupOutWithHostCount'
         '400':
           description: Invalid request.
         '404':
@@ -527,7 +527,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GroupOut'
+                $ref: '#/components/schemas/GroupOutWithHostCount'
         '400':
           description: Invalid request.
         '404':
@@ -604,7 +604,7 @@ paths:
         - $ref: '#/components/parameters/providerType'
         - $ref: '#/components/parameters/updatedStart'
         - $ref: '#/components/parameters/updatedEnd'
-        - $ref: '#/components/parameters/groupNameExplicit'
+        - $ref: '#/components/parameters/groupNameListParam'
         - $ref: '#/components/parameters/registered_with'
         - $ref: '#/components/parameters/filter_param'
       responses:
@@ -763,7 +763,31 @@ paths:
               application/json:
                 schema:
                   $ref: '#/components/schemas/UnleashToggleOut'
-
+  /assignment-rules:
+    post:
+      operationId: api.assignment_rule.create_assignment_rule
+      summary: Create Assignment Rule object
+      description: >-
+        Create Assignment Rule object using post request
+        <br /><br />
+        Required permissions: inventory:groups:write
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        description: Data required to create Assignment Rule object
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignmentRuleIn'
+      responses:
+        '201':
+          description: Assignment Rule created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssignmentRuleOut'
 components:
   securitySchemes:
     BearerAuth:
@@ -898,7 +922,7 @@ components:
         type: string
         enum:
           - name
-          - host_ids
+          - host_count
       description: Ordering field name
     hostOrderHowParam:
       name: order_how
@@ -923,7 +947,7 @@ components:
           - DESC
       description: >-
         Direction of the ordering; defaults to ASC for name, and to DESC
-        for host_ids
+        for host_count
     stalenessParam:
       name: staleness
       in: query
@@ -1048,13 +1072,15 @@ components:
         type: string
       description: Filter by group name
       required: false
-    groupNameExplicit:
+    groupNameListParam:
       in: query
       name: group_name
-      schema:
-        type: string
       description: Filter by group name
       required: false
+      schema:
+        type: array
+        items:
+          type: string
     groupId:
       in: path
       name: group_id
@@ -1354,8 +1380,8 @@ components:
               minimum: 1
               maximum: 2880
               example: 1440
-    CreateHostOut:
-      title: Create Host Out
+    HostOut:
+      title: Host Out
       description: >-
         Data of a single host belonging to an account. Represents the hosts
         without its Inventory metadata.
@@ -1426,20 +1452,14 @@ components:
               type: object
               additionalProperties:
                 $ref: '#/components/schemas/PerReporterStaleness'
-          required:
-            - org_id
-    HostOut:
-      title: A Host Inventory entry
-      description: A database entry representing a single host with its Inventory metadata.
-      allOf:
-        - $ref: '#/components/schemas/CreateHostOut'
-        - type: object
-          properties:
-            facts:
-              description: A set of facts belonging to the host.
+            groups:
+              description: >-
+                The groups that the host belongs to, if any.
               type: array
               items:
-                $ref: '#/components/schemas/FactSet'
+                $ref: '#/components/schemas/GroupOut'
+          required:
+            - org_id
     HostQueryOutput:
       title: A Host Inventory query result
       description: >-
@@ -1605,8 +1625,84 @@ components:
               $ref: "#/components/schemas/GroupName"
             host_ids:
               $ref: "#/components/schemas/HostIds"
+    AssignmentRuleIn:
+      title: Assignment Rule In
+      description: >-
+        Data for a single Assignment Rule
+      type: object
+      allOf:
+        - properties:
+            name:
+              type: string
+              minLength: 1
+              maxLength: 255
+            description:
+              type: string
+              minLength: 1
+              maxLength: 255
+              nullable: true
+            group_id:
+              $ref: "#/components/schemas/GroupId"
+            filter:
+              type: object
+            enabled:
+              type: boolean
+          required:
+            - name
+            - group_id
+            - filter
+            - enabled
+    AssignmentRuleOut:
+      title: Assignment Rule response
+      description: >-
+        Data for a single Assignment Rule response
+      type: object
+      allOf:
+        - properties:
+            id:
+              $ref: '#/components/schemas/NonStrictUUID'
+            org_id:
+              $ref: '#/components/schemas/OrgId'
+            account:
+              $ref: '#/components/schemas/AccountNumber'
+            name:
+              type: string
+              minLength: 1
+            description:
+              type: string
+              minLength: 1
+              nullable: true
+            group_id:
+              $ref: "#/components/schemas/GroupId"
+            filter:
+              type: object
+            enabled:
+              type: boolean
+            created_on:
+              type: string
+              format: date-time
+            modified_on:
+              type: string
+              format: date-time
+          required:
+            - name
+            - group_id
+            - filter
+            - enabled
+            - created_on
+            - modified_on
+    GroupOutWithHostCount:
+      title: Group properties with host count
+      description: >-
+        Data of a single group belonging to an account.
+      type: object
+      allOf:
+      - $ref: "#/components/schemas/GroupOut"
+      - properties:
+          host_count:
+            $ref: "#/components/schemas/HostCount"
     GroupOut:
-      title: Group Out
+      title: Group Out Properties
       description: >-
         Data of a single group belonging to an account.
       type: object
@@ -1615,8 +1711,6 @@ components:
           $ref: "#/components/schemas/GroupId"
         name:
           $ref: "#/components/schemas/GroupName"
-        host_count:
-          $ref: "#/components/schemas/HostCount"
         account:
           $ref: "#/components/schemas/AccountNumber"
         org_id:
@@ -1645,7 +1739,7 @@ components:
             description: Actual group search query result entries.
             type: array
             items:
-              $ref: '#/components/schemas/GroupOut'
+              $ref: '#/components/schemas/GroupOutWithHostCount'
     ResourceTypesOut:
       title: A resource type query result
       description: >-
@@ -1666,7 +1760,7 @@ components:
         A paginated list of resource-types RBAC objects.
       type: object
       allOf:
-      - $ref: 'pagination.yaml#/components/schemas/ResourceTypesPaginationOut'
+      - $ref: '#/components/schemas/ResourceTypesPaginationOut'
       - type: object
         required:
           - data
@@ -1683,7 +1777,7 @@ components:
         Inventory metadata in paginated resource-types response format.
       type: object
       allOf:
-      - $ref: 'pagination.yaml#/components/schemas/ResourceTypesPaginationOut'
+      - $ref: '#/components/schemas/ResourceTypesPaginationOut'
       - type: object
         required:
           - data
@@ -1692,7 +1786,7 @@ components:
             description: Actual group search query result entries.
             type: array
             items:
-              $ref: '#/components/schemas/GroupOut'
+              $ref: '#/components/schemas/GroupOutWithHostCount'
     # include renames for system_profile
     SystemProfile:
       $ref: 'system_profile.spec.yaml#/$defs/SystemProfile'
@@ -1721,6 +1815,8 @@ components:
       $ref: 'pagination.yaml#/components/schemas/Page'
     PerPage:
       $ref: 'pagination.yaml#/components/schemas/PerPage'
+    ResourceTypesPaginationOut:
+      $ref: 'pagination.yaml#/components/schemas/ResourceTypesPaginationOut'
 
 
   responses:

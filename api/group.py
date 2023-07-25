@@ -7,12 +7,14 @@ from sqlalchemy.exc import IntegrityError
 
 from api import api_operation
 from api import flask_json_response
+from api import json_error_response
 from api import metrics
 from api.group_query import build_group_response
 from api.group_query import build_paginated_group_list_response
 from api.group_query import get_filtered_group_list_db
 from api.group_query import get_group_list_by_id_list_db
-from app import Permission
+from app import RbacPermission
+from app import RbacResourceType
 from app.exceptions import InventoryException
 from app.instrumentation import log_create_group_failed
 from app.instrumentation import log_create_group_succeeded
@@ -31,12 +33,13 @@ from lib.group_repository import patch_group
 from lib.group_repository import remove_hosts_from_group
 from lib.metrics import create_group_count
 from lib.middleware import rbac
+from lib.middleware import rbac_group_id_check
 
 logger = get_logger(__name__)
 
 
 @api_operation
-@rbac(Permission.GROUPS_READ)
+@rbac(RbacResourceType.GROUPS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_group_list(
     name=None,
@@ -44,12 +47,13 @@ def get_group_list(
     per_page=100,
     order_by=None,
     order_how=None,
+    rbac_filter=None,
 ):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
     try:
-        group_list, total = get_filtered_group_list_db(name, page, per_page, order_by, order_how)
+        group_list, total = get_filtered_group_list_db(name, page, per_page, order_by, order_how, rbac_filter)
     except ValueError as e:
         log_get_group_list_failed(logger)
         abort(400, str(e))
@@ -60,18 +64,26 @@ def get_group_list(
 
 
 @api_operation
-@rbac(Permission.GROUPS_WRITE)
+@rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def create_group(body):
+def create_group(body, rbac_filter=None):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
+
+    # If there is an attribute filter on the RBAC permissions,
+    # the user should not be allowed to create a group.
+    if rbac_filter is not None:
+        abort(
+            status.HTTP_403_FORBIDDEN,
+            "Unfiltered inventory:groups:write RBAC permission is required in order to create new groups.",
+        )
 
     # Validate group input data
     try:
         validated_create_group_data = InputGroupSchema().load(body)
     except ValidationError as e:
         logger.exception(f"Input validation error while creating group: {body}")
-        return _error_json_response("Validation Error", str(e.messages))
+        return json_error_response("Validation Error", str(e.messages), status.HTTP_400_BAD_REQUEST)
 
     try:
         # Create group with validated data
@@ -90,21 +102,23 @@ def create_group(body):
 
         log_create_group_failed(logger, group_name)
         logger.exception(error_message)
-        return _error_json_response("Integrity error", error_message)
+        return json_error_response("Integrity error", error_message, status.HTTP_400_BAD_REQUEST)
 
     except InventoryException as inve:
         logger.exception(inve.detail)
-        return _error_json_response(inve.title, inve.detail)
+        return json_error_response(inve.title, inve.detail, status.HTTP_400_BAD_REQUEST)
 
     return flask_json_response(build_group_response(created_group), status.HTTP_201_CREATED)
 
 
 @api_operation
-@rbac(Permission.GROUPS_WRITE)
+@rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def patch_group_by_id(group_id, body):
+def patch_group_by_id(group_id, body, rbac_filter=None):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
+
+    rbac_group_id_check(rbac_filter, {group_id})
 
     try:
         validated_patch_group_data = InputGroupSchema().load(body)
@@ -139,11 +153,13 @@ def patch_group_by_id(group_id, body):
 
 
 @api_operation
-@rbac(Permission.GROUPS_WRITE)
+@rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def delete_groups(group_id_list):
+def delete_groups(group_id_list, rbac_filter=None):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
+
+    rbac_group_id_check(rbac_filter, set(group_id_list))
 
     delete_count = delete_group_list(group_id_list, current_app.event_producer)
 
@@ -154,7 +170,7 @@ def delete_groups(group_id_list):
 
 
 @api_operation
-@rbac(Permission.GROUPS_READ)
+@rbac(RbacResourceType.GROUPS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_groups_by_id(
     group_id_list,
@@ -162,12 +178,17 @@ def get_groups_by_id(
     per_page=100,
     order_by=None,
     order_how=None,
+    rbac_filter=None,
 ):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
+    rbac_group_id_check(rbac_filter, set(group_id_list))
+
     try:
-        group_list, total = get_group_list_by_id_list_db(group_id_list, page, per_page, order_by, order_how)
+        group_list, total = get_group_list_by_id_list_db(
+            group_id_list, page, per_page, order_by, order_how, rbac_filter
+        )
     except ValueError as e:
         log_get_group_list_failed(logger)
         abort(400, str(e))
@@ -178,11 +199,13 @@ def get_groups_by_id(
 
 
 @api_operation
-@rbac(Permission.GROUPS_WRITE)
+@rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def delete_hosts_from_group(group_id, host_id_list):
+def delete_hosts_from_group(group_id, host_id_list, rbac_filter=None):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
+
+    rbac_group_id_check(rbac_filter, {group_id})
 
     delete_count = remove_hosts_from_group(group_id, host_id_list, current_app.event_producer)
 
@@ -190,7 +213,3 @@ def delete_hosts_from_group(group_id, host_id_list):
         abort(status.HTTP_404_NOT_FOUND, "Group or hosts not found.")
 
     return Response(None, status.HTTP_204_NO_CONTENT)
-
-
-def _error_json_response(title, detail, status=status.HTTP_400_BAD_REQUEST):
-    return flask_json_response({"title": title, "detail": detail}, status)

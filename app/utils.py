@@ -373,7 +373,7 @@ class Tag:
         filtered_tags = []
 
         for tag in tags:
-            if any(filter(lambda x: x is not None and searchTerm in x, list(tag.values()))):
+            if any(filter(lambda x: x is not None and searchTerm.lower() in x.lower(), list(tag.values()))):
                 filtered_tags.append(tag)
 
         return filtered_tags

@@ -45,7 +45,7 @@
             "$ref": "#/components/parameters/updatedEnd"
           },
           {
-            "$ref": "#/components/parameters/groupNameExplicit"
+            "$ref": "#/components/parameters/groupNameListParam"
           },
           {
             "$ref": "#/components/parameters/branchId"
@@ -129,7 +129,7 @@
             "$ref": "#/components/parameters/updatedEnd"
           },
           {
-            "$ref": "#/components/parameters/groupNameExplicit"
+            "$ref": "#/components/parameters/groupNameListParam"
           },
           {
             "$ref": "#/components/parameters/registered_with"
@@ -215,7 +215,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CreateHostOut"
+                  "$ref": "#/components/schemas/HostOut"
                 }
               }
             }
@@ -679,7 +679,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GroupOut"
+                  "$ref": "#/components/schemas/GroupOutWithHostCount"
                 }
               }
             }
@@ -722,7 +722,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GroupOut"
+                  "$ref": "#/components/schemas/GroupOutWithHostCount"
                 }
               }
             }
@@ -878,7 +878,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GroupOut"
+                  "$ref": "#/components/schemas/GroupOutWithHostCount"
                 }
               }
             }
@@ -1022,7 +1022,7 @@
             "$ref": "#/components/parameters/updatedEnd"
           },
           {
-            "$ref": "#/components/parameters/groupNameExplicit"
+            "$ref": "#/components/parameters/groupNameListParam"
           },
           {
             "$ref": "#/components/parameters/registered_with"
@@ -1297,6 +1297,44 @@
           }
         }
       }
+    },
+    "/assignment-rules": {
+      "post": {
+        "operationId": "api.assignment_rule.create_assignment_rule",
+        "summary": "Create Assignment Rule object",
+        "description": "Create Assignment Rule object using post request <br /><br /> Required permissions: inventory:groups:write",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "description": "Data required to create Assignment Rule object",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignmentRuleIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Assignment Rule created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssignmentRuleOut"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1492,7 +1530,7 @@
           "type": "string",
           "enum": [
             "name",
-            "host_ids"
+            "host_count"
           ]
         },
         "description": "Ordering field name"
@@ -1521,7 +1559,7 @@
             "DESC"
           ]
         },
-        "description": "Direction of the ordering; defaults to ASC for name, and to DESC for host_ids"
+        "description": "Direction of the ordering; defaults to ASC for name, and to DESC for host_count"
       },
       "stalenessParam": {
         "name": "staleness",
@@ -1679,14 +1717,17 @@
         "description": "Filter by group name",
         "required": false
       },
-      "groupNameExplicit": {
+      "groupNameListParam": {
         "in": "query",
         "name": "group_name",
-        "schema": {
-          "type": "string"
-        },
         "description": "Filter by group name",
-        "required": false
+        "required": false,
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       },
       "groupId": {
         "in": "path",
@@ -2128,8 +2169,8 @@
           }
         ]
       },
-      "CreateHostOut": {
-        "title": "Create Host Out",
+      "HostOut": {
+        "title": "Host Out",
         "description": "Data of a single host belonging to an account. Represents the hosts without its Inventory metadata.",
         "type": "object",
         "allOf": [
@@ -2207,32 +2248,18 @@
                 "additionalProperties": {
                   "$ref": "#/components/schemas/PerReporterStaleness"
                 }
+              },
+              "groups": {
+                "description": "The groups that the host belongs to, if any.",
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/GroupOut"
+                }
               }
             },
             "required": [
               "org_id"
             ]
-          }
-        ]
-      },
-      "HostOut": {
-        "title": "A Host Inventory entry",
-        "description": "A database entry representing a single host with its Inventory metadata.",
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/CreateHostOut"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "facts": {
-                "description": "A set of facts belonging to the host.",
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/FactSet"
-                }
-              }
-            }
           }
         ]
       },
@@ -2465,8 +2492,116 @@
           }
         ]
       },
+      "AssignmentRuleIn": {
+        "title": "Assignment Rule In",
+        "description": "Data for a single Assignment Rule",
+        "type": "object",
+        "allOf": [
+          {
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255,
+                "nullable": true
+              },
+              "group_id": {
+                "$ref": "#/components/schemas/GroupId"
+              },
+              "filter": {
+                "type": "object"
+              },
+              "enabled": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "name",
+              "group_id",
+              "filter",
+              "enabled"
+            ]
+          }
+        ]
+      },
+      "AssignmentRuleOut": {
+        "title": "Assignment Rule response",
+        "description": "Data for a single Assignment Rule response",
+        "type": "object",
+        "allOf": [
+          {
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/NonStrictUUID"
+              },
+              "org_id": {
+                "$ref": "#/components/schemas/OrgId"
+              },
+              "account": {
+                "$ref": "#/components/schemas/AccountNumber"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1,
+                "nullable": true
+              },
+              "group_id": {
+                "$ref": "#/components/schemas/GroupId"
+              },
+              "filter": {
+                "type": "object"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "created_on": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "modified_on": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "name",
+              "group_id",
+              "filter",
+              "enabled",
+              "created_on",
+              "modified_on"
+            ]
+          }
+        ]
+      },
+      "GroupOutWithHostCount": {
+        "title": "Group properties with host count",
+        "description": "Data of a single group belonging to an account.",
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/GroupOut"
+          },
+          {
+            "properties": {
+              "host_count": {
+                "$ref": "#/components/schemas/HostCount"
+              }
+            }
+          }
+        ]
+      },
       "GroupOut": {
-        "title": "Group Out",
+        "title": "Group Out Properties",
         "description": "Data of a single group belonging to an account.",
         "type": "object",
         "properties": {
@@ -2475,9 +2610,6 @@
           },
           "name": {
             "$ref": "#/components/schemas/GroupName"
-          },
-          "host_count": {
-            "$ref": "#/components/schemas/HostCount"
           },
           "account": {
             "$ref": "#/components/schemas/AccountNumber"
@@ -2515,7 +2647,7 @@
                 "description": "Actual group search query result entries.",
                 "type": "array",
                 "items": {
-                  "$ref": "#/components/schemas/GroupOut"
+                  "$ref": "#/components/schemas/GroupOutWithHostCount"
                 }
               }
             }
@@ -2546,56 +2678,7 @@
         "type": "object",
         "allOf": [
           {
-            "type": "object",
-            "required": [
-              "meta",
-              "links"
-            ],
-            "properties": {
-              "meta": {
-                "description": "The metadata for resource-types responses",
-                "type": "object",
-                "required": [
-                  "count"
-                ],
-                "properties": {
-                  "count": {
-                    "description": "The total number of objects returned by the query.",
-                    "type": "integer"
-                  }
-                }
-              },
-              "links": {
-                "description": "A collection of pagination links for resource-types endpoints",
-                "type": "object",
-                "required": [
-                  "first",
-                  "previous",
-                  "next",
-                  "last"
-                ],
-                "properties": {
-                  "first": {
-                    "description": "The URI path for the first page in the pagination",
-                    "type": "string"
-                  },
-                  "previous": {
-                    "description": "The URI path for the previous page in the pagination",
-                    "type": "string",
-                    "nullable": true
-                  },
-                  "next": {
-                    "description": "The URI path for the next page in the pagination",
-                    "type": "string",
-                    "nullable": true
-                  },
-                  "last": {
-                    "description": "The URI path for the last page in the pagination",
-                    "type": "string"
-                  }
-                }
-              }
-            }
+            "$ref": "#/components/schemas/ResourceTypesPaginationOut"
           },
           {
             "type": "object",
@@ -2620,7 +2703,7 @@
         "type": "object",
         "allOf": [
           {
-            "$ref": "#/components/schemas/ResourceTypesQueryOutput/allOf/0"
+            "$ref": "#/components/schemas/ResourceTypesPaginationOut"
           },
           {
             "type": "object",
@@ -2632,7 +2715,7 @@
                 "description": "Actual group search query result entries.",
                 "type": "array",
                 "items": {
-                  "$ref": "#/components/schemas/GroupOut"
+                  "$ref": "#/components/schemas/GroupOutWithHostCount"
                 }
               }
             }
@@ -2888,6 +2971,17 @@
             "type": "string",
             "maxLength": 100,
             "example": "aws, ms, ibm"
+          },
+          "public_ipv4_addresses": {
+            "type": "array",
+            "x-indexed": false,
+            "items": {
+              "description": "The external IPv4 address of the system",
+              "type": "string",
+              "maxLength": 15,
+              "example": "12.23.31.32",
+              "format": "ipv4"
+            }
           },
           "yum_repos": {
             "type": "array",
@@ -3487,6 +3581,58 @@
       "PerPage": {
         "type": "integer",
         "description": "The number of items to return per page"
+      },
+      "ResourceTypesPaginationOut": {
+        "type": "object",
+        "required": [
+          "meta",
+          "links"
+        ],
+        "properties": {
+          "meta": {
+            "description": "The metadata for resource-types responses",
+            "type": "object",
+            "required": [
+              "count"
+            ],
+            "properties": {
+              "count": {
+                "description": "The total number of objects returned by the query.",
+                "type": "integer"
+              }
+            }
+          },
+          "links": {
+            "description": "A collection of pagination links for resource-types endpoints",
+            "type": "object",
+            "required": [
+              "first",
+              "previous",
+              "next",
+              "last"
+            ],
+            "properties": {
+              "first": {
+                "description": "The URI path for the first page in the pagination",
+                "type": "string"
+              },
+              "previous": {
+                "description": "The URI path for the previous page in the pagination",
+                "type": "string",
+                "nullable": true
+              },
+              "next": {
+                "description": "The URI path for the next page in the pagination",
+                "type": "string",
+                "nullable": true
+              },
+              "last": {
+                "description": "The URI path for the last page in the pagination",
+                "type": "string"
+              }
+            }
+          }
+        }
       }
     },
     "responses": {

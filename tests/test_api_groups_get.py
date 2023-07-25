@@ -2,6 +2,8 @@ import pytest
 
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_groups_url
+from tests.helpers.api_utils import create_mock_rbac_response
+from tests.helpers.api_utils import GROUP_READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import GROUP_URL
 from tests.helpers.test_utils import generate_uuid
 
@@ -14,6 +16,41 @@ def test_basic_group_query(db_create_group, api_get):
     assert_response_status(response_status, 200)
     assert response_data["total"] == 3
     assert response_data["count"] == 3
+    for group_result in response_data["results"]:
+        assert group_result["id"] in group_id_list
+
+
+def test_get_groups_RBAC_denied(subtests, mocker, api_get, enable_rbac):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+
+    for response_file in GROUP_READ_PROHIBITED_RBAC_RESPONSE_FILES:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+
+            response_status, _ = api_get(build_groups_url())
+
+            assert_response_status(response_status, 403)
+
+
+def test_get_groups_RBAC_allowed_specific_groups(mocker, db_create_group, api_get, enable_rbac):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    group_id_list = [str(db_create_group(f"testGroup_{idx}").id) for idx in range(5)]
+
+    # Grant permission to first 2 groups
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-groups-read-resource-defs-template.json"
+    )
+    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = group_id_list[:2]
+
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    response_status, response_data = api_get(build_groups_url())
+
+    assert_response_status(response_status, 200)
+    assert response_data["total"] == 2
+    assert response_data["count"] == 2
     for group_result in response_data["results"]:
         assert group_result["id"] in group_id_list
 
@@ -86,7 +123,7 @@ def test_sort_by_name(db_create_group, api_get, order_how_query, reverse_list):
         ),
     ],
 )
-def test_sort_by_host_ids(db_create_group_with_hosts, api_get, db_get_group_by_id, order_how_query, reverse_list):
+def test_sort_by_host_count(db_create_group_with_hosts, api_get, db_get_group_by_id, order_how_query, reverse_list):
     num_groups = 5
 
     # Create a list of groups. The names are randomized, but each group has one more host than the previous.
@@ -96,7 +133,7 @@ def test_sort_by_host_ids(db_create_group_with_hosts, api_get, db_get_group_by_i
     if reverse_list:
         group_id_list.reverse()
 
-    query = f"?order_by=host_ids{order_how_query}"
+    query = f"?order_by=host_count{order_how_query}"
     response_status, response_data = api_get(build_groups_url(query=query))
 
     assert_response_status(response_status, 200)
@@ -186,7 +223,7 @@ def test_group_query_pagination(subtests, db_create_group, api_get):
         ),
     ],
 )
-def test_sort_by_host_ids_with_pagination(
+def test_sort_by_host_count_with_pagination(
     subtests, db_create_group_with_hosts, api_get, order_how_query, reverse_list
 ):
     """
@@ -216,7 +253,7 @@ def test_sort_by_host_ids_with_pagination(
         end = per_page
         for page in [1, 2, 3]:
             with subtests.test():
-                query = f"?page={page}&per_page={per_page}&order_by=host_ids{order_how_query}"
+                query = f"?page={page}&per_page={per_page}&order_by=host_count{order_how_query}"
                 response_status, response_data = api_get(build_groups_url(query=query))
                 assert response_status == 200
                 assert response_data["total"] == len(group_id_list)
