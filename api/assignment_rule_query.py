@@ -18,8 +18,8 @@ ASSIGNMENT_RULES_ORDER_BY_MAPPING = {
     "group_id": AssignmentRule.group_id,
 }
 
-ASSIGNMENT_RULES_ORDER_HOW_MAPPING = {"org_id": asc, "account": desc, "name": asc, "group_id": asc}
-ASSIGNMENT_RULES_ORDER_HOW_NEW = {"asc": asc, "desc": desc}
+ASSIGNMENT_RULES_ORDER_HOW_BY_FIELD= {"org_id": asc, "account": desc, "name": asc, "group_id": asc}
+ASSIGNMENT_RULES_ORDER_HOW = {"asc": asc, "desc": desc}
 
 
 def get_assignment_rules_list_db(filters, page, per_page, param_order_by, param_order_how, rbac_filter):
