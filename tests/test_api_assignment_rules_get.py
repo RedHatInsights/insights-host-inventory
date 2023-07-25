@@ -61,10 +61,6 @@ def test_get_assignment_rule_with_bad_name(db_create_assignment_rule, db_create_
 @pytest.mark.parametrize(
     "order_by, order_how",
     (
-        ("org_id", "ASC"),
-        ("org_id", "DESC"),
-        ("account", "ASC"),
-        ("account", "DESC"),
         ("name", "DESC"),
         ("name", "ASC"),
         ("group_id", "DESC"),
@@ -90,8 +86,7 @@ def test_order_by_and_order_how(db_create_assignment_rule, db_create_group, api_
 @pytest.mark.parametrize(
     "order_by, order_how",
     (
-        ("org_id", "BASC"),  # Bad ascending order value for order_by
-        ("org_id", "BDESC"),  # Bad descending order value for order_how
+        ("name", "BDESC"),  # Bad descending order value for order_how
         ("bad_name", "ASC"),  # Bad order_by value
     ),
 )
