@@ -41,7 +41,7 @@ def get_assignment_rules_list_db(filters, page, per_page, param_order_by, param_
     # Get the total number of assignment-rules that would be returned using just the filters
     total = db.session.query(func.count(AssignmentRule.id)).filter(*filters).scalar()
 
-    return assingnment_rules_list, total
+    return assignment_rules_list, total
 
 
 def get_filtered_assignment_rule_list_db(rule_name, page, per_page, order_by, order_how, rbac_filter):
