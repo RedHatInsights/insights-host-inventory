@@ -1140,7 +1140,7 @@ components:
       name: name
       schema:
         type: string
-      description: Filter by assignement-rule name
+      description: Filter by assignment-rule name
       required: false
     assignmentRuleId:
       in: path
