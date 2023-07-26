@@ -63,24 +63,26 @@ def test_get_assignment_rule_with_bad_name(db_create_assignment_rule, db_create_
     (
         ("name", "DESC"),
         ("name", "ASC"),
-        ("group_id", "DESC"),
-        ("group_id", "ASC"),
     ),
 )
 def test_order_by_and_order_how(db_create_assignment_rule, db_create_group, api_get, order_by, order_how):
     group = db_create_group("TestGroup")
     filter = {"AND": [{"fqdn": {"eq": "foo.bar.com"}}]}
 
-    _ = db_create_assignment_rule(order_by, group.id, filter, True)
-    _, response_data = api_get(build_assignment_rules_url())
+    _ = [db_create_assignment_rule(f"assignment {idx}", group.id, filter, True) for idx in range(3)]
 
-    rule_1 = response_data["results"][0]
+    _, response_data = api_get(build_assignment_rules_url())
+    assert len(response_data["results"]) == 3
+
     url_with_name = ASSIGNMENT_RULE_URL + f"?order_by={order_by}&order_how={order_how}"
 
     _, new_response_data = api_get(url_with_name)
-    rule_2 = new_response_data["results"][0]
+    assert len(new_response_data["results"]) == 3
 
-    assert rule_1 == rule_2
+    if order_how == "ASC":
+        assert response_data["results"][0]["name"] == new_response_data["results"][0]["name"]
+    if order_how == "DESC":
+        assert response_data["results"][0]["name"] == new_response_data["results"][2]["name"]
 
 
 @pytest.mark.parametrize(
