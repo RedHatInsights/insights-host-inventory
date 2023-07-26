@@ -34,7 +34,7 @@ def get_assignment_rules_list_db(filters, page, per_page, param_order_by, param_
         else ASSIGNMENT_RULES_ORDER_HOW_BY_FIELD[order_by_str]
     )
 
-    assingnment_rules_list = (
+    assignment_rules_list = (
         AssignmentRule.query.filter(*filters).order_by(order_how_func(order_by)).offset(page - 1).limit(per_page).all()
     )
 
