@@ -488,6 +488,7 @@ class AssignmentRule(db.Model):
         name,
         group_id,
         filter,
+        enabled,
         account=None,
     ):
         if not org_id:
@@ -498,12 +499,15 @@ class AssignmentRule(db.Model):
             raise ValidationException("Assignment rule group_id cannot be null.")
         if not filter:
             raise ValidationException("Assignment rule filter cannot be null.")
+        if enabled is None:
+            raise ValidationException("Enabled cannot be null.")
 
         self.org_id = org_id
         self.account = account
         self.name = name
         self.group_id = group_id
         self.filter = filter
+        self.enabled = enabled
 
     def update(self, input_ar):
         if input_ar.name is not None:
