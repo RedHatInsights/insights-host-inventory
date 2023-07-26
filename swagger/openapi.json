@@ -1509,10 +1509,10 @@
             "$ref": "#/components/parameters/pageParam"
           },
           {
-            "$ref": "#/components/parameters/groupOrderByParam"
+            "$ref": "#/components/parameters/assignmentRuleOrderByParam"
           },
           {
-            "$ref": "#/components/parameters/groupOrderHowParam"
+            "$ref": "#/components/parameters/assignmentRuleOrderHowParam"
           }
         ],
         "responses": {
@@ -2881,13 +2881,13 @@
         ]
       },
       "AssignmentRuleOutWithHostCount": {
-        "title": "Group properties with host count",
-        "description": "Data of a single group belonging to an account.",
+        "title": "Assignment-rule properties with host count",
+        "description": "Data of a single Assignment-rule belonging to an account.",
         "type": "object",
         "allOf": [
           {
             "properties": {
-              "group_out": {
+              "assignment_rule_out": {
                 "$ref": "#/components/schemas/AssignmentRuleOut"
               },
               "host_count": {
