@@ -1965,12 +1965,35 @@ def test_query_hosts_filter_updated_error(api_get):
     assert response_status == 400
 
 
-@pytest.mark.parametrize("group_names", (["pog group"], ["group1", "group2", "group3"]))
-def test_query_variables_group_name(mocker, graphql_query_empty_response, api_get, group_names):
+@pytest.mark.parametrize(
+    "group_names,group_filter",
+    (
+        (
+            ["pog group"],
+            [{"group": {"name": {"matches_lc": "*pog group*"}}}],
+        ),
+        (
+            ["group1", "group2", "group3"],
+            [
+                {"group": {"name": {"matches_lc": "*group1*"}}},
+                {"group": {"name": {"matches_lc": "*group2*"}}},
+                {"group": {"name": {"matches_lc": "*group3*"}}},
+            ],
+        ),
+        (
+            [""],
+            [{"group": {"hasSome": {"is": False}}}],
+        ),
+        (
+            ["group A", ""],
+            [{"group": {"name": {"matches_lc": "*group A*"}}}, {"group": {"hasSome": {"is": False}}}],
+        ),
+    ),
+)
+def test_query_variables_group_name(mocker, graphql_query_empty_response, api_get, group_names, group_filter):
     group_name_params = "&".join([f"group_name={quote(name)}" for name in group_names])
-    group_filter = [{"group": {"name": {"matches_lc": f"*{name}*"}}} for name in group_names]
-
-    url = build_hosts_url(query=f"?{group_name_params}")
+    # Verify that empty group_name values play nicely with other params (like fqdn)
+    url = build_hosts_url(query=f"?{group_name_params}&fqdn=foo.bar.com")
     response_status, _ = api_get(url)
 
     assert response_status == 200
@@ -1982,7 +2005,7 @@ def test_query_variables_group_name(mocker, graphql_query_empty_response, api_ge
             "order_how": mocker.ANY,
             "limit": mocker.ANY,
             "offset": mocker.ANY,
-            "filter": ({"OR": mocker.ANY}, {"OR": group_filter}),
+            "filter": ({"fqdn": {"eq": "foo.bar.com"}}, {"OR": mocker.ANY}, {"OR": group_filter}),
             "fields": mocker.ANY,
         },
         mocker.ANY,
