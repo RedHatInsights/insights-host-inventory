@@ -17,6 +17,7 @@ from app.auth.identity import IdentityType
 from tests.helpers.test_utils import now
 
 BASE_URL = "/api/inventory/v1"
+ASSIGNMENT_RULE_URL = f"{BASE_URL}/assignment-rules"
 HOST_URL = f"{BASE_URL}/hosts"
 GROUP_URL = f"{BASE_URL}/groups"
 TAGS_URL = f"{BASE_URL}/tags"
@@ -452,6 +453,10 @@ def build_host_id_list_for_url(host_list_or_id):
 
 def build_groups_url(group_id=None, query=None):
     return _build_url(base_url=GROUP_URL, id_list=group_id, query=query)
+
+
+def build_assignment_rules_url(assignment_rules_id=None, query=None):
+    return _build_url(base_url=ASSIGNMENT_RULE_URL, id_list=assignment_rules_id, query=query)
 
 
 def build_resource_types_url(query=None):
