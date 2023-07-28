@@ -107,8 +107,8 @@ def db_get_groups_for_host(flask_app):
 
 @pytest.fixture(scope="function")
 def db_get_assignment_rule(flask_app):
-    def _db_get_assignment_rule(ar_id):
-        return AssignmentRule.query.get(ar_id)
+    def _db_get_assignment_rule(ar_id, group_id):
+        return AssignmentRule.query.get((ar_id, group_id))
 
     return _db_get_assignment_rule
 

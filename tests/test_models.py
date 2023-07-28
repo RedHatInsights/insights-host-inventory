@@ -653,7 +653,7 @@ def test_create_assignment_rule(db_create_group, db_create_assignment_rule, db_g
     group = db_create_group(group_name)
 
     ar = db_create_assignment_rule("default assignment", group.id, {"AND": [{"fqdn": {"eq": "foo.bar.com"}}]}, True)
-    assert db_get_assignment_rule(ar.id)
+    assert db_get_assignment_rule(ar.id, group.id)
 
 
 def test_delete_assignment_rule(
@@ -663,10 +663,10 @@ def test_delete_assignment_rule(
     group = db_create_group(group_name)
 
     ar = db_create_assignment_rule("default assignment", group.id, {"AND": [{"fqdn": {"eq": "foo.bar.com"}}]}, True)
-    assert db_get_assignment_rule(ar.id)
+    assert db_get_assignment_rule(ar.id, group.id)
 
     db_delete_assignment_rule(ar.id)
-    assert not db_get_assignment_rule(ar.id)
+    assert not db_get_assignment_rule(ar.id, group.id)
 
 
 def test_create_default_account_staleness_culling(

@@ -6,11 +6,11 @@ from tests.helpers.api_utils import build_assignment_rules_url
 
 
 def test_basic_assignment_rule_query(db_create_assignment_rule, db_create_group, api_get):
-    group = db_create_group("TestGroup")
+    groups = [db_create_group(f"TestGroup_{i}") for i in range(3)]
     filter = {"AND": [{"fqdn": {"eq": "foo.bar.com"}}]}
 
     assignment_rule_id_list = [
-        str(db_create_assignment_rule(f"assignment {idx}", group.id, filter, True).id) for idx in range(3)
+        str(db_create_assignment_rule(f"assignment {idx}", groups[idx].id, filter, True).id) for idx in range(3)
     ]
     response_status, response_data = api_get(build_assignment_rules_url())
 
@@ -38,10 +38,10 @@ def test_get_assignment_rule_by_name(db_create_assignment_rule, db_create_group,
 
 
 def test_get_assignment_rule_with_bad_name(db_create_assignment_rule, db_create_group, api_get):
-    group = db_create_group("TestGroup")
+    groups = [db_create_group(f"TestGroup_{i}") for i in range(3)]
     filter = {"AND": [{"fqdn": {"eq": "foo.bar.com"}}]}
 
-    _ = [db_create_assignment_rule(f"assignment {idx}", group.id, filter, True).id for idx in range(3)]
+    _ = [db_create_assignment_rule(f"assignment {idx}", groups[idx].id, filter, True).id for idx in range(3)]
 
     response_status, response_data = api_get(build_assignment_rules_url())
     assert response_status == 200
@@ -66,10 +66,10 @@ def test_get_assignment_rule_with_bad_name(db_create_assignment_rule, db_create_
     ),
 )
 def test_order_by_and_order_how(db_create_assignment_rule, db_create_group, api_get, order_by, order_how):
-    group = db_create_group("TestGroup")
+    groups = [db_create_group(f"TestGroup_{i}") for i in range(3)]
     filter = {"AND": [{"fqdn": {"eq": "foo.bar.com"}}]}
 
-    _ = [db_create_assignment_rule(f"assignment {idx}", group.id, filter, True) for idx in range(3)]
+    _ = [db_create_assignment_rule(f"assignment {idx}", groups[idx].id, filter, True).id for idx in range(3)]
 
     _, response_data = api_get(build_assignment_rules_url())
     assert len(response_data["results"]) == 3
