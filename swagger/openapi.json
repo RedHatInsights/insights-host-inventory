@@ -1484,6 +1484,56 @@
           }
         }
       }
+    },
+    "/assignment-rules/{assignment_rule_id_list}": {
+      "get": {
+        "operationId": "api.assignment_rule.get_assignment_rules_by_id",
+        "tags": [
+          "groups"
+        ],
+        "summary": "Find assignment rules by their IDs",
+        "description": "Find one or more assignment rules by their IDs. <br /><br /> Required permissions: inventory:groups:read",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/assignmentRuleIdList"
+          },
+          {
+            "$ref": "#/components/parameters/perPageParam"
+          },
+          {
+            "$ref": "#/components/parameters/pageParam"
+          },
+          {
+            "$ref": "#/components/parameters/groupOrderByParam"
+          },
+          {
+            "$ref": "#/components/parameters/groupOrderHowParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully searched for assignment rules.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssignmentRuleQueryOutput"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request."
+          },
+          "404": {
+            "description": "Assignment rules not found."
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1937,6 +1987,27 @@
         "in": "path",
         "name": "group_id_list",
         "description": "A comma-separated list of group IDs.",
+        "required": true,
+        "schema": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/NonStrictUUID"
+          }
+        }
+      },
+      "assignmentRuleNameExplicit": {
+        "in": "query",
+        "name": "assignment_rule_name",
+        "schema": {
+          "type": "string"
+        },
+        "description": "Filter by assignment-rule name",
+        "required": false
+      },
+      "assignmentRuleIdList": {
+        "in": "path",
+        "name": "assignment_rule_id_list",
+        "description": "A comma-separated list of assignment-rule IDs.",
         "required": true,
         "schema": {
           "type": "array",
@@ -2630,6 +2701,12 @@
         "nullable": false,
         "example": "sre-group"
       },
+      "AssignmentRuleName": {
+        "description": "A assignement-rule’s human-readable name.",
+        "type": "string",
+        "nullable": false,
+        "example": "sre-assignment-rule"
+      },
       "NonStrictUUID": {
         "type": "string",
         "pattern": "^[0-9a-fA-F]{8}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{12}$|^[0-9a-fA-F]{8}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{12}$",
@@ -2637,6 +2714,10 @@
         "example": "bA6deCFc19564430AB814bf8F70E8cEf"
       },
       "GroupId": {
+        "description": "A durable and reliable platform-wide group identifier. Applications should use this identifier to reference groups.",
+        "$ref": "#/components/schemas/NonStrictUUID"
+      },
+      "AssignmentRuleId": {
         "description": "A durable and reliable platform-wide group identifier. Applications should use this identifier to reference groups.",
         "$ref": "#/components/schemas/NonStrictUUID"
       },
@@ -2792,6 +2873,23 @@
           },
           {
             "properties": {
+              "host_count": {
+                "$ref": "#/components/schemas/HostCount"
+              }
+            }
+          }
+        ]
+      },
+      "AssignmentRuleOutWithHostCount": {
+        "title": "Group properties with host count",
+        "description": "Data of a single group belonging to an account.",
+        "type": "object",
+        "allOf": [
+          {
+            "properties": {
+              "group_out": {
+                "$ref": "#/components/schemas/AssignmentRuleOut"
+              },
               "host_count": {
                 "$ref": "#/components/schemas/HostCount"
               }
