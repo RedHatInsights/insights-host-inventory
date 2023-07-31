@@ -1957,29 +1957,23 @@ components:
         org_id:
           $ref: "#/components/schemas/OrgId"
         conventional_staleness_delta:
-          type: integer
-          minLength: 0
-          maxLength: 60
+          type: string
+          maxLength: 36
         conventional_stale_warning_delta:
-          type: integer
-          minLength: 0
-          maxLength: 60
+          type: string
+          maxLength: 36
         conventional_culling_delta:
-          type: integer
-          minLength: 0
-          maxLength: 60
+          type: string
+          maxLength: 36
         immutable_staleness_delta:
-          type: integer
-          minLength: 0
-          maxLength: 60
+          type: string
+          maxLength: 36
         immutable_stale_warning_delta:
-          type: integer
-          minLength: 0
-          maxLength: 60
+          type: string
+          maxLength: 36
         immutable_culling_delta:
-          type: integer
-          minLength: 0
-          maxLength: 60
+          type: string
+          maxLength: 36
         created_at:
           description: A timestamp when the entry was created.
           type: string
