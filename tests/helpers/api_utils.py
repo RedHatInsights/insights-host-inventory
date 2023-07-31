@@ -24,7 +24,7 @@ TAGS_URL = f"{BASE_URL}/tags"
 SYSTEM_PROFILE_URL = f"{BASE_URL}/system_profile"
 RESOURCE_TYPES_URL = f"{BASE_URL}/resource-types"
 ASSIGN_RULE_URL = f"{BASE_URL}/assignment-rules"
-ACCOUNT_URL = f"{BASE_URL}/account/staleness"
+STALENESS_URL = f"{BASE_URL}/account/staleness"
 
 SHARED_SECRET = "SuperSecretStuff"
 
@@ -473,7 +473,7 @@ def get_id_list_from_hosts(host_list):
 
 
 def build_account_staleness_url(path=None, query=None):
-    return _build_url(base_url=ACCOUNT_URL, path=path, query=query)
+    return _build_url(base_url=STALENESS_URL, path=path, query=query)
 
 
 def inject_qs(url, **kwargs):

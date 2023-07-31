@@ -1278,7 +1278,7 @@
           "accounts_staleness"
         ],
         "summary": "Read the entire list of account staleness",
-        "description": "Read the entire list of all accounts staleness available. <br /><br /> Required permissions: inventory:TODO:read",
+        "description": "Read the entire list of all accounts staleness available. Required permissions: inventory:TODO:read",
         "security": [
           {
             "ApiKeyAuth": []
@@ -1286,7 +1286,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Successfully read the staleness list.",
+            "description": "Successfully read the staleness account.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1303,7 +1303,7 @@
           "accounts_staleness"
         ],
         "summary": "Create account staleness record",
-        "description": "Create account staleness record. <br /><br /> Required permissions: inventory:TODO:write",
+        "description": "Create account staleness record. Required permissions: inventory:TODO:write",
         "security": [
           {
             "ApiKeyAuth": []
@@ -1328,7 +1328,7 @@
           "accounts_staleness"
         ],
         "summary": "Update account staleness record",
-        "description": "Update account staleness record. <br /><br /> Required permissions: inventory:TODO:write",
+        "description": "Update account staleness record. Required permissions: inventory:TODO:write",
         "security": [
           {
             "ApiKeyAuth": []
@@ -1355,7 +1355,7 @@
           "accounts_staleness"
         ],
         "summary": "Reset account staleness",
-        "description": "Reset account staleness record. <br /><br /> Required permissions: inventory:TODO:read",
+        "description": "Reset account staleness record. Required permissions: inventory:TODO:read",
         "security": [
           {
             "ApiKeyAuth": []
@@ -2958,22 +2958,28 @@
             "$ref": "#/components/schemas/OrgId"
           },
           "conventional_staleness_delta": {
-            "type": "integer"
+            "type": "string",
+            "maxLength": 36
           },
           "conventional_stale_warning_delta": {
-            "type": "integer"
+            "type": "string",
+            "maxLength": 36
           },
           "conventional_culling_delta": {
-            "type": "integer"
+            "type": "string",
+            "maxLength": 36
           },
           "immutable_staleness_delta": {
-            "type": "integer"
+            "type": "string",
+            "maxLength": 36
           },
           "immutable_stale_warning_delta": {
-            "type": "integer"
+            "type": "string",
+            "maxLength": 36
           },
           "immutable_culling_delta": {
-            "type": "integer"
+            "type": "string",
+            "maxLength": 36
           },
           "created_at": {
             "description": "A timestamp when the entry was created.",

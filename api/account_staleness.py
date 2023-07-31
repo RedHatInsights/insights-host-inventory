@@ -1,6 +1,7 @@
 from flask_api import status
 
-from api import api_operation, flask_json_response
+from api import api_operation
+from api import flask_json_response
 from api import metrics
 from app.logging import get_logger
 

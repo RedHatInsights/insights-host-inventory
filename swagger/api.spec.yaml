@@ -755,13 +755,12 @@ paths:
       summary: Read the entire list of account staleness
       description: >-
         Read the entire list of all accounts staleness available.
-        <br /><br />
         Required permissions: inventory:TODO:read
       security:
         - ApiKeyAuth: []
       responses:
         '200':
-          description: Successfully read the staleness list.
+          description: Successfully read the staleness account.
           content:
             application/json:
               schema:
@@ -773,7 +772,6 @@ paths:
       summary: Create account staleness record
       description: >-
         Create account staleness record.
-        <br /><br />
         Required permissions: inventory:TODO:write
       security:
         - ApiKeyAuth: []
@@ -791,7 +789,6 @@ paths:
       summary: Update account staleness record
       description: >-
         Update account staleness record.
-        <br /><br />
         Required permissions: inventory:TODO:write
       security:
         - ApiKeyAuth: []
@@ -810,7 +807,6 @@ paths:
       summary: Reset account staleness
       description: >-
         Reset account staleness record.
-        <br /><br />
         Required permissions: inventory:TODO:read
       security:
         - ApiKeyAuth: []
