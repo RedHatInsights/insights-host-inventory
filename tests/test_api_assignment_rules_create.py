@@ -98,7 +98,7 @@ def test_create_assignemnt_rule_same_group(api_create_assign_rule, db_create_gro
     response_status, _ = api_create_assign_rule(assign_rule_data)
     response_status, response_data = api_create_assign_rule(assign_rule_same_group)
     assert_response_status(response_status, expected_status=400)
-    assert assign_rule_data["group_id"] in response_data["detail"]
+    f'{assign_rule_data["group_id"]} already exist' in response_data["detail"]
 
 
 def test_create_assignment_rule_RBAC_denied(subtests, mocker, api_create_assign_rule, db_create_group, enable_rbac):
