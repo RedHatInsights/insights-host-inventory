@@ -1273,7 +1273,7 @@
     },
     "/account/staleness": {
       "get": {
-        "operationId": "api.account.get_staleness",
+        "operationId": "api.account_staleness.get_staleness",
         "tags": [
           "accounts_staleness"
         ],
@@ -1298,7 +1298,7 @@
         }
       },
       "post": {
-        "operationId": "api.account.create_staleness",
+        "operationId": "api.account_staleness.create_staleness",
         "tags": [
           "accounts_staleness"
         ],
@@ -1323,7 +1323,7 @@
         }
       },
       "patch": {
-        "operationId": "api.account.update_staleness",
+        "operationId": "api.account_staleness.update_staleness",
         "tags": [
           "accounts_staleness"
         ],
@@ -1350,7 +1350,7 @@
     },
     "/account/staleness/reset": {
       "patch": {
-        "operationId": "api.account.reset_staleness",
+        "operationId": "api.account_staleness.reset_staleness",
         "tags": [
           "accounts_staleness"
         ],

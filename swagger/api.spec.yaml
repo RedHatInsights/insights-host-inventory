@@ -749,7 +749,7 @@ paths:
 
   /account/staleness:
     get:
-      operationId: api.account.get_staleness
+      operationId: api.account_staleness.get_staleness
       tags:
         - accounts_staleness
       summary: Read the entire list of account staleness
@@ -766,7 +766,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/AccountStalenessOutput'
     post:
-      operationId: api.account.create_staleness
+      operationId: api.account_staleness.create_staleness
       tags:
         - accounts_staleness
       summary: Create account staleness record
@@ -783,7 +783,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/AccountStalenessOutput'
     patch:
-      operationId: api.account.update_staleness
+      operationId: api.account_staleness.update_staleness
       tags:
         - accounts_staleness
       summary: Update account staleness record
@@ -801,7 +801,7 @@ paths:
                 $ref: '#/components/schemas/AccountStalenessOutput'
   /account/staleness/reset:
     patch:
-      operationId: api.account.reset_staleness
+      operationId: api.account_staleness.reset_staleness
       tags:
         - accounts_staleness
       summary: Reset account staleness
