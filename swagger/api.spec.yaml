@@ -1259,13 +1259,6 @@ components:
         type: array
         items:
           $ref: '#/components/schemas/NonStrictUUID'
-    assignmentRuleNameExplicit:
-      in: query
-      name: assignment_rule_name
-      schema:
-        type: string
-      description: Filter by assignment-rule name
-      required: false
     assignmentRuleIdList:
       in: path
       name: assignment_rule_id_list
@@ -1758,12 +1751,6 @@ components:
       type: string
       nullable: false
       example: sre-group
-    AssignmentRuleName:
-      description: >-
-        A assignement-rule’s human-readable name.
-      type: string
-      nullable: false
-      example: sre-assignment-rule
     NonStrictUUID:
       type: string
       pattern: ^[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}$|^[0-9a-fA-F]{8}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{12}$

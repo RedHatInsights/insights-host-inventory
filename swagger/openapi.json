@@ -1995,15 +1995,6 @@
           }
         }
       },
-      "assignmentRuleNameExplicit": {
-        "in": "query",
-        "name": "assignment_rule_name",
-        "schema": {
-          "type": "string"
-        },
-        "description": "Filter by assignment-rule name",
-        "required": false
-      },
       "assignmentRuleIdList": {
         "in": "path",
         "name": "assignment_rule_id_list",
@@ -2700,12 +2691,6 @@
         "type": "string",
         "nullable": false,
         "example": "sre-group"
-      },
-      "AssignmentRuleName": {
-        "description": "A assignement-rule’s human-readable name.",
-        "type": "string",
-        "nullable": false,
-        "example": "sre-assignment-rule"
       },
       "NonStrictUUID": {
         "type": "string",

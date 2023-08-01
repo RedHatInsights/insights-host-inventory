@@ -93,20 +93,6 @@ def create_assignment_rule(body, rbac_filter=None):
 
 
 @api_operation
-@rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
-@metrics.api_request_time.time()
-def patch_assignment_rule_by_id(group_id, body, rbac_filter=None):
-    return True
-
-
-@api_operation
-@rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
-@metrics.api_request_time.time()
-def delete_assignment_rules(group_id_list, rbac_filter=None):
-    return True
-
-
-@api_operation
 @rbac(RbacResourceType.GROUPS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_assignment_rules_by_id(
@@ -133,14 +119,3 @@ def get_assignment_rules_by_id(
     return flask_json_response(
         build_paginated_assignmentrule_list_response(total, page, per_page, assignment_rule_list)
     )
-
-
-@api_operation
-@rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
-@metrics.api_request_time.time()
-def delete_hosts_from_assignment_rule(assignment_rule_id, host_id_list, rbac_filter=None):
-    return True
-
-
-def _error_json_response(title, detail, status=status.HTTP_400_BAD_REQUEST):
-    return True
