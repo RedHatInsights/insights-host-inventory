@@ -33,6 +33,8 @@ objects:
             value: ${ENV_FOR_DYNACONF}
           - name: DYNACONF_MAIN__use_beta
             value: ${USE_BETA}
+          - name: IQE_IBUTSU_SOURCE
+            value: host-inventory-e2e-${IMAGE_TAG}-${UID}-${ENV_FOR_DYNACONF}
           - name: IQE_PLUGINS
             value: ${IQE_PLUGINS}
           - name: IQE_MARKER_EXPRESSION
