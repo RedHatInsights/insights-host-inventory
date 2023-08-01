@@ -1894,17 +1894,6 @@ components:
       - properties:
           host_count:
             $ref: "#/components/schemas/HostCount"
-    AssignmentRuleOutWithHostCount:
-      title: Assignment-rule properties with host count
-      description: >-
-        Data of a single Assignment-rule belonging to an account.
-      type: object
-      allOf:
-      - properties:
-          assignment_rule_out:
-            $ref: "#/components/schemas/AssignmentRuleOut"
-          host_count:
-            $ref: "#/components/schemas/HostCount"
     GroupOut:
       title: Group Out Properties
       description: >-
