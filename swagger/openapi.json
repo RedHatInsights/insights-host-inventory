@@ -899,7 +899,7 @@
           "resource-types"
         ],
         "summary": "Get the list of resource types",
-        "description": "Returns the list of available RBAC resource types. <br /><br /> Required permissions: inventory:*:*",
+        "description": "Returns the list of available RBAC resource types. <br /><br /> Required permissions: rbac:*:*",
         "security": [
           {
             "ApiKeyAuth": []
@@ -934,7 +934,7 @@
           "resource-types"
         ],
         "summary": "Get the list of inventory groups in resource-types format",
-        "description": "Returns the list of groups in the current account. <br /><br /> Required permissions: inventory:*:*",
+        "description": "Returns the list of groups in the current account. <br /><br /> Required permissions: rbac:*:*",
         "security": [
           {
             "ApiKeyAuth": []

@@ -542,7 +542,7 @@ paths:
       description: >-
         Returns the list of available RBAC resource types.
         <br /><br />
-        Required permissions: inventory:*:*
+        Required permissions: rbac:*:*
       security:
         - ApiKeyAuth: []
       parameters:
@@ -564,7 +564,7 @@ paths:
       description: >-
         Returns the list of groups in the current account.
         <br /><br />
-        Required permissions: inventory:*:*
+        Required permissions: rbac:*:*
       security:
         - ApiKeyAuth: []
       parameters:
