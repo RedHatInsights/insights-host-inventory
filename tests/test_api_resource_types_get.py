@@ -5,6 +5,7 @@ from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_resource_types_groups_url
 from tests.helpers.api_utils import build_resource_types_url
 from tests.helpers.api_utils import create_mock_rbac_response
+from tests.helpers.api_utils import RBAC_ADMIN_PROHIBITED_RBAC_RESPONSE_FILES
 
 
 @pytest.mark.parametrize(
@@ -94,3 +95,23 @@ def test_get_resource_types_RBAC_allowed(mocker, api_get, url_builder, enable_rb
 
     response_status, _ = api_get(url_builder())
     assert_response_status(response_status, 200)
+
+
+@pytest.mark.parametrize(
+    "url_builder",
+    [build_resource_types_url, build_resource_types_groups_url],
+)
+def test_get_resource_types_RBAC_denied(mocker, api_get, url_builder, subtests, enable_rbac):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+
+    # RBAC admin should have permission to both resource-types endpoints
+    for response_file in RBAC_ADMIN_PROHIBITED_RBAC_RESPONSE_FILES:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+        get_rbac_permissions_mock.return_value = mock_rbac_response
+
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+
+            response_status, _ = api_get(url_builder())
+
+            assert_response_status(response_status, 403)

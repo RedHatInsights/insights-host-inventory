@@ -26,15 +26,15 @@ from app.logging import get_logger
 
 logger = get_logger(__name__)
 
-ROUTE = "/api/rbac/v1/access/?application="
+RBAC_ROUTE = "/api/rbac/v1/access/?application="
 CHECKED_TYPE = IdentityType.USER
 RETRY_STATUSES = [500, 502, 503, 504]
 
 outbound_http_metric = outbound_http_response_time.labels("rbac")
 
 
-def rbac_url(app: str) -> str:
-    return inventory_config().rbac_endpoint + ROUTE + app
+def get_rbac_url(app: str) -> str:
+    return inventory_config().rbac_endpoint + RBAC_ROUTE + app
 
 
 def tenant_translator_url() -> str:
@@ -49,12 +49,12 @@ def get_rbac_permissions(app):
 
     request_session = Session()
     retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
-    request_session.mount(rbac_url(app), HTTPAdapter(max_retries=retry_config))
+    request_session.mount(get_rbac_url(app), HTTPAdapter(max_retries=retry_config))
 
     try:
         with outbound_http_metric.time():
             rbac_response = request_session.get(
-                url=rbac_url(app),
+                url=get_rbac_url(app),
                 headers=request_header,
                 timeout=inventory_config().rbac_timeout,
                 verify=LoadedConfig.tlsCAPath,
