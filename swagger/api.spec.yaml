@@ -747,6 +747,77 @@ paths:
         '403':
             description: Forbidden
 
+  /account/staleness:
+    get:
+      operationId: api.account_staleness.get_staleness
+      tags:
+        - accounts_staleness
+      summary: Read the entire list of account staleness
+      description: >-
+        Read the entire list of all accounts staleness available.
+        Required permissions: inventory:TODO:read
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Successfully read the staleness account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountStalenessOutput'
+    post:
+      operationId: api.account_staleness.create_staleness
+      tags:
+        - accounts_staleness
+      summary: Create account staleness record
+      description: >-
+        Create account staleness record.
+        Required permissions: inventory:TODO:write
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Successfully account staleness created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountStalenessOutput'
+    patch:
+      operationId: api.account_staleness.update_staleness
+      tags:
+        - accounts_staleness
+      summary: Update account staleness record
+      description: >-
+        Update account staleness record.
+        Required permissions: inventory:TODO:write
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Successfully account staleness updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountStalenessOutput'
+  /account/staleness/reset:
+    patch:
+      operationId: api.account_staleness.reset_staleness
+      tags:
+        - accounts_staleness
+      summary: Reset account staleness
+      description: >-
+        Reset account staleness record.
+        Required permissions: inventory:TODO:read
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Successfully reset account staleness.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountStalenessOutput'
+
   '/unleash/inventory_groups_toggle':
     get:
       tags:
@@ -1662,6 +1733,10 @@ components:
       nullable: true
       items:
         $ref: '#/components/schemas/NonStrictUUID'
+    AccountStalenessId:
+      description: Account Staleness UID
+      $ref: '#/components/schemas/NonStrictUUID'
+
     HostCount:
       description: The number of hosts associated with the group.
       type: integer
@@ -1865,6 +1940,45 @@ components:
             type: array
             items:
               $ref: '#/components/schemas/GroupOutWithHostCount'
+    AccountStalenessOutput:
+      title: Account Staleness Out
+      description: >-
+        Data of a account staleness.
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/AccountStalenessId"
+        account:
+          $ref: "#/components/schemas/AccountNumber"
+        org_id:
+          $ref: "#/components/schemas/OrgId"
+        conventional_staleness_delta:
+          type: string
+          maxLength: 36
+        conventional_stale_warning_delta:
+          type: string
+          maxLength: 36
+        conventional_culling_delta:
+          type: string
+          maxLength: 36
+        immutable_staleness_delta:
+          type: string
+          maxLength: 36
+        immutable_stale_warning_delta:
+          type: string
+          maxLength: 36
+        immutable_culling_delta:
+          type: string
+          maxLength: 36
+        created_at:
+          description: A timestamp when the entry was created.
+          type: string
+          format: date-time
+        updated_at:
+          description: A timestamp when the entry was last updated.
+          type: string
+          format: date-time
+
     # include renames for system_profile
     SystemProfile:
       $ref: 'system_profile.spec.yaml#/$defs/SystemProfile'
