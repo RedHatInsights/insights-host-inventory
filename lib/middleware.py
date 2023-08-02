@@ -26,22 +26,22 @@ from app.logging import get_logger
 
 logger = get_logger(__name__)
 
-ROUTE = "/api/rbac/v1/access/?application=inventory"
+ROUTE = "/api/rbac/v1/access/?application="
 CHECKED_TYPE = IdentityType.USER
 RETRY_STATUSES = [500, 502, 503, 504]
 
 outbound_http_metric = outbound_http_response_time.labels("rbac")
 
 
-def rbac_url():
-    return inventory_config().rbac_endpoint + ROUTE
+def rbac_url(app: str) -> str:
+    return inventory_config().rbac_endpoint + ROUTE + app
 
 
 def tenant_translator_url() -> str:
     return inventory_config().tenant_translator_url
 
 
-def get_rbac_permissions():
+def get_rbac_permissions(app):
     request_header = {
         IDENTITY_HEADER: request.headers[IDENTITY_HEADER],
         REQUEST_ID_HEADER: request.headers.get(REQUEST_ID_HEADER),
@@ -49,12 +49,12 @@ def get_rbac_permissions():
 
     request_session = Session()
     retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
-    request_session.mount(rbac_url(), HTTPAdapter(max_retries=retry_config))
+    request_session.mount(rbac_url(app), HTTPAdapter(max_retries=retry_config))
 
     try:
         with outbound_http_metric.time():
             rbac_response = request_session.get(
-                url=rbac_url(),
+                url=rbac_url(app),
                 headers=request_header,
                 timeout=inventory_config().rbac_timeout,
                 verify=LoadedConfig.tlsCAPath,
@@ -85,7 +85,7 @@ def rbac(resource_type, required_permission, permission_base="inventory"):
             g.access_control_rule = "RBAC"
             logger.debug("access_control_rule set")
 
-            rbac_data = get_rbac_permissions()
+            rbac_data = get_rbac_permissions(permission_base)
 
             # Determines whether the endpoint can be accessed at all
             allowed = False
