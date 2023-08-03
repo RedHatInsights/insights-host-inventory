@@ -1760,6 +1760,10 @@ components:
       pattern: ^[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}$|^[0-9a-fA-F]{8}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{12}$
       format: uuid
       example: bA6deCFc19564430AB814bf8F70E8cEf
+    SystemDefaultId:
+      type: string
+      pattern: system_default
+      example: system_default
     GroupId:
       description: >-
         A durable and reliable platform-wide group identifier. Applications
@@ -1783,7 +1787,9 @@ components:
         $ref: '#/components/schemas/NonStrictUUID'
     AccountStalenessId:
       description: Account Staleness UID
-      $ref: '#/components/schemas/NonStrictUUID'
+      oneOf:
+        - $ref: '#/components/schemas/NonStrictUUID'
+        - $ref: '#/components/schemas/SystemDefaultId'
 
     HostCount:
       description: The number of hosts associated with the group.

@@ -2704,6 +2704,11 @@
         "format": "uuid",
         "example": "bA6deCFc19564430AB814bf8F70E8cEf"
       },
+      "SystemDefaultId": {
+        "type": "string",
+        "pattern": "system_default",
+        "example": "system_default"
+      },
       "GroupId": {
         "description": "A durable and reliable platform-wide group identifier. Applications should use this identifier to reference groups.",
         "$ref": "#/components/schemas/NonStrictUUID"
@@ -2726,7 +2731,14 @@
       },
       "AccountStalenessId": {
         "description": "Account Staleness UID",
-        "$ref": "#/components/schemas/NonStrictUUID"
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/NonStrictUUID"
+          },
+          {
+            "$ref": "#/components/schemas/SystemDefaultId"
+          }
+        ]
       },
       "HostCount": {
         "description": "The number of hosts associated with the group.",
