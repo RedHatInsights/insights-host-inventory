@@ -6,7 +6,7 @@ from api import flask_json_response
 from api import metrics
 from api.account_staleness_query import get_account_staleness_db
 from app.logging import get_logger
-from app.serialization import serialize_acc_staleness
+from app.serialization import serialize_account_staleness_response
 
 logger = get_logger(__name__)
 
@@ -34,7 +34,7 @@ def _get_return_data():
 def get_staleness():
     try:
         acc_st = get_account_staleness_db()
-        acc_st = serialize_acc_staleness(acc_st)
+        acc_st = serialize_account_staleness_response(acc_st)
     except ValueError as e:
         abort(status.HTTP_400_BAD_REQUEST, str(e))
 
