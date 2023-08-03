@@ -108,6 +108,10 @@ class Config:
         self.unleash_url = os.environ.get("UNLEASH_URL", "http://unleash:4242/api")
         self.unleash_token = os.environ.get("UNLEASH_TOKEN", "")
 
+    def days_to_seconds(self, n_days):
+        factor = 86400
+        return n_days * factor
+
     def __init__(self, runtime_environment):
         self.logger = get_logger(__name__)
         self._runtime_environment = runtime_environment
@@ -223,6 +227,26 @@ class Config:
             days=int(os.environ.get("CULLING_CULLED_OFFSET_DAYS", "14")),
             minutes=int(os.environ.get("CULLING_CULLED_OFFSET_MINUTES", "0")),
         )
+
+        self.conventional_staleness_seconds = os.environ.get(
+            "CONVENTIONAL_STALENESS_SECONDS", str(self.days_to_seconds(1))
+        )
+
+        self.conventional_stale_warning_seconds = os.environ.get(
+            "CONVENTIONAL_STALENESS_WARNING_SECONDS", str(self.days_to_seconds(7))
+        )
+
+        self.conventional_culling_seconds = os.environ.get(
+            "CONVENTIONAL_CULLING_SECONDS", str(self.days_to_seconds(14))
+        )
+
+        self.immutable_staleness_seconds = os.environ.get("IMMUTABLE_STALENESS_SECONDS", str(self.days_to_seconds(2)))
+
+        self.immutable_stale_warning_seconds = os.environ.get(
+            "IMMUTABLE_STALENESS_WARNING_SECONDS", str(self.days_to_seconds(120))
+        )
+
+        self.immutable_culling_seconds = os.environ.get("IMMUTABLE_CULLING_SECONDS", str(self.days_to_seconds(180)))
 
         self.xjoin_graphql_url = os.environ.get("XJOIN_GRAPHQL_URL", "http://localhost:4000/graphql")
 
