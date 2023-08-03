@@ -127,6 +127,23 @@ GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES = (
     "tests/helpers/rbac-mock-data/inv-read-only.json",
     "tests/helpers/rbac-mock-data/inv-star-read.json",
 )
+RBAC_ADMIN_PROHIBITED_RBAC_RESPONSE_FILES = (
+    "tests/helpers/rbac-mock-data/inv-read-write.json",
+    "tests/helpers/rbac-mock-data/inv-read-only.json",
+    "tests/helpers/rbac-mock-data/inv-admin.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-splat.json",
+    "tests/helpers/rbac-mock-data/inv-star-read.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-read-groups-write.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-read-only.json",
+    "tests/helpers/rbac-mock-data/inv-none.json",
+    "tests/helpers/rbac-mock-data/inv-write-only.json",
+    "tests/helpers/rbac-mock-data/inv-star-write.json",
+    "tests/helpers/rbac-mock-data/inv-groups-read-only.json",
+    "tests/helpers/rbac-mock-data/inv-groups-write-only.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-write-groups-read.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-write-only.json",
+    "tests/helpers/rbac-mock-data/inv-groups-splat.json",
+)
 
 
 def do_request(func, url, identity, data=None, query_parameters=None, extra_headers=None):

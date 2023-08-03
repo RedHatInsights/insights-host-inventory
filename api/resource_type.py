@@ -49,6 +49,7 @@ def get_resource_type_list(
 @rbac(RbacResourceType.ALL, RbacPermission.ADMIN, "rbac")
 @metrics.api_request_time.time()
 def get_resource_type_groups_list(
+    name=None,
     page=1,
     per_page=100,
     order_by=None,
@@ -59,7 +60,7 @@ def get_resource_type_groups_list(
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
     try:
-        group_list, total = get_filtered_group_list_db(None, page, per_page, order_by, order_how, rbac_filter)
+        group_list, total = get_filtered_group_list_db(name, page, per_page, order_by, order_how, rbac_filter)
     except ValueError as e:
         log_get_group_list_failed(logger)
         flask.abort(400, str(e))

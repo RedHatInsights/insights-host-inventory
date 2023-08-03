@@ -568,6 +568,7 @@ paths:
       security:
         - ApiKeyAuth: []
       parameters:
+        - $ref: '#/components/parameters/groupName'
         - $ref: '#/components/parameters/resourceTypesPerPageParam'
         - $ref: '#/components/parameters/pageParam'
       responses:
