@@ -100,6 +100,10 @@ def string_contains_lc(string):
     return {"matches_lc": f"*{string}*"}
 
 
+def string_exact_lc(string):
+    return {"eq_lc": string}
+
+
 def url():
     return current_app.config["INVENTORY_CONFIG"].xjoin_graphql_url
 

@@ -23,6 +23,7 @@ from app.utils import Tag
 from app.validators import is_custom_date as is_timestamp
 from app.xjoin import staleness_filter
 from app.xjoin import string_contains_lc
+from app.xjoin import string_exact_lc
 
 logger = get_logger(__name__)
 
@@ -393,7 +394,7 @@ def _group_name_list_query_filter(group_name_list):
         "OR": [
             {
                 "group": {
-                    "name": string_contains_lc(group_name),
+                    "name": string_exact_lc(group_name),
                 }
             }
             for group_name in group_name_list
