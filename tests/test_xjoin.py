@@ -922,7 +922,7 @@ def test_tags_query_host_filters_casefolding(assert_tag_query_host_filter_for_fi
 def test_tags_query_group_name_filter(assert_tag_query_host_filter_single_call, mocker):
     assert_tag_query_host_filter_single_call(
         build_tags_url(query="?group_name=coolgroup"),
-        host_filter={"OR": mocker.ANY, "AND": ({"OR": [{"group": {"name": {"matches_lc": "*coolgroup*"}}}]},)},
+        host_filter={"OR": mocker.ANY, "AND": ({"OR": [{"group": {"name": {"eq_lc": "coolgroup"}}}]},)},
     )
 
 
@@ -1970,14 +1970,14 @@ def test_query_hosts_filter_updated_error(api_get):
     (
         (
             ["pog group"],
-            [{"group": {"name": {"matches_lc": "*pog group*"}}}],
+            [{"group": {"name": {"eq_lc": "pog group"}}}],
         ),
         (
             ["group1", "group2", "group3"],
             [
-                {"group": {"name": {"matches_lc": "*group1*"}}},
-                {"group": {"name": {"matches_lc": "*group2*"}}},
-                {"group": {"name": {"matches_lc": "*group3*"}}},
+                {"group": {"name": {"eq_lc": "group1"}}},
+                {"group": {"name": {"eq_lc": "group2"}}},
+                {"group": {"name": {"eq_lc": "group3"}}},
             ],
         ),
         (
@@ -1986,7 +1986,7 @@ def test_query_hosts_filter_updated_error(api_get):
         ),
         (
             ["group A", ""],
-            [{"group": {"name": {"matches_lc": "*group A*"}}}, {"group": {"hasSome": {"is": False}}}],
+            [{"group": {"name": {"eq_lc": "group A"}}}, {"group": {"hasSome": {"is": False}}}],
         ),
     ),
 )
