@@ -112,7 +112,7 @@ def get_assignment_rules_by_id(
         )
     except ValueError as e:
         log_get_assignment_rules_list_failed(logger)
-        abort(400, str(e))
+        abort(status.HTTP_400_BAD_REQUEST, str(e))
 
     log_get_assignment_rules_list_succeeded(logger, assignment_rule_list)
 
