@@ -1763,8 +1763,8 @@ components:
       $ref: '#/components/schemas/NonStrictUUID'
     AssignmentRuleId:
       description: >-
-        A durable and reliable platform-wide group identifier. Applications
-        should use this identifier to reference groups.
+        A durable and reliable platform-wide assignment-rule identifier. Applications
+        should use this identifier to reference assignment-rules.
       $ref: '#/components/schemas/NonStrictUUID'
     HostId:
       description: >-
