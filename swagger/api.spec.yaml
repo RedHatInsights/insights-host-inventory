@@ -883,6 +883,35 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AssignmentRuleOut'
+  '/assignment-rules/{assignment_rule_id_list}':
+    get:
+      operationId: api.assignment_rule.get_assignment_rules_by_id
+      tags:
+        - groups
+      summary: Find assignment rules by their IDs
+      description: >-
+        Find one or more assignment rules by their IDs.
+        <br /><br />
+        Required permissions: inventory:groups:read
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/assignmentRuleIdList'
+        - $ref: '#/components/parameters/perPageParam'
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/assignmentRuleOrderByParam'
+        - $ref: '#/components/parameters/assignmentRuleOrderHowParam'
+      responses:
+        '200':
+          description: Successfully searched for assignment rules.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssignmentRuleQueryOutput'
+        '400':
+          description: Invalid request.
+        '404':
+          description: Assignment rules not found.
 components:
   securitySchemes:
     BearerAuth:
@@ -1225,6 +1254,15 @@ components:
       in: path
       name: group_id_list
       description: A comma-separated list of group IDs.
+      required: true
+      schema:
+        type: array
+        items:
+          $ref: '#/components/schemas/NonStrictUUID'
+    assignmentRuleIdList:
+      in: path
+      name: assignment_rule_id_list
+      description: A comma-separated list of assignment-rule IDs.
       required: true
       schema:
         type: array
@@ -1722,6 +1760,11 @@ components:
       description: >-
         A durable and reliable platform-wide group identifier. Applications
         should use this identifier to reference groups.
+      $ref: '#/components/schemas/NonStrictUUID'
+    AssignmentRuleId:
+      description: >-
+        A durable and reliable platform-wide assignment-rule identifier. Applications
+        should use this identifier to reference assignment-rules.
       $ref: '#/components/schemas/NonStrictUUID'
     HostId:
       description: >-

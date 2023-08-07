@@ -23,7 +23,6 @@ GROUP_URL = f"{BASE_URL}/groups"
 TAGS_URL = f"{BASE_URL}/tags"
 SYSTEM_PROFILE_URL = f"{BASE_URL}/system_profile"
 RESOURCE_TYPES_URL = f"{BASE_URL}/resource-types"
-ASSIGN_RULE_URL = f"{BASE_URL}/assignment-rules"
 STALENESS_URL = f"{BASE_URL}/account/staleness"
 
 SHARED_SECRET = "SuperSecretStuff"

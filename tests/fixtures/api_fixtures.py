@@ -1,6 +1,6 @@
 import pytest
 
-from tests.helpers.api_utils import ASSIGN_RULE_URL
+from tests.helpers.api_utils import ASSIGNMENT_RULE_URL
 from tests.helpers.api_utils import do_request
 from tests.helpers.api_utils import GROUP_URL
 from tests.helpers.api_utils import HOST_URL
@@ -143,7 +143,7 @@ def api_patch_group(flask_client):
 def api_create_assign_rule(flask_client):
     def _api_create_assign_rule(assign_rule_data, identity=USER_IDENTITY, query_parameters=None, extra_headers=None):
         return do_request(
-            flask_client.post, ASSIGN_RULE_URL, identity, assign_rule_data, query_parameters, extra_headers
+            flask_client.post, ASSIGNMENT_RULE_URL, identity, assign_rule_data, query_parameters, extra_headers
         )
 
     return _api_create_assign_rule

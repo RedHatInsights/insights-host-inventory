@@ -44,6 +44,14 @@ def get_assignment_rules_list_db(filters, page, per_page, param_order_by, param_
     return assignment_rules_list, total
 
 
+def get_assignment_rules_list_by_id_list_db(assignment_rule_id_list, page, per_page, order_by, order_how, rbac_filter):
+    filters = (
+        AssignmentRule.org_id == get_current_identity().org_id,
+        AssignmentRule.id.in_(assignment_rule_id_list),
+    )
+    return get_assignment_rules_list_db(filters, page, per_page, order_by, order_how, rbac_filter)
+
+
 def get_filtered_assignment_rule_list_db(rule_name, page, per_page, order_by, order_how, rbac_filter):
     filters = (AssignmentRule.org_id == get_current_identity().org_id,)
     if rule_name:
