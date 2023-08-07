@@ -3323,6 +3323,17 @@
               "format": "ipv4"
             }
           },
+          "public_dns": {
+            "type": "array",
+            "x-indexed": false,
+            "items": {
+              "description": "The external DNS of the system",
+              "type": "string",
+              "maxLength": 100,
+              "example": "ec2-12-34-56-78.us-west-2.compute.amazonaws.com",
+              "format": "string"
+            }
+          },
           "yum_repos": {
             "type": "array",
             "x-indexed": false,
