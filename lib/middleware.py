@@ -78,7 +78,8 @@ def rbac(resource_type, required_permission, permission_base="inventory"):
             if inventory_config().bypass_rbac:
                 return func(*args, **kwargs)
 
-            if get_current_identity().identity_type != CHECKED_TYPE:
+            current_identity = get_current_identity()
+            if current_identity.identity_type != CHECKED_TYPE:
                 return func(*args, **kwargs)
 
             # track that RBAC is being used to control access
@@ -91,6 +92,15 @@ def rbac(resource_type, required_permission, permission_base="inventory"):
             allowed = False
             # If populated, limits the allowed resources to specific group IDs
             allowed_group_ids = set()
+
+            # TODO: Remove this workaround after RHCLOUD-27511 is implemented.
+            # If the required permission is RBAC admin, we can check the Identity instead.
+            if (
+                permission_base == "rbac"
+                and current_identity.identity_type == IdentityType.USER
+                and current_identity.user.get("is_org_admin")
+            ):
+                return func(*args, **kwargs)
 
             for rbac_permission in rbac_data:
                 if (
