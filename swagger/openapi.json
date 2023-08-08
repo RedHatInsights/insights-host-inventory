@@ -3228,12 +3228,13 @@
               "name": {
                 "description": "Name of the distro/os",
                 "type": "string",
-                "maxLength": 6,
+                "maxLength": 12,
                 "enum": [
                   "RHEL",
-                  "CentOS"
+                  "CentOS",
+                  "CentOS Linux"
                 ],
-                "example": "RHEL, CentOS, RHEL"
+                "example": "RHEL, CentOS, CentOS Linux"
               }
             }
           },
