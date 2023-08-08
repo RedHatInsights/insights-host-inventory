@@ -58,6 +58,7 @@ class RbacPermission(Enum):
 class RbacResourceType(Enum):
     HOSTS = "hosts"
     GROUPS = "groups"
+    STALENESS = "staleness"
     ALL = "*"
 
 

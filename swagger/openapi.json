@@ -1313,10 +1313,24 @@
         "security": [
           {
             "ApiKeyAuth": []
+          },
+          {
+            "BearerAuth": []
           }
         ],
+        "requestBody": {
+          "description": "Data required to create a record for a account staleness.",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountStalenessIn"
+              }
+            }
+          }
+        },
         "responses": {
-          "200": {
+          "201": {
             "description": "Successfully account staleness created.",
             "content": {
               "application/json": {
@@ -3013,6 +3027,41 @@
                 "items": {
                   "$ref": "#/components/schemas/GroupOutWithHostCount"
                 }
+              }
+            }
+          }
+        ]
+      },
+      "AccountStalenessIn": {
+        "title": "Account Staleness In",
+        "description": "Data of a single account staleness.",
+        "type": "object",
+        "allOf": [
+          {
+            "properties": {
+              "system_staleness_delta": {
+                "type": "string",
+                "maxLength": 36
+              },
+              "system_stale_warning_delta": {
+                "type": "string",
+                "maxLength": 36
+              },
+              "system_culling_delta": {
+                "type": "string",
+                "maxLength": 36
+              },
+              "edge_staleness_delta": {
+                "type": "string",
+                "maxLength": 36
+              },
+              "edge_stale_warning_delta": {
+                "type": "string",
+                "maxLength": 36
+              },
+              "edge_culling_delta": {
+                "type": "string",
+                "maxLength": 36
               }
             }
           }

@@ -844,3 +844,15 @@ class InputAssignmentRule(MarshmallowSchema):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+
+class InputAccountStalenessSchema(MarshmallowSchema):
+    system_staleness_delta = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=36))
+    system_stale_warning_delta = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=36))
+    system_culling_delta = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=36))
+    edge_staleness_delta = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=36))
+    edge_stale_warning_delta = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=36))
+    edge_culling_delta = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=36))
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
