@@ -570,7 +570,7 @@ objects:
         command:
           - /bin/sh
           - -c
-          - python rebuild_events_topic.py && python host_synchronizer.py
+          - python host_synchronizer.py
         env:
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
