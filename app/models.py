@@ -488,6 +488,7 @@ class AssignmentRule(db.Model):
         name,
         group_id,
         filter,
+        enabled,
         account=None,
     ):
         if not org_id:
@@ -498,12 +499,15 @@ class AssignmentRule(db.Model):
             raise ValidationException("Assignment rule group_id cannot be null.")
         if not filter:
             raise ValidationException("Assignment rule filter cannot be null.")
+        if enabled is None:
+            raise ValidationException("Enabled cannot be null.")
 
         self.org_id = org_id
         self.account = account
         self.name = name
         self.group_id = group_id
         self.filter = filter
+        self.enabled = enabled
 
     def update(self, input_ar):
         if input_ar.name is not None:
@@ -523,6 +527,64 @@ class AssignmentRule(db.Model):
     group_id = db.Column(UUID(as_uuid=True), ForeignKey("groups.id"))
     filter = db.Column(JSONB, nullable=False)
     enabled = db.Column(db.Boolean(), default=True)
+    created_on = db.Column(db.DateTime(timezone=True), default=_time_now)
+    modified_on = db.Column(db.DateTime(timezone=True), default=_time_now, onupdate=_time_now)
+
+
+class AccountStalenessCulling(db.Model):
+    __tablename__ = "account_staleness_culling"
+    __tableargs__ = (Index("idxaccstaleorgid", "org_id"),)
+
+    def __init__(
+        self,
+        org_id,
+        account=None,
+        conventional_staleness_delta=None,
+        conventional_stale_warning_delta=None,
+        conventional_culling_delta=None,
+        immutable_staleness_delta=None,
+        immutable_stale_warning_delta=None,
+        immutable_culling_delta=None,
+    ):
+        if not org_id:
+            raise ValidationException("Assignment rule org_id cannot be null.")
+
+        self.org_id = org_id
+        self.account = account
+        self.conventional_staleness_delta = conventional_staleness_delta
+        self.conventional_stale_warning_delta = conventional_stale_warning_delta
+        self.conventional_culling_delta = conventional_culling_delta
+        self.immutable_staleness_delta = immutable_staleness_delta
+        self.immutable_stale_warning_delta = immutable_stale_warning_delta
+        self.immutable_culling_delta = immutable_culling_delta
+
+    def days_to_seconds(n_days):
+        factor = 86400
+        return n_days * factor
+
+    def update(self, input_acc):
+        if input_acc.conventional_staleness_delta:
+            self.conventional_staleness_delta = input_acc.conventional_staleness_delta
+        if input_acc.conventional_stale_warning_delta:
+            self.conventional_stale_warning_delta = input_acc.conventional_stale_warning_delta
+        if input_acc.conventional_culling_delta:
+            self.conventional_culling_delta = input_acc.conventional_culling_delta
+        if input_acc.immutable_staleness_delta:
+            self.immutable_staleness_delta = input_acc.immutable_staleness_delta
+        if input_acc.immutable_stale_warning_delta:
+            self.immutable_stale_warning_delta = input_acc.immutable_stale_warning_delta
+        if input_acc.immutable_culling_delta:
+            self.immutable_culling_delta = input_acc.immutable_culling_delta
+
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = db.Column(db.String(36), nullable=False)
+    account = db.Column(db.String(10))
+    conventional_staleness_delta = db.Column(db.String(36), default=f"{days_to_seconds(1)}", nullable=False)
+    conventional_stale_warning_delta = db.Column(db.String(36), default=f"{days_to_seconds(7)}", nullable=False)
+    conventional_culling_delta = db.Column(db.String(36), default=f"{days_to_seconds(14)}", nullable=False)
+    immutable_staleness_delta = db.Column(db.String(36), default=f"{days_to_seconds(2)}", nullable=False)
+    immutable_stale_warning_delta = db.Column(db.String(36), default=f"{days_to_seconds(120)}", nullable=False)
+    immutable_culling_delta = db.Column(db.String(36), default=f"{days_to_seconds(180)}", nullable=False)
     created_on = db.Column(db.DateTime(timezone=True), default=_time_now)
     modified_on = db.Column(db.DateTime(timezone=True), default=_time_now, onupdate=_time_now)
 
@@ -768,6 +830,17 @@ class PatchHostSchema(MarshmallowSchema):
 class InputGroupSchema(MarshmallowSchema):
     name = fields.Str(validate=marshmallow_validate.Length(min=1, max=255))
     host_ids = fields.List(fields.Str(validate=verify_uuid_format))
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
+class InputAssignmentRule(MarshmallowSchema):
+    name = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=255))
+    description = fields.Str(validate=marshmallow_validate.Length(max=255))
+    group_id = fields.Str(required=True, validate=verify_uuid_format)
+    filter = fields.Dict(required=True)
+    enabled = fields.Bool()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

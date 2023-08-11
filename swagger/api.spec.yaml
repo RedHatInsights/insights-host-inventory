@@ -26,7 +26,7 @@ paths:
         - $ref: '#/components/parameters/providerType'
         - $ref: '#/components/parameters/updatedStart'
         - $ref: '#/components/parameters/updatedEnd'
-        - $ref: '#/components/parameters/groupNameExplicit'
+        - $ref: '#/components/parameters/groupNameListParam'
         - $ref: '#/components/parameters/branchId'
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
@@ -64,7 +64,7 @@ paths:
         - $ref: '#/components/parameters/providerType'
         - $ref: '#/components/parameters/updatedStart'
         - $ref: '#/components/parameters/updatedEnd'
-        - $ref: '#/components/parameters/groupNameExplicit'
+        - $ref: '#/components/parameters/groupNameListParam'
         - $ref: '#/components/parameters/registered_with'
         - $ref: '#/components/parameters/stalenessNoDefaultsParam'
         - $ref: '#/components/parameters/tagsParam'
@@ -122,7 +122,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CreateHostOut'
+                $ref: '#/components/schemas/HostOut'
         '404':
           description: Not Found.
   '/hosts/{host_id_list}':
@@ -542,7 +542,7 @@ paths:
       description: >-
         Returns the list of available RBAC resource types.
         <br /><br />
-        Required permissions: inventory:*:*
+        Required permissions: rbac:*:*
       security:
         - ApiKeyAuth: []
       parameters:
@@ -564,10 +564,11 @@ paths:
       description: >-
         Returns the list of groups in the current account.
         <br /><br />
-        Required permissions: inventory:*:*
+        Required permissions: rbac:*:*
       security:
         - ApiKeyAuth: []
       parameters:
+        - $ref: '#/components/parameters/groupName'
         - $ref: '#/components/parameters/resourceTypesPerPageParam'
         - $ref: '#/components/parameters/pageParam'
       responses:
@@ -604,7 +605,7 @@ paths:
         - $ref: '#/components/parameters/providerType'
         - $ref: '#/components/parameters/updatedStart'
         - $ref: '#/components/parameters/updatedEnd'
-        - $ref: '#/components/parameters/groupNameExplicit'
+        - $ref: '#/components/parameters/groupNameListParam'
         - $ref: '#/components/parameters/registered_with'
         - $ref: '#/components/parameters/filter_param'
       responses:
@@ -747,6 +748,77 @@ paths:
         '403':
             description: Forbidden
 
+  /account/staleness:
+    get:
+      operationId: api.account_staleness.get_staleness
+      tags:
+        - accounts_staleness
+      summary: Read the entire list of account staleness
+      description: >-
+        Read the entire list of all accounts staleness available.
+        Required permissions: inventory:TODO:read
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Successfully read the staleness account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountStalenessOutput'
+    post:
+      operationId: api.account_staleness.create_staleness
+      tags:
+        - accounts_staleness
+      summary: Create account staleness record
+      description: >-
+        Create account staleness record.
+        Required permissions: inventory:TODO:write
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Successfully account staleness created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountStalenessOutput'
+    patch:
+      operationId: api.account_staleness.update_staleness
+      tags:
+        - accounts_staleness
+      summary: Update account staleness record
+      description: >-
+        Update account staleness record.
+        Required permissions: inventory:TODO:write
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Successfully account staleness updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountStalenessOutput'
+  /account/staleness/reset:
+    patch:
+      operationId: api.account_staleness.reset_staleness
+      tags:
+        - accounts_staleness
+      summary: Reset account staleness
+      description: >-
+        Reset account staleness record.
+        Required permissions: inventory:TODO:read
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Successfully reset account staleness.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountStalenessOutput'
+
   '/unleash/inventory_groups_toggle':
     get:
       tags:
@@ -763,7 +835,83 @@ paths:
               application/json:
                 schema:
                   $ref: '#/components/schemas/UnleashToggleOut'
-
+  /assignment-rules:
+    get:
+      operationId: api.assignment_rule.get_assignment_rules_list
+      tags:
+        - assignment-rules
+      summary: Read the entire list of assignment-rules [Not Implemented]
+      description: >-
+        Read the entire list of all assignment-rules available to the account. [Not Implemented]
+        Required permissions: inventory:groups:read
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/assignmentRuleName'
+        - $ref: '#/components/parameters/perPageParam'
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/assignmentRuleOrderByParam'
+        - $ref: '#/components/parameters/assignmentRuleOrderHowParam'
+      responses:
+        '200':
+          description: Successfully read the assignment-rules list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssignmentRuleQueryOutput'
+    post:
+      operationId: api.assignment_rule.create_assignment_rule
+      summary: Create Assignment Rule object
+      description: >-
+        Create Assignment Rule object using post request
+        <br /><br />
+        Required permissions: inventory:groups:write
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        description: Data required to create Assignment Rule object
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignmentRuleIn'
+      responses:
+        '201':
+          description: Assignment Rule created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssignmentRuleOut'
+  '/assignment-rules/{assignment_rule_id_list}':
+    get:
+      operationId: api.assignment_rule.get_assignment_rules_by_id
+      tags:
+        - groups
+      summary: Find assignment rules by their IDs
+      description: >-
+        Find one or more assignment rules by their IDs.
+        <br /><br />
+        Required permissions: inventory:groups:read
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/assignmentRuleIdList'
+        - $ref: '#/components/parameters/perPageParam'
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/assignmentRuleOrderByParam'
+        - $ref: '#/components/parameters/assignmentRuleOrderHowParam'
+      responses:
+        '200':
+          description: Successfully searched for assignment rules.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssignmentRuleQueryOutput'
+        '400':
+          description: Invalid request.
+        '404':
+          description: Assignment rules not found.
 components:
   securitySchemes:
     BearerAuth:
@@ -898,7 +1046,7 @@ components:
         type: string
         enum:
           - name
-          - host_ids
+          - host_count
       description: Ordering field name
     hostOrderHowParam:
       name: order_how
@@ -913,6 +1061,30 @@ components:
         Direction of the ordering; defaults to ASC for display_name, and to DESC
         for updated and operating_system
     groupOrderHowParam:
+      name: order_how
+      in: query
+      required: false
+      schema:
+        type: string
+        enum:
+          - ASC
+          - DESC
+      description: >-
+        Direction of the ordering; defaults to ASC for name, and to DESC
+        for host_count
+    assignmentRuleOrderByParam:
+      name: order_by
+      in: query
+      required: false
+      schema:
+        type: string
+        enum:
+          - org_id
+          - account
+          - name
+          - group_id
+      description: Ordering field name
+    assignmentRuleOrderHowParam:
       name: order_how
       in: query
       required: false
@@ -1048,13 +1220,15 @@ components:
         type: string
       description: Filter by group name
       required: false
-    groupNameExplicit:
+    groupNameListParam:
       in: query
       name: group_name
-      schema:
-        type: string
       description: Filter by group name
       required: false
+      schema:
+        type: array
+        items:
+          type: string
     groupId:
       in: path
       name: group_id
@@ -1062,10 +1236,33 @@ components:
       required: true
       schema:
         $ref: '#/components/schemas/NonStrictUUID'
+    assignmentRuleName:
+      in: query
+      name: name
+      schema:
+        type: string
+      description: Filter by assignment-rule name
+      required: false
+    assignmentRuleId:
+      in: path
+      name: assignment_rule_id
+      description: assignment-rule ID.
+      required: true
+      schema:
+        $ref: '#/components/schemas/NonStrictUUID'
     groupIdList:
       in: path
       name: group_id_list
       description: A comma-separated list of group IDs.
+      required: true
+      schema:
+        type: array
+        items:
+          $ref: '#/components/schemas/NonStrictUUID'
+    assignmentRuleIdList:
+      in: path
+      name: assignment_rule_id_list
+      description: A comma-separated list of assignment-rule IDs.
       required: true
       schema:
         type: array
@@ -1354,8 +1551,8 @@ components:
               minimum: 1
               maximum: 2880
               example: 1440
-    CreateHostOut:
-      title: Create Host Out
+    HostOut:
+      title: Host Out
       description: >-
         Data of a single host belonging to an account. Represents the hosts
         without its Inventory metadata.
@@ -1434,18 +1631,6 @@ components:
                 $ref: '#/components/schemas/GroupOut'
           required:
             - org_id
-    HostOut:
-      title: A Host Inventory entry
-      description: A database entry representing a single host with its Inventory metadata.
-      allOf:
-        - $ref: '#/components/schemas/CreateHostOut'
-        - type: object
-          properties:
-            facts:
-              description: A set of facts belonging to the host.
-              type: array
-              items:
-                $ref: '#/components/schemas/FactSet'
     HostQueryOutput:
       title: A Host Inventory query result
       description: >-
@@ -1576,6 +1761,11 @@ components:
         A durable and reliable platform-wide group identifier. Applications
         should use this identifier to reference groups.
       $ref: '#/components/schemas/NonStrictUUID'
+    AssignmentRuleId:
+      description: >-
+        A durable and reliable platform-wide assignment-rule identifier. Applications
+        should use this identifier to reference assignment-rules.
+      $ref: '#/components/schemas/NonStrictUUID'
     HostId:
       description: >-
         A durable and reliable platform-wide group identifier. Applications
@@ -1587,6 +1777,10 @@ components:
       nullable: true
       items:
         $ref: '#/components/schemas/NonStrictUUID'
+    AccountStalenessId:
+      description: Account Staleness UID
+      $ref: '#/components/schemas/NonStrictUUID'
+
     HostCount:
       description: The number of hosts associated with the group.
       type: integer
@@ -1611,15 +1805,80 @@ components:
               $ref: "#/components/schemas/GroupName"
             host_ids:
               $ref: "#/components/schemas/HostIds"
+    AssignmentRuleIn:
+      title: Assignment Rule In
+      description: >-
+        Data for a single Assignment Rule
+      type: object
+      allOf:
+        - properties:
+            name:
+              type: string
+              minLength: 1
+              maxLength: 255
+            description:
+              type: string
+              minLength: 1
+              maxLength: 255
+              nullable: true
+            group_id:
+              $ref: "#/components/schemas/GroupId"
+            filter:
+              type: object
+            enabled:
+              type: boolean
+          required:
+            - name
+            - group_id
+            - filter
+            - enabled
+    AssignmentRuleOut:
+      title: Assignment Rule response
+      description: >-
+        Data for a single Assignment Rule response
+      type: object
+      allOf:
+        - properties:
+            id:
+              $ref: '#/components/schemas/NonStrictUUID'
+            org_id:
+              $ref: '#/components/schemas/OrgId'
+            account:
+              $ref: '#/components/schemas/AccountNumber'
+            name:
+              type: string
+              minLength: 1
+            description:
+              type: string
+              minLength: 1
+              nullable: true
+            group_id:
+              $ref: "#/components/schemas/GroupId"
+            filter:
+              type: object
+            enabled:
+              type: boolean
+            created_on:
+              type: string
+              format: date-time
+            modified_on:
+              type: string
+              format: date-time
+          required:
+            - name
+            - group_id
+            - filter
+            - enabled
+            - created_on
+            - modified_on
     GroupOutWithHostCount:
       title: Group properties with host count
       description: >-
         Data of a single group belonging to an account.
       type: object
       allOf:
+      - $ref: "#/components/schemas/GroupOut"
       - properties:
-          group_out:
-            $ref: "#/components/schemas/GroupOut"
           host_count:
             $ref: "#/components/schemas/HostCount"
     GroupOut:
@@ -1661,6 +1920,23 @@ components:
             type: array
             items:
               $ref: '#/components/schemas/GroupOutWithHostCount'
+    AssignmentRuleQueryOutput:
+      title: An Inventory Assignment Rules query result
+      description: >-
+        A paginated assignment-rule search query result with assignment-rule entries and their
+        Inventory metadata.
+      type: object
+      allOf:
+      - $ref: '#/components/schemas/PaginationOut'
+      - type: object
+        required:
+          - results
+        properties:
+          results:
+            description: Actual assignment-rule search query result entries.
+            type: array
+            items:
+              $ref: '#/components/schemas/AssignmentRuleOut'
     ResourceTypesOut:
       title: A resource type query result
       description: >-
@@ -1681,7 +1957,7 @@ components:
         A paginated list of resource-types RBAC objects.
       type: object
       allOf:
-      - $ref: 'pagination.yaml#/components/schemas/ResourceTypesPaginationOut'
+      - $ref: '#/components/schemas/ResourceTypesPaginationOut'
       - type: object
         required:
           - data
@@ -1698,7 +1974,7 @@ components:
         Inventory metadata in paginated resource-types response format.
       type: object
       allOf:
-      - $ref: 'pagination.yaml#/components/schemas/ResourceTypesPaginationOut'
+      - $ref: '#/components/schemas/ResourceTypesPaginationOut'
       - type: object
         required:
           - data
@@ -1708,6 +1984,45 @@ components:
             type: array
             items:
               $ref: '#/components/schemas/GroupOutWithHostCount'
+    AccountStalenessOutput:
+      title: Account Staleness Out
+      description: >-
+        Data of a account staleness.
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/AccountStalenessId"
+        account:
+          $ref: "#/components/schemas/AccountNumber"
+        org_id:
+          $ref: "#/components/schemas/OrgId"
+        conventional_staleness_delta:
+          type: string
+          maxLength: 36
+        conventional_stale_warning_delta:
+          type: string
+          maxLength: 36
+        conventional_culling_delta:
+          type: string
+          maxLength: 36
+        immutable_staleness_delta:
+          type: string
+          maxLength: 36
+        immutable_stale_warning_delta:
+          type: string
+          maxLength: 36
+        immutable_culling_delta:
+          type: string
+          maxLength: 36
+        created_at:
+          description: A timestamp when the entry was created.
+          type: string
+          format: date-time
+        updated_at:
+          description: A timestamp when the entry was last updated.
+          type: string
+          format: date-time
+
     # include renames for system_profile
     SystemProfile:
       $ref: 'system_profile.spec.yaml#/$defs/SystemProfile'
@@ -1736,6 +2051,8 @@ components:
       $ref: 'pagination.yaml#/components/schemas/Page'
     PerPage:
       $ref: 'pagination.yaml#/components/schemas/PerPage'
+    ResourceTypesPaginationOut:
+      $ref: 'pagination.yaml#/components/schemas/ResourceTypesPaginationOut'
 
 
   responses:

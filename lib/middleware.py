@@ -1,5 +1,6 @@
 from functools import partial
 from functools import wraps
+from uuid import UUID
 
 from app_common_python import LoadedConfig
 from flask import abort
@@ -25,22 +26,22 @@ from app.logging import get_logger
 
 logger = get_logger(__name__)
 
-ROUTE = "/api/rbac/v1/access/?application=inventory"
+RBAC_ROUTE = "/api/rbac/v1/access/?application="
 CHECKED_TYPE = IdentityType.USER
 RETRY_STATUSES = [500, 502, 503, 504]
 
 outbound_http_metric = outbound_http_response_time.labels("rbac")
 
 
-def rbac_url():
-    return inventory_config().rbac_endpoint + ROUTE
+def get_rbac_url(app: str) -> str:
+    return inventory_config().rbac_endpoint + RBAC_ROUTE + app
 
 
 def tenant_translator_url() -> str:
     return inventory_config().tenant_translator_url
 
 
-def get_rbac_permissions():
+def get_rbac_permissions(app):
     request_header = {
         IDENTITY_HEADER: request.headers[IDENTITY_HEADER],
         REQUEST_ID_HEADER: request.headers.get(REQUEST_ID_HEADER),
@@ -48,12 +49,12 @@ def get_rbac_permissions():
 
     request_session = Session()
     retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
-    request_session.mount(rbac_url(), HTTPAdapter(max_retries=retry_config))
+    request_session.mount(get_rbac_url(app), HTTPAdapter(max_retries=retry_config))
 
     try:
         with outbound_http_metric.time():
             rbac_response = request_session.get(
-                url=rbac_url(),
+                url=get_rbac_url(app),
                 headers=request_header,
                 timeout=inventory_config().rbac_timeout,
                 verify=LoadedConfig.tlsCAPath,
@@ -77,19 +78,29 @@ def rbac(resource_type, required_permission, permission_base="inventory"):
             if inventory_config().bypass_rbac:
                 return func(*args, **kwargs)
 
-            if get_current_identity().identity_type != CHECKED_TYPE:
+            current_identity = get_current_identity()
+            if current_identity.identity_type != CHECKED_TYPE:
                 return func(*args, **kwargs)
 
             # track that RBAC is being used to control access
             g.access_control_rule = "RBAC"
             logger.debug("access_control_rule set")
 
-            rbac_data = get_rbac_permissions()
+            rbac_data = get_rbac_permissions(permission_base)
 
             # Determines whether the endpoint can be accessed at all
             allowed = False
             # If populated, limits the allowed resources to specific group IDs
             allowed_group_ids = set()
+
+            # TODO: Remove this workaround after RHCLOUD-27511 is implemented.
+            # If the required permission is RBAC admin, we can check the Identity instead.
+            if (
+                permission_base == "rbac"
+                and current_identity.identity_type == IdentityType.USER
+                and current_identity.user.get("is_org_admin")
+            ):
+                return func(*args, **kwargs)
 
             for rbac_permission in rbac_data:
                 if (
@@ -125,7 +136,17 @@ def rbac(resource_type, required_permission, permission_base="inventory"):
                                     "Did not receive a list for attributeFilter.value in RBAC response.",
                                 )
                             else:
+                                # Add the IDs to the filter, but validate that they're all actually UUIDs.
                                 groups_attribute_filter.update(resourceDefinition["attributeFilter"]["value"])
+                                try:
+                                    for gid in groups_attribute_filter:
+                                        if gid is not None:
+                                            UUID(gid)
+                                except ValueError:
+                                    abort(
+                                        status.HTTP_503_SERVICE_UNAVAILABLE,
+                                        "Received invalid UUIDs for attributeFilter.value in RBAC response.",
+                                    )
 
                     if groups_attribute_filter:
                         # If the RBAC permission is applicable and is limited to specific group IDs,

@@ -23,6 +23,7 @@ from app.utils import Tag
 from app.validators import is_custom_date as is_timestamp
 from app.xjoin import staleness_filter
 from app.xjoin import string_contains_lc
+from app.xjoin import string_exact_lc
 
 logger = get_logger(__name__)
 
@@ -355,7 +356,7 @@ def host_id_list_query_filter(host_id_list, rbac_filter):
     if rbac_filter:
         for key in rbac_filter:
             if key == "groups":
-                all_filters += group_id_list_query_filter(rbac_filter["groups"])
+                all_filters += _group_id_list_query_filter(rbac_filter["groups"])
 
     current_identity = get_current_identity()
     if current_identity.identity_type == IdentityType.SYSTEM:
@@ -364,7 +365,7 @@ def host_id_list_query_filter(host_id_list, rbac_filter):
     return all_filters
 
 
-def group_id_list_query_filter(group_id_list):
+def _group_id_list_query_filter(group_id_list):
     _query_filter = {
         "OR": [
             {
@@ -377,6 +378,30 @@ def group_id_list_query_filter(group_id_list):
         ],
     }
     if None in group_id_list:
+        _query_filter["OR"].append(
+            {
+                "group": {
+                    "hasSome": {"is": False},
+                }
+            },
+        )
+
+    return (_query_filter,)
+
+
+def _group_name_list_query_filter(group_name_list):
+    _query_filter = {
+        "OR": [
+            {
+                "group": {
+                    "name": string_exact_lc(group_name),
+                }
+            }
+            for group_name in group_name_list
+            if group_name != ""
+        ],
+    }
+    if "" in group_name_list:
         _query_filter["OR"].append(
             {
                 "group": {
@@ -452,9 +477,9 @@ def query_filters(
     if updated_start or updated_end:
         query_filters += _build_modified_on_filter(updated_start, updated_end)
     if group_name:
-        query_filters += ({"group": {"name": string_contains_lc(group_name)}},)
+        query_filters += _group_name_list_query_filter(group_name)
     if group_ids:
-        query_filters += group_id_list_query_filter(group_ids)
+        query_filters += _group_id_list_query_filter(group_ids)
 
     if filter:
         for key in filter:
@@ -466,7 +491,7 @@ def query_filters(
     if rbac_filter:
         for key in rbac_filter:
             if key == "groups":
-                query_filters += group_id_list_query_filter(rbac_filter["groups"])
+                query_filters += _group_id_list_query_filter(rbac_filter["groups"])
 
     current_identity = get_current_identity()
     if current_identity.identity_type == IdentityType.SYSTEM:

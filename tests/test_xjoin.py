@@ -922,7 +922,7 @@ def test_tags_query_host_filters_casefolding(assert_tag_query_host_filter_for_fi
 def test_tags_query_group_name_filter(assert_tag_query_host_filter_single_call, mocker):
     assert_tag_query_host_filter_single_call(
         build_tags_url(query="?group_name=coolgroup"),
-        host_filter={"OR": mocker.ANY, "AND": ({"group": {"name": {"matches_lc": "*coolgroup*"}}},)},
+        host_filter={"OR": mocker.ANY, "AND": ({"OR": [{"group": {"name": {"eq_lc": "coolgroup"}}}]},)},
     )
 
 
@@ -1965,10 +1965,35 @@ def test_query_hosts_filter_updated_error(api_get):
     assert response_status == 400
 
 
-def test_query_variables_group_name(mocker, graphql_query_empty_response, api_get):
-    group_name = "pog group"
-
-    url = build_hosts_url(query=f"?group_name={quote(group_name)}")
+@pytest.mark.parametrize(
+    "group_names,group_filter",
+    (
+        (
+            ["pog group"],
+            [{"group": {"name": {"eq_lc": "pog group"}}}],
+        ),
+        (
+            ["group1", "group2", "group3"],
+            [
+                {"group": {"name": {"eq_lc": "group1"}}},
+                {"group": {"name": {"eq_lc": "group2"}}},
+                {"group": {"name": {"eq_lc": "group3"}}},
+            ],
+        ),
+        (
+            [""],
+            [{"group": {"hasSome": {"is": False}}}],
+        ),
+        (
+            ["group A", ""],
+            [{"group": {"name": {"eq_lc": "group A"}}}, {"group": {"hasSome": {"is": False}}}],
+        ),
+    ),
+)
+def test_query_variables_group_name(mocker, graphql_query_empty_response, api_get, group_names, group_filter):
+    group_name_params = "&".join([f"group_name={quote(name)}" for name in group_names])
+    # Verify that empty group_name values play nicely with other params (like fqdn)
+    url = build_hosts_url(query=f"?{group_name_params}&fqdn=foo.bar.com")
     response_status, _ = api_get(url)
 
     assert response_status == 200
@@ -1980,7 +2005,7 @@ def test_query_variables_group_name(mocker, graphql_query_empty_response, api_ge
             "order_how": mocker.ANY,
             "limit": mocker.ANY,
             "offset": mocker.ANY,
-            "filter": ({"OR": mocker.ANY}, {"group": {"name": {"matches_lc": f"*{group_name}*"}}}),
+            "filter": ({"fqdn": {"eq": "foo.bar.com"}}, {"OR": mocker.ANY}, {"OR": group_filter}),
             "fields": mocker.ANY,
         },
         mocker.ANY,
