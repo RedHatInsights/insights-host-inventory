@@ -34,7 +34,7 @@ objects:
           - name: DYNACONF_MAIN__use_beta
             value: ${USE_BETA}
           - name: IQE_IBUTSU_SOURCE
-            value: host-inventory-e2e-${IMAGE_TAG}-${UID}-${ENV_FOR_DYNACONF}
+            value: host-inventory-e2e-${IMAGE_TAG}-${UID}
           - name: IQE_PLUGINS
             value: ${IQE_PLUGINS}
           - name: IQE_MARKER_EXPRESSION
@@ -90,11 +90,11 @@ objects:
           image: ${IQE_SEL_IMAGE}
           resources:
             limits:
-              cpu: 300m
-              memory: 1Gi
+              cpu: 500m
+              memory: 1.5Gi
             requests:
-              cpu: 150m
-              memory: 512Mi
+              cpu: 100m
+              memory: 256Mi
           volumeMounts:
             - name: sel-shm
               mountPath: /dev/shm
@@ -122,7 +122,7 @@ parameters:
 - name: IQE_LOG_LEVEL
   value: info
 - name: IQE_REQUIREMENTS
-  value: ''
+  value: 'HMS_INTEGRATION-CONVERSION-EXPERIENCE'
 - name: IQE_REQUIREMENTS_PRIORITY
   value: ''
 - name: IQE_TEST_IMPORTANCE
