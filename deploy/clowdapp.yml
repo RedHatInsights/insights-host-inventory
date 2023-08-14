@@ -627,57 +627,6 @@ objects:
           requests:
             cpu: ${CPU_REQUEST}
             memory: ${MEMORY_REQUEST_SYNC}
-    - name: floorist
-      schedule: ${FLOORIST_SCHEDULE}
-      suspend: ${{FLOORIST_SUSPEND}}
-      disabled: ${{FLOORIST_DISABLED}}
-      concurrencyPolicy: Forbid
-      podSpec:
-        image: ${FLOORIST_IMAGE}:${FLOORIST_IMAGE_TAG}
-        env:
-        - name: AWS_BUCKET
-          valueFrom:
-            secretKeyRef:
-              name: ${FLOORIST_BUCKET_SECRET_NAME}
-              key: bucket
-        - name: AWS_REGION
-          valueFrom:
-            secretKeyRef:
-              name: ${FLOORIST_BUCKET_SECRET_NAME}
-              key: aws_region
-        - name: AWS_ENDPOINT
-          valueFrom:
-            secretKeyRef:
-              name: ${FLOORIST_BUCKET_SECRET_NAME}
-              key: endpoint
-        - name: AWS_ACCESS_KEY_ID
-          valueFrom:
-            secretKeyRef:
-              name: ${FLOORIST_BUCKET_SECRET_NAME}
-              key: aws_access_key_id
-        - name: AWS_SECRET_ACCESS_KEY
-          valueFrom:
-            secretKeyRef:
-              name: ${FLOORIST_BUCKET_SECRET_NAME}
-              key: aws_secret_access_key
-        - name: FLOORPLAN_FILE
-          value: "/tmp/floorplan/floorplan.yaml"
-        - name: LOGLEVEL
-          value: ${FLOORIST_LOGLEVEL}
-        volumeMounts:
-        - name: floorplan-volume
-          mountPath: "/tmp/floorplan"
-        volumes:
-          - name: floorplan-volume
-            configMap:
-              name: floorplan
-        resources:
-          limits:
-            cpu: "${CPU_LIMIT_FLOO}"
-            memory: "${MEMORY_LIMIT_FLOO}"
-          requests:
-            cpu: "${CPU_REQUEST_FLOO}"
-            memory: "${MEMORY_REQUEST_FLOO}"
     database:
       name: ${DB_NAME}
       version: 12
@@ -709,12 +658,18 @@ objects:
       targetPort: 8000
     selector:
       pod: host-inventory-service
-- apiVersion: v1
-  kind: ConfigMap
+- apiVersion: metrics.console.redhat.com/v1alpha1
+  kind: FloorPlan
   metadata:
-    name: floorplan
-  data:
-    floorplan.yaml: |
+    name: host-inventory
+  spec:
+    database:
+      secretName: ${FLOORIST_DB_SECRET_NAME}
+    objectStore:
+      secretName: ${FLOORIST_BUCKET_SECRET_NAME}
+    suspend: ${{FLOORIST_SUSPEND}}
+    logLevel: ${FLOORIST_LOGLEVEL}
+    queries:
       - prefix: insights/inventory/hosts
         query: >-
           SELECT
@@ -897,21 +852,10 @@ parameters:
   value: 100m
 - name: CPU_REQUEST_FLOO
   value: 50m
-- name: FLOORIST_SCHEDULE
-  description: Cronjob schedule definition
-  required: true
-  value: '@daily'
 - name: FLOORIST_SUSPEND
   description: Disable Floorist cronjob execution
   required: true
   value: 'true'
-- description: Floorist image name
-  name: FLOORIST_IMAGE
-  value: quay.io/cloudservices/floorist
-- description: Floorist Image tag
-  name: FLOORIST_IMAGE_TAG
-  required: true
-  value: latest
 - description: bucket secret name
   name: FLOORIST_BUCKET_SECRET_NAME
   required: true
@@ -922,3 +866,6 @@ parameters:
 - name: FLOORIST_DISABLED
   description: Determines whether to build the Floorist Job.
   value: 'false'
+- name: FLOORIST_DB_SECRET_NAME
+  description: database secret name
+  value: host-inventory-db
