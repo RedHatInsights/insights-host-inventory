@@ -116,13 +116,13 @@ parameters:
 - name: IQE_PLUGINS
   value: hms_integration
 - name: IQE_MARKER_EXPRESSION
-  value: ''
+  value: 'host_inventory'
 - name: IQE_FILTER_EXPRESSION
   value: ''
 - name: IQE_LOG_LEVEL
   value: info
 - name: IQE_REQUIREMENTS
-  value: 'HMS_INTEGRATION-CONVERSION-EXPERIENCE'
+  value: ''
 - name: IQE_REQUIREMENTS_PRIORITY
   value: ''
 - name: IQE_TEST_IMPORTANCE
