@@ -1,5 +1,6 @@
 from confluent_kafka.error import ProduceError
 
+from app.auth.identity import create_mock_identity_with_org_id
 from app.culling import Timestamps
 from app.logging import get_logger
 from app.models import Host
@@ -25,7 +26,8 @@ def synchronize_hosts(select_query, event_producer, chunk_size, config, interrup
             if host.groups is None:
                 host.groups = []
 
-            serialized_host = serialize_host(host, Timestamps.from_config(config))
+            identity = create_mock_identity_with_org_id(host.org_id)
+            serialized_host = serialize_host(host, Timestamps.from_config(config), identity=identity)
             event = build_event(EventType.updated, serialized_host)
             insights_id = host.canonical_facts.get("insights_id")
             headers = message_headers(EventType.updated, insights_id)
