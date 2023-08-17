@@ -1156,13 +1156,11 @@ components:
             - fresh
             - stale
             - stale_warning
-            - unknown
         default:
           - fresh
           - stale
           - stale_warning
-          - unknown
-      description: "Culling states of the hosts. Default: fresh,stale,unknown"
+      description: "Culling states of the hosts. Default: fresh,stale"
     stalenessNoDefaultsParam:
       name: staleness
       in: query
@@ -1175,7 +1173,6 @@ components:
             - fresh
             - stale
             - stale_warning
-            - unknown
       description: "Culling states of the hosts."
     tagsParam:
       name: tags
@@ -1663,19 +1660,16 @@ components:
             stale_timestamp:
               description: Timestamp from which the host is considered stale.
               type: string
-              format: date-time
               nullable: true
             stale_warning_timestamp:
               description: >-
                 Timestamp from which the host is considered too stale to be listed without an explicit
                 toggle.
               type: string
-              format: date-time
               nullable: true
             culled_timestamp:
               description: Timestamp from which the host is considered deleted.
               type: string
-              format: date-time
               nullable: true
             reporter:
               description: Reporting source of the host. Used when updating the stale_timestamp.
