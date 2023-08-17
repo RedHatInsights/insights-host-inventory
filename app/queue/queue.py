@@ -5,6 +5,7 @@ import uuid
 from copy import deepcopy
 from uuid import UUID
 
+from flask import g
 from marshmallow import fields
 from marshmallow import Schema
 from marshmallow import ValidationError
@@ -329,6 +330,14 @@ def event_loop(consumer, flask_app, event_producer, notification_event_producer,
                     metrics.ingress_message_handler_failure.inc()
                 else:
                     logger.debug("Message received")
+
+                    # There is a need to delete this global variable,
+                    # as it is not an API request, it will live forever
+                    # when setted once
+                    if "acc_st" in g:
+                        logger.debug("Cleaning account staleness data in g global variable")
+                        del g.acc_st
+
                     try:
                         handler(msg.value(), event_producer, notification_event_producer=notification_event_producer)
                         metrics.ingress_message_handler_success.inc()

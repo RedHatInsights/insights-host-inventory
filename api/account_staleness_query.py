@@ -1,7 +1,10 @@
+from datetime import datetime
+from datetime import timezone
+
+from flask import g
 from sqlalchemy.orm.exc import NoResultFound
 
 from app.auth import get_current_identity
-from app.culling import build_acc_staleness_sys_default
 from app.logging import get_logger
 from app.models import AccountStalenessCulling
 
@@ -9,7 +12,7 @@ from app.models import AccountStalenessCulling
 logger = get_logger(__name__)
 
 
-def get_account_staleness_db(rbac_filter=None):
+def get_account_staleness_db(rbac_filter=None, identity=None):
     # TODO: ESSNTL-5163
     if rbac_filter:
         pass
