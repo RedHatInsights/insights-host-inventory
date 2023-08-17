@@ -337,7 +337,7 @@ def build_tag_query_dict_tuple(tags):
 
 
 def owner_id_filter():
-    return ({"spf_owner_id": {"eq": get_current_identity().system["cn"]}},)
+    return {"spf_owner_id": {"eq": get_current_identity().system["cn"]}}
 
 
 def host_id_list_query_filter(host_id_list, rbac_filter):
@@ -360,7 +360,7 @@ def host_id_list_query_filter(host_id_list, rbac_filter):
 
     current_identity = get_current_identity()
     if current_identity.identity_type == IdentityType.SYSTEM:
-        all_filters += owner_id_filter()
+        all_filters.update(owner_id_filter())
 
     return all_filters
 
@@ -503,7 +503,7 @@ def query_filters(
 
     current_identity = get_current_identity()
     if current_identity.identity_type == IdentityType.SYSTEM:
-        query_filters += owner_id_filter()
+        query_filters += (owner_id_filter(),)
 
     logger.debug(query_filters)
     return query_filters
