@@ -37,20 +37,34 @@ class Timestamps(_WithConfig):
         return self._add_time(stale_timestamp, timedelta(seconds=culled_seconds))
 
 
-class Conditions(_WithConfig):
-    def __init__(self, config):
-        super().__init__(config)
+class Conditions:
+    def __init__(self, staleness, host_type):
         self.now = datetime.now(timezone.utc)
+        self.host_type = host_type
+
+        # Build this dictionary dynamically?
+        self.staleness_host_type = {
+            None: {
+                "stale": staleness["conventional_staleness_delta"],
+                "warning": staleness["conventional_stale_warning_delta"],
+                "culled": staleness["conventional_culling_delta"],
+            },
+            "edge": {
+                "stale": staleness["immutable_staleness_delta"],
+                "warning": staleness["immutable_stale_warning_delta"],
+                "culled": staleness["immutable_culling_delta"],
+            },
+        }
 
     @staticmethod
     def _sub_time(timestamp, delta):
         return timestamp - delta
 
     def fresh(self):
-        return self.now, None
+        return self._stale_timestamp(), None
 
     def stale(self):
-        return self._stale_warning_timestamp(), self.now
+        return self._stale_warning_timestamp(), self._stale_timestamp()
 
     def stale_warning(self):
         return self._culled_timestamp(), self._stale_warning_timestamp()
