@@ -3,8 +3,6 @@ from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
 
-from app import inventory_config
-
 __all__ = ("Conditions", "staleness_to_conditions", "Timestamps")
 
 
@@ -29,30 +27,50 @@ class Timestamps(_WithConfig):
     def _add_time(timestamp, delta):
         return timestamp + delta
 
-    def stale_timestamp(self, stale_timestamp):
-        return self._add_time(stale_timestamp, timedelta(days=0))
+    def stale_timestamp(self, stale_timestamp, stale_seconds):
+        if isinstance(stale_seconds, str):
+            return "never"
+        return self._add_time(stale_timestamp, timedelta(seconds=stale_seconds))
 
-    def stale_warning_timestamp(self, stale_timestamp):
-        return self._add_time(stale_timestamp, self.config.stale_warning_offset_delta)
+    def stale_warning_timestamp(self, stale_timestamp, stale_warning_seconds):
+        if isinstance(stale_warning_seconds, str):
+            return "never"
+        return self._add_time(stale_timestamp, timedelta(seconds=stale_warning_seconds))
 
-    def culled_timestamp(self, stale_timestamp):
-        return self._add_time(stale_timestamp, self.config.culled_offset_delta)
+    def culled_timestamp(self, stale_timestamp, culled_seconds):
+        if isinstance(culled_seconds, str):
+            return "never"
+        return self._add_time(stale_timestamp, timedelta(seconds=culled_seconds))
 
 
-class Conditions(_WithConfig):
-    def __init__(self, config):
-        super().__init__(config)
+class Conditions:
+    def __init__(self, staleness, host_type):
         self.now = datetime.now(timezone.utc)
+        self.host_type = host_type
+
+        # Build this dictionary dynamically?
+        self.staleness_host_type = {
+            None: {
+                "stale": staleness["conventional_staleness_delta"],
+                "warning": staleness["conventional_stale_warning_delta"],
+                "culled": staleness["conventional_culling_delta"],
+            },
+            "edge": {
+                "stale": staleness["immutable_staleness_delta"],
+                "warning": staleness["immutable_stale_warning_delta"],
+                "culled": staleness["immutable_culling_delta"],
+            },
+        }
 
     @staticmethod
     def _sub_time(timestamp, delta):
         return timestamp - delta
 
     def fresh(self):
-        return self.now, None
+        return self._stale_timestamp(), None
 
     def stale(self):
-        return self._stale_warning_timestamp(), self.now
+        return self._stale_warning_timestamp(), self._stale_timestamp()
 
     def stale_warning(self):
         return self._culled_timestamp(), self._stale_warning_timestamp()
@@ -60,41 +78,42 @@ class Conditions(_WithConfig):
     def culled(self):
         return None, self._culled_timestamp()
 
+    def not_culled(self):
+        return self._culled_timestamp(), None
+
+    def _stale_timestamp(self):
+        if _never_stale(self.staleness_host_type[self.host_type]["stale"]):
+            return None
+        else:
+            offset = timedelta(seconds=self.staleness_host_type[self.host_type]["stale"])
+            return self.now - offset
+
     def _stale_warning_timestamp(self):
-        offset = self.config.stale_warning_offset_delta
-        return self.now - offset
+        if _never_stale(self.staleness_host_type[self.host_type]["warning"]):
+            return None
+        else:
+            offset = timedelta(seconds=self.staleness_host_type[self.host_type]["warning"])
+            return self.now - offset
 
     def _culled_timestamp(self):
-        offset = self.config.culled_offset_delta
-        return self.now - offset
+        if _never_stale(self.staleness_host_type[self.host_type]["culled"]):
+            return None
+        else:
+            offset = timedelta(seconds=self.staleness_host_type[self.host_type]["culled"])
+            return self.now - offset
 
 
-def staleness_to_conditions(config, staleness, timestamp_filter_func):
-    condition = Conditions.from_config(config)
-    filtered_states = (state for state in staleness if state not in ("unknown",))
-    return (timestamp_filter_func(*getattr(condition, state)()) for state in filtered_states)
+def _never_stale(staleness):
+    if staleness == "never":
+        return True
+    else:
+        return False
 
 
-class AttrDict(dict):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.__dict__ = self
-
-
-def build_acc_staleness_sys_default(org_id, account):
-    config = inventory_config()
-    return AttrDict(
-        {
-            "id": "system_default",
-            "account": account,
-            "org_id": org_id,
-            "conventional_staleness_delta": config.conventional_staleness_seconds,
-            "conventional_stale_warning_delta": config.conventional_stale_warning_seconds,
-            "conventional_culling_delta": config.conventional_culling_seconds,
-            "immutable_staleness_delta": config.immutable_staleness_seconds,
-            "immutable_stale_warning_delta": config.immutable_stale_warning_seconds,
-            "immutable_culling_delta": config.immutable_culling_seconds,
-            "created_at": datetime.now(timezone.utc),
-            "updated_at": datetime.now(timezone.utc),
-        }
-    )
+def staleness_to_conditions(staleness, staleness_states, host_type, timestamp_filter_func):
+    _filters = []
+    condition = Conditions(staleness, host_type)
+    filtered_states = (state for state in staleness_states if state not in ("unknown",))
+    for state in filtered_states:
+        _filters.append(timestamp_filter_func(*getattr(condition, state)(), host_type=host_type))
+    return _filters

@@ -5,11 +5,12 @@ from flask import current_app
 from flask import request
 from requests import post
 
+from api.account_staleness_query import get_account_staleness_db
 from api.metrics import outbound_http_response_time
 from app import IDENTITY_HEADER
-from app import inventory_config
 from app import REQUEST_ID_HEADER
 from app.culling import staleness_to_conditions
+from app.serialization import serialize_acc_staleness
 
 __all__ = (
     "graphql_query",
@@ -85,10 +86,12 @@ def params_to_order(param_order_by, param_order_how):
 
 
 def staleness_filter(staleness):
-    config = inventory_config()
-    staleness_conditions = tuple(staleness_to_conditions(config, staleness, _stale_timestamp_filter))
-    if "unknown" in staleness:
-        staleness_conditions += ({"stale_timestamp": {"eq": None}},)
+    acc_st = serialize_acc_staleness(get_account_staleness_db())
+    host_types = ["edge", None]
+    staleness_conditions = [
+        {"OR": tuple(staleness_to_conditions(acc_st, staleness, host_type, _stale_timestamp_filter))}
+        for host_type in host_types
+    ]
     return staleness_conditions
 
 
@@ -115,10 +118,10 @@ def _forwarded_headers():
     }
 
 
-def _stale_timestamp_filter(gt=None, lte=None):
+def _stale_timestamp_filter(gt=None, lte=None, host_type=None):
     filter_ = {}
     if gt:
         filter_["gt"] = gt.isoformat()
     if lte:
         filter_["lte"] = lte.isoformat()
-    return {"stale_timestamp": filter_}
+    return {"AND": ({"modified_on": filter_, "spf_host_type": {"eq": host_type}})}
