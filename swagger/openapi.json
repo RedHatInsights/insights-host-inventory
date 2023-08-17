@@ -1805,18 +1805,16 @@
             "enum": [
               "fresh",
               "stale",
-              "stale_warning",
-              "unknown"
+              "stale_warning"
             ]
           },
           "default": [
             "fresh",
             "stale",
-            "stale_warning",
-            "unknown"
+            "stale_warning"
           ]
         },
-        "description": "Culling states of the hosts. Default: fresh,stale,unknown"
+        "description": "Culling states of the hosts. Default: fresh,stale"
       },
       "stalenessNoDefaultsParam": {
         "name": "staleness",
@@ -1829,8 +1827,7 @@
             "enum": [
               "fresh",
               "stale",
-              "stale_warning",
-              "unknown"
+              "stale_warning"
             ]
           }
         },
@@ -2485,19 +2482,16 @@
               "stale_timestamp": {
                 "description": "Timestamp from which the host is considered stale.",
                 "type": "string",
-                "format": "date-time",
                 "nullable": true
               },
               "stale_warning_timestamp": {
                 "description": "Timestamp from which the host is considered too stale to be listed without an explicit toggle.",
                 "type": "string",
-                "format": "date-time",
                 "nullable": true
               },
               "culled_timestamp": {
                 "description": "Timestamp from which the host is considered deleted.",
                 "type": "string",
-                "format": "date-time",
                 "nullable": true
               },
               "reporter": {
