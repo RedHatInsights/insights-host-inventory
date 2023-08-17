@@ -361,17 +361,35 @@ def serialize_account_staleness_response(acc_st):
     }
 
 
-def serialize_acc_staleness(acc_st):
+def serialize_acc_staleness_response(acc_st):
     return {
         "id": _serialize_uuid(acc_st.id),
         "account": acc_st.account,
         "org_id": acc_st.org_id,
-        "conventional_staleness_delta": str(_seconds_to_days(int(acc_st.conventional_staleness_delta))),
-        "conventional_stale_warning_delta": str(_seconds_to_days(int(acc_st.conventional_stale_warning_delta))),
-        "conventional_culling_delta": str(_seconds_to_days(int(acc_st.conventional_culling_delta))),
-        "immutable_staleness_delta": str(_seconds_to_days(int(acc_st.immutable_staleness_delta))),
-        "immutable_stale_warning_delta": str(_seconds_to_days(int(acc_st.immutable_stale_warning_delta))),
-        "immutable_culling_delta": str(_seconds_to_days(int(acc_st.immutable_culling_delta))),
-        "created_at": _serialize_datetime(acc_st.created_at),
-        "updated_at": _serialize_datetime(acc_st.updated_at),
+        "conventional_staleness_delta": acc_st.conventional_staleness_delta,
+        "conventional_stale_warning_delta": acc_st.conventional_stale_warning_delta,
+        "conventional_culling_delta": acc_st.conventional_culling_delta,
+        "immutable_staleness_delta": acc_st.immutable_staleness_delta,
+        "immutable_stale_warning_delta": acc_st.immutable_stale_warning_delta,
+        "immutable_culling_delta": acc_st.immutable_culling_delta,
+        "created_at": _serialize_datetime(acc_st.created_on),
+        "updated_at": _serialize_datetime(acc_st.modified_on),
     }
+
+
+def serialize_acc_staleness(acc_st):
+    return {
+        "conventional_staleness_delta": _int_or_never(acc_st.conventional_staleness_delta),
+        "conventional_stale_warning_delta": _int_or_never(acc_st.conventional_stale_warning_delta),
+        "conventional_culling_delta": _int_or_never(acc_st.conventional_culling_delta),
+        "immutable_staleness_delta": _int_or_never(acc_st.immutable_staleness_delta),
+        "immutable_stale_warning_delta": _int_or_never(acc_st.immutable_stale_warning_delta),
+        "immutable_culling_delta": _int_or_never(acc_st.immutable_culling_delta),
+    }
+
+
+def _int_or_never(value):
+    if value == "never":
+        return value
+    else:
+        return int(value)
