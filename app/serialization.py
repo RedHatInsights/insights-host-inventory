@@ -5,6 +5,7 @@ from dateutil.parser import isoparse
 from flask import current_app
 from marshmallow import ValidationError
 
+from api.staleness_query import get_staleness_db
 from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
 from app.models import CanonicalFactsSchema
@@ -50,8 +51,6 @@ ADDITIONAL_HOST_MQ_FIELDS = (
     "tags",
     "system_profile",
 )
-
-MAX_INT = 2147483647
 
 
 def deserialize_host(raw_data, schema=HostSchema, system_profile_spec=None):
@@ -113,11 +112,17 @@ def deserialize_group_xjoin(data):
     return group
 
 
-def serialize_host(host, staleness_timestamps, for_mq=True, additional_fields=tuple()):
-    if host.stale_timestamp:
-        stale_timestamp = staleness_timestamps.stale_timestamp(host.stale_timestamp)
-        stale_warning_timestamp = staleness_timestamps.stale_warning_timestamp(host.stale_timestamp)
-        culled_timestamp = staleness_timestamps.culled_timestamp(host.stale_timestamp)
+def serialize_host(host, staleness_timestamps, for_mq=True, additional_fields=tuple(), identity=None):
+    # TODO: In future, this must handle groups staleness deltas
+
+    acc_st = serialize_acc_staleness(get_staleness_db(identity=identity))
+
+    if host.system_profile_facts.get("host_type") == "edge":
+        stale_timestamp = staleness_timestamps.stale_timestamp(host.modified_on, acc_st["immutable_staleness_delta"])
+        stale_warning_timestamp = staleness_timestamps.stale_warning_timestamp(
+            host.modified_on, acc_st["immutable_stale_warning_delta"]
+        )
+        culled_timestamp = staleness_timestamps.culled_timestamp(host.modified_on, acc_st["immutable_culling_delta"])
     else:
         stale_timestamp = None
         stale_warning_timestamp = None
@@ -355,4 +360,15 @@ def serialize_staleness_response(staleness):
         "immutable_culling_delta": staleness.immutable_culling_delta,
         "created": "N/A" if staleness.created_on == "N/A" else _serialize_datetime(staleness.created_on),
         "updated": "N/A" if staleness.modified_on == "N/A" else _serialize_datetime(staleness.modified_on),
+    }
+
+
+def serialize_acc_staleness(acc_st):
+    return {
+        "conventional_staleness_delta": acc_st.conventional_staleness_delta,
+        "conventional_stale_warning_delta": acc_st.conventional_stale_warning_delta,
+        "conventional_culling_delta": acc_st.conventional_culling_delta,
+        "immutable_staleness_delta": acc_st.immutable_staleness_delta,
+        "immutable_stale_warning_delta": acc_st.immutable_stale_warning_delta,
+        "immutable_culling_delta": acc_st.immutable_culling_delta,
     }
