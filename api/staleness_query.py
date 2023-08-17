@@ -1,7 +1,6 @@
 from flask import g
 from sqlalchemy.orm.exc import NoResultFound
 
-from app import inventory_config
 from app.auth import get_current_identity
 from app.logging import get_logger
 from app.models import Staleness
@@ -37,7 +36,7 @@ def get_staleness_db(rbac_filter=None, identity=None):
             g.acc_st = _build_serialized_acc_staleness_obj(acc_st)
         except NoResultFound:
             logger.info(f"No data found for user {org_id}, using system default values")
-            acc_st = _build_acc_staleness_sys_default(org_id)
+            acc_st = _build_staleness_sys_default(org_id)
             logger.debug("Setting account staleness data to global request context")
             g.acc_st = acc_st
             return g.acc_st
@@ -46,12 +45,14 @@ def get_staleness_db(rbac_filter=None, identity=None):
 
 
 def get_sys_default_staleness():
-    org_id = get_current_identity().org_id
-    acc_st = _build_acc_staleness_sys_default(org_id)
+    org_id = "system_default"
+    acc_st = _build_staleness_sys_default(org_id)
     return acc_st
 
 
-def _build_acc_staleness_sys_default(org_id):
+def _build_staleness_sys_default(org_id):
+    from app import inventory_config
+
     config = inventory_config()
     return AttrDict(
         {
