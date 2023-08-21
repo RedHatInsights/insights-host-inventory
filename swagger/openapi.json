@@ -1218,6 +1218,9 @@
     },
     "/system_profile/validate_schema": {
       "post": {
+        "tags": [
+          "system_profile"
+        ],
         "summary": "validate system profile schema",
         "description": "Validates System Profile data from recent Kafka messages against a given spec, and compares it with the current one. Only HBI Admins can access this endpoint.",
         "operationId": "api.system_profile.validate_schema",
@@ -1409,7 +1412,7 @@
       "get": {
         "operationId": "api.assignment_rule.get_assignment_rules_list",
         "tags": [
-          "assignment-rules"
+          "groups"
         ],
         "summary": "Read the entire list of assignment-rules [Not Implemented]",
         "description": "Read the entire list of all assignment-rules available to the account. [Not Implemented] Required permissions: inventory:groups:read",
@@ -1450,6 +1453,9 @@
       },
       "post": {
         "operationId": "api.assignment_rule.create_assignment_rule",
+        "tags": [
+          "groups"
+        ],
         "summary": "Create Assignment Rule object",
         "description": "Create Assignment Rule object using post request <br /><br /> Required permissions: inventory:groups:write",
         "security": [

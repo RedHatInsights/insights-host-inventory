@@ -710,6 +710,8 @@ paths:
 
   /system_profile/validate_schema:
     post:
+      tags:
+        - system_profile
       summary: validate system profile schema
       description: >-
         Validates System Profile data from recent Kafka messages against a given spec,
@@ -839,7 +841,7 @@ paths:
     get:
       operationId: api.assignment_rule.get_assignment_rules_list
       tags:
-        - assignment-rules
+        - groups
       summary: Read the entire list of assignment-rules [Not Implemented]
       description: >-
         Read the entire list of all assignment-rules available to the account. [Not Implemented]
@@ -861,6 +863,8 @@ paths:
                 $ref: '#/components/schemas/AssignmentRuleQueryOutput'
     post:
       operationId: api.assignment_rule.create_assignment_rule
+      tags:
+        - groups
       summary: Create Assignment Rule object
       description: >-
         Create Assignment Rule object using post request
