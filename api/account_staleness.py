@@ -6,7 +6,6 @@ from api import api_operation
 from api import flask_json_response
 from api import json_error_response
 from api import metrics
-from app import InventoryException
 from app import RbacPermission
 from app import RbacResourceType
 from app.instrumentation import log_create_account_staleness_failed
@@ -52,7 +51,7 @@ def create_staleness(body):
     try:
         validated_data = InputAccountStalenessSchema().load(body)
     except ValidationError as e:
-        logger.exception(f"Input validation error while creating account staleness: {body}")
+        logger.exception(f'Input validation error, "{str(e.messages)}", while creating account staleness: {body}')
         return json_error_response("Validation Error", str(e.messages), status.HTTP_400_BAD_REQUEST)
 
     try:
@@ -61,17 +60,11 @@ def create_staleness(body):
 
         log_create_account_staleness_succeeded(logger, created_staleness.id)
     except IntegrityError:
-        org_id = validated_data.get("org_id")
+        error_message = f'An account staleness with org_id {validated_data.get("org_id")} already exists.'
 
-        error_message = f"A account staleness with org_id {org_id} already exists."
-
-        log_create_account_staleness_failed(logger, org_id)
+        log_create_account_staleness_failed(logger, validated_data.get("org_id"))
         logger.exception(error_message)
         return json_error_response("Integrity error", error_message, status.HTTP_400_BAD_REQUEST)
-
-    except InventoryException as inve:
-        logger.exception(inve.detail)
-        return json_error_response(inve.title, inve.detail, status.HTTP_400_BAD_REQUEST)
 
     return flask_json_response(serialize_account_staleness(created_staleness), status.HTTP_201_CREATED)
 

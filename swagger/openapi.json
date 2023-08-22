@@ -1313,9 +1313,6 @@
         "security": [
           {
             "ApiKeyAuth": []
-          },
-          {
-            "BearerAuth": []
           }
         ],
         "requestBody": {
@@ -3039,27 +3036,27 @@
         "allOf": [
           {
             "properties": {
-              "system_staleness_delta": {
+              "conventional_staleness_delta": {
                 "type": "string",
                 "maxLength": 36
               },
-              "system_stale_warning_delta": {
+              "conventional_stale_warning_delta": {
                 "type": "string",
                 "maxLength": 36
               },
-              "system_culling_delta": {
+              "conventional_culling_delta": {
                 "type": "string",
                 "maxLength": 36
               },
-              "edge_staleness_delta": {
+              "immutable_staleness_delta": {
                 "type": "string",
                 "maxLength": 36
               },
-              "edge_stale_warning_delta": {
+              "immutable_stale_warning_delta": {
                 "type": "string",
                 "maxLength": 36
               },
-              "edge_culling_delta": {
+              "immutable_culling_delta": {
                 "type": "string",
                 "maxLength": 36
               }

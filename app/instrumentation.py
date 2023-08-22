@@ -315,4 +315,4 @@ def log_create_account_staleness_succeeded(logger, staleness_id):
 
 
 def log_create_account_staleness_failed(logger, org_id):
-    logger.info("Created account staleness Failed with org_id %s", org_id)
+    logger.info("Failed to create staleness for account with org_id %s", org_id)

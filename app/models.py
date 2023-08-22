@@ -533,7 +533,10 @@ class AssignmentRule(db.Model):
 
 class AccountStalenessCulling(db.Model):
     __tablename__ = "account_staleness_culling"
-    __tableargs__ = (Index("idxaccstaleorgid", "org_id"),)
+    __table_args__ = (
+        Index("idxaccstaleorgid", "org_id"),
+        UniqueConstraint("org_id", name="account_staleness_culling_unique_org_id"),
+    )
 
     def __init__(
         self,
@@ -847,12 +850,12 @@ class InputAssignmentRule(MarshmallowSchema):
 
 
 class InputAccountStalenessSchema(MarshmallowSchema):
-    system_staleness_delta = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=36))
-    system_stale_warning_delta = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=36))
-    system_culling_delta = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=36))
-    edge_staleness_delta = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=36))
-    edge_stale_warning_delta = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=36))
-    edge_culling_delta = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=36))
+    conventional_staleness_delta = fields.Str(validate=marshmallow_validate.Length(min=1, max=36))
+    conventional_stale_warning_delta = fields.Str(validate=marshmallow_validate.Length(min=1, max=36))
+    conventional_culling_delta = fields.Str(validate=marshmallow_validate.Length(min=1, max=36))
+    immutable_staleness_delta = fields.Str(validate=marshmallow_validate.Length(min=1, max=36))
+    immutable_stale_warning_delta = fields.Str(validate=marshmallow_validate.Length(min=1, max=36))
+    immutable_culling_delta = fields.Str(validate=marshmallow_validate.Length(min=1, max=36))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
