@@ -6,6 +6,7 @@ from sqlalchemy import not_
 from sqlalchemy import or_
 
 from app import inventory_config
+from app import RbacResourceType
 from app.auth import get_current_identity
 from app.auth.identity import IdentityType
 from app.culling import staleness_to_conditions
@@ -17,6 +18,7 @@ from app.models import HostGroupAssoc
 from app.serialization import serialize_host
 from lib import metrics
 from lib.db import session_guard
+from lib.middleware import RbacFilter
 
 
 __all__ = (
@@ -281,15 +283,15 @@ def update_system_profile(input_host, identity, staleness_offset):
             )
 
 
-def get_host_list_by_id_list_from_db(host_id_list, rbac_filter=None):
+def get_host_list_by_id_list_from_db(host_id_list, rbac_filter: RbacFilter = None):
     current_identity = get_current_identity()
     filters = (
         Host.org_id == current_identity.org_id,
         Host.id.in_(host_id_list),
     )
-    if rbac_filter and "groups" in rbac_filter:
-        rbac_group_filters = (HostGroupAssoc.group_id.in_(rbac_filter["groups"]),)
-        if None in rbac_filter["groups"]:
+    if rbac_filter and rbac_filter.filter_by.resource == RbacResourceType.GROUPS:
+        rbac_group_filters = (HostGroupAssoc.group_id.in_(rbac_filter.filter_by.id_set),)
+        if None in rbac_filter.filter_by.id_set:
             rbac_group_filters += (HostGroupAssoc.group_id.is_(None),)
 
         filters += (or_(*rbac_group_filters),)

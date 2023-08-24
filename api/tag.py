@@ -16,6 +16,7 @@ from app.xjoin import graphql_query
 from app.xjoin import pagination_params
 from app.xjoin import staleness_filter
 from lib.middleware import rbac
+from lib.middleware import RbacFilter
 
 
 logger = get_logger(__name__)
@@ -73,7 +74,7 @@ def get_tags(
     staleness=None,
     registered_with=None,
     filter=None,
-    rbac_filter=None,
+    rbac_filter: RbacFilter = None,
 ):
     limit, offset = pagination_params(page, per_page)
 

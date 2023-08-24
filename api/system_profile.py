@@ -26,6 +26,7 @@ from app.xjoin import graphql_query
 from app.xjoin import pagination_params
 from app.xjoin import staleness_filter
 from lib.middleware import rbac
+from lib.middleware import RbacFilter
 from lib.system_profile_validate import validate_sp_for_branch
 
 logger = get_logger(__name__)
@@ -119,7 +120,13 @@ OPERATING_SYSTEM_QUERY = """
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_sap_system(
-    tags=None, page=None, per_page=None, staleness=None, registered_with=None, filter=None, rbac_filter=None
+    tags=None,
+    page=None,
+    per_page=None,
+    staleness=None,
+    registered_with=None,
+    filter=None,
+    rbac_filter: RbacFilter = None,
 ):
     limit, offset = pagination_params(page, per_page)
 
@@ -160,7 +167,7 @@ def get_sap_sids(
     staleness=None,
     registered_with=None,
     filter=None,
-    rbac_filter=None,
+    rbac_filter: RbacFilter = None,
 ):
     limit, offset = pagination_params(page, per_page)
 
@@ -208,7 +215,7 @@ def get_operating_system(
     staleness: Optional[str] = None,
     registered_with: Optional[str] = None,
     filter=None,
-    rbac_filter=None,
+    rbac_filter: RbacFilter = None,
 ):
     limit, offset = pagination_params(page, per_page)
 
@@ -246,7 +253,9 @@ def get_operating_system(
 @api_operation
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.schema_validation_time.time()
-def validate_schema(repo_fork="RedHatInsights", repo_branch="master", days=1, max_messages=10000, rbac_filter=None):
+def validate_schema(
+    repo_fork="RedHatInsights", repo_branch="master", days=1, max_messages=10000, rbac_filter: RbacFilter = None
+):
     # Use the identity header to make sure the user is someone from our team.
     config = Config(RuntimeEnvironment.SERVICE)
     identity = get_current_identity()

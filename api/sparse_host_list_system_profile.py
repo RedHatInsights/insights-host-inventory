@@ -9,6 +9,7 @@ from app.xjoin import check_pagination
 from app.xjoin import graphql_query
 from app.xjoin import pagination_params
 from app.xjoin import params_to_order
+from lib.middleware import RbacFilter
 
 
 logger = get_logger(__name__)
@@ -67,7 +68,7 @@ SYSTEM_PROFILE_FULL_QUERY = """
 """
 
 
-def get_sparse_system_profile(host_id_list, page, per_page, order_by, order_how, fields, rbac_filter):
+def get_sparse_system_profile(host_id_list, page, per_page, order_by, order_how, fields, rbac_filter: RbacFilter):
     limit, offset = pagination_params(page, per_page)
 
     try:

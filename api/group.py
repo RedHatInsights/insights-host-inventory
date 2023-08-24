@@ -34,6 +34,7 @@ from lib.group_repository import remove_hosts_from_group
 from lib.metrics import create_group_count
 from lib.middleware import rbac
 from lib.middleware import rbac_group_id_check
+from lib.middleware import RbacFilter
 
 logger = get_logger(__name__)
 
@@ -47,7 +48,7 @@ def get_group_list(
     per_page=100,
     order_by=None,
     order_how=None,
-    rbac_filter=None,
+    rbac_filter: RbacFilter = None,
 ):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
@@ -66,7 +67,7 @@ def get_group_list(
 @api_operation
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def create_group(body, rbac_filter=None):
+def create_group(body, rbac_filter: RbacFilter = None):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
@@ -114,7 +115,7 @@ def create_group(body, rbac_filter=None):
 @api_operation
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def patch_group_by_id(group_id, body, rbac_filter=None):
+def patch_group_by_id(group_id, body, rbac_filter: RbacFilter = None):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
@@ -155,7 +156,7 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
 @api_operation
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def delete_groups(group_id_list, rbac_filter=None):
+def delete_groups(group_id_list, rbac_filter: RbacFilter = None):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
@@ -178,7 +179,7 @@ def get_groups_by_id(
     per_page=100,
     order_by=None,
     order_how=None,
-    rbac_filter=None,
+    rbac_filter: RbacFilter = None,
 ):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
@@ -201,7 +202,7 @@ def get_groups_by_id(
 @api_operation
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def delete_hosts_from_group(group_id, host_id_list, rbac_filter=None):
+def delete_hosts_from_group(group_id, host_id_list, rbac_filter: RbacFilter = None):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 

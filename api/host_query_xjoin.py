@@ -9,6 +9,7 @@ from app.xjoin import check_pagination
 from app.xjoin import graphql_query
 from app.xjoin import pagination_params
 from app.xjoin import params_to_order
+from lib.middleware import RbacFilter
 
 __all__ = ("get_host_list", "get_host_ids_list", "query_filters")
 
@@ -216,14 +217,16 @@ def get_host_list(
 
 
 def get_host_list_by_id_list(
-    host_id_list, page, per_page, param_order_by, param_order_how, fields=None, rbac_filter=None
+    host_id_list, page, per_page, param_order_by, param_order_how, fields=None, rbac_filter: RbacFilter = None
 ):
     all_filters = host_id_list_query_filter(host_id_list, rbac_filter)
 
     return get_host_list_using_filters(all_filters, page, per_page, param_order_by, param_order_how, fields)
 
 
-def get_host_tags_list_by_id_list(host_id_list, page, per_page, param_order_by, param_order_how, rbac_filter):
+def get_host_tags_list_by_id_list(
+    host_id_list, page, per_page, param_order_by, param_order_how, rbac_filter: RbacFilter
+):
     all_filters = host_id_list_query_filter(host_id_list, rbac_filter)
 
     return get_host_tags_list_using_filters(all_filters, page, per_page, param_order_by, param_order_how)

@@ -19,6 +19,7 @@ from app.serialization import serialize_group
 from lib.feature_flags import FLAG_INVENTORY_GROUPS
 from lib.feature_flags import get_flag_value
 from lib.middleware import rbac
+from lib.middleware import RbacFilter
 
 logger = get_logger(__name__)
 
@@ -54,7 +55,7 @@ def get_resource_type_groups_list(
     per_page=100,
     order_by=None,
     order_how=None,
-    rbac_filter=None,
+    rbac_filter: RbacFilter = None,
 ):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)

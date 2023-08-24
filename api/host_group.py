@@ -20,6 +20,7 @@ from lib.group_repository import remove_hosts_from_group
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.middleware import rbac
 from lib.middleware import rbac_group_id_check
+from lib.middleware import RbacFilter
 
 logger = get_logger(__name__)
 
@@ -27,7 +28,7 @@ logger = get_logger(__name__)
 @api_operation
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def add_host_list_to_group(group_id, body, rbac_filter=None):
+def add_host_list_to_group(group_id, body, rbac_filter: RbacFilter = None):
     if type(body) is not list:
         return abort(status.HTTP_400_BAD_REQUEST, f"Body content must be an array with groups UUIDs, not {type(body)}")
 
@@ -63,7 +64,7 @@ def add_host_list_to_group(group_id, body, rbac_filter=None):
 @api_operation
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def delete_hosts_from_group(group_id, host_id_list, rbac_filter=None):
+def delete_hosts_from_group(group_id, host_id_list, rbac_filter: RbacFilter = None):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 

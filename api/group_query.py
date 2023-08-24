@@ -3,11 +3,13 @@ from sqlalchemy import desc
 from sqlalchemy import func
 
 from app import db
+from app import RbacResourceType
 from app.auth import get_current_identity
 from app.logging import get_logger
 from app.models import Group
 from app.models import HostGroupAssoc
 from app.serialization import serialize_group
+from lib.middleware import RbacFilter
 
 
 logger = get_logger(__name__)
@@ -57,10 +59,10 @@ __all__ = (
 )
 
 
-def get_group_list_from_db(filters, page, per_page, param_order_by, param_order_how, rbac_filter):
+def get_group_list_from_db(filters, page, per_page, param_order_by, param_order_how, rbac_filter: RbacFilter):
     # Apply RBAC group ID filter, if provided
-    if rbac_filter and "groups" in rbac_filter:
-        filters += (Group.id.in_(rbac_filter["groups"]),)
+    if rbac_filter and rbac_filter.filter_by.resource == RbacResourceType.GROUPS:
+        filters += (Group.id.in_(rbac_filter.filter_by.id_set),)
 
     order_by_str = param_order_by or "name"
     order_by = GROUPS_ORDER_BY_MAPPING[order_by_str]
@@ -92,7 +94,7 @@ def get_total_group_count_db():
     return Group.query.filter(Group.org_id == get_current_identity().org_id).count()
 
 
-def get_group_list_by_id_list_db(group_id_list, page, per_page, order_by, order_how, rbac_filter):
+def get_group_list_by_id_list_db(group_id_list, page, per_page, order_by, order_how, rbac_filter: RbacFilter):
     filters = (
         Group.org_id == get_current_identity().org_id,
         Group.id.in_(group_id_list),
@@ -100,7 +102,7 @@ def get_group_list_by_id_list_db(group_id_list, page, per_page, order_by, order_
     return get_group_list_from_db(filters, page, per_page, order_by, order_how, rbac_filter)
 
 
-def get_filtered_group_list_db(group_name, page, per_page, order_by, order_how, rbac_filter):
+def get_filtered_group_list_db(group_name, page, per_page, order_by, order_how, rbac_filter: RbacFilter):
     filters = (Group.org_id == get_current_identity().org_id,)
     if group_name:
         filters += (func.lower(Group.name).contains(func.lower(group_name)),)

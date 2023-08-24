@@ -14,6 +14,7 @@ from api.filtering.filtering_common import lookup_operations
 from api.filtering.filtering_common import SUPPORTED_FORMATS
 from app import custom_filter_fields
 from app import inventory_config
+from app import RbacResourceType
 from app import system_profile_spec
 from app.auth import get_current_identity
 from app.auth.identity import IdentityType
@@ -24,6 +25,7 @@ from app.validators import is_custom_date as is_timestamp
 from app.xjoin import staleness_filter
 from app.xjoin import string_contains_lc
 from app.xjoin import string_exact_lc
+from lib.middleware import RbacFilter
 
 logger = get_logger(__name__)
 
@@ -338,7 +340,7 @@ def owner_id_filter():
     return ({"spf_owner_id": {"eq": get_current_identity().system["cn"]}},)
 
 
-def host_id_list_query_filter(host_id_list, rbac_filter):
+def host_id_list_query_filter(host_id_list, rbac_filter: RbacFilter):
     all_filters = (
         {
             "stale_timestamp": {
@@ -354,9 +356,8 @@ def host_id_list_query_filter(host_id_list, rbac_filter):
     )
 
     if rbac_filter:
-        for key in rbac_filter:
-            if key == "groups":
-                all_filters += _group_id_list_query_filter(rbac_filter["groups"])
+        if rbac_filter.filter_by.resource == RbacResourceType.GROUPS:
+            all_filters += _group_id_list_query_filter(rbac_filter.filter_by.id_set)
 
     current_identity = get_current_identity()
     if current_identity.identity_type == IdentityType.SYSTEM:
@@ -428,7 +429,7 @@ def query_filters(
     staleness=None,
     registered_with=None,
     filter=None,
-    rbac_filter=None,
+    rbac_filter: RbacFilter = None,
 ):
     num_ids = 0
     for id_param in [fqdn, display_name, hostname_or_id, insights_id]:
@@ -489,9 +490,8 @@ def query_filters(
                 raise ValidationException("filter key is invalid")
 
     if rbac_filter:
-        for key in rbac_filter:
-            if key == "groups":
-                query_filters += _group_id_list_query_filter(rbac_filter["groups"])
+        if rbac_filter.filter_by.resource == RbacResourceType.GROUPS:
+            query_filters += _group_id_list_query_filter(rbac_filter.filter_by.id_set)
 
     current_identity = get_current_identity()
     if current_identity.identity_type == IdentityType.SYSTEM:
