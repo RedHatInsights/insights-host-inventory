@@ -3033,7 +3033,7 @@
         "title": "Account Staleness In",
         "description": "Data of a single account staleness.",
         "type": "object",
-        "allOf": [
+        "anyOf": [
           {
             "properties": {
               "conventional_staleness_delta": {

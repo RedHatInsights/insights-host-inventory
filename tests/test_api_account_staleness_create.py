@@ -13,6 +13,11 @@ _INPUT_DATA = {
 }
 
 
+def _days_to_seconds(n_days):
+    factor = 86400
+    return str(n_days * factor)
+
+
 def test_create_staleness(api_create_account_staleness, db_get_account_staleness_culling):
     response_status, response_data = api_create_account_staleness(_INPUT_DATA)
     assert_response_status(response_status, 201)
@@ -28,6 +33,24 @@ def test_create_staleness(api_create_account_staleness, db_get_account_staleness
     assert saved_data.immutable_culling_delta == _INPUT_DATA["immutable_culling_delta"]
 
 
+def test_create_staleness_with_only_one_data(api_create_account_staleness, db_get_account_staleness_culling):
+    input_data = {
+        "conventional_staleness_delta": "1",
+    }
+    response_status, response_data = api_create_account_staleness(input_data)
+    assert_response_status(response_status, 201)
+
+    saved_org_id = response_data["org_id"]
+    saved_data = db_get_account_staleness_culling(saved_org_id)
+
+    assert saved_data.conventional_staleness_delta == input_data["conventional_staleness_delta"]
+    assert saved_data.conventional_stale_warning_delta == _days_to_seconds(7)
+    assert saved_data.conventional_culling_delta == _days_to_seconds(14)
+    assert saved_data.immutable_staleness_delta == _days_to_seconds(2)
+    assert saved_data.immutable_stale_warning_delta == _days_to_seconds(120)
+    assert saved_data.immutable_culling_delta == _days_to_seconds(180)
+
+
 def test_create_same_staleness(api_create_account_staleness):
     response_status, response_data = api_create_account_staleness(_INPUT_DATA)
     assert_response_status(response_status, 201)
@@ -36,9 +59,9 @@ def test_create_same_staleness(api_create_account_staleness):
     assert_response_status(response_status, 400)
 
 
-def test_create_staleness_with_missing_input(api_create_account_staleness):
+def test_create_staleness_with_wrong_input(api_create_account_staleness):
     input_data = {
-        "test_conventional_staleness_delta": "1",
+        "test_wrong_payload_data": "1",
     }
     response_status, response_data = api_create_account_staleness(input_data)
     assert_response_status(response_status, 400)

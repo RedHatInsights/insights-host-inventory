@@ -2000,7 +2000,7 @@ components:
       description: >-
         Data of a single account staleness.
       type: object
-      allOf:
+      anyOf:
         - properties:
             conventional_staleness_delta:
               type: string
