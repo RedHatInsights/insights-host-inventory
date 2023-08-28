@@ -627,7 +627,7 @@ objects:
           requests:
             cpu: ${CPU_REQUEST}
             memory: ${MEMORY_REQUEST_SYNC}
-    - name: just_host_synchronizer
+    - name: just-host-synchronizer
       podSpec:
         image: quay.io/cloudservices/insights-inventory:9a42b66
         restartPolicy: OnFailure
