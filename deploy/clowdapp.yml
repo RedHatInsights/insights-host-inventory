@@ -629,7 +629,7 @@ objects:
             memory: ${MEMORY_REQUEST_SYNC}
     - name: just-host-synchronizer
       podSpec:
-        image: quay.io/cloudservices/insights-inventory:9a42b66
+        image: quay.io/cloudservices/insights-inventory:bca5615
         restartPolicy: OnFailure
         command:
           - /bin/sh
