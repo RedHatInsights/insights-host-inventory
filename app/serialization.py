@@ -327,7 +327,7 @@ def _serialize_tags(tags):
     return [tag.data() for tag in Tag.create_tags_from_nested(tags)]
 
 
-def serialize_account_staleness(account_staleness):
+def serialize_account_staleness_response(account_staleness):
     return {
         "id": _serialize_uuid(account_staleness.id),
         "org_id": account_staleness.org_id,

@@ -12,7 +12,7 @@ from app.instrumentation import log_create_account_staleness_failed
 from app.instrumentation import log_create_account_staleness_succeeded
 from app.logging import get_logger
 from app.models import InputAccountStalenessSchema
-from app.serialization import serialize_account_staleness
+from app.serialization import serialize_account_staleness_response
 from lib.account_staleness import add_account_staleness
 from lib.middleware import rbac
 
@@ -66,7 +66,7 @@ def create_staleness(body):
         logger.exception(error_message)
         return json_error_response("Integrity error", error_message, status.HTTP_400_BAD_REQUEST)
 
-    return flask_json_response(serialize_account_staleness(created_staleness), status.HTTP_201_CREATED)
+    return flask_json_response(serialize_account_staleness_response(created_staleness), status.HTTP_201_CREATED)
 
 
 @api_operation
