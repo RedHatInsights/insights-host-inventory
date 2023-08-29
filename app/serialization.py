@@ -329,3 +329,19 @@ def _deserialize_tags_dict(tags):
 
 def _serialize_tags(tags):
     return [tag.data() for tag in Tag.create_tags_from_nested(tags)]
+
+
+def serialize_account_staleness_response(account_staleness):
+    return {
+        "id": _serialize_uuid(account_staleness.id),
+        "org_id": account_staleness.org_id,
+        "account": account_staleness.account,
+        "conventional_staleness_delta": account_staleness.conventional_staleness_delta,
+        "conventional_stale_warning_delta": account_staleness.conventional_stale_warning_delta,
+        "conventional_culling_delta": account_staleness.conventional_culling_delta,
+        "immutable_staleness_delta": account_staleness.immutable_staleness_delta,
+        "immutable_stale_warning_delta": account_staleness.immutable_stale_warning_delta,
+        "immutable_culling_delta": account_staleness.immutable_culling_delta,
+        "created": _serialize_datetime(account_staleness.created_on),
+        "updated": _serialize_datetime(account_staleness.modified_on),
+    }

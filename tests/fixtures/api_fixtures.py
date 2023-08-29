@@ -5,6 +5,7 @@ from tests.helpers.api_utils import do_request
 from tests.helpers.api_utils import GROUP_URL
 from tests.helpers.api_utils import HOST_URL
 from tests.helpers.api_utils import MockUserIdentity
+from tests.helpers.api_utils import STALENESS_URL
 from tests.helpers.test_utils import USER_IDENTITY
 
 
@@ -169,3 +170,13 @@ def user_identity_mock(flask_app):
     flask_app.user_identity = MockUserIdentity()
     yield flask_app.user_identity
     # flask_app.user_identity = None
+
+
+@pytest.fixture(scope="function")
+def api_create_account_staleness(flask_client):
+    def _api_create_account_staleness(
+        staleness_data, identity=USER_IDENTITY, query_parameters=None, extra_headers=None
+    ):
+        return do_request(flask_client.post, STALENESS_URL, identity, staleness_data, query_parameters, extra_headers)
+
+    return _api_create_account_staleness

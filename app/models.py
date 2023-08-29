@@ -533,7 +533,10 @@ class AssignmentRule(db.Model):
 
 class AccountStalenessCulling(db.Model):
     __tablename__ = "account_staleness_culling"
-    __tableargs__ = (Index("idxaccstaleorgid", "org_id"),)
+    __table_args__ = (
+        Index("idxaccstaleorgid", "org_id"),
+        UniqueConstraint("org_id", name="account_staleness_culling_unique_org_id"),
+    )
 
     def __init__(
         self,
@@ -841,6 +844,18 @@ class InputAssignmentRule(MarshmallowSchema):
     group_id = fields.Str(required=True, validate=verify_uuid_format)
     filter = fields.Dict(required=True)
     enabled = fields.Bool()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
+class InputAccountStalenessSchema(MarshmallowSchema):
+    conventional_staleness_delta = fields.Str(validate=marshmallow_validate.Length(min=1, max=36))
+    conventional_stale_warning_delta = fields.Str(validate=marshmallow_validate.Length(min=1, max=36))
+    conventional_culling_delta = fields.Str(validate=marshmallow_validate.Length(min=1, max=36))
+    immutable_staleness_delta = fields.Str(validate=marshmallow_validate.Length(min=1, max=36))
+    immutable_stale_warning_delta = fields.Str(validate=marshmallow_validate.Length(min=1, max=36))
+    immutable_culling_delta = fields.Str(validate=marshmallow_validate.Length(min=1, max=36))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
