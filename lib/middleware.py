@@ -1,5 +1,6 @@
 from functools import partial
 from functools import wraps
+from typing import Dict
 from typing import List
 from typing import Set
 from typing import Tuple
@@ -54,7 +55,7 @@ class RbacFilter:
         resource: RbacResourceType = RbacResourceType.HOSTS,
         permission: RbacPermission = RbacPermission.READ,
         filter_by: RbacIdFilter = None,
-        other_permissions: dict = {},
+        other_permissions: Dict[str, RbacIdFilter] = {},
     ) -> None:
         # The resource and permission this filter applies to (e.g. hosts:read)
         self.resource = resource
