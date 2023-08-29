@@ -76,7 +76,7 @@ def deserialize_canonical_facts(raw_data, all=False):
     return _deserialize_canonical_facts(validated_data)
 
 
-def deserialize_host_xjoin(data):
+def deserialize_host_xjoin(data, rbac_filter=None):
     host = Host(
         canonical_facts=data["canonical_facts"],
         display_name=data["display_name"],
@@ -109,7 +109,7 @@ def deserialize_group_xjoin(data):
     return group
 
 
-def serialize_host(host, staleness_timestamps, for_mq=True, additional_fields=tuple()):
+def serialize_host(host, staleness_timestamps, for_mq=True, additional_fields=tuple(), allowed_group_ids=None):
     if host.stale_timestamp:
         stale_timestamp = staleness_timestamps.stale_timestamp(host.stale_timestamp)
         stale_warning_timestamp = staleness_timestamps.stale_warning_timestamp(host.stale_timestamp)
@@ -164,7 +164,11 @@ def serialize_host(host, staleness_timestamps, for_mq=True, additional_fields=tu
                 {key: group[key] for key in group if key in ["name", "id"]} for group in host.groups
             ]
         else:
-            serialized_host["groups"] = host.groups or []
+            # If allowed_group_ids is provided, we need to limit which groups are displayed.
+            if allowed_group_ids:
+                serialized_host["groups"] = [g for g in host.groups if g["id"] in allowed_group_ids] or []
+            else:
+                serialized_host["groups"] = host.groups or []
 
     return serialized_host
 

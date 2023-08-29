@@ -126,7 +126,7 @@ def get_sap_system(
     staleness=None,
     registered_with=None,
     filter=None,
-    rbac_filter: RbacFilter = None,
+    rbac_filter: RbacFilter = RbacFilter(),
 ):
     limit, offset = pagination_params(page, per_page)
 
@@ -167,7 +167,7 @@ def get_sap_sids(
     staleness=None,
     registered_with=None,
     filter=None,
-    rbac_filter: RbacFilter = None,
+    rbac_filter: RbacFilter = RbacFilter(),
 ):
     limit, offset = pagination_params(page, per_page)
 
@@ -215,7 +215,7 @@ def get_operating_system(
     staleness: Optional[str] = None,
     registered_with: Optional[str] = None,
     filter=None,
-    rbac_filter: RbacFilter = None,
+    rbac_filter: RbacFilter = RbacFilter(),
 ):
     limit, offset = pagination_params(page, per_page)
 
@@ -254,7 +254,11 @@ def get_operating_system(
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.schema_validation_time.time()
 def validate_schema(
-    repo_fork="RedHatInsights", repo_branch="master", days=1, max_messages=10000, rbac_filter: RbacFilter = None
+    repo_fork="RedHatInsights",
+    repo_branch="master",
+    days=1,
+    max_messages=10000,
+    rbac_filter: RbacFilter = RbacFilter(),
 ):
     # Use the identity header to make sure the user is someone from our team.
     config = Config(RuntimeEnvironment.SERVICE)

@@ -27,10 +27,7 @@ logger = get_logger(__name__)
 @api_operation
 @rbac(RbacResourceType.ALL, RbacPermission.ADMIN, "rbac")
 @metrics.api_request_time.time()
-def get_resource_type_list(
-    page=1,
-    per_page=10,
-):
+def get_resource_type_list(page=1, per_page=10, rbac_filter: RbacFilter = RbacFilter()):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
@@ -55,7 +52,7 @@ def get_resource_type_groups_list(
     per_page=100,
     order_by=None,
     order_how=None,
-    rbac_filter: RbacFilter = None,
+    rbac_filter: RbacFilter = RbacFilter(),
 ):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)

@@ -476,7 +476,7 @@ def test_get_hosts_timestamp_invalid_value_graceful_rejection(patch_xjoin_post, 
     assert 400 == api_get(build_hosts_url(query="?filter[system_profile][last_boot_time][eq]=foo"))[0]
 
 
-def test_host_list_hidden_group_names(mocker, patch_xjoin_post, api_get):
+def test_host_list_hidden_group_names(mocker, enable_rbac, patch_xjoin_post, api_get):
     # Patch the xjoin response; it should get 2 hosts.
     # One host is in "group 1", and the other is in "group 2"
     patch_xjoin_post(response={"data": XJOIN_HOSTS_RESPONSE})

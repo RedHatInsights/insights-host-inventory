@@ -283,13 +283,13 @@ def update_system_profile(input_host, identity, staleness_offset):
             )
 
 
-def get_host_list_by_id_list_from_db(host_id_list, rbac_filter: RbacFilter = None):
+def get_host_list_by_id_list_from_db(host_id_list, rbac_filter: RbacFilter = RbacFilter()):
     current_identity = get_current_identity()
     filters = (
         Host.org_id == current_identity.org_id,
         Host.id.in_(host_id_list),
     )
-    if rbac_filter and rbac_filter.filter_by.resource == RbacResourceType.GROUPS:
+    if rbac_filter.filter_by and rbac_filter.filter_by.resource == RbacResourceType.GROUPS:
         rbac_group_filters = (HostGroupAssoc.group_id.in_(rbac_filter.filter_by.id_set),)
         if None in rbac_filter.filter_by.id_set:
             rbac_group_filters += (HostGroupAssoc.group_id.is_(None),)

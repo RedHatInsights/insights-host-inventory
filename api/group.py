@@ -48,7 +48,7 @@ def get_group_list(
     per_page=100,
     order_by=None,
     order_how=None,
-    rbac_filter: RbacFilter = None,
+    rbac_filter: RbacFilter = RbacFilter(),
 ):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
@@ -67,13 +67,13 @@ def get_group_list(
 @api_operation
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def create_group(body, rbac_filter: RbacFilter = None):
+def create_group(body, rbac_filter: RbacFilter = RbacFilter()):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
     # If there is an attribute filter on the RBAC permissions,
     # the user should not be allowed to create a group.
-    if rbac_filter is not None:
+    if rbac_filter.filter_by:
         abort(
             status.HTTP_403_FORBIDDEN,
             "Unfiltered inventory:groups:write RBAC permission is required in order to create new groups.",
@@ -115,7 +115,7 @@ def create_group(body, rbac_filter: RbacFilter = None):
 @api_operation
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def patch_group_by_id(group_id, body, rbac_filter: RbacFilter = None):
+def patch_group_by_id(group_id, body, rbac_filter: RbacFilter = RbacFilter()):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
@@ -156,7 +156,7 @@ def patch_group_by_id(group_id, body, rbac_filter: RbacFilter = None):
 @api_operation
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def delete_groups(group_id_list, rbac_filter: RbacFilter = None):
+def delete_groups(group_id_list, rbac_filter: RbacFilter = RbacFilter()):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
@@ -179,7 +179,7 @@ def get_groups_by_id(
     per_page=100,
     order_by=None,
     order_how=None,
-    rbac_filter: RbacFilter = None,
+    rbac_filter: RbacFilter = RbacFilter(),
 ):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
@@ -202,7 +202,7 @@ def get_groups_by_id(
 @api_operation
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def delete_hosts_from_group(group_id, host_id_list, rbac_filter: RbacFilter = None):
+def delete_hosts_from_group(group_id, host_id_list, rbac_filter: RbacFilter = RbacFilter()):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 

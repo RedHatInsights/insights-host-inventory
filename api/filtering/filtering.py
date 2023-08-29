@@ -355,9 +355,8 @@ def host_id_list_query_filter(host_id_list, rbac_filter: RbacFilter):
         },
     )
 
-    if rbac_filter:
-        if rbac_filter.filter_by.resource == RbacResourceType.GROUPS:
-            all_filters += _group_id_list_query_filter(rbac_filter.filter_by.id_set)
+    if rbac_filter.filter_by and rbac_filter.filter_by.resource == RbacResourceType.GROUPS:
+        all_filters += _group_id_list_query_filter(rbac_filter.filter_by.id_set)
 
     current_identity = get_current_identity()
     if current_identity.identity_type == IdentityType.SYSTEM:
@@ -429,7 +428,7 @@ def query_filters(
     staleness=None,
     registered_with=None,
     filter=None,
-    rbac_filter: RbacFilter = None,
+    rbac_filter: RbacFilter = RbacFilter(),
 ):
     num_ids = 0
     for id_param in [fqdn, display_name, hostname_or_id, insights_id]:
@@ -489,9 +488,8 @@ def query_filters(
             else:
                 raise ValidationException("filter key is invalid")
 
-    if rbac_filter:
-        if rbac_filter.filter_by.resource == RbacResourceType.GROUPS:
-            query_filters += _group_id_list_query_filter(rbac_filter.filter_by.id_set)
+    if rbac_filter.filter_by and rbac_filter.filter_by.resource == RbacResourceType.GROUPS:
+        query_filters += _group_id_list_query_filter(rbac_filter.filter_by.id_set)
 
     current_identity = get_current_identity()
     if current_identity.identity_type == IdentityType.SYSTEM:

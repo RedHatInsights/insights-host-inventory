@@ -74,7 +74,7 @@ def get_tags(
     staleness=None,
     registered_with=None,
     filter=None,
-    rbac_filter: RbacFilter = None,
+    rbac_filter: RbacFilter = RbacFilter(),
 ):
     limit, offset = pagination_params(page, per_page)
 

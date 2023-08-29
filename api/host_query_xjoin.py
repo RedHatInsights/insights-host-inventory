@@ -217,7 +217,7 @@ def get_host_list(
 
 
 def get_host_list_by_id_list(
-    host_id_list, page, per_page, param_order_by, param_order_how, fields=None, rbac_filter: RbacFilter = None
+    host_id_list, page, per_page, param_order_by, param_order_how, fields=None, rbac_filter: RbacFilter = RbacFilter()
 ):
     all_filters = host_id_list_query_filter(host_id_list, rbac_filter)
 
@@ -246,7 +246,7 @@ def get_host_ids_list(
     staleness,
     tags,
     filter,
-    rbac_filter,
+    rbac_filter: RbacFilter,
 ):
     all_filters = query_filters(
         fqdn,

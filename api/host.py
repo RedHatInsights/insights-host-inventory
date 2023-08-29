@@ -60,7 +60,7 @@ logger = get_logger(__name__)
 
 
 @api_operation
-@rbac(RbacResourceType.HOSTS, RbacPermission.READ)
+@rbac(RbacResourceType.HOSTS, RbacPermission.READ, additional_permissions=["inventory:groups:read"])
 @metrics.api_request_time.time()
 def get_host_list(
     display_name=None,
@@ -81,7 +81,7 @@ def get_host_list(
     registered_with=None,
     filter=None,
     fields=None,
-    rbac_filter: RbacFilter = None,
+    rbac_filter: RbacFilter = RbacFilter(),
 ):
     total = 0
     host_list = ()
@@ -112,7 +112,7 @@ def get_host_list(
         log_get_host_list_failed(logger)
         flask.abort(400, str(e))
 
-    json_data = build_paginated_host_list_response(total, page, per_page, host_list, additional_fields)
+    json_data = build_paginated_host_list_response(total, page, per_page, host_list, additional_fields, rbac_filter)
     return flask_json_response(json_data)
 
 
@@ -133,7 +133,7 @@ def delete_hosts_by_filter(
     staleness=None,
     tags=None,
     filter=None,
-    rbac_filter: RbacFilter = None,
+    rbac_filter: RbacFilter = RbacFilter(),
 ):
     if not any(
         [
@@ -226,7 +226,7 @@ def _delete_host_list(host_id_list, rbac_filter: RbacFilter):
 @api_operation
 @rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def delete_all_hosts(confirm_delete_all=None, rbac_filter: RbacFilter = None):
+def delete_all_hosts(confirm_delete_all=None, rbac_filter: RbacFilter = RbacFilter()):
     if not confirm_delete_all:
         logger.error("To delete all hosts, provide confirm_delete_all=true in the request.")
         flask.abort(400, "To delete all hosts, provide confirm_delete_all=true in the request.")
@@ -255,7 +255,7 @@ def delete_all_hosts(confirm_delete_all=None, rbac_filter: RbacFilter = None):
 @api_operation
 @rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def delete_host_by_id(host_id_list, rbac_filter: RbacFilter = None):
+def delete_host_by_id(host_id_list, rbac_filter: RbacFilter = RbacFilter()):
     delete_count = _delete_host_list(host_id_list, rbac_filter)
 
     if not delete_count:
@@ -268,7 +268,13 @@ def delete_host_by_id(host_id_list, rbac_filter: RbacFilter = None):
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_host_by_id(
-    host_id_list, page=1, per_page=100, order_by=None, order_how=None, fields=None, rbac_filter: RbacFilter = None
+    host_id_list,
+    page=1,
+    per_page=100,
+    order_by=None,
+    order_how=None,
+    fields=None,
+    rbac_filter: RbacFilter = RbacFilter(),
 ):
     try:
         host_list, total, additional_fields = get_host_list_by_id_list(
@@ -288,7 +294,13 @@ def get_host_by_id(
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_host_system_profile_by_id(
-    host_id_list, page=1, per_page=100, order_by=None, order_how=None, fields=None, rbac_filter: RbacFilter = None
+    host_id_list,
+    page=1,
+    per_page=100,
+    order_by=None,
+    order_how=None,
+    fields=None,
+    rbac_filter: RbacFilter = RbacFilter(),
 ):
     try:
         total, response_list = get_sparse_system_profile(
@@ -311,7 +323,7 @@ def _emit_patch_event(serialized_host, host_id, insights_id):
 @api_operation
 @rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def patch_host_by_id(host_id_list, body, rbac_filter: RbacFilter = None):
+def patch_host_by_id(host_id_list, body, rbac_filter: RbacFilter = RbacFilter()):
     try:
         validated_patch_host_data = PatchHostSchema().load(body)
     except ValidationError as e:
@@ -341,14 +353,14 @@ def patch_host_by_id(host_id_list, body, rbac_filter: RbacFilter = None):
 @api_operation
 @rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def replace_facts(host_id_list, namespace, body, rbac_filter: RbacFilter = None):
+def replace_facts(host_id_list, namespace, body, rbac_filter: RbacFilter = RbacFilter()):
     return update_facts_by_namespace(FactOperations.replace, host_id_list, namespace, body, rbac_filter)
 
 
 @api_operation
 @rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def merge_facts(host_id_list, namespace, body, rbac_filter: RbacFilter = None):
+def merge_facts(host_id_list, namespace, body, rbac_filter: RbacFilter = RbacFilter()):
     if not body:
         error_msg = "ERROR: Invalid request.  Merging empty facts into existing facts is a no-op."
         logger.debug(error_msg)
@@ -367,7 +379,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
 
     query = Host.query.join(HostGroupAssoc, isouter=True).filter(*filters).group_by(Host.id)
 
-    if rbac_filter and rbac_filter.filter_by.resource == RbacResourceType.GROUPS:
+    if rbac_filter.filter_by and rbac_filter.filter_by.resource == RbacResourceType.GROUPS:
         count_before_rbac_filter = find_non_culled_hosts(update_query_for_owner_id(current_identity, query)).count()
         filters += (HostGroupAssoc.group_id.in_(rbac_filter.filter_by.id_set),)
         query = Host.query.join(HostGroupAssoc, isouter=True).filter(*filters).group_by(Host.id)
@@ -410,7 +422,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_host_tag_count(
-    host_id_list, page=1, per_page=100, order_by=None, order_how=None, rbac_filter: RbacFilter = None
+    host_id_list, page=1, per_page=100, order_by=None, order_how=None, rbac_filter: RbacFilter = RbacFilter()
 ):
     host_list, total = get_host_tags_list_by_id_list(host_id_list, page, per_page, order_by, order_how, rbac_filter)
     counts = {host_id: len(host_tags) for host_id, host_tags in host_list.items()}
@@ -422,7 +434,13 @@ def get_host_tag_count(
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_host_tags(
-    host_id_list, page=1, per_page=100, order_by=None, order_how=None, search=None, rbac_filter: RbacFilter = None
+    host_id_list,
+    page=1,
+    per_page=100,
+    order_by=None,
+    order_how=None,
+    search=None,
+    rbac_filter: RbacFilter = RbacFilter(),
 ):
     host_list, total = get_host_tags_list_by_id_list(host_id_list, page, per_page, order_by, order_how, rbac_filter)
     filtered_list = {host_id: Tag.filter_tags(host_tags, search) for host_id, host_tags in host_list.items()}
@@ -438,7 +456,7 @@ def _build_paginated_host_tags_response(total, page, per_page, tags_list):
 @api_operation
 @rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def host_checkin(body, rbac_filter: RbacFilter = None):
+def host_checkin(body, rbac_filter: RbacFilter = RbacFilter()):
     current_identity = get_current_identity()
     canonical_facts = deserialize_canonical_facts(body)
     existing_host = find_existing_host(current_identity, canonical_facts)

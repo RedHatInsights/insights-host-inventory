@@ -26,7 +26,7 @@ ASSIGNMENT_RULES_ORDER_HOW = {"asc": asc, "desc": desc}
 
 def get_assignment_rules_list_db(filters, page, per_page, param_order_by, param_order_how, rbac_filter: RbacFilter):
     # Apply RBAC group ID filter, if provided
-    if rbac_filter and rbac_filter.filter_by.resource == RbacResourceType.GROUPS:
+    if rbac_filter.filter_by and rbac_filter.filter_by.resource == RbacResourceType.GROUPS:
         filters += (AssignmentRule.group_id.in_(rbac_filter.filter_by.id_set),)
 
     order_by_str = param_order_by or "name"

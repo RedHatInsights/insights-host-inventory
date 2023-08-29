@@ -1,6 +1,8 @@
 from functools import partial
 from functools import wraps
+from typing import List
 from typing import Set
+from typing import Tuple
 from uuid import UUID
 
 from app_common_python import LoadedConfig
@@ -49,9 +51,9 @@ class RbacFilter:
     # }
     def __init__(
         self,
-        resource: RbacResourceType,
-        permission: RbacPermission,
-        filter_by: RbacIdFilter,
+        resource: RbacResourceType = RbacResourceType.HOSTS,
+        permission: RbacPermission = RbacPermission.READ,
+        filter_by: RbacIdFilter = None,
         other_permissions: dict = {},
     ) -> None:
         # The resource and permission this filter applies to (e.g. hosts:read)
@@ -140,35 +142,71 @@ def _get_attribute_filter_value(rbac_permission) -> Set[str]:
     return attribute_filter_value
 
 
+def _parse_rbac_permission_string(rbac_permission: str) -> Tuple[str, RbacResourceType, RbacPermission]:
+    permission_split = rbac_permission.split(":")
+    return (permission_split[0], RbacResourceType(permission_split[1]), RbacPermission(permission_split[2]))
+
+
+def _get_allowed_ids(
+    rbac_data, permission_base: str, resource_type: RbacResourceType, required_permission: RbacPermission
+) -> Tuple[Set[str], bool]:
+    match_found = False  # Whether or not a matching permission was found
+    allowed_group_ids = set()  # The list of group IDs that access is restricted to (if any)
+
+    for rbac_permission in rbac_data:
+        if (
+            rbac_permission["permission"]  # inventory:*:*
+            == f"{permission_base}:{RbacResourceType.ALL.value}:{RbacPermission.ADMIN.value}"
+            or rbac_permission["permission"]  # inventory:{type}:*
+            == f"{permission_base}:{resource_type.value}:{RbacPermission.ADMIN.value}"
+            or rbac_permission["permission"]  # inventory:*:(read | write)
+            == f"{permission_base}:{RbacResourceType.ALL.value}:{required_permission.value}"
+            or rbac_permission["permission"]  # inventory:{type}:(read | write)
+            == f"{permission_base}:{resource_type.value}:{required_permission.value}"
+        ):
+            match_found = True
+
+            # Get the list of allowed Group IDs from the attribute filter.
+            attribute_filter_value = _get_attribute_filter_value(rbac_permission)
+
+            if attribute_filter_value:
+                # If the RBAC permission is applicable and is limited to specific group IDs,
+                # add that list of group IDs to the list of allowed group IDs.
+                allowed_group_ids.update(attribute_filter_value)
+            else:
+                # If any applicable RBAC permission exists and is NOT limited to specific group IDs,
+                # we should return an empty list to imply that it's not limited to specific IDs.
+                return set(), True
+
+    return allowed_group_ids, match_found
+
+
 def rbac(
     resource_type: RbacResourceType,
     required_permission: RbacPermission,
     permission_base: str = "inventory",
-    additional_permissions: Set[str] = set(),
+    additional_permissions: List[str] = [],
 ):
-    # TODO: if additional_permissions is defined, we need to collect the relevant data
     def other_func(func):
         @wraps(func)
         def modified_func(*args, **kwargs):
-            if inventory_config().bypass_rbac:
-                return func(*args, **kwargs)
-
             current_identity = get_current_identity()
-            if current_identity.identity_type != CHECKED_TYPE:
-                return func(*args, **kwargs)
+            if inventory_config().bypass_rbac or current_identity.identity_type != CHECKED_TYPE:
+                return partial(
+                    func,
+                    rbac_filter=RbacFilter(
+                        resource_type,
+                        required_permission,
+                        None,
+                        {},
+                    ),
+                )(*args, **kwargs)
 
             # track that RBAC is being used to control access
             g.access_control_rule = "RBAC"
             logger.debug("access_control_rule set")
 
             rbac_data = get_rbac_permissions(permission_base)
-
-            # Determines whether the endpoint can be accessed at all
-            allowed = False
-            # If populated, limits the allowed resources to specific group IDs
-            allowed_group_ids = set()
-            # This stores additional permissions by request (i.e. if additional_permissions is defined)
-            other_permissions = {}
 
             # TODO: Remove this workaround after RHCLOUD-27511 is implemented.
             # If the required permission is RBAC admin, we can check the Identity instead.
@@ -179,50 +217,26 @@ def rbac(
             ):
                 return func(*args, **kwargs)
 
-            for rbac_permission in rbac_data:
-                if (
-                    rbac_permission["permission"]  # inventory:*:*
-                    == f"{permission_base}:{RbacResourceType.ALL.value}:{RbacPermission.ADMIN.value}"
-                    or rbac_permission["permission"]  # inventory:{type}:*
-                    == f"{permission_base}:{resource_type.value}:{RbacPermission.ADMIN.value}"
-                    or rbac_permission["permission"]  # inventory:*:(read | write)
-                    == f"{permission_base}:{RbacResourceType.ALL.value}:{required_permission.value}"
-                    or rbac_permission["permission"]  # inventory:{type}:(read | write)
-                    == f"{permission_base}:{resource_type.value}:{required_permission.value}"
-                ):
-                    # If any of the above match, the endpoint should at least be allowed.
-                    allowed = True
+            # Get the allowed IDs for the required permission
+            allowed_group_ids, is_allowed = _get_allowed_ids(
+                rbac_data, permission_base, resource_type, required_permission
+            )
 
-                    # Get the list of allowed Group IDs from the attribute filter.
-                    attribute_filter_value = _get_attribute_filter_value(rbac_permission)
-
-                    if attribute_filter_value:
-                        # If the RBAC permission is applicable and is limited to specific group IDs,
-                        # add that list of group IDs to the list of allowed group IDs.
-                        allowed_group_ids.update(attribute_filter_value)
-                    else:
-                        # If any applicable RBAC permission exists and is NOT limited to specific group IDs,
-                        # call the usual endpoint without resource-specific access limitations.
-
-                        # TODO: Not true anymore. We may need to grant unlimited host access,
-                        # but that doesn't always mean we should show the group-name field on the host.
-                        return func(*args, **kwargs)
-
-                elif rbac_permission["permission"] in additional_permissions:
-                    attribute_filter_value = _get_attribute_filter_value(rbac_permission)
-                    if rbac_permission["permission"] in other_permissions.keys():
-                        attribute_filter_value.update(other_permissions[rbac_permission["permission"]].id_set)
-                    other_permissions[rbac_permission["permission"]] = RbacIdFilter(
-                        RbacResourceType.GROUPS, attribute_filter_value
-                    )
+            # Get the allowed IDs for any additional permissions requested
+            other_permissions = {}
+            for additional_permission in additional_permissions:
+                additional_ids, _ = _get_allowed_ids(
+                    rbac_data, *(_parse_rbac_permission_string(additional_permission))
+                )
+                other_permissions[additional_permission] = RbacIdFilter(RbacResourceType.GROUPS, additional_ids)
 
             # If all applicable permissions are restricted to specific groups,
             # call the endpoint with the RBAC filtering data.
-            if allowed:
+            if is_allowed:
                 rbac_filter = RbacFilter(
                     resource_type,
                     required_permission,
-                    RbacIdFilter(RbacResourceType.GROUPS, allowed_group_ids),
+                    RbacIdFilter(RbacResourceType.GROUPS, allowed_group_ids) if allowed_group_ids else None,
                     other_permissions,
                 )
 
@@ -237,7 +251,7 @@ def rbac(
 
 
 def rbac_group_id_check(rbac_filter: RbacFilter, requested_ids: set) -> None:
-    if rbac_filter and rbac_filter.filter_by.resource == RbacResourceType.GROUPS:
+    if rbac_filter.filter_by and rbac_filter.filter_by.resource == RbacResourceType.GROUPS:
         # Find the IDs that are in requested_ids but not rbac_filter
         disallowed_ids = requested_ids.difference(rbac_filter.filter_by.id_set)
         if len(disallowed_ids) > 0:
