@@ -474,3 +474,29 @@ def test_get_hosts_contains_invalid_on_string_not_array(patch_xjoin_post, api_ge
 
 def test_get_hosts_timestamp_invalid_value_graceful_rejection(patch_xjoin_post, api_get):
     assert 400 == api_get(build_hosts_url(query="?filter[system_profile][last_boot_time][eq]=foo"))[0]
+
+
+def test_host_list_hidden_group_names(mocker, patch_xjoin_post, api_get):
+    # Patch the xjoin response; it should get 2 hosts.
+    # One host is in "group 1", and the other is in "group 2"
+    patch_xjoin_post(response={"data": XJOIN_HOSTS_RESPONSE})
+
+    # Patch the RBAC response. Grants read access to all hosts and "group 1"
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-hosts-read-groups-read-resource-defs-template.json"
+    )
+    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = [
+        "28c52679-f0b9-4e9b-9bac-a3c7fae5070c"
+    ]
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    response_status, response_data = api_get(HOST_URL)
+
+    assert response_status == 200
+
+    # Make sure we can see the first host's group
+    assert response_data["results"][0]["groups"][0]["name"] == "group 1"
+
+    # Make sure we can't see the second host's group
+    assert len(response_data["results"][1]["groups"]) == 0
