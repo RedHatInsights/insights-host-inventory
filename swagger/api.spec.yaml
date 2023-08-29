@@ -778,8 +778,15 @@ paths:
         Required permissions: inventory:TODO:write
       security:
         - ApiKeyAuth: []
+      requestBody:
+        description: Data required to create a record for a account staleness.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountStalenessIn'
       responses:
-        '200':
+        '201':
           description: Successfully account staleness created.
           content:
             application/json:
@@ -1988,6 +1995,31 @@ components:
             type: array
             items:
               $ref: '#/components/schemas/GroupOutWithHostCount'
+    AccountStalenessIn:
+      title: Account Staleness In
+      description: >-
+        Data of a single account staleness.
+      type: object
+      anyOf:
+        - properties:
+            conventional_staleness_delta:
+              type: string
+              maxLength: 36
+            conventional_stale_warning_delta:
+              type: string
+              maxLength: 36
+            conventional_culling_delta:
+              type: string
+              maxLength: 36
+            immutable_staleness_delta:
+              type: string
+              maxLength: 36
+            immutable_stale_warning_delta:
+              type: string
+              maxLength: 36
+            immutable_culling_delta:
+              type: string
+              maxLength: 36
     AccountStalenessOutput:
       title: Account Staleness Out
       description: >-
