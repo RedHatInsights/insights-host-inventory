@@ -1,6 +1,8 @@
+from flask import abort
 from flask_api import status
 from marshmallow import ValidationError
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm.exc import NoResultFound
 
 from api import api_operation
 from api import flask_json_response
@@ -14,6 +16,7 @@ from app.logging import get_logger
 from app.models import InputAccountStalenessSchema
 from app.serialization import serialize_account_staleness_response
 from lib.account_staleness import add_account_staleness
+from lib.account_staleness import remove_account_staleness
 from lib.middleware import rbac
 
 logger = get_logger(__name__)
@@ -67,6 +70,17 @@ def create_staleness(body):
         return json_error_response("Integrity error", error_message, status.HTTP_400_BAD_REQUEST)
 
     return flask_json_response(serialize_account_staleness_response(created_staleness), status.HTTP_201_CREATED)
+
+
+@api_operation
+@rbac(RbacResourceType.STALENESS, RbacPermission.WRITE)
+@metrics.api_request_time.time()
+def delete_staleness():
+    try:
+        remove_account_staleness()
+        return flask_json_response(None, status.HTTP_204_NO_CONTENT)
+    except NoResultFound:
+        abort(status.HTTP_404_NOT_FOUND, "Account Staleness not found.")
 
 
 @api_operation

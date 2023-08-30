@@ -180,3 +180,11 @@ def api_create_account_staleness(flask_client):
         return do_request(flask_client.post, STALENESS_URL, identity, staleness_data, query_parameters, extra_headers)
 
     return _api_create_account_staleness
+
+
+@pytest.fixture(scope="function")
+def api_delete_account_staleness(flask_client):
+    def _api_delete_account_staleness(identity=USER_IDENTITY, query_parameters=None, extra_headers=None):
+        return do_request(flask_client.delete, STALENESS_URL, identity, query_parameters, extra_headers)
+
+    return _api_delete_account_staleness

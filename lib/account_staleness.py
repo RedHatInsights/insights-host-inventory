@@ -36,3 +36,12 @@ def add_account_staleness(account_staleness_data) -> AccountStalenessCulling:
     created_staleness = AccountStalenessCulling.query.filter(AccountStalenessCulling.org_id == org_id).one_or_none()
 
     return created_staleness
+
+
+def remove_account_staleness() -> None:
+    org_id = get_current_identity().org_id
+
+    logger.debug("Removing AccountStaleness for org_id: %s", org_id)
+    staleness = AccountStalenessCulling.query.filter(AccountStalenessCulling.org_id == org_id).one()
+    db.session.delete(staleness)
+    db.session.commit()
