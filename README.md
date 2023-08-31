@@ -381,6 +381,6 @@ A list of high level steps is provided [here](docs/connect_to_k8s_env.md)
 
 This section relies on successful deployment of host-inventory and xjoin-search following the instructions in the [previous section](#deploying-host-inventory-and-xjoin-search-to-kubernetes-cluster-ephmeral).  To make local code work with the services running in Kubernetes requires some actions provided [here](docs/debug_local_code.md)
 
-## Running Adhoc Jobs using Different Image
+## Running ad hoc jobs using a different image
 
 There may be a job (ClowdJobInvocation) which requires using a special image that is different from the one used by the parent application, i.e. host-inventory.  Clowder out-of-the-box does not allow it.  [Running a Special Job](docs/running_special_job.md) describes how to accomplish it.
