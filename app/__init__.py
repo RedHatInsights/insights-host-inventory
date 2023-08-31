@@ -2,6 +2,7 @@ from enum import Enum
 from os.path import join
 
 import connexion
+import segment.analytics as analytics
 import yaml
 from connexion.resolver import RestyResolver
 from flask import current_app
@@ -83,6 +84,12 @@ def initialize_metrics(config):
     rbac_access_denied.labels(
         required_permission=f"inventory:{RbacResourceType.HOSTS.value}:{RbacPermission.WRITE.value}"
     )
+
+
+def initialize_segmentio():
+    print("\n****** Initializing Segmentio\n")
+    # Should this be maintained by app/config.py?
+    analytics.write_key = "YOUR_WRITE_KEY"
 
 
 def render_exception(exception):
@@ -279,5 +286,7 @@ def create_app(runtime_environment):
 
     # initialize metrics to zero
     initialize_metrics(app_config)
+
+    initialize_segmentio()
 
     return flask_app

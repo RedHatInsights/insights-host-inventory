@@ -1,11 +1,7 @@
-# import segment.analytics as analytics
 import connexion
+import segment.analytics as analytics
 
 from app.auth import get_current_identity
-
-# TBD - including location of this initialization
-#
-# analytics.write_key = 'YOUR_WRITE_KEY'
 
 
 def segmentio_track(op_name, start_time, end_time, contextual_data):
@@ -22,6 +18,7 @@ def segmentio_track(op_name, start_time, end_time, contextual_data):
     # )
 
     print(f"\n************ In api_operation: {op_name}")
+    print(f"  analytics.write_key: {analytics.write_key}")
     print("  Headers:")
     for key, value in connexion.request.headers.items():
         print(f"    {key}: {value}")
