@@ -383,4 +383,4 @@ This section relies on successful deployment of host-inventory and xjoin-search 
 
 ## Running Adhoc Jobs using Different Image
 
-There may be a job (ClowdJobInvocation), which requires using a special image that is different from the one used by the parent application, i.e. host-inventory.  Clowder out-of-the-box does not allow it.  [Running Special Job](docs/running_special_job.md) describes how to accomplish it.
+There may be a job (ClowdJobInvocation) which requires using a special image that is different from the one used by the parent application, i.e. host-inventory.  Clowder out-of-the-box does not allow it.  [Running a Special Job](docs/running_special_job.md) describes how to accomplish it.
