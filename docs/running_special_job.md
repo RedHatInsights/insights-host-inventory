@@ -47,7 +47,7 @@ The problem was solved by hard-coding the new image in a new CJI definition in t
     * Under `parameters`, set `IMAGE_TAG` to the one currently deployed in the target cluster, so that running the new job does not affect the current state of the application.
 8.  Create a merge request (MR) to get the changes from the previous step merged.
 9.  Clone the [app-interface](https://gitlab.cee.redhat.com/service/app-interface) repo again to add the new CJI.
-10. Update the CJI in [host-inventory SAAS](https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/data/services/insights/host-inventory/deploy-clowder.yml) file to set the ref like before and the job run number in CJI definition [target cluster](https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/data/services/insights/host-inventory/deploy-clowder.yml#L147) in the SAAS file.
+10. Update the CJI in the [host-inventory SaaS](https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/data/services/insights/host-inventory/deploy-clowder.yml) file to set the ref like in step 7, and the job run number in the CJI definition in the [target cluster](https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/data/services/insights/host-inventory/deploy-clowder.yml#L147) in the SaaS file.
 11. Create another MR to get the latest changes merged.
 12. After the MR is merged, monitor the new job in a terminal window:
     * connect to the cluster and run
