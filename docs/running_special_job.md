@@ -4,7 +4,7 @@ A recent update to the Hosts table in the Host-Inventory database required updat
 The problem was solved by hard-coding the new image in a new CJI definition in the [Clowdapp template](https://github.com/RedHatInsights/insights-host-inventory/blob/f12eeec16cda33d9e90dfdcd2999deb2bb03604f/deploy/clowdapp.yml#L630) and then updating the [SaaS file](https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/data/services/insights/host-inventory/deploy-clowder.yml) to explicitly use an [IMAGE_TAG](https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/data/services/insights/host-inventory/deploy-clowder.yml#L99) for deploying the parent clowdapp, host-inventory.
 
 ## Steps
-1.  Create new image as required. e.g. quay.io/cloudservices/insights-inventory:bca5615
+1.  Create/update the script as required by the job and create a pull request, which should automatically build a Quay image via continuous integration, e.g. quay.io/cloudservices/insights-inventory:bca5615
     ```bash
     - name: just-host-synchronizer
       podSpec:
@@ -60,7 +60,7 @@ The problem was solved by hard-coding the new image in a new CJI definition in t
         ```
     * Get the pod name:
         ```bash
-        kubectl get po | grep just-host-synchronizer # note job name in the pod name
+        kubectl get pods | grep just-host-synchronizer # note job name in the pod name
         host-inventory-just-host-synchronizer-hg4rqrg-9hxh8   0/1   Running   0   10m
         ```
     * Check the log:
