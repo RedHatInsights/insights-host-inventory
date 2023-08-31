@@ -42,7 +42,7 @@ The problem was solved by hard-coding the new image in a new CJI definition in t
 4.  Create a pull request to get these updates into [host-inventory](https://github.com/RedHatInsights/insights-host-inventory).
 5.  From the target Kubernetes cluster, get the image tag of the currently deployed [service](https://console-openshift-console.apps.crcp01ue1.o9m8.p1.openshiftapps.com/k8s/ns/host-inventory-prod/deployments/host-inventory-service). e.g. `a873421`.  All services in host-inventory use the same image.
 6.  Clone the [app-interface](https://gitlab.cee.redhat.com/service/app-interface) repo.
-7.  Update the [host-inventory SAAS](https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/data/services/insights/host-inventory/deploy-clowder.yml) file.
+7.  Update the [host-inventory SaaS](https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/data/services/insights/host-inventory/deploy-clowder.yml) file.
     * Change the ref value of the target cluster/namespace with the commit SHA from Step 4.  For this write up, the [ref](https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/data/services/insights/host-inventory/deploy-clowder.yml#L97) in Production cluster was used.
     * Under `parameters`, set `IMAGE_TAG` to the one currently deployed in the target cluster, so that running the new job does not affect the current state of the application.
 8.  Create a merge request (MR) to get the changes from the previous step merged.
