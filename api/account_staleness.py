@@ -1,4 +1,5 @@
 from flask import abort
+from flask import Response
 from flask_api import status
 from marshmallow import ValidationError
 from sqlalchemy.exc import IntegrityError
@@ -17,6 +18,8 @@ from app.models import InputAccountStalenessSchema
 from app.serialization import serialize_account_staleness_response
 from lib.account_staleness import add_account_staleness
 from lib.account_staleness import remove_account_staleness
+from lib.feature_flags import FLAG_INVENTORY_CUSTOM_STALENESS
+from lib.feature_flags import get_flag_value
 from lib.middleware import rbac
 
 logger = get_logger(__name__)
@@ -76,6 +79,9 @@ def create_staleness(body):
 @rbac(RbacResourceType.STALENESS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def delete_staleness():
+    if not get_flag_value(FLAG_INVENTORY_CUSTOM_STALENESS):
+        return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
+
     try:
         remove_account_staleness()
         return flask_json_response(None, status.HTTP_204_NO_CONTENT)
