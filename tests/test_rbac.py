@@ -1,13 +1,9 @@
-from copy import deepcopy
-
 import pytest
 from requests import exceptions
 
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_hosts_url
-from tests.helpers.api_utils import build_resource_types_url
 from tests.helpers.api_utils import create_mock_rbac_response
-from tests.helpers.test_utils import USER_IDENTITY
 
 
 def test_rbac_retry_error_handling(mocker, db_create_host, api_get, enable_rbac):
@@ -76,20 +72,3 @@ def test_RBAC_invalid_UUIDs(mocker, api_get, enable_rbac):
     response_status, _ = api_get(build_hosts_url())
 
     assert_response_status(response_status, 503)
-
-
-def test_RBAC_admin_workaround(mocker, api_get, enable_rbac):
-    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
-
-    # Grant permissions that are irrelevant to the endpoint we want to access
-    mock_rbac_response = create_mock_rbac_response("tests/helpers/rbac-mock-data/inv-hosts-read-only.json")
-
-    get_rbac_permissions_mock.return_value = mock_rbac_response
-
-    # Use an identity that implies the user is an org admin
-    admin_identity = deepcopy(USER_IDENTITY)
-    admin_identity["user"]["is_org_admin"] = True
-
-    response_status, _ = api_get(build_resource_types_url(), admin_identity)
-
-    assert_response_status(response_status, 200)
