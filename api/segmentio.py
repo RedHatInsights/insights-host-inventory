@@ -12,8 +12,9 @@ def segmentio_track(op_name, start_time, end_time, contextual_data):
     #     op_name,
     #     {
     #         start_time: start_time,
-    #         end_time: end_time
-    #         user_agent: connexion.request.headers['User-Agent']
+    #         end_time: end_time,
+    #         user_agent: connexion.request.headers['User-Agent'].
+    #         auth_type: identity.auth_type
     #     }
     # )
 

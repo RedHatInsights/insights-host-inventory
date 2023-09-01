@@ -1,3 +1,4 @@
+import os
 from enum import Enum
 from os.path import join
 
@@ -89,7 +90,7 @@ def initialize_metrics(config):
 def initialize_segmentio():
     print("\n****** Initializing Segmentio\n")
     # Should this be maintained by app/config.py?
-    analytics.write_key = "YOUR_WRITE_KEY"
+    analytics.write_key = os.getenv("INVENTORY_SEGMENT_WRITE_KEY", "YOUR_WRITE_KEY")
 
 
 def render_exception(exception):
