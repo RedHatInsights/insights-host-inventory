@@ -1363,6 +1363,30 @@
             }
           }
         }
+      },
+      "delete": {
+        "operationId": "api.account_staleness.delete_staleness",
+        "tags": [
+          "accounts_staleness"
+        ],
+        "summary": "Delete an account staleness",
+        "description": "Delete an account staleness <br /><br /> Required permissions: inventory:staleness:write",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successfully deleted account staleness."
+          },
+          "400": {
+            "description": "Invalid request."
+          },
+          "404": {
+            "description": "Account Staleness not found."
+          }
+        }
       }
     },
     "/account/staleness/reset": {
