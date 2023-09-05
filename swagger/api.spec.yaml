@@ -1867,40 +1867,39 @@ components:
       description: >-
         Data for a single Assignment Rule response
       type: object
-      allOf:
-        - properties:
-            id:
-              $ref: '#/components/schemas/NonStrictUUID'
-            org_id:
-              $ref: '#/components/schemas/OrgId'
-            account:
-              $ref: '#/components/schemas/AccountNumber'
-            name:
-              type: string
-              minLength: 1
-            description:
-              type: string
-              minLength: 1
-              nullable: true
-            group_id:
-              $ref: "#/components/schemas/GroupId"
-            filter:
-              type: object
-            enabled:
-              type: boolean
-            created_on:
-              type: string
-              format: date-time
-            modified_on:
-              type: string
-              format: date-time
-          required:
-            - name
-            - group_id
-            - filter
-            - enabled
-            - created_on
-            - modified_on
+      properties:
+        id:
+          $ref: '#/components/schemas/NonStrictUUID'
+        org_id:
+          $ref: '#/components/schemas/OrgId'
+        account:
+          $ref: '#/components/schemas/AccountNumber'
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+          minLength: 1
+          nullable: true
+        group_id:
+          $ref: "#/components/schemas/GroupId"
+        filter:
+          type: object
+        enabled:
+          type: boolean
+        created_on:
+          type: string
+          format: date-time
+        modified_on:
+          type: string
+          format: date-time
+      required:
+        - name
+        - group_id
+        - filter
+        - enabled
+        - created_on
+        - modified_on
     GroupOutWithHostCount:
       title: Group properties with host count
       description: >-
