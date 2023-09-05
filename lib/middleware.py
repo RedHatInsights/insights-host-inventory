@@ -93,15 +93,6 @@ def rbac(resource_type, required_permission, permission_base="inventory"):
             # If populated, limits the allowed resources to specific group IDs
             allowed_group_ids = set()
 
-            # TODO: Remove this workaround after RHCLOUD-27511 is implemented.
-            # If the required permission is RBAC admin, we can check the Identity instead.
-            if (
-                permission_base == "rbac"
-                and current_identity.identity_type == IdentityType.USER
-                and current_identity.user.get("is_org_admin")
-            ):
-                return func(*args, **kwargs)
-
             for rbac_permission in rbac_data:
                 if (
                     rbac_permission["permission"]  # inventory:*:*
