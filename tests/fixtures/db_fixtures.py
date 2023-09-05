@@ -3,7 +3,6 @@ import os
 import pytest
 from sqlalchemy_utils import create_database
 from sqlalchemy_utils import database_exists
-from sqlalchemy_utils import drop_database
 
 from app import db
 from app.config import Config
@@ -46,7 +45,7 @@ def database(database_name):
 
     yield config.db_uri
 
-    drop_database(config.db_uri)
+    # drop_database(config.db_uri)
 
 
 @pytest.fixture(scope="function")
@@ -284,6 +283,21 @@ def db_create_account_staleness_culling(flask_app):
     return _db_create_account_staleness_culling
 
 
+@pytest.fixture
+def db_create_account_staleness_culling_1_second():
+    account_staleness_culling = db_account_staleness_culling(
+        conventional_staleness_delta="1",
+        conventional_stale_warning_delta="1",
+        conventional_culling_delta="1",
+        immutable_staleness_delta="1",
+        immutable_stale_warning_delta="1",
+        immutable_culling_delta="1",
+    )
+    db.session.add(account_staleness_culling)
+    db.session.commit()
+    return account_staleness_culling
+
+
 @pytest.fixture(scope="function")
 def db_delete_account_staleness_culling(flask_app):
     def _db_delete_account_staleness_culling(org_id):
@@ -300,3 +314,38 @@ def db_get_account_staleness_culling(flask_app):
         return AccountStalenessCulling.query.filter(AccountStalenessCulling.org_id == org_id).first()
 
     return _db_get_account_staleness_culling
+
+
+@pytest.fixture
+def db_delete_account_staleness_culling_class():
+    def _db_delete_account_staleness_culling(org_id):
+        delete_query = db.session.query(AccountStalenessCulling).filter(AccountStalenessCulling.org_id == org_id)
+        delete_query.delete(synchronize_session="fetch")
+        delete_query.session.commit()
+
+    return _db_delete_account_staleness_culling
+
+
+@pytest.fixture
+def db_create_account_staleness_culling_class():
+    def _db_create_account_staleness_culling(
+        conventional_staleness_delta=None,
+        conventional_stale_warning_delta=None,
+        conventional_culling_delta=None,
+        immutable_staleness_delta=None,
+        immutable_stale_warning_delta=None,
+        immutable_culling_delta=None,
+    ):
+        account_staleness_culling = db_account_staleness_culling(
+            conventional_staleness_delta=conventional_staleness_delta,
+            conventional_stale_warning_delta=conventional_stale_warning_delta,
+            conventional_culling_delta=conventional_culling_delta,
+            immutable_staleness_delta=immutable_staleness_delta,
+            immutable_stale_warning_delta=immutable_stale_warning_delta,
+            immutable_culling_delta=immutable_culling_delta,
+        )
+        db.session.add(account_staleness_culling)
+        db.session.commit()
+        return account_staleness_culling
+
+    return _db_create_account_staleness_culling

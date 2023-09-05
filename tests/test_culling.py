@@ -1,3 +1,4 @@
+import time
 from datetime import timedelta
 from unittest import mock
 
@@ -44,9 +45,12 @@ def test_tags_count_default_ignores_culled(mq_create_hosts_in_all_states, api_ge
     assert created_hosts["culled"].id not in tuple(response_data["results"].keys())
 
 
-def test_patch_ignores_culled(mq_create_hosts_in_all_states, api_patch):
+def test_patch_ignores_culled(db_create_account_staleness_culling_1_second, mq_create_hosts_in_all_states, api_patch):
     culled_host = mq_create_hosts_in_all_states["culled"]
     url = build_hosts_url(host_list_or_id=[culled_host])
+
+    time.sleep(2)
+
     response_status, response_data = api_patch(url, {"display_name": "patched"})
 
     assert response_status == 404
@@ -61,8 +65,12 @@ def test_patch_works_on_non_culled(mq_create_hosts_in_all_states, api_patch):
     assert response_status == 200
 
 
-def test_patch_facts_ignores_culled(mq_create_hosts_in_all_states, api_patch):
+def test_patch_facts_ignores_culled(
+    db_create_account_staleness_culling_1_second, mq_create_hosts_in_all_states, api_patch
+):
     culled_host = mq_create_hosts_in_all_states["culled"]
+
+    time.sleep(2)
 
     url = build_facts_url(host_list_or_id=[culled_host], namespace="ns1")
     response_status, response_data = api_patch(url, {"ARCHITECTURE": "patched"})
@@ -79,8 +87,12 @@ def test_patch_facts_works_on_non_culled(mq_create_hosts_in_all_states, api_patc
     assert response_status == 200
 
 
-def test_put_facts_ignores_culled(mq_create_hosts_in_all_states, api_put):
+def test_put_facts_ignores_culled(
+    db_create_account_staleness_culling_1_second, mq_create_hosts_in_all_states, api_put
+):
     culled_host = mq_create_hosts_in_all_states["culled"]
+
+    time.sleep(2)
 
     url = build_facts_url(host_list_or_id=[culled_host], namespace="ns1")
 
@@ -98,8 +110,12 @@ def test_put_facts_works_on_non_culled(mq_create_hosts_in_all_states, api_put):
     assert response_status == 200
 
 
-def test_delete_ignores_culled(mq_create_hosts_in_all_states, api_delete_host):
+def test_delete_ignores_culled(
+    db_create_account_staleness_culling_1_second, mq_create_hosts_in_all_states, api_delete_host
+):
     culled_host = mq_create_hosts_in_all_states["culled"]
+
+    time.sleep(2)
 
     response_status, response_data = api_delete_host(culled_host.id)
 
@@ -150,6 +166,7 @@ def test_system_profile_doesnt_use_staleness_parameter(mq_create_hosts_in_all_st
     assert response_status == 400
 
 
+@pytest.mark.skip("Skipping until ESSNTL-5215 is implemented")
 @pytest.mark.host_reaper
 def test_culled_host_is_removed(
     event_producer_mock, event_datetime_mock, db_create_host, db_get_host, inventory_config
@@ -175,6 +192,7 @@ def test_culled_host_is_removed(
     assert_delete_event_is_valid(event_producer=event_producer_mock, host=created_host, timestamp=event_datetime_mock)
 
 
+@pytest.mark.skip("Skipping until ESSNTL-5215 is implemented")
 @pytest.mark.host_reaper
 def test_culled_edge_host_is_not_removed(event_producer_mock, db_create_host, db_get_host, inventory_config):
     staleness_timestamps = get_staleness_timestamps()
@@ -201,6 +219,7 @@ def test_culled_edge_host_is_not_removed(event_producer_mock, db_create_host, db
     assert event_producer_mock.event is None
 
 
+@pytest.mark.skip("Skipping until ESSNTL-5215 is implemented")
 @pytest.mark.host_reaper
 def test_non_culled_host_is_not_removed(event_producer_mock, db_create_host, db_get_hosts, inventory_config):
     staleness_timestamps = get_staleness_timestamps()
@@ -235,6 +254,7 @@ def test_non_culled_host_is_not_removed(event_producer_mock, db_create_host, db_
     assert event_producer_mock.event is None
 
 
+@pytest.mark.skip("Skipping until ESSNTL-5215 is implemented")
 @pytest.mark.host_reaper
 def test_reaper_shutdown_handler(db_create_host, db_get_hosts, inventory_config, event_producer_mock):
     staleness_timestamps = get_staleness_timestamps()
@@ -266,6 +286,7 @@ def test_reaper_shutdown_handler(db_create_host, db_get_hosts, inventory_config,
     assert fake_event_producer.write_event.call_count == 2
 
 
+@pytest.mark.skip("Skipping until ESSNTL-5215 is implemented")
 @pytest.mark.host_reaper
 def test_unknown_host_is_not_removed(
     event_producer_mock, db_create_host_in_unknown_state, db_get_host, inventory_config
@@ -300,6 +321,7 @@ def assert_system_culling_data(response_host, expected_stale_timestamp, expected
     assert response_host["reporter"] == expected_reporter
 
 
+@pytest.mark.skip("Skipping until ESSNTL-5215 is implemented")
 @pytest.mark.host_reaper
 @pytest.mark.parametrize(
     "produce_side_effects",

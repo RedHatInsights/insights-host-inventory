@@ -424,12 +424,25 @@ def test_add_facts_to_namespace_that_does_not_exist(db_create_multiple_hosts, ap
 
 
 @pytest.mark.system_culling
-def test_add_facts_to_multiple_culled_hosts(db_create_multiple_hosts, db_get_hosts, api_patch):
+def test_add_facts_to_multiple_culled_hosts(
+    db_create_multiple_hosts, db_get_hosts, api_patch, db_create_account_staleness_culling, event_producer_mock
+):
+    _ = db_create_account_staleness_culling(
+        conventional_staleness_delta="1",
+        conventional_stale_warning_delta="1",
+        conventional_culling_delta="1",
+        immutable_staleness_delta="1",
+        immutable_stale_warning_delta="1",
+        immutable_culling_delta="1",
+    )
+
     staleness_timestamps = get_staleness_timestamps()
 
     created_hosts = db_create_multiple_hosts(
         how_many=2, extra_data={"facts": DB_FACTS, "stale_timestamp": staleness_timestamps["culled"]}
     )
+
+    time.sleep(2)
 
     facts_url = build_facts_url(host_list_or_id=created_hosts, namespace=DB_FACTS_NAMESPACE)
 
