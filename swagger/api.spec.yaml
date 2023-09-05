@@ -809,6 +809,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AccountStalenessOutput'
+    delete:
+      operationId: api.account_staleness.delete_staleness
+      tags:
+        - accounts_staleness
+      summary: Delete an account staleness
+      description: >-
+        Delete an account staleness
+        <br /><br />
+        Required permissions: inventory:staleness:write
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '204':
+          description: Successfully deleted account staleness.
+        '400':
+          description: Invalid request.
+        '404':
+          description: Account Staleness not found.
+
   /account/staleness/reset:
     patch:
       operationId: api.account_staleness.reset_staleness
@@ -1821,67 +1840,65 @@ components:
       description: >-
         Data for a single Assignment Rule
       type: object
-      allOf:
-        - properties:
-            name:
-              type: string
-              minLength: 1
-              maxLength: 255
-            description:
-              type: string
-              minLength: 1
-              maxLength: 255
-              nullable: true
-            group_id:
-              $ref: "#/components/schemas/GroupId"
-            filter:
-              type: object
-            enabled:
-              type: boolean
-          required:
-            - name
-            - group_id
-            - filter
-            - enabled
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+          minLength: 1
+          maxLength: 255
+          nullable: true
+        group_id:
+          $ref: "#/components/schemas/GroupId"
+        filter:
+          type: object
+        enabled:
+          type: boolean
+      required:
+        - name
+        - group_id
+        - filter
+        - enabled
     AssignmentRuleOut:
       title: Assignment Rule response
       description: >-
         Data for a single Assignment Rule response
       type: object
-      allOf:
-        - properties:
-            id:
-              $ref: '#/components/schemas/NonStrictUUID'
-            org_id:
-              $ref: '#/components/schemas/OrgId'
-            account:
-              $ref: '#/components/schemas/AccountNumber'
-            name:
-              type: string
-              minLength: 1
-            description:
-              type: string
-              minLength: 1
-              nullable: true
-            group_id:
-              $ref: "#/components/schemas/GroupId"
-            filter:
-              type: object
-            enabled:
-              type: boolean
-            created_on:
-              type: string
-              format: date-time
-            modified_on:
-              type: string
-              format: date-time
-          required:
-            - name
-            - group_id
-            - filter
-            - enabled
-            - created_on
-            - modified_on
+      properties:
+        id:
+          $ref: '#/components/schemas/NonStrictUUID'
+        org_id:
+          $ref: '#/components/schemas/OrgId'
+        account:
+          $ref: '#/components/schemas/AccountNumber'
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+          minLength: 1
+          nullable: true
+        group_id:
+          $ref: "#/components/schemas/GroupId"
+        filter:
+          type: object
+        enabled:
+          type: boolean
+        created_on:
+          type: string
+          format: date-time
+        modified_on:
+          type: string
+          format: date-time
+      required:
+        - name
+        - group_id
+        - filter
+        - enabled
+        - created_on
+        - modified_on
     GroupOutWithHostCount:
       title: Group properties with host count
       description: >-
