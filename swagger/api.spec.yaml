@@ -1840,28 +1840,27 @@ components:
       description: >-
         Data for a single Assignment Rule
       type: object
-      allOf:
-        - properties:
-            name:
-              type: string
-              minLength: 1
-              maxLength: 255
-            description:
-              type: string
-              minLength: 1
-              maxLength: 255
-              nullable: true
-            group_id:
-              $ref: "#/components/schemas/GroupId"
-            filter:
-              type: object
-            enabled:
-              type: boolean
-          required:
-            - name
-            - group_id
-            - filter
-            - enabled
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+          minLength: 1
+          maxLength: 255
+          nullable: true
+        group_id:
+          $ref: "#/components/schemas/GroupId"
+        filter:
+          type: object
+        enabled:
+          type: boolean
+      required:
+        - name
+        - group_id
+        - filter
+        - enabled
     AssignmentRuleOut:
       title: Assignment Rule response
       description: >-
