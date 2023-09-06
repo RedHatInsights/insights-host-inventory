@@ -87,10 +87,18 @@ def initialize_metrics(config):
     )
 
 
+def _segment_track_error(msg):
+    print(f"\n********************* SegmentIO Track ERROR: {msg}\n")
+
+
 def initialize_segmentio():
-    print("\n****** Initializing Segmentio\n")
     # Should this be maintained by app/config.py?
-    analytics.write_key = os.getenv("INVENTORY_SEGMENT_WRITE_KEY", "YOUR_WRITE_KEY")
+    analytics.write_key = os.getenv("INVENTORY_SEGMENT_WRITE_KEY", None)
+    # TODO: Need to call analytics.flush() on shutdown.
+    analytics.debug = True
+    analytics.on_error = _segment_track_error
+    print(f"\n****** Initializing Segmentio - analytics.write_key: {analytics.write_key}")
+    print(f"       analytics.send = {analytics.send}")
 
 
 def render_exception(exception):
