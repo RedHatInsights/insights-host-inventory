@@ -61,7 +61,7 @@ def get_assignment_rules_list(
 @api_operation
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def create_assignment_rule(body, rbac_filter: RbacFilter = RbacFilter()):
+def create_assignment_rule(body, rbac_filter: RbacFilter):
     if not get_flag_value(FLAG_INVENTORY_ASSIGNMENT_RULES):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 

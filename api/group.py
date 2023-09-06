@@ -67,7 +67,7 @@ def get_group_list(
 @api_operation
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def create_group(body, rbac_filter: RbacFilter = RbacFilter()):
+def create_group(body, rbac_filter: RbacFilter):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
@@ -115,7 +115,7 @@ def create_group(body, rbac_filter: RbacFilter = RbacFilter()):
 @api_operation
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def patch_group_by_id(group_id, body, rbac_filter: RbacFilter = RbacFilter()):
+def patch_group_by_id(group_id, body, rbac_filter: RbacFilter):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
@@ -156,7 +156,7 @@ def patch_group_by_id(group_id, body, rbac_filter: RbacFilter = RbacFilter()):
 @api_operation
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def delete_groups(group_id_list, rbac_filter: RbacFilter = RbacFilter()):
+def delete_groups(group_id_list, rbac_filter: RbacFilter):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
@@ -202,7 +202,7 @@ def get_groups_by_id(
 @api_operation
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def delete_hosts_from_group(group_id, host_id_list, rbac_filter: RbacFilter = RbacFilter()):
+def delete_hosts_from_group(group_id, host_id_list, rbac_filter: RbacFilter):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 

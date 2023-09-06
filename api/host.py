@@ -255,7 +255,7 @@ def delete_all_hosts(confirm_delete_all=None, rbac_filter: RbacFilter = RbacFilt
 @api_operation
 @rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def delete_host_by_id(host_id_list, rbac_filter: RbacFilter = RbacFilter()):
+def delete_host_by_id(host_id_list, rbac_filter: RbacFilter):
     delete_count = _delete_host_list(host_id_list, rbac_filter)
 
     if not delete_count:
@@ -323,7 +323,7 @@ def _emit_patch_event(serialized_host, host_id, insights_id):
 @api_operation
 @rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def patch_host_by_id(host_id_list, body, rbac_filter: RbacFilter = RbacFilter()):
+def patch_host_by_id(host_id_list, body, rbac_filter: RbacFilter):
     try:
         validated_patch_host_data = PatchHostSchema().load(body)
     except ValidationError as e:
@@ -353,14 +353,14 @@ def patch_host_by_id(host_id_list, body, rbac_filter: RbacFilter = RbacFilter())
 @api_operation
 @rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def replace_facts(host_id_list, namespace, body, rbac_filter: RbacFilter = RbacFilter()):
+def replace_facts(host_id_list, namespace, body, rbac_filter: RbacFilter):
     return update_facts_by_namespace(FactOperations.replace, host_id_list, namespace, body, rbac_filter)
 
 
 @api_operation
 @rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def merge_facts(host_id_list, namespace, body, rbac_filter: RbacFilter = RbacFilter()):
+def merge_facts(host_id_list, namespace, body, rbac_filter: RbacFilter):
     if not body:
         error_msg = "ERROR: Invalid request.  Merging empty facts into existing facts is a no-op."
         logger.debug(error_msg)
@@ -456,7 +456,7 @@ def _build_paginated_host_tags_response(total, page, per_page, tags_list):
 @api_operation
 @rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def host_checkin(body, rbac_filter: RbacFilter = RbacFilter()):
+def host_checkin(body, rbac_filter: RbacFilter):
     current_identity = get_current_identity()
     canonical_facts = deserialize_canonical_facts(body)
     existing_host = find_existing_host(current_identity, canonical_facts)

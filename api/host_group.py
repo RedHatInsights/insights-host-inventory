@@ -28,7 +28,7 @@ logger = get_logger(__name__)
 @api_operation
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def add_host_list_to_group(group_id, body, rbac_filter: RbacFilter = RbacFilter()):
+def add_host_list_to_group(group_id, body, rbac_filter: RbacFilter):
     if type(body) is not list:
         return abort(status.HTTP_400_BAD_REQUEST, f"Body content must be an array with groups UUIDs, not {type(body)}")
 
@@ -64,7 +64,7 @@ def add_host_list_to_group(group_id, body, rbac_filter: RbacFilter = RbacFilter(
 @api_operation
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def delete_hosts_from_group(group_id, host_id_list, rbac_filter: RbacFilter = RbacFilter()):
+def delete_hosts_from_group(group_id, host_id_list, rbac_filter: RbacFilter):
     if not get_flag_value(FLAG_INVENTORY_GROUPS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 

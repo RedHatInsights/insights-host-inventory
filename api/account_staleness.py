@@ -40,14 +40,14 @@ def _get_return_data():
 @api_operation
 @rbac(RbacResourceType.STALENESS, RbacPermission.READ)
 @metrics.api_request_time.time()
-def get_staleness(rbac_filter: RbacFilter = RbacFilter()):
+def get_staleness(rbac_filter: RbacFilter):
     return flask_json_response(_get_return_data(), status.HTTP_200_OK)
 
 
 @api_operation
 @rbac(RbacResourceType.STALENESS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def create_staleness(body, rbac_filter: RbacFilter = RbacFilter()):
+def create_staleness(body, rbac_filter: RbacFilter):
     # Validate account staleness input data
     try:
         validated_data = InputAccountStalenessSchema().load(body)
@@ -73,12 +73,12 @@ def create_staleness(body, rbac_filter: RbacFilter = RbacFilter()):
 @api_operation
 @rbac(RbacResourceType.STALENESS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def update_staleness(rbac_filter: RbacFilter = RbacFilter()):
+def update_staleness(rbac_filter: RbacFilter):
     return flask_json_response(_get_return_data(), status.HTTP_200_OK)
 
 
 @api_operation
 @rbac(RbacResourceType.STALENESS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def reset_staleness(rbac_filter: RbacFilter = RbacFilter()):
+def reset_staleness(rbac_filter: RbacFilter):
     return flask_json_response(_get_return_data(), status.HTTP_200_OK)
