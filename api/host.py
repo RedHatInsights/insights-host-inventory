@@ -60,7 +60,7 @@ logger = get_logger(__name__)
 
 
 @api_operation
-@rbac(RbacResourceType.HOSTS, RbacPermission.READ, additional_permissions=["inventory:groups:read"])
+@rbac(RbacResourceType.HOSTS, RbacPermission.READ, additional_restrictions=["inventory:groups:read"])
 @metrics.api_request_time.time()
 def get_host_list(
     display_name=None,

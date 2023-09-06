@@ -55,7 +55,7 @@ class RbacFilter:
         resource: RbacResourceType = RbacResourceType.HOSTS,
         permission: RbacPermission = RbacPermission.READ,
         filter_by: RbacIdFilter = None,
-        other_permissions: Dict[str, RbacIdFilter] = {},
+        data_restrictions: Dict[str, RbacIdFilter] = {},
     ) -> None:
         # The resource and permission this filter applies to (e.g. hosts:read)
         self.resource = resource
@@ -63,7 +63,7 @@ class RbacFilter:
         # The filter being applied (RBAC attributeFilter, e.g. list of group ID)
         self.filter_by = filter_by
         # Extra RBAC permission data needed by certain endpoints
-        self.other_permissions = other_permissions
+        self.data_restrictions = data_restrictions
 
 
 def get_rbac_url(app: str) -> str:
@@ -186,7 +186,7 @@ def rbac(
     resource_type: RbacResourceType,
     required_permission: RbacPermission,
     permission_base: str = "inventory",
-    additional_permissions: List[str] = [],
+    additional_restrictions: List[str] = [],
 ):
     def other_func(func):
         @wraps(func)
@@ -223,13 +223,13 @@ def rbac(
                 rbac_data, permission_base, resource_type, required_permission
             )
 
-            # Get the allowed IDs for any additional permissions requested
-            other_permissions = {}
-            for additional_permission in additional_permissions:
+            # Get the allowed IDs for any additional restrictions
+            data_restrictions = {}
+            for additional_permission in additional_restrictions:
                 additional_ids, _ = _get_allowed_ids(
                     rbac_data, *(_parse_rbac_permission_string(additional_permission))
                 )
-                other_permissions[additional_permission] = RbacIdFilter(RbacResourceType.GROUPS, additional_ids)
+                data_restrictions[additional_permission] = RbacIdFilter(RbacResourceType.GROUPS, additional_ids)
 
             # If all applicable permissions are restricted to specific groups,
             # call the endpoint with the RBAC filtering data.
@@ -238,7 +238,7 @@ def rbac(
                     resource_type,
                     required_permission,
                     RbacIdFilter(RbacResourceType.GROUPS, allowed_group_ids) if allowed_group_ids else None,
-                    other_permissions,
+                    data_restrictions,
                 )
 
                 return partial(func, rbac_filter=rbac_filter)(*args, **kwargs)

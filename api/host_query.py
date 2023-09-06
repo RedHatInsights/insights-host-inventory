@@ -11,8 +11,9 @@ def build_paginated_host_list_response(
     total, page, per_page, host_list, additional_fields=tuple(), rbac_filter: RbacFilter = RbacFilter()
 ):
     timestamps = staleness_timestamps()
+
     allowed_group_read_ids = (
-        rbac_filter.other_permissions.get("inventory:groups:read").id_set if rbac_filter.other_permissions else None
+        rbac_filter.data_restrictions.get("inventory:groups:read").id_set if rbac_filter.data_restrictions else None
     )
 
     json_host_list = [
