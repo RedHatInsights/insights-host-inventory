@@ -209,15 +209,6 @@ def rbac(
 
             rbac_data = get_rbac_permissions(permission_base)
 
-            # TODO: Remove this workaround after RHCLOUD-27511 is implemented.
-            # If the required permission is RBAC admin, we can check the Identity instead.
-            if (
-                permission_base == "rbac"
-                and current_identity.identity_type == IdentityType.USER
-                and current_identity.user.get("is_org_admin")
-            ):
-                return func(*args, **kwargs)
-
             # Get the allowed IDs for the required permission
             allowed_group_ids, is_allowed = _get_allowed_ids(
                 rbac_data, permission_base, resource_type, required_permission
