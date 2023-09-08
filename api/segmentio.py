@@ -13,12 +13,17 @@ def segmentio_track(op_name, start_time, end_time, contextual_data):
         analytics.track(
             identity.org_id,
             op_name,
-            {
+            properties={
                 "start_time": start_time,
                 "end_time": end_time,
                 "status_code": contextual_data["status_code"],
                 "user_agent": connexion.request.headers["User-Agent"],
                 "auth_type": identity.auth_type,
+            },
+            context={
+                "app": {
+                    "name": "Insights Host Inventory API",
+                }
             },
         )
     else:
