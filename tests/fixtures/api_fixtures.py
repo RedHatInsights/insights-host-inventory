@@ -141,6 +141,19 @@ def api_patch_group(flask_client):
 
 
 @pytest.fixture(scope="function")
+def api_remove_hosts_from_diff_groups(flask_client):
+    def _api_remove_hosts_from_diff_groups(
+        host_id_list, identity=USER_IDENTITY, query_parameters=None, extra_headers=None
+    ):
+        url = f"{GROUP_URL}/hosts/{','.join([str(host_id) for host_id in host_id_list])}"
+        return do_request(
+            flask_client.delete, url, identity, query_parameters=query_parameters, extra_headers=extra_headers
+        )
+
+    return _api_remove_hosts_from_diff_groups
+
+
+@pytest.fixture(scope="function")
 def api_create_assign_rule(flask_client):
     def _api_create_assign_rule(assign_rule_data, identity=USER_IDENTITY, query_parameters=None, extra_headers=None):
         return do_request(
