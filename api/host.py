@@ -265,7 +265,7 @@ def delete_host_by_id(host_id_list, rbac_filter: RbacFilter):
 
 
 @api_operation
-@rbac(RbacResourceType.HOSTS, RbacPermission.READ)
+@rbac(RbacResourceType.HOSTS, RbacPermission.READ, additional_restrictions=["inventory:groups:read"])
 @metrics.api_request_time.time()
 def get_host_by_id(
     host_id_list,
@@ -286,7 +286,7 @@ def get_host_by_id(
 
     log_get_host_list_succeeded(logger, host_list)
 
-    json_data = build_paginated_host_list_response(total, page, per_page, host_list, additional_fields)
+    json_data = build_paginated_host_list_response(total, page, per_page, host_list, additional_fields, rbac_filter)
     return flask_json_response(json_data)
 
 

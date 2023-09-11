@@ -13,7 +13,9 @@ def build_paginated_host_list_response(
     timestamps = staleness_timestamps()
 
     allowed_group_read_ids = (
-        rbac_filter.data_restrictions.get("inventory:groups:read").id_set if rbac_filter.data_restrictions else None
+        rbac_filter.data_restrictions.get("inventory:groups:read").id_set
+        if rbac_filter.data_restrictions.get("inventory:groups:read")
+        else None
     )
 
     json_host_list = [

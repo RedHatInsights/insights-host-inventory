@@ -1,3 +1,4 @@
+from copy import deepcopy
 from itertools import chain
 
 import pytest
@@ -500,3 +501,23 @@ def test_host_list_hidden_group_names(mocker, enable_rbac, patch_xjoin_post, api
 
     # Make sure we can't see the second host's group
     assert len(response_data["results"][1]["groups"]) == 0
+
+
+def test_get_hosts_by_id_hidden_group_names(mocker, enable_rbac, patch_xjoin_post, api_get):
+    # Patch the xjoin response; it should get 1 host.
+    xjoin_single_host_response = deepcopy(XJOIN_HOSTS_RESPONSE)
+    del xjoin_single_host_response["hosts"]["data"][1]
+    patch_xjoin_post(response={"data": xjoin_single_host_response})
+
+    # Patch the RBAC response. Can view hosts but not groups.
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    mock_rbac_response = create_mock_rbac_response("tests/helpers/rbac-mock-data/inv-hosts-read-only.json")
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    host_id = xjoin_single_host_response["hosts"]["data"][0]["id"]
+    response_status, response_data = api_get(HOST_URL + f"/{host_id}")
+
+    assert response_status == 200
+
+    # Make sure we can't see the host's group
+    assert len(response_data["results"][0]["groups"]) == 0

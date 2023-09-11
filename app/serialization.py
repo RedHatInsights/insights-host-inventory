@@ -165,7 +165,7 @@ def serialize_host(host, staleness_timestamps, for_mq=True, additional_fields=tu
             ]
         else:
             # If allowed_group_ids is provided, we need to limit which groups are displayed.
-            if allowed_group_ids:
+            if allowed_group_ids is not None:
                 serialized_host["groups"] = [g for g in host.groups if g["id"] in allowed_group_ids] or []
             else:
                 serialized_host["groups"] = host.groups or []

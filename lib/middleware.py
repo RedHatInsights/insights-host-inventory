@@ -217,10 +217,17 @@ def rbac(
             # Get the allowed IDs for any additional restrictions
             data_restrictions = {}
             for additional_permission in additional_restrictions:
-                additional_ids, _ = _get_allowed_ids(
+                additional_ids, match_found = _get_allowed_ids(
                     rbac_data, *(_parse_rbac_permission_string(additional_permission))
                 )
-                data_restrictions[additional_permission] = RbacIdFilter(RbacResourceType.GROUPS, additional_ids)
+
+                if not match_found or (match_found and len(additional_ids) > 0):
+                    # If no matching permission was found, or it was found and it's limited to a set of IDs,
+                    # we should restrict the data.
+                    data_restrictions[additional_permission] = RbacIdFilter(RbacResourceType.GROUPS, additional_ids)
+                else:
+                    # If a match was found but it's not limited to any IDs, we should not restrict the data.
+                    data_restrictions[additional_permission] = None
 
             # If all applicable permissions are restricted to specific groups,
             # call the endpoint with the RBAC filtering data.
