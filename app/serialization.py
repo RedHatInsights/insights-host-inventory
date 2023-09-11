@@ -76,7 +76,7 @@ def deserialize_canonical_facts(raw_data, all=False):
     return _deserialize_canonical_facts(validated_data)
 
 
-def deserialize_host_xjoin(data, rbac_filter=None):
+def deserialize_host_xjoin(data):
     host = Host(
         canonical_facts=data["canonical_facts"],
         display_name=data["display_name"],
