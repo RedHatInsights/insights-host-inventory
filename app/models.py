@@ -859,3 +859,12 @@ class InputAccountStalenessSchema(MarshmallowSchema):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+    @validates_schema(skip_on_field_errors=False)
+    def sanity_check(self, data, **kwargs):
+        errors = dict()
+        for field in data:
+            if not data[field].isdigit() and not data[field] == "never":
+                errors[field] = [f"{field} must be  greater than or equal 0"]
+        if errors:
+            raise MarshmallowValidationError(errors)

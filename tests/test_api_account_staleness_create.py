@@ -66,6 +66,13 @@ def test_create_staleness_with_wrong_input(api_create_account_staleness):
     response_status, response_data = api_create_account_staleness(input_data)
     assert_response_status(response_status, 400)
 
+    # test  only positive number
+    input_data = {
+        "immutable_staleness_delta": "-1",
+    }
+    response_status, response_data = api_create_account_staleness(input_data)
+    assert_response_status(response_status, 400)
+
 
 def test_create_staleness_rbac_allowed(
     subtests, mocker, api_create_account_staleness, db_get_account_staleness_culling, enable_rbac

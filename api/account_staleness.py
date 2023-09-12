@@ -11,6 +11,7 @@ from api import json_error_response
 from api import metrics
 from app import RbacPermission
 from app import RbacResourceType
+from app.auth import get_current_identity
 from app.instrumentation import log_create_account_staleness_failed
 from app.instrumentation import log_create_account_staleness_succeeded
 from app.logging import get_logger
@@ -55,6 +56,8 @@ def get_staleness():
 def create_staleness(body):
     if not get_flag_value(FLAG_INVENTORY_CUSTOM_STALENESS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
+    current_identity = get_current_identity()
+    org_id = current_identity.org_id
 
     # Validate account staleness input data
     try:
@@ -69,9 +72,9 @@ def create_staleness(body):
 
         log_create_account_staleness_succeeded(logger, created_staleness.id)
     except IntegrityError:
-        error_message = f'An account staleness with org_id {validated_data.get("org_id")} already exists.'
+        error_message = f"An account staleness with org_id {org_id} already exists."
 
-        log_create_account_staleness_failed(logger, validated_data.get("org_id"))
+        log_create_account_staleness_failed(logger, org_id)
         logger.exception(error_message)
         return json_error_response("Integrity error", error_message, status.HTTP_400_BAD_REQUEST)
 
