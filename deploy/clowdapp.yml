@@ -754,8 +754,7 @@ objects:
             "system_profile_facts"->'subscription_status' AS "subscription_status",
             "system_profile_facts"->'ansible' AS "ansible_workload",
             "system_profile_facts"->'mssql' AS "mssql_workload",
-            "system_profile_facts"->'sap' AS "sap_workload",
-            "system_profile_facts"->'rhc_client_id' AS "rhc_client_id"
+            "system_profile_facts"->'sap' AS "sap_workload"
           FROM "hosts"
 parameters:
 - name: LOG_LEVEL
