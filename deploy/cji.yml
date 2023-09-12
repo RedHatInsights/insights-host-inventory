@@ -8,11 +8,11 @@ objects:
   metadata:
     labels:
       app: host-inventory
-    name: just-host-synchronizer-${SYNCHRONIZER_RUN_NUMBER}
+    name: host-synchronizer-${SYNCHRONIZER_RUN_NUMBER}
   spec:
     appName: host-inventory
     jobs:
-      - just-host-synchronizer
+      - synchronizer
 parameters:
 - name: SYNCHRONIZER_RUN_NUMBER
   value: '1'
