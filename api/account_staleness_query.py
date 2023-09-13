@@ -77,7 +77,7 @@ def _build_serialized_acc_staleness_obj(acc_st):
     return AttrDict(
         {
             "id": str(acc_st.id),
-            "account": acc_st.id,
+            "account": acc_st.account,
             "org_id": acc_st.org_id,
             "conventional_staleness_delta": acc_st.conventional_staleness_delta,
             "conventional_stale_warning_delta": acc_st.conventional_stale_warning_delta,
@@ -85,8 +85,8 @@ def _build_serialized_acc_staleness_obj(acc_st):
             "immutable_staleness_delta": acc_st.immutable_staleness_delta,
             "immutable_stale_warning_delta": acc_st.immutable_stale_warning_delta,
             "immutable_culling_delta": acc_st.immutable_culling_delta,
-            "created_on": acc_st.created_on.astimezone(timezone.utc).isoformat(),
-            "modified_on": acc_st.modified_on.astimezone(timezone.utc).isoformat(),
+            "created_on": acc_st.created_on,
+            "modified_on": acc_st.modified_on,
         }
     )
 
