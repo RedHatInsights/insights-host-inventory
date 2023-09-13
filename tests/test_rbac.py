@@ -2,8 +2,12 @@ import pytest
 from requests import exceptions
 
 from tests.helpers.api_utils import assert_response_status
+from tests.helpers.api_utils import build_account_staleness_url
+from tests.helpers.api_utils import build_assignment_rules_url
+from tests.helpers.api_utils import build_groups_url
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import create_mock_rbac_response
+from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
 def test_rbac_retry_error_handling(mocker, db_create_host, api_get, enable_rbac):
@@ -72,3 +76,14 @@ def test_RBAC_invalid_UUIDs(mocker, api_get, enable_rbac):
     response_status, _ = api_get(build_hosts_url())
 
     assert_response_status(response_status, 503)
+
+
+@pytest.mark.parametrize(
+    "url_builder",
+    [build_account_staleness_url, build_assignment_rules_url, build_groups_url],
+)
+def test_non_host_endpoints_cannot_bypass_RBAC(api_get, enable_rbac, url_builder):
+    url = url_builder()
+    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+
+    assert_response_status(response_status, 403)

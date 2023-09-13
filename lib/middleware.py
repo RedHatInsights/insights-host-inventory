@@ -80,7 +80,10 @@ def rbac(resource_type, required_permission, permission_base="inventory"):
 
             current_identity = get_current_identity()
             if current_identity.identity_type != CHECKED_TYPE:
-                return func(*args, **kwargs)
+                if resource_type == RbacResourceType.HOSTS:
+                    return func(*args, **kwargs)
+                else:
+                    abort(status.HTTP_403_FORBIDDEN)
 
             # track that RBAC is being used to control access
             g.access_control_rule = "RBAC"
