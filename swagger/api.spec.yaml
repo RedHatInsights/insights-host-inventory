@@ -761,6 +761,7 @@ paths:
         Required permissions: inventory:TODO:read
       security:
         - ApiKeyAuth: []
+        - BearerAuth: []
       responses:
         '200':
           description: Successfully read the staleness account.
@@ -778,6 +779,7 @@ paths:
         Required permissions: inventory:TODO:write
       security:
         - ApiKeyAuth: []
+        - BearerAuth: []
       requestBody:
         description: Data required to create a record for a account staleness.
         required: true
@@ -802,6 +804,7 @@ paths:
         Required permissions: inventory:TODO:write
       security:
         - ApiKeyAuth: []
+        - BearerAuth: []
       responses:
         '200':
           description: Successfully account staleness updated.
@@ -820,6 +823,7 @@ paths:
         Required permissions: inventory:staleness:write
       security:
         - ApiKeyAuth: []
+        - BearerAuth: []
       responses:
         '204':
           description: Successfully deleted account staleness.
@@ -839,6 +843,7 @@ paths:
         Required permissions: inventory:TODO:read
       security:
         - ApiKeyAuth: []
+        - BearerAuth: []
       responses:
         '200':
           description: Successfully reset account staleness.

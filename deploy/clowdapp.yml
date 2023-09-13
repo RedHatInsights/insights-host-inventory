@@ -570,71 +570,7 @@ objects:
         command:
           - /bin/sh
           - -c
-          - python host_synchronizer.py
-        env:
-          - name: INVENTORY_LOG_LEVEL
-            value: ${LOG_LEVEL}
-          - name: INVENTORY_DB_SSL_MODE
-            value: ${INVENTORY_DB_SSL_MODE}
-          - name: INVENTORY_DB_SSL_CERT
-            value: ${INVENTORY_DB_SSL_CERT}
-          - name: KAFKA_BOOTSTRAP_SERVERS
-            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
-          - name: KAFKA_EVENT_TOPIC
-            value: ${KAFKA_EVENT_TOPIC}
-          - name: KAFKA_NOTIFICATION_TOPIC
-            value: ${KAFKA_NOTIFICATION_TOPIC}
-          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
-            value: platform.payload-status
-          - name: PAYLOAD_TRACKER_SERVICE_NAME
-            value: inventory-mq-service
-          - name: PAYLOAD_TRACKER_ENABLED
-            value: 'true'
-          - name: PROMETHEUS_PUSHGATEWAY
-            value: ${PROMETHEUS_PUSHGATEWAY}
-          - name: KAFKA_PRODUCER_ACKS
-            value: ${KAFKA_PRODUCER_ACKS}
-          - name: KAFKA_PRODUCER_RETRIES
-            value: ${KAFKA_PRODUCER_RETRIES}
-          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
-            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
-          - name: NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
-          - name: KAFKA_SECURITY_PROTOCOL
-            value: ${KAFKA_SECURITY_PROTOCOL}
-          - name: KAFKA_SASL_MECHANISM
-            value: ${KAFKA_SASL_MECHANISM}
-          - name: CLOWDER_ENABLED
-            value: "true"
-          - name: SCRIPT_CHUNK_SIZE
-            value: ${SCRIPT_CHUNK_SIZE}
-          - name: UNLEASH_URL
-            value: ${UNLEASH_URL}
-          - name: UNLEASH_TOKEN
-            valueFrom:
-              secretKeyRef:
-                name: ${UNLEASH_SECRET_NAME}
-                key: CLIENT_ACCESS_TOKEN
-                optional: true
-          - name: BYPASS_UNLEASH
-            value: ${BYPASS_UNLEASH}
-        resources:
-          limits:
-            cpu: ${CPU_LIMIT}
-            memory: ${MEMORY_LIMIT_SYNC}
-          requests:
-            cpu: ${CPU_REQUEST}
-            memory: ${MEMORY_REQUEST_SYNC}
-    - name: just-host-synchronizer
-      podSpec:
-        image: quay.io/cloudservices/insights-inventory:bca5615
-        restartPolicy: OnFailure
-        command:
-          - /bin/sh
-          - -c
-          - python host_synchronizer.py
+          - python rebuild_events_topic.py && python host_synchronizer.py
         env:
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
@@ -754,8 +690,7 @@ objects:
             "system_profile_facts"->'subscription_status' AS "subscription_status",
             "system_profile_facts"->'ansible' AS "ansible_workload",
             "system_profile_facts"->'mssql' AS "mssql_workload",
-            "system_profile_facts"->'sap' AS "sap_workload",
-            "system_profile_facts"->'rhc_client_id' AS "rhc_client_id"
+            "system_profile_facts"->'sap' AS "sap_workload"
           FROM "hosts"
 parameters:
 - name: LOG_LEVEL
