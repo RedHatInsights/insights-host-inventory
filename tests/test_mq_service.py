@@ -318,7 +318,7 @@ def test_handle_message_verify_message_headers(mocker, add_host_result, mq_creat
         host, platform_metadata={"request_id": request_id}, return_all_data=True, message_operation=mock_add_host
     )
 
-    assert headers == expected_headers(add_host_result.name, request_id, insights_id)
+    assert headers == expected_headers(add_host_result.name, request_id, insights_id, "rhsm-conduit")
 
 
 def test_add_host_simple(event_datetime_mock, mq_create_or_update_host):

@@ -138,8 +138,13 @@ def delete_duplicate_hosts(
             log_host_delete_succeeded(logger, host_id, "DEDUP")
             delete_duplicate_host_count.inc()
             event = build_event(EventType.delete, host)
-            insights_id = host.canonical_facts.get("insights_id")
-            headers = message_headers(EventType.delete, insights_id)
+            headers = message_headers(
+                EventType.delete,
+                host.canonical_facts.get("insights_id"),
+                host.reporter,
+                host.system_profile_facts.get("host_type"),
+                host.system_profile_facts.get("operating_system", {}).get("name"),
+            )
             # add back "wait=True", if needed.
             event_producer.write_event(event, str(host.id), headers, wait=True)
 
