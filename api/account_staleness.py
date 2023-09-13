@@ -54,6 +54,9 @@ def get_staleness(rbac_filter: RbacFilter):
 @rbac(RbacResourceType.STALENESS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def create_staleness(body, rbac_filter: RbacFilter):
+    if not get_flag_value(FLAG_INVENTORY_CUSTOM_STALENESS):
+        return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
+
     # Validate account staleness input data
     try:
         validated_data = InputAccountStalenessSchema().load(body)

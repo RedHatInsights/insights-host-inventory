@@ -8,7 +8,7 @@ from tests.helpers.api_utils import assert_group_response
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.test_utils import generate_uuid
-from tests.helpers.test_utils import SYSTEM_IDENTITY
+from tests.helpers.test_utils import USER_IDENTITY
 
 
 @pytest.mark.parametrize(
@@ -98,7 +98,7 @@ def test_patch_group_wrong_org_id_for_group(
     assert len(db_get_hosts_for_group(group.id)) == 2
 
     # Make an identity with a different org_id and account
-    diff_identity = deepcopy(SYSTEM_IDENTITY)
+    diff_identity = deepcopy(USER_IDENTITY)
     diff_identity["org_id"] = "diff_id"
     diff_identity["account"] = "diff_id"
 
@@ -120,7 +120,7 @@ def test_patch_group_existing_name_different_org(
     assert len(db_get_hosts_for_group(group.id)) == 2
 
     # Make an identity with a different org_id and account
-    diff_identity = deepcopy(SYSTEM_IDENTITY)
+    diff_identity = deepcopy(USER_IDENTITY)
     diff_identity["org_id"] = "diff_id"
     diff_identity["account"] = "diff_id"
 
@@ -247,7 +247,7 @@ def test_patch_group_hosts_in_diff_org(
     group_id = group.id
 
     # Make an identity with a different org_id and account
-    diff_identity = deepcopy(SYSTEM_IDENTITY)
+    diff_identity = deepcopy(USER_IDENTITY)
     diff_identity["org_id"] = "diff_id"
     diff_identity["account"] = "diff_id"
 

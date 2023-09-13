@@ -192,16 +192,15 @@ def rbac(
         @wraps(func)
         def modified_func(*args, **kwargs):
             current_identity = get_current_identity()
-            if inventory_config().bypass_rbac or current_identity.identity_type != CHECKED_TYPE:
-                return partial(
-                    func,
-                    rbac_filter=RbacFilter(
-                        resource_type,
-                        required_permission,
-                        None,
-                        {},
-                    ),
-                )(*args, **kwargs)
+            if current_identity.identity_type != CHECKED_TYPE and resource_type != RbacResourceType.HOSTS:
+                abort(status.HTTP_403_FORBIDDEN)
+
+            if inventory_config().bypass_rbac or (
+                current_identity.identity_type != CHECKED_TYPE and resource_type == RbacResourceType.HOSTS
+            ):
+                return partial(func, rbac_filter=RbacFilter(resource_type, required_permission, None, {}))(
+                    *args, **kwargs
+                )
 
             # track that RBAC is being used to control access
             g.access_control_rule = "RBAC"
