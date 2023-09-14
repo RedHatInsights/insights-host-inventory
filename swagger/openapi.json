@@ -1771,6 +1771,7 @@
           "type": "string",
           "enum": [
             "display_name",
+            "group_name",
             "updated",
             "operating_system"
           ]

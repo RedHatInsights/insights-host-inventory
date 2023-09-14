@@ -568,6 +568,7 @@ def test_query_variables_ordering_dir(direction, mocker, graphql_query_empty_res
         ("updated", "modified_on", "DESC"),
         ("display_name", "display_name", "ASC"),
         ("operating_system", "operating_system", "DESC"),
+        ("group_name", "group_name", "ASC"),
     ),
 )
 def test_query_variables_ordering_by(
