@@ -1,4 +1,3 @@
-import os
 from enum import Enum
 from os.path import join
 
@@ -88,9 +87,9 @@ def initialize_metrics(config):
 
 
 # TODO: Need to call analytics.flush() on shutdown.
-def initialize_segmentio():
+def initialize_segmentio(config):
     # Should this be maintained by app/config.py?
-    analytics.write_key = os.getenv("INVENTORY_SEGMENT_WRITE_KEY", None)
+    analytics.write_key = config.segmentio_write_key
     print(f"\n****** Initializing Segmentio - analytics.write_key: {analytics.write_key}")
     print(f"       analytics.send = {analytics.send}")
 
@@ -290,6 +289,6 @@ def create_app(runtime_environment):
     # initialize metrics to zero
     initialize_metrics(app_config)
 
-    initialize_segmentio()
+    initialize_segmentio(app_config)
 
     return flask_app
