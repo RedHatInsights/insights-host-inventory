@@ -40,8 +40,13 @@ def _delete_host(session, event_producer, host):
         if host_deleted:
             delete_host_count.inc()
             event = build_event(EventType.delete, host)
-            insights_id = host.canonical_facts.get("insights_id")
-            headers = message_headers(EventType.delete, insights_id)
+            headers = message_headers(
+                EventType.delete,
+                host.canonical_facts.get("insights_id"),
+                host.reporter,
+                host.system_profile_facts.get("host_type"),
+                host.system_profile_facts.get("operating_system", {}).get("name"),
+            )
             event_producer.write_event(event, str(host.id), headers, wait=True)
             session.commit()
             return host_deleted

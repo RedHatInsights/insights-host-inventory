@@ -44,7 +44,13 @@ def _produce_host_update_events(event_producer, host_id_list, group_id_list=[]):
     for host in host_list:
         host.groups = serialized_groups
         serialized_host = serialize_host(host, staleness_timestamps())
-        headers = message_headers(EventType.updated, serialized_host["insights_id"])
+        headers = message_headers(
+            EventType.updated,
+            host.canonical_facts.get("insights_id"),
+            host.reporter,
+            host.system_profile_facts.get("host_type"),
+            host.system_profile_facts.get("operating_system", {}).get("name"),
+        )
         event = build_event(EventType.updated, serialized_host)
         event_producer.write_event(event, serialized_host["id"], headers, wait=True)
 

@@ -299,10 +299,16 @@ def get_host_system_profile_by_id(
     return flask_json_response(json_output)
 
 
-def _emit_patch_event(serialized_host, host_id, insights_id):
-    headers = message_headers(EventType.updated, insights_id)
+def _emit_patch_event(serialized_host, host):
+    headers = message_headers(
+        EventType.updated,
+        host.canonical_facts.get("insights_id"),
+        host.reporter,
+        host.system_profile_facts.get("host_type"),
+        host.system_profile_facts.get("operating_system", {}).get("name"),
+    )
     event = build_event(EventType.updated, serialized_host)
-    current_app.event_producer.write_event(event, str(host_id), headers, wait=True)
+    current_app.event_producer.write_event(event, str(host.id), headers, wait=True)
 
 
 @api_operation
@@ -329,7 +335,7 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
         if db.session.is_modified(host):
             db.session.commit()
             serialized_host = serialize_host(host, staleness_timestamps())
-            _emit_patch_event(serialized_host, host.id, host.canonical_facts.get("insights_id"))
+            _emit_patch_event(serialized_host, host)
 
     log_patch_host_success(logger, host_id_list)
     return 200
@@ -396,7 +402,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
         if db.session.is_modified(host):
             db.session.commit()
             serialized_host = serialize_host(host, staleness_timestamps())
-            _emit_patch_event(serialized_host, host.id, host.canonical_facts.get("insights_id"))
+            _emit_patch_event(serialized_host, host)
 
     logger.debug("hosts_to_update:%s", hosts_to_update)
 
@@ -440,7 +446,7 @@ def host_checkin(body, rbac_filter=None):
         existing_host._update_modified_date()
         db.session.commit()
         serialized_host = serialize_host(existing_host, staleness_timestamps())
-        _emit_patch_event(serialized_host, existing_host.id, existing_host.canonical_facts.get("insights_id"))
+        _emit_patch_event(serialized_host, existing_host)
         return flask_json_response(serialized_host, 201)
     else:
         flask.abort(404, "No hosts match the provided canonical facts.")
