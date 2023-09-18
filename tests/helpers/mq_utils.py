@@ -109,7 +109,12 @@ def assert_delete_event_is_valid(event_producer, host, timestamp, expected_reque
 
     assert event_producer.key == str(host.id)
     assert event_producer.headers == expected_headers(
-        "delete", event["request_id"], host.canonical_facts.get("insights_id")
+        "delete",
+        event["request_id"],
+        host.canonical_facts.get("insights_id"),
+        host.reporter,
+        host.system_profile_facts.get("host_type"),
+        host.system_profile_facts.get("operating_system", {}).get("name"),
     )
 
     if expected_request_id:
@@ -174,25 +179,36 @@ def assert_patch_event_is_valid(
     assert event == expected_event
     assert event_producer.key == str(host.id)
     assert event_producer.headers == expected_headers(
-        "updated", expected_request_id, host.canonical_facts.get("insights_id")
+        "updated",
+        expected_request_id,
+        host.canonical_facts.get("insights_id"),
+        host.reporter,
+        host.system_profile_facts.get("host_type"),
+        host.system_profile_facts.get("operating_system", {}).get("name"),
     )
 
 
-def expected_headers(event_type, request_id, insights_id):
+def expected_headers(event_type, request_id, insights_id=None, reporter=None, host_type=None, os_name=None):
     return {
         "event_type": event_type,
         "request_id": request_id,
         "producer": os.uname().nodename,
         "insights_id": insights_id,
+        "reporter": reporter,
+        "host_type": host_type,
+        "os_name": os_name,
     }
 
 
-def expected_encoded_headers(event_type, request_id, insights_id):
+def expected_encoded_headers(event_type, request_id, insights_id=None, reporter=None, host_type=None, os_name=None):
     return [
         ("event_type", event_type.name.encode("utf-8")),
         ("request_id", request_id.encode("utf-8")),
         ("producer", os.uname().nodename.encode("utf-8")),
         ("insights_id", insights_id.encode("utf-8")),
+        ("reporter", reporter.encode("utf-8")),
+        ("host_type", host_type.encode("utf-8")),
+        ("os_name", os_name.encode("utf-8")),
     ]
 
 
@@ -211,7 +227,12 @@ def assert_synchronize_event_is_valid(
     assert host.canonical_facts.get("insights_id") == event["host"]["insights_id"]
     assert str(host.id) in event_producer.key
     assert event_producer.headers == expected_headers(
-        "updated", event["metadata"]["request_id"], host.canonical_facts.get("insights_id")
+        "updated",
+        event["metadata"]["request_id"],
+        host.canonical_facts.get("insights_id"),
+        host.reporter,
+        host.system_profile_facts.get("host_type"),
+        host.system_profile_facts.get("operating_system", {}).get("name"),
     )
 
     if expected_request_id:
