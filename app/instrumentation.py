@@ -315,7 +315,7 @@ def log_create_account_staleness_succeeded(logger, staleness_id):
 
 
 def log_patch_account_staleness_succeeded(logger, staleness_id):
-    logger.info("Account staleness: %s successfully updated.", staleness_id)
+    logger.info(f"Account staleness: {staleness_id} successfully updated.")
 
 
 def log_create_account_staleness_failed(logger, org_id):
