@@ -620,6 +620,8 @@ objects:
                 optional: true
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
+          - name: REBUILD_EVENTS_TIME_LIMIT
+            value: ${REBUILD_EVENTS_TIME_LIMIT}
         resources:
           limits:
             cpu: ${CPU_LIMIT}
@@ -832,6 +834,8 @@ parameters:
   value: '8190'
 - name: SCRIPT_CHUNK_SIZE
   value: '500'
+- name: REBUILD_EVENTS_TIME_LIMIT
+  value: '3600'
 
 # Feature flags
 - description: Unleash secret name
