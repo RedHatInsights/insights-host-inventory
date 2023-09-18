@@ -57,35 +57,35 @@ def run(config, logger, session, consumer, event_producer, shutdown_handler):
     partitions = consumer.assignment()
     total_messages_processed = 0
 
-    stop_time = datetime.now() + timedelta(seconds=config.rebuild_events_duration)
+    stop_time = datetime.now() + timedelta(seconds=config.rebuild_events_time_limit)
     logger.debug("About to start the consumer loop")
     while num_messages > 0 and not shutdown_handler.shut_down():
-        if datetime.now() < stop_time:
-            new_messages = consumer.consume(num_messages=config.script_chunk_size, timeout=10)
-            with session_guard(session):
-                for message in new_messages:
-                    try:
-                        sync_event_message(json.loads(message.value()), session, event_producer)
-
-                    except OperationalError as oe:
-                        """sqlalchemy.exc.OperationalError: This error occurs when an
-                        authentication failure occurs or the DB is not accessible.
-                        """
-                        logger.error(f"Could not access DB {str(oe)}")
-                        sys.exit(3)
-                    except Exception:
-                        logger.exception("Unable to process message", extra={"incoming_message": message.value()})
-            try:
-                # pace the events production speed as flush completes sending all buffered records.
-                event_producer._kafka_producer.flush(300)
-            except ProduceError:
-                raise ProduceError("ProduceError: Failed to flush produced Kafka messages within 300 seconds")
-
-            num_messages = len(new_messages)
-            total_messages_processed += num_messages
-        else:
-            logger.info(f"Event topic rebuild halting after {config.rebuild_events_duration} seconds time.")
+        if datetime.now() > stop_time:
+            logger.info(f"Event topic rebuild halting after {config.rebuild_events_time_limit} seconds time.")
             exit(0)  # exit as intended
+
+        new_messages = consumer.consume(num_messages=config.script_chunk_size, timeout=10)
+        with session_guard(session):
+            for message in new_messages:
+                try:
+                    sync_event_message(json.loads(message.value()), session, event_producer)
+
+                except OperationalError as oe:
+                    """sqlalchemy.exc.OperationalError: This error occurs when an
+                    authentication failure occurs or the DB is not accessible.
+                    """
+                    logger.error(f"Could not access DB {str(oe)}")
+                    sys.exit(3)
+                except Exception:
+                    logger.exception("Unable to process message", extra={"incoming_message": message.value()})
+        try:
+            # pace the events production speed as flush completes sending all buffered records.
+            event_producer._kafka_producer.flush(300)
+        except ProduceError:
+            raise ProduceError("ProduceError: Failed to flush produced Kafka messages within 300 seconds")
+
+        num_messages = len(new_messages)
+        total_messages_processed += num_messages
 
     logger.info(f"Event topic rebuild complete. Processed {total_messages_processed} messages.")
 
