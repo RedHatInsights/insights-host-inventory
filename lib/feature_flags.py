@@ -8,7 +8,7 @@ UNLEASH = Unleash()
 logger = get_logger(__name__)
 
 FLAG_INVENTORY_GROUPS = "hbi.api.inventory-groups"
-FLAG_INVENTORY_ASSIGNMENT_RULES = "hbi.api.group-assignment-rules"
+FLAG_INVENTORY_ASSIGNMENT_RULES = "hbi.group-assignment-rules"
 FLAG_INVENTORY_CUSTOM_STALENESS = "hbi.custom-staleness"
 FLAG_HIDE_EDGE_HOSTS = "hbi.api.hide-edge-by-default"
 
