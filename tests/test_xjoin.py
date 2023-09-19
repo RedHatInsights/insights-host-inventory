@@ -2180,9 +2180,7 @@ def test_spf_owner_id_invalid_field_value(subtests, graphql_query_empty_response
 # system_profile host_type tests
 # Make sure that regardless of the "hide edge hosts" flag, only the intended SP filters are used
 @pytest.mark.parametrize("hide_edge_ff_value", (True, False))
-def test_query_hosts_filter_spf_host_type(
-    mocker, subtests, graphql_query_empty_response, patch_xjoin_post, api_get, hide_edge_ff_value
-):
+def test_query_hosts_filter_spf_host_type(mocker, subtests, graphql_query_empty_response, api_get, hide_edge_ff_value):
     mocker.patch("api.filtering.filtering.get_flag_value", return_value=hide_edge_ff_value)
     filter_paths = ("[system_profile][host_type]", "[system_profile][host_type][eq]")
     values = ("edge", "nil", "not_nil")
@@ -2219,7 +2217,7 @@ def test_query_hosts_filter_spf_host_type(
 # Make sure that regardless of the "hide edge hosts" flag, only the intended SP filters are used
 @pytest.mark.parametrize("hide_edge_ff_value", (True, False))
 def test_query_hosts_filter_spf_host_type_multiple(
-    mocker, subtests, graphql_query_empty_response, patch_xjoin_post, api_get, hide_edge_ff_value
+    mocker, subtests, graphql_query_empty_response, api_get, hide_edge_ff_value
 ):
     mocker.patch("api.filtering.filtering.get_flag_value", return_value=hide_edge_ff_value)
     query_params = (
@@ -2255,9 +2253,7 @@ def test_query_hosts_filter_spf_host_type_multiple(
 
 
 # Test feature flag that automatically hides edge hosts
-def test_query_hosts_feature_flag_filter_host_type(
-    mocker, subtests, graphql_query_empty_response, patch_xjoin_post, api_get
-):
+def test_query_hosts_feature_flag_filter_host_type(mocker, graphql_query_empty_response, api_get):
     mocker.patch("api.filtering.filtering.get_flag_value", return_value=True)
 
     response_status, response_data = api_get(build_hosts_url())
@@ -2279,9 +2275,7 @@ def test_query_hosts_feature_flag_filter_host_type(
 
 
 # Test that the feature flag hides edge hosts when non-host-type SP filters are provided
-def test_query_hosts_edge_feature_flag_other_sp_filters(
-    mocker, subtests, graphql_query_empty_response, patch_xjoin_post, api_get
-):
+def test_query_hosts_edge_feature_flag_other_sp_filters(mocker, subtests, graphql_query_empty_response, api_get):
     mocker.patch("api.filtering.filtering.get_flag_value", return_value=True)
     query_params = (
         "?filter[system_profile][system_update_method][eq][]=dnf",
