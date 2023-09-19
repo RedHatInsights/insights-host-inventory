@@ -537,9 +537,9 @@ paths:
       operationId: api.group.delete_hosts_from_different_groups
       tags:
         - groups
-      summary: Delete a list of hosts from the groups they are in [Not Implemented]
+      summary: Delete a list of hosts from the groups they are in
       description: >-
-        Delete a list of hosts from the groups they are in. [Not Implemented]
+        Delete a list of hosts from the groups they are in.
         <br /><br />
         Required permissions: inventory:groups:write
       security:
@@ -548,9 +548,11 @@ paths:
         - $ref: '#/components/parameters/hostIdList'
       responses:
         '204':
-          description: The hosts were successfully removed from groups.
+          description: The hosts were successfully removed from their groups.
         '400':
           description: Invalid request.
+        '404':
+          description: The provided hosts are ungrouped.
 
 
   /resource-types:

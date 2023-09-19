@@ -273,9 +273,10 @@ def _update_group_update_time(group_id: str):
     db.session.flush()
 
 
-def get_group_from_host_id(host_id: str):
+def get_group_using_host_id(host_id: str):
     assoc = HostGroupAssoc.query.filter(HostGroupAssoc.host_id == host_id).one_or_none()
     if assoc:
+        # check current identity against db
         return get_group_by_id_from_db(str(assoc.group_id))
     else:
         return None
