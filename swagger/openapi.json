@@ -1351,7 +1351,7 @@
           "accounts_staleness"
         ],
         "summary": "Update account staleness record",
-        "description": "Update account staleness record. Required permissions: inventory:TODO:write",
+        "description": "Update account staleness record. Required permissions: inventory:staleness:write",
         "security": [
           {
             "ApiKeyAuth": []
@@ -1360,6 +1360,17 @@
             "BearerAuth": []
           }
         ],
+        "requestBody": {
+          "description": "Data required to update a record for a account staleness.",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountStalenessIn"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successfully account staleness updated.",

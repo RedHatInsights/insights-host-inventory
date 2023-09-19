@@ -2056,7 +2056,13 @@ class EventProducerTests(TestCase):
         ):
             with self.subTest(event_type=event_type):
                 event = build_event(event_type, host)
-                headers = message_headers(event_type, host_id)
+                headers = message_headers(
+                    event_type,
+                    host_id,
+                    self.basic_host["reporter"],
+                    self.basic_host.get("system_profile", {}).get("host_type"),
+                    self.basic_host.get("system_profile", {}).get("operating_system", {}).get("name"),
+                )
 
                 self.event_producer.write_event(event, host_id, headers)
 
@@ -2084,7 +2090,13 @@ class EventProducerTests(TestCase):
         ):
             with self.subTest(event_type=event_type):
                 event = build_event(event_type, host)
-                headers = message_headers(event_type, host_id)
+                headers = message_headers(
+                    event_type,
+                    host_id,
+                    self.basic_host["reporter"],
+                    self.basic_host.get("system_profile", {}).get("host_type"),
+                    self.basic_host.get("system_profile", {}).get("operating_system", {}).get("name"),
+                )
 
                 self.event_producer.write_event(event, host_id, headers)
 

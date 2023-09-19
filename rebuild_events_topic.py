@@ -1,5 +1,7 @@
 import json
 import sys
+from datetime import datetime
+from datetime import timedelta
 from functools import partial
 
 from confluent_kafka import Consumer as KafkaConsumer
@@ -55,8 +57,13 @@ def run(config, logger, session, consumer, event_producer, shutdown_handler):
     partitions = consumer.assignment()
     total_messages_processed = 0
 
+    stop_time = datetime.now() + timedelta(seconds=config.rebuild_events_time_limit)
     logger.debug("About to start the consumer loop")
     while num_messages > 0 and not shutdown_handler.shut_down():
+        if datetime.now() > stop_time:
+            logger.info(f"Event topic rebuild halting after {config.rebuild_events_time_limit} seconds time.")
+            exit(0)  # exit as intended
+
         new_messages = consumer.consume(num_messages=config.script_chunk_size, timeout=10)
         with session_guard(session):
             for message in new_messages:

@@ -13,10 +13,12 @@ from app import RbacPermission
 from app import RbacResourceType
 from app.instrumentation import log_create_account_staleness_failed
 from app.instrumentation import log_create_account_staleness_succeeded
+from app.instrumentation import log_patch_account_staleness_succeeded
 from app.logging import get_logger
 from app.models import InputAccountStalenessSchema
 from app.serialization import serialize_account_staleness_response
 from lib.account_staleness import add_account_staleness
+from lib.account_staleness import patch_account_staleness
 from lib.account_staleness import remove_account_staleness
 from lib.feature_flags import FLAG_INVENTORY_CUSTOM_STALENESS
 from lib.feature_flags import get_flag_value
@@ -41,6 +43,17 @@ def _get_return_data():
         "created_at": "2023-07-28T14:32:16.353082",
         "updated_at": "2023-07-28T14:32:16.353082",
     }
+
+
+def _validate_input_data(body):
+    # Validate account staleness input data
+    try:
+        validated_data = InputAccountStalenessSchema().load(body)
+    except ValidationError as e:
+        logger.exception(f'Input validation error, "{str(e.messages)}", while creating account staleness: {body}')
+        return json_error_response("Validation Error", str(e.messages), status.HTTP_400_BAD_REQUEST)
+
+    return validated_data
 
 
 @api_operation
@@ -96,8 +109,23 @@ def delete_staleness(rbac_filter: RbacFilter):
 @api_operation
 @rbac(RbacResourceType.STALENESS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def update_staleness(rbac_filter: RbacFilter):
-    return flask_json_response(_get_return_data(), status.HTTP_200_OK)
+def update_staleness(body, rbac_filter: RbacFilter):
+    if not get_flag_value(FLAG_INVENTORY_CUSTOM_STALENESS):
+        return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
+
+    validated_data = _validate_input_data(body)
+
+    try:
+        updated_staleness = patch_account_staleness(validated_data)
+        if updated_staleness is None:
+            # since update only return None with no record instead of exception.
+            raise NoResultFound
+
+        log_patch_account_staleness_succeeded(logger, updated_staleness.id)
+
+        return flask_json_response(serialize_account_staleness_response(updated_staleness), status.HTTP_200_OK)
+    except NoResultFound:
+        abort(status.HTTP_404_NOT_FOUND, "Account Staleness not found.")
 
 
 @api_operation

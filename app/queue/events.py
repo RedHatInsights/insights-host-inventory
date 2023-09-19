@@ -75,12 +75,17 @@ class HostDeleteEvent(Schema):
     metadata = fields.Nested(HostEventMetadataSchema())
 
 
-def message_headers(event_type: EventType, insights_id: str):
+def message_headers(
+    event_type: EventType, insights_id: str = None, reporter: str = None, host_type: str = None, os_name: str = None
+):
     return {
         "event_type": event_type.name,
         "request_id": threadctx.request_id,
         "producer": hostname(),
         "insights_id": insights_id,
+        "reporter": reporter,
+        "host_type": host_type,
+        "os_name": os_name,
     }
 
 

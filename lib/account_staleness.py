@@ -38,6 +38,20 @@ def add_account_staleness(account_staleness_data) -> AccountStalenessCulling:
     return created_staleness
 
 
+def patch_account_staleness(account_staleness_data) -> AccountStalenessCulling:
+    logger.debug("Updating AccountStaleness: %s", account_staleness_data)
+    org_id = get_current_identity().org_id
+
+    updated_data = {key: value for (key, value) in account_staleness_data.items() if value}
+
+    AccountStalenessCulling.query.filter(AccountStalenessCulling.org_id == org_id).update(updated_data)
+    db.session.commit()
+
+    updated_staleness = AccountStalenessCulling.query.filter(AccountStalenessCulling.org_id == org_id).one_or_none()
+
+    return updated_staleness
+
+
 def remove_account_staleness() -> None:
     org_id = get_current_identity().org_id
 
