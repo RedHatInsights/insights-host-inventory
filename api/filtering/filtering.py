@@ -24,6 +24,8 @@ from app.validators import is_custom_date as is_timestamp
 from app.xjoin import staleness_filter
 from app.xjoin import string_contains_lc
 from app.xjoin import string_exact_lc
+from lib.feature_flags import FLAG_HIDE_EDGE_HOSTS
+from lib.feature_flags import get_flag_value
 
 logger = get_logger(__name__)
 
@@ -480,6 +482,15 @@ def query_filters(
         query_filters += _group_name_list_query_filter(group_name)
     if group_ids:
         query_filters += _group_id_list_query_filter(group_ids)
+
+    # If this feature flag is set, we should hide edge hosts by default.
+    if get_flag_value(FLAG_HIDE_EDGE_HOSTS):
+        # When the flag is set, there will always be a system profile filter.
+        if not filter or "system_profile" not in filter:
+            filter = {"system_profile": {}}
+        # If a host_type filter wasn't provided in the request, filter out edge hosts.
+        if "host_type" not in filter["system_profile"]:
+            filter["system_profile"]["host_type"] = {"eq": "nil"}
 
     if filter:
         for key in filter:

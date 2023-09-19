@@ -2178,7 +2178,12 @@ def test_spf_owner_id_invalid_field_value(subtests, graphql_query_empty_response
 
 
 # system_profile host_type tests
-def test_query_hosts_filter_spf_host_type(mocker, subtests, graphql_query_empty_response, patch_xjoin_post, api_get):
+# Make sure that regardless of the "hide edge hosts" flag, only the intended SP filters are used
+@pytest.mark.parametrize("hide_edge_ff_value", (True, False))
+def test_query_hosts_filter_spf_host_type(
+    mocker, subtests, graphql_query_empty_response, patch_xjoin_post, api_get, hide_edge_ff_value
+):
+    mocker.patch("api.filtering.filtering.get_flag_value", return_value=hide_edge_ff_value)
     filter_paths = ("[system_profile][host_type]", "[system_profile][host_type][eq]")
     values = ("edge", "nil", "not_nil")
     queries = (
@@ -2211,9 +2216,12 @@ def test_query_hosts_filter_spf_host_type(mocker, subtests, graphql_query_empty_
                 graphql_query_empty_response.reset_mock()
 
 
+# Make sure that regardless of the "hide edge hosts" flag, only the intended SP filters are used
+@pytest.mark.parametrize("hide_edge_ff_value", (True, False))
 def test_query_hosts_filter_spf_host_type_multiple(
-    mocker, subtests, graphql_query_empty_response, patch_xjoin_post, api_get
+    mocker, subtests, graphql_query_empty_response, patch_xjoin_post, api_get, hide_edge_ff_value
 ):
+    mocker.patch("api.filtering.filtering.get_flag_value", return_value=hide_edge_ff_value)
     query_params = (
         "?filter[system_profile][host_type][eq][]=random-type",
         "?filter[system_profile][host_type][eq][]=edge" "&filter[system_profile][host_type][eq][]=random-type",
@@ -2239,6 +2247,67 @@ def test_query_hosts_filter_spf_host_type_multiple(
                     "limit": mocker.ANY,
                     "offset": mocker.ANY,
                     "filter": ({"OR": mocker.ANY}, query),
+                    "fields": mocker.ANY,
+                },
+                mocker.ANY,
+            )
+            graphql_query_empty_response.reset_mock()
+
+
+# Test feature flag that automatically hides edge hosts
+def test_query_hosts_feature_flag_filter_host_type(
+    mocker, subtests, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    mocker.patch("api.filtering.filtering.get_flag_value", return_value=True)
+
+    response_status, response_data = api_get(build_hosts_url())
+
+    assert response_status == 200
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            "filter": ({"OR": mocker.ANY}, {"spf_host_type": {"eq": None}}),
+            "fields": mocker.ANY,
+        },
+        mocker.ANY,
+    )
+
+
+# Test that the feature flag hides edge hosts when non-host-type SP filters are provided
+def test_query_hosts_edge_feature_flag_other_sp_filters(
+    mocker, subtests, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    mocker.patch("api.filtering.filtering.get_flag_value", return_value=True)
+    query_params = (
+        "?filter[system_profile][system_update_method][eq][]=dnf",
+        "?filter[system_profile][insights_client_version]=3.*",
+    )
+    queries = (
+        {"OR": [{"spf_system_update_method": {"eq": "dnf"}}]},
+        {"spf_insights_client_version": {"matches": "3.*"}},
+    )
+
+    for param, query in zip(query_params, queries):
+        with subtests.test(param=param, query=query):
+            url = build_hosts_url(query=param)
+
+            response_status, response_data = api_get(url)
+
+            assert response_status == 200
+
+            graphql_query_empty_response.assert_called_once_with(
+                HOST_QUERY,
+                {
+                    "order_by": mocker.ANY,
+                    "order_how": mocker.ANY,
+                    "limit": mocker.ANY,
+                    "offset": mocker.ANY,
+                    "filter": ({"OR": mocker.ANY}, query, {"spf_host_type": {"eq": None}}),
                     "fields": mocker.ANY,
                 },
                 mocker.ANY,
