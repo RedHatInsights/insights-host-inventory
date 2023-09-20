@@ -104,6 +104,19 @@ XJOIN_HOSTS_RESPONSE = {
                     "insights_id": "a58c53e0-8000-4384-b902-c70b69faacc5",
                 },
                 "facts": None,
+                "groups": {
+                    "data": [
+                        {
+                            "id": "28c52679-f0b9-4e9b-9bac-a3c7fae5070c",
+                            "org_id": "test",
+                            "account": "test",
+                            "name": "group 1",
+                            "created": "2019-02-10T08:07:03.354307Z",
+                            "updated": "2019-02-10T08:07:03.354312Z",
+                        }
+                    ],
+                    "meta": {"total": 1},
+                },
                 "stale_timestamp": "2020-02-10T08:07:03.354307Z",
                 "reporter": "puptoo",
                 "per_reporter_staleness": {
@@ -139,6 +152,19 @@ XJOIN_HOSTS_RESPONSE = {
                         "bios.release_date": "2014-04-01",
                         "bios.version": "1.11.0-2.el7",
                     },
+                },
+                "groups": {
+                    "data": [
+                        {
+                            "id": "39c52679-f0b9-4e9b-9bac-a3c7fae5070c",
+                            "org_id": "test",
+                            "account": "test",
+                            "name": "group 2",
+                            "created": "2019-02-10T08:07:03.354307Z",
+                            "updated": "2019-02-10T08:07:03.354312Z",
+                        },
+                    ],
+                    "meta": {"total": 1},
                 },
                 "stale_timestamp": "2020-01-10T08:07:03.354307Z",
                 "reporter": "yupana",

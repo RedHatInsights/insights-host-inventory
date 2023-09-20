@@ -9,7 +9,7 @@ from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.test_utils import generate_uuid
-from tests.helpers.test_utils import SYSTEM_IDENTITY
+from tests.helpers.test_utils import USER_IDENTITY
 
 
 def test_create_group_with_empty_host_list(api_create_group, db_get_group_by_name, event_producer, mocker):
@@ -121,7 +121,7 @@ def test_create_group_with_host_from_another_group(
     assert len(hosts_in_group) == 2
 
     # Make an identity with a different org_id and account
-    diff_identity = deepcopy(SYSTEM_IDENTITY)
+    diff_identity = deepcopy(USER_IDENTITY)
     diff_identity["org_id"] = "diff_id"
     diff_identity["account"] = "diff_id"
 
@@ -144,7 +144,7 @@ def test_create_group_with_host_from_another_org(db_create_host, api_create_grou
     host_id = str(host.id)
 
     # Make an identity with a different org_id and account
-    diff_identity = deepcopy(SYSTEM_IDENTITY)
+    diff_identity = deepcopy(USER_IDENTITY)
     diff_identity["org_id"] = "diff_id"
     diff_identity["account"] = "diff_id"
 

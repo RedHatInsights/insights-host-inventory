@@ -1,5 +1,9 @@
 from functools import partial
 from functools import wraps
+from typing import Dict
+from typing import List
+from typing import Set
+from typing import Tuple
 from uuid import UUID
 
 from app_common_python import LoadedConfig
@@ -31,6 +35,35 @@ CHECKED_TYPE = IdentityType.USER
 RETRY_STATUSES = [500, 502, 503, 504]
 
 outbound_http_metric = outbound_http_response_time.labels("rbac")
+
+
+class RbacIdFilter:
+    def __init__(self, resource: RbacResourceType, id_set: Set[str]) -> None:
+        self.resource = resource
+        self.id_set = id_set
+
+
+class RbacFilter:
+    # For quicker and easier access, otherPermissions is a dict with a format like this:
+    # {
+    #   "inventory:groups:read": <RbacIdFilter>,
+    #   "inventory:hosts:write": <RbacIdFilter>,
+    #   ...etc...
+    # }
+    def __init__(
+        self,
+        resource: RbacResourceType = RbacResourceType.HOSTS,
+        permission: RbacPermission = RbacPermission.READ,
+        filter_by: RbacIdFilter = None,
+        data_restrictions: Dict[str, RbacIdFilter] = {},
+    ) -> None:
+        # The resource and permission this filter applies to (e.g. hosts:read)
+        self.resource = resource
+        self.permission = permission
+        # The filter being applied (RBAC attributeFilter, e.g. list of group ID)
+        self.filter_by = filter_by
+        # Extra RBAC permission data needed by certain endpoints
+        self.data_restrictions = data_restrictions
 
 
 def get_rbac_url(app: str) -> str:
@@ -71,19 +104,103 @@ def get_rbac_permissions(app):
     return resp_data["data"]
 
 
-def rbac(resource_type, required_permission, permission_base="inventory"):
+def _validate_attribute_filter(attributeFilter: dict) -> None:
+    if attributeFilter.get("key") != "group.id":
+        abort(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "Invalid value for attributeFilter.key in RBAC response.",
+        )
+    elif attributeFilter.get("operation") != "in":
+        abort(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "Invalid value for attributeFilter.operation in RBAC response.",
+        )
+    elif not isinstance(attributeFilter["value"], list):
+        abort(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "Did not receive a list for attributeFilter.value in RBAC response.",
+        )
+    try:
+        # Validate that each value is in correct UUID format.
+        for gid in attributeFilter["value"]:
+            if gid is not None:
+                UUID(gid)
+    except ValueError:
+        abort(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "Received invalid UUIDs for attributeFilter.value in RBAC response.",
+        )
+
+
+def _get_attribute_filter_value(rbac_permission) -> Set[str]:
+    # Get the list of allowed Group IDs from the attribute filter.
+    attribute_filter_value = set()
+    for resourceDefinition in rbac_permission["resourceDefinitions"]:
+        if "attributeFilter" in resourceDefinition:
+            _validate_attribute_filter(resourceDefinition["attributeFilter"])
+            attribute_filter_value.update(resourceDefinition["attributeFilter"]["value"])
+
+    return attribute_filter_value
+
+
+def _parse_rbac_permission_string(rbac_permission: str) -> Tuple[str, RbacResourceType, RbacPermission]:
+    permission_split = rbac_permission.split(":")
+    return (permission_split[0], RbacResourceType(permission_split[1]), RbacPermission(permission_split[2]))
+
+
+def _get_allowed_ids(
+    rbac_data, permission_base: str, resource_type: RbacResourceType, required_permission: RbacPermission
+) -> Tuple[Set[str], bool]:
+    match_found = False  # Whether or not a matching permission was found
+    allowed_group_ids = set()  # The list of group IDs that access is restricted to (if any)
+
+    for rbac_permission in rbac_data:
+        if (
+            rbac_permission["permission"]  # inventory:*:*
+            == f"{permission_base}:{RbacResourceType.ALL.value}:{RbacPermission.ADMIN.value}"
+            or rbac_permission["permission"]  # inventory:{type}:*
+            == f"{permission_base}:{resource_type.value}:{RbacPermission.ADMIN.value}"
+            or rbac_permission["permission"]  # inventory:*:(read | write)
+            == f"{permission_base}:{RbacResourceType.ALL.value}:{required_permission.value}"
+            or rbac_permission["permission"]  # inventory:{type}:(read | write)
+            == f"{permission_base}:{resource_type.value}:{required_permission.value}"
+        ):
+            match_found = True
+
+            # Get the list of allowed Group IDs from the attribute filter.
+            attribute_filter_value = _get_attribute_filter_value(rbac_permission)
+
+            if attribute_filter_value:
+                # If the RBAC permission is applicable and is limited to specific group IDs,
+                # add that list of group IDs to the list of allowed group IDs.
+                allowed_group_ids.update(attribute_filter_value)
+            else:
+                # If any applicable RBAC permission exists and is NOT limited to specific group IDs,
+                # we should return an empty list to imply that it's not limited to specific IDs.
+                return set(), True
+
+    return allowed_group_ids, match_found
+
+
+def rbac(
+    resource_type: RbacResourceType,
+    required_permission: RbacPermission,
+    permission_base: str = "inventory",
+    additional_restrictions: List[str] = [],
+):
     def other_func(func):
         @wraps(func)
         def modified_func(*args, **kwargs):
-            if inventory_config().bypass_rbac:
-                return func(*args, **kwargs)
-
             current_identity = get_current_identity()
-            if current_identity.identity_type != CHECKED_TYPE:
-                if resource_type == RbacResourceType.HOSTS:
-                    return func(*args, **kwargs)
-                else:
-                    abort(status.HTTP_403_FORBIDDEN)
+            if current_identity.identity_type != CHECKED_TYPE and resource_type != RbacResourceType.HOSTS:
+                abort(status.HTTP_403_FORBIDDEN)
+
+            if inventory_config().bypass_rbac or (
+                current_identity.identity_type != CHECKED_TYPE and resource_type == RbacResourceType.HOSTS
+            ):
+                return partial(func, rbac_filter=RbacFilter(resource_type, required_permission, None, {}))(
+                    *args, **kwargs
+                )
 
             # track that RBAC is being used to control access
             g.access_control_rule = "RBAC"
@@ -91,70 +208,37 @@ def rbac(resource_type, required_permission, permission_base="inventory"):
 
             rbac_data = get_rbac_permissions(permission_base)
 
-            # Determines whether the endpoint can be accessed at all
-            allowed = False
-            # If populated, limits the allowed resources to specific group IDs
-            allowed_group_ids = set()
+            # Get the allowed IDs for the required permission
+            allowed_group_ids, is_allowed = _get_allowed_ids(
+                rbac_data, permission_base, resource_type, required_permission
+            )
 
-            for rbac_permission in rbac_data:
-                if (
-                    rbac_permission["permission"]  # inventory:*:*
-                    == f"{permission_base}:{RbacResourceType.ALL.value}:{RbacPermission.ADMIN.value}"
-                    or rbac_permission["permission"]  # inventory:{type}:*
-                    == f"{permission_base}:{resource_type.value}:{RbacPermission.ADMIN.value}"
-                    or rbac_permission["permission"]  # inventory:*:(read | write)
-                    == f"{permission_base}:{RbacResourceType.ALL.value}:{required_permission.value}"
-                    or rbac_permission["permission"]  # inventory:{type}:(read | write)
-                    == f"{permission_base}:{resource_type.value}:{required_permission.value}"
-                ):
-                    # If any of the above match, the endpoint should at least be allowed.
-                    allowed = True
+            # Get the allowed IDs for any additional restrictions
+            data_restrictions = {}
+            for additional_permission in additional_restrictions:
+                additional_ids, match_found = _get_allowed_ids(
+                    rbac_data, *(_parse_rbac_permission_string(additional_permission))
+                )
 
-                    # Get the list of allowed Group IDs from the attribute filter.
-                    groups_attribute_filter = set()
-                    for resourceDefinition in rbac_permission["resourceDefinitions"]:
-                        if "attributeFilter" in resourceDefinition:
-                            if resourceDefinition["attributeFilter"].get("key") != "group.id":
-                                abort(
-                                    status.HTTP_503_SERVICE_UNAVAILABLE,
-                                    "Invalid value for attributeFilter.key in RBAC response.",
-                                )
-                            elif resourceDefinition["attributeFilter"].get("operation") != "in":
-                                abort(
-                                    status.HTTP_503_SERVICE_UNAVAILABLE,
-                                    "Invalid value for attributeFilter.operation in RBAC response.",
-                                )
-                            elif not isinstance(resourceDefinition["attributeFilter"]["value"], list):
-                                abort(
-                                    status.HTTP_503_SERVICE_UNAVAILABLE,
-                                    "Did not receive a list for attributeFilter.value in RBAC response.",
-                                )
-                            else:
-                                # Add the IDs to the filter, but validate that they're all actually UUIDs.
-                                groups_attribute_filter.update(resourceDefinition["attributeFilter"]["value"])
-                                try:
-                                    for gid in groups_attribute_filter:
-                                        if gid is not None:
-                                            UUID(gid)
-                                except ValueError:
-                                    abort(
-                                        status.HTTP_503_SERVICE_UNAVAILABLE,
-                                        "Received invalid UUIDs for attributeFilter.value in RBAC response.",
-                                    )
-
-                    if groups_attribute_filter:
-                        # If the RBAC permission is applicable and is limited to specific group IDs,
-                        # add that list of group IDs to the list of allowed group IDs.
-                        allowed_group_ids.update(groups_attribute_filter)
-                    else:
-                        # If any applicable RBAC permission exists and is NOT limited to specific group IDs,
-                        # call the usual endpoint without resource-specific access limitations.
-                        return func(*args, **kwargs)
+                if not match_found or (match_found and len(additional_ids) > 0):
+                    # If no matching permission was found, or it was found and it's limited to a set of IDs,
+                    # we should restrict the data.
+                    data_restrictions[additional_permission] = RbacIdFilter(RbacResourceType.GROUPS, additional_ids)
+                else:
+                    # If a match was found but it's not limited to any IDs, we should not restrict the data.
+                    data_restrictions[additional_permission] = None
 
             # If all applicable permissions are restricted to specific groups,
             # call the endpoint with the RBAC filtering data.
-            if allowed:
-                return partial(func, rbac_filter={"groups": allowed_group_ids})(*args, **kwargs)
+            if is_allowed:
+                rbac_filter = RbacFilter(
+                    resource_type,
+                    required_permission,
+                    RbacIdFilter(RbacResourceType.GROUPS, allowed_group_ids) if allowed_group_ids else None,
+                    data_restrictions,
+                )
+
+                return partial(func, rbac_filter=rbac_filter)(*args, **kwargs)
             else:
                 rbac_permission_denied(logger, required_permission.value, rbac_data)
                 abort(status.HTTP_403_FORBIDDEN)
@@ -164,10 +248,10 @@ def rbac(resource_type, required_permission, permission_base="inventory"):
     return other_func
 
 
-def rbac_group_id_check(rbac_filter: dict, requested_ids: set) -> None:
-    if rbac_filter and "groups" in rbac_filter:
+def rbac_group_id_check(rbac_filter: RbacFilter, requested_ids: set) -> None:
+    if rbac_filter.filter_by and rbac_filter.filter_by.resource == RbacResourceType.GROUPS:
         # Find the IDs that are in requested_ids but not rbac_filter
-        disallowed_ids = requested_ids.difference(rbac_filter["groups"])
+        disallowed_ids = requested_ids.difference(rbac_filter.filter_by.id_set)
         if len(disallowed_ids) > 0:
             joined_ids = ", ".join(disallowed_ids)
             abort(status.HTTP_403_FORBIDDEN, f"You do not have access to the the following groups: {joined_ids}")

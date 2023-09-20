@@ -24,6 +24,7 @@ from lib.account_staleness import remove_account_staleness
 from lib.feature_flags import FLAG_INVENTORY_CUSTOM_STALENESS
 from lib.feature_flags import get_flag_value
 from lib.middleware import rbac
+from lib.middleware import RbacFilter
 
 logger = get_logger(__name__)
 
@@ -59,14 +60,14 @@ def _validate_input_data(body):
 @api_operation
 @rbac(RbacResourceType.STALENESS, RbacPermission.READ)
 @metrics.api_request_time.time()
-def get_staleness():
+def get_staleness(rbac_filter: RbacFilter):
     return flask_json_response(_get_return_data(), status.HTTP_200_OK)
 
 
 @api_operation
 @rbac(RbacResourceType.STALENESS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def create_staleness(body):
+def create_staleness(body, rbac_filter: RbacFilter):
     if not get_flag_value(FLAG_INVENTORY_CUSTOM_STALENESS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
@@ -98,7 +99,7 @@ def create_staleness(body):
 @api_operation
 @rbac(RbacResourceType.STALENESS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def delete_staleness():
+def delete_staleness(rbac_filter: RbacFilter):
     if not get_flag_value(FLAG_INVENTORY_CUSTOM_STALENESS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
@@ -112,7 +113,7 @@ def delete_staleness():
 @api_operation
 @rbac(RbacResourceType.STALENESS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def update_staleness(body):
+def update_staleness(body, rbac_filter: RbacFilter):
     if not get_flag_value(FLAG_INVENTORY_CUSTOM_STALENESS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
@@ -134,5 +135,5 @@ def update_staleness(body):
 @api_operation
 @rbac(RbacResourceType.STALENESS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def reset_staleness():
+def reset_staleness(rbac_filter: RbacFilter):
     return flask_json_response(_get_return_data(), status.HTTP_200_OK)
