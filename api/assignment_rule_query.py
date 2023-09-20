@@ -23,8 +23,9 @@ ASSIGNMENT_RULES_ORDER_HOW = {"asc": asc, "desc": desc}
 
 
 def get_assignment_rules_list_db(filters, page, per_page, param_order_by, param_order_how, rbac_filter):
-    if rbac_filter and "assignment_rules" in rbac_filter:
-        filters += (AssignmentRule.id.in_(rbac_filter["assignment_rules"]),)
+    # Apply RBAC group ID filter, if provided
+    if rbac_filter and "groups" in rbac_filter:
+        filters += (AssignmentRule.group_id.in_(rbac_filter["groups"]),)
 
     order_by_str = param_order_by or "name"
     order_by = ASSIGNMENT_RULES_ORDER_BY_MAPPING[order_by_str]
@@ -59,7 +60,7 @@ def get_filtered_assignment_rule_list_db(rule_name, page, per_page, order_by, or
     return get_assignment_rules_list_db(filters, page, per_page, order_by, order_how, rbac_filter)
 
 
-def build_paginated_assignmentrule_list_response(total, page, per_page, rules_list):
+def build_paginated_assignment_rule_list_response(total, page, per_page, rules_list):
     rule_list_json = [serialize_assignment_rule(rule) for rule in rules_list]
     return {
         "total": total,
