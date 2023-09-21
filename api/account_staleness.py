@@ -150,10 +150,3 @@ def update_staleness(body):
         return flask_json_response(serialize_account_staleness_response(updated_staleness), status.HTTP_200_OK)
     except NoResultFound:
         abort(status.HTTP_404_NOT_FOUND, "Account Staleness not found.")
-
-
-@api_operation
-@rbac(RbacResourceType.STALENESS, RbacPermission.WRITE)
-@metrics.api_request_time.time()
-def reset_staleness():
-    return flask_json_response(_get_return_data(), status.HTTP_200_OK)
