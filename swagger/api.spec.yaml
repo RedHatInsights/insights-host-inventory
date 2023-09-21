@@ -839,21 +839,21 @@ paths:
         '404':
           description: Account Staleness not found.
 
-  /account/staleness/reset:
-    patch:
-      operationId: api.account_staleness.reset_staleness
+  /account/staleness/defaults:
+    get:
+      operationId: api.account_staleness.get_default_staleness
       tags:
         - accounts_staleness
-      summary: Reset account staleness
+      summary: Read the entire list of account staleness
       description: >-
-        Reset account staleness record.
+        Read the entire list of all accounts staleness available.
         Required permissions: inventory:TODO:read
       security:
         - ApiKeyAuth: []
         - BearerAuth: []
       responses:
         '200':
-          description: Successfully reset account staleness.
+          description: Successfully read the staleness account.
           content:
             application/json:
               schema:
