@@ -46,6 +46,13 @@ def get_account_staleness_db(rbac_filter=None, identity=None):
         return g.acc_st
 
 
+def get_sys_default_staleness():
+    org_id = get_current_identity().org_id
+    account = get_current_identity().account_number
+    acc_st = _build_acc_staleness_sys_default(org_id, account)
+    return acc_st
+
+
 def _build_acc_staleness_sys_default(org_id, account):
     from app import inventory_config
 
