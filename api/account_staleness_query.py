@@ -1,6 +1,3 @@
-from datetime import datetime
-from datetime import timezone
-
 from flask import g
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -64,8 +61,8 @@ def _build_acc_staleness_sys_default(org_id, account):
             "immutable_staleness_delta": config.immutable_staleness_seconds,
             "immutable_stale_warning_delta": config.immutable_stale_warning_seconds,
             "immutable_culling_delta": config.immutable_culling_seconds,
-            "created_on": datetime.now(timezone.utc),
-            "modified_on": datetime.now(timezone.utc),
+            "created_on": "N/A",
+            "modified_on": "N/A",
         }
     )
 
