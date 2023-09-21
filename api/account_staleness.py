@@ -9,6 +9,7 @@ from api import api_operation
 from api import flask_json_response
 from api import json_error_response
 from api import metrics
+from api.account_staleness_query import get_account_staleness_db
 from app import RbacPermission
 from app import RbacResourceType
 from app.auth import get_current_identity
@@ -60,7 +61,13 @@ def _validate_input_data(body):
 @rbac(RbacResourceType.STALENESS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_staleness():
-    return flask_json_response(_get_return_data(), status.HTTP_200_OK)
+    try:
+        acc_st = get_account_staleness_db()
+        acc_st = serialize_account_staleness_response(acc_st)
+    except ValueError as e:
+        abort(status.HTTP_400_BAD_REQUEST, str(e))
+
+    return flask_json_response(acc_st, status.HTTP_200_OK)
 
 
 @api_operation
