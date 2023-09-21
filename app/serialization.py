@@ -338,6 +338,10 @@ def serialize_account_staleness_response(account_staleness):
         "immutable_staleness_delta": account_staleness.immutable_staleness_delta,
         "immutable_stale_warning_delta": account_staleness.immutable_stale_warning_delta,
         "immutable_culling_delta": account_staleness.immutable_culling_delta,
-        "created": _serialize_datetime(account_staleness.created_on),
-        "updated": _serialize_datetime(account_staleness.modified_on),
+        "created": "N/A"
+        if account_staleness.created_on == "N/A"
+        else _serialize_datetime(account_staleness.created_on),
+        "updated": "N/A"
+        if account_staleness.modified_on == "N/A"
+        else _serialize_datetime(account_staleness.modified_on),
     }
