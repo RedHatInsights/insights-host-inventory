@@ -515,6 +515,10 @@ def build_account_staleness_url(path=None, query=None):
     return _build_url(base_url=STALENESS_URL, path=path, query=query)
 
 
+def build_sys_default_staleness_url(path=None, query=None):
+    return _build_url(base_url=STALENESS_URL + "/defaults", path=path, query=query)
+
+
 def inject_qs(url, **kwargs):
     scheme, netloc, path, query, fragment = urlsplit(url)
     params = parse_qs(query)

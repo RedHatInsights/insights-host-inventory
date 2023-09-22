@@ -1412,14 +1412,14 @@
         }
       }
     },
-    "/account/staleness/reset": {
-      "patch": {
-        "operationId": "api.account_staleness.reset_staleness",
+    "/account/staleness/defaults": {
+      "get": {
+        "operationId": "api.account_staleness.get_default_staleness",
         "tags": [
           "accounts_staleness"
         ],
-        "summary": "Reset account staleness",
-        "description": "Reset account staleness record. Required permissions: inventory:TODO:read",
+        "summary": "Read the entire list of account staleness",
+        "description": "Read the entire list of all accounts staleness available. Required permissions: inventory:TODO:read",
         "security": [
           {
             "ApiKeyAuth": []
@@ -1430,7 +1430,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Successfully reset account staleness.",
+            "description": "Successfully read the staleness account.",
             "content": {
               "application/json": {
                 "schema": {
