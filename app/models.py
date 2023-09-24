@@ -480,7 +480,11 @@ class HostGroupAssoc(db.Model):
 
 class AssignmentRule(db.Model):
     __tablename__ = "assignment_rules"
-    __table_args__ = (Index("idxassrulesorgid", "org_id"),)
+    __table_args__ = (
+        Index("idxassrulesorgid", "org_id"),
+        UniqueConstraint("org_id", "name", name="assignment_rules_org_id_name_key"),
+        UniqueConstraint("group_id", name="assignment_rules_unique_group_id"),
+    )
 
     def __init__(
         self,
@@ -524,7 +528,7 @@ class AssignmentRule(db.Model):
     account = db.Column(db.String(10))
     name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.String(255))
-    group_id = db.Column(UUID(as_uuid=True), ForeignKey("groups.id"))
+    group_id = db.Column(UUID(as_uuid=True), ForeignKey("groups.id"), primary_key=True)
     filter = db.Column(JSONB, nullable=False)
     enabled = db.Column(db.Boolean(), default=True)
     created_on = db.Column(db.DateTime(timezone=True), default=_time_now)
