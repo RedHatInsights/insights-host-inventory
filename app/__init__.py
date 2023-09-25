@@ -86,12 +86,21 @@ def initialize_metrics(config):
     )
 
 
+#
+# Registering analytics.flush directly with register_shutdown()
+# results in errors during test suite cleanup.
+# Adding this wrapper fixes the problem.
+#
+def flush_segmentio():
+    if analytics.write_key:
+        analytics.flush()
+
+
 def initialize_segmentio(config):
     logger.info("Initializing Segmentio")
     analytics.write_key = config.segmentio_write_key
-    if analytics.write_key:
-        logger.info("Registering Segmentio flush on shutdown")
-        register_shutdown(analytics.flush, "Flushing Segmentio queue")
+    logger.info("Registering Segmentio flush on shutdown")
+    register_shutdown(flush_segmentio, "Flushing Segmentio queue")
 
 
 def render_exception(exception):
