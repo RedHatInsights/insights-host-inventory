@@ -86,12 +86,12 @@ def initialize_metrics(config):
     )
 
 
-# TODO: Need to call analytics.flush() on shutdown.
 def initialize_segmentio(config):
-    # Should this be maintained by app/config.py?
+    logger.info("Initializing Segmentio")
     analytics.write_key = config.segmentio_write_key
-    print(f"\n****** Initializing Segmentio - analytics.write_key: {analytics.write_key}")
-    print(f"       analytics.send = {analytics.send}")
+    if analytics.write_key:
+        logger.info("Registering Segmentio flush on shutdown")
+        register_shutdown(analytics.flush, "Flushing Segmentio queue")
 
 
 def render_exception(exception):

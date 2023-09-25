@@ -4,12 +4,11 @@ import segment.analytics as analytics
 from app.auth import get_current_identity
 
 
-def segmentio_track(op_name, start_time, end_time, contextual_data):
+def segmentio_track(op_name, start_time, end_time, contextual_data, logger):
     identity = get_current_identity()
 
-    print(f"\n**** analytics.write_key: {analytics.write_key}")
     if analytics.write_key:
-        print(f"**** Calling analytics.track({identity.org_id}, {op_name}, ...)")
+        logger.debug(f"Calling analytics.track({identity.org_id}, {op_name}, ...)")
         analytics.track(
             identity.org_id,
             op_name,
@@ -26,11 +25,8 @@ def segmentio_track(op_name, start_time, end_time, contextual_data):
                 }
             },
         )
+    """
     else:
-        #
-        # The following instrumentation will be replaced by the above track() call.
-        # Its intent is to show the information available to track.
-        #
         print(f"************ In api_operation: {op_name}")
         print("  Headers:")
         for key, value in connexion.request.headers.items():
@@ -55,5 +51,6 @@ def segmentio_track(op_name, start_time, end_time, contextual_data):
             print(f"    {key}: {value}")
 
         print("************\n")
+    """
 
     return True
