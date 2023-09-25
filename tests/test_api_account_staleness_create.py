@@ -4,12 +4,12 @@ from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
 
 _INPUT_DATA = {
-    "conventional_staleness_delta": "1",
-    "conventional_stale_warning_delta": "7",
-    "conventional_culling_delta": "14",
-    "immutable_staleness_delta": "7",
-    "immutable_stale_warning_delta": "120",
-    "immutable_culling_delta": "120",
+    "conventional_staleness_delta": 1,
+    "conventional_stale_warning_delta": 7,
+    "conventional_culling_delta": 14,
+    "immutable_staleness_delta": 7,
+    "immutable_stale_warning_delta": 120,
+    "immutable_culling_delta": 120,
 }
 
 
@@ -35,7 +35,7 @@ def test_create_staleness(api_create_account_staleness, db_get_account_staleness
 
 def test_create_staleness_with_only_one_data(api_create_account_staleness, db_get_account_staleness_culling):
     input_data = {
-        "conventional_staleness_delta": "1",
+        "conventional_staleness_delta": 1,
     }
     response_status, response_data = api_create_account_staleness(input_data)
     assert_response_status(response_status, 201)
@@ -61,7 +61,7 @@ def test_create_same_staleness(api_create_account_staleness):
 
 def test_create_staleness_with_wrong_input(api_create_account_staleness):
     input_data = {
-        "test_wrong_payload_data": "1",
+        "test_wrong_payload_data": 1,
     }
     response_status, response_data = api_create_account_staleness(input_data)
     assert_response_status(response_status, 400)

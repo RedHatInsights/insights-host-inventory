@@ -2037,23 +2037,29 @@ components:
       anyOf:
         - properties:
             conventional_staleness_delta:
-              type: string
-              maxLength: 36
+              type: integer
+              minimum: 1
+              maximum: 2147483647
             conventional_stale_warning_delta:
-              type: string
-              maxLength: 36
+              type: integer
+              minimum: 1
+              maximum: 2147483647
             conventional_culling_delta:
-              type: string
-              maxLength: 36
+              type: integer
+              minimum: 1
+              maximum: 2147483647
             immutable_staleness_delta:
-              type: string
-              maxLength: 36
+              type: integer
+              minimum: 1
+              maximum: 2147483647
             immutable_stale_warning_delta:
-              type: string
-              maxLength: 36
+              type: integer
+              minimum: 1
+              maximum: 2147483647
             immutable_culling_delta:
-              type: string
-              maxLength: 36
+              type: integer
+              minimum: 1
+              maximum: 2147483647
     AccountStalenessOutput:
       title: Account Staleness Out
       description: >-
@@ -2067,23 +2073,17 @@ components:
         org_id:
           $ref: "#/components/schemas/OrgId"
         conventional_staleness_delta:
-          type: string
-          maxLength: 36
+          type: integer
         conventional_stale_warning_delta:
-          type: string
-          maxLength: 36
+          type: integer
         conventional_culling_delta:
-          type: string
-          maxLength: 36
+          type: integer
         immutable_staleness_delta:
-          type: string
-          maxLength: 36
+          type: integer
         immutable_stale_warning_delta:
-          type: string
-          maxLength: 36
+          type: integer
         immutable_culling_delta:
-          type: string
-          maxLength: 36
+          type: integer
         created_at:
           description: A timestamp when the entry was created.
           type: string

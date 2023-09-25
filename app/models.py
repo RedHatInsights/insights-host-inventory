@@ -850,12 +850,12 @@ class InputAssignmentRule(MarshmallowSchema):
 
 
 class InputAccountStalenessSchema(MarshmallowSchema):
-    conventional_staleness_delta = fields.Str(validate=marshmallow_validate.Length(min=1, max=36))
-    conventional_stale_warning_delta = fields.Str(validate=marshmallow_validate.Length(min=1, max=36))
-    conventional_culling_delta = fields.Str(validate=marshmallow_validate.Length(min=1, max=36))
-    immutable_staleness_delta = fields.Str(validate=marshmallow_validate.Length(min=1, max=36))
-    immutable_stale_warning_delta = fields.Str(validate=marshmallow_validate.Length(min=1, max=36))
-    immutable_culling_delta = fields.Str(validate=marshmallow_validate.Length(min=1, max=36))
+    conventional_staleness_delta = fields.Int()
+    conventional_stale_warning_delta = fields.Int()
+    conventional_culling_delta = fields.Int()
+    immutable_staleness_delta = fields.Int()
+    immutable_stale_warning_delta = fields.Int()
+    immutable_culling_delta = fields.Int()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
