@@ -104,7 +104,7 @@ def log_get_assignment_rules_list_succeeded(logger, results_list):
 
 
 def log_get_assignment_rules_list_failed(logger):
-    logger.info("assignment-rules not found", extra={"access_rule": get_control_rule()})
+    logger.info("Assignment-rules not found", extra={"access_rule": get_control_rule()})
 
 
 # create group

@@ -1835,8 +1835,6 @@
         "schema": {
           "type": "string",
           "enum": [
-            "org_id",
-            "account",
             "name",
             "group_id"
           ]

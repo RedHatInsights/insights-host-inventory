@@ -8,7 +8,7 @@ from api import api_operation
 from api import flask_json_response
 from api import json_error_response
 from api import metrics
-from api.assignment_rule_query import build_paginated_assignmentrule_list_response
+from api.assignment_rule_query import build_paginated_assignment_rule_list_response
 from api.assignment_rule_query import get_assignment_rules_list_by_id_list_db
 from api.assignment_rule_query import get_filtered_assignment_rule_list_db
 from app import RbacPermission
@@ -52,7 +52,7 @@ def get_assignment_rules_list(
     log_get_assignment_rules_list_succeeded(logger, rule_list)
 
     return flask_json_response(
-        build_paginated_assignmentrule_list_response(total, page, per_page, rule_list),
+        build_paginated_assignment_rule_list_response(total, page, per_page, rule_list),
         status.HTTP_200_OK,
     )
 
@@ -117,5 +117,5 @@ def get_assignment_rules_by_id(
     log_get_assignment_rules_list_succeeded(logger, assignment_rule_list)
 
     return flask_json_response(
-        build_paginated_assignmentrule_list_response(total, page, per_page, assignment_rule_list)
+        build_paginated_assignment_rule_list_response(total, page, per_page, assignment_rule_list)
     )

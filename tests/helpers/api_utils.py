@@ -444,7 +444,7 @@ def _build_url(base_url=HOST_URL, path=None, id_list=None, query=None):
 
 def build_hosts_url(host_list_or_id=None, path=None, query=None):
     if host_list_or_id:
-        host_list_or_id = build_host_id_list_for_url(host_list_or_id)
+        host_list_or_id = build_id_list_for_url(host_list_or_id)
 
     return _build_url(id_list=host_list_or_id, path=path, query=query)
 
@@ -481,22 +481,30 @@ def build_facts_url(host_list_or_id, namespace, query=None):
     return build_hosts_url(path=f"/facts/{namespace}", host_list_or_id=host_list_or_id, query=query)
 
 
-def build_host_id_list_for_url(host_list_or_id):
-    if type(host_list_or_id) == dict:
-        host_list_or_id = list(host_list_or_id.values())
+def build_id_list_for_url(id_or_id_list):
+    if type(id_or_id_list) == dict:
+        id_or_id_list = list(id_or_id_list.values())
 
-    if type(host_list_or_id) == list:
-        return ",".join(get_id_list_from_hosts(host_list_or_id))
+    if type(id_or_id_list) == list:
+        # check if the list contains hosts or strings
+        if not any(isinstance(item, str) for item in id_or_id_list):
+            return ",".join(get_id_list_from_hosts(id_or_id_list))
+        else:
+            return ",".join(id_or_id_list)
 
-    return str(host_list_or_id)
+    return str(id_or_id_list)
 
 
 def build_groups_url(group_id=None, query=None):
     return _build_url(base_url=GROUP_URL, id_list=group_id, query=query)
 
 
-def build_assignment_rules_url(assignment_rules_id=None, query=None):
-    return _build_url(base_url=ASSIGNMENT_RULE_URL, id_list=assignment_rules_id, query=query)
+def build_assignment_rules_url(assignment_rules_id_list=None, query=None):
+    id_list = []
+    if assignment_rules_id_list:
+        id_list = build_id_list_for_url(assignment_rules_id_list)
+
+    return _build_url(base_url=ASSIGNMENT_RULE_URL, id_list=id_list, query=query)
 
 
 def build_resource_types_url(query=None):

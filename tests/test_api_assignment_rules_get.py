@@ -29,23 +29,23 @@ def test_get_assignment_rule_by_name(db_create_assignment_rule, db_create_group,
     group = db_create_group("TestGroup")
     filter = {"AND": [{"fqdn": {"eq": "foo.bar.com"}}]}
 
-    _ = db_create_assignment_rule("good-name", group.id, filter, True)
+    db_create_assignment_rule("good-name", group.id, filter, True)
     _, response_data = api_get(build_assignment_rules_url())
 
     rule_1 = response_data["results"][0]
-    url_with_name = ASSIGNMENT_RULE_URL + "?name=" + rule_1["name"]
+    query = "?name=" + rule_1["name"]
 
-    _, new_response_data = api_get(url_with_name)
+    _, new_response_data = api_get(build_assignment_rules_url(query=query))
     rule_2 = new_response_data["results"][0]
 
     assert rule_1 == rule_2
 
 
-def test_get_assignment_rule_with_bad_name(db_create_assignment_rule, db_create_group, api_get):
+def test_get_assignment_rule_not_found(db_create_assignment_rule, db_create_group, api_get):
     group = db_create_group("TestGroup")
     filter = {"AND": [{"fqdn": {"eq": "foo.bar.com"}}]}
 
-    _ = [db_create_assignment_rule(f"assignment {idx}", group.id, filter, True).id for idx in range(3)]
+    [db_create_assignment_rule(f"assignment {idx}", group.id, filter, True).id for idx in range(3)]
 
     response_status, response_data = api_get(build_assignment_rules_url())
     assert response_status == 200
@@ -53,9 +53,9 @@ def test_get_assignment_rule_with_bad_name(db_create_assignment_rule, db_create_
     assert response_data["count"] == 3
     assert len(response_data["results"]) == 3
 
-    url_with_bad_name = ASSIGNMENT_RULE_URL + "?name=bad_name"
+    bad_query = "?name=bad_name"
 
-    new_response_status, new_response_data = api_get(url_with_bad_name)
+    new_response_status, new_response_data = api_get(build_assignment_rules_url(query=bad_query))
     assert new_response_status == 200
     assert new_response_data["total"] == 0
     assert new_response_data["count"] == 0
@@ -73,7 +73,7 @@ def test_order_by_and_order_how(db_create_assignment_rule, db_create_group, api_
     group = db_create_group("TestGroup")
     filter = {"AND": [{"fqdn": {"eq": "foo.bar.com"}}]}
 
-    _ = [db_create_assignment_rule(f"assignment {idx}", group.id, filter, True) for idx in range(3)]
+    [db_create_assignment_rule(f"assignment {idx}", group.id, filter, True) for idx in range(3)]
 
     _, response_data = api_get(build_assignment_rules_url())
     assert len(response_data["results"]) == 3
@@ -100,7 +100,7 @@ def test_wrong_order_by_and_order_how(db_create_assignment_rule, db_create_group
     group = db_create_group("TestGroup")
     filter = {"AND": [{"fqdn": {"eq": "foo.bar.com"}}]}
 
-    _ = db_create_assignment_rule(order_by, group.id, filter, True)
+    db_create_assignment_rule(order_by, group.id, filter, True)
     _, response_data = api_get(build_assignment_rules_url())
 
     rule_1 = response_data["results"][0]
@@ -108,9 +108,9 @@ def test_wrong_order_by_and_order_how(db_create_assignment_rule, db_create_group
     # verify the rule was created successfully
     assert order_by == rule_1["name"]
 
-    url_with_name = ASSIGNMENT_RULE_URL + f"?order_by={order_by}&order_how={order_how}"
+    query = f"?order_by={order_by}&order_how={order_how}"
 
-    new_response_status, new_response_data = api_get(url_with_name)
+    new_response_status, new_response_data = api_get(build_assignment_rules_url(query=query))
     assert new_response_status == 400
     assert "Failed validating" in new_response_data["detail"]
 
@@ -126,7 +126,7 @@ def test_page_and_page_number(db_create_assignment_rule, db_create_group, api_ge
     group = db_create_group("TestGroup")
     filter = {"AND": [{"fqdn": {"eq": "foo.bar.com"}}]}
 
-    _ = db_create_assignment_rule("test_assignment_rule", group.id, filter, True)
+    db_create_assignment_rule("test_assignment_rule", group.id, filter, True)
     _, response_data = api_get(build_assignment_rules_url())
 
     rule_1 = response_data["results"][0]
@@ -134,9 +134,9 @@ def test_page_and_page_number(db_create_assignment_rule, db_create_group, api_ge
     # verify the rule was created successfully
     assert "test_assignment_rule" == rule_1["name"]
 
-    url_with_name = ASSIGNMENT_RULE_URL + f"?page={page}&per_page={per_page}"
+    query = f"?page={page}&per_page={per_page}"
 
-    new_response_status, new_response_data = api_get(url_with_name)
+    new_response_status, new_response_data = api_get(build_assignment_rules_url(query=query))
     assert new_response_status == 200
     assert new_response_data["page"] == page
     assert new_response_data["per_page"] == per_page
@@ -157,8 +157,9 @@ def test_assignment_rule_id_list_filter(num_rules, db_create_assignment_rule, db
     for idx in range(10):
         db_create_assignment_rule(f"extraRule_{idx}", group.id, filter, True)
 
-    url = ASSIGNMENT_RULE_URL + "/" + ",".join(assignment_rule_id_list)
-    response_status, response_data = api_get(url)
+    response_status, response_data = api_get(
+        build_assignment_rules_url(assignment_rules_id_list=assignment_rule_id_list)
+    )
 
     assert response_status == 200
     assert response_data["total"] == num_rules
@@ -179,8 +180,8 @@ def test_assignment_rule_id_list_bad_id(num_rules, db_create_assignment_rule, db
     for idx in range(num_rules):
         db_create_assignment_rule(f"assignment {idx}", group.id, filter, True)
 
-    url = ASSIGNMENT_RULE_URL + "/" + str(generate_uuid())
-    response_status, response_data = api_get(url)
+    id = str(generate_uuid())
+    response_status, response_data = api_get(build_assignment_rules_url(assignment_rules_id_list=id))
 
     assert response_status == 200
     assert response_data["total"] == 0
@@ -198,7 +199,33 @@ def test_get_assignment_rule_id_list_RBAC_denied(subtests, mocker, api_get, enab
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
-            url = ASSIGNMENT_RULE_URL + "/" + str(generate_uuid())
-            response_status, _ = api_get(url)
+            id = str(generate_uuid())
+            response_status, _ = api_get(build_assignment_rules_url(assignment_rules_id_list=id))
 
             assert_response_status(response_status, 403)
+
+
+def test_get_assignment_rules_RBAC_denied_specific_groups(
+    mocker, db_create_group, db_create_assignment_rule, api_get, enable_rbac
+):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+
+    group_id_list = [str(db_create_group(f"test_group{g_index}").id) for g_index in range(2)]
+    filter_list = [{"AND": [{"fqdn": {"eq": "foo.bar.com"}}]}, {"AND": [{"fqdn": {"eq": "boo.bar.com"}}]}]
+
+    # Create assignment rules and assign them to each group
+    [db_create_assignment_rule(f"assignment {idx}", group_id_list[idx], filter_list[idx], True).id for idx in range(2)]
+
+    # Only grant read permission to one group in the list
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-groups-read-resource-defs-template.json"
+    )
+    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = [group_id_list[0]]
+
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    response_status, response_data = api_get(build_assignment_rules_url())
+
+    assert response_status == 200
+    assert response_data["total"] == 1
+    assert len(response_data["results"]) == 1
