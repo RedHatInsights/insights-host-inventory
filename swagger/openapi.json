@@ -1279,7 +1279,7 @@
     },
     "/account/staleness": {
       "get": {
-        "operationId": "api.account_staleness.get_staleness",
+        "operationId": "api.staleness.get_staleness",
         "tags": [
           "accounts_staleness"
         ],
@@ -1299,7 +1299,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AccountStalenessOutput"
+                  "$ref": "#/components/schemas/StalenessOutput"
                 }
               }
             }
@@ -1307,7 +1307,7 @@
         }
       },
       "post": {
-        "operationId": "api.account_staleness.create_staleness",
+        "operationId": "api.staleness.create_staleness",
         "tags": [
           "accounts_staleness"
         ],
@@ -1327,7 +1327,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AccountStalenessIn"
+                "$ref": "#/components/schemas/StalenessIn"
               }
             }
           }
@@ -1338,7 +1338,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AccountStalenessOutput"
+                  "$ref": "#/components/schemas/StalenessOutput"
                 }
               }
             }
@@ -1346,7 +1346,7 @@
         }
       },
       "patch": {
-        "operationId": "api.account_staleness.update_staleness",
+        "operationId": "api.staleness.update_staleness",
         "tags": [
           "accounts_staleness"
         ],
@@ -1366,7 +1366,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AccountStalenessIn"
+                "$ref": "#/components/schemas/StalenessIn"
               }
             }
           }
@@ -1377,7 +1377,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AccountStalenessOutput"
+                  "$ref": "#/components/schemas/StalenessOutput"
                 }
               }
             }
@@ -1385,7 +1385,7 @@
         }
       },
       "delete": {
-        "operationId": "api.account_staleness.delete_staleness",
+        "operationId": "api.staleness.delete_staleness",
         "tags": [
           "accounts_staleness"
         ],
@@ -1414,7 +1414,7 @@
     },
     "/account/staleness/defaults": {
       "get": {
-        "operationId": "api.account_staleness.get_default_staleness",
+        "operationId": "api.staleness.get_default_staleness",
         "tags": [
           "accounts_staleness"
         ],
@@ -1434,7 +1434,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AccountStalenessOutput"
+                  "$ref": "#/components/schemas/StalenessOutput"
                 }
               }
             }
@@ -2789,7 +2789,7 @@
           "$ref": "#/components/schemas/NonStrictUUID"
         }
       },
-      "AccountStalenessId": {
+      "StalenessId": {
         "description": "Account Staleness UID",
         "oneOf": [
           {
@@ -3082,7 +3082,7 @@
           }
         ]
       },
-      "AccountStalenessIn": {
+      "StalenessIn": {
         "title": "Account Staleness In",
         "description": "Data of a single account staleness.",
         "type": "object",
@@ -3090,70 +3090,61 @@
           {
             "properties": {
               "conventional_staleness_delta": {
-                "type": "string",
-                "maxLength": 36
+                "type": "integer",
+                "minimum": 1
               },
               "conventional_stale_warning_delta": {
-                "type": "string",
-                "maxLength": 36
+                "type": "integer",
+                "minimum": 1
               },
               "conventional_culling_delta": {
-                "type": "string",
-                "maxLength": 36
+                "type": "integer",
+                "minimum": 1
               },
               "immutable_staleness_delta": {
-                "type": "string",
-                "maxLength": 36
+                "type": "integer",
+                "minimum": 1
               },
               "immutable_stale_warning_delta": {
-                "type": "string",
-                "maxLength": 36
+                "type": "integer",
+                "minimum": 1
               },
               "immutable_culling_delta": {
-                "type": "string",
-                "maxLength": 36
+                "type": "integer",
+                "minimum": 1
               }
             }
           }
         ]
       },
-      "AccountStalenessOutput": {
+      "StalenessOutput": {
         "title": "Account Staleness Out",
         "description": "Data of a account staleness.",
         "type": "object",
         "properties": {
           "id": {
-            "$ref": "#/components/schemas/AccountStalenessId"
-          },
-          "account": {
-            "$ref": "#/components/schemas/AccountNumber"
+            "$ref": "#/components/schemas/StalenessId"
           },
           "org_id": {
             "$ref": "#/components/schemas/OrgId"
           },
           "conventional_staleness_delta": {
-            "type": "string",
-            "maxLength": 36
+            "type": "integer"
           },
           "conventional_stale_warning_delta": {
-            "type": "string",
-            "maxLength": 36
+            "type": "integer"
           },
           "conventional_culling_delta": {
-            "type": "string",
-            "maxLength": 36
+            "type": "integer"
           },
           "immutable_staleness_delta": {
-            "type": "string",
-            "maxLength": 36
+            "type": "integer"
           },
           "immutable_stale_warning_delta": {
-            "type": "string",
-            "maxLength": 36
+            "type": "integer"
           },
           "immutable_culling_delta": {
-            "type": "string",
-            "maxLength": 36
+            "type": "integer"
           },
           "created_at": {
             "description": "A timestamp when the entry was created.",
