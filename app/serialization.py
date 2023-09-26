@@ -49,6 +49,8 @@ ADDITIONAL_HOST_MQ_FIELDS = (
     "system_profile",
 )
 
+MAX_INT = 2147483647
+
 
 def deserialize_host(raw_data, schema=HostSchema, system_profile_spec=None):
     try:
@@ -327,21 +329,16 @@ def _serialize_tags(tags):
     return [tag.data() for tag in Tag.create_tags_from_nested(tags)]
 
 
-def serialize_account_staleness_response(account_staleness):
+def serialize_staleness_response(staleness):
     return {
-        "id": _serialize_uuid(account_staleness.id),
-        "org_id": account_staleness.org_id,
-        "account": account_staleness.account,
-        "conventional_staleness_delta": account_staleness.conventional_staleness_delta,
-        "conventional_stale_warning_delta": account_staleness.conventional_stale_warning_delta,
-        "conventional_culling_delta": account_staleness.conventional_culling_delta,
-        "immutable_staleness_delta": account_staleness.immutable_staleness_delta,
-        "immutable_stale_warning_delta": account_staleness.immutable_stale_warning_delta,
-        "immutable_culling_delta": account_staleness.immutable_culling_delta,
-        "created": "N/A"
-        if account_staleness.created_on == "N/A"
-        else _serialize_datetime(account_staleness.created_on),
-        "updated": "N/A"
-        if account_staleness.modified_on == "N/A"
-        else _serialize_datetime(account_staleness.modified_on),
+        "id": _serialize_uuid(staleness.id),
+        "org_id": staleness.org_id,
+        "conventional_staleness_delta": staleness.conventional_staleness_delta,
+        "conventional_stale_warning_delta": staleness.conventional_stale_warning_delta,
+        "conventional_culling_delta": staleness.conventional_culling_delta,
+        "immutable_staleness_delta": staleness.immutable_staleness_delta,
+        "immutable_stale_warning_delta": staleness.immutable_stale_warning_delta,
+        "immutable_culling_delta": staleness.immutable_culling_delta,
+        "created": "N/A" if staleness.created_on == "N/A" else _serialize_datetime(staleness.created_on),
+        "updated": "N/A" if staleness.modified_on == "N/A" else _serialize_datetime(staleness.modified_on),
     }

@@ -1,6 +1,7 @@
 from flask import g
 from sqlalchemy.orm.exc import NoResultFound
 
+from app import inventory_config
 from app.auth import get_current_identity
 from app.logging import get_logger
 from app.models import Staleness
@@ -51,8 +52,6 @@ def get_sys_default_staleness():
 
 
 def _build_acc_staleness_sys_default(org_id):
-    from app import inventory_config
-
     config = inventory_config()
     return AttrDict(
         {

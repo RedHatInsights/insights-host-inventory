@@ -310,13 +310,13 @@ def log_post_assignment_rule_failed(logger):
     logger.info("Failed to create assignment rule", extra={"access_rule": get_control_rule()})
 
 
-def log_create_account_staleness_succeeded(logger, staleness_id):
+def log_create_staleness_succeeded(logger, staleness_id):
     logger.info("Created account staleness: %s", staleness_id)
 
 
-def log_patch_account_staleness_succeeded(logger, staleness_id):
+def log_patch_staleness_succeeded(logger, staleness_id):
     logger.info(f"Account staleness: {staleness_id} successfully updated.")
 
 
-def log_create_account_staleness_failed(logger, org_id):
+def log_create_staleness_failed(logger, org_id):
     logger.info("Failed to create staleness for account with org_id %s", org_id)
