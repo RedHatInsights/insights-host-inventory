@@ -126,7 +126,7 @@ GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES = (
     "tests/helpers/rbac-mock-data/inv-read-only.json",
     "tests/helpers/rbac-mock-data/inv-star-read.json",
 )
-ACCOUNT_STALENESS_WRITE_PROHIBITED_RBAC_RESPONSE_FILES = (
+STALENESS_WRITE_PROHIBITED_RBAC_RESPONSE_FILES = (
     "tests/helpers/rbac-mock-data/inv-none.json",
     "tests/helpers/rbac-mock-data/inv-groups-read-only.json",
     "tests/helpers/rbac-mock-data/inv-hosts-read-only.json",
@@ -137,9 +137,7 @@ ACCOUNT_STALENESS_WRITE_PROHIBITED_RBAC_RESPONSE_FILES = (
     "tests/helpers/rbac-mock-data/inv-read-only.json",
     "tests/helpers/rbac-mock-data/inv-star-read.json",
 )
-ACCOUNT_STALENESS_WRITE_ALLOWED_RBAC_RESPONSE_FILES = (
-    "tests/helpers/rbac-mock-data/inv-account-staleness-write-only.json",
-)
+STALENESS_WRITE_ALLOWED_RBAC_RESPONSE_FILES = ("tests/helpers/rbac-mock-data/inv-account-staleness-write-only.json",)
 RBAC_ADMIN_PROHIBITED_RBAC_RESPONSE_FILES = (
     "tests/helpers/rbac-mock-data/inv-read-write.json",
     "tests/helpers/rbac-mock-data/inv-read-only.json",
@@ -159,12 +157,12 @@ RBAC_ADMIN_PROHIBITED_RBAC_RESPONSE_FILES = (
 )
 
 _INPUT_DATA = {
-    "conventional_staleness_delta": "1",
-    "conventional_stale_warning_delta": "7",
-    "conventional_culling_delta": "14",
-    "immutable_staleness_delta": "7",
-    "immutable_stale_warning_delta": "120",
-    "immutable_culling_delta": "120",
+    "conventional_staleness_delta": 1,
+    "conventional_stale_warning_delta": 7,
+    "conventional_culling_delta": 14,
+    "immutable_staleness_delta": 7,
+    "immutable_stale_warning_delta": 120,
+    "immutable_culling_delta": 120,
 }
 
 
@@ -519,7 +517,7 @@ def get_id_list_from_hosts(host_list):
     return [str(h.id) for h in host_list]
 
 
-def build_account_staleness_url(path=None, query=None):
+def build_staleness_url(path=None, query=None):
     return _build_url(base_url=STALENESS_URL, path=path, query=query)
 
 
