@@ -16,10 +16,14 @@ import dateutil.parser
 from app.auth.identity import IdentityType
 from tests.helpers.test_utils import now
 
-HOST_URL = "/api/inventory/v1/hosts"
-GROUP_URL = "/api/inventory/v1/groups"
-TAGS_URL = "/api/inventory/v1/tags"
-SYSTEM_PROFILE_URL = "/api/inventory/v1/system_profile"
+BASE_URL = "/api/inventory/v1"
+ASSIGNMENT_RULE_URL = f"{BASE_URL}/assignment-rules"
+HOST_URL = f"{BASE_URL}/hosts"
+GROUP_URL = f"{BASE_URL}/groups"
+TAGS_URL = f"{BASE_URL}/tags"
+SYSTEM_PROFILE_URL = f"{BASE_URL}/system_profile"
+RESOURCE_TYPES_URL = f"{BASE_URL}/resource-types"
+STALENESS_URL = f"{BASE_URL}/account/staleness"
 
 SHARED_SECRET = "SuperSecretStuff"
 
@@ -45,34 +49,123 @@ TAGS = [
     ],
 ]
 
-UUID_1 = "00000000-0000-0000-0000-000000000001"
-UUID_2 = "00000000-0000-0000-0000-000000000002"
-UUID_3 = "00000000-0000-0000-0000-000000000003"
+HOST_READ_ALLOWED_RBAC_RESPONSE_FILES = (
+    "tests/helpers/rbac-mock-data/inv-read-write.json",
+    "tests/helpers/rbac-mock-data/inv-read-only.json",
+    "tests/helpers/rbac-mock-data/inv-admin.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-splat.json",
+    "tests/helpers/rbac-mock-data/inv-star-read.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-read-groups-write.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-read-only.json",
+)
+HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES = (
+    "tests/helpers/rbac-mock-data/inv-none.json",
+    "tests/helpers/rbac-mock-data/inv-write-only.json",
+    "tests/helpers/rbac-mock-data/inv-star-write.json",
+    "tests/helpers/rbac-mock-data/inv-groups-read-only.json",
+    "tests/helpers/rbac-mock-data/inv-groups-write-only.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-write-groups-read.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-write-only.json",
+    "tests/helpers/rbac-mock-data/inv-groups-splat.json",
+)
+HOST_WRITE_ALLOWED_RBAC_RESPONSE_FILES = (
+    "tests/helpers/rbac-mock-data/inv-read-write.json",
+    "tests/helpers/rbac-mock-data/inv-write-only.json",
+    "tests/helpers/rbac-mock-data/inv-admin.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-splat.json",
+    "tests/helpers/rbac-mock-data/inv-star-write.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-write-groups-read.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-write-only.json",
+)
+HOST_WRITE_PROHIBITED_RBAC_RESPONSE_FILES = (
+    "tests/helpers/rbac-mock-data/inv-none.json",
+    "tests/helpers/rbac-mock-data/inv-read-only.json",
+    "tests/helpers/rbac-mock-data/inv-star-read.json",
+    "tests/helpers/rbac-mock-data/inv-groups-read-only.json",
+    "tests/helpers/rbac-mock-data/inv-groups-write-only.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-read-groups-write.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-read-only.json",
+    "tests/helpers/rbac-mock-data/inv-groups-splat.json",
+)
 
-READ_ALLOWED_RBAC_RESPONSE_FILES = (
-    "utils/rbac-mock-data/inv-read-write.json",
-    "utils/rbac-mock-data/inv-read-only.json",
-    "utils/rbac-mock-data/inv-admin.json",
-    "utils/rbac-mock-data/inv-hosts-splat.json",
-    "utils/rbac-mock-data/inv-star-read.json",
+GROUP_READ_ALLOWED_RBAC_RESPONSE_FILES = (
+    "tests/helpers/rbac-mock-data/inv-admin.json",
+    "tests/helpers/rbac-mock-data/inv-groups-read-only.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-write-groups-read.json",
+    "tests/helpers/rbac-mock-data/inv-read-only.json",
+    "tests/helpers/rbac-mock-data/inv-star-read.json",
+    "tests/helpers/rbac-mock-data/inv-groups-splat.json",
 )
-READ_PROHIBITED_RBAC_RESPONSE_FILES = (
-    "utils/rbac-mock-data/inv-none.json",
-    "utils/rbac-mock-data/inv-write-only.json",
-    "utils/rbac-mock-data/inv-star-write.json",
+GROUP_READ_PROHIBITED_RBAC_RESPONSE_FILES = (
+    "tests/helpers/rbac-mock-data/inv-none.json",
+    "tests/helpers/rbac-mock-data/inv-groups-write-only.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-read-groups-write.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-read-only.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-splat.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-write-only.json",
+    "tests/helpers/rbac-mock-data/inv-none.json",
+    "tests/helpers/rbac-mock-data/inv-star-write.json",
+    "tests/helpers/rbac-mock-data/inv-write-only.json",
 )
-WRITE_ALLOWED_RBAC_RESPONSE_FILES = (
-    "utils/rbac-mock-data/inv-read-write.json",
-    "utils/rbac-mock-data/inv-write-only.json",
-    "utils/rbac-mock-data/inv-admin.json",
-    "utils/rbac-mock-data/inv-hosts-splat.json",
-    "utils/rbac-mock-data/inv-star-write.json",
+GROUP_WRITE_ALLOWED_RBAC_RESPONSE_FILES = (
+    "tests/helpers/rbac-mock-data/inv-admin.json",
+    "tests/helpers/rbac-mock-data/inv-groups-write-only.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-read-groups-write.json",
+    "tests/helpers/rbac-mock-data/inv-read-write.json",
+    "tests/helpers/rbac-mock-data/inv-star-write.json",
+    "tests/helpers/rbac-mock-data/inv-groups-splat.json",
 )
-WRITE_PROHIBITED_RBAC_RESPONSE_FILES = (
-    "utils/rbac-mock-data/inv-none.json",
-    "utils/rbac-mock-data/inv-read-only.json",
-    "utils/rbac-mock-data/inv-star-read.json",
+GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES = (
+    "tests/helpers/rbac-mock-data/inv-none.json",
+    "tests/helpers/rbac-mock-data/inv-groups-read-only.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-read-only.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-splat.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-write-groups-read.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-write-only.json",
+    "tests/helpers/rbac-mock-data/inv-none.json",
+    "tests/helpers/rbac-mock-data/inv-read-only.json",
+    "tests/helpers/rbac-mock-data/inv-star-read.json",
 )
+ACCOUNT_STALENESS_WRITE_PROHIBITED_RBAC_RESPONSE_FILES = (
+    "tests/helpers/rbac-mock-data/inv-none.json",
+    "tests/helpers/rbac-mock-data/inv-groups-read-only.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-read-only.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-splat.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-write-groups-read.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-write-only.json",
+    "tests/helpers/rbac-mock-data/inv-none.json",
+    "tests/helpers/rbac-mock-data/inv-read-only.json",
+    "tests/helpers/rbac-mock-data/inv-star-read.json",
+)
+ACCOUNT_STALENESS_WRITE_ALLOWED_RBAC_RESPONSE_FILES = (
+    "tests/helpers/rbac-mock-data/inv-account-staleness-write-only.json",
+)
+RBAC_ADMIN_PROHIBITED_RBAC_RESPONSE_FILES = (
+    "tests/helpers/rbac-mock-data/inv-read-write.json",
+    "tests/helpers/rbac-mock-data/inv-read-only.json",
+    "tests/helpers/rbac-mock-data/inv-admin.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-splat.json",
+    "tests/helpers/rbac-mock-data/inv-star-read.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-read-groups-write.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-read-only.json",
+    "tests/helpers/rbac-mock-data/inv-none.json",
+    "tests/helpers/rbac-mock-data/inv-write-only.json",
+    "tests/helpers/rbac-mock-data/inv-star-write.json",
+    "tests/helpers/rbac-mock-data/inv-groups-read-only.json",
+    "tests/helpers/rbac-mock-data/inv-groups-write-only.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-write-groups-read.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-write-only.json",
+    "tests/helpers/rbac-mock-data/inv-groups-splat.json",
+)
+
+_INPUT_DATA = {
+    "conventional_staleness_delta": "1",
+    "conventional_stale_warning_delta": "7",
+    "conventional_culling_delta": "14",
+    "immutable_staleness_delta": "7",
+    "immutable_stale_warning_delta": "120",
+    "immutable_culling_delta": "120",
+}
 
 
 def do_request(func, url, identity, data=None, query_parameters=None, extra_headers=None):
@@ -232,6 +325,16 @@ def assert_paginated_response_counts(response_data, expected_per_page, expected_
     assert len(response_data["results"]) == expected_per_page
 
 
+def assert_assign_rule_response(response_data, expected_data):
+    assert response_data["name"] == expected_data["name"]
+    assert response_data["description"] == expected_data["description"]
+    assert response_data["group_id"] == expected_data["group_id"]
+    assert response_data["filter"] == expected_data["filter"]
+    assert response_data["enabled"] == expected_data["enabled"]
+    assert "created_on" in response_data
+    assert "modified_on" in response_data
+
+
 def api_per_page_test(api_get, subtests, url, per_page, num_pages):
     for page in range(1, num_pages):
         with subtests.test(page=page, per_page=per_page):
@@ -341,7 +444,7 @@ def _build_url(base_url=HOST_URL, path=None, id_list=None, query=None):
 
 def build_hosts_url(host_list_or_id=None, path=None, query=None):
     if host_list_or_id:
-        host_list_or_id = build_host_id_list_for_url(host_list_or_id)
+        host_list_or_id = build_id_list_for_url(host_list_or_id)
 
     return _build_url(id_list=host_list_or_id, path=path, query=query)
 
@@ -378,22 +481,50 @@ def build_facts_url(host_list_or_id, namespace, query=None):
     return build_hosts_url(path=f"/facts/{namespace}", host_list_or_id=host_list_or_id, query=query)
 
 
-def build_host_id_list_for_url(host_list_or_id):
-    if type(host_list_or_id) == dict:
-        host_list_or_id = list(host_list_or_id.values())
+def build_id_list_for_url(id_or_id_list):
+    if type(id_or_id_list) == dict:
+        id_or_id_list = list(id_or_id_list.values())
 
-    if type(host_list_or_id) == list:
-        return ",".join(get_id_list_from_hosts(host_list_or_id))
+    if type(id_or_id_list) == list:
+        # check if the list contains hosts or strings
+        if not any(isinstance(item, str) for item in id_or_id_list):
+            return ",".join(get_id_list_from_hosts(id_or_id_list))
+        else:
+            return ",".join(id_or_id_list)
 
-    return str(host_list_or_id)
+    return str(id_or_id_list)
 
 
 def build_groups_url(group_id=None, query=None):
     return _build_url(base_url=GROUP_URL, id_list=group_id, query=query)
 
 
+def build_assignment_rules_url(assignment_rules_id_list=None, query=None):
+    id_list = []
+    if assignment_rules_id_list:
+        id_list = build_id_list_for_url(assignment_rules_id_list)
+
+    return _build_url(base_url=ASSIGNMENT_RULE_URL, id_list=id_list, query=query)
+
+
+def build_resource_types_url(query=None):
+    return _build_url(base_url=RESOURCE_TYPES_URL, query=query)
+
+
+def build_resource_types_groups_url(query=None):
+    return _build_url(base_url=RESOURCE_TYPES_URL + "/inventory-groups", query=query)
+
+
 def get_id_list_from_hosts(host_list):
     return [str(h.id) for h in host_list]
+
+
+def build_account_staleness_url(path=None, query=None):
+    return _build_url(base_url=STALENESS_URL, path=path, query=query)
+
+
+def build_sys_default_staleness_url(path=None, query=None):
+    return _build_url(base_url=STALENESS_URL + "/defaults", path=path, query=query)
 
 
 def inject_qs(url, **kwargs):
@@ -428,6 +559,34 @@ def assert_group_response(response, expected_group):
     assert response["created"] == expected_group.created_on.isoformat()
     assert response["updated"] == expected_group.modified_on.isoformat()
     assert response["host_count"] == len(expected_group.hosts)
+
+
+def assert_resource_types_pagination(
+    response_data: dict,
+    expected_page: int,
+    expected_per_page: int,
+    expected_number_of_pages: int,
+    expected_path_base: str,
+):
+    # Assert that the top level fields exist
+    assert "meta" in response_data
+    assert "links" in response_data
+    assert "data" in response_data
+
+    links = response_data["links"]
+    assert links["first"] == f"{expected_path_base}?per_page={expected_per_page}&page=1"
+
+    if expected_page > 1:
+        assert links["previous"] == f"{expected_path_base}?per_page={expected_per_page}&page={expected_page-1}"
+    else:
+        assert links["previous"] is None
+
+    if expected_page < expected_number_of_pages:
+        assert links["next"] == f"{expected_path_base}?per_page={expected_per_page}&page={expected_page+1}"
+    else:
+        assert links["next"] is None
+
+    assert links["last"] == f"{expected_path_base}?per_page={expected_per_page}&page={expected_number_of_pages}"
 
 
 ClassMock = mock.MagicMock

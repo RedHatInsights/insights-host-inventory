@@ -9,7 +9,8 @@ from api import custom_escape
 from api import flask_json_response
 from api import metrics
 from api.filtering.filtering import query_filters
-from app import Permission
+from app import RbacPermission
+from app import RbacResourceType
 from app.auth import get_current_identity
 from app.config import Config
 from app.environment import RuntimeEnvironment
@@ -115,9 +116,11 @@ OPERATING_SYSTEM_QUERY = """
 
 
 @api_operation
-@rbac(Permission.READ)
+@rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
-def get_sap_system(tags=None, page=None, per_page=None, staleness=None, registered_with=None, filter=None):
+def get_sap_system(
+    tags=None, page=None, per_page=None, staleness=None, registered_with=None, filter=None, rbac_filter=None
+):
     limit, offset = pagination_params(page, per_page)
 
     variables = {
@@ -147,9 +150,18 @@ def get_sap_system(tags=None, page=None, per_page=None, staleness=None, register
 
 
 @api_operation
-@rbac(Permission.READ)
+@rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
-def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=None, registered_with=None, filter=None):
+def get_sap_sids(
+    search=None,
+    tags=None,
+    page=None,
+    per_page=None,
+    staleness=None,
+    registered_with=None,
+    filter=None,
+    rbac_filter=None,
+):
     limit, offset = pagination_params(page, per_page)
 
     variables = {
@@ -167,7 +179,9 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
             "search": {"regex": f".*{custom_escape(search)}.*"}
         }
 
-    hostfilter_and_variables = query_filters(tags=tags, registered_with=registered_with, filter=filter)
+    hostfilter_and_variables = query_filters(
+        tags=tags, registered_with=registered_with, filter=filter, rbac_filter=rbac_filter
+    )
 
     if hostfilter_and_variables != ():
         variables["hostFilter"]["AND"] = hostfilter_and_variables
@@ -185,7 +199,7 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
 
 
 @api_operation
-@rbac(Permission.READ)
+@rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_operating_system(
     tags=None,
@@ -194,6 +208,7 @@ def get_operating_system(
     staleness: Optional[str] = None,
     registered_with: Optional[str] = None,
     filter=None,
+    rbac_filter=None,
 ):
     limit, offset = pagination_params(page, per_page)
 
@@ -206,7 +221,9 @@ def get_operating_system(
         "offset": offset,
     }
 
-    hostfilter_and_variables = query_filters(tags=tags, registered_with=registered_with, filter=filter)
+    hostfilter_and_variables = query_filters(
+        tags=tags, registered_with=registered_with, filter=filter, rbac_filter=rbac_filter
+    )
 
     if hostfilter_and_variables != ():
         variables["hostFilter"]["AND"] = hostfilter_and_variables
@@ -227,9 +244,9 @@ def get_operating_system(
 
 
 @api_operation
-@rbac(Permission.READ)
+@rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.schema_validation_time.time()
-def validate_schema(repo_fork="RedHatInsights", repo_branch="master", days=1, max_messages=10000):
+def validate_schema(repo_fork="RedHatInsights", repo_branch="master", days=1, max_messages=10000, rbac_filter=None):
     # Use the identity header to make sure the user is someone from our team.
     config = Config(RuntimeEnvironment.SERVICE)
     identity = get_current_identity()

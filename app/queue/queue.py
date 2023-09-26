@@ -84,8 +84,9 @@ def _get_identity(host, metadata):
             identity["org_id"] = host.get("org_id")
             identity["system"]["cn"] = _formatted_uuid(host.get("subscription_manager_id"))
         elif metadata:
-            raise ValueError(
-                "When identity is not provided, reporter MUST be rhsm-conduit with a subscription_manager_id.\n"
+            raise ValidationException(
+                "When identity is not provided, reporter MUST be rhsm-conduit or rhsm-system-profile-bridge,"
+                " with a subscription_manager_id.\n"
                 f"Host Data: {host}"
             )
         else:
@@ -197,8 +198,13 @@ def sync_event_message(message, session, event_producer):
             host = deserialize_host({k: v for k, v in message["host"].items() if v}, schema=LimitedHostSchema)
             host.id = host_id
             event = build_event(EventType.delete, host)
-            insights_id = host.canonical_facts.get("insights_id")
-            headers = message_headers(EventType.delete, insights_id)
+            headers = message_headers(
+                EventType.delete,
+                host.canonical_facts.get("insights_id"),
+                message["host"].get("reporter"),
+                host.system_profile_facts.get("host_type"),
+                host.system_profile_facts.get("operating_system", {}).get("name"),
+            )
             # add back "wait=True", if needed.
             event_producer.write_event(event, host.id, headers, wait=True)
 
@@ -297,7 +303,13 @@ def handle_message(message, event_producer, notification_event_producer, message
             event_type = operation_results_to_event_type(operation_result)
             event = build_event(event_type, output_host, platform_metadata=platform_metadata)
 
-            headers = message_headers(operation_result, insights_id)
+            headers = message_headers(
+                operation_result,
+                insights_id,
+                host.get("reporter"),
+                host.get("system_profile", {}).get("host_type"),
+                host.get("system_profile", {}).get("operating_system", {}).get("name"),
+            )
             event_producer.write_event(event, str(host_id), headers, wait=True)
         except ValidationException as ve:
             logger.error(
@@ -306,9 +318,6 @@ def handle_message(message, event_producer, notification_event_producer, message
                 extra={"host": {"reporter": host.get("reporter")}},
             )
             send_kafka_error_message(notification_event_producer, host=host, detail=str(ve.detail))
-            raise
-        except ValueError as ve:
-            logger.error("Value error while adding or updating host: %s", ve, extra={"reporter": host.get("reporter")})
             raise
         except InventoryException as ie:
             send_kafka_error_message(notification_event_producer, host, str(ie.detail))

@@ -6,7 +6,8 @@ from api import custom_escape
 from api import flask_json_response
 from api import metrics
 from api.filtering.filtering import query_filters
-from app import Permission
+from app import RbacPermission
+from app import RbacResourceType
 from app.instrumentation import log_get_tags_failed
 from app.instrumentation import log_get_tags_succeeded
 from app.logging import get_logger
@@ -51,7 +52,7 @@ TAGS_QUERY = """
 
 
 @api_operation
-@rbac(Permission.READ)
+@rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_tags(
     search=None,
@@ -72,6 +73,7 @@ def get_tags(
     staleness=None,
     registered_with=None,
     filter=None,
+    rbac_filter=None,
 ):
     limit, offset = pagination_params(page, per_page)
 
@@ -102,6 +104,7 @@ def get_tags(
             None,  # Staleness to not use the default values
             registered_with,
             filter,
+            rbac_filter,
         )
     except ValueError as e:
         log_get_tags_failed(logger)

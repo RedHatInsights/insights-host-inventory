@@ -1,9 +1,11 @@
+import json
 from unittest import mock
 
 import pytest
 
 from app import db
 from app import threadctx
+from app.models import Host
 from host_synchronizer import run as host_synchronizer_run
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.mq_utils import assert_synchronize_event_is_valid
@@ -39,7 +41,7 @@ def test_synchronize_host_event(
 
 
 @pytest.mark.host_synchronizer
-def test_synchronize_multiple_host_events(event_producer, kafka_producer, db_create_multiple_hosts, inventory_config):
+def test_synchronize_multiple_host_events(event_producer, db_create_multiple_hosts, inventory_config):
     host_count = 25
 
     db_create_multiple_hosts(how_many=host_count)
@@ -57,3 +59,38 @@ def test_synchronize_multiple_host_events(event_producer, kafka_producer, db_cre
 
     assert event_count == host_count
     assert event_producer._kafka_producer.produce.call_count == host_count
+
+
+@pytest.mark.host_synchronizer
+def test_synchronizer_update_null_groups(mocker, event_producer, db_create_multiple_hosts, inventory_config):
+    host_count = 25
+    mocker.patch.object(event_producer, "write_event")
+
+    hosts = db_create_multiple_hosts(how_many=host_count)
+    # Set each one's groups field to null
+    db.session.query(Host).filter(Host.id.in_([h.id for h in hosts])).update(
+        {"groups": None}, synchronize_session="fetch"
+    )
+    db.session.commit()
+
+    threadctx.request_id = None
+    inventory_config.script_chunk_size = 3
+
+    event_count = host_synchronizer_run(
+        inventory_config,
+        mock.Mock(),
+        db.session,
+        event_producer,
+        shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
+    )
+
+    # Verify that the hosts' "groups" fields were updated in the DB
+    synced_hosts = db.session.query(Host).filter(Host.id.in_([h.id for h in hosts]))
+    for h in synced_hosts:
+        assert h.groups == []
+
+    assert event_count == host_count
+    assert event_producer.write_event.call_count == host_count
+    for call_arg in event_producer.write_event.call_args_list:
+        host = json.loads(call_arg[0][0])["host"]
+        assert host["groups"] == []

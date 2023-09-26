@@ -98,6 +98,15 @@ def log_get_group_list_failed(logger):
     logger.info("Groups not found", extra={"access_rule": get_control_rule()})
 
 
+# get asssignment-rules
+def log_get_assignment_rules_list_succeeded(logger, results_list):
+    logger.info("Found assignment-rules: %s", results_list, extra={"access_rule": get_control_rule()})
+
+
+def log_get_assignment_rules_list_failed(logger):
+    logger.info("Assignment-rules not found", extra={"access_rule": get_control_rule()})
+
+
 # create group
 def log_create_group_succeeded(logger, group_id):
     logger.info("Created group: %s", group_id, extra={"access_rule": get_control_rule()})
@@ -281,3 +290,33 @@ def log_db_access_failure(logger, message, host_data):
 def pendo_failure(logger, error_message=None):
     logger.error("Failed to send Pendo data: %s", error_message)
     pendo_fetching_failure.inc()
+
+
+# get resource_types
+def log_get_resource_type_list_succeeded(logger, results_list):
+    logger.debug("Got resource types: %s", results_list, extra={"access_rule": get_control_rule()})
+
+
+def log_get_resource_type_list_failed(logger):
+    logger.debug("Resource types not found", extra={"access_rule": get_control_rule()})
+
+
+# asssignment-rules
+def log_post_assignment_rule_succeeded(logger, id):
+    logger.info(f"Assignment rule created: {id}", extra={"access_rule": get_control_rule()})
+
+
+def log_post_assignment_rule_failed(logger):
+    logger.info("Failed to create assignment rule", extra={"access_rule": get_control_rule()})
+
+
+def log_create_account_staleness_succeeded(logger, staleness_id):
+    logger.info("Created account staleness: %s", staleness_id)
+
+
+def log_patch_account_staleness_succeeded(logger, staleness_id):
+    logger.info(f"Account staleness: {staleness_id} successfully updated.")
+
+
+def log_create_account_staleness_failed(logger, org_id):
+    logger.info("Failed to create staleness for account with org_id %s", org_id)

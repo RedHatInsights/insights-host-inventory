@@ -23,7 +23,6 @@ from app.serialization import serialize_group
 from app.serialization import serialize_host
 from lib.db import session_guard
 from lib.host_delete import _deleted_by_this_query
-from lib.host_repository import find_existing_host_by_id
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.metrics import delete_group_count
 from lib.metrics import delete_group_processing_time
@@ -45,12 +44,18 @@ def _produce_host_update_events(event_producer, host_id_list, group_id_list=[]):
     for host in host_list:
         host.groups = serialized_groups
         serialized_host = serialize_host(host, staleness_timestamps())
-        headers = message_headers(EventType.updated, serialized_host["insights_id"])
+        headers = message_headers(
+            EventType.updated,
+            host.canonical_facts.get("insights_id"),
+            host.reporter,
+            host.system_profile_facts.get("host_type"),
+            host.system_profile_facts.get("operating_system", {}).get("name"),
+        )
         event = build_event(EventType.updated, serialized_host)
         event_producer.write_event(event, serialized_host["id"], headers, wait=True)
 
 
-def add_hosts_to_group(group_id: str, host_id_list: List[str], event_producer: EventProducer):
+def _add_hosts_to_group(group_id: str, host_id_list: List[str]):
     current_org_id = get_current_identity().org_id
 
     # Check if the hosts exist in Inventory and have correct org_id
@@ -64,7 +69,9 @@ def add_hosts_to_group(group_id: str, host_id_list: List[str], event_producer: E
         )
 
     # Check if the hosts are already associated with another group
-    assoc_query = HostGroupAssoc.query.filter(HostGroupAssoc.host_id.in_(host_id_list)).all()
+    assoc_query = HostGroupAssoc.query.filter(
+        HostGroupAssoc.host_id.in_(host_id_list), HostGroupAssoc.group_id != group_id
+    ).all()
     if assoc_query:
         taken_hosts = [str(assoc.host_id) for assoc in assoc_query]
         log_host_group_add_failed(logger, host_id_list, group_id)
@@ -73,11 +80,30 @@ def add_hosts_to_group(group_id: str, host_id_list: List[str], event_producer: E
             detail=f"The following subset of hosts are already associated with another group: {taken_hosts}.",
         )
 
-    host_group_assoc = [HostGroupAssoc(host_id=host_id, group_id=group_id) for host_id in host_id_list]
+    # Fitler out hosts that are already in the group
+    assoc_query = HostGroupAssoc.query.filter(
+        HostGroupAssoc.host_id.in_(host_id_list), HostGroupAssoc.group_id == group_id
+    ).all()
+    ids_already_in_this_group = [str(assoc.host_id) for assoc in assoc_query]
+
+    host_group_assoc = [
+        HostGroupAssoc(host_id=host_id, group_id=group_id)
+        for host_id in host_id_list
+        if host_id not in ids_already_in_this_group
+    ]
     db.session.add_all(host_group_assoc)
-    db.session.flush()
+
+    _update_group_update_time(group_id)
 
     log_host_group_add_succeeded(logger, host_id_list, group_id)
+
+
+def add_hosts_to_group(group_id: str, host_id_list: List[str], event_producer: EventProducer):
+    with session_guard(db.session):
+        _add_hosts_to_group(group_id, host_id_list)
+
+    # Produce update messages once the DB session has been closed
+    _produce_host_update_events(event_producer, host_id_list, group_id_list=[group_id])
 
 
 def add_group(group_data, event_producer) -> Group:
@@ -97,7 +123,7 @@ def add_group(group_data, event_producer) -> Group:
         if host_id_list:
             # gets the ID of the group inside the session
             created_group = Group.query.filter((Group.name == group_name) & (Group.org_id == org_id)).one_or_none()
-            add_hosts_to_group(created_group.id, host_id_list, event_producer)
+            _add_hosts_to_group(created_group.id, host_id_list)
 
     # gets the ID of the group after it has been committed
     created_group = Group.query.filter((Group.name == group_name) & (Group.org_id == org_id)).one_or_none()
@@ -193,6 +219,8 @@ def _remove_hosts_from_group(group_id, host_id_list):
             else:
                 log_host_group_delete_failed(logger, assoc.host_id, assoc.group_id, get_control_rule())
 
+    _update_group_update_time(group_id)
+
     return removed_host_ids
 
 
@@ -217,7 +245,7 @@ def patch_group(group: Group, patch_data: dict, event_producer: EventProducer):
         # Update host list, if provided
         if new_host_ids is not None:
             _remove_hosts_from_group(group_id, list(existing_host_ids - new_host_ids))
-            add_hosts_to_group(group_id, list(new_host_ids - existing_host_ids), event_producer)
+            _add_hosts_to_group(group_id, list(new_host_ids - existing_host_ids))
 
     # Send MQ messages
     if group_patched and host_id_data is None:
@@ -238,44 +266,8 @@ def patch_group(group: Group, patch_data: dict, event_producer: EventProducer):
         _produce_host_update_events(event_producer, added_host_uuids, [group_id])
 
 
-def db_create_host_group_assoc(host_id: str, group_id: str) -> HostGroupAssoc:
-    if HostGroupAssoc.query.filter(HostGroupAssoc.host_id == host_id).one_or_none():
-        raise InventoryException(
-            title="Invalid request", detail=f"Host with ID {host_id} is already associated with another group."
-        )
-    host_group = HostGroupAssoc(host_id=host_id, group_id=group_id)
-    db.session.add(host_group)
-    return host_group
-
-
-def db_get_hosts_assoc_for_group(group_id: str) -> list:
-    return [
-        str(host_id[0])
-        for host_id in HostGroupAssoc.query.filter(HostGroupAssoc.group_id == group_id).values("host_id")
-    ]
-
-
-def add_host_list_for_group(group: Group, host_id_list: List[str]) -> List[HostGroupAssoc]:
-    assoc_list = []
-    group_hosts_associated = group.hosts
-    for host_id in host_id_list:
-        host = find_existing_host_by_id(get_current_identity(), host_id)
-        if host:
-            try:
-                assoc_list.append(db_create_host_group_assoc(host_id, group.id))
-
-                # Update modified_on timestamp on the group
-                group.update_modified_on()
-            except InventoryException:
-                # happens when host_id is already associated
-                # throw the exception *only* if host is associated to a different group
-                if host not in group_hosts_associated:
-                    raise InventoryException(
-                        title="Invalid request",
-                        detail=f"Host with ID {host_id} already associated to a different group ({group.id}).",
-                    )
-        else:
-            # Only raises the exception if the list contains only 1 host.
-            raise InventoryException(title="Invalid request", detail=f"Host with ID {host_id} does not exist.")
-
-    return assoc_list
+def _update_group_update_time(group_id: str):
+    group = get_group_by_id_from_db(group_id)
+    group.update_modified_on()
+    db.session.add(group)
+    db.session.flush()

@@ -1,9 +1,11 @@
 import pytest
 
+from tests.helpers.api_utils import ASSIGNMENT_RULE_URL
 from tests.helpers.api_utils import do_request
 from tests.helpers.api_utils import GROUP_URL
 from tests.helpers.api_utils import HOST_URL
 from tests.helpers.api_utils import MockUserIdentity
+from tests.helpers.api_utils import STALENESS_URL
 from tests.helpers.test_utils import USER_IDENTITY
 
 
@@ -139,6 +141,16 @@ def api_patch_group(flask_client):
 
 
 @pytest.fixture(scope="function")
+def api_create_assign_rule(flask_client):
+    def _api_create_assign_rule(assign_rule_data, identity=USER_IDENTITY, query_parameters=None, extra_headers=None):
+        return do_request(
+            flask_client.post, ASSIGNMENT_RULE_URL, identity, assign_rule_data, query_parameters, extra_headers
+        )
+
+    return _api_create_assign_rule
+
+
+@pytest.fixture(scope="function")
 def enable_rbac(inventory_config):
     inventory_config.bypass_rbac = False
 
@@ -158,3 +170,21 @@ def user_identity_mock(flask_app):
     flask_app.user_identity = MockUserIdentity()
     yield flask_app.user_identity
     # flask_app.user_identity = None
+
+
+@pytest.fixture(scope="function")
+def api_create_account_staleness(flask_client):
+    def _api_create_account_staleness(
+        staleness_data, identity=USER_IDENTITY, query_parameters=None, extra_headers=None
+    ):
+        return do_request(flask_client.post, STALENESS_URL, identity, staleness_data, query_parameters, extra_headers)
+
+    return _api_create_account_staleness
+
+
+@pytest.fixture(scope="function")
+def api_delete_account_staleness(flask_client):
+    def _api_delete_account_staleness(identity=USER_IDENTITY):
+        return do_request(flask_client.delete, STALENESS_URL, identity)
+
+    return _api_delete_account_staleness

@@ -21,12 +21,20 @@ def synchronize_hosts(select_query, event_producer, chunk_size, config, interrup
 
     while len(host_list) > 0 and not interrupt():
         for host in host_list:
+            # First, set host.groups to [] if it's null.
+            if host.groups is None:
+                host.groups = []
+
             serialized_host = serialize_host(host, Timestamps.from_config(config))
             event = build_event(EventType.updated, serialized_host)
-            insights_id = host.canonical_facts.get("insights_id")
-            headers = message_headers(EventType.updated, insights_id)
+            headers = message_headers(
+                EventType.updated,
+                host.canonical_facts.get("insights_id"),
+                host.reporter,
+                host.system_profile_facts.get("host_type"),
+                host.system_profile_facts.get("operating_system", {}).get("name"),
+            )
             # in case of a failed update event, event_producer logs the message.
-            # add back "wait=True", if needed.
             event_producer.write_event(event, str(host.id), headers, wait=True)
             synchronize_host_count.inc()
             logger.info("Synchronized host: %s", str(host.id))
@@ -39,7 +47,8 @@ def synchronize_hosts(select_query, event_producer, chunk_size, config, interrup
         except ProduceError:
             raise ProduceError(f"ProduceError: Kafka failure to flush {chunk_size} records within 300 seconds")
 
-        # load next chunk using keyset pagination
+        # flush changes, and then load next chunk using keyset pagination
+        query.session.flush()
         host_list = query.filter(Host.id > host_list[-1].id).limit(chunk_size).all()
 
     return num_synchronized

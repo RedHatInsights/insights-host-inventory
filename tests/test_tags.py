@@ -8,8 +8,8 @@ from tests.helpers.api_utils import build_host_tags_url
 from tests.helpers.api_utils import build_tags_count_url
 from tests.helpers.api_utils import build_tags_url
 from tests.helpers.api_utils import create_mock_rbac_response
-from tests.helpers.api_utils import READ_ALLOWED_RBAC_RESPONSE_FILES
-from tests.helpers.api_utils import READ_PROHIBITED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.graphql_utils import EMPTY_HOSTS_RESPONSE
 from tests.helpers.graphql_utils import XJOIN_HOSTS_NO_TAGS_RESPONSE
@@ -280,7 +280,7 @@ def test_get_tags_count_from_host_with_tag_with_no_value(api_get, patch_xjoin_po
 def test_get_host_tags_with_RBAC_allowed(subtests, mocker, api_get, enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
-    for response_file in READ_ALLOWED_RBAC_RESPONSE_FILES:
+    for response_file in HOST_READ_ALLOWED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
@@ -297,7 +297,7 @@ def test_get_host_tags_with_RBAC_denied(subtests, mocker, api_get, enable_rbac):
         "lib.host_repository.find_hosts_by_staleness", wraps=find_hosts_by_staleness
     )
 
-    for response_file in READ_PROHIBITED_RBAC_RESPONSE_FILES:
+    for response_file in HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
@@ -322,7 +322,7 @@ def test_get_host_tag_count_RBAC_allowed(mocker, api_get, subtests, patch_xjoin_
 
     expected_response = {host.id: len(host.tags) for host in host_list}
 
-    for response_file in READ_ALLOWED_RBAC_RESPONSE_FILES:
+    for response_file in HOST_READ_ALLOWED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
@@ -340,7 +340,7 @@ def test_get_host_tag_count_RBAC_denied(mq_create_four_specific_hosts, mocker, a
 
     created_hosts = mq_create_four_specific_hosts
 
-    for response_file in READ_PROHIBITED_RBAC_RESPONSE_FILES:
+    for response_file in HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response

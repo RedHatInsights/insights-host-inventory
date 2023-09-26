@@ -5,6 +5,8 @@ from random import randint
 from sqlalchemy.exc import InvalidRequestError
 
 from app.auth.identity import Identity
+from app.models import AccountStalenessCulling
+from app.models import AssignmentRule
 from app.models import db
 from app.models import Group
 from app.models import Host
@@ -95,6 +97,26 @@ def db_group_dict(**values):
         data["org_id"] = USER_IDENTITY["org_id"]
 
     return data
+
+
+def db_assignment_rule(**values):
+    data = {**values}
+    if "org_id" in values:
+        data["org_id"] = values.get("org_id")
+    else:
+        data["org_id"] = USER_IDENTITY["org_id"]
+
+    return AssignmentRule(**data)
+
+
+def db_account_staleness_culling(**values):
+    data = {**values}
+    if "org_id" in values:
+        data["org_id"] = values.get("org_id")
+    else:
+        data["org_id"] = USER_IDENTITY["org_id"]
+
+    return AccountStalenessCulling(**data)
 
 
 def update_host_in_db(host_id, **data_to_update):

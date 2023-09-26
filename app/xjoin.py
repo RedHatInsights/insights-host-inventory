@@ -28,10 +28,11 @@ ORDER_BY_MAPPING = {
     None: "modified_on",
     "updated": "modified_on",
     "display_name": "display_name",
+    "group_name": "group_name",
     "operating_system": "operating_system",
 }
 
-ORDER_HOW_MAPPING = {"modified_on": "DESC", "display_name": "ASC", "operating_system": "DESC"}
+ORDER_HOW_MAPPING = {"modified_on": "DESC", "display_name": "ASC", "group_name": "ASC", "operating_system": "DESC"}
 
 
 def check_pagination(offset, total):
@@ -98,6 +99,10 @@ def string_contains(string):
 
 def string_contains_lc(string):
     return {"matches_lc": f"*{string}*"}
+
+
+def string_exact_lc(string):
+    return {"eq_lc": string}
 
 
 def url():

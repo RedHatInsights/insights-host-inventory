@@ -29,6 +29,16 @@ components:
         maximum: 100
         default: 50
       description: A number of items to return per page.
+    resourceTypesPerPageParam:
+      name: per_page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 10
+      description: A number of items to return per page.
   schemas:
     PaginationOut:
       type: object
@@ -46,6 +56,16 @@ components:
           $ref: '#/components/schemas/PerPage'
         total:
           $ref: '#/components/schemas/Total'
+    ResourceTypesPaginationOut:
+      type: object
+      required:
+        - meta
+        - links
+      properties:
+        meta:
+          $ref: '#/components/schemas/Meta'
+        links:
+          $ref: '#/components/schemas/Links'
     Total:
       type: integer
       description: Total number of items
@@ -58,3 +78,35 @@ components:
     PerPage:
       type: integer
       description: The number of items to return per page
+    Meta:
+      description: The metadata for resource-types responses
+      type: object
+      required:
+        - count
+      properties:
+        count:
+          description: The total number of objects returned by the query.
+          type: integer
+    Links:
+      description: A collection of pagination links for resource-types endpoints
+      type: object
+      required:
+        - first
+        - previous
+        - next
+        - last
+      properties:
+        first:
+          description: The URI path for the first page in the pagination
+          type: string
+        previous:
+          description: The URI path for the previous page in the pagination
+          type: string
+          nullable: true
+        next:
+          description: The URI path for the next page in the pagination
+          type: string
+          nullable: true
+        last:
+          description: The URI path for the last page in the pagination
+          type: string

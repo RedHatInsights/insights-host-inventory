@@ -108,6 +108,10 @@ class Config:
         self.unleash_url = os.environ.get("UNLEASH_URL", "http://unleash:4242/api")
         self.unleash_token = os.environ.get("UNLEASH_TOKEN", "")
 
+    def days_to_seconds(self, n_days):
+        factor = 86400
+        return n_days * factor
+
     def __init__(self, runtime_environment):
         self.logger = get_logger(__name__)
         self._runtime_environment = runtime_environment
@@ -133,6 +137,8 @@ class Config:
         self.bypass_rbac = os.environ.get("BYPASS_RBAC", "false").lower() == "true"
         self.rbac_retries = os.environ.get("RBAC_RETRIES", 2)
         self.rbac_timeout = os.environ.get("RBAC_TIMEOUT", 10)
+
+        self.bypass_unleash = os.environ.get("BYPASS_UNLEASH", "false").lower() == "true"
 
         self.bypass_tenant_translation = os.environ.get("BYPASS_TENANT_TRANSLATION", "false").lower() == "true"
         self.tenant_translator_url = os.environ.get("TENANT_TRANSLATOR_URL", "http://localhost:8892/internal/orgIds")
@@ -181,6 +187,7 @@ class Config:
         self.events_kafka_consumer = {
             "group.id": "inventory-events-rebuild",
             "auto.offset.reset": "earliest",
+            "queued.max.messages.kbytes": "65536",
             "request.timeout.ms": int(os.environ.get("KAFKA_CONSUMER_REQUEST_TIMEOUT_MS", "305000")),
             "max.in.flight.requests.per.connection": int(
                 os.environ.get("KAFKA_CONSUMER_MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION", "5")
@@ -221,10 +228,31 @@ class Config:
             minutes=int(os.environ.get("CULLING_CULLED_OFFSET_MINUTES", "0")),
         )
 
+        self.conventional_staleness_seconds = os.environ.get(
+            "CONVENTIONAL_STALENESS_SECONDS", str(self.days_to_seconds(1))
+        )
+
+        self.conventional_stale_warning_seconds = os.environ.get(
+            "CONVENTIONAL_STALENESS_WARNING_SECONDS", str(self.days_to_seconds(7))
+        )
+
+        self.conventional_culling_seconds = os.environ.get(
+            "CONVENTIONAL_CULLING_SECONDS", str(self.days_to_seconds(14))
+        )
+
+        self.immutable_staleness_seconds = os.environ.get("IMMUTABLE_STALENESS_SECONDS", str(self.days_to_seconds(2)))
+
+        self.immutable_stale_warning_seconds = os.environ.get(
+            "IMMUTABLE_STALENESS_WARNING_SECONDS", str(self.days_to_seconds(120))
+        )
+
+        self.immutable_culling_seconds = os.environ.get("IMMUTABLE_CULLING_SECONDS", str(self.days_to_seconds(180)))
+
         self.xjoin_graphql_url = os.environ.get("XJOIN_GRAPHQL_URL", "http://localhost:4000/graphql")
 
         self.host_delete_chunk_size = int(os.getenv("HOST_DELETE_CHUNK_SIZE", "1000"))
         self.script_chunk_size = int(os.getenv("SCRIPT_CHUNK_SIZE", "500"))
+        self.rebuild_events_time_limit = int(os.getenv("REBUILD_EVENTS_TIME_LIMIT", "3600"))  # 1 hour
         self.sp_authorized_users = os.getenv("SP_AUTHORIZED_USERS", "tuser@redhat.com").split()
 
         if self._runtime_environment == RuntimeEnvironment.PENDO_JOB:
@@ -238,7 +266,7 @@ class Config:
         if self._runtime_environment == RuntimeEnvironment.TEST:
             self.bypass_rbac = True
             self.bypass_tenant_translation = True
-            self.unleash_token = None
+            self.bypass_unleash = True
 
     def _build_base_url_path(self):
         app_name = os.getenv("APP_NAME", "inventory")
@@ -304,7 +332,8 @@ class Config:
             self.logger.info("RBAC Retry Times: %s", self.rbac_retries)
             self.logger.info("RBAC Timeout Seconds: %s", self.rbac_timeout)
 
-            self.logger.info("Unleash (feature flags) Bypassed: %s", self.unleash_token is None)
+            self.logger.info("Unleash (feature flags) Bypassed by config: %s", self.bypass_unleash)
+            self.logger.info("Unleash (feature flags) Bypassed by missing token: %s", self.unleash_token is None)
 
             self.logger.info(
                 "Bypassing tenant translation for hosts missing org_id: %s", self.bypass_tenant_translation

@@ -49,11 +49,17 @@ SPEC_TYPES_LOOKUP = {"string": str, "integer": int, "boolean": bool, "array": li
 custom_filter_fields = ["operating_system"]
 
 
-class Permission(Enum):
-    READ = "inventory:hosts:read"
-    WRITE = "inventory:hosts:write"
-    ADMIN = "inventory:*:*"
-    HOSTS_ALL = "inventory:hosts:*"
+class RbacPermission(Enum):
+    READ = "read"
+    WRITE = "write"
+    ADMIN = "*"
+
+
+class RbacResourceType(Enum):
+    HOSTS = "hosts"
+    GROUPS = "groups"
+    STALENESS = "staleness"
+    ALL = "*"
 
 
 def initialize_metrics(config):
@@ -71,8 +77,12 @@ def initialize_metrics(config):
             notification_type=notification_type.name, topic=notification_topic_name
         )
 
-    rbac_access_denied.labels(required_permission=Permission.READ.value)
-    rbac_access_denied.labels(required_permission=Permission.WRITE.value)
+    rbac_access_denied.labels(
+        required_permission=f"inventory:{RbacResourceType.HOSTS.value}:{RbacPermission.READ.value}"
+    )
+    rbac_access_denied.labels(
+        required_permission=f"inventory:{RbacResourceType.HOSTS.value}:{RbacPermission.WRITE.value}"
+    )
 
 
 def render_exception(exception):
@@ -201,7 +211,7 @@ def create_app(runtime_environment):
     flask_app.config["UNINDEXED_FIELDS"] = unindexed_fields
 
     # Configure Unleash (feature flags)
-    if app_config.unleash_token:
+    if not app_config.bypass_unleash and app_config.unleash_token:
         flask_app.config["UNLEASH_APP_NAME"] = "host-inventory-api"
         flask_app.config["UNLEASH_ENVIRONMENT"] = "default"
         flask_app.config["UNLEASH_URL"] = app_config.unleash_url
@@ -210,10 +220,13 @@ def create_app(runtime_environment):
             flask_app.config["UNLEASH_CACHE_DIRECTORY"] = app_config.unleash_cache_directory
         init_unleash_app(flask_app)
     else:
-        logger.warning(
-            "WARNING: No API token was provided for Unleash server connection.  "
-            "Feature flag toggles will default to their fallback values."
+        unleash_fallback_msg = (
+            "Unleash is bypassed by config value."
+            if app_config.bypass_unleash
+            else "No API token was provided for Unleash server connection."
         )
+        unleash_fallback_msg += " Feature flag toggles will default to their fallback values."
+        logger.warning(unleash_fallback_msg)
 
     db.init_app(flask_app)
 

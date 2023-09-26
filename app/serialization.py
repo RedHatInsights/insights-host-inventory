@@ -158,10 +158,10 @@ def serialize_host(host, staleness_timestamps, for_mq=True, additional_fields=tu
     if "system_profile" in fields:
         serialized_host["system_profile"] = host.system_profile_facts or {}
     if "groups" in fields:
-        # For MQ messages, we don't include the host_count field.
-        if for_mq:
+        # For MQ messages, we only include name and ID.
+        if for_mq and host.groups:
             serialized_host["groups"] = [
-                {key: group[key] for key in group if key != "host_count"} for group in host.groups
+                {key: group[key] for key in group if key in ["name", "id"]} for group in host.groups
             ]
         else:
             serialized_host["groups"] = host.groups or []
@@ -178,6 +178,21 @@ def serialize_group(group):
         "host_count": len(group.hosts),
         "created": _serialize_datetime(group.created_on),
         "updated": _serialize_datetime(group.modified_on),
+    }
+
+
+def serialize_assignment_rule(assign_rule):
+    return {
+        "id": _serialize_uuid(assign_rule.id),
+        "org_id": assign_rule.org_id,
+        "account": assign_rule.account,
+        "name": assign_rule.name,
+        "description": assign_rule.description,
+        "group_id": _serialize_uuid(assign_rule.group_id),
+        "filter": assign_rule.filter,
+        "enabled": assign_rule.enabled,
+        "created_on": _serialize_datetime(assign_rule.created_on),
+        "modified_on": _serialize_datetime(assign_rule.modified_on),
     }
 
 
@@ -310,3 +325,23 @@ def _deserialize_tags_dict(tags):
 
 def _serialize_tags(tags):
     return [tag.data() for tag in Tag.create_tags_from_nested(tags)]
+
+
+def serialize_account_staleness_response(account_staleness):
+    return {
+        "id": _serialize_uuid(account_staleness.id),
+        "org_id": account_staleness.org_id,
+        "account": account_staleness.account,
+        "conventional_staleness_delta": account_staleness.conventional_staleness_delta,
+        "conventional_stale_warning_delta": account_staleness.conventional_stale_warning_delta,
+        "conventional_culling_delta": account_staleness.conventional_culling_delta,
+        "immutable_staleness_delta": account_staleness.immutable_staleness_delta,
+        "immutable_stale_warning_delta": account_staleness.immutable_stale_warning_delta,
+        "immutable_culling_delta": account_staleness.immutable_culling_delta,
+        "created": "N/A"
+        if account_staleness.created_on == "N/A"
+        else _serialize_datetime(account_staleness.created_on),
+        "updated": "N/A"
+        if account_staleness.modified_on == "N/A"
+        else _serialize_datetime(account_staleness.modified_on),
+    }
