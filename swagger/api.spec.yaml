@@ -752,7 +752,7 @@ paths:
 
   /account/staleness:
     get:
-      operationId: api.account_staleness.get_staleness
+      operationId: api.staleness.get_staleness
       tags:
         - accounts_staleness
       summary: Read the entire list of account staleness
@@ -768,9 +768,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AccountStalenessOutput'
+                $ref: '#/components/schemas/StalenessOutput'
     post:
-      operationId: api.account_staleness.create_staleness
+      operationId: api.staleness.create_staleness
       tags:
         - accounts_staleness
       summary: Create account staleness record
@@ -786,16 +786,16 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AccountStalenessIn'
+              $ref: '#/components/schemas/StalenessIn'
       responses:
         '201':
           description: Successfully account staleness created.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AccountStalenessOutput'
+                $ref: '#/components/schemas/StalenessOutput'
     patch:
-      operationId: api.account_staleness.update_staleness
+      operationId: api.staleness.update_staleness
       tags:
         - accounts_staleness
       summary: Update account staleness record
@@ -811,16 +811,16 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AccountStalenessIn'
+              $ref: '#/components/schemas/StalenessIn'
       responses:
         '200':
           description: Successfully account staleness updated.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AccountStalenessOutput'
+                $ref: '#/components/schemas/StalenessOutput'
     delete:
-      operationId: api.account_staleness.delete_staleness
+      operationId: api.staleness.delete_staleness
       tags:
         - accounts_staleness
       summary: Delete an account staleness
@@ -841,7 +841,7 @@ paths:
 
   /account/staleness/defaults:
     get:
-      operationId: api.account_staleness.get_default_staleness
+      operationId: api.staleness.get_default_staleness
       tags:
         - accounts_staleness
       summary: Read the entire list of account staleness
@@ -857,7 +857,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AccountStalenessOutput'
+                $ref: '#/components/schemas/StalenessOutput'
 
   '/unleash/inventory_groups_toggle':
     get:
@@ -1822,7 +1822,7 @@ components:
       nullable: true
       items:
         $ref: '#/components/schemas/NonStrictUUID'
-    AccountStalenessId:
+    StalenessId:
       description: Account Staleness UID
       oneOf:
         - $ref: '#/components/schemas/NonStrictUUID'
@@ -2029,7 +2029,7 @@ components:
             type: array
             items:
               $ref: '#/components/schemas/GroupOutWithHostCount'
-    AccountStalenessIn:
+    StalenessIn:
       title: Account Staleness In
       description: >-
         Data of a single account staleness.
@@ -2037,53 +2037,45 @@ components:
       anyOf:
         - properties:
             conventional_staleness_delta:
-              type: string
-              maxLength: 36
+              type: integer
+              minimum: 1
             conventional_stale_warning_delta:
-              type: string
-              maxLength: 36
+              type: integer
+              minimum: 1
             conventional_culling_delta:
-              type: string
-              maxLength: 36
+              type: integer
+              minimum: 1
             immutable_staleness_delta:
-              type: string
-              maxLength: 36
+              type: integer
+              minimum: 1
             immutable_stale_warning_delta:
-              type: string
-              maxLength: 36
+              type: integer
+              minimum: 1
             immutable_culling_delta:
-              type: string
-              maxLength: 36
-    AccountStalenessOutput:
+              type: integer
+              minimum: 1
+    StalenessOutput:
       title: Account Staleness Out
       description: >-
         Data of a account staleness.
       type: object
       properties:
         id:
-          $ref: "#/components/schemas/AccountStalenessId"
-        account:
-          $ref: "#/components/schemas/AccountNumber"
+          $ref: "#/components/schemas/StalenessId"
         org_id:
           $ref: "#/components/schemas/OrgId"
         conventional_staleness_delta:
-          type: string
-          maxLength: 36
+          type: integer
         conventional_stale_warning_delta:
-          type: string
-          maxLength: 36
+          type: integer
         conventional_culling_delta:
-          type: string
-          maxLength: 36
+          type: integer
         immutable_staleness_delta:
-          type: string
-          maxLength: 36
+          type: integer
         immutable_stale_warning_delta:
-          type: string
-          maxLength: 36
+          type: integer
         immutable_culling_delta:
-          type: string
-          maxLength: 36
+          type: integer
         created_at:
           description: A timestamp when the entry was created.
           type: string

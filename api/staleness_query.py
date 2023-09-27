@@ -1,15 +1,16 @@
 from flask import g
 from sqlalchemy.orm.exc import NoResultFound
 
+from app import inventory_config
 from app.auth import get_current_identity
 from app.logging import get_logger
-from app.models import AccountStalenessCulling
+from app.models import Staleness
 
 
 logger = get_logger(__name__)
 
 
-def get_account_staleness_db(rbac_filter=None, identity=None):
+def get_staleness_db(rbac_filter=None, identity=None):
     # TODO: ESSNTL-5163
     if rbac_filter:
         pass
@@ -26,19 +27,17 @@ def get_account_staleness_db(rbac_filter=None, identity=None):
         logger.debug("Account staleness data is not available in global request context")
         if not identity:
             org_id = get_current_identity().org_id
-            account = get_current_identity().account_number
         else:
             org_id = identity.org_id
-            account = identity.account_number
         try:
-            filters = (AccountStalenessCulling.org_id == org_id,)
-            acc_st = AccountStalenessCulling.query.filter(*filters).one()
+            filters = (Staleness.org_id == org_id,)
+            acc_st = Staleness.query.filter(*filters).one()
             logger.info("Using custom account staleness")
             logger.debug("Setting account staleness data to global request context")
             g.acc_st = _build_serialized_acc_staleness_obj(acc_st)
         except NoResultFound:
             logger.info(f"No data found for user {org_id}, using system default values")
-            acc_st = _build_acc_staleness_sys_default(org_id, account)
+            acc_st = _build_acc_staleness_sys_default(org_id)
             logger.debug("Setting account staleness data to global request context")
             g.acc_st = acc_st
             return g.acc_st
@@ -48,19 +47,15 @@ def get_account_staleness_db(rbac_filter=None, identity=None):
 
 def get_sys_default_staleness():
     org_id = get_current_identity().org_id
-    account = get_current_identity().account_number
-    acc_st = _build_acc_staleness_sys_default(org_id, account)
+    acc_st = _build_acc_staleness_sys_default(org_id)
     return acc_st
 
 
-def _build_acc_staleness_sys_default(org_id, account):
-    from app import inventory_config
-
+def _build_acc_staleness_sys_default(org_id):
     config = inventory_config()
     return AttrDict(
         {
             "id": "system_default",
-            "account": account,
             "org_id": org_id,
             "conventional_staleness_delta": config.conventional_staleness_seconds,
             "conventional_stale_warning_delta": config.conventional_stale_warning_seconds,
@@ -81,7 +76,6 @@ def _build_serialized_acc_staleness_obj(acc_st):
     return AttrDict(
         {
             "id": str(acc_st.id),
-            "account": acc_st.account,
             "org_id": acc_st.org_id,
             "conventional_staleness_delta": acc_st.conventional_staleness_delta,
             "conventional_stale_warning_delta": acc_st.conventional_stale_warning_delta,
