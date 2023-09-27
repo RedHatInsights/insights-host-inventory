@@ -58,11 +58,6 @@ def _validate_input_data(body):
     return validated_data
 
 
-def _get_org_id():
-    current_identity = get_current_identity()
-    return current_identity.org_id
-
-
 @api_operation
 @rbac(RbacResourceType.STALENESS, RbacPermission.READ)
 @metrics.api_request_time.time()
@@ -109,9 +104,9 @@ def create_staleness(body):
 
         log_create_staleness_succeeded(logger, created_staleness.id)
     except IntegrityError:
-        error_message = f"An account staleness record for org_id {_get_org_id()} already exists."
+        error_message = f"Staleness record for org_id {get_current_identity().org_id} already exists."
 
-        log_create_staleness_failed(logger, _get_org_id())
+        log_create_staleness_failed(logger, get_current_identity().org_id)
         logger.exception(error_message)
         return json_error_response("Integrity error", error_message, status.HTTP_400_BAD_REQUEST)
 
@@ -129,7 +124,10 @@ def delete_staleness():
         remove_staleness()
         return flask_json_response(None, status.HTTP_204_NO_CONTENT)
     except NoResultFound:
-        abort(status.HTTP_404_NOT_FOUND, f"An account staleness record for org_id {_get_org_id()} does not exist.")
+        abort(
+            status.HTTP_404_NOT_FOUND,
+            f"Staleness record for org_id {get_current_identity().org_id} does not exist.",
+        )
 
 
 @api_operation
@@ -151,4 +149,7 @@ def update_staleness(body):
 
         return flask_json_response(serialize_staleness_response(updated_staleness), status.HTTP_200_OK)
     except NoResultFound:
-        abort(status.HTTP_404_NOT_FOUND, f"An account staleness record for org_id {_get_org_id()} does not exist.")
+        abort(
+            status.HTTP_404_NOT_FOUND,
+            f"Staleness record for org_id {get_current_identity().org_id} does not exist.",
+        )
