@@ -34,7 +34,7 @@ def inventory_config(flask_app):
     flask_app.config["INVENTORY_CONFIG"] = Config(RuntimeEnvironment.TEST)
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(scope="function")
 def clean_g():
     if "acc_st" in g:
         del g.acc_st
