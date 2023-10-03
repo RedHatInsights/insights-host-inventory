@@ -8,6 +8,7 @@ from flask_api import status
 
 from api.metrics import api_request_count
 from app.logging import get_logger
+from lib.feature_flags import get_flag_value
 
 __all__ = ["api_operation"]
 
@@ -76,3 +77,8 @@ def custom_escape(expression):
 
 def json_error_response(title, detail, status=status.HTTP_400_BAD_REQUEST):
     return flask_json_response({"title": title, "detail": detail}, status)
+
+
+def check_unleash_flag(FLAG_NAME):
+    if not get_flag_value(FLAG_NAME):
+        return flask.Response(None, status.HTTP_501_NOT_IMPLEMENTED)

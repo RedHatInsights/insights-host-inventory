@@ -532,6 +532,28 @@ paths:
           description: Invalid request.
         '404':
           description: Group not found.
+  '/groups/hosts/{host_id_list}':
+    delete:
+      operationId: api.group.delete_hosts_from_different_groups
+      tags:
+        - groups
+      summary: Delete a list of hosts from the groups they are in
+      description: >-
+        Delete a list of hosts from the groups they are in.
+        <br /><br />
+        Required permissions: inventory:groups:write
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/hostIdList'
+      responses:
+        '204':
+          description: The hosts were successfully removed from their groups.
+        '400':
+          description: Invalid request.
+        '404':
+          description: The provided hosts are ungrouped.
+
 
   /resource-types:
     get:

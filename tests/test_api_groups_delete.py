@@ -157,3 +157,144 @@ def test_delete_groups_RBAC_denied_specific_groups(mocker, db_create_group, api_
 
     # Should be denied because access is not granted to two of the groups
     assert_response_status(response_status, 403)
+
+
+def test_delete_hosts_from_different_groups(
+    db_create_group,
+    db_create_host,
+    db_get_hosts_for_group,
+    db_create_host_group_assoc,
+    api_remove_hosts_from_diff_groups,
+    event_producer,
+    mocker,
+):
+    mocker.patch.object(event_producer, "write_event")
+
+    # Create 2 groups and 4 hosts
+    group1_id = str(db_create_group("test_group1").id)
+    group2_id = str(db_create_group("test_group2").id)
+
+    host_id_list1 = [str(db_create_host().id) for _ in range(2)]
+    host_id_list2 = [str(db_create_host().id) for _ in range(2)]
+
+    # Add 2 hosts to each group
+    for host_id in host_id_list1:
+        db_create_host_group_assoc(host_id, group1_id)
+    for host_id in host_id_list2:
+        db_create_host_group_assoc(host_id, group2_id)
+
+    # Confirm that the associations exist
+    hosts_before1 = db_get_hosts_for_group(group1_id)
+    assert len(hosts_before1) == 2
+    hosts_before2 = db_get_hosts_for_group(group2_id)
+    assert len(hosts_before2) == 2
+
+    # Remove one host from each group
+    hosts_to_delete = [host_id_list1[0], host_id_list2[0]]
+    response_status, _ = api_remove_hosts_from_diff_groups(hosts_to_delete)
+    assert_response_status(response_status, 204)
+
+    # Confirm that the groups now only contain the last host
+    hosts1_after = db_get_hosts_for_group(group1_id)
+    assert len(hosts1_after) == 1
+    assert str(hosts1_after[0].id) == host_id_list1[1]
+    hosts2_after = db_get_hosts_for_group(group2_id)
+    assert len(hosts2_after) == 1
+    assert str(hosts2_after[0].id) == host_id_list2[1]
+
+    assert event_producer.write_event.call_count == 2
+    for call_arg in event_producer.write_event.call_args_list:
+        host = json.loads(call_arg[0][0])["host"]
+        assert host["id"] in hosts_to_delete
+        assert len(host["groups"]) == 0
+
+
+def test_delete_hosts_from_different_groups_RBAC_denied(
+    db_create_group,
+    db_create_host,
+    db_get_hosts_for_group,
+    db_create_host_group_assoc,
+    api_remove_hosts_from_diff_groups,
+    event_producer,
+    mocker,
+    enable_rbac,
+):
+    mocker.patch.object(event_producer, "write_event")
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+
+    # Create 2 groups and 4 hosts
+    group1_id = str(db_create_group("test_group1").id)
+    group2_id = str(db_create_group("test_group2").id)
+
+    host_id_list1 = [str(db_create_host().id) for _ in range(2)]
+    host_id_list2 = [str(db_create_host().id) for _ in range(2)]
+
+    # Add 2 hosts to each group
+    for host_id in host_id_list1:
+        db_create_host_group_assoc(host_id, group1_id)
+    for host_id in host_id_list2:
+        db_create_host_group_assoc(host_id, group2_id)
+
+    # Confirm that the associations exist
+    hosts_before1 = db_get_hosts_for_group(group1_id)
+    assert len(hosts_before1) == 2
+    hosts_before2 = db_get_hosts_for_group(group2_id)
+    assert len(hosts_before2) == 2
+
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-groups-write-resource-defs-template.json"
+    )
+
+    # Only grant permission to one group
+    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = [group1_id]
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    # Try to remove one host from each group
+    hosts_to_delete = [host_id_list1[0], host_id_list2[0]]
+
+    response_status, _ = api_remove_hosts_from_diff_groups(hosts_to_delete)
+    assert_response_status(response_status, 403)
+
+    # Check that the hosts weren't deleted
+    hosts_after1 = db_get_hosts_for_group(group1_id)
+    assert len(hosts_after1) == 2
+    hosts_after2 = db_get_hosts_for_group(group2_id)
+    assert len(hosts_after2) == 2
+
+    # No messages should have been sent
+    assert event_producer.write_event.call_count == 0
+
+
+def test_delete_hosts_no_group(
+    db_create_group,
+    db_create_host,
+    db_get_hosts_for_group,
+    db_create_host_group_assoc,
+    api_remove_hosts_from_diff_groups,
+    event_producer,
+    mocker,
+):
+    mocker.patch.object(event_producer, "write_event")
+
+    group_id = str(db_create_group("test_group1").id)
+    host_id_list = [str(db_create_host().id) for _ in range(2)]
+
+    # Add one host to the group
+    db_create_host_group_assoc(host_id_list[0], group_id)
+
+    # Confirm that the associations exist
+    hosts_before = db_get_hosts_for_group(group_id)
+    assert len(hosts_before) == 1
+
+    response_status, _ = api_remove_hosts_from_diff_groups(host_id_list)
+    assert_response_status(response_status, 204)
+
+    # Confirm that the host was removed from the group
+    hosts1_after = db_get_hosts_for_group(group_id)
+    assert len(hosts1_after) == 0
+
+    assert event_producer.write_event.call_count == 1
+    for call_arg in event_producer.write_event.call_args_list:
+        host = json.loads(call_arg[0][0])["host"]
+        assert host["id"] == host_id_list[0]
+        assert len(host["groups"]) == 0
