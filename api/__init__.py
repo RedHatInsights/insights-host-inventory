@@ -44,7 +44,7 @@ def api_operation(old_func):
 
         contextual_data[PROCESSING_TIME] = end_time - start_time
 
-        segmentio_track(old_func.__name__, start_time, end_time, contextual_data, logger)
+        segmentio_track(old_func.__name__, contextual_data[PROCESSING_TIME], contextual_data, logger)
         logger.debug("Leaving %s", old_func.__name__, extra=contextual_data)
         return results
 

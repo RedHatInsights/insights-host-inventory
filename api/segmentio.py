@@ -4,7 +4,7 @@ import segment.analytics as analytics
 from app.auth import get_current_identity
 
 
-def segmentio_track(op_name, start_time, end_time, contextual_data, logger):
+def segmentio_track(op_name, processing_time, contextual_data, logger):
     identity = get_current_identity()
 
     if analytics.write_key:
@@ -13,8 +13,7 @@ def segmentio_track(op_name, start_time, end_time, contextual_data, logger):
             identity.org_id,
             op_name,
             properties={
-                "start_time": start_time,
-                "end_time": end_time,
+                "processing_time": processing_time,
                 "status_code": contextual_data["status_code"],
                 "user_agent": connexion.request.headers["User-Agent"],
                 "auth_type": identity.auth_type,
