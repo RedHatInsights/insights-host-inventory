@@ -483,18 +483,17 @@ def query_filters(
     if group_ids:
         query_filters += _group_id_list_query_filter(group_ids)
 
-    # If this feature flag is set, we should hide edge hosts by default.
-    if get_flag_value(FLAG_HIDE_EDGE_HOSTS):
-        # When the flag is set, there will always be a system profile filter.
-        if not filter or "system_profile" not in filter:
-            filter = {"system_profile": {}}
-        # If a host_type filter wasn't provided in the request, filter out edge hosts.
-        if "host_type" not in filter["system_profile"]:
-            filter["system_profile"]["host_type"] = {"eq": "nil"}
+    # If this feature flag is set, we should hide edge hosts by default, even if a filter wasn't provided.
+    if get_flag_value(FLAG_HIDE_EDGE_HOSTS) and not filter:
+        filter = {"system_profile": {"host_type": {"eq": "nil"}}}
 
     if filter:
         for key in filter:
             if key == "system_profile":
+                # If a host_type filter wasn't provided in the request, filter out edge hosts.
+                if get_flag_value(FLAG_HIDE_EDGE_HOSTS) and "host_type" not in filter["system_profile"]:
+                    filter["system_profile"]["host_type"] = {"eq": "nil"}
+
                 query_filters += build_system_profile_filter(filter["system_profile"])
             else:
                 raise ValidationException("filter key is invalid")
