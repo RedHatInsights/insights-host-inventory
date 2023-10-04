@@ -126,8 +126,7 @@ def test_sort_by_updated_time(db_create_group, api_get, order_how):
     sorted_list = sorted(updated_times_list)
 
     if order_how == "DESC":
-        # compare the two lists are "reverse equal"
-        assert (a == b for a, b in zip(updated_times_list, reversed(sorted_list)))
+        assert updated_times_list == sorted(updated_times_list, reverse=True)
     else:
         assert updated_times_list == sorted_list
 
