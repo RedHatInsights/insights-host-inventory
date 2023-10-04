@@ -106,9 +106,10 @@ def test_sort_by_name(db_create_group, api_get, order_how_query, reverse_list):
         assert response_data["results"][idx]["id"] == group_id_list[idx]
 
 
-def test_sort_by_updated_timestamp_ascending(db_create_group, api_get):
+@pytest.mark.parametrize("order_how", ["ASC", "DESC"])
+def test_sort_by_updated_time(db_create_group, api_get, order_how):
     num_groups = 5
-    sort_query = "?order_by=updated&order_how=ASC"
+    sort_query = f"?order_by=updated&order_how={order_how}"
 
     _ = [db_create_group(f"testGroup{idx}") for idx in range(num_groups)]
 
@@ -118,37 +119,17 @@ def test_sort_by_updated_timestamp_ascending(db_create_group, api_get):
     assert response_data["total"] == num_groups
     assert response_data["count"] == num_groups
 
-    # create a list of updated times from each group
-    groups_list_from_db = []
-    _ = [groups_list_from_db.append(response_data["results"][idx]["updated"]) for idx in range(num_groups)]
+    updated_times_list = []
+    _ = [updated_times_list.append(response_data["results"][idx]["updated"]) for idx in range(num_groups)]
 
     # set the list members in ascending order
-    sorted_list = sorted(groups_list_from_db)
+    sorted_list = sorted(updated_times_list)
 
-    # Both lists being identical means that the list from db WAS in ASCENDING order
-    assert groups_list_from_db == sorted_list
-
-
-def test_sort_by_updated_timestamp_descending(db_create_group, api_get):
-    num_groups = 5
-    sort_query = "?order_by=updated&order_how=DESC"
-
-    _ = [db_create_group(f"testGroup{idx}") for idx in range(num_groups)]
-
-    response_status, response_data = api_get(build_groups_url(query=sort_query))
-
-    assert_response_status(response_status, 200)
-    assert response_data["total"] == num_groups
-    assert response_data["count"] == num_groups
-
-    groups_list_from_db = []
-    _ = [groups_list_from_db.append(response_data["results"][idx]["updated"]) for idx in range(num_groups)]
-
-    # set the list members in ascending order
-    sorted_list = sorted(groups_list_from_db)
-
-    # compare the two lists are "reverse equal"
-    assert (a == b for a, b in zip(groups_list_from_db, reversed(sorted_list)))
+    if order_how == "DESC":
+        # compare the two lists are "reverse equal"
+        assert (a == b for a, b in zip(updated_times_list, reversed(sorted_list)))
+    else:
+        assert updated_times_list == sorted_list
 
 
 @pytest.mark.parametrize(
