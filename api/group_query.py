@@ -44,9 +44,10 @@ QUERY = """query Query (
 GROUPS_ORDER_BY_MAPPING = {
     "name": Group.name,
     "host_count": func.count(HostGroupAssoc.host_id),
+    "updated": Group.modified_on,
 }
 
-GROUPS_ORDER_HOW_MAPPING = {"asc": asc, "desc": desc, "name": asc, "host_count": desc}
+GROUPS_ORDER_HOW_MAPPING = {"asc": asc, "desc": desc, "name": asc, "host_count": desc, "updated": asc}
 
 __all__ = (
     "build_paginated_group_list_response",
@@ -70,17 +71,29 @@ def get_group_list_from_db(filters, page, per_page, param_order_by, param_order_
         else GROUPS_ORDER_HOW_MAPPING[order_by_str]
     )
 
-    # Order the list of groups, then offset and limit based on page and per_page
-    group_list = (
-        Group.query.join(HostGroupAssoc, isouter=True)
-        .filter(*filters)
-        .group_by(Group.id)
-        .order_by(order_how_func(order_by))
-        .order_by(Group.id)
-        .offset((page - 1) * per_page)
-        .limit(per_page)
-        .all()
-    )
+    # sort the list based on the desired parameter
+    if order_by_str == "updated":
+        group_list = (
+            Group.query.join(HostGroupAssoc, isouter=True)
+            .filter(*filters)
+            .order_by(order_how_func(order_by))
+            .order_by(Group.id)
+            .group_by(Group.id)
+            .offset((page - 1) * per_page)
+            .limit(per_page)
+            .all()
+        )
+    else:  # no sort order provided
+        group_list = (
+            Group.query.join(HostGroupAssoc, isouter=True)
+            .filter(*filters)
+            .group_by(Group.id)
+            .order_by(order_how_func(order_by))
+            .order_by(Group.id)
+            .offset((page - 1) * per_page)
+            .limit(per_page)
+            .all()
+        )
 
     # Get the total number of groups that would be returned using just the filters
     total = db.session.query(func.count(Group.id)).filter(*filters).scalar()

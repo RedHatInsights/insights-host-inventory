@@ -1112,6 +1112,7 @@ components:
         enum:
           - name
           - host_count
+          - updated
       description: Ordering field name
     hostOrderHowParam:
       name: order_how
