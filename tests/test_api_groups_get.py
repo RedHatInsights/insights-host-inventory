@@ -119,8 +119,7 @@ def test_sort_by_updated_time(db_create_group, api_get, order_how):
     assert response_data["total"] == num_groups
     assert response_data["count"] == num_groups
 
-    updated_times_list = []
-    _ = [updated_times_list.append(response_data["results"][idx]["updated"]) for idx in range(num_groups)]
+    updated_times_list = [group["updated"] for group in response_data["results"]]
 
     # set the list members in ascending order
     sorted_list = sorted(updated_times_list)
