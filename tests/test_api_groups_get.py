@@ -122,12 +122,7 @@ def test_sort_by_updated_time(db_create_group, api_get, order_how):
     updated_times_list = [group["updated"] for group in response_data["results"]]
 
     # set the list members in ascending order
-    sorted_list = sorted(updated_times_list)
-
-    if order_how == "DESC":
-        assert updated_times_list == sorted(updated_times_list, reverse=True)
-    else:
-        assert updated_times_list == sorted_list
+    assert updated_times_list == sorted(updated_times_list, reverse=(order_how == "DESC"))
 
 
 @pytest.mark.parametrize(
