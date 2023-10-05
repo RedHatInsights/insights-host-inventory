@@ -5,10 +5,12 @@ from sqlalchemy import and_
 from sqlalchemy import not_
 from sqlalchemy import or_
 
-from api.account_staleness_query import get_account_staleness_db
+from api.staleness_query import get_staleness_db
+from api.staleness_query import get_sys_default_staleness
 from app.auth import get_current_identity
 from app.auth.identity import create_mock_identity_with_org_id
 from app.auth.identity import IdentityType
+from app.config import HOST_TYPES
 from app.culling import staleness_to_conditions
 from app.exceptions import InventoryException
 from app.logging import get_logger
@@ -151,12 +153,24 @@ def find_host_by_multiple_canonical_facts(identity, canonical_facts):
     return host
 
 
-def find_hosts_by_staleness(staleness, query, identity):
-    logger.debug("find_hosts_by_staleness(%s)", staleness)
-    acc_st = serialize_acc_staleness(get_account_staleness_db(identity=identity))
-    host_types = ["edge", None]
+def find_hosts_by_staleness(staleness_types, query, identity, host_types):
+    logger.debug("find_hosts_by_staleness(%s)", staleness_types)
+    acc_st = serialize_acc_staleness(get_staleness_db(identity=identity))
+    host_types = host_types
     staleness_conditions = [
-        or_(False, *staleness_to_conditions(acc_st, staleness, host_type, stale_timestamp_filter))
+        or_(False, *staleness_to_conditions(acc_st, staleness_types, host_type, stale_timestamp_filter))
+        for host_type in host_types
+    ]
+
+    return query.filter(or_(False, *staleness_conditions))
+
+
+def find_hosts_sys_default_staleness(staleness_types, query, host_types):
+    logger.debug("find hosts with system default staleness")
+    sys_default_staleness = serialize_acc_staleness(get_sys_default_staleness())
+    host_types = host_types
+    staleness_conditions = [
+        or_(False, *staleness_to_conditions(sys_default_staleness, staleness_types, host_type, stale_timestamp_filter))
         for host_type in host_types
     ]
 
@@ -164,7 +178,8 @@ def find_hosts_by_staleness(staleness, query, identity):
 
 
 def find_non_culled_hosts(query, identity=None):
-    return find_hosts_by_staleness(ALL_STALENESS_STATES, query, identity)
+    host_types = HOST_TYPES
+    return find_hosts_by_staleness(ALL_STALENESS_STATES, query, identity, host_types)
 
 
 @metrics.new_host_commit_processing_time.time()
