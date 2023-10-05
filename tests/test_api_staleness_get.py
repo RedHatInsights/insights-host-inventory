@@ -4,7 +4,7 @@ from tests.helpers.api_utils import build_staleness_url
 from tests.helpers.api_utils import build_sys_default_staleness_url
 
 
-def test_get_default_staleness(api_get):
+def test_get_default_staleness(api_get, clean_g):
     url = build_staleness_url()
     response_status, response_data = api_get(url)
     assert_response_status(response_status, 200)

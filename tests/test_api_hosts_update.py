@@ -58,7 +58,7 @@ def test_update_fields(patch_doc, event_producer_mock, db_create_host, db_get_ho
     "canonical_facts", [{"insights_id": generate_uuid()}, {"insights_id": generate_uuid(), "fqdn": generate_uuid()}]
 )
 def test_checkin_canonical_facts(
-    event_datetime_mock, event_producer_mock, db_create_host, db_get_host, api_post, canonical_facts
+    event_datetime_mock, event_producer_mock, db_create_host, db_get_host, api_post, canonical_facts, clean_g
 ):
     created_host = db_create_host(extra_data={"canonical_facts": canonical_facts})
 
@@ -424,18 +424,30 @@ def test_add_facts_to_namespace_that_does_not_exist(db_create_multiple_hosts, ap
 
 
 @pytest.mark.system_culling
-def test_add_facts_to_multiple_culled_hosts(db_create_multiple_hosts, db_get_hosts, api_patch):
+def test_add_facts_to_multiple_culled_hosts(
+    db_create_multiple_hosts, db_get_hosts, api_patch, db_create_staleness_culling, event_producer_mock, clean_g
+):
+    _ = db_create_staleness_culling(
+        conventional_staleness_delta=1,
+        conventional_stale_warning_delta=1,
+        conventional_culling_delta=1,
+        immutable_staleness_delta=1,
+        immutable_stale_warning_delta=1,
+        immutable_culling_delta=1,
+    )
+
     staleness_timestamps = get_staleness_timestamps()
 
     created_hosts = db_create_multiple_hosts(
         how_many=2, extra_data={"facts": DB_FACTS, "stale_timestamp": staleness_timestamps["culled"]}
     )
 
+    time.sleep(2)
+
     facts_url = build_facts_url(host_list_or_id=created_hosts, namespace=DB_FACTS_NAMESPACE)
 
     # Try to replace the facts on a host that has been marked as culled
     response_status, response_data = api_patch(facts_url, DB_NEW_FACTS)
-
     assert_response_status(response_status, expected_status=400)
 
 

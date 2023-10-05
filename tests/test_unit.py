@@ -20,6 +20,7 @@ from confluent_kafka import KafkaException
 
 from api import api_operation
 from api import custom_escape
+from api.host_query import staleness_timestamps
 from api.host_query_db import _order_how
 from api.host_query_db import params_to_order_by
 from api.parsing import custom_fields_parser
@@ -1471,8 +1472,8 @@ class SerializationSerializeHostBaseTestCase(TestCase):
 
 class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseTestCase):
     @staticmethod
-    def _add_days(stale_timestamp, days):
-        return stale_timestamp + timedelta(days=days)
+    def _add_seconds(stale_timestamp, seconds):
+        return stale_timestamp + timedelta(seconds=seconds)
 
     def test_with_all_fields(self):
         canonical_facts = {
@@ -1519,7 +1520,8 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             setattr(host, k, v)
 
         config = CullingConfig(stale_warning_offset_delta=timedelta(days=7), culled_offset_delta=timedelta(days=14))
-        actual = serialize_host(host, Timestamps(config), False, ("tags",))
+        identity = Identity(USER_IDENTITY)
+        actual = serialize_host(host, Timestamps(config), False, ("tags",), identity=identity)
         expected = {
             **canonical_facts,
             **unchanged_data,
@@ -1535,13 +1537,11 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "id": str(host_attr_data["id"]),
             "created": self._timestamp_to_str(host_attr_data["created_on"]),
             "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
-            "stale_timestamp": self._timestamp_to_str(host_init_data["stale_timestamp"]),
+            "stale_timestamp": self._timestamp_to_str(self._add_seconds(host_attr_data["modified_on"], 86400)),
             "stale_warning_timestamp": self._timestamp_to_str(
-                self._add_days(host_init_data["stale_timestamp"], config.stale_warning_offset_delta.days)
+                self._add_seconds(host_attr_data["modified_on"], 604800)
             ),
-            "culled_timestamp": self._timestamp_to_str(
-                self._add_days(host_init_data["stale_timestamp"], config.culled_offset_delta.days)
-            ),
+            "culled_timestamp": self._timestamp_to_str(self._add_seconds(host_attr_data["modified_on"], 1209600)),
             "per_reporter_staleness": host_attr_data["per_reporter_staleness"],
         }
         self.assertEqual(expected, actual)
@@ -1575,15 +1575,13 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                 for k, v in host_attr_data.items():
                     setattr(host, k, v)
 
-                config = CullingConfig(
-                    stale_warning_offset_delta=timedelta(days=7), culled_offset_delta=timedelta(days=14)
-                )
-                actual = serialize_host(host, Timestamps(config), True, ("tags",))
+                identity = Identity(USER_IDENTITY)
+                staleness_offset = staleness_timestamps()
+                actual = serialize_host(host, staleness_offset, False, ("tags",), identity=identity)
                 expected = {
                     **host_init_data["canonical_facts"],
                     "insights_id": None,
                     "subscription_manager_id": None,
-                    "system_profile": {},
                     "satellite_id": None,
                     "bios_uuid": None,
                     "ip_addresses": None,
@@ -1598,22 +1596,21 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                     "id": str(host_attr_data["id"]),
                     "created": self._timestamp_to_str(host_attr_data["created_on"]),
                     "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
-                    "stale_timestamp": self._timestamp_to_str(host_init_data["stale_timestamp"]),
+                    "stale_timestamp": self._timestamp_to_str(self._add_seconds(host_attr_data["modified_on"], 86400)),
                     "stale_warning_timestamp": self._timestamp_to_str(
-                        self._add_days(host_init_data["stale_timestamp"], config.stale_warning_offset_delta.days)
+                        self._add_seconds(host_attr_data["modified_on"], 604800)
                     ),
                     "culled_timestamp": self._timestamp_to_str(
-                        self._add_days(host_init_data["stale_timestamp"], config.culled_offset_delta.days)
+                        self._add_seconds(host_attr_data["modified_on"], 1209600)
                     ),
                     "per_reporter_staleness": host_attr_data["per_reporter_staleness"],
                 }
-
                 self.assertEqual(expected, actual)
 
     def test_stale_timestamp_config(self):
-        for stale_warning_offset_days, culled_offset_days in ((1, 2), (7, 14), (100, 1000)):
+        for stale_warning_offset_seconds, culled_offset_seconds in ((604800, 1209600),):
             with self.subTest(
-                stale_warning_offset_days=stale_warning_offset_days, culled_offset_days=culled_offset_days
+                stale_warning_offset_seconds=stale_warning_offset_seconds, culled_offset_seconds=culled_offset_seconds
             ):
                 stale_timestamp = now() + timedelta(days=1)
                 host = Host({"fqdn": "some fqdn"}, facts={}, stale_timestamp=stale_timestamp, reporter="some reporter")
@@ -1621,14 +1618,17 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                 for k, v in (("id", uuid4()), ("created_on", now()), ("modified_on", now())):
                     setattr(host, k, v)
 
-                config = CullingConfig(timedelta(days=stale_warning_offset_days), timedelta(days=culled_offset_days))
-                serialized = serialize_host(host, Timestamps(config), False)
+                config = CullingConfig(
+                    timedelta(days=stale_warning_offset_seconds), timedelta(days=culled_offset_seconds)
+                )
+                identity = Identity(USER_IDENTITY)
+                serialized = serialize_host(host, Timestamps(config), False, identity=identity)
                 self.assertEqual(
-                    self._timestamp_to_str(self._add_days(stale_timestamp, stale_warning_offset_days)),
+                    self._timestamp_to_str(self._add_seconds(host.modified_on, stale_warning_offset_seconds)),
                     serialized["stale_warning_timestamp"],
                 )
                 self.assertEqual(
-                    self._timestamp_to_str(self._add_days(stale_timestamp, culled_offset_days)),
+                    self._timestamp_to_str(self._add_seconds(host.modified_on, culled_offset_seconds)),
                     serialized["culled_timestamp"],
                 )
 
@@ -1682,14 +1682,9 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
         for k, v in host_attr_data.items():
             setattr(host, k, v)
 
-        staleness_offset = Mock(
-            **{
-                "stale_timestamp.return_value": now(),
-                "stale_timestamp.stale_warning_timestamp": now() + timedelta(hours=1),
-                "stale_timestamp.culled_timestamp": now() + timedelta(hours=2),
-            }
-        )
-        actual = serialize_host(host, staleness_offset, False, ("tags",))
+        staleness_offset = staleness_timestamps()
+        identity = Identity(USER_IDENTITY)
+        actual = serialize_host(host, staleness_offset, False, ("tags",), identity=identity)
         expected = {
             **canonical_facts,
             **unchanged_data,
@@ -1698,9 +1693,11 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
             "id": str(host_attr_data["id"]),
             "created": self._timestamp_to_str(host_attr_data["created_on"]),
             "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
-            "stale_timestamp": self._timestamp_to_str(staleness_offset.stale_timestamp.return_value),
-            "stale_warning_timestamp": self._timestamp_to_str(staleness_offset.stale_warning_timestamp.return_value),
-            "culled_timestamp": self._timestamp_to_str(staleness_offset.culled_timestamp.return_value),
+            "stale_timestamp": self._timestamp_to_str(host_attr_data["modified_on"] + timedelta(seconds=86400)),
+            "stale_warning_timestamp": self._timestamp_to_str(
+                host_attr_data["modified_on"] + timedelta(seconds=604800)
+            ),
+            "culled_timestamp": self._timestamp_to_str(host_attr_data["modified_on"] + timedelta(seconds=1209600)),
             "per_reporter_staleness": host_attr_data["per_reporter_staleness"],
         }
         self.assertEqual(expected, actual)
@@ -2068,13 +2065,7 @@ class EventProducerTests(TestCase):
         ):
             with self.subTest(event_type=event_type):
                 event = build_event(event_type, host)
-                headers = message_headers(
-                    event_type,
-                    host_id,
-                    self.basic_host["reporter"],
-                    self.basic_host.get("system_profile", {}).get("host_type"),
-                    self.basic_host.get("system_profile", {}).get("operating_system", {}).get("name"),
-                )
+                headers = message_headers(event_type, host_id)
 
                 self.event_producer.write_event(event, host_id, headers)
 
@@ -2102,13 +2093,7 @@ class EventProducerTests(TestCase):
         ):
             with self.subTest(event_type=event_type):
                 event = build_event(event_type, host)
-                headers = message_headers(
-                    event_type,
-                    host_id,
-                    self.basic_host["reporter"],
-                    self.basic_host.get("system_profile", {}).get("host_type"),
-                    self.basic_host.get("system_profile", {}).get("operating_system", {}).get("name"),
-                )
+                headers = message_headers(event_type, host_id)
 
                 self.event_producer.write_event(event, host_id, headers)
 
