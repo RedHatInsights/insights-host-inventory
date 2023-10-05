@@ -1,3 +1,4 @@
+import time
 from datetime import timedelta
 from unittest import mock
 
@@ -44,8 +45,9 @@ def test_tags_count_default_ignores_culled(mq_create_hosts_in_all_states, api_ge
     assert created_hosts["culled"].id not in tuple(response_data["results"].keys())
 
 
-def test_patch_ignores_culled(mq_create_hosts_in_all_states, api_patch):
+def test_patch_ignores_culled(db_create_staleness_culling_1_second, mq_create_hosts_in_all_states, api_patch, clean_g):
     culled_host = mq_create_hosts_in_all_states["culled"]
+    time.sleep(2)
     url = build_hosts_url(host_list_or_id=[culled_host])
     response_status, response_data = api_patch(url, {"display_name": "patched"})
 
@@ -61,9 +63,9 @@ def test_patch_works_on_non_culled(mq_create_hosts_in_all_states, api_patch):
     assert response_status == 200
 
 
-def test_patch_facts_ignores_culled(mq_create_hosts_in_all_states, api_patch):
+def test_patch_facts_ignores_culled(db_create_staleness_culling_1_second, mq_create_hosts_in_all_states, api_patch):
     culled_host = mq_create_hosts_in_all_states["culled"]
-
+    time.sleep(2)
     url = build_facts_url(host_list_or_id=[culled_host], namespace="ns1")
     response_status, response_data = api_patch(url, {"ARCHITECTURE": "patched"})
 
@@ -79,8 +81,10 @@ def test_patch_facts_works_on_non_culled(mq_create_hosts_in_all_states, api_patc
     assert response_status == 200
 
 
-def test_put_facts_ignores_culled(mq_create_hosts_in_all_states, api_put):
+def test_put_facts_ignores_culled(db_create_staleness_culling_1_second, mq_create_hosts_in_all_states, api_put):
     culled_host = mq_create_hosts_in_all_states["culled"]
+
+    time.sleep(2)
 
     url = build_facts_url(host_list_or_id=[culled_host], namespace="ns1")
 
@@ -98,8 +102,10 @@ def test_put_facts_works_on_non_culled(mq_create_hosts_in_all_states, api_put):
     assert response_status == 200
 
 
-def test_delete_ignores_culled(mq_create_hosts_in_all_states, api_delete_host):
+def test_delete_ignores_culled(db_create_staleness_culling_1_second, mq_create_hosts_in_all_states, api_delete_host):
     culled_host = mq_create_hosts_in_all_states["culled"]
+
+    time.sleep(2)
 
     response_status, response_data = api_delete_host(culled_host.id)
 
@@ -152,12 +158,19 @@ def test_system_profile_doesnt_use_staleness_parameter(mq_create_hosts_in_all_st
 
 @pytest.mark.host_reaper
 def test_culled_host_is_removed(
-    event_producer_mock, event_datetime_mock, db_create_host, db_get_host, inventory_config
+    event_producer_mock,
+    event_datetime_mock,
+    db_create_host,
+    db_get_host,
+    inventory_config,
+    db_create_staleness_culling_1_second,
 ):
     staleness_timestamps = get_staleness_timestamps()
 
     host = minimal_db_host(stale_timestamp=staleness_timestamps["culled"], reporter="some reporter")
     created_host = db_create_host(host=host)
+
+    time.sleep(2)
 
     assert db_get_host(created_host.id)
 
@@ -236,7 +249,9 @@ def test_non_culled_host_is_not_removed(event_producer_mock, db_create_host, db_
 
 
 @pytest.mark.host_reaper
-def test_reaper_shutdown_handler(db_create_host, db_get_hosts, inventory_config, event_producer_mock):
+def test_reaper_shutdown_handler(
+    db_create_host, db_get_hosts, inventory_config, event_producer_mock, db_create_staleness_culling_1_second, clean_g
+):
     staleness_timestamps = get_staleness_timestamps()
     created_host_ids = []
 
@@ -248,7 +263,7 @@ def test_reaper_shutdown_handler(db_create_host, db_get_hosts, inventory_config,
 
     created_hosts = db_get_hosts(created_host_ids)
     assert created_hosts.count() == host_count
-
+    time.sleep(2)
     fake_event_producer = mock.Mock()
 
     threadctx.request_id = None
@@ -306,7 +321,14 @@ def assert_system_culling_data(response_host, expected_stale_timestamp, expected
     ((mock.Mock(), KafkaException()), (mock.Mock(), KafkaException("oops"))),
 )
 def test_reaper_stops_after_kafka_producer_error(
-    produce_side_effects, event_producer, db_create_multiple_hosts, db_get_hosts, inventory_config, mocker
+    produce_side_effects,
+    event_producer,
+    db_create_multiple_hosts,
+    db_get_hosts,
+    inventory_config,
+    mocker,
+    db_create_staleness_culling_1_second,
+    clean_g,
 ):
     mocker.patch("lib.host_delete.kafka_available")
 
@@ -322,7 +344,7 @@ def test_reaper_stops_after_kafka_producer_error(
 
     hosts = db_get_hosts(created_host_ids)
     assert hosts.count() == host_count
-
+    time.sleep(2)
     threadctx.request_id = None
 
     with pytest.raises(KafkaException):
