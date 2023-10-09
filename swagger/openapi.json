@@ -3239,6 +3239,14 @@
             "minimum": 0,
             "maximum": 2147483647
           },
+          "threads_per_core": {
+            "description": "Number of CPU threads per CPU core. Typical values: 1, 2, 4",
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0,
+            "maximum": 2147483647,
+            "example": 2
+          },
           "system_memory_bytes": {
             "type": "integer",
             "format": "int64",
@@ -3326,6 +3334,16 @@
                 "example": 1,
                 "type": "integer",
                 "minimum": 0
+              },
+              "failed_services": {
+                "description": "List of all failed jobs.",
+                "type": "array",
+                "items": {
+                  "description": "The name of a failed job.",
+                  "maxLength": 1000,
+                  "type": "string",
+                  "example": "ex1, ex2, ex3"
+                }
               }
             }
           },
