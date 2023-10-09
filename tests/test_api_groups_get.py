@@ -111,7 +111,8 @@ def test_sort_by_updated_time(db_create_group, api_get, order_how):
     num_groups = 5
     sort_query = f"?order_by=updated&order_how={order_how}"
 
-    for idx in range(num_groups): db_create_group(f"testGroup{idx}")
+    for idx in range(num_groups):
+        db_create_group(f"testGroup{idx}")
 
     response_status, response_data = api_get(build_groups_url(query=sort_query))
 
