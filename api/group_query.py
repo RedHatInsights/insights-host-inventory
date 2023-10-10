@@ -47,7 +47,7 @@ GROUPS_ORDER_BY_MAPPING = {
     "updated": Group.modified_on,
 }
 
-GROUPS_ORDER_HOW_MAPPING = {"asc": asc, "desc": desc, "name": asc, "host_count": desc, "updated": asc}
+GROUPS_ORDER_HOW_MAPPING = {"asc": asc, "desc": desc, "name": asc, "host_count": desc, "updated": desc}
 
 __all__ = (
     "build_paginated_group_list_response",
