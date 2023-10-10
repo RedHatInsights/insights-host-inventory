@@ -1828,7 +1828,8 @@
           "type": "string",
           "enum": [
             "name",
-            "host_count"
+            "host_count",
+            "updated"
           ]
         },
         "description": "Ordering field name"

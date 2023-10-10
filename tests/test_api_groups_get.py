@@ -106,6 +106,26 @@ def test_sort_by_name(db_create_group, api_get, order_how_query, reverse_list):
         assert response_data["results"][idx]["id"] == group_id_list[idx]
 
 
+@pytest.mark.parametrize("order_how", ["ASC", "DESC"])
+def test_sort_by_updated_time(db_create_group, api_get, order_how):
+    num_groups = 5
+    sort_query = f"?order_by=updated&order_how={order_how}"
+
+    for idx in range(num_groups):
+        db_create_group(f"testGroup{idx}")
+
+    response_status, response_data = api_get(build_groups_url(query=sort_query))
+
+    assert_response_status(response_status, 200)
+    assert response_data["total"] == num_groups
+    assert response_data["count"] == num_groups
+
+    updated_times_list = [group["updated"] for group in response_data["results"]]
+
+    # set the list members in ascending order
+    assert updated_times_list == sorted(updated_times_list, reverse=(order_how == "DESC"))
+
+
 @pytest.mark.parametrize(
     "order_how_query,reverse_list",
     [

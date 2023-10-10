@@ -44,9 +44,10 @@ QUERY = """query Query (
 GROUPS_ORDER_BY_MAPPING = {
     "name": Group.name,
     "host_count": func.count(HostGroupAssoc.host_id),
+    "updated": Group.modified_on,
 }
 
-GROUPS_ORDER_HOW_MAPPING = {"asc": asc, "desc": desc, "name": asc, "host_count": desc}
+GROUPS_ORDER_HOW_MAPPING = {"asc": asc, "desc": desc, "name": asc, "host_count": desc, "updated": asc}
 
 __all__ = (
     "build_paginated_group_list_response",
