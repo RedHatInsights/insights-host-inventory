@@ -79,8 +79,6 @@ class Config:
             self.unleash_url = os.getenv("UNLEASH_URL")
             self.unleash_token = os.getenv("UNLEASH_TOKEN")
 
-        self.segmentio_write_key = os.getenv("SEGMENTIO_WRITE_KEY", None)
-
     def non_clowder_config(self):
         self.metrics_port = 9126
         self.metrics_path = "/metrics"
@@ -109,8 +107,6 @@ class Config:
 
         self.unleash_url = os.environ.get("UNLEASH_URL", "http://unleash:4242/api")
         self.unleash_token = os.environ.get("UNLEASH_TOKEN", "")
-
-        self.segmentio_write_key = os.getenv("SEGMENTIO_WRITE_KEY", None)
 
     def days_to_seconds(self, n_days):
         factor = 86400

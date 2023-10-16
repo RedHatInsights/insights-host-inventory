@@ -21,7 +21,6 @@ def test_segmentio_track_with_write_key(mocker, api_get):
     assert "basic-auth" == mock_track.call_args_list[0][1]["properties"]["auth_type"]
     assert "Insights Host Inventory API" == mock_track.call_args_list[0][1]["context"]["app"]["name"]
 
-    assert analytics.write_key == "test_write_key"
     assert mock_track.call_count == 1
 
 

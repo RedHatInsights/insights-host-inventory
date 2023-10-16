@@ -1,3 +1,4 @@
+import os
 from enum import Enum
 from os.path import join
 
@@ -98,7 +99,7 @@ def flush_segmentio():
 
 def initialize_segmentio(config):
     logger.info("Initializing Segmentio")
-    analytics.write_key = config.segmentio_write_key
+    analytics.write_key = os.getenv("SEGMENTIO_WRITE_KEY", None)
     logger.info("Registering Segmentio flush on shutdown")
     register_shutdown(flush_segmentio, "Flushing Segmentio queue")
 
