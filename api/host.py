@@ -322,7 +322,6 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
         return ({"status": 400, "title": "Bad Request", "detail": str(e.messages), "type": "unknown"}, 400)
 
     query = get_host_list_by_id_list_from_db(host_id_list, rbac_filter)
-
     hosts_to_update = query.all()
 
     if not hosts_to_update:

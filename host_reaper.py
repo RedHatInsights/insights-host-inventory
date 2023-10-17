@@ -77,12 +77,11 @@ def find_culled_hosts_using_custom_staleness(logger, session):
         for staleness_obj in staleness_objects:
             # Validate which host types for a given org_id never get deleted
             logger.debug(f"Looking for hosts from org_id {staleness_obj.org_id} that use custom staleness")
-            host_types = HOST_TYPES
             org_ids.append(staleness_obj.org_id)
             identity = create_mock_identity_with_org_id(staleness_obj.org_id)
             query_filters = ((Host.org_id == staleness_obj.org_id),)
             query = Host.query.with_entities(Host.id).filter(*query_filters)
-            query = find_hosts_by_staleness(["culled"], query, identity, host_types)
+            query = find_hosts_by_staleness(["culled"], query, identity, HOST_TYPES)
             hosts_to_delete = hosts_to_delete + query.all()
             if "acc_st" in g:
                 logger.debug("Cleaning account staleness data in g global variable")
@@ -96,10 +95,9 @@ def find_culled_hosts_using_sys_default_staleness(logger, org_ids):
     # Use the hosts_ids_list to exclude hosts that were found with custom staleness
     with app.app_context():
         logger.debug("Looking for hosts that use system default staleness")
-        host_types = HOST_TYPES
         query_filters = (~(Host.org_id.in_(org_ids)),)
         query = Host.query.with_entities(Host.id).filter(*query_filters)
-        query = find_hosts_sys_default_staleness(["culled"], query, host_types)
+        query = find_hosts_sys_default_staleness(["culled"], query, HOST_TYPES)
         hosts_to_delete = query.all()
         return hosts_to_delete
 

@@ -6,12 +6,12 @@ from flask import request
 from requests import post
 
 from api.metrics import outbound_http_response_time
-from api.staleness_query import get_staleness_db
+from api.staleness_query import get_staleness_obj
 from app import IDENTITY_HEADER
 from app import REQUEST_ID_HEADER
 from app.config import HOST_TYPES
 from app.culling import staleness_to_conditions
-from app.serialization import serialize_acc_staleness
+from app.serialization import serialize_staleness
 
 __all__ = (
     "graphql_query",
@@ -88,11 +88,10 @@ def params_to_order(param_order_by, param_order_how):
 
 
 def staleness_filter(staleness):
-    acc_st = serialize_acc_staleness(get_staleness_db())
-    host_types = HOST_TYPES
+    acc_st = serialize_staleness(get_staleness_obj())
     staleness_conditions = [
         {"OR": tuple(staleness_to_conditions(acc_st, staleness, host_type, _stale_timestamp_filter))}
-        for host_type in host_types
+        for host_type in HOST_TYPES
     ]
     return staleness_conditions
 
