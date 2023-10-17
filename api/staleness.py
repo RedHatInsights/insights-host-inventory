@@ -9,7 +9,7 @@ from api import api_operation
 from api import flask_json_response
 from api import json_error_response
 from api import metrics
-from api.staleness_query import get_staleness_db
+from api.staleness_query import get_staleness_obj
 from api.staleness_query import get_sys_default_staleness
 from app import RbacPermission
 from app import RbacResourceType
@@ -65,7 +65,7 @@ def _validate_input_data(body):
 @metrics.api_request_time.time()
 def get_staleness():
     try:
-        acc_st = get_staleness_db()
+        acc_st = get_staleness_obj()
         acc_st = serialize_staleness_response(acc_st)
     except ValueError as e:
         abort(status.HTTP_400_BAD_REQUEST, str(e))

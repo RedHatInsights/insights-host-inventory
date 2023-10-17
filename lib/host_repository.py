@@ -5,7 +5,7 @@ from sqlalchemy import and_
 from sqlalchemy import not_
 from sqlalchemy import or_
 
-from api.staleness_query import get_staleness_db
+from api.staleness_query import get_staleness_obj
 from api.staleness_query import get_sys_default_staleness
 from app.auth import get_current_identity
 from app.auth.identity import create_mock_identity_with_org_id
@@ -17,8 +17,8 @@ from app.logging import get_logger
 from app.models import db
 from app.models import Host
 from app.models import HostGroupAssoc
-from app.serialization import serialize_acc_staleness
 from app.serialization import serialize_host
+from app.serialization import serialize_staleness
 from lib import metrics
 from lib.db import session_guard
 
@@ -45,7 +45,7 @@ AddHostResult = Enum("AddHostResult", ("created", "updated"))
 # the priority.
 ELEVATED_CANONICAL_FACT_FIELDS = ("provider_id", "insights_id", "subscription_manager_id")
 
-ALL_STALENESS_STATES = ("fresh", "stale", "stale_warning", "unknown")
+ALL_STALENESS_STATES = ("fresh", "stale", "stale_warning")
 NULL = None
 
 logger = get_logger(__name__)
@@ -155,8 +155,7 @@ def find_host_by_multiple_canonical_facts(identity, canonical_facts):
 
 def find_hosts_by_staleness(staleness_types, query, identity, host_types):
     logger.debug("find_hosts_by_staleness(%s)", staleness_types)
-    acc_st = serialize_acc_staleness(get_staleness_db(identity=identity))
-    host_types = host_types
+    acc_st = serialize_staleness(get_staleness_obj(identity=identity))
     staleness_conditions = [
         or_(False, *staleness_to_conditions(acc_st, staleness_types, host_type, stale_timestamp_filter))
         for host_type in host_types
@@ -167,8 +166,7 @@ def find_hosts_by_staleness(staleness_types, query, identity, host_types):
 
 def find_hosts_sys_default_staleness(staleness_types, query, host_types):
     logger.debug("find hosts with system default staleness")
-    sys_default_staleness = serialize_acc_staleness(get_sys_default_staleness())
-    host_types = host_types
+    sys_default_staleness = serialize_staleness(get_sys_default_staleness())
     staleness_conditions = [
         or_(False, *staleness_to_conditions(sys_default_staleness, staleness_types, host_type, stale_timestamp_filter))
         for host_type in host_types
@@ -178,8 +176,7 @@ def find_hosts_sys_default_staleness(staleness_types, query, host_types):
 
 
 def find_non_culled_hosts(query, identity=None):
-    host_types = HOST_TYPES
-    return find_hosts_by_staleness(ALL_STALENESS_STATES, query, identity, host_types)
+    return find_hosts_by_staleness(ALL_STALENESS_STATES, query, identity, HOST_TYPES)
 
 
 @metrics.new_host_commit_processing_time.time()

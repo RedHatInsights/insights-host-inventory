@@ -9,7 +9,7 @@ from app.models import Staleness
 logger = get_logger(__name__)
 
 
-def get_staleness_db(rbac_filter=None, identity=None):
+def get_staleness_obj(rbac_filter=None, identity=None):
     # TODO: ESSNTL-5163
     if rbac_filter:
         pass
@@ -45,7 +45,7 @@ def get_staleness_db(rbac_filter=None, identity=None):
 
 
 def get_sys_default_staleness():
-    org_id = "system_default"
+    org_id = "000000"
     acc_st = _build_staleness_sys_default(org_id)
     return acc_st
 
