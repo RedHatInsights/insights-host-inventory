@@ -1879,7 +1879,7 @@
             "stale_warning"
           ]
         },
-        "description": "Culling states of the hosts. Default: fresh,stale"
+        "description": "Culling states of the hosts. Default: fresh, stale and stale_warning"
       },
       "stalenessNoDefaultsParam": {
         "name": "staleness",
@@ -2549,16 +2549,19 @@
               "stale_timestamp": {
                 "description": "Timestamp from which the host is considered stale.",
                 "type": "string",
+                "format": "date-time",
                 "nullable": true
               },
               "stale_warning_timestamp": {
                 "description": "Timestamp from which the host is considered too stale to be listed without an explicit toggle.",
                 "type": "string",
+                "format": "date-time",
                 "nullable": true
               },
               "culled_timestamp": {
                 "description": "Timestamp from which the host is considered deleted.",
                 "type": "string",
+                "format": "date-time",
                 "nullable": true
               },
               "reporter": {
