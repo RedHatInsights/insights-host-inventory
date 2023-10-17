@@ -344,7 +344,7 @@ def event_loop(consumer, flask_app, event_producer, notification_event_producer,
 
                     # There is a need to delete this global variable,
                     # as it is not an API request, it will live forever
-                    # when setted once
+                    # when set once
                     if "acc_st" in g:
                         logger.debug("Cleaning account staleness data in g global variable")
                         del g.acc_st
