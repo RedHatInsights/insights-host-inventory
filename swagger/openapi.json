@@ -2008,6 +2008,7 @@
         "description": "Filters hosts based on system_profile fields",
         "style": "deepObject",
         "explode": true,
+        "example": {},
         "schema": {
           "$ref": "#/components/schemas/SystemProfileNestedObject"
         }
@@ -2020,6 +2021,7 @@
         "style": "deepObject",
         "explode": true,
         "x-validator": "sparseFields",
+        "example": {},
         "schema": {
           "$ref": "#/components/schemas/SystemProfileNestedObject"
         }

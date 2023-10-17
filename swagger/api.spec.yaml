@@ -1258,6 +1258,7 @@ components:
       description: Filters hosts based on system_profile fields
       style: deepObject
       explode: true
+      example: {}
       schema:
         $ref:  '#/components/schemas/SystemProfileNestedObject'
     fields_param:
@@ -1268,6 +1269,7 @@ components:
       style: deepObject
       explode: true
       x-validator: sparseFields
+      example: {}
       schema:
         $ref:  '#/components/schemas/SystemProfileNestedObject'
     confirmDeleteAll:
