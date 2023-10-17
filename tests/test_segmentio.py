@@ -36,3 +36,15 @@ def test_segmentio_track_without_write_key(mocker, api_get):
 
     assert analytics.write_key == ""
     assert mock_track.call_count == 0
+
+
+def test_segmentio_track_without_user_agent(mocker, api_get):
+    mock_track = mocker.patch("api.segmentio.analytics.track")
+    analytics.write_key = "test_write_key"
+
+    response_status, response_data = api_get(build_resource_types_url(), extra_headers={"User-Agent": ""})
+
+    assert_response_status(response_status, 200)
+
+    assert [] == mock_track.call_args_list
+    assert mock_track.call_count == 0
