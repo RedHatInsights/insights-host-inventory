@@ -75,8 +75,9 @@ class ApiOperationTestCase(TestCase):
     call.
     """
 
+    @patch("api.segmentio_track")
     @patch("api.api_request_count.inc")
-    def test_counter_is_incremented(self, inc):
+    def test_counter_is_incremented(self, inc, _segmentio_track):
         @api_operation
         def func():
             pass
@@ -84,7 +85,8 @@ class ApiOperationTestCase(TestCase):
         func()
         inc.assert_called_once_with()
 
-    def test_arguments_are_passed(self):
+    @patch("api.segmentio_track")
+    def test_arguments_are_passed(self, _segmentio_track):
         old_func = Mock()
         old_func.__name__ = "old_func"
         new_func = api_operation(old_func)
@@ -95,11 +97,21 @@ class ApiOperationTestCase(TestCase):
         new_func(*args, **kwargs)
         old_func.assert_called_once_with(*args, **kwargs)
 
-    def test_return_value_is_passed(self):
+    @patch("api.segmentio_track")
+    def test_return_value_is_passed(self, _segmentio_track):
         old_func = Mock()
         old_func.__name__ = "old_func"
         new_func = api_operation(old_func)
         self.assertEqual(old_func.return_value, new_func())
+
+    @patch("api.segmentio_track")
+    def test_segmentio_track_called(self, segmentio_track):
+        @api_operation
+        def func():
+            pass
+
+        func()
+        segmentio_track.assert_called()
 
 
 class AuthIdentityConstructorTestCase(TestCase):

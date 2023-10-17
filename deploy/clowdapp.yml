@@ -92,6 +92,12 @@ objects:
               optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
+        - name: SEGMENTIO_WRITE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: segmentio
+              key: WRITE_KEY
+              optional: true
         resources:
           limits:
             cpu: ${CPU_LIMIT}

@@ -7,6 +7,7 @@ import ujson
 from flask_api import status
 
 from api.metrics import api_request_count
+from api.segmentio import segmentio_track
 from app.logging import get_logger
 from lib.feature_flags import get_flag_value
 
@@ -43,6 +44,7 @@ def api_operation(old_func):
 
         contextual_data[PROCESSING_TIME] = end_time - start_time
 
+        segmentio_track(old_func.__name__, contextual_data[PROCESSING_TIME], contextual_data, logger)
         logger.debug("Leaving %s", old_func.__name__, extra=contextual_data)
         return results
 

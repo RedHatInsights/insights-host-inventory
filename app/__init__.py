@@ -1,7 +1,9 @@
+import os
 from enum import Enum
 from os.path import join
 
 import connexion
+import segment.analytics as analytics
 import yaml
 from connexion.resolver import RestyResolver
 from flask import current_app
@@ -83,6 +85,23 @@ def initialize_metrics(config):
     rbac_access_denied.labels(
         required_permission=f"inventory:{RbacResourceType.HOSTS.value}:{RbacPermission.WRITE.value}"
     )
+
+
+#
+# Registering analytics.flush directly with register_shutdown()
+# results in errors during test suite cleanup.
+# Adding this wrapper fixes the problem.
+#
+def flush_segmentio():
+    if analytics.write_key:
+        analytics.flush()
+
+
+def initialize_segmentio(config):
+    logger.info("Initializing Segmentio")
+    analytics.write_key = os.getenv("SEGMENTIO_WRITE_KEY", None)
+    logger.info("Registering Segmentio flush on shutdown")
+    register_shutdown(flush_segmentio, "Flushing Segmentio queue")
 
 
 def render_exception(exception):
@@ -279,5 +298,7 @@ def create_app(runtime_environment):
 
     # initialize metrics to zero
     initialize_metrics(app_config)
+
+    initialize_segmentio(app_config)
 
     return flask_app
