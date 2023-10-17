@@ -58,7 +58,7 @@ def test_delete_only_immutable_hosts(
     conventional_hosts = db_create_multiple_hosts(how_many=2)
     conventional_hosts = [host.id for host in conventional_hosts]
 
-    time.sleep(2)
+    time.sleep(1)
 
     threadctx.request_id = None
     host_reaper_run(
@@ -87,7 +87,7 @@ def test_delete_only_conventional_hosts(
     conventional_hosts = db_create_multiple_hosts(how_many=2)
     conventional_hosts = [host.id for host in conventional_hosts]
 
-    time.sleep(2)
+    time.sleep(1)
 
     threadctx.request_id = None
     host_reaper_run(
@@ -116,7 +116,7 @@ def test_delete_conventional_immutable_hosts(
     conventional_hosts = db_create_multiple_hosts(how_many=2)
     conventional_hosts = [host.id for host in conventional_hosts]
 
-    time.sleep(2)
+    time.sleep(1)
 
     threadctx.request_id = None
     host_reaper_run(
@@ -145,7 +145,7 @@ def test_no_hosts_to_delete(
     conventional_hosts = db_create_multiple_hosts(how_many=2)
     conventional_hosts = [host.id for host in conventional_hosts]
 
-    time.sleep(2)
+    time.sleep(1)
 
     threadctx.request_id = None
     host_reaper_run(

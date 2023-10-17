@@ -36,5 +36,11 @@ def inventory_config(flask_app):
 
 @pytest.fixture(scope="function")
 def clean_g():
+    """
+    This value is always set when lib.host_repository.get_staleness_obj is called
+    or when a new host is added/updated in MQ.
+
+    This fixture needs to be user on every test that uses a custom staleness.
+    """
     if "acc_st" in g:
         del g.acc_st
