@@ -1196,7 +1196,7 @@ def test_add_host_stale_timestamp(event_datetime_mock, mq_create_or_update_host)
 
     key, event, _ = mq_create_or_update_host(host, return_all_data=True)
     updated_timestamp = datetime.fromisoformat(event["host"]["updated"])
-    host.stale_timestamp = (updated_timestamp + timedelta(seconds=86400)).isoformat()
+    host.stale_timestamp = (updated_timestamp + timedelta(seconds=104400)).isoformat()
     expected_results = {
         "host": {
             **host.data(),

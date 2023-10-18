@@ -1537,7 +1537,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "id": str(host_attr_data["id"]),
             "created": self._timestamp_to_str(host_attr_data["created_on"]),
             "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
-            "stale_timestamp": self._timestamp_to_str(self._add_seconds(host_attr_data["modified_on"], 86400)),
+            "stale_timestamp": self._timestamp_to_str(self._add_seconds(host_attr_data["modified_on"], 104400)),
             "stale_warning_timestamp": self._timestamp_to_str(
                 self._add_seconds(host_attr_data["modified_on"], 604800)
             ),
@@ -1596,7 +1596,9 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                     "id": str(host_attr_data["id"]),
                     "created": self._timestamp_to_str(host_attr_data["created_on"]),
                     "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
-                    "stale_timestamp": self._timestamp_to_str(self._add_seconds(host_attr_data["modified_on"], 86400)),
+                    "stale_timestamp": self._timestamp_to_str(
+                        self._add_seconds(host_attr_data["modified_on"], 104400)
+                    ),
                     "stale_warning_timestamp": self._timestamp_to_str(
                         self._add_seconds(host_attr_data["modified_on"], 604800)
                     ),
@@ -1693,7 +1695,7 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
             "id": str(host_attr_data["id"]),
             "created": self._timestamp_to_str(host_attr_data["created_on"]),
             "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
-            "stale_timestamp": self._timestamp_to_str(host_attr_data["modified_on"] + timedelta(seconds=86400)),
+            "stale_timestamp": self._timestamp_to_str(host_attr_data["modified_on"] + timedelta(seconds=104400)),
             "stale_warning_timestamp": self._timestamp_to_str(
                 host_attr_data["modified_on"] + timedelta(seconds=604800)
             ),

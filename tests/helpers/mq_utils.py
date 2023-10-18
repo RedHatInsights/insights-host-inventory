@@ -133,7 +133,7 @@ def assert_patch_event_is_valid(
     stale_timestamp=None,
     reporter=None,
 ):
-    stale_timestamp = (host.modified_on.astimezone(timezone.utc) + timedelta(seconds=86400)).isoformat()
+    stale_timestamp = (host.modified_on.astimezone(timezone.utc) + timedelta(seconds=104400)).isoformat()
     stale_warning_timestamp = (host.modified_on.astimezone(timezone.utc) + timedelta(seconds=604800)).isoformat()
     culled_timestamp = (host.modified_on.astimezone(timezone.utc) + timedelta(seconds=1209600)).isoformat()
     reporter = reporter or host.reporter
