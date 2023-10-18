@@ -307,8 +307,8 @@ def handle_message(message, event_producer, notification_event_producer, message
                 operation_result,
                 insights_id,
                 host.get("reporter"),
-                host.get("system_profile", {}).get("host_type"),
-                host.get("system_profile", {}).get("operating_system", {}).get("name"),
+                output_host.get("system_profile", {}).get("host_type"),
+                output_host.get("system_profile", {}).get("operating_system", {}).get("name"),
             )
             event_producer.write_event(event, str(host_id), headers, wait=True)
         except ValidationException as ve:
