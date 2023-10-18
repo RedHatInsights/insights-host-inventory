@@ -22,6 +22,12 @@ def test_update_non_existing_record(api_patch):
     assert_response_status(response_status, 404)
 
 
+def test_update_with_wrong_data(api_patch):
+    url = build_staleness_url()
+    response_status, response_data = api_patch(url, host_data={"conventional_staleness_delta": "9999"})
+    assert_response_status(response_status, 400)
+
+
 def test_update_staleness_rbac_allowed(subtests, mocker, api_patch, db_create_staleness_culling, enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     db_create_staleness_culling(conventional_staleness_delta=1)
