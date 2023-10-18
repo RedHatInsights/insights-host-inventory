@@ -51,11 +51,12 @@ def _validate_input_data(body):
     # Validate account staleness input data
     try:
         validated_data = StalenessSchema().load(body)
+
+        return validated_data
+
     except ValidationError as e:
         logger.exception(f'Input validation error, "{str(e.messages)}", while creating account staleness: {body}')
-        return json_error_response("Validation Error", str(e.messages), status.HTTP_400_BAD_REQUEST)
-
-    return validated_data
+        abort(status.HTTP_400_BAD_REQUEST, f"Validation Error: {str(e.messages)}")
 
 
 @api_operation
