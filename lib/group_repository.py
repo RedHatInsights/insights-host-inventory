@@ -4,6 +4,7 @@ from api.host_query import staleness_timestamps
 from app.auth import get_current_identity
 from app.exceptions import InventoryException
 from app.instrumentation import get_control_rule
+from app.instrumentation import log_get_group_list_failed
 from app.instrumentation import log_group_delete_failed
 from app.instrumentation import log_group_delete_succeeded
 from app.instrumentation import log_host_group_add_failed
@@ -205,6 +206,7 @@ def _remove_hosts_from_group(group_id, host_id_list):
     # First, find the group to make sure the org_id matches
     found_group = group_query.one_or_none()
     if not found_group:
+        log_get_group_list_failed(logger)
         return []
 
     host_group_query = HostGroupAssoc.query.filter(

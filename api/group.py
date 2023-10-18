@@ -18,7 +18,9 @@ from app import RbacPermission
 from app import RbacResourceType
 from app.exceptions import InventoryException
 from app.instrumentation import log_create_group_failed
+from app.instrumentation import log_create_group_not_allowed
 from app.instrumentation import log_create_group_succeeded
+from app.instrumentation import log_delete_hosts_from_group_failed
 from app.instrumentation import log_get_group_list_failed
 from app.instrumentation import log_get_group_list_succeeded
 from app.instrumentation import log_patch_group_failed
@@ -72,6 +74,7 @@ def create_group(body, rbac_filter=None):
     # If there is an attribute filter on the RBAC permissions,
     # the user should not be allowed to create a group.
     if rbac_filter is not None:
+        log_create_group_not_allowed(logger)
         abort(
             status.HTTP_403_FORBIDDEN,
             "Unfiltered inventory:groups:write RBAC permission is required in order to create new groups.",
@@ -161,6 +164,7 @@ def delete_groups(group_id_list, rbac_filter=None):
     delete_count = delete_group_list(group_id_list, current_app.event_producer)
 
     if delete_count == 0:
+        log_get_group_list_failed(logger)
         abort(status.HTTP_404_NOT_FOUND, "No groups found for deletion.")
 
     return Response(None, status.HTTP_204_NO_CONTENT)
@@ -205,6 +209,7 @@ def delete_hosts_from_group(group_id, host_id_list, rbac_filter=None):
     delete_count = remove_hosts_from_group(group_id, host_id_list, current_app.event_producer)
 
     if delete_count == 0:
+        log_delete_hosts_from_group_failed(logger)
         abort(status.HTTP_404_NOT_FOUND, "Group or hosts not found.")
 
     return Response(None, status.HTTP_204_NO_CONTENT)
@@ -238,6 +243,7 @@ def delete_hosts_from_different_groups(host_id_list, rbac_filter=None):
         delete_count += deleted_from_group
 
     if delete_count == 0:
+        log_delete_hosts_from_group_failed(logger)
         abort(status.HTTP_404_NOT_FOUND, "The provided hosts are ungrouped.")
 
     return Response(None, status.HTTP_204_NO_CONTENT)

@@ -116,6 +116,10 @@ def log_create_group_failed(logger, group_name):
     logger.info("Error adding group '%s'.", group_name, extra={"access_rule": get_control_rule()})
 
 
+def log_create_group_not_allowed(logger):
+    logger.info("Error adding group due to filtered inventory:groups:write RBAC permission.")
+
+
 # create host_group_assoc
 def log_host_group_add_succeeded(logger, host_id_list, group_id):
     logger.info(
@@ -156,6 +160,10 @@ def log_host_group_delete_failed(logger, host_id, group_id, control_rule):
         f"Failed to remove association between host {host_id} and group {group_id}",
         extra={"access_rule": control_rule},
     )
+
+
+def log_delete_hosts_from_group_failed(logger):
+    logger.info("Failed to remove hosts from group.")
 
 
 # get tags
@@ -279,6 +287,11 @@ def rbac_permission_denied(logger, required_permission, user_permissions):
         "Access denied due to RBAC",
         extra={"required_permission": required_permission, "user_permissions": user_permissions},
     )
+    rbac_access_denied.labels(required_permission=required_permission).inc()
+
+
+def rbac_group_permission_denied(logger, group_ids, required_permission):
+    logger.debug(f"You do not have access to the the following groups: {group_ids}")
     rbac_access_denied.labels(required_permission=required_permission).inc()
 
 

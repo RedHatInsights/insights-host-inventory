@@ -20,6 +20,7 @@ from app import REQUEST_ID_HEADER
 from app.auth import get_current_identity
 from app.auth.identity import IdentityType
 from app.instrumentation import rbac_failure
+from app.instrumentation import rbac_group_permission_denied
 from app.instrumentation import rbac_permission_denied
 from app.logging import get_logger
 
@@ -169,5 +170,8 @@ def rbac_group_id_check(rbac_filter: dict, requested_ids: set) -> None:
         # Find the IDs that are in requested_ids but not rbac_filter
         disallowed_ids = requested_ids.difference(rbac_filter["groups"])
         if len(disallowed_ids) > 0:
+            # id check is only called before writing to groups, permission so far is always the same
+            required_permission = "inventory:groups:write"
             joined_ids = ", ".join(disallowed_ids)
+            rbac_group_permission_denied(logger, joined_ids, required_permission)
             abort(status.HTTP_403_FORBIDDEN, f"You do not have access to the the following groups: {joined_ids}")
