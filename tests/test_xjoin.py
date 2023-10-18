@@ -699,7 +699,7 @@ def test_query_variables_default_except_staleness(mocker, graphql_query_empty_re
                     "OR": (
                         {
                             "AND": {
-                                "modified_on": {"gt": "2019-12-15T10:10:06.754201+00:00"},
+                                "modified_on": {"gt": "2019-12-15T05:10:06.754201+00:00"},
                                 "spf_host_type": {"eq": None},
                             }
                         },
@@ -729,7 +729,7 @@ def test_query_variables_default_except_staleness(mocker, graphql_query_empty_re
                             "AND": {
                                 "modified_on": {
                                     "gt": "2019-12-09T10:10:06.754201+00:00",
-                                    "lte": "2019-12-15T10:10:06.754201+00:00",
+                                    "lte": "2019-12-15T05:10:06.754201+00:00",
                                 },
                                 "spf_host_type": {"eq": None},
                             }
@@ -815,7 +815,7 @@ def test_query_multiple_staleness(mocker, culling_datetime_mock, graphql_query_e
                 "OR": (
                     {
                         "AND": {
-                            "modified_on": {"gt": "2019-12-15T10:10:06.754201+00:00"},
+                            "modified_on": {"gt": "2019-12-15T05:10:06.754201+00:00"},
                             "spf_host_type": {"eq": None},
                         }
                     },
@@ -894,7 +894,7 @@ def test_response_processed_properly(graphql_query_with_response, api_get):
                 "groups": [],
                 "satellite_id": "ce87bfac-a6cb-43a0-80ce-95d9669db71f",
                 "insights_id": "a58c53e0-8000-4384-b902-c70b69faacc5",
-                "stale_timestamp": "2019-02-11T08:07:03.354312+00:00",
+                "stale_timestamp": "2019-02-11T13:07:03.354312+00:00",
                 "reporter": "puptoo",
                 "per_reporter_staleness": {
                     "puptoo": {
@@ -925,7 +925,7 @@ def test_response_processed_properly(graphql_query_with_response, api_get):
                 "groups": [],
                 "satellite_id": "ce87bfac-a6cb-43a0-80ce-95d9669db71f",
                 "insights_id": "17c52679-f0b9-4e9b-9bac-a3c7fae5070c",
-                "stale_timestamp": "2019-01-11T08:07:03.354312+00:00",
+                "stale_timestamp": "2019-01-11T13:07:03.354312+00:00",
                 "reporter": "yupana",
                 "per_reporter_staleness": {
                     "yupana": {
@@ -974,7 +974,7 @@ def test_valid_without_decimal_part(graphql_query, api_get):
     response_status, response_data = api_get(HOST_URL)
 
     assert response_status == 200
-    assert response_data["results"][0]["stale_timestamp"] == "2020-02-11T08:07:03+00:00"
+    assert response_data["results"][0]["stale_timestamp"] == "2020-02-11T13:07:03+00:00"
 
 
 def test_valid_with_offset_timezone(graphql_query, api_get):
@@ -984,7 +984,7 @@ def test_valid_with_offset_timezone(graphql_query, api_get):
     response_status, response_data = api_get(HOST_URL)
 
     assert response_status == 200
-    assert response_data["results"][0]["stale_timestamp"] == "2020-02-11T07:07:03.354307+00:00"
+    assert response_data["results"][0]["stale_timestamp"] == "2020-02-11T12:07:03.354307+00:00"
 
 
 def test_invalid_without_timezone(graphql_query, api_get):
@@ -1075,7 +1075,7 @@ def test_tags_query_group_name_filter(assert_tag_query_host_filter_single_call, 
                     "OR": (
                         {
                             "AND": {
-                                "modified_on": {"gt": "2019-12-15T10:10:06.754201+00:00"},
+                                "modified_on": {"gt": "2019-12-15T05:10:06.754201+00:00"},
                                 "spf_host_type": {"eq": None},
                             }
                         },
@@ -1105,7 +1105,7 @@ def test_tags_query_group_name_filter(assert_tag_query_host_filter_single_call, 
                             "AND": {
                                 "modified_on": {
                                     "gt": "2019-12-09T10:10:06.754201+00:00",
-                                    "lte": "2019-12-15T10:10:06.754201+00:00",
+                                    "lte": "2019-12-15T05:10:06.754201+00:00",
                                 },
                                 "spf_host_type": {"eq": None},
                             }
@@ -1183,7 +1183,7 @@ def test_tags_multiple_query_variables_staleness(culling_datetime_mock, assert_t
                     "OR": (
                         {
                             "AND": {
-                                "modified_on": {"gt": "2019-12-15T10:10:06.754201+00:00"},
+                                "modified_on": {"gt": "2019-12-15T05:10:06.754201+00:00"},
                                 "spf_host_type": {"eq": None},
                             }
                         },
