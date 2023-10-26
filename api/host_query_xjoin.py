@@ -121,10 +121,12 @@ def get_host_list_using_filters(all_filters, page, per_page, param_order_by, par
 
     additional_fields = tuple()
 
-    system_profile_fields = []
+    # Adding host_type permanently so inventory can differentiate
+    # immutable/edge, and conventional system when serializing host data
+    system_profile_fields = ["host_type"]
     if fields and fields.get("system_profile"):
         additional_fields = ("system_profile",)
-        system_profile_fields = list(fields.get("system_profile").keys())
+        system_profile_fields = system_profile_fields + list(fields.get("system_profile").keys())
 
     variables = {
         "limit": limit,
@@ -145,7 +147,7 @@ def get_host_list_using_filters(all_filters, page, per_page, param_order_by, par
     total = response["meta"]["total"]
     check_pagination(offset, total)
 
-    return map(deserialize_host, response["data"]), total, additional_fields
+    return map(deserialize_host, response["data"]), total, additional_fields, system_profile_fields
 
 
 def get_host_tags_list_using_filters(all_filters, page, per_page, param_order_by, param_order_how):
