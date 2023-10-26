@@ -86,7 +86,7 @@ def get_host_list(
     host_list = ()
 
     try:
-        host_list, total, additional_fields = get_host_list_xjoin(
+        host_list, total, additional_fields, system_profile_fields = get_host_list_xjoin(
             display_name,
             fqdn,
             hostname_or_id,
@@ -111,7 +111,9 @@ def get_host_list(
         log_get_host_list_failed(logger)
         flask.abort(400, str(e))
 
-    json_data = build_paginated_host_list_response(total, page, per_page, host_list, additional_fields)
+    json_data = build_paginated_host_list_response(
+        total, page, per_page, host_list, additional_fields, system_profile_fields
+    )
     return flask_json_response(json_data)
 
 
@@ -268,7 +270,7 @@ def delete_host_by_id(host_id_list, rbac_filter=None):
 @metrics.api_request_time.time()
 def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None, fields=None, rbac_filter=None):
     try:
-        host_list, total, additional_fields = get_host_list_by_id_list(
+        host_list, total, additional_fields, system_profile_fields = get_host_list_by_id_list(
             host_id_list, page, per_page, order_by, order_how, fields, rbac_filter
         )
     except ValueError as e:
@@ -277,7 +279,9 @@ def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=
 
     log_get_host_list_succeeded(logger, host_list)
 
-    json_data = build_paginated_host_list_response(total, page, per_page, host_list, additional_fields)
+    json_data = build_paginated_host_list_response(
+        total, page, per_page, host_list, additional_fields, system_profile_fields
+    )
     return flask_json_response(json_data)
 
 
