@@ -112,7 +112,9 @@ def deserialize_group_xjoin(data):
     return group
 
 
-def serialize_host(host, staleness_timestamps, for_mq=True, additional_fields=tuple(), identity=None):
+def serialize_host(
+    host, staleness_timestamps, for_mq=True, additional_fields=tuple(), identity=None, system_profile_fields=None
+):
     # TODO: In future, this must handle groups staleness deltas
 
     acc_st = serialize_staleness(get_staleness_obj(identity=identity))
@@ -172,6 +174,9 @@ def serialize_host(host, staleness_timestamps, for_mq=True, additional_fields=tu
         serialized_host["tags"] = _serialize_tags(host.tags)
     if "system_profile" in fields:
         serialized_host["system_profile"] = host.system_profile_facts or {}
+        if system_profile_fields and system_profile_fields.count("host_type") < 2:
+            if serialized_host["system_profile"].get("host_type"):
+                del serialized_host["system_profile"]["host_type"]
     if "groups" in fields:
         # For MQ messages, we only include name and ID.
         if for_mq and host.groups:

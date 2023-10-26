@@ -3129,7 +3129,7 @@ def test_get_hosts_fields_param(query, fields, mocker, graphql_query_empty_respo
             "limit": mocker.ANY,
             "offset": mocker.ANY,
             "filter": mocker.ANY,
-            "fields": fields,
+            "fields": ["host_type"] + fields,  # We always get the 'host_type' from graphql
         },
         mocker.ANY,
     )
