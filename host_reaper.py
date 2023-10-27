@@ -4,7 +4,9 @@ from functools import partial
 from flask import g
 from prometheus_client import CollectorRegistry
 from prometheus_client import push_to_gateway
+from sqlalchemy import and_
 from sqlalchemy import create_engine
+from sqlalchemy import or_
 from sqlalchemy.orm import sessionmaker
 
 from app import create_app
@@ -27,7 +29,7 @@ from lib.db import session_guard
 from lib.handlers import register_shutdown
 from lib.handlers import ShutdownHandler
 from lib.host_delete import delete_hosts
-from lib.host_repository import find_hosts_by_staleness
+from lib.host_repository import find_hosts_by_staleness_reaper
 from lib.host_repository import find_hosts_sys_default_staleness
 from lib.metrics import delete_host_count
 from lib.metrics import delete_host_processing_time
@@ -69,56 +71,52 @@ def _excepthook(logger, type, value, traceback):
     logger.exception("Host reaper failed", exc_info=value)
 
 
-def find_culled_hosts_using_custom_staleness(logger, session):
+def filter_culled_hosts_using_custom_staleness(logger, session):
     staleness_objects = session.query(Staleness).all()
-    hosts_to_delete = []
     org_ids = []
+
     with app.app_context():
+        query_filters = []
         for staleness_obj in staleness_objects:
             # Validate which host types for a given org_id never get deleted
             logger.debug(f"Looking for hosts from org_id {staleness_obj.org_id} that use custom staleness")
             org_ids.append(staleness_obj.org_id)
             identity = create_mock_identity_with_org_id(staleness_obj.org_id)
-            query_filters = ((Host.org_id == staleness_obj.org_id),)
-            query = Host.query.with_entities(Host.id).filter(*query_filters)
-            query = find_hosts_by_staleness(["culled"], query, identity, HOST_TYPES)
-            hosts_to_delete = hosts_to_delete + query.all()
+            query_filters.append(
+                and_(
+                    (Host.org_id == staleness_obj.org_id),
+                    find_hosts_by_staleness_reaper(["culled"], identity, HOST_TYPES),
+                )
+            )
             if "acc_st" in g:
                 logger.debug("Cleaning account staleness data in g global variable")
                 del g.acc_st
-
-    logger.info(f"Found {len(hosts_to_delete)} hosts for tenants that use custom staleness")
-    return hosts_to_delete, org_ids
+        return query_filters, org_ids
 
 
-def find_culled_hosts_using_sys_default_staleness(logger, org_ids):
+def filter_culled_hosts_using_sys_default_staleness(logger, org_ids, query_filters):
     # Use the hosts_ids_list to exclude hosts that were found with custom staleness
     with app.app_context():
         logger.debug("Looking for hosts that use system default staleness")
-        query_filters = (~(Host.org_id.in_(org_ids)),)
-        query = Host.query.with_entities(Host.id).filter(*query_filters)
-        query = find_hosts_sys_default_staleness(["culled"], query, HOST_TYPES)
-        hosts_to_delete = query.all()
-        return hosts_to_delete
+        query_filters.append(and_(~Host.org_id.in_(org_ids), find_hosts_sys_default_staleness(["culled"], HOST_TYPES)))
+        return query_filters
 
 
 def find_hosts_to_delete(logger, session):
     # Find all host ids that are using custom staleness
-    host_ids_custom_staleness, org_ids = find_culled_hosts_using_custom_staleness(logger, session)
+    query_filters, org_ids = filter_culled_hosts_using_custom_staleness(logger, session)
 
     # Find all host ids that are not using custom staleness,
     # excluding the hosts for the org_ids that use custom staleness
-    host_ids_sys_default_staleness = find_culled_hosts_using_sys_default_staleness(logger, org_ids)
+    query_filters = filter_culled_hosts_using_sys_default_staleness(logger, org_ids, query_filters)
 
-    host_ids_to_delete = host_ids_custom_staleness + host_ids_sys_default_staleness
-    return host_ids_to_delete
+    return query_filters
 
 
 @host_reaper_fail_count.count_exceptions()
 def run(config, logger, session, event_producer, shutdown_handler):
-    hosts_to_delete = find_hosts_to_delete(logger, session)
-    query_filter = ((Host.id.in_(hosts_to_delete)),)
-    query = session.query(Host).filter(*query_filter)
+    filter_hosts_to_delete = find_hosts_to_delete(logger, session)
+    query = session.query(Host).filter(or_(False, *filter_hosts_to_delete))
 
     events = delete_hosts(query, event_producer, config.host_delete_chunk_size, shutdown_handler.shut_down)
     for host_id, deleted in events:
