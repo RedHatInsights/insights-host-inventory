@@ -164,7 +164,18 @@ def find_hosts_by_staleness(staleness_types, query, identity, host_types):
     return query.filter(or_(False, *staleness_conditions))
 
 
-def find_hosts_sys_default_staleness(staleness_types, query, host_types):
+def find_hosts_by_staleness_reaper(staleness_types, identity, host_types):
+    logger.debug("find_hosts_by_staleness(%s)", staleness_types)
+    acc_st = serialize_staleness(get_staleness_obj(identity=identity))
+    staleness_conditions = [
+        or_(False, *staleness_to_conditions(acc_st, staleness_types, host_type, stale_timestamp_filter))
+        for host_type in host_types
+    ]
+
+    return or_(False, *staleness_conditions)
+
+
+def find_hosts_sys_default_staleness(staleness_types, host_types):
     logger.debug("find hosts with system default staleness")
     sys_default_staleness = serialize_staleness(get_sys_default_staleness())
     staleness_conditions = [
@@ -172,7 +183,7 @@ def find_hosts_sys_default_staleness(staleness_types, query, host_types):
         for host_type in host_types
     ]
 
-    return query.filter(or_(False, *staleness_conditions))
+    return or_(False, *staleness_conditions)
 
 
 def find_non_culled_hosts(query, identity=None):
