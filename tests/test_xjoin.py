@@ -1860,8 +1860,8 @@ def test_query_hosts_filter_spf_sap_sids(mocker, subtests, graphql_query_empty_r
     value_sets = (("XQC",), ("ABC", "A12"), ("M80", "BEN"))
     queries = (
         ({"AND": [{"spf_sap_sids": {"eq": "XQC"}}]},),
-        ({"AND": [{"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}]},),
-        ({"AND": [{"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}]},),
+        ({"OR": [{"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}]},),
+        ({"OR": [{"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}]},),
     )
 
     for path in filter_paths:
@@ -1895,8 +1895,8 @@ def test_query_tags_filter_spf_sap_sids(
     value_sets = (("XQC",), ("ABC", "A12"), ("M80", "BEN"))
     queries = (
         ({"AND": [{"spf_sap_sids": {"eq": "XQC"}}]},),
-        ({"AND": [{"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}]},),
-        ({"AND": [{"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}]},),
+        ({"OR": [{"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}]},),
+        ({"OR": [{"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}]},),
     )
 
     for path in filter_paths:
@@ -1916,8 +1916,8 @@ def test_query_system_profile_sap_sids_filter_spf_sap_sids(
     value_sets = (("XQC",), ("ABC", "A12"), ("M80", "BEN"))
     queries = (
         ({"AND": [{"spf_sap_sids": {"eq": "XQC"}}]},),
-        ({"AND": [{"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}]},),
-        ({"AND": [{"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}]},),
+        ({"OR": [{"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}]},),
+        ({"OR": [{"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}]},),
     )
 
     for path in filter_paths:
@@ -2497,37 +2497,50 @@ def test_spf_host_type_invalid_field_value(subtests, graphql_query_empty_respons
 def test_query_hosts_filter_spf_insights_client_version(
     mocker, subtests, graphql_query_empty_response, patch_xjoin_post, api_get
 ):
-    filter_paths = ("[system_profile][insights_client_version]", "[system_profile][insights_client_version][eq]")
-    values = ("3.0.6-2.el7_6", "3.*", "nil", "not_nil")
-    queries = (
+    # filter_paths = ("[system_profile][insights_client_version]", "[system_profile][insights_client_version][eq]")
+    # values = ("3.0.6-2.el7_6", "3.*", "nil", "not_nil")
+    http_queries = (
+        "filter[system_profile][insights_client_version]=3.0.6-2.el7_6",
+        "filter[system_profile][insights_client_version][eq]=3.*",
+        "filter[system_profile][insights_client_version]=nil",
+        "filter[system_profile][insights_client_version][eq]=not_nil",
+        "filter[system_profile][insights_client_version][]=3.0.6-2.el7_6&"
+        "filter[system_profile][insights_client_version][]=2.*",
+    )
+    graphql_queries = (
         {"spf_insights_client_version": {"eq": "3.0.6-2.el7_6"}},
         {"spf_insights_client_version": {"matches": "3.*"}},
         {"spf_insights_client_version": {"eq": None}},
         {"NOT": {"spf_insights_client_version": {"eq": None}}},
+        {
+            "OR": [
+                {"spf_insights_client_version": {"eq": "3.0.6-2.el7_6"}},
+                {"spf_insights_client_version": {"matches": "2.*"}},
+            ]
+        },
     )
 
-    for path in filter_paths:
-        for value, query in zip(values, queries):
-            with subtests.test(value=value, query=query, path=path):
-                url = build_hosts_url(query=f"?filter{path}={value}")
+    for http_query, graphql_query in zip(http_queries, graphql_queries):
+        with subtests.test(http_query=http_query, graphql_query=graphql_query):
+            url = build_hosts_url(query=f"?{http_query}")
 
-                response_status, response_data = api_get(url)
+            response_status = api_get(url)[0]
 
-                assert response_status == 200
+            assert response_status == 200
 
-                graphql_query_empty_response.assert_called_once_with(
-                    HOST_QUERY,
-                    {
-                        "order_by": mocker.ANY,
-                        "order_how": mocker.ANY,
-                        "limit": mocker.ANY,
-                        "offset": mocker.ANY,
-                        "filter": ({"OR": mocker.ANY}, query),
-                        "fields": mocker.ANY,
-                    },
-                    mocker.ANY,
-                )
-                graphql_query_empty_response.reset_mock()
+            graphql_query_empty_response.assert_called_once_with(
+                HOST_QUERY,
+                {
+                    "order_by": mocker.ANY,
+                    "order_how": mocker.ANY,
+                    "limit": mocker.ANY,
+                    "offset": mocker.ANY,
+                    "filter": ({"OR": mocker.ANY}, graphql_query),
+                    "fields": mocker.ANY,
+                },
+                mocker.ANY,
+            )
+            graphql_query_empty_response.reset_mock()
 
 
 # system_profile operating_system tests

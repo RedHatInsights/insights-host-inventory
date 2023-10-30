@@ -261,7 +261,11 @@ def _base_filter_builder(builder_function, field_name, field_value, field_filter
             isolated_expression = _isolate_object_filter_expression(field_value, value)
             foo_list.append(builder_function(xjoin_field_name, isolated_expression, field_filter, operation, spec)[0])
         list_operator = _get_list_operator(field_name, field_filter)
-        field_filter = ({list_operator: foo_list},)
+        if len(foo_list) > 1:
+            # Filtering system_profile fields by multiple values of the same field uses OR logic
+            field_filter = ({"OR": foo_list},)
+        else:
+            field_filter = ({list_operator: foo_list},)
     elif isinstance(base_value, str):
         logger.debug("filter value is a string")
         isolated_expression = _isolate_object_filter_expression(field_value, base_value)
