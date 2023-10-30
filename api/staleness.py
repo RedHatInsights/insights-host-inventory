@@ -136,7 +136,7 @@ def delete_staleness():
 
 
 @api_operation
-@rbac(RbacResourceType.STALENESS, RbacPermission.WRITE)
+@rbac(RbacResourceType.STALENESS, RbacPermission.WRITE, permission_base="staleness")
 @rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def update_staleness(body):

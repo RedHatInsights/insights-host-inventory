@@ -136,8 +136,11 @@ STALENESS_WRITE_PROHIBITED_RBAC_RESPONSE_FILES = (
     "tests/helpers/rbac-mock-data/inv-none.json",
     "tests/helpers/rbac-mock-data/inv-read-only.json",
     "tests/helpers/rbac-mock-data/inv-star-read.json",
+    "tests/helpers/rbac-mock-data/inv-staleness-hosts-write-only.json",
+    "tests/helpers/rbac-mock-data/inv-staleness-write-only.json"
+    "tests/helpers/rbac-mock-data/inv-hosts-write-only.json",
 )
-STALENESS_WRITE_ALLOWED_RBAC_RESPONSE_FILES = ("tests/helpers/rbac-mock-data/inv-account-staleness-write-only.json",)
+STALENESS_WRITE_ALLOWED_RBAC_RESPONSE_FILES = ("tests/helpers/rbac-mock-data/inv-staleness-hosts-write-only.json",)
 RBAC_ADMIN_PROHIBITED_RBAC_RESPONSE_FILES = (
     "tests/helpers/rbac-mock-data/inv-read-write.json",
     "tests/helpers/rbac-mock-data/inv-read-only.json",
