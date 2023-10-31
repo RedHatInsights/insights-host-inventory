@@ -1,4 +1,3 @@
-import base64
 import contextlib
 import json
 import os
@@ -12,6 +11,8 @@ from datetime import timezone
 from random import choice
 from random import randint
 
+from app.auth.identity import Identity
+from app.auth.identity import to_auth_header
 from app.utils import HostWrapper
 
 NS = "testns"
@@ -164,10 +165,7 @@ def valid_system_profile(owner_id=None, additional_yum_repo=None):
 
 
 def get_encoded_idstr(identity=SYSTEM_IDENTITY):
-    id = {"identity": identity}
-    SYSTEM_API_KEY = base64.b64encode(json.dumps(id).encode("utf-8"))
-
-    return SYSTEM_API_KEY.decode("ascii")
+    return to_auth_header(Identity(obj=identity))
 
 
 def get_platform_metadata(identity=SYSTEM_IDENTITY):
