@@ -1,6 +1,8 @@
 import os
 from base64 import b64decode
+from base64 import b64encode
 from enum import Enum
+from json import dumps
 from json import loads
 
 import marshmallow as m
@@ -14,16 +16,6 @@ __all__ = ["Identity", "from_auth_header", "from_bearer_token"]
 logger = get_logger(__name__)
 
 SHARED_SECRET_ENV_VAR = "INVENTORY_SHARED_SECRET"
-
-
-def from_auth_header(base64):
-    json = b64decode(base64)
-    identity_dict = loads(json)
-    return Identity(identity_dict["identity"])
-
-
-def from_bearer_token(token):
-    return Identity(token=token)
 
 
 class AuthType(str, Enum):
@@ -153,3 +145,19 @@ class SystemIdentitySchema(IdentityBaseSchema):
 # So this helper function creates a basic User-type identity from the host data.
 def create_mock_identity_with_org_id(org_id):
     return Identity({"org_id": org_id, "type": IdentityType.USER.value, "auth_type": AuthType.BASIC})
+
+
+def to_auth_header(identity: Identity):
+    id = {"identity": identity._asdict()}
+    b64_id = b64encode(dumps(id).encode())
+    return b64_id.decode("ascii")
+
+
+def from_auth_header(base64):
+    json = b64decode(base64)
+    identity_dict = loads(json)
+    return Identity(identity_dict["identity"])
+
+
+def from_bearer_token(token):
+    return Identity(token=token)

@@ -23,6 +23,7 @@ from app import inventory_config
 from app import RbacPermission
 from app import RbacResourceType
 from app.auth import get_current_identity
+from app.auth.identity import to_auth_header
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_get_host_list_failed
 from app.instrumentation import log_get_host_list_succeeded
@@ -307,7 +308,8 @@ def _emit_patch_event(serialized_host, host):
         host.system_profile_facts.get("host_type"),
         host.system_profile_facts.get("operating_system", {}).get("name"),
     )
-    event = build_event(EventType.updated, serialized_host)
+    metadata = {"b64_identity": to_auth_header(get_current_identity())}
+    event = build_event(EventType.updated, serialized_host, platform_metadata=metadata)
     current_app.event_producer.write_event(event, str(host.id), headers, wait=True)
 
 

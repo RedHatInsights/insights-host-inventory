@@ -8,9 +8,12 @@ from unittest.mock import Mock
 
 from confluent_kafka import TopicPartition
 
+from app.auth.identity import Identity
+from app.auth.identity import to_auth_header
 from app.serialization import serialize_facts
 from app.utils import Tag
 from tests.helpers.test_utils import minimal_host
+from tests.helpers.test_utils import USER_IDENTITY
 
 
 MockFutureCallback = namedtuple("MockFutureCallback", ("method", "args", "kwargs", "extra_arg"))
@@ -132,6 +135,7 @@ def assert_patch_event_is_valid(
     display_name="patch_event_test",
     stale_timestamp=None,
     reporter=None,
+    identity=USER_IDENTITY,
 ):
     stale_timestamp = stale_timestamp or host.stale_timestamp.astimezone(timezone.utc)
     reporter = reporter or host.reporter
@@ -168,7 +172,7 @@ def assert_patch_event_is_valid(
             "provider_id": host.canonical_facts.get("provider_id"),
             "provider_type": host.canonical_facts.get("provider_type"),
         },
-        "platform_metadata": None,
+        "platform_metadata": {"b64_identity": to_auth_header(Identity(obj=identity))},
         "metadata": {"request_id": expected_request_id},
         "timestamp": expected_timestamp.isoformat(),
     }

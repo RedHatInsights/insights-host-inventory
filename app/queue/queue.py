@@ -1,4 +1,3 @@
-import base64
 import json
 import sys
 import uuid
@@ -12,6 +11,7 @@ from sqlalchemy.exc import OperationalError
 
 from app import inventory_config
 from app.auth.identity import create_mock_identity_with_org_id
+from app.auth.identity import from_auth_header
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
 from app.culling import Timestamps
@@ -56,14 +56,6 @@ class OperationSchema(Schema):
     data = fields.Dict(required=True)
 
 
-# input is a base64 encoded utf-8 string. b64decode returns bytes, which
-# again needs decoding using ascii to get human readable dictionary
-def _decode_id(encoded_id):
-    id = base64.b64decode(encoded_id)
-    decoded_id = json.loads(id)
-    return decoded_id.get("identity")
-
-
 # receives an uuid string w/o dashes and outputs an uuid string with dashes
 def _formatted_uuid(uuid_string):
     return str(UUID(uuid_string))
@@ -72,7 +64,7 @@ def _formatted_uuid(uuid_string):
 def _get_identity(host, metadata):
     # rhsm reporter does not provide identity.  Set identity type to system for access the host in future.
     if metadata and "b64_identity" in metadata:
-        identity = _decode_id(metadata["b64_identity"])
+        identity = from_auth_header(metadata["b64_identity"])._asdict()
     else:
         reporter = host.get("reporter")
         if (reporter == "rhsm-conduit" or reporter == "rhsm-system-profile-bridge") and host.get(

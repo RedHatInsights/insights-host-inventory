@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from app.auth.identity import from_auth_header
 from app.queue.event_producer import MessageDetails
 from app.serialization import deserialize_canonical_facts
 from tests.helpers.api_utils import assert_error_response
@@ -26,6 +27,7 @@ from tests.helpers.mq_utils import assert_patch_event_is_valid
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import get_staleness_timestamps
 from tests.helpers.test_utils import SYSTEM_IDENTITY
+from tests.helpers.test_utils import USER_IDENTITY
 
 
 @pytest.mark.parametrize(
@@ -584,5 +586,8 @@ def test_patch_updated_timestamp(event_producer, db_create_host, db_get_host, ap
     record = db_get_host(host.id)
 
     updated_timestamp_from_event = json.loads(event_producer.write_event.call_args_list[0][0][0])["host"]["updated"]
+    b64_identity = json.loads(event_producer.write_event.call_args_list[0][0][0])["platform_metadata"]["b64_identity"]
+    identity = from_auth_header(b64_identity)
 
     assert updated_timestamp_from_event == record.modified_on.isoformat()
+    assert identity._asdict() == USER_IDENTITY
