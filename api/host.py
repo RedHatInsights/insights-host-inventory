@@ -205,7 +205,7 @@ def _delete_host_list(host_id_list, rbac_filter):
         deletion_count = 0
 
         for host_id, deleted in delete_hosts(
-            query, current_app.event_producer, inventory_config().host_delete_chunk_size
+            query, current_app.event_producer, inventory_config().host_delete_chunk_size, identity=current_identity
         ):
             if deleted:
                 log_host_delete_succeeded(logger, host_id, get_control_rule())

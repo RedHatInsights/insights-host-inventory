@@ -1,7 +1,6 @@
 from confluent_kafka import KafkaException
 from sqlalchemy.orm.base import instance_state
 
-from app.auth import get_current_identity
 from app.auth.identity import to_auth_header
 from app.logging import get_logger
 from app.models import Host
@@ -18,13 +17,13 @@ __all__ = ("delete_hosts",)
 logger = get_logger(__name__)
 
 
-def delete_hosts(select_query, event_producer, chunk_size, interrupt=lambda: False):
+def delete_hosts(select_query, event_producer, chunk_size, interrupt=lambda: False, identity=None):
     with session_guard(select_query.session):
         while select_query.count():
             for host in select_query.limit(chunk_size):
                 host_id = host.id
                 with delete_host_processing_time.time():
-                    host_deleted = _delete_host(select_query.session, event_producer, host)
+                    host_deleted = _delete_host(select_query.session, event_producer, host, identity)
 
                 yield host_id, host_deleted
 
@@ -32,7 +31,7 @@ def delete_hosts(select_query, event_producer, chunk_size, interrupt=lambda: Fal
                     return
 
 
-def _delete_host(session, event_producer, host):
+def _delete_host(session, event_producer, host, identity=None):
     assoc_delete_query = session.query(HostGroupAssoc).filter(HostGroupAssoc.host_id == host.id)
     host_delete_query = session.query(Host).filter(Host.id == host.id)
     if kafka_available():
@@ -41,7 +40,7 @@ def _delete_host(session, event_producer, host):
         host_deleted = _deleted_by_this_query(host)
         if host_deleted:
             delete_host_count.inc()
-            metadata = {"b64_identity": to_auth_header(get_current_identity())}
+            metadata = {"b64_identity": to_auth_header(identity)} if identity else None
             event = build_event(EventType.delete, host, platform_metadata=metadata)
             headers = message_headers(
                 EventType.delete,

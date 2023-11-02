@@ -172,7 +172,9 @@ def test_culled_host_is_removed(
 
     assert not db_get_host(created_host.id)
 
-    assert_delete_event_is_valid(event_producer=event_producer_mock, host=created_host, timestamp=event_datetime_mock)
+    assert_delete_event_is_valid(
+        event_producer=event_producer_mock, host=created_host, timestamp=event_datetime_mock, identity=None
+    )
 
 
 @pytest.mark.host_reaper

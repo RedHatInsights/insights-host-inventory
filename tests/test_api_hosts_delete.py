@@ -569,14 +569,14 @@ def test_delete_host_RBAC_denied_specific_groups(
 class DeleteHostsMock:
     @classmethod
     def create_mock(cls, hosts_ids_to_delete):
-        def _constructor(select_query, event_producer, chunk_size):
-            return cls(hosts_ids_to_delete, select_query, event_producer, chunk_size)
+        def _constructor(select_query, event_producer, chunk_size, identity=None):
+            return cls(hosts_ids_to_delete, select_query, event_producer, chunk_size, identity=identity)
 
         return _constructor
 
-    def __init__(self, host_ids_to_delete, original_query, event_producer, chunk_size):
+    def __init__(self, host_ids_to_delete, original_query, event_producer, chunk_size, identity=None):
         self.host_ids_to_delete = host_ids_to_delete
-        self.original_query = delete_hosts(original_query, event_producer, chunk_size)
+        self.original_query = delete_hosts(original_query, event_producer, chunk_size, identity=identity)
 
     def __getattr__(self, item):
         """

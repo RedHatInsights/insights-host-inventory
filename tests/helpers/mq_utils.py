@@ -132,7 +132,8 @@ def assert_delete_event_is_valid(
         host.system_profile_facts.get("operating_system", {}).get("name"),
     )
 
-    assert event["platform_metadata"] == {"b64_identity": to_auth_header(Identity(obj=identity))}
+    if identity:
+        assert event["platform_metadata"] == {"b64_identity": to_auth_header(Identity(obj=identity))}
 
     if expected_request_id:
         assert event["request_id"] == expected_request_id
