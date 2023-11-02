@@ -60,7 +60,8 @@ def _validate_input_data(body):
 
 
 @api_operation
-@rbac(RbacResourceType.STALENESS, RbacPermission.READ)
+@rbac(RbacResourceType.STALENESS, RbacPermission.READ, permission_base="staleness")
+@rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_staleness():
     try:
@@ -73,7 +74,8 @@ def get_staleness():
 
 
 @api_operation
-@rbac(RbacResourceType.STALENESS, RbacPermission.READ)
+@rbac(RbacResourceType.STALENESS, RbacPermission.READ, permission_base="staleness")
+@rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_default_staleness():
     try:
@@ -86,7 +88,8 @@ def get_default_staleness():
 
 
 @api_operation
-@rbac(RbacResourceType.STALENESS, RbacPermission.WRITE)
+@rbac(RbacResourceType.STALENESS, RbacPermission.WRITE, permission_base="staleness")
+@rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def create_staleness(body):
     if not get_flag_value(FLAG_INVENTORY_CUSTOM_STALENESS):
@@ -115,7 +118,8 @@ def create_staleness(body):
 
 
 @api_operation
-@rbac(RbacResourceType.STALENESS, RbacPermission.WRITE)
+@rbac(RbacResourceType.STALENESS, RbacPermission.WRITE, permission_base="staleness")
+@rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def delete_staleness():
     if not get_flag_value(FLAG_INVENTORY_CUSTOM_STALENESS):
@@ -132,7 +136,8 @@ def delete_staleness():
 
 
 @api_operation
-@rbac(RbacResourceType.STALENESS, RbacPermission.WRITE)
+@rbac(RbacResourceType.STALENESS, RbacPermission.WRITE, permission_base="staleness")
+@rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def update_staleness(body):
     if not get_flag_value(FLAG_INVENTORY_CUSTOM_STALENESS):
