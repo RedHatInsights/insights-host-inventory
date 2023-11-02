@@ -171,6 +171,16 @@ def db_create_host_in_unknown_state(db_create_host):
 
 
 @pytest.fixture(scope="function")
+def db_update_resource(flask_app):
+    def _db_update_resource(resource):
+        db.session.add(resource)
+        db.session.commit()
+        return resource
+
+    return _db_update_resource
+
+
+@pytest.fixture(scope="function")
 def models_datetime_mock(mocker):
     mock = mocker.patch("app.models.datetime", **{"now.return_value": now()})
     return mock.now.return_value

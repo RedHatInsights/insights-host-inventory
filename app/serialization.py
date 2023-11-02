@@ -1,3 +1,4 @@
+from datetime import datetime
 from datetime import timezone
 
 from dateutil.parser import isoparse
@@ -171,7 +172,28 @@ def serialize_host(host, staleness_timestamps, for_mq=True, additional_fields=tu
     return serialized_host
 
 
+def _remove_culled_hosts(group):
+    from app import inventory_config
+
+    if len(group.hosts) > 0:
+        for host in group.hosts:
+            stale_timestamp = host.stale_timestamp
+            current_time = datetime.now(tz=timezone.utc)
+
+            staleness_delta = datetime.now(tz=timezone.utc) - host.stale_timestamp
+            culling_delta = inventory_config().culling_culled_offset_delta
+
+            print((current_time - stale_timestamp).days - culling_delta.days)
+            if staleness_delta > culling_delta:
+                group.hosts.remove(host)
+                print(f"number of hosts in the group: {len(group.hosts)}")
+
+    return group
+
+
 def serialize_group(group):
+    # remove the culled hosts not yet deleted by reaper
+    _remove_culled_hosts(group)
     return {
         "id": _serialize_uuid(group.id),
         "org_id": group.org_id,

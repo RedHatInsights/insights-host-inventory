@@ -1,9 +1,12 @@
 import uuid
+from datetime import datetime
+from datetime import timezone
 
 from dateutil.parser import parse
 
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
+from tests.helpers.api_utils import GROUP_URL
 from tests.helpers.api_utils import GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.test_utils import generate_uuid
 
@@ -231,3 +234,40 @@ def test_add_empty_array_to_group(db_create_group, api_add_hosts_to_group):
     response_status, _ = api_add_hosts_to_group(group_id, [])
 
     assert response_status == 400
+
+
+def test_group_with_culle_hosts(
+    db_create_group,
+    db_create_host,
+    db_get_hosts_for_group,
+    api_add_hosts_to_group,
+    event_producer,
+    db_get_host,
+    api_get,
+    db_update_resource,
+):
+    # Create a group and 3 hosts
+    group_id = db_create_group("test_group").id
+    current_time = datetime.now(tz=timezone.utc)
+    culling_time = current_time.replace(year=2022)
+
+    host_id_list = [db_create_host(extra_data={"stale_timestamp": current_time}).id for _ in range(3)]
+
+    response_status, _ = api_add_hosts_to_group(group_id, [str(host) for host in host_id_list[0:3]])
+    assert response_status == 200
+
+    # Confirm that the group now only contains 3 hosts
+    response_status, response_data = api_get(GROUP_URL + "/" + ",".join([str(group_id)]))
+    host_count = response_data["results"][0]["host_count"]
+    assert host_count == 3
+
+    hosts_after = db_get_hosts_for_group(group_id)
+    assert len(hosts_after) == 3
+
+    culled_host = db_get_host(hosts_after[0].id)
+    culled_host.stale_timestamp = culling_time
+    db_update_resource(culled_host)
+
+    response_status, response_data = api_get(GROUP_URL + "/" + ",".join([str(group_id)]))
+    host_count = response_data["results"][0]["host_count"]
+    assert host_count == 2
