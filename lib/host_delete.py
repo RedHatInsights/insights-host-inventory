@@ -1,6 +1,8 @@
 from confluent_kafka import KafkaException
 from sqlalchemy.orm.base import instance_state
 
+from app.auth import get_current_identity
+from app.auth.identity import to_auth_header
 from app.logging import get_logger
 from app.models import Host
 from app.models import HostGroupAssoc
@@ -39,7 +41,8 @@ def _delete_host(session, event_producer, host):
         host_deleted = _deleted_by_this_query(host)
         if host_deleted:
             delete_host_count.inc()
-            event = build_event(EventType.delete, host)
+            metadata = {"b64_identity": to_auth_header(get_current_identity())}
+            event = build_event(EventType.delete, host, platform_metadata=metadata)
             headers = message_headers(
                 EventType.delete,
                 host.canonical_facts.get("insights_id"),

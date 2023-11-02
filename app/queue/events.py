@@ -72,6 +72,7 @@ class HostDeleteEvent(Schema):
     org_id = fields.Str()
     insights_id = fields.Str()
     request_id = fields.Str()
+    platform_metadata = fields.Dict()
     metadata = fields.Nested(HostEventMetadataSchema())
 
 
@@ -102,7 +103,7 @@ def host_create_update_event(event_type, host, platform_metadata=None):
     )
 
 
-def host_delete_event(event_type, host):
+def host_delete_event(event_type, host, platform_metadata=None):
     delete_event = {
         "timestamp": datetime.now(timezone.utc),
         "type": event_type.name,
@@ -111,6 +112,7 @@ def host_delete_event(event_type, host):
         "org_id": host.org_id,
         "account": host.account,
         "request_id": threadctx.request_id,
+        "platform_metadata": platform_metadata,
         "metadata": {"request_id": threadctx.request_id},
     }
 

@@ -370,7 +370,9 @@ def test_delete_host_with_RBAC_bypassed_as_system(
 
     assert_response_status(response_status, 200)
 
-    assert_delete_event_is_valid(event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock)
+    assert_delete_event_is_valid(
+        event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock, identity=SYSTEM_IDENTITY
+    )
 
     assert not db_get_host(host.id)
 

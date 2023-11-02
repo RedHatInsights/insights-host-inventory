@@ -96,12 +96,24 @@ def assert_mq_host_data(actual_id, actual_event, expected_results, host_keys_to_
         assert actual_event["host"][key] == expected_results["host"][key]
 
 
-def assert_delete_event_is_valid(event_producer, host, timestamp, expected_request_id=None, expected_metadata=None):
+def assert_delete_event_is_valid(
+    event_producer, host, timestamp, expected_request_id=None, expected_metadata=None, identity=USER_IDENTITY
+):
     event = json.loads(event_producer.event)
 
     assert isinstance(event, dict)
 
-    expected_keys = {"timestamp", "type", "id", "account", "org_id", "insights_id", "request_id", "metadata"}
+    expected_keys = {
+        "timestamp",
+        "type",
+        "id",
+        "account",
+        "org_id",
+        "insights_id",
+        "request_id",
+        "platform_metadata",
+        "metadata",
+    }
     assert set(event.keys()) == expected_keys
 
     assert timestamp.replace(tzinfo=timezone.utc).isoformat() == event["timestamp"]
@@ -119,6 +131,8 @@ def assert_delete_event_is_valid(event_producer, host, timestamp, expected_reque
         host.system_profile_facts.get("host_type"),
         host.system_profile_facts.get("operating_system", {}).get("name"),
     )
+
+    assert event["platform_metadata"] == {"b64_identity": to_auth_header(Identity(obj=identity))}
 
     if expected_request_id:
         assert event["request_id"] == expected_request_id
