@@ -6,7 +6,6 @@ from marshmallow import ValidationError
 from sqlalchemy.exc import IntegrityError
 
 from api import api_operation
-from api import check_unleash_flag
 from api import flask_json_response
 from api import json_error_response
 from api import metrics
@@ -27,7 +26,6 @@ from app.instrumentation import log_patch_group_failed
 from app.instrumentation import log_patch_group_success
 from app.logging import get_logger
 from app.models import InputGroupSchema
-from lib.feature_flags import FLAG_INVENTORY_GROUPS
 from lib.group_repository import add_group
 from lib.group_repository import delete_group_list
 from lib.group_repository import get_group_by_id_from_db
@@ -52,8 +50,6 @@ def get_group_list(
     order_how=None,
     rbac_filter=None,
 ):
-    check_unleash_flag(FLAG_INVENTORY_GROUPS)
-
     try:
         group_list, total = get_filtered_group_list_db(name, page, per_page, order_by, order_how, rbac_filter)
     except ValueError as e:
@@ -69,8 +65,6 @@ def get_group_list(
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def create_group(body, rbac_filter=None):
-    check_unleash_flag(FLAG_INVENTORY_GROUPS)
-
     # If there is an attribute filter on the RBAC permissions,
     # the user should not be allowed to create a group.
     if rbac_filter is not None:
@@ -117,8 +111,6 @@ def create_group(body, rbac_filter=None):
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def patch_group_by_id(group_id, body, rbac_filter=None):
-    check_unleash_flag(FLAG_INVENTORY_GROUPS)
-
     rbac_group_id_check(rbac_filter, {group_id})
 
     try:
@@ -157,8 +149,6 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def delete_groups(group_id_list, rbac_filter=None):
-    check_unleash_flag(FLAG_INVENTORY_GROUPS)
-
     rbac_group_id_check(rbac_filter, set(group_id_list))
 
     delete_count = delete_group_list(group_id_list, current_app.event_producer)
@@ -181,8 +171,6 @@ def get_groups_by_id(
     order_how=None,
     rbac_filter=None,
 ):
-    check_unleash_flag(FLAG_INVENTORY_GROUPS)
-
     rbac_group_id_check(rbac_filter, set(group_id_list))
 
     try:
@@ -202,8 +190,6 @@ def get_groups_by_id(
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def delete_hosts_from_group(group_id, host_id_list, rbac_filter=None):
-    check_unleash_flag(FLAG_INVENTORY_GROUPS)
-
     rbac_group_id_check(rbac_filter, {group_id})
 
     delete_count = remove_hosts_from_group(group_id, host_id_list, current_app.event_producer)
@@ -219,8 +205,6 @@ def delete_hosts_from_group(group_id, host_id_list, rbac_filter=None):
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def delete_hosts_from_different_groups(host_id_list, rbac_filter=None):
-    check_unleash_flag(FLAG_INVENTORY_GROUPS)
-
     hosts_per_group = {}
 
     # Separate hosts per group

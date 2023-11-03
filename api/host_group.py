@@ -12,8 +12,6 @@ from app import RbacResourceType
 from app.instrumentation import log_host_group_add_succeeded
 from app.instrumentation import log_patch_group_failed
 from app.logging import get_logger
-from lib.feature_flags import FLAG_INVENTORY_GROUPS
-from lib.feature_flags import get_flag_value
 from lib.group_repository import add_hosts_to_group
 from lib.group_repository import get_group_by_id_from_db
 from lib.group_repository import remove_hosts_from_group
@@ -35,9 +33,6 @@ def add_host_list_to_group(group_id, body, rbac_filter=None):
         return abort(
             status.HTTP_400_BAD_REQUEST, "Body content must be an array with groups UUIDs, not an empty array"
         )
-
-    if not get_flag_value(FLAG_INVENTORY_GROUPS):
-        return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
     rbac_group_id_check(rbac_filter, {group_id})
 
@@ -64,9 +59,6 @@ def add_host_list_to_group(group_id, body, rbac_filter=None):
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def delete_hosts_from_group(group_id, host_id_list, rbac_filter=None):
-    if not get_flag_value(FLAG_INVENTORY_GROUPS):
-        return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
-
     rbac_group_id_check(rbac_filter, {group_id})
 
     delete_count = remove_hosts_from_group(group_id, host_id_list, current_app.event_producer)
