@@ -42,7 +42,7 @@ def test_get_sys_default_staleness(api_get):
     response_status, response_data = api_get(url)
     assert_response_status(response_status, 200)
     expected_result = {
-        "conventional_staleness_delta": 86400,
+        "conventional_staleness_delta": 104400,
         "conventional_stale_warning_delta": 604800,
         "conventional_culling_delta": 1209600,
         "immutable_staleness_delta": 172800,
