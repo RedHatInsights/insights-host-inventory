@@ -245,7 +245,6 @@ def test_group_with_culled_hosts(
     event_producer,
     db_get_host,
     api_get,
-    db_update_resource,
 ):
     # Create a group and 3 hosts
     group_id = db_create_group("test_group").id
@@ -257,8 +256,8 @@ def test_group_with_culled_hosts(
     response_status, _ = api_add_hosts_to_group(group_id, [str(host) for host in host_id_list[0:3]])
     assert response_status == 200
 
-    # Confirm that the group now only contains 3 hosts
-    response_status, response_data = api_get(build_groups_url(str(group_id)))
+    # Confirm that the group contains 3 hosts
+    _, response_data = api_get(build_groups_url(str(group_id)))
     host_count = response_data["results"][0]["host_count"]
     assert host_count == 3
 
@@ -267,8 +266,7 @@ def test_group_with_culled_hosts(
 
     culled_host = db_get_host(hosts_after[0].id)
     culled_host.stale_timestamp = culling_time
-    db_update_resource(culled_host)
 
-    response_status, response_data = api_get(GROUP_URL + "/" + ",".join([str(group_id)]))
+    _, response_data = api_get(GROUP_URL + "/" + ",".join([str(group_id)]))
     host_count = response_data["results"][0]["host_count"]
     assert host_count == 2

@@ -172,30 +172,30 @@ def serialize_host(host, staleness_timestamps, for_mq=True, additional_fields=tu
     return serialized_host
 
 
-def _remove_culled_hosts(group):
+# get hosts not marked for deletion
+def _get_unculled_hosts(group):
     from app import inventory_config
 
+    hosts = []
     if len(group.hosts) > 0:
         for host in group.hosts:
             staleness_delta = datetime.now(tz=timezone.utc) - host.stale_timestamp
             culling_delta = inventory_config().culling_culled_offset_delta
 
-            if staleness_delta > culling_delta:
-                group.hosts.remove(host)
-                print(f"number of hosts in the group: {len(group.hosts)}")
+            if staleness_delta < culling_delta:
+                hosts.append(host)
 
-    return group
+    return hosts
 
 
 def serialize_group(group):
-    # remove the culled hosts not yet deleted by reaper
-    _remove_culled_hosts(group)
+    unculled_hosts = _get_unculled_hosts(group)
     return {
         "id": _serialize_uuid(group.id),
         "org_id": group.org_id,
         "account": group.account,
         "name": group.name,
-        "host_count": len(group.hosts),
+        "host_count": len(unculled_hosts),
         "created": _serialize_datetime(group.created_on),
         "updated": _serialize_datetime(group.modified_on),
     }
