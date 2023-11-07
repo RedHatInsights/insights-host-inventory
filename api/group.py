@@ -228,6 +228,6 @@ def delete_hosts_from_different_groups(host_id_list, rbac_filter=None):
 
     if delete_count == 0:
         log_delete_hosts_from_group_failed(logger)
-        abort(status.HTTP_404_NOT_FOUND, "The provided hosts are ungrouped.")
+        abort(status.HTTP_404_NOT_FOUND, "The provided hosts were not found.")
 
     return Response(None, status.HTTP_204_NO_CONTENT)
