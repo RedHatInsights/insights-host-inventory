@@ -1,6 +1,4 @@
 import flask
-from flask import Response
-from flask_api import status
 
 from api import api_operation
 from api import flask_json_response
@@ -16,8 +14,6 @@ from app.instrumentation import log_get_resource_type_list_failed
 from app.instrumentation import log_get_resource_type_list_succeeded
 from app.logging import get_logger
 from app.serialization import serialize_group
-from lib.feature_flags import FLAG_INVENTORY_GROUPS
-from lib.feature_flags import get_flag_value
 from lib.middleware import rbac
 
 logger = get_logger(__name__)
@@ -30,9 +26,6 @@ def get_resource_type_list(
     page=1,
     per_page=10,
 ):
-    if not get_flag_value(FLAG_INVENTORY_GROUPS):
-        return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
-
     try:
         resource_list, total = get_resources_types()
         log_get_resource_type_list_succeeded(logger, resource_list)
@@ -56,9 +49,6 @@ def get_resource_type_groups_list(
     order_how=None,
     rbac_filter=None,
 ):
-    if not get_flag_value(FLAG_INVENTORY_GROUPS):
-        return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
-
     try:
         group_list, total = get_filtered_group_list_db(name, page, per_page, order_by, order_how, rbac_filter)
     except ValueError as e:
