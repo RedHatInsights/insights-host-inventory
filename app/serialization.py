@@ -180,11 +180,10 @@ def serialize_host(host, staleness_timestamps, for_mq=True, additional_fields=tu
 # get hosts not marked for deletion
 def _get_unculled_hosts(group):
     hosts = []
-    if len(group.hosts) > 0:
-        for host in group.hosts:
-            staleness_delta = datetime.now(tz=timezone.utc) - host.stale_timestamp
-            if staleness_delta < CULLING_DELTA:
-                hosts.append(host)
+    for host in group.hosts:
+        staleness_delta = datetime.now(tz=timezone.utc) - host.stale_timestamp
+        if staleness_delta < CULLING_DELTA:
+            hosts.append(host)
 
     return hosts
 
