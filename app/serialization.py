@@ -4,6 +4,8 @@ from datetime import timezone
 from dateutil.parser import isoparse
 from marshmallow import ValidationError
 
+from app.config import Config
+from app.environment import RuntimeEnvironment
 from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
 from app.models import CanonicalFactsSchema
@@ -51,6 +53,9 @@ ADDITIONAL_HOST_MQ_FIELDS = (
 )
 
 MAX_INT = 2147483647
+
+
+CULLING_DELTA = Config(RuntimeEnvironment.SERVER).culling_culled_offset_delta
 
 
 def deserialize_host(raw_data, schema=HostSchema, system_profile_spec=None):
@@ -174,15 +179,11 @@ def serialize_host(host, staleness_timestamps, for_mq=True, additional_fields=tu
 
 # get hosts not marked for deletion
 def _get_unculled_hosts(group):
-    from app import inventory_config
-
     hosts = []
     if len(group.hosts) > 0:
         for host in group.hosts:
             staleness_delta = datetime.now(tz=timezone.utc) - host.stale_timestamp
-            culling_delta = inventory_config().culling_culled_offset_delta
-
-            if staleness_delta < culling_delta:
+            if staleness_delta < CULLING_DELTA:
                 hosts.append(host)
 
     return hosts
