@@ -5,6 +5,7 @@ from datetime import timezone
 from dateutil.parser import parse
 
 from tests.helpers.api_utils import assert_response_status
+from tests.helpers.api_utils import build_groups_url
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import GROUP_URL
 from tests.helpers.api_utils import GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
@@ -236,7 +237,7 @@ def test_add_empty_array_to_group(db_create_group, api_add_hosts_to_group):
     assert response_status == 400
 
 
-def test_group_with_culle_hosts(
+def test_group_with_culled_hosts(
     db_create_group,
     db_create_host,
     db_get_hosts_for_group,
@@ -257,7 +258,7 @@ def test_group_with_culle_hosts(
     assert response_status == 200
 
     # Confirm that the group now only contains 3 hosts
-    response_status, response_data = api_get(GROUP_URL + "/" + ",".join([str(group_id)]))
+    response_status, response_data = api_get(build_groups_url(str(group_id)))
     host_count = response_data["results"][0]["host_count"]
     assert host_count == 3
 

@@ -177,13 +177,9 @@ def _remove_culled_hosts(group):
 
     if len(group.hosts) > 0:
         for host in group.hosts:
-            stale_timestamp = host.stale_timestamp
-            current_time = datetime.now(tz=timezone.utc)
-
             staleness_delta = datetime.now(tz=timezone.utc) - host.stale_timestamp
             culling_delta = inventory_config().culling_culled_offset_delta
 
-            print((current_time - stale_timestamp).days - culling_delta.days)
             if staleness_delta > culling_delta:
                 group.hosts.remove(host)
                 print(f"number of hosts in the group: {len(group.hosts)}")
