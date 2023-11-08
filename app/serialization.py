@@ -2,10 +2,9 @@ from datetime import datetime
 from datetime import timezone
 
 from dateutil.parser import isoparse
+from flask import current_app
 from marshmallow import ValidationError
 
-from app.config import Config
-from app.environment import RuntimeEnvironment
 from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
 from app.models import CanonicalFactsSchema
@@ -53,9 +52,6 @@ ADDITIONAL_HOST_MQ_FIELDS = (
 )
 
 MAX_INT = 2147483647
-
-
-CULLING_DELTA = Config(RuntimeEnvironment.SERVER).culling_culled_offset_delta
 
 
 def deserialize_host(raw_data, schema=HostSchema, system_profile_spec=None):
@@ -182,7 +178,7 @@ def _get_unculled_hosts(group):
     hosts = []
     for host in group.hosts:
         staleness_delta = datetime.now(tz=timezone.utc) - host.stale_timestamp
-        if staleness_delta < CULLING_DELTA:
+        if staleness_delta < current_app.config["INVENTORY_CONFIG"].culling_culled_offset_delta:
             hosts.append(host)
 
     return hosts
