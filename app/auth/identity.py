@@ -89,8 +89,11 @@ class Identity:
             ident["account_number"] = self.account_number
 
         if self.identity_type == IdentityType.USER:
-            ident["user"] = self.user.copy()
+            if hasattr(self, "user"):
+                ident["user"] = self.user.copy()
+
             return ident
+
         if self.identity_type == IdentityType.SYSTEM:
             ident["system"] = self.system.copy()
             return ident

@@ -4,11 +4,14 @@ from copy import deepcopy
 import pytest
 from dateutil import parser
 
+from app.auth.identity import Identity
+from app.auth.identity import to_auth_header
 from tests.helpers.api_utils import assert_group_response
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import SYSTEM_IDENTITY
+from tests.helpers.test_utils import USER_IDENTITY
 
 
 @pytest.mark.parametrize(
@@ -84,10 +87,12 @@ def test_patch_group_happy_path(
     # Call count should be the num_hosts +1 since the first message is the existing host being removed
     assert event_producer.write_event.call_count == num_hosts + 1
     for call_arg in event_producer.write_event.call_args_list[1:]:
-        host = json.loads(call_arg[0][0])["host"]
+        event = json.loads(call_arg[0][0])
+        host = event["host"]
         assert host["id"] in host_id_list
         assert host["groups"][0]["id"] == str(group_id)
         assert "host_count" not in host["groups"][0]
+        assert event["platform_metadata"] == {"b64_identity": to_auth_header(Identity(obj=USER_IDENTITY))}
 
 
 def test_patch_group_wrong_org_id_for_group(
