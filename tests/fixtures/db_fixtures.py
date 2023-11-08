@@ -285,21 +285,6 @@ def db_create_staleness_culling(flask_app):
 
 
 @pytest.fixture(scope="function")
-def db_create_staleness_culling_1_second():
-    staleness_culling = db_staleness_culling(
-        conventional_staleness_delta=1,
-        conventional_stale_warning_delta=1,
-        conventional_culling_delta=1,
-        immutable_staleness_delta=1,
-        immutable_stale_warning_delta=1,
-        immutable_culling_delta=1,
-    )
-    db.session.add(staleness_culling)
-    db.session.commit()
-    return staleness_culling
-
-
-@pytest.fixture(scope="function")
 def db_delete_staleness_culling(flask_app):
     def _db_delete_staleness_culling(org_id):
         delete_query = db.session.query(Staleness).filter(Staleness.org_id == org_id)

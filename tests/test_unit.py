@@ -25,6 +25,7 @@ from api.host_query_db import _order_how
 from api.host_query_db import params_to_order_by
 from api.parsing import custom_fields_parser
 from api.parsing import customURIParser
+from api.staleness_query import get_sys_default_staleness
 from app import create_app
 from app import SPECIFICATION_FILE
 from app.auth.identity import from_auth_header
@@ -1520,8 +1521,8 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             setattr(host, k, v)
 
         config = CullingConfig(stale_warning_offset_delta=timedelta(days=7), culled_offset_delta=timedelta(days=14))
-        identity = Identity(USER_IDENTITY)
-        actual = serialize_host(host, Timestamps(config), False, ("tags",), identity=identity)
+        staleness = get_sys_default_staleness()
+        actual = serialize_host(host, Timestamps(config), False, ("tags",), staleness=staleness)
         expected = {
             **canonical_facts,
             **unchanged_data,
@@ -1575,9 +1576,9 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                 for k, v in host_attr_data.items():
                     setattr(host, k, v)
 
-                identity = Identity(USER_IDENTITY)
                 staleness_offset = staleness_timestamps()
-                actual = serialize_host(host, staleness_offset, False, ("tags",), identity=identity)
+                staleness = get_sys_default_staleness()
+                actual = serialize_host(host, staleness_offset, False, ("tags",), staleness=staleness)
                 expected = {
                     **host_init_data["canonical_facts"],
                     "insights_id": None,
@@ -1623,8 +1624,8 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                 config = CullingConfig(
                     timedelta(days=stale_warning_offset_seconds), timedelta(days=culled_offset_seconds)
                 )
-                identity = Identity(USER_IDENTITY)
-                serialized = serialize_host(host, Timestamps(config), False, identity=identity)
+                staleness = get_sys_default_staleness()
+                serialized = serialize_host(host, Timestamps(config), False, staleness=staleness)
                 self.assertEqual(
                     self._timestamp_to_str(self._add_seconds(host.modified_on, stale_warning_offset_seconds)),
                     serialized["stale_warning_timestamp"],
@@ -1685,8 +1686,8 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
             setattr(host, k, v)
 
         staleness_offset = staleness_timestamps()
-        identity = Identity(USER_IDENTITY)
-        actual = serialize_host(host, staleness_offset, False, ("tags",), identity=identity)
+        staleness = get_sys_default_staleness()
+        actual = serialize_host(host, staleness_offset, False, ("tags",), staleness=staleness)
         expected = {
             **canonical_facts,
             **unchanged_data,
