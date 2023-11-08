@@ -228,7 +228,7 @@ class Config:
             minutes=int(os.environ.get("CULLING_CULLED_OFFSET_MINUTES", "0")),
         )
 
-        self.conventional_staleness_seconds = os.environ.get("CONVENTIONAL_STALENESS_SECONDS", self.days_to_seconds(1))
+        self.conventional_staleness_seconds = os.environ.get("CONVENTIONAL_STALENESS_SECONDS", 104400)
 
         self.conventional_stale_warning_seconds = os.environ.get(
             "CONVENTIONAL_STALENESS_WARNING_SECONDS", self.days_to_seconds(7)
