@@ -1,5 +1,4 @@
 import pytest
-from flask import g
 
 from app import create_app
 from app import db
@@ -32,15 +31,3 @@ def flask_app(new_flask_app):
 def inventory_config(flask_app):
     yield flask_app.config["INVENTORY_CONFIG"]
     flask_app.config["INVENTORY_CONFIG"] = Config(RuntimeEnvironment.TEST)
-
-
-@pytest.fixture(scope="function")
-def clean_g():
-    """
-    This value is always set when lib.host_repository.get_staleness_obj is called
-    or when a new host is added/updated in MQ.
-
-    This fixture needs to be user on every test that uses a custom staleness.
-    """
-    if "acc_st" in g:
-        del g.acc_st
