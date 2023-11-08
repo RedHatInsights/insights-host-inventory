@@ -60,7 +60,7 @@ def test_update_fields(patch_doc, event_producer_mock, db_create_host, db_get_ho
     "canonical_facts", [{"insights_id": generate_uuid()}, {"insights_id": generate_uuid(), "fqdn": generate_uuid()}]
 )
 def test_checkin_canonical_facts(
-    event_datetime_mock, event_producer_mock, db_create_host, db_get_host, api_post, canonical_facts, clean_g
+    event_datetime_mock, event_producer_mock, db_create_host, db_get_host, api_post, canonical_facts
 ):
     created_host = db_create_host(extra_data={"canonical_facts": canonical_facts})
 
@@ -427,7 +427,7 @@ def test_add_facts_to_namespace_that_does_not_exist(db_create_multiple_hosts, ap
 
 @pytest.mark.system_culling
 def test_add_facts_to_multiple_culled_hosts(
-    db_create_multiple_hosts, db_get_hosts, api_patch, db_create_staleness_culling, event_producer_mock, clean_g
+    db_create_multiple_hosts, db_get_hosts, api_patch, db_create_staleness_culling, event_producer_mock
 ):
     with patch("app.models.datetime") as mock_datetime:
         mock_datetime.now.return_value = datetime(2023, 4, 2)

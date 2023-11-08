@@ -46,7 +46,7 @@ def test_tags_count_default_ignores_culled(mq_create_hosts_in_all_states, api_ge
     assert created_hosts["culled"].id not in tuple(response_data["results"].keys())
 
 
-def test_fail_patch_culled_host(db_create_staleness_culling_1_second, mq_create_deleted_hosts, api_patch, clean_g):
+def test_fail_patch_culled_host(db_create_staleness_culling_1_second, mq_create_deleted_hosts, api_patch):
     culled_host = mq_create_deleted_hosts["culled"]
 
     url = build_hosts_url(host_list_or_id=[culled_host])
@@ -250,7 +250,7 @@ def test_non_culled_host_is_not_removed(event_producer_mock, db_create_host, db_
 
 @pytest.mark.host_reaper
 def test_reaper_shutdown_handler(
-    db_create_host, db_get_hosts, inventory_config, event_producer_mock, db_create_staleness_culling_1_second, clean_g
+    db_create_host, db_get_hosts, inventory_config, event_producer_mock, db_create_staleness_culling_1_second
 ):
     with patch("app.models.datetime") as mock_datetime:
         mock_datetime.now.return_value = datetime(year=2023, month=4, day=2, hour=1, minute=1, second=1)
@@ -332,7 +332,6 @@ def test_reaper_stops_after_kafka_producer_error(
     inventory_config,
     mocker,
     db_create_staleness_culling_1_second,
-    clean_g,
 ):
     with patch("app.models.datetime") as mock_datetime:
         mock_datetime.now.return_value = datetime(year=2023, month=4, day=2, hour=1, minute=1, second=1)

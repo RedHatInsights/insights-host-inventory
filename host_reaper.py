@@ -1,7 +1,6 @@
 import sys
 from functools import partial
 
-from flask import g
 from prometheus_client import CollectorRegistry
 from prometheus_client import push_to_gateway
 from sqlalchemy import and_
@@ -88,9 +87,6 @@ def filter_culled_hosts_using_custom_staleness(logger, session):
                     find_hosts_by_staleness_reaper(["culled"], identity, HOST_TYPES),
                 )
             )
-            if "acc_st" in g:
-                logger.debug("Cleaning account staleness data in g global variable")
-                del g.acc_st
         return query_filters, org_ids
 
 
