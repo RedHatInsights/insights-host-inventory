@@ -1,4 +1,3 @@
-from flask import g
 from sqlalchemy.orm.exc import NoResultFound
 
 from app.auth import get_current_identity
@@ -9,51 +8,37 @@ from app.models import Staleness
 logger = get_logger(__name__)
 
 
-def get_staleness_obj(rbac_filter=None, identity=None):
-    # TODO: ESSNTL-5163
-    if rbac_filter:
-        pass
-
-    """
-        Uses flask g to store account staleness data
-        so it is made only 1 call to the DB.
-        This is useful in the hosts serialization,
-        specially when a list of hosts are fetched
-    """
-    if "acc_st" in g:
-        return g.acc_st
+def get_staleness_obj(identity=None):
+    if not identity:
+        org_id = get_current_identity().org_id
     else:
-        logger.debug("Account staleness data is not available in global request context")
-        if not identity:
-            org_id = get_current_identity().org_id
-        else:
-            org_id = identity.org_id
-        try:
-            filters = (Staleness.org_id == org_id,)
-            acc_st = Staleness.query.filter(*filters).one()
-            logger.info("Using custom account staleness")
-            logger.debug("Setting account staleness data to global request context")
-            g.acc_st = _build_serialized_acc_staleness_obj(acc_st)
-        except NoResultFound:
-            logger.info(f"No data found for user {org_id}, using system default values")
-            acc_st = _build_staleness_sys_default(org_id)
-            logger.debug("Setting account staleness data to global request context")
-            g.acc_st = acc_st
-            return g.acc_st
+        org_id = identity.org_id
+    try:
+        filters = (Staleness.org_id == org_id,)
+        acc_st = Staleness.query.filter(*filters).one()
+        logger.info("Using custom account staleness")
+        logger.debug("Setting account staleness data to global request context")
+        acc_st = _build_serialized_acc_staleness_obj(acc_st)
+    except NoResultFound:
+        logger.info(f"No data found for user {org_id}, using system default values")
+        acc_st = _build_staleness_sys_default(org_id)
+        return acc_st
 
-        return g.acc_st
-
-
-def get_sys_default_staleness():
-    org_id = "000000"
-    acc_st = _build_staleness_sys_default(org_id)
     return acc_st
 
 
-def _build_staleness_sys_default(org_id):
-    from app import inventory_config
+def get_sys_default_staleness(config=None):
+    org_id = "000000"
+    acc_st = _build_staleness_sys_default(org_id, config)
+    return acc_st
 
-    config = inventory_config()
+
+def _build_staleness_sys_default(org_id, config=None):
+    if not config:
+        from app import inventory_config
+
+        config = inventory_config()
+
     return AttrDict(
         {
             "id": "system_default",
