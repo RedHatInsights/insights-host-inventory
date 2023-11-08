@@ -334,14 +334,14 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
         return flask.abort(status.HTTP_404_NOT_FOUND, "Requested host not found.")
 
     identity = get_current_identity()
-    custom_staleness = get_staleness_obj(identity)
+    staleness = get_staleness_obj(identity)
 
     for host in hosts_to_update:
         host.patch(validated_patch_host_data)
 
         if db.session.is_modified(host):
             db.session.commit()
-            serialized_host = serialize_host(host, staleness_timestamps(), custom_staleness=custom_staleness)
+            serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
             _emit_patch_event(serialized_host, host)
 
     log_patch_host_success(logger, host_id_list)
@@ -400,7 +400,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
         logger.debug(error_msg)
         return error_msg, 400
 
-    custom_staleness = get_staleness_obj(current_identity)
+    staleness = get_staleness_obj(current_identity)
 
     for host in hosts_to_update:
         if operation is FactOperations.replace:
@@ -410,7 +410,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
 
         if db.session.is_modified(host):
             db.session.commit()
-            serialized_host = serialize_host(host, staleness_timestamps(), custom_staleness=custom_staleness)
+            serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
             _emit_patch_event(serialized_host, host)
 
     logger.debug("hosts_to_update:%s", hosts_to_update)
@@ -450,11 +450,11 @@ def host_checkin(body, rbac_filter=None):
     current_identity = get_current_identity()
     canonical_facts = deserialize_canonical_facts(body)
     existing_host = find_existing_host(current_identity, canonical_facts)
-    custom_staleness = get_staleness_obj(current_identity)
+    staleness = get_staleness_obj(current_identity)
     if existing_host:
         existing_host._update_modified_date()
         db.session.commit()
-        serialized_host = serialize_host(existing_host, staleness_timestamps(), custom_staleness=custom_staleness)
+        serialized_host = serialize_host(existing_host, staleness_timestamps(), staleness=staleness)
         _emit_patch_event(serialized_host, existing_host)
         return flask_json_response(serialized_host, 201)
     else:

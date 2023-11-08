@@ -11,7 +11,6 @@ from sqlalchemy.orm import sessionmaker
 from app import create_app
 from app.auth.identity import create_mock_identity_with_org_id
 from app.config import Config
-from app.config import HOST_TYPES
 from app.environment import RuntimeEnvironment
 from app.instrumentation import log_host_delete_failed
 from app.instrumentation import log_host_delete_succeeded
@@ -84,18 +83,17 @@ def filter_culled_hosts_using_custom_staleness(logger, session):
             query_filters.append(
                 and_(
                     (Host.org_id == staleness_obj.org_id),
-                    find_hosts_by_staleness_reaper(["culled"], identity, HOST_TYPES),
+                    find_hosts_by_staleness_reaper(["culled"], identity),
                 )
             )
         return query_filters, org_ids
 
 
-def filter_culled_hosts_using_sys_default_staleness(logger, org_ids, query_filters):
+def filter_culled_hosts_using_sys_default_staleness(logger, org_ids):
     # Use the hosts_ids_list to exclude hosts that were found with custom staleness
     with app.app_context():
         logger.debug("Looking for hosts that use system default staleness")
-        query_filters.append(and_(~Host.org_id.in_(org_ids), find_hosts_sys_default_staleness(["culled"], HOST_TYPES)))
-        return query_filters
+        return and_(~Host.org_id.in_(org_ids), find_hosts_sys_default_staleness(["culled"]))
 
 
 def find_hosts_to_delete(logger, session):
@@ -104,7 +102,7 @@ def find_hosts_to_delete(logger, session):
 
     # Find all host ids that are not using custom staleness,
     # excluding the hosts for the org_ids that use custom staleness
-    query_filters = filter_culled_hosts_using_sys_default_staleness(logger, org_ids, query_filters)
+    query_filters.append(filter_culled_hosts_using_sys_default_staleness(logger, org_ids))
 
     return query_filters
 

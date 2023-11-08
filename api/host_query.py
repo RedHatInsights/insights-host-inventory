@@ -12,10 +12,10 @@ def build_paginated_host_list_response(
 ):
     timestamps = staleness_timestamps()
     identity = get_current_identity()
-    custom_staleness = get_staleness_obj(identity)
+    staleness = get_staleness_obj(identity)
 
     json_host_list = [
-        serialize_host(host, timestamps, False, additional_fields, custom_staleness, system_profile_fields)
+        serialize_host(host, timestamps, False, additional_fields, staleness, system_profile_fields)
         for host in host_list
     ]
     return {

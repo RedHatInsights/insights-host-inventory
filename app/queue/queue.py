@@ -224,9 +224,9 @@ def update_system_profile(host_data, platform_metadata, operation_args={}):
             input_host.id = host_data.get("id")
             staleness_timestamps = Timestamps.from_config(inventory_config())
             identity = create_mock_identity_with_org_id(input_host.org_id)
-            custom_staleness = get_staleness_obj(identity)
+            staleness = get_staleness_obj(identity)
             output_host, host_id, insights_id, update_result = host_repository.update_system_profile(
-                input_host, identity, staleness_timestamps, custom_staleness=custom_staleness
+                input_host, identity, staleness_timestamps, staleness=staleness
             )
             log_update_system_profile_success(logger, output_host)
             payload_tracker_processing_ctx.inventory_id = output_host["id"]

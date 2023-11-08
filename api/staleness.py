@@ -65,12 +65,12 @@ def _validate_input_data(body):
 @metrics.api_request_time.time()
 def get_staleness():
     try:
-        acc_st = get_staleness_obj()
-        acc_st = serialize_staleness_response(acc_st)
+        staleness = get_staleness_obj()
+        staleness = serialize_staleness_response(staleness)
     except ValueError as e:
         abort(status.HTTP_400_BAD_REQUEST, str(e))
 
-    return flask_json_response(acc_st, status.HTTP_200_OK)
+    return flask_json_response(staleness, status.HTTP_200_OK)
 
 
 @api_operation
@@ -79,12 +79,12 @@ def get_staleness():
 @metrics.api_request_time.time()
 def get_default_staleness():
     try:
-        acc_st = get_sys_default_staleness()
-        acc_st = serialize_staleness_response(acc_st)
+        staleness = get_sys_default_staleness()
+        staleness = serialize_staleness_response(staleness)
     except ValueError as e:
         abort(status.HTTP_400_BAD_REQUEST, str(e))
 
-    return flask_json_response(acc_st, status.HTTP_200_OK)
+    return flask_json_response(staleness, status.HTTP_200_OK)
 
 
 @api_operation
