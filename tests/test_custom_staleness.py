@@ -44,7 +44,6 @@ CUSTOM_STALENESS_NO_HOSTS_TO_DELETE = {
 
 
 def test_delete_only_immutable_hosts(
-    clean_g,
     db_create_staleness_culling,
     inventory_config,
     db_create_multiple_hosts,
@@ -73,7 +72,6 @@ def test_delete_only_immutable_hosts(
 
 
 def test_delete_only_conventional_hosts(
-    clean_g,
     db_create_staleness_culling,
     inventory_config,
     db_create_multiple_hosts,
@@ -102,7 +100,6 @@ def test_delete_only_conventional_hosts(
 
 
 def test_delete_conventional_immutable_hosts(
-    clean_g,
     db_create_staleness_culling,
     inventory_config,
     db_create_multiple_hosts,
@@ -131,7 +128,6 @@ def test_delete_conventional_immutable_hosts(
 
 
 def test_no_hosts_to_delete(
-    clean_g,
     db_create_staleness_culling,
     inventory_config,
     db_create_multiple_hosts,

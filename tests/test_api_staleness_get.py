@@ -4,7 +4,7 @@ from tests.helpers.api_utils import build_staleness_url
 from tests.helpers.api_utils import build_sys_default_staleness_url
 
 
-def test_get_default_staleness(api_get, clean_g):
+def test_get_default_staleness(api_get):
     url = build_staleness_url()
     response_status, response_data = api_get(url)
     assert_response_status(response_status, 200)
@@ -24,7 +24,7 @@ def test_get_default_staleness(api_get, clean_g):
     assert response_data["immutable_culling_delta"] == expected_result["immutable_culling_delta"]
 
 
-def test_get_custom_staleness(api_create_staleness, api_get, clean_g):
+def test_get_custom_staleness(api_create_staleness, api_get):
     created_response_status, _ = api_create_staleness(_INPUT_DATA)
     url = build_staleness_url()
     response_status, response_data = api_get(url)
