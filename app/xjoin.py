@@ -11,7 +11,7 @@ from app import IDENTITY_HEADER
 from app import REQUEST_ID_HEADER
 from app.config import HOST_TYPES
 from app.culling import staleness_to_conditions
-from app.serialization import serialize_staleness
+from app.serialization import serialize_staleness_to_dict
 
 __all__ = (
     "graphql_query",
@@ -88,9 +88,9 @@ def params_to_order(param_order_by, param_order_how):
 
 
 def staleness_filter(staleness):
-    acc_st = serialize_staleness(get_staleness_obj())
+    staleness_obj = serialize_staleness_to_dict(get_staleness_obj())
     staleness_conditions = [
-        {"OR": tuple(staleness_to_conditions(acc_st, staleness, host_type, _stale_timestamp_filter))}
+        {"OR": tuple(staleness_to_conditions(staleness_obj, staleness, host_type, _stale_timestamp_filter))}
         for host_type in HOST_TYPES
     ]
     return staleness_conditions
