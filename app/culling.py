@@ -42,7 +42,6 @@ class Conditions:
         self.now = datetime.now(timezone.utc)
         self.host_type = host_type
 
-        # Build this dictionary dynamically?
         self.staleness_host_type = {
             None: {
                 "stale": staleness["conventional_staleness_delta"],
@@ -83,15 +82,8 @@ class Conditions:
         offset = timedelta(seconds=self.staleness_host_type[self.host_type]["culled"])
         return self.now - offset
 
-    @staticmethod
-    def _sub_time(timestamp, delta):
-        return timestamp - delta
-
 
 def staleness_to_conditions(staleness, staleness_states, host_type, timestamp_filter_func):
-    _filters = []
     condition = Conditions(staleness, host_type)
     filtered_states = (state for state in staleness_states)
-    for state in filtered_states:
-        _filters.append(timestamp_filter_func(*getattr(condition, state)(), host_type=host_type))
-    return _filters
+    return (timestamp_filter_func(*getattr(condition, state)(), host_type=host_type) for state in filtered_states)
