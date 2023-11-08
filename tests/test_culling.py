@@ -46,7 +46,7 @@ def test_tags_count_default_ignores_culled(mq_create_hosts_in_all_states, api_ge
     assert created_hosts["culled"].id not in tuple(response_data["results"].keys())
 
 
-def test_fail_patch_culled_host(db_create_staleness_culling_1_second, mq_create_deleted_hosts, api_patch):
+def test_fail_patch_culled_host(mq_create_deleted_hosts, api_patch):
     culled_host = mq_create_deleted_hosts["culled"]
 
     url = build_hosts_url(host_list_or_id=[culled_host])
@@ -64,7 +64,7 @@ def test_patch_works_on_non_culled(mq_create_hosts_in_all_states, api_patch):
     assert response_status == 200
 
 
-def test_patch_facts_ignores_culled(db_create_staleness_culling_1_second, mq_create_deleted_hosts, api_patch):
+def test_patch_facts_ignores_culled(mq_create_deleted_hosts, api_patch):
     culled_host = mq_create_deleted_hosts["culled"]
     url = build_facts_url(host_list_or_id=[culled_host], namespace="ns1")
     response_status, response_data = api_patch(url, {"ARCHITECTURE": "patched"})
@@ -81,7 +81,7 @@ def test_patch_facts_works_on_non_culled(mq_create_hosts_in_all_states, api_patc
     assert response_status == 200
 
 
-def test_put_facts_ignores_culled(db_create_staleness_culling_1_second, mq_create_deleted_hosts, api_put):
+def test_put_facts_ignores_culled(mq_create_deleted_hosts, api_put):
     culled_host = mq_create_deleted_hosts["culled"]
 
     url = build_facts_url(host_list_or_id=[culled_host], namespace="ns1")
@@ -100,7 +100,7 @@ def test_put_facts_works_on_non_culled(mq_create_hosts_in_all_states, api_put):
     assert response_status == 200
 
 
-def test_delete_ignores_culled(db_create_staleness_culling_1_second, mq_create_deleted_hosts, api_delete_host):
+def test_delete_ignores_culled(mq_create_deleted_hosts, api_delete_host):
     culled_host = mq_create_deleted_hosts["culled"]
 
     response_status, response_data = api_delete_host(culled_host.id)
@@ -159,7 +159,6 @@ def test_culled_host_is_removed(
     db_create_host,
     db_get_host,
     inventory_config,
-    db_create_staleness_culling_1_second,
 ):
     with patch("app.models.datetime") as mock_datetime:
         mock_datetime.now.return_value = datetime(year=2023, month=4, day=2, hour=1, minute=1, second=1)
@@ -249,9 +248,7 @@ def test_non_culled_host_is_not_removed(event_producer_mock, db_create_host, db_
 
 
 @pytest.mark.host_reaper
-def test_reaper_shutdown_handler(
-    db_create_host, db_get_hosts, inventory_config, event_producer_mock, db_create_staleness_culling_1_second
-):
+def test_reaper_shutdown_handler(db_create_host, db_get_hosts, inventory_config, event_producer_mock):
     with patch("app.models.datetime") as mock_datetime:
         mock_datetime.now.return_value = datetime(year=2023, month=4, day=2, hour=1, minute=1, second=1)
         mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
@@ -331,7 +328,6 @@ def test_reaper_stops_after_kafka_producer_error(
     db_get_hosts,
     inventory_config,
     mocker,
-    db_create_staleness_culling_1_second,
 ):
     with patch("app.models.datetime") as mock_datetime:
         mock_datetime.now.return_value = datetime(year=2023, month=4, day=2, hour=1, minute=1, second=1)
