@@ -67,7 +67,15 @@ def test_create_group_with_hosts(
         assert parser.isoparse(host["updated"]) == db_get_host(host["id"]).modified_on
 
 
-def test_create_group_invalid_name(api_create_group):
+@pytest.mark.parametrize(
+    "new_name",
+    [
+        "",
+        "  ",
+        "  ",
+    ],
+)
+def test_create_group_invalid_name(api_create_group, new_name):
     group_data = {"name": "", "host_ids": []}
 
     response_status, _ = api_create_group(group_data)
@@ -84,10 +92,15 @@ def test_create_group_null_name(api_create_group):
     assert "Group name cannot be null" in response_data["detail"]
 
 
-def test_create_group_taken_name(api_create_group):
+@pytest.mark.parametrize(
+    "new_name",
+    ["test_group", " test_group", "test_group ", " test_group "],
+)
+def test_create_group_taken_name(api_create_group, new_name):
     group_data = {"name": "test_group", "host_ids": []}
 
-    response_status, _ = api_create_group(group_data)
+    api_create_group(group_data)
+    group_data["name"] = new_name
     response_status, response_data = api_create_group(group_data)
 
     assert_response_status(response_status, expected_status=400)

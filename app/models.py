@@ -831,6 +831,13 @@ class InputGroupSchema(MarshmallowSchema):
     name = fields.Str(validate=marshmallow_validate.Length(min=1, max=255))
     host_ids = fields.List(fields.Str(validate=verify_uuid_format))
 
+    @pre_load
+    def strip_whitespace_from_name(self, in_data, **kwargs):
+        if "name" in in_data:
+            in_data["name"] = in_data["name"].strip()
+
+        return in_data
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
