@@ -5,12 +5,12 @@ import uuid
 from copy import deepcopy
 from uuid import UUID
 
-from flask import g
 from marshmallow import fields
 from marshmallow import Schema
 from marshmallow import ValidationError
 from sqlalchemy.exc import OperationalError
 
+from api.staleness_query import get_staleness_obj
 from app import inventory_config
 from app.auth.identity import create_mock_identity_with_org_id
 from app.auth.identity import Identity
@@ -42,7 +42,6 @@ from app.queue.notifications import NotificationType
 from app.serialization import deserialize_canonical_facts
 from app.serialization import deserialize_host
 from lib import host_repository
-
 
 logger = get_logger(__name__)
 
@@ -225,8 +224,9 @@ def update_system_profile(host_data, platform_metadata, operation_args={}):
             input_host.id = host_data.get("id")
             staleness_timestamps = Timestamps.from_config(inventory_config())
             identity = create_mock_identity_with_org_id(input_host.org_id)
+            custom_staleness = get_staleness_obj(identity)
             output_host, host_id, insights_id, update_result = host_repository.update_system_profile(
-                input_host, identity, staleness_timestamps
+                input_host, identity, staleness_timestamps, custom_staleness=custom_staleness
             )
             log_update_system_profile_success(logger, output_host)
             payload_tracker_processing_ctx.inventory_id = output_host["id"]
@@ -341,13 +341,6 @@ def event_loop(consumer, flask_app, event_producer, notification_event_producer,
                     metrics.ingress_message_handler_failure.inc()
                 else:
                     logger.debug("Message received")
-
-                    # There is a need to delete this global variable,
-                    # as it is not an API request, it will live forever
-                    # when set once
-                    if "acc_st" in g:
-                        logger.debug("Cleaning account staleness data in g global variable")
-                        del g.acc_st
 
                     try:
                         handler(msg.value(), event_producer, notification_event_producer=notification_event_producer)

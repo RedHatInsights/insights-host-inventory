@@ -5,7 +5,6 @@ from dateutil.parser import isoparse
 from flask import current_app
 from marshmallow import ValidationError
 
-from api.staleness_query import get_staleness_obj
 from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
 from app.models import CanonicalFactsSchema
@@ -113,27 +112,34 @@ def deserialize_group_xjoin(data):
 
 
 def serialize_host(
-    host, staleness_timestamps, for_mq=True, additional_fields=tuple(), identity=None, system_profile_fields=None
+    host,
+    staleness_timestamps,
+    for_mq=True,
+    additional_fields=tuple(),
+    custom_staleness=None,
+    system_profile_fields=None,
 ):
     # TODO: In future, this must handle groups staleness deltas
 
-    acc_st = serialize_staleness(get_staleness_obj(identity=identity))
-
     if host.system_profile_facts.get("host_type") == "edge":
-        stale_timestamp = staleness_timestamps.stale_timestamp(host.modified_on, acc_st["immutable_staleness_delta"])
-        stale_warning_timestamp = staleness_timestamps.stale_warning_timestamp(
-            host.modified_on, acc_st["immutable_stale_warning_delta"]
-        )
-        culled_timestamp = staleness_timestamps.culled_timestamp(host.modified_on, acc_st["immutable_culling_delta"])
-    else:
         stale_timestamp = staleness_timestamps.stale_timestamp(
-            host.modified_on, acc_st["conventional_staleness_delta"]
+            host.modified_on, custom_staleness["immutable_staleness_delta"]
         )
         stale_warning_timestamp = staleness_timestamps.stale_warning_timestamp(
-            host.modified_on, acc_st["conventional_stale_warning_delta"]
+            host.modified_on, custom_staleness["immutable_stale_warning_delta"]
         )
         culled_timestamp = staleness_timestamps.culled_timestamp(
-            host.modified_on, acc_st["conventional_culling_delta"]
+            host.modified_on, custom_staleness["immutable_culling_delta"]
+        )
+    else:
+        stale_timestamp = staleness_timestamps.stale_timestamp(
+            host.modified_on, custom_staleness["conventional_staleness_delta"]
+        )
+        stale_warning_timestamp = staleness_timestamps.stale_warning_timestamp(
+            host.modified_on, custom_staleness["conventional_stale_warning_delta"]
+        )
+        culled_timestamp = staleness_timestamps.culled_timestamp(
+            host.modified_on, custom_staleness["conventional_culling_delta"]
         )
 
     serialized_host = {**serialize_canonical_facts(host.canonical_facts)}

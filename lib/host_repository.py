@@ -8,7 +8,6 @@ from sqlalchemy import or_
 from api.staleness_query import get_staleness_obj
 from api.staleness_query import get_sys_default_staleness
 from app.auth import get_current_identity
-from app.auth.identity import create_mock_identity_with_org_id
 from app.auth.identity import IdentityType
 from app.config import HOST_TYPES
 from app.culling import staleness_to_conditions
@@ -61,7 +60,7 @@ def add_host(input_host, identity, staleness_offset, update_system_profile=True,
     """
     with session_guard(db.session):
         existing_host = find_existing_host(identity, input_host.canonical_facts)
-
+        custom_staleness = get_staleness_obj(identity)
         if existing_host:
             defer_to_reporter = operation_args.get("defer_to_reporter", None)
             if defer_to_reporter is not None:
@@ -70,9 +69,11 @@ def add_host(input_host, identity, staleness_offset, update_system_profile=True,
                     logger.debug("host_repository.add_host: setting update_system_profile = False")
                     update_system_profile = False
 
-            return update_existing_host(existing_host, input_host, staleness_offset, update_system_profile)
+            return update_existing_host(
+                existing_host, input_host, staleness_offset, update_system_profile, custom_staleness=custom_staleness
+            )
         else:
-            return create_new_host(input_host, staleness_offset)
+            return create_new_host(input_host, staleness_offset, custom_staleness=custom_staleness)
 
 
 @metrics.host_dedup_processing_time.time()
@@ -191,7 +192,7 @@ def find_non_culled_hosts(query, identity=None):
 
 
 @metrics.new_host_commit_processing_time.time()
-def create_new_host(input_host, staleness_offset):
+def create_new_host(input_host, staleness_offset, custom_staleness):
     logger.debug("Creating a new host")
 
     input_host.save()
@@ -200,14 +201,14 @@ def create_new_host(input_host, staleness_offset):
     metrics.create_host_count.inc()
     logger.debug("Created host:%s", input_host)
 
-    output_host = serialize_host(input_host, staleness_offset)
+    output_host = serialize_host(input_host, staleness_offset, custom_staleness=custom_staleness)
     insights_id = input_host.canonical_facts.get("insights_id")
 
     return output_host, input_host.id, insights_id, AddHostResult.created
 
 
 @metrics.update_host_commit_processing_time.time()
-def update_existing_host(existing_host, input_host, staleness_offset, update_system_profile):
+def update_existing_host(existing_host, input_host, staleness_offset, update_system_profile, custom_staleness):
     logger.debug("Updating an existing host")
     logger.debug(f"existing host = {existing_host}")
 
@@ -216,8 +217,7 @@ def update_existing_host(existing_host, input_host, staleness_offset, update_sys
 
     metrics.update_host_count.inc()
     logger.debug("Updated host:%s", existing_host)
-    identity = create_mock_identity_with_org_id(existing_host.org_id)
-    output_host = serialize_host(existing_host, staleness_offset, identity=identity)
+    output_host = serialize_host(existing_host, staleness_offset, custom_staleness=custom_staleness)
     insights_id = existing_host.canonical_facts.get("insights_id")
 
     return output_host, existing_host.id, insights_id, AddHostResult.updated
@@ -277,7 +277,7 @@ def update_query_for_owner_id(identity, query):
         return query
 
 
-def update_system_profile(input_host, identity, staleness_offset):
+def update_system_profile(input_host, identity, staleness_offset, custom_staleness):
     if not input_host.system_profile_facts:
         raise InventoryException(
             title="Invalid request", detail="Cannot update System Profile, since no System Profile data was provided."
@@ -299,7 +299,7 @@ def update_system_profile(input_host, identity, staleness_offset):
             metrics.update_host_count.inc()
             logger.debug("Updated system profile for host:%s", existing_host)
 
-            output_host = serialize_host(existing_host, staleness_offset)
+            output_host = serialize_host(existing_host, staleness_offset, custom_staleness=custom_staleness)
             insights_id = existing_host.canonical_facts.get("insights_id")
             return output_host, existing_host.id, insights_id, AddHostResult.updated
         else:
