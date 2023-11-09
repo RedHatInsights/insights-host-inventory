@@ -1,6 +1,8 @@
+from datetime import datetime
 from datetime import timezone
 
 from dateutil.parser import isoparse
+from flask import current_app
 from marshmallow import ValidationError
 
 from app.exceptions import InputFormatException
@@ -171,13 +173,25 @@ def serialize_host(host, staleness_timestamps, for_mq=True, additional_fields=tu
     return serialized_host
 
 
+# get hosts not marked for deletion
+def _get_unculled_hosts(group):
+    hosts = []
+    for host in group.hosts:
+        staleness_delta = datetime.now(tz=timezone.utc) - host.stale_timestamp
+        if staleness_delta < current_app.config["INVENTORY_CONFIG"].culling_culled_offset_delta:
+            hosts.append(host)
+
+    return hosts
+
+
 def serialize_group(group):
+    unculled_hosts = _get_unculled_hosts(group)
     return {
         "id": _serialize_uuid(group.id),
         "org_id": group.org_id,
         "account": group.account,
         "name": group.name,
-        "host_count": len(group.hosts),
+        "host_count": len(unculled_hosts),
         "created": _serialize_datetime(group.created_on),
         "updated": _serialize_datetime(group.modified_on),
     }
