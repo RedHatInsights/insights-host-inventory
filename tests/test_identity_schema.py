@@ -42,8 +42,13 @@ def test_validate_valid_identity_schema(identity):
     identity_test_common(identity)
 
 
-def test_validate_valid_user_identity_schema():
-    result = IdentitySchema().load(USER_IDENTITY)
+@pytest.mark.parametrize("remove_acct_number", [True, False])
+def test_validate_valid_user_identity_schema(remove_acct_number):
+    identity = copy.deepcopy(USER_IDENTITY)
+    if remove_acct_number:
+        identity.pop("account_number")
+
+    result = IdentitySchema().load(identity)
 
     if "user" in result:
         assert type(result.get("user")) is dict
