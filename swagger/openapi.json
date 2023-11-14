@@ -1870,18 +1870,16 @@
             "enum": [
               "fresh",
               "stale",
-              "stale_warning",
-              "unknown"
+              "stale_warning"
             ]
           },
           "default": [
             "fresh",
             "stale",
-            "stale_warning",
-            "unknown"
+            "stale_warning"
           ]
         },
-        "description": "Culling states of the hosts. Default: fresh,stale,unknown"
+        "description": "Culling states of the hosts. Default: fresh, stale and stale_warning"
       },
       "stalenessNoDefaultsParam": {
         "name": "staleness",
@@ -1894,8 +1892,7 @@
             "enum": [
               "fresh",
               "stale",
-              "stale_warning",
-              "unknown"
+              "stale_warning"
             ]
           }
         },

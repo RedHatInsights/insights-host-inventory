@@ -1,3 +1,6 @@
+from datetime import datetime
+from unittest.mock import patch
+
 import pytest
 
 from tests.helpers.api_utils import assert_error_response
@@ -120,19 +123,22 @@ def test_replace_empty_facts_on_multiple_hosts(db_create_multiple_hosts, db_get_
 
 
 @pytest.mark.system_culling
-def test_replace_facts_on_multiple_culled_hosts(db_create_multiple_hosts, db_get_hosts, api_put):
-    staleness_timestamps = get_staleness_timestamps()
+def test_replace_facts_on_multiple_culled_hosts(db_create_multiple_hosts, api_put):
+    with patch("app.models.datetime") as mock_datetime:
+        mock_datetime.now.return_value = datetime(year=2023, month=4, day=2)
+        mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
 
-    created_hosts = db_create_multiple_hosts(
-        how_many=2, extra_data={"facts": DB_FACTS, "stale_timestamp": staleness_timestamps["culled"]}
-    )
+        staleness_timestamps = get_staleness_timestamps()
 
-    facts_url = build_facts_url(host_list_or_id=created_hosts, namespace=DB_FACTS_NAMESPACE)
+        created_hosts = db_create_multiple_hosts(
+            how_many=2, extra_data={"facts": DB_FACTS, "stale_timestamp": staleness_timestamps["culled"]}
+        )
 
-    # Try to replace the facts on a host that has been marked as culled
-    response_status, response_data = api_put(facts_url, DB_NEW_FACTS)
+        facts_url = build_facts_url(host_list_or_id=created_hosts, namespace=DB_FACTS_NAMESPACE)
 
-    assert_response_status(response_status, expected_status=400)
+        # Try to replace the facts on a host that has been marked as culled
+        response_status, response_data = api_put(facts_url, DB_NEW_FACTS)
+        assert_response_status(response_status, expected_status=400)
 
 
 def test_put_facts_with_RBAC_allowed(subtests, mocker, api_put, db_create_host, enable_rbac, event_producer_mock):
