@@ -8,6 +8,8 @@ from app.logging import get_logger
 
 PRODUCER_ACKS = {"0": 0, "1": 1, "all": "all"}
 
+HOST_TYPES = ["edge", None]
+
 
 class Config:
     SSL_VERIFY_FULL = "verify-full"
@@ -228,21 +230,23 @@ class Config:
             minutes=int(os.environ.get("CULLING_CULLED_OFFSET_MINUTES", "0")),
         )
 
-        self.conventional_staleness_seconds = os.environ.get("CONVENTIONAL_STALENESS_SECONDS", 104400)
+        self.conventional_staleness_seconds = int(os.environ.get("CONVENTIONAL_STALENESS_SECONDS", 104400))  # 29 hours
 
         self.conventional_stale_warning_seconds = os.environ.get(
             "CONVENTIONAL_STALENESS_WARNING_SECONDS", self.days_to_seconds(7)
         )
 
-        self.conventional_culling_seconds = os.environ.get("CONVENTIONAL_CULLING_SECONDS", self.days_to_seconds(14))
-
-        self.immutable_staleness_seconds = os.environ.get("IMMUTABLE_STALENESS_SECONDS", self.days_to_seconds(2))
-
-        self.immutable_stale_warning_seconds = os.environ.get(
-            "IMMUTABLE_STALENESS_WARNING_SECONDS", self.days_to_seconds(120)
+        self.conventional_culling_seconds = int(
+            os.environ.get("CONVENTIONAL_CULLING_SECONDS", self.days_to_seconds(14))
         )
 
-        self.immutable_culling_seconds = os.environ.get("IMMUTABLE_CULLING_SECONDS", self.days_to_seconds(180))
+        self.immutable_staleness_seconds = int(os.environ.get("IMMUTABLE_STALENESS_SECONDS", self.days_to_seconds(2)))
+
+        self.immutable_stale_warning_seconds = int(
+            os.environ.get("IMMUTABLE_STALENESS_WARNING_SECONDS", self.days_to_seconds(120))
+        )
+
+        self.immutable_culling_seconds = int(os.environ.get("IMMUTABLE_CULLING_SECONDS", self.days_to_seconds(180)))
 
         self.xjoin_graphql_url = os.environ.get("XJOIN_GRAPHQL_URL", "http://localhost:4000/graphql")
 

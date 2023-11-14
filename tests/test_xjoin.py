@@ -103,10 +103,20 @@ def test_query_all_hosts(mocker, graphql_query_empty_response, api_get):
             "filter": (
                 {
                     "OR": (
-                        {"stale_timestamp": mocker.ANY},
-                        {"stale_timestamp": mocker.ANY},
-                        {"stale_timestamp": mocker.ANY},
-                        {"stale_timestamp": mocker.ANY},
+                        {
+                            "OR": (
+                                {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},
+                                {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},
+                                {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},
+                            )
+                        },
+                        {
+                            "OR": (
+                                {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},
+                                {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},
+                                {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},
+                            )
+                        },
                     )
                 },
             ),
@@ -568,7 +578,6 @@ def test_query_variables_ordering_dir(direction, mocker, graphql_query_empty_res
         ("updated", "modified_on", "DESC"),
         ("display_name", "display_name", "ASC"),
         ("operating_system", "operating_system", "DESC"),
-        ("group_name", "group_name", "ASC"),
     ),
 )
 def test_query_variables_ordering_by(
@@ -673,10 +682,93 @@ def test_query_variables_default_except_staleness(mocker, graphql_query_empty_re
 @pytest.mark.parametrize(
     "staleness,expected",
     (
-        ("fresh", {"gt": "2019-12-16T10:10:06.754201+00:00"}),
-        ("stale", {"gt": "2019-12-09T10:10:06.754201+00:00", "lte": "2019-12-16T10:10:06.754201+00:00"}),
-        ("stale_warning", {"gt": "2019-12-02T10:10:06.754201+00:00", "lte": "2019-12-09T10:10:06.754201+00:00"}),
-        ("unknown", {"eq": None}),
+        (
+            "fresh",
+            (
+                {
+                    "OR": (
+                        {
+                            "AND": {
+                                "modified_on": {"gt": "2019-12-14T10:10:06.754201+00:00"},
+                                "spf_host_type": {"eq": "edge"},
+                            }
+                        },
+                    )
+                },
+                {
+                    "OR": (
+                        {
+                            "AND": {
+                                "modified_on": {"gt": "2019-12-15T05:10:06.754201+00:00"},
+                                "spf_host_type": {"eq": None},
+                            }
+                        },
+                    )
+                },
+            ),
+        ),
+        (
+            "stale",
+            (
+                {
+                    "OR": (
+                        {
+                            "AND": {
+                                "modified_on": {
+                                    "gt": "2019-08-18T10:10:06.754201+00:00",
+                                    "lte": "2019-12-14T10:10:06.754201+00:00",
+                                },
+                                "spf_host_type": {"eq": "edge"},
+                            }
+                        },
+                    )
+                },
+                {
+                    "OR": (
+                        {
+                            "AND": {
+                                "modified_on": {
+                                    "gt": "2019-12-09T10:10:06.754201+00:00",
+                                    "lte": "2019-12-15T05:10:06.754201+00:00",
+                                },
+                                "spf_host_type": {"eq": None},
+                            }
+                        },
+                    )
+                },
+            ),
+        ),
+        (
+            "stale_warning",
+            (
+                {
+                    "OR": (
+                        {
+                            "AND": {
+                                "modified_on": {
+                                    "gt": "2019-06-19T10:10:06.754201+00:00",
+                                    "lte": "2019-08-18T10:10:06.754201+00:00",
+                                },
+                                "spf_host_type": {"eq": "edge"},
+                            }
+                        },
+                    )
+                },
+                {
+                    "OR": (
+                        {
+                            "AND": {
+                                "modified_on": {
+                                    "gt": "2019-12-02T10:10:06.754201+00:00",
+                                    "lte": "2019-12-09T10:10:06.754201+00:00",
+                                },
+                                "spf_host_type": {"eq": None},
+                            }
+                        },
+                    )
+                },
+            ),
+        ),
     ),
 )
 def test_query_variables_staleness(
@@ -687,7 +779,7 @@ def test_query_variables_staleness(
 
     assert response_status == 200
 
-    assert_graph_query_single_call_with_staleness(mocker, graphql_query_empty_response, (expected,))
+    assert_graph_query_single_call_with_staleness(mocker, graphql_query_empty_response, expected)
 
 
 def test_query_multiple_staleness(mocker, culling_datetime_mock, graphql_query_empty_response, api_get):
@@ -700,8 +792,44 @@ def test_query_multiple_staleness(mocker, culling_datetime_mock, graphql_query_e
         mocker,
         graphql_query_empty_response,
         (
-            {"gt": "2019-12-16T10:10:06.754201+00:00"},  # fresh
-            {"gt": "2019-12-02T10:10:06.754201+00:00", "lte": "2019-12-09T10:10:06.754201+00:00"},  # stale warning
+            {
+                "OR": (
+                    {
+                        "AND": {
+                            "modified_on": {"gt": "2019-12-14T10:10:06.754201+00:00"},
+                            "spf_host_type": {"eq": "edge"},
+                        }
+                    },
+                    {
+                        "AND": {
+                            "modified_on": {
+                                "gt": "2019-06-19T10:10:06.754201+00:00",
+                                "lte": "2019-08-18T10:10:06.754201+00:00",
+                            },
+                            "spf_host_type": {"eq": "edge"},
+                        }
+                    },
+                )
+            },
+            {
+                "OR": (
+                    {
+                        "AND": {
+                            "modified_on": {"gt": "2019-12-15T05:10:06.754201+00:00"},
+                            "spf_host_type": {"eq": None},
+                        }
+                    },
+                    {
+                        "AND": {
+                            "modified_on": {
+                                "gt": "2019-12-02T10:10:06.754201+00:00",
+                                "lte": "2019-12-09T10:10:06.754201+00:00",
+                            },
+                            "spf_host_type": {"eq": None},
+                        }
+                    },
+                )
+            },
         ),
     )
 
@@ -766,7 +894,7 @@ def test_response_processed_properly(graphql_query_with_response, api_get):
                 "groups": [],
                 "satellite_id": "ce87bfac-a6cb-43a0-80ce-95d9669db71f",
                 "insights_id": "a58c53e0-8000-4384-b902-c70b69faacc5",
-                "stale_timestamp": "2020-02-10T08:07:03.354307+00:00",
+                "stale_timestamp": "2019-02-11T13:07:03.354312+00:00",
                 "reporter": "puptoo",
                 "per_reporter_staleness": {
                     "puptoo": {
@@ -781,8 +909,8 @@ def test_response_processed_properly(graphql_query_with_response, api_get):
                 "mac_addresses": None,
                 "provider_id": None,
                 "provider_type": None,
-                "stale_warning_timestamp": "2020-02-17T08:07:03.354307+00:00",
-                "culled_timestamp": "2020-02-24T08:07:03.354307+00:00",
+                "stale_warning_timestamp": "2019-02-17T08:07:03.354312+00:00",
+                "culled_timestamp": "2019-02-24T08:07:03.354312+00:00",
                 "facts": [],
             },
             {
@@ -797,7 +925,7 @@ def test_response_processed_properly(graphql_query_with_response, api_get):
                 "groups": [],
                 "satellite_id": "ce87bfac-a6cb-43a0-80ce-95d9669db71f",
                 "insights_id": "17c52679-f0b9-4e9b-9bac-a3c7fae5070c",
-                "stale_timestamp": "2020-01-10T08:07:03.354307+00:00",
+                "stale_timestamp": "2019-01-11T13:07:03.354312+00:00",
                 "reporter": "yupana",
                 "per_reporter_staleness": {
                     "yupana": {
@@ -812,8 +940,8 @@ def test_response_processed_properly(graphql_query_with_response, api_get):
                 "mac_addresses": None,
                 "provider_id": None,
                 "provider_type": None,
-                "stale_warning_timestamp": "2020-01-17T08:07:03.354307+00:00",
-                "culled_timestamp": "2020-01-24T08:07:03.354307+00:00",
+                "stale_warning_timestamp": "2019-01-17T08:07:03.354312+00:00",
+                "culled_timestamp": "2019-01-24T08:07:03.354312+00:00",
                 "facts": [
                     {"namespace": "os", "facts": {"os.release": "Red Hat Enterprise Linux Server"}},
                     {
@@ -846,7 +974,7 @@ def test_valid_without_decimal_part(graphql_query, api_get):
     response_status, response_data = api_get(HOST_URL)
 
     assert response_status == 200
-    assert response_data["results"][0]["stale_timestamp"] == "2020-02-10T08:07:03+00:00"
+    assert response_data["results"][0]["stale_timestamp"] == "2020-02-11T13:07:03+00:00"
 
 
 def test_valid_with_offset_timezone(graphql_query, api_get):
@@ -856,7 +984,7 @@ def test_valid_with_offset_timezone(graphql_query, api_get):
     response_status, response_data = api_get(HOST_URL)
 
     assert response_status == 200
-    assert response_data["results"][0]["stale_timestamp"] == "2020-02-10T07:07:03.354307+00:00"
+    assert response_data["results"][0]["stale_timestamp"] == "2020-02-11T12:07:03.354307+00:00"
 
 
 def test_invalid_without_timezone(graphql_query, api_get):
@@ -930,17 +1058,100 @@ def test_tags_query_group_name_filter(assert_tag_query_host_filter_single_call, 
 @pytest.mark.parametrize(
     "staleness,expected",
     (
-        ("fresh", {"gt": "2019-12-16T10:10:06.754201+00:00"}),
-        ("stale", {"gt": "2019-12-09T10:10:06.754201+00:00", "lte": "2019-12-16T10:10:06.754201+00:00"}),
-        ("stale_warning", {"gt": "2019-12-02T10:10:06.754201+00:00", "lte": "2019-12-09T10:10:06.754201+00:00"}),
-        ("unknown", {"eq": None}),
+        (
+            "fresh",
+            [
+                {
+                    "OR": (
+                        {
+                            "AND": {
+                                "modified_on": {"gt": "2019-12-14T10:10:06.754201+00:00"},
+                                "spf_host_type": {"eq": "edge"},
+                            }
+                        },
+                    )
+                },
+                {
+                    "OR": (
+                        {
+                            "AND": {
+                                "modified_on": {"gt": "2019-12-15T05:10:06.754201+00:00"},
+                                "spf_host_type": {"eq": None},
+                            }
+                        },
+                    )
+                },
+            ],
+        ),
+        (
+            "stale",
+            [
+                {
+                    "OR": (
+                        {
+                            "AND": {
+                                "modified_on": {
+                                    "gt": "2019-08-18T10:10:06.754201+00:00",
+                                    "lte": "2019-12-14T10:10:06.754201+00:00",
+                                },
+                                "spf_host_type": {"eq": "edge"},
+                            }
+                        },
+                    )
+                },
+                {
+                    "OR": (
+                        {
+                            "AND": {
+                                "modified_on": {
+                                    "gt": "2019-12-09T10:10:06.754201+00:00",
+                                    "lte": "2019-12-15T05:10:06.754201+00:00",
+                                },
+                                "spf_host_type": {"eq": None},
+                            }
+                        },
+                    )
+                },
+            ],
+        ),
+        (
+            "stale_warning",
+            [
+                {
+                    "OR": (
+                        {
+                            "AND": {
+                                "modified_on": {
+                                    "gt": "2019-06-19T10:10:06.754201+00:00",
+                                    "lte": "2019-08-18T10:10:06.754201+00:00",
+                                },
+                                "spf_host_type": {"eq": "edge"},
+                            }
+                        },
+                    )
+                },
+                {
+                    "OR": (
+                        {
+                            "AND": {
+                                "modified_on": {
+                                    "gt": "2019-12-02T10:10:06.754201+00:00",
+                                    "lte": "2019-12-09T10:10:06.754201+00:00",
+                                },
+                                "spf_host_type": {"eq": None},
+                            }
+                        },
+                    )
+                },
+            ],
+        ),
     ),
 )
 def test_tags_query_variables_staleness(
     staleness, expected, culling_datetime_mock, assert_tag_query_host_filter_single_call
 ):
     assert_tag_query_host_filter_single_call(
-        build_tags_url(query=f"?staleness={staleness}"), host_filter={"OR": [{"stale_timestamp": expected}]}
+        build_tags_url(query=f"?staleness={staleness}"), host_filter={"OR": expected}
     )
 
 
@@ -949,12 +1160,43 @@ def test_tags_multiple_query_variables_staleness(culling_datetime_mock, assert_t
         build_tags_url(query="?staleness=fresh&staleness=stale_warning"),
         host_filter={
             "OR": [
-                {"stale_timestamp": {"gt": "2019-12-16T10:10:06.754201+00:00"}},
                 {
-                    "stale_timestamp": {
-                        "gt": "2019-12-02T10:10:06.754201+00:00",
-                        "lte": "2019-12-09T10:10:06.754201+00:00",
-                    }
+                    "OR": (
+                        {
+                            "AND": {
+                                "modified_on": {"gt": "2019-12-14T10:10:06.754201+00:00"},
+                                "spf_host_type": {"eq": "edge"},
+                            }
+                        },
+                        {
+                            "AND": {
+                                "modified_on": {
+                                    "gt": "2019-06-19T10:10:06.754201+00:00",
+                                    "lte": "2019-08-18T10:10:06.754201+00:00",
+                                },
+                                "spf_host_type": {"eq": "edge"},
+                            }
+                        },
+                    )
+                },
+                {
+                    "OR": (
+                        {
+                            "AND": {
+                                "modified_on": {"gt": "2019-12-15T05:10:06.754201+00:00"},
+                                "spf_host_type": {"eq": None},
+                            }
+                        },
+                        {
+                            "AND": {
+                                "modified_on": {
+                                    "gt": "2019-12-02T10:10:06.754201+00:00",
+                                    "lte": "2019-12-09T10:10:06.754201+00:00",
+                                },
+                                "spf_host_type": {"eq": None},
+                            }
+                        },
+                    )
                 },
             ]
         },
@@ -2178,10 +2420,7 @@ def test_spf_owner_id_invalid_field_value(subtests, graphql_query_empty_response
 
 
 # system_profile host_type tests
-# Make sure that regardless of the "hide edge hosts" flag, only the intended SP filters are used
-@pytest.mark.parametrize("hide_edge_ff_value", (True, False))
-def test_query_hosts_filter_spf_host_type(mocker, subtests, graphql_query_empty_response, api_get, hide_edge_ff_value):
-    mocker.patch("api.filtering.filtering.get_flag_value", return_value=hide_edge_ff_value)
+def test_query_hosts_filter_spf_host_type(mocker, subtests, graphql_query_empty_response, patch_xjoin_post, api_get):
     filter_paths = ("[system_profile][host_type]", "[system_profile][host_type][eq]")
     values = ("edge", "nil", "not_nil")
     queries = (
@@ -2214,12 +2453,9 @@ def test_query_hosts_filter_spf_host_type(mocker, subtests, graphql_query_empty_
                 graphql_query_empty_response.reset_mock()
 
 
-# Make sure that regardless of the "hide edge hosts" flag, only the intended SP filters are used
-@pytest.mark.parametrize("hide_edge_ff_value", (True, False))
 def test_query_hosts_filter_spf_host_type_multiple(
-    mocker, subtests, graphql_query_empty_response, api_get, hide_edge_ff_value
+    mocker, subtests, graphql_query_empty_response, patch_xjoin_post, api_get
 ):
-    mocker.patch("api.filtering.filtering.get_flag_value", return_value=hide_edge_ff_value)
     query_params = (
         "?filter[system_profile][host_type][eq][]=random-type",
         "?filter[system_profile][host_type][eq][]=edge" "&filter[system_profile][host_type][eq][]=random-type",
@@ -2245,63 +2481,6 @@ def test_query_hosts_filter_spf_host_type_multiple(
                     "limit": mocker.ANY,
                     "offset": mocker.ANY,
                     "filter": ({"OR": mocker.ANY}, query),
-                    "fields": mocker.ANY,
-                },
-                mocker.ANY,
-            )
-            graphql_query_empty_response.reset_mock()
-
-
-# Test feature flag that automatically hides edge hosts
-def test_query_hosts_feature_flag_filter_host_type(mocker, graphql_query_empty_response, api_get):
-    mocker.patch("api.filtering.filtering.get_flag_value", return_value=True)
-
-    response_status, response_data = api_get(build_hosts_url())
-
-    assert response_status == 200
-
-    graphql_query_empty_response.assert_called_once_with(
-        HOST_QUERY,
-        {
-            "order_by": mocker.ANY,
-            "order_how": mocker.ANY,
-            "limit": mocker.ANY,
-            "offset": mocker.ANY,
-            "filter": ({"OR": mocker.ANY}, {"spf_host_type": {"eq": None}}),
-            "fields": mocker.ANY,
-        },
-        mocker.ANY,
-    )
-
-
-# Test that the feature flag hides edge hosts when non-host-type SP filters are provided
-def test_query_hosts_edge_feature_flag_other_sp_filters(mocker, subtests, graphql_query_empty_response, api_get):
-    mocker.patch("api.filtering.filtering.get_flag_value", return_value=True)
-    query_params = (
-        "?filter[system_profile][system_update_method][eq][]=dnf",
-        "?filter[system_profile][insights_client_version]=3.*",
-    )
-    queries = (
-        {"OR": [{"spf_system_update_method": {"eq": "dnf"}}]},
-        {"spf_insights_client_version": {"matches": "3.*"}},
-    )
-
-    for param, query in zip(query_params, queries):
-        with subtests.test(param=param, query=query):
-            url = build_hosts_url(query=param)
-
-            response_status, response_data = api_get(url)
-
-            assert response_status == 200
-
-            graphql_query_empty_response.assert_called_once_with(
-                HOST_QUERY,
-                {
-                    "order_by": mocker.ANY,
-                    "order_how": mocker.ANY,
-                    "limit": mocker.ANY,
-                    "offset": mocker.ANY,
-                    "filter": ({"OR": mocker.ANY}, query, {"spf_host_type": {"eq": None}}),
                     "fields": mocker.ANY,
                 },
                 mocker.ANY,
@@ -2890,9 +3069,13 @@ def test_sp_sparse_xjoin_query_translation(
     hosts = [minimal_host(id=host_one_id), minimal_host(id=host_two_id)]
 
     # Test with user identity first
-    variables["hostFilter"] = (
-        {"stale_timestamp": mocker.ANY, "OR": [{"id": {"eq": host_one_id}}, {"id": {"eq": host_two_id}}]},
-    )
+    variables["hostFilter"] = {
+        "AND": ({"OR": [{"id": {"eq": host_one_id}}, {"id": {"eq": host_two_id}}]},),
+        "OR": [
+            {"OR": ({"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},)},
+            {"OR": ({"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},)},
+        ],
+    }
 
     response_status, _ = api_get(build_system_profile_url(hosts, query=query))
 
@@ -2904,10 +3087,14 @@ def test_sp_sparse_xjoin_query_translation(
     graphql_sparse_system_profile_empty_response.reset_mock()
 
     # Now test with system identity
-    variables["hostFilter"] = (
-        {"stale_timestamp": mocker.ANY, "OR": [{"id": {"eq": host_one_id}}, {"id": {"eq": host_two_id}}]},
-        {"spf_owner_id": {"eq": SYSTEM_IDENTITY["system"]["cn"]}},
-    )
+    variables["hostFilter"] = {
+        "AND": ({"OR": [{"id": {"eq": host_one_id}}, {"id": {"eq": host_two_id}}]},),
+        "OR": [
+            {"OR": ({"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},)},
+            {"OR": ({"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},)},
+        ],
+        "spf_owner_id": {"eq": SYSTEM_IDENTITY["system"]["cn"]},
+    }
 
     response_status, _ = api_get(build_system_profile_url(hosts, query=query), identity=SYSTEM_IDENTITY)
 
@@ -2942,7 +3129,7 @@ def test_get_hosts_fields_param(query, fields, mocker, graphql_query_empty_respo
             "limit": mocker.ANY,
             "offset": mocker.ANY,
             "filter": mocker.ANY,
-            "fields": fields,
+            "fields": ["host_type"] + fields,  # We always get the 'host_type' from graphql
         },
         mocker.ANY,
     )
@@ -2963,19 +3150,10 @@ def test_get_hosts_by_ids(num_hosts, mocker, filtering_datetime_mock, graphql_qu
             "order_how": mocker.ANY,
             "limit": mocker.ANY,
             "offset": mocker.ANY,
-            "filter": (
-                {
-                    "stale_timestamp": {
-                        "gt": "2019-12-02T10:10:06.754201+00:00",
-                    },
-                    "OR": [
-                        {
-                            "id": {"eq": host_id},
-                        }
-                        for host_id in host_id_list
-                    ],
-                },
-            ),
+            "filter": {
+                "OR": mocker.ANY,
+                "AND": ({"OR": [{"id": {"eq": host_id}} for host_id in host_id_list]},),
+            },
             "fields": mocker.ANY,
         },
         mocker.ANY,
