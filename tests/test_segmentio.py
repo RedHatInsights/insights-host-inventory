@@ -48,3 +48,51 @@ def test_segmentio_track_without_user_agent(mocker, api_get):
 
     assert [] == mock_track.call_args_list
     assert mock_track.call_count == 0
+
+def test_segmentio_track_satellite(mocker, api_get):
+    mock_track = mocker.patch("api.segmentio.analytics.track")
+    analytics.write_key = "test_write_key"
+    user_agent = "Satellite/6***.1***.5***.6***;foreman_rh_cloud/5.0.46;insights-client/3.1.8 \
+    (Core 3.2.1; requests 2.6.0) Red Hat Enterprise Linux Server 7.9 (CPython 2.7.5; \
+    Linux 3.10.0-1160.99.1.el7.x86_64); systemd"
+
+    response_status, response_data = api_get(
+        build_resource_types_url(), extra_headers={"User-Agent": user_agent}
+    )
+
+    assert_response_status(response_status, 200)
+
+    assert [] == mock_track.call_args_list
+    assert mock_track.call_count == 0
+
+def test_segmentio_track_web_browser(mocker, api_get):
+    mock_track = mocker.patch("api.segmentio.analytics.track")
+    analytics.write_key = "test_write_key"
+    user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) \
+    AppleWebKit/537.36 (KHTML, like Gecko) \
+    Chrome/1***.0***.0***.0*** Safari/537.36"
+
+    response_status, response_data = api_get(
+        build_resource_types_url(), extra_headers={"User-Agent": user_agent}
+    )
+
+    assert_response_status(response_status, 200)
+
+    assert [] == mock_track.call_args_list
+    assert mock_track.call_count == 0
+
+def test_segmentio_track_insights_client(mocker, api_get):
+    mock_track = mocker.patch("api.segmentio.analytics.track")
+    analytics.write_key = "test_write_key"
+    user_agent = "insights-client/3.1.8 (Core 3.2.23; requests 2.6.0) \
+    Red Hat Enterprise Linux Server 7.9 (CPython 2.7.5; \
+    Linux 3.10.0-1160.102.1.el7.x86_64); systemd"
+
+    response_status, response_data = api_get(
+        build_resource_types_url(), extra_headers={"User-Agent": user_agent}
+    )
+
+    assert_response_status(response_status, 200)
+
+    assert [] == mock_track.call_args_list
+    assert mock_track.call_count == 0
