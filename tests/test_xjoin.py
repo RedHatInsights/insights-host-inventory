@@ -715,7 +715,7 @@ def test_query_variables_default_except_staleness(mocker, graphql_query_empty_re
                         {
                             "AND": {
                                 "modified_on": {
-                                    "gt": "2019-08-18T10:10:06.754201+00:00",
+                                    "gt": "2019-06-19T10:10:06.754201+00:00",
                                     "lte": "2019-12-14T10:10:06.754201+00:00",
                                 },
                                 "spf_host_type": {"eq": "edge"},
@@ -746,8 +746,8 @@ def test_query_variables_default_except_staleness(mocker, graphql_query_empty_re
                         {
                             "AND": {
                                 "modified_on": {
-                                    "gt": "2019-06-19T10:10:06.754201+00:00",
-                                    "lte": "2019-08-18T10:10:06.754201+00:00",
+                                    "gt": "2017-12-16T10:10:06.754201+00:00",
+                                    "lte": "2019-06-19T10:10:06.754201+00:00",
                                 },
                                 "spf_host_type": {"eq": "edge"},
                             }
@@ -803,8 +803,8 @@ def test_query_multiple_staleness(mocker, culling_datetime_mock, graphql_query_e
                     {
                         "AND": {
                             "modified_on": {
-                                "gt": "2019-06-19T10:10:06.754201+00:00",
-                                "lte": "2019-08-18T10:10:06.754201+00:00",
+                                "gt": "2017-12-16T10:10:06.754201+00:00",
+                                "lte": "2019-06-19T10:10:06.754201+00:00",
                             },
                             "spf_host_type": {"eq": "edge"},
                         }
@@ -1091,7 +1091,7 @@ def test_tags_query_group_name_filter(assert_tag_query_host_filter_single_call, 
                         {
                             "AND": {
                                 "modified_on": {
-                                    "gt": "2019-08-18T10:10:06.754201+00:00",
+                                    "gt": "2019-06-19T10:10:06.754201+00:00",
                                     "lte": "2019-12-14T10:10:06.754201+00:00",
                                 },
                                 "spf_host_type": {"eq": "edge"},
@@ -1122,8 +1122,8 @@ def test_tags_query_group_name_filter(assert_tag_query_host_filter_single_call, 
                         {
                             "AND": {
                                 "modified_on": {
-                                    "gt": "2019-06-19T10:10:06.754201+00:00",
-                                    "lte": "2019-08-18T10:10:06.754201+00:00",
+                                    "gt": "2017-12-16T10:10:06.754201+00:00",
+                                    "lte": "2019-06-19T10:10:06.754201+00:00",
                                 },
                                 "spf_host_type": {"eq": "edge"},
                             }
@@ -1171,8 +1171,8 @@ def test_tags_multiple_query_variables_staleness(culling_datetime_mock, assert_t
                         {
                             "AND": {
                                 "modified_on": {
-                                    "gt": "2019-06-19T10:10:06.754201+00:00",
-                                    "lte": "2019-08-18T10:10:06.754201+00:00",
+                                    "gt": "2017-12-16T10:10:06.754201+00:00",
+                                    "lte": "2019-06-19T10:10:06.754201+00:00",
                                 },
                                 "spf_host_type": {"eq": "edge"},
                             }
