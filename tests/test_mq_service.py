@@ -1192,17 +1192,18 @@ def test_add_host_stale_timestamp(event_datetime_mock, mq_create_or_update_host)
         stale_timestamp=stale_timestamp.isoformat(),
     )
 
+    host_keys_to_check = ["reporter", "stale_timestamp", "culled_timestamp"]
+
+    key, event, _ = mq_create_or_update_host(host, return_all_data=True)
+    updated_timestamp = datetime.fromisoformat(event["host"]["updated"])
+    host.stale_timestamp = (updated_timestamp + timedelta(seconds=104400)).isoformat()
     expected_results = {
         "host": {
             **host.data(),
-            "stale_warning_timestamp": (stale_timestamp + timedelta(weeks=1)).isoformat(),
-            "culled_timestamp": (stale_timestamp + timedelta(weeks=2)).isoformat(),
+            "stale_warning_timestamp": (updated_timestamp + timedelta(seconds=604800)).isoformat(),
+            "culled_timestamp": (updated_timestamp + timedelta(seconds=1209600)).isoformat(),
         }
     }
-
-    host_keys_to_check = ["reporter", "stale_timestamp", "culled_timestamp"]
-
-    key, event, headers = mq_create_or_update_host(host, return_all_data=True)
 
     assert_mq_host_data(key, event, expected_results, host_keys_to_check)
 

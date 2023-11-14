@@ -7,13 +7,13 @@ from datetime import timedelta
 from datetime import timezone
 
 # complete system identity
-IDENTITY = {
-    "org_id": "test",
-    "type": "System",
-    "auth_type": "cert-auth",
-    "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
-    "internal": {"auth_time": 6300},
-}
+# IDENTITY = {
+#    "org_id": "test",
+#    "type": "System",
+#    "auth_type": "cert-auth",
+#    "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
+#    "internal": {"auth_time": 6300},
+# }
 
 # system identity: invalid or incomplete for testing
 # IDENTITY = {
@@ -25,12 +25,12 @@ IDENTITY = {
 # }
 
 # complete user identity
-# IDENTITY = {
-#     "org_id": "test",
-#     "type": "User",
-#     "auth_type": "basic-auth",
-#     "user": {"email": "tuser@redhat.com", "first_name": "test"},
-# }
+IDENTITY = {
+    "org_id": "5894300",
+    "type": "User",
+    "auth_type": "basic-auth",
+    "user": {"email": "jramos@redhat.com", "first_name": "test"},
+}
 
 # incomplete or invalid user identity for testing
 # IDENTITY = {
@@ -554,9 +554,17 @@ def random_uuid():
     return str(uuid.uuid4())
 
 
+IS_EDGE = os.environ.get("IS_EDGE", False)
+
+
 def build_host_chunk():
     org_id = os.environ.get("INVENTORY_HOST_ACCOUNT", IDENTITY["org_id"])
     fqdn = random_uuid()[:6] + ".foo.redhat.com"
+    system_profile = create_system_profile()
+
+    if IS_EDGE:
+        system_profile["host_type"] = "edge"
+
     payload = {
         "bios_uuid": random_uuid(),
         "org_id": org_id,
@@ -567,7 +575,7 @@ def build_host_chunk():
             {"namespace": "NS1", "key": "key3", "value": "val3"},
             {"namespace": "Sat", "key": "prod", "value": None},
         ],
-        "system_profile": create_system_profile(),
+        "system_profile": system_profile,
         "stale_timestamp": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         "reporter": "puptoo",
     }
