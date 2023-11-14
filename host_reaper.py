@@ -3,11 +3,14 @@ from functools import partial
 
 from prometheus_client import CollectorRegistry
 from prometheus_client import push_to_gateway
+from sqlalchemy import and_
 from sqlalchemy import create_engine
+from sqlalchemy import or_
 from sqlalchemy.orm import sessionmaker
 
+from app import create_app
+from app.auth.identity import create_mock_identity_with_org_id
 from app.config import Config
-from app.culling import Conditions
 from app.environment import RuntimeEnvironment
 from app.instrumentation import log_host_delete_failed
 from app.instrumentation import log_host_delete_succeeded
@@ -15,6 +18,7 @@ from app.logging import configure_logging
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
+from app.models import Staleness
 from app.queue.event_producer import EventProducer
 from app.queue.metrics import event_producer_failure
 from app.queue.metrics import event_producer_success
@@ -23,8 +27,8 @@ from lib.db import session_guard
 from lib.handlers import register_shutdown
 from lib.handlers import ShutdownHandler
 from lib.host_delete import delete_hosts
-from lib.host_repository import exclude_edge_filter
-from lib.host_repository import stale_timestamp_filter
+from lib.host_repository import find_hosts_by_staleness_reaper
+from lib.host_repository import find_hosts_sys_default_staleness
 from lib.metrics import delete_host_count
 from lib.metrics import delete_host_processing_time
 from lib.metrics import host_reaper_fail_count
@@ -42,6 +46,8 @@ COLLECTED_METRICS = (
     event_serialization_time,
 )
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
+
+app = create_app(RUNTIME_ENVIRONMENT)
 
 
 def _init_config():
@@ -63,11 +69,48 @@ def _excepthook(logger, type, value, traceback):
     logger.exception("Host reaper failed", exc_info=value)
 
 
+def filter_culled_hosts_using_custom_staleness(logger, session):
+    staleness_objects = session.query(Staleness).all()
+    org_ids = []
+
+    with app.app_context():
+        query_filters = []
+        for staleness_obj in staleness_objects:
+            # Validate which host types for a given org_id never get deleted
+            logger.debug(f"Looking for hosts from org_id {staleness_obj.org_id} that use custom staleness")
+            org_ids.append(staleness_obj.org_id)
+            identity = create_mock_identity_with_org_id(staleness_obj.org_id)
+            query_filters.append(
+                and_(
+                    (Host.org_id == staleness_obj.org_id),
+                    find_hosts_by_staleness_reaper(["culled"], identity),
+                )
+            )
+        return query_filters, org_ids
+
+
+def filter_culled_hosts_using_sys_default_staleness(logger, org_ids):
+    # Use the hosts_ids_list to exclude hosts that were found with custom staleness
+    with app.app_context():
+        logger.debug("Looking for hosts that use system default staleness")
+        return and_(~Host.org_id.in_(org_ids), find_hosts_sys_default_staleness(["culled"]))
+
+
+def find_hosts_to_delete(logger, session):
+    # Find all host ids that are using custom staleness
+    query_filters, org_ids = filter_culled_hosts_using_custom_staleness(logger, session)
+
+    # Find all host ids that are not using custom staleness,
+    # excluding the hosts for the org_ids that use custom staleness
+    query_filters.append(filter_culled_hosts_using_sys_default_staleness(logger, org_ids))
+
+    return query_filters
+
+
 @host_reaper_fail_count.count_exceptions()
 def run(config, logger, session, event_producer, shutdown_handler):
-    conditions = Conditions.from_config(config)
-    query_filter = exclude_edge_filter(stale_timestamp_filter(*conditions.culled()))
-    query = session.query(Host).filter(query_filter)
+    filter_hosts_to_delete = find_hosts_to_delete(logger, session)
+    query = session.query(Host).filter(or_(False, *filter_hosts_to_delete))
 
     events = delete_hosts(query, event_producer, config.host_delete_chunk_size, shutdown_handler.shut_down)
     for host_id, deleted in events:
