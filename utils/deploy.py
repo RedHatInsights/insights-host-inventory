@@ -21,7 +21,7 @@ def _parse_args():
     parser = ArgumentParser(
         description="""Replaces IMAGE_TAG in the App Interface Host Inventory deploy.yml with
 the provided PROMO_CODE. Reads from stdin, writes to stdout.
-Possible usage: pipenv run python utils/deploy.py < path/to/deploy.yml | sponge path/to/deploy.yml
+Possible usage: pipenv run python3 utils/deploy.py < path/to/deploy.yml | sponge path/to/deploy.yml
 sponge is part of moreutils""",
         formatter_class=RawTextHelpFormatter,
     )
