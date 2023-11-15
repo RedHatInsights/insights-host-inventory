@@ -3108,6 +3108,45 @@ def test_get_hosts_by_ids(num_hosts, mocker, filtering_datetime_mock, graphql_qu
     )
 
 
+@pytest.mark.parametrize("num_hosts", (1, 3, 5))
+def test_get_hosts_by_ids_rbac_specific_groups(
+    num_hosts, mocker, enable_rbac, filtering_datetime_mock, graphql_query_empty_response, api_get
+):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    group_id_list = [generate_uuid(), None]
+
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-hosts-read-resource-defs-template.json"
+    )
+
+    # Grant host-read access to that group, and ungrouped hosts
+    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = group_id_list
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    host_id_list = [generate_uuid() for h in range(num_hosts)]
+    url = build_hosts_url(query=f"/{','.join(host_id_list)}")
+    response_status, _ = api_get(url)
+
+    assert response_status == 200
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            "filter": (
+                {"OR": mocker.ANY},
+                {"OR": [{"id": {"eq": host_id}} for host_id in host_id_list]},
+                {"OR": [{"group": {"id": {"eq": group_id_list[0]}}}, {"group": {"hasSome": {"is": False}}}]},
+            ),
+            "fields": mocker.ANY,
+        },
+        mocker.ANY,
+    )
+
+
 # Generic filtering tests
 def _verify_hosts_query(mocker, graphql_query_empty_response, query):
     graphql_query_empty_response.assert_called_once_with(
