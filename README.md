@@ -68,7 +68,7 @@ password and db name from the INVENTORY_DB_HOST, INVENTORY_DB_USER,
 INVENTORY_DB_PASS and INVENTORY_DB_NAME environment variables.
 
 ```bash
-python manage.py db upgrade
+python3 manage.py db upgrade
 ```
 
 By default the database container will use a bit of local storage so that data
@@ -144,7 +144,7 @@ When running the server locally for development, the Prometheus configuration is
 You can run the server locally using this command:
 
 ```bash
-python run_gunicorn.py
+python3 run_gunicorn.py
 ```
 
 ## Running all services locally
@@ -264,7 +264,7 @@ of the payload will only be logged as an "error" if the entire delete operation 
 Run this command to generate a new revision in `migrations/versions`
 
 ```bash
-python manage.py db revision -m "Description of revision"
+python3 manage.py db revision -m "Description of revision"
 ```
 
 ## Building a docker container image
