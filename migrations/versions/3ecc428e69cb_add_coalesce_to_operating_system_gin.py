@@ -21,7 +21,7 @@ def upgrade():
     op.create_index(
         "idx_operating_system",
         "hosts",
-        [sa.text("(COALESCE(system_profile_facts -> 'operating_system' ->> 'name')) gin_trgm_ops")],
+        [sa.text("(COALESCE(system_profile_facts -> 'operating_system' ->> 'name', '')) gin_trgm_ops")],
         postgresql_using="gin",
     )
 
