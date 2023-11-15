@@ -140,7 +140,7 @@ objects:
         command:
         - /bin/sh
         - -c
-        - python inv_mq_service.py
+        - python3 inv_mq_service.py
         env:
         - name: INVENTORY_LOG_LEVEL
           value: ${LOG_LEVEL}
@@ -218,12 +218,12 @@ objects:
         - command:
           - /bin/sh
           - -c
-          - python manage.py db upgrade
+          - python3 manage.py db upgrade
           inheritEnv: true
         command:
         - /bin/sh
         - -c
-        - python inv_mq_service.py
+        - python3 inv_mq_service.py
         env:
         - name: INVENTORY_LOG_LEVEL
           value: ${LOG_LEVEL}
@@ -300,7 +300,7 @@ objects:
         command:
         - /bin/sh
         - -c
-        - python inv_mq_service.py
+        - python3 inv_mq_service.py
         env:
         - name: INVENTORY_LOG_LEVEL
           value: ${LOG_LEVEL}
@@ -381,7 +381,7 @@ objects:
         command:
           - /bin/sh
           - -c
-          - python host_reaper.py
+          - python3 host_reaper.py
         env:
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
@@ -445,7 +445,7 @@ objects:
         command:
           - /bin/sh
           - -c
-          - python system_profile_validator.py
+          - python3 system_profile_validator.py
         env:
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
@@ -529,7 +529,7 @@ objects:
         command:
           - /bin/sh
           - -c
-          - python pendo_syncher.py
+          - python3 pendo_syncher.py
         env:
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
@@ -576,7 +576,7 @@ objects:
         command:
           - /bin/sh
           - -c
-          - python rebuild_events_topic.py && python host_synchronizer.py
+          - python3 rebuild_events_topic.py && python3 host_synchronizer.py
         env:
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
