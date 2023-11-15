@@ -264,18 +264,18 @@ def db_create_staleness_culling(flask_app):
     def _db_create_staleness_culling(
         conventional_staleness_delta=None,
         conventional_stale_warning_delta=None,
-        conventional_culling_delta=None,
+        conventional_deletion_delta=None,
         immutable_staleness_delta=None,
         immutable_stale_warning_delta=None,
-        immutable_culling_delta=None,
+        immutable_deletion_delta=None,
     ):
         staleness_culling = db_staleness_culling(
             conventional_staleness_delta=conventional_staleness_delta,
             conventional_stale_warning_delta=conventional_stale_warning_delta,
-            conventional_culling_delta=conventional_culling_delta,
+            conventional_deletion_delta=conventional_deletion_delta,
             immutable_staleness_delta=immutable_staleness_delta,
             immutable_stale_warning_delta=immutable_stale_warning_delta,
-            immutable_culling_delta=immutable_culling_delta,
+            immutable_deletion_delta=immutable_deletion_delta,
         )
         db.session.add(staleness_culling)
         db.session.commit()

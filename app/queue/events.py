@@ -44,7 +44,7 @@ class SerializedHostSchema(Schema):
     updated = fields.Str()
     stale_timestamp = fields.Str()
     stale_warning_timestamp = fields.Str()
-    culled_timestamp = fields.Str()
+    deletion_timestamp = fields.Str()
     reporter = fields.Str()
     tags = fields.List(fields.Nested(TagsSchema))
     system_profile = fields.Dict()

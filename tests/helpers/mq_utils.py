@@ -135,7 +135,7 @@ def assert_patch_event_is_valid(
 ):
     stale_timestamp = (host.modified_on.astimezone(timezone.utc) + timedelta(seconds=104400)).isoformat()
     stale_warning_timestamp = (host.modified_on.astimezone(timezone.utc) + timedelta(seconds=604800)).isoformat()
-    culled_timestamp = (host.modified_on.astimezone(timezone.utc) + timedelta(seconds=1209600)).isoformat()
+    deletion_timestamp = (host.modified_on.astimezone(timezone.utc) + timedelta(seconds=1209600)).isoformat()
     reporter = reporter or host.reporter
 
     event = json.loads(event_producer.event)
@@ -165,7 +165,7 @@ def assert_patch_event_is_valid(
             "reporter": reporter,
             "stale_timestamp": stale_timestamp,
             "stale_warning_timestamp": stale_warning_timestamp,
-            "culled_timestamp": culled_timestamp,
+            "deletion_timestamp": deletion_timestamp,
             "created": host.created_on.astimezone(timezone.utc).isoformat(),
             "provider_id": host.canonical_facts.get("provider_id"),
             "provider_type": host.canonical_facts.get("provider_type"),

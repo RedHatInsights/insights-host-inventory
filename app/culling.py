@@ -33,7 +33,7 @@ class Timestamps(_WithConfig):
     def stale_warning_timestamp(self, stale_timestamp, stale_warning_seconds):
         return self._add_time(stale_timestamp, timedelta(seconds=stale_warning_seconds))
 
-    def culled_timestamp(self, stale_timestamp, culled_seconds):
+    def deletion_timestamp(self, stale_timestamp, culled_seconds):
         return self._add_time(stale_timestamp, timedelta(seconds=culled_seconds))
 
 
@@ -46,12 +46,12 @@ class Conditions:
             None: {
                 "stale": staleness["conventional_staleness_delta"],
                 "warning": staleness["conventional_stale_warning_delta"],
-                "culled": staleness["conventional_culling_delta"],
+                "culled": staleness["conventional_deletion_delta"],
             },
             "edge": {
                 "stale": staleness["immutable_staleness_delta"],
                 "warning": staleness["immutable_stale_warning_delta"],
-                "culled": staleness["immutable_culling_delta"],
+                "culled": staleness["immutable_deletion_delta"],
             },
         }
 
@@ -62,13 +62,13 @@ class Conditions:
         return self._stale_warning_timestamp(), self._stale_timestamp()
 
     def stale_warning(self):
-        return self._culled_timestamp(), self._stale_warning_timestamp()
+        return self._deletion_timestamp(), self._stale_warning_timestamp()
 
     def culled(self):
-        return None, self._culled_timestamp()
+        return None, self._deletion_timestamp()
 
     def not_culled(self):
-        return self._culled_timestamp(), None
+        return self._deletion_timestamp(), None
 
     def _stale_timestamp(self):
         offset = timedelta(seconds=self.staleness_host_type[self.host_type]["stale"])
@@ -78,7 +78,7 @@ class Conditions:
         offset = timedelta(seconds=self.staleness_host_type[self.host_type]["warning"])
         return self.now - offset
 
-    def _culled_timestamp(self):
+    def _deletion_timestamp(self):
         offset = timedelta(seconds=self.staleness_host_type[self.host_type]["culled"])
         return self.now - offset
 

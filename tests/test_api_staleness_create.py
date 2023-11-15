@@ -6,10 +6,10 @@ from tests.helpers.api_utils import STALENESS_WRITE_PROHIBITED_RBAC_RESPONSE_FIL
 _INPUT_DATA = {
     "conventional_staleness_delta": 1,
     "conventional_stale_warning_delta": 7,
-    "conventional_culling_delta": 14,
+    "conventional_deletion_delta": 14,
     "immutable_staleness_delta": 7,
     "immutable_stale_warning_delta": 120,
-    "immutable_culling_delta": 120,
+    "immutable_deletion_delta": 120,
 }
 
 
@@ -26,11 +26,11 @@ def test_create_staleness(api_create_staleness, db_get_staleness_culling):
     saved_data = db_get_staleness_culling(saved_org_id)
 
     assert saved_data.conventional_staleness_delta == _INPUT_DATA["conventional_staleness_delta"]
-    assert saved_data.immutable_culling_delta == _INPUT_DATA["immutable_culling_delta"]
-    assert saved_data.conventional_culling_delta == _INPUT_DATA["conventional_culling_delta"]
+    assert saved_data.immutable_deletion_delta == _INPUT_DATA["immutable_deletion_delta"]
+    assert saved_data.conventional_deletion_delta == _INPUT_DATA["conventional_deletion_delta"]
     assert saved_data.immutable_staleness_delta == _INPUT_DATA["immutable_staleness_delta"]
     assert saved_data.immutable_stale_warning_delta == _INPUT_DATA["immutable_stale_warning_delta"]
-    assert saved_data.immutable_culling_delta == _INPUT_DATA["immutable_culling_delta"]
+    assert saved_data.immutable_deletion_delta == _INPUT_DATA["immutable_deletion_delta"]
 
 
 def test_create_staleness_with_only_one_data(api_create_staleness, db_get_staleness_culling):
@@ -45,10 +45,10 @@ def test_create_staleness_with_only_one_data(api_create_staleness, db_get_stalen
 
     assert saved_data.conventional_staleness_delta == input_data["conventional_staleness_delta"]
     assert saved_data.conventional_stale_warning_delta == _days_to_seconds(7)
-    assert saved_data.conventional_culling_delta == _days_to_seconds(14)
+    assert saved_data.conventional_deletion_delta == _days_to_seconds(14)
     assert saved_data.immutable_staleness_delta == _days_to_seconds(2)
     assert saved_data.immutable_stale_warning_delta == _days_to_seconds(120)
-    assert saved_data.immutable_culling_delta == _days_to_seconds(180)
+    assert saved_data.immutable_deletion_delta == _days_to_seconds(180)
 
 
 def test_create_same_staleness(api_create_staleness):

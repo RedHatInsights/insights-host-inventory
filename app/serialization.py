@@ -40,7 +40,7 @@ DEFAULT_FIELDS = (
     "per_reporter_staleness",
     "stale_timestamp",
     "stale_warning_timestamp",
-    "culled_timestamp",
+    "deletion_timestamp",
     "created",
     "updated",
     "groups",
@@ -128,8 +128,8 @@ def serialize_host(
         stale_warning_timestamp = staleness_timestamps.stale_warning_timestamp(
             host.modified_on, staleness["immutable_stale_warning_delta"]
         )
-        culled_timestamp = staleness_timestamps.culled_timestamp(
-            host.modified_on, staleness["immutable_culling_delta"]
+        deletion_timestamp = staleness_timestamps.deletion_timestamp(
+            host.modified_on, staleness["immutable_deletion_delta"]
         )
     else:
         stale_timestamp = staleness_timestamps.stale_timestamp(
@@ -138,8 +138,8 @@ def serialize_host(
         stale_warning_timestamp = staleness_timestamps.stale_warning_timestamp(
             host.modified_on, staleness["conventional_stale_warning_delta"]
         )
-        culled_timestamp = staleness_timestamps.culled_timestamp(
-            host.modified_on, staleness["conventional_culling_delta"]
+        deletion_timestamp = staleness_timestamps.deletion_timestamp(
+            host.modified_on, staleness["conventional_deletion_delta"]
         )
 
     serialized_host = {**serialize_canonical_facts(host.canonical_facts)}
@@ -170,8 +170,10 @@ def serialize_host(
         serialized_host["stale_warning_timestamp"] = stale_warning_timestamp and _serialize_staleness_to_string(
             stale_warning_timestamp
         )
-    if "culled_timestamp" in fields:
-        serialized_host["culled_timestamp"] = culled_timestamp and _serialize_staleness_to_string(culled_timestamp)
+    if "deletion_timestamp" in fields:
+        serialized_host["deletion_timestamp"] = deletion_timestamp and _serialize_staleness_to_string(
+            deletion_timestamp
+        )
         # without astimezone(timezone.utc) the isoformat() method does not include timezone offset even though iso-8601
         # requires it
     if "created" in fields:
@@ -383,10 +385,10 @@ def serialize_staleness_response(staleness):
         "org_id": staleness.org_id,
         "conventional_staleness_delta": staleness.conventional_staleness_delta,
         "conventional_stale_warning_delta": staleness.conventional_stale_warning_delta,
-        "conventional_culling_delta": staleness.conventional_culling_delta,
+        "conventional_deletion_delta": staleness.conventional_deletion_delta,
         "immutable_staleness_delta": staleness.immutable_staleness_delta,
         "immutable_stale_warning_delta": staleness.immutable_stale_warning_delta,
-        "immutable_culling_delta": staleness.immutable_culling_delta,
+        "immutable_deletion_delta": staleness.immutable_deletion_delta,
         "created": "N/A" if staleness.created_on == "N/A" else _serialize_datetime(staleness.created_on),
         "updated": "N/A" if staleness.modified_on == "N/A" else _serialize_datetime(staleness.modified_on),
     }
@@ -400,8 +402,8 @@ def serialize_staleness_to_dict(staleness_obj) -> dict:
     return {
         "conventional_staleness_delta": staleness_obj.conventional_staleness_delta,
         "conventional_stale_warning_delta": staleness_obj.conventional_stale_warning_delta,
-        "conventional_culling_delta": staleness_obj.conventional_culling_delta,
+        "conventional_deletion_delta": staleness_obj.conventional_deletion_delta,
         "immutable_staleness_delta": staleness_obj.immutable_staleness_delta,
         "immutable_stale_warning_delta": staleness_obj.immutable_stale_warning_delta,
-        "immutable_culling_delta": staleness_obj.immutable_culling_delta,
+        "immutable_deletion_delta": staleness_obj.immutable_deletion_delta,
     }

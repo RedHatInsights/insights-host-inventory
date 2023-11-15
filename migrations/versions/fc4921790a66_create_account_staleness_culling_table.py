@@ -37,7 +37,7 @@ def upgrade():
         ),
         # This value is in seconds (14 days)
         sa.Column(
-            "conventional_culling_delta", sa.String(length=36), default=f"{days_to_seconds(14)}", nullable=False
+            "conventional_deletion_delta", sa.String(length=36), default=f"{days_to_seconds(14)}", nullable=False
         ),
         # This value is in seconds (2 days)
         sa.Column("immutable_staleness_delta", sa.String(length=36), default=f"{days_to_seconds(2)}", nullable=False),
@@ -46,7 +46,7 @@ def upgrade():
             "immutable_stale_warning_delta", sa.String(length=36), default=f"{days_to_seconds(120)}", nullable=False
         ),
         # This value is in seconds (180 days)
-        sa.Column("immutable_culling_delta", sa.String(length=36), default=f"{days_to_seconds(180)}", nullable=False),
+        sa.Column("immutable_deletion_delta", sa.String(length=36), default=f"{days_to_seconds(180)}", nullable=False),
         sa.Column("created_on", sa.DateTime(timezone=True), nullable=False),
         sa.Column("modified_on", sa.DateTime(timezone=True), nullable=False),
     )

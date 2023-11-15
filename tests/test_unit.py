@@ -1542,7 +1542,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "stale_warning_timestamp": self._timestamp_to_str(
                 self._add_seconds(host_attr_data["modified_on"], 604800)
             ),
-            "culled_timestamp": self._timestamp_to_str(self._add_seconds(host_attr_data["modified_on"], 1209600)),
+            "deletion_timestamp": self._timestamp_to_str(self._add_seconds(host_attr_data["modified_on"], 1209600)),
             "per_reporter_staleness": host_attr_data["per_reporter_staleness"],
         }
         self.assertEqual(expected, actual)
@@ -1603,7 +1603,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                     "stale_warning_timestamp": self._timestamp_to_str(
                         self._add_seconds(host_attr_data["modified_on"], 604800)
                     ),
-                    "culled_timestamp": self._timestamp_to_str(
+                    "deletion_timestamp": self._timestamp_to_str(
                         self._add_seconds(host_attr_data["modified_on"], 1209600)
                     ),
                     "per_reporter_staleness": host_attr_data["per_reporter_staleness"],
@@ -1632,7 +1632,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                 )
                 self.assertEqual(
                     self._timestamp_to_str(self._add_seconds(host.modified_on, culled_offset_seconds)),
-                    serialized["culled_timestamp"],
+                    serialized["deletion_timestamp"],
                 )
 
 
@@ -1700,7 +1700,7 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
             "stale_warning_timestamp": self._timestamp_to_str(
                 host_attr_data["modified_on"] + timedelta(seconds=604800)
             ),
-            "culled_timestamp": self._timestamp_to_str(host_attr_data["modified_on"] + timedelta(seconds=1209600)),
+            "deletion_timestamp": self._timestamp_to_str(host_attr_data["modified_on"] + timedelta(seconds=1209600)),
             "per_reporter_staleness": host_attr_data["per_reporter_staleness"],
         }
         self.assertEqual(expected, actual)

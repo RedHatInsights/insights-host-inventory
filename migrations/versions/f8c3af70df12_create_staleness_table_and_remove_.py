@@ -31,13 +31,13 @@ def upgrade():
         # This value is in seconds (7 days)
         sa.Column("conventional_stale_warning_delta", sa.Integer, default=days_to_seconds(7), nullable=False),
         # This value is in seconds (14 days)
-        sa.Column("conventional_culling_delta", sa.Integer, default=days_to_seconds(14), nullable=False),
+        sa.Column("conventional_deletion_delta", sa.Integer, default=days_to_seconds(14), nullable=False),
         # This value is in seconds (2 days)
         sa.Column("immutable_staleness_delta", sa.Integer, default=days_to_seconds(2), nullable=False),
         # This value is in seconds (120 days)
         sa.Column("immutable_stale_warning_delta", sa.Integer, default=days_to_seconds(120), nullable=False),
         # This value is in seconds (180 days)
-        sa.Column("immutable_culling_delta", sa.Integer, default=days_to_seconds(180), nullable=False),
+        sa.Column("immutable_deletion_delta", sa.Integer, default=days_to_seconds(180), nullable=False),
         sa.Column("created_on", sa.DateTime(timezone=True), nullable=False),
         sa.Column("modified_on", sa.DateTime(timezone=True), nullable=False),
     )
@@ -63,7 +63,7 @@ def downgrade():
         ),
         # This value is in seconds (14 days)
         sa.Column(
-            "conventional_culling_delta", sa.String(length=36), default=f"{days_to_seconds(14)}", nullable=False
+            "conventional_deletion_delta", sa.String(length=36), default=f"{days_to_seconds(14)}", nullable=False
         ),
         # This value is in seconds (2 days)
         sa.Column("immutable_staleness_delta", sa.String(length=36), default=f"{days_to_seconds(2)}", nullable=False),
@@ -72,7 +72,7 @@ def downgrade():
             "immutable_stale_warning_delta", sa.String(length=36), default=f"{days_to_seconds(120)}", nullable=False
         ),
         # This value is in seconds (180 days)
-        sa.Column("immutable_culling_delta", sa.String(length=36), default=f"{days_to_seconds(180)}", nullable=False),
+        sa.Column("immutable_deletion_delta", sa.String(length=36), default=f"{days_to_seconds(180)}", nullable=False),
         sa.Column("created_on", sa.DateTime(timezone=True), nullable=False),
         sa.Column("modified_on", sa.DateTime(timezone=True), nullable=False),
     )

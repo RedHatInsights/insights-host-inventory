@@ -8,10 +8,10 @@ def test_delete_existing_staleness(db_create_staleness_culling, api_delete_stale
     saved_staleness = db_create_staleness_culling(
         conventional_staleness_delta=1,
         conventional_stale_warning_delta=7,
-        conventional_culling_delta=14,
+        conventional_deletion_delta=14,
         immutable_staleness_delta=7,
         immutable_stale_warning_delta=120,
-        immutable_culling_delta=120,
+        immutable_deletion_delta=120,
     )
 
     response_status, response_data = api_delete_staleness()
@@ -41,10 +41,10 @@ def test_delete_staleness_rbac_allowed(
             db_create_staleness_culling(
                 conventional_staleness_delta=1,
                 conventional_stale_warning_delta=7,
-                conventional_culling_delta=14,
+                conventional_deletion_delta=14,
                 immutable_staleness_delta=7,
                 immutable_stale_warning_delta=120,
-                immutable_culling_delta=120,
+                immutable_deletion_delta=120,
             )
 
             response_status, _ = api_delete_staleness()

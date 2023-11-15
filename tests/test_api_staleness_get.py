@@ -11,17 +11,17 @@ def test_get_default_staleness(api_get):
     expected_result = {
         "conventional_staleness_delta": 104400,
         "conventional_stale_warning_delta": 604800,
-        "conventional_culling_delta": 1209600,
+        "conventional_deletion_delta": 1209600,
         "immutable_staleness_delta": 172800,
         "immutable_stale_warning_delta": 10368000,
-        "immutable_culling_delta": 15552000,
+        "immutable_deletion_delta": 15552000,
     }
     assert response_data["conventional_staleness_delta"] == expected_result["conventional_staleness_delta"]
     assert response_data["conventional_stale_warning_delta"] == expected_result["conventional_stale_warning_delta"]
-    assert response_data["conventional_culling_delta"] == expected_result["conventional_culling_delta"]
+    assert response_data["conventional_deletion_delta"] == expected_result["conventional_deletion_delta"]
     assert response_data["immutable_staleness_delta"] == expected_result["immutable_staleness_delta"]
     assert response_data["immutable_stale_warning_delta"] == expected_result["immutable_stale_warning_delta"]
-    assert response_data["immutable_culling_delta"] == expected_result["immutable_culling_delta"]
+    assert response_data["immutable_deletion_delta"] == expected_result["immutable_deletion_delta"]
 
 
 def test_get_custom_staleness(api_create_staleness, api_get):
@@ -30,10 +30,10 @@ def test_get_custom_staleness(api_create_staleness, api_get):
     response_status, response_data = api_get(url)
     assert response_data["conventional_staleness_delta"] == _INPUT_DATA["conventional_staleness_delta"]
     assert response_data["conventional_stale_warning_delta"] == _INPUT_DATA["conventional_stale_warning_delta"]
-    assert response_data["conventional_culling_delta"] == _INPUT_DATA["conventional_culling_delta"]
+    assert response_data["conventional_deletion_delta"] == _INPUT_DATA["conventional_deletion_delta"]
     assert response_data["immutable_staleness_delta"] == _INPUT_DATA["immutable_staleness_delta"]
     assert response_data["immutable_stale_warning_delta"] == _INPUT_DATA["immutable_stale_warning_delta"]
-    assert response_data["immutable_culling_delta"] == _INPUT_DATA["immutable_culling_delta"]
+    assert response_data["immutable_deletion_delta"] == _INPUT_DATA["immutable_deletion_delta"]
     assert_response_status(response_status, 200)
 
 
@@ -44,14 +44,14 @@ def test_get_sys_default_staleness(api_get):
     expected_result = {
         "conventional_staleness_delta": 104400,
         "conventional_stale_warning_delta": 604800,
-        "conventional_culling_delta": 1209600,
+        "conventional_deletion_delta": 1209600,
         "immutable_staleness_delta": 172800,
         "immutable_stale_warning_delta": 10368000,
-        "immutable_culling_delta": 15552000,
+        "immutable_deletion_delta": 15552000,
     }
     assert response_data["conventional_staleness_delta"] == expected_result["conventional_staleness_delta"]
     assert response_data["conventional_stale_warning_delta"] == expected_result["conventional_stale_warning_delta"]
-    assert response_data["conventional_culling_delta"] == expected_result["conventional_culling_delta"]
+    assert response_data["conventional_deletion_delta"] == expected_result["conventional_deletion_delta"]
     assert response_data["immutable_staleness_delta"] == expected_result["immutable_staleness_delta"]
     assert response_data["immutable_stale_warning_delta"] == expected_result["immutable_stale_warning_delta"]
-    assert response_data["immutable_culling_delta"] == expected_result["immutable_culling_delta"]
+    assert response_data["immutable_deletion_delta"] == expected_result["immutable_deletion_delta"]

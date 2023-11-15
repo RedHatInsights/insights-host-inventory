@@ -543,10 +543,10 @@ class Staleness(db.Model):
         org_id,
         conventional_staleness_delta=None,
         conventional_stale_warning_delta=None,
-        conventional_culling_delta=None,
+        conventional_deletion_delta=None,
         immutable_staleness_delta=None,
         immutable_stale_warning_delta=None,
-        immutable_culling_delta=None,
+        immutable_deletion_delta=None,
     ):
         if not org_id:
             raise ValidationException("Staleness org_id cannot be null.")
@@ -554,10 +554,10 @@ class Staleness(db.Model):
         self.org_id = org_id
         self.conventional_staleness_delta = conventional_staleness_delta
         self.conventional_stale_warning_delta = conventional_stale_warning_delta
-        self.conventional_culling_delta = conventional_culling_delta
+        self.conventional_deletion_delta = conventional_deletion_delta
         self.immutable_staleness_delta = immutable_staleness_delta
         self.immutable_stale_warning_delta = immutable_stale_warning_delta
-        self.immutable_culling_delta = immutable_culling_delta
+        self.immutable_deletion_delta = immutable_deletion_delta
 
     def days_to_seconds(n_days):
         factor = 86400
@@ -568,23 +568,23 @@ class Staleness(db.Model):
             self.conventional_staleness_delta = input_acc.conventional_staleness_delta
         if input_acc.conventional_stale_warning_delta:
             self.conventional_stale_warning_delta = input_acc.conventional_stale_warning_delta
-        if input_acc.conventional_culling_delta:
-            self.conventional_culling_delta = input_acc.conventional_culling_delta
+        if input_acc.conventional_deletion_delta:
+            self.conventional_deletion_delta = input_acc.conventional_deletion_delta
         if input_acc.immutable_staleness_delta:
             self.immutable_staleness_delta = input_acc.immutable_staleness_delta
         if input_acc.immutable_stale_warning_delta:
             self.immutable_stale_warning_delta = input_acc.immutable_stale_warning_delta
-        if input_acc.immutable_culling_delta:
-            self.immutable_culling_delta = input_acc.immutable_culling_delta
+        if input_acc.immutable_deletion_delta:
+            self.immutable_deletion_delta = input_acc.immutable_deletion_delta
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     org_id = db.Column(db.String(36), nullable=False)
     conventional_staleness_delta = db.Column(db.Integer, default=days_to_seconds(1), nullable=False)
     conventional_stale_warning_delta = db.Column(db.Integer, default=days_to_seconds(7), nullable=False)
-    conventional_culling_delta = db.Column(db.Integer, default=days_to_seconds(14), nullable=False)
+    conventional_deletion_delta = db.Column(db.Integer, default=days_to_seconds(14), nullable=False)
     immutable_staleness_delta = db.Column(db.Integer, default=days_to_seconds(2), nullable=False)
     immutable_stale_warning_delta = db.Column(db.Integer, default=days_to_seconds(120), nullable=False)
-    immutable_culling_delta = db.Column(db.Integer, default=days_to_seconds(180), nullable=False)
+    immutable_deletion_delta = db.Column(db.Integer, default=days_to_seconds(180), nullable=False)
     created_on = db.Column(db.DateTime(timezone=True), default=_time_now)
     modified_on = db.Column(db.DateTime(timezone=True), default=_time_now, onupdate=_time_now)
 
@@ -856,10 +856,10 @@ class InputAssignmentRule(MarshmallowSchema):
 class StalenessSchema(MarshmallowSchema):
     conventional_staleness_delta = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
     conventional_stale_warning_delta = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
-    conventional_culling_delta = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
+    conventional_deletion_delta = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
     immutable_staleness_delta = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
     immutable_stale_warning_delta = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
-    immutable_culling_delta = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
+    immutable_deletion_delta = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

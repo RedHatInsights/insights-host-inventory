@@ -38,10 +38,10 @@ def _get_return_data():
         "org_id": "123",
         "conventional_staleness_delta": "1",
         "conventional_stale_warning_delta": "7",
-        "conventional_culling_delta": "14",
+        "conventional_deletion_delta": "14",
         "immutable_staleness_delta": "2",
         "immutable_stale_warning_delta": "120",
-        "immutable_culling_delta": "180",
+        "immutable_deletion_delta": "180",
         "created_at": "2023-07-28T14:32:16.353082",
         "updated_at": "2023-07-28T14:32:16.353082",
     }

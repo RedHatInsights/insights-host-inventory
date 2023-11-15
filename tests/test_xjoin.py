@@ -910,7 +910,7 @@ def test_response_processed_properly(graphql_query_with_response, api_get):
                 "provider_id": None,
                 "provider_type": None,
                 "stale_warning_timestamp": "2019-02-17T08:07:03.354312+00:00",
-                "culled_timestamp": "2019-02-24T08:07:03.354312+00:00",
+                "deletion_timestamp": "2019-02-24T08:07:03.354312+00:00",
                 "facts": [],
             },
             {
@@ -941,7 +941,7 @@ def test_response_processed_properly(graphql_query_with_response, api_get):
                 "provider_id": None,
                 "provider_type": None,
                 "stale_warning_timestamp": "2019-01-17T08:07:03.354312+00:00",
-                "culled_timestamp": "2019-01-24T08:07:03.354312+00:00",
+                "deletion_timestamp": "2019-01-24T08:07:03.354312+00:00",
                 "facts": [
                     {"namespace": "os", "facts": {"os.release": "Red Hat Enterprise Linux Server"}},
                     {

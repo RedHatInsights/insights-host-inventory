@@ -1160,7 +1160,7 @@ components:
           - fresh
           - stale
           - stale_warning
-      description: "Culling states of the hosts. Default: fresh, stale and stale_warning"
+      description: "Deletion states of the hosts. Default: fresh, stale and stale_warning"
     stalenessNoDefaultsParam:
       name: staleness
       in: query
@@ -1173,7 +1173,7 @@ components:
             - fresh
             - stale
             - stale_warning
-      description: "Culling states of the hosts."
+      description: "Deletion states of the hosts."
     tagsParam:
       name: tags
       in: query
@@ -1669,7 +1669,7 @@ components:
               type: string
               format: date-time
               nullable: true
-            culled_timestamp:
+            deletion_timestamp:
               description: Timestamp from which the host is considered deleted.
               type: string
               format: date-time
@@ -2062,7 +2062,7 @@ components:
             conventional_stale_warning_delta:
               type: integer
               minimum: 1
-            conventional_culling_delta:
+            conventional_deletion_delta:
               type: integer
               minimum: 1
             immutable_staleness_delta:
@@ -2071,7 +2071,7 @@ components:
             immutable_stale_warning_delta:
               type: integer
               minimum: 1
-            immutable_culling_delta:
+            immutable_deletion_delta:
               type: integer
               minimum: 1
     StalenessOutput:
@@ -2088,13 +2088,13 @@ components:
           type: integer
         conventional_stale_warning_delta:
           type: integer
-        conventional_culling_delta:
+        conventional_deletion_delta:
           type: integer
         immutable_staleness_delta:
           type: integer
         immutable_stale_warning_delta:
           type: integer
-        immutable_culling_delta:
+        immutable_deletion_delta:
           type: integer
         created_at:
           description: A timestamp when the entry was created.

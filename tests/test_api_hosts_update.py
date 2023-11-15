@@ -436,10 +436,10 @@ def test_add_facts_to_multiple_culled_hosts(
         db_create_staleness_culling(
             conventional_staleness_delta=1,
             conventional_stale_warning_delta=1,
-            conventional_culling_delta=1,
+            conventional_deletion_delta=1,
             immutable_staleness_delta=1,
             immutable_stale_warning_delta=1,
-            immutable_culling_delta=1,
+            immutable_deletion_delta=1,
         )
 
         staleness_timestamps = get_staleness_timestamps()

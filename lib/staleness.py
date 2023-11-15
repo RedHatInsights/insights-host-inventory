@@ -11,10 +11,10 @@ def add_staleness(staleness_data) -> Staleness:
     logger.debug("Creating a new AccountStaleness: %s", staleness_data)
     conventional_staleness_delta = staleness_data.get("conventional_staleness_delta")
     conventional_stale_warning_delta = staleness_data.get("conventional_stale_warning_delta")
-    conventional_culling_delta = staleness_data.get("conventional_culling_delta")
+    conventional_deletion_delta = staleness_data.get("conventional_deletion_delta")
     immutable_staleness_delta = staleness_data.get("immutable_staleness_delta")
     immutable_stale_warning_delta = staleness_data.get("immutable_stale_warning_delta")
-    immutable_culling_delta = staleness_data.get("immutable_culling_delta")
+    immutable_deletion_delta = staleness_data.get("immutable_deletion_delta")
     org_id = get_current_identity().org_id
 
     with session_guard(db.session):
@@ -22,10 +22,10 @@ def add_staleness(staleness_data) -> Staleness:
             org_id=org_id,
             conventional_staleness_delta=conventional_staleness_delta,
             conventional_stale_warning_delta=conventional_stale_warning_delta,
-            conventional_culling_delta=conventional_culling_delta,
+            conventional_deletion_delta=conventional_deletion_delta,
             immutable_staleness_delta=immutable_staleness_delta,
             immutable_stale_warning_delta=immutable_stale_warning_delta,
-            immutable_culling_delta=immutable_culling_delta,
+            immutable_deletion_delta=immutable_deletion_delta,
         )
         db.session.add(new_staleness)
         db.session.flush()
