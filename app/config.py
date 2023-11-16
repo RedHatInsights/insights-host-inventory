@@ -243,10 +243,10 @@ class Config:
         self.immutable_staleness_seconds = int(os.environ.get("IMMUTABLE_STALENESS_SECONDS", self.days_to_seconds(2)))
 
         self.immutable_stale_warning_seconds = int(
-            os.environ.get("IMMUTABLE_STALENESS_WARNING_SECONDS", self.days_to_seconds(120))
+            os.environ.get("IMMUTABLE_STALENESS_WARNING_SECONDS", self.days_to_seconds(180))
         )
 
-        self.immutable_culling_seconds = int(os.environ.get("IMMUTABLE_CULLING_SECONDS", self.days_to_seconds(180)))
+        self.immutable_culling_seconds = int(os.environ.get("IMMUTABLE_CULLING_SECONDS", self.days_to_seconds(730)))
 
         self.xjoin_graphql_url = os.environ.get("XJOIN_GRAPHQL_URL", "http://localhost:4000/graphql")
 
