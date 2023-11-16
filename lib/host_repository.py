@@ -5,11 +5,9 @@ from sqlalchemy import and_
 from sqlalchemy import not_
 from sqlalchemy import or_
 
-from api.staleness_query import get_staleness_obj
-from api.staleness_query import get_sys_default_staleness
+from app import inventory_config
 from app.auth import get_current_identity
 from app.auth.identity import IdentityType
-from app.config import HOST_TYPES
 from app.culling import staleness_to_conditions
 from app.exceptions import InventoryException
 from app.logging import get_logger
@@ -17,7 +15,6 @@ from app.models import db
 from app.models import Host
 from app.models import HostGroupAssoc
 from app.serialization import serialize_host
-from app.serialization import serialize_staleness_to_dict
 from lib import metrics
 from lib.db import session_guard
 
@@ -44,7 +41,7 @@ AddHostResult = Enum("AddHostResult", ("created", "updated"))
 # the priority.
 ELEVATED_CANONICAL_FACT_FIELDS = ("provider_id", "insights_id", "subscription_manager_id")
 
-ALL_STALENESS_STATES = ("fresh", "stale", "stale_warning")
+ALL_STALENESS_STATES = ("fresh", "stale", "stale_warning", "unknown")
 NULL = None
 
 logger = get_logger(__name__)
@@ -60,7 +57,7 @@ def add_host(input_host, identity, staleness_offset, update_system_profile=True,
     """
     with session_guard(db.session):
         existing_host = find_existing_host(identity, input_host.canonical_facts)
-        staleness = get_staleness_obj(identity)
+
         if existing_host:
             defer_to_reporter = operation_args.get("defer_to_reporter", None)
             if defer_to_reporter is not None:
@@ -69,11 +66,9 @@ def add_host(input_host, identity, staleness_offset, update_system_profile=True,
                     logger.debug("host_repository.add_host: setting update_system_profile = False")
                     update_system_profile = False
 
-            return update_existing_host(
-                existing_host, input_host, staleness_offset, update_system_profile, staleness=staleness
-            )
+            return update_existing_host(existing_host, input_host, staleness_offset, update_system_profile)
         else:
-            return create_new_host(input_host, staleness_offset, staleness=staleness)
+            return create_new_host(input_host, staleness_offset)
 
 
 @metrics.host_dedup_processing_time.time()
@@ -90,7 +85,7 @@ def find_existing_host(identity, canonical_facts):
 def find_existing_host_by_id(identity, host_id):
     query = Host.query.filter((Host.org_id == identity.org_id) & (Host.id == UUID(host_id)))
     query = update_query_for_owner_id(identity, query)
-    return find_non_culled_hosts(query, identity).order_by(Host.modified_on.desc()).first()
+    return find_non_culled_hosts(query).order_by(Host.modified_on.desc()).first()
 
 
 @metrics.find_host_using_elevated_ids.time()
@@ -122,7 +117,7 @@ def single_canonical_fact_host_query(identity, canonical_fact, value, restrict_t
     )
     if restrict_to_owner_id:
         query = update_query_for_owner_id(identity, query)
-    return find_non_culled_hosts(query, identity)
+    return find_non_culled_hosts(query)
 
 
 def multiple_canonical_facts_host_query(identity, canonical_facts, restrict_to_owner_id=True):
@@ -133,7 +128,7 @@ def multiple_canonical_facts_host_query(identity, canonical_facts, restrict_to_o
     )
     if restrict_to_owner_id:
         query = update_query_for_owner_id(identity, query)
-    return find_non_culled_hosts(query, identity)
+    return find_non_culled_hosts(query)
 
 
 def find_host_by_multiple_canonical_facts(identity, canonical_facts):
@@ -154,45 +149,22 @@ def find_host_by_multiple_canonical_facts(identity, canonical_facts):
     return host
 
 
-def find_hosts_by_staleness(staleness_types, query, identity):
-    logger.debug("find_hosts_by_staleness(%s)", staleness_types)
-    staleness_obj = serialize_staleness_to_dict(get_staleness_obj(identity=identity))
-    staleness_conditions = [
-        or_(False, *staleness_to_conditions(staleness_obj, staleness_types, host_type, stale_timestamp_filter))
-        for host_type in HOST_TYPES
-    ]
+def find_hosts_by_staleness(staleness, query):
+    logger.debug("find_hosts_by_staleness(%s)", staleness)
+    config = inventory_config()
+    staleness_conditions = tuple(staleness_to_conditions(config, staleness, stale_timestamp_filter))
+    if "unknown" in staleness:
+        staleness_conditions += (Host.stale_timestamp == NULL,)
 
-    return query.filter(or_(False, *staleness_conditions))
-
-
-def find_hosts_by_staleness_reaper(staleness_types, identity):
-    logger.debug("find_hosts_by_staleness(%s)", staleness_types)
-    staleness_obj = serialize_staleness_to_dict(get_staleness_obj(identity=identity))
-    staleness_conditions = [
-        or_(False, *staleness_to_conditions(staleness_obj, staleness_types, host_type, stale_timestamp_filter))
-        for host_type in HOST_TYPES
-    ]
-
-    return or_(False, *staleness_conditions)
+    return query.filter(or_(*staleness_conditions))
 
 
-def find_hosts_sys_default_staleness(staleness_types):
-    logger.debug("find hosts with system default staleness")
-    sys_default_staleness = serialize_staleness_to_dict(get_sys_default_staleness())
-    staleness_conditions = [
-        or_(False, *staleness_to_conditions(sys_default_staleness, staleness_types, host_type, stale_timestamp_filter))
-        for host_type in HOST_TYPES
-    ]
-
-    return or_(False, *staleness_conditions)
-
-
-def find_non_culled_hosts(query, identity=None):
-    return find_hosts_by_staleness(ALL_STALENESS_STATES, query, identity)
+def find_non_culled_hosts(query):
+    return find_hosts_by_staleness(ALL_STALENESS_STATES, query)
 
 
 @metrics.new_host_commit_processing_time.time()
-def create_new_host(input_host, staleness_offset, staleness):
+def create_new_host(input_host, staleness_offset):
     logger.debug("Creating a new host")
 
     input_host.save()
@@ -201,14 +173,14 @@ def create_new_host(input_host, staleness_offset, staleness):
     metrics.create_host_count.inc()
     logger.debug("Created host:%s", input_host)
 
-    output_host = serialize_host(input_host, staleness_offset, staleness=staleness)
+    output_host = serialize_host(input_host, staleness_offset)
     insights_id = input_host.canonical_facts.get("insights_id")
 
     return output_host, input_host.id, insights_id, AddHostResult.created
 
 
 @metrics.update_host_commit_processing_time.time()
-def update_existing_host(existing_host, input_host, staleness_offset, update_system_profile, staleness):
+def update_existing_host(existing_host, input_host, staleness_offset, update_system_profile):
     logger.debug("Updating an existing host")
     logger.debug(f"existing host = {existing_host}")
 
@@ -217,19 +189,32 @@ def update_existing_host(existing_host, input_host, staleness_offset, update_sys
 
     metrics.update_host_count.inc()
     logger.debug("Updated host:%s", existing_host)
-    output_host = serialize_host(existing_host, staleness_offset, staleness=staleness)
+
+    output_host = serialize_host(existing_host, staleness_offset)
     insights_id = existing_host.canonical_facts.get("insights_id")
 
     return output_host, existing_host.id, insights_id, AddHostResult.updated
 
 
-def stale_timestamp_filter(gt=None, lte=None, host_type=None):
+def stale_timestamp_filter(gt=None, lte=None):
     filter_ = ()
     if gt:
-        filter_ += (Host.modified_on > gt,)
+        filter_ += (Host.stale_timestamp > gt,)
     if lte:
-        filter_ += (Host.modified_on <= lte,)
-    return and_(*filter_, (Host.system_profile_facts["host_type"].as_string() == host_type))
+        filter_ += (Host.stale_timestamp <= lte,)
+    return and_(*filter_)
+
+
+def exclude_edge_filter(query):
+    return and_(
+        query,
+        (
+            or_(
+                not_(Host.system_profile_facts.has_key("host_type")),  # noqa: W601 JSONB query filter, not a dict
+                Host.system_profile_facts["host_type"].as_string() != "edge",
+            )
+        ),
+    )
 
 
 def contains_no_incorrect_facts_filter(canonical_facts):
@@ -265,7 +250,7 @@ def update_query_for_owner_id(identity, query):
         return query
 
 
-def update_system_profile(input_host, identity, staleness_offset, staleness):
+def update_system_profile(input_host, identity, staleness_offset):
     if not input_host.system_profile_facts:
         raise InventoryException(
             title="Invalid request", detail="Cannot update System Profile, since no System Profile data was provided."
@@ -287,7 +272,7 @@ def update_system_profile(input_host, identity, staleness_offset, staleness):
             metrics.update_host_count.inc()
             logger.debug("Updated system profile for host:%s", existing_host)
 
-            output_host = serialize_host(existing_host, staleness_offset, staleness=staleness)
+            output_host = serialize_host(existing_host, staleness_offset)
             insights_id = existing_host.canonical_facts.get("insights_id")
             return output_host, existing_host.id, insights_id, AddHostResult.updated
         else:
@@ -310,4 +295,4 @@ def get_host_list_by_id_list_from_db(host_id_list, rbac_filter=None):
         filters += (or_(*rbac_group_filters),)
 
     query = Host.query.join(HostGroupAssoc, isouter=True).filter(*filters).group_by(Host.id)
-    return find_non_culled_hosts(update_query_for_owner_id(current_identity, query), current_identity)
+    return find_non_culled_hosts(update_query_for_owner_id(current_identity, query))

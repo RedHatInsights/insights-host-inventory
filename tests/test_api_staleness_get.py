@@ -24,7 +24,7 @@ def test_get_default_staleness(api_get):
     assert response_data["immutable_culling_delta"] == expected_result["immutable_culling_delta"]
 
 
-def test_get_custom_staleness(api_create_staleness, api_get):
+def test_get_custom_staleness(api_create_staleness, api_get, clean_g):
     created_response_status, _ = api_create_staleness(_INPUT_DATA)
     url = build_staleness_url()
     response_status, response_data = api_get(url)

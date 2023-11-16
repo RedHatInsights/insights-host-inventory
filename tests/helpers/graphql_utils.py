@@ -229,6 +229,7 @@ def xjoin_host_response(timestamp):
 
 
 def assert_graph_query_single_call_with_staleness(mocker, graphql_query, staleness_conditions):
+    conditions = tuple({"stale_timestamp": staleness_condition} for staleness_condition in staleness_conditions)
     graphql_query.assert_called_once_with(
         HOST_QUERY,
         {
@@ -236,7 +237,7 @@ def assert_graph_query_single_call_with_staleness(mocker, graphql_query, stalene
             "order_how": mocker.ANY,
             "limit": mocker.ANY,
             "offset": mocker.ANY,
-            "filter": ({"OR": staleness_conditions},),
+            "filter": ({"OR": conditions},),
             "fields": mocker.ANY,
         },
         mocker.ANY,

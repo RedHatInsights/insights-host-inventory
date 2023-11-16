@@ -133,9 +133,7 @@ def assert_patch_event_is_valid(
     stale_timestamp=None,
     reporter=None,
 ):
-    stale_timestamp = (host.modified_on.astimezone(timezone.utc) + timedelta(seconds=104400)).isoformat()
-    stale_warning_timestamp = (host.modified_on.astimezone(timezone.utc) + timedelta(seconds=604800)).isoformat()
-    culled_timestamp = (host.modified_on.astimezone(timezone.utc) + timedelta(seconds=1209600)).isoformat()
+    stale_timestamp = stale_timestamp or host.stale_timestamp.astimezone(timezone.utc)
     reporter = reporter or host.reporter
 
     event = json.loads(event_producer.event)
@@ -163,9 +161,9 @@ def assert_patch_event_is_valid(
             "per_reporter_staleness": host.per_reporter_staleness,
             "tags": [tag.data() for tag in Tag.create_tags_from_nested(host.tags)],
             "reporter": reporter,
-            "stale_timestamp": stale_timestamp,
-            "stale_warning_timestamp": stale_warning_timestamp,
-            "culled_timestamp": culled_timestamp,
+            "stale_timestamp": stale_timestamp.isoformat(),
+            "stale_warning_timestamp": (stale_timestamp + timedelta(weeks=1)).isoformat(),
+            "culled_timestamp": (stale_timestamp + timedelta(weeks=2)).isoformat(),
             "created": host.created_on.astimezone(timezone.utc).isoformat(),
             "provider_id": host.canonical_facts.get("provider_id"),
             "provider_type": host.canonical_facts.get("provider_type"),

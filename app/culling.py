@@ -27,39 +27,30 @@ class Timestamps(_WithConfig):
     def _add_time(timestamp, delta):
         return timestamp + delta
 
-    def stale_timestamp(self, stale_timestamp, stale_seconds):
-        return self._add_time(stale_timestamp, timedelta(seconds=stale_seconds))
+    def stale_timestamp(self, stale_timestamp):
+        return self._add_time(stale_timestamp, timedelta(days=0))
 
-    def stale_warning_timestamp(self, stale_timestamp, stale_warning_seconds):
-        return self._add_time(stale_timestamp, timedelta(seconds=stale_warning_seconds))
+    def stale_warning_timestamp(self, stale_timestamp):
+        return self._add_time(stale_timestamp, self.config.stale_warning_offset_delta)
 
-    def culled_timestamp(self, stale_timestamp, culled_seconds):
-        return self._add_time(stale_timestamp, timedelta(seconds=culled_seconds))
+    def culled_timestamp(self, stale_timestamp):
+        return self._add_time(stale_timestamp, self.config.culled_offset_delta)
 
 
-class Conditions:
-    def __init__(self, staleness, host_type):
+class Conditions(_WithConfig):
+    def __init__(self, config):
+        super().__init__(config)
         self.now = datetime.now(timezone.utc)
-        self.host_type = host_type
 
-        self.staleness_host_type = {
-            None: {
-                "stale": staleness["conventional_staleness_delta"],
-                "warning": staleness["conventional_stale_warning_delta"],
-                "culled": staleness["conventional_culling_delta"],
-            },
-            "edge": {
-                "stale": staleness["immutable_staleness_delta"],
-                "warning": staleness["immutable_stale_warning_delta"],
-                "culled": staleness["immutable_culling_delta"],
-            },
-        }
+    @staticmethod
+    def _sub_time(timestamp, delta):
+        return timestamp - delta
 
     def fresh(self):
-        return self._stale_timestamp(), None
+        return self.now, None
 
     def stale(self):
-        return self._stale_warning_timestamp(), self._stale_timestamp()
+        return self._stale_warning_timestamp(), self.now
 
     def stale_warning(self):
         return self._culled_timestamp(), self._stale_warning_timestamp()
@@ -67,23 +58,16 @@ class Conditions:
     def culled(self):
         return None, self._culled_timestamp()
 
-    def not_culled(self):
-        return self._culled_timestamp(), None
-
-    def _stale_timestamp(self):
-        offset = timedelta(seconds=self.staleness_host_type[self.host_type]["stale"])
-        return self.now - offset
-
     def _stale_warning_timestamp(self):
-        offset = timedelta(seconds=self.staleness_host_type[self.host_type]["warning"])
+        offset = self.config.stale_warning_offset_delta
         return self.now - offset
 
     def _culled_timestamp(self):
-        offset = timedelta(seconds=self.staleness_host_type[self.host_type]["culled"])
+        offset = self.config.culled_offset_delta
         return self.now - offset
 
 
-def staleness_to_conditions(staleness, staleness_states, host_type, timestamp_filter_func):
-    condition = Conditions(staleness, host_type)
-    filtered_states = (state for state in staleness_states)
-    return (timestamp_filter_func(*getattr(condition, state)(), host_type=host_type) for state in filtered_states)
+def staleness_to_conditions(config, staleness, timestamp_filter_func):
+    condition = Conditions.from_config(config)
+    filtered_states = (state for state in staleness if state not in ("unknown",))
+    return (timestamp_filter_func(*getattr(condition, state)()) for state in filtered_states)
