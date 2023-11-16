@@ -89,11 +89,10 @@ def params_to_order(param_order_by, param_order_how):
 
 def staleness_filter(staleness):
     staleness_obj = serialize_staleness_to_dict(get_staleness_obj())
-    staleness_conditions = tuple()
-    for host_type in HOST_TYPES:
-        staleness_conditions += tuple(
-            staleness_to_conditions(staleness_obj, staleness, host_type, _stale_timestamp_filter)
-        )
+    staleness_conditions = [
+        {"OR": tuple(staleness_to_conditions(staleness_obj, staleness, host_type, _stale_timestamp_filter))}
+        for host_type in HOST_TYPES
+    ]
     return staleness_conditions
 
 

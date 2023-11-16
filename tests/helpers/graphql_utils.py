@@ -236,7 +236,7 @@ def assert_graph_query_single_call_with_staleness(mocker, graphql_query, stalene
             "order_how": mocker.ANY,
             "limit": mocker.ANY,
             "offset": mocker.ANY,
-            "filter": staleness_conditions,
+            "filter": ({"OR": staleness_conditions},),
             "fields": mocker.ANY,
         },
         mocker.ANY,
