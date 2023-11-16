@@ -1,3 +1,4 @@
+from flask import g
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import inventory_config
@@ -9,31 +10,49 @@ from app.models import Staleness
 logger = get_logger(__name__)
 
 
-def get_staleness_obj(identity=None):
-    if not identity:
-        org_id = get_current_identity().org_id
+def get_staleness_db(rbac_filter=None, identity=None):
+    # TODO: ESSNTL-5163
+    if rbac_filter:
+        pass
+
+    """
+        Uses flask g to store account staleness data
+        so it is made only 1 call to the DB.
+        This is useful in the hosts serialization,
+        specially when a list of hosts are fetched
+    """
+    if "acc_st" in g:
+        return g.acc_st
     else:
-        org_id = identity.org_id
-    try:
-        staleness = Staleness.query.filter(Staleness.org_id == org_id).one()
-        logger.info("Using custom account staleness")
-        staleness = _build_serialized_acc_staleness_obj(staleness)
-    except NoResultFound:
-        logger.info(f"No data found for user {org_id}, using system default values")
-        staleness = _build_staleness_sys_default(org_id)
-        return staleness
+        logger.debug("Account staleness data is not available in global request context")
+        if not identity:
+            org_id = get_current_identity().org_id
+        else:
+            org_id = identity.org_id
+        try:
+            filters = (Staleness.org_id == org_id,)
+            acc_st = Staleness.query.filter(*filters).one()
+            logger.info("Using custom account staleness")
+            logger.debug("Setting account staleness data to global request context")
+            g.acc_st = _build_serialized_acc_staleness_obj(acc_st)
+        except NoResultFound:
+            logger.info(f"No data found for user {org_id}, using system default values")
+            acc_st = _build_acc_staleness_sys_default(org_id)
+            logger.debug("Setting account staleness data to global request context")
+            g.acc_st = acc_st
+            return g.acc_st
 
-    return staleness
+        return g.acc_st
 
 
-def get_sys_default_staleness(config=None):
-    return _build_staleness_sys_default("000000", config)
+def get_sys_default_staleness():
+    org_id = get_current_identity().org_id
+    acc_st = _build_acc_staleness_sys_default(org_id)
+    return acc_st
 
 
-def _build_staleness_sys_default(org_id, config=None):
-    if not config:
-        config = inventory_config()
-
+def _build_acc_staleness_sys_default(org_id):
+    config = inventory_config()
     return AttrDict(
         {
             "id": "system_default",
@@ -53,19 +72,19 @@ def _build_staleness_sys_default(org_id, config=None):
 # This is required because we do not keep a ORM object that is attached to a session
 # leaving in the global scope. Before this serialization,
 # it was causing sqlalchemy.orm.exc.DetachedInstanceError
-def _build_serialized_acc_staleness_obj(staleness):
+def _build_serialized_acc_staleness_obj(acc_st):
     return AttrDict(
         {
-            "id": str(staleness.id),
-            "org_id": staleness.org_id,
-            "conventional_staleness_delta": staleness.conventional_staleness_delta,
-            "conventional_stale_warning_delta": staleness.conventional_stale_warning_delta,
-            "conventional_culling_delta": staleness.conventional_culling_delta,
-            "immutable_staleness_delta": staleness.immutable_staleness_delta,
-            "immutable_stale_warning_delta": staleness.immutable_stale_warning_delta,
-            "immutable_culling_delta": staleness.immutable_culling_delta,
-            "created_on": staleness.created_on,
-            "modified_on": staleness.modified_on,
+            "id": str(acc_st.id),
+            "org_id": acc_st.org_id,
+            "conventional_staleness_delta": acc_st.conventional_staleness_delta,
+            "conventional_stale_warning_delta": acc_st.conventional_stale_warning_delta,
+            "conventional_culling_delta": acc_st.conventional_culling_delta,
+            "immutable_staleness_delta": acc_st.immutable_staleness_delta,
+            "immutable_stale_warning_delta": acc_st.immutable_stale_warning_delta,
+            "immutable_culling_delta": acc_st.immutable_culling_delta,
+            "created_on": acc_st.created_on,
+            "modified_on": acc_st.modified_on,
         }
     )
 

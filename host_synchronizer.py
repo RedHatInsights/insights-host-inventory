@@ -6,14 +6,12 @@ from prometheus_client import push_to_gateway
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app import create_app
 from app.config import Config
 from app.environment import RuntimeEnvironment
 from app.logging import configure_logging
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
-from app.models import Staleness
 from app.queue.event_producer import EventProducer
 from app.queue.metrics import event_producer_failure
 from app.queue.metrics import event_producer_success
@@ -38,8 +36,6 @@ COLLECTED_METRICS = (
 )
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
 
-app = create_app(RUNTIME_ENVIRONMENT)
-
 
 def _init_config():
     config = Config(RUNTIME_ENVIRONMENT)
@@ -62,10 +58,10 @@ def _excepthook(logger, type, value, traceback):
 
 @synchronize_fail_count.count_exceptions()
 def run(config, logger, session, event_producer, shutdown_handler):
-    query_hosts = session.query(Host)
-    query_staleness = session.query(Staleness)
+    query = session.query(Host)
+
     update_count = synchronize_hosts(
-        query_hosts, query_staleness, event_producer, config.script_chunk_size, config, shutdown_handler.shut_down
+        query, event_producer, config.script_chunk_size, config, shutdown_handler.shut_down
     )
     logger.info(f"Total number of hosts synchronized: {update_count}")
     return update_count

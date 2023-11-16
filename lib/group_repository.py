@@ -1,7 +1,6 @@
 from typing import List
 
 from api.host_query import staleness_timestamps
-from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
 from app.exceptions import InventoryException
 from app.instrumentation import get_control_rule
@@ -34,7 +33,7 @@ from lib.metrics import delete_host_group_processing_time
 logger = get_logger(__name__)
 
 
-def _produce_host_update_events(event_producer, host_id_list, group_id_list=[], staleness=None):
+def _produce_host_update_events(event_producer, host_id_list, group_id_list=[]):
     serialized_groups = [serialize_group(get_group_by_id_from_db(group_id)) for group_id in group_id_list]
 
     # Update groups data on each host record
@@ -45,7 +44,7 @@ def _produce_host_update_events(event_producer, host_id_list, group_id_list=[], 
     # Send messages
     for host in host_list:
         host.groups = serialized_groups
-        serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
+        serialized_host = serialize_host(host, staleness_timestamps())
         headers = message_headers(
             EventType.updated,
             host.canonical_facts.get("insights_id"),
@@ -101,12 +100,11 @@ def _add_hosts_to_group(group_id: str, host_id_list: List[str]):
 
 
 def add_hosts_to_group(group_id: str, host_id_list: List[str], event_producer: EventProducer):
-    staleness = get_staleness_obj(get_current_identity())
     with session_guard(db.session):
         _add_hosts_to_group(group_id, host_id_list)
 
     # Produce update messages once the DB session has been closed
-    _produce_host_update_events(event_producer, host_id_list, group_id_list=[group_id], staleness=staleness)
+    _produce_host_update_events(event_producer, host_id_list, group_id_list=[group_id])
 
 
 def add_group(group_data, event_producer) -> Group:
@@ -114,7 +112,7 @@ def add_group(group_data, event_producer) -> Group:
     group_name = group_data.get("name")
     org_id = get_current_identity().org_id
     account = get_current_identity().account_number
-    staleness = get_staleness_obj(get_current_identity())
+
     with session_guard(db.session):
         new_group = Group(name=group_name, org_id=org_id, account=account)
         db.session.add(new_group)
@@ -132,7 +130,7 @@ def add_group(group_data, event_producer) -> Group:
     created_group = Group.query.filter((Group.name == group_name) & (Group.org_id == org_id)).one_or_none()
 
     # Produce update messages once the DB session has been closed
-    _produce_host_update_events(event_producer, host_id_list, group_id_list=[created_group.id], staleness=staleness)
+    _produce_host_update_events(event_producer, host_id_list, group_id_list=[created_group.id])
 
     return created_group
 
@@ -165,7 +163,7 @@ def _delete_group(group: Group) -> bool:
 def delete_group_list(group_id_list: List[str], event_producer: EventProducer) -> int:
     deletion_count = 0
     deleted_host_ids = []
-    staleness = get_staleness_obj(get_current_identity())
+
     with session_guard(db.session):
         deleted_host_ids = (
             db.session.query(HostGroupAssoc.host_id)
@@ -188,17 +186,16 @@ def delete_group_list(group_id_list: List[str], event_producer: EventProducer) -
                 else:
                     log_group_delete_failed(logger, group_id, get_control_rule())
 
-    _produce_host_update_events(event_producer, deleted_host_ids, [], staleness=staleness)
+    _produce_host_update_events(event_producer, deleted_host_ids, [])
     return deletion_count
 
 
 def remove_hosts_from_group(group_id, host_id_list, event_producer):
     removed_host_ids = []
-    staleness = get_staleness_obj(get_current_identity())
     with session_guard(db.session):
         removed_host_ids = _remove_hosts_from_group(group_id, host_id_list)
 
-    _produce_host_update_events(event_producer, removed_host_ids, [], staleness=staleness)
+    _produce_host_update_events(event_producer, removed_host_ids, [])
     return len(removed_host_ids)
 
 
@@ -242,7 +239,6 @@ def patch_group(group: Group, patch_data: dict, event_producer: EventProducer):
 
     existing_host_uuids = db.session.query(HostGroupAssoc.host_id).filter(HostGroupAssoc.group_id == group_id).all()
     existing_host_ids = {str(host_id[0]) for host_id in existing_host_uuids}
-    staleness = get_staleness_obj(get_current_identity())
 
     with session_guard(db.session):
         # Patch Group data, if provided
@@ -258,7 +254,7 @@ def patch_group(group: Group, patch_data: dict, event_producer: EventProducer):
         # If anything was updated, and the host list is not being replaced,
         # send update messages to existing hosts. Otherwise, wait until the host list is replaced
         # so we don't produce messages that will be instantly obsoleted.
-        _produce_host_update_events(event_producer, existing_host_ids, [group_id], staleness=staleness)
+        _produce_host_update_events(event_producer, existing_host_ids, [group_id])
     elif new_host_ids is not None:
         # If host IDs were provided, we need to update the host list.
         # First, update the modified date for the group
@@ -266,10 +262,10 @@ def patch_group(group: Group, patch_data: dict, event_producer: EventProducer):
         db.session.add(group)
 
         deleted_host_uuids = [str(host_id) for host_id in (existing_host_ids - new_host_ids)]
-        _produce_host_update_events(event_producer, deleted_host_uuids, [], staleness=staleness)
+        _produce_host_update_events(event_producer, deleted_host_uuids, [])
 
         added_host_uuids = [str(host_id) for host_id in new_host_ids]
-        _produce_host_update_events(event_producer, added_host_uuids, [group_id], staleness=staleness)
+        _produce_host_update_events(event_producer, added_host_uuids, [group_id])
 
 
 def _update_group_update_time(group_id: str):

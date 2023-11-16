@@ -1,6 +1,4 @@
 import json
-from datetime import datetime
-from unittest.mock import patch
 
 import pytest
 
@@ -82,26 +80,6 @@ def mq_create_hosts_in_all_states(mq_create_or_update_host):
         created_hosts[state] = mq_create_or_update_host(host)
 
     return created_hosts
-
-
-@pytest.fixture(scope="function")
-def mq_create_deleted_hosts(mq_create_or_update_host):
-    with patch("app.models.datetime") as mock_datetime:
-        mock_datetime.now.return_value = datetime(year=2023, month=4, day=2, hour=1, minute=1, second=1)
-        mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
-
-        staleness_timestamps = get_staleness_timestamps()
-        created_hosts = {}
-        for state, timestamp in staleness_timestamps.items():
-            host = minimal_host(
-                insights_id=generate_uuid(),
-                stale_timestamp=timestamp.isoformat(),
-                reporter="some reporter",
-                facts=FACTS,
-            )
-            created_hosts[state] = mq_create_or_update_host(host)
-
-        return created_hosts
 
 
 @pytest.fixture(scope="function")

@@ -51,6 +51,8 @@ ADDITIONAL_HOST_MQ_FIELDS = (
     "system_profile",
 )
 
+MAX_INT = 2147483647
+
 
 def deserialize_host(raw_data, schema=HostSchema, system_profile_spec=None):
     try:
@@ -111,36 +113,15 @@ def deserialize_group_xjoin(data):
     return group
 
 
-def serialize_host(
-    host,
-    staleness_timestamps,
-    for_mq=True,
-    additional_fields=tuple(),
-    staleness=None,
-    system_profile_fields=None,
-):
-    # TODO: In future, this must handle groups staleness
-
-    if host.system_profile_facts.get("host_type") == "edge":
-        stale_timestamp = staleness_timestamps.stale_timestamp(
-            host.modified_on, staleness["immutable_staleness_delta"]
-        )
-        stale_warning_timestamp = staleness_timestamps.stale_warning_timestamp(
-            host.modified_on, staleness["immutable_stale_warning_delta"]
-        )
-        culled_timestamp = staleness_timestamps.culled_timestamp(
-            host.modified_on, staleness["immutable_culling_delta"]
-        )
+def serialize_host(host, staleness_timestamps, for_mq=True, additional_fields=tuple()):
+    if host.stale_timestamp:
+        stale_timestamp = staleness_timestamps.stale_timestamp(host.stale_timestamp)
+        stale_warning_timestamp = staleness_timestamps.stale_warning_timestamp(host.stale_timestamp)
+        culled_timestamp = staleness_timestamps.culled_timestamp(host.stale_timestamp)
     else:
-        stale_timestamp = staleness_timestamps.stale_timestamp(
-            host.modified_on, staleness["conventional_staleness_delta"]
-        )
-        stale_warning_timestamp = staleness_timestamps.stale_warning_timestamp(
-            host.modified_on, staleness["conventional_stale_warning_delta"]
-        )
-        culled_timestamp = staleness_timestamps.culled_timestamp(
-            host.modified_on, staleness["conventional_culling_delta"]
-        )
+        stale_timestamp = None
+        stale_warning_timestamp = None
+        culled_timestamp = None
 
     serialized_host = {**serialize_canonical_facts(host.canonical_facts)}
 
@@ -165,13 +146,11 @@ def serialize_host(
     if "per_reporter_staleness" in fields:
         serialized_host["per_reporter_staleness"] = host.per_reporter_staleness
     if "stale_timestamp" in fields:
-        serialized_host["stale_timestamp"] = stale_timestamp and _serialize_staleness_to_string(stale_timestamp)
+        serialized_host["stale_timestamp"] = stale_timestamp and _serialize_datetime(stale_timestamp)
     if "stale_warning_timestamp" in fields:
-        serialized_host["stale_warning_timestamp"] = stale_warning_timestamp and _serialize_staleness_to_string(
-            stale_warning_timestamp
-        )
+        serialized_host["stale_warning_timestamp"] = stale_timestamp and _serialize_datetime(stale_warning_timestamp)
     if "culled_timestamp" in fields:
-        serialized_host["culled_timestamp"] = culled_timestamp and _serialize_staleness_to_string(culled_timestamp)
+        serialized_host["culled_timestamp"] = stale_timestamp and _serialize_datetime(culled_timestamp)
         # without astimezone(timezone.utc) the isoformat() method does not include timezone offset even though iso-8601
         # requires it
     if "created" in fields:
@@ -182,9 +161,6 @@ def serialize_host(
         serialized_host["tags"] = _serialize_tags(host.tags)
     if "system_profile" in fields:
         serialized_host["system_profile"] = host.system_profile_facts or {}
-        if system_profile_fields and system_profile_fields.count("host_type") < 2:
-            if serialized_host["system_profile"].get("host_type"):
-                del serialized_host["system_profile"]["host_type"]
     if "groups" in fields:
         # For MQ messages, we only include name and ID.
         if for_mq and host.groups:
@@ -289,16 +265,6 @@ def _serialize_datetime(dt):
     return dt.astimezone(timezone.utc).isoformat()
 
 
-def _serialize_staleness_to_string(dt) -> str:
-    """
-    This function makes sure a datetime object
-    is returned as a string
-    """
-    if isinstance(dt, str):
-        return dt
-    return dt.astimezone(timezone.utc).isoformat()
-
-
 def _deserialize_datetime(s):
     dt = isoparse(s)
     if not dt.tzinfo:
@@ -389,19 +355,4 @@ def serialize_staleness_response(staleness):
         "immutable_culling_delta": staleness.immutable_culling_delta,
         "created": "N/A" if staleness.created_on == "N/A" else _serialize_datetime(staleness.created_on),
         "updated": "N/A" if staleness.modified_on == "N/A" else _serialize_datetime(staleness.modified_on),
-    }
-
-
-def serialize_staleness_to_dict(staleness_obj) -> dict:
-    """
-    This function serialize a staleness object
-    to a simple dictionary. This contains less information
-    """
-    return {
-        "conventional_staleness_delta": staleness_obj.conventional_staleness_delta,
-        "conventional_stale_warning_delta": staleness_obj.conventional_stale_warning_delta,
-        "conventional_culling_delta": staleness_obj.conventional_culling_delta,
-        "immutable_staleness_delta": staleness_obj.immutable_staleness_delta,
-        "immutable_stale_warning_delta": staleness_obj.immutable_stale_warning_delta,
-        "immutable_culling_delta": staleness_obj.immutable_culling_delta,
     }
