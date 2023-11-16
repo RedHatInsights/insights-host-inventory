@@ -209,20 +209,7 @@ data:
                 "uid": "${datasource}"
               },
               "editorMode": "code",
-              "expr": "sum(aws_kafka_sum_offset_lag_average{cluster_name='consoledot-stage', consumer_group='inventory-mq', topic=~'platform.inventory.host-ingress.*'} ) by (topic)",
-              "hide": true,
-              "interval": "1m",
-              "legendFormat": "{{topic}}",
-              "range": true,
-              "refId": "A"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${datasource}"
-              },
-              "editorMode": "code",
-              "expr": "sum(aws_kafka_bytes_in_per_sec_sum{cluster_name=\"consoledot-stage\"}) by (broker_id)",
+              "expr": "sum(aws_kafka_bytes_in_per_sec_sum{cluster_name='consoledot-stage', topic=~'platform.inventory.host-ingress.*'}) by (broker_id)",
               "hide": false,
               "interval": "1m",
               "legendFormat": "{{topic}}",
@@ -1174,6 +1161,7 @@ data:
           "type": "timeseries"
         }
       ],
+      "refresh": "5m",
       "schemaVersion": 37,
       "style": "dark",
       "tags": [],
@@ -1205,9 +1193,9 @@ data:
       },
       "timepicker": {},
       "timezone": "",
-      "title": "ConsoleDot MSK Stage",
+      "title": "Host Inventory MSK Stage",
       "uid": "jIU3vuWIz",
-      "version": 2,
+      "version": 3,
       "weekStart": ""
     }
 kind: ConfigMap
