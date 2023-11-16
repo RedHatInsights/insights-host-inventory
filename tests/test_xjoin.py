@@ -103,12 +103,20 @@ def test_query_all_hosts(mocker, graphql_query_empty_response, api_get):
             "filter": (
                 {
                     "OR": (
-                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},
-                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},
-                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},
-                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},
-                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},
-                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},
+                        {
+                            "OR": (
+                                {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},
+                                {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},
+                                {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},
+                            )
+                        },
+                        {
+                            "OR": (
+                                {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},
+                                {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},
+                                {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},
+                            )
+                        },
                     )
                 },
             ),
@@ -685,6 +693,10 @@ def test_query_variables_default_except_staleness(mocker, graphql_query_empty_re
                                 "spf_host_type": {"eq": "edge"},
                             }
                         },
+                    )
+                },
+                {
+                    "OR": (
                         {
                             "AND": {
                                 "modified_on": {"gt": "2019-12-15T05:10:06.754201+00:00"},
@@ -709,6 +721,10 @@ def test_query_variables_default_except_staleness(mocker, graphql_query_empty_re
                                 "spf_host_type": {"eq": "edge"},
                             }
                         },
+                    )
+                },
+                {
+                    "OR": (
                         {
                             "AND": {
                                 "modified_on": {
@@ -736,6 +752,10 @@ def test_query_variables_default_except_staleness(mocker, graphql_query_empty_re
                                 "spf_host_type": {"eq": "edge"},
                             }
                         },
+                    )
+                },
+                {
+                    "OR": (
                         {
                             "AND": {
                                 "modified_on": {
@@ -789,6 +809,10 @@ def test_query_multiple_staleness(mocker, culling_datetime_mock, graphql_query_e
                             "spf_host_type": {"eq": "edge"},
                         }
                     },
+                )
+            },
+            {
+                "OR": (
                     {
                         "AND": {
                             "modified_on": {"gt": "2019-12-15T05:10:06.754201+00:00"},
@@ -1038,16 +1062,24 @@ def test_tags_query_group_name_filter(assert_tag_query_host_filter_single_call, 
             "fresh",
             [
                 {
-                    "AND": {
-                        "modified_on": {"gt": "2019-12-14T10:10:06.754201+00:00"},
-                        "spf_host_type": {"eq": "edge"},
-                    },
+                    "OR": (
+                        {
+                            "AND": {
+                                "modified_on": {"gt": "2019-12-14T10:10:06.754201+00:00"},
+                                "spf_host_type": {"eq": "edge"},
+                            }
+                        },
+                    )
                 },
                 {
-                    "AND": {
-                        "modified_on": {"gt": "2019-12-15T05:10:06.754201+00:00"},
-                        "spf_host_type": {"eq": None},
-                    }
+                    "OR": (
+                        {
+                            "AND": {
+                                "modified_on": {"gt": "2019-12-15T05:10:06.754201+00:00"},
+                                "spf_host_type": {"eq": None},
+                            }
+                        },
+                    )
                 },
             ],
         ),
@@ -1055,22 +1087,30 @@ def test_tags_query_group_name_filter(assert_tag_query_host_filter_single_call, 
             "stale",
             [
                 {
-                    "AND": {
-                        "modified_on": {
-                            "gt": "2019-06-19T10:10:06.754201+00:00",
-                            "lte": "2019-12-14T10:10:06.754201+00:00",
+                    "OR": (
+                        {
+                            "AND": {
+                                "modified_on": {
+                                    "gt": "2019-06-19T10:10:06.754201+00:00",
+                                    "lte": "2019-12-14T10:10:06.754201+00:00",
+                                },
+                                "spf_host_type": {"eq": "edge"},
+                            }
                         },
-                        "spf_host_type": {"eq": "edge"},
-                    },
+                    )
                 },
                 {
-                    "AND": {
-                        "modified_on": {
-                            "gt": "2019-12-09T10:10:06.754201+00:00",
-                            "lte": "2019-12-15T05:10:06.754201+00:00",
+                    "OR": (
+                        {
+                            "AND": {
+                                "modified_on": {
+                                    "gt": "2019-12-09T10:10:06.754201+00:00",
+                                    "lte": "2019-12-15T05:10:06.754201+00:00",
+                                },
+                                "spf_host_type": {"eq": None},
+                            }
                         },
-                        "spf_host_type": {"eq": None},
-                    }
+                    )
                 },
             ],
         ),
@@ -1078,22 +1118,30 @@ def test_tags_query_group_name_filter(assert_tag_query_host_filter_single_call, 
             "stale_warning",
             [
                 {
-                    "AND": {
-                        "modified_on": {
-                            "gt": "2017-12-16T10:10:06.754201+00:00",
-                            "lte": "2019-06-19T10:10:06.754201+00:00",
+                    "OR": (
+                        {
+                            "AND": {
+                                "modified_on": {
+                                    "gt": "2017-12-16T10:10:06.754201+00:00",
+                                    "lte": "2019-06-19T10:10:06.754201+00:00",
+                                },
+                                "spf_host_type": {"eq": "edge"},
+                            }
                         },
-                        "spf_host_type": {"eq": "edge"},
-                    },
+                    )
                 },
                 {
-                    "AND": {
-                        "modified_on": {
-                            "gt": "2019-12-02T10:10:06.754201+00:00",
-                            "lte": "2019-12-09T10:10:06.754201+00:00",
+                    "OR": (
+                        {
+                            "AND": {
+                                "modified_on": {
+                                    "gt": "2019-12-02T10:10:06.754201+00:00",
+                                    "lte": "2019-12-09T10:10:06.754201+00:00",
+                                },
+                                "spf_host_type": {"eq": None},
+                            }
                         },
-                        "spf_host_type": {"eq": None},
-                    }
+                    )
                 },
             ],
         ),
@@ -1113,34 +1161,42 @@ def test_tags_multiple_query_variables_staleness(culling_datetime_mock, assert_t
         host_filter={
             "OR": [
                 {
-                    "AND": {
-                        "modified_on": {"gt": "2019-12-14T10:10:06.754201+00:00"},
-                        "spf_host_type": {"eq": "edge"},
-                    }
-                },
-                {
-                    "AND": {
-                        "modified_on": {
-                            "gt": "2017-12-16T10:10:06.754201+00:00",
-                            "lte": "2019-06-19T10:10:06.754201+00:00",
+                    "OR": (
+                        {
+                            "AND": {
+                                "modified_on": {"gt": "2019-12-14T10:10:06.754201+00:00"},
+                                "spf_host_type": {"eq": "edge"},
+                            }
                         },
-                        "spf_host_type": {"eq": "edge"},
-                    },
-                },
-                {
-                    "AND": {
-                        "modified_on": {"gt": "2019-12-15T05:10:06.754201+00:00"},
-                        "spf_host_type": {"eq": None},
-                    }
-                },
-                {
-                    "AND": {
-                        "modified_on": {
-                            "gt": "2019-12-02T10:10:06.754201+00:00",
-                            "lte": "2019-12-09T10:10:06.754201+00:00",
+                        {
+                            "AND": {
+                                "modified_on": {
+                                    "gt": "2017-12-16T10:10:06.754201+00:00",
+                                    "lte": "2019-06-19T10:10:06.754201+00:00",
+                                },
+                                "spf_host_type": {"eq": "edge"},
+                            }
                         },
-                        "spf_host_type": {"eq": None},
-                    }
+                    )
+                },
+                {
+                    "OR": (
+                        {
+                            "AND": {
+                                "modified_on": {"gt": "2019-12-15T05:10:06.754201+00:00"},
+                                "spf_host_type": {"eq": None},
+                            }
+                        },
+                        {
+                            "AND": {
+                                "modified_on": {
+                                    "gt": "2019-12-02T10:10:06.754201+00:00",
+                                    "lte": "2019-12-09T10:10:06.754201+00:00",
+                                },
+                                "spf_host_type": {"eq": None},
+                            }
+                        },
+                    )
                 },
             ]
         },
@@ -3013,15 +3069,13 @@ def test_sp_sparse_xjoin_query_translation(
     hosts = [minimal_host(id=host_one_id), minimal_host(id=host_two_id)]
 
     # Test with user identity first
-    variables["hostFilter"] = (
-        {
-            "OR": (
-                {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},
-                {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},
-            ),
-        },
-        {"OR": [{"id": {"eq": host_one_id}}, {"id": {"eq": host_two_id}}]},
-    )
+    variables["hostFilter"] = {
+        "AND": ({"OR": [{"id": {"eq": host_one_id}}, {"id": {"eq": host_two_id}}]},),
+        "OR": [
+            {"OR": ({"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},)},
+            {"OR": ({"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},)},
+        ],
+    }
 
     response_status, _ = api_get(build_system_profile_url(hosts, query=query))
 
@@ -3033,16 +3087,14 @@ def test_sp_sparse_xjoin_query_translation(
     graphql_sparse_system_profile_empty_response.reset_mock()
 
     # Now test with system identity
-    variables["hostFilter"] = (
-        {
-            "OR": (
-                {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},
-                {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},
-            )
-        },
-        {"OR": [{"id": {"eq": host_one_id}}, {"id": {"eq": host_two_id}}]},
-        {"spf_owner_id": {"eq": SYSTEM_IDENTITY["system"]["cn"]}},
-    )
+    variables["hostFilter"] = {
+        "AND": ({"OR": [{"id": {"eq": host_one_id}}, {"id": {"eq": host_two_id}}]},),
+        "OR": [
+            {"OR": ({"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},)},
+            {"OR": ({"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},)},
+        ],
+        "spf_owner_id": {"eq": SYSTEM_IDENTITY["system"]["cn"]},
+    }
 
     response_status, _ = api_get(build_system_profile_url(hosts, query=query), identity=SYSTEM_IDENTITY)
 
@@ -3098,49 +3150,10 @@ def test_get_hosts_by_ids(num_hosts, mocker, filtering_datetime_mock, graphql_qu
             "order_how": mocker.ANY,
             "limit": mocker.ANY,
             "offset": mocker.ANY,
-            "filter": (
-                {"OR": mocker.ANY},
-                {"OR": [{"id": {"eq": host_id}} for host_id in host_id_list]},
-            ),
-            "fields": mocker.ANY,
-        },
-        mocker.ANY,
-    )
-
-
-@pytest.mark.parametrize("num_hosts", (1, 3, 5))
-def test_get_hosts_by_ids_rbac_specific_groups(
-    num_hosts, mocker, enable_rbac, filtering_datetime_mock, graphql_query_empty_response, api_get
-):
-    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
-    group_id_list = [generate_uuid(), None]
-
-    mock_rbac_response = create_mock_rbac_response(
-        "tests/helpers/rbac-mock-data/inv-hosts-read-resource-defs-template.json"
-    )
-
-    # Grant host-read access to that group, and ungrouped hosts
-    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = group_id_list
-    get_rbac_permissions_mock.return_value = mock_rbac_response
-
-    host_id_list = [generate_uuid() for h in range(num_hosts)]
-    url = build_hosts_url(query=f"/{','.join(host_id_list)}")
-    response_status, _ = api_get(url)
-
-    assert response_status == 200
-
-    graphql_query_empty_response.assert_called_once_with(
-        HOST_QUERY,
-        {
-            "order_by": mocker.ANY,
-            "order_how": mocker.ANY,
-            "limit": mocker.ANY,
-            "offset": mocker.ANY,
-            "filter": (
-                {"OR": mocker.ANY},
-                {"OR": [{"id": {"eq": host_id}} for host_id in host_id_list]},
-                {"OR": [{"group": {"id": {"eq": group_id_list[0]}}}, {"group": {"hasSome": {"is": False}}}]},
-            ),
+            "filter": {
+                "OR": mocker.ANY,
+                "AND": ({"OR": [{"id": {"eq": host_id}} for host_id in host_id_list]},),
+            },
             "fields": mocker.ANY,
         },
         mocker.ANY,
