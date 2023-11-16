@@ -217,7 +217,7 @@ data:
               "refId": "B"
             }
           ],
-          "title": "AWS Kafka Bytes In/Out",
+          "title": "AWS Kafka Bytes In",
           "type": "timeseries"
         },
         {
@@ -1193,7 +1193,7 @@ data:
       },
       "timepicker": {},
       "timezone": "",
-      "title": "Host Inventory MSK Stage",
+      "title": "ConsoleDot MSK Stage",
       "uid": "jIU3vuWIz",
       "version": 3,
       "weekStart": ""
