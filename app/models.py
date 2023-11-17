@@ -824,8 +824,7 @@ class PatchHostSchema(MarshmallowSchema):
     ansible_host = fields.Str(validate=marshmallow_validate.Length(min=0, max=255))
     display_name = fields.Str(validate=marshmallow_validate.Length(min=1, max=200))
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+
 
 
 class InputGroupSchema(MarshmallowSchema):
@@ -839,8 +838,6 @@ class InputGroupSchema(MarshmallowSchema):
 
         return in_data
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
 
 
 class InputAssignmentRule(MarshmallowSchema):
@@ -850,9 +847,6 @@ class InputAssignmentRule(MarshmallowSchema):
     filter = fields.Dict(required=True)
     enabled = fields.Bool()
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
 
 class StalenessSchema(MarshmallowSchema):
     conventional_staleness_delta = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
@@ -861,6 +855,3 @@ class StalenessSchema(MarshmallowSchema):
     immutable_staleness_delta = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
     immutable_stale_warning_delta = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
     immutable_culling_delta = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
