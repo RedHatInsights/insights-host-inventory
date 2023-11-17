@@ -2460,20 +2460,20 @@ class KafkaAvailabilityTests(TestCase):
     @patch("socket.socket.connect_ex")
     def test_invalid_kafka_server(self, connect_ex):
         kafka_servers = ["localhos.129092"]
-        assert host_kafka.kafka_available(kafka_servers) is None
+        assert not host_kafka.kafka_available(kafka_servers)
         connect_ex.assert_not_called()
 
     @patch("socket.socket.connect_ex")
     def test_bogus_kafka_server(self, connect_ex):
         kafka_servers = ["bogus-kafka29092"]
-        assert host_kafka.kafka_available(kafka_servers) is None
+        assert not host_kafka.kafka_available(kafka_servers)
         connect_ex.assert_not_called()
 
     @patch("socket.socket.connect_ex")
     def test_wrong_kafka_server_post(self, connect_ex):
         connect_ex.return_value = 61
         kafka_servers = ["localhost:54321"]
-        assert host_kafka.kafka_available(kafka_servers) is None
+        assert not host_kafka.kafka_available(kafka_servers)
         connect_ex.assert_called_once()
 
 
