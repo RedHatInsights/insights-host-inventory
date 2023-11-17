@@ -878,8 +878,7 @@ class PatchHostSchema(MarshmallowSchema):
     ansible_host = fields.Str(validate=marshmallow_validate.Length(min=0, max=255))
     display_name = fields.Str(validate=marshmallow_validate.Length(min=1, max=200))
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+
 
 
 class InputGroupSchema(MarshmallowSchema):
@@ -893,8 +892,6 @@ class InputGroupSchema(MarshmallowSchema):
 
         return in_data
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
 
 
 class InputAssignmentRule(MarshmallowSchema):
@@ -903,9 +900,6 @@ class InputAssignmentRule(MarshmallowSchema):
     group_id = fields.Str(required=True, validate=verify_uuid_format)
     filter = fields.Dict(required=True)
     enabled = fields.Bool()
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
 
 
 class StalenessSchema(MarshmallowSchema):
@@ -940,6 +934,3 @@ class StalenessSchema(MarshmallowSchema):
                         >= data[(field_2 := f"{host_type}_{staleness_fields[j]}")]
                     ):
                         raise MarshmallowValidationError(f"{field_1} must be lower than {field_2}")
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
