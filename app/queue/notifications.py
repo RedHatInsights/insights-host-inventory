@@ -45,7 +45,7 @@ class HostValidationErrorNotificationEvent(MarshmallowSchema):
     timestamp = fields.DateTime(required=True, format="iso8601")
     account_id = fields.Str(validate=marshmallow_validate.Length(min=0, max=36))
     org_id = fields.Str(required=True, validate=marshmallow_validate.Length(min=0, max=36))
-    context = fields.Dict()  # type: ignore[assignment]
+    context = fields.Dict()
     events = fields.List(fields.Nested(HostValidationErrorMetadataSchema()))
 
 
