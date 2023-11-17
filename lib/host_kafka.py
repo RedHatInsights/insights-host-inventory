@@ -1,5 +1,7 @@
 import socket
 from contextlib import closing
+from typing import List
+from typing import Optional
 
 from app.config import Config
 from app.environment import RuntimeEnvironment
@@ -8,7 +10,7 @@ from app.logging import get_logger
 logger = get_logger(__name__)
 
 
-def _any_bootstrap_server_connects(kafka_socket, servers) -> bool:
+def _any_bootstrap_server_connects(kafka_socket: socket.socket, servers: Optional[List[str]]) -> bool:
     if not servers:
         config = Config(RuntimeEnvironment.SERVICE)
         servers = [config.bootstrap_servers] if isinstance(config.bootstrap_servers, str) else config.bootstrap_servers
@@ -33,6 +35,6 @@ def _any_bootstrap_server_connects(kafka_socket, servers) -> bool:
     return False
 
 
-def kafka_available(servers=None):
+def kafka_available(servers: Optional[List[str]] = None) -> bool:
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as kafka_socket:
         return _any_bootstrap_server_connects(kafka_socket, servers)
