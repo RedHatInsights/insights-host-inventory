@@ -19,6 +19,7 @@ from app.auth import get_current_identity
 from app.auth.identity import IdentityType
 from app.exceptions import ValidationException
 from app.logging import get_logger
+from app.models import OLD_TO_NEW_REPORTER_MAP
 from app.utils import Tag
 from app.validators import is_custom_date as is_timestamp
 from app.xjoin import staleness_filter
@@ -288,6 +289,12 @@ def build_registered_with_filter(registered_with):
         prs_list.append({"NOT": {"insights_id": {"eq": None}}})
         reg_with_copy.remove("insights")
     if reg_with_copy:
+        # When filtering on old reporter name, include the names of the
+        # new reporters associated with the old reporter.
+        for old_reporter in OLD_TO_NEW_REPORTER_MAP:
+            if old_reporter in reg_with_copy:
+                reg_with_copy.extend(OLD_TO_NEW_REPORTER_MAP[old_reporter])
+                reg_with_copy = list(set(reg_with_copy))  # Remove duplicates
         for item in reg_with_copy:
             prs_item = {
                 "per_reporter_staleness": {
