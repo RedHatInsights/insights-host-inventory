@@ -93,9 +93,11 @@ class NullPayloadTracker(PayloadTracker):
     def processing_error(self, status_message=None):
         pass
 
+    @property
     def inventory_id(self):
         pass
 
+    @inventory_id.setter
     def inventory_id(self, inventory_id):  # noqa: F811
         pass
 

@@ -49,6 +49,10 @@ coverage = "*"
 pre-commit = "~=3.7.0"
 sqlalchemy-utils = "==0.41.1"
 pgxnclient = "*"
+mypy = "*"
+types-requests = "*"
+types-ujson = "*"
+types-jsonschema = "*"
 
 [requires]
 python_version = "3.9"

@@ -5,6 +5,7 @@ from datetime import datetime
 from datetime import timezone
 from enum import Enum
 from os.path import join
+from typing import Any
 
 from connexion.decorators.validation import coerce_type
 from dateutil.parser import isoparse
@@ -50,7 +51,7 @@ from app.validators import verify_uuid_format
 
 logger = get_logger(__name__)
 
-db = SQLAlchemy()
+db: Any = SQLAlchemy()
 migrate = Migrate(db)
 
 TAG_NAMESPACE_VALIDATION = marshmallow_validate.Length(max=255)
@@ -613,7 +614,7 @@ class Staleness(db.Model):
         self.immutable_time_to_stale_warning = immutable_time_to_stale_warning
         self.immutable_time_to_delete = immutable_time_to_delete
 
-    def days_to_seconds(n_days):
+    def days_to_seconds(n_days: int) -> int:
         factor = 86400
         return n_days * factor
 

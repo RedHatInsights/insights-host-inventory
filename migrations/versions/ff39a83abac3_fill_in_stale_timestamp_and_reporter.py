@@ -30,7 +30,7 @@ STALE_TIMESTAMP_DELTA = timedelta(days=-14)
 REPORTER = "migration"
 
 
-class Host(Base):
+class Host(Base):  # type: ignore [valid-type, misc]
     __tablename__ = "hosts"
 
     id = Column(UUID, primary_key=True)

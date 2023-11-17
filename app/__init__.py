@@ -24,8 +24,8 @@ from app.custom_validator import build_validator_map
 from app.exceptions import InventoryException
 from app.logging import configure_logging
 from app.logging import get_logger
-from app.logging import threadctx
-from app.models import db
+from app.logging import threadctx as threadctx
+from app.models import db as db
 from app.models import SPECIFICATION_DIR
 from app.queue.event_producer import EventProducer
 from app.queue.events import EventType

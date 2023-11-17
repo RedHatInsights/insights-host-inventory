@@ -3,6 +3,7 @@ import os
 from datetime import datetime
 from datetime import timezone
 from enum import Enum
+from typing import Optional
 
 from marshmallow import fields
 from marshmallow import Schema
@@ -77,7 +78,11 @@ class HostDeleteEvent(Schema):
 
 
 def message_headers(
-    event_type: EventType, insights_id: str = None, reporter: str = None, host_type: str = None, os_name: str = None
+    event_type: EventType,
+    insights_id: Optional[str] = None,
+    reporter: Optional[str] = None,
+    host_type: Optional[str] = None,
+    os_name: Optional[str] = None,
 ):
     return {
         "event_type": event_type.name,

@@ -1,6 +1,7 @@
 from datetime import datetime
 from datetime import timezone
 from enum import Enum
+from typing import Optional
 
 from marshmallow import fields
 from marshmallow import Schema as MarshmallowSchema

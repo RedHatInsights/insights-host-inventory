@@ -1,3 +1,5 @@
+from typing import List
+
 from confluent_kafka import KafkaError
 from confluent_kafka import KafkaException
 from confluent_kafka import Producer as KafkaProducer
@@ -18,7 +20,7 @@ def _encode_headers(headers):
 
 
 class MessageDetails:
-    def __init__(self, topic: str, event: str, headers: list(tuple()), key: str):
+    def __init__(self, topic: str, event: str, headers: List[tuple], key: str):
         self.event = event
         self.headers = headers
         self.key = key

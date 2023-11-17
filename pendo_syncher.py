@@ -7,7 +7,7 @@ from prometheus_client import CollectorRegistry
 from prometheus_client import push_to_gateway
 from requests import Session
 from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.util.retry import Retry
+from requests.packages.urllib3.util.retry import Retry  # type: ignore[import-untyped]
 from sqlalchemy import create_engine
 from sqlalchemy import func
 from sqlalchemy.orm import sessionmaker
