@@ -3,7 +3,7 @@ import json
 from typing import Dict
 from typing import Union
 
-import payloads  # type: ignore[import-not-found]
+import payloads
 import requests
 
 # URL = "http://localhost:8080/r/insights/platform/inventory/api/v1/hosts" # LEGACY

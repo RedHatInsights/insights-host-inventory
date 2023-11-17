@@ -2,7 +2,7 @@ import logging
 import os
 import sys
 
-import payloads  # type: ignore[import-not-found]
+import payloads
 from confluent_kafka import Producer as KafkaProducer
 
 
