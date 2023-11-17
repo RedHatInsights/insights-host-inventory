@@ -1,7 +1,9 @@
 import base64
 import json
+from typing import Dict
+from typing import Union
 
-import payloads
+import payloads  # type: ignore[import-not-found]
 import requests
 
 # URL = "http://localhost:8080/r/insights/platform/inventory/api/v1/hosts" # LEGACY
@@ -12,7 +14,7 @@ org_id = "0000001"
 
 bulk_insert = False
 
-headers = {"Content-type": "application/json", "x-rh-insights-request-id": "654321"}
+headers: Dict[str, Union[str, bytes]] = {"Content-type": "application/json", "x-rh-insights-request-id": "654321"}
 
 # headers["Authorization"] = "Bearer secret"
 # headers["Authorization"] = "Bearer 023e4f11185e4c17478bb9c6750d3068eeebe85b"

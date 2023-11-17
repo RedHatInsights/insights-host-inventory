@@ -1,6 +1,7 @@
 from datetime import datetime
 from datetime import timezone
 from enum import Enum
+from typing import Optional
 
 from marshmallow import fields
 from marshmallow import Schema as MarshmallowSchema
@@ -44,11 +45,11 @@ class HostValidationErrorNotificationEvent(MarshmallowSchema):
     timestamp = fields.DateTime(required=True, format="iso8601")
     account_id = fields.Str(validate=marshmallow_validate.Length(min=0, max=36))
     org_id = fields.Str(required=True, validate=marshmallow_validate.Length(min=0, max=36))
-    context = fields.Dict()
+    context = fields.Dict()  # type: ignore[assignment]
     events = fields.List(fields.Nested(HostValidationErrorMetadataSchema()))
 
 
-def notification_message_headers(event_type: NotificationType, rh_message_id: bytearray = None):
+def notification_message_headers(event_type: NotificationType, rh_message_id: Optional[bytearray] = None):
     return {
         "event_type": event_type.name,
         "request_id": threadctx.request_id,

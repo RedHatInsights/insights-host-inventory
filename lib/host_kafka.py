@@ -30,6 +30,7 @@ def _any_bootstrap_server_connects(kafka_socket, servers) -> bool:
         except socket.gaierror as sgai:
             # thrown when wrong server name is used.
             logger.error(f"Invalid server name: {str(sgai)}")
+    return False
 
 
 def kafka_available(servers=None):

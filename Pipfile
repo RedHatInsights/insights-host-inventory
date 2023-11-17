@@ -48,6 +48,10 @@ pytest-subtests = "~=0.11.0"
 coverage = "*"
 pre-commit = "~=3.3.3"
 sqlalchemy-utils = "==0.41.1"
+mypy = "*"
+types-requests = "*"
+types-ujson = "*"
+types-jsonschema = "*"
 
 [requires]
 python_version = "3.8"

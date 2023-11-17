@@ -5,6 +5,7 @@ from datetime import datetime
 from datetime import timezone
 from enum import Enum
 from os.path import join
+from typing import Any
 
 from connexion.decorators.validation import coerce_type
 from dateutil.parser import isoparse
@@ -43,7 +44,7 @@ from app.validators import verify_uuid_format
 
 logger = get_logger(__name__)
 
-db = SQLAlchemy()
+db: Any = SQLAlchemy()
 
 TAG_NAMESPACE_VALIDATION = marshmallow_validate.Length(max=255)
 TAG_KEY_VALIDATION = marshmallow_validate.Length(min=1, max=255)
@@ -559,7 +560,7 @@ class Staleness(db.Model):
         self.immutable_stale_warning_delta = immutable_stale_warning_delta
         self.immutable_culling_delta = immutable_culling_delta
 
-    def days_to_seconds(n_days):
+    def days_to_seconds(n_days: int) -> int:
         factor = 86400
         return n_days * factor
 
