@@ -7,9 +7,9 @@ from prance import _TranslatingParser as TranslatingParser
 
 from app.models import SPECIFICATION_DIR
 
-OAPI = SPECIFICATION_DIR + "openapi.json"
+OAPI = SPECIFICATION_DIR / "openapi.json"
 
-with open(OAPI) as fp:
+with OAPI.open() as fp:
     oapi_data = yaml.dump(json.load(fp))
 
 

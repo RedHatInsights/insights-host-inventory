@@ -5,6 +5,7 @@ from datetime import datetime
 from datetime import timezone
 from enum import Enum
 from os.path import join
+from pathlib import Path
 from typing import Any
 
 from connexion.decorators.validation import coerce_type
@@ -58,7 +59,10 @@ TAG_NAMESPACE_VALIDATION = marshmallow_validate.Length(max=255)
 TAG_KEY_VALIDATION = marshmallow_validate.Length(min=1, max=255)
 TAG_VALUE_VALIDATION = marshmallow_validate.Length(max=255)
 
-SPECIFICATION_DIR = "./swagger/"
+
+ROOT = Path(__file__).parent.parent
+SPECIFICATION_DIR = ROOT / "swagger"
+assert SPECIFICATION_DIR.is_dir()
 SYSTEM_PROFILE_SPECIFICATION_FILE = "system_profile.spec.yaml"
 
 # set edge host stale_timestamp way out in future to Year 2260
@@ -879,8 +883,6 @@ class PatchHostSchema(MarshmallowSchema):
     display_name = fields.Str(validate=marshmallow_validate.Length(min=1, max=200))
 
 
-
-
 class InputGroupSchema(MarshmallowSchema):
     name = fields.Str(validate=marshmallow_validate.Length(min=1, max=255))
     host_ids = fields.List(fields.Str(validate=verify_uuid_format))
@@ -891,7 +893,6 @@ class InputGroupSchema(MarshmallowSchema):
             in_data["name"] = in_data["name"].strip()
 
         return in_data
-
 
 
 class InputAssignmentRule(MarshmallowSchema):

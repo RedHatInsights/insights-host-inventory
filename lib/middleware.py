@@ -9,7 +9,7 @@ from flask import g
 from flask import request
 from requests import Session
 from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.util.retry import Retry  # type: ignore[import-untyped]
+from requests.packages.urllib3.util.retry import Retry
 
 from api.metrics import outbound_http_response_time
 from app import IDENTITY_HEADER
