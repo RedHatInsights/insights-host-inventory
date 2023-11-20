@@ -116,27 +116,25 @@ def rbac(resource_type, required_permission, permission_base="inventory"):
                     # Get the list of allowed Group IDs from the attribute filter.
                     groups_attribute_filter = set()
                     for resourceDefinition in rbac_permission["resourceDefinitions"]:
-                        if "attributeFilter" in resourceDefinition:
-                            if resourceDefinition["attributeFilter"].get("key") != "group.id":
+                        if (attribute_filter := resourceDefinition.get("attributeFilter")) is not None:
+                            if attribute_filter.get("key") != "group.id":
                                 abort(
                                     HTTPStatus.SERVICE_UNAVAILABLE,
                                     "Invalid value for attributeFilter.key in RBAC response.",
                                 )
-                            elif resourceDefinition["attributeFilter"].get("operation") != "in":
+                            elif attribute_filter.get("operation") != "in":
                                 abort(
                                     HTTPStatus.SERVICE_UNAVAILABLE,
                                     "Invalid value for attributeFilter.operation in RBAC response.",
                                 )
-                            elif not isinstance(resourceDefinition["attributeFilter"]["value"], list):
+                            elif not isinstance((value := attribute_filter.get("value")), list):
                                 abort(
                                     HTTPStatus.SERVICE_UNAVAILABLE,
                                     "Did not receive a list for attributeFilter.value in RBAC response.",
                                 )
                             else:
-                                # Add the IDs to the filter, but validate that they're all actually UUIDs.
-                                groups_attribute_filter.update(resourceDefinition["attributeFilter"]["value"])
                                 try:
-                                    for gid in groups_attribute_filter:
+                                    for gid in value:
                                         if gid is not None:
                                             UUID(gid)
                                 except ValueError:
