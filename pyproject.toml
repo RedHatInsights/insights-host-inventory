@@ -60,6 +60,7 @@ module = [
     "gunicorn",
     "boto3.*",
     "prometheus_flask_exporter.*",
+    "requests.packages.urllib3.*",# missing in the stub,
 
 ]
 ignore_errors = true
