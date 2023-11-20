@@ -52,6 +52,7 @@ mypy = "*"
 types-requests = "*"
 types-ujson = "*"
 types-jsonschema = "*"
+ruff = "*"
 
 [requires]
 python_version = "3.8"

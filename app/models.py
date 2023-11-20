@@ -132,7 +132,7 @@ class SystemProfileNormalizer:
         return self.schema["$defs"]["SystemProfile"]
 
     def _object_filter(self, schema, payload):
-        if not schema.properties or type(payload) is not dict:
+        if not schema.properties or not isinstance(payload, dict):
             return
 
         for key in payload.keys() - schema.properties.keys():
@@ -141,7 +141,7 @@ class SystemProfileNormalizer:
             self.filter_keys(payload[key], schema.properties[key])
 
     def _array_filter(self, schema, payload):
-        if not schema.items or type(payload) is not list:
+        if not schema.items or not isinstance(payload, list):
             return
 
         for value in payload:
