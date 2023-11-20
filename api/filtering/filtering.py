@@ -40,7 +40,7 @@ def _invalid_value_error(field_name, field_value):
 def _boolean_filter(field_name, field_value, operation, spec=None):
     # The "spec" param is defined but unused,
     # because this is called from the BUILDER_FUNCTIONS enum.
-    if not field_value.lower() in ("true", "false"):
+    if field_value.lower() not in ("true", "false"):
         _invalid_value_error(field_name, field_value)
 
     return ({field_name: {"is": (field_value.lower() == "true")}},)

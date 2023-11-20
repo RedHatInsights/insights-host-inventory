@@ -27,14 +27,12 @@ def identity_test_common(identity):
         assert account_number_len >= 0 and org_id_len <= 36
 
     if result.get("type") == IdentityType.USER:
-        assert "user" in result
-        assert type(result.get("user")) is dict
+        assert isinstance(result["user"], dict)
     elif result.get("type") == IdentityType.SYSTEM:
         assert "system" in result
-        system = result.get("system")
-        assert type(system) is dict
-        assert "cert_type" in system
-        assert system.get("cert_type") in CertType.__members__.values()
+        system = result["system"]
+        assert isinstance(system, dict)
+        assert system["cert_type"] in CertType.__members__.values()
         assert "cn" in system
     else:  # IdentityType.SERVICE_ACCOUNT
         assert "service_account" in result
@@ -57,8 +55,8 @@ def test_validate_valid_user_identity_schema(remove_acct_number):
 
     result = IdentitySchema().load(identity)
 
-    if "user" in result:
-        assert type(result.get("user")) is dict
+    user = result.get("user")
+    assert user is None or isinstance(user, dict)
 
 
 def test_validate_valid_system_identity_schema():
