@@ -113,7 +113,9 @@ def filtering_datetime_mock(mocker):
 
 @pytest.fixture(scope="function")
 def assert_query_host_filter_single_call(mocker, api_get, graphql_query_empty_response):
-    def _assert_query_host_filter_single_call(url, filter={"OR": mocker.ANY}, status=200):
+    def _assert_query_host_filter_single_call(url, filter=None, status=200):
+        if filter is None:
+            filter = {"OR": mocker.ANY}
         response_status, _ = api_get(url)
 
         assert response_status == status
@@ -134,7 +136,9 @@ def assert_query_host_filter_single_call(mocker, api_get, graphql_query_empty_re
 
 @pytest.fixture(scope="function")
 def assert_tag_query_host_filter_single_call(mocker, api_get, graphql_tag_query_empty_response):
-    def _assert_tag_query_host_filter_single_call(url, host_filter={"OR": mocker.ANY}, filter=None, status=200):
+    def _assert_tag_query_host_filter_single_call(url, host_filter=None, filter=None, status=200):
+        if host_filter is None:
+            host_filter = {"OR": mocker.ANY}
         response_status, _ = api_get(url)
 
         assert response_status == status

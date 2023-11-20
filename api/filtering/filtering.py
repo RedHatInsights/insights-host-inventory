@@ -512,7 +512,7 @@ def query_filters(
 
 
 def build_system_profile_filter(system_profile):
-    system_profile_filter = tuple()
+    system_profile_filter = ()
 
     for field_name in system_profile:
         _check_field_in_spec(system_profile_spec(), field_name)

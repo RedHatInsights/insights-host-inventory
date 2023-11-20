@@ -1806,7 +1806,7 @@ class SerializationDeserializeCanonicalFactsTestCase(TestCase):
 
     def test_empty_fields_are_rejected(self):
         canonical_facts = {"fqdn": "some fqdn"}
-        input = {**canonical_facts, "insights_id": "", "ip_addresses": [], "mac_addresses": tuple()}
+        input = {**canonical_facts, "insights_id": "", "ip_addresses": [], "mac_addresses": ()}
         result = _deserialize_canonical_facts(input)
         self.assertEqual(result, canonical_facts)
 

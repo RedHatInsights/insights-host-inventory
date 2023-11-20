@@ -117,7 +117,7 @@ def serialize_host(
     host,
     staleness_timestamps,
     for_mq=True,
-    additional_fields=tuple(),
+    additional_fields=(),
     staleness=None,
     system_profile_fields=None,
 ):

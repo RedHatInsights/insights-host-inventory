@@ -35,8 +35,10 @@ from lib.metrics import delete_host_group_processing_time
 logger = get_logger(__name__)
 
 
-def _produce_host_update_events(event_producer, host_id_list, group_id_list=[], staleness=None):
+def _produce_host_update_events(event_producer, host_id_list, group_id_list=None, staleness=None):
     identity = get_current_identity()  # Note: This should be moved to an API file
+    if group_id_list is None:
+        group_id_list = []
     serialized_groups = [serialize_group(get_group_by_id_from_db(group_id), identity) for group_id in group_id_list]
 
     # Update groups data on each host record
@@ -241,7 +243,7 @@ def get_group_by_id_from_db(group_id: str) -> Group:
 def patch_group(group: Group, patch_data: dict, event_producer: EventProducer):
     group_id = group.id
     host_id_data = patch_data.get("host_ids")
-    new_host_ids = {host_id for host_id in host_id_data} if host_id_data is not None else None
+    new_host_ids = set(host_id_data) if host_id_data is not None else None
 
     existing_host_uuids = db.session.query(HostGroupAssoc.host_id).filter(HostGroupAssoc.group_id == group_id).all()
     existing_host_ids = {str(host_id[0]) for host_id in existing_host_uuids}

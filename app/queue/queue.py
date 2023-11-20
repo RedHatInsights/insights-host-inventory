@@ -211,7 +211,9 @@ def sync_event_message(message, session, event_producer):
     return
 
 
-def update_system_profile(host_data, platform_metadata, operation_args={}):
+def update_system_profile(host_data, platform_metadata, operation_args=None):
+    if operation_args is None:
+        operation_args = {}
     payload_tracker = get_payload_tracker(request_id=threadctx.request_id)
 
     with PayloadTrackerProcessingContext(
@@ -246,7 +248,9 @@ def update_system_profile(host_data, platform_metadata, operation_args={}):
             raise
 
 
-def add_host(host_data, platform_metadata, operation_args={}):
+def add_host(host_data, platform_metadata, operation_args=None):
+    if operation_args is None:
+        operation_args = {}
     payload_tracker = get_payload_tracker(request_id=threadctx.request_id)
 
     with PayloadTrackerProcessingContext(

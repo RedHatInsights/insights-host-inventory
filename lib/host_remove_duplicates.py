@@ -99,8 +99,8 @@ def delete_duplicate_hosts(
 
     for org_id in org_id_query.distinct(Host.org_id).yield_per(chunk_size):
         logger.info(f"Processing org_id {org_id}")
-        unique_list = list()
-        duplicate_list = list()
+        unique_list = []
+        duplicate_list = []
         misc_query = misc_session.query(Host).filter(Host.org_id == org_id)
 
         def unique(host_list):
