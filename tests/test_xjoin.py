@@ -2497,8 +2497,6 @@ def test_spf_host_type_invalid_field_value(subtests, graphql_query_empty_respons
 def test_query_hosts_filter_spf_insights_client_version(
     mocker, subtests, graphql_query_empty_response, patch_xjoin_post, api_get
 ):
-    # filter_paths = ("[system_profile][insights_client_version]", "[system_profile][insights_client_version][eq]")
-    # values = ("3.0.6-2.el7_6", "3.*", "nil", "not_nil")
     http_queries = (
         "filter[system_profile][insights_client_version]=3.0.6-2.el7_6",
         "filter[system_profile][insights_client_version][eq]=3.*",

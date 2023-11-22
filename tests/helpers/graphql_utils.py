@@ -149,11 +149,7 @@ XJOIN_HOSTS_RESPONSE = {
                         "stale_timestamp": "2020-02-10T08:07:03.354307+00:00",
                     }
                 },
-                "system_profile_facts": {
-                    "arch": "1.2.3",
-                    "kernel_modules": ["data"],
-                    "owner_id": "ce87bfac-a6cb-43a0-80ce-95d9669db71f",
-                },
+                "system_profile_facts": {"arch": "1.2.3", "kernel_modules": ["data"]},
             },
         ],
     }
@@ -215,31 +211,19 @@ XJOIN_SPARSE_SYSTEM_PROFILE_EMPTY_RESPONSE = {"hosts": {"meta": {"count": 2, "to
 CASEFOLDED_FIELDS = ("fqdn", "insights_id", "provider_type", "provider_id")
 
 
-def xjoin_host_response(timestamp, quantity=1):
-    data = [
-        {
-            **XJOIN_HOSTS_RESPONSE["hosts"]["data"][0],
-            "created_on": timestamp,
-            "modified_on": timestamp,
-            "stale_timestamp": timestamp,
-        }
-    ]
-
-    if quantity != 1:
-        data.append(
-            {
-                **XJOIN_HOSTS_RESPONSE["hosts"]["data"][1],
-                "created_on": timestamp,
-                "modified_on": timestamp,
-                "stale_timestamp": timestamp,
-            }
-        )
-
+def xjoin_host_response(timestamp):
     return {
         "hosts": {
             **XJOIN_HOSTS_RESPONSE["hosts"],
-            "meta": {"total": quantity},
-            "data": data,
+            "meta": {"total": 1},
+            "data": [
+                {
+                    **XJOIN_HOSTS_RESPONSE["hosts"]["data"][0],
+                    "created_on": timestamp,
+                    "modified_on": timestamp,
+                    "stale_timestamp": timestamp,
+                }
+            ],
         }
     }
 
