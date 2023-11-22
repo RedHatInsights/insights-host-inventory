@@ -579,12 +579,12 @@ class Staleness(db.Model):
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     org_id = db.Column(db.String(36), nullable=False)
-    conventional_staleness_delta = db.Column(db.Integer, default=days_to_seconds(1), nullable=False)
+    conventional_staleness_delta = db.Column(db.Integer, default=104400, nullable=False)
     conventional_stale_warning_delta = db.Column(db.Integer, default=days_to_seconds(7), nullable=False)
     conventional_culling_delta = db.Column(db.Integer, default=days_to_seconds(14), nullable=False)
     immutable_staleness_delta = db.Column(db.Integer, default=days_to_seconds(2), nullable=False)
-    immutable_stale_warning_delta = db.Column(db.Integer, default=days_to_seconds(120), nullable=False)
-    immutable_culling_delta = db.Column(db.Integer, default=days_to_seconds(180), nullable=False)
+    immutable_stale_warning_delta = db.Column(db.Integer, default=days_to_seconds(180), nullable=False)
+    immutable_culling_delta = db.Column(db.Integer, default=days_to_seconds(730), nullable=False)
     created_on = db.Column(db.DateTime(timezone=True), default=_time_now)
     modified_on = db.Column(db.DateTime(timezone=True), default=_time_now, onupdate=_time_now)
 
