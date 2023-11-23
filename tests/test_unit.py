@@ -441,7 +441,13 @@ class ConfigTestCase(TestCase):
 
 
 @patch("app.db.get_engine")
-@patch("app.Config", **{"return_value.mgmt_url_path_prefix": "/", "return_value.unleash_token": ""})
+@patch(
+    "app.Config",
+    **{
+        "return_value.mgmt_url_path_prefix": "/",
+        "return_value.unleash_token": "",
+    },
+)  # type: ignore[call-overload]
 class CreateAppConfigTestCase(TestCase):
     def test_config_is_assigned(self, config, get_engine):
         app = create_app(RuntimeEnvironment.TEST)
@@ -1790,7 +1796,7 @@ class SerializationDeserializeCanonicalFactsTestCase(TestCase):
 
     def test_empty_fields_are_rejected(self):
         canonical_facts = {"fqdn": "some fqdn"}
-        input = {**canonical_facts, "insights_id": "", "ip_addresses": [], "mac_addresses": tuple()}
+        input = {**canonical_facts, "insights_id": "", "ip_addresses": [], "mac_addresses": ()}
         result = _deserialize_canonical_facts(input)
         self.assertEqual(result, canonical_facts)
 
@@ -2456,20 +2462,20 @@ class KafkaAvailabilityTests(TestCase):
     @patch("socket.socket.connect_ex")
     def test_invalid_kafka_server(self, connect_ex):
         kafka_servers = ["localhos.129092"]
-        assert host_kafka.kafka_available(kafka_servers) is None
+        assert not host_kafka.kafka_available(kafka_servers)
         connect_ex.assert_not_called()
 
     @patch("socket.socket.connect_ex")
     def test_bogus_kafka_server(self, connect_ex):
         kafka_servers = ["bogus-kafka29092"]
-        assert host_kafka.kafka_available(kafka_servers) is None
+        assert not host_kafka.kafka_available(kafka_servers)
         connect_ex.assert_not_called()
 
     @patch("socket.socket.connect_ex")
     def test_wrong_kafka_server_post(self, connect_ex):
         connect_ex.return_value = 61
         kafka_servers = ["localhost:54321"]
-        assert host_kafka.kafka_available(kafka_servers) is None
+        assert not host_kafka.kafka_available(kafka_servers)
         connect_ex.assert_called_once()
 
 

@@ -11,13 +11,15 @@ from datetime import timedelta
 from datetime import timezone
 from random import choice
 from random import randint
+from typing import Any
+from typing import Dict
 
 from app.utils import HostWrapper
 
 NS = "testns"
 ID = "whoabuddy"
 
-SYSTEM_IDENTITY = {
+SYSTEM_IDENTITY: Dict[str, Any] = {
     "account_number": "test",
     "org_id": "test",
     "auth_type": "cert-auth",
@@ -26,7 +28,7 @@ SYSTEM_IDENTITY = {
     "type": "System",
 }
 
-USER_IDENTITY = {
+USER_IDENTITY: Dict[str, Any] = {
     "account_number": "test",
     "org_id": "test",
     "type": "User",

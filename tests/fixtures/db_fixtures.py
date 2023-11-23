@@ -7,7 +7,7 @@ from sqlalchemy_utils import drop_database
 
 from app import db
 from app.config import Config
-from app.config import RuntimeEnvironment
+from app.environment import RuntimeEnvironment
 from app.models import AssignmentRule
 from app.models import Group
 from app.models import Host
@@ -130,7 +130,7 @@ def db_create_multiple_hosts(flask_app):
     def _db_create_multiple_hosts(identity=SYSTEM_IDENTITY, hosts=None, how_many=10, extra_data=None):
         extra_data = extra_data or {}
         created_hosts = []
-        if type(hosts) == list:
+        if hosts is not None:
             for host in hosts:
                 db.session.add(host)
                 created_hosts.append(host)

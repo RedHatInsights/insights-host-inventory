@@ -211,7 +211,9 @@ def sync_event_message(message, session, event_producer):
     return
 
 
-def update_system_profile(host_data, platform_metadata, operation_args={}):
+def update_system_profile(host_data, platform_metadata, operation_args=None):
+    if operation_args is None:
+        operation_args = {}
     payload_tracker = get_payload_tracker(request_id=threadctx.request_id)
 
     with PayloadTrackerProcessingContext(
@@ -245,7 +247,9 @@ def update_system_profile(host_data, platform_metadata, operation_args={}):
             raise
 
 
-def add_host(host_data, platform_metadata, operation_args={}):
+def add_host(host_data, platform_metadata, operation_args=None):
+    if operation_args is None:
+        operation_args = {}
     payload_tracker = get_payload_tracker(request_id=threadctx.request_id)
 
     with PayloadTrackerProcessingContext(
@@ -369,6 +373,6 @@ def send_kafka_error_message(notification_event_producer, host, detail):
         rh_message_id=rh_message_id,
     )
     insights_id = minimal_host.get("canonical_facts" or {}).get("insights_id")
-    key = insights_id if type(insights_id) is str else None
+    key = insights_id if isinstance(insights_id, str) else None
 
     notification_event_producer.write_event(event, key, headers, wait=True)

@@ -6,7 +6,7 @@ from app.serialization import serialize_host
 __all__ = ("build_paginated_host_list_response", "staleness_timestamps")
 
 
-def build_paginated_host_list_response(total, page, per_page, host_list, additional_fields=tuple()):
+def build_paginated_host_list_response(total, page, per_page, host_list, additional_fields=()):
     timestamps = staleness_timestamps()
     json_host_list = [serialize_host(host, timestamps, False, additional_fields) for host in host_list]
     return {
