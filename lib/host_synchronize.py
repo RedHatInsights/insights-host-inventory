@@ -35,11 +35,16 @@ def synchronize_hosts(select_query, event_producer, chunk_size, config, interrup
                 host.system_profile_facts.get("operating_system", {}).get("name"),
             )
             # in case of a failed update event, event_producer logs the message.
-            event_producer.write_event(event, str(host.id), headers, wait=True)
-            synchronize_host_count.inc()
-            logger.info("Synchronized host: %s", str(host.id))
+            # Workaround to solve: https://issues.redhat.com/browse/RHINENG-4856
+            try:
+                event_producer.write_event(event, str(host.id), headers, wait=True)
+                synchronize_host_count.inc()
+                logger.info("Synchronized host: %s", str(host.id))
 
-            num_synchronized += 1
+                num_synchronized += 1
+            except ProduceError:
+                logger.error(f"Failed to synchronize host: {str(host.id)} because of {ProduceError.code}")
+                continue
 
         try:
             # pace the events production speed as flush completes sending all buffered records.
