@@ -218,7 +218,7 @@ objects:
         - command:
           - /bin/sh
           - -c
-          - python3 manage.py db upgrade && python3 manage.py db downgrade bb9701f29a05
+          - python3 manage.py db upgrade
           inheritEnv: true
         command:
         - /bin/sh
