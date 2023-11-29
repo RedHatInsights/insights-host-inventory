@@ -28,8 +28,8 @@ ENV PIP_NO_CACHE_DIR=1
 ENV PIPENV_CLEAR=1
 ENV PIPENV_VENV_IN_PROJECT=1
 
-RUN python -m pip install --upgrade pip setuptools wheel && \
-    python -m pip install pipenv && \
+RUN python3 -m pip install --upgrade pip setuptools wheel && \
+    python3 -m pip install pipenv && \
     pipenv install --system --dev
 
 # allows unit tests to run successfully within the container if image is built in "test" environment
