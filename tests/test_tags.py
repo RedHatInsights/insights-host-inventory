@@ -38,10 +38,8 @@ def test_get_tags_of_multiple_hosts_query(
             "limit": mocker.ANY,
             "offset": mocker.ANY,
             "filter": (
-                {
-                    "stale_timestamp": mocker.ANY,
-                    "OR": [{"id": {"eq": host.id}} for host in created_hosts],
-                },
+                {"OR": mocker.ANY},
+                {"OR": [{"id": {"eq": host.id}} for host in created_hosts]},
             ),
         },
         mocker.ANY,
