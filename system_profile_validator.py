@@ -87,24 +87,31 @@ def _get_latest_self_comment_datetime_for_pr(owner, repo, pr_number):
     return None
 
 
+def _does_pr_require_validation(owner, repo, pr_number):
+    latest_commit_datetime = _get_latest_commit_datetime_for_pr(owner, repo, pr_number)
+    latest_self_comment_datetime = _get_latest_self_comment_datetime_for_pr(owner, repo, pr_number)
+    sp_spec_modified = SP_SPEC_PATH in [
+        file["filename"] for file in _get_git_response(f"/repos/{owner}/{repo}/pulls/{pr_number}/files")
+    ]
+    logger.debug(f"SP spec modified: {sp_spec_modified}")
+    if sp_spec_modified and (
+        latest_self_comment_datetime is None or latest_commit_datetime > latest_self_comment_datetime
+    ):
+        logger.info(f"- PR #{pr_number} requires validation!")
+        return True
+    else:
+        logger.info(f"- PR #{pr_number} does not need validation.")
+
+    return False
+
+
 def _get_prs_that_require_validation(owner, repo):
     logger.info(f"Checking whether {owner}/{repo} PRs need schema validation...")
     prs_to_validate = []
 
     for pr_number in [pr["number"] for pr in _get_git_response(f"/repos/{owner}/{repo}/pulls?state=open")]:
-        latest_commit_datetime = _get_latest_commit_datetime_for_pr(owner, repo, pr_number)
-        latest_self_comment_datetime = _get_latest_self_comment_datetime_for_pr(owner, repo, pr_number)
-        sp_spec_modified = SP_SPEC_PATH in [
-            file["filename"] for file in _get_git_response(f"/repos/{owner}/{repo}/pulls/{pr_number}/files")
-        ]
-        logger.info(f"SP spec modified: {sp_spec_modified}")
-        if sp_spec_modified and (
-            latest_self_comment_datetime is None or latest_commit_datetime > latest_self_comment_datetime
-        ):
-            logger.info(f"- PR #{pr_number} requires validation!")
+        if _does_pr_require_validation(owner, repo, pr_number):
             prs_to_validate.append(pr_number)
-        else:
-            logger.info(f"- PR #{pr_number} does not need validation.")
 
     return prs_to_validate
 
@@ -134,7 +141,7 @@ def main(logger):
         file_list = _get_git_response(f"/repos/{REPO_OWNER}/{REPO_NAME}/pulls/{pr_number}/files")
         for file in file_list:
             if file["filename"] == SP_SPEC_PATH:
-                logger.info(f"Getting SP spec from {file['raw_url']}")
+                logger.debug(f"Getting SP spec from {file['raw_url']}")
                 sp_spec = get_schema_from_url(file["raw_url"])
                 break
 
@@ -159,7 +166,10 @@ def main(logger):
             consumer.close()
             sys.exit(1)
 
-        _post_git_results_comment(pr_number, test_results)
+        # Only post a comment if there still isn't one on the PR.
+        # This is needed because another validation job may have posted a comment in the meantime.
+        if _does_pr_require_validation(REPO_OWNER, REPO_NAME, pr_number):
+            _post_git_results_comment(pr_number, test_results)
 
     logger.info("The validator has finished. Bye!")
     sys.exit(0)

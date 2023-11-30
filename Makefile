@@ -7,7 +7,7 @@ test:
 	pytest --cov=.
 
 upgrade_db:
-	SQLALCHEMY_ENGINE_LOG_LEVEL=INFO python manage.py db upgrade
+	SQLALCHEMY_ENGINE_LOG_LEVEL=INFO python3 manage.py db upgrade
 
 run_inv_web_service:
 	# Set the "KAFKA_TOPIC", "KAFKA_GROUP", "KAFKA_BOOTSTRAP_SERVERS" environment variables
@@ -18,22 +18,22 @@ run_inv_web_service:
 	INVENTORY_LOG_LEVEL=DEBUG BYPASS_RBAC=true BYPASS_TENANT_TRANSLATION=true gunicorn -b :8080 run
 
 run_inv_mq_service:
-	KAFKA_EVENT_TOPIC=platform.inventory.events PAYLOAD_TRACKER_SERVICE_NAME=inventory-mq-service INVENTORY_LOG_LEVEL=DEBUG BYPASS_TENANT_TRANSLATION=true python inv_mq_service.py
+	KAFKA_EVENT_TOPIC=platform.inventory.events PAYLOAD_TRACKER_SERVICE_NAME=inventory-mq-service INVENTORY_LOG_LEVEL=DEBUG BYPASS_TENANT_TRANSLATION=true python3 inv_mq_service.py
 
 run_inv_mq_service_test_producer:
-	python utils/kafka_producer.py
+	python3 utils/kafka_producer.py
 
 run_inv_mq_service_test_consumer:
-	python utils/kafka_consumer.py
+	python3 utils/kafka_consumer.py
 
 run_inv_http_test_producer:
-	python utils/rest_producer.py
+	python3 utils/rest_producer.py
 
 run_reaper:
-	python host_reaper.py
+	python3 host_reaper.py
 
 run_pendo_syncher:
-	python pendo_syncher.py
+	python3 pendo_syncher.py
 
 style:
 	pre-commit run --all-files
@@ -42,7 +42,7 @@ scan_project:
 	./sonarqube.sh
 
 validate-dashboard:
-	python utils/validate_dashboards.py
+	python3 utils/validate_dashboards.py
 
 
 update-schema:

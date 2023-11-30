@@ -1,5 +1,7 @@
+from datetime import datetime
 from datetime import timedelta
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
 from confluent_kafka import KafkaException
@@ -44,8 +46,9 @@ def test_tags_count_default_ignores_culled(mq_create_hosts_in_all_states, api_ge
     assert created_hosts["culled"].id not in tuple(response_data["results"].keys())
 
 
-def test_patch_ignores_culled(mq_create_hosts_in_all_states, api_patch):
-    culled_host = mq_create_hosts_in_all_states["culled"]
+def test_fail_patch_culled_host(mq_create_deleted_hosts, api_patch):
+    culled_host = mq_create_deleted_hosts["culled"]
+
     url = build_hosts_url(host_list_or_id=[culled_host])
     response_status, response_data = api_patch(url, {"display_name": "patched"})
 
@@ -61,9 +64,8 @@ def test_patch_works_on_non_culled(mq_create_hosts_in_all_states, api_patch):
     assert response_status == 200
 
 
-def test_patch_facts_ignores_culled(mq_create_hosts_in_all_states, api_patch):
-    culled_host = mq_create_hosts_in_all_states["culled"]
-
+def test_patch_facts_ignores_culled(mq_create_deleted_hosts, api_patch):
+    culled_host = mq_create_deleted_hosts["culled"]
     url = build_facts_url(host_list_or_id=[culled_host], namespace="ns1")
     response_status, response_data = api_patch(url, {"ARCHITECTURE": "patched"})
 
@@ -79,8 +81,8 @@ def test_patch_facts_works_on_non_culled(mq_create_hosts_in_all_states, api_patc
     assert response_status == 200
 
 
-def test_put_facts_ignores_culled(mq_create_hosts_in_all_states, api_put):
-    culled_host = mq_create_hosts_in_all_states["culled"]
+def test_put_facts_ignores_culled(mq_create_deleted_hosts, api_put):
+    culled_host = mq_create_deleted_hosts["culled"]
 
     url = build_facts_url(host_list_or_id=[culled_host], namespace="ns1")
 
@@ -98,8 +100,8 @@ def test_put_facts_works_on_non_culled(mq_create_hosts_in_all_states, api_put):
     assert response_status == 200
 
 
-def test_delete_ignores_culled(mq_create_hosts_in_all_states, api_delete_host):
-    culled_host = mq_create_hosts_in_all_states["culled"]
+def test_delete_ignores_culled(mq_create_deleted_hosts, api_delete_host):
+    culled_host = mq_create_deleted_hosts["culled"]
 
     response_status, response_data = api_delete_host(culled_host.id)
 
@@ -152,29 +154,37 @@ def test_system_profile_doesnt_use_staleness_parameter(mq_create_hosts_in_all_st
 
 @pytest.mark.host_reaper
 def test_culled_host_is_removed(
-    event_producer_mock, event_datetime_mock, db_create_host, db_get_host, inventory_config
+    event_producer_mock,
+    event_datetime_mock,
+    db_create_host,
+    db_get_host,
+    inventory_config,
 ):
-    staleness_timestamps = get_staleness_timestamps()
+    with patch("app.models.datetime") as mock_datetime:
+        mock_datetime.now.return_value = datetime(year=2023, month=4, day=2, hour=1, minute=1, second=1)
+        mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
 
-    host = minimal_db_host(stale_timestamp=staleness_timestamps["culled"], reporter="some reporter")
-    created_host = db_create_host(host=host)
+        staleness_timestamps = get_staleness_timestamps()
 
-    assert db_get_host(created_host.id)
+        host = minimal_db_host(stale_timestamp=staleness_timestamps["culled"], reporter="some reporter")
+        created_host = db_create_host(host=host)
 
-    threadctx.request_id = None
-    host_reaper_run(
-        inventory_config,
-        mock.Mock(),
-        db.session,
-        event_producer_mock,
-        shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
-    )
+        assert db_get_host(created_host.id)
 
-    assert not db_get_host(created_host.id)
+        threadctx.request_id = None
+        host_reaper_run(
+            inventory_config,
+            mock.Mock(),
+            db.session,
+            event_producer_mock,
+            shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
+        )
 
-    assert_delete_event_is_valid(
-        event_producer=event_producer_mock, host=created_host, timestamp=event_datetime_mock, identity=None
-    )
+        assert not db_get_host(created_host.id)
+
+        assert_delete_event_is_valid(
+            event_producer=event_producer_mock, host=created_host, timestamp=event_datetime_mock, identity=None
+        )
 
 
 @pytest.mark.host_reaper
@@ -239,33 +249,37 @@ def test_non_culled_host_is_not_removed(event_producer_mock, db_create_host, db_
 
 @pytest.mark.host_reaper
 def test_reaper_shutdown_handler(db_create_host, db_get_hosts, inventory_config, event_producer_mock):
-    staleness_timestamps = get_staleness_timestamps()
-    created_host_ids = []
+    with patch("app.models.datetime") as mock_datetime:
+        mock_datetime.now.return_value = datetime(year=2023, month=4, day=2, hour=1, minute=1, second=1)
+        mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
 
-    host_count = 3
-    for _ in range(host_count):
-        host_data = minimal_db_host(stale_timestamp=staleness_timestamps["culled"], reporter="some reporter")
-        created_host = db_create_host(host=host_data)
-        created_host_ids.append(created_host.id)
+        staleness_timestamps = get_staleness_timestamps()
+        created_host_ids = []
 
-    created_hosts = db_get_hosts(created_host_ids)
-    assert created_hosts.count() == host_count
+        host_count = 3
+        for _ in range(host_count):
+            host_data = minimal_db_host(stale_timestamp=staleness_timestamps["culled"], reporter="some reporter")
+            created_host = db_create_host(host=host_data)
+            created_host_ids.append(created_host.id)
 
-    fake_event_producer = mock.Mock()
+        created_hosts = db_get_hosts(created_host_ids)
+        assert created_hosts.count() == host_count
 
-    threadctx.request_id = None
+        fake_event_producer = mock.Mock()
 
-    host_reaper_run(
-        inventory_config,
-        mock.Mock(),
-        db.session,
-        fake_event_producer,
-        shutdown_handler=mock.Mock(**{"shut_down.side_effect": (False, True)}),
-    )
+        threadctx.request_id = None
 
-    remaining_hosts = db_get_hosts(created_host_ids)
-    assert remaining_hosts.count() == 1
-    assert fake_event_producer.write_event.call_count == 2
+        host_reaper_run(
+            inventory_config,
+            mock.Mock(),
+            db.session,
+            fake_event_producer,
+            shutdown_handler=mock.Mock(**{"shut_down.side_effect": (False, True)}),
+        )
+
+        remaining_hosts = db_get_hosts(created_host_ids)
+        assert remaining_hosts.count() == 1
+        assert fake_event_producer.write_event.call_count == 2
 
 
 @pytest.mark.host_reaper
@@ -308,34 +322,43 @@ def assert_system_culling_data(response_host, expected_stale_timestamp, expected
     ((mock.Mock(), KafkaException()), (mock.Mock(), KafkaException("oops"))),
 )
 def test_reaper_stops_after_kafka_producer_error(
-    produce_side_effects, event_producer, db_create_multiple_hosts, db_get_hosts, inventory_config, mocker
+    produce_side_effects,
+    event_producer,
+    db_create_multiple_hosts,
+    db_get_hosts,
+    inventory_config,
+    mocker,
 ):
-    mocker.patch("lib.host_delete.kafka_available")
+    with patch("app.models.datetime") as mock_datetime:
+        mock_datetime.now.return_value = datetime(year=2023, month=4, day=2, hour=1, minute=1, second=1)
+        mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
 
-    event_producer._kafka_producer.produce.side_effect = produce_side_effects
+        mocker.patch("lib.host_delete.kafka_available")
 
-    staleness_timestamps = get_staleness_timestamps()
+        event_producer._kafka_producer.produce.side_effect = produce_side_effects
 
-    host_count = 3
-    created_hosts = db_create_multiple_hosts(
-        how_many=host_count, extra_data={"stale_timestamp": staleness_timestamps["culled"]}
-    )
-    created_host_ids = [str(host.id) for host in created_hosts]
+        staleness_timestamps = get_staleness_timestamps()
 
-    hosts = db_get_hosts(created_host_ids)
-    assert hosts.count() == host_count
-
-    threadctx.request_id = None
-
-    with pytest.raises(KafkaException):
-        host_reaper_run(
-            inventory_config,
-            mock.Mock(),
-            db.session,
-            event_producer,
-            shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
+        host_count = 3
+        created_hosts = db_create_multiple_hosts(
+            how_many=host_count, extra_data={"stale_timestamp": staleness_timestamps["culled"]}
         )
+        created_host_ids = [str(host.id) for host in created_hosts]
 
-    remaining_hosts = db_get_hosts(created_host_ids)
-    assert remaining_hosts.count() == 2
-    assert event_producer._kafka_producer.produce.call_count == 2
+        hosts = db_get_hosts(created_host_ids)
+        assert hosts.count() == host_count
+
+        threadctx.request_id = None
+
+        with pytest.raises(KafkaException):
+            host_reaper_run(
+                inventory_config,
+                mock.Mock(),
+                db.session,
+                event_producer,
+                shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
+            )
+
+        remaining_hosts = db_get_hosts(created_host_ids)
+        assert remaining_hosts.count() == 2
+        assert event_producer._kafka_producer.produce.call_count == 2

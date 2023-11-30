@@ -18,6 +18,7 @@ from api.host_query_xjoin import get_host_list as get_host_list_xjoin
 from api.host_query_xjoin import get_host_list_by_id_list
 from api.host_query_xjoin import get_host_tags_list_by_id_list
 from api.sparse_host_list_system_profile import get_sparse_system_profile
+from api.staleness_query import get_staleness_obj
 from app import db
 from app import inventory_config
 from app import RbacPermission
@@ -87,7 +88,7 @@ def get_host_list(
     host_list = ()
 
     try:
-        host_list, total, additional_fields = get_host_list_xjoin(
+        host_list, total, additional_fields, system_profile_fields = get_host_list_xjoin(
             display_name,
             fqdn,
             hostname_or_id,
@@ -112,7 +113,9 @@ def get_host_list(
         log_get_host_list_failed(logger)
         flask.abort(400, str(e))
 
-    json_data = build_paginated_host_list_response(total, page, per_page, host_list, additional_fields)
+    json_data = build_paginated_host_list_response(
+        total, page, per_page, host_list, additional_fields, system_profile_fields
+    )
     return flask_json_response(json_data)
 
 
@@ -269,7 +272,7 @@ def delete_host_by_id(host_id_list, rbac_filter=None):
 @metrics.api_request_time.time()
 def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None, fields=None, rbac_filter=None):
     try:
-        host_list, total, additional_fields = get_host_list_by_id_list(
+        host_list, total, additional_fields, system_profile_fields = get_host_list_by_id_list(
             host_id_list, page, per_page, order_by, order_how, fields, rbac_filter
         )
     except ValueError as e:
@@ -278,7 +281,9 @@ def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=
 
     log_get_host_list_succeeded(logger, host_list)
 
-    json_data = build_paginated_host_list_response(total, page, per_page, host_list, additional_fields)
+    json_data = build_paginated_host_list_response(
+        total, page, per_page, host_list, additional_fields, system_profile_fields
+    )
     return flask_json_response(json_data)
 
 
@@ -324,19 +329,21 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
         return ({"status": 400, "title": "Bad Request", "detail": str(e.messages), "type": "unknown"}, 400)
 
     query = get_host_list_by_id_list_from_db(host_id_list, rbac_filter)
-
     hosts_to_update = query.all()
 
     if not hosts_to_update:
         log_patch_host_failed(logger, host_id_list)
         return flask.abort(status.HTTP_404_NOT_FOUND, "Requested host not found.")
 
+    identity = get_current_identity()
+    staleness = get_staleness_obj(identity)
+
     for host in hosts_to_update:
         host.patch(validated_patch_host_data)
 
         if db.session.is_modified(host):
             db.session.commit()
-            serialized_host = serialize_host(host, staleness_timestamps())
+            serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
             _emit_patch_event(serialized_host, host)
 
     log_patch_host_success(logger, host_id_list)
@@ -395,6 +402,8 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
         logger.debug(error_msg)
         return error_msg, 400
 
+    staleness = get_staleness_obj(current_identity)
+
     for host in hosts_to_update:
         if operation is FactOperations.replace:
             host.replace_facts_in_namespace(namespace, fact_dict)
@@ -403,7 +412,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
 
         if db.session.is_modified(host):
             db.session.commit()
-            serialized_host = serialize_host(host, staleness_timestamps())
+            serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
             _emit_patch_event(serialized_host, host)
 
     logger.debug("hosts_to_update:%s", hosts_to_update)
@@ -443,11 +452,11 @@ def host_checkin(body, rbac_filter=None):
     current_identity = get_current_identity()
     canonical_facts = deserialize_canonical_facts(body)
     existing_host = find_existing_host(current_identity, canonical_facts)
-
+    staleness = get_staleness_obj(current_identity)
     if existing_host:
         existing_host._update_modified_date()
         db.session.commit()
-        serialized_host = serialize_host(existing_host, staleness_timestamps())
+        serialized_host = serialize_host(existing_host, staleness_timestamps(), staleness=staleness)
         _emit_patch_event(serialized_host, existing_host)
         return flask_json_response(serialized_host, 201)
     else:
