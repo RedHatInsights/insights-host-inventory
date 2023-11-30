@@ -1156,13 +1156,11 @@ components:
             - fresh
             - stale
             - stale_warning
-            - unknown
         default:
           - fresh
           - stale
           - stale_warning
-          - unknown
-      description: "Culling states of the hosts. Default: fresh,stale,unknown"
+      description: "Culling states of the hosts. Default: fresh, stale and stale_warning"
     stalenessNoDefaultsParam:
       name: staleness
       in: query
@@ -1175,7 +1173,6 @@ components:
             - fresh
             - stale
             - stale_warning
-            - unknown
       description: "Culling states of the hosts."
     tagsParam:
       name: tags

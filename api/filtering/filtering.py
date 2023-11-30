@@ -343,9 +343,9 @@ def owner_id_filter():
 def host_id_list_query_filter(host_id_list, rbac_filter):
     all_filters = (
         {
-            "stale_timestamp": {
-                "gt": str((datetime.now(timezone.utc) - inventory_config().culling_culled_offset_delta).isoformat())
-            },
+            "OR": staleness_filter(["not_culled"]),
+        },
+        {
             "OR": [
                 {
                     "id": {"eq": host_id},
@@ -354,7 +354,6 @@ def host_id_list_query_filter(host_id_list, rbac_filter):
             ],
         },
     )
-
     if rbac_filter:
         for key in rbac_filter:
             if key == "groups":

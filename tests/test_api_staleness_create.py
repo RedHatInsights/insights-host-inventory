@@ -47,8 +47,8 @@ def test_create_staleness_with_only_one_data(api_create_staleness, db_get_stalen
     assert saved_data.conventional_stale_warning_delta == _days_to_seconds(7)
     assert saved_data.conventional_culling_delta == _days_to_seconds(14)
     assert saved_data.immutable_staleness_delta == _days_to_seconds(2)
-    assert saved_data.immutable_stale_warning_delta == _days_to_seconds(120)
-    assert saved_data.immutable_culling_delta == _days_to_seconds(180)
+    assert saved_data.immutable_stale_warning_delta == _days_to_seconds(180)
+    assert saved_data.immutable_culling_delta == _days_to_seconds(730)
 
 
 def test_create_same_staleness(api_create_staleness):
