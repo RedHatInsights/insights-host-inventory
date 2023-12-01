@@ -1,3 +1,4 @@
+from confluent_kafka.error import KafkaException
 from confluent_kafka.error import ProduceError
 
 from api.staleness_query import get_sys_default_staleness
@@ -55,7 +56,7 @@ def synchronize_hosts(
                 logger.info("Synchronized host: %s", str(host.id))
 
                 num_synchronized += 1
-            except ProduceError:
+            except (ProduceError, KafkaException):
                 logger.error(f"Failed to synchronize host: {str(host.id)} because of {ProduceError.code}")
                 continue
 
