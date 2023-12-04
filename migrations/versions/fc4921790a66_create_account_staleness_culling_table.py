@@ -28,25 +28,23 @@ def upgrade():
         sa.Column("org_id", sa.String(length=36), nullable=False, unique=True),
         sa.Column("account", sa.String(length=10), nullable=True),
         # This value is in seconds (28 hrs)
-        sa.Column(
-            "conventional_staleness_delta", sa.String(length=36), default=f"{days_to_seconds(1)}", nullable=False
-        ),
+        sa.Column("conventional_time_to_stale", sa.String(length=36), default=f"{days_to_seconds(1)}", nullable=False),
         # This value is in seconds (7 days)
         sa.Column(
-            "conventional_stale_warning_delta", sa.String(length=36), default=f"{days_to_seconds(7)}", nullable=False
+            "conventional_time_to_stale_warning", sa.String(length=36), default=f"{days_to_seconds(7)}", nullable=False
         ),
         # This value is in seconds (14 days)
         sa.Column(
-            "conventional_culling_delta", sa.String(length=36), default=f"{days_to_seconds(14)}", nullable=False
+            "conventional_time_to_delete", sa.String(length=36), default=f"{days_to_seconds(14)}", nullable=False
         ),
         # This value is in seconds (2 days)
-        sa.Column("immutable_staleness_delta", sa.String(length=36), default=f"{days_to_seconds(2)}", nullable=False),
+        sa.Column("immutable_time_to_stale", sa.String(length=36), default=f"{days_to_seconds(2)}", nullable=False),
         # This value is in seconds (120 days)
         sa.Column(
-            "immutable_stale_warning_delta", sa.String(length=36), default=f"{days_to_seconds(120)}", nullable=False
+            "immutable_time_to_stale_warning", sa.String(length=36), default=f"{days_to_seconds(120)}", nullable=False
         ),
         # This value is in seconds (180 days)
-        sa.Column("immutable_culling_delta", sa.String(length=36), default=f"{days_to_seconds(180)}", nullable=False),
+        sa.Column("immutable_time_to_delete", sa.String(length=36), default=f"{days_to_seconds(180)}", nullable=False),
         sa.Column("created_on", sa.DateTime(timezone=True), nullable=False),
         sa.Column("modified_on", sa.DateTime(timezone=True), nullable=False),
     )

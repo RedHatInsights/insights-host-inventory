@@ -541,50 +541,50 @@ class Staleness(db.Model):
     def __init__(
         self,
         org_id,
-        conventional_staleness_delta=None,
-        conventional_stale_warning_delta=None,
-        conventional_culling_delta=None,
-        immutable_staleness_delta=None,
-        immutable_stale_warning_delta=None,
-        immutable_culling_delta=None,
+        conventional_time_to_stale=None,
+        conventional_time_to_stale_warning=None,
+        conventional_time_to_delete=None,
+        immutable_time_to_stale=None,
+        immutable_time_to_stale_warning=None,
+        immutable_time_to_delete=None,
     ):
         if not org_id:
             raise ValidationException("Staleness org_id cannot be null.")
 
         self.org_id = org_id
-        self.conventional_staleness_delta = conventional_staleness_delta
-        self.conventional_stale_warning_delta = conventional_stale_warning_delta
-        self.conventional_culling_delta = conventional_culling_delta
-        self.immutable_staleness_delta = immutable_staleness_delta
-        self.immutable_stale_warning_delta = immutable_stale_warning_delta
-        self.immutable_culling_delta = immutable_culling_delta
+        self.conventional_time_to_stale = conventional_time_to_stale
+        self.conventional_time_to_stale_warning = conventional_time_to_stale_warning
+        self.conventional_time_to_delete = conventional_time_to_delete
+        self.immutable_time_to_stale = immutable_time_to_stale
+        self.immutable_time_to_stale_warning = immutable_time_to_stale_warning
+        self.immutable_time_to_delete = immutable_time_to_delete
 
     def days_to_seconds(n_days):
         factor = 86400
         return n_days * factor
 
     def update(self, input_acc):
-        if input_acc.conventional_staleness_delta:
-            self.conventional_staleness_delta = input_acc.conventional_staleness_delta
-        if input_acc.conventional_stale_warning_delta:
-            self.conventional_stale_warning_delta = input_acc.conventional_stale_warning_delta
-        if input_acc.conventional_culling_delta:
-            self.conventional_culling_delta = input_acc.conventional_culling_delta
-        if input_acc.immutable_staleness_delta:
-            self.immutable_staleness_delta = input_acc.immutable_staleness_delta
-        if input_acc.immutable_stale_warning_delta:
-            self.immutable_stale_warning_delta = input_acc.immutable_stale_warning_delta
-        if input_acc.immutable_culling_delta:
-            self.immutable_culling_delta = input_acc.immutable_culling_delta
+        if input_acc.conventional_time_to_stale:
+            self.conventional_time_to_stale = input_acc.conventional_time_to_stale
+        if input_acc.conventional_time_to_stale_warning:
+            self.conventional_time_to_stale_warning = input_acc.conventional_time_to_stale_warning
+        if input_acc.conventional_time_to_delete:
+            self.conventional_time_to_delete = input_acc.conventional_time_to_delete
+        if input_acc.immutable_time_to_stale:
+            self.immutable_time_to_stale = input_acc.immutable_time_to_stale
+        if input_acc.immutable_time_to_stale_warning:
+            self.immutable_time_to_stale_warning = input_acc.immutable_time_to_stale_warning
+        if input_acc.immutable_time_to_delete:
+            self.immutable_time_to_delete = input_acc.immutable_time_to_delete
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     org_id = db.Column(db.String(36), nullable=False)
-    conventional_staleness_delta = db.Column(db.Integer, default=104400, nullable=False)
-    conventional_stale_warning_delta = db.Column(db.Integer, default=days_to_seconds(7), nullable=False)
-    conventional_culling_delta = db.Column(db.Integer, default=days_to_seconds(14), nullable=False)
-    immutable_staleness_delta = db.Column(db.Integer, default=days_to_seconds(2), nullable=False)
-    immutable_stale_warning_delta = db.Column(db.Integer, default=days_to_seconds(180), nullable=False)
-    immutable_culling_delta = db.Column(db.Integer, default=days_to_seconds(730), nullable=False)
+    conventional_time_to_stale = db.Column(db.Integer, default=104400, nullable=False)
+    conventional_time_to_stale_warning = db.Column(db.Integer, default=days_to_seconds(7), nullable=False)
+    conventional_time_to_delete = db.Column(db.Integer, default=days_to_seconds(14), nullable=False)
+    immutable_time_to_stale = db.Column(db.Integer, default=days_to_seconds(2), nullable=False)
+    immutable_time_to_stale_warning = db.Column(db.Integer, default=days_to_seconds(180), nullable=False)
+    immutable_time_to_delete = db.Column(db.Integer, default=days_to_seconds(730), nullable=False)
     created_on = db.Column(db.DateTime(timezone=True), default=_time_now)
     modified_on = db.Column(db.DateTime(timezone=True), default=_time_now, onupdate=_time_now)
 
@@ -854,12 +854,12 @@ class InputAssignmentRule(MarshmallowSchema):
 
 
 class StalenessSchema(MarshmallowSchema):
-    conventional_staleness_delta = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
-    conventional_stale_warning_delta = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
-    conventional_culling_delta = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
-    immutable_staleness_delta = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
-    immutable_stale_warning_delta = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
-    immutable_culling_delta = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
+    conventional_time_to_stale = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
+    conventional_time_to_stale_warning = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
+    conventional_time_to_delete = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
+    immutable_time_to_stale = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
+    immutable_time_to_stale_warning = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
+    immutable_time_to_delete = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

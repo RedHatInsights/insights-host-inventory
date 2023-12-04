@@ -6,12 +6,12 @@ from tests.helpers.api_utils import STALENESS_WRITE_PROHIBITED_RBAC_RESPONSE_FIL
 
 def test_delete_existing_staleness(db_create_staleness_culling, api_delete_staleness, db_get_staleness_culling):
     saved_staleness = db_create_staleness_culling(
-        conventional_staleness_delta=1,
-        conventional_stale_warning_delta=7,
-        conventional_culling_delta=14,
-        immutable_staleness_delta=7,
-        immutable_stale_warning_delta=120,
-        immutable_culling_delta=120,
+        conventional_time_to_stale=1,
+        conventional_time_to_stale_warning=7,
+        conventional_time_to_delete=14,
+        immutable_time_to_stale=7,
+        immutable_time_to_stale_warning=120,
+        immutable_time_to_delete=120,
     )
 
     response_status, response_data = api_delete_staleness()
@@ -39,12 +39,12 @@ def test_delete_staleness_rbac_allowed(
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
             db_create_staleness_culling(
-                conventional_staleness_delta=1,
-                conventional_stale_warning_delta=7,
-                conventional_culling_delta=14,
-                immutable_staleness_delta=7,
-                immutable_stale_warning_delta=120,
-                immutable_culling_delta=120,
+                conventional_time_to_stale=1,
+                conventional_time_to_stale_warning=7,
+                conventional_time_to_delete=14,
+                immutable_time_to_stale=7,
+                immutable_time_to_stale_warning=120,
+                immutable_time_to_delete=120,
             )
 
             response_status, _ = api_delete_staleness()

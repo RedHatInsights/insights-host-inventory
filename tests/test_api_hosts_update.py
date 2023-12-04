@@ -434,12 +434,12 @@ def test_add_facts_to_multiple_culled_hosts(
         mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
 
         db_create_staleness_culling(
-            conventional_staleness_delta=1,
-            conventional_stale_warning_delta=1,
-            conventional_culling_delta=1,
-            immutable_staleness_delta=1,
-            immutable_stale_warning_delta=1,
-            immutable_culling_delta=1,
+            conventional_time_to_stale=1,
+            conventional_time_to_stale_warning=1,
+            conventional_time_to_delete=1,
+            immutable_time_to_stale=1,
+            immutable_time_to_stale_warning=1,
+            immutable_time_to_delete=1,
         )
 
         staleness_timestamps = get_staleness_timestamps()

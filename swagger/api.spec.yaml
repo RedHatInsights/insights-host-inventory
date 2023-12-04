@@ -2056,22 +2056,22 @@ components:
       type: object
       anyOf:
         - properties:
-            conventional_staleness_delta:
+            conventional_time_to_stale:
               type: integer
               minimum: 1
-            conventional_stale_warning_delta:
+            conventional_time_to_stale_warning:
               type: integer
               minimum: 1
-            conventional_culling_delta:
+            conventional_time_to_delete:
               type: integer
               minimum: 1
-            immutable_staleness_delta:
+            immutable_time_to_stale:
               type: integer
               minimum: 1
-            immutable_stale_warning_delta:
+            immutable_time_to_stale_warning:
               type: integer
               minimum: 1
-            immutable_culling_delta:
+            immutable_time_to_delete:
               type: integer
               minimum: 1
     StalenessOutput:
@@ -2084,17 +2084,17 @@ components:
           $ref: "#/components/schemas/StalenessId"
         org_id:
           $ref: "#/components/schemas/OrgId"
-        conventional_staleness_delta:
+        conventional_time_to_stale:
           type: integer
-        conventional_stale_warning_delta:
+        conventional_time_to_stale_warning:
           type: integer
-        conventional_culling_delta:
+        conventional_time_to_delete:
           type: integer
-        immutable_staleness_delta:
+        immutable_time_to_stale:
           type: integer
-        immutable_stale_warning_delta:
+        immutable_time_to_stale_warning:
           type: integer
-        immutable_culling_delta:
+        immutable_time_to_delete:
           type: integer
         created_at:
           description: A timestamp when the entry was created.

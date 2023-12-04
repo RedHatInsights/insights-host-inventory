@@ -44,14 +44,14 @@ class Conditions:
 
         self.staleness_host_type = {
             None: {
-                "stale": staleness["conventional_staleness_delta"],
-                "warning": staleness["conventional_stale_warning_delta"],
-                "culled": staleness["conventional_culling_delta"],
+                "stale": staleness["conventional_time_to_stale"],
+                "warning": staleness["conventional_time_to_stale_warning"],
+                "culled": staleness["conventional_time_to_delete"],
             },
             "edge": {
-                "stale": staleness["immutable_staleness_delta"],
-                "warning": staleness["immutable_stale_warning_delta"],
-                "culled": staleness["immutable_culling_delta"],
+                "stale": staleness["immutable_time_to_stale"],
+                "warning": staleness["immutable_time_to_stale_warning"],
+                "culled": staleness["immutable_time_to_delete"],
             },
         }
 

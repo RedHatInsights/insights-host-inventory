@@ -675,26 +675,26 @@ def test_create_default_staleness_culling(db_create_staleness_culling, db_get_st
     created_acc_st_cull = db_get_staleness_culling(acc_st_cull.org_id)
 
     assert created_acc_st_cull
-    assert created_acc_st_cull.conventional_staleness_delta == acc_st_cull.conventional_staleness_delta
-    assert created_acc_st_cull.conventional_stale_warning_delta == acc_st_cull.conventional_stale_warning_delta
-    assert created_acc_st_cull.conventional_culling_delta == acc_st_cull.conventional_culling_delta
-    assert created_acc_st_cull.immutable_staleness_delta == acc_st_cull.immutable_staleness_delta
-    assert created_acc_st_cull.immutable_stale_warning_delta == acc_st_cull.immutable_stale_warning_delta
-    assert created_acc_st_cull.immutable_culling_delta == acc_st_cull.immutable_culling_delta
+    assert created_acc_st_cull.conventional_time_to_stale == acc_st_cull.conventional_time_to_stale
+    assert created_acc_st_cull.conventional_time_to_stale_warning == acc_st_cull.conventional_time_to_stale_warning
+    assert created_acc_st_cull.conventional_time_to_delete == acc_st_cull.conventional_time_to_delete
+    assert created_acc_st_cull.immutable_time_to_stale == acc_st_cull.immutable_time_to_stale
+    assert created_acc_st_cull.immutable_time_to_stale_warning == acc_st_cull.immutable_time_to_stale_warning
+    assert created_acc_st_cull.immutable_time_to_delete == acc_st_cull.immutable_time_to_delete
 
 
 def test_create_staleness_culling(db_create_staleness_culling, db_get_staleness_culling):
     acc_st_cull = db_create_staleness_culling(
-        conventional_staleness_delta=2 * 86400,
-        conventional_stale_warning_delta=4 * 86400,
-        conventional_culling_delta=20 * 86400,
+        conventional_time_to_stale=2 * 86400,
+        conventional_time_to_stale_warning=4 * 86400,
+        conventional_time_to_delete=20 * 86400,
     )
 
     created_acc_st_cull = db_get_staleness_culling(acc_st_cull.org_id)
     assert created_acc_st_cull
-    assert created_acc_st_cull.conventional_staleness_delta == acc_st_cull.conventional_staleness_delta
-    assert created_acc_st_cull.conventional_stale_warning_delta == acc_st_cull.conventional_stale_warning_delta
-    assert created_acc_st_cull.conventional_culling_delta == acc_st_cull.conventional_culling_delta
+    assert created_acc_st_cull.conventional_time_to_stale == acc_st_cull.conventional_time_to_stale
+    assert created_acc_st_cull.conventional_time_to_stale_warning == acc_st_cull.conventional_time_to_stale_warning
+    assert created_acc_st_cull.conventional_time_to_delete == acc_st_cull.conventional_time_to_delete
 
 
 def test_delete_staleness_culling(db_create_staleness_culling, db_delete_staleness_culling, db_get_staleness_culling):
