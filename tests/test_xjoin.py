@@ -1858,14 +1858,21 @@ def test_query_system_profile_sap_system_filter_spf_sap_sids(
 def test_query_hosts_filter_spf_sap_sids(mocker, subtests, graphql_query_empty_response, api_get):
     filter_paths = ("[system_profile][sap_sids][]", "[system_profile][sap_sids][contains][]")
     value_sets = (("XQC",), ("ABC", "A12"), ("M80", "BEN"))
-    queries = (
-        ({"AND": [{"spf_sap_sids": {"eq": "XQC"}}]},),
-        ({"OR": [{"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}]},),
-        ({"OR": [{"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}]},),
-    )
+    queries = [
+        (
+            ({"AND": [{"spf_sap_sids": {"eq": "XQC"}}]},),
+            ({"OR": [{"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}]},),
+            ({"OR": [{"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}]},),
+        ),
+        (
+            ({"AND": [{"spf_sap_sids": {"eq": "XQC"}}]},),
+            ({"AND": [{"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}]},),
+            ({"AND": [{"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}]},),
+        ),
+    ]
 
-    for path in filter_paths:
-        for values, query in zip(value_sets, queries):
+    for idx, path in enumerate(filter_paths):
+        for values, query in zip(value_sets, queries[idx]):
             with subtests.test(values=values, query=query, path=path):
                 graphql_query_empty_response.reset_mock()
                 url = build_hosts_url(query="?" + "".join([f"filter{path}={value}&" for value in values]))
@@ -1893,14 +1900,21 @@ def test_query_tags_filter_spf_sap_sids(
 ):
     filter_paths = ("[system_profile][sap_sids][]", "[system_profile][sap_sids][contains][]")
     value_sets = (("XQC",), ("ABC", "A12"), ("M80", "BEN"))
-    queries = (
-        ({"AND": [{"spf_sap_sids": {"eq": "XQC"}}]},),
-        ({"OR": [{"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}]},),
-        ({"OR": [{"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}]},),
-    )
+    queries = [
+        (
+            ({"AND": [{"spf_sap_sids": {"eq": "XQC"}}]},),
+            ({"OR": [{"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}]},),
+            ({"OR": [{"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}]},),
+        ),
+        (
+            ({"AND": [{"spf_sap_sids": {"eq": "XQC"}}]},),
+            ({"AND": [{"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}]},),
+            ({"AND": [{"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}]},),
+        ),
+    ]
 
-    for path in filter_paths:
-        for values, query in zip(value_sets, queries):
+    for idx, path in enumerate(filter_paths):
+        for values, query in zip(value_sets, queries[idx]):
             with subtests.test(values=values, query=query, path=path):
                 assert_tag_query_host_filter_single_call(
                     build_tags_url(query="?" + "".join([f"filter{path}={value}&" for value in values])),
@@ -1914,14 +1928,21 @@ def test_query_system_profile_sap_sids_filter_spf_sap_sids(
 ):
     filter_paths = ("[system_profile][sap_sids][]", "[system_profile][sap_sids][contains][]")
     value_sets = (("XQC",), ("ABC", "A12"), ("M80", "BEN"))
-    queries = (
-        ({"AND": [{"spf_sap_sids": {"eq": "XQC"}}]},),
-        ({"OR": [{"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}]},),
-        ({"OR": [{"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}]},),
-    )
+    queries = [
+        (
+            ({"AND": [{"spf_sap_sids": {"eq": "XQC"}}]},),
+            ({"OR": [{"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}]},),
+            ({"OR": [{"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}]},),
+        ),
+        (
+            ({"AND": [{"spf_sap_sids": {"eq": "XQC"}}]},),
+            ({"AND": [{"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}]},),
+            ({"AND": [{"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}]},),
+        ),
+    ]
 
-    for path in filter_paths:
-        for values, query in zip(value_sets, queries):
+    for idx, path in enumerate(filter_paths):
+        for values, query in zip(value_sets, queries[idx]):
             with subtests.test(values=values, query=query, path=path):
                 graphql_system_profile_sap_sids_query_empty_response.reset_mock()
 
