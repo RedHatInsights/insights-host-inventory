@@ -1,6 +1,8 @@
 import os
 from base64 import b64decode
+from base64 import b64encode
 from enum import Enum
+from json import dumps
 from json import loads
 
 import marshmallow as m
@@ -14,16 +16,6 @@ __all__ = ["Identity", "from_auth_header", "from_bearer_token"]
 logger = get_logger(__name__)
 
 SHARED_SECRET_ENV_VAR = "INVENTORY_SHARED_SECRET"
-
-
-def from_auth_header(base64):
-    json = b64decode(base64)
-    identity_dict = loads(json)
-    return Identity(identity_dict["identity"])
-
-
-def from_bearer_token(token):
-    return Identity(token=token)
 
 
 class AuthType(str, Enum):
@@ -97,8 +89,11 @@ class Identity:
             ident["account_number"] = self.account_number
 
         if self.identity_type == IdentityType.USER:
-            ident["user"] = self.user.copy()
+            if hasattr(self, "user"):
+                ident["user"] = self.user.copy()
+
             return ident
+
         if self.identity_type == IdentityType.SYSTEM:
             ident["system"] = self.system.copy()
             return ident
@@ -124,7 +119,7 @@ class IdentitySchema(IdentityBaseSchema):
     org_id = m.fields.Str(required=True, validate=m.validate.Length(min=1, max=36))
     type = m.fields.String(required=True, validate=m.validate.OneOf(IdentityType.__members__.values()))
     auth_type = IdentityLowerString(required=True, validate=m.validate.OneOf(AuthType.__members__.values()))
-    account_number = m.fields.Str(validate=m.validate.Length(min=0, max=36))
+    account_number = m.fields.Str(allow_none=True, validate=m.validate.Length(min=0, max=36))
 
     @m.post_load
     def user_system_check(self, in_data, **kwargs):
@@ -153,3 +148,19 @@ class SystemIdentitySchema(IdentityBaseSchema):
 # So this helper function creates a basic User-type identity from the host data.
 def create_mock_identity_with_org_id(org_id):
     return Identity({"org_id": org_id, "type": IdentityType.USER.value, "auth_type": AuthType.BASIC})
+
+
+def to_auth_header(identity: Identity):
+    id = {"identity": identity._asdict()}
+    b64_id = b64encode(dumps(id).encode())
+    return b64_id.decode("ascii")
+
+
+def from_auth_header(base64):
+    json = b64decode(base64)
+    identity_dict = loads(json)
+    return Identity(identity_dict["identity"])
+
+
+def from_bearer_token(token):
+    return Identity(token=token)
