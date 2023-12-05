@@ -55,6 +55,11 @@ SYSTEM_PROFILE_SPECIFICATION_FILE = "system_profile.spec.yaml"
 # set edge host stale_timestamp way out in future to Year 2260
 EDGE_HOST_STALE_TIMESTAMP = datetime(2260, 1, 1, tzinfo=timezone.utc)
 
+# Used when updating per_reporter_staleness from old to new keys.
+NEW_TO_OLD_REPORTER_MAP = {"satellite": "yupana", "discovery": "yupana"}
+# Used in filtering.
+OLD_TO_NEW_REPORTER_MAP = {"yupana": ("satellite", "discovery")}
+
 
 class ProviderType(str, Enum):
     ALIBABA = "alibaba"
@@ -321,6 +326,9 @@ class Host(LimitedHost):
 
         if not self.per_reporter_staleness.get(reporter):
             self.per_reporter_staleness[reporter] = {}
+
+        if old_reporter := NEW_TO_OLD_REPORTER_MAP.get(reporter):
+            self.per_reporter_staleness.pop(old_reporter, None)
 
         self.per_reporter_staleness[reporter].update(
             stale_timestamp=self.stale_timestamp.isoformat(),
