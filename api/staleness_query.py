@@ -38,12 +38,12 @@ def _build_staleness_sys_default(org_id, config=None):
         {
             "id": "system_default",
             "org_id": org_id,
-            "conventional_time_to_stale": config.conventional_staleness_seconds,
-            "conventional_time_to_stale_warning": config.conventional_stale_warning_seconds,
-            "conventional_time_to_delete": config.conventional_culling_seconds,
-            "immutable_time_to_stale": config.immutable_staleness_seconds,
-            "immutable_time_to_stale_warning": config.immutable_stale_warning_seconds,
-            "immutable_time_to_delete": config.immutable_culling_seconds,
+            "conventional_time_to_stale": config.conventional_time_to_stale_seconds,
+            "conventional_time_to_stale_warning": config.conventional_time_to_stale_warning_seconds,
+            "conventional_time_to_delete": config.conventional_time_to_delete_seconds,
+            "immutable_time_to_stale": config.immutable_time_to_stale_seconds,
+            "immutable_time_to_stale_warning": config.immutable_time_to_stale_warning_seconds,
+            "immutable_time_to_delete": config.immutable_time_to_delete_seconds,
             "created_on": "N/A",
             "modified_on": "N/A",
         }
