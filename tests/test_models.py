@@ -480,6 +480,42 @@ def test_update_per_reporter_staleness(db_create_host, models_datetime_mock):
 
 
 @pytest.mark.parametrize(
+    "new_reporter",
+    ["satellite", "discovery"],
+)
+def test_update_per_reporter_staleness_yupana_replacement(db_create_host, models_datetime_mock, new_reporter):
+    yupana_stale_timestamp = models_datetime_mock + timedelta(days=1)
+    input_host = Host(
+        {"fqdn": "fqdn"}, display_name="display_name", reporter="yupana", stale_timestamp=yupana_stale_timestamp
+    )
+    existing_host = db_create_host(host=input_host)
+
+    assert existing_host.per_reporter_staleness == {
+        "yupana": {
+            "last_check_in": models_datetime_mock.isoformat(),
+            "stale_timestamp": yupana_stale_timestamp.isoformat(),
+            "check_in_succeeded": True,
+        }
+    }
+
+    yupana_stale_timestamp += timedelta(days=1)
+
+    update_host = Host(
+        {"fqdn": "fqdn"}, display_name="display_name", reporter=new_reporter, stale_timestamp=yupana_stale_timestamp
+    )
+    existing_host.update(update_host)
+
+    # datetime will not change because the datetime.now() method is patched
+    assert existing_host.per_reporter_staleness == {
+        new_reporter: {
+            "last_check_in": models_datetime_mock.isoformat(),
+            "stale_timestamp": yupana_stale_timestamp.isoformat(),
+            "check_in_succeeded": True,
+        }
+    }
+
+
+@pytest.mark.parametrize(
     "provider",
     (
         {"type": "alibaba", "id": generate_uuid()},
