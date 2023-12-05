@@ -1741,3 +1741,24 @@ def test_groups_not_overwritten_for_existing_hosts(
     assert created_key == host_id
     assert created_event["host"]["ansible_host"] == "updated.ansible.host"
     assert created_event["host"]["groups"][0]["id"] == group_id
+
+
+def test_add_host_with_invalid_identity(mocker, event_datetime_mock, mq_create_or_update_host, db_get_host):
+    """
+    Tests that using an invalid identity still results in a notification message
+    """
+    identity = deepcopy(USER_IDENTITY)
+    identity["account_number"] = -5
+    metadata = {
+        "request_id": "b9757340-f839-4541-9af6-f7535edf08db",
+        "archive_url": "http://s3.aws.com/redhat/insights/1234567",
+        "b64_identity": get_encoded_idstr(identity),
+    }
+    mock_notification_event_producer = mocker.Mock()
+    host = minimal_host(account=SYSTEM_IDENTITY["account_number"])
+    with pytest.raises(ValidationException):
+        mq_create_or_update_host(
+            host, notification_event_producer=mock_notification_event_producer, platform_metadata=metadata
+        )
+
+    mock_notification_event_producer.write_event.assert_called_once()

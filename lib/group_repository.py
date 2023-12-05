@@ -3,6 +3,7 @@ from typing import List
 from api.host_query import staleness_timestamps
 from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
+from app.auth.identity import to_auth_header
 from app.exceptions import InventoryException
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_get_group_list_failed
@@ -41,6 +42,7 @@ def _produce_host_update_events(event_producer, host_id_list, group_id_list=[], 
     Host.query.filter(Host.id.in_(host_id_list)).update({"groups": serialized_groups}, synchronize_session="fetch")
     db.session.commit()
     host_list = get_host_list_by_id_list_from_db(host_id_list)
+    metadata = {"b64_identity": to_auth_header(get_current_identity())}
 
     # Send messages
     for host in host_list:
@@ -53,7 +55,7 @@ def _produce_host_update_events(event_producer, host_id_list, group_id_list=[], 
             host.system_profile_facts.get("host_type"),
             host.system_profile_facts.get("operating_system", {}).get("name"),
         )
-        event = build_event(EventType.updated, serialized_host)
+        event = build_event(EventType.updated, serialized_host, platform_metadata=metadata)
         event_producer.write_event(event, serialized_host["id"], headers, wait=True)
 
 

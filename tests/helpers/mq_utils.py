@@ -8,9 +8,12 @@ from unittest.mock import Mock
 
 from confluent_kafka import TopicPartition
 
+from app.auth.identity import Identity
+from app.auth.identity import to_auth_header
 from app.serialization import serialize_facts
 from app.utils import Tag
 from tests.helpers.test_utils import minimal_host
+from tests.helpers.test_utils import USER_IDENTITY
 
 
 MockFutureCallback = namedtuple("MockFutureCallback", ("method", "args", "kwargs", "extra_arg"))
@@ -93,12 +96,24 @@ def assert_mq_host_data(actual_id, actual_event, expected_results, host_keys_to_
         assert actual_event["host"][key] == expected_results["host"][key]
 
 
-def assert_delete_event_is_valid(event_producer, host, timestamp, expected_request_id=None, expected_metadata=None):
+def assert_delete_event_is_valid(
+    event_producer, host, timestamp, expected_request_id=None, expected_metadata=None, identity=USER_IDENTITY
+):
     event = json.loads(event_producer.event)
 
     assert isinstance(event, dict)
 
-    expected_keys = {"timestamp", "type", "id", "account", "org_id", "insights_id", "request_id", "metadata"}
+    expected_keys = {
+        "timestamp",
+        "type",
+        "id",
+        "account",
+        "org_id",
+        "insights_id",
+        "request_id",
+        "platform_metadata",
+        "metadata",
+    }
     assert set(event.keys()) == expected_keys
 
     assert timestamp.replace(tzinfo=timezone.utc).isoformat() == event["timestamp"]
@@ -117,6 +132,9 @@ def assert_delete_event_is_valid(event_producer, host, timestamp, expected_reque
         host.system_profile_facts.get("operating_system", {}).get("name"),
     )
 
+    if identity:
+        assert event["platform_metadata"] == {"b64_identity": to_auth_header(Identity(obj=identity))}
+
     if expected_request_id:
         assert event["request_id"] == expected_request_id
 
@@ -132,6 +150,7 @@ def assert_patch_event_is_valid(
     display_name="patch_event_test",
     stale_timestamp=None,
     reporter=None,
+    identity=USER_IDENTITY,
 ):
     stale_timestamp = (host.modified_on.astimezone(timezone.utc) + timedelta(seconds=104400)).isoformat()
     stale_warning_timestamp = (host.modified_on.astimezone(timezone.utc) + timedelta(seconds=604800)).isoformat()
@@ -170,7 +189,7 @@ def assert_patch_event_is_valid(
             "provider_id": host.canonical_facts.get("provider_id"),
             "provider_type": host.canonical_facts.get("provider_type"),
         },
-        "platform_metadata": None,
+        "platform_metadata": {"b64_identity": to_auth_header(Identity(obj=identity))},
         "metadata": {"request_id": expected_request_id},
         "timestamp": expected_timestamp.isoformat(),
     }

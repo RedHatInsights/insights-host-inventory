@@ -1,5 +1,8 @@
 from base64 import b64encode
+from copy import deepcopy
 from json import dumps
+
+import pytest
 
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
@@ -34,28 +37,11 @@ def invalid_payloads(identity_type):
         return payloads
 
 
-def valid_identity(identity_type):
-    """
-    Provides a valid Identity object.
-    """
-    if identity_type == IdentityType.USER:
-        return Identity(USER_IDENTITY)
-    elif identity_type == IdentityType.SYSTEM:
-        return Identity(SYSTEM_IDENTITY)
-
-
 def create_identity_payload(identity):
-    dict_ = {"identity": identity._asdict()}
+    # Load into Identity object for validation, then return to dict
+    dict_ = {"identity": Identity(identity)._asdict()}
     json = dumps(dict_)
     return b64encode(json.encode())
-
-
-def valid_payload(identity_type):
-    """
-    Builds a valid HTTP header payload – Base64 encoded JSON string with valid data.
-    """
-    identity = valid_identity(identity_type)
-    return create_identity_payload(identity)
 
 
 def test_validate_missing_identity(flask_client):
@@ -74,11 +60,19 @@ def test_validate_invalid_identity(flask_client):
     assert 401 == response.status_code
 
 
-def test_validate_valid_user_identity(flask_client):
+@pytest.mark.parametrize(
+    "remove_account_number",
+    [True, False],
+)
+def test_validate_valid_user_identity(flask_client, remove_account_number):
     """
     Identity header is valid – non-empty in this case
     """
-    payload = valid_payload(IdentityType.USER)
+    identity = deepcopy(USER_IDENTITY)
+    if remove_account_number:
+        del identity["account_number"]
+
+    payload = create_identity_payload(identity)
     response = flask_client.get(HOST_URL, headers={"x-rh-identity": payload})
     assert 200 == response.status_code  # OK
 
@@ -87,8 +81,8 @@ def test_validate_non_admin_user_identity(flask_client):
     """
     Identity header is valid and user is provided, but is not an Admin
     """
-    identity = valid_identity(IdentityType.USER)
-    identity.user["username"] = "regularjoe@redhat.com"
+    identity = deepcopy(USER_IDENTITY)
+    identity["user"]["username"] = "regularjoe@redhat.com"
     payload = create_identity_payload(identity)
     response = flask_client.post(
         f"{SYSTEM_PROFILE_URL}/validate_schema?repo_branch=master&days=1", headers={"x-rh-identity": payload}
@@ -100,7 +94,7 @@ def test_validate_non_user_admin_endpoint(flask_client):
     """
     Identity header is valid and user is provided, but is not an Admin
     """
-    payload = valid_payload(IdentityType.SYSTEM)
+    payload = create_identity_payload(SYSTEM_IDENTITY)
     response = flask_client.post(
         f"{SYSTEM_PROFILE_URL}/validate_schema?repo_branch=master&days=1", headers={"x-rh-identity": payload}
     )
@@ -111,7 +105,7 @@ def test_validate_valid_system_identity(flask_client):
     """
     Identity header is valid – non-empty in this case
     """
-    payload = valid_payload(IdentityType.SYSTEM)
+    payload = create_identity_payload(SYSTEM_IDENTITY)
     response = flask_client.get(HOST_URL, headers={"x-rh-identity": payload})
     assert 200 == response.status_code  # OK
 

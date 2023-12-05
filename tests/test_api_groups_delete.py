@@ -1,9 +1,12 @@
 import json
 
+from app.auth.identity import Identity
+from app.auth.identity import to_auth_header
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.test_utils import generate_uuid
+from tests.helpers.test_utils import USER_IDENTITY
 
 
 def test_delete_non_existent_group(api_delete_groups, event_producer):
@@ -66,9 +69,11 @@ def test_remove_hosts_from_existing_group(
 
     assert event_producer.write_event.call_count == 2
     for call_arg in event_producer.write_event.call_args_list:
-        host = json.loads(call_arg[0][0])["host"]
+        event = json.loads(call_arg[0][0])
+        host = event["host"]
         assert host["id"] in host_id_list[0:2]
         assert len(host["groups"]) == 0
+        assert event["platform_metadata"] == {"b64_identity": to_auth_header(Identity(obj=USER_IDENTITY))}
 
 
 def test_remove_hosts_from_nonexistent_group(db_create_host, api_remove_hosts_from_group, event_producer, mocker):
