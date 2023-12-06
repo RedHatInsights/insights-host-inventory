@@ -48,7 +48,7 @@ class Config:
         self.event_topic = topic(os.environ.get("KAFKA_EVENT_TOPIC"))
         self.payload_tracker_kafka_topic = topic("platform.payload-status")
 
-        self.bootstrap_servers = ",".join(cfg.KafkaServers)
+        self.bootstrap_servers = ",".join(app_common_python.KafkaServers)
 
         for broker_cfg in cfg.kafka.brokers:
             if not broker_cfg:
