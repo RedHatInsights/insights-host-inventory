@@ -37,9 +37,6 @@ class Config:
                 self.rbac_endpoint = f"{protocol}://{endpoint.hostname}:{port}"
                 break
 
-        broker_cfg = cfg.kafka.brokers[0]
-        self.bootstrap_servers = f"{broker_cfg.hostname}:{broker_cfg.port}"
-
         def topic(t):
             return app_common_python.KafkaTopics[t].name if t else None
 
@@ -51,21 +48,28 @@ class Config:
         self.event_topic = topic(os.environ.get("KAFKA_EVENT_TOPIC"))
         self.payload_tracker_kafka_topic = topic("platform.payload-status")
 
-        # certificates are required in fedramp, but not in managed kafka
-        try:
-            self.kafka_ssl_cafile = self._kafka_ca(broker_cfg.cacert)
-        except AttributeError:
-            self.kafka_ssl_cafile = None
-        try:
-            self.kafka_sasl_username = broker_cfg.sasl.username
-            self.kafka_sasl_password = broker_cfg.sasl.password
-            self.kafka_sasl_mechanism = broker_cfg.sasl.saslMechanism
-            self.kafka_security_protocol = broker_cfg.sasl.securityProtocol
-        except AttributeError:
-            self.kafka_sasl_username = ""
-            self.kafka_sasl_password = ""
-            self.kafka_sasl_mechanism = "PLAIN"
-            self.kafka_security_protocol = "PLAINTEXT"
+        self.bootstrap_servers = ",".join(cfg.KafkaServers)
+
+        for broker_cfg in cfg.kafka.brokers:
+            if not broker_cfg:
+                continue
+
+            # certificates are required in fedramp, but not in managed kafka
+            try:
+                self.kafka_ssl_cafile = self._kafka_ca(broker_cfg.cacert)
+            except AttributeError:
+                self.kafka_ssl_cafile = None
+            try:
+                self.kafka_sasl_username = broker_cfg.sasl.username
+                self.kafka_sasl_password = broker_cfg.sasl.password
+                self.kafka_sasl_mechanism = broker_cfg.sasl.saslMechanism
+                self.kafka_security_protocol = broker_cfg.sasl.securityProtocol
+                break
+            except AttributeError:
+                self.kafka_sasl_username = ""
+                self.kafka_sasl_password = ""
+                self.kafka_sasl_mechanism = "PLAIN"
+                self.kafka_security_protocol = "PLAINTEXT"
 
         # Feature flags
         unleash = cfg.featureFlags
