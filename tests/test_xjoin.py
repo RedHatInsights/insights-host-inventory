@@ -768,7 +768,7 @@ def test_query_variables_staleness(
 
 
 def test_query_multiple_staleness(mocker, culling_datetime_mock, graphql_query_empty_response, api_get):
-    url = build_hosts_url(query="?staleness=fresh&staleness=stale_warning")
+    url = build_hosts_url(query="?staleness=fresh&staleness=stale_warning&staleness=unknown")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
