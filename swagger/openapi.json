@@ -1870,7 +1870,8 @@
             "enum": [
               "fresh",
               "stale",
-              "stale_warning"
+              "stale_warning",
+              "unknown"
             ]
           },
           "default": [
@@ -1892,7 +1893,8 @@
             "enum": [
               "fresh",
               "stale",
-              "stale_warning"
+              "stale_warning",
+              "unknown"
             ]
           }
         },
