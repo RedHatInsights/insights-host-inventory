@@ -262,20 +262,20 @@ def db_delete_assignment_rule(flask_app):
 @pytest.fixture(scope="function")
 def db_create_staleness_culling(flask_app):
     def _db_create_staleness_culling(
-        conventional_staleness_delta=None,
-        conventional_stale_warning_delta=None,
-        conventional_culling_delta=None,
-        immutable_staleness_delta=None,
-        immutable_stale_warning_delta=None,
-        immutable_culling_delta=None,
+        conventional_time_to_stale=None,
+        conventional_time_to_stale_warning=None,
+        conventional_time_to_delete=None,
+        immutable_time_to_stale=None,
+        immutable_time_to_stale_warning=None,
+        immutable_time_to_delete=None,
     ):
         staleness_culling = db_staleness_culling(
-            conventional_staleness_delta=conventional_staleness_delta,
-            conventional_stale_warning_delta=conventional_stale_warning_delta,
-            conventional_culling_delta=conventional_culling_delta,
-            immutable_staleness_delta=immutable_staleness_delta,
-            immutable_stale_warning_delta=immutable_stale_warning_delta,
-            immutable_culling_delta=immutable_culling_delta,
+            conventional_time_to_stale=conventional_time_to_stale,
+            conventional_time_to_stale_warning=conventional_time_to_stale_warning,
+            conventional_time_to_delete=conventional_time_to_delete,
+            immutable_time_to_stale=immutable_time_to_stale,
+            immutable_time_to_stale_warning=immutable_time_to_stale_warning,
+            immutable_time_to_delete=immutable_time_to_delete,
         )
         db.session.add(staleness_culling)
         db.session.commit()
