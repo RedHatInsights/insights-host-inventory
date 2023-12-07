@@ -7,7 +7,7 @@ echo '===================================='
 echo '===      Running Pre-commit     ===='
 echo '===================================='
 set +e
-docker run -u $(id -u):$(id -g) -t -v $(pwd):/workspace:rw,Z --workdir /workspace --env HOME=/workspace $IMAGE:$IMAGE_TAG pre-commit run --all-files
+podman run -u root -t -v $(pwd):/workspace:Z --workdir /workspace --env HOME=/workspace $IMAGE:$IMAGE_TAG pre-commit run --all-files
 TEST_RESULT=$?
 set -e
 if [ $TEST_RESULT -ne 0 ]; then
