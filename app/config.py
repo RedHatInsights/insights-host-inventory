@@ -230,21 +230,29 @@ class Config:
             minutes=int(os.environ.get("CULLING_CULLED_OFFSET_MINUTES", "0")),
         )
 
-        self.conventional_staleness_seconds = int(os.environ.get("CONVENTIONAL_STALENESS_SECONDS", 104400))  # 29 hours
+        self.conventional_time_to_stale_seconds = int(
+            os.environ.get("CONVENTIONAL_TIME_TO_STALE_SECONDS", 104400)
+        )  # 29 hours
 
-        self.conventional_stale_warning_seconds = os.environ.get(
-            "CONVENTIONAL_STALENESS_WARNING_SECONDS", self.days_to_seconds(7)
+        self.conventional_time_to_stale_warning_seconds = os.environ.get(
+            "CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS", self.days_to_seconds(7)
         )
 
-        self.conventional_culling_seconds = os.environ.get("CONVENTIONAL_CULLING_SECONDS", self.days_to_seconds(14))
-
-        self.immutable_staleness_seconds = os.environ.get("IMMUTABLE_STALENESS_SECONDS", self.days_to_seconds(2))
-
-        self.immutable_stale_warning_seconds = os.environ.get(
-            "IMMUTABLE_STALENESS_WARNING_SECONDS", self.days_to_seconds(180)
+        self.conventional_time_to_delete_seconds = os.environ.get(
+            "CONVENTIONAL_TIME_TO_DELETE_SECONDS", self.days_to_seconds(14)
         )
 
-        self.immutable_culling_seconds = os.environ.get("IMMUTABLE_CULLING_SECONDS", self.days_to_seconds(730))
+        self.immutable_time_to_stale_seconds = os.environ.get(
+            "IMMUTABLE_TIME_TO_STALE_SECONDS", self.days_to_seconds(2)
+        )
+
+        self.immutable_time_to_stale_warning_seconds = os.environ.get(
+            "IMMUTABLE_TIME_TO_STALE_WARNING_SECONDS", self.days_to_seconds(180)
+        )
+
+        self.immutable_time_to_delete_seconds = os.environ.get(
+            "IMMUTABLE_TIME_TO_DELETE_SECONDS", self.days_to_seconds(730)
+        )
 
         self.xjoin_graphql_url = os.environ.get("XJOIN_GRAPHQL_URL", "http://localhost:4000/graphql")
 

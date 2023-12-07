@@ -44,14 +44,14 @@ class Conditions:
 
         self.staleness_host_type = {
             None: {
-                "stale": staleness["conventional_staleness_delta"],
-                "warning": staleness["conventional_stale_warning_delta"],
-                "culled": staleness["conventional_culling_delta"],
+                "stale": staleness["conventional_time_to_stale"],
+                "warning": staleness["conventional_time_to_stale_warning"],
+                "culled": staleness["conventional_time_to_delete"],
             },
             "edge": {
-                "stale": staleness["immutable_staleness_delta"],
-                "warning": staleness["immutable_stale_warning_delta"],
-                "culled": staleness["immutable_culling_delta"],
+                "stale": staleness["immutable_time_to_stale"],
+                "warning": staleness["immutable_time_to_stale_warning"],
+                "culled": staleness["immutable_time_to_delete"],
             },
         }
 
@@ -85,5 +85,5 @@ class Conditions:
 
 def staleness_to_conditions(staleness, staleness_states, host_type, timestamp_filter_func):
     condition = Conditions(staleness, host_type)
-    filtered_states = (state for state in staleness_states)
+    filtered_states = (state for state in staleness_states if state != "unknown")
     return (timestamp_filter_func(*getattr(condition, state)(), host_type=host_type) for state in filtered_states)

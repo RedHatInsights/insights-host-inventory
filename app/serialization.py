@@ -122,24 +122,22 @@ def serialize_host(
     # TODO: In future, this must handle groups staleness
 
     if host.system_profile_facts.get("host_type") == "edge":
-        stale_timestamp = staleness_timestamps.stale_timestamp(
-            host.modified_on, staleness["immutable_staleness_delta"]
-        )
+        stale_timestamp = staleness_timestamps.stale_timestamp(host.modified_on, staleness["immutable_time_to_stale"])
         stale_warning_timestamp = staleness_timestamps.stale_warning_timestamp(
-            host.modified_on, staleness["immutable_stale_warning_delta"]
+            host.modified_on, staleness["immutable_time_to_stale_warning"]
         )
         culled_timestamp = staleness_timestamps.culled_timestamp(
-            host.modified_on, staleness["immutable_culling_delta"]
+            host.modified_on, staleness["immutable_time_to_delete"]
         )
     else:
         stale_timestamp = staleness_timestamps.stale_timestamp(
-            host.modified_on, staleness["conventional_staleness_delta"]
+            host.modified_on, staleness["conventional_time_to_stale"]
         )
         stale_warning_timestamp = staleness_timestamps.stale_warning_timestamp(
-            host.modified_on, staleness["conventional_stale_warning_delta"]
+            host.modified_on, staleness["conventional_time_to_stale_warning"]
         )
         culled_timestamp = staleness_timestamps.culled_timestamp(
-            host.modified_on, staleness["conventional_culling_delta"]
+            host.modified_on, staleness["conventional_time_to_delete"]
         )
 
     serialized_host = {**serialize_canonical_facts(host.canonical_facts)}
@@ -381,12 +379,12 @@ def serialize_staleness_response(staleness):
     return {
         "id": _serialize_uuid(staleness.id),
         "org_id": staleness.org_id,
-        "conventional_staleness_delta": staleness.conventional_staleness_delta,
-        "conventional_stale_warning_delta": staleness.conventional_stale_warning_delta,
-        "conventional_culling_delta": staleness.conventional_culling_delta,
-        "immutable_staleness_delta": staleness.immutable_staleness_delta,
-        "immutable_stale_warning_delta": staleness.immutable_stale_warning_delta,
-        "immutable_culling_delta": staleness.immutable_culling_delta,
+        "conventional_time_to_stale": staleness.conventional_time_to_stale,
+        "conventional_time_to_stale_warning": staleness.conventional_time_to_stale_warning,
+        "conventional_time_to_delete": staleness.conventional_time_to_delete,
+        "immutable_time_to_stale": staleness.immutable_time_to_stale,
+        "immutable_time_to_stale_warning": staleness.immutable_time_to_stale_warning,
+        "immutable_time_to_delete": staleness.immutable_time_to_delete,
         "created": "N/A" if staleness.created_on == "N/A" else _serialize_datetime(staleness.created_on),
         "updated": "N/A" if staleness.modified_on == "N/A" else _serialize_datetime(staleness.modified_on),
     }
@@ -398,10 +396,10 @@ def serialize_staleness_to_dict(staleness_obj) -> dict:
     to a simple dictionary. This contains less information
     """
     return {
-        "conventional_staleness_delta": staleness_obj.conventional_staleness_delta,
-        "conventional_stale_warning_delta": staleness_obj.conventional_stale_warning_delta,
-        "conventional_culling_delta": staleness_obj.conventional_culling_delta,
-        "immutable_staleness_delta": staleness_obj.immutable_staleness_delta,
-        "immutable_stale_warning_delta": staleness_obj.immutable_stale_warning_delta,
-        "immutable_culling_delta": staleness_obj.immutable_culling_delta,
+        "conventional_time_to_stale": staleness_obj.conventional_time_to_stale,
+        "conventional_time_to_stale_warning": staleness_obj.conventional_time_to_stale_warning,
+        "conventional_time_to_delete": staleness_obj.conventional_time_to_delete,
+        "immutable_time_to_stale": staleness_obj.immutable_time_to_stale,
+        "immutable_time_to_stale_warning": staleness_obj.immutable_time_to_stale_warning,
+        "immutable_time_to_delete": staleness_obj.immutable_time_to_delete,
     }
