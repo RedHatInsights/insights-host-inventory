@@ -49,27 +49,23 @@ class Config:
         self.payload_tracker_kafka_topic = topic("platform.payload-status")
 
         self.bootstrap_servers = ",".join(app_common_python.KafkaServers)
+        broker_cfg = cfg.kafka.brokers[0]
 
-        for broker_cfg in cfg.kafka.brokers:
-            if not broker_cfg:
-                continue
-
-            # certificates are required in fedramp, but not in managed kafka
-            try:
-                self.kafka_ssl_cafile = self._kafka_ca(broker_cfg.cacert)
-            except AttributeError:
-                self.kafka_ssl_cafile = None
-            try:
-                self.kafka_sasl_username = broker_cfg.sasl.username
-                self.kafka_sasl_password = broker_cfg.sasl.password
-                self.kafka_sasl_mechanism = broker_cfg.sasl.saslMechanism
-                self.kafka_security_protocol = broker_cfg.sasl.securityProtocol
-                break
-            except AttributeError:
-                self.kafka_sasl_username = ""
-                self.kafka_sasl_password = ""
-                self.kafka_sasl_mechanism = "PLAIN"
-                self.kafka_security_protocol = "PLAINTEXT"
+        # certificates are required in fedramp, but not in managed kafka
+        try:
+            self.kafka_ssl_cafile = self._kafka_ca(broker_cfg.cacert)
+        except AttributeError:
+            self.kafka_ssl_cafile = None
+        try:
+            self.kafka_sasl_username = broker_cfg.sasl.username
+            self.kafka_sasl_password = broker_cfg.sasl.password
+            self.kafka_sasl_mechanism = broker_cfg.sasl.saslMechanism
+            self.kafka_security_protocol = broker_cfg.sasl.securityProtocol
+        except AttributeError:
+            self.kafka_sasl_username = ""
+            self.kafka_sasl_password = ""
+            self.kafka_sasl_mechanism = "PLAIN"
+            self.kafka_security_protocol = "PLAINTEXT"
 
         # Feature flags
         unleash = cfg.featureFlags
