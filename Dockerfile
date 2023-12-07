@@ -15,11 +15,11 @@ RUN FULL_RHEL=$(microdnf repolist --enabled | grep rhel-8) ; \
 ENV APP_ROOT=/opt/app-root/src
 WORKDIR $APP_ROOT
 
-RUN microdnf module enable postgresql:13 python38:3.8 && \
+RUN microdnf module enable postgresql:13 python3.10:3.10 && \
     microdnf upgrade -y && \
-    microdnf install --setopt=tsflags=nodocs -y postgresql python38 rsync tar procps-ng make snappy && \
+    microdnf install --setopt=tsflags=nodocs -y postgresql python3.10 rsync tar procps-ng make snappy && \
     rpm -qa | sort > packages-before-devel-install.txt && \
-    microdnf install --setopt=tsflags=nodocs -y libpq-devel python38-devel gcc && \
+    microdnf install --setopt=tsflags=nodocs -y libpq-devel python3.10-devel gcc && \
     rpm -qa | sort > packages-after-devel-install.txt
 
 COPY . .
