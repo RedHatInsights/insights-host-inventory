@@ -118,6 +118,10 @@ pre-commit install
 ```
 
 After that, all your commited files will be linted. If the checks don’t succeed, the commit will be rejected, but the altered files from the linting will be ready for you to commit again if the issue was automatically correctable.
+
+If you're inside the Red Hat network, please also make sure you have rh-pre-commit installed; instructions on installation can be found [here](https://gitlab.corp.redhat.com/infosec-public/developer-workbench/tools/-/tree/main/rh-pre-commit#quickstart-install).
+If you follow the instructions for Quickstart Install, and then re-enable running hooks in the repo's `.pre-commit-config.yaml` (instructions in the [Manual Install section](https://gitlab.corp.redhat.com/infosec-public/developer-workbench/tools/-/tree/main/rh-pre-commit#manual-install)), both hooks should run upon making a commit.
+
 Please make sure all checks pass before submitting a pull request. Thanks!
 
 ## Running the server locally
