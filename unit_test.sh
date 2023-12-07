@@ -7,7 +7,7 @@ echo '===================================='
 echo '===      Running Pre-commit     ===='
 echo '===================================='
 
-python3.10 -m venv venv
+python3.9 -m venv venv
 source venv/bin/activate
 pip install --upgrade pip setuptools wheel
 pip install pre-commit
