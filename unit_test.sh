@@ -2,17 +2,12 @@
 
 cd $APP_ROOT
 
-# pre-commit -- do not run in the container so that it has access to .git data
+# pre-commit -- run using container image built for PR, mount workspace as volume so it has access to .git
 echo '===================================='
 echo '===      Running Pre-commit     ===='
 echo '===================================='
-
-python3 -m venv venv
-source venv/bin/activate
-pip install --upgrade pip setuptools wheel
-pip install pre-commit
 set +e
-pre-commit run --all-files
+docker run -t -v $(pwd):/workspace:rw,Z --workdir /workspace $IMAGE:$IMAGE_TAG pre-commit run --all-files
 TEST_RESULT=$?
 set -e
 if [ $TEST_RESULT -ne 0 ]; then
@@ -21,9 +16,6 @@ if [ $TEST_RESULT -ne 0 ]; then
 	echo '====================================='
 	exit 1
 fi
-
-# Move back out of the pre-commit virtual env
-source .bonfire_venv/bin/activate
 
 # run unit tests in containers
 DB_CONTAINER_NAME="inventory-db-${IMAGE_TAG}"
