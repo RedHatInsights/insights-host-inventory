@@ -33,12 +33,12 @@ RUN python3 -m pip install --upgrade pip setuptools wheel && \
     pipenv install --system --dev
 
 # allows pre-commit and unit tests to run successfully within the container if image is built in "test" environment
-ENV PRE_COMMIT_HOME="/workspace"
+ENV PRE_COMMIT_WORKSPACE="/workspace"
 RUN if [ "$TEST_IMAGE" = "true" ]; then \
     microdnf install --setopt=tsflags=nodocs -y git && \
-    mkdir -p $PRE_COMMIT_HOME && \
-    chgrp -R 0 $PRE_COMMIT_HOME && chmod -R g=u $PRE_COMMIT_HOME && \
-    git config --global --add safe.directory $PRE_COMMIT_HOME && \
+    mkdir -p $PRE_COMMIT_WORKSPACE && \
+    chgrp -R 0 $PRE_COMMIT_WORKSPACE && chmod -R g=u $PRE_COMMIT_WORKSPACE && \
+    git config --global --add safe.directory $PRE_COMMIT_WORKSPACE && \
     chgrp -R 0 $APP_ROOT && chmod -R g=u $APP_ROOT \
     ; fi
 

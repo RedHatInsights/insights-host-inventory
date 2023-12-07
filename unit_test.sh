@@ -9,7 +9,7 @@ echo '===================================='
 set +e
 
 docker run -t -u $(id -u):$(id -g) -v $(pwd):/workspace:rw,Z --workdir /workspace \
-	--env HOME=/workspace --env PRE_COMMIT_HOME=/workspace $IMAGE:$IMAGE_TAG \
+	--env HOME=/workspace $IMAGE:$IMAGE_TAG \
 	pre-commit run --all-files
 
 TEST_RESULT=$?
