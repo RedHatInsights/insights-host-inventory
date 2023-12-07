@@ -32,8 +32,8 @@ RUN python3 -m pip install --upgrade pip setuptools wheel && \
     python3 -m pip install pipenv && \
     pipenv install --system --dev
 
-# allows unit tests to run successfully within the container if image is built in "test" environment
-RUN if [ "$TEST_IMAGE" = "true" ]; then chgrp -R 0 $APP_ROOT && chmod -R g=u $APP_ROOT; fi
+# allows pre-commit and unit tests to run successfully within the container if image is built in "test" environment
+RUN if [ "$TEST_IMAGE" = "true" ]; then microdnf install git && mkdir chgrp -R 0 $APP_ROOT && chmod -R g=u $APP_ROOT; fi
 
 # remove devel packages that were only necessary for psycopg2 to compile
 RUN microdnf remove -y $( comm -13 packages-before-devel-install.txt packages-after-devel-install.txt ) && \

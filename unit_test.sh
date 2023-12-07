@@ -7,6 +7,8 @@ echo '===================================='
 echo '===      Running Pre-commit     ===='
 echo '===================================='
 set +e
+mkdir -p .cache/pre-commit
+chmod a+rw .cache/pre-commit
 docker run -t -u $(id -u):$(id -g) -v $(pwd):/workspace:rw,Z --workdir /workspace $IMAGE:$IMAGE_TAG pre-commit run --all-files
 TEST_RESULT=$?
 set -e
