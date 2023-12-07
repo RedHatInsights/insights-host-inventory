@@ -33,7 +33,13 @@ RUN python3 -m pip install --upgrade pip setuptools wheel && \
     pipenv install --system --dev
 
 # allows pre-commit and unit tests to run successfully within the container if image is built in "test" environment
-RUN if [ "$TEST_IMAGE" = "true" ]; then microdnf install --setopt=tsflags=nodocs -y git && chgrp -R 0 $APP_ROOT && chmod -R g=u $APP_ROOT; fi
+RUN if [ "$TEST_IMAGE" = "true" ]; then \
+    microdnf install --setopt=tsflags=nodocs -y git && \
+    mkdir -p /workspace && \
+    chgrp -R 0 /workspace && chmod -R g=u /workspace && \
+    git config --global --add safe.directory /workspace && \
+    chgrp -R 0 $APP_ROOT && chmod -R g=u $APP_ROOT \
+    ; fi
 
 # remove devel packages that were only necessary for psycopg2 to compile
 RUN microdnf remove -y $( comm -13 packages-before-devel-install.txt packages-after-devel-install.txt ) && \
