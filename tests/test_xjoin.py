@@ -10,6 +10,7 @@ from api.system_profile import SAP_SIDS_QUERY
 from api.system_profile import SAP_SYSTEM_QUERY
 from api.tag import TAGS_QUERY
 from app import process_spec
+from app.models import OLD_TO_NEW_REPORTER_MAP
 from app.models import ProviderType
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import build_system_profile_sap_sids_url
@@ -490,6 +491,10 @@ def test_query_variables_tags_with_search(field, mocker, graphql_query_empty_res
 # Build the expected PRS filter based on reporters
 def _build_prs_array(mocker, reporters):
     prs_array = []
+    for old_reporter in OLD_TO_NEW_REPORTER_MAP:
+        if old_reporter in reporters:
+            reporters.extend(OLD_TO_NEW_REPORTER_MAP[old_reporter])
+            reporters = list(set(reporters))  # Remove duplicates
     for reporter in reporters:
         prs_item = {
             "per_reporter_staleness": {
@@ -763,7 +768,7 @@ def test_query_variables_staleness(
 
 
 def test_query_multiple_staleness(mocker, culling_datetime_mock, graphql_query_empty_response, api_get):
-    url = build_hosts_url(query="?staleness=fresh&staleness=stale_warning")
+    url = build_hosts_url(query="?staleness=fresh&staleness=stale_warning&staleness=unknown")
     response_status, response_data = api_get(url)
 
     assert response_status == 200

@@ -7,39 +7,39 @@ from host_reaper import run as host_reaper_run
 
 
 CUSTOM_STALENESS_DELETE_ONLY_IMMUTABLE = {
-    "conventional_staleness_delta": 86400,
-    "conventional_stale_warning_delta": 604800,
-    "conventional_culling_delta": 1209600,
-    "immutable_staleness_delta": 172800,
-    "immutable_stale_warning_delta": 10368000,
-    "immutable_culling_delta": 1,
+    "conventional_time_to_stale": 86400,
+    "conventional_time_to_stale_warning": 604800,
+    "conventional_time_to_delete": 1209600,
+    "immutable_time_to_stale": 172800,
+    "immutable_time_to_stale_warning": 10368000,
+    "immutable_time_to_delete": 1,
 }
 
 CUSTOM_STALENESS_DELETE_ONLY_CONVENTIONAL = {
-    "conventional_staleness_delta": 86400,
-    "conventional_stale_warning_delta": 604800,
-    "conventional_culling_delta": 1,
-    "immutable_staleness_delta": 172800,
-    "immutable_stale_warning_delta": 10368000,
-    "immutable_culling_delta": 15552000,
+    "conventional_time_to_stale": 86400,
+    "conventional_time_to_stale_warning": 604800,
+    "conventional_time_to_delete": 1,
+    "immutable_time_to_stale": 172800,
+    "immutable_time_to_stale_warning": 10368000,
+    "immutable_time_to_delete": 15552000,
 }
 
 CUSTOM_STALENESS_DELETE_CONVENTIONAL_IMMUTABLE = {
-    "conventional_staleness_delta": 86400,
-    "conventional_stale_warning_delta": 604800,
-    "conventional_culling_delta": 1,
-    "immutable_staleness_delta": 172800,
-    "immutable_stale_warning_delta": 10368000,
-    "immutable_culling_delta": 1,
+    "conventional_time_to_stale": 86400,
+    "conventional_time_to_stale_warning": 604800,
+    "conventional_time_to_delete": 1,
+    "immutable_time_to_stale": 172800,
+    "immutable_time_to_stale_warning": 10368000,
+    "immutable_time_to_delete": 1,
 }
 
 CUSTOM_STALENESS_NO_HOSTS_TO_DELETE = {
-    "conventional_staleness_delta": 86400,
-    "conventional_stale_warning_delta": 604800,
-    "conventional_culling_delta": 1209600,
-    "immutable_staleness_delta": 172800,
-    "immutable_stale_warning_delta": 10368000,
-    "immutable_culling_delta": 15552000,
+    "conventional_time_to_stale": 86400,
+    "conventional_time_to_stale_warning": 604800,
+    "conventional_time_to_delete": 1209600,
+    "immutable_time_to_stale": 172800,
+    "immutable_time_to_stale_warning": 10368000,
+    "immutable_time_to_delete": 15552000,
 }
 
 
