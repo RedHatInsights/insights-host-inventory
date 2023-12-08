@@ -158,12 +158,12 @@ RBAC_ADMIN_PROHIBITED_RBAC_RESPONSE_FILES = (
 )
 
 _INPUT_DATA = {
-    "conventional_time_to_stale": 1,
-    "conventional_time_to_stale_warning": 7,
-    "conventional_time_to_delete": 14,
-    "immutable_time_to_stale": 7,
-    "immutable_time_to_stale_warning": 120,
-    "immutable_time_to_delete": 120,
+    "conventional_time_to_stale": 104400,
+    "conventional_time_to_stale_warning": 604800,
+    "conventional_time_to_delete": 1209600,
+    "immutable_time_to_stale": 172800,
+    "immutable_time_to_stale_warning": 15552000,
+    "immutable_time_to_delete": 63072000,
 }
 
 
