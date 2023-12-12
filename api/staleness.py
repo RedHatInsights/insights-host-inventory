@@ -20,6 +20,7 @@ from app.instrumentation import log_patch_staleness_succeeded
 from app.logging import get_logger
 from app.models import StalenessSchema
 from app.serialization import serialize_staleness_response
+from app.serialization import serialize_staleness_to_dict
 from lib.feature_flags import FLAG_INVENTORY_CUSTOM_STALENESS
 from lib.feature_flags import get_flag_value
 from lib.middleware import rbac
@@ -30,27 +31,12 @@ from lib.staleness import remove_staleness
 logger = get_logger(__name__)
 
 
-def _get_return_data():
-    # This is mock result, will be changed during each endpoint task work
-    return {
-        "id": "1ba078bb-8461-474c-8498-1e50a1975cfb",
-        "account_id": "0123456789",
-        "org_id": "123",
-        "conventional_time_to_stale": "1",
-        "conventional_time_to_stale_warning": "7",
-        "conventional_time_to_delete": "14",
-        "immutable_time_to_stale": "2",
-        "immutable_time_to_stale_warning": "120",
-        "immutable_time_to_delete": "180",
-        "created_at": "2023-07-28T14:32:16.353082",
-        "updated_at": "2023-07-28T14:32:16.353082",
-    }
-
-
 def _validate_input_data(body):
     # Validate account staleness input data
     try:
-        validated_data = StalenessSchema().load(body)
+        identity = get_current_identity()
+        staleness_obj = serialize_staleness_to_dict(get_staleness_obj(identity))
+        validated_data = StalenessSchema().load({**staleness_obj, **body})
 
         return validated_data
 
@@ -97,7 +83,7 @@ def create_staleness(body):
 
     # Validate account staleness input data
     try:
-        validated_data = StalenessSchema().load(body)
+        validated_data = _validate_input_data(body)
     except ValidationError as e:
         logger.exception(f'Input validation error, "{str(e.messages)}", while creating account staleness: {body}')
         return json_error_response("Validation Error", str(e.messages), status.HTTP_400_BAD_REQUEST)
@@ -143,7 +129,12 @@ def update_staleness(body):
     if not get_flag_value(FLAG_INVENTORY_CUSTOM_STALENESS):
         return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
 
-    validated_data = _validate_input_data(body)
+    # Validate account staleness input data
+    try:
+        validated_data = _validate_input_data(body)
+    except ValidationError as e:
+        logger.exception(f'Input validation error, "{str(e.messages)}", while creating account staleness: {body}')
+        return json_error_response("Validation Error", str(e.messages), status.HTTP_400_BAD_REQUEST)
 
     try:
         updated_staleness = patch_staleness(validated_data)

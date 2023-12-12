@@ -1,16 +1,10 @@
+import pytest
+
+from tests.helpers.api_utils import _INPUT_DATA
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import STALENESS_WRITE_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import STALENESS_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
-
-_INPUT_DATA = {
-    "conventional_time_to_stale": 1,
-    "conventional_time_to_stale_warning": 7,
-    "conventional_time_to_delete": 14,
-    "immutable_time_to_stale": 7,
-    "immutable_time_to_stale_warning": 120,
-    "immutable_time_to_delete": 120,
-}
 
 
 def _days_to_seconds(n_days):
@@ -93,3 +87,61 @@ def test_create_staleness_rbac_denied(subtests, mocker, api_create_staleness, db
             response_status, _ = api_create_staleness(_INPUT_DATA)
 
             assert_response_status(response_status, 403)
+
+
+@pytest.mark.parametrize(
+    "input_data",
+    (
+        {
+            "conventional_time_to_stale": 104400,
+            "conventional_time_to_stale_warning": 1,
+            "conventional_time_to_delete": 1209600,
+            "immutable_time_to_stale": 172800,
+            "immutable_time_to_stale_warning": 15552000,
+            "immutable_time_to_delete": 63072000,
+        },
+        {
+            "conventional_time_to_stale": 104400,
+            "conventional_time_to_stale_warning": 604800,
+            "conventional_time_to_delete": 1,
+            "immutable_time_to_stale": 172800,
+            "immutable_time_to_stale_warning": 15552000,
+            "immutable_time_to_delete": 63072000,
+        },
+        {
+            "conventional_time_to_stale": 104400,
+            "conventional_time_to_stale_warning": 2000000,
+            "conventional_time_to_delete": 1209600,
+            "immutable_time_to_stale": 172800,
+            "immutable_time_to_stale_warning": 15552000,
+            "immutable_time_to_delete": 63072000,
+        },
+        {
+            "conventional_time_to_stale": 104400,
+            "conventional_time_to_stale_warning": 604800,
+            "conventional_time_to_delete": 1209600,
+            "immutable_time_to_stale": 172800,
+            "immutable_time_to_stale_warning": 1,
+            "immutable_time_to_delete": 63072000,
+        },
+        {
+            "conventional_time_to_stale": 104400,
+            "conventional_time_to_stale_warning": 604800,
+            "conventional_time_to_delete": 1209600,
+            "immutable_time_to_stale": 172800,
+            "immutable_time_to_stale_warning": 15552000,
+            "immutable_time_to_delete": 1,
+        },
+        {
+            "conventional_time_to_stale": 104400,
+            "conventional_time_to_stale_warning": 604800,
+            "conventional_time_to_delete": 1209600,
+            "immutable_time_to_stale": 172800,
+            "immutable_time_to_stale_warning": 64000000,
+            "immutable_time_to_delete": 63072000,
+        },
+    ),
+)
+def test_create_improper_staleness(api_create_staleness, input_data):
+    response_status, _ = api_create_staleness(input_data)
+    assert_response_status(response_status, 400)

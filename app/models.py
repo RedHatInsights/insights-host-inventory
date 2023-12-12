@@ -869,5 +869,20 @@ class StalenessSchema(MarshmallowSchema):
     immutable_time_to_stale_warning = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
     immutable_time_to_delete = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
 
+    @validates_schema
+    def validate_staleness(self, data, **kwargs):
+        staleness_fields = ["time_to_stale", "time_to_stale_warning", "time_to_delete"]
+        for host_type in (
+            "conventional",
+            "immutable",
+        ):
+            for i in range(len(staleness_fields) - 1):  # For all but the last field
+                for j in range(i + 1, len(staleness_fields)):  # For all fields after that field
+                    if (
+                        data[(field_1 := f"{host_type}_{staleness_fields[i]}")]
+                        >= data[(field_2 := f"{host_type}_{staleness_fields[j]}")]
+                    ):
+                        raise MarshmallowValidationError(f"{field_1} must be lower than {field_2}")
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
