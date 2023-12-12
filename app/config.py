@@ -37,9 +37,6 @@ class Config:
                 self.rbac_endpoint = f"{protocol}://{endpoint.hostname}:{port}"
                 break
 
-        broker_cfg = cfg.kafka.brokers[0]
-        self.bootstrap_servers = f"{broker_cfg.hostname}:{broker_cfg.port}"
-
         def topic(t):
             return app_common_python.KafkaTopics[t].name if t else None
 
@@ -50,6 +47,9 @@ class Config:
         self.notification_topic = topic(os.environ.get("KAFKA_NOTIFICATION_TOPIC"))
         self.event_topic = topic(os.environ.get("KAFKA_EVENT_TOPIC"))
         self.payload_tracker_kafka_topic = topic("platform.payload-status")
+
+        self.bootstrap_servers = ",".join(app_common_python.KafkaServers)
+        broker_cfg = cfg.kafka.brokers[0]
 
         # certificates are required in fedramp, but not in managed kafka
         try:
