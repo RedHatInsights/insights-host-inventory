@@ -2409,7 +2409,7 @@ class KafkaAvailabilityTests(TestCase):
     @patch("socket.socket.connect_ex")
     def test_happy_path(self, connect_ex):
         connect_ex.return_value = 0
-        assert host_kafka.kafka_available()
+        assert host_kafka.kafka_available(["127.0.0.1:29092"])
         connect_ex.assert_called_once()
 
     @patch("socket.socket.connect_ex")

@@ -11,7 +11,7 @@ logger = get_logger(__name__)
 def _any_bootstrap_server_connects(kafka_socket, servers) -> bool:
     if not servers:
         config = Config(RuntimeEnvironment.SERVICE)
-        servers = [config.bootstrap_servers] if isinstance(config.bootstrap_servers, str) else config.bootstrap_servers
+        servers = config.bootstrap_servers
 
     for server in servers:
         try:
