@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import socket
 from contextlib import closing
 
@@ -8,10 +10,10 @@ from app.logging import get_logger
 logger = get_logger(__name__)
 
 
-def _any_bootstrap_server_connects(kafka_socket, servers) -> bool:
+def _any_bootstrap_server_connects(kafka_socket, servers: list[str] | None) -> bool:
     if not servers:
         config = Config(RuntimeEnvironment.SERVICE)
-        servers = [config.bootstrap_servers] if isinstance(config.bootstrap_servers, str) else config.bootstrap_servers
+        servers = config.bootstrap_servers.split(",")
 
     for server in servers:
         try:
