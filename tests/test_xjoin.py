@@ -1858,21 +1858,14 @@ def test_query_system_profile_sap_system_filter_spf_sap_sids(
 def test_query_hosts_filter_spf_sap_sids(mocker, subtests, graphql_query_empty_response, api_get):
     filter_paths = ("[system_profile][sap_sids][]", "[system_profile][sap_sids][contains][]")
     value_sets = (("XQC",), ("ABC", "A12"), ("M80", "BEN"))
-    queries = [
-        (
-            ({"AND": [{"spf_sap_sids": {"eq": "XQC"}}]},),
-            ({"OR": [{"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}]},),
-            ({"OR": [{"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}]},),
-        ),
-        (
-            ({"AND": [{"spf_sap_sids": {"eq": "XQC"}}]},),
-            ({"AND": [{"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}]},),
-            ({"AND": [{"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}]},),
-        ),
-    ]
+    queries = (
+        ({"AND": [{"spf_sap_sids": {"eq": "XQC"}}]},),
+        ({"AND": [{"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}]},),
+        ({"AND": [{"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}]},),
+    )
 
-    for idx, path in enumerate(filter_paths):
-        for values, query in zip(value_sets, queries[idx]):
+    for path in filter_paths:
+        for values, query in zip(value_sets, queries):
             with subtests.test(values=values, query=query, path=path):
                 graphql_query_empty_response.reset_mock()
                 url = build_hosts_url(query="?" + "".join([f"filter{path}={value}&" for value in values]))
@@ -1900,21 +1893,14 @@ def test_query_tags_filter_spf_sap_sids(
 ):
     filter_paths = ("[system_profile][sap_sids][]", "[system_profile][sap_sids][contains][]")
     value_sets = (("XQC",), ("ABC", "A12"), ("M80", "BEN"))
-    queries = [
-        (
-            ({"AND": [{"spf_sap_sids": {"eq": "XQC"}}]},),
-            ({"OR": [{"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}]},),
-            ({"OR": [{"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}]},),
-        ),
-        (
-            ({"AND": [{"spf_sap_sids": {"eq": "XQC"}}]},),
-            ({"AND": [{"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}]},),
-            ({"AND": [{"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}]},),
-        ),
-    ]
+    queries = (
+        ({"AND": [{"spf_sap_sids": {"eq": "XQC"}}]},),
+        ({"AND": [{"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}]},),
+        ({"AND": [{"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}]},),
+    )
 
-    for idx, path in enumerate(filter_paths):
-        for values, query in zip(value_sets, queries[idx]):
+    for path in filter_paths:
+        for values, query in zip(value_sets, queries):
             with subtests.test(values=values, query=query, path=path):
                 assert_tag_query_host_filter_single_call(
                     build_tags_url(query="?" + "".join([f"filter{path}={value}&" for value in values])),
@@ -1928,21 +1914,14 @@ def test_query_system_profile_sap_sids_filter_spf_sap_sids(
 ):
     filter_paths = ("[system_profile][sap_sids][]", "[system_profile][sap_sids][contains][]")
     value_sets = (("XQC",), ("ABC", "A12"), ("M80", "BEN"))
-    queries = [
-        (
-            ({"AND": [{"spf_sap_sids": {"eq": "XQC"}}]},),
-            ({"OR": [{"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}]},),
-            ({"OR": [{"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}]},),
-        ),
-        (
-            ({"AND": [{"spf_sap_sids": {"eq": "XQC"}}]},),
-            ({"AND": [{"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}]},),
-            ({"AND": [{"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}]},),
-        ),
-    ]
+    queries = (
+        ({"AND": [{"spf_sap_sids": {"eq": "XQC"}}]},),
+        ({"AND": [{"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}]},),
+        ({"AND": [{"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}]},),
+    )
 
-    for idx, path in enumerate(filter_paths):
-        for values, query in zip(value_sets, queries[idx]):
+    for path in filter_paths:
+        for values, query in zip(value_sets, queries):
             with subtests.test(values=values, query=query, path=path):
                 graphql_system_profile_sap_sids_query_empty_response.reset_mock()
 
@@ -2066,6 +2045,44 @@ def test_query_hosts_filter_spf_rhc_client_id_multiple(
                 {"spf_rhc_client_id": {"eq": "6e2c3332-936c-4167-b9be-c219f4303c85"}},
             ]
         },
+    )
+
+    for param, query in zip(query_params, queries):
+        with subtests.test(param=param, query=query):
+            url = build_hosts_url(query=param)
+
+            response_status, response_data = api_get(url)
+
+            assert response_status == 200
+
+            graphql_query_empty_response.assert_called_once_with(
+                HOST_QUERY,
+                {
+                    "order_by": mocker.ANY,
+                    "order_how": mocker.ANY,
+                    "limit": mocker.ANY,
+                    "offset": mocker.ANY,
+                    "filter": ({"OR": mocker.ANY}, query),
+                    "fields": mocker.ANY,
+                },
+                mocker.ANY,
+            )
+            graphql_query_empty_response.reset_mock()
+
+
+def test_query_hosts_filter_spf_multiple_values_same_field(
+    mocker, subtests, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    query_params = (
+        "?filter[system_profile][cloud_provider][]=ibm" "&filter[system_profile][cloud_provider][]=aws",
+        "?filter[system_profile][is_marketplace][]=false" "&filter[system_profile][is_marketplace][]=nil",
+        "?filter[system_profile][owner_id][]=8dd97934-8ce4-11eb-8dcd-0242ac130003"
+        "&filter[system_profile][owner_id][]=nil",
+    )
+    queries = (
+        {"OR": [{"spf_cloud_provider": {"eq": "ibm"}}, {"spf_cloud_provider": {"eq": "aws"}}]},
+        {"OR": [{"spf_is_marketplace": {"is": False}}, {"spf_is_marketplace": {"is": None}}]},
+        {"OR": [{"spf_owner_id": {"eq": "8dd97934-8ce4-11eb-8dcd-0242ac130003"}}, {"spf_owner_id": {"eq": None}}]},
     )
 
     for param, query in zip(query_params, queries):

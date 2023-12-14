@@ -113,7 +113,8 @@ def _object_filter_builder(input_object, spec):
                     field_value,
                     child_filter,
                     operation,
-                    child_spec,
+                    is_array=None,
+                    spec=child_spec,
                 )[0]
             )
 
@@ -251,7 +252,7 @@ def _base_object_filter_builder(builder_function, field_name, field_value, field
     return ({"AND": filter_list},)
 
 
-def _base_filter_builder(builder_function, field_name, field_value, field_filter, operation, spec=None):
+def _base_filter_builder(builder_function, field_name, field_value, field_filter, operation, is_array=None, spec=None):
     xjoin_field_name = field_name if spec else f"spf_{field_name}"
     base_value = _get_object_base_value(field_value, field_filter)
     if isinstance(base_value, list):
@@ -262,8 +263,9 @@ def _base_filter_builder(builder_function, field_name, field_value, field_filter
             foo_list.append(builder_function(xjoin_field_name, isolated_expression, field_filter, operation, spec)[0])
         list_operator = _get_list_operator(field_name, field_filter)
 
-        if len(foo_list) > 1 and operation == "eq":
-            # Filtering system_profile fields by multiple values of the same field uses OR logic
+        if len(foo_list) > 1 and operation == "eq" and not is_array:
+            # Filtering system_profile fields by multiple values of the same field uses OR logic,
+            # fields with type array should have the default operator
             field_filter = ({"OR": foo_list},)
         else:
             field_filter = ({list_operator: foo_list},)
@@ -278,13 +280,19 @@ def _base_filter_builder(builder_function, field_name, field_value, field_filter
     return field_filter
 
 
-def _generic_filter_builder(builder_function, field_name, field_value, field_filter, operation, spec=None):
+def _generic_filter_builder(
+    builder_function, field_name, field_value, field_filter, operation, is_array=None, spec=None
+):
     spec_builder_function = partial(builder_function, spec=spec)
     nullable_builder_function = partial(_nullable_wrapper, spec_builder_function)
     if field_filter == "object":
         return _base_object_filter_builder(nullable_builder_function, field_name, field_value, field_filter, spec)
     else:
-        return _base_filter_builder(nullable_builder_function, field_name, field_value, field_filter, operation, spec)
+        if is_array is None and spec is not None:
+            is_array = spec["is_array"]
+        return _base_filter_builder(
+            nullable_builder_function, field_name, field_value, field_filter, operation, is_array, spec
+        )
 
 
 def build_registered_with_filter(registered_with):
@@ -542,7 +550,7 @@ def build_system_profile_filter(system_profile):
         else:
             field_value, operation = _get_field_value_and_operation(field_input, field_filter, field_format, is_array)
             system_profile_filter += _generic_filter_builder(
-                builder_function, field_name, field_value, field_filter, operation
+                builder_function, field_name, field_value, field_filter, operation, is_array
             )
 
     return system_profile_filter
