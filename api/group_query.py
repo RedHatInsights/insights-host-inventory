@@ -109,7 +109,8 @@ def get_filtered_group_list_db(group_name, page, per_page, order_by, order_how, 
 
 
 def build_paginated_group_list_response(total, page, per_page, group_list):
-    json_group_list = [serialize_group(group) for group in group_list]
+    identity = get_current_identity()
+    json_group_list = [serialize_group(group, identity) for group in group_list]
     return {
         "total": total,
         "count": len(json_group_list),
@@ -120,4 +121,5 @@ def build_paginated_group_list_response(total, page, per_page, group_list):
 
 
 def build_group_response(group):
-    return serialize_group(group)
+    identity = get_current_identity()
+    return serialize_group(group, identity)

@@ -8,6 +8,7 @@ from api.resource_query import build_paginated_resource_list_response
 from api.resource_query import get_resources_types
 from app import RbacPermission
 from app import RbacResourceType
+from app.auth import get_current_identity
 from app.instrumentation import log_get_group_list_failed
 from app.instrumentation import log_get_group_list_succeeded
 from app.instrumentation import log_get_resource_type_list_failed
@@ -15,6 +16,7 @@ from app.instrumentation import log_get_resource_type_list_succeeded
 from app.logging import get_logger
 from app.serialization import serialize_group
 from lib.middleware import rbac
+
 
 logger = get_logger(__name__)
 
@@ -56,7 +58,9 @@ def get_resource_type_groups_list(
         flask.abort(400, str(e))
 
     log_get_group_list_succeeded(logger, group_list)
-
+    identity = get_current_identity()
     return flask_json_response(
-        build_paginated_resource_list_response(total, page, per_page, [serialize_group(group) for group in group_list])
+        build_paginated_resource_list_response(
+            total, page, per_page, [serialize_group(group, identity) for group in group_list]
+        )
     )

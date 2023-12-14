@@ -198,18 +198,20 @@ def serialize_host(
 
 
 # get hosts not marked for deletion
-def _get_unculled_hosts(group):
+def _get_unculled_hosts(group, identity):
     hosts = []
+    staleness_timestamps = Timestamps.from_config(inventory_config())
+    staleness = get_staleness_obj(identity)
     for host in group.hosts:
-        staleness_delta = datetime.now(tz=timezone.utc) - host.stale_timestamp
-        if staleness_delta < current_app.config["INVENTORY_CONFIG"].culling_culled_offset_delta:
+        serialized_host = serialize_host(host, staleness_timestamps=staleness_timestamps, staleness=staleness)
+        if _deserialize_datetime(serialized_host["culled_timestamp"]) > datetime.now(tz=timezone.utc):
             hosts.append(host)
 
     return hosts
 
 
-def serialize_group(group):
-    unculled_hosts = _get_unculled_hosts(group)
+def serialize_group(group, identity):
+    unculled_hosts = _get_unculled_hosts(group, identity)
     return {
         "id": _serialize_uuid(group.id),
         "org_id": group.org_id,

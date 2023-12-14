@@ -36,13 +36,14 @@ logger = get_logger(__name__)
 
 
 def _produce_host_update_events(event_producer, host_id_list, group_id_list=[], staleness=None):
-    serialized_groups = [serialize_group(get_group_by_id_from_db(group_id)) for group_id in group_id_list]
+    identity = get_current_identity() # Note: This should be moved to an API file
+    serialized_groups = [serialize_group(get_group_by_id_from_db(group_id), identity) for group_id in group_id_list]
 
     # Update groups data on each host record
     Host.query.filter(Host.id.in_(host_id_list)).update({"groups": serialized_groups}, synchronize_session="fetch")
     db.session.commit()
     host_list = get_host_list_by_id_list_from_db(host_id_list)
-    metadata = {"b64_identity": to_auth_header(get_current_identity())}
+    metadata = {"b64_identity": to_auth_header(get_current_identity())} # Note: This should be moved to an API file
 
     # Send messages
     for host in host_list:
