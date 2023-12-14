@@ -15,7 +15,7 @@ Debugging Host Inventory code requires a database, kakfa broker, Kafka Zookeeper
         docker/podmin login -u <usrename> quay.io
     ```
 3. Clone the [xjoin-operator](https://github.com/RedHatInsights/xjoin-operator) code repository and `cd` into the `xjoin-operator` directory.
-4. Deplopy host-inventory:
+4. Deploy host-inventory:
     ```bash
         ./dev/setup-clowder.sh
     ```
