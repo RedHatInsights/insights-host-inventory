@@ -13,12 +13,12 @@ from requests.packages.urllib3.util.retry import Retry
 
 from api.metrics import outbound_http_response_time
 from app import IDENTITY_HEADER
-from app import inventory_config
 from app import RbacPermission
 from app import RbacResourceType
 from app import REQUEST_ID_HEADER
 from app.auth import get_current_identity
 from app.auth.identity import IdentityType
+from app.common import inventory_config
 from app.instrumentation import rbac_failure
 from app.instrumentation import rbac_group_permission_denied
 from app.instrumentation import rbac_permission_denied

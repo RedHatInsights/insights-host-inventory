@@ -13,10 +13,10 @@ from api.filtering.filtering_common import lookup_graphql_operations
 from api.filtering.filtering_common import lookup_operations
 from api.filtering.filtering_common import SUPPORTED_FORMATS
 from app import custom_filter_fields
-from app import inventory_config
 from app import system_profile_spec
 from app.auth import get_current_identity
 from app.auth.identity import IdentityType
+from app.common import inventory_config
 from app.exceptions import ValidationException
 from app.logging import get_logger
 from app.models import OLD_TO_NEW_REPORTER_MAP

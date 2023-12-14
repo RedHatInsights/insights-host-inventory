@@ -2,9 +2,11 @@ from datetime import datetime
 from datetime import timezone
 
 from dateutil.parser import isoparse
-from flask import current_app
 from marshmallow import ValidationError
 
+from api.staleness_query import get_staleness_obj
+from app.common import inventory_config
+from app.culling import Timestamps
 from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
 from app.models import CanonicalFactsSchema

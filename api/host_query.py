@@ -1,6 +1,6 @@
 from api.staleness_query import get_staleness_obj
-from app import inventory_config
 from app.auth import get_current_identity
+from app.common import inventory_config
 from app.culling import Timestamps
 from app.serialization import serialize_host
 
