@@ -2407,6 +2407,12 @@ class KafkaAvailabilityTests(TestCase):
         self.config = Config(RuntimeEnvironment.TEST)
 
     @patch("socket.socket.connect_ex")
+    def test_happy_path(self, connect_ex):
+        connect_ex.return_value = 0
+        assert host_kafka.kafka_available()
+        connect_ex.assert_called_once()
+
+    @patch("socket.socket.connect_ex")
     def test_valid_server(self, connect_ex):
         connect_ex.return_value = 0
         akafka = [self.config.bootstrap_servers]
