@@ -31,8 +31,7 @@ def test_get_default_staleness(api_get):
 
 @pytest.mark.parametrize("rbac_filter", ["test"])
 def test_get_custom_staleness(api_create_staleness, api_get, rbac_filter):
-    created_response_status, _ = api_create_staleness(_INPUT_DATA)
-    url = build_staleness_url(query=f"?rbac_filter={rbac_filter}")
+    url = build_sys_default_staleness_url()
     response_status, response_data = api_get(url)
     assert response_data["conventional_time_to_stale"] == _INPUT_DATA["conventional_time_to_stale"]
     assert response_data["conventional_time_to_stale_warning"] == _INPUT_DATA["conventional_time_to_stale_warning"]
@@ -69,6 +68,8 @@ def test_get_staleness_rbac_denied(subtests, mocker, api_get, db_get_staleness_c
 
     for response_file in STALENESS_READ_PROHIBITED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
+        if mock_rbac_response and len(mock_rbac_response[0]["resourceDefinitions"]) > 0:
+            mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = [None]
 
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
