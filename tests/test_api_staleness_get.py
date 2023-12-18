@@ -1,5 +1,3 @@
-import pytest
-
 from tests.helpers.api_utils import _INPUT_DATA
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_staleness_url
@@ -29,8 +27,7 @@ def test_get_default_staleness(api_get):
     assert response_data["immutable_time_to_delete"] == expected_result["immutable_time_to_delete"]
 
 
-@pytest.mark.parametrize("rbac_filter", ["test"])
-def test_get_custom_staleness(api_create_staleness, api_get, rbac_filter):
+def test_get_custom_staleness(api_get):
     url = build_sys_default_staleness_url()
     response_status, response_data = api_get(url)
     assert response_data["conventional_time_to_stale"] == _INPUT_DATA["conventional_time_to_stale"]
@@ -62,7 +59,7 @@ def test_get_sys_default_staleness(api_get):
     assert response_data["immutable_time_to_delete"] == expected_result["immutable_time_to_delete"]
 
 
-def test_get_staleness_rbac_denied(subtests, mocker, api_get, db_get_staleness_culling, enable_rbac):
+def test_get_staleness_rbac_denied(subtests, mocker, api_get, enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     url = build_sys_default_staleness_url()
 
@@ -79,7 +76,7 @@ def test_get_staleness_rbac_denied(subtests, mocker, api_get, db_get_staleness_c
             assert_response_status(response_status, 403)
 
 
-def test_get_staleness_rbac_allowed(subtests, mocker, api_get, db_get_staleness_culling, enable_rbac):
+def test_get_staleness_rbac_allowed(subtests, mocker, api_get, enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     url = build_sys_default_staleness_url()
 
