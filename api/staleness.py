@@ -10,7 +10,7 @@ from api import flask_json_response
 from api import json_error_response
 from api import metrics
 from api.staleness_query import get_staleness_obj
-from api.staleness_query import get_sys_default_staleness
+from api.staleness_query import get_sys_default_staleness_api
 from app import RbacPermission
 from app import RbacResourceType
 from app.auth import get_current_identity
@@ -65,7 +65,8 @@ def get_staleness(rbac_filter=None):
 @metrics.api_request_time.time()
 def get_default_staleness(rbac_filter=None):
     try:
-        staleness = get_sys_default_staleness()
+        identity = get_current_identity()
+        staleness = get_sys_default_staleness_api(identity)
         staleness = serialize_staleness_response(staleness)
 
         return flask_json_response(staleness, status.HTTP_200_OK)
