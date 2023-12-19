@@ -49,28 +49,28 @@ def _validate_input_data(body):
 @rbac(RbacResourceType.STALENESS, RbacPermission.READ, permission_base="staleness")
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
-def get_staleness():
+def get_staleness(rbac_filter=None):
     try:
         staleness = get_staleness_obj()
         staleness = serialize_staleness_response(staleness)
+
+        return flask_json_response(staleness, status.HTTP_200_OK)
     except ValueError as e:
         abort(status.HTTP_400_BAD_REQUEST, str(e))
-
-    return flask_json_response(staleness, status.HTTP_200_OK)
 
 
 @api_operation
 @rbac(RbacResourceType.STALENESS, RbacPermission.READ, permission_base="staleness")
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
-def get_default_staleness():
+def get_default_staleness(rbac_filter=None):
     try:
         staleness = get_sys_default_staleness()
         staleness = serialize_staleness_response(staleness)
+
+        return flask_json_response(staleness, status.HTTP_200_OK)
     except ValueError as e:
         abort(status.HTTP_400_BAD_REQUEST, str(e))
-
-    return flask_json_response(staleness, status.HTTP_200_OK)
 
 
 @api_operation
