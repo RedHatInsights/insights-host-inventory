@@ -265,7 +265,7 @@ def test_group_with_culled_hosts(
     assert len(hosts_after) == 3
 
     culled_host = db_get_host(hosts_after[0].id)
-    culled_host.stale_timestamp = culling_time
+    culled_host.modified_on = culling_time
 
     _, response_data = api_get(GROUP_URL + "/" + ",".join([str(group_id)]))
     host_count = response_data["results"][0]["host_count"]

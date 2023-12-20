@@ -3,7 +3,7 @@ import argparse
 import pprint
 
 from app import create_app
-from app import inventory_config
+from app.common import inventory_config
 from app.culling import Timestamps
 from app.environment import RuntimeEnvironment
 from app.models import Host

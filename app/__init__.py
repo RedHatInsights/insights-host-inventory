@@ -115,10 +115,6 @@ def shutdown_hook(close_function, name):
     close_function()
 
 
-def inventory_config():
-    return current_app.config["INVENTORY_CONFIG"]
-
-
 def system_profile_spec():
     return current_app.config["SYSTEM_PROFILE_SPEC"]
 

@@ -11,10 +11,10 @@ from marshmallow import ValidationError
 from sqlalchemy.exc import OperationalError
 
 from api.staleness_query import get_staleness_obj
-from app import inventory_config
 from app.auth.identity import create_mock_identity_with_org_id
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
+from app.common import inventory_config
 from app.culling import Timestamps
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException

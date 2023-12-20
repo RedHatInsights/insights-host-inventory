@@ -20,11 +20,11 @@ from api.host_query_xjoin import get_host_tags_list_by_id_list
 from api.sparse_host_list_system_profile import get_sparse_system_profile
 from api.staleness_query import get_staleness_obj
 from app import db
-from app import inventory_config
 from app import RbacPermission
 from app import RbacResourceType
 from app.auth import get_current_identity
 from app.auth.identity import to_auth_header
+from app.common import inventory_config
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_get_host_list_failed
 from app.instrumentation import log_get_host_list_succeeded
