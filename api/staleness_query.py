@@ -30,6 +30,11 @@ def get_sys_default_staleness(config=None):
     return _build_staleness_sys_default("000000", config)
 
 
+def get_sys_default_staleness_api(identity, config=None):
+    org_id = identity.org_id or "00000"
+    return _build_staleness_sys_default(org_id, config)
+
+
 def _build_staleness_sys_default(org_id, config=None):
     if not config:
         config = inventory_config()
