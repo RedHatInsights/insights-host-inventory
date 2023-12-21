@@ -407,3 +407,7 @@ def serialize_staleness_to_dict(staleness_obj) -> dict:
         "immutable_time_to_stale_warning": staleness_obj.immutable_time_to_stale_warning,
         "immutable_time_to_delete": staleness_obj.immutable_time_to_delete,
     }
+
+
+def _serialize_per_reporter_staleness(per_reporter_staleness):
+    pass
