@@ -17,6 +17,9 @@ from lib.handlers import ShutdownHandler
 logger = get_logger("mq_service")
 
 
+# Test PR comment
+
+
 def main():
     application = create_app(RuntimeEnvironment.SERVICE)
     config = application.config["INVENTORY_CONFIG"]
