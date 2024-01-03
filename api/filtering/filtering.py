@@ -263,7 +263,7 @@ def _base_filter_builder(builder_function, field_name, field_value, field_filter
             foo_list.append(builder_function(xjoin_field_name, isolated_expression, field_filter, operation, spec)[0])
         list_operator = _get_list_operator(field_name, field_filter)
 
-        if len(foo_list) > 1 and operation == "eq" and not is_array:
+        if operation == "eq" and not is_array:
             # Filtering system_profile fields by multiple values of the same field uses OR logic,
             # fields with type array should have the default operator
             field_filter = ({"OR": foo_list},)
