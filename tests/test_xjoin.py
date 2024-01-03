@@ -881,7 +881,7 @@ def test_response_processed_properly(graphql_query_with_response, api_get):
                     "puptoo": {
                         "check_in_succeeded": True,
                         "last_check_in": "2020-02-10T08:07:03.354307+00:00",
-                        "stale_timestamp": "2020-02-10T08:07:03.354307+00:00",
+                        "stale_timestamp": "2020-02-11T13:07:03.354307+00:00",
                     }
                 },
                 "subscription_manager_id": None,
@@ -912,7 +912,7 @@ def test_response_processed_properly(graphql_query_with_response, api_get):
                     "yupana": {
                         "check_in_succeeded": True,
                         "last_check_in": "2020-02-10T08:07:03.354307+00:00",
-                        "stale_timestamp": "2020-02-10T08:07:03.354307+00:00",
+                        "stale_timestamp": "2020-02-11T13:07:03.354307+00:00",
                     }
                 },
                 "subscription_manager_id": None,
