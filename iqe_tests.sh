@@ -17,6 +17,7 @@ export REF_ENV="insights-stage"
 # Options that must be configured by app owner
 # --------------------------------------------
 COMPONENT_NAME="host-inventory"  # name of app-sre "resourceTemplate" in deploy.yaml for this component
+COMPONENTS_W_RESOURCES="host-inventory"  # this gives us resources defined in app-sre, otherwise we run low on memory
 
 IQE_PLUGINS="host_inventory"
 IQE_MARKER_EXPRESSION="not resilience and not cert_auth and not rbac_dependent"
