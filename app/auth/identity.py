@@ -9,6 +9,7 @@ import marshmallow as m
 
 from app.logging import get_logger
 from app.logging import threadctx
+from app.validators import verify_uuid_format
 
 
 __all__ = ["Identity", "from_auth_header", "from_bearer_token"]
@@ -36,6 +37,7 @@ class CertType(str, Enum):
 class IdentityType(str, Enum):
     SYSTEM = "System"
     USER = "User"
+    SERVICE_ACCOUNT = "ServiceAccount"
 
 
 class Identity:
@@ -73,6 +75,8 @@ class Identity:
                 self.user = result.get("user")
             if "system" in result:
                 self.system = result.get("system")
+            if "service_account" in result:
+                self.service_account = result.get("service_account")
 
             threadctx.org_id = self.org_id
 
@@ -91,11 +95,14 @@ class Identity:
         if self.identity_type == IdentityType.USER:
             if hasattr(self, "user"):
                 ident["user"] = self.user.copy()
-
             return ident
 
         if self.identity_type == IdentityType.SYSTEM:
             ident["system"] = self.system.copy()
+            return ident
+
+        if self.identity_type == IdentityType.SERVICE_ACCOUNT:
+            ident["service_account"] = self.service_account.copy()
             return ident
 
     def __eq__(self, other):
@@ -125,8 +132,10 @@ class IdentitySchema(IdentityBaseSchema):
     def user_system_check(self, in_data, **kwargs):
         if in_data["type"] == IdentityType.USER:
             result = UserIdentitySchema().load(in_data)
-        else:
+        elif in_data["type"] == IdentityType.SYSTEM:
             result = SystemIdentitySchema().load(in_data)
+        else:
+            result = ServiceAccountIdentitySchema().load(in_data)
 
         return result
 
@@ -142,6 +151,15 @@ class SystemInfoIdentitySchema(IdentityBaseSchema):
 
 class SystemIdentitySchema(IdentityBaseSchema):
     system = m.fields.Nested(SystemInfoIdentitySchema, required=True)
+
+
+class ServiceAccountInfoIdentitySchema(IdentityBaseSchema):
+    client_id = m.fields.Str(required=True, validate=verify_uuid_format)
+    username = m.fields.Str(required=True, validate=m.validate.Length(min=1))
+
+
+class ServiceAccountIdentitySchema(IdentityBaseSchema):
+    service_account = m.fields.Nested(ServiceAccountInfoIdentitySchema, required=True)
 
 
 # Messages from the system_profile topic don't need to provide a real Identity,
