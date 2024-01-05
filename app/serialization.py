@@ -163,7 +163,9 @@ def serialize_host(
     if "reporter" in fields:
         serialized_host["reporter"] = host.reporter
     if "per_reporter_staleness" in fields:
-        serialized_host["per_reporter_staleness"] = host.per_reporter_staleness
+        serialized_host["per_reporter_staleness"] = _serialize_per_reporter_staleness(
+            host, staleness, staleness_timestamps
+        )
     if "stale_timestamp" in fields:
         serialized_host["stale_timestamp"] = stale_timestamp and _serialize_staleness_to_string(stale_timestamp)
     if "stale_warning_timestamp" in fields:
@@ -407,3 +409,21 @@ def serialize_staleness_to_dict(staleness_obj) -> dict:
         "immutable_time_to_stale_warning": staleness_obj.immutable_time_to_stale_warning,
         "immutable_time_to_delete": staleness_obj.immutable_time_to_delete,
     }
+
+
+def _serialize_per_reporter_staleness(host, staleness, staleness_timestamps):
+    for reporter in host.per_reporter_staleness:
+        if host.system_profile_facts.get("host_type") == "edge":
+            stale_timestamp = staleness_timestamps.stale_timestamp(
+                _deserialize_datetime(host.per_reporter_staleness[reporter]["last_check_in"]),
+                staleness["immutable_time_to_stale"],
+            )
+        else:
+            stale_timestamp = staleness_timestamps.stale_timestamp(
+                _deserialize_datetime(host.per_reporter_staleness[reporter]["last_check_in"]),
+                staleness["conventional_time_to_stale"],
+            )
+
+        host.per_reporter_staleness[reporter]["stale_timestamp"] = _serialize_staleness_to_string(stale_timestamp)
+
+        return host.per_reporter_staleness
