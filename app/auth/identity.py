@@ -143,7 +143,7 @@ class UserInfoIdentitySchema(IdentityBaseSchema):
 
 
 class UserIdentitySchema(IdentityBaseSchema):
-    user = m.fields.Nested(UserInfoIdentitySchema, required=True)
+    user = m.fields.Nested(UserInfoIdentitySchema)
 
 
 class SystemInfoIdentitySchema(IdentityBaseSchema):
