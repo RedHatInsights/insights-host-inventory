@@ -105,3 +105,30 @@ def test_edge_parity_migration_bypass_rbac(api_get, enable_rbac, url_builder, mo
     response_status, _ = api_get(url=url_builder(), identity=user_admin_identity)
 
     assert_response_status(response_status, 200)
+
+
+@pytest.mark.parametrize(
+    "org_admin_value, expected_status",
+    (
+        ("False", 403),
+        ("false", 403),
+        (False, 403),
+        ("test", 401),
+        ("", 401),
+        (None, 401),
+    ),
+)
+def test_edge_parity_migration_wrong_org_id_format(api_get, enable_rbac, org_admin_value, expected_status, mocker):
+    user_admin_identity = deepcopy(USER_IDENTITY)
+    user_admin_identity["user"]["is_org_admin"] = org_admin_value
+
+    # Pretend that the feature flag returns True
+    mocker.patch("lib.middleware.get_flag_value", return_value=True)
+
+    # Mock RBAC's response to grant no permissions
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    mock_rbac_response = create_mock_rbac_response("tests/helpers/rbac-mock-data/inv-none.json")
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    response_status, _ = api_get(url=build_hosts_url(), identity=user_admin_identity)
+    assert_response_status(response_status, expected_status)
