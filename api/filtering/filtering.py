@@ -113,7 +113,8 @@ def _object_filter_builder(input_object, spec):
                     field_value,
                     child_filter,
                     operation,
-                    child_spec,
+                    is_array=False,
+                    spec=child_spec,
                 )[0]
             )
 
@@ -197,8 +198,10 @@ def _nullable_wrapper(filter_function, field_name, field_value, field_filter, op
         return filter_function(field_name, field_value, operation)
 
 
-def _get_list_operator(field_name, field_filter):
-    if field_name in OR_FIELDS or field_filter == "object":
+def _get_list_operator(field_name, field_filter, operation, is_array):
+    if (operation == "eq" and not is_array) or field_name in OR_FIELDS or field_filter == "object":
+        # Filtering system_profile fields by multiple values of the same field uses OR logic,
+        # fields with type array should have the default operator
         return "OR"
     else:
         return "AND"
@@ -251,7 +254,9 @@ def _base_object_filter_builder(builder_function, field_name, field_value, field
     return ({"AND": filter_list},)
 
 
-def _base_filter_builder(builder_function, field_name, field_value, field_filter, operation, spec=None):
+def _base_filter_builder(
+    builder_function, field_name, field_value, field_filter, operation, is_array=False, spec=None
+):
     xjoin_field_name = field_name if spec else f"spf_{field_name}"
     base_value = _get_object_base_value(field_value, field_filter)
     if isinstance(base_value, list):
@@ -260,7 +265,8 @@ def _base_filter_builder(builder_function, field_name, field_value, field_filter
         for value in base_value:
             isolated_expression = _isolate_object_filter_expression(field_value, value)
             foo_list.append(builder_function(xjoin_field_name, isolated_expression, field_filter, operation, spec)[0])
-        list_operator = _get_list_operator(field_name, field_filter)
+        list_operator = _get_list_operator(field_name, field_filter, operation, is_array)
+
         field_filter = ({list_operator: foo_list},)
     elif isinstance(base_value, str):
         logger.debug("filter value is a string")
@@ -273,13 +279,17 @@ def _base_filter_builder(builder_function, field_name, field_value, field_filter
     return field_filter
 
 
-def _generic_filter_builder(builder_function, field_name, field_value, field_filter, operation, spec=None):
+def _generic_filter_builder(
+    builder_function, field_name, field_value, field_filter, operation, is_array=False, spec=None
+):
     spec_builder_function = partial(builder_function, spec=spec)
     nullable_builder_function = partial(_nullable_wrapper, spec_builder_function)
     if field_filter == "object":
         return _base_object_filter_builder(nullable_builder_function, field_name, field_value, field_filter, spec)
     else:
-        return _base_filter_builder(nullable_builder_function, field_name, field_value, field_filter, operation, spec)
+        return _base_filter_builder(
+            nullable_builder_function, field_name, field_value, field_filter, operation, is_array, spec
+        )
 
 
 def build_registered_with_filter(registered_with):
@@ -537,7 +547,7 @@ def build_system_profile_filter(system_profile):
         else:
             field_value, operation = _get_field_value_and_operation(field_input, field_filter, field_format, is_array)
             system_profile_filter += _generic_filter_builder(
-                builder_function, field_name, field_value, field_filter, operation
+                builder_function, field_name, field_value, field_filter, operation, is_array
             )
 
     return system_profile_filter

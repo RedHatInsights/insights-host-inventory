@@ -140,8 +140,19 @@ class IdentitySchema(IdentityBaseSchema):
         return result
 
 
+class UserInfoIdentitySchema(IdentityBaseSchema):
+    first_name = m.fields.Str()
+    last_name = m.fields.Str()
+    locale = m.fields.Str()
+    is_active = m.fields.Bool()
+    is_internal = m.fields.Bool()
+    is_org_admin = m.fields.Bool()
+    username = m.fields.Str()
+    email = m.fields.Email()
+
+
 class UserIdentitySchema(IdentityBaseSchema):
-    user = m.fields.Dict()
+    user = m.fields.Nested(UserInfoIdentitySchema)
 
 
 class SystemInfoIdentitySchema(IdentityBaseSchema):

@@ -4,7 +4,6 @@ from tests.helpers.api_utils import ASSIGNMENT_RULE_URL
 from tests.helpers.api_utils import do_request
 from tests.helpers.api_utils import GROUP_URL
 from tests.helpers.api_utils import HOST_URL
-from tests.helpers.api_utils import MockUserIdentity
 from tests.helpers.api_utils import STALENESS_URL
 from tests.helpers.test_utils import USER_IDENTITY
 
@@ -176,13 +175,6 @@ def enable_org_id_translation(inventory_config):
 @pytest.fixture(scope="function")
 def enable_unleash(inventory_config):
     inventory_config.unleash_token = "mockUnleashTokenValue"
-
-
-@pytest.fixture(scope="function")
-def user_identity_mock(flask_app):
-    flask_app.user_identity = MockUserIdentity()
-    yield flask_app.user_identity
-    # flask_app.user_identity = None
 
 
 @pytest.fixture(scope="function")

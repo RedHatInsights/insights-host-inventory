@@ -1,6 +1,5 @@
 import json
 import math
-import unittest.mock as mock
 from base64 import b64encode
 from datetime import timedelta
 from itertools import product
@@ -593,32 +592,3 @@ def assert_resource_types_pagination(
         assert links["next"] is None
 
     assert links["last"] == f"{expected_path_base}?per_page={expected_per_page}&page={expected_number_of_pages}"
-
-
-ClassMock = mock.MagicMock
-
-
-class MockUserIdentity(ClassMock):
-    def __init__(self):
-        super().__init__()
-        self.is_trusted_system = False
-        self.account_number = "test"
-        self.identity_type = "User"
-        self.user = {"email": "tuser@redhat.com", "first_name": "test"}
-
-    def patch(self, mocker, method, expectation):
-        return mocker.patch(method, wraps=expectation)
-
-    def assert_called_once_with(param, value):
-        super.assert_called_once_with(param, value)
-
-
-class MockSystemIdentity:
-    def __init__(self):
-        self.is_trusted_system = False
-        self.account_number = "test"
-        self.identity_type = "System"
-        self.system = {"cert_type": "system", "cn": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"}
-
-    def assert_called_once_with(self, identity, param, value):
-        return True
