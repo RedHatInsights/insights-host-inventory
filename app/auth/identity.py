@@ -132,13 +132,13 @@ class IdentitySchema(IdentityBaseSchema):
 
 
 class UserInfoIdentitySchema(IdentityBaseSchema):
-    first_name = m.fields.Str(validate=m.validate.Length(min=1))
-    last_name = m.fields.Str(validate=m.validate.Length(min=1))
-    locale = m.fields.Str(validate=m.validate.Length(min=1))
+    first_name = m.fields.Str()
+    last_name = m.fields.Str()
+    locale = m.fields.Str()
     is_active = m.fields.Bool()
     is_internal = m.fields.Bool()
     is_org_admin = m.fields.Bool()
-    username = m.fields.Str(validate=m.validate.Length(min=1))
+    username = m.fields.Str()
     email = m.fields.Email()
 
 
