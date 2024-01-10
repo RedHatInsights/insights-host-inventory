@@ -120,7 +120,7 @@ def test_service_account_identity_missing_required(required):
     # Test blank values
     bad_identity = copy.deepcopy(SERVICE_ACCOUNT_IDENTITY)
     assert "service_account" in bad_identity
-    bad_identity["service_account"][required] = ""
+    bad_identity["service_account"][required] = 51549684651
     with pytest.raises(ValueError):
         identity_test_common(bad_identity)
 
@@ -128,6 +128,13 @@ def test_service_account_identity_missing_required(required):
     bad_identity = copy.deepcopy(SERVICE_ACCOUNT_IDENTITY)
     assert "service_account" in bad_identity
     bad_identity["service_account"].pop(required, None)
+    with pytest.raises(ValueError):
+        identity_test_common(bad_identity)
+
+    # Test missing service_account
+    bad_identity = copy.deepcopy(SERVICE_ACCOUNT_IDENTITY)
+    assert "service_account" in bad_identity
+    bad_identity.pop("service_account", None)
     with pytest.raises(ValueError):
         identity_test_common(bad_identity)
 

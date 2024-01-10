@@ -40,8 +40,8 @@ SERVICE_ACCOUNT_IDENTITY = {
     "auth_type": "jwt-auth",
     "internal": {"auth_time": 500, "cross_access": False, "org_id": "456"},
     "service_account": {
-        "client_id": "b9757340-f839-4541-9af6-f7535edf08db",
-        "username": "service-account-b9757340-f839-4541-9af6-f7535edf08db",
+        "client_id": "b69eaf9e-e6a6-4f9e-805e-02987daddfbd",
+        "username": "service-account-b69eaf9e-e6a6-4f9e-805e-02987daddfbd",
     },
     "type": "ServiceAccount",
 }
