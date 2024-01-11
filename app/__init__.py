@@ -32,6 +32,7 @@ from app.queue.metrics import notification_event_producer_success
 from app.queue.metrics import rbac_access_denied
 from app.queue.notifications import NotificationType
 from lib.feature_flags import init_unleash_app
+from lib.feature_flags import SchemaStrategy
 from lib.handlers import register_shutdown
 
 
@@ -230,7 +231,11 @@ def create_app(runtime_environment):
         flask_app.config["UNLEASH_APP_NAME"] = "host-inventory-api"
         flask_app.config["UNLEASH_ENVIRONMENT"] = "default"
         flask_app.config["UNLEASH_URL"] = app_config.unleash_url
-        flask_app.config["UNLEASH_CUSTOM_HEADERS"] = {"Authorization": f"Bearer {app_config.unleash_token}"}
+        if app_config.is_clowder:
+            flask_app.config["UNLEASH_CUSTOM_HEADERS"] = {"Authorization": f"Bearer {app_config.unleash_token}"}
+        else:
+            flask_app.config["UNLEASH_CUSTOM_HEADERS"] = {"Authorization": f"{app_config.unleash_token}"}
+        flask_app.config["UNLEASH_CUSTOM_STRATEGIES"] = {"schema-strategy": SchemaStrategy}
         if hasattr(app_config, "unleash_cache_directory"):
             flask_app.config["UNLEASH_CACHE_DIRECTORY"] = app_config.unleash_cache_directory
         init_unleash_app(flask_app)

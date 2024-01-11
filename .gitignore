@@ -8,6 +8,8 @@ tags
 .coverage
 .pytest_cache/
 /.scannerwork/
+.env
+.prometheus_dir/
 
 swagger/inventory-schemas/
 coverage.xml

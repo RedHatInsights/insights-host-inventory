@@ -46,6 +46,8 @@ from app.queue.events import message_headers
 from app.serialization import deserialize_canonical_facts
 from app.serialization import serialize_host
 from app.utils import Tag
+from lib.feature_flags import FLAG_INVENTORY_DISABLE_XJOIN
+from lib.feature_flags import get_flag_value
 from lib.host_delete import delete_hosts
 from lib.host_repository import find_existing_host
 from lib.host_repository import find_non_culled_hosts
@@ -86,6 +88,10 @@ def get_host_list(
 ):
     total = 0
     host_list = ()
+    current_identity = get_current_identity()
+
+    if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
+        logger.info(f"{FLAG_INVENTORY_DISABLE_XJOIN} is applied to {current_identity.org_id}")
 
     try:
         host_list, total, additional_fields, system_profile_fields = get_host_list_xjoin(
