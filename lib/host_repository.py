@@ -296,7 +296,7 @@ def update_system_profile(input_host, identity, staleness_offset, staleness):
             )
 
 
-def get_host_list_by_id_list_from_db(host_id_list, rbac_filter=None):
+def get_host_list_by_id_list_from_db(host_id_list, rbac_filter=None, columns=None):
     current_identity = get_current_identity()
     filters = (
         Host.org_id == current_identity.org_id,
@@ -310,4 +310,6 @@ def get_host_list_by_id_list_from_db(host_id_list, rbac_filter=None):
         filters += (or_(*rbac_group_filters),)
 
     query = Host.query.join(HostGroupAssoc, isouter=True).filter(*filters).group_by(Host.id)
+    if columns:
+        query = query.with_entities(*columns)
     return find_non_culled_hosts(update_query_for_owner_id(current_identity, query), current_identity)
