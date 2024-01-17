@@ -9,7 +9,6 @@ import marshmallow as m
 
 from app.logging import get_logger
 from app.logging import threadctx
-from app.validators import verify_uuid_format
 
 
 __all__ = ["Identity", "from_auth_header", "from_bearer_token"]
@@ -165,8 +164,8 @@ class SystemIdentitySchema(IdentityBaseSchema):
 
 
 class ServiceAccountInfoIdentitySchema(IdentityBaseSchema):
-    client_id = m.fields.Str(required=True, validate=verify_uuid_format)
-    username = m.fields.Str(required=True, validate=m.validate.Length(min=1))
+    client_id = m.fields.Str(required=True)
+    username = m.fields.Str(required=True)
 
 
 class ServiceAccountIdentitySchema(IdentityBaseSchema):
