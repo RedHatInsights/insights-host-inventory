@@ -1,6 +1,4 @@
 from copy import deepcopy
-from datetime import datetime
-from datetime import timezone
 from enum import Enum
 from functools import partial
 from typing import Tuple
@@ -16,12 +14,12 @@ from app import custom_filter_fields
 from app import system_profile_spec
 from app.auth import get_current_identity
 from app.auth.identity import IdentityType
-from app.common import inventory_config
 from app.exceptions import ValidationException
 from app.logging import get_logger
 from app.models import OLD_TO_NEW_REPORTER_MAP
 from app.utils import Tag
 from app.validators import is_custom_date as is_timestamp
+from app.xjoin import per_reporter_staleness_filter
 from app.xjoin import staleness_filter
 from app.xjoin import string_contains_lc
 from app.xjoin import string_exact_lc
@@ -292,7 +290,14 @@ def _generic_filter_builder(
         )
 
 
-def build_registered_with_filter(registered_with):
+def build_registered_with_filter(registered_with, staleness):
+    # if API is calling /api/inventory/v1/tags
+    # staleness is None by default, so we need
+    # to add the staleness values as a expection when
+    # when registered_with is set
+    if staleness is None:
+        staleness = ["fresh", "stale", "stale_warning"]
+
     reg_with_copy = deepcopy(registered_with)
     prs_list = []
     if "insights" in reg_with_copy:
@@ -305,15 +310,14 @@ def build_registered_with_filter(registered_with):
             if old_reporter in reg_with_copy:
                 reg_with_copy.extend(OLD_TO_NEW_REPORTER_MAP[old_reporter])
                 reg_with_copy = list(set(reg_with_copy))  # Remove duplicates
+
+        # I need to get the per_report_staleness check_in value for the reporter
+        # and build the filter based on it
         for item in reg_with_copy:
             prs_item = {
                 "per_reporter_staleness": {
                     "reporter": {"eq": item.replace("!", "")},
-                    "stale_timestamp": {
-                        "gt": str(
-                            (datetime.now(timezone.utc) - inventory_config().culling_culled_offset_delta).isoformat()
-                        )
-                    },
+                    "AND": per_reporter_staleness_filter(staleness),
                 },
             }
 
@@ -487,7 +491,7 @@ def query_filters(
         query_filters += ({"OR": staleness_filters},)
 
     if registered_with:
-        query_filters += build_registered_with_filter(registered_with)
+        query_filters += build_registered_with_filter(registered_with, staleness)
     if provider_type:
         query_filters += ({"provider_type": {"eq": provider_type.casefold()}},)
     if provider_id:
