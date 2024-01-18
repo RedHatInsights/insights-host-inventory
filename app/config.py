@@ -19,6 +19,7 @@ class Config:
 
         cfg = app_common_python.LoadedConfig
 
+        self.is_clowder = True
         self.metrics_port = cfg.metricsPort
         self.metrics_path = cfg.metricsPath
         self._db_user = cfg.database.username
@@ -82,6 +83,7 @@ class Config:
             self.unleash_token = os.getenv("UNLEASH_TOKEN")
 
     def non_clowder_config(self):
+        self.is_clowder = False
         self.metrics_port = 9126
         self.metrics_path = "/metrics"
         self._db_user = os.getenv("INVENTORY_DB_USER", "insights")

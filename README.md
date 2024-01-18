@@ -174,6 +174,9 @@ honcho start
  INVENTORY_LOGGING_CONFIG_FILE=logconf.ini
  INVENTORY_DB_SSL_MODE=""
  INVENTORY_DB_SSL_CERT=""
+ UNLEASH_TOKEN='*:*.dbffffc83b1f92eeaf133a7eb878d4c58231acc159b5e1478ce53cfc'
+ UNLEASH_CACHE_DIR=./.unleash
+ UNLEASH_URL="http://localhost:4242/api"
 ```
 
 To force an ssl connection to the db set INVENTORY_DB_SSL_MODE to "verify-full"
