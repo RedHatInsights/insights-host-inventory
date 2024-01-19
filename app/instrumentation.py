@@ -49,9 +49,11 @@ def message_produced(logger, message, headers):
         event_producer_success.labels(event_type=dict(headers)["event_type"].decode("utf-8"), topic=topic).inc()
 
 
-def message_not_produced(logger, error, topic, event, key, headers):
+def message_not_produced(logger, error, topic, event, key, headers, message=None):
     status = "NOT PRODUCED"
     msg = f"Message status={status}, topic={topic}, key={key}, headers={headers}, error={str(error)}, event={event}"
+    if message:
+        msg += f", message={message}"
 
     logger.error(msg)
     if "notification" in topic:
