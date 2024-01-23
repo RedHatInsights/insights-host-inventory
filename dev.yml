@@ -14,7 +14,7 @@ services:
           - ./.unleash/create_unleashdb.sql:/docker-entrypoint-initdb.d/create_unleashdb.sql
         healthcheck:
           test: "pg_isready -h db"
-          interval: 5s
+          interval: 2s
           timeout: 5s
           retries: 5
     zookeeper:
