@@ -9,6 +9,7 @@ from app.auth.identity import IdentityType
 from tests.helpers.api_utils import build_token_auth_header
 from tests.helpers.api_utils import HOST_URL
 from tests.helpers.api_utils import SYSTEM_PROFILE_URL
+from tests.helpers.test_utils import SERVICE_ACCOUNT_IDENTITY
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
 
@@ -61,14 +62,14 @@ def test_validate_invalid_identity(flask_client):
 
 
 @pytest.mark.parametrize(
-    "remove_account_number",
-    [True, False],
+    "remove_account_number, identity",
+    ((True, USER_IDENTITY), (False, USER_IDENTITY), (False, SERVICE_ACCOUNT_IDENTITY)),
 )
-def test_validate_valid_user_identity(flask_client, remove_account_number):
+def test_validate_valid_user_identity(flask_client, remove_account_number, identity):
     """
     Identity header is valid – non-empty in this case
     """
-    identity = deepcopy(USER_IDENTITY)
+    identity = deepcopy(identity)
     if remove_account_number:
         del identity["account_number"]
 
@@ -90,9 +91,22 @@ def test_validate_non_admin_user_identity(flask_client):
     assert 403 == response.status_code  # User is not an HBI admin
 
 
+def test_validate_non_admin_service_account_identity(flask_client):
+    """
+    Identity header is valid and service account is provided, but is not an Admin
+    """
+    identity = deepcopy(SERVICE_ACCOUNT_IDENTITY)
+    identity["service_account"]["username"] = "regularjoe@redhat.com"
+    payload = create_identity_payload(identity)
+    response = flask_client.post(
+        f"{SYSTEM_PROFILE_URL}/validate_schema?repo_branch=master&days=1", headers={"x-rh-identity": payload}
+    )
+    assert 403 == response.status_code  # User is not an HBI admin
+
+
 def test_validate_non_user_admin_endpoint(flask_client):
     """
-    Identity header is valid and user is provided, but is not an Admin
+    Identity header is valid and system is provided, but is not an Admin
     """
     payload = create_identity_payload(SYSTEM_IDENTITY)
     response = flask_client.post(
@@ -101,13 +115,15 @@ def test_validate_non_user_admin_endpoint(flask_client):
     assert 403 == response.status_code  # Endpoint not available to Systems
 
 
-def test_validate_valid_system_identity(flask_client):
+def test_validate_service_account_admin_endpoint(flask_client):
     """
-    Identity header is valid – non-empty in this case
+    Identity header is valid and service account is provided, but is not an Admin
     """
-    payload = create_identity_payload(SYSTEM_IDENTITY)
-    response = flask_client.get(HOST_URL, headers={"x-rh-identity": payload})
-    assert 200 == response.status_code  # OK
+    payload = create_identity_payload(SERVICE_ACCOUNT_IDENTITY)
+    response = flask_client.post(
+        f"{SYSTEM_PROFILE_URL}/validate_schema?repo_branch=master&days=1", headers={"x-rh-identity": payload}
+    )
+    assert 403 == response.status_code  # Endpoint not available to Service accounts
 
 
 def test_invalid_system_identities(flask_client, subtests):
