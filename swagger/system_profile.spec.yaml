@@ -656,3 +656,67 @@ $defs:
         pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
         maxLength: 36
         example: 0ddf52cb-94e3-4ada-bdf7-d424a547b671, 6996463b-c9d4-402b-ad37-8ab5556ddf88, 0c352918-fa05-4f05-996c-6c43ec0b3c5e
+      bootc_status:
+        description: Object containing image data from command bootc status
+        type: object
+        properties:
+          booted:
+            type: object
+            properties:
+              image:
+                description: Name of the image
+                type: string
+                example: "quay.io/centos-bootc/fedora-bootc-cloud:eln, 192.168.0.1:5000/foo/foo:latest"
+                maxLength: 128
+                x-wildcard: true
+              image_digest:
+                description: Digest of the image
+                type: string
+                example: "sha256:806d77394f96e47cf99b1233561ce970c94521244a2d8f2affa12c3261961223, sha256:92e476435ced1c148350c660b09c744717defbd300a15d33deda5b50ad6b21a0"
+                maxLength: 128
+                pattern: "^(sha256\\:)[a-fA-F0-9]{64}$"
+          cachedUpdate:
+            type: object
+            properties:
+              image:
+                description: Name of the image
+                type: string
+                example: "quay.io/centos-bootc/fedora-bootc-cloud:eln, 192.168.0.1:5000/foo/foo:latest"
+                maxLength: 128
+                x-wildcard: true
+              image_digest:
+                description: Digest of the image
+                type: string
+                example: "sha256:806d77394f96e47cf99b1233561ce970c94521244a2d8f2affa12c3261961223, sha256:92e476435ced1c148350c660b09c744717defbd300a15d33deda5b50ad6b21a0"
+                maxLength: 128
+                pattern: "^(sha256\\:)[a-fA-F0-9]{64}$"
+          rollback:
+            type: object
+            properties:
+              image:
+                description: Name of the image
+                type: string
+                example: "quay.io/centos-bootc/fedora-bootc-cloud:eln, 192.168.0.1:5000/foo/foo:latest"
+                maxLength: 128
+                x-wildcard: true
+              image_digest:
+                description: Digest of the image
+                type: string
+                example: "sha256:806d77394f96e47cf99b1233561ce970c94521244a2d8f2affa12c3261961223, sha256:92e476435ced1c148350c660b09c744717defbd300a15d33deda5b50ad6b21a0"
+                maxLength: 128
+                pattern: "^(sha256\\:)[a-fA-F0-9]{64}$"
+          staged:
+            type: object
+            properties:
+              image:
+                description: Name of the image
+                type: string
+                example: "quay.io/centos-bootc/fedora-bootc-cloud:eln, 192.168.0.1:5000/foo/foo:latest"
+                maxLength: 128
+                x-wildcard: true
+              image_digest:
+                description: Digest of the image
+                type: string
+                example: "sha256:806d77394f96e47cf99b1233561ce970c94521244a2d8f2affa12c3261961223, sha256:92e476435ced1c148350c660b09c744717defbd300a15d33deda5b50ad6b21a0"
+                maxLength: 128
+                pattern: "^(sha256\\:)[a-fA-F0-9]{64}$"
