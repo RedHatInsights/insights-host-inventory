@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from api.host_query_xjoin import HOST_TAGS_QUERY
 from app.models import ProviderType
 from app.serialization import _deserialize_tags
@@ -349,6 +351,31 @@ def test_get_host_tag_count_RBAC_denied(mq_create_four_specific_hosts, mocker, a
             assert response_status == 403
 
             find_non_culled_hosts_mock.assert_not_called()
+
+
+def test_get_tags_count_of_host_that_does_not_exist_via_db(api_get):
+    """
+    send a request for some host that doesn't exist via db only
+    """
+    url = build_tags_count_url(host_list_or_id=generate_uuid())
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert response_data["results"] == {}
+
+
+def test_get_tags_count_of_host_via_db(api_get, mq_create_three_specific_hosts):
+    """
+    send a request for some host that does exist via db only
+    """
+    created_hosts = mq_create_three_specific_hosts
+    url = build_tags_count_url(host_list_or_id=created_hosts[0].id)
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert response_data["results"][created_hosts[0].id] >= 0
 
 
 def test_get_host_tags_with_RBAC_bypassed_as_system(db_create_host, api_get, enable_rbac):
