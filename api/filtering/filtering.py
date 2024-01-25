@@ -31,6 +31,7 @@ logger = get_logger(__name__)
 NIL_STRING = "nil"
 NOT_NIL_STRING = "not_nil"
 OR_FIELDS = ("owner_id", "rhc_client_id", "host_type", "system_update_method")
+STALENESS_VALUES = ["fresh", "stale", "stale_warning"]
 
 
 def _invalid_value_error(field_name, field_value):
@@ -291,12 +292,12 @@ def _generic_filter_builder(
 
 
 def build_registered_with_filter(registered_with, staleness):
-    # if API is calling /api/inventory/v1/tags
-    # staleness is None by default, so we need
-    # to add the staleness values as a expection when
-    # when registered_with is set
+    # If /api/inventory/v1/tags is called,
+    # staleness variable is set to None by default.
+    # To use custom staleness, we to make sure we have
+    # staleness values set
     if staleness is None:
-        staleness = ["fresh", "stale", "stale_warning"]
+        staleness = STALENESS_VALUES
 
     reg_with_copy = deepcopy(registered_with)
     prs_list = []
@@ -311,7 +312,7 @@ def build_registered_with_filter(registered_with, staleness):
                 reg_with_copy.extend(OLD_TO_NEW_REPORTER_MAP[old_reporter])
                 reg_with_copy = list(set(reg_with_copy))  # Remove duplicates
 
-        # I need to get the per_report_staleness check_in value for the reporter
+        # Get the per_report_staleness check_in value for the reporter
         # and build the filter based on it
         for item in reg_with_copy:
             prs_item = {
