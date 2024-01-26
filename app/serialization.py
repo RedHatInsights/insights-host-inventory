@@ -426,4 +426,4 @@ def _serialize_per_reporter_staleness(host, staleness, staleness_timestamps):
 
         host.per_reporter_staleness[reporter]["stale_timestamp"] = _serialize_staleness_to_string(stale_timestamp)
 
-        return host.per_reporter_staleness
+    return host.per_reporter_staleness
