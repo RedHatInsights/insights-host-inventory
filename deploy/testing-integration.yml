@@ -32,7 +32,7 @@ objects:
           image: ${IQE_IMAGE}
           imagePullPolicy: Always
           args:
-          - run
+          - ${IQE_CONTAINER_ARGS}
           env:
           - name: ENV_FOR_DYNACONF
             value: ${ENV_FOR_DYNACONF}
@@ -114,6 +114,8 @@ parameters:
 - name: IMAGE_TAG
   value: ''
   required: true
+- name: IQE_CONTAINER_ARGS
+  value: run
 - name: UID
   description: "Unique job name suffix"
   generate: expression
