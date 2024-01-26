@@ -499,7 +499,56 @@ def _build_prs_array(mocker, reporters):
         prs_item = {
             "per_reporter_staleness": {
                 "reporter": {"eq": reporter.replace("!", "")},
-                "stale_timestamp": {"gt": mocker.ANY},
+                "AND": (
+                    {
+                        "AND": {
+                            "last_check_in": {"gt": mocker.ANY},
+                            "hostFilter": {"spf_host_type": {"eq": "edge"}},
+                        }
+                    },
+                    {
+                        "AND": {
+                            "last_check_in": {
+                                "gt": mocker.ANY,
+                                "lte": mocker.ANY,
+                            },
+                            "hostFilter": {"spf_host_type": {"eq": "edge"}},
+                        }
+                    },
+                    {
+                        "AND": {
+                            "last_check_in": {
+                                "gt": mocker.ANY,
+                                "lte": mocker.ANY,
+                            },
+                            "hostFilter": {"spf_host_type": {"eq": "edge"}},
+                        }
+                    },
+                    {
+                        "AND": {
+                            "last_check_in": {"gt": mocker.ANY},
+                            "hostFilter": {"spf_host_type": {"eq": None}},
+                        }
+                    },
+                    {
+                        "AND": {
+                            "last_check_in": {
+                                "gt": mocker.ANY,
+                                "lte": mocker.ANY,
+                            },
+                            "hostFilter": {"spf_host_type": {"eq": None}},
+                        }
+                    },
+                    {
+                        "AND": {
+                            "last_check_in": {
+                                "gt": mocker.ANY,
+                                "lte": mocker.ANY,
+                            },
+                            "hostFilter": {"spf_host_type": {"eq": None}},
+                        }
+                    },
+                ),
             }
         }
 
@@ -991,7 +1040,61 @@ def test_tags_headers_forwarded(mocker, patch_xjoin_post, api_get):
 
 
 def test_tags_query_variables_default_except_staleness(mocker, assert_tag_query_host_filter_single_call):
-    assert_tag_query_host_filter_single_call(TAGS_URL, {"OR": mocker.ANY})
+    assert_tag_query_host_filter_single_call(
+        TAGS_URL,
+        {
+            "OR": [
+                {
+                    "AND": {
+                        "modified_on": {"gt": mocker.ANY},
+                        "spf_host_type": {"eq": "edge"},
+                    }
+                },
+                {
+                    "AND": {
+                        "modified_on": {
+                            "gt": mocker.ANY,
+                            "lte": mocker.ANY,
+                        },
+                        "spf_host_type": {"eq": "edge"},
+                    }
+                },
+                {
+                    "AND": {
+                        "modified_on": {
+                            "gt": mocker.ANY,
+                            "lte": mocker.ANY,
+                        },
+                        "spf_host_type": {"eq": "edge"},
+                    }
+                },
+                {
+                    "AND": {
+                        "modified_on": {"gt": mocker.ANY},
+                        "spf_host_type": {"eq": None},
+                    }
+                },
+                {
+                    "AND": {
+                        "modified_on": {
+                            "gt": mocker.ANY,
+                            "lte": mocker.ANY,
+                        },
+                        "spf_host_type": {"eq": None},
+                    }
+                },
+                {
+                    "AND": {
+                        "modified_on": {
+                            "gt": mocker.ANY,
+                            "lte": mocker.ANY,
+                        },
+                        "spf_host_type": {"eq": None},
+                    }
+                },
+            ]
+        },
+    )
 
 
 # Test basic query filters
@@ -2123,7 +2226,25 @@ def test_xjoin_search_query_using_hostfilter(
     api_delete_filtered_hosts({field: value})
 
     graphql_query_empty_response.assert_called_once_with(
-        HOST_IDS_QUERY, {"filter": ({field: {"eq": value}},), "limit": mocker.ANY, "offset": 0}, mocker.ANY
+        HOST_IDS_QUERY,
+        {
+            "filter": (
+                {field: {"eq": value}},
+                {
+                    "OR": (
+                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},
+                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},
+                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},
+                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},
+                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},
+                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},
+                    )
+                },
+            ),
+            "limit": mocker.ANY,
+            "offset": 0,
+        },
+        mocker.ANY,
     )
 
 
@@ -2137,7 +2258,19 @@ def test_xjoin_search_query_using_hostfilter_display_name(
     graphql_query_empty_response.assert_called_once_with(
         HOST_IDS_QUERY,
         {
-            "filter": ({"display_name": {"matches_lc": f"*{query_params['display_name']}*"}},),
+            "filter": (
+                {"display_name": {"matches_lc": f"*{query_params['display_name']}*"}},
+                {
+                    "OR": (
+                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},
+                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},
+                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},
+                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},
+                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},
+                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},
+                    )
+                },
+            ),
             "limit": mocker.ANY,
             "offset": 0,
         },
@@ -2270,7 +2403,25 @@ def test_xjoin_search_using_hostfilters_tags(
     tag_filters = tuple({"tag": item} for item in tags)
 
     graphql_query_empty_response.assert_called_once_with(
-        HOST_IDS_QUERY, {"filter": ({"OR": tag_filters},), "limit": mocker.ANY, "offset": 0}, mocker.ANY
+        HOST_IDS_QUERY,
+        {
+            "filter": (
+                {"OR": tag_filters},
+                {
+                    "OR": (
+                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},
+                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},
+                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},
+                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},
+                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},
+                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},
+                    )
+                },
+            ),
+            "limit": mocker.ANY,
+            "offset": 0,
+        },
+        mocker.ANY,
     )
 
 
@@ -2293,7 +2444,20 @@ def test_xjoin_search_query_using_hostfilter_provider(
     graphql_query_empty_response.assert_called_once_with(
         HOST_IDS_QUERY,
         {
-            "filter": ({"provider_type": {"eq": provider["type"]}}, {"provider_id": {"eq": provider["id"]}}),
+            "filter": (
+                {
+                    "OR": (
+                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},
+                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},
+                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},
+                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},
+                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},
+                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},
+                    )
+                },
+                {"provider_type": {"eq": provider["type"]}},
+                {"provider_id": {"eq": provider["id"]}},
+            ),
             "limit": mocker.ANY,
             "offset": 0,
         },
@@ -3138,7 +3302,7 @@ def test_get_hosts_fields_param(query, fields, mocker, graphql_query_empty_respo
 
 
 @pytest.mark.parametrize("num_hosts", (1, 3, 5))
-def test_get_hosts_by_ids(num_hosts, mocker, filtering_datetime_mock, graphql_query_empty_response, api_get):
+def test_get_hosts_by_ids(num_hosts, mocker, graphql_query_empty_response, api_get):
     host_id_list = [generate_uuid() for h in range(num_hosts)]
     url = build_hosts_url(query=f"/{','.join(host_id_list)}")
     response_status, _ = api_get(url)
@@ -3163,9 +3327,7 @@ def test_get_hosts_by_ids(num_hosts, mocker, filtering_datetime_mock, graphql_qu
 
 
 @pytest.mark.parametrize("num_hosts", (1, 3, 5))
-def test_get_hosts_by_ids_rbac_specific_groups(
-    num_hosts, mocker, enable_rbac, filtering_datetime_mock, graphql_query_empty_response, api_get
-):
+def test_get_hosts_by_ids_rbac_specific_groups(num_hosts, mocker, enable_rbac, graphql_query_empty_response, api_get):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     group_id_list = [generate_uuid(), None]
 
