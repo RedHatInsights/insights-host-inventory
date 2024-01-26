@@ -414,6 +414,13 @@ def build_expected_host_list(host_list):
     ]
 
 
+# Since python3.6, dicts retain key order, so asserting that a list of dicts is equal
+# doesn't work unless we're certain that the keys are going to be in the same order.
+def assert_host_lists_equal(expected_host_list, actual_host_list):
+    for i in range(len(expected_host_list)):
+        assert expected_host_list[i] == actual_host_list[i]
+
+
 def build_order_query_parameters(order_by=None, order_how=None):
     query_parameters = {}
     if order_by:
