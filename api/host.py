@@ -14,6 +14,7 @@ from api.host_query import build_paginated_host_list_response
 from api.host_query import staleness_timestamps
 from api.host_query_db import get_all_hosts
 from api.host_query_db import get_host_list as get_host_list_postgres
+from api.host_query_db import get_host_tags_list_by_id_list as get_host_tags_list_by_id_list_postgres
 from api.host_query_xjoin import get_host_ids_list as get_host_ids_list_xjoin
 from api.host_query_xjoin import get_host_list as get_host_list_xjoin
 from api.host_query_xjoin import get_host_list_by_id_list
@@ -452,9 +453,18 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_how=None, rbac_filter=None):
-    host_list, total = get_host_tags_list_by_id_list(host_id_list, page, per_page, order_by, order_how, rbac_filter)
-    counts = {host_id: len(host_tags) for host_id, host_tags in host_list.items()}
+    current_identity = get_current_identity()
+    if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
+        logger.info(f"{FLAG_INVENTORY_DISABLE_XJOIN} is applied to {current_identity.org_id}")
+        host_list, total = get_host_tags_list_by_id_list_postgres(
+            host_id_list, page, per_page, order_by, order_how, rbac_filter
+        )
+    else:
+        host_list, total = get_host_tags_list_by_id_list(
+            host_id_list, page, per_page, order_by, order_how, rbac_filter
+        )
 
+    counts = {host_id: len(host_tags) for host_id, host_tags in host_list.items()}
     return _build_paginated_host_tags_response(total, page, per_page, counts)
 
 
@@ -462,7 +472,17 @@ def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=None, search=None, rbac_filter=None):
-    host_list, total = get_host_tags_list_by_id_list(host_id_list, page, per_page, order_by, order_how, rbac_filter)
+    current_identity = get_current_identity()
+    if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
+        logger.info(f"{FLAG_INVENTORY_DISABLE_XJOIN} is applied to {current_identity.org_id}")
+        host_list, total = get_host_tags_list_by_id_list_postgres(
+            host_id_list, page, per_page, order_by, order_how, rbac_filter
+        )
+    else:
+        host_list, total = get_host_tags_list_by_id_list(
+            host_id_list, page, per_page, order_by, order_how, rbac_filter
+        )
+
     filtered_list = {host_id: Tag.filter_tags(host_tags, search) for host_id, host_tags in host_list.items()}
 
     return _build_paginated_host_tags_response(total, page, per_page, filtered_list)

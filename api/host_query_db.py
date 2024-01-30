@@ -12,6 +12,7 @@ from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
 from app.utils import Tag
+from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.host_repository import update_query_for_owner_id
 
 __all__ = ("get_all_hosts", "params_to_order_by")
@@ -292,3 +293,26 @@ def _find_all_hosts():
         .group_by(Host.id)
     )
     return update_query_for_owner_id(identity, query)
+
+
+def get_host_tags_list_by_id_list(host_id_list, page, per_page, order_by, order_how, rbac_filter):
+    columns = [Host.id, Host.tags]
+    query = get_host_list_by_id_list_from_db(host_id_list, rbac_filter, columns)
+    order = params_to_order_by(order_by, order_how)
+    query_results = query.order_by(*order).offset((page - 1) * per_page).limit(per_page).all()
+    host_tags_dict = _expand_host_tags(query_results)
+    return host_tags_dict, len(host_id_list)
+
+
+def _expand_host_tags(hosts):
+    host_tags_dict = {}
+    for host in hosts:
+        host_tags = []
+        host_namespace_tags_dict = host.tags
+        for host_namespace, host_namespace_tags in host_namespace_tags_dict.items():
+            for tag_key, tag_values in host_namespace_tags.items():
+                for tag_value in tag_values:
+                    host_tag_obj = {"namespace": host_namespace, "key": tag_key, "value": tag_value}
+                    host_tags.append(host_tag_obj)
+        host_tags_dict[host.id] = host_tags
+    return host_tags_dict

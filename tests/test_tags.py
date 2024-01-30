@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from api.host_query_xjoin import HOST_TAGS_QUERY
 from app.models import ProviderType
 from app.serialization import _deserialize_tags
@@ -46,6 +48,20 @@ def test_get_tags_of_multiple_hosts_query(
     )
 
 
+def test_get_tags_of_multiple_hosts_query_via_db(mq_create_three_specific_hosts, api_get):
+    """
+    Send a request for the tag count of multiple hosts and validate the query
+    """
+    created_hosts = mq_create_three_specific_hosts
+
+    url = build_host_tags_url(host_list_or_id=created_hosts, query="?order_by=updated&order_how=ASC")
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response = api_get(url)
+        assert response_status == 200
+        assert response["count"] == len(created_hosts)
+        assert response["results"][created_hosts[0].id] != {}
+
+
 def test_host_tag_response_and_pagination(mq_create_three_specific_hosts, api_get, patch_xjoin_post):
     """
     Given a set response from xjoin, verify that the tags URL returns data correctly.
@@ -59,6 +75,24 @@ def test_host_tag_response_and_pagination(mq_create_three_specific_hosts, api_ge
     assert response_data["count"] == len(XJOIN_HOSTS_RESPONSE_WITH_TAGS["hosts"]["data"])
     assert response_data["page"] == 1
     assert response_data["per_page"] == 50  # The default value, since we didn't specify
+
+
+def test_host_tag_response_and_pagination_via_db(mq_create_three_specific_hosts, api_get):
+    """
+    Given a set host creation, verify that the tags URL returns data correctly.
+    """
+    created_hosts = mq_create_three_specific_hosts
+
+    with patch("api.host.get_flag_value", return_value=True):
+        url = build_host_tags_url(
+            host_list_or_id=mq_create_three_specific_hosts, query="?order_by=updated&order_how=ASC"
+        )
+        response_status, response_data = api_get(url)
+
+        assert response_status == 200
+        assert response_data["count"] == len(created_hosts)
+        assert response_data["page"] == 1
+        assert response_data["per_page"] == 50  # The default value, since we didn't specify
 
 
 def test_tag_counting_and_pagination(mq_create_three_specific_hosts, api_get, patch_xjoin_post):
@@ -87,6 +121,19 @@ def test_get_tags_of_hosts_that_does_not_exist(api_get, patch_xjoin_post):
 
     assert response_status == 200
     assert {} == response_data["results"]
+
+
+def test_get_tags_of_hosts_that_does_not_exist_via_db(api_get):
+    """
+    send a request for some host that doesn't exist
+    """
+    url = build_host_tags_url(generate_uuid())
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+        assert response_status == 200
+        assert {} == response_data["results"]
 
 
 def test_get_list_of_tags_with_host_filters(patch_xjoin_post, api_get, subtests):
@@ -349,6 +396,31 @@ def test_get_host_tag_count_RBAC_denied(mq_create_four_specific_hosts, mocker, a
             assert response_status == 403
 
             find_non_culled_hosts_mock.assert_not_called()
+
+
+def test_get_tags_count_of_host_that_does_not_exist_via_db(api_get):
+    """
+    send a request for some host that doesn't exist via db only
+    """
+    url = build_tags_count_url(host_list_or_id=generate_uuid())
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert response_data["results"] == {}
+
+
+def test_get_tags_count_of_host_via_db(api_get, mq_create_three_specific_hosts):
+    """
+    send a request for some host that does exist via db only
+    """
+    created_hosts = mq_create_three_specific_hosts
+    url = build_tags_count_url(host_list_or_id=created_hosts[0].id)
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert response_data["results"][created_hosts[0].id] >= 0
 
 
 def test_get_host_tags_with_RBAC_bypassed_as_system(db_create_host, api_get, enable_rbac):
