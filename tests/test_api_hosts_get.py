@@ -1,3 +1,4 @@
+import random
 from itertools import chain
 from unittest.mock import patch
 
@@ -989,3 +990,74 @@ def test_query_hosts_filter_updated_start_end(mq_create_or_update_host, api_get)
         assert response_status == 200
         # This query should return all 3 hosts
         assert len(response_data["results"]) == 3
+
+
+@pytest.mark.parametrize("order_how", ("ASC", "DESC"))
+def test_get_hosts_order_by_group_name(db_create_group_with_hosts, api_get, subtests, order_how):
+    hosts_per_group = 2
+    names = ["A Group", "B Group", "C Group"]
+    [db_create_group_with_hosts(group_name, hosts_per_group) for group_name in names]
+
+    url = build_hosts_url(query=f"?order_by=group_name&order_how={order_how}")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(names) * hosts_per_group == len(response_data["results"])
+
+    # If descending order is requested, reverse the expected order of group names
+    if order_how == "DESC":
+        names.reverse()
+
+    for group_index in range(len(names)):
+        for host_index in range(hosts_per_group):
+            assert (
+                response_data["results"][group_index * hosts_per_group + host_index]["groups"][0]["name"]
+                == names[group_index]
+            )
+
+
+@pytest.mark.parametrize("order_how", ("ASC", "DESC"))
+def test_get_hosts_order_by_operating_system(mq_create_or_update_host, api_get, order_how):
+    # Create some operating systems in ASC sort order
+    ordered_operating_system_data = [
+        {"name": "CentOS", "major": 4, "minor": 0},
+        {"name": "CentOS", "major": 4, "minor": 1},
+        {"name": "CentOS", "major": 5, "minor": 0},
+        {"name": "CentOS", "major": 5, "minor": 1},
+        {"name": "RHEL", "major": 3, "minor": 0},
+        {"name": "RHEL", "major": 3, "minor": 11},
+        {"name": "RHEL", "major": 8, "minor": 0},
+        {"name": "RHEL", "major": 8, "minor": 1},
+    ]
+    ordered_insights_ids = [generate_uuid() for _ in range(len(ordered_operating_system_data))]
+
+    # Create an association between the insights IDs
+    ordered_host_data = dict(zip(ordered_insights_ids, ordered_operating_system_data))
+
+    # Create a shuffled list of insights_ids so we can create the hosts in a random order
+    shuffled_insights_ids = ordered_insights_ids.copy()
+    random.shuffle(shuffled_insights_ids)
+
+    # Create hosts for the above host data (in shuffled order)
+    created_hosts = [
+        mq_create_or_update_host(
+            minimal_host(insights_id=insights_id, system_profile={"operating_system": ordered_host_data[insights_id]})
+        )
+        for insights_id in shuffled_insights_ids
+    ]
+    url = build_hosts_url(query=f"?order_by=operating_system&order_how={order_how}")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        # Validate the basics, i.e. response code and results size
+        response_status, response_data = api_get(url)
+        assert response_status == 200
+        assert len(created_hosts) == len(response_data["results"])
+
+    # If descending order is requested, reverse the expected order of hosts
+    if order_how == "DESC":
+        ordered_insights_ids.reverse()
+
+    for index in range(len(ordered_insights_ids)):
+        assert ordered_insights_ids[index] == response_data["results"][index]["insights_id"]

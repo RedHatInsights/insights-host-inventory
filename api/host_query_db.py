@@ -274,8 +274,20 @@ def params_to_order_by(order_by: str = None, order_how: str = None) -> Tuple:
             ordering = (_order_how(Host.display_name, order_how),)
         else:
             ordering = (Host.display_name.asc(),)
+    elif order_by == "group_name":
+        if order_how:
+            ordering = (_order_how(Group.name, order_how),)
+        else:
+            ordering = (Group.name.asc(),)
+    elif order_by == "operating_system":
+        if order_how:
+            ordering = (_order_how(Host.operating_system, order_how),)
+        else:
+            ordering = (Host.operating_system.asc(),)
     elif order_by:
-        raise ValueError('Unsupported ordering column, use "updated" or "display_name".')
+        raise ValueError(
+            'Unsupported ordering column: use "updated", "display_name", "group_name", or "operating_system".'
+        )
     elif order_how:
         raise ValueError(
             "Providing ordering direction without a column is not supported. "
@@ -285,7 +297,7 @@ def params_to_order_by(order_by: str = None, order_how: str = None) -> Tuple:
     return ordering + modified_on_ordering + (Host.id.desc(),)
 
 
-def _order_how(column: str, order_how: str):
+def _order_how(column, order_how: str):
     if order_how == "ASC":
         return column.asc()
     elif order_how == "DESC":
@@ -300,7 +312,7 @@ def _find_all_hosts() -> Query:
         Host.query.join(HostGroupAssoc, isouter=True)
         .join(Group, isouter=True)
         .filter(Host.org_id == identity.org_id)
-        .group_by(Host.id)
+        .group_by(Host.id, Group.name)
     )
     return update_query_for_owner_id(identity, query)
 
