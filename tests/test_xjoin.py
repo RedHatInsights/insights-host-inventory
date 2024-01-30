@@ -2228,19 +2228,7 @@ def test_xjoin_search_query_using_hostfilter(
     graphql_query_empty_response.assert_called_once_with(
         HOST_IDS_QUERY,
         {
-            "filter": (
-                {field: {"eq": value}},
-                {
-                    "OR": (
-                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},
-                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},
-                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},
-                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},
-                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},
-                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},
-                    )
-                },
-            ),
+            "filter": ({field: {"eq": value}},),
             "limit": mocker.ANY,
             "offset": 0,
         },
@@ -2258,19 +2246,7 @@ def test_xjoin_search_query_using_hostfilter_display_name(
     graphql_query_empty_response.assert_called_once_with(
         HOST_IDS_QUERY,
         {
-            "filter": (
-                {"display_name": {"matches_lc": f"*{query_params['display_name']}*"}},
-                {
-                    "OR": (
-                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},
-                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},
-                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},
-                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},
-                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},
-                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},
-                    )
-                },
-            ),
+            "filter": ({"display_name": {"matches_lc": f"*{query_params['display_name']}*"}},),
             "limit": mocker.ANY,
             "offset": 0,
         },
@@ -2405,19 +2381,7 @@ def test_xjoin_search_using_hostfilters_tags(
     graphql_query_empty_response.assert_called_once_with(
         HOST_IDS_QUERY,
         {
-            "filter": (
-                {"OR": tag_filters},
-                {
-                    "OR": (
-                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},
-                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},
-                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},
-                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},
-                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},
-                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},
-                    )
-                },
-            ),
+            "filter": ({"OR": tag_filters},),
             "limit": mocker.ANY,
             "offset": 0,
         },
@@ -2445,16 +2409,6 @@ def test_xjoin_search_query_using_hostfilter_provider(
         HOST_IDS_QUERY,
         {
             "filter": (
-                {
-                    "OR": (
-                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},
-                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},
-                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},
-                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},
-                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},
-                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},
-                    )
-                },
                 {"provider_type": {"eq": provider["type"]}},
                 {"provider_id": {"eq": provider["id"]}},
             ),
@@ -2478,6 +2432,38 @@ def test_spf_rhc_client_invalid_field_value(subtests, graphql_query_empty_respon
             response_status, response_data = api_get(url)
             assert response_status == 400
             assert response_data["title"] == "Validation Error"
+
+
+@pytest.mark.parametrize(
+    "staleness",
+    (
+        {"type": "fresh"},
+        {"type": "stale"},
+        {"type": "stale_warning"},
+    ),
+)
+def test_xjoin_search_query_using_hostfilter_staleness(
+    mocker, graphql_query_empty_response, staleness, api_delete_filtered_hosts
+):
+    query_params = {"staleness": staleness["type"]}
+    api_delete_filtered_hosts(query_params)
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_IDS_QUERY,
+        {
+            "limit": mocker.ANY,
+            "offset": 0,
+            "filter": (
+                {
+                    "OR": (
+                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": "edge"}}},
+                        {"AND": {"modified_on": mocker.ANY, "spf_host_type": {"eq": None}}},
+                    )
+                },
+            ),
+        },
+        mocker.ANY,
+    )
 
 
 # system_profile owner_id tests
