@@ -65,7 +65,7 @@ def test_validate_invalid_identity(flask_client):
     "remove_account_number, identity",
     ((True, USER_IDENTITY), (False, USER_IDENTITY), (False, SERVICE_ACCOUNT_IDENTITY)),
 )
-def test_validate_valid_user_identity(flask_client, remove_account_number, identity):
+def test_validate_valid_identity(flask_client, remove_account_number, identity):
     """
     Identity header is valid – non-empty in this case
     """
@@ -113,6 +113,15 @@ def test_validate_non_user_admin_endpoint(flask_client):
         f"{SYSTEM_PROFILE_URL}/validate_schema?repo_branch=master&days=1", headers={"x-rh-identity": payload}
     )
     assert 403 == response.status_code  # Endpoint not available to Systems
+
+
+def test_validate_valid_system_identity(flask_client):
+    """
+    Identity header is valid – non-empty in this case
+    """
+    payload = create_identity_payload(SYSTEM_IDENTITY)
+    response = flask_client.get(HOST_URL, headers={"x-rh-identity": payload})
+    assert 200 == response.status_code  # OK
 
 
 def test_validate_service_account_admin_endpoint(flask_client):
