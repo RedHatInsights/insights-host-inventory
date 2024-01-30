@@ -247,7 +247,7 @@ def get_host_list_by_id_list(
     host_id_list, page, per_page, param_order_by, param_order_how, fields=None, rbac_filter=None
 ):
     all_filters = _host_id_list_filter(host_id_list)
-    all_filters += rbac_filter
+    all_filters += _rbac_filter(rbac_filter)
 
     return _get_host_list_using_filters(all_filters, page, per_page, param_order_by, param_order_how, fields)
 
