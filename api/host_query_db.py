@@ -1,9 +1,11 @@
 from typing import List
+from typing import Tuple
 from uuid import UUID
 
 from dateutil import parser
 from sqlalchemy import and_
 from sqlalchemy import or_
+from sqlalchemy.orm import Query
 
 from app.auth import get_current_identity
 from app.instrumentation import log_get_host_list_succeeded
@@ -22,7 +24,7 @@ NULL = None
 logger = get_logger(__name__)
 
 
-def get_all_hosts():
+def get_all_hosts() -> List:
     query = _find_all_hosts()
     query_results = query.all()
     ids_list = [str(host.id) for host in query_results]
@@ -31,15 +33,15 @@ def get_all_hosts():
     return ids_list
 
 
-def _canonical_fact_filter(canonical_fact, value):
+def _canonical_fact_filter(canonical_fact: str, value) -> List:
     return [Host.canonical_facts[canonical_fact].astext == value]
 
 
-def _display_name_filter(display_name):
+def _display_name_filter(display_name: str) -> List:
     return [Host.display_name.comparator.contains(display_name)]
 
 
-def _tags_filter(string_tags):
+def _tags_filter(string_tags: List[str]) -> List:
     tags = []
 
     for string_tag in string_tags:
@@ -50,7 +52,7 @@ def _tags_filter(string_tags):
     return [Host.tags.contains(tags_to_find)]
 
 
-def _group_names_filter(group_name_list):
+def _group_names_filter(group_name_list: List) -> List:
     _query_filter = []
     if len(group_name_list) > 0:
         group_filters = [Group.name.in_(group_name_list)]
@@ -62,7 +64,7 @@ def _group_names_filter(group_name_list):
     return _query_filter
 
 
-def _group_ids_filter(group_id_list):
+def _group_ids_filter(group_id_list: List) -> List:
     _query_filter = []
     if len(group_id_list) > 0:
         group_filters = [HostGroupAssoc.group_id.in_(group_id_list)]
@@ -74,25 +76,25 @@ def _group_ids_filter(group_id_list):
     return _query_filter
 
 
-def _staleness_filter(staleness):
+def _staleness_filter(staleness: List[str]) -> List:
     _query_filter = []
     # TODO
     return _query_filter
 
 
-def _registered_with_filter(registered_with):
+def _registered_with_filter(registered_with: List[str]) -> List:
     _query_filter = []
     # TODO
     return _query_filter
 
 
-def _system_profile_filter(sp_filter):
+def _system_profile_filter(sp_filter: dict) -> List:
     _query_filter = []
     # TODO
     return _query_filter
 
 
-def _hostname_or_id_filter(hostname_or_id):
+def _hostname_or_id_filter(hostname_or_id: str) -> List:
     filter_list = [
         Host.display_name.comparator.contains(hostname_or_id),
         Host.canonical_facts["fqdn"].astext.contains(hostname_or_id),
@@ -126,11 +128,11 @@ def _modified_on_filter(updated_start: str, updated_end: str) -> List:
     return [and_(*modified_on_filter)]
 
 
-def _host_id_list_filter(host_id_list):
+def _host_id_list_filter(host_id_list: List[str]) -> List:
     return [Host.id.in_(host_id_list)]
 
 
-def _rbac_filter(rbac_filter):
+def _rbac_filter(rbac_filter: dict) -> List:
     _query_filter = []
     if rbac_filter and "groups" in rbac_filter:
         _query_filter = _group_ids_filter(rbac_filter["groups"])
@@ -139,22 +141,22 @@ def _rbac_filter(rbac_filter):
 
 
 def query_filters(
-    fqdn=None,
-    display_name=None,
-    hostname_or_id=None,
-    insights_id=None,
-    provider_id=None,
-    provider_type=None,
-    updated_start=None,
-    updated_end=None,
-    group_name=None,
-    group_ids=None,
-    tags=None,
-    staleness=None,
-    registered_with=None,
-    filter=None,
-    rbac_filter=None,
-):
+    fqdn: str = None,
+    display_name: str = None,
+    hostname_or_id: str = None,
+    insights_id: str = None,
+    provider_id: str = None,
+    provider_type: str = None,
+    updated_start: str = None,
+    updated_end: str = None,
+    group_name: str = None,
+    group_ids: List[str] = None,
+    tags: List[str] = None,
+    staleness: List[str] = None,
+    registered_with: List[str] = None,
+    filter: dict = None,
+    rbac_filter: dict = None,
+) -> List:
     filters = []
     if fqdn:
         filters += _canonical_fact_filter("fqdn", fqdn)
@@ -189,7 +191,9 @@ def query_filters(
     return filters
 
 
-def _get_host_list_using_filters(all_filters, page, per_page, param_order_by, param_order_how, fields):
+def _get_host_list_using_filters(
+    all_filters: List, page: int, per_page: int, param_order_by: str, param_order_how: str, fields: List[str]
+) -> Tuple[List[Host], int, Tuple[str], List[str]]:
     host_query = _find_all_hosts().filter(*all_filters).order_by(*params_to_order_by(param_order_by, param_order_how))
 
     query_results = host_query.paginate(page, per_page, True)
@@ -202,26 +206,26 @@ def _get_host_list_using_filters(all_filters, page, per_page, param_order_by, pa
 
 
 def get_host_list(
-    display_name,
-    fqdn,
-    hostname_or_id,
-    insights_id,
-    provider_id,
-    provider_type,
-    updated_start,
-    updated_end,
-    group_name,
-    tags,
-    page,
-    per_page,
-    param_order_by,
-    param_order_how,
-    staleness,
-    registered_with,
-    filter,
-    fields,
-    rbac_filter,
-):
+    display_name: str,
+    fqdn: str,
+    hostname_or_id: str,
+    insights_id: str,
+    provider_id: str,
+    provider_type: str,
+    updated_start: str,
+    updated_end: str,
+    group_name: str,
+    tags: List[str],
+    page: int,
+    per_page: int,
+    param_order_by: str,
+    param_order_how: str,
+    staleness: List[str],
+    registered_with: List[str],
+    filter: dict,
+    fields: List[str],
+    rbac_filter: dict,
+) -> Tuple[List[Host], int, Tuple[str], List[str]]:
     all_filters = query_filters(
         fqdn,
         display_name,
@@ -244,15 +248,21 @@ def get_host_list(
 
 
 def get_host_list_by_id_list(
-    host_id_list, page, per_page, param_order_by, param_order_how, fields=None, rbac_filter=None
-):
+    host_id_list: List[str],
+    page: int,
+    per_page: int,
+    param_order_by: str,
+    param_order_how: str,
+    fields=None,
+    rbac_filter=None,
+) -> Tuple[List[Host], int, Tuple[str], List[str]]:
     all_filters = _host_id_list_filter(host_id_list)
     all_filters += _rbac_filter(rbac_filter)
 
     return _get_host_list_using_filters(all_filters, page, per_page, param_order_by, param_order_how, fields)
 
 
-def params_to_order_by(order_by=None, order_how=None):
+def params_to_order_by(order_by: str = None, order_how: str = None) -> Tuple:
     modified_on_ordering = (Host.modified_on.desc(),)
     ordering = ()
 
@@ -275,7 +285,7 @@ def params_to_order_by(order_by=None, order_how=None):
     return ordering + modified_on_ordering + (Host.id.desc(),)
 
 
-def _order_how(column, order_how):
+def _order_how(column: str, order_how: str):
     if order_how == "ASC":
         return column.asc()
     elif order_how == "DESC":
@@ -284,7 +294,7 @@ def _order_how(column, order_how):
         raise ValueError('Unsupported ordering direction, use "ASC" or "DESC".')
 
 
-def _find_all_hosts():
+def _find_all_hosts() -> Query:
     identity = get_current_identity()
     query = (
         Host.query.join(HostGroupAssoc, isouter=True)
@@ -295,7 +305,9 @@ def _find_all_hosts():
     return update_query_for_owner_id(identity, query)
 
 
-def get_host_tags_list_by_id_list(host_id_list, page, per_page, order_by, order_how, rbac_filter):
+def get_host_tags_list_by_id_list(
+    host_id_list: List[str], page: int, per_page: int, order_by: str, order_how: str, rbac_filter: dict
+) -> Tuple[dict, int]:
     columns = [Host.id, Host.tags]
     query = get_host_list_by_id_list_from_db(host_id_list, rbac_filter, columns)
     order = params_to_order_by(order_by, order_how)
@@ -304,7 +316,7 @@ def get_host_tags_list_by_id_list(host_id_list, page, per_page, order_by, order_
     return host_tags_dict, len(host_id_list)
 
 
-def _expand_host_tags(hosts):
+def _expand_host_tags(hosts: List[Host]) -> dict:
     host_tags_dict = {}
     for host in hosts:
         host_tags = []
