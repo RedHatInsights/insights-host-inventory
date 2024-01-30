@@ -100,6 +100,9 @@ objects:
           terminationMessagePolicy: File
         - name: host-inventory-e2e-selenium-${UID}
           image: ${IQE_SEL_IMAGE}
+          env:
+            - name: VNC_GEOMETRY
+              value: ${VNC_GEOMETRY}
           resources:
             limits:
               cpu: ${SELENIUM_CPU_LIMIT}
@@ -159,3 +162,5 @@ parameters:
   value: 100m
 - name: SELENIUM_MEMORY_REQUEST
   value: 1Gi
+- name: VNC_GEOMETRY
+  value: '1920x1080'
