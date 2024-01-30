@@ -35,7 +35,6 @@ USER_IDENTITY = {
 }
 
 SERVICE_ACCOUNT_IDENTITY = {
-    "account_number": "test",
     "org_id": "456",
     "auth_type": "jwt-auth",
     "internal": {"auth_time": 500, "cross_access": False, "org_id": "456"},
