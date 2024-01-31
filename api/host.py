@@ -13,6 +13,7 @@ from api import metrics
 from api.host_query import build_paginated_host_list_response
 from api.host_query import staleness_timestamps
 from api.host_query_db import get_all_hosts
+from api.host_query_db import get_host_list as get_host_list_postgres
 from api.host_query_db import get_host_tags_list_by_id_list as get_host_tags_list_by_id_list_postgres
 from api.host_query_xjoin import get_host_ids_list as get_host_ids_list_xjoin
 from api.host_query_xjoin import get_host_list as get_host_list_xjoin
@@ -91,31 +92,52 @@ def get_host_list(
     host_list = ()
     current_identity = get_current_identity()
 
-    if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
-        logger.info(f"{FLAG_INVENTORY_DISABLE_XJOIN} is applied to {current_identity.org_id}")
-
     try:
-        host_list, total, additional_fields, system_profile_fields = get_host_list_xjoin(
-            display_name,
-            fqdn,
-            hostname_or_id,
-            insights_id,
-            provider_id,
-            provider_type,
-            updated_start,
-            updated_end,
-            group_name,
-            tags,
-            page,
-            per_page,
-            order_by,
-            order_how,
-            staleness,
-            registered_with,
-            filter,
-            fields,
-            rbac_filter,
-        )
+        if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
+            logger.info(f"{FLAG_INVENTORY_DISABLE_XJOIN} is applied to {current_identity.org_id}")
+            host_list, total, additional_fields, system_profile_fields = get_host_list_postgres(
+                display_name,
+                fqdn,
+                hostname_or_id,
+                insights_id,
+                provider_id,
+                provider_type,
+                updated_start,
+                updated_end,
+                group_name,
+                tags,
+                page,
+                per_page,
+                order_by,
+                order_how,
+                staleness,
+                registered_with,
+                filter,
+                fields,
+                rbac_filter,
+            )
+        else:
+            host_list, total, additional_fields, system_profile_fields = get_host_list_xjoin(
+                display_name,
+                fqdn,
+                hostname_or_id,
+                insights_id,
+                provider_id,
+                provider_type,
+                updated_start,
+                updated_end,
+                group_name,
+                tags,
+                page,
+                per_page,
+                order_by,
+                order_how,
+                staleness,
+                registered_with,
+                filter,
+                fields,
+                rbac_filter,
+            )
     except ValueError as e:
         log_get_host_list_failed(logger)
         flask.abort(400, str(e))

@@ -22,13 +22,18 @@ from marshmallow import validate as marshmallow_validate
 from marshmallow import validates
 from marshmallow import validates_schema
 from marshmallow import ValidationError as MarshmallowValidationError
+from sqlalchemy import case
+from sqlalchemy import cast
 from sqlalchemy import ForeignKey
+from sqlalchemy import func
 from sqlalchemy import Index
 from sqlalchemy import orm
+from sqlalchemy import String
 from sqlalchemy import text
 from sqlalchemy import UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.ext.hybrid import hybrid_property
 from yaml import safe_load
 
 from app.exceptions import InventoryException
@@ -191,6 +196,41 @@ class LimitedHost(db.Model):
         if ansible_host is not None:
             # Allow a user to clear out the ansible host with an empty string
             self.ansible_host = ansible_host
+
+    @hybrid_property
+    def operating_system(self):
+        # Used when accessing the instance's property
+        name = ""
+        major = 0
+        minor = 0
+
+        if "operating_system" in self.system_profile_facts:
+            name = self.system_profile_facts["operating_system"]["name"]
+            major = self.system_profile_facts["operating_system"]["major"]
+            minor = self.system_profile_facts["operating_system"]["minor"]
+
+        return f"{name} {major:03}.{minor:03}"
+
+    @operating_system.expression
+    def operating_system(cls):
+        # Used when querying the model
+        return case(
+            # If the host has system_profile_facts.operating_system,
+            # generate the string value to be sorted by ("name maj.min")
+            [
+                (
+                    cls.system_profile_facts.has_key("operating_system"),
+                    func.concat(
+                        cls.system_profile_facts["operating_system"]["name"],
+                        " ",
+                        func.lpad(cast(cls.system_profile_facts["operating_system"]["major"], String), 3, "0"),
+                        ".",
+                        func.lpad(cast(cls.system_profile_facts["operating_system"]["minor"], String), 3, "0"),
+                    ),
+                )
+            ],
+            else_=" 000.000",
+        )
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     account = db.Column(db.String(10))
