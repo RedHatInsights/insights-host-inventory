@@ -30,7 +30,7 @@ from lib.feature_flags import get_flag_value
 logger = get_logger(__name__)
 
 RBAC_ROUTE = "/api/rbac/v1/access/?application="
-CHECKED_TYPE = IdentityType.USER
+CHECKED_TYPES = [IdentityType.USER, IdentityType.SERVICE_ACCOUNT]
 RETRY_STATUSES = [500, 502, 503, 504]
 
 outbound_http_metric = outbound_http_response_time.labels("rbac")
@@ -88,7 +88,7 @@ def rbac(resource_type, required_permission, permission_base="inventory"):
             ):
                 return func(*args, **kwargs)
 
-            if current_identity.identity_type != CHECKED_TYPE:
+            if current_identity.identity_type not in CHECKED_TYPES:
                 if resource_type == RbacResourceType.HOSTS:
                     return func(*args, **kwargs)
                 else:
