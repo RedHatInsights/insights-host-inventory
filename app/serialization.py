@@ -418,12 +418,32 @@ def _serialize_per_reporter_staleness(host, staleness, staleness_timestamps):
                 _deserialize_datetime(host.per_reporter_staleness[reporter]["last_check_in"]),
                 staleness["immutable_time_to_stale"],
             )
+            stale_warning_timestamp = staleness_timestamps.stale_timestamp(
+                _deserialize_datetime(host.per_reporter_staleness[reporter]["last_check_in"]),
+                staleness["immutable_time_to_stale_warning"],
+            )
+            delete_timestamp = staleness_timestamps.stale_timestamp(
+                _deserialize_datetime(host.per_reporter_staleness[reporter]["last_check_in"]),
+                staleness["immutable_time_to_delete"],
+            )
         else:
             stale_timestamp = staleness_timestamps.stale_timestamp(
                 _deserialize_datetime(host.per_reporter_staleness[reporter]["last_check_in"]),
                 staleness["conventional_time_to_stale"],
             )
+            stale_warning_timestamp = staleness_timestamps.stale_timestamp(
+                _deserialize_datetime(host.per_reporter_staleness[reporter]["last_check_in"]),
+                staleness["conventional_time_to_stale_warning"],
+            )
+            delete_timestamp = staleness_timestamps.stale_timestamp(
+                _deserialize_datetime(host.per_reporter_staleness[reporter]["last_check_in"]),
+                staleness["conventional_time_to_delete"],
+            )
 
         host.per_reporter_staleness[reporter]["stale_timestamp"] = _serialize_staleness_to_string(stale_timestamp)
+        host.per_reporter_staleness[reporter]["stale_warning_timestamp"] = _serialize_staleness_to_string(
+            stale_warning_timestamp
+        )
+        host.per_reporter_staleness[reporter]["culled_timestamp"] = _serialize_staleness_to_string(delete_timestamp)
 
     return host.per_reporter_staleness
