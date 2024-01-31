@@ -1761,6 +1761,14 @@ components:
           type: string
           format: date-time
           example: '2020-02-17T08:07:03.354307+00:00'
+        stale_warning_timestamp:
+          type: string
+          format: date-time
+          example: '2020-02-17T08:07:03.354307+00:00'
+        culled_timestamp:
+          type: string
+          format: date-time
+          example: '2020-02-17T08:07:03.354307+00:00'
         check_in_succeeded:
           type: boolean
     ActiveTags:

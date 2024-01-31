@@ -929,8 +929,10 @@ def test_response_processed_properly(graphql_query_with_response, api_get):
                 "per_reporter_staleness": {
                     "puptoo": {
                         "check_in_succeeded": True,
+                        "culled_timestamp": "2020-02-24T08:07:03.354307+00:00",
                         "last_check_in": "2020-02-10T08:07:03.354307+00:00",
                         "stale_timestamp": "2020-02-11T13:07:03.354307+00:00",
+                        "stale_warning_timestamp": "2020-02-17T08:07:03.354307+00:00",
                     }
                 },
                 "subscription_manager_id": None,
@@ -960,8 +962,10 @@ def test_response_processed_properly(graphql_query_with_response, api_get):
                 "per_reporter_staleness": {
                     "yupana": {
                         "check_in_succeeded": True,
+                        "culled_timestamp": "2020-02-24T08:07:03.354307+00:00",
                         "last_check_in": "2020-02-10T08:07:03.354307+00:00",
                         "stale_timestamp": "2020-02-11T13:07:03.354307+00:00",
+                        "stale_warning_timestamp": "2020-02-17T08:07:03.354307+00:00",
                     }
                 },
                 "subscription_manager_id": None,
