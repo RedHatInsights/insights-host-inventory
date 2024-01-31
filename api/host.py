@@ -14,10 +14,11 @@ from api.host_query import build_paginated_host_list_response
 from api.host_query import staleness_timestamps
 from api.host_query_db import get_all_hosts
 from api.host_query_db import get_host_list as get_host_list_postgres
+from api.host_query_db import get_host_list_by_id_list as get_host_list_by_id_list_postgres
 from api.host_query_db import get_host_tags_list_by_id_list as get_host_tags_list_by_id_list_postgres
 from api.host_query_xjoin import get_host_ids_list as get_host_ids_list_xjoin
 from api.host_query_xjoin import get_host_list as get_host_list_xjoin
-from api.host_query_xjoin import get_host_list_by_id_list
+from api.host_query_xjoin import get_host_list_by_id_list as get_host_list_by_id_list_xjoin
 from api.host_query_xjoin import get_host_tags_list_by_id_list
 from api.sparse_host_list_system_profile import get_sparse_system_profile
 from api.staleness_query import get_staleness_obj
@@ -300,10 +301,17 @@ def delete_host_by_id(host_id_list, rbac_filter=None):
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None, fields=None, rbac_filter=None):
+    current_identity = get_current_identity()
     try:
-        host_list, total, additional_fields, system_profile_fields = get_host_list_by_id_list(
-            host_id_list, page, per_page, order_by, order_how, fields, rbac_filter
-        )
+        if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
+            logger.info(f"{FLAG_INVENTORY_DISABLE_XJOIN} is applied to {current_identity.org_id}")
+            host_list, total, additional_fields, system_profile_fields = get_host_list_by_id_list_postgres(
+                host_id_list, page, per_page, order_by, order_how, fields, rbac_filter
+            )
+        else:
+            host_list, total, additional_fields, system_profile_fields = get_host_list_by_id_list_xjoin(
+                host_id_list, page, per_page, order_by, order_how, fields, rbac_filter
+            )
     except ValueError as e:
         log_get_host_list_failed(logger)
         flask.abort(400, str(e))

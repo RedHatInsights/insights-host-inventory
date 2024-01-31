@@ -1061,3 +1061,16 @@ def test_get_hosts_order_by_operating_system(mq_create_or_update_host, api_get, 
 
     for index in range(len(ordered_insights_ids)):
         assert ordered_insights_ids[index] == response_data["results"][index]["insights_id"]
+
+
+@pytest.mark.parametrize("num_hosts_to_query", (1, 2, 3))
+def test_query_using_id_list(mq_create_three_specific_hosts, api_get, subtests, num_hosts_to_query):
+    created_hosts = mq_create_three_specific_hosts
+    url = build_hosts_url(host_list_or_id=[host.id for host in created_hosts[:num_hosts_to_query]])
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+        api_pagination_test(api_get, subtests, url, expected_total=num_hosts_to_query)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == num_hosts_to_query
