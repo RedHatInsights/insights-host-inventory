@@ -66,6 +66,7 @@ from tests.helpers.system_profile_utils import INVALID_SYSTEM_PROFILES
 from tests.helpers.system_profile_utils import mock_system_profile_specification
 from tests.helpers.system_profile_utils import system_profile_specification
 from tests.helpers.test_utils import now
+from tests.helpers.test_utils import SERVICE_ACCOUNT_IDENTITY
 from tests.helpers.test_utils import set_environment
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
@@ -227,8 +228,17 @@ class AuthIdentityValidateTestCase(TestCase):
                 with self.assertRaises(ValueError):
                     Identity(test_identity)
 
+    def test_invalid_service_account_obj(self):
+        test_identity = deepcopy(SERVICE_ACCOUNT_IDENTITY)
+        service_account_objects = [None, ""]
+        for service_account_object in service_account_objects:
+            with self.subTest(service_account_object=service_account_object):
+                test_identity["service_account"] = service_account_object
+                with self.assertRaises(ValueError):
+                    Identity(test_identity)
+
     def test_invalid_auth_types(self):
-        test_identities = [deepcopy(USER_IDENTITY), deepcopy(SYSTEM_IDENTITY)]
+        test_identities = [deepcopy(USER_IDENTITY), deepcopy(SYSTEM_IDENTITY), deepcopy(SERVICE_ACCOUNT_IDENTITY)]
         auth_types = ["", "foo"]
         for test_identity in test_identities:
             for auth_type in auth_types:
