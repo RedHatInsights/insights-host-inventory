@@ -66,7 +66,7 @@ paths:
         - $ref: '#/components/parameters/updatedEnd'
         - $ref: '#/components/parameters/groupNameListParam'
         - $ref: '#/components/parameters/registered_with'
-        - $ref: '#/components/parameters/stalenessParam'
+        - $ref: '#/components/parameters/stalenessNoDefaultsParam'
         - $ref: '#/components/parameters/tagsParam'
         - $ref: '#/components/parameters/filter_param'
       responses:

@@ -135,7 +135,7 @@
             "$ref": "#/components/parameters/registered_with"
           },
           {
-            "$ref": "#/components/parameters/stalenessParam"
+            "$ref": "#/components/parameters/stalenessNoDefaultsParam"
           },
           {
             "$ref": "#/components/parameters/tagsParam"
