@@ -14,7 +14,6 @@ from app.config import Config
 from app.environment import RuntimeEnvironment
 from app.instrumentation import log_host_delete_failed
 from app.instrumentation import log_host_delete_succeeded
-from app.logging import configure_logging
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
@@ -145,8 +144,6 @@ def main(logger):
 
 
 if __name__ == "__main__":
-    configure_logging()
-
     logger = get_logger(LOGGER_NAME)
     sys.excepthook = partial(_excepthook, logger)
 
