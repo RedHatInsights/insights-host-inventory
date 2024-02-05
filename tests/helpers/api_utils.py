@@ -489,6 +489,10 @@ def build_system_profile_sap_sids_url(query=None):
     return _build_url(base_url=SYSTEM_PROFILE_URL, path="/sap_sids", query=query)
 
 
+def build_system_profile_operating_system_url(query=None):
+    return _build_url(base_url=SYSTEM_PROFILE_URL, path="/operating_system", query=query)
+
+
 def build_facts_url(host_list_or_id, namespace, query=None):
     return build_hosts_url(path=f"/facts/{namespace}", host_list_or_id=host_list_or_id, query=query)
 

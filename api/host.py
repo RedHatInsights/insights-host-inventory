@@ -49,6 +49,7 @@ from app.queue.events import message_headers
 from app.serialization import deserialize_canonical_facts
 from app.serialization import serialize_host
 from app.utils import Tag
+from app.xjoin import pagination_params
 from lib.feature_flags import FLAG_INVENTORY_DISABLE_XJOIN
 from lib.feature_flags import get_flag_value
 from lib.host_delete import delete_hosts
@@ -464,8 +465,9 @@ def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_
     current_identity = get_current_identity()
     if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
         logger.info(f"{FLAG_INVENTORY_DISABLE_XJOIN} is applied to {current_identity.org_id}")
+        limit, offset = pagination_params(page, per_page)
         host_list, total = get_host_tags_list_by_id_list_postgres(
-            host_id_list, page, per_page, order_by, order_how, rbac_filter
+            host_id_list, limit, offset, order_by, order_how, rbac_filter
         )
     else:
         host_list, total = get_host_tags_list_by_id_list(
@@ -483,8 +485,9 @@ def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=N
     current_identity = get_current_identity()
     if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
         logger.info(f"{FLAG_INVENTORY_DISABLE_XJOIN} is applied to {current_identity.org_id}")
+        limit, offset = pagination_params(page, per_page)
         host_list, total = get_host_tags_list_by_id_list_postgres(
-            host_id_list, page, per_page, order_by, order_how, rbac_filter
+            host_id_list, limit, offset, order_by, order_how, rbac_filter
         )
     else:
         host_list, total = get_host_tags_list_by_id_list(
