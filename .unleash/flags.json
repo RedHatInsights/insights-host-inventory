@@ -25,6 +25,7 @@
             "type": "release",
             "project": "default",
             "stale": false,
+            "enabled": true,
             "strategies": [
                 {
                     "name": "default",
@@ -40,6 +41,7 @@
             "type": "release",
             "project": "default",
             "stale": false,
+            "enabled": true,
             "strategies": [
                 {
                     "name": "default",
