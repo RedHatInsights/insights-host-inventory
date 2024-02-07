@@ -4,7 +4,6 @@ from tests.helpers.api_utils import ASSIGNMENT_RULE_URL
 from tests.helpers.api_utils import do_request
 from tests.helpers.api_utils import GROUP_URL
 from tests.helpers.api_utils import HOST_URL
-from tests.helpers.api_utils import MockUserIdentity
 from tests.helpers.api_utils import STALENESS_URL
 from tests.helpers.test_utils import USER_IDENTITY
 
@@ -141,6 +140,19 @@ def api_patch_group(flask_client):
 
 
 @pytest.fixture(scope="function")
+def api_remove_hosts_from_diff_groups(flask_client):
+    def _api_remove_hosts_from_diff_groups(
+        host_id_list, identity=USER_IDENTITY, query_parameters=None, extra_headers=None
+    ):
+        url = f"{GROUP_URL}/hosts/{','.join([str(host_id) for host_id in host_id_list])}"
+        return do_request(
+            flask_client.delete, url, identity, query_parameters=query_parameters, extra_headers=extra_headers
+        )
+
+    return _api_remove_hosts_from_diff_groups
+
+
+@pytest.fixture(scope="function")
 def api_create_assign_rule(flask_client):
     def _api_create_assign_rule(assign_rule_data, identity=USER_IDENTITY, query_parameters=None, extra_headers=None):
         return do_request(
@@ -166,25 +178,16 @@ def enable_unleash(inventory_config):
 
 
 @pytest.fixture(scope="function")
-def user_identity_mock(flask_app):
-    flask_app.user_identity = MockUserIdentity()
-    yield flask_app.user_identity
-    # flask_app.user_identity = None
-
-
-@pytest.fixture(scope="function")
-def api_create_account_staleness(flask_client):
-    def _api_create_account_staleness(
-        staleness_data, identity=USER_IDENTITY, query_parameters=None, extra_headers=None
-    ):
+def api_create_staleness(flask_client):
+    def _api_create_staleness(staleness_data, identity=USER_IDENTITY, query_parameters=None, extra_headers=None):
         return do_request(flask_client.post, STALENESS_URL, identity, staleness_data, query_parameters, extra_headers)
 
-    return _api_create_account_staleness
+    return _api_create_staleness
 
 
 @pytest.fixture(scope="function")
-def api_delete_account_staleness(flask_client):
-    def _api_delete_account_staleness(identity=USER_IDENTITY):
+def api_delete_staleness(flask_client):
+    def _api_delete_staleness(identity=USER_IDENTITY):
         return do_request(flask_client.delete, STALENESS_URL, identity)
 
-    return _api_delete_account_staleness
+    return _api_delete_staleness

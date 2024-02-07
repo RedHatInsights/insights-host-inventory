@@ -14,9 +14,22 @@ Debugging Host Inventory code requires a database, kakfa broker, Kafka Zookeeper
     ```bash
         docker/podmin login -u <usrename> quay.io
     ```
-3. Clone the [xjoin-operator](https://github.com/RedHatInsights/xjoin-operator) code repository and `cd` into the `xjoin-operator` directory and run:
+3. Clone the [xjoin-operator](https://github.com/RedHatInsights/xjoin-operator) code repository and `cd` into the `xjoin-operator` directory.
+4. Deploy host-inventory:
     ```bash
         ./dev/setup-clowder.sh
+    ```
+5. Install CRDs:
+    ```bash
+        make install
+    ```
+6. Run the xjoin-operator:
+    ```bash
+        make run ENABLE_WEBHOOKS=false
+    ```
+7. Create a new xjoin pipeline:
+    ```bash
+        kubectl apply -f ./config/samples/xjoin_v1alpha1_xjoinpipeline.yaml -n test
     ```
 ### Option 2: Ephemeral Cluster
 1. Login to Ephemeral cluster.

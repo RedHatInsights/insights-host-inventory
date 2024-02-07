@@ -13,7 +13,7 @@ The problem was solved by hard-coding the new image in a new CJI definition in t
         command:
           - /bin/sh
           - -c
-          - python host_synchronizer.py
+          - python3 host_synchronizer.py
         env:
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}

@@ -34,6 +34,17 @@ USER_IDENTITY = {
     "user": {"email": "tuser@redhat.com", "first_name": "test"},
 }
 
+SERVICE_ACCOUNT_IDENTITY = {
+    "org_id": "456",
+    "auth_type": "jwt-auth",
+    "internal": {"auth_time": 500, "cross_access": False, "org_id": "456"},
+    "service_account": {
+        "client_id": "b69eaf9e-e6a6-4f9e-805e-02987daddfbd",
+        "username": "service-account-b69eaf9e-e6a6-4f9e-805e-02987daddfbd",
+    },
+    "type": "ServiceAccount",
+}
+
 YUM_REPO1 = {"id": "repo1", "name": "repo1", "gpgcheck": True, "enabled": True, "base_url": "http://rpms.redhat.com"}
 
 YUM_REPO2 = {"id": "repo2", "name": "repo2", "gpgcheck": True, "enabled": True, "base_url": "http://rpms.redhat.com"}

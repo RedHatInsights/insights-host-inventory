@@ -8,6 +8,8 @@ from app.logging import get_logger
 
 PRODUCER_ACKS = {"0": 0, "1": 1, "all": "all"}
 
+HOST_TYPES = ["edge", None]
+
 
 class Config:
     SSL_VERIFY_FULL = "verify-full"
@@ -17,6 +19,7 @@ class Config:
 
         cfg = app_common_python.LoadedConfig
 
+        self.is_clowder = True
         self.metrics_port = cfg.metricsPort
         self.metrics_path = cfg.metricsPath
         self._db_user = cfg.database.username
@@ -35,9 +38,6 @@ class Config:
                 self.rbac_endpoint = f"{protocol}://{endpoint.hostname}:{port}"
                 break
 
-        broker_cfg = cfg.kafka.brokers[0]
-        self.bootstrap_servers = f"{broker_cfg.hostname}:{broker_cfg.port}"
-
         def topic(t):
             return app_common_python.KafkaTopics[t].name if t else None
 
@@ -48,6 +48,9 @@ class Config:
         self.notification_topic = topic(os.environ.get("KAFKA_NOTIFICATION_TOPIC"))
         self.event_topic = topic(os.environ.get("KAFKA_EVENT_TOPIC"))
         self.payload_tracker_kafka_topic = topic("platform.payload-status")
+
+        self.bootstrap_servers = ",".join(app_common_python.KafkaServers)
+        broker_cfg = cfg.kafka.brokers[0]
 
         # certificates are required in fedramp, but not in managed kafka
         try:
@@ -80,6 +83,7 @@ class Config:
             self.unleash_token = os.getenv("UNLEASH_TOKEN")
 
     def non_clowder_config(self):
+        self.is_clowder = False
         self.metrics_port = 9126
         self.metrics_path = "/metrics"
         self._db_user = os.getenv("INVENTORY_DB_USER", "insights")
@@ -228,25 +232,29 @@ class Config:
             minutes=int(os.environ.get("CULLING_CULLED_OFFSET_MINUTES", "0")),
         )
 
-        self.conventional_staleness_seconds = os.environ.get(
-            "CONVENTIONAL_STALENESS_SECONDS", str(self.days_to_seconds(1))
+        self.conventional_time_to_stale_seconds = int(
+            os.environ.get("CONVENTIONAL_TIME_TO_STALE_SECONDS", 104400)
+        )  # 29 hours
+
+        self.conventional_time_to_stale_warning_seconds = os.environ.get(
+            "CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS", self.days_to_seconds(7)
         )
 
-        self.conventional_stale_warning_seconds = os.environ.get(
-            "CONVENTIONAL_STALENESS_WARNING_SECONDS", str(self.days_to_seconds(7))
+        self.conventional_time_to_delete_seconds = os.environ.get(
+            "CONVENTIONAL_TIME_TO_DELETE_SECONDS", self.days_to_seconds(14)
         )
 
-        self.conventional_culling_seconds = os.environ.get(
-            "CONVENTIONAL_CULLING_SECONDS", str(self.days_to_seconds(14))
+        self.immutable_time_to_stale_seconds = os.environ.get(
+            "IMMUTABLE_TIME_TO_STALE_SECONDS", self.days_to_seconds(2)
         )
 
-        self.immutable_staleness_seconds = os.environ.get("IMMUTABLE_STALENESS_SECONDS", str(self.days_to_seconds(2)))
-
-        self.immutable_stale_warning_seconds = os.environ.get(
-            "IMMUTABLE_STALENESS_WARNING_SECONDS", str(self.days_to_seconds(120))
+        self.immutable_time_to_stale_warning_seconds = os.environ.get(
+            "IMMUTABLE_TIME_TO_STALE_WARNING_SECONDS", self.days_to_seconds(180)
         )
 
-        self.immutable_culling_seconds = os.environ.get("IMMUTABLE_CULLING_SECONDS", str(self.days_to_seconds(180)))
+        self.immutable_time_to_delete_seconds = os.environ.get(
+            "IMMUTABLE_TIME_TO_DELETE_SECONDS", self.days_to_seconds(730)
+        )
 
         self.xjoin_graphql_url = os.environ.get("XJOIN_GRAPHQL_URL", "http://localhost:4000/graphql")
 

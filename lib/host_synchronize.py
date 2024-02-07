@@ -1,5 +1,7 @@
+from confluent_kafka.error import KafkaException
 from confluent_kafka.error import ProduceError
 
+from api.staleness_query import get_sys_default_staleness
 from app.culling import Timestamps
 from app.logging import get_logger
 from app.models import Host
@@ -7,6 +9,7 @@ from app.queue.events import build_event
 from app.queue.events import EventType
 from app.queue.events import message_headers
 from app.serialization import serialize_host
+from app.serialization import serialize_staleness_to_dict
 from lib.metrics import synchronize_host_count
 
 logger = get_logger(__name__)
@@ -14,10 +17,15 @@ logger = get_logger(__name__)
 __all__ = ("synchronize_hosts",)
 
 
-def synchronize_hosts(select_query, event_producer, chunk_size, config, interrupt=lambda: False):
-    query = select_query.order_by(Host.id)
+def synchronize_hosts(
+    select_hosts_query, select_staleness_query, event_producer, chunk_size, config, interrupt=lambda: False
+):
+    query = select_hosts_query.order_by(Host.id)
     host_list = query.limit(chunk_size).all()
     num_synchronized = 0
+    custom_staleness_dict = {
+        staleness.org_id: serialize_staleness_to_dict(staleness) for staleness in select_staleness_query.all()
+    }
 
     while len(host_list) > 0 and not interrupt():
         for host in host_list:
@@ -25,7 +33,13 @@ def synchronize_hosts(select_query, event_producer, chunk_size, config, interrup
             if host.groups is None:
                 host.groups = []
 
-            serialized_host = serialize_host(host, Timestamps.from_config(config))
+            staleness = None
+            try:
+                staleness = custom_staleness_dict[host.org_id]
+            except KeyError:
+                staleness = get_sys_default_staleness(config)
+
+            serialized_host = serialize_host(host, Timestamps.from_config(config), staleness=staleness)
             event = build_event(EventType.updated, serialized_host)
             headers = message_headers(
                 EventType.updated,
@@ -35,11 +49,16 @@ def synchronize_hosts(select_query, event_producer, chunk_size, config, interrup
                 host.system_profile_facts.get("operating_system", {}).get("name"),
             )
             # in case of a failed update event, event_producer logs the message.
-            event_producer.write_event(event, str(host.id), headers, wait=True)
-            synchronize_host_count.inc()
-            logger.info("Synchronized host: %s", str(host.id))
+            # Workaround to solve: https://issues.redhat.com/browse/RHINENG-4856
+            try:
+                event_producer.write_event(event, str(host.id), headers, wait=True)
+                synchronize_host_count.inc()
+                logger.info("Synchronized host: %s", str(host.id))
 
-            num_synchronized += 1
+                num_synchronized += 1
+            except (ProduceError, KafkaException):
+                logger.error(f"Failed to synchronize host: {str(host.id)} because of {ProduceError.code}")
+                continue
 
         try:
             # pace the events production speed as flush completes sending all buffered records.

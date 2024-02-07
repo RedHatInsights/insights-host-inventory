@@ -92,13 +92,19 @@ objects:
               optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
+        - name: SEGMENTIO_WRITE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: segmentio
+              key: WRITE_KEY
+              optional: true
         resources:
           limits:
-            cpu: ${CPU_LIMIT}
-            memory: ${MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_SERVICE}
+            memory: ${MEMORY_LIMIT_SERVICE}
           requests:
-            cpu: ${CPU_REQUEST}
-            memory: ${MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_SERVICE}
+            memory: ${MEMORY_REQUEST_SERVICE}
         livenessProbe:
           failureThreshold: 3
           httpGet:
@@ -134,7 +140,7 @@ objects:
         command:
         - /bin/sh
         - -c
-        - python inv_mq_service.py
+        - python3 inv_mq_service.py
         env:
         - name: INVENTORY_LOG_LEVEL
           value: ${LOG_LEVEL}
@@ -200,11 +206,11 @@ objects:
             port: 9000
         resources:
           limits:
-            cpu: ${CPU_LIMIT}
-            memory: ${MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_MQ_PMIN}
+            memory: ${MEMORY_LIMIT_MQ_PMIN}
           requests:
-            cpu: ${CPU_REQUEST}
-            memory: ${MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_MQ_PMIN}
+            memory: ${MEMORY_REQUEST_MQ_PMIN}
     - name: mq-p1
       minReplicas: ${{REPLICAS_P1}}
       podSpec:
@@ -212,12 +218,12 @@ objects:
         - command:
           - /bin/sh
           - -c
-          - python manage.py db upgrade
+          - python3 manage.py db upgrade
           inheritEnv: true
         command:
         - /bin/sh
         - -c
-        - python inv_mq_service.py
+        - python3 inv_mq_service.py
         env:
         - name: INVENTORY_LOG_LEVEL
           value: ${LOG_LEVEL}
@@ -283,18 +289,18 @@ objects:
             port: 9000
         resources:
           limits:
-            cpu: ${CPU_LIMIT}
-            memory: ${MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_MQ_P1}
+            memory: ${MEMORY_LIMIT_MQ_P1}
           requests:
-            cpu: ${CPU_REQUEST}
-            memory: ${MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_MQ_P1}
+            memory: ${MEMORY_REQUEST_MQ_P1}
     - name: mq-sp
       minReplicas: ${{REPLICAS_SP}}
       podSpec:
         command:
         - /bin/sh
         - -c
-        - python inv_mq_service.py
+        - python3 inv_mq_service.py
         env:
         - name: INVENTORY_LOG_LEVEL
           value: ${LOG_LEVEL}
@@ -360,11 +366,11 @@ objects:
             port: 9000
         resources:
           limits:
-            cpu: ${CPU_LIMIT}
-            memory: ${MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_MQ_SP}
+            memory: ${MEMORY_LIMIT_MQ_SP}
           requests:
-            cpu: ${CPU_REQUEST}
-            memory: ${MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_MQ_SP}
+            memory: ${MEMORY_REQUEST_MQ_SP}
     jobs:
     - name: reaper
       schedule: '@hourly'
@@ -375,7 +381,7 @@ objects:
         command:
           - /bin/sh
           - -c
-          - python host_reaper.py
+          - python3 host_reaper.py
         env:
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
@@ -425,10 +431,10 @@ objects:
             value: ${BYPASS_UNLEASH}
         resources:
           limits:
-            cpu: ${CPU_LIMIT}
+            cpu: ${CPU_LIMIT_REAPER}
             memory: ${MEMORY_LIMIT_REAPER}
           requests:
-            cpu: ${CPU_REQUEST}
+            cpu: ${CPU_REQUEST_REAPER}
             memory: ${MEMORY_REQUEST_REAPER}
     - name: sp-validator
       schedule: '@hourly'
@@ -439,7 +445,7 @@ objects:
         command:
           - /bin/sh
           - -c
-          - python system_profile_validator.py
+          - python3 system_profile_validator.py
         env:
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
@@ -509,11 +515,11 @@ objects:
             value: ${BYPASS_UNLEASH}
         resources:
           limits:
-            cpu: ${CPU_LIMIT}
-            memory: ${MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_SP_VALIDATOR}
+            memory: ${MEMORY_LIMIT_SP_VALIDATOR}
           requests:
-            cpu: ${CPU_REQUEST}
-            memory: ${MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_SP_VALIDATOR}
+            memory: ${MEMORY_REQUEST_SP_VALIDATOR}
     - name: pendo-syncher
       schedule: ${PENDO_CRON_SCHEDULE}
       suspend: ${{PENDO_SYNCHER_SUSPEND}}
@@ -523,7 +529,7 @@ objects:
         command:
           - /bin/sh
           - -c
-          - python pendo_syncher.py
+          - python3 pendo_syncher.py
         env:
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
@@ -558,11 +564,11 @@ objects:
             value: ${BYPASS_UNLEASH}
         resources:
           limits:
-            cpu: ${CPU_LIMIT}
-            memory: ${MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_PENDO_SYNCHER}
+            memory: ${MEMORY_LIMIT_PENDO_SYNCHER}
           requests:
-            cpu: ${CPU_REQUEST}
-            memory: ${MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_PENDO_SYNCHER}
+            memory: ${MEMORY_REQUEST_PENDO_SYNCHER}
     - name: synchronizer
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
@@ -570,7 +576,7 @@ objects:
         command:
           - /bin/sh
           - -c
-          - python rebuild_events_topic.py && python host_synchronizer.py
+          - python3 rebuild_events_topic.py && python3 host_synchronizer.py
         env:
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
@@ -624,11 +630,11 @@ objects:
             value: ${REBUILD_EVENTS_TIME_LIMIT}
         resources:
           limits:
-            cpu: ${CPU_LIMIT}
-            memory: ${MEMORY_LIMIT_SYNC}
+            cpu: ${CPU_LIMIT_SYNCHRONIZER}
+            memory: ${MEMORY_LIMIT_SYNCHRONIZER}
           requests:
-            cpu: ${CPU_REQUEST}
-            memory: ${MEMORY_REQUEST_SYNC}
+            cpu: ${CPU_REQUEST_SYNCHRONIZER}
+            memory: ${MEMORY_REQUEST_SYNCHRONIZER}
     database:
       name: ${DB_NAME}
       version: 12
@@ -692,35 +698,85 @@ objects:
             "system_profile_facts"->'subscription_status' AS "subscription_status",
             "system_profile_facts"->'ansible' AS "ansible_workload",
             "system_profile_facts"->'mssql' AS "mssql_workload",
-            "system_profile_facts"->'sap' AS "sap_workload"
+            "system_profile_facts"->'sap' AS "sap_workload",
+            "system_profile_facts"->'rhc_client_id' AS "rhc_client_id"
           FROM "hosts"
 parameters:
 - name: LOG_LEVEL
   value: INFO
-- descrpition: Cpu request of service
-  name: CPU_REQUEST
+
+- name: CPU_REQUEST_SERVICE
   value: 250m
-- description: Cpu limit of service
-  name: CPU_LIMIT
+- name: CPU_LIMIT_SERVICE
   value: 500m
-- description: memory limit of service
-  name: MEMORY_LIMIT
-  value: 512Mi
-- description: memory limit of host-synchronizer
-  name: MEMORY_LIMIT_SYNC
-  value: 3Gi
-- description: memory limit of reaper
-  name: MEMORY_LIMIT_REAPER
-  value: 512Mi
-- description: request limit for service
-  name: MEMORY_REQUEST
+- name: MEMORY_REQUEST_SERVICE
   value: 256Mi
-- description: request limit for reaper
-  name: MEMORY_REQUEST_REAPER
+- name: MEMORY_LIMIT_SERVICE
+  value: 512Mi
+
+- name: CPU_REQUEST_MQ_PMIN
+  value: 250m
+- name: CPU_LIMIT_MQ_PMIN
+  value: 500m
+- name: MEMORY_REQUEST_MQ_PMIN
   value: 256Mi
-- description: request limit for host-synchronizer
-  name: MEMORY_REQUEST_SYNC
-  value: 3Gi
+- name: MEMORY_LIMIT_MQ_PMIN
+  value: 512Mi
+
+- name: CPU_REQUEST_MQ_P1
+  value: 250m
+- name: CPU_LIMIT_MQ_P1
+  value: 500m
+- name: MEMORY_REQUEST_MQ_P1
+  value: 256Mi
+- name: MEMORY_LIMIT_MQ_P1
+  value: 512Mi
+
+- name: CPU_REQUEST_MQ_SP
+  value: 250m
+- name: CPU_LIMIT_MQ_SP
+  value: 500m
+- name: MEMORY_REQUEST_MQ_SP
+  value: 256Mi
+- name: MEMORY_LIMIT_MQ_SP
+  value: 512Mi
+
+- name: CPU_REQUEST_REAPER
+  value: 250m
+- name: CPU_LIMIT_REAPER
+  value: 500m
+- name: MEMORY_REQUEST_REAPER
+  value: 256Mi
+- name: MEMORY_LIMIT_REAPER
+  value: 512Mi
+
+- name: CPU_REQUEST_SP_VALIDATOR
+  value: 250m
+- name: CPU_LIMIT_SP_VALIDATOR
+  value: 500m
+- name: MEMORY_REQUEST_SP_VALIDATOR
+  value: 256Mi
+- name: MEMORY_LIMIT_SP_VALIDATOR
+  value: 512Mi
+
+- name: CPU_REQUEST_PENDO_SYNCHER
+  value: 250m
+- name: CPU_LIMIT_PENDO_SYNCHER
+  value: 500m
+- name: MEMORY_REQUEST_PENDO_SYNCHER
+  value: 256Mi
+- name: MEMORY_LIMIT_PENDO_SYNCHER
+  value: 512Mi
+
+- name: CPU_REQUEST_SYNCHRONIZER
+  value: 250m
+- name: CPU_LIMIT_SYNCHRONIZER
+  value: 500m
+- name: MEMORY_REQUEST_SYNCHRONIZER
+  value: 256Mi
+- name: MEMORY_LIMIT_SYNCHRONIZER
+  value: 512Mi
+
 - description: Replica count for p1 consumer
   name: REPLICAS_P1
   value: "5"
@@ -848,14 +904,6 @@ parameters:
   value: 'false'
 
 #floorist
-- name: MEMORY_LIMIT_FLOO
-  value: 200Mi
-- name: MEMORY_REQUEST_FLOO
-  value: 100Mi
-- name: CPU_LIMIT_FLOO
-  value: 100m
-- name: CPU_REQUEST_FLOO
-  value: 50m
 - name: FLOORIST_SUSPEND
   description: Disable Floorist cronjob execution
   required: true
@@ -867,9 +915,6 @@ parameters:
 - name: FLOORIST_LOGLEVEL
   description: Floorist loglevel config
   value: 'INFO'
-- name: FLOORIST_DISABLED
-  description: Determines whether to build the Floorist Job.
-  value: 'false'
 - name: FLOORIST_DB_SECRET_NAME
   description: database secret name
   value: host-inventory-db

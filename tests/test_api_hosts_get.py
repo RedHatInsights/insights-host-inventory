@@ -1,12 +1,18 @@
+import random
 from itertools import chain
+from unittest.mock import patch
 
 import pytest
 
 from lib.host_repository import find_hosts_by_staleness
+from tests.helpers.api_utils import api_base_pagination_test
 from tests.helpers.api_utils import api_pagination_invalid_parameters_test
+from tests.helpers.api_utils import api_pagination_test
 from tests.helpers.api_utils import api_query_test
 from tests.helpers.api_utils import assert_error_response
+from tests.helpers.api_utils import assert_host_lists_equal
 from tests.helpers.api_utils import assert_response_status
+from tests.helpers.api_utils import build_expected_host_list
 from tests.helpers.api_utils import build_fields_query_parameters
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import build_order_query_parameters
@@ -18,6 +24,8 @@ from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_URL
+from tests.helpers.api_utils import quote
+from tests.helpers.api_utils import quote_everything
 from tests.helpers.graphql_utils import XJOIN_HOSTS_RESPONSE
 from tests.helpers.graphql_utils import XJOIN_SYSTEM_PROFILE_SAP_SIDS
 from tests.helpers.graphql_utils import XJOIN_SYSTEM_PROFILE_SAP_SYSTEM
@@ -288,14 +296,20 @@ def test_get_hosts_sap_system_bad_parameter_values(patch_xjoin_post, api_get, su
             assert_response_status(eq_response_status, 400)
 
 
-def test_get_hosts_unsupported_filter(patch_xjoin_post, api_get):
+@pytest.mark.parametrize(
+    "hide_edge_hosts",
+    (True, False),
+)
+def test_get_hosts_unsupported_filter(mocker, patch_xjoin_post, api_get, hide_edge_hosts):
     patch_xjoin_post(response={})
+    # Should work whether hide-edge-hosts feature flag is on or off
+    mocker.patch("api.filtering.filtering.get_flag_value", return_value=hide_edge_hosts)
 
     implicit_url = build_hosts_url(query="?filter[system_profile][bad_thing]=Banana")
     eq_url = build_hosts_url(query="?filter[Bad_thing][Extra_bad_one][eq]=Pinapple")
 
-    implicit_response_status, implicit_response_data = api_get(implicit_url)
-    eq_response_status, eq_response_data = api_get(eq_url)
+    implicit_response_status, _ = api_get(implicit_url)
+    eq_response_status, _ = api_get(eq_url)
 
     assert_response_status(implicit_response_status, 400)
     assert_response_status(eq_response_status, 400)
@@ -474,3 +488,589 @@ def test_get_hosts_contains_invalid_on_string_not_array(patch_xjoin_post, api_ge
 
 def test_get_hosts_timestamp_invalid_value_graceful_rejection(patch_xjoin_post, api_get):
     assert 400 == api_get(build_hosts_url(query="?filter[system_profile][last_boot_time][eq]=foo"))[0]
+
+
+def test_query_all(mq_create_three_specific_hosts, api_get, subtests):
+    created_hosts = mq_create_three_specific_hosts
+    expected_host_list = build_expected_host_list(created_hosts)
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(HOST_URL)
+        api_base_pagination_test(api_get, subtests, HOST_URL, expected_total=len(expected_host_list))
+
+    assert response_status == 200
+    assert_host_lists_equal(expected_host_list, response_data["results"])
+
+
+def test_query_using_display_name(mq_create_three_specific_hosts, api_get):
+    created_hosts = mq_create_three_specific_hosts
+    expected_host_list = build_expected_host_list([created_hosts[0]])
+    url = build_hosts_url(query=f"?display_name={created_hosts[0].display_name}")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
+    assert_host_lists_equal(expected_host_list, response_data["results"])
+
+
+def test_query_using_fqdn_two_results(mq_create_three_specific_hosts, api_get):
+    created_hosts = mq_create_three_specific_hosts
+    expected_host_list = build_expected_host_list([created_hosts[0], created_hosts[1]])
+
+    url = build_hosts_url(query=f"?fqdn={created_hosts[0].fqdn}")
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 2
+    assert_host_lists_equal(expected_host_list, response_data["results"])
+
+
+def test_query_using_fqdn_one_result(mq_create_three_specific_hosts, api_get):
+    created_hosts = mq_create_three_specific_hosts
+    expected_host_list = build_expected_host_list([created_hosts[2]])
+    url = build_hosts_url(query=f"?fqdn={created_hosts[2].fqdn}")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
+    assert_host_lists_equal(expected_host_list, response_data["results"])
+
+
+def test_query_using_non_existent_fqdn(api_get):
+    url = build_hosts_url(query="?fqdn=NONEXISTENT.com")
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 0
+
+
+def test_query_using_display_name_substring(mq_create_three_specific_hosts, api_get, subtests):
+    created_hosts = mq_create_three_specific_hosts
+    expected_host_list = build_expected_host_list(created_hosts)
+    host_name_substr = created_hosts[0].display_name[:4]
+    url = build_hosts_url(query=f"?display_name={host_name_substr}")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+        api_pagination_test(api_get, subtests, url, expected_total=len(created_hosts))
+
+    assert response_status == 200
+    assert_host_lists_equal(expected_host_list, response_data["results"])
+
+
+def test_query_using_display_name_as_hostname(mq_create_three_specific_hosts, api_get, subtests):
+    created_hosts = mq_create_three_specific_hosts
+    url = build_hosts_url(query=f"?hostname_or_id={created_hosts[0].display_name}")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+        api_pagination_test(api_get, subtests, url, expected_total=2)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 2
+
+
+def test_query_using_fqdn_as_hostname(mq_create_three_specific_hosts, api_get, subtests):
+    created_hosts = mq_create_three_specific_hosts
+    url = build_hosts_url(query=f"?hostname_or_id={created_hosts[2].display_name}")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+        api_pagination_test(api_get, subtests, url, expected_total=1)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
+
+
+def test_query_using_id(mq_create_three_specific_hosts, api_get, subtests):
+    created_hosts = mq_create_three_specific_hosts
+    url = build_hosts_url(query=f"?hostname_or_id={created_hosts[0].id}")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+        api_pagination_test(api_get, subtests, url, expected_total=1)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
+
+
+def test_query_using_non_existent_hostname(mq_create_three_specific_hosts, api_get, subtests):
+    url = build_hosts_url(query="?hostname_or_id=NotGonnaFindMe")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+        api_pagination_test(api_get, subtests, url, expected_total=0)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 0
+
+
+def test_query_using_non_existent_id(mq_create_three_specific_hosts, api_get, subtests):
+    url = build_hosts_url(query=f"?hostname_or_id={generate_uuid()}")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+        api_pagination_test(api_get, subtests, url, expected_total=0)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 0
+
+
+def test_query_using_insights_id(mq_create_three_specific_hosts, api_get, subtests):
+    created_hosts = mq_create_three_specific_hosts
+    url = build_hosts_url(query=f"?insights_id={created_hosts[0].insights_id}")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+        api_pagination_test(api_get, subtests, url, expected_total=1)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
+
+
+def test_get_host_by_tag(mq_create_three_specific_hosts, api_get, subtests):
+    created_hosts = mq_create_three_specific_hosts
+    expected_response_list = [created_hosts[0]]
+    url = build_hosts_url(query="?tags=SPECIAL/tag=ToFind")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(expected_response_list) == len(response_data["results"])
+
+    for host, result in zip(expected_response_list, response_data["results"]):
+        assert host.id == result["id"]
+
+
+def test_get_multiple_hosts_by_tag(mq_create_three_specific_hosts, api_get, subtests):
+    created_hosts = mq_create_three_specific_hosts
+    expected_response_list = [created_hosts[0], created_hosts[1]]
+    url = build_hosts_url(query="?tags=NS1/key1=val1&order_by=updated&order_how=ASC")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(expected_response_list) == len(response_data["results"])
+
+    for host, result in zip(expected_response_list, response_data["results"]):
+        assert host.id == result["id"]
+
+
+def test_get_host_by_multiple_tags(mq_create_three_specific_hosts, api_get, subtests):
+    """
+    Get only the host with all three tags on it, and not the other hosts,
+    which both have some (but not all) of the tags we query for.
+    """
+    created_hosts = mq_create_three_specific_hosts
+    expected_response_list = [created_hosts[1]]
+    url = build_hosts_url(query="?tags=NS1/key1=val1&tags=NS2/key2=val2&tags=NS3/key3=val3")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(expected_response_list) == len(response_data["results"])
+
+    for host, result in zip(expected_response_list, response_data["results"]):
+        assert host.id == result["id"]
+
+
+def test_get_host_by_subset_of_tags(mq_create_three_specific_hosts, api_get, subtests):
+    """
+    Get a host using a subset of its tags
+    """
+    created_hosts = mq_create_three_specific_hosts
+    expected_response_list = [created_hosts[1]]
+    url = build_hosts_url(query="?tags=NS1/key1=val1&tags=NS3/key3=val3")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(expected_response_list) == len(response_data["results"])
+
+    for host, result in zip(expected_response_list, response_data["results"]):
+        assert host.id == result["id"]
+
+
+def test_get_host_with_different_tags_same_namespace(mq_create_three_specific_hosts, api_get, subtests):
+    """
+    get a host with two tags in the same namespace with diffent key and same value
+    """
+    created_hosts = mq_create_three_specific_hosts
+    expected_response_list = [created_hosts[0]]
+    url = build_hosts_url(query="?tags=NS1/key1=val1&tags=NS1/key2=val1")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(expected_response_list) == len(response_data["results"])
+
+    for host, result in zip(expected_response_list, response_data["results"]):
+        assert host.id == result["id"]
+
+
+def test_get_no_host_with_different_tags_same_namespace(mq_create_three_specific_hosts, api_get, subtests):
+    """
+    Don’t get a host with two tags in the same namespace, from which only one match. This is a
+    regression test.
+    """
+    url = build_hosts_url(query="?tags=NS1/key1=val2&tags=NS1/key2=val1")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 0
+
+
+def test_get_host_with_same_tags_different_namespaces(mq_create_three_specific_hosts, api_get, subtests):
+    """
+    get a host with two tags in the same namespace with different key and same value
+    """
+    created_hosts = mq_create_three_specific_hosts
+    expected_response_list = [created_hosts[2]]
+    url = build_hosts_url(query="?tags=NS3/key3=val3&tags=NS1/key3=val3")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(expected_response_list) == len(response_data["results"])
+
+    for host, result in zip(expected_response_list, response_data["results"]):
+        assert host.id == result["id"]
+
+
+def test_get_host_with_tag_no_value_at_all(mq_create_three_specific_hosts, api_get, subtests):
+    """
+    Attempt to find host with a tag with no stored value
+    """
+    created_hosts = mq_create_three_specific_hosts
+    expected_response_list = [created_hosts[0]]
+    url = build_hosts_url(query="?tags=no/key")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(expected_response_list) == len(response_data["results"])
+
+    for host, result in zip(expected_response_list, response_data["results"]):
+        assert host.id == result["id"]
+
+
+def test_get_host_with_tag_no_value_in_query(mq_create_three_specific_hosts, api_get, subtests):
+    """
+    Attempt to find host with a tag with a stored value by a value-less query
+    """
+    created_hosts = mq_create_three_specific_hosts
+    expected_response_list = [created_hosts[0]]
+    url = build_hosts_url(query="?tags=NS1/key2")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(expected_response_list) == len(response_data["results"])
+
+    for host, result in zip(expected_response_list, response_data["results"]):
+        assert host.id == result["id"]
+
+
+def test_get_host_with_tag_no_namespace(mq_create_three_specific_hosts, api_get, subtests):
+    """
+    Attempt to find host with a tag with no namespace.
+    """
+    created_hosts = mq_create_three_specific_hosts
+    expected_response_list = [created_hosts[2]]
+    url = build_hosts_url(query="?tags=key4=val4")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(expected_response_list) == len(response_data["results"])
+
+    for host, result in zip(expected_response_list, response_data["results"]):
+        assert host.id == result["id"]
+
+
+def test_get_host_with_tag_only_key(mq_create_three_specific_hosts, api_get, subtests):
+    """
+    Attempt to find host with a tag with no namespace.
+    """
+    created_hosts = mq_create_three_specific_hosts
+    expected_response_list = [created_hosts[2]]
+    url = build_hosts_url(query="?tags=key5")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(expected_response_list) == len(response_data["results"])
+
+    for host, result in zip(expected_response_list, response_data["results"]):
+        assert host.id == result["id"]
+
+
+def test_get_host_by_display_name_and_tag(mq_create_three_specific_hosts, api_get, subtests):
+    """
+    Attempt to get only the host with the specified key and
+    the specified display name
+    """
+    created_hosts = mq_create_three_specific_hosts
+    expected_response_list = [created_hosts[0]]
+    url = build_hosts_url(query="?tags=NS1/key1=val1&display_name=host1")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(expected_response_list) == len(response_data["results"])
+
+    for host, result in zip(expected_response_list, response_data["results"]):
+        assert host.id == result["id"]
+
+
+def test_get_host_by_display_name_and_tag_backwards(mq_create_three_specific_hosts, api_get, subtests):
+    """
+    Attempt to get only the host with the specified key and
+    the specified display name, but the parameters are backwards
+    """
+    created_hosts = mq_create_three_specific_hosts
+    expected_response_list = [created_hosts[0]]
+    url = build_hosts_url(query="?display_name=host1&tags=NS1/key1=val1")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(expected_response_list) == len(response_data["results"])
+
+    for host, result in zip(expected_response_list, response_data["results"]):
+        assert host.id == result["id"]
+
+
+@pytest.mark.parametrize("tag_query", (";?:@&+$/-_.!~*'()'=#", " \t\n\r\f\v/ \t\n\r\f\v= \t\n\r\f\v"))
+def test_get_host_with_unescaped_special_characters(tag_query, mq_create_or_update_host, api_get, subtests):
+    tags = [
+        {"namespace": ";?:@&+$", "key": "-_.!~*'()'", "value": "#"},
+        {"namespace": " \t\n\r\f\v", "key": " \t\n\r\f\v", "value": " \t\n\r\f\v"},
+    ]
+
+    host = minimal_host(tags=tags)
+    created_host = mq_create_or_update_host(host)
+    url = build_hosts_url(query=f"?tags={quote(tag_query)}")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert response_data["count"]
+    assert response_data["results"][0]["id"] == created_host.id
+
+
+@pytest.mark.parametrize(
+    "namespace,key,value", ((";,/?:@&=+$", "-_.!~*'()", "#"), (" \t\n\r\f\v", " \t\n\r\f\v", " \t\n\r\f\v"))
+)
+def test_get_host_with_escaped_special_characters(namespace, key, value, mq_create_or_update_host, api_get):
+    tags = [
+        {"namespace": ";,/?:@&=+$", "key": "-_.!~*'()", "value": "#"},
+        {"namespace": " \t\n\r\f\v", "key": " \t\n\r\f\v", "value": " \t\n\r\f\v"},
+    ]
+
+    host = minimal_host(tags=tags)
+    created_host = mq_create_or_update_host(host)
+    tags_query = quote(f"{quote_everything(namespace)}/{quote_everything(key)}={quote_everything(value)}")
+    url = build_hosts_url(query=f"?tags={tags_query}")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert response_data["count"]
+    assert response_data["results"][0]["id"] == created_host.id
+
+
+@pytest.mark.parametrize("num_groups", (1, 3, 5))
+def test_query_using_group_name(db_create_group_with_hosts, api_get, num_groups):
+    hosts_per_group = 3
+    for i in range(num_groups):
+        db_create_group_with_hosts(f"existing_group_{i}", hosts_per_group).id
+
+    # Some other group that we don't want to see in the response
+    db_create_group_with_hosts("some_other_group", 5)
+
+    group_name_params = "&".join([f"group_name=existing_group_{i}" for i in range(num_groups)])
+    url = build_hosts_url(query=f"?{group_name_params}")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == num_groups * hosts_per_group
+
+
+def test_query_ungrouped_hosts(db_create_group_with_hosts, mq_create_three_specific_hosts, api_get):
+    # Create 3 hosts that are not in a group
+    ungrouped_hosts = mq_create_three_specific_hosts
+
+    # Also create 5 hosts that are in a group
+    db_create_group_with_hosts("group_with_hosts", 5)
+    url = build_hosts_url(query="?group_name=")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert_host_lists_equal(build_expected_host_list(ungrouped_hosts), response_data["results"])
+
+
+def test_query_hosts_filter_updated_start_end(mq_create_or_update_host, api_get):
+    host_list = [mq_create_or_update_host(minimal_host(insights_id=generate_uuid())) for _ in range(3)]
+
+    with patch("api.host.get_flag_value", return_value=True):
+        url = build_hosts_url(query=f"?updated_start={host_list[0].updated.replace('+00:00', 'Z')}")
+        response_status, response_data = api_get(url)
+        assert response_status == 200
+
+        # This query should return all 3 hosts
+        assert len(response_data["results"]) == 3
+
+        url = build_hosts_url(query=f"?updated_end={host_list[0].updated.replace('+00:00', 'Z')}")
+        response_status, response_data = api_get(url)
+        assert response_status == 200
+
+        # This query should return only the first host
+        assert len(response_data["results"]) == 1
+        assert response_data["results"][0]["insights_id"] == host_list[0].insights_id
+
+        url = build_hosts_url(
+            query=(
+                f"?updated_start={host_list[0].updated.replace('+00:00', 'Z')}"
+                f"&updated_end={host_list[1].updated.replace('+00:00', 'Z')}"
+            )
+        )
+        response_status, response_data = api_get(url)
+        assert response_status == 200
+        # This query should return 2 hosts
+        assert len(response_data["results"]) == 2
+
+        url = build_hosts_url(query=f"?updated_start={host_list[2].updated.replace('+00:00', 'Z')}")
+        response_status, response_data = api_get(url)
+        assert response_status == 200
+        # This query should return only the last host
+        assert len(response_data["results"]) == 1
+        assert response_data["results"][0]["insights_id"] == host_list[2].insights_id
+
+        url = build_hosts_url(query=f"?updated_end={host_list[2].updated.replace('+00:00', 'Z')}")
+        response_status, response_data = api_get(url)
+        assert response_status == 200
+        # This query should return all 3 hosts
+        assert len(response_data["results"]) == 3
+
+
+@pytest.mark.parametrize("order_how", ("ASC", "DESC"))
+def test_get_hosts_order_by_group_name(db_create_group_with_hosts, api_get, subtests, order_how):
+    hosts_per_group = 2
+    names = ["A Group", "B Group", "C Group"]
+    [db_create_group_with_hosts(group_name, hosts_per_group) for group_name in names]
+
+    url = build_hosts_url(query=f"?order_by=group_name&order_how={order_how}")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(names) * hosts_per_group == len(response_data["results"])
+
+    # If descending order is requested, reverse the expected order of group names
+    if order_how == "DESC":
+        names.reverse()
+
+    for group_index in range(len(names)):
+        for host_index in range(hosts_per_group):
+            assert (
+                response_data["results"][group_index * hosts_per_group + host_index]["groups"][0]["name"]
+                == names[group_index]
+            )
+
+
+@pytest.mark.parametrize("order_how", ("ASC", "DESC"))
+def test_get_hosts_order_by_operating_system(mq_create_or_update_host, api_get, order_how):
+    # Create some operating systems in ASC sort order
+    ordered_operating_system_data = [
+        {"name": "CentOS", "major": 4, "minor": 0},
+        {"name": "CentOS", "major": 4, "minor": 1},
+        {"name": "CentOS", "major": 5, "minor": 0},
+        {"name": "CentOS", "major": 5, "minor": 1},
+        {"name": "RHEL", "major": 3, "minor": 0},
+        {"name": "RHEL", "major": 3, "minor": 11},
+        {"name": "RHEL", "major": 8, "minor": 0},
+        {"name": "RHEL", "major": 8, "minor": 1},
+    ]
+    ordered_insights_ids = [generate_uuid() for _ in range(len(ordered_operating_system_data))]
+
+    # Create an association between the insights IDs
+    ordered_host_data = dict(zip(ordered_insights_ids, ordered_operating_system_data))
+
+    # Create a shuffled list of insights_ids so we can create the hosts in a random order
+    shuffled_insights_ids = ordered_insights_ids.copy()
+    random.shuffle(shuffled_insights_ids)
+
+    # Create hosts for the above host data (in shuffled order)
+    created_hosts = [
+        mq_create_or_update_host(
+            minimal_host(insights_id=insights_id, system_profile={"operating_system": ordered_host_data[insights_id]})
+        )
+        for insights_id in shuffled_insights_ids
+    ]
+    url = build_hosts_url(query=f"?order_by=operating_system&order_how={order_how}")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        # Validate the basics, i.e. response code and results size
+        response_status, response_data = api_get(url)
+        assert response_status == 200
+        assert len(created_hosts) == len(response_data["results"])
+
+    # If descending order is requested, reverse the expected order of hosts
+    if order_how == "DESC":
+        ordered_insights_ids.reverse()
+
+    for index in range(len(ordered_insights_ids)):
+        assert ordered_insights_ids[index] == response_data["results"][index]["insights_id"]
+
+
+@pytest.mark.parametrize("num_hosts_to_query", (1, 2, 3))
+def test_query_using_id_list(mq_create_three_specific_hosts, api_get, subtests, num_hosts_to_query):
+    created_hosts = mq_create_three_specific_hosts
+    url = build_hosts_url(host_list_or_id=[host.id for host in created_hosts[:num_hosts_to_query]])
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+        api_pagination_test(api_get, subtests, url, expected_total=num_hosts_to_query)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == num_hosts_to_query

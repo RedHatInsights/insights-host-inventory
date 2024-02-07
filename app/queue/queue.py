@@ -10,10 +10,11 @@ from marshmallow import Schema
 from marshmallow import ValidationError
 from sqlalchemy.exc import OperationalError
 
-from app import inventory_config
+from api.staleness_query import get_staleness_obj
 from app.auth.identity import create_mock_identity_with_org_id
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
+from app.common import inventory_config
 from app.culling import Timestamps
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
@@ -41,7 +42,6 @@ from app.queue.notifications import NotificationType
 from app.serialization import deserialize_canonical_facts
 from app.serialization import deserialize_host
 from lib import host_repository
-
 
 logger = get_logger(__name__)
 
@@ -224,8 +224,9 @@ def update_system_profile(host_data, platform_metadata, operation_args={}):
             input_host.id = host_data.get("id")
             staleness_timestamps = Timestamps.from_config(inventory_config())
             identity = create_mock_identity_with_org_id(input_host.org_id)
+            staleness = get_staleness_obj(identity)
             output_host, host_id, insights_id, update_result = host_repository.update_system_profile(
-                input_host, identity, staleness_timestamps
+                input_host, identity, staleness_timestamps, staleness=staleness
             )
             log_update_system_profile_success(logger, output_host)
             payload_tracker_processing_ctx.inventory_id = output_host["id"]
@@ -307,8 +308,8 @@ def handle_message(message, event_producer, notification_event_producer, message
                 operation_result,
                 insights_id,
                 host.get("reporter"),
-                host.get("system_profile", {}).get("host_type"),
-                host.get("system_profile", {}).get("operating_system", {}).get("name"),
+                output_host.get("system_profile", {}).get("host_type"),
+                output_host.get("system_profile", {}).get("operating_system", {}).get("name"),
             )
             event_producer.write_event(event, str(host_id), headers, wait=True)
         except ValidationException as ve:
@@ -340,6 +341,7 @@ def event_loop(consumer, flask_app, event_producer, notification_event_producer,
                     metrics.ingress_message_handler_failure.inc()
                 else:
                     logger.debug("Message received")
+
                     try:
                         handler(msg.value(), event_producer, notification_event_producer=notification_event_producer)
                         metrics.ingress_message_handler_success.inc()

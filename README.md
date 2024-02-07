@@ -68,7 +68,7 @@ password and db name from the INVENTORY_DB_HOST, INVENTORY_DB_USER,
 INVENTORY_DB_PASS and INVENTORY_DB_NAME environment variables.
 
 ```bash
-python manage.py db upgrade
+python3 manage.py db upgrade
 ```
 
 By default the database container will use a bit of local storage so that data
@@ -118,6 +118,10 @@ pre-commit install
 ```
 
 After that, all your commited files will be linted. If the checks don’t succeed, the commit will be rejected, but the altered files from the linting will be ready for you to commit again if the issue was automatically correctable.
+
+If you're inside the Red Hat network, please also make sure you have rh-pre-commit installed; instructions on installation can be found [here](https://url.corp.redhat.com/rh-pre-commit#quickstart-install). Then, verify the installation by following the [Testing the Installation](https://url.corp.redhat.com/rh-pre-commit#testing-the-installation) section.
+If you follow the instructions for Quickstart Install, and then re-enable running hooks in the repo's `.pre-commit-config.yaml` (instructions in the [Manual Install section](https://url.corp.redhat.com/rh-pre-commit#manual-install)), both hooks should run upon making a commit.
+
 Please make sure all checks pass before submitting a pull request. Thanks!
 
 ## Running the server locally
@@ -144,7 +148,7 @@ When running the server locally for development, the Prometheus configuration is
 You can run the server locally using this command:
 
 ```bash
-python run_gunicorn.py
+python3 run_gunicorn.py
 ```
 
 ## Running all services locally
@@ -170,6 +174,9 @@ honcho start
  INVENTORY_LOGGING_CONFIG_FILE=logconf.ini
  INVENTORY_DB_SSL_MODE=""
  INVENTORY_DB_SSL_CERT=""
+ UNLEASH_TOKEN='*:*.dbffffc83b1f92eeaf133a7eb878d4c58231acc159b5e1478ce53cfc'
+ UNLEASH_CACHE_DIR=./.unleash
+ UNLEASH_URL="http://localhost:4242/api"
 ```
 
 To force an ssl connection to the db set INVENTORY_DB_SSL_MODE to "verify-full"
@@ -264,7 +271,7 @@ of the payload will only be logged as an "error" if the entire delete operation 
 Run this command to generate a new revision in `migrations/versions`
 
 ```bash
-python manage.py db revision -m "Description of revision"
+python3 manage.py db revision -m "Description of revision"
 ```
 
 ## Building a docker container image

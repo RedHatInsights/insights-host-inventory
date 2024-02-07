@@ -13,7 +13,7 @@
   "data": [
       {
           "resourceDefinitions": [],
-          "permission": "inventory:staleness:write"
+          "permission": "staleness:staleness:write"
       }
   ]
 }

@@ -1,10 +1,13 @@
 import json
 import time
+from datetime import datetime
 from threading import Thread
 from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import pytest
 
+from app.auth.identity import from_auth_header
 from app.queue.event_producer import MessageDetails
 from app.serialization import deserialize_canonical_facts
 from tests.helpers.api_utils import assert_error_response
@@ -26,6 +29,7 @@ from tests.helpers.mq_utils import assert_patch_event_is_valid
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import get_staleness_timestamps
 from tests.helpers.test_utils import SYSTEM_IDENTITY
+from tests.helpers.test_utils import USER_IDENTITY
 
 
 @pytest.mark.parametrize(
@@ -424,19 +428,32 @@ def test_add_facts_to_namespace_that_does_not_exist(db_create_multiple_hosts, ap
 
 
 @pytest.mark.system_culling
-def test_add_facts_to_multiple_culled_hosts(db_create_multiple_hosts, db_get_hosts, api_patch):
-    staleness_timestamps = get_staleness_timestamps()
+def test_add_facts_to_multiple_culled_hosts(
+    db_create_multiple_hosts, db_get_hosts, api_patch, db_create_staleness_culling, event_producer_mock
+):
+    with patch("app.models.datetime") as mock_datetime:
+        mock_datetime.now.return_value = datetime(2023, 4, 2)
+        mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
 
-    created_hosts = db_create_multiple_hosts(
-        how_many=2, extra_data={"facts": DB_FACTS, "stale_timestamp": staleness_timestamps["culled"]}
-    )
+        db_create_staleness_culling(
+            conventional_time_to_stale=1,
+            conventional_time_to_stale_warning=1,
+            conventional_time_to_delete=1,
+            immutable_time_to_stale=1,
+            immutable_time_to_stale_warning=1,
+            immutable_time_to_delete=1,
+        )
 
-    facts_url = build_facts_url(host_list_or_id=created_hosts, namespace=DB_FACTS_NAMESPACE)
+        staleness_timestamps = get_staleness_timestamps()
+        created_hosts = db_create_multiple_hosts(
+            how_many=2, extra_data={"facts": DB_FACTS, "stale_timestamp": staleness_timestamps["culled"]}
+        )
 
-    # Try to replace the facts on a host that has been marked as culled
-    response_status, response_data = api_patch(facts_url, DB_NEW_FACTS)
+        facts_url = build_facts_url(host_list_or_id=created_hosts, namespace=DB_FACTS_NAMESPACE)
 
-    assert_response_status(response_status, expected_status=400)
+        # Try to replace the facts on a host that has been marked as culled
+        response_status, response_data = api_patch(facts_url, DB_NEW_FACTS)
+        assert_response_status(response_status, expected_status=400)
 
 
 def test_patch_host_with_RBAC_allowed(subtests, mocker, api_patch, db_create_host, event_producer_mock, enable_rbac):
@@ -584,5 +601,8 @@ def test_patch_updated_timestamp(event_producer, db_create_host, db_get_host, ap
     record = db_get_host(host.id)
 
     updated_timestamp_from_event = json.loads(event_producer.write_event.call_args_list[0][0][0])["host"]["updated"]
+    b64_identity = json.loads(event_producer.write_event.call_args_list[0][0][0])["platform_metadata"]["b64_identity"]
+    identity = from_auth_header(b64_identity)
 
     assert updated_timestamp_from_event == record.modified_on.isoformat()
+    assert identity._asdict() == USER_IDENTITY

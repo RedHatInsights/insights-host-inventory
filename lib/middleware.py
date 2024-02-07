@@ -13,21 +13,24 @@ from requests.packages.urllib3.util.retry import Retry
 
 from api.metrics import outbound_http_response_time
 from app import IDENTITY_HEADER
-from app import inventory_config
 from app import RbacPermission
 from app import RbacResourceType
 from app import REQUEST_ID_HEADER
 from app.auth import get_current_identity
 from app.auth.identity import IdentityType
+from app.common import inventory_config
 from app.instrumentation import rbac_failure
+from app.instrumentation import rbac_group_permission_denied
 from app.instrumentation import rbac_permission_denied
 from app.logging import get_logger
+from lib.feature_flags import FLAG_EDGE_PARITY_MIGRATION
+from lib.feature_flags import get_flag_value
 
 
 logger = get_logger(__name__)
 
 RBAC_ROUTE = "/api/rbac/v1/access/?application="
-CHECKED_TYPE = IdentityType.USER
+CHECKED_TYPES = [IdentityType.USER, IdentityType.SERVICE_ACCOUNT]
 RETRY_STATUSES = [500, 502, 503, 504]
 
 outbound_http_metric = outbound_http_response_time.labels("rbac")
@@ -75,11 +78,17 @@ def rbac(resource_type, required_permission, permission_base="inventory"):
     def other_func(func):
         @wraps(func)
         def modified_func(*args, **kwargs):
-            if inventory_config().bypass_rbac:
+            current_identity = get_current_identity()
+
+            # TODO: Remove the Edge Parity migration RBAC bypass once the migration is complete (RHINENG-6136)
+            if inventory_config().bypass_rbac or (
+                current_identity.identity_type == IdentityType.USER
+                and current_identity.user.get("is_org_admin")
+                and get_flag_value(FLAG_EDGE_PARITY_MIGRATION)
+            ):
                 return func(*args, **kwargs)
 
-            current_identity = get_current_identity()
-            if current_identity.identity_type != CHECKED_TYPE:
+            if current_identity.identity_type not in CHECKED_TYPES:
                 if resource_type == RbacResourceType.HOSTS:
                     return func(*args, **kwargs)
                 else:
@@ -169,5 +178,8 @@ def rbac_group_id_check(rbac_filter: dict, requested_ids: set) -> None:
         # Find the IDs that are in requested_ids but not rbac_filter
         disallowed_ids = requested_ids.difference(rbac_filter["groups"])
         if len(disallowed_ids) > 0:
+            # id check is only called before writing to groups, permission so far is always the same
+            required_permission = "inventory:groups:write"
             joined_ids = ", ".join(disallowed_ids)
+            rbac_group_permission_denied(logger, joined_ids, required_permission)
             abort(status.HTTP_403_FORBIDDEN, f"You do not have access to the the following groups: {joined_ids}")

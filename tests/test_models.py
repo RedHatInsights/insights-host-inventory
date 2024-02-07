@@ -480,6 +480,42 @@ def test_update_per_reporter_staleness(db_create_host, models_datetime_mock):
 
 
 @pytest.mark.parametrize(
+    "new_reporter",
+    ["satellite", "discovery"],
+)
+def test_update_per_reporter_staleness_yupana_replacement(db_create_host, models_datetime_mock, new_reporter):
+    yupana_stale_timestamp = models_datetime_mock + timedelta(days=1)
+    input_host = Host(
+        {"fqdn": "fqdn"}, display_name="display_name", reporter="yupana", stale_timestamp=yupana_stale_timestamp
+    )
+    existing_host = db_create_host(host=input_host)
+
+    assert existing_host.per_reporter_staleness == {
+        "yupana": {
+            "last_check_in": models_datetime_mock.isoformat(),
+            "stale_timestamp": yupana_stale_timestamp.isoformat(),
+            "check_in_succeeded": True,
+        }
+    }
+
+    yupana_stale_timestamp += timedelta(days=1)
+
+    update_host = Host(
+        {"fqdn": "fqdn"}, display_name="display_name", reporter=new_reporter, stale_timestamp=yupana_stale_timestamp
+    )
+    existing_host.update(update_host)
+
+    # datetime will not change because the datetime.now() method is patched
+    assert existing_host.per_reporter_staleness == {
+        new_reporter: {
+            "last_check_in": models_datetime_mock.isoformat(),
+            "stale_timestamp": yupana_stale_timestamp.isoformat(),
+            "check_in_succeeded": True,
+        }
+    }
+
+
+@pytest.mark.parametrize(
     "provider",
     (
         {"type": "alibaba", "id": generate_uuid()},
@@ -669,42 +705,38 @@ def test_delete_assignment_rule(
     assert not db_get_assignment_rule(ar.id)
 
 
-def test_create_default_account_staleness_culling(
-    db_create_account_staleness_culling, db_get_account_staleness_culling
-):
-    acc_st_cull = db_create_account_staleness_culling()
+def test_create_default_staleness_culling(db_create_staleness_culling, db_get_staleness_culling):
+    acc_st_cull = db_create_staleness_culling()
 
-    created_acc_st_cull = db_get_account_staleness_culling(acc_st_cull.org_id)
+    created_acc_st_cull = db_get_staleness_culling(acc_st_cull.org_id)
 
     assert created_acc_st_cull
-    assert created_acc_st_cull.conventional_staleness_delta == acc_st_cull.conventional_staleness_delta
-    assert created_acc_st_cull.conventional_stale_warning_delta == acc_st_cull.conventional_stale_warning_delta
-    assert created_acc_st_cull.conventional_culling_delta == acc_st_cull.conventional_culling_delta
-    assert created_acc_st_cull.immutable_staleness_delta == acc_st_cull.immutable_staleness_delta
-    assert created_acc_st_cull.immutable_stale_warning_delta == acc_st_cull.immutable_stale_warning_delta
-    assert created_acc_st_cull.immutable_culling_delta == acc_st_cull.immutable_culling_delta
+    assert created_acc_st_cull.conventional_time_to_stale == acc_st_cull.conventional_time_to_stale
+    assert created_acc_st_cull.conventional_time_to_stale_warning == acc_st_cull.conventional_time_to_stale_warning
+    assert created_acc_st_cull.conventional_time_to_delete == acc_st_cull.conventional_time_to_delete
+    assert created_acc_st_cull.immutable_time_to_stale == acc_st_cull.immutable_time_to_stale
+    assert created_acc_st_cull.immutable_time_to_stale_warning == acc_st_cull.immutable_time_to_stale_warning
+    assert created_acc_st_cull.immutable_time_to_delete == acc_st_cull.immutable_time_to_delete
 
 
-def test_create_account_staleness_culling(db_create_account_staleness_culling, db_get_account_staleness_culling):
-    acc_st_cull = db_create_account_staleness_culling(
-        conventional_staleness_delta=2 * 86400,
-        conventional_stale_warning_delta=4 * 86400,
-        conventional_culling_delta=20 * 86400,
+def test_create_staleness_culling(db_create_staleness_culling, db_get_staleness_culling):
+    acc_st_cull = db_create_staleness_culling(
+        conventional_time_to_stale=2 * 86400,
+        conventional_time_to_stale_warning=4 * 86400,
+        conventional_time_to_delete=20 * 86400,
     )
 
-    created_acc_st_cull = db_get_account_staleness_culling(acc_st_cull.org_id)
+    created_acc_st_cull = db_get_staleness_culling(acc_st_cull.org_id)
     assert created_acc_st_cull
-    assert created_acc_st_cull.conventional_staleness_delta == acc_st_cull.conventional_staleness_delta
-    assert created_acc_st_cull.conventional_stale_warning_delta == acc_st_cull.conventional_stale_warning_delta
-    assert created_acc_st_cull.conventional_culling_delta == acc_st_cull.conventional_culling_delta
+    assert created_acc_st_cull.conventional_time_to_stale == acc_st_cull.conventional_time_to_stale
+    assert created_acc_st_cull.conventional_time_to_stale_warning == acc_st_cull.conventional_time_to_stale_warning
+    assert created_acc_st_cull.conventional_time_to_delete == acc_st_cull.conventional_time_to_delete
 
 
-def test_delete_account_staleness_culling(
-    db_create_account_staleness_culling, db_delete_account_staleness_culling, db_get_account_staleness_culling
-):
-    acc_st_cull = db_create_account_staleness_culling()
+def test_delete_staleness_culling(db_create_staleness_culling, db_delete_staleness_culling, db_get_staleness_culling):
+    acc_st_cull = db_create_staleness_culling()
 
-    created_acc_st_cull = db_get_account_staleness_culling(acc_st_cull.org_id)
+    created_acc_st_cull = db_get_staleness_culling(acc_st_cull.org_id)
     assert created_acc_st_cull
-    db_delete_account_staleness_culling(created_acc_st_cull.org_id)
-    assert not db_get_account_staleness_culling(acc_st_cull.org_id)
+    db_delete_staleness_culling(created_acc_st_cull.org_id)
+    assert not db_get_staleness_culling(acc_st_cull.org_id)

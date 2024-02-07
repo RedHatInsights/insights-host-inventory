@@ -9,8 +9,8 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-    # Allow up to 10 open pull requests for pip dependencies
-    open-pull-requests-limit: 10
+    # Allow up to 3 open pull requests for pip dependencies
+    open-pull-requests-limit: 3
     reviewers:
       - "host-based-inventory-committers"
     labels:

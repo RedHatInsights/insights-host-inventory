@@ -1,7 +1,9 @@
+import os
 from enum import Enum
 from os.path import join
 
 import connexion
+import segment.analytics as analytics
 import yaml
 from connexion.resolver import RestyResolver
 from flask import current_app
@@ -30,6 +32,7 @@ from app.queue.metrics import notification_event_producer_success
 from app.queue.metrics import rbac_access_denied
 from app.queue.notifications import NotificationType
 from lib.feature_flags import init_unleash_app
+from lib.feature_flags import SchemaStrategy
 from lib.handlers import register_shutdown
 
 
@@ -85,6 +88,23 @@ def initialize_metrics(config):
     )
 
 
+#
+# Registering analytics.flush directly with register_shutdown()
+# results in errors during test suite cleanup.
+# Adding this wrapper fixes the problem.
+#
+def flush_segmentio():
+    if analytics.write_key:
+        analytics.flush()
+
+
+def initialize_segmentio(config):
+    logger.info("Initializing Segmentio")
+    analytics.write_key = os.getenv("SEGMENTIO_WRITE_KEY", None)
+    logger.info("Registering Segmentio flush on shutdown")
+    register_shutdown(flush_segmentio, "Flushing Segmentio queue")
+
+
 def render_exception(exception):
     response = jsonify(exception.to_json())
     response.status_code = exception.status
@@ -94,10 +114,6 @@ def render_exception(exception):
 def shutdown_hook(close_function, name):
     logger.info("Closing %s", name)
     close_function()
-
-
-def inventory_config():
-    return current_app.config["INVENTORY_CONFIG"]
 
 
 def system_profile_spec():
@@ -215,7 +231,11 @@ def create_app(runtime_environment):
         flask_app.config["UNLEASH_APP_NAME"] = "host-inventory-api"
         flask_app.config["UNLEASH_ENVIRONMENT"] = "default"
         flask_app.config["UNLEASH_URL"] = app_config.unleash_url
-        flask_app.config["UNLEASH_CUSTOM_HEADERS"] = {"Authorization": f"Bearer {app_config.unleash_token}"}
+        if app_config.is_clowder:
+            flask_app.config["UNLEASH_CUSTOM_HEADERS"] = {"Authorization": f"Bearer {app_config.unleash_token}"}
+        else:
+            flask_app.config["UNLEASH_CUSTOM_HEADERS"] = {"Authorization": f"{app_config.unleash_token}"}
+        flask_app.config["UNLEASH_CUSTOM_STRATEGIES"] = {"schema-strategy": SchemaStrategy}
         if hasattr(app_config, "unleash_cache_directory"):
             flask_app.config["UNLEASH_CACHE_DIRECTORY"] = app_config.unleash_cache_directory
         init_unleash_app(flask_app)
@@ -279,5 +299,7 @@ def create_app(runtime_environment):
 
     # initialize metrics to zero
     initialize_metrics(app_config)
+
+    initialize_segmentio(app_config)
 
     return flask_app

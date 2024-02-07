@@ -17,18 +17,19 @@ from app import RbacPermission
 from app import RbacResourceType
 from app.exceptions import InventoryException
 from app.instrumentation import log_create_group_failed
+from app.instrumentation import log_create_group_not_allowed
 from app.instrumentation import log_create_group_succeeded
+from app.instrumentation import log_delete_hosts_from_group_failed
 from app.instrumentation import log_get_group_list_failed
 from app.instrumentation import log_get_group_list_succeeded
 from app.instrumentation import log_patch_group_failed
 from app.instrumentation import log_patch_group_success
 from app.logging import get_logger
 from app.models import InputGroupSchema
-from lib.feature_flags import FLAG_INVENTORY_GROUPS
-from lib.feature_flags import get_flag_value
 from lib.group_repository import add_group
 from lib.group_repository import delete_group_list
 from lib.group_repository import get_group_by_id_from_db
+from lib.group_repository import get_group_using_host_id
 from lib.group_repository import patch_group
 from lib.group_repository import remove_hosts_from_group
 from lib.metrics import create_group_count
@@ -49,9 +50,6 @@ def get_group_list(
     order_how=None,
     rbac_filter=None,
 ):
-    if not get_flag_value(FLAG_INVENTORY_GROUPS):
-        return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
-
     try:
         group_list, total = get_filtered_group_list_db(name, page, per_page, order_by, order_how, rbac_filter)
     except ValueError as e:
@@ -67,12 +65,10 @@ def get_group_list(
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def create_group(body, rbac_filter=None):
-    if not get_flag_value(FLAG_INVENTORY_GROUPS):
-        return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
-
     # If there is an attribute filter on the RBAC permissions,
     # the user should not be allowed to create a group.
     if rbac_filter is not None:
+        log_create_group_not_allowed(logger)
         abort(
             status.HTTP_403_FORBIDDEN,
             "Unfiltered inventory:groups:write RBAC permission is required in order to create new groups.",
@@ -115,9 +111,6 @@ def create_group(body, rbac_filter=None):
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def patch_group_by_id(group_id, body, rbac_filter=None):
-    if not get_flag_value(FLAG_INVENTORY_GROUPS):
-        return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
-
     rbac_group_id_check(rbac_filter, {group_id})
 
     try:
@@ -156,14 +149,12 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def delete_groups(group_id_list, rbac_filter=None):
-    if not get_flag_value(FLAG_INVENTORY_GROUPS):
-        return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
-
     rbac_group_id_check(rbac_filter, set(group_id_list))
 
     delete_count = delete_group_list(group_id_list, current_app.event_producer)
 
     if delete_count == 0:
+        log_get_group_list_failed(logger)
         abort(status.HTTP_404_NOT_FOUND, "No groups found for deletion.")
 
     return Response(None, status.HTTP_204_NO_CONTENT)
@@ -180,9 +171,6 @@ def get_groups_by_id(
     order_how=None,
     rbac_filter=None,
 ):
-    if not get_flag_value(FLAG_INVENTORY_GROUPS):
-        return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
-
     rbac_group_id_check(rbac_filter, set(group_id_list))
 
     try:
@@ -202,14 +190,44 @@ def get_groups_by_id(
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def delete_hosts_from_group(group_id, host_id_list, rbac_filter=None):
-    if not get_flag_value(FLAG_INVENTORY_GROUPS):
-        return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
-
     rbac_group_id_check(rbac_filter, {group_id})
 
     delete_count = remove_hosts_from_group(group_id, host_id_list, current_app.event_producer)
 
     if delete_count == 0:
+        log_delete_hosts_from_group_failed(logger)
         abort(status.HTTP_404_NOT_FOUND, "Group or hosts not found.")
+
+    return Response(None, status.HTTP_204_NO_CONTENT)
+
+
+@api_operation
+@rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
+@metrics.api_request_time.time()
+def delete_hosts_from_different_groups(host_id_list, rbac_filter=None):
+    hosts_per_group = {}
+
+    # Separate hosts per group
+    for host_id in host_id_list:
+        group = get_group_using_host_id(host_id)
+
+        if group:
+            hosts_per_group.setdefault(str(group.id), []).append(host_id)
+
+    requested_group_ids = set(hosts_per_group.keys())
+
+    rbac_group_id_check(rbac_filter, requested_group_ids)
+
+    delete_count = 0
+
+    for group_id in requested_group_ids:
+        deleted_from_group = remove_hosts_from_group(
+            group_id, hosts_per_group.get(group_id), current_app.event_producer
+        )
+        delete_count += deleted_from_group
+
+    if delete_count == 0:
+        log_delete_hosts_from_group_failed(logger)
+        abort(status.HTTP_404_NOT_FOUND, "The provided hosts were not found.")
 
     return Response(None, status.HTTP_204_NO_CONTENT)

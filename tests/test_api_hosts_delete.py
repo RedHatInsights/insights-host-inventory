@@ -370,7 +370,9 @@ def test_delete_host_with_RBAC_bypassed_as_system(
 
     assert_response_status(response_status, 200)
 
-    assert_delete_event_is_valid(event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock)
+    assert_delete_event_is_valid(
+        event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock, identity=SYSTEM_IDENTITY
+    )
 
     assert not db_get_host(host.id)
 
@@ -567,14 +569,14 @@ def test_delete_host_RBAC_denied_specific_groups(
 class DeleteHostsMock:
     @classmethod
     def create_mock(cls, hosts_ids_to_delete):
-        def _constructor(select_query, event_producer, chunk_size):
-            return cls(hosts_ids_to_delete, select_query, event_producer, chunk_size)
+        def _constructor(select_query, event_producer, chunk_size, identity=None):
+            return cls(hosts_ids_to_delete, select_query, event_producer, chunk_size, identity=identity)
 
         return _constructor
 
-    def __init__(self, host_ids_to_delete, original_query, event_producer, chunk_size):
+    def __init__(self, host_ids_to_delete, original_query, event_producer, chunk_size, identity=None):
         self.host_ids_to_delete = host_ids_to_delete
-        self.original_query = delete_hosts(original_query, event_producer, chunk_size)
+        self.original_query = delete_hosts(original_query, event_producer, chunk_size, identity=identity)
 
     def __getattr__(self, item):
         """

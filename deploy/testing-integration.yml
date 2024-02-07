@@ -22,12 +22,17 @@ objects:
         - name: sel-shm
           emptyDir:
             medium: Memory
+        - name: insights-qa-private-key
+          secret:
+            secretName: insights-qa-private-key
+            defaultMode: 0400
+            optional: true
         containers:
         - name: host-inventory-e2e-iqe-${IMAGE_TAG}-${UID}
           image: ${IQE_IMAGE}
           imagePullPolicy: Always
           args:
-          - run
+          - ${IQE_CONTAINER_ARGS}
           env:
           - name: ENV_FOR_DYNACONF
             value: ${ENV_FOR_DYNACONF}
@@ -79,22 +84,32 @@ objects:
                 optional: true
           resources:
             limits:
-              cpu: "1"
-              memory: 2Gi
+              cpu: ${IQE_CPU_LIMIT}
+              memory: ${IQE_MEMORY_LIMIT}
             requests:
-              cpu: 500m
-              memory: 1Gi
+              cpu: ${IQE_CPU_REQUEST}
+              memory: ${IQE_MEMORY_REQUEST}
+          volumeMounts:
+            - name: insights-qa-private-key
+              readOnly: true
+              # We need to hardcode the path to reflect the $HOME variable being set here:
+              # https://gitlab.cee.redhat.com/insights-qe/iqe-core/-/blob/master/Dockerfile?ref_type=heads#L73
+              mountPath: /iqe_venv/.ssh/insights-qa.pem
+              subPath: insights-qa.pem
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
         - name: host-inventory-e2e-selenium-${UID}
           image: ${IQE_SEL_IMAGE}
+          env:
+            - name: VNC_GEOMETRY
+              value: ${VNC_GEOMETRY}
           resources:
             limits:
-              cpu: 500m
-              memory: 1.5Gi
+              cpu: ${SELENIUM_CPU_LIMIT}
+              memory: ${SELENIUM_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 256Mi
+              cpu: ${SELENIUM_CPU_REQUEST}
+              memory: ${SELENIUM_MEMORY_REQUEST}
           volumeMounts:
             - name: sel-shm
               mountPath: /dev/shm
@@ -102,6 +117,8 @@ parameters:
 - name: IMAGE_TAG
   value: ''
   required: true
+- name: IQE_CONTAINER_ARGS
+  value: run
 - name: UID
   description: "Unique job name suffix"
   generate: expression
@@ -129,3 +146,21 @@ parameters:
   value: ''
 - name: IQE_SEL_IMAGE
   value: 'quay.io/redhatqe/selenium-standalone:ff_91.9.1esr_chrome_103.0.5060.114'
+- name: IQE_CPU_LIMIT
+  value: "1"
+- name: IQE_MEMORY_LIMIT
+  value: 2Gi
+- name: IQE_CPU_REQUEST
+  value: 500m
+- name: IQE_MEMORY_REQUEST
+  value: 1Gi
+- name: SELENIUM_CPU_LIMIT
+  value: 500m
+- name: SELENIUM_MEMORY_LIMIT
+  value: 2Gi
+- name: SELENIUM_CPU_REQUEST
+  value: 100m
+- name: SELENIUM_MEMORY_REQUEST
+  value: 1Gi
+- name: VNC_GEOMETRY
+  value: '1920x1080'

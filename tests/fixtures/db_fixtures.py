@@ -6,22 +6,24 @@ from sqlalchemy_utils import database_exists
 from sqlalchemy_utils import drop_database
 
 from app import db
+from app.auth.identity import Identity
 from app.config import Config
 from app.config import RuntimeEnvironment
-from app.models import AccountStalenessCulling
 from app.models import AssignmentRule
 from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
+from app.models import Staleness
 from app.serialization import serialize_group
-from tests.helpers.db_utils import db_account_staleness_culling
 from tests.helpers.db_utils import db_assignment_rule
 from tests.helpers.db_utils import db_group
+from tests.helpers.db_utils import db_staleness_culling
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.db_utils import minimal_db_host_dict
 from tests.helpers.test_utils import now
 from tests.helpers.test_utils import set_environment
 from tests.helpers.test_utils import SYSTEM_IDENTITY
+from tests.helpers.test_utils import USER_IDENTITY
 
 
 @pytest.fixture(scope="session")
@@ -192,8 +194,8 @@ def db_create_host_group_assoc(flask_app, db_get_group_by_id):
     def _db_create_host_group_assoc(host_id, group_id):
         host_group = HostGroupAssoc(host_id=host_id, group_id=group_id)
         db.session.add(host_group)
-
-        serialized_groups = [serialize_group(db_get_group_by_id(group_id))]
+        identity = Identity(USER_IDENTITY)
+        serialized_groups = [serialize_group(db_get_group_by_id(group_id), identity)]
         db.session.query(Host).filter(Host.id == host_id).update({"groups": serialized_groups})
 
         db.session.commit()
@@ -260,43 +262,43 @@ def db_delete_assignment_rule(flask_app):
 
 
 @pytest.fixture(scope="function")
-def db_create_account_staleness_culling(flask_app):
-    def _db_create_account_staleness_culling(
-        conventional_staleness_delta=None,
-        conventional_stale_warning_delta=None,
-        conventional_culling_delta=None,
-        immutable_staleness_delta=None,
-        immutable_stale_warning_delta=None,
-        immutable_culling_delta=None,
+def db_create_staleness_culling(flask_app):
+    def _db_create_staleness_culling(
+        conventional_time_to_stale=None,
+        conventional_time_to_stale_warning=None,
+        conventional_time_to_delete=None,
+        immutable_time_to_stale=None,
+        immutable_time_to_stale_warning=None,
+        immutable_time_to_delete=None,
     ):
-        account_staleness_culling = db_account_staleness_culling(
-            conventional_staleness_delta=conventional_staleness_delta,
-            conventional_stale_warning_delta=conventional_stale_warning_delta,
-            conventional_culling_delta=conventional_culling_delta,
-            immutable_staleness_delta=immutable_staleness_delta,
-            immutable_stale_warning_delta=immutable_stale_warning_delta,
-            immutable_culling_delta=immutable_culling_delta,
+        staleness_culling = db_staleness_culling(
+            conventional_time_to_stale=conventional_time_to_stale,
+            conventional_time_to_stale_warning=conventional_time_to_stale_warning,
+            conventional_time_to_delete=conventional_time_to_delete,
+            immutable_time_to_stale=immutable_time_to_stale,
+            immutable_time_to_stale_warning=immutable_time_to_stale_warning,
+            immutable_time_to_delete=immutable_time_to_delete,
         )
-        db.session.add(account_staleness_culling)
+        db.session.add(staleness_culling)
         db.session.commit()
-        return account_staleness_culling
+        return staleness_culling
 
-    return _db_create_account_staleness_culling
+    return _db_create_staleness_culling
 
 
 @pytest.fixture(scope="function")
-def db_delete_account_staleness_culling(flask_app):
-    def _db_delete_account_staleness_culling(org_id):
-        delete_query = db.session.query(AccountStalenessCulling).filter(AccountStalenessCulling.org_id == org_id)
+def db_delete_staleness_culling(flask_app):
+    def _db_delete_staleness_culling(org_id):
+        delete_query = db.session.query(Staleness).filter(Staleness.org_id == org_id)
         delete_query.delete(synchronize_session="fetch")
         delete_query.session.commit()
 
-    return _db_delete_account_staleness_culling
+    return _db_delete_staleness_culling
 
 
 @pytest.fixture(scope="function")
-def db_get_account_staleness_culling(flask_app):
-    def _db_get_account_staleness_culling(org_id):
-        return AccountStalenessCulling.query.filter(AccountStalenessCulling.org_id == org_id).first()
+def db_get_staleness_culling(flask_app):
+    def _db_get_staleness_culling(org_id):
+        return Staleness.query.filter(Staleness.org_id == org_id).first()
 
-    return _db_get_account_staleness_culling
+    return _db_get_staleness_culling

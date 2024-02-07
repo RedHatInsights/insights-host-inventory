@@ -1,6 +1,4 @@
 from copy import deepcopy
-from datetime import datetime
-from datetime import timezone
 from enum import Enum
 from functools import partial
 from typing import Tuple
@@ -13,14 +11,15 @@ from api.filtering.filtering_common import lookup_graphql_operations
 from api.filtering.filtering_common import lookup_operations
 from api.filtering.filtering_common import SUPPORTED_FORMATS
 from app import custom_filter_fields
-from app import inventory_config
 from app import system_profile_spec
 from app.auth import get_current_identity
 from app.auth.identity import IdentityType
 from app.exceptions import ValidationException
 from app.logging import get_logger
+from app.models import OLD_TO_NEW_REPORTER_MAP
 from app.utils import Tag
 from app.validators import is_custom_date as is_timestamp
+from app.xjoin import per_reporter_staleness_filter
 from app.xjoin import staleness_filter
 from app.xjoin import string_contains_lc
 from app.xjoin import string_exact_lc
@@ -32,6 +31,7 @@ logger = get_logger(__name__)
 NIL_STRING = "nil"
 NOT_NIL_STRING = "not_nil"
 OR_FIELDS = ("owner_id", "rhc_client_id", "host_type", "system_update_method")
+STALENESS_VALUES = ["fresh", "stale", "stale_warning"]
 
 
 def _invalid_value_error(field_name, field_value):
@@ -112,7 +112,8 @@ def _object_filter_builder(input_object, spec):
                     field_value,
                     child_filter,
                     operation,
-                    child_spec,
+                    is_array=False,
+                    spec=child_spec,
                 )[0]
             )
 
@@ -196,8 +197,10 @@ def _nullable_wrapper(filter_function, field_name, field_value, field_filter, op
         return filter_function(field_name, field_value, operation)
 
 
-def _get_list_operator(field_name, field_filter):
-    if field_name in OR_FIELDS or field_filter == "object":
+def _get_list_operator(field_name, field_filter, operation, is_array):
+    if (operation == "eq" and not is_array) or field_name in OR_FIELDS or field_filter == "object":
+        # Filtering system_profile fields by multiple values of the same field uses OR logic,
+        # fields with type array should have the default operator
         return "OR"
     else:
         return "AND"
@@ -250,7 +253,9 @@ def _base_object_filter_builder(builder_function, field_name, field_value, field
     return ({"AND": filter_list},)
 
 
-def _base_filter_builder(builder_function, field_name, field_value, field_filter, operation, spec=None):
+def _base_filter_builder(
+    builder_function, field_name, field_value, field_filter, operation, is_array=False, spec=None
+):
     xjoin_field_name = field_name if spec else f"spf_{field_name}"
     base_value = _get_object_base_value(field_value, field_filter)
     if isinstance(base_value, list):
@@ -259,7 +264,8 @@ def _base_filter_builder(builder_function, field_name, field_value, field_filter
         for value in base_value:
             isolated_expression = _isolate_object_filter_expression(field_value, value)
             foo_list.append(builder_function(xjoin_field_name, isolated_expression, field_filter, operation, spec)[0])
-        list_operator = _get_list_operator(field_name, field_filter)
+        list_operator = _get_list_operator(field_name, field_filter, operation, is_array)
+
         field_filter = ({list_operator: foo_list},)
     elif isinstance(base_value, str):
         logger.debug("filter value is a string")
@@ -272,31 +278,47 @@ def _base_filter_builder(builder_function, field_name, field_value, field_filter
     return field_filter
 
 
-def _generic_filter_builder(builder_function, field_name, field_value, field_filter, operation, spec=None):
+def _generic_filter_builder(
+    builder_function, field_name, field_value, field_filter, operation, is_array=False, spec=None
+):
     spec_builder_function = partial(builder_function, spec=spec)
     nullable_builder_function = partial(_nullable_wrapper, spec_builder_function)
     if field_filter == "object":
         return _base_object_filter_builder(nullable_builder_function, field_name, field_value, field_filter, spec)
     else:
-        return _base_filter_builder(nullable_builder_function, field_name, field_value, field_filter, operation, spec)
+        return _base_filter_builder(
+            nullable_builder_function, field_name, field_value, field_filter, operation, is_array, spec
+        )
 
 
-def build_registered_with_filter(registered_with):
+def build_registered_with_filter(registered_with, staleness):
+    # If /api/inventory/v1/tags is called,
+    # staleness variable is set to None by default.
+    # To use custom staleness, we to make sure we have
+    # staleness values set
+    if staleness is None:
+        staleness = STALENESS_VALUES
+
     reg_with_copy = deepcopy(registered_with)
     prs_list = []
     if "insights" in reg_with_copy:
         prs_list.append({"NOT": {"insights_id": {"eq": None}}})
         reg_with_copy.remove("insights")
     if reg_with_copy:
+        # When filtering on old reporter name, include the names of the
+        # new reporters associated with the old reporter.
+        for old_reporter in OLD_TO_NEW_REPORTER_MAP:
+            if old_reporter in reg_with_copy:
+                reg_with_copy.extend(OLD_TO_NEW_REPORTER_MAP[old_reporter])
+                reg_with_copy = list(set(reg_with_copy))  # Remove duplicates
+
+        # Get the per_report_staleness check_in value for the reporter
+        # and build the filter based on it
         for item in reg_with_copy:
             prs_item = {
                 "per_reporter_staleness": {
                     "reporter": {"eq": item.replace("!", "")},
-                    "stale_timestamp": {
-                        "gt": str(
-                            (datetime.now(timezone.utc) - inventory_config().culling_culled_offset_delta).isoformat()
-                        )
-                    },
+                    "AND": per_reporter_staleness_filter(staleness),
                 },
             }
 
@@ -343,9 +365,9 @@ def owner_id_filter():
 def host_id_list_query_filter(host_id_list, rbac_filter):
     all_filters = (
         {
-            "stale_timestamp": {
-                "gt": str((datetime.now(timezone.utc) - inventory_config().culling_culled_offset_delta).isoformat())
-            },
+            "OR": staleness_filter(["not_culled"]),
+        },
+        {
             "OR": [
                 {
                     "id": {"eq": host_id},
@@ -354,7 +376,6 @@ def host_id_list_query_filter(host_id_list, rbac_filter):
             ],
         },
     )
-
     if rbac_filter:
         for key in rbac_filter:
             if key == "groups":
@@ -471,7 +492,7 @@ def query_filters(
         query_filters += ({"OR": staleness_filters},)
 
     if registered_with:
-        query_filters += build_registered_with_filter(registered_with)
+        query_filters += build_registered_with_filter(registered_with, staleness)
     if provider_type:
         query_filters += ({"provider_type": {"eq": provider_type.casefold()}},)
     if provider_id:
@@ -483,18 +504,17 @@ def query_filters(
     if group_ids:
         query_filters += _group_id_list_query_filter(group_ids)
 
-    # If this feature flag is set, we should hide edge hosts by default.
-    if get_flag_value(FLAG_HIDE_EDGE_HOSTS):
-        # When the flag is set, there will always be a system profile filter.
-        if not filter or "system_profile" not in filter:
-            filter = {"system_profile": {}}
-        # If a host_type filter wasn't provided in the request, filter out edge hosts.
-        if "host_type" not in filter["system_profile"]:
-            filter["system_profile"]["host_type"] = {"eq": "nil"}
+    # If this feature flag is set, we should hide edge hosts by default, even if a filter wasn't provided.
+    if get_flag_value(FLAG_HIDE_EDGE_HOSTS) and not filter:
+        filter = {"system_profile": {"host_type": {"eq": "nil"}}}
 
     if filter:
         for key in filter:
             if key == "system_profile":
+                # If a host_type filter wasn't provided in the request, filter out edge hosts.
+                if get_flag_value(FLAG_HIDE_EDGE_HOSTS) and "host_type" not in filter["system_profile"]:
+                    filter["system_profile"]["host_type"] = {"eq": "nil"}
+
                 query_filters += build_system_profile_filter(filter["system_profile"])
             else:
                 raise ValidationException("filter key is invalid")
@@ -532,7 +552,7 @@ def build_system_profile_filter(system_profile):
         else:
             field_value, operation = _get_field_value_and_operation(field_input, field_filter, field_format, is_array)
             system_profile_filter += _generic_filter_builder(
-                builder_function, field_name, field_value, field_filter, operation
+                builder_function, field_name, field_value, field_filter, operation, is_array
             )
 
     return system_profile_filter

@@ -6,9 +6,17 @@ services:
         environment:
             POSTGRES_PASSWORD: insights
             POSTGRES_USER: insights
+            PGUSER: insights
             POSTGRES_DB: insights
         ports:
             - "5432:5432"
+        volumes:
+          - ./.unleash/create_unleashdb.sql:/docker-entrypoint-initdb.d/create_unleashdb.sql
+        healthcheck:
+          test: "pg_isready -h db"
+          interval: 2s
+          timeout: 5s
+          retries: 5
     zookeeper:
       image: confluentinc/cp-zookeeper
       environment:
@@ -18,6 +26,7 @@ services:
       image: confluentinc/cp-kafka
       ports:
         - 29092:29092
+        - 9092:9092
       depends_on:
         - zookeeper
       environment:
@@ -28,3 +37,28 @@ services:
         - KAFKA_BROKER_ID=1
         - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
         - KAFKA_ZOOKEEPER_CONNECT=zookeeper:32181
+        - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
+    unleash:
+      container_name: unleash
+      image: quay.io/cloudservices/unleash-server:4.21.0
+      environment:
+        - INIT_ADMIN_API_TOKENS=${UNLEASH_TOKEN:?}
+        - CHECK_VERSION=false
+        - DATABASE_HOST=db
+        - DATABASE_NAME=unleash
+        - DATABASE_USERNAME=${DATABASE_USER-insights}
+        - DATABASE_PASSWORD=${DATABASE_PASSWORD-insights}
+        - DATABASE_SSL=false
+        - IMPORT_DROP_BEFORE_IMPORT=false
+        - IMPORT_FILE=/.unleash/flags.json
+        - IMPORT_DROP_BEFORE_IMPORT=true
+        - LOG_LEVEL=INFO
+      ports:
+        - 4242:4242
+      volumes:
+        - './.unleash:/.unleash'
+      depends_on:
+        db:
+          condition: service_healthy
+      links:
+        - db:db

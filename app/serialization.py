@@ -1,8 +1,12 @@
+from datetime import datetime
 from datetime import timezone
 
 from dateutil.parser import isoparse
 from marshmallow import ValidationError
 
+from api.staleness_query import get_staleness_obj
+from app.common import inventory_config
+from app.culling import Timestamps
 from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
 from app.models import CanonicalFactsSchema
@@ -109,15 +113,34 @@ def deserialize_group_xjoin(data):
     return group
 
 
-def serialize_host(host, staleness_timestamps, for_mq=True, additional_fields=tuple()):
-    if host.stale_timestamp:
-        stale_timestamp = staleness_timestamps.stale_timestamp(host.stale_timestamp)
-        stale_warning_timestamp = staleness_timestamps.stale_warning_timestamp(host.stale_timestamp)
-        culled_timestamp = staleness_timestamps.culled_timestamp(host.stale_timestamp)
+def serialize_host(
+    host,
+    staleness_timestamps,
+    for_mq=True,
+    additional_fields=tuple(),
+    staleness=None,
+    system_profile_fields=None,
+):
+    # TODO: In future, this must handle groups staleness
+
+    if host.system_profile_facts.get("host_type") == "edge":
+        stale_timestamp = staleness_timestamps.stale_timestamp(host.modified_on, staleness["immutable_time_to_stale"])
+        stale_warning_timestamp = staleness_timestamps.stale_warning_timestamp(
+            host.modified_on, staleness["immutable_time_to_stale_warning"]
+        )
+        culled_timestamp = staleness_timestamps.culled_timestamp(
+            host.modified_on, staleness["immutable_time_to_delete"]
+        )
     else:
-        stale_timestamp = None
-        stale_warning_timestamp = None
-        culled_timestamp = None
+        stale_timestamp = staleness_timestamps.stale_timestamp(
+            host.modified_on, staleness["conventional_time_to_stale"]
+        )
+        stale_warning_timestamp = staleness_timestamps.stale_warning_timestamp(
+            host.modified_on, staleness["conventional_time_to_stale_warning"]
+        )
+        culled_timestamp = staleness_timestamps.culled_timestamp(
+            host.modified_on, staleness["conventional_time_to_delete"]
+        )
 
     serialized_host = {**serialize_canonical_facts(host.canonical_facts)}
 
@@ -140,13 +163,17 @@ def serialize_host(host, staleness_timestamps, for_mq=True, additional_fields=tu
     if "reporter" in fields:
         serialized_host["reporter"] = host.reporter
     if "per_reporter_staleness" in fields:
-        serialized_host["per_reporter_staleness"] = host.per_reporter_staleness
+        serialized_host["per_reporter_staleness"] = _serialize_per_reporter_staleness(
+            host, staleness, staleness_timestamps
+        )
     if "stale_timestamp" in fields:
-        serialized_host["stale_timestamp"] = stale_timestamp and _serialize_datetime(stale_timestamp)
+        serialized_host["stale_timestamp"] = stale_timestamp and _serialize_staleness_to_string(stale_timestamp)
     if "stale_warning_timestamp" in fields:
-        serialized_host["stale_warning_timestamp"] = stale_timestamp and _serialize_datetime(stale_warning_timestamp)
+        serialized_host["stale_warning_timestamp"] = stale_warning_timestamp and _serialize_staleness_to_string(
+            stale_warning_timestamp
+        )
     if "culled_timestamp" in fields:
-        serialized_host["culled_timestamp"] = stale_timestamp and _serialize_datetime(culled_timestamp)
+        serialized_host["culled_timestamp"] = culled_timestamp and _serialize_staleness_to_string(culled_timestamp)
         # without astimezone(timezone.utc) the isoformat() method does not include timezone offset even though iso-8601
         # requires it
     if "created" in fields:
@@ -157,6 +184,9 @@ def serialize_host(host, staleness_timestamps, for_mq=True, additional_fields=tu
         serialized_host["tags"] = _serialize_tags(host.tags)
     if "system_profile" in fields:
         serialized_host["system_profile"] = host.system_profile_facts or {}
+        if system_profile_fields and system_profile_fields.count("host_type") < 2:
+            if serialized_host["system_profile"].get("host_type"):
+                del serialized_host["system_profile"]["host_type"]
     if "groups" in fields:
         # For MQ messages, we only include name and ID.
         if for_mq and host.groups:
@@ -169,13 +199,27 @@ def serialize_host(host, staleness_timestamps, for_mq=True, additional_fields=tu
     return serialized_host
 
 
-def serialize_group(group):
+# get hosts not marked for deletion
+def _get_unculled_hosts(group, identity):
+    hosts = []
+    staleness_timestamps = Timestamps.from_config(inventory_config())
+    staleness = get_staleness_obj(identity)
+    for host in group.hosts:
+        serialized_host = serialize_host(host, staleness_timestamps=staleness_timestamps, staleness=staleness)
+        if _deserialize_datetime(serialized_host["culled_timestamp"]) > datetime.now(tz=timezone.utc):
+            hosts.append(host)
+
+    return hosts
+
+
+def serialize_group(group, identity):
+    unculled_hosts = _get_unculled_hosts(group, identity)
     return {
         "id": _serialize_uuid(group.id),
         "org_id": group.org_id,
         "account": group.account,
         "name": group.name,
-        "host_count": len(group.hosts),
+        "host_count": len(unculled_hosts),
         "created": _serialize_datetime(group.created_on),
         "updated": _serialize_datetime(group.modified_on),
     }
@@ -246,6 +290,16 @@ def serialize_facts(facts):
 
 
 def _serialize_datetime(dt):
+    return dt.astimezone(timezone.utc).isoformat()
+
+
+def _serialize_staleness_to_string(dt) -> str:
+    """
+    This function makes sure a datetime object
+    is returned as a string
+    """
+    if isinstance(dt, str):
+        return dt
     return dt.astimezone(timezone.utc).isoformat()
 
 
@@ -327,21 +381,69 @@ def _serialize_tags(tags):
     return [tag.data() for tag in Tag.create_tags_from_nested(tags)]
 
 
-def serialize_account_staleness_response(account_staleness):
+def serialize_staleness_response(staleness):
     return {
-        "id": _serialize_uuid(account_staleness.id),
-        "org_id": account_staleness.org_id,
-        "account": account_staleness.account,
-        "conventional_staleness_delta": account_staleness.conventional_staleness_delta,
-        "conventional_stale_warning_delta": account_staleness.conventional_stale_warning_delta,
-        "conventional_culling_delta": account_staleness.conventional_culling_delta,
-        "immutable_staleness_delta": account_staleness.immutable_staleness_delta,
-        "immutable_stale_warning_delta": account_staleness.immutable_stale_warning_delta,
-        "immutable_culling_delta": account_staleness.immutable_culling_delta,
-        "created": "N/A"
-        if account_staleness.created_on == "N/A"
-        else _serialize_datetime(account_staleness.created_on),
-        "updated": "N/A"
-        if account_staleness.modified_on == "N/A"
-        else _serialize_datetime(account_staleness.modified_on),
+        "id": _serialize_uuid(staleness.id),
+        "org_id": staleness.org_id,
+        "conventional_time_to_stale": staleness.conventional_time_to_stale,
+        "conventional_time_to_stale_warning": staleness.conventional_time_to_stale_warning,
+        "conventional_time_to_delete": staleness.conventional_time_to_delete,
+        "immutable_time_to_stale": staleness.immutable_time_to_stale,
+        "immutable_time_to_stale_warning": staleness.immutable_time_to_stale_warning,
+        "immutable_time_to_delete": staleness.immutable_time_to_delete,
+        "created": "N/A" if staleness.created_on == "N/A" else _serialize_datetime(staleness.created_on),
+        "updated": "N/A" if staleness.modified_on == "N/A" else _serialize_datetime(staleness.modified_on),
     }
+
+
+def serialize_staleness_to_dict(staleness_obj) -> dict:
+    """
+    This function serialize a staleness object
+    to a simple dictionary. This contains less information
+    """
+    return {
+        "conventional_time_to_stale": staleness_obj.conventional_time_to_stale,
+        "conventional_time_to_stale_warning": staleness_obj.conventional_time_to_stale_warning,
+        "conventional_time_to_delete": staleness_obj.conventional_time_to_delete,
+        "immutable_time_to_stale": staleness_obj.immutable_time_to_stale,
+        "immutable_time_to_stale_warning": staleness_obj.immutable_time_to_stale_warning,
+        "immutable_time_to_delete": staleness_obj.immutable_time_to_delete,
+    }
+
+
+def _serialize_per_reporter_staleness(host, staleness, staleness_timestamps):
+    for reporter in host.per_reporter_staleness:
+        if host.system_profile_facts.get("host_type") == "edge":
+            stale_timestamp = staleness_timestamps.stale_timestamp(
+                _deserialize_datetime(host.per_reporter_staleness[reporter]["last_check_in"]),
+                staleness["immutable_time_to_stale"],
+            )
+            stale_warning_timestamp = staleness_timestamps.stale_timestamp(
+                _deserialize_datetime(host.per_reporter_staleness[reporter]["last_check_in"]),
+                staleness["immutable_time_to_stale_warning"],
+            )
+            delete_timestamp = staleness_timestamps.stale_timestamp(
+                _deserialize_datetime(host.per_reporter_staleness[reporter]["last_check_in"]),
+                staleness["immutable_time_to_delete"],
+            )
+        else:
+            stale_timestamp = staleness_timestamps.stale_timestamp(
+                _deserialize_datetime(host.per_reporter_staleness[reporter]["last_check_in"]),
+                staleness["conventional_time_to_stale"],
+            )
+            stale_warning_timestamp = staleness_timestamps.stale_timestamp(
+                _deserialize_datetime(host.per_reporter_staleness[reporter]["last_check_in"]),
+                staleness["conventional_time_to_stale_warning"],
+            )
+            delete_timestamp = staleness_timestamps.stale_timestamp(
+                _deserialize_datetime(host.per_reporter_staleness[reporter]["last_check_in"]),
+                staleness["conventional_time_to_delete"],
+            )
+
+        host.per_reporter_staleness[reporter]["stale_timestamp"] = _serialize_staleness_to_string(stale_timestamp)
+        host.per_reporter_staleness[reporter]["stale_warning_timestamp"] = _serialize_staleness_to_string(
+            stale_warning_timestamp
+        )
+        host.per_reporter_staleness[reporter]["culled_timestamp"] = _serialize_staleness_to_string(delete_timestamp)
+
+    return host.per_reporter_staleness

@@ -13,16 +13,21 @@ from api import metrics
 from api.host_query import build_paginated_host_list_response
 from api.host_query import staleness_timestamps
 from api.host_query_db import get_all_hosts
+from api.host_query_db import get_host_list as get_host_list_postgres
+from api.host_query_db import get_host_list_by_id_list as get_host_list_by_id_list_postgres
+from api.host_query_db import get_host_tags_list_by_id_list as get_host_tags_list_by_id_list_postgres
 from api.host_query_xjoin import get_host_ids_list as get_host_ids_list_xjoin
 from api.host_query_xjoin import get_host_list as get_host_list_xjoin
-from api.host_query_xjoin import get_host_list_by_id_list
+from api.host_query_xjoin import get_host_list_by_id_list as get_host_list_by_id_list_xjoin
 from api.host_query_xjoin import get_host_tags_list_by_id_list
 from api.sparse_host_list_system_profile import get_sparse_system_profile
+from api.staleness_query import get_staleness_obj
 from app import db
-from app import inventory_config
 from app import RbacPermission
 from app import RbacResourceType
 from app.auth import get_current_identity
+from app.auth.identity import to_auth_header
+from app.common import inventory_config
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_get_host_list_failed
 from app.instrumentation import log_get_host_list_succeeded
@@ -44,6 +49,9 @@ from app.queue.events import message_headers
 from app.serialization import deserialize_canonical_facts
 from app.serialization import serialize_host
 from app.utils import Tag
+from app.xjoin import pagination_params
+from lib.feature_flags import FLAG_INVENTORY_DISABLE_XJOIN
+from lib.feature_flags import get_flag_value
 from lib.host_delete import delete_hosts
 from lib.host_repository import find_existing_host
 from lib.host_repository import find_non_culled_hosts
@@ -84,34 +92,61 @@ def get_host_list(
 ):
     total = 0
     host_list = ()
+    current_identity = get_current_identity()
 
     try:
-        host_list, total, additional_fields = get_host_list_xjoin(
-            display_name,
-            fqdn,
-            hostname_or_id,
-            insights_id,
-            provider_id,
-            provider_type,
-            updated_start,
-            updated_end,
-            group_name,
-            tags,
-            page,
-            per_page,
-            order_by,
-            order_how,
-            staleness,
-            registered_with,
-            filter,
-            fields,
-            rbac_filter,
-        )
+        if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
+            logger.info(f"{FLAG_INVENTORY_DISABLE_XJOIN} is applied to {current_identity.org_id}")
+            host_list, total, additional_fields, system_profile_fields = get_host_list_postgres(
+                display_name,
+                fqdn,
+                hostname_or_id,
+                insights_id,
+                provider_id,
+                provider_type,
+                updated_start,
+                updated_end,
+                group_name,
+                tags,
+                page,
+                per_page,
+                order_by,
+                order_how,
+                staleness,
+                registered_with,
+                filter,
+                fields,
+                rbac_filter,
+            )
+        else:
+            host_list, total, additional_fields, system_profile_fields = get_host_list_xjoin(
+                display_name,
+                fqdn,
+                hostname_or_id,
+                insights_id,
+                provider_id,
+                provider_type,
+                updated_start,
+                updated_end,
+                group_name,
+                tags,
+                page,
+                per_page,
+                order_by,
+                order_how,
+                staleness,
+                registered_with,
+                filter,
+                fields,
+                rbac_filter,
+            )
     except ValueError as e:
         log_get_host_list_failed(logger)
         flask.abort(400, str(e))
 
-    json_data = build_paginated_host_list_response(total, page, per_page, host_list, additional_fields)
+    json_data = build_paginated_host_list_response(
+        total, page, per_page, host_list, additional_fields, system_profile_fields
+    )
     return flask_json_response(json_data)
 
 
@@ -204,7 +239,7 @@ def _delete_host_list(host_id_list, rbac_filter):
         deletion_count = 0
 
         for host_id, deleted in delete_hosts(
-            query, current_app.event_producer, inventory_config().host_delete_chunk_size
+            query, current_app.event_producer, inventory_config().host_delete_chunk_size, identity=current_identity
         ):
             if deleted:
                 log_host_delete_succeeded(logger, host_id, get_control_rule())
@@ -267,17 +302,26 @@ def delete_host_by_id(host_id_list, rbac_filter=None):
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None, fields=None, rbac_filter=None):
+    current_identity = get_current_identity()
     try:
-        host_list, total, additional_fields = get_host_list_by_id_list(
-            host_id_list, page, per_page, order_by, order_how, fields, rbac_filter
-        )
+        if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
+            logger.info(f"{FLAG_INVENTORY_DISABLE_XJOIN} is applied to {current_identity.org_id}")
+            host_list, total, additional_fields, system_profile_fields = get_host_list_by_id_list_postgres(
+                host_id_list, page, per_page, order_by, order_how, fields, rbac_filter
+            )
+        else:
+            host_list, total, additional_fields, system_profile_fields = get_host_list_by_id_list_xjoin(
+                host_id_list, page, per_page, order_by, order_how, fields, rbac_filter
+            )
     except ValueError as e:
         log_get_host_list_failed(logger)
         flask.abort(400, str(e))
 
     log_get_host_list_succeeded(logger, host_list)
 
-    json_data = build_paginated_host_list_response(total, page, per_page, host_list, additional_fields)
+    json_data = build_paginated_host_list_response(
+        total, page, per_page, host_list, additional_fields, system_profile_fields
+    )
     return flask_json_response(json_data)
 
 
@@ -307,7 +351,8 @@ def _emit_patch_event(serialized_host, host):
         host.system_profile_facts.get("host_type"),
         host.system_profile_facts.get("operating_system", {}).get("name"),
     )
-    event = build_event(EventType.updated, serialized_host)
+    metadata = {"b64_identity": to_auth_header(get_current_identity())}
+    event = build_event(EventType.updated, serialized_host, platform_metadata=metadata)
     current_app.event_producer.write_event(event, str(host.id), headers, wait=True)
 
 
@@ -322,19 +367,21 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
         return ({"status": 400, "title": "Bad Request", "detail": str(e.messages), "type": "unknown"}, 400)
 
     query = get_host_list_by_id_list_from_db(host_id_list, rbac_filter)
-
     hosts_to_update = query.all()
 
     if not hosts_to_update:
         log_patch_host_failed(logger, host_id_list)
         return flask.abort(status.HTTP_404_NOT_FOUND, "Requested host not found.")
 
+    identity = get_current_identity()
+    staleness = get_staleness_obj(identity)
+
     for host in hosts_to_update:
         host.patch(validated_patch_host_data)
 
         if db.session.is_modified(host):
             db.session.commit()
-            serialized_host = serialize_host(host, staleness_timestamps())
+            serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
             _emit_patch_event(serialized_host, host)
 
     log_patch_host_success(logger, host_id_list)
@@ -393,6 +440,8 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
         logger.debug(error_msg)
         return error_msg, 400
 
+    staleness = get_staleness_obj(current_identity)
+
     for host in hosts_to_update:
         if operation is FactOperations.replace:
             host.replace_facts_in_namespace(namespace, fact_dict)
@@ -401,7 +450,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
 
         if db.session.is_modified(host):
             db.session.commit()
-            serialized_host = serialize_host(host, staleness_timestamps())
+            serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
             _emit_patch_event(serialized_host, host)
 
     logger.debug("hosts_to_update:%s", hosts_to_update)
@@ -413,9 +462,19 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_how=None, rbac_filter=None):
-    host_list, total = get_host_tags_list_by_id_list(host_id_list, page, per_page, order_by, order_how, rbac_filter)
-    counts = {host_id: len(host_tags) for host_id, host_tags in host_list.items()}
+    current_identity = get_current_identity()
+    if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
+        logger.info(f"{FLAG_INVENTORY_DISABLE_XJOIN} is applied to {current_identity.org_id}")
+        limit, offset = pagination_params(page, per_page)
+        host_list, total = get_host_tags_list_by_id_list_postgres(
+            host_id_list, limit, offset, order_by, order_how, rbac_filter
+        )
+    else:
+        host_list, total = get_host_tags_list_by_id_list(
+            host_id_list, page, per_page, order_by, order_how, rbac_filter
+        )
 
+    counts = {host_id: len(host_tags) for host_id, host_tags in host_list.items()}
     return _build_paginated_host_tags_response(total, page, per_page, counts)
 
 
@@ -423,7 +482,18 @@ def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=None, search=None, rbac_filter=None):
-    host_list, total = get_host_tags_list_by_id_list(host_id_list, page, per_page, order_by, order_how, rbac_filter)
+    current_identity = get_current_identity()
+    if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
+        logger.info(f"{FLAG_INVENTORY_DISABLE_XJOIN} is applied to {current_identity.org_id}")
+        limit, offset = pagination_params(page, per_page)
+        host_list, total = get_host_tags_list_by_id_list_postgres(
+            host_id_list, limit, offset, order_by, order_how, rbac_filter
+        )
+    else:
+        host_list, total = get_host_tags_list_by_id_list(
+            host_id_list, page, per_page, order_by, order_how, rbac_filter
+        )
+
     filtered_list = {host_id: Tag.filter_tags(host_tags, search) for host_id, host_tags in host_list.items()}
 
     return _build_paginated_host_tags_response(total, page, per_page, filtered_list)
@@ -441,11 +511,11 @@ def host_checkin(body, rbac_filter=None):
     current_identity = get_current_identity()
     canonical_facts = deserialize_canonical_facts(body)
     existing_host = find_existing_host(current_identity, canonical_facts)
-
+    staleness = get_staleness_obj(current_identity)
     if existing_host:
         existing_host._update_modified_date()
         db.session.commit()
-        serialized_host = serialize_host(existing_host, staleness_timestamps())
+        serialized_host = serialize_host(existing_host, staleness_timestamps(), staleness=staleness)
         _emit_patch_event(serialized_host, existing_host)
         return flask_json_response(serialized_host, 201)
     else:

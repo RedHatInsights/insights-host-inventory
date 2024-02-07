@@ -9,6 +9,7 @@ from api import custom_escape
 from api import flask_json_response
 from api import metrics
 from api.filtering.filtering import query_filters
+from api.host_query_db import get_os_info as get_os_info_db
 from app import RbacPermission
 from app import RbacResourceType
 from app.auth import get_current_identity
@@ -25,6 +26,8 @@ from app.xjoin import check_pagination
 from app.xjoin import graphql_query
 from app.xjoin import pagination_params
 from app.xjoin import staleness_filter
+from lib.feature_flags import FLAG_INVENTORY_DISABLE_XJOIN
+from lib.feature_flags import get_flag_value
 from lib.middleware import rbac
 from lib.system_profile_validate import validate_sp_for_branch
 
@@ -211,7 +214,18 @@ def get_operating_system(
     rbac_filter=None,
 ):
     limit, offset = pagination_params(page, per_page)
-
+    current_identity = get_current_identity()
+    if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
+        results, total = get_os_info_db(
+            limit,
+            offset,
+            staleness=staleness,
+            tags=tags,
+            registered_with=registered_with,
+            filter=filter,
+            rbac_filter=rbac_filter,
+        )
+        return flask_json_response(build_collection_response(results, page, per_page, total))
     variables = {
         "hostFilter": {
             # we're not indexing null timestamps in ES

@@ -1,6 +1,5 @@
 import json
 import math
-import unittest.mock as mock
 from base64 import b64encode
 from datetime import timedelta
 from itertools import product
@@ -126,7 +125,7 @@ GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES = (
     "tests/helpers/rbac-mock-data/inv-read-only.json",
     "tests/helpers/rbac-mock-data/inv-star-read.json",
 )
-ACCOUNT_STALENESS_WRITE_PROHIBITED_RBAC_RESPONSE_FILES = (
+STALENESS_WRITE_PROHIBITED_RBAC_RESPONSE_FILES = (
     "tests/helpers/rbac-mock-data/inv-none.json",
     "tests/helpers/rbac-mock-data/inv-groups-read-only.json",
     "tests/helpers/rbac-mock-data/inv-hosts-read-only.json",
@@ -136,10 +135,16 @@ ACCOUNT_STALENESS_WRITE_PROHIBITED_RBAC_RESPONSE_FILES = (
     "tests/helpers/rbac-mock-data/inv-none.json",
     "tests/helpers/rbac-mock-data/inv-read-only.json",
     "tests/helpers/rbac-mock-data/inv-star-read.json",
+    "tests/helpers/rbac-mock-data/inv-staleness-write-only.json",
 )
-ACCOUNT_STALENESS_WRITE_ALLOWED_RBAC_RESPONSE_FILES = (
-    "tests/helpers/rbac-mock-data/inv-account-staleness-write-only.json",
+STALENESS_READ_PROHIBITED_RBAC_RESPONSE_FILES = (
+    "tests/helpers/rbac-mock-data/inv-none.json",
+    "tests/helpers/rbac-mock-data/inv-hosts-read-only.json",
+    "tests/helpers/rbac-mock-data/inv-staleness-read-only.json",
+    "tests/helpers/rbac-mock-data/inv-staleness-write-only.json",
 )
+STALENESS_READ_ALLOWED_RBAC_RESPONSE_FILES = ("tests/helpers/rbac-mock-data/inv-staleness-hosts-read-only.json",)
+STALENESS_WRITE_ALLOWED_RBAC_RESPONSE_FILES = ("tests/helpers/rbac-mock-data/inv-staleness-hosts-write-only.json",)
 RBAC_ADMIN_PROHIBITED_RBAC_RESPONSE_FILES = (
     "tests/helpers/rbac-mock-data/inv-read-write.json",
     "tests/helpers/rbac-mock-data/inv-read-only.json",
@@ -159,12 +164,12 @@ RBAC_ADMIN_PROHIBITED_RBAC_RESPONSE_FILES = (
 )
 
 _INPUT_DATA = {
-    "conventional_staleness_delta": "1",
-    "conventional_stale_warning_delta": "7",
-    "conventional_culling_delta": "14",
-    "immutable_staleness_delta": "7",
-    "immutable_stale_warning_delta": "120",
-    "immutable_culling_delta": "120",
+    "conventional_time_to_stale": 104400,
+    "conventional_time_to_stale_warning": 604800,
+    "conventional_time_to_delete": 1209600,
+    "immutable_time_to_stale": 172800,
+    "immutable_time_to_stale_warning": 15552000,
+    "immutable_time_to_delete": 63072000,
 }
 
 
@@ -409,6 +414,13 @@ def build_expected_host_list(host_list):
     ]
 
 
+# Since python3.6, dicts retain key order, so asserting that a list of dicts is equal
+# doesn't work unless we're certain that the keys are going to be in the same order.
+def assert_host_lists_equal(expected_host_list, actual_host_list):
+    for i in range(len(expected_host_list)):
+        assert expected_host_list[i] == actual_host_list[i]
+
+
 def build_order_query_parameters(order_by=None, order_how=None):
     query_parameters = {}
     if order_by:
@@ -477,6 +489,10 @@ def build_system_profile_sap_sids_url(query=None):
     return _build_url(base_url=SYSTEM_PROFILE_URL, path="/sap_sids", query=query)
 
 
+def build_system_profile_operating_system_url(query=None):
+    return _build_url(base_url=SYSTEM_PROFILE_URL, path="/operating_system", query=query)
+
+
 def build_facts_url(host_list_or_id, namespace, query=None):
     return build_hosts_url(path=f"/facts/{namespace}", host_list_or_id=host_list_or_id, query=query)
 
@@ -519,7 +535,7 @@ def get_id_list_from_hosts(host_list):
     return [str(h.id) for h in host_list]
 
 
-def build_account_staleness_url(path=None, query=None):
+def build_staleness_url(path=None, query=None):
     return _build_url(base_url=STALENESS_URL, path=path, query=query)
 
 
@@ -587,32 +603,3 @@ def assert_resource_types_pagination(
         assert links["next"] is None
 
     assert links["last"] == f"{expected_path_base}?per_page={expected_per_page}&page={expected_number_of_pages}"
-
-
-ClassMock = mock.MagicMock
-
-
-class MockUserIdentity(ClassMock):
-    def __init__(self):
-        super().__init__()
-        self.is_trusted_system = False
-        self.account_number = "test"
-        self.identity_type = "User"
-        self.user = {"email": "tuser@redhat.com", "first_name": "test"}
-
-    def patch(self, mocker, method, expectation):
-        return mocker.patch(method, wraps=expectation)
-
-    def assert_called_once_with(param, value):
-        super.assert_called_once_with(param, value)
-
-
-class MockSystemIdentity:
-    def __init__(self):
-        self.is_trusted_system = False
-        self.account_number = "test"
-        self.identity_type = "System"
-        self.system = {"cert_type": "system", "cn": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"}
-
-    def assert_called_once_with(self, identity, param, value):
-        return True

@@ -610,8 +610,8 @@
         "tags": [
           "groups"
         ],
-        "summary": "Read the entire list of groups [Not Implemented]",
-        "description": "Read the entire list of all groups available to the account. [Not Implemented] <br /><br /> Required permissions: inventory:groups:read",
+        "summary": "Read the entire list of groups",
+        "description": "Read the entire list of all groups available to the account. <br /><br /> Required permissions: inventory:groups:read",
         "security": [
           {
             "ApiKeyAuth": []
@@ -652,8 +652,8 @@
         "tags": [
           "groups"
         ],
-        "summary": "Create a new group matching the provided name and list of hosts IDs [Not Implemented]",
-        "description": "Creates a new group containing the hosts associated with the host IDs provided. [Not Implemented] <br /><br /> Required permissions: inventory:groups:write",
+        "summary": "Create a new group matching the provided name and list of hosts IDs",
+        "description": "Creates a new group containing the hosts associated with the host IDs provided. <br /><br /> Required permissions: inventory:groups:write",
         "security": [
           {
             "ApiKeyAuth": []
@@ -693,8 +693,8 @@
         "tags": [
           "groups"
         ],
-        "summary": "Merge group information [Not Implemented]",
-        "description": "Merge group information. [Not Implemented] <br /><br /> Required permissions: inventory:groups:write",
+        "summary": "Merge group information",
+        "description": "Merge group information. <br /><br /> Required permissions: inventory:groups:write",
         "security": [
           {
             "ApiKeyAuth": []
@@ -742,8 +742,8 @@
         "tags": [
           "groups"
         ],
-        "summary": "Find groups by their IDs [Not Implemented]",
-        "description": "Find one or more groups by their IDs. [Not Implemented] <br /><br /> Required permissions: inventory:groups:read",
+        "summary": "Find groups by their IDs",
+        "description": "Find one or more groups by their IDs. <br /><br /> Required permissions: inventory:groups:read",
         "security": [
           {
             "ApiKeyAuth": []
@@ -790,8 +790,8 @@
         "tags": [
           "groups"
         ],
-        "summary": "Delete a list of groups [Not Implemented]",
-        "description": "Delete a list of groups. [Not Implemented] <br /><br /> Required permissions: inventory:groups:write",
+        "summary": "Delete a list of groups",
+        "description": "Delete a list of groups. <br /><br /> Required permissions: inventory:groups:write",
         "security": [
           {
             "ApiKeyAuth": []
@@ -818,8 +818,8 @@
         "tags": [
           "groups"
         ],
-        "summary": "Delete one or more hosts from a group [Not Implemented]",
-        "description": "Delete one or more hosts from a group. [Not Implemented] <br /><br /> Required permissions: inventory:groups:write",
+        "summary": "Delete one or more hosts from a group",
+        "description": "Delete one or more hosts from a group. <br /><br /> Required permissions: inventory:groups:write",
         "security": [
           {
             "ApiKeyAuth": []
@@ -888,6 +888,37 @@
           },
           "404": {
             "description": "Group not found."
+          }
+        }
+      }
+    },
+    "/groups/hosts/{host_id_list}": {
+      "delete": {
+        "operationId": "api.group.delete_hosts_from_different_groups",
+        "tags": [
+          "groups"
+        ],
+        "summary": "Delete a list of hosts from the groups they are in",
+        "description": "Delete a list of hosts from the groups they are in. <br /><br /> Required permissions: inventory:groups:write",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/hostIdList"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The hosts were successfully removed from their groups."
+          },
+          "400": {
+            "description": "Invalid request."
+          },
+          "404": {
+            "description": "The provided hosts are ungrouped."
           }
         }
       }
@@ -1279,7 +1310,7 @@
     },
     "/account/staleness": {
       "get": {
-        "operationId": "api.account_staleness.get_staleness",
+        "operationId": "api.staleness.get_staleness",
         "tags": [
           "accounts_staleness"
         ],
@@ -1299,7 +1330,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AccountStalenessOutput"
+                  "$ref": "#/components/schemas/StalenessOutput"
                 }
               }
             }
@@ -1307,7 +1338,7 @@
         }
       },
       "post": {
-        "operationId": "api.account_staleness.create_staleness",
+        "operationId": "api.staleness.create_staleness",
         "tags": [
           "accounts_staleness"
         ],
@@ -1327,7 +1358,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AccountStalenessIn"
+                "$ref": "#/components/schemas/StalenessIn"
               }
             }
           }
@@ -1338,7 +1369,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AccountStalenessOutput"
+                  "$ref": "#/components/schemas/StalenessOutput"
                 }
               }
             }
@@ -1346,7 +1377,7 @@
         }
       },
       "patch": {
-        "operationId": "api.account_staleness.update_staleness",
+        "operationId": "api.staleness.update_staleness",
         "tags": [
           "accounts_staleness"
         ],
@@ -1366,7 +1397,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AccountStalenessIn"
+                "$ref": "#/components/schemas/StalenessIn"
               }
             }
           }
@@ -1377,7 +1408,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AccountStalenessOutput"
+                  "$ref": "#/components/schemas/StalenessOutput"
                 }
               }
             }
@@ -1385,7 +1416,7 @@
         }
       },
       "delete": {
-        "operationId": "api.account_staleness.delete_staleness",
+        "operationId": "api.staleness.delete_staleness",
         "tags": [
           "accounts_staleness"
         ],
@@ -1414,7 +1445,7 @@
     },
     "/account/staleness/defaults": {
       "get": {
-        "operationId": "api.account_staleness.get_default_staleness",
+        "operationId": "api.staleness.get_default_staleness",
         "tags": [
           "accounts_staleness"
         ],
@@ -1434,34 +1465,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AccountStalenessOutput"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/unleash/inventory_groups_toggle": {
-      "get": {
-        "tags": [
-          "unleash"
-        ],
-        "summary": "Check whether the Groups feature is enabled",
-        "description": "Returns the value of the hbi.api.inventory-groups toggle, if able to be retrieved.",
-        "operationId": "api.unleash.get_inventory_groups_toggle",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "The value of the Inventory Groups toggle",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UnleashToggleOut"
+                  "$ref": "#/components/schemas/StalenessOutput"
                 }
               }
             }
@@ -1797,7 +1801,8 @@
           "type": "string",
           "enum": [
             "name",
-            "host_count"
+            "host_count",
+            "updated"
           ]
         },
         "description": "Ordering field name"
@@ -1872,11 +1877,10 @@
           "default": [
             "fresh",
             "stale",
-            "stale_warning",
-            "unknown"
+            "stale_warning"
           ]
         },
-        "description": "Culling states of the hosts. Default: fresh,stale,unknown"
+        "description": "Culling states of the hosts. Default: fresh, stale and stale_warning"
       },
       "stalenessNoDefaultsParam": {
         "name": "staleness",
@@ -1973,9 +1977,10 @@
         "in": "query",
         "name": "filter",
         "required": false,
-        "description": "Filters hosts based on system_profile fields",
+        "description": "Filters hosts based on system_profile fields. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"host_type\": {\"eq\": \"edge\"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\"",
         "style": "deepObject",
         "explode": true,
+        "example": {},
         "schema": {
           "$ref": "#/components/schemas/SystemProfileNestedObject"
         }
@@ -1984,10 +1989,11 @@
         "in": "query",
         "name": "fields",
         "required": false,
-        "description": "Fetches only mentioned system_profile fields",
+        "description": "Fetches only mentioned system_profile fields. For example, <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": [\"arch\", \"host_type\"]} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?fields[system_profile]=arch,host_type\"",
         "style": "deepObject",
         "explode": true,
         "x-validator": "sparseFields",
+        "example": {},
         "schema": {
           "$ref": "#/components/schemas/SystemProfileNestedObject"
         }
@@ -2677,6 +2683,16 @@
             "format": "date-time",
             "example": "2020-02-17T08:07:03.354307+00:00"
           },
+          "stale_warning_timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2020-02-17T08:07:03.354307+00:00"
+          },
+          "culled_timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2020-02-17T08:07:03.354307+00:00"
+          },
           "check_in_succeeded": {
             "type": "boolean"
           }
@@ -2789,7 +2805,7 @@
           "$ref": "#/components/schemas/NonStrictUUID"
         }
       },
-      "AccountStalenessId": {
+      "StalenessId": {
         "description": "Account Staleness UID",
         "oneOf": [
           {
@@ -3082,78 +3098,69 @@
           }
         ]
       },
-      "AccountStalenessIn": {
+      "StalenessIn": {
         "title": "Account Staleness In",
         "description": "Data of a single account staleness.",
         "type": "object",
         "anyOf": [
           {
             "properties": {
-              "conventional_staleness_delta": {
-                "type": "string",
-                "maxLength": 36
+              "conventional_time_to_stale": {
+                "type": "integer",
+                "minimum": 1
               },
-              "conventional_stale_warning_delta": {
-                "type": "string",
-                "maxLength": 36
+              "conventional_time_to_stale_warning": {
+                "type": "integer",
+                "minimum": 1
               },
-              "conventional_culling_delta": {
-                "type": "string",
-                "maxLength": 36
+              "conventional_time_to_delete": {
+                "type": "integer",
+                "minimum": 1
               },
-              "immutable_staleness_delta": {
-                "type": "string",
-                "maxLength": 36
+              "immutable_time_to_stale": {
+                "type": "integer",
+                "minimum": 1
               },
-              "immutable_stale_warning_delta": {
-                "type": "string",
-                "maxLength": 36
+              "immutable_time_to_stale_warning": {
+                "type": "integer",
+                "minimum": 1
               },
-              "immutable_culling_delta": {
-                "type": "string",
-                "maxLength": 36
+              "immutable_time_to_delete": {
+                "type": "integer",
+                "minimum": 1
               }
             }
           }
         ]
       },
-      "AccountStalenessOutput": {
+      "StalenessOutput": {
         "title": "Account Staleness Out",
         "description": "Data of a account staleness.",
         "type": "object",
         "properties": {
           "id": {
-            "$ref": "#/components/schemas/AccountStalenessId"
-          },
-          "account": {
-            "$ref": "#/components/schemas/AccountNumber"
+            "$ref": "#/components/schemas/StalenessId"
           },
           "org_id": {
             "$ref": "#/components/schemas/OrgId"
           },
-          "conventional_staleness_delta": {
-            "type": "string",
-            "maxLength": 36
+          "conventional_time_to_stale": {
+            "type": "integer"
           },
-          "conventional_stale_warning_delta": {
-            "type": "string",
-            "maxLength": 36
+          "conventional_time_to_stale_warning": {
+            "type": "integer"
           },
-          "conventional_culling_delta": {
-            "type": "string",
-            "maxLength": 36
+          "conventional_time_to_delete": {
+            "type": "integer"
           },
-          "immutable_staleness_delta": {
-            "type": "string",
-            "maxLength": 36
+          "immutable_time_to_stale": {
+            "type": "integer"
           },
-          "immutable_stale_warning_delta": {
-            "type": "string",
-            "maxLength": 36
+          "immutable_time_to_stale_warning": {
+            "type": "integer"
           },
-          "immutable_culling_delta": {
-            "type": "string",
-            "maxLength": 36
+          "immutable_time_to_delete": {
+            "type": "integer"
           },
           "created_at": {
             "description": "A timestamp when the entry was created.",
@@ -3216,6 +3223,14 @@
             "format": "int32",
             "minimum": 0,
             "maximum": 2147483647
+          },
+          "threads_per_core": {
+            "description": "Number of CPU threads per CPU core. Typical values: 1, 2, 4",
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0,
+            "maximum": 2147483647,
+            "example": 2
           },
           "system_memory_bytes": {
             "type": "integer",
@@ -3304,6 +3319,16 @@
                 "example": 1,
                 "type": "integer",
                 "minimum": 0
+              },
+              "failed_services": {
+                "description": "List of all failed jobs.",
+                "type": "array",
+                "items": {
+                  "description": "The name of a failed job.",
+                  "maxLength": 1000,
+                  "type": "string",
+                  "example": "ex1, ex2, ex3"
+                }
               }
             }
           },
@@ -3809,6 +3834,95 @@
               "yum"
             ],
             "example": "dnf, rpm-ostree, yum"
+          },
+          "virtual_host_uuid": {
+            "description": "Hypervisor host identity (subscription manager id)",
+            "type": "string",
+            "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+            "maxLength": 36,
+            "example": "0ddf52cb-94e3-4ada-bdf7-d424a547b671, 6996463b-c9d4-402b-ad37-8ab5556ddf88, 0c352918-fa05-4f05-996c-6c43ec0b3c5e"
+          },
+          "bootc_status": {
+            "description": "Object containing image data from command bootc status",
+            "type": "object",
+            "properties": {
+              "booted": {
+                "type": "object",
+                "properties": {
+                  "image": {
+                    "description": "Name of the image",
+                    "type": "string",
+                    "example": "quay.io/centos-bootc/fedora-bootc-cloud:eln, 192.168.0.1:5000/foo/foo:latest",
+                    "maxLength": 128,
+                    "x-wildcard": true
+                  },
+                  "image_digest": {
+                    "description": "Digest of the image",
+                    "type": "string",
+                    "example": "sha256:806d77394f96e47cf99b1233561ce970c94521244a2d8f2affa12c3261961223, sha256:92e476435ced1c148350c660b09c744717defbd300a15d33deda5b50ad6b21a0",
+                    "maxLength": 128,
+                    "pattern": "^(sha256\\:)[a-fA-F0-9]{64}$"
+                  }
+                }
+              },
+              "cachedUpdate": {
+                "type": "object",
+                "properties": {
+                  "image": {
+                    "description": "Name of the image",
+                    "type": "string",
+                    "example": "quay.io/centos-bootc/fedora-bootc-cloud:eln, 192.168.0.1:5000/foo/foo:latest",
+                    "maxLength": 128,
+                    "x-wildcard": true
+                  },
+                  "image_digest": {
+                    "description": "Digest of the image",
+                    "type": "string",
+                    "example": "sha256:806d77394f96e47cf99b1233561ce970c94521244a2d8f2affa12c3261961223, sha256:92e476435ced1c148350c660b09c744717defbd300a15d33deda5b50ad6b21a0",
+                    "maxLength": 128,
+                    "pattern": "^(sha256\\:)[a-fA-F0-9]{64}$"
+                  }
+                }
+              },
+              "rollback": {
+                "type": "object",
+                "properties": {
+                  "image": {
+                    "description": "Name of the image",
+                    "type": "string",
+                    "example": "quay.io/centos-bootc/fedora-bootc-cloud:eln, 192.168.0.1:5000/foo/foo:latest",
+                    "maxLength": 128,
+                    "x-wildcard": true
+                  },
+                  "image_digest": {
+                    "description": "Digest of the image",
+                    "type": "string",
+                    "example": "sha256:806d77394f96e47cf99b1233561ce970c94521244a2d8f2affa12c3261961223, sha256:92e476435ced1c148350c660b09c744717defbd300a15d33deda5b50ad6b21a0",
+                    "maxLength": 128,
+                    "pattern": "^(sha256\\:)[a-fA-F0-9]{64}$"
+                  }
+                }
+              },
+              "staged": {
+                "type": "object",
+                "properties": {
+                  "image": {
+                    "description": "Name of the image",
+                    "type": "string",
+                    "example": "quay.io/centos-bootc/fedora-bootc-cloud:eln, 192.168.0.1:5000/foo/foo:latest",
+                    "maxLength": 128,
+                    "x-wildcard": true
+                  },
+                  "image_digest": {
+                    "description": "Digest of the image",
+                    "type": "string",
+                    "example": "sha256:806d77394f96e47cf99b1233561ce970c94521244a2d8f2affa12c3261961223, sha256:92e476435ced1c148350c660b09c744717defbd300a15d33deda5b50ad6b21a0",
+                    "maxLength": 128,
+                    "pattern": "^(sha256\\:)[a-fA-F0-9]{64}$"
+                  }
+                }
+              }
+            }
           }
         }
       },

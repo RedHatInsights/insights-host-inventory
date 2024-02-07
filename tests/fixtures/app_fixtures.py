@@ -1,5 +1,4 @@
 import pytest
-from flask import g
 
 from app import create_app
 from app import db
@@ -32,9 +31,3 @@ def flask_app(new_flask_app):
 def inventory_config(flask_app):
     yield flask_app.config["INVENTORY_CONFIG"]
     flask_app.config["INVENTORY_CONFIG"] = Config(RuntimeEnvironment.TEST)
-
-
-@pytest.fixture(autouse=True)
-def clean_g():
-    if "acc_st" in g:
-        del g.acc_st

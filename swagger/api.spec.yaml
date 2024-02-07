@@ -355,9 +355,9 @@ paths:
       operationId: api.group.get_group_list
       tags:
         - groups
-      summary: Read the entire list of groups [Not Implemented]
+      summary: Read the entire list of groups
       description: >-
-        Read the entire list of all groups available to the account. [Not Implemented]
+        Read the entire list of all groups available to the account.
         <br /><br />
         Required permissions: inventory:groups:read
       security:
@@ -379,9 +379,9 @@ paths:
       operationId: api.group.create_group
       tags:
         - groups
-      summary: Create a new group matching the provided name and list of hosts IDs [Not Implemented]
+      summary: Create a new group matching the provided name and list of hosts IDs
       description: >-
-        Creates a new group containing the hosts associated with the host IDs provided. [Not Implemented]
+        Creates a new group containing the hosts associated with the host IDs provided.
         <br /><br />
         Required permissions: inventory:groups:write
       security:
@@ -406,9 +406,9 @@ paths:
       operationId: api.group.patch_group_by_id
       tags:
         - groups
-      summary: Merge group information [Not Implemented]
+      summary: Merge group information
       description: >-
-        Merge group information. [Not Implemented]
+        Merge group information.
         <br /><br />
         Required permissions: inventory:groups:write
       security:
@@ -438,9 +438,9 @@ paths:
       operationId: api.group.get_groups_by_id
       tags:
         - groups
-      summary: Find groups by their IDs [Not Implemented]
+      summary: Find groups by their IDs
       description: >-
-        Find one or more groups by their IDs. [Not Implemented]
+        Find one or more groups by their IDs.
         <br /><br />
         Required permissions: inventory:groups:read
       security:
@@ -466,9 +466,9 @@ paths:
       operationId: api.group.delete_groups
       tags:
         - groups
-      summary: Delete a list of groups [Not Implemented]
+      summary: Delete a list of groups
       description: >-
-        Delete a list of groups. [Not Implemented]
+        Delete a list of groups.
         <br /><br />
         Required permissions: inventory:groups:write
       security:
@@ -485,9 +485,9 @@ paths:
       operationId: api.host_group.delete_hosts_from_group
       tags:
         - groups
-      summary: Delete one or more hosts from a group [Not Implemented]
+      summary: Delete one or more hosts from a group
       description: >-
-        Delete one or more hosts from a group. [Not Implemented]
+        Delete one or more hosts from a group.
         <br /><br />
         Required permissions: inventory:groups:write
       security:
@@ -532,6 +532,28 @@ paths:
           description: Invalid request.
         '404':
           description: Group not found.
+  '/groups/hosts/{host_id_list}':
+    delete:
+      operationId: api.group.delete_hosts_from_different_groups
+      tags:
+        - groups
+      summary: Delete a list of hosts from the groups they are in
+      description: >-
+        Delete a list of hosts from the groups they are in.
+        <br /><br />
+        Required permissions: inventory:groups:write
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/hostIdList'
+      responses:
+        '204':
+          description: The hosts were successfully removed from their groups.
+        '400':
+          description: Invalid request.
+        '404':
+          description: The provided hosts are ungrouped.
+
 
   /resource-types:
     get:
@@ -752,7 +774,7 @@ paths:
 
   /account/staleness:
     get:
-      operationId: api.account_staleness.get_staleness
+      operationId: api.staleness.get_staleness
       tags:
         - accounts_staleness
       summary: Read the entire list of account staleness
@@ -768,9 +790,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AccountStalenessOutput'
+                $ref: '#/components/schemas/StalenessOutput'
     post:
-      operationId: api.account_staleness.create_staleness
+      operationId: api.staleness.create_staleness
       tags:
         - accounts_staleness
       summary: Create account staleness record
@@ -786,16 +808,16 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AccountStalenessIn'
+              $ref: '#/components/schemas/StalenessIn'
       responses:
         '201':
           description: Successfully account staleness created.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AccountStalenessOutput'
+                $ref: '#/components/schemas/StalenessOutput'
     patch:
-      operationId: api.account_staleness.update_staleness
+      operationId: api.staleness.update_staleness
       tags:
         - accounts_staleness
       summary: Update account staleness record
@@ -811,16 +833,16 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AccountStalenessIn'
+              $ref: '#/components/schemas/StalenessIn'
       responses:
         '200':
           description: Successfully account staleness updated.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AccountStalenessOutput'
+                $ref: '#/components/schemas/StalenessOutput'
     delete:
-      operationId: api.account_staleness.delete_staleness
+      operationId: api.staleness.delete_staleness
       tags:
         - accounts_staleness
       summary: Delete an account staleness
@@ -841,7 +863,7 @@ paths:
 
   /account/staleness/defaults:
     get:
-      operationId: api.account_staleness.get_default_staleness
+      operationId: api.staleness.get_default_staleness
       tags:
         - accounts_staleness
       summary: Read the entire list of account staleness
@@ -857,24 +879,8 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AccountStalenessOutput'
+                $ref: '#/components/schemas/StalenessOutput'
 
-  '/unleash/inventory_groups_toggle':
-    get:
-      tags:
-        - unleash
-      summary: Check whether the Groups feature is enabled
-      description: Returns the value of the hbi.api.inventory-groups toggle, if able to be retrieved.
-      operationId: api.unleash.get_inventory_groups_toggle
-      security:
-        - ApiKeyAuth: []
-      responses:
-        '200':
-          description: The value of the Inventory Groups toggle
-          content:
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/UnleashToggleOut'
   /assignment-rules:
     get:
       operationId: api.assignment_rule.get_assignment_rules_list
@@ -1090,6 +1096,7 @@ components:
         enum:
           - name
           - host_count
+          - updated
       description: Ordering field name
     hostOrderHowParam:
       name: order_how
@@ -1154,8 +1161,7 @@ components:
           - fresh
           - stale
           - stale_warning
-          - unknown
-      description: "Culling states of the hosts. Default: fresh,stale,unknown"
+      description: "Culling states of the hosts. Default: fresh, stale and stale_warning"
     stalenessNoDefaultsParam:
       name: staleness
       in: query
@@ -1232,19 +1238,35 @@ components:
       in: query
       name: filter
       required: false
-      description: Filters hosts based on system_profile fields
+      description: >-
+        Filters hosts based on system_profile fields. For example:
+        <br /><br />
+        &nbsp;&nbsp;&nbsp;&nbsp;{"system_profile": {"host_type": {"eq": "edge"}}}
+        <br /><br />
+        which equates to the URL param:
+        <br /><br />
+        &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][host_type][eq]=edge"
       style: deepObject
       explode: true
+      example: {}
       schema:
         $ref:  '#/components/schemas/SystemProfileNestedObject'
     fields_param:
       in: query
       name: fields
       required: false
-      description: Fetches only mentioned system_profile fields
+      description: >-
+        Fetches only mentioned system_profile fields. For example,
+        <br /><br />
+        &nbsp;&nbsp;&nbsp;&nbsp;{"system_profile": ["arch", "host_type"]}
+        <br /><br />
+        which equates to the URL param:
+        <br /><br />
+        &nbsp;&nbsp;&nbsp;&nbsp;"?fields[system_profile]=arch,host_type"
       style: deepObject
       explode: true
       x-validator: sparseFields
+      example: {}
       schema:
         $ref:  '#/components/schemas/SystemProfileNestedObject'
     confirmDeleteAll:
@@ -1739,6 +1761,14 @@ components:
           type: string
           format: date-time
           example: '2020-02-17T08:07:03.354307+00:00'
+        stale_warning_timestamp:
+          type: string
+          format: date-time
+          example: '2020-02-17T08:07:03.354307+00:00'
+        culled_timestamp:
+          type: string
+          format: date-time
+          example: '2020-02-17T08:07:03.354307+00:00'
         check_in_succeeded:
           type: boolean
     ActiveTags:
@@ -1822,7 +1852,7 @@ components:
       nullable: true
       items:
         $ref: '#/components/schemas/NonStrictUUID'
-    AccountStalenessId:
+    StalenessId:
       description: Account Staleness UID
       oneOf:
         - $ref: '#/components/schemas/NonStrictUUID'
@@ -2029,61 +2059,53 @@ components:
             type: array
             items:
               $ref: '#/components/schemas/GroupOutWithHostCount'
-    AccountStalenessIn:
+    StalenessIn:
       title: Account Staleness In
       description: >-
         Data of a single account staleness.
       type: object
       anyOf:
         - properties:
-            conventional_staleness_delta:
-              type: string
-              maxLength: 36
-            conventional_stale_warning_delta:
-              type: string
-              maxLength: 36
-            conventional_culling_delta:
-              type: string
-              maxLength: 36
-            immutable_staleness_delta:
-              type: string
-              maxLength: 36
-            immutable_stale_warning_delta:
-              type: string
-              maxLength: 36
-            immutable_culling_delta:
-              type: string
-              maxLength: 36
-    AccountStalenessOutput:
+            conventional_time_to_stale:
+              type: integer
+              minimum: 1
+            conventional_time_to_stale_warning:
+              type: integer
+              minimum: 1
+            conventional_time_to_delete:
+              type: integer
+              minimum: 1
+            immutable_time_to_stale:
+              type: integer
+              minimum: 1
+            immutable_time_to_stale_warning:
+              type: integer
+              minimum: 1
+            immutable_time_to_delete:
+              type: integer
+              minimum: 1
+    StalenessOutput:
       title: Account Staleness Out
       description: >-
         Data of a account staleness.
       type: object
       properties:
         id:
-          $ref: "#/components/schemas/AccountStalenessId"
-        account:
-          $ref: "#/components/schemas/AccountNumber"
+          $ref: "#/components/schemas/StalenessId"
         org_id:
           $ref: "#/components/schemas/OrgId"
-        conventional_staleness_delta:
-          type: string
-          maxLength: 36
-        conventional_stale_warning_delta:
-          type: string
-          maxLength: 36
-        conventional_culling_delta:
-          type: string
-          maxLength: 36
-        immutable_staleness_delta:
-          type: string
-          maxLength: 36
-        immutable_stale_warning_delta:
-          type: string
-          maxLength: 36
-        immutable_culling_delta:
-          type: string
-          maxLength: 36
+        conventional_time_to_stale:
+          type: integer
+        conventional_time_to_stale_warning:
+          type: integer
+        conventional_time_to_delete:
+          type: integer
+        immutable_time_to_stale:
+          type: integer
+        immutable_time_to_stale_warning:
+          type: integer
+        immutable_time_to_delete:
+          type: integer
         created_at:
           description: A timestamp when the entry was created.
           type: string

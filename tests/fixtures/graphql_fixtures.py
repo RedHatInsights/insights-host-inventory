@@ -124,7 +124,7 @@ def assert_query_host_filter_single_call(mocker, api_get, graphql_query_empty_re
             "limit": 50,
             "offset": 0,
             "filter": filter,
-            "fields": [],
+            "fields": ["host_type"],
         }
 
         graphql_query_empty_response.assert_called_once_with(QUERY, graphql_vars, mocker.ANY)
@@ -156,7 +156,56 @@ def assert_tag_query_host_filter_for_field(mocker, assert_tag_query_host_filter_
             url=url,
             host_filter={
                 "AND": ({field: {matcher: value.casefold() if field in CASEFOLDED_FIELDS else value}},),
-                "OR": mocker.ANY,
+                "OR": [
+                    {
+                        "AND": {
+                            "modified_on": {"gt": mocker.ANY},
+                            "spf_host_type": {"eq": "edge"},
+                        }
+                    },
+                    {
+                        "AND": {
+                            "modified_on": {
+                                "gt": mocker.ANY,
+                                "lte": mocker.ANY,
+                            },
+                            "spf_host_type": {"eq": "edge"},
+                        }
+                    },
+                    {
+                        "AND": {
+                            "modified_on": {
+                                "gt": mocker.ANY,
+                                "lte": mocker.ANY,
+                            },
+                            "spf_host_type": {"eq": "edge"},
+                        }
+                    },
+                    {
+                        "AND": {
+                            "modified_on": {"gt": mocker.ANY},
+                            "spf_host_type": {"eq": None},
+                        }
+                    },
+                    {
+                        "AND": {
+                            "modified_on": {
+                                "gt": mocker.ANY,
+                                "lte": mocker.ANY,
+                            },
+                            "spf_host_type": {"eq": None},
+                        }
+                    },
+                    {
+                        "AND": {
+                            "modified_on": {
+                                "gt": mocker.ANY,
+                                "lte": mocker.ANY,
+                            },
+                            "spf_host_type": {"eq": None},
+                        }
+                    },
+                ],
             },
             status=status,
         )

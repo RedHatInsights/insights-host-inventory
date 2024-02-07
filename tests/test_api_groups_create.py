@@ -4,12 +4,15 @@ from copy import deepcopy
 import pytest
 from dateutil import parser
 
+from app.auth.identity import Identity
+from app.auth.identity import to_auth_header
 from tests.helpers.api_utils import assert_group_response
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import SYSTEM_IDENTITY
+from tests.helpers.test_utils import USER_IDENTITY
 
 
 def test_create_group_with_empty_host_list(api_create_group, db_get_group_by_name, event_producer, mocker):
@@ -60,14 +63,24 @@ def test_create_group_with_hosts(
     assert_group_response(response_data, retrieved_group)
     assert event_producer.write_event.call_count == 2
     for call_arg in event_producer.write_event.call_args_list:
-        host = json.loads(call_arg[0][0])["host"]
+        event = json.loads(call_arg[0][0])
+        host = event["host"]
         assert host["id"] in host_id_list
         assert host["groups"][0]["name"] == group_data["name"]
         assert host["groups"][0]["id"] == str(retrieved_group.id)
         assert parser.isoparse(host["updated"]) == db_get_host(host["id"]).modified_on
+        assert event["platform_metadata"] == {"b64_identity": to_auth_header(Identity(obj=USER_IDENTITY))}
 
 
-def test_create_group_invalid_name(api_create_group):
+@pytest.mark.parametrize(
+    "new_name",
+    [
+        "",
+        "  ",
+        "  ",
+    ],
+)
+def test_create_group_invalid_name(api_create_group, new_name):
     group_data = {"name": "", "host_ids": []}
 
     response_status, _ = api_create_group(group_data)
@@ -84,10 +97,15 @@ def test_create_group_null_name(api_create_group):
     assert "Group name cannot be null" in response_data["detail"]
 
 
-def test_create_group_taken_name(api_create_group):
+@pytest.mark.parametrize(
+    "new_name",
+    ["test_group", " test_group", "test_group ", " test_group "],
+)
+def test_create_group_taken_name(api_create_group, new_name):
     group_data = {"name": "test_group", "host_ids": []}
 
-    response_status, _ = api_create_group(group_data)
+    api_create_group(group_data)
+    group_data["name"] = new_name
     response_status, response_data = api_create_group(group_data)
 
     assert_response_status(response_status, expected_status=400)

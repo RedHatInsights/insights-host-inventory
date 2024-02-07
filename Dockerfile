@@ -15,11 +15,11 @@ RUN FULL_RHEL=$(microdnf repolist --enabled | grep rhel-8) ; \
 ENV APP_ROOT=/opt/app-root/src
 WORKDIR $APP_ROOT
 
-RUN microdnf module enable postgresql:13 python38:3.8 && \
+RUN microdnf module enable postgresql:13 python39:3.9 && \
     microdnf upgrade -y && \
-    microdnf install --setopt=tsflags=nodocs -y postgresql python38 rsync tar procps-ng make snappy && \
+    microdnf install --setopt=tsflags=nodocs -y postgresql python39 rsync tar procps-ng make snappy && \
     rpm -qa | sort > packages-before-devel-install.txt && \
-    microdnf install --setopt=tsflags=nodocs -y libpq-devel python38-devel gcc && \
+    microdnf install --setopt=tsflags=nodocs -y libpq-devel python39-devel gcc && \
     rpm -qa | sort > packages-after-devel-install.txt
 
 COPY . .
@@ -28,12 +28,16 @@ ENV PIP_NO_CACHE_DIR=1
 ENV PIPENV_CLEAR=1
 ENV PIPENV_VENV_IN_PROJECT=1
 
-RUN python -m pip install --upgrade pip setuptools wheel && \
-    python -m pip install pipenv && \
+RUN python3 -m pip install --upgrade pip setuptools wheel && \
+    python3 -m pip install pipenv && \
     pipenv install --system --dev
 
-# allows unit tests to run successfully within the container if image is built in "test" environment
-RUN if [ "$TEST_IMAGE" = "true" ]; then chgrp -R 0 $APP_ROOT && chmod -R g=u $APP_ROOT; fi
+# allows pre-commit and unit tests to run successfully within the container if image is built in "test" environment
+RUN if [ "$TEST_IMAGE" = "true" ]; then \
+        microdnf install --setopt=tsflags=nodocs -y git && \
+        chgrp -R 0 $APP_ROOT && \
+        chmod -R g=u $APP_ROOT ; \
+    fi
 
 # remove devel packages that were only necessary for psycopg2 to compile
 RUN microdnf remove -y $( comm -13 packages-before-devel-install.txt packages-after-devel-install.txt ) && \

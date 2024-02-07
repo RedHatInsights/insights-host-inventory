@@ -2,28 +2,27 @@
 
 cd $APP_ROOT
 
-# pre-commit -- do not run in the container so that it has access to .git data
+# pre-commit -- run using container image built for PR, mount workspace as volume so it has access to .git
 echo '===================================='
 echo '===      Running Pre-commit     ===='
 echo '===================================='
-
-python3.8 -m venv venv
-source venv/bin/activate
-pip install --upgrade pip setuptools wheel
-pip install pre-commit
+# copy workspace directory and chown it to match podman user namespace
+podman unshare rm -fr ./workspace_copy
+rsync -Rr . ./workspace_copy
+podman unshare chown -R 1001:1001 workspace_copy
 set +e
-pre-commit run --all-files
+# run pre-commit with the copied workspace mounted as a volume
+podman run -u 1001:1001 -t -v ./workspace_copy:/workspace:Z --workdir /workspace --env HOME=/workspace $IMAGE:$IMAGE_TAG pre-commit run --all-files
 TEST_RESULT=$?
 set -e
+# remove copy of the workspace
+podman unshare rm -rf workspace_copy
 if [ $TEST_RESULT -ne 0 ]; then
 	echo '====================================='
 	echo '====  ✖ ERROR: PRECOMMIT FAILED  ===='
 	echo '====================================='
 	exit 1
 fi
-
-# Move back out of the pre-commit virtual env
-source .bonfire_venv/bin/activate
 
 # run unit tests in containers
 DB_CONTAINER_NAME="inventory-db-${IMAGE_TAG}"
@@ -94,7 +93,7 @@ echo '===================================='
 echo '====        Running Tests       ===='
 echo '===================================='
 set +e
-docker exec $TEST_CONTAINER_ID /bin/bash -c 'python manage.py db upgrade && pytest --cov=. --junitxml=junit-unittest.xml --cov-report html -sv'
+docker exec $TEST_CONTAINER_ID /bin/bash -c 'python3 manage.py db upgrade && pytest --cov=. --junitxml=junit-unittest.xml --cov-report html -sv'
 TEST_RESULT=$?
 set -e
 

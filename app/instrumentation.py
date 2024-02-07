@@ -116,6 +116,10 @@ def log_create_group_failed(logger, group_name):
     logger.info("Error adding group '%s'.", group_name, extra={"access_rule": get_control_rule()})
 
 
+def log_create_group_not_allowed(logger):
+    logger.info("Error adding group due to filtered inventory:groups:write RBAC permission.")
+
+
 # create host_group_assoc
 def log_host_group_add_succeeded(logger, host_id_list, group_id):
     logger.info(
@@ -156,6 +160,10 @@ def log_host_group_delete_failed(logger, host_id, group_id, control_rule):
         f"Failed to remove association between host {host_id} and group {group_id}",
         extra={"access_rule": control_rule},
     )
+
+
+def log_delete_hosts_from_group_failed(logger):
+    logger.info("Failed to remove hosts from group.")
 
 
 # get tags
@@ -282,6 +290,11 @@ def rbac_permission_denied(logger, required_permission, user_permissions):
     rbac_access_denied.labels(required_permission=required_permission).inc()
 
 
+def rbac_group_permission_denied(logger, group_ids, required_permission):
+    logger.debug(f"You do not have access to the the following groups: {group_ids}")
+    rbac_access_denied.labels(required_permission=required_permission).inc()
+
+
 def log_db_access_failure(logger, message, host_data):
     logger.error("Failure to access database ", f"{message}")
     metrics.db_communication_error.labels("OperationalError", host_data.get("insights_id", message)).inc()
@@ -310,13 +323,13 @@ def log_post_assignment_rule_failed(logger):
     logger.info("Failed to create assignment rule", extra={"access_rule": get_control_rule()})
 
 
-def log_create_account_staleness_succeeded(logger, staleness_id):
+def log_create_staleness_succeeded(logger, staleness_id):
     logger.info("Created account staleness: %s", staleness_id)
 
 
-def log_patch_account_staleness_succeeded(logger, staleness_id):
+def log_patch_staleness_succeeded(logger, staleness_id):
     logger.info(f"Account staleness: {staleness_id} successfully updated.")
 
 
-def log_create_account_staleness_failed(logger, org_id):
+def log_create_staleness_failed(logger, org_id):
     logger.info("Failed to create staleness for account with org_id %s", org_id)

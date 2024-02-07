@@ -22,13 +22,18 @@ from marshmallow import validate as marshmallow_validate
 from marshmallow import validates
 from marshmallow import validates_schema
 from marshmallow import ValidationError as MarshmallowValidationError
+from sqlalchemy import case
+from sqlalchemy import cast
 from sqlalchemy import ForeignKey
+from sqlalchemy import func
 from sqlalchemy import Index
 from sqlalchemy import orm
+from sqlalchemy import String
 from sqlalchemy import text
 from sqlalchemy import UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.ext.hybrid import hybrid_property
 from yaml import safe_load
 
 from app.exceptions import InventoryException
@@ -54,6 +59,11 @@ SYSTEM_PROFILE_SPECIFICATION_FILE = "system_profile.spec.yaml"
 
 # set edge host stale_timestamp way out in future to Year 2260
 EDGE_HOST_STALE_TIMESTAMP = datetime(2260, 1, 1, tzinfo=timezone.utc)
+
+# Used when updating per_reporter_staleness from old to new keys.
+NEW_TO_OLD_REPORTER_MAP = {"satellite": "yupana", "discovery": "yupana"}
+# Used in filtering.
+OLD_TO_NEW_REPORTER_MAP = {"yupana": ("satellite", "discovery")}
 
 
 class ProviderType(str, Enum):
@@ -186,6 +196,41 @@ class LimitedHost(db.Model):
         if ansible_host is not None:
             # Allow a user to clear out the ansible host with an empty string
             self.ansible_host = ansible_host
+
+    @hybrid_property
+    def operating_system(self):
+        # Used when accessing the instance's property
+        name = ""
+        major = 0
+        minor = 0
+
+        if "operating_system" in self.system_profile_facts:
+            name = self.system_profile_facts["operating_system"]["name"]
+            major = self.system_profile_facts["operating_system"]["major"]
+            minor = self.system_profile_facts["operating_system"]["minor"]
+
+        return f"{name} {major:03}.{minor:03}"
+
+    @operating_system.expression
+    def operating_system(cls):
+        # Used when querying the model
+        return case(
+            # If the host has system_profile_facts.operating_system,
+            # generate the string value to be sorted by ("name maj.min")
+            [
+                (
+                    cls.system_profile_facts.has_key("operating_system"),
+                    func.concat(
+                        cls.system_profile_facts["operating_system"]["name"],
+                        " ",
+                        func.lpad(cast(cls.system_profile_facts["operating_system"]["major"], String), 3, "0"),
+                        ".",
+                        func.lpad(cast(cls.system_profile_facts["operating_system"]["minor"], String), 3, "0"),
+                    ),
+                )
+            ],
+            else_=" 000.000",
+        )
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     account = db.Column(db.String(10))
@@ -321,6 +366,9 @@ class Host(LimitedHost):
 
         if not self.per_reporter_staleness.get(reporter):
             self.per_reporter_staleness[reporter] = {}
+
+        if old_reporter := NEW_TO_OLD_REPORTER_MAP.get(reporter):
+            self.per_reporter_staleness.pop(old_reporter, None)
 
         self.per_reporter_staleness[reporter].update(
             stale_timestamp=self.stale_timestamp.isoformat(),
@@ -531,63 +579,60 @@ class AssignmentRule(db.Model):
     modified_on = db.Column(db.DateTime(timezone=True), default=_time_now, onupdate=_time_now)
 
 
-class AccountStalenessCulling(db.Model):
-    __tablename__ = "account_staleness_culling"
+class Staleness(db.Model):
+    __tablename__ = "staleness"
     __table_args__ = (
         Index("idxaccstaleorgid", "org_id"),
-        UniqueConstraint("org_id", name="account_staleness_culling_unique_org_id"),
+        UniqueConstraint("org_id", name="staleness_unique_org_id"),
     )
 
     def __init__(
         self,
         org_id,
-        account=None,
-        conventional_staleness_delta=None,
-        conventional_stale_warning_delta=None,
-        conventional_culling_delta=None,
-        immutable_staleness_delta=None,
-        immutable_stale_warning_delta=None,
-        immutable_culling_delta=None,
+        conventional_time_to_stale=None,
+        conventional_time_to_stale_warning=None,
+        conventional_time_to_delete=None,
+        immutable_time_to_stale=None,
+        immutable_time_to_stale_warning=None,
+        immutable_time_to_delete=None,
     ):
         if not org_id:
-            raise ValidationException("Assignment rule org_id cannot be null.")
+            raise ValidationException("Staleness org_id cannot be null.")
 
         self.org_id = org_id
-        self.account = account
-        self.conventional_staleness_delta = conventional_staleness_delta
-        self.conventional_stale_warning_delta = conventional_stale_warning_delta
-        self.conventional_culling_delta = conventional_culling_delta
-        self.immutable_staleness_delta = immutable_staleness_delta
-        self.immutable_stale_warning_delta = immutable_stale_warning_delta
-        self.immutable_culling_delta = immutable_culling_delta
+        self.conventional_time_to_stale = conventional_time_to_stale
+        self.conventional_time_to_stale_warning = conventional_time_to_stale_warning
+        self.conventional_time_to_delete = conventional_time_to_delete
+        self.immutable_time_to_stale = immutable_time_to_stale
+        self.immutable_time_to_stale_warning = immutable_time_to_stale_warning
+        self.immutable_time_to_delete = immutable_time_to_delete
 
     def days_to_seconds(n_days):
         factor = 86400
         return n_days * factor
 
     def update(self, input_acc):
-        if input_acc.conventional_staleness_delta:
-            self.conventional_staleness_delta = input_acc.conventional_staleness_delta
-        if input_acc.conventional_stale_warning_delta:
-            self.conventional_stale_warning_delta = input_acc.conventional_stale_warning_delta
-        if input_acc.conventional_culling_delta:
-            self.conventional_culling_delta = input_acc.conventional_culling_delta
-        if input_acc.immutable_staleness_delta:
-            self.immutable_staleness_delta = input_acc.immutable_staleness_delta
-        if input_acc.immutable_stale_warning_delta:
-            self.immutable_stale_warning_delta = input_acc.immutable_stale_warning_delta
-        if input_acc.immutable_culling_delta:
-            self.immutable_culling_delta = input_acc.immutable_culling_delta
+        if input_acc.conventional_time_to_stale:
+            self.conventional_time_to_stale = input_acc.conventional_time_to_stale
+        if input_acc.conventional_time_to_stale_warning:
+            self.conventional_time_to_stale_warning = input_acc.conventional_time_to_stale_warning
+        if input_acc.conventional_time_to_delete:
+            self.conventional_time_to_delete = input_acc.conventional_time_to_delete
+        if input_acc.immutable_time_to_stale:
+            self.immutable_time_to_stale = input_acc.immutable_time_to_stale
+        if input_acc.immutable_time_to_stale_warning:
+            self.immutable_time_to_stale_warning = input_acc.immutable_time_to_stale_warning
+        if input_acc.immutable_time_to_delete:
+            self.immutable_time_to_delete = input_acc.immutable_time_to_delete
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     org_id = db.Column(db.String(36), nullable=False)
-    account = db.Column(db.String(10))
-    conventional_staleness_delta = db.Column(db.String(36), default=f"{days_to_seconds(1)}", nullable=False)
-    conventional_stale_warning_delta = db.Column(db.String(36), default=f"{days_to_seconds(7)}", nullable=False)
-    conventional_culling_delta = db.Column(db.String(36), default=f"{days_to_seconds(14)}", nullable=False)
-    immutable_staleness_delta = db.Column(db.String(36), default=f"{days_to_seconds(2)}", nullable=False)
-    immutable_stale_warning_delta = db.Column(db.String(36), default=f"{days_to_seconds(120)}", nullable=False)
-    immutable_culling_delta = db.Column(db.String(36), default=f"{days_to_seconds(180)}", nullable=False)
+    conventional_time_to_stale = db.Column(db.Integer, default=104400, nullable=False)
+    conventional_time_to_stale_warning = db.Column(db.Integer, default=days_to_seconds(7), nullable=False)
+    conventional_time_to_delete = db.Column(db.Integer, default=days_to_seconds(14), nullable=False)
+    immutable_time_to_stale = db.Column(db.Integer, default=days_to_seconds(2), nullable=False)
+    immutable_time_to_stale_warning = db.Column(db.Integer, default=days_to_seconds(180), nullable=False)
+    immutable_time_to_delete = db.Column(db.Integer, default=days_to_seconds(730), nullable=False)
     created_on = db.Column(db.DateTime(timezone=True), default=_time_now)
     modified_on = db.Column(db.DateTime(timezone=True), default=_time_now, onupdate=_time_now)
 
@@ -834,6 +879,13 @@ class InputGroupSchema(MarshmallowSchema):
     name = fields.Str(validate=marshmallow_validate.Length(min=1, max=255))
     host_ids = fields.List(fields.Str(validate=verify_uuid_format))
 
+    @pre_load
+    def strip_whitespace_from_name(self, in_data, **kwargs):
+        if "name" in in_data:
+            in_data["name"] = in_data["name"].strip()
+
+        return in_data
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -849,13 +901,28 @@ class InputAssignmentRule(MarshmallowSchema):
         super().__init__(*args, **kwargs)
 
 
-class InputAccountStalenessSchema(MarshmallowSchema):
-    conventional_staleness_delta = fields.Str(validate=marshmallow_validate.Length(min=1, max=36))
-    conventional_stale_warning_delta = fields.Str(validate=marshmallow_validate.Length(min=1, max=36))
-    conventional_culling_delta = fields.Str(validate=marshmallow_validate.Length(min=1, max=36))
-    immutable_staleness_delta = fields.Str(validate=marshmallow_validate.Length(min=1, max=36))
-    immutable_stale_warning_delta = fields.Str(validate=marshmallow_validate.Length(min=1, max=36))
-    immutable_culling_delta = fields.Str(validate=marshmallow_validate.Length(min=1, max=36))
+class StalenessSchema(MarshmallowSchema):
+    conventional_time_to_stale = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
+    conventional_time_to_stale_warning = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
+    conventional_time_to_delete = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
+    immutable_time_to_stale = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
+    immutable_time_to_stale_warning = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
+    immutable_time_to_delete = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
+
+    @validates_schema
+    def validate_staleness(self, data, **kwargs):
+        staleness_fields = ["time_to_stale", "time_to_stale_warning", "time_to_delete"]
+        for host_type in (
+            "conventional",
+            "immutable",
+        ):
+            for i in range(len(staleness_fields) - 1):  # For all but the last field
+                for j in range(i + 1, len(staleness_fields)):  # For all fields after that field
+                    if (
+                        data[(field_1 := f"{host_type}_{staleness_fields[i]}")]
+                        >= data[(field_2 := f"{host_type}_{staleness_fields[j]}")]
+                    ):
+                        raise MarshmallowValidationError(f"{field_1} must be lower than {field_2}")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

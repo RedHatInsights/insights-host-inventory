@@ -1192,17 +1192,18 @@ def test_add_host_stale_timestamp(event_datetime_mock, mq_create_or_update_host)
         stale_timestamp=stale_timestamp.isoformat(),
     )
 
+    host_keys_to_check = ["reporter", "stale_timestamp", "culled_timestamp"]
+
+    key, event, _ = mq_create_or_update_host(host, return_all_data=True)
+    updated_timestamp = datetime.fromisoformat(event["host"]["updated"])
+    host.stale_timestamp = (updated_timestamp + timedelta(seconds=104400)).isoformat()
     expected_results = {
         "host": {
             **host.data(),
-            "stale_warning_timestamp": (stale_timestamp + timedelta(weeks=1)).isoformat(),
-            "culled_timestamp": (stale_timestamp + timedelta(weeks=2)).isoformat(),
+            "stale_warning_timestamp": (updated_timestamp + timedelta(seconds=604800)).isoformat(),
+            "culled_timestamp": (updated_timestamp + timedelta(seconds=1209600)).isoformat(),
         }
     }
-
-    host_keys_to_check = ["reporter", "stale_timestamp", "culled_timestamp"]
-
-    key, event, headers = mq_create_or_update_host(host, return_all_data=True)
 
     assert_mq_host_data(key, event, expected_results, host_keys_to_check)
 
@@ -1740,3 +1741,24 @@ def test_groups_not_overwritten_for_existing_hosts(
     assert created_key == host_id
     assert created_event["host"]["ansible_host"] == "updated.ansible.host"
     assert created_event["host"]["groups"][0]["id"] == group_id
+
+
+def test_add_host_with_invalid_identity(mocker, event_datetime_mock, mq_create_or_update_host, db_get_host):
+    """
+    Tests that using an invalid identity still results in a notification message
+    """
+    identity = deepcopy(USER_IDENTITY)
+    identity["account_number"] = -5
+    metadata = {
+        "request_id": "b9757340-f839-4541-9af6-f7535edf08db",
+        "archive_url": "http://s3.aws.com/redhat/insights/1234567",
+        "b64_identity": get_encoded_idstr(identity),
+    }
+    mock_notification_event_producer = mocker.Mock()
+    host = minimal_host(account=SYSTEM_IDENTITY["account_number"])
+    with pytest.raises(ValidationException):
+        mq_create_or_update_host(
+            host, notification_event_producer=mock_notification_event_producer, platform_metadata=metadata
+        )
+
+    mock_notification_event_producer.write_event.assert_called_once()
