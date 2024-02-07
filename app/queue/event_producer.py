@@ -1,3 +1,4 @@
+from confluent_kafka import KafkaError
 from confluent_kafka import KafkaException
 from confluent_kafka import Producer as KafkaProducer
 
@@ -22,8 +23,11 @@ class MessageDetails:
         self.topic = topic
 
     def on_delivered(self, error, message):
+        message_to_send = None
         if error:
-            message_not_produced(logger, error, self.topic, self.event, self.key, self.headers)
+            if error.code() == KafkaError.MSG_SIZE_TOO_LARGE:
+                message_to_send = message
+            message_not_produced(logger, error, self.topic, self.event, self.key, self.headers, message_to_send)
         else:
             message_produced(logger, message, self.headers)
 
