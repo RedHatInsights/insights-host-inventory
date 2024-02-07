@@ -3822,7 +3822,7 @@
               "running_instances": {
                 "type": "array",
                 "items": {
-                  "description": "The info for each running InterSystems instances in the system",
+                  "description": "The info for an InterSystems instance running on the system",
                   "type": "object",
                   "properties": {
                     "instance_name": {
