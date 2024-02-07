@@ -496,66 +496,28 @@ def _build_prs_array(mocker, reporters):
             reporters.extend(OLD_TO_NEW_REPORTER_MAP[old_reporter])
             reporters = list(set(reporters))  # Remove duplicates
     for reporter in reporters:
-        prs_item = {
-            "per_reporter_staleness": {
-                "reporter": {"eq": reporter.replace("!", "")},
-                "AND": (
-                    {
-                        "AND": {
-                            "last_check_in": {"gt": mocker.ANY},
-                            "hostFilter": {"spf_host_type": {"eq": "edge"}},
-                        }
-                    },
-                    {
-                        "AND": {
-                            "last_check_in": {
-                                "gt": mocker.ANY,
-                                "lte": mocker.ANY,
-                            },
-                            "hostFilter": {"spf_host_type": {"eq": "edge"}},
-                        }
-                    },
-                    {
-                        "AND": {
-                            "last_check_in": {
-                                "gt": mocker.ANY,
-                                "lte": mocker.ANY,
-                            },
-                            "hostFilter": {"spf_host_type": {"eq": "edge"}},
-                        }
-                    },
-                    {
-                        "AND": {
-                            "last_check_in": {"gt": mocker.ANY},
-                            "hostFilter": {"spf_host_type": {"eq": None}},
-                        }
-                    },
-                    {
-                        "AND": {
-                            "last_check_in": {
-                                "gt": mocker.ANY,
-                                "lte": mocker.ANY,
-                            },
-                            "hostFilter": {"spf_host_type": {"eq": None}},
-                        }
-                    },
-                    {
-                        "AND": {
-                            "last_check_in": {
-                                "gt": mocker.ANY,
-                                "lte": mocker.ANY,
-                            },
-                            "hostFilter": {"spf_host_type": {"eq": None}},
-                        }
-                    },
-                ),
-            }
-        }
+        prs_item = [
+            {
+                "per_reporter_staleness": {
+                    "last_check_in": {"gt": mocker.ANY},
+                    "hostFilter": {"spf_host_type": {"eq": "edge"}},
+                    "reporter": {"eq": reporter},
+                }
+            },
+            {
+                "per_reporter_staleness": {
+                    "last_check_in": {"gt": mocker.ANY},
+                    "hostFilter": {"spf_host_type": {"eq": None}},
+                    "reporter": {"eq": reporter},
+                }
+            },
+        ]
 
         if reporter.startswith("!"):
             prs_item = {"NOT": prs_item}
 
-        prs_array.append(prs_item)
+        for items in prs_item:
+            prs_array.append(items)
 
     return prs_array
 
@@ -587,10 +549,7 @@ def test_query_variables_registered_with_per_reporter(mocker, graphql_query_empt
             "order_how": mocker.ANY,
             "limit": mocker.ANY,
             "offset": mocker.ANY,
-            "filter": (
-                {"OR": mocker.ANY},
-                {"OR": prs_array},
-            ),
+            "filter": ({"OR": prs_array},),
             "fields": mocker.ANY,
         },
         mocker.ANY,
