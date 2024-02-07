@@ -424,14 +424,15 @@ def test_delete_with_callback_receiving_error(
     mocker.patch("lib.host_delete.kafka_available")
     host = db_create_host()
     headers = mock.MagicMock()
-    message = mock.MagicMock()
+    event = mock.MagicMock()
+    message = None  # message is only sent when message is too long to be produced
     error = mock.MagicMock()
     message_not_produced_mock = mocker.patch("app.queue.event_producer.message_not_produced")
 
-    msgdet = MessageDetails(topic=None, event=message, headers=headers, key=host.id)
+    msgdet = MessageDetails(topic=None, event=event, headers=headers, key=host.id)
     event_producer._kafka_producer.produce.side_effects = msgdet.on_delivered(error, message)
 
-    response_status, response_data = api_delete_host(",".join([str(host.id)]))
+    response_status, _ = api_delete_host(",".join([str(host.id)]))
 
     assert_response_status(response_status, expected_status=200)
 
@@ -439,7 +440,9 @@ def test_delete_with_callback_receiving_error(
 
     assert remaining_hosts.count() == 0
     assert event_producer._kafka_producer.produce.call_count == 1
-    message_not_produced_mock.assert_called_once_with(event_producer_logger, error, None, message, host.id, headers)
+    message_not_produced_mock.assert_called_once_with(
+        event_producer_logger, error, None, event, host.id, headers, message
+    )
 
 
 def test_delete_host_that_belongs_to_group_success(
