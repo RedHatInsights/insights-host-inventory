@@ -3811,6 +3811,44 @@
               }
             }
           },
+          "intersystems": {
+            "description": "Object containing data specific to InterSystems workload",
+            "type": "object",
+            "properties": {
+              "is_intersystems": {
+                "description": "Indicates if InterSystems is installed on the system",
+                "type": "boolean"
+              },
+              "running_instances": {
+                "type": "array",
+                "items": {
+                  "description": "The info for an InterSystems instance running on the system",
+                  "type": "object",
+                  "properties": {
+                    "instance_name": {
+                      "description": "The name of the instance",
+                      "type": "string",
+                      "example": "IRIS3, PROD",
+                      "maxLength": 255
+                    },
+                    "product": {
+                      "description": "The product of the instance",
+                      "type": "string",
+                      "example": "IRIS",
+                      "maxLength": 64
+                    },
+                    "version": {
+                      "description": "The version of the instance",
+                      "type": "string",
+                      "example": "2023.1, 2023.2",
+                      "maxLength": 7,
+                      "pattern": "^\\d+(\\.\\d+)+$"
+                    }
+                  }
+                }
+              }
+            }
+          },
           "mssql": {
             "description": "Object containing data specific to the MS SQL workload",
             "type": "object",
