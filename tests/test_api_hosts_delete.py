@@ -432,7 +432,7 @@ def test_delete_with_callback_receiving_error(
     msgdet = MessageDetails(topic=None, event=event, headers=headers, key=host.id)
     event_producer._kafka_producer.produce.side_effects = msgdet.on_delivered(error, message)
 
-    response_status, response_data = api_delete_host(",".join([str(host.id)]))
+    response_status, _ = api_delete_host(",".join([str(host.id)]))
 
     assert_response_status(response_status, expected_status=200)
 

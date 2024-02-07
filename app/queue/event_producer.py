@@ -20,7 +20,7 @@ class MessageDetails:
         self.event = event
         self.headers = headers
         self.key = key
-        self.topic = ""
+        self.topic = topic
 
     def on_delivered(self, error, message):
         message_to_send = None
