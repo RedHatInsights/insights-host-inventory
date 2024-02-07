@@ -1,3 +1,6 @@
+import random
+from unittest.mock import patch
+
 import pytest
 
 from app.config import Config
@@ -7,6 +10,7 @@ from lib.host_repository import find_hosts_by_staleness
 from lib.system_profile_validate import validate_sp_for_branch
 from tests.helpers.api_utils import assert_error_response
 from tests.helpers.api_utils import assert_response_status
+from tests.helpers.api_utils import build_system_profile_operating_system_url
 from tests.helpers.api_utils import build_system_profile_sap_sids_url
 from tests.helpers.api_utils import build_system_profile_sap_system_url
 from tests.helpers.api_utils import build_system_profile_url
@@ -330,3 +334,56 @@ def test_validate_sp_for_invalid_days(api_post):
     )
 
     assert response_status == 400
+
+
+def test_system_profile_operating_system(mq_create_or_update_host, api_get):
+    # Create some operating systems
+    ordered_operating_system_data = [
+        {"name": "CentOS", "major": 4, "minor": 0},
+        {"name": "CentOS", "major": 4, "minor": 1},
+        {"name": "CentOS", "major": 5, "minor": 1},
+        {"name": "CentOS", "major": 5, "minor": 1},
+        {"name": "RHEL", "major": 3, "minor": 0},
+        {"name": "RHEL", "major": 3, "minor": 11},
+        {"name": "RHEL", "major": 8, "minor": 1},
+        {"name": "RHEL", "major": 8, "minor": 1},
+    ]
+    ordered_insights_ids = [generate_uuid() for _ in range(len(ordered_operating_system_data))]
+
+    # Create an association between the insights IDs
+    ordered_host_data = dict(zip(ordered_insights_ids, ordered_operating_system_data))
+
+    # Create a shuffled list of insights_ids so we can create the hosts in a random order
+    shuffled_insights_ids = ordered_insights_ids.copy()
+    random.shuffle(shuffled_insights_ids)
+
+    # Create hosts for the above host data (in shuffled order)
+    _ = [
+        mq_create_or_update_host(
+            minimal_host(insights_id=insights_id, system_profile={"operating_system": ordered_host_data[insights_id]})
+        )
+        for insights_id in shuffled_insights_ids
+    ]
+    url = build_system_profile_operating_system_url()
+
+    os_list = []
+    os_dict = {}
+    for os_datum in ordered_operating_system_data:
+        os_datum_name = f"{os_datum['name']}_{os_datum['major']}.{os_datum['minor']}"
+        if os_datum not in os_list:
+            os_list.append(os_datum)
+            os_dict[os_datum_name] = {"value": os_datum, "count": 1}
+        else:
+            os_dict[os_datum_name]["count"] += 1
+
+    with patch("api.system_profile.get_flag_value", return_value=True):
+        # Validate the basics, i.e. response code and results size
+        response_status, response_data = api_get(url)
+        assert response_status == 200
+        assert len(os_list) == len(response_data["results"])
+
+    for index in range(len(os_list)):
+        item = response_data["results"][index]
+        item_key = f"{item['value']['name']}_{item['value']['major']}.{item['value']['minor']}"
+        item_count = item["count"]
+        assert item_count == os_dict[item_key]["count"]
