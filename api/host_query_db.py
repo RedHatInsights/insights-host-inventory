@@ -1,18 +1,20 @@
 from typing import List
 from typing import Tuple
 
+from sqlalchemy import func
 from sqlalchemy.orm import Query
+from sqlalchemy.sql.expression import ColumnElement
 
 from api.filtering.db_filters import host_id_list_filter
 from api.filtering.db_filters import query_filters
 from api.filtering.db_filters import rbac_permissions_filter
+from app import db
 from app.auth import get_current_identity
 from app.instrumentation import log_get_host_list_succeeded
 from app.logging import get_logger
 from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
-from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.host_repository import update_query_for_owner_id
 
 __all__ = (
@@ -150,7 +152,7 @@ def _order_how(column, order_how: str):
         raise ValueError('Unsupported ordering direction, use "ASC" or "DESC".')
 
 
-def _find_all_hosts() -> Query:
+def _find_all_hosts(columns: List[ColumnElement] = None) -> Query:
     identity = get_current_identity()
     query = (
         Host.query.join(HostGroupAssoc, isouter=True)
@@ -158,16 +160,19 @@ def _find_all_hosts() -> Query:
         .filter(Host.org_id == identity.org_id)
         .group_by(Host.id, Group.name)
     )
+    if columns:
+        query = query.with_entities(*columns)
     return update_query_for_owner_id(identity, query)
 
 
 def get_host_tags_list_by_id_list(
-    host_id_list: List[str], page: int, per_page: int, order_by: str, order_how: str, rbac_filter: dict
+    host_id_list: List[str], limit: int, offset: int, order_by: str, order_how: str, rbac_filter: dict
 ) -> Tuple[dict, int]:
     columns = [Host.id, Host.tags]
-    query = get_host_list_by_id_list_from_db(host_id_list, rbac_filter, columns)
+    query = _find_all_hosts(columns)
+    host_filter = host_id_list_filter(host_id_list=host_id_list)
     order = params_to_order_by(order_by, order_how)
-    query_results = query.order_by(*order).offset((page - 1) * per_page).limit(per_page).all()
+    query_results = query.filter(*host_filter).order_by(*order).offset(offset).limit(limit).all()
     host_tags_dict = _expand_host_tags(query_results)
     return host_tags_dict, len(host_id_list)
 
@@ -184,3 +189,24 @@ def _expand_host_tags(hosts: List[Host]) -> dict:
                     host_tags.append(host_tag_obj)
         host_tags_dict[host.id] = host_tags
     return host_tags_dict
+
+
+def get_os_info(limit, offset, staleness, tags, registered_with, filter, rbac_filter):
+    columns = [
+        Host.system_profile_facts["operating_system"]["name"].label("name"),
+        Host.system_profile_facts["operating_system"]["major"].label("major"),
+        Host.system_profile_facts["operating_system"]["minor"].label("minor"),
+    ]
+    os_query = _find_all_hosts(columns)
+    filters = query_filters(
+        tags=tags, staleness=staleness, registered_with=registered_with, filter=filter, rbac_filter=rbac_filter
+    )
+    if filters:
+        os_query = os_query.filter(*filters)
+
+    subquery = os_query.subquery()
+    agg_query = db.session.query(subquery, func.count()).group_by("name", "major", "minor")
+    query_total = agg_query.count()
+    query_results = agg_query.offset(offset).limit(limit).all()
+    result = [{"value": {"name": qr[0], "major": qr[1], "minor": qr[2]}, "count": qr[3]} for qr in query_results]
+    return result, query_total
