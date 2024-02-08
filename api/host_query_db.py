@@ -1,6 +1,7 @@
 from typing import List
 from typing import Tuple
 
+from sqlalchemy import Boolean
 from sqlalchemy import func
 from sqlalchemy.orm import Query
 from sqlalchemy.sql.expression import ColumnElement
@@ -209,4 +210,26 @@ def get_os_info(limit, offset, staleness, tags, registered_with, filter, rbac_fi
     query_total = agg_query.count()
     query_results = agg_query.offset(offset).limit(limit).all()
     result = [{"value": {"name": qr[0], "major": qr[1], "minor": qr[2]}, "count": qr[3]} for qr in query_results]
+    return result, query_total
+
+
+def get_sap_system_info(limit, offset, staleness, tags, registered_with, filter, rbac_filter):
+    columns = [
+        Host.system_profile_facts["sap_system"].label("value"),
+    ]
+    sap_query = _find_all_hosts(columns)
+    sap_filter = [
+        func.jsonb_typeof(Host.system_profile_facts["sap_system"]) == "boolean",
+        Host.system_profile_facts["sap_system"].astext.cast(Boolean) != None,  # noqa:E711
+    ]
+    filters = query_filters(
+        tags=tags, staleness=staleness, registered_with=registered_with, filter=filter, rbac_filter=rbac_filter
+    )
+    sap_query = sap_query.filter(*filters).filter(*sap_filter)
+
+    subquery = sap_query.subquery()
+    agg_query = db.session.query(subquery, func.count()).group_by("value")
+    query_total = agg_query.count()
+    query_results = agg_query.offset(offset).limit(limit).all()
+    result = [{"value": qr[0], "count": qr[1]} for qr in query_results]
     return result, query_total
