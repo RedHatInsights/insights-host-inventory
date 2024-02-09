@@ -1,3 +1,4 @@
+from functools import partial
 from logging import getLogger
 
 from flask import abort
@@ -97,12 +98,14 @@ def staleness_filter(staleness):
     return staleness_conditions
 
 
-def per_reporter_staleness_filter(staleness):
+def per_reporter_staleness_filter(staleness, reporter):
     staleness_obj = serialize_staleness_to_dict(get_staleness_obj())
     staleness_conditions = tuple()
     for host_type in HOST_TYPES:
         staleness_conditions += tuple(
-            staleness_to_conditions(staleness_obj, staleness, host_type, _stale_timestamp_per_reporter_filter)
+            staleness_to_conditions(
+                staleness_obj, staleness, host_type, partial(_stale_timestamp_per_reporter_filter, reporter=reporter)
+            )
         )
     return staleness_conditions
 
@@ -139,10 +142,16 @@ def _stale_timestamp_filter(gt=None, lte=None, host_type=None):
     return {"AND": ({"modified_on": filter_, "spf_host_type": {"eq": host_type}})}
 
 
-def _stale_timestamp_per_reporter_filter(gt=None, lte=None, host_type=None):
+def _stale_timestamp_per_reporter_filter(gt=None, lte=None, host_type=None, reporter=None):
     filter_ = {}
     if gt:
         filter_["gt"] = gt.isoformat()
     if lte:
         filter_["lte"] = lte.isoformat()
-    return {"AND": ({"last_check_in": filter_, "hostFilter": {"spf_host_type": {"eq": host_type}}})}
+    return {
+        "per_reporter_staleness": {
+            "reporter": {"eq": reporter},
+            "last_check_in": filter_,
+            "hostFilter": {"spf_host_type": {"eq": host_type}},
+        }
+    }
