@@ -10,6 +10,7 @@ from api import flask_json_response
 from api import metrics
 from api.filtering.filtering import query_filters
 from api.host_query_db import get_os_info as get_os_info_db
+from api.host_query_db import get_sap_system_info as get_sap_system_info_db
 from app import RbacPermission
 from app import RbacResourceType
 from app.auth import get_current_identity
@@ -125,6 +126,18 @@ def get_sap_system(
     tags=None, page=None, per_page=None, staleness=None, registered_with=None, filter=None, rbac_filter=None
 ):
     limit, offset = pagination_params(page, per_page)
+    current_identity = get_current_identity()
+    if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
+        results, total = get_sap_system_info_db(
+            limit,
+            offset,
+            staleness=staleness,
+            tags=tags,
+            registered_with=registered_with,
+            filter=filter,
+            rbac_filter=rbac_filter,
+        )
+        return flask_json_response(build_collection_response(results, page, per_page, total))
 
     variables = {
         "hostFilter": {

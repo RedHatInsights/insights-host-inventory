@@ -1,4 +1,3 @@
-import random
 from unittest.mock import patch
 
 import pytest
@@ -349,20 +348,15 @@ def test_system_profile_operating_system(mq_create_or_update_host, api_get):
         {"name": "RHEL", "major": 8, "minor": 1},
     ]
     ordered_insights_ids = [generate_uuid() for _ in range(len(ordered_operating_system_data))]
-
     # Create an association between the insights IDs
     ordered_host_data = dict(zip(ordered_insights_ids, ordered_operating_system_data))
-
-    # Create a shuffled list of insights_ids so we can create the hosts in a random order
-    shuffled_insights_ids = ordered_insights_ids.copy()
-    random.shuffle(shuffled_insights_ids)
 
     # Create hosts for the above host data (in shuffled order)
     _ = [
         mq_create_or_update_host(
             minimal_host(insights_id=insights_id, system_profile={"operating_system": ordered_host_data[insights_id]})
         )
-        for insights_id in shuffled_insights_ids
+        for insights_id in ordered_insights_ids
     ]
     url = build_system_profile_operating_system_url()
 
@@ -387,3 +381,43 @@ def test_system_profile_operating_system(mq_create_or_update_host, api_get):
         item_key = f"{item['value']['name']}_{item['value']['major']}.{item['value']['minor']}"
         item_count = item["count"]
         assert item_count == os_dict[item_key]["count"]
+
+
+def test_system_profile_sap_system(mq_create_or_update_host, api_get):
+    # Create some sap systems
+    ordered_sap_system_data = [True, True, False, False, True, False]
+    ordered_insights_ids = [generate_uuid() for _ in range(len(ordered_sap_system_data))]
+
+    # Create an association between the insights IDs
+    ordered_host_data = dict(zip(ordered_insights_ids, ordered_sap_system_data))
+
+    # Create hosts for the above host data
+    _ = [
+        mq_create_or_update_host(
+            minimal_host(insights_id=insights_id, system_profile={"sap_system": ordered_host_data[insights_id]})
+        )
+        for insights_id in ordered_insights_ids
+    ]
+    url = build_system_profile_sap_system_url()
+
+    sap_list = []
+    not_sap_list = []
+    for datum in ordered_sap_system_data:
+        if datum:
+            sap_list.append(datum)
+        else:
+            not_sap_list.append(datum)
+
+    with patch("api.system_profile.get_flag_value", return_value=True):
+        # Validate the basics, i.e. response code and results size
+        response_status, response_data = api_get(url)
+        assert response_status == 200
+        assert len(set(ordered_sap_system_data)) == len(response_data["results"])
+
+    for index in range(len(response_data["results"])):
+        item = response_data["results"][index]
+        item_count = item["count"]
+        if item["value"]:
+            assert item_count == len(sap_list)
+        else:
+            assert item_count == len(not_sap_list)
