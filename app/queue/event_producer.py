@@ -5,6 +5,8 @@ from confluent_kafka import Producer as KafkaProducer
 from app.instrumentation import message_not_produced
 from app.instrumentation import message_produced
 from app.logging import get_logger
+from app.queue.metrics import produce_large_message_failure
+from app.queue.metrics import produced_message_size
 
 logger = get_logger(__name__)
 
@@ -27,8 +29,10 @@ class MessageDetails:
         if error:
             if error.code() == KafkaError.MSG_SIZE_TOO_LARGE:
                 message_to_send = message
+                produce_large_message_failure.inc()
             message_not_produced(logger, error, self.topic, self.event, self.key, self.headers, message_to_send)
         else:
+            produced_message_size.observe(len(str(message).encode("utf-8")))
             message_produced(logger, message, self.headers)
 
 
