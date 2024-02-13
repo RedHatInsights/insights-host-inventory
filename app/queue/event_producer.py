@@ -29,9 +29,10 @@ class MessageDetails:
         if error:
             if error.code() == KafkaError.MSG_SIZE_TOO_LARGE:
                 message_to_send = message
+                produce_large_message_failure.inc()
             message_not_produced(logger, error, self.topic, self.event, self.key, self.headers, message_to_send)
         else:
-            produced_message_size.observe(len(message.encode("utf8")))
+            produced_message_size.observe(len(str(message).encode("utf-8")))
             message_produced(logger, message, self.headers)
 
 
