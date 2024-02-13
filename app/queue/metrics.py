@@ -33,7 +33,7 @@ ingress_message_handler_time = Summary(
     "inventory_ingress_message_handler_seconds", "Total time spent handling messages from the ingress queue"
 )
 consumed_message_size = Summary("inventory_consumed_message_size", "Size of incoming messages in bytes")
-produced_message_size = Summary("invenotry_produced_message_size", "Size of outgoing messages in bytes")
+produced_message_size = Summary("inventory_produced_message_size", "Size of outgoing messages in bytes")
 produce_large_message_failure = Counter(
     "inventory_produce_large_message_failures", "Total amount of failures producing messages due to their size"
 )
