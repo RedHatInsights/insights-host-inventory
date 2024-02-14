@@ -635,7 +635,7 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_SYNCHRONIZER}
             memory: ${MEMORY_REQUEST_SYNCHRONIZER}
-    - name: pg_repack
+    - name: pg-repack
       schedule: '@weekly'
       suspend: ${{PG_REPACK_SUSPEND}}
       podSpec:
