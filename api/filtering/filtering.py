@@ -31,7 +31,7 @@ logger = get_logger(__name__)
 NIL_STRING = "nil"
 NOT_NIL_STRING = "not_nil"
 OR_FIELDS = ("owner_id", "rhc_client_id", "host_type", "system_update_method")
-STALENESS_VALUES = ["fresh", "stale", "stale_warning"]
+DEFAULT_STALENESS_VALUES = ["not_culled"]
 
 
 def _invalid_value_error(field_name, field_value):
@@ -291,14 +291,7 @@ def _generic_filter_builder(
         )
 
 
-def build_registered_with_filter(registered_with, staleness):
-    # If /api/inventory/v1/tags is called,
-    # staleness variable is set to None by default.
-    # To use custom staleness, we to make sure we have
-    # staleness values set
-    if staleness is None:
-        staleness = STALENESS_VALUES
-
+def build_registered_with_filter(registered_with):
     reg_with_copy = deepcopy(registered_with)
     prs_list = []
     if "insights" in reg_with_copy:
@@ -314,19 +307,15 @@ def build_registered_with_filter(registered_with, staleness):
 
         # Get the per_report_staleness check_in value for the reporter
         # and build the filter based on it
-        for item in reg_with_copy:
-            prs_item = {
-                "per_reporter_staleness": {
-                    "reporter": {"eq": item.replace("!", "")},
-                    "AND": per_reporter_staleness_filter(staleness),
-                },
-            }
+        for reporter in reg_with_copy:
+            prs_item = per_reporter_staleness_filter(DEFAULT_STALENESS_VALUES, reporter)
 
             # If registered_with starts with "!", we want to invert the condition.
-            if item.startswith("!"):
+            if reporter.startswith("!"):
                 prs_item = {"NOT": prs_item}
 
-            prs_list.append(prs_item)
+            for n_items in prs_item:
+                prs_list.append(n_items)
 
     return ({"OR": prs_list},)
 
@@ -488,11 +477,12 @@ def query_filters(
         tag_filters = build_tag_query_dict_tuple(tags)
         query_filters += ({"OR": tag_filters},)
     if staleness:
-        staleness_filters = tuple(staleness_filter(staleness))
-        query_filters += ({"OR": staleness_filters},)
+        if not registered_with:
+            staleness_filters = tuple(staleness_filter(staleness))
+            query_filters += ({"OR": staleness_filters},)
 
     if registered_with:
-        query_filters += build_registered_with_filter(registered_with, staleness)
+        query_filters += build_registered_with_filter(registered_with)
     if provider_type:
         query_filters += ({"provider_type": {"eq": provider_type.casefold()}},)
     if provider_id:
