@@ -635,6 +635,26 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_SYNCHRONIZER}
             memory: ${MEMORY_REQUEST_SYNCHRONIZER}
+    - name: pg_repack
+      schedule: '@weekly'
+      suspend: ${{PG_REPACK_SUSPEND}}
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        restartPolicy: Never
+        command:
+          - /bin/sh
+          - -c
+          - pg_repack -h ${CLOWDER_DATABASE_HOSTNAME} -p ${CLOWDER_DATABASE_PORT} -U ${CLOWDER_DATABASE_USERNAME} -a -k ${CLOWDER_DATABASE_NAME}
+        env:
+          - name: PGPASSWORD
+            value: ${CLOWDER_DATABASE_PASSWORD}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_PG_REPACK}
+            memory: ${MEMORY_LIMIT_PG_REPACK}
+          requests:
+            cpu: ${CPU_REQUEST_PG_REPACK}
+            memory: ${MEMORY_REQUEST_PG_REPACK}
     database:
       name: ${DB_NAME}
       version: 12
@@ -777,6 +797,15 @@ parameters:
 - name: MEMORY_LIMIT_SYNCHRONIZER
   value: 512Mi
 
+- name: CPU_REQUEST_PG_REPACK
+  value: 250m
+- name: CPU_LIMIT_PG_REPACK
+  value: 500m
+- name: MEMORY_REQUEST_PG_REPACK
+  value: 256Mi
+- name: MEMORY_LIMIT_PG_REPACK
+  value: 512Mi
+
 - description: Replica count for p1 consumer
   name: REPLICAS_P1
   value: "5"
@@ -874,6 +903,8 @@ parameters:
   value: 'true'
 - name: REAPER_SUSPEND
   value: 'true'
+- name: PG_REPACK_SUSPEND
+  value: 'false'
 - name: KAFKA_SP_VALIDATOR_MAX_MESSAGES
   value: '10000'
 - name: TENANT_TRANSLATOR_HOST
