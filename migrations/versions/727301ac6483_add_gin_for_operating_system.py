@@ -20,8 +20,6 @@ def upgrade():
     with op.get_context().autocommit_block():
         # Adds pg_trgm extension (https://www.postgresql.org/docs/current/pgtrgm.html#PGTRGM)
         op.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm")
-        # Adds pg_repack extension (https://github.com/reorg/pg_repack)
-        op.execute("CREATE EXTENSION IF NOT EXISTS pg_repack")
         op.create_index(
             "idx_operating_system",
             "hosts",
@@ -33,5 +31,4 @@ def upgrade():
 
 def downgrade():
     op.drop_index("idx_operating_system", table_name="hosts")
-    op.execute("DROP EXTENSION IF EXISTS pg_repack")
     op.execute("DROP EXTENSION IF EXISTS pg_trgm")
