@@ -26,7 +26,6 @@ def main(logger):
     result = subprocess.run(
         [
             "pg_repack",
-            "-a",
             "-h",
             str(cfg._db_host),
             "-p",
