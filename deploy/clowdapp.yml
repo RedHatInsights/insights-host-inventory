@@ -914,7 +914,7 @@ parameters:
 - name: REAPER_SUSPEND
   value: 'true'
 - name: PG_REPACK_SUSPEND
-  value: 'false'
+  value: 'true'
 - name: KAFKA_SP_VALIDATOR_MAX_MESSAGES
   value: '10000'
 - name: TENANT_TRANSLATOR_HOST
