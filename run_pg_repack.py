@@ -39,7 +39,7 @@ def main(logger):
         capture_output=True,
     )
     logger.info(result.stdout)
-    if result.returncode != 0:
+    if result.returncode != 0 or result.stderr:
         logger.error(f"Call to pg_repack failed with error: {result.sterr}")
         exit(1)
 
