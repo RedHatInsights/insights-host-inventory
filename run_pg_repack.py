@@ -24,7 +24,18 @@ def main(logger):
     cfg = _init_config()
     environ["PGPASSWORD"] = str(cfg._db_password)
     result = subprocess.run(
-        ["pg_repack", "-a", "-h", cfg._db_host, "-p", cfg._db_port, "-U", cfg._db_user, "-k", cfg._db_name],
+        [
+            "pg_repack",
+            "-a",
+            "-h",
+            str(cfg._db_host),
+            "-p",
+            str(cfg._db_port),
+            "-U",
+            str(cfg._db_user),
+            "-k",
+            str(cfg._db_name),
+        ],
         capture_output=True,
     )
     logger.info(result.stdout)
