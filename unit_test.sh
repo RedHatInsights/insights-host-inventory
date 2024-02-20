@@ -93,7 +93,7 @@ echo '===================================='
 echo '====        Running Tests       ===='
 echo '===================================='
 set +e
-docker exec $TEST_CONTAINER_ID /bin/bash -c 'python3 manage.py db upgrade && pytest --cov=. --junitxml=junit-unittest.xml --cov-report html -sv'
+docker exec $TEST_CONTAINER_ID /bin/bash -c 'FLASK_APP=manage.py flask db upgrade && pytest --cov=. --junitxml=junit-unittest.xml --cov-report html -sv'
 TEST_RESULT=$?
 set -e
 

@@ -188,7 +188,7 @@ def create_app(runtime_environment):
     app_config = Config(runtime_environment)
     app_config.log_configuration()
 
-    connexion_app = connexion.App("inventory", specification_dir="./swagger/", options=connexion_options)
+    connexion_app = connexion.FlaskApp("inventory", specification_dir="./swagger/", options=connexion_options)
 
     parser = TranslatingParser(SPECIFICATION_FILE)
     parser.parse()
@@ -302,4 +302,4 @@ def create_app(runtime_environment):
 
     initialize_segmentio(app_config)
 
-    return flask_app
+    return connexion_app

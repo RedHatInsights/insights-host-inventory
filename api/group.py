@@ -1,7 +1,8 @@
+from http import HTTPStatus
+
 from flask import abort
 from flask import current_app
 from flask import Response
-from flask_api import status
 from marshmallow import ValidationError
 from sqlalchemy.exc import IntegrityError
 
@@ -70,7 +71,7 @@ def create_group(body, rbac_filter=None):
     if rbac_filter is not None:
         log_create_group_not_allowed(logger)
         abort(
-            status.HTTP_403_FORBIDDEN,
+            HTTPStatus.FORBIDDEN,
             "Unfiltered inventory:groups:write RBAC permission is required in order to create new groups.",
         )
 
@@ -79,7 +80,7 @@ def create_group(body, rbac_filter=None):
         validated_create_group_data = InputGroupSchema().load(body)
     except ValidationError as e:
         logger.exception(f"Input validation error while creating group: {body}")
-        return json_error_response("Validation Error", str(e.messages), status.HTTP_400_BAD_REQUEST)
+        return json_error_response("Validation Error", str(e.messages), HTTPStatus.BAD_REQUEST)
 
     try:
         # Create group with validated data
@@ -98,13 +99,13 @@ def create_group(body, rbac_filter=None):
 
         log_create_group_failed(logger, group_name)
         logger.exception(error_message)
-        return json_error_response("Integrity error", error_message, status.HTTP_400_BAD_REQUEST)
+        return json_error_response("Integrity error", error_message, HTTPStatus.BAD_REQUEST)
 
     except InventoryException as inve:
         logger.exception(inve.detail)
-        return json_error_response(inve.title, inve.detail, status.HTTP_400_BAD_REQUEST)
+        return json_error_response(inve.title, inve.detail, HTTPStatus.BAD_REQUEST)
 
-    return flask_json_response(build_group_response(created_group), status.HTTP_201_CREATED)
+    return flask_json_response(build_group_response(created_group), HTTPStatus.CREATED)
 
 
 @api_operation
@@ -124,7 +125,7 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
 
     if not group_to_update:
         log_patch_group_failed(logger, group_id)
-        abort(status.HTTP_404_NOT_FOUND)
+        abort(HTTPStatus.NOT_FOUND)
 
     try:
         # Separate out the host IDs because they're not stored on the Group
@@ -132,17 +133,17 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
 
     except InventoryException as ie:
         log_patch_group_failed(logger, group_id)
-        abort(status.HTTP_400_BAD_REQUEST, str(ie.detail))
+        abort(HTTPStatus.BAD_REQUEST, str(ie.detail))
     except IntegrityError:
         log_patch_group_failed(logger, group_id)
         abort(
-            status.HTTP_400_BAD_REQUEST,
+            HTTPStatus.BAD_REQUEST,
             f"Group with name '{validated_patch_group_data.get('name')}' already exists.",
         )
 
     updated_group = get_group_by_id_from_db(group_id)
     log_patch_group_success(logger, group_id)
-    return flask_json_response(build_group_response(updated_group), status.HTTP_200_OK)
+    return flask_json_response(build_group_response(updated_group), HTTPStatus.OK)
 
 
 @api_operation
@@ -155,9 +156,9 @@ def delete_groups(group_id_list, rbac_filter=None):
 
     if delete_count == 0:
         log_get_group_list_failed(logger)
-        abort(status.HTTP_404_NOT_FOUND, "No groups found for deletion.")
+        abort(HTTPStatus.NOT_FOUND, "No groups found for deletion.")
 
-    return Response(None, status.HTTP_204_NO_CONTENT)
+    return Response(None, HTTPStatus.NO_CONTENT)
 
 
 @api_operation
@@ -196,9 +197,9 @@ def delete_hosts_from_group(group_id, host_id_list, rbac_filter=None):
 
     if delete_count == 0:
         log_delete_hosts_from_group_failed(logger)
-        abort(status.HTTP_404_NOT_FOUND, "Group or hosts not found.")
+        abort(HTTPStatus.NOT_FOUND, "Group or hosts not found.")
 
-    return Response(None, status.HTTP_204_NO_CONTENT)
+    return Response(None, HTTPStatus.NO_CONTENT)
 
 
 @api_operation
@@ -228,6 +229,6 @@ def delete_hosts_from_different_groups(host_id_list, rbac_filter=None):
 
     if delete_count == 0:
         log_delete_hosts_from_group_failed(logger)
-        abort(status.HTTP_404_NOT_FOUND, "The provided hosts were not found.")
+        abort(HTTPStatus.NOT_FOUND, "The provided hosts were not found.")
 
-    return Response(None, status.HTTP_204_NO_CONTENT)
+    return Response(None, HTTPStatus.NO_CONTENT)

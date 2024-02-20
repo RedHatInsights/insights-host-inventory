@@ -23,7 +23,7 @@ group.add_argument("--org_id", help="dump all hosts associated with the org_id")
 parser.add_argument("--no-pp", help="enable pretty printing", action="store_true")
 args = parser.parse_args()
 
-with application.app_context():
+with application.app.app_context():
     # query_results = Host.query.filter().all()
     # print(query_results)
     if args.id:

@@ -38,7 +38,8 @@ COLLECTED_METRICS = (
 )
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
 
-app = create_app(RUNTIME_ENVIRONMENT)
+application = create_app(RUNTIME_ENVIRONMENT)
+app = application.app
 
 
 def _init_config():

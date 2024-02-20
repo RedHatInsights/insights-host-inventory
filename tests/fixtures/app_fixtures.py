@@ -9,12 +9,12 @@ from tests.helpers.db_utils import clean_tables
 
 @pytest.fixture(scope="session")
 def new_flask_app(database):
-    app = create_app(RuntimeEnvironment.TEST)
+    application = create_app(RuntimeEnvironment.TEST)
 
-    with app.app_context():
+    with application.app.app_context():
         db.create_all()
 
-        yield app
+        yield application.app
 
         db.session.remove()
         db.drop_all()
