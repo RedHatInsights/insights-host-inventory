@@ -1,18 +1,15 @@
 from flask_migrate import Migrate
-from flask_migrate import MigrateCommand
-from flask_script import Manager  # class for handling a set of commands
 
 from app import create_app
 from app import db
 from app.environment import RuntimeEnvironment
 
 
-app = create_app(RuntimeEnvironment.COMMAND)
+application = create_app(RuntimeEnvironment.COMMAND)
+app = application.app
 migrate = Migrate(app, db)
-manager = Manager(app)
-
-manager.add_command("db", MigrateCommand)
 
 
-if __name__ == "__main__":
-    manager.run()
+@app.shell_context_processor
+def make_shell_context():
+    return dict(app=app, db=db)

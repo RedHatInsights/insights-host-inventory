@@ -1,12 +1,12 @@
 from functools import partial
 from functools import wraps
+from http import HTTPStatus
 from uuid import UUID
 
 from app_common_python import LoadedConfig
 from flask import abort
 from flask import g
 from flask import request
-from flask_api import status
 from requests import Session
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
@@ -92,7 +92,7 @@ def rbac(resource_type, required_permission, permission_base="inventory"):
                 if resource_type == RbacResourceType.HOSTS:
                     return func(*args, **kwargs)
                 else:
-                    abort(status.HTTP_403_FORBIDDEN)
+                    abort(HTTPStatus.FORBIDDEN)
 
             # track that RBAC is being used to control access
             g.access_control_rule = "RBAC"
@@ -125,17 +125,17 @@ def rbac(resource_type, required_permission, permission_base="inventory"):
                         if "attributeFilter" in resourceDefinition:
                             if resourceDefinition["attributeFilter"].get("key") != "group.id":
                                 abort(
-                                    status.HTTP_503_SERVICE_UNAVAILABLE,
+                                    HTTPStatus.SERVICE_UNAVAILABLE,
                                     "Invalid value for attributeFilter.key in RBAC response.",
                                 )
                             elif resourceDefinition["attributeFilter"].get("operation") != "in":
                                 abort(
-                                    status.HTTP_503_SERVICE_UNAVAILABLE,
+                                    HTTPStatus.SERVICE_UNAVAILABLE,
                                     "Invalid value for attributeFilter.operation in RBAC response.",
                                 )
                             elif not isinstance(resourceDefinition["attributeFilter"]["value"], list):
                                 abort(
-                                    status.HTTP_503_SERVICE_UNAVAILABLE,
+                                    HTTPStatus.SERVICE_UNAVAILABLE,
                                     "Did not receive a list for attributeFilter.value in RBAC response.",
                                 )
                             else:
@@ -147,7 +147,7 @@ def rbac(resource_type, required_permission, permission_base="inventory"):
                                             UUID(gid)
                                 except ValueError:
                                     abort(
-                                        status.HTTP_503_SERVICE_UNAVAILABLE,
+                                        HTTPStatus.SERVICE_UNAVAILABLE,
                                         "Received invalid UUIDs for attributeFilter.value in RBAC response.",
                                     )
 
@@ -166,7 +166,7 @@ def rbac(resource_type, required_permission, permission_base="inventory"):
                 return partial(func, rbac_filter={"groups": allowed_group_ids})(*args, **kwargs)
             else:
                 rbac_permission_denied(logger, required_permission.value, rbac_data)
-                abort(status.HTTP_403_FORBIDDEN)
+                abort(HTTPStatus.FORBIDDEN)
 
         return modified_func
 
@@ -182,4 +182,4 @@ def rbac_group_id_check(rbac_filter: dict, requested_ids: set) -> None:
             required_permission = "inventory:groups:write"
             joined_ids = ", ".join(disallowed_ids)
             rbac_group_permission_denied(logger, joined_ids, required_permission)
-            abort(status.HTTP_403_FORBIDDEN, f"You do not have access to the the following groups: {joined_ids}")
+            abort(HTTPStatus.FORBIDDEN, f"You do not have access to the the following groups: {joined_ids}")

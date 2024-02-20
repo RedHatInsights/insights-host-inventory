@@ -4,23 +4,21 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-flask = "~=1.1.0"
+flask = "==2.2.5"
 jsonify = "==0.5"  # Not semver
 flask-restful = "~=0.3.7"
 requests = "~=2.31.0"
 flask-limiter = "~=1.0.1"
-flask-script = "~=2.0.6"
-flask-api = "==2.0"  # Not semver
 flask-sqlalchemy = "~=2.5.1"
 psycopg2 = "~=2.9.9"
 flask-migrate = "~=2.5.2"
-itsdangerous = "~=1.1.0"
+itsdangerous = "==2.1.2"
 gunicorn = "~=21.2.0"
-connexion = {version = "~=2.7",extras = ["swagger-ui"]}
-markupsafe = "==2.0.1" # Using v2.1.0 breaks Jinja2
-openapi-schema-validator = "< 0.2"
-openapi-spec-validator = "< 0.4.0" # those are a pain
-pyyaml = "~=5.4"
+connexion = {version = "~=2.14.2",extras = ["swagger-ui", "flask"]}
+markupsafe = "==2.1.5"
+openapi-schema-validator = "==0.6.2"
+openapi-spec-validator = "==0.7.1"
+pyyaml = "~=6.0.1"
 prometheus-client = "~=0.17.1"
 logstash-formatter = "~=0.5.17"
 validators = "~=0.22.0"
@@ -31,7 +29,7 @@ boto3 = "~=1.28"
 confluent-kafka="~=2.0.2"
 prometheus-flask-exporter = "~=0.22.3"
 python-dateutil = "~=2.8.1"
-prance = "==0.21.8"
+prance = "==23.6.21.0"
 app-common-python = "~=0.2.5"
 honcho = "*"
 sqlalchemy = "<1.4.0"

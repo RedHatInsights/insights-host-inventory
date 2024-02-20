@@ -1,6 +1,7 @@
+from http import HTTPStatus
+
 from flask import abort
 from flask import Response
-from flask_api import status
 from marshmallow import ValidationError
 from sqlalchemy.exc import IntegrityError
 
@@ -41,19 +42,19 @@ def get_assignment_rules_list(
     rbac_filter=None,
 ):
     if not get_flag_value(FLAG_INVENTORY_ASSIGNMENT_RULES):
-        return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
+        return Response(None, HTTPStatus.NOT_IMPLEMENTED)
 
     try:
         rule_list, total = get_filtered_assignment_rule_list_db(name, page, per_page, order_by, order_how, rbac_filter)
     except ValueError as e:
         log_get_assignment_rules_list_failed(logger)
-        abort(status.HTTP_400_BAD_REQUEST, str(e))
+        abort(HTTPStatus.BAD_REQUEST, str(e))
 
     log_get_assignment_rules_list_succeeded(logger, rule_list)
 
     return flask_json_response(
         build_paginated_assignment_rule_list_response(total, page, per_page, rule_list),
-        status.HTTP_200_OK,
+        HTTPStatus.OK,
     )
 
 
@@ -62,14 +63,14 @@ def get_assignment_rules_list(
 @metrics.api_request_time.time()
 def create_assignment_rule(body, rbac_filter=None):
     if not get_flag_value(FLAG_INVENTORY_ASSIGNMENT_RULES):
-        return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
+        return Response(None, HTTPStatus.NOT_IMPLEMENTED)
 
     try:
         validated_create_assignment_rule = InputAssignmentRule().load(body)
     except ValidationError as e:
         logger.exception(f"Input validation error while creating assignment rule: {body}")
         log_post_assignment_rule_failed(logger)
-        return json_error_response("Validation Error", str(e.messages), status.HTTP_400_BAD_REQUEST)
+        return json_error_response("Validation Error", str(e.messages), HTTPStatus.BAD_REQUEST)
 
     try:
         created_assignment_rule = add_assignment_rule(validated_create_assignment_rule)
@@ -86,10 +87,10 @@ def create_assignment_rule(body, rbac_filter=None):
         if name in str(error.args):
             error_message = f"An assignment rule with name {name} already exists."
         log_post_assignment_rule_failed(logger)
-        return json_error_response("Integrity error", str(error_message), status.HTTP_400_BAD_REQUEST)
+        return json_error_response("Integrity error", str(error_message), HTTPStatus.BAD_REQUEST)
 
     log_post_assignment_rule_succeeded(logger, created_assignment_rule.get("id"))
-    return flask_json_response(created_assignment_rule, status.HTTP_201_CREATED)
+    return flask_json_response(created_assignment_rule, HTTPStatus.CREATED)
 
 
 @api_operation
@@ -104,7 +105,7 @@ def get_assignment_rules_by_id(
     rbac_filter=None,
 ):
     if not get_flag_value(FLAG_INVENTORY_ASSIGNMENT_RULES):
-        return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
+        return Response(None, HTTPStatus.NOT_IMPLEMENTED)
 
     try:
         assignment_rule_list, total = get_assignment_rules_list_by_id_list_db(
@@ -112,7 +113,7 @@ def get_assignment_rules_by_id(
         )
     except ValueError as e:
         log_get_assignment_rules_list_failed(logger)
-        abort(status.HTTP_400_BAD_REQUEST, str(e))
+        abort(HTTPStatus.BAD_REQUEST, str(e))
 
     log_get_assignment_rules_list_succeeded(logger, assignment_rule_list)
 

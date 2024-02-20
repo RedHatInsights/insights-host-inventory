@@ -1,6 +1,7 @@
+from http import HTTPStatus
+
 from flask import abort
 from flask import Response
-from flask_api import status
 from marshmallow import ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
@@ -42,7 +43,7 @@ def _validate_input_data(body):
 
     except ValidationError as e:
         logger.exception(f'Input validation error, "{str(e.messages)}", while creating account staleness: {body}')
-        abort(status.HTTP_400_BAD_REQUEST, f"Validation Error: {str(e.messages)}")
+        abort(HTTPStatus.BAD_REQUEST, f"Validation Error: {str(e.messages)}")
 
 
 @api_operation
@@ -54,9 +55,9 @@ def get_staleness(rbac_filter=None):
         staleness = get_staleness_obj()
         staleness = serialize_staleness_response(staleness)
 
-        return flask_json_response(staleness, status.HTTP_200_OK)
+        return flask_json_response(staleness, HTTPStatus.OK)
     except ValueError as e:
-        abort(status.HTTP_400_BAD_REQUEST, str(e))
+        abort(HTTPStatus.BAD_REQUEST, str(e))
 
 
 @api_operation
@@ -69,9 +70,9 @@ def get_default_staleness(rbac_filter=None):
         staleness = get_sys_default_staleness_api(identity)
         staleness = serialize_staleness_response(staleness)
 
-        return flask_json_response(staleness, status.HTTP_200_OK)
+        return flask_json_response(staleness, HTTPStatus.OK)
     except ValueError as e:
-        abort(status.HTTP_400_BAD_REQUEST, str(e))
+        abort(HTTPStatus.BAD_REQUEST, str(e))
 
 
 @api_operation
@@ -80,14 +81,14 @@ def get_default_staleness(rbac_filter=None):
 @metrics.api_request_time.time()
 def create_staleness(body):
     if not get_flag_value(FLAG_INVENTORY_CUSTOM_STALENESS):
-        return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
+        return Response(None, HTTPStatus.NOT_IMPLEMENTED)
 
     # Validate account staleness input data
     try:
         validated_data = _validate_input_data(body)
     except ValidationError as e:
         logger.exception(f'Input validation error, "{str(e.messages)}", while creating account staleness: {body}')
-        return json_error_response("Validation Error", str(e.messages), status.HTTP_400_BAD_REQUEST)
+        return json_error_response("Validation Error", str(e.messages), HTTPStatus.BAD_REQUEST)
 
     try:
         # Create account staleness with validated data
@@ -99,9 +100,9 @@ def create_staleness(body):
 
         log_create_staleness_failed(logger, get_current_identity().org_id)
         logger.exception(error_message)
-        return json_error_response("Integrity error", error_message, status.HTTP_400_BAD_REQUEST)
+        return json_error_response("Integrity error", error_message, HTTPStatus.BAD_REQUEST)
 
-    return flask_json_response(serialize_staleness_response(created_staleness), status.HTTP_201_CREATED)
+    return flask_json_response(serialize_staleness_response(created_staleness), HTTPStatus.CREATED)
 
 
 @api_operation
@@ -110,14 +111,14 @@ def create_staleness(body):
 @metrics.api_request_time.time()
 def delete_staleness():
     if not get_flag_value(FLAG_INVENTORY_CUSTOM_STALENESS):
-        return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
+        return Response(None, HTTPStatus.NOT_IMPLEMENTED)
 
     try:
         remove_staleness()
-        return flask_json_response(None, status.HTTP_204_NO_CONTENT)
+        return flask_json_response(None, HTTPStatus.NO_CONTENT)
     except NoResultFound:
         abort(
-            status.HTTP_404_NOT_FOUND,
+            HTTPStatus.NOT_FOUND,
             f"Staleness record for org_id {get_current_identity().org_id} does not exist.",
         )
 
@@ -128,14 +129,14 @@ def delete_staleness():
 @metrics.api_request_time.time()
 def update_staleness(body):
     if not get_flag_value(FLAG_INVENTORY_CUSTOM_STALENESS):
-        return Response(None, status.HTTP_501_NOT_IMPLEMENTED)
+        return Response(None, HTTPStatus.NOT_IMPLEMENTED)
 
     # Validate account staleness input data
     try:
         validated_data = _validate_input_data(body)
     except ValidationError as e:
         logger.exception(f'Input validation error, "{str(e.messages)}", while creating account staleness: {body}')
-        return json_error_response("Validation Error", str(e.messages), status.HTTP_400_BAD_REQUEST)
+        return json_error_response("Validation Error", str(e.messages), HTTPStatus.BAD_REQUEST)
 
     try:
         updated_staleness = patch_staleness(validated_data)
@@ -145,9 +146,9 @@ def update_staleness(body):
 
         log_patch_staleness_succeeded(logger, updated_staleness.id)
 
-        return flask_json_response(serialize_staleness_response(updated_staleness), status.HTTP_200_OK)
+        return flask_json_response(serialize_staleness_response(updated_staleness), HTTPStatus.OK)
     except NoResultFound:
         abort(
-            status.HTTP_404_NOT_FOUND,
+            HTTPStatus.NOT_FOUND,
             f"Staleness record for org_id {get_current_identity().org_id} does not exist.",
         )
