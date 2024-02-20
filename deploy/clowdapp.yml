@@ -218,7 +218,7 @@ objects:
         - command:
           - /bin/sh
           - -c
-          - python3 manage.py db upgrade
+          - FLASK_APP=manage.py flask db upgrade
           inheritEnv: true
         command:
         - /bin/sh

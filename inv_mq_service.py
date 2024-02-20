@@ -19,7 +19,7 @@ logger = get_logger("mq_service")
 
 def main():
     application = create_app(RuntimeEnvironment.SERVICE)
-    config = application.config["INVENTORY_CONFIG"]
+    config = application.app.config["INVENTORY_CONFIG"]
     start_http_server(config.metrics_port)
 
     topic_to_handler = {config.host_ingress_topic: add_host, config.system_profile_topic: update_system_profile}
@@ -52,7 +52,12 @@ def main():
     )
 
     event_loop(
-        consumer, application, event_producer, notification_event_producer, message_handler, shutdown_handler.shut_down
+        consumer,
+        application.app,
+        event_producer,
+        notification_event_producer,
+        message_handler,
+        shutdown_handler.shut_down,
     )
 
 

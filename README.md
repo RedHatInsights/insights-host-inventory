@@ -68,7 +68,7 @@ password and db name from the INVENTORY_DB_HOST, INVENTORY_DB_USER,
 INVENTORY_DB_PASS and INVENTORY_DB_NAME environment variables.
 
 ```bash
-python3 manage.py db upgrade
+make upgrade_db
 ```
 
 By default the database container will use a bit of local storage so that data

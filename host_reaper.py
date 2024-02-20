@@ -46,7 +46,7 @@ COLLECTED_METRICS = (
 )
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
 
-app = create_app(RUNTIME_ENVIRONMENT)
+application = create_app(RUNTIME_ENVIRONMENT)
 
 
 def _init_config():
@@ -72,7 +72,7 @@ def filter_culled_hosts_using_custom_staleness(logger, session):
     staleness_objects = session.query(Staleness).all()
     org_ids = []
 
-    with app.app_context():
+    with application.app.app_context():
         query_filters = []
         for staleness_obj in staleness_objects:
             # Validate which host types for a given org_id never get deleted
@@ -90,7 +90,7 @@ def filter_culled_hosts_using_custom_staleness(logger, session):
 
 def filter_culled_hosts_using_sys_default_staleness(logger, org_ids):
     # Use the hosts_ids_list to exclude hosts that were found with custom staleness
-    with app.app_context():
+    with application.app.app_context():
         logger.debug("Looking for hosts that use system default staleness")
         return and_(~Host.org_id.in_(org_ids), find_hosts_sys_default_staleness(["culled"]))
 
