@@ -148,10 +148,24 @@ def _stale_timestamp_per_reporter_filter(gt=None, lte=None, host_type=None, repo
         filter_["gt"] = gt.isoformat()
     if lte:
         filter_["lte"] = lte.isoformat()
-    return {
-        "per_reporter_staleness": {
-            "reporter": {"eq": reporter},
-            "last_check_in": filter_,
-            "hostFilter": {"spf_host_type": {"eq": host_type}},
+
+    if reporter.startswith("!"):
+        return {
+            "AND": {
+                "spf_host_type": {"eq": host_type},
+                "NOT": {
+                    "per_reporter_staleness": {"reporter": {"eq": reporter.replace("!", "")}},
+                },
+                "modified_on": filter_,
+            }
         }
-    }
+    else:
+        return {
+            "AND": {
+                "spf_host_type": {"eq": host_type},
+                "per_reporter_staleness": {
+                    "reporter": {"eq": reporter.replace("!", "")},
+                    "last_check_in": filter_,
+                },
+            }
+        }
