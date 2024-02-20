@@ -667,7 +667,7 @@ objects:
             memory: ${MEMORY_REQUEST_PG_REPACK}
     database:
       name: ${DB_NAME}
-      version: 12
+      version: 13
     kafkaTopics:
       - topicName: ${KAFKA_SYSTEM_PROFILE_TOPIC}
         partitions: 1
