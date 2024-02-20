@@ -1,9 +1,9 @@
 from enum import Enum
+from http import HTTPStatus
 
 import flask
 from confluent_kafka.error import KafkaError
 from flask import current_app
-from flask_api import status
 from marshmallow import ValidationError
 
 from api import api_operation
@@ -222,7 +222,7 @@ def delete_hosts_by_filter(
 
     json_data = {"hosts_found": len(ids_list), "hosts_deleted": delete_count}
 
-    return flask_json_response(json_data, status.HTTP_202_ACCEPTED)
+    return flask_json_response(json_data, HTTPStatus.ACCEPTED)
 
 
 def _delete_host_list(host_id_list, rbac_filter):
@@ -283,7 +283,7 @@ def delete_all_hosts(confirm_delete_all=None, rbac_filter=None):
 
     json_data = {"hosts_found": len(ids_list), "hosts_deleted": delete_count}
 
-    return flask_json_response(json_data, status.HTTP_202_ACCEPTED)
+    return flask_json_response(json_data, HTTPStatus.ACCEPTED)
 
 
 @api_operation
@@ -293,9 +293,9 @@ def delete_host_by_id(host_id_list, rbac_filter=None):
     delete_count = _delete_host_list(host_id_list, rbac_filter)
 
     if not delete_count:
-        flask.abort(status.HTTP_404_NOT_FOUND, "No hosts found for deletion.")
+        flask.abort(HTTPStatus.NOT_FOUND, "No hosts found for deletion.")
 
-    return flask.Response(None, status.HTTP_200_OK)
+    return flask.Response(None, HTTPStatus.OK)
 
 
 @api_operation
@@ -371,7 +371,7 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
 
     if not hosts_to_update:
         log_patch_host_failed(logger, host_id_list)
-        return flask.abort(status.HTTP_404_NOT_FOUND, "Requested host not found.")
+        return flask.abort(HTTPStatus.NOT_FOUND, "Requested host not found.")
 
     identity = get_current_identity()
     staleness = get_staleness_obj(identity)
@@ -425,7 +425,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
             count_before_rbac_filter
             != find_non_culled_hosts(update_query_for_owner_id(current_identity, query)).count()
         ):
-            flask.abort(status.HTTP_403_FORBIDDEN, "You do not have access to all of the requested hosts.")
+            flask.abort(HTTPStatus.FORBIDDEN, "You do not have access to all of the requested hosts.")
 
     hosts_to_update = find_non_culled_hosts(update_query_for_owner_id(current_identity, query)).all()
 
