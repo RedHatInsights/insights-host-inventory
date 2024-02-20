@@ -21,8 +21,8 @@ def test_validations(host):
 
 
 def main():
-    flask_app = create_app(RuntimeEnvironment.COMMAND)
-    with flask_app.app_context() as ctx:
+    application = create_app(RuntimeEnvironment.COMMAND)
+    with application.app.app_context() as ctx:
         threadctx.request_id = None
         ctx.push()
     query = Host.query

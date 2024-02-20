@@ -8,6 +8,7 @@ from os.path import join
 
 from connexion.decorators.validation import coerce_type
 from dateutil.parser import isoparse
+from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from jsonschema import draft4_format_checker
 from jsonschema import RefResolver
@@ -49,6 +50,7 @@ from app.validators import verify_uuid_format
 logger = get_logger(__name__)
 
 db = SQLAlchemy()
+migrate = Migrate(db)
 
 TAG_NAMESPACE_VALIDATION = marshmallow_validate.Length(max=255)
 TAG_KEY_VALIDATION = marshmallow_validate.Length(min=1, max=255)

@@ -92,7 +92,7 @@ def run(config, logger, session, consumer, event_producer, shutdown_handler):
 
 def main(logger):
     application = create_app(RuntimeEnvironment.JOB)
-    config = application.config["INVENTORY_CONFIG"]
+    config = application.app.config["INVENTORY_CONFIG"]
     Session = _init_db(config)
     session = Session()
     # TODO: Metrics

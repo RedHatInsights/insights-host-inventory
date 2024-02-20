@@ -1,10 +1,10 @@
 import time
 from functools import reduce
 from functools import wraps
+from http import HTTPStatus
 
 import flask
 import ujson
-from flask_api import status
 
 from api.metrics import api_request_count
 from api.segmentio import segmentio_track
@@ -53,7 +53,7 @@ def api_operation(old_func):
 def _get_status_code(results):
     if isinstance(results, str):
         # Flask interprets a string response as a HTTP 200
-        return 200
+        return HTTPStatus.OK
     elif isinstance(results, int):
         return results
     elif isinstance(results, tuple):
@@ -64,7 +64,7 @@ def _get_status_code(results):
         return -1
 
 
-def flask_json_response(json_data, status=200):
+def flask_json_response(json_data, status=HTTPStatus.OK):
     return flask.Response(ujson.dumps(json_data), status=status, mimetype="application/json")
 
 
@@ -76,5 +76,5 @@ def custom_escape(expression):
     return reduce(lambda x, y: x + "\\" + y if y in ESCAPE_CHARS else x + y, expression, "")
 
 
-def json_error_response(title, detail, status=status.HTTP_400_BAD_REQUEST):
+def json_error_response(title, detail, status=HTTPStatus.BAD_REQUEST):
     return flask_json_response({"title": title, "detail": detail}, status)
