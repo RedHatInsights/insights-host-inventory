@@ -1962,10 +1962,14 @@
             "enum": [
               "insights",
               "yupana",
+              "satellite",
+              "discovery",
               "puptoo",
               "rhsm-conduit",
               "cloud-connector",
               "!yupana",
+              "!satellite",
+              "!discovery",
               "!puptoo",
               "!rhsm-conduit",
               "!cloud-connector"
