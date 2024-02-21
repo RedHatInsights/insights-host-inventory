@@ -421,3 +421,65 @@ def test_system_profile_sap_system(mq_create_or_update_host, api_get):
             assert item_count == len(sap_list)
         else:
             assert item_count == len(not_sap_list)
+
+
+def test_system_profile_sap_sids(mq_create_or_update_host, api_get):
+    # Create some sap systems
+    ordered_sap_sids_data = [["ABC", "HZO", "XYZ"], ["ABC"], [], [], ["XYZ"], []]
+    ordered_insights_ids = [generate_uuid() for _ in range(len(ordered_sap_sids_data))]
+
+    ordered_host_data = dict(zip(ordered_insights_ids, ordered_sap_sids_data))
+
+    # Create hosts for the above host data
+    _ = [
+        mq_create_or_update_host(
+            minimal_host(insights_id=insights_id, system_profile={"sap_sids": ordered_host_data[insights_id]})
+        )
+        for insights_id in ordered_insights_ids
+    ]
+    url = build_system_profile_sap_sids_url()
+
+    expected_counts = {"ABC": 2, "HZO": 1, "XYZ": 2}
+
+    with patch("api.system_profile.get_flag_value", return_value=True):
+        # Validate the basics, i.e. response code and results size
+        response_status, response_data = api_get(url)
+        assert response_status == 200
+        assert len(expected_counts.keys()) == len(response_data["results"])
+
+    for index in range(len(response_data["results"])):
+        item = response_data["results"][index]
+        item_count = item["count"]
+        if item["value"]:
+            assert {item["value"]: item_count} == {item["value"]: expected_counts[item["value"]]}
+
+
+def test_system_profile_sap_sids_with_search(mq_create_or_update_host, api_get):
+    # Create some sap systems
+    ordered_sap_sids_data = [["ABC", "HZO", "XYZ"], ["ABC"], [], [], ["XYZ"], []]
+    ordered_insights_ids = [generate_uuid() for _ in range(len(ordered_sap_sids_data))]
+
+    ordered_host_data = dict(zip(ordered_insights_ids, ordered_sap_sids_data))
+
+    # Create hosts for the above host data
+    _ = [
+        mq_create_or_update_host(
+            minimal_host(insights_id=insights_id, system_profile={"sap_sids": ordered_host_data[insights_id]})
+        )
+        for insights_id in ordered_insights_ids
+    ]
+    url = build_system_profile_sap_sids_url(query="?search=A")
+
+    expected_counts = {"ABC": 2}
+
+    with patch("api.system_profile.get_flag_value", return_value=True):
+        # Validate the basics, i.e. response code and results size
+        response_status, response_data = api_get(url)
+        assert response_status == 200
+        assert len(expected_counts.keys()) == len(response_data["results"])
+
+    for index in range(len(response_data["results"])):
+        item = response_data["results"][index]
+        item_count = item["count"]
+        if item["value"]:
+            assert {item["value"]: item_count} == {item["value"]: expected_counts[item["value"]]}
