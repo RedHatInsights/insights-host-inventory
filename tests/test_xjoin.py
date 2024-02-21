@@ -496,28 +496,51 @@ def _build_prs_array(mocker, reporters):
             reporters.extend(OLD_TO_NEW_REPORTER_MAP[old_reporter])
             reporters = list(set(reporters))  # Remove duplicates
     for reporter in reporters:
-        prs_item = [
-            {
-                "per_reporter_staleness": {
-                    "last_check_in": {"gt": mocker.ANY},
-                    "hostFilter": {"spf_host_type": {"eq": "edge"}},
-                    "reporter": {"eq": reporter},
-                }
-            },
-            {
-                "per_reporter_staleness": {
-                    "last_check_in": {"gt": mocker.ANY},
-                    "hostFilter": {"spf_host_type": {"eq": None}},
-                    "reporter": {"eq": reporter},
-                }
-            },
-        ]
-
         if reporter.startswith("!"):
-            prs_item = {"NOT": prs_item}
+            prs_item = [
+                {
+                    "AND": {
+                        "spf_host_type": {"eq": "edge"},
+                        "NOT": {
+                            "per_reporter_staleness": {"reporter": {"eq": reporter.replace("!", "")}},
+                        },
+                        "modified_on": {"gt": mocker.ANY},
+                    }
+                },
+                {
+                    "AND": {
+                        "spf_host_type": {"eq": None},
+                        "NOT": {
+                            "per_reporter_staleness": {"reporter": {"eq": reporter.replace("!", "")}},
+                        },
+                        "modified_on": {"gt": mocker.ANY},
+                    }
+                },
+            ]
+        else:
+            prs_item = [
+                {
+                    "AND": {
+                        "spf_host_type": {"eq": "edge"},
+                        "per_reporter_staleness": {
+                            "reporter": {"eq": reporter.replace("!", "")},
+                            "last_check_in": {"gt": mocker.ANY},
+                        },
+                    }
+                },
+                {
+                    "AND": {
+                        "spf_host_type": {"eq": None},
+                        "per_reporter_staleness": {
+                            "reporter": {"eq": reporter.replace("!", "")},
+                            "last_check_in": {"gt": mocker.ANY},
+                        },
+                    }
+                },
+            ]
 
-        for items in prs_item:
-            prs_array.append(items)
+        for n_items in prs_item:
+            prs_array.append(n_items)
 
     return prs_array
 
