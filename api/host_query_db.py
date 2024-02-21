@@ -3,6 +3,7 @@ from typing import Tuple
 
 from sqlalchemy import Boolean
 from sqlalchemy import func
+from sqlalchemy import text
 from sqlalchemy.orm import Query
 from sqlalchemy.sql.expression import ColumnElement
 
@@ -193,7 +194,15 @@ def _expand_host_tags(hosts: List[Host]) -> dict:
     return host_tags_dict
 
 
-def get_os_info(limit, offset, staleness, tags, registered_with, filter, rbac_filter):
+def get_os_info(
+    limit: int,
+    offset: int,
+    staleness: List[str],
+    tags: List[str],
+    registered_with: List[str],
+    filter: dict,
+    rbac_filter: dict,
+):
     columns = [
         Host.system_profile_facts["operating_system"]["name"].label("name"),
         Host.system_profile_facts["operating_system"]["major"].label("major"),
@@ -214,7 +223,15 @@ def get_os_info(limit, offset, staleness, tags, registered_with, filter, rbac_fi
     return result, query_total
 
 
-def get_sap_system_info(limit, offset, staleness, tags, registered_with, filter, rbac_filter):
+def get_sap_system_info(
+    limit: int,
+    offset: int,
+    staleness: List[str],
+    tags: List[str],
+    registered_with: List[str],
+    filter: dict,
+    rbac_filter: dict,
+):
     columns = [
         Host.system_profile_facts["sap_system"].label("value"),
     ]
@@ -230,6 +247,47 @@ def get_sap_system_info(limit, offset, staleness, tags, registered_with, filter,
 
     subquery = sap_query.subquery()
     agg_query = db.session.query(subquery, func.count()).group_by("value")
+    query_total = agg_query.count()
+    query_results = agg_query.offset(offset).limit(limit).all()
+    result = [{"value": qr[0], "count": qr[1]} for qr in query_results]
+    return result, query_total
+
+
+def get_sap_sids_info(
+    limit: int,
+    offset: int,
+    staleness: List[str],
+    tags: List[str],
+    registered_with: List[str],
+    filter: dict,
+    rbac_filter: dict,
+    search: str,
+):
+    columns = [
+        func.jsonb_array_elements_text(Host.system_profile_facts["sap_sids"]).label("sap_sids"),
+    ]
+    sap_sids_query = _find_all_hosts(columns)
+    filters = query_filters(
+        tags=tags, staleness=staleness, registered_with=registered_with, filter=filter, rbac_filter=rbac_filter
+    )
+    subquery = sap_sids_query.filter(*filters).subquery()
+
+    subquery_counts = (
+        db.session.query(subquery.c.sap_sids, func.count().label("count")).group_by(subquery.c.sap_sids).subquery()
+    )
+
+    if search:
+        agg_query = (
+            db.session.query(subquery_counts.c.sap_sids, subquery_counts.c.count)
+            .filter(text("sap_sids ~ :reg"))
+            .params(reg=search)
+            .order_by(subquery_counts.c.count.desc())
+        )
+    else:
+        agg_query = db.session.query(subquery_counts.c.sap_sids, subquery_counts.c.count).order_by(
+            subquery_counts.c.count.desc()
+        )
+
     query_total = agg_query.count()
     query_results = agg_query.offset(offset).limit(limit).all()
     result = [{"value": qr[0], "count": qr[1]} for qr in query_results]
