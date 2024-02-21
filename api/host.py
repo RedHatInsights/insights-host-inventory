@@ -16,6 +16,7 @@ from api.host_query_db import get_all_hosts
 from api.host_query_db import get_host_list as get_host_list_postgres
 from api.host_query_db import get_host_list_by_id_list as get_host_list_by_id_list_postgres
 from api.host_query_db import get_host_tags_list_by_id_list as get_host_tags_list_by_id_list_postgres
+from api.host_query_db import get_sparse_system_profile as get_sparse_system_profile_postgres
 from api.host_query_xjoin import get_host_ids_list as get_host_ids_list_xjoin
 from api.host_query_xjoin import get_host_list as get_host_list_xjoin
 from api.host_query_xjoin import get_host_list_by_id_list as get_host_list_by_id_list_xjoin
@@ -331,15 +332,23 @@ def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=
 def get_host_system_profile_by_id(
     host_id_list, page=1, per_page=100, order_by=None, order_how=None, fields=None, rbac_filter=None
 ):
+    current_identity = get_current_identity()
     try:
-        total, response_list = get_sparse_system_profile(
-            host_id_list, page, per_page, order_by, order_how, fields, rbac_filter
-        )
+        if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
+            logger.info(f"{FLAG_INVENTORY_DISABLE_XJOIN} is applied to {current_identity.org_id}")
+            total, host_list = get_sparse_system_profile_postgres(
+                host_id_list, page, per_page, order_by, order_how, fields, rbac_filter
+            )
+        else:
+            total, host_list = get_sparse_system_profile(
+                host_id_list, page, per_page, order_by, order_how, fields, rbac_filter
+            )
     except ValueError as e:
         log_get_host_list_failed(logger)
         flask.abort(400, str(e))
 
-    json_output = build_collection_response(response_list, page, per_page, total)
+    json_output = build_collection_response(host_list, page, per_page, total)
+
     return flask_json_response(json_output)
 
 

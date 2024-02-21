@@ -16,6 +16,7 @@ from app.logging import get_logger
 from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
+from app.serialization import serialize_host_system_profile
 from lib.host_repository import update_query_for_owner_id
 
 __all__ = (
@@ -233,3 +234,26 @@ def get_sap_system_info(limit, offset, staleness, tags, registered_with, filter,
     query_results = agg_query.offset(offset).limit(limit).all()
     result = [{"value": qr[0], "count": qr[1]} for qr in query_results]
     return result, query_total
+
+
+def get_sparse_system_profile(
+    host_id_list: List[str],
+    page: int,
+    per_page: int,
+    param_order_by: str,
+    param_order_how: str,
+    fields: List[str],
+    rbac_filter: dict,
+) -> Tuple[List[Host], int]:
+    columns = [Host.id, Host.system_profile_facts]
+    all_filters = host_id_list_filter(host_id_list)
+    all_filters += rbac_permissions_filter(rbac_filter)
+    sp_query = (
+        _find_all_hosts(columns).filter(*all_filters).order_by(*params_to_order_by(param_order_by, param_order_how))
+    )
+
+    query_results = sp_query.paginate(page, per_page, True)
+
+    return query_results.total, [
+        serialize_host_system_profile(host, fields.get("system_profile")) for host in query_results.items
+    ]

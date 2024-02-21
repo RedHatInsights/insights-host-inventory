@@ -240,8 +240,15 @@ def serialize_assignment_rule(assign_rule):
     }
 
 
-def serialize_host_system_profile(host):
-    return {"id": _serialize_uuid(host.id), "system_profile": host.system_profile_facts or {}}
+def serialize_host_system_profile(host, sp_fields=[]):
+    sp = {}
+    if host.system_profile_facts:
+        if sp_fields:
+            sp = {key: value for key, value in host.system_profile_facts.items() if key in sp_fields}
+        else:
+            sp = host.system_profile_facts
+
+    return {"id": _serialize_uuid(host.id), "system_profile": sp}
 
 
 def serialize_host_system_profile_xjoin(host_data):
