@@ -10,6 +10,7 @@ from api import flask_json_response
 from api import metrics
 from api.filtering.filtering import query_filters
 from api.host_query_db import get_os_info as get_os_info_db
+from api.host_query_db import get_sap_sids_info as get_sap_sids_info_db
 from api.host_query_db import get_sap_system_info as get_sap_system_info_db
 from app import RbacPermission
 from app import RbacResourceType
@@ -179,6 +180,23 @@ def get_sap_sids(
     rbac_filter=None,
 ):
     limit, offset = pagination_params(page, per_page)
+    current_identity = get_current_identity()
+    escaped_search = None
+    if search:
+        # Escaped so that the string literals are not interpreted as regex
+        escaped_search = f".*{custom_escape(search)}.*"
+    if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
+        results, total = get_sap_sids_info_db(
+            limit,
+            offset,
+            staleness=staleness,
+            tags=tags,
+            registered_with=registered_with,
+            filter=filter,
+            rbac_filter=rbac_filter,
+            search=escaped_search,
+        )
+        return flask_json_response(build_collection_response(results, page, per_page, total))
 
     variables = {
         "hostFilter": {
@@ -189,11 +207,8 @@ def get_sap_sids(
         "offset": offset,
     }
 
-    if search:
-        variables["filter"] = {
-            # Escaped so that the string literals are not interpreted as regex
-            "search": {"regex": f".*{custom_escape(search)}.*"}
-        }
+    if escaped_search:
+        variables["filter"] = {"search": {"regex": escaped_search}}
 
     hostfilter_and_variables = query_filters(
         tags=tags, registered_with=registered_with, filter=filter, rbac_filter=rbac_filter

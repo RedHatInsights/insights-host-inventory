@@ -310,10 +310,6 @@ def build_registered_with_filter(registered_with):
         for reporter in reg_with_copy:
             prs_item = per_reporter_staleness_filter(DEFAULT_STALENESS_VALUES, reporter)
 
-            # If registered_with starts with "!", we want to invert the condition.
-            if reporter.startswith("!"):
-                prs_item = {"NOT": prs_item}
-
             for n_items in prs_item:
                 prs_list.append(n_items)
 
