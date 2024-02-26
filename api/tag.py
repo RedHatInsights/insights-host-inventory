@@ -6,8 +6,10 @@ from api import custom_escape
 from api import flask_json_response
 from api import metrics
 from api.filtering.filtering import query_filters
+from api.host_query_db import get_tag_list as get_tag_list_db
 from app import RbacPermission
 from app import RbacResourceType
+from app.auth import get_current_identity
 from app.instrumentation import log_get_tags_failed
 from app.instrumentation import log_get_tags_succeeded
 from app.logging import get_logger
@@ -15,6 +17,8 @@ from app.xjoin import check_pagination
 from app.xjoin import graphql_query
 from app.xjoin import pagination_params
 from app.xjoin import staleness_filter
+from lib.feature_flags import FLAG_INVENTORY_DISABLE_XJOIN
+from lib.feature_flags import get_flag_value
 from lib.middleware import rbac
 
 
@@ -76,6 +80,35 @@ def get_tags(
     rbac_filter=None,
 ):
     limit, offset = pagination_params(page, per_page)
+    current_identity = get_current_identity()
+    escaped_search = None
+    if search:
+        # Escaped so that the string literals are not interpreted as regex
+        escaped_search = f".*{custom_escape(search)}.*"
+
+    if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
+        results, total = get_tag_list_db(
+            limit=limit,
+            offset=offset,
+            search=escaped_search,
+            tags=tags,
+            display_name=display_name,
+            fqdn=fqdn,
+            hostname_or_id=hostname_or_id,
+            insights_id=insights_id,
+            provider_id=provider_id,
+            provider_type=provider_type,
+            updated_start=updated_start,
+            updated_end=updated_end,
+            group_name=group_name,
+            order_by=order_by,
+            order_how=order_how,
+            staleness=staleness,
+            registered_with=registered_with,
+            filter=filter,
+            rbac_filter=rbac_filter,
+        )
+        return flask_json_response(build_collection_response(results, page, per_page, total))
 
     variables = {
         "order_by": order_by,
@@ -110,10 +143,10 @@ def get_tags(
         log_get_tags_failed(logger)
         flask.abort(400, str(e))
 
-    if search:
+    if escaped_search:
         variables["filter"] = {
             # Escaped so that the string literals are not interpreted as regex
-            "search": {"regex": f".*{custom_escape(search)}.*"}
+            "search": {"regex": escaped_search}
         }
 
     if hostfilter_and_variables != ():
