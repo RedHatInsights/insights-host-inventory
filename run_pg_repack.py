@@ -40,7 +40,7 @@ def main(logger):
     logger.info(result.stdout)
     if result.returncode != 0 or result.stderr:
         logger.error(f"Call to pg_repack failed with error: {result.stderr}")
-        exit(1)
+        exit(result.returncode)
 
 
 if __name__ == "__main__":
