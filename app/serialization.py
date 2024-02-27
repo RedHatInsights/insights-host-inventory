@@ -240,7 +240,7 @@ def serialize_assignment_rule(assign_rule):
     }
 
 
-def serialize_host_system_profile(host, sp_fields=[]):
+def serialize_host_system_profile(host, sp_fields):
     sp = {}
     if host.system_profile_facts:
         if sp_fields:
