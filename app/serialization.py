@@ -16,7 +16,7 @@ from app.models import HostSchema
 from app.utils import Tag
 
 
-__all__ = ("deserialize_host", "serialize_host", "serialize_canonical_facts")
+__all__ = ("deserialize_host", "serialize_host", "serialize_host_system_profile", "serialize_canonical_facts")
 
 
 _CANONICAL_FACTS_FIELDS = (
@@ -183,7 +183,16 @@ def serialize_host(
     if "tags" in fields:
         serialized_host["tags"] = _serialize_tags(host.tags)
     if "system_profile" in fields:
-        serialized_host["system_profile"] = host.system_profile_facts or {}
+        if host.system_profile_facts:
+            if system_profile_fields:
+                serialized_host["system_profile"] = {
+                    k: v for (k, v) in host.system_profile_facts.items() if k in system_profile_fields
+                }
+            else:
+                serialized_host["system_profile"] = host.system_profile_facts
+        else:
+            serialized_host["system_profile"] = {}
+
         if system_profile_fields and system_profile_fields.count("host_type") < 2:
             if serialized_host["system_profile"].get("host_type"):
                 del serialized_host["system_profile"]["host_type"]
@@ -238,6 +247,10 @@ def serialize_assignment_rule(assign_rule):
         "created_on": _serialize_datetime(assign_rule.created_on),
         "modified_on": _serialize_datetime(assign_rule.modified_on),
     }
+
+
+def serialize_host_system_profile(host):
+    return {"id": _serialize_uuid(host.id), "system_profile": host.system_profile_facts or {}}
 
 
 def serialize_host_system_profile_xjoin(host_data):
