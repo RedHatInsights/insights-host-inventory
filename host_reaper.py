@@ -1,3 +1,4 @@
+#!/bin/python
 import sys
 from functools import partial
 
