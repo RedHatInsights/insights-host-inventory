@@ -3,6 +3,7 @@ from unittest.mock import patch
 from api.host_query_xjoin import HOST_TAGS_QUERY
 from app.models import ProviderType
 from app.serialization import _deserialize_tags
+from app.serialization import _deserialize_tags_dict
 from lib.host_repository import find_hosts_by_staleness
 from lib.host_repository import find_non_culled_hosts
 from tests.helpers.api_utils import assert_response_status
@@ -17,6 +18,7 @@ from tests.helpers.graphql_utils import EMPTY_HOSTS_RESPONSE
 from tests.helpers.graphql_utils import XJOIN_HOSTS_NO_TAGS_RESPONSE
 from tests.helpers.graphql_utils import XJOIN_HOSTS_RESPONSE_WITH_TAGS
 from tests.helpers.test_utils import generate_uuid
+from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
@@ -161,6 +163,45 @@ def test_get_list_of_tags_with_host_filters(patch_xjoin_post, api_get, subtests)
 
             assert_response_status(response_status, 200)
             assert response_data["total"] == 1
+
+
+def test_get_list_of_tags_with_host_filters_via_db(mq_create_or_update_host, api_get, subtests):
+    """
+    Validate that the /tags endpoint doesn't break when we supply it with various filters.
+    """
+    insights_id = generate_uuid()
+    provider_id = generate_uuid()
+    display_name = "test-example-host"
+    namespace = "insights-client"
+    tag_key = "database"
+    tag_value = "postgresql"
+    mq_create_or_update_host(
+        minimal_host(
+            insights_id=insights_id,
+            provider_type=ProviderType.AZURE.value,
+            provider_id=provider_id,
+            display_name=display_name,
+            tags=_deserialize_tags_dict({namespace: {tag_key: [tag_value]}}),
+        )
+    )
+    with patch("api.tag.get_flag_value", return_value=True):
+        for query in (
+            f"?display_name={display_name}",
+            f"?insights_id={insights_id}",
+            f"?provider_id={provider_id}",
+            f"?provider_type={ProviderType.AZURE.value}",
+            f"?search={tag_key}",
+        ):
+            with subtests.test(query=query):
+                url = build_tags_url(query=query)
+                response_status, response_data = api_get(url)
+
+                assert_response_status(response_status, 200)
+                assert response_data["total"] == 1
+                assert response_data["results"][0]["tag"]["namespace"] == namespace
+                assert response_data["results"][0]["tag"]["key"] == tag_key
+                assert response_data["results"][0]["tag"]["value"] == tag_value
+                assert response_data["results"][0]["count"] == 1
 
 
 def test_get_tags_invalid_start_end(patch_xjoin_post, api_get, subtests):
