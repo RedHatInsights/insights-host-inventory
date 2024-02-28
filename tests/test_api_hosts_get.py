@@ -1089,7 +1089,7 @@ def test_query_sp_by_id_list_sparse(db_create_multiple_hosts, api_get, num_hosts
     created_hosts = db_create_multiple_hosts(how_many=3, extra_data=sp_data)
     created_hosts_ids = [str(host.id) for host in created_hosts]
     host_list_url = build_hosts_url(host_list_or_id=created_hosts[:num_hosts_to_query])
-    url = f"{host_list_url}/system_profile?fields[system_profile]=arch,os_kernel_version,host_type"
+    url = f"{host_list_url}/system_profile?fields[system_profile]=arch,os_kernel_version,installed_packages,host_type"
 
     with patch("api.host.get_flag_value", return_value=True):
         response_status, response_data = api_get(url)

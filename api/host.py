@@ -348,7 +348,6 @@ def get_host_system_profile_by_id(
         flask.abort(400, str(e))
 
     json_output = build_collection_response(host_list, page, per_page, total)
-
     return flask_json_response(json_output)
 
 
