@@ -1,6 +1,7 @@
 import pytest
 from pytest import mark
 
+from app.auth.identity import Identity
 from app.exceptions import InventoryException
 from app.models import ProviderType
 from lib.host_repository import find_existing_host
@@ -267,7 +268,7 @@ def test_find_host_using_provider_id_no_type_exception(db_create_host):
     db_create_host(host=host)
 
     with pytest.raises(InventoryException):
-        find_existing_host(SYSTEM_IDENTITY, search_canonical_facts)
+        find_existing_host(Identity(SYSTEM_IDENTITY), search_canonical_facts)
 
 
 def test_find_host_using_provider_id_existing_with_match(db_create_host):

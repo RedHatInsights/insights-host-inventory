@@ -121,6 +121,11 @@ def _find_host_by_elevated_ids(identity, canonical_facts):
             if existing_host:
                 return existing_host
 
+            #
+            # When we remove the primary component of a compound canonical fact from the list,
+            # remove its corresponding secondary component. Because we shouldn't search for
+            # one component without the other.
+            #
             if del_key in COMPOUND_CANONICAL_FACTS_MAP:
                 del elevated_facts[COMPOUND_CANONICAL_FACTS_MAP[del_key]]
 
@@ -144,7 +149,7 @@ def single_canonical_fact_host_query(identity, canonical_fact, value, restrict_t
 def _check_compound_canonical_facts(canonical_facts):
     for key, value in COMPOUND_CANONICAL_FACTS_MAP.items():
         if key in canonical_facts and value not in canonical_facts:
-            raise InventoryException(title="Invalid request", detail=f"Unpaired compount fact: {key} mising {value}")
+            raise InventoryException(title="Invalid request", detail=f"Unpaired compound fact: {key} missing {value}")
 
 
 def multiple_canonical_facts_host_query(identity, canonical_facts, restrict_to_owner_id=True):
