@@ -249,6 +249,8 @@ def test_group_with_culled_hosts(
     # Create a group and 3 hosts
     group_id = db_create_group("test_group").id
     current_time = datetime.now(tz=timezone.utc)
+    if current_time.day > 28:
+        current_time = current_time.replace(day=28)
     culling_time = current_time.replace(year=2022)
 
     host_id_list = [db_create_host(extra_data={"stale_timestamp": current_time}).id for _ in range(3)]
