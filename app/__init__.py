@@ -14,6 +14,7 @@ from prometheus_flask_exporter.multiprocess import GunicornPrometheusMetrics
 
 from api.mgmt import monitoring_blueprint
 from api.parsing import customURIParser
+from api.spec import spec_blueprint
 from app import payload_tracker
 from app.config import Config
 from app.custom_validator import build_validator_map
@@ -43,7 +44,7 @@ REQUEST_ID_HEADER = "x-rh-insights-request-id"
 
 # temporary replaced for ESSNTL-746 - correct normalization of the bundled spec
 # SPECIFICATION_FILE = join(SPECIFICATION_DIR, "api.spec.yaml")
-SPECIFICATION_FILE = join(SPECIFICATION_DIR, "openapi.json")
+SPECIFICATION_FILE = join(SPECIFICATION_DIR, "openapi.dev.json")
 SYSTEM_PROFILE_SPECIFICATION_FILE = join(SPECIFICATION_DIR, "system_profile.spec.yaml")
 SYSTEM_PROFILE_BLOCK_LIST_FILE = join(SPECIFICATION_DIR, "system_profile_block_list.yaml")
 
@@ -253,6 +254,8 @@ def create_app(runtime_environment):
     register_shutdown(db.get_engine(flask_app).dispose, "Closing database")
 
     flask_app.register_blueprint(monitoring_blueprint, url_prefix=app_config.mgmt_url_path_prefix)
+    for api_url in app_config.api_urls:
+        flask_app.register_blueprint(spec_blueprint, url_prefix=api_url, name=f"{api_url}{spec_blueprint.name}")
 
     @flask_app.before_request
     def set_request_id():
