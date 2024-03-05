@@ -1472,6 +1472,139 @@
           }
         }
       }
+    },
+    "/assignment-rules": {
+      "get": {
+        "operationId": "api.assignment_rule.get_assignment_rules_list",
+        "tags": [
+          "groups"
+        ],
+        "summary": "Read the entire list of assignment-rules [Not Implemented]",
+        "description": "Read the entire list of all assignment-rules available to the account. [Not Implemented] Required permissions: inventory:groups:read",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/assignmentRuleName"
+          },
+          {
+            "$ref": "#/components/parameters/perPageParam"
+          },
+          {
+            "$ref": "#/components/parameters/pageParam"
+          },
+          {
+            "$ref": "#/components/parameters/assignmentRuleOrderByParam"
+          },
+          {
+            "$ref": "#/components/parameters/assignmentRuleOrderHowParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully read the assignment-rules list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssignmentRuleQueryOutput"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "api.assignment_rule.create_assignment_rule",
+        "tags": [
+          "groups"
+        ],
+        "summary": "Create Assignment Rule object",
+        "description": "Create Assignment Rule object using post request <br /><br /> Required permissions: inventory:groups:write",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "description": "Data required to create Assignment Rule object",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignmentRuleIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Assignment Rule created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssignmentRuleOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/assignment-rules/{assignment_rule_id_list}": {
+      "get": {
+        "operationId": "api.assignment_rule.get_assignment_rules_by_id",
+        "tags": [
+          "groups"
+        ],
+        "summary": "Find assignment rules by their IDs",
+        "description": "Find one or more assignment rules by their IDs. <br /><br /> Required permissions: inventory:groups:read",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/assignmentRuleIdList"
+          },
+          {
+            "$ref": "#/components/parameters/perPageParam"
+          },
+          {
+            "$ref": "#/components/parameters/pageParam"
+          },
+          {
+            "$ref": "#/components/parameters/assignmentRuleOrderByParam"
+          },
+          {
+            "$ref": "#/components/parameters/assignmentRuleOrderHowParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully searched for assignment rules.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssignmentRuleQueryOutput"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request."
+          },
+          "404": {
+            "description": "Assignment rules not found."
+          }
+        }
+      }
     }
   },
   "components": {
