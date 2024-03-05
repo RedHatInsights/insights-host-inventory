@@ -26,9 +26,10 @@ def upgrade():
             [sa.text("(COALESCE(system_profile_facts -> 'operating_system' ->> 'name', '')) gin_trgm_ops")],
             postgresql_using="gin",
             postgresql_concurrently=True,
+            if_not_exists=True,
         )
 
 
 def downgrade():
-    op.drop_index("idx_operating_system", table_name="hosts")
+    op.drop_index("idx_operating_system", table_name="hosts", if_exists=True)
     op.execute("DROP EXTENSION IF EXISTS pg_trgm")
