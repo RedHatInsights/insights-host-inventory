@@ -20,6 +20,7 @@ def upgrade():
     with op.get_context().autocommit_block():
         # Adds pg_trgm extension (https://www.postgresql.org/docs/current/pgtrgm.html#PGTRGM)
         op.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm")
+        op.execute("COMMIT")
         op.create_index(
             "idx_operating_system",
             "hosts",
