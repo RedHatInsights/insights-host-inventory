@@ -42,13 +42,15 @@ def get_all_hosts() -> List:
 def _get_host_list_using_filters(
     all_filters: List, page: int, per_page: int, param_order_by: str, param_order_how: str, fields: List[str]
 ) -> Tuple[List[Host], int, Tuple[str], List[str]]:
+    system_profile_fields = ["host_type"]
+    if fields and fields.get("system_profile"):
+        additional_fields = ("system_profile",)
+        system_profile_fields += list(fields.get("system_profile").keys())
+    else:
+        additional_fields = tuple()
+
     host_query = _find_all_hosts().filter(*all_filters).order_by(*params_to_order_by(param_order_by, param_order_how))
-
     query_results = host_query.paginate(page, per_page, True)
-
-    # TODO: additional_fields and system_profile_fields
-    additional_fields = tuple()
-    system_profile_fields = tuple()
 
     return query_results.items, query_results.total, additional_fields, system_profile_fields
 
@@ -399,3 +401,35 @@ def get_sap_sids_info(
     query_results = agg_query.offset(offset).limit(limit).all()
     result = [{"value": qr[0], "count": qr[1]} for qr in query_results]
     return result, query_total
+
+
+def get_sparse_system_profile(
+    host_id_list: List[str],
+    page: int,
+    per_page: int,
+    param_order_by: str,
+    param_order_how: str,
+    fields: List[str],
+    rbac_filter: dict,
+) -> Tuple[List[Host], int]:
+    columns = [
+        Host.id,
+        func.jsonb_strip_nulls(
+            func.jsonb_build_object(
+                *[
+                    kv
+                    for key in fields.get("system_profile")
+                    for kv in (key, Host.system_profile_facts[key].label(key))
+                ]
+            ).label("system_profile_facts")
+        ),
+    ]
+
+    all_filters = host_id_list_filter(host_id_list) + rbac_permissions_filter(rbac_filter)
+    sp_query = (
+        _find_all_hosts(columns).filter(*all_filters).order_by(*params_to_order_by(param_order_by, param_order_how))
+    )
+
+    query_results = sp_query.paginate(page, per_page, True)
+
+    return query_results.total, [{"id": str(item[0]), "system_profile": item[1]} for item in query_results.items]
