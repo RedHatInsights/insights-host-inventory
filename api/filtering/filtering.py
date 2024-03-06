@@ -472,13 +472,14 @@ def query_filters(
     if tags:
         tag_filters = build_tag_query_dict_tuple(tags)
         query_filters += ({"OR": tag_filters},)
+
     if staleness:
-        if not registered_with:
-            staleness_filters = tuple(staleness_filter(staleness))
-            query_filters += ({"OR": staleness_filters},)
+        staleness_filters = tuple(staleness_filter(staleness))
+        query_filters += ({"OR": staleness_filters},)
 
     if registered_with:
         query_filters += build_registered_with_filter(registered_with)
+
     if provider_type:
         query_filters += ({"provider_type": {"eq": provider_type.casefold()}},)
     if provider_id:

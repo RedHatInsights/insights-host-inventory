@@ -16,17 +16,15 @@ from app.logging import get_logger
 from app.xjoin import check_pagination
 from app.xjoin import graphql_query
 from app.xjoin import pagination_params
-from app.xjoin import staleness_filter
 from lib.feature_flags import FLAG_INVENTORY_DISABLE_XJOIN
 from lib.feature_flags import get_flag_value
 from lib.middleware import rbac
-
 
 logger = get_logger(__name__)
 
 TAGS_QUERY = """
     query hostTags (
-        $hostFilter: HostFilter,
+        $hostFilter: [HostFilter!],
         $filter: TagAggregationFilter,
         $order_by: HOST_TAGS_ORDER_BY,
         $order_how: ORDER_DIR,
@@ -34,7 +32,9 @@ TAGS_QUERY = """
         $offset: Int
     ) {
         hostTags (
-            hostFilter: $hostFilter,
+            hostFilter: {
+                AND: $hostFilter,
+            },
             filter: $filter,
             order_by: $order_by,
             order_how: $order_how,
@@ -115,10 +115,7 @@ def get_tags(
         "order_how": order_how,
         "limit": limit,
         "offset": offset,
-        "hostFilter": {
-            # we're not indexing null timestamps in ES
-            "OR": list(staleness_filter(staleness))
-        },
+        "hostFilter": {},
     }
 
     try:
@@ -134,7 +131,7 @@ def get_tags(
             group_name,
             None,
             tags,
-            None,  # Staleness to not use the default values
+            staleness,
             registered_with,
             filter,
             rbac_filter,
@@ -150,7 +147,7 @@ def get_tags(
         }
 
     if hostfilter_and_variables != ():
-        variables["hostFilter"]["AND"] = hostfilter_and_variables
+        variables["hostFilter"] = hostfilter_and_variables
 
     response = graphql_query(TAGS_QUERY, variables, log_get_tags_failed)
     data = response["hostTags"]
