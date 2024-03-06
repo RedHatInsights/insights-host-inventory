@@ -37,12 +37,14 @@ logger = get_logger(__name__)
 
 SAP_SYSTEM_QUERY = """
     query hostSystemProfile (
-        $hostFilter: HostFilter
+        $hostFilter: [HostFilter!],
         $limit: Int
         $offset: Int
     ) {
         hostSystemProfile (
-            hostFilter: $hostFilter
+            hostFilter: {
+                AND: $hostFilter,
+            },
         ) {
             sap_system (
                 limit: $limit
@@ -63,13 +65,15 @@ SAP_SYSTEM_QUERY = """
 
 SAP_SIDS_QUERY = """
     query hostSystemProfile (
-        $hostFilter: HostFilter
+        $hostFilter: [HostFilter!],
         $filter: SapSidFilter
         $limit: Int
         $offset: Int
     ) {
         hostSystemProfile (
-            hostFilter: $hostFilter
+            hostFilter: {
+                AND: $hostFilter,
+            },
         ) {
             sap_sids (
                 filter: $filter
@@ -141,18 +145,17 @@ def get_sap_system(
         return flask_json_response(build_collection_response(results, page, per_page, total))
 
     variables = {
-        "hostFilter": {
-            # we're not indexing null timestamps in ES
-            "OR": list(staleness_filter(staleness))
-        },
+        "hostFilter": {},
         "limit": limit,
         "offset": offset,
     }
 
-    hostfilter_and_variables = query_filters(tags=tags, registered_with=registered_with, filter=filter)
+    hostfilter_and_variables = query_filters(
+        tags=tags, registered_with=registered_with, filter=filter, staleness=staleness
+    )
 
     if hostfilter_and_variables != ():
-        variables["hostFilter"]["AND"] = hostfilter_and_variables
+        variables["hostFilter"] = hostfilter_and_variables
 
     response = graphql_query(SAP_SYSTEM_QUERY, variables, log_get_sap_system_failed)
 
@@ -199,10 +202,7 @@ def get_sap_sids(
         return flask_json_response(build_collection_response(results, page, per_page, total))
 
     variables = {
-        "hostFilter": {
-            # we're not indexing null timestamps in ES
-            "OR": list(staleness_filter(staleness))
-        },
+        "hostFilter": {},
         "limit": limit,
         "offset": offset,
     }
@@ -211,11 +211,11 @@ def get_sap_sids(
         variables["filter"] = {"search": {"regex": escaped_search}}
 
     hostfilter_and_variables = query_filters(
-        tags=tags, registered_with=registered_with, filter=filter, rbac_filter=rbac_filter
+        tags=tags, registered_with=registered_with, filter=filter, rbac_filter=rbac_filter, staleness=staleness
     )
 
     if hostfilter_and_variables != ():
-        variables["hostFilter"]["AND"] = hostfilter_and_variables
+        variables["hostFilter"] = hostfilter_and_variables
 
     response = graphql_query(SAP_SIDS_QUERY, variables, log_get_sap_sids_failed)
 
