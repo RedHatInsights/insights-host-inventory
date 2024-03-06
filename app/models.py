@@ -904,12 +904,22 @@ class InputAssignmentRule(MarshmallowSchema):
 
 
 class StalenessSchema(MarshmallowSchema):
-    conventional_time_to_stale = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
-    conventional_time_to_stale_warning = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
-    conventional_time_to_delete = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
-    immutable_time_to_stale = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
-    immutable_time_to_stale_warning = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
-    immutable_time_to_delete = fields.Integer(validate=marshmallow_validate.Range(min=1, max=2147483647))
+    conventional_time_to_stale = fields.Integer(
+        validate=marshmallow_validate.Range(min=1, max=604800)
+    )  # Max of 7 days
+    conventional_time_to_stale_warning = fields.Integer(
+        validate=marshmallow_validate.Range(min=1, max=15552000)
+    )  # Max of 180 days
+    conventional_time_to_delete = fields.Integer(
+        validate=marshmallow_validate.Range(min=1, max=63072000)
+    )  # Max of 2 years
+    immutable_time_to_stale = fields.Integer(validate=marshmallow_validate.Range(min=1, max=604800))  # Max of 7 days
+    immutable_time_to_stale_warning = fields.Integer(
+        validate=marshmallow_validate.Range(min=1, max=15552000)
+    )  # Max of 180 days
+    immutable_time_to_delete = fields.Integer(
+        validate=marshmallow_validate.Range(min=1, max=63072000)
+    )  # Max of 2 years
 
     @validates_schema
     def validate_staleness(self, data, **kwargs):
