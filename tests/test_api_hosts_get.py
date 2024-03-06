@@ -1074,3 +1074,86 @@ def test_query_using_id_list(mq_create_three_specific_hosts, api_get, subtests, 
 
     assert response_status == 200
     assert len(response_data["results"]) == num_hosts_to_query
+
+
+@pytest.mark.parametrize("num_hosts_to_query", (1, 2, 3))
+def test_query_sp_by_id_list_sparse(db_create_multiple_hosts, api_get, num_hosts_to_query):
+    sp_data = {
+        "system_profile_facts": {
+            "arch": "x86_64",
+            "os_kernel_version": "4.18.2",
+            "host_type": "edge",
+            "owner_id": "1b36b20f-7fa0-4454-a6d2-008294e06378",
+        }
+    }
+    created_hosts = db_create_multiple_hosts(how_many=3, extra_data=sp_data)
+    created_hosts_ids = [str(host.id) for host in created_hosts]
+    host_list_url = build_hosts_url(host_list_or_id=created_hosts[:num_hosts_to_query])
+    url = f"{host_list_url}/system_profile?fields[system_profile]=arch,os_kernel_version,installed_packages,host_type"
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == num_hosts_to_query
+    for response_host in response_data["results"]:
+        assert response_host["id"] in created_hosts_ids
+        assert "owner_id" not in response_host["system_profile"]
+        for fact in ["arch", "os_kernel_version", "host_type"]:
+            assert fact in response_host["system_profile"]
+
+
+def test_query_all_sparse_fields(db_create_multiple_hosts, api_get):
+    # Create hosts that have a system profile
+    sp_data = {
+        "system_profile_facts": {
+            "arch": "x86_64",
+            "os_kernel_version": "4.18.2",
+            "host_type": "edge",
+            "owner_id": "1b36b20f-7fa0-4454-a6d2-008294e06378",
+        }
+    }
+    db_create_multiple_hosts(how_many=3, extra_data=sp_data)
+    url = build_hosts_url(query="?fields[system_profile]=arch,host_type")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    # Assert that the system_profile is not in the response by default
+    for result in response_data["results"]:
+        assert "system_profile" in result
+        assert "arch" in result["system_profile"]
+        assert "host_type" in result["system_profile"]
+        assert "os_kernel_version" not in result["system_profile"]
+        assert "owner_id" not in result["system_profile"]
+
+
+def test_query_by_id_sparse_fields(db_create_multiple_hosts, api_get):
+    # Create hosts that have a system profile
+    sp_data = {
+        "system_profile_facts": {
+            "arch": "x86_64",
+            "os_kernel_version": "4.18.2",
+            "host_type": "edge",
+            "owner_id": "1b36b20f-7fa0-4454-a6d2-008294e06378",
+        }
+    }
+    created_hosts = db_create_multiple_hosts(how_many=3, extra_data=sp_data)
+    url = build_hosts_url(
+        host_list_or_id=created_hosts[0].id, query="?fields[system_profile]=os_kernel_version,owner_id"
+    )
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    # Assert that the system_profile is not in the response by default
+    for result in response_data["results"]:
+        assert "system_profile" in result
+        assert "arch" not in result["system_profile"]
+        assert "host_type" not in result["system_profile"]
+        assert "os_kernel_version" in result["system_profile"]
+        assert "owner_id" in result["system_profile"]
