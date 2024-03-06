@@ -303,3 +303,10 @@ def test_delete_hosts_no_group(
         host = json.loads(call_arg[0][0])["host"]
         assert host["id"] == host_id_list[0]
         assert len(host["groups"]) == 0
+
+
+def test_delete_non_empty_group(api_delete_groups, db_create_group_with_hosts, event_producer):
+    group = db_create_group_with_hosts("non_empty_group", 3)
+
+    response_status, _ = api_delete_groups([group.id])
+    assert_response_status(response_status, expected_status=204)

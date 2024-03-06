@@ -141,8 +141,8 @@ def add_group(group_data, event_producer) -> Group:
 
 
 def _remove_all_hosts_from_group(group: Group):
-    host_ids_to_delete = db.session.query(HostGroupAssoc.host_id).filter(HostGroupAssoc.group_id == group.id).all()
-    _remove_hosts_from_group(group.id, host_ids_to_delete)
+    host_group_assocs_to_delete = HostGroupAssoc.query.filter(HostGroupAssoc.group_id == group.id).all()
+    _remove_hosts_from_group(group.id, [assoc.host_id for assoc in host_group_assocs_to_delete])
 
 
 def _delete_host_group_assoc(session, assoc):
@@ -170,11 +170,11 @@ def delete_group_list(group_id_list: List[str], event_producer: EventProducer) -
     deleted_host_ids = []
     staleness = get_staleness_obj(get_current_identity())
     with session_guard(db.session):
-        deleted_host_ids = (
-            db.session.query(HostGroupAssoc.host_id)
-            .filter(Group.org_id == get_current_identity().org_id, HostGroupAssoc.group_id.in_(group_id_list))
-            .all()
-        )
+        assocs_to_delete = HostGroupAssoc.query.filter(
+            Group.org_id == get_current_identity().org_id, HostGroupAssoc.group_id.in_(group_id_list)
+        ).all()
+
+        deleted_host_ids = [assoc.host_id for assoc in assocs_to_delete]
 
         for group in (
             db.session.query(Group)

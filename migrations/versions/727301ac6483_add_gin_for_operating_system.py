@@ -20,15 +20,17 @@ def upgrade():
     with op.get_context().autocommit_block():
         # Adds pg_trgm extension (https://www.postgresql.org/docs/current/pgtrgm.html#PGTRGM)
         op.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm")
+        op.execute("COMMIT")
         op.create_index(
             "idx_operating_system",
             "hosts",
             [sa.text("(COALESCE(system_profile_facts -> 'operating_system' ->> 'name', '')) gin_trgm_ops")],
             postgresql_using="gin",
             postgresql_concurrently=True,
+            if_not_exists=True,
         )
 
 
 def downgrade():
-    op.drop_index("idx_operating_system", table_name="hosts")
+    op.drop_index("idx_operating_system", table_name="hosts", if_exists=True)
     op.execute("DROP EXTENSION IF EXISTS pg_trgm")
