@@ -271,7 +271,7 @@ of the payload will only be logged as an "error" if the entire delete operation 
 Run this command to generate a new revision in `migrations/versions`
 
 ```bash
-python3 manage.py db revision -m "Description of revision"
+make migrate_db message="Description of revision"
 ```
 
 ## Building a docker container image

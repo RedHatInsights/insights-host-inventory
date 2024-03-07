@@ -6,6 +6,9 @@ init:
 test:
 	pytest --cov=.
 
+migrate_db:
+	SQLALCHEMY_ENGINE_LOG_LEVEL=INFO FLASK_APP=manage.py flask db migrate -m "${message}"
+
 upgrade_db:
 	SQLALCHEMY_ENGINE_LOG_LEVEL=INFO FLASK_APP=manage.py flask db upgrade
 
