@@ -412,7 +412,7 @@ def get_sparse_system_profile(
     fields: List[str],
     rbac_filter: dict,
 ) -> Tuple[List[Host], int]:
-    if fields:
+    if fields and fields.get("system_profile"):
         columns = [
             Host.id,
             func.jsonb_strip_nulls(
