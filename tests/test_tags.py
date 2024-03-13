@@ -1,3 +1,4 @@
+from datetime import timedelta
 from unittest.mock import patch
 
 from api.host_query_xjoin import HOST_TAGS_QUERY
@@ -18,7 +19,7 @@ from tests.helpers.graphql_utils import EMPTY_HOSTS_RESPONSE
 from tests.helpers.graphql_utils import XJOIN_HOSTS_NO_TAGS_RESPONSE
 from tests.helpers.graphql_utils import XJOIN_HOSTS_RESPONSE_WITH_TAGS
 from tests.helpers.test_utils import generate_uuid
-from tests.helpers.test_utils import minimal_host
+from tests.helpers.test_utils import now
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
@@ -165,25 +166,43 @@ def test_get_list_of_tags_with_host_filters(patch_xjoin_post, api_get, subtests)
             assert response_data["total"] == 1
 
 
-def test_get_list_of_tags_with_host_filters_via_db(mq_create_or_update_host, api_get, subtests):
+def test_get_list_of_tags_with_host_filters_via_db(db_create_multiple_hosts, api_get, subtests):
     """
     Validate that the /tags endpoint doesn't break when we supply it with various filters.
     """
+    _now = now()
     insights_id = generate_uuid()
     provider_id = generate_uuid()
     display_name = "test-example-host"
     namespace = "insights-client"
     tag_key = "database"
     tag_value = "postgresql"
-    mq_create_or_update_host(
-        minimal_host(
-            insights_id=insights_id,
-            provider_type=ProviderType.AZURE.value,
-            provider_id=provider_id,
-            display_name=display_name,
-            tags=_deserialize_tags_dict({namespace: {tag_key: [tag_value]}}),
-        )
+    per_reporter_staleness = {
+        "puptoo": {
+            "last_check_in": _now.isoformat(),
+            "stale_timestamp": (_now + timedelta(days=7)).isoformat(),
+            "check_in_succeeded": True,
+        },
+        "yupana": {
+            "last_check_in": (_now - timedelta(days=3)).isoformat(),
+            "stale_timestamp": (_now + timedelta(days=4)).isoformat(),
+            "check_in_succeeded": True,
+        },
+    }
+    db_create_multiple_hosts(
+        how_many=1,
+        extra_data={
+            "canonical_facts": {
+                "insights_id": insights_id,
+                "provider_type": ProviderType.AZURE.value,
+                "provider_id": provider_id,
+            },
+            "display_name": display_name,
+            "tags": _deserialize_tags_dict({namespace: {tag_key: [tag_value]}}),
+            "per_reporter_staleness": per_reporter_staleness,
+        },
     )
+
     with patch("api.tag.get_flag_value", return_value=True):
         for query in (
             f"?display_name={display_name}",
@@ -191,6 +210,8 @@ def test_get_list_of_tags_with_host_filters_via_db(mq_create_or_update_host, api
             f"?provider_id={provider_id}",
             f"?provider_type={ProviderType.AZURE.value}",
             f"?search={tag_key}",
+            "?registered_with=puptoo",
+            "?registered_with=yupana",
         ):
             with subtests.test(query=query):
                 url = build_tags_url(query=query)
