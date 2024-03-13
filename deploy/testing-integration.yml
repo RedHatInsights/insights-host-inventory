@@ -145,7 +145,7 @@ parameters:
 - name: IQE_TEST_IMPORTANCE
   value: ''
 - name: IQE_SEL_IMAGE
-  value: 'quay.io/redhatqe/selenium-standalone:ff_91.9.1esr_chrome_103.0.5060.114'
+  value: 'quay.io/redhatqe/selenium-standalone:latest'
 - name: IQE_CPU_LIMIT
   value: "1"
 - name: IQE_MEMORY_LIMIT
@@ -164,3 +164,5 @@ parameters:
   value: 1Gi
 - name: VNC_GEOMETRY
   value: '1920x1080'
+- name: IQE_PARALLEL_ENABLED
+  value: 'false'
