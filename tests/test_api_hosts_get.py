@@ -1,4 +1,5 @@
 import random
+from datetime import timedelta
 from itertools import chain
 from unittest.mock import patch
 
@@ -32,6 +33,7 @@ from tests.helpers.graphql_utils import XJOIN_SYSTEM_PROFILE_SAP_SYSTEM
 from tests.helpers.graphql_utils import XJOIN_TAGS_RESPONSE
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
+from tests.helpers.test_utils import now
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
@@ -1157,3 +1159,73 @@ def test_query_by_id_sparse_fields(db_create_multiple_hosts, api_get):
         assert "host_type" not in result["system_profile"]
         assert "os_kernel_version" in result["system_profile"]
         assert "owner_id" in result["system_profile"]
+
+
+def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
+    _now = now()
+    registered_with_data = [
+        {
+            "puptoo": {
+                "last_check_in": _now.isoformat(),
+                "stale_timestamp": (_now + timedelta(days=7)).isoformat(),
+                "check_in_succeeded": True,
+            },
+            "yupana": {
+                "last_check_in": (_now - timedelta(days=3)).isoformat(),
+                "stale_timestamp": (_now + timedelta(days=4)).isoformat(),
+                "check_in_succeeded": True,
+            },
+        },
+        {
+            "puptoo": {
+                "last_check_in": (_now - timedelta(days=1)).isoformat(),
+                "stale_timestamp": (_now + timedelta(days=6)).isoformat(),
+                "check_in_succeeded": True,
+            }
+        },
+        {
+            "puptoo": {
+                "last_check_in": (_now - timedelta(days=30)).isoformat(),
+                "stale_timestamp": (_now - timedelta(days=23)).isoformat(),
+                "check_in_succeeded": True,
+            }
+        },
+        {
+            "rhsm-conduit": {
+                "last_check_in": (_now - timedelta(days=1)).isoformat(),
+                "stale_timestamp": (_now + timedelta(days=6)).isoformat(),
+                "check_in_succeeded": True,
+            }
+        },
+    ]
+    insights_ids = [generate_uuid() for _ in range(len(registered_with_data))]
+
+    # Create an association between the insights IDs
+    registered_with_host_data = dict(zip(insights_ids, registered_with_data))
+
+    # Create hosts for the above host data
+    _ = [
+        db_create_multiple_hosts(
+            how_many=1,
+            extra_data={
+                "canonical_facts": {"insights_id": insights_id},
+                "per_reporter_staleness": registered_with_host_data[insights_id],
+            },
+        )
+        for insights_id in insights_ids
+    ]
+
+    expected_reporter_results_map = {
+        "puptoo": 2,
+        "yupana": 1,
+        "rhsm-conduit": 1,
+        "rhsm-conduit&registered_with=yupana": 2,
+    }
+    for reporter, count in expected_reporter_results_map.items():
+        with subtests.test():
+            url = build_hosts_url(query=f"?registered_with={reporter}")
+            with patch("api.host.get_flag_value", return_value=True):
+                # Validate the basics, i.e. response code and results size
+                response_status, response_data = api_get(url)
+                assert response_status == 200
+                assert count == len(response_data["results"])

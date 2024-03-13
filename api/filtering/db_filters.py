@@ -1,19 +1,30 @@
+from copy import deepcopy
+from functools import partial
 from typing import List
 from uuid import UUID
 
 from dateutil import parser
 from sqlalchemy import and_
+from sqlalchemy import DateTime
+from sqlalchemy import not_
 from sqlalchemy import or_
+from sqlalchemy.dialects.postgresql import JSON
 
+from api.staleness_query import get_staleness_obj
+from app.config import HOST_TYPES
+from app.culling import staleness_to_conditions
 from app.logging import get_logger
 from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
+from app.models import OLD_TO_NEW_REPORTER_MAP
+from app.serialization import serialize_staleness_to_dict
 from app.utils import Tag
 
 __all__ = ("query_filters", "host_id_list_filter", "rbac_permissions_filter")
 
 logger = get_logger(__name__)
+DEFAULT_STALENESS_VALUES = ["not_culled"]
 
 
 def _canonical_fact_filter(canonical_fact: str, value) -> List:
@@ -59,6 +70,41 @@ def _group_ids_filter(group_id_list: List) -> List:
     return _query_filter
 
 
+def _stale_timestamp_per_reporter_filter(gt=None, lte=None, host_type=None, reporter=None):
+    if reporter.startswith("!"):
+        if gt:
+            time_filter_ = Host.modified_on > gt
+        if lte:
+            time_filter_ = Host.modified_on <= lte
+        return and_(
+            Host.system_profile_facts["host_type"].astext == host_type,
+            not_(Host.per_reporter_staleness.has_key(reporter.replace("!", ""))),
+            time_filter_,
+        )
+    else:
+        if gt:
+            time_filter_ = Host.per_reporter_staleness[reporter]["last_check_in"].astext.cast(DateTime) > gt
+        if lte:
+            time_filter_ = Host.per_reporter_staleness[reporter]["last_check_in"].astext.cast(DateTime) <= lte
+        return and_(
+            Host.system_profile_facts["host_type"].astext == host_type,
+            Host.per_reporter_staleness.has_key(reporter),
+            time_filter_,
+        )
+
+
+def per_reporter_staleness_filter(staleness, reporter):
+    staleness_obj = serialize_staleness_to_dict(get_staleness_obj())
+    staleness_conditions = tuple()
+    for host_type in HOST_TYPES:
+        staleness_conditions += tuple(
+            staleness_to_conditions(
+                staleness_obj, staleness, host_type, partial(_stale_timestamp_per_reporter_filter, reporter=reporter)
+            )
+        )
+    return staleness_conditions
+
+
 def _staleness_filter(staleness: List[str]) -> List:
     _query_filter = []
     # TODO
@@ -67,8 +113,29 @@ def _staleness_filter(staleness: List[str]) -> List:
 
 def _registered_with_filter(registered_with: List[str]) -> List:
     _query_filter = []
-    # TODO
-    return _query_filter
+    if not registered_with:
+        return _query_filter
+    reg_with_copy = deepcopy(registered_with)
+    if "insights" in registered_with:
+        _query_filter.append(Host.canonical_facts["insights_id"] != JSON.NULL)
+        reg_with_copy.remove("insights")
+    if not reg_with_copy:
+        return _query_filter
+    # When filtering on old reporter name, include the names of the
+    # new reporters associated with the old reporter.
+    for old_reporter in OLD_TO_NEW_REPORTER_MAP:
+        if old_reporter in reg_with_copy:
+            reg_with_copy.extend(OLD_TO_NEW_REPORTER_MAP[old_reporter])
+            reg_with_copy = list(set(reg_with_copy))  # Remove duplicates
+
+    # Get the per_report_staleness check_in value for the reporter
+    # and build the filter based on it
+    for reporter in reg_with_copy:
+        prs_item = per_reporter_staleness_filter(DEFAULT_STALENESS_VALUES, reporter)
+
+        for n_items in prs_item:
+            _query_filter.append(n_items)
+    return [or_(*_query_filter)]
 
 
 def _system_profile_filter(sp_filter: dict) -> List:
