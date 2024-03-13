@@ -412,18 +412,21 @@ def get_sparse_system_profile(
     fields: List[str],
     rbac_filter: dict,
 ) -> Tuple[List[Host], int]:
-    columns = [
-        Host.id,
-        func.jsonb_strip_nulls(
-            func.jsonb_build_object(
-                *[
-                    kv
-                    for key in fields.get("system_profile")
-                    for kv in (key, Host.system_profile_facts[key].label(key))
-                ]
-            ).label("system_profile_facts")
-        ),
-    ]
+    if fields:
+        columns = [
+            Host.id,
+            func.jsonb_strip_nulls(
+                func.jsonb_build_object(
+                    *[
+                        kv
+                        for key in fields.get("system_profile")
+                        for kv in (key, Host.system_profile_facts[key].label(key))
+                    ]
+                ).label("system_profile_facts")
+            ),
+        ]
+    else:
+        columns = [Host.id, Host.system_profile_facts]
 
     all_filters = host_id_list_filter(host_id_list) + rbac_permissions_filter(rbac_filter)
     sp_query = (

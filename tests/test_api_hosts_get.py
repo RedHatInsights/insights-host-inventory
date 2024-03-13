@@ -1079,7 +1079,8 @@ def test_query_using_id_list(mq_create_three_specific_hosts, api_get, subtests, 
 
 
 @pytest.mark.parametrize("num_hosts_to_query", (1, 2, 3))
-def test_query_sp_by_id_list_sparse(db_create_multiple_hosts, api_get, num_hosts_to_query):
+@pytest.mark.parametrize("sparse_request", (True, False))
+def test_query_sp_by_id_list_sparse(db_create_multiple_hosts, api_get, num_hosts_to_query, sparse_request):
     sp_data = {
         "system_profile_facts": {
             "arch": "x86_64",
@@ -1091,7 +1092,9 @@ def test_query_sp_by_id_list_sparse(db_create_multiple_hosts, api_get, num_hosts
     created_hosts = db_create_multiple_hosts(how_many=3, extra_data=sp_data)
     created_hosts_ids = [str(host.id) for host in created_hosts]
     host_list_url = build_hosts_url(host_list_or_id=created_hosts[:num_hosts_to_query])
-    url = f"{host_list_url}/system_profile?fields[system_profile]=arch,os_kernel_version,installed_packages,host_type"
+    url = f"{host_list_url}/system_profile"
+    if sparse_request:
+        url += "?fields[system_profile]=arch,os_kernel_version,installed_packages,host_type"
 
     with patch("api.host.get_flag_value", return_value=True):
         response_status, response_data = api_get(url)
@@ -1100,7 +1103,9 @@ def test_query_sp_by_id_list_sparse(db_create_multiple_hosts, api_get, num_hosts
     assert len(response_data["results"]) == num_hosts_to_query
     for response_host in response_data["results"]:
         assert response_host["id"] in created_hosts_ids
-        assert "owner_id" not in response_host["system_profile"]
+
+        # "!=" works as an XOR
+        assert sparse_request != ("owner_id" in response_host["system_profile"])
         for fact in ["arch", "os_kernel_version", "host_type"]:
             assert fact in response_host["system_profile"]
 
