@@ -181,7 +181,11 @@ def process_system_profile_spec():
 
 
 def create_app(runtime_environment):
-    connexion_options = {"swagger_ui": True, "uri_parser_class": customURIParser}
+    connexion_options = {
+        "swagger_ui": True,
+        "uri_parser_class": customURIParser,
+        "openapi_spec_path": "/dev/openapi.json",
+    }
     # This feels like a hack but it is needed.  The logging configuration
     # needs to be setup before the flask app is initialized.
     configure_logging()
