@@ -5,6 +5,7 @@ Revises: 727301ac6483
 Create Date: 2024-03-07 11:46:14.512390
 
 """
+import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
@@ -15,14 +16,29 @@ depends_on = None
 
 
 def upgrade():
-    op.create_index("idxdisplay_name", "hosts", ["display_name"], unique=False)
-    op.execute("CREATE INDEX idxsystem_profile_facts ON hosts USING GIN (system_profile_facts jsonb_ops);")
-    op.execute("CREATE INDEX idxgroups ON hosts USING GIN (groups jsonb_ops);")
-    op.drop_index("idxaccount", table_name="hosts")
+    with op.get_context().autocommit_block():
+        op.create_index("idxdisplay_name", "hosts", ["display_name"], unique=False)
+        op.drop_index("idxaccount", table_name="hosts", if_exists=True)
+        op.create_index(
+            "idxsystem_profile_facts",
+            "hosts",
+            [sa.text("system_profile_facts jsonb_ops")],
+            postgresql_using="gin",
+            postgresql_concurrently=True,
+            if_not_exists=True,
+        )
+        op.create_index(
+            "idxgroups",
+            "hosts",
+            [sa.text("groups jsonb_ops")],
+            postgresql_using="gin",
+            postgresql_concurrently=True,
+            if_not_exists=True,
+        )
 
 
 def downgrade():
-    op.drop_index("idxdisplay_name", table_name="hosts")
-    op.drop_index("idxsystem_profile_facts", table_name="hosts")
-    op.drop_index("idxgroups", table_name="hosts")
+    op.drop_index("idxdisplay_name", table_name="hosts", if_exists=True)
+    op.drop_index("idxsystem_profile_facts", table_name="hosts", if_exists=True)
+    op.drop_index("idxgroups", table_name="hosts", if_exists=True)
     op.create_index("idxaccount", "hosts", ["account"], unique=False)
