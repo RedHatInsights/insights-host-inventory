@@ -372,6 +372,7 @@ objects:
     jobs:
     - name: reaper
       schedule: '@hourly'
+      concurrencyPolicy: "Forbid"
       suspend: ${{REAPER_SUSPEND}}
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
