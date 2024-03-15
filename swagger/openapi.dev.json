@@ -3696,7 +3696,6 @@
                   "description": "The origin repo from which the commit was installed",
                   "example": "fedora/33/x86_64/silverblue, fedora/31/x86_64/blackpink, fedora/34/x86_64/orangeblue",
                   "type": "string",
-                  "minLength": 1,
                   "maxLength": 255
                 },
                 "osname": {
