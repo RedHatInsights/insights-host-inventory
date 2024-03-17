@@ -1229,3 +1229,20 @@ def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
                 response_status, response_data = api_get(url)
                 assert response_status == 200
                 assert count == len(response_data["results"])
+
+
+def test_query_by_staleness(db_create_multiple_hosts, api_get, subtests):
+    # Create hosts
+    db_create_multiple_hosts(how_many=3)
+
+    expected_staleness_results_map = {
+        "fresh": 3,
+    }
+    for staleness, count in expected_staleness_results_map.items():
+        with subtests.test():
+            url = build_hosts_url(query=f"?staleness={staleness}")
+            with patch("api.host.get_flag_value", return_value=True):
+                # Validate the basics, i.e. response code and results size
+                response_status, response_data = api_get(url)
+                assert response_status == 200
+                assert count == len(response_data["results"])

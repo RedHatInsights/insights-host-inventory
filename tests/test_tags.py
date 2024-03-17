@@ -212,6 +212,7 @@ def test_get_list_of_tags_with_host_filters_via_db(db_create_multiple_hosts, api
             f"?search={tag_key}",
             "?registered_with=puptoo",
             "?registered_with=yupana",
+            "?staleness=fresh",
         ):
             with subtests.test(query=query):
                 url = build_tags_url(query=query)
