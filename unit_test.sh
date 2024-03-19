@@ -12,8 +12,12 @@ rsync -Rr . ./workspace_copy
 podman unshare chown -R 1001:1001 workspace_copy
 set +e
 # run pre-commit with the copied workspace mounted as a volume
-podman run -u 1001:1001 -t -v ./workspace_copy:/workspace:Z --workdir /workspace --env HOME=/workspace $IMAGE:$IMAGE_TAG pre-commit run --all-files
-
+PRECOMMIT_CONTAINER_ID=$(podman run -u 1001:1001 -t -v ./workspace_copy:/workspace:Z --workdir /workspace --env HOME=/workspace $IMAGE:$IMAGE_TAG pre-commit run --all-files)
+echo '----------------------------------'
+echo '--- Arif: PRECOMMIT_CONTAINER_ID: '
+echo $PRECOMMIT_CONTAINER_ID
+podman ps -a
+echo '----------------------------------'
 TEST_RESULT=$?
 set -e
 # remove copy of the workspace
@@ -53,6 +57,12 @@ if [[ "$DB_CONTAINER_ID" == "0" ]]; then
 	exit 1
 fi
 
+echo '----------------------------------'
+echo '--- Arif: DB_CONTAINER_ID: '
+echo $DB_CONTAINER_ID
+podman ps -a
+echo '----------------------------------'
+
 DB_IP_ADDR=$(podman inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $DB_CONTAINER_ID)
 
 # Do tests
@@ -71,11 +81,11 @@ if [[ "$TEST_CONTAINER_ID" == "0" ]]; then
 	exit 1
 fi
 
-echo '===================================='
-echo '=== Arif: TEST_CONTAINER_ID: '
+echo '------------------------------------'
+echo '--- Arif: TEST_CONTAINER_ID: '
 echo $TEST_CONTAINER_ID
 podman ps -a
-echo '===================================='
+echo '------------------------------------'
 
 ARTIFACTS_DIR="$WORKSPACE/artifacts"
 mkdir -p $ARTIFACTS_DIR
