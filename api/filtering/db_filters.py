@@ -74,12 +74,21 @@ def _group_ids_filter(group_id_list: List) -> List:
     return _query_filter
 
 
+def _get_host_modified_on_time_filter(gt=None, lte=None):
+    if gt:
+        return Host.modified_on > gt
+    if lte:
+        return Host.modified_on <= lte
+
+
+def _stale_timestamp_filter(gt=None, lte=None, host_type=None):
+    time_filter_ = _get_host_modified_on_time_filter(gt=gt, lte=lte)
+    return and_(Host.system_profile_facts["host_type"].astext == host_type, time_filter_)
+
+
 def _stale_timestamp_per_reporter_filter(gt=None, lte=None, host_type=None, reporter=None):
     if reporter.startswith("!"):
-        if gt:
-            time_filter_ = Host.modified_on > gt
-        if lte:
-            time_filter_ = Host.modified_on <= lte
+        time_filter_ = _get_host_modified_on_time_filter(gt=gt, lte=lte)
         return and_(
             Host.system_profile_facts["host_type"].astext == host_type,
             not_(Host.per_reporter_staleness.has_key(reporter.replace("!", ""))),
@@ -110,9 +119,13 @@ def per_reporter_staleness_filter(staleness, reporter):
 
 
 def _staleness_filter(staleness: List[str]) -> List:
-    _query_filter = []
-    # TODO
-    return _query_filter
+    staleness_obj = serialize_staleness_to_dict(get_staleness_obj())
+    staleness_conditions = tuple()
+    for host_type in HOST_TYPES:
+        staleness_conditions += tuple(
+            staleness_to_conditions(staleness_obj, staleness, host_type, _stale_timestamp_filter)
+        )
+    return [or_(*staleness_conditions)]
 
 
 def _registered_with_filter(registered_with: List[str]) -> List:
