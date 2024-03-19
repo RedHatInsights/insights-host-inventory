@@ -8,15 +8,21 @@ echo '===      Running Pre-commit     ===='
 echo '===================================='
 # copy workspace directory and chown it to match podman user namespace
 podman unshare rm -fr ./workspace_copy
+echo 'Running rsync ...'
 rsync -Rr . ./workspace_copy
+echo 'Running unshare ...'
 podman unshare chown -R 1001:1001 workspace_copy
 set +e
 # run pre-commit with the copied workspace mounted as a volume
+echo 'Running pre-commit...'
 podman run -u 1001:1001 -t -v ./workspace_copy:/workspace:Z --workdir /workspace --env HOME=/workspace $IMAGE:$IMAGE_TAG pre-commit run --all-files
+echo 'Done running pre-commit run!!!'
 TEST_RESULT=$?
 set -e
 # remove copy of the workspace
+echo 'Running podman unshare...'
 podman unshare rm -rf workspace_copy
+echo 'Running podman Done!!!'
 if [ $TEST_RESULT -ne 0 ]; then
 	echo '====================================='
 	echo '====  ✖ ERROR: PRECOMMIT FAILED  ===='
