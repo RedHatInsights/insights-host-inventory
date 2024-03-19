@@ -12,7 +12,7 @@ rsync -Rr . ./workspace_copy
 podman unshare chown -R 1001:1001 workspace_copy
 set +e
 # run pre-commit with the copied workspace mounted as a volume
-podman run -u 1001:1001 -t -v ./workspace_copy:/workspace:Z --workdir /workspace --env HOME=/workspace $IMAGE:$IMAGE_TAG pre-commit run --all-files
+podman run -u 1001:1001 -t -v ./workspace_copy:/workspace:Z --workdir /workspace --env HOME=/workspace $IMAGE:$IMAGE_TAG --entrypoint=pre-commit run --all-files
 TEST_RESULT=$?
 set -e
 # remove copy of the workspace
@@ -84,7 +84,7 @@ echo '===================================='
 echo '=== Installing Pip Dependencies ===='
 echo '===================================='
 set +e
-podman exec $TEST_CONTAINER_ID /bin/bash -c 'pipenv install --system --dev'
+podman exec $TEST_CONTAINER_ID --entrypoint="/bin/bash" -c 'pipenv install --system --dev'
 TEST_RESULT=$?
 set -e
 if [ $TEST_RESULT -ne 0 ]; then
