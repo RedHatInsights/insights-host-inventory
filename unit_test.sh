@@ -74,7 +74,7 @@ TEST_CONTAINER_ID=$(podman run -d \
 	-e INVENTORY_DB_USER="inventory-test" \
 	-e INVENTORY_DB_PASS="inventory-test" \
 	$IMAGE:$IMAGE_TAG \
-	--entrypoint="sleep infinity" || echo "0")
+	--entrypoint=sleep infinity || echo "0")
 
 if [[ "$TEST_CONTAINER_ID" == "0" ]]; then
 	echo "Failed to start test container"
