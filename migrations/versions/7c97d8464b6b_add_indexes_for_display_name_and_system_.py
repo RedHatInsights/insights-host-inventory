@@ -17,7 +17,7 @@ depends_on = None
 
 def upgrade():
     with op.get_context().autocommit_block():
-        op.create_index("idxdisplay_name", "hosts", ["display_name"], unique=False)
+        op.create_index("idxdisplay_name", "hosts", ["display_name"], unique=False, if_not_exists=True)
         op.drop_index("idxaccount", table_name="hosts", if_exists=True)
         op.create_index(
             "idxsystem_profile_facts",
