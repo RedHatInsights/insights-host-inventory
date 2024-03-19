@@ -41,4 +41,4 @@ def downgrade():
     op.drop_index("idxdisplay_name", table_name="hosts", if_exists=True)
     op.drop_index("idxsystem_profile_facts", table_name="hosts", if_exists=True)
     op.drop_index("idxgroups", table_name="hosts", if_exists=True)
-    op.create_index("idxaccount", "hosts", ["account"], unique=False)
+    op.create_index("idxaccount", "hosts", ["account"], unique=False, if_not_exists=True)
