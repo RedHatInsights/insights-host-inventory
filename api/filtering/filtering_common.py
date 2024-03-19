@@ -39,6 +39,25 @@ GRAPHQL_OPERATIONS_LOOKUP = {
     "integer": OPERATION_SETS.eq.value[0],
 }
 
+POSTGRES_COMPARATOR_LOOKUP = {
+    "lt": "<",
+    "lte": "<=",
+    "gt": ">",
+    "gte": ">=",
+    "eq": "=",
+    "neq": "<>",
+}
+
+POSTGRES_DEFAULT_COMPARATOR = {
+    "string": "=",
+    "wildcard": "ILIKE",
+    "boolean": "ILIKE",
+    "range": "=",
+    "operating_system": "=",
+    "integer": "=",
+    "date-time": "=",
+}
+
 
 def lookup_operations(filter_type, filter_format=None, is_array=False):
     if is_array:

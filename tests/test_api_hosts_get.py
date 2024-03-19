@@ -1229,3 +1229,124 @@ def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
                 response_status, response_data = api_get(url)
                 assert response_status == 200
                 assert count == len(response_data["results"])
+
+
+@pytest.mark.parametrize(
+    "sp_filter_param",
+    (
+        "[arch]=x86_64",
+        "[arch][eq]=x86_64",
+        "[arch][neq]=PowerPC",
+        "[insights_client_version]=3.0.1-2.el4_2",
+        "[insights_client_version]=3.0.*",
+        "[host_type]=edge",
+        "[sap][sap_system]=True",
+        "[arch]=x86_64&filter[system_profile][host_type]=edge",
+        "[insights_client_version][]=3.0.*&filter[system_profile][insights_client_version][]=*el4_2",
+    ),
+)
+def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
+    # Create host with this system profile
+    match_sp_data = {
+        "system_profile_facts": {
+            "arch": "x86_64",
+            "insights_client_version": "3.0.1-2.el4_2",
+            "host_type": "edge",
+            "sap": {"sap_system": True},
+        }
+    }
+    match_host_id = str(db_create_host(extra_data=match_sp_data).id)
+
+    # Create host with differing SP
+    nomatch_sp_data = {
+        "system_profile_facts": {
+            "arch": "PowerPC",
+            "insights_client_version": "1.2.3",
+        }
+    }
+    nomatch_host_id = str(db_create_host(extra_data=nomatch_sp_data).id)
+
+    url = build_hosts_url(query=f"?filter[system_profile]{sp_filter_param}")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    # Assert that only the matching host is returned
+    response_ids = [result["id"] for result in response_data["results"]]
+    assert match_host_id in response_ids
+    assert nomatch_host_id not in response_ids
+
+
+@pytest.mark.parametrize(
+    "sp_filter_param",
+    (
+        "[RHEL][version]=8.11",
+        "[RHEL][version][eq]=8.11",
+        "[RHEL][version][gt]=8.5",
+        "[RHEL][version][gte]=8.11&filter[system_profile][operating_system][RHEL][version][eq]=8.11",
+    ),
+)
+def test_query_all_sp_filters_operating_system(db_create_host, api_get, sp_filter_param):
+    # Create host with this system profile
+    match_sp_data = {
+        "system_profile_facts": {
+            "operating_system": {
+                "name": "RHEL",
+                "major": "8",
+                "minor": "11",
+            }
+        }
+    }
+    match_host_id = str(db_create_host(extra_data=match_sp_data).id)
+
+    # Create host with differing SP
+    nomatch_sp_data = {
+        "system_profile_facts": {
+            "operating_system": {
+                "name": "RHEL",
+                "major": "8",
+                "minor": "3",
+            }
+        }
+    }
+    nomatch_host_id_1 = str(db_create_host(extra_data=nomatch_sp_data).id)
+
+    # Create host with differing SP
+    nomatch_sp_data = {
+        "system_profile_facts": {
+            "operating_system": {
+                "name": "RHEL",
+                "major": "7",
+                "minor": "5",
+            }
+        }
+    }
+    nomatch_host_id_2 = str(db_create_host(extra_data=nomatch_sp_data).id)
+
+    # Create host with differing SP
+    nomatch_sp_data = {
+        "system_profile_facts": {
+            "operating_system": {
+                "name": "CentOS",
+                "major": "7",
+                "minor": "0",
+            }
+        }
+    }
+    nomatch_host_id_3 = str(db_create_host(extra_data=nomatch_sp_data).id)
+
+    url = build_hosts_url(query=f"?filter[system_profile][operating_system]{sp_filter_param}")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    # Assert that only the matching host is returned
+    response_ids = [result["id"] for result in response_data["results"]]
+    assert match_host_id in response_ids
+    assert nomatch_host_id_1 not in response_ids
+    assert nomatch_host_id_2 not in response_ids
+    assert nomatch_host_id_3 not in response_ids

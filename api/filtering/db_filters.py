@@ -10,9 +10,11 @@ from sqlalchemy import not_
 from sqlalchemy import or_
 from sqlalchemy.dialects.postgresql import JSON
 
+from api.filtering.db_custom_filters import build_system_profile_filter
 from api.staleness_query import get_staleness_obj
 from app.config import HOST_TYPES
 from app.culling import staleness_to_conditions
+from app.exceptions import ValidationException
 from app.logging import get_logger
 from app.models import Group
 from app.models import Host
@@ -20,6 +22,8 @@ from app.models import HostGroupAssoc
 from app.models import OLD_TO_NEW_REPORTER_MAP
 from app.serialization import serialize_staleness_to_dict
 from app.utils import Tag
+from lib.feature_flags import FLAG_HIDE_EDGE_HOSTS
+from lib.feature_flags import get_flag_value
 
 __all__ = ("query_filters", "host_id_list_filter", "rbac_permissions_filter")
 
@@ -138,10 +142,25 @@ def _registered_with_filter(registered_with: List[str]) -> List:
     return [or_(*_query_filter)]
 
 
-def _system_profile_filter(sp_filter: dict) -> List:
-    _query_filter = []
-    # TODO
-    return _query_filter
+def _system_profile_filter(filter: dict) -> List:
+    query_filters = []
+
+    # If this feature flag is set, we should hide edge hosts by default, even if a filter wasn't provided.
+    if get_flag_value(FLAG_HIDE_EDGE_HOSTS) and not filter:
+        filter = {"system_profile": {"host_type": {"eq": "nil"}}}
+
+    if filter:
+        for key in filter:
+            if key == "system_profile":
+                # If a host_type filter wasn't provided in the request, filter out edge hosts.
+                if get_flag_value(FLAG_HIDE_EDGE_HOSTS) and "host_type" not in filter["system_profile"]:
+                    filter["system_profile"]["host_type"] = {"eq": "nil"}
+
+                query_filters += build_system_profile_filter(filter["system_profile"])
+            else:
+                raise ValidationException("filter key is invalid")
+
+    return query_filters
 
 
 def _hostname_or_id_filter(hostname_or_id: str) -> List:
