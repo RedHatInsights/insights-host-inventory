@@ -13,6 +13,7 @@ podman unshare chown -R 1001:1001 workspace_copy
 set +e
 # run pre-commit with the copied workspace mounted as a volume
 podman run -u 1001:1001 -t -v ./workspace_copy:/workspace:Z --workdir /workspace --env HOME=/workspace $IMAGE:$IMAGE_TAG pre-commit run --all-files
+
 TEST_RESULT=$?
 set -e
 # remove copy of the workspace
@@ -63,7 +64,7 @@ TEST_CONTAINER_ID=$(podman run -d \
 	-e INVENTORY_DB_USER="inventory-test" \
 	-e INVENTORY_DB_PASS="inventory-test" \
 	$IMAGE:$IMAGE_TAG \
-	--entrypoint="/bin/bash" -c 'sleep infinity' || echo "0")
+	--entrypoint=["sleep infinity"] || echo "0")
 
 if [[ "$TEST_CONTAINER_ID" == "0" ]]; then
 	echo "Failed to start test container"
@@ -84,7 +85,7 @@ echo '===================================='
 echo '=== Installing Pip Dependencies ===='
 echo '===================================='
 set +e
-podman exec $TEST_CONTAINER_ID --entrypoint="/bin/bash" -c 'pipenv install --system --dev'
+podman exec $TEST_CONTAINER_ID --entrypoint=["pipenv", "install", "--system", "--dev"]
 TEST_RESULT=$?
 set -e
 if [ $TEST_RESULT -ne 0 ]; then
@@ -99,7 +100,7 @@ echo '===================================='
 echo '====        Running Tests       ===='
 echo '===================================='
 set +e
-podman exec $TEST_CONTAINER_ID /bin/bash -c 'FLASK_APP=manage.py flask db upgrade && pytest --cov=. --junitxml=junit-unittest.xml --cov-report html -sv'
+podman exec $TEST_CONTAINER_ID --entrypoint=["FLASK_APP=manage.py", "flask", "db", "upgrade", "&&", "pytest", "--cov=.", "--junitxml=junit-unittest.xml", "--cov-report html", "-sv"]
 TEST_RESULT=$?
 set -e
 
