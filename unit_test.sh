@@ -70,6 +70,12 @@ if [[ "$TEST_CONTAINER_ID" == "0" ]]; then
 	exit 1
 fi
 
+echo '===================================='
+echo '=== Arif: TEST_CONTAINER_ID: '
+echo $TEST_CONTAINER_ID
+podman ps -a
+echo '===================================='
+
 ARTIFACTS_DIR="$WORKSPACE/artifacts"
 mkdir -p $ARTIFACTS_DIR
 
