@@ -9,6 +9,7 @@ from app.logging import get_logger
 logger = get_logger(__name__)
 
 
+# Utility class to facilitate OS filter comparison
 class OsComparison:
     def __init__(self, name, comparator, major, minor):
         self.name = name
@@ -22,7 +23,11 @@ def _check_field_in_spec(spec, field_name):
         raise ValidationException(f"invalid filter field: {field_name}")
 
 
-def _convert_dict_to_text_filter_and_value(filter: dict):
+# Takes a filter dict and converts it into:
+#   jsonb_path: The jsonb path, i.e. system_profile_facts->sap->>sap_system
+#   pg_op: The comparison to use (e.g. =, >, <)
+#   value: The filter's value
+def _convert_dict_to_text_filter_and_value(filter: dict) -> tuple:
     key = next(iter(filter.keys()))
     val = filter[key]
 
@@ -41,7 +46,8 @@ def _convert_dict_to_text_filter_and_value(filter: dict):
         return f"->>'{key}'", None, val
 
 
-def _get_field_filter_for_deepest_param(sp_spec: dict, filter: dict):
+# Gets the deepest node in the "filter" object, and looks up its field_filter in sp_spec
+def _get_field_filter_for_deepest_param(sp_spec: dict, filter: dict) -> str:
     # Skip through "children" nodes in the spec
     if "children" in sp_spec:
         return _get_field_filter_for_deepest_param(sp_spec["children"], filter)
@@ -61,12 +67,13 @@ def _get_field_filter_for_deepest_param(sp_spec: dict, filter: dict):
 
 
 # Extracts specific filters from the filter param object and puts them in an easier format
-# {'RHEL': {'version': {'lt': '9.0', 'gt': '8.5'}}} should become:
+# For instance, {'RHEL': {'version': {'lt': '9.0', 'gt': '8.5'}}} becomes:
 # [
 #   OsComparison{name: 'RHEL', comparator: 'lt', major: '9', minor: '0'}
 #   OsComparison{name: 'RHEL', comparator: 'gt', major: '8', minor: '5'}
 # ]
-def separate_operating_system_filters(filter_param: dict) -> list:
+# Has a similar purpose to _unique_paths, but the OS filter works a bit differently.
+def separate_operating_system_filters(filter_param: dict) -> list[OsComparison]:
     os_filter_list = []
     for os_name in filter_param.keys():
         if not isinstance(version_node := filter_param[os_name]["version"], dict):
@@ -83,7 +90,8 @@ def separate_operating_system_filters(filter_param: dict) -> list:
     return os_filter_list
 
 
-def build_operating_system_filter_list(filter_param):
+# Takes an OS filter param and converts it into a tuple containing the DB filter
+def build_operating_system_filter(filter_param: dict) -> tuple:
     os_filter_list = []
     separated_filters = separate_operating_system_filters(filter_param["operating_system"])
 
@@ -111,6 +119,8 @@ def build_operating_system_filter_list(filter_param):
     return (text(" OR ".join(os_filter_list)),)
 
 
+# Turns a list into a dict like this:
+# [foo, bar, baz] -> {"foo": {"bar": "baz"}}
 def _build_dict_from_path_list(path_list: list) -> dict:
     if len(path_list) > 1:
         return {path_list[0]: _build_dict_from_path_list(path_list[1:])}
@@ -118,11 +128,14 @@ def _build_dict_from_path_list(path_list: list) -> dict:
         return path_list[0]
 
 
+# Takes a deep object and reduces it into a list of unique paths.
+# For instance, {"foo": {"bar": "val1", "baz": "val2"}} becomes:
+# [{"foo": {"bar": "val1"}}, {"foo": {"baz": "val2"}}]
 def _unique_paths(
-    node,
-    ignore_nodes=[],
-    current_path=[],
-):
+    node: dict,
+    ignore_nodes: list = [],
+    current_path: list = [],
+) -> list[dict]:
     all_filters = []
     if isinstance(node, dict):
         # Not a leaf node
@@ -143,7 +156,8 @@ def _unique_paths(
     return all_filters
 
 
-def build_system_profile_filter(system_profile_param):
+# Takes a System Profile filter param and turns it into sql filters.
+def build_system_profile_filter(system_profile_param: dict) -> tuple:
     system_profile_filter = tuple()
 
     # Separate the filter object into a list of filters
@@ -154,7 +168,7 @@ def build_system_profile_filter(system_profile_param):
         _check_field_in_spec(system_profile_spec(), field_name)
 
         if field_name == "operating_system":
-            system_profile_filter += build_operating_system_filter_list(filter_param)
+            system_profile_filter += build_operating_system_filter(filter_param)
         else:
             # Main SP filters
             field_input = filter_param[field_name]
