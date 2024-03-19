@@ -1,3 +1,4 @@
+#!/usr/bin/python
 from flask_migrate import Migrate
 
 from app import create_app

@@ -1,4 +1,4 @@
-#!/bin/python
+#!/usr/bin/python
 from functools import partial
 
 from confluent_kafka import Consumer as KafkaConsumer

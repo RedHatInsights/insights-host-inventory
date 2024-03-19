@@ -25,7 +25,6 @@ objects:
           apiPath: inventory
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        command: ["dumb-init"]
         args: [
           "gunicorn",
           "--workers=${GUNICORN_WORKERS}",
@@ -38,7 +37,7 @@ objects:
           "-b",
           "0.0.0.0:8000",
           "-t",
-          "'60'",
+          "60",
           "run"
         ]
         env:
@@ -139,8 +138,7 @@ objects:
     - name: mq-pmin
       minReplicas: ${{REPLICAS_PMIN}}
       podSpec:
-        command: ["dumb-init"]
-        args: [ "./inv_mq_service.py"]
+        args: ["./inv_mq_service.py"]
         env:
         - name: INVENTORY_LOG_LEVEL
           value: ${LOG_LEVEL}
@@ -215,15 +213,9 @@ objects:
       minReplicas: ${{REPLICAS_P1}}
       podSpec:
         initContainers:
-        - command:
-          - /bin/sh
-          - -c
-          - FLASK_APP=manage.py flask db upgrade
+        - args: ["FLASK_APP=./manage.py", "flask", "db", "upgrade"]
           inheritEnv: true
-        command:
-        - /bin/sh
-        - -c
-        - python3 inv_mq_service.py
+        args: ["./inv_mq_service.py"]
         env:
         - name: INVENTORY_LOG_LEVEL
           value: ${LOG_LEVEL}
@@ -297,7 +289,6 @@ objects:
     - name: mq-sp
       minReplicas: ${{REPLICAS_SP}}
       podSpec:
-        command: ["dumb-init"]
         args: ["./inv_mq_service.py"]
         env:
         - name: INVENTORY_LOG_LEVEL
@@ -377,8 +368,7 @@ objects:
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
         restartPolicy: Never
-        command: ["dumb-init"]
-        args: ["./host_reaper.py"]
+        args: ["host_reaper.py"]
         env:
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
@@ -439,8 +429,7 @@ objects:
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
         restartPolicy: Never
-        command: ["dumb-init"]
-        args: ["./system_profile_validator.py"]
+        args: ["system_profile_validator.py"]
         env:
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
@@ -521,8 +510,7 @@ objects:
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
         restartPolicy: Never
-        command: ["dumb-init"]
-        args: [ "./pendo_syncher.py"]
+        args: ["pendo_syncher.py"]
         env:
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
@@ -566,8 +554,7 @@ objects:
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
         restartPolicy: OnFailure
-        command: ["dumb-init"]
-        args: [ "./rebuild_events_topic.py", "&&", "./host_synchronizer.py"]
+        args: ["rebuild_events_topic.py", "&&", "python3 host_synchronizer.py"]
         env:
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
