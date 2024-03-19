@@ -95,6 +95,11 @@ echo '===================================='
 echo '=== Installing Pip Dependencies ===='
 echo '===================================='
 set +e
+echo '------------------------------------'
+echo '--- Arif: TEST_CONTAINER_ID: '
+echo $TEST_CONTAINER_ID
+podman ps
+echo '------------------------------------'
 podman exec $TEST_CONTAINER_ID --entrypoint=["pipenv", "install", "--system", "--dev"]
 TEST_RESULT=$?
 set -e
