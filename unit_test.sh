@@ -100,7 +100,8 @@ echo '--- Arif: TEST_CONTAINER_ID: '
 echo $TEST_CONTAINER_ID
 podman ps
 echo '------------------------------------'
-podman exec $TEST_CONTAINER_ID --entrypoint=["pipenv", "install", "--system", "--dev"]
+# podman exec $TEST_CONTAINER_ID --entrypoint=["pipenv", "install", "--system", "--dev"]
+podman exec $TEST_CONTAINER_ID pipenv install --system --dev"
 TEST_RESULT=$?
 set -e
 if [ $TEST_RESULT -ne 0 ]; then
