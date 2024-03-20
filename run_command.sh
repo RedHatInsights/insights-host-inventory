@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ "$#" -eq 0 ]; then
-    echo "ERROR: No command provided to run.
+    echo "ERROR: No command provided to run."
     exit 1
 fi
 
