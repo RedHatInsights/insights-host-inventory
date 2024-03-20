@@ -46,6 +46,7 @@ POSTGRES_COMPARATOR_LOOKUP = {
     "gte": ">=",
     "eq": "=",
     "neq": "<>",
+    "is": "IS",
 }
 
 POSTGRES_DEFAULT_COMPARATOR = {

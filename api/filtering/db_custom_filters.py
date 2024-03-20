@@ -184,9 +184,14 @@ def build_system_profile_filter(system_profile_param: dict) -> tuple:
             # Handle wildcard fields (use ILIKE, replace * with %)
             if pg_op == "ILIKE":
                 value = value.replace("*", "%")
+            elif pg_op == "IS":
+                if value == "nil":
+                    value = "NULL"
+                elif value == "not_nil":
+                    value = "NOT NULL"
 
-            # Put value in quotes if appropriate for the field type
-            if field_filter in ["wildcard", "string", "timestamp", "boolean"]:
+            # Put value in quotes if appropriate for the field type and operation
+            if field_filter in ["wildcard", "string", "timestamp", "boolean"] and pg_op != "IS":
                 value = f"'{value}'"
 
             text_filter = f"system_profile_facts{jsonb_path} {pg_op} {value}"

@@ -1265,6 +1265,8 @@ def test_query_by_staleness(db_create_multiple_hosts, api_get, subtests):
         "[sap][sap_system]=True",
         "[arch]=x86_64&filter[system_profile][host_type]=edge",
         "[insights_client_version][]=3.0.*&filter[system_profile][insights_client_version][]=*el4_2",
+        "[greenboot_status][is]=nil",
+        "[host_type][is]=not_nil",
     ),
 )
 def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
@@ -1284,6 +1286,7 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
         "system_profile_facts": {
             "arch": "PowerPC",
             "insights_client_version": "1.2.3",
+            "greenboot_status": "green",
         }
     }
     nomatch_host_id = str(db_create_host(extra_data=nomatch_sp_data).id)
