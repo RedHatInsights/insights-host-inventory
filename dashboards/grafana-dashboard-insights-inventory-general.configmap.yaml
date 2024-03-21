@@ -2940,9 +2940,9 @@ data:
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
-            "h": 4,
+            "h": 7,
             "w": 9,
-            "x": 15,
+            "x": 12,
             "y": 39
           },
           "hiddenSeries": false,
@@ -2973,13 +2973,13 @@ data:
             {
               "alias": "Consumed message size",
               "properties": {
-                "color": #FF5733
+                "color": "#FF5733"
               }
             },
             {
               "alias": "Produced message size",
               "properties": {
-                "color": #3498DB
+                "color": "#3498DB"
               }
             }
           ],
@@ -3048,7 +3048,7 @@ data:
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 39
+            "y": 46
           },
           "id": 73,
           "panels": [
@@ -3064,7 +3064,7 @@ data:
                 "h": 7,
                 "w": 12,
                 "x": 0,
-                "y": 30
+                "y": 37
               },
               "hiddenSeries": false,
               "id": 74,
@@ -3156,7 +3156,7 @@ data:
                 "h": 7,
                 "w": 12,
                 "x": 12,
-                "y": 30
+                "y": 37
               },
               "hiddenSeries": false,
               "id": 71,
@@ -3246,7 +3246,7 @@ data:
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 40
+            "y": 47
           },
           "id": 32,
           "panels": [],
@@ -3278,7 +3278,7 @@ data:
             "h": 10,
             "w": 12,
             "x": 0,
-            "y": 41
+            "y": 48
           },
           "heatmap": {},
           "hideZeroBuckets": true,
@@ -3347,7 +3347,7 @@ data:
             "h": 10,
             "w": 12,
             "x": 12,
-            "y": 41
+            "y": 48
           },
           "heatmap": {},
           "hideZeroBuckets": true,
@@ -3411,7 +3411,7 @@ data:
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 51
+            "y": 58
           },
           "hiddenSeries": false,
           "id": 55,
@@ -3509,7 +3509,7 @@ data:
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 51
+            "y": 58
           },
           "hiddenSeries": false,
           "id": 54,
@@ -3607,7 +3607,7 @@ data:
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 58
+            "y": 65
           },
           "hiddenSeries": false,
           "id": 42,
@@ -3705,7 +3705,7 @@ data:
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 58
+            "y": 65
           },
           "hiddenSeries": false,
           "id": 43,
@@ -3802,7 +3802,7 @@ data:
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 65
+            "y": 72
           },
           "hiddenSeries": false,
           "id": 36,
@@ -3900,7 +3900,7 @@ data:
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 65
+            "y": 72
           },
           "hiddenSeries": false,
           "id": 37,
@@ -3998,7 +3998,7 @@ data:
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 72
+            "y": 79
           },
           "hiddenSeries": false,
           "id": 39,
@@ -4096,7 +4096,7 @@ data:
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 72
+            "y": 79
           },
           "hiddenSeries": false,
           "id": 40,
