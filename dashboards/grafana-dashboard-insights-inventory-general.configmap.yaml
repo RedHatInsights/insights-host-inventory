@@ -2940,9 +2940,9 @@ data:
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
-            "h": 4,
+            "h": 7,
             "w": 9,
-            "x": 15,
+            "x": 12,
             "y": 39
           },
           "hiddenSeries": false,
@@ -2973,13 +2973,13 @@ data:
             {
               "alias": "Consumed message size",
               "properties": {
-                "color": #FF5733
+                "color": "#FF5733"
               }
             },
             {
               "alias": "Produced message size",
               "properties": {
-                "color": #3498DB
+                "color": "#3498DB"
               }
             }
           ],
