@@ -1383,9 +1383,9 @@ def test_query_all_sp_filters_operating_system(db_create_host, api_get, sp_filte
 @pytest.mark.parametrize(
     "sp_filter_param_list",
     (
-        ["[arch][eq][]=x86_64", "[arch][eq][]=ARM"],
-        ["[insights_client_version][]=3.0.1*", "[insights_client_version][eq][]=1.2.3"],
-        ["[systemd][jobs_queued][lte][]=1", "[systemd][jobs_queued][gt][]=5"],
+        ["[arch][eq][]=x86_64", "[arch][eq][]=ARM"],  # Uses OR (same comparator)
+        ["[insights_client_version][]=3.0.1*", "[insights_client_version][]=1.2.3"],  # Uses OR (same comparator)
+        ["[systemd][jobs_queued][lt][]=10", "[systemd][jobs_queued][gte][]=1"],  # Uses AND (different comparators)
     ),
 )
 def test_query_all_sp_filters_multiple_of_same_field(db_create_host, api_get, sp_filter_param_list):
@@ -1403,7 +1403,7 @@ def test_query_all_sp_filters_multiple_of_same_field(db_create_host, api_get, sp
         "system_profile_facts": {
             "arch": "ARM",
             "insights_client_version": "1.2.3",
-            "systemd": {"jobs_queued": "10"},
+            "systemd": {"jobs_queued": "5"},
         }
     }
     match_2_host_id = str(db_create_host(extra_data=match_2_sp_data).id)
@@ -1413,7 +1413,7 @@ def test_query_all_sp_filters_multiple_of_same_field(db_create_host, api_get, sp
         "system_profile_facts": {
             "arch": "RISC-V",
             "insights_client_version": "4.5.6",
-            "systemd": {"jobs_queued": "5"},
+            "systemd": {"jobs_queued": "10"},
         }
     }
     nomatch_host_id = str(db_create_host(extra_data=nomatch_sp_data).id)

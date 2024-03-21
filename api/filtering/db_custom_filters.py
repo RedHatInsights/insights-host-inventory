@@ -33,7 +33,7 @@ def _convert_dict_to_text_filter_and_value(filter: dict) -> tuple:
     val = filter[key]
 
     # If the next node is not the deepest value
-    if type(val) is dict:
+    if isinstance(val, dict):
         # Skip comparison node if present (eq, lt, gte, etc)
         next_key = next(iter(val.keys()))
         if next_key in POSTGRES_COMPARATOR_LOOKUP.keys():
@@ -56,7 +56,7 @@ def _get_field_filter_for_deepest_param(sp_spec: dict, filter: dict) -> str:
     key = next(iter(filter.keys()))
     val = filter[key]
 
-    if type(val) is dict:
+    if isinstance(val, dict):
         if key in sp_spec:
             return _get_field_filter_for_deepest_param(sp_spec[key], filter[key])
 
@@ -117,7 +117,7 @@ def build_operating_system_filter(filter_param: dict) -> tuple:
         os_filter_list.append(os_filter_text)
 
     # If multiple OS filters are provided, it should be treated as "OR"
-    return (text(" OR ".join(os_filter_list)),)
+    return " OR ".join(os_filter_list)
 
 
 # Turns a list into a dict like this:
@@ -132,6 +132,11 @@ def _build_dict_from_path_list(path_list: list) -> dict:
 # Takes a deep object and reduces it into a list of unique paths.
 # For instance, {"foo": {"bar": "val1", "baz": "val2"}} becomes:
 # [{"foo": {"bar": "val1"}}, {"foo": {"baz": "val2"}}]
+#
+# When multiple values are provided for one filter, the paths are grouped in a list,
+# making them easier to logically group.
+# For instance, [{"foo": {"bar": "val1"}, "baz": ["val2", "val3"]}] becomes:
+# [{"foo": {"bar": "val1"}}, [{"foo": {"baz": "val2"}}, {"foo": {"baz": "val3"}}]]
 def _unique_paths(
     node: dict,
     ignore_nodes: list = [],
@@ -148,13 +153,53 @@ def _unique_paths(
     else:
         # We've reached a leaf node
         if isinstance(node, list):
-            for item in node:
-                all_filters += [_build_dict_from_path_list([*current_path, item])]
+            # Adding a list of filters means we're going to OR these values together
+            all_filters.append([_build_dict_from_path_list([*current_path, item]) for item in node])
 
         else:
             all_filters = [_build_dict_from_path_list([*current_path, node])]
 
     return all_filters
+
+
+def build_single_text_filter(filter_param: dict) -> str:
+    field_name = next(iter(filter_param.keys()))
+
+    # TODO: Check fields at every depth, not just the top-level
+    _check_field_in_spec(system_profile_spec(), field_name)
+
+    if field_name == "operating_system":
+        return build_operating_system_filter(filter_param)
+    else:
+        # Main SP filters
+        field_input = filter_param[field_name]
+        field_filter = _get_field_filter_for_deepest_param(system_profile_spec(), filter_param)
+
+        logger.debug(f"generating filter: field: {field_name}, type: {field_filter}, field_input: {field_input}")
+
+        jsonb_path, pg_op, value = _convert_dict_to_text_filter_and_value(filter_param)
+
+        if not pg_op:
+            pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter)
+
+        # Handle wildcard fields (use ILIKE, replace * with %)
+        if pg_op == "ILIKE":
+            value = value.replace("*", "%")
+        elif pg_op == "IS":
+            if value == "nil":
+                value = "NULL"
+            elif value == "not_nil":
+                value = "NOT NULL"
+
+        # Put value in quotes if appropriate for the field type and operation
+        if field_filter in ["wildcard", "string", "timestamp", "boolean"] and pg_op != "IS":
+            value = f"'{value}'"
+
+        pg_cast = FIELD_FILTER_TO_POSTGRES_CAST.get(field_filter, "")
+
+        text_filter = f"(system_profile_facts{jsonb_path}){pg_cast} {pg_op} {value}"
+
+        return text_filter
 
 
 # Takes a System Profile filter param and turns it into sql filters.
@@ -164,41 +209,16 @@ def build_system_profile_filter(system_profile_param: dict) -> tuple:
     # Separate the filter object into a list of filters
     filter_param_list = _unique_paths(system_profile_param, ["operating_system"])
 
-    for filter_param in filter_param_list:
-        field_name = next(iter(filter_param.keys()))
-        _check_field_in_spec(system_profile_spec(), field_name)
-
-        if field_name == "operating_system":
-            system_profile_filter += build_operating_system_filter(filter_param)
+    for grouped_filter_param in filter_param_list:
+        if isinstance(grouped_filter_param, list):
+            # When multiple filters are grouped, join the list with "OR"
+            filter_list = " OR ".join(
+                [build_single_text_filter(single_filter) for single_filter in grouped_filter_param]
+            )
+            text_filter = f"({filter_list})"
         else:
-            # Main SP filters
-            field_input = filter_param[field_name]
-            field_filter = _get_field_filter_for_deepest_param(system_profile_spec(), filter_param)
+            text_filter = build_single_text_filter(grouped_filter_param)
 
-            logger.debug(f"generating filter: field: {field_name}, type: {field_filter}, field_input: {field_input}")
-
-            jsonb_path, pg_op, value = _convert_dict_to_text_filter_and_value(filter_param)
-
-            if not pg_op:
-                pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter)
-
-            # Handle wildcard fields (use ILIKE, replace * with %)
-            if pg_op == "ILIKE":
-                value = value.replace("*", "%")
-            elif pg_op == "IS":
-                if value == "nil":
-                    value = "NULL"
-                elif value == "not_nil":
-                    value = "NOT NULL"
-
-            # Put value in quotes if appropriate for the field type and operation
-            if field_filter in ["wildcard", "string", "timestamp", "boolean"] and pg_op != "IS":
-                value = f"'{value}'"
-
-            pg_cast = FIELD_FILTER_TO_POSTGRES_CAST.get(field_filter, "")
-
-            text_filter = f"(system_profile_facts{jsonb_path}){pg_cast} {pg_op} {value}"
-
-            system_profile_filter += (text(text_filter),)
+        system_profile_filter += (text(text_filter),)
 
     return system_profile_filter
