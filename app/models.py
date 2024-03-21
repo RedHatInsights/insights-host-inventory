@@ -162,9 +162,11 @@ class LimitedHost(db.Model):
     __table_args__ = (
         Index("idxinsightsid", text("(canonical_facts ->> 'insights_id')")),
         Index("idxgincanonicalfacts", "canonical_facts"),
-        Index("idxaccount", "account"),
         Index("idxorgid", "org_id"),
         Index("hosts_subscription_manager_id_index", text("(canonical_facts ->> 'subscription_manager_id')")),
+        Index("idxdisplay_name", "display_name"),
+        Index("idxsystem_profile_facts", "system_profile_facts", postgresql_using="gin"),
+        Index("idxgroups", "groups", postgresql_using="gin"),
     )
 
     def __init__(
