@@ -1312,7 +1312,7 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
     (
         "[RHEL][version]=8.11",
         "[RHEL][version][eq]=8.11",
-        "[RHEL][version][gt]=8.5",
+        "[RHEL][version][gt]=8",
         "[RHEL][version][gte]=8.11&filter[system_profile][operating_system][RHEL][version][eq]=8.11",
     ),
 )
@@ -1334,8 +1334,8 @@ def test_query_all_sp_filters_operating_system(db_create_host, api_get, sp_filte
         "system_profile_facts": {
             "operating_system": {
                 "name": "RHEL",
-                "major": "8",
-                "minor": "3",
+                "major": "7",
+                "minor": "12",
             }
         }
     }
@@ -1450,3 +1450,19 @@ def test_query_all_sp_filters_invalid_field(api_get, sp_filter_param):
 
     assert response_status == 400
     assert "invalid filter field" in response_data.get("detail")
+
+
+@pytest.mark.parametrize(
+    "sp_filter_param",
+    (
+        "[operating_system][foo][version]=8.1",  # Invalid OS name
+        "[operating_system][RHEL][version]=bar",  # Invalid OS version
+    ),
+)
+def test_query_all_sp_filters_invalid_operating_system(api_get, sp_filter_param):
+    url = build_hosts_url(query=f"?filter[system_profile]{sp_filter_param}")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, _ = api_get(url)
+
+    assert response_status == 400

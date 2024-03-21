@@ -165,7 +165,10 @@ def process_spec(spec, process_unindexed=False):
                 "is_array": "array" == props.get("type"),
             }
 
-            if field_filter == "object":
+            if "enum" in props:
+                system_profile_spec_processed[field]["enum"] = props.get("enum")
+
+            if field_filter in ["object", "operating_system"]:
                 system_profile_spec_processed[field]["children"], _ = process_spec(props["properties"], True)
 
         if not props.get("x-indexed", True):
