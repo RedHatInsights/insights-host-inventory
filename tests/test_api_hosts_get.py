@@ -1378,3 +1378,56 @@ def test_query_all_sp_filters_operating_system(db_create_host, api_get, sp_filte
     assert nomatch_host_id_1 not in response_ids
     assert nomatch_host_id_2 not in response_ids
     assert nomatch_host_id_3 not in response_ids
+
+
+@pytest.mark.parametrize(
+    "sp_filter_param_list",
+    (
+        ["[arch][eq][]=x86_64", "[arch][eq][]=ARM"],
+        ["[insights_client_version][]=3.0.1*", "[insights_client_version][eq][]=1.2.3"],
+        ["[systemd][jobs_queued][lte][]=1", "[systemd][jobs_queued][gt][]=5"],
+    ),
+)
+def test_query_all_sp_filters_multiple_of_same_field(db_create_host, api_get, sp_filter_param_list):
+    # Create two hosts that we want to show up in the results
+    match_1_sp_data = {
+        "system_profile_facts": {
+            "arch": "x86_64",
+            "insights_client_version": "3.0.1-2.el4_2",
+            "systemd": {"jobs_queued": "1"},
+        }
+    }
+    match_1_host_id = str(db_create_host(extra_data=match_1_sp_data).id)
+
+    match_2_sp_data = {
+        "system_profile_facts": {
+            "arch": "ARM",
+            "insights_client_version": "1.2.3",
+            "systemd": {"jobs_queued": "10"},
+        }
+    }
+    match_2_host_id = str(db_create_host(extra_data=match_2_sp_data).id)
+
+    # Create a host that we don't want to appear in the results
+    nomatch_sp_data = {
+        "system_profile_facts": {
+            "arch": "RISC-V",
+            "insights_client_version": "4.5.6",
+            "systemd": {"jobs_queued": "5"},
+        }
+    }
+    nomatch_host_id = str(db_create_host(extra_data=nomatch_sp_data).id)
+
+    sp_query_filter = "&".join([f"filter[system_profile]{param}" for param in sp_filter_param_list])
+    url = build_hosts_url(query=f"?{sp_query_filter}")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    # Assert that only the matching host is returned
+    response_ids = [result["id"] for result in response_data["results"]]
+    assert match_1_host_id in response_ids
+    assert match_2_host_id in response_ids
+    assert nomatch_host_id not in response_ids
