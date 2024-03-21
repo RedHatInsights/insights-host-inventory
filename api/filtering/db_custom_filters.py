@@ -1,5 +1,6 @@
 from sqlalchemy import text
 
+from api.filtering.filtering_common import FIELD_FILTER_TO_POSTGRES_CAST
 from api.filtering.filtering_common import POSTGRES_COMPARATOR_LOOKUP
 from api.filtering.filtering_common import POSTGRES_DEFAULT_COMPARATOR
 from app import system_profile_spec
@@ -194,7 +195,9 @@ def build_system_profile_filter(system_profile_param: dict) -> tuple:
             if field_filter in ["wildcard", "string", "timestamp", "boolean"] and pg_op != "IS":
                 value = f"'{value}'"
 
-            text_filter = f"system_profile_facts{jsonb_path} {pg_op} {value}"
+            pg_cast = FIELD_FILTER_TO_POSTGRES_CAST.get(field_filter, "")
+
+            text_filter = f"(system_profile_facts{jsonb_path}){pg_cast} {pg_op} {value}"
 
             system_profile_filter += (text(text_filter),)
 

@@ -52,12 +52,13 @@ POSTGRES_COMPARATOR_LOOKUP = {
 POSTGRES_DEFAULT_COMPARATOR = {
     "string": "=",
     "wildcard": "ILIKE",
-    "boolean": "ILIKE",
-    "range": "=",
+    "boolean": "IS",
     "operating_system": "=",
     "integer": "=",
     "date-time": "=",
 }
+
+FIELD_FILTER_TO_POSTGRES_CAST = {"integer": "::integer", "boolean": "::boolean"}
 
 
 def lookup_operations(filter_type, filter_format=None, is_array=False):

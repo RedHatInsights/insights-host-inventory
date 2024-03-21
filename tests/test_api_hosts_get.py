@@ -1258,7 +1258,7 @@ def test_query_by_staleness(db_create_multiple_hosts, api_get, subtests):
     (
         "[arch]=x86_64",
         "[arch][eq]=x86_64",
-        "[arch][neq]=PowerPC",
+        "[arch][neq]=ARM",
         "[insights_client_version]=3.0.1-2.el4_2",
         "[insights_client_version]=3.0.*",
         "[host_type]=edge",
@@ -1267,6 +1267,7 @@ def test_query_by_staleness(db_create_multiple_hosts, api_get, subtests):
         "[insights_client_version][]=3.0.*&filter[system_profile][insights_client_version][]=*el4_2",
         "[greenboot_status][is]=nil",
         "[host_type][is]=not_nil",
+        "[bootc_status][booted][image]=quay.io*",
     ),
 )
 def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
@@ -1277,6 +1278,7 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
             "insights_client_version": "3.0.1-2.el4_2",
             "host_type": "edge",
             "sap": {"sap_system": True},
+            "bootc_status": {"booted": {"image": "quay.io/centos-bootc/fedora-bootc-cloud:eln"}},
         }
     }
     match_host_id = str(db_create_host(extra_data=match_sp_data).id)
@@ -1284,9 +1286,10 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
     # Create host with differing SP
     nomatch_sp_data = {
         "system_profile_facts": {
-            "arch": "PowerPC",
+            "arch": "ARM",
             "insights_client_version": "1.2.3",
             "greenboot_status": "green",
+            "bootc_status": {"booted": {"image": "192.168.0.1:5000/foo/foo:latest"}},
         }
     }
     nomatch_host_id = str(db_create_host(extra_data=nomatch_sp_data).id)
