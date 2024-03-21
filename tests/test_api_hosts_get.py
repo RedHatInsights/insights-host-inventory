@@ -1431,3 +1431,22 @@ def test_query_all_sp_filters_multiple_of_same_field(db_create_host, api_get, sp
     assert match_1_host_id in response_ids
     assert match_2_host_id in response_ids
     assert nomatch_host_id not in response_ids
+
+
+@pytest.mark.parametrize(
+    "sp_filter_param",
+    (
+        "[foo]=val",  # Invalid top-level field
+        "[bootc_status][foo]=val",  # Invalid non-top-level field
+        "[bootc_status][booted][foo]=val",  # Invalid non-top-level field
+        "[arch][gteq]=val",  # Invalid comparator/field
+    ),
+)
+def test_query_all_sp_filters_invalid_field(api_get, sp_filter_param):
+    url = build_hosts_url(query=f"?filter[system_profile]{sp_filter_param}")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 400
+    assert "invalid filter field" in response_data.get("detail")

@@ -54,15 +54,18 @@ def _get_field_filter_for_deepest_param(sp_spec: dict, filter: dict) -> str:
         return _get_field_filter_for_deepest_param(sp_spec["children"], filter)
 
     key = next(iter(filter.keys()))
+
+    # If the current key is a comparator, we're already at the deepest node
+    if key in POSTGRES_COMPARATOR_LOOKUP.keys():
+        return sp_spec["filter"]
+
+    # Make sure the requested field is in the spec
+    _check_field_in_spec(sp_spec, key)
     val = filter[key]
 
     if isinstance(val, dict):
         if key in sp_spec:
             return _get_field_filter_for_deepest_param(sp_spec[key], filter[key])
-
-    # If we find a comparator, we're already at the deepest node
-    if key in POSTGRES_COMPARATOR_LOOKUP.keys():
-        return sp_spec["filter"]
 
     return sp_spec[key]["filter"]
 
@@ -164,9 +167,6 @@ def _unique_paths(
 
 def build_single_text_filter(filter_param: dict) -> str:
     field_name = next(iter(filter_param.keys()))
-
-    # TODO: Check fields at every depth, not just the top-level
-    _check_field_in_spec(system_profile_spec(), field_name)
 
     if field_name == "operating_system":
         return build_operating_system_filter(filter_param)
