@@ -2835,13 +2835,207 @@ data:
           }
         },
         {
+          "cacheTimeout": null,
+          "colorBackground": true,
+          "colorValue": false,
+          "colors": [
+            "#299c46",
+            "rgba(237, 129, 40, 0.89)",
+            "#d44a3a"
+          ],
+          "datasource": "$datasource",
+          "decimals": 2,
+          "fieldConfig": {
+            "defaults": {
+              "custom": {}
+            },
+            "overrides": []
+          },
+          "format": "percentunit",
+          "gauge": {
+            "maxValue": 100,
+            "minValue": 0,
+            "show": false,
+            "thresholdLabels": false,
+            "thresholdMarkers": true
+          },
+          "gridPos": {
+            "h": 2,
+            "w": 3,
+            "x": 12,
+            "y": 39
+          },
+          "id": 90,
+          "interval": null,
+          "links": [],
+          "mappingType": 1,
+          "mappingTypes": [
+            {
+              "name": "value to text",
+              "value": 1
+            },
+            {
+              "name": "range to text",
+              "value": 2
+            }
+          ],
+          "maxDataPoints": 100,
+          "nullPointMode": "connected",
+          "nullText": null,
+          "postfix": "",
+          "postfixFontSize": "50%",
+          "prefix": "",
+          "prefixFontSize": "50%",
+          "rangeMaps": [
+            {
+              "from": "null",
+              "text": "N/A",
+              "to": "null"
+            }
+          ],
+          "sparkline": {
+            "fillColor": "rgba(31, 118, 189, 0.18)",
+            "full": false,
+            "lineColor": "#f9d9f9",
+            "show": false
+          },
+          "tableColumn": "",
+          "targets": [
+            {
+              "expr": "sum(increase(inventory_produce_large_message_failures_total[$__range])) / sum(increase(inventory_event_producer_successes_total[$__range]))",
+              "instant": true,
+              "interval": "5m",
+              "refId": "A"
+            }
+          ],
+          "thresholds": "0.00001,0.1",
+          "title": "message produce failure ratio",
+          "type": "singlestat",
+          "valueFontSize": "80%",
+          "valueMaps": [
+            {
+              "op": "=",
+              "text": "N/A",
+              "value": "null"
+            }
+          ],
+          "valueName": "current"
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "$datasource",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {},
+              "links": [],
+              "color": {
+                "mode": "threshold"
+              }
+            },
+            "overrides": []
+          },
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 7,
+            "w": 9,
+            "x": 12,
+            "y": 39
+          },
+          "hiddenSeries": false,
+          "id": 91,
+          "legend": {
+            "avg": true,
+            "current": true,
+            "max": true,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": true,
+            "position": "right"
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
+          "percentage": false,
+          "pluginVersion": "7.2.1",
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "sum(rate(inventory_consumed_message_size_count[$__rate_interval]))",
+              "interval": "1m",
+              "legendFormat": "Consumed",
+              "refId": "A"
+            },
+            {
+              "expr": "sum(rate(inventory_produced_message_size_count[$__rate_interval]))",
+              "interval": "1m",
+              "legendFormat": "Produced",
+              "refId": "B"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Message sizes",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "decbytes",
+              "label": "",
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
           "collapsed": true,
           "datasource": null,
           "gridPos": {
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 39
+            "y": 46
           },
           "id": 73,
           "panels": [
@@ -2857,7 +3051,7 @@ data:
                 "h": 7,
                 "w": 12,
                 "x": 0,
-                "y": 30
+                "y": 37
               },
               "hiddenSeries": false,
               "id": 74,
@@ -2949,7 +3143,7 @@ data:
                 "h": 7,
                 "w": 12,
                 "x": 12,
-                "y": 30
+                "y": 37
               },
               "hiddenSeries": false,
               "id": 71,
@@ -3039,7 +3233,7 @@ data:
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 40
+            "y": 47
           },
           "id": 32,
           "panels": [],
@@ -3071,7 +3265,7 @@ data:
             "h": 10,
             "w": 12,
             "x": 0,
-            "y": 41
+            "y": 48
           },
           "heatmap": {},
           "hideZeroBuckets": true,
@@ -3140,7 +3334,7 @@ data:
             "h": 10,
             "w": 12,
             "x": 12,
-            "y": 41
+            "y": 48
           },
           "heatmap": {},
           "hideZeroBuckets": true,
@@ -3204,7 +3398,7 @@ data:
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 51
+            "y": 58
           },
           "hiddenSeries": false,
           "id": 55,
@@ -3302,7 +3496,7 @@ data:
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 51
+            "y": 58
           },
           "hiddenSeries": false,
           "id": 54,
@@ -3400,7 +3594,7 @@ data:
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 58
+            "y": 65
           },
           "hiddenSeries": false,
           "id": 42,
@@ -3498,7 +3692,7 @@ data:
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 58
+            "y": 65
           },
           "hiddenSeries": false,
           "id": 43,
@@ -3595,7 +3789,7 @@ data:
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 65
+            "y": 72
           },
           "hiddenSeries": false,
           "id": 36,
@@ -3693,7 +3887,7 @@ data:
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 65
+            "y": 72
           },
           "hiddenSeries": false,
           "id": 37,
@@ -3791,7 +3985,7 @@ data:
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 72
+            "y": 79
           },
           "hiddenSeries": false,
           "id": 39,
@@ -3889,7 +4083,7 @@ data:
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 72
+            "y": 79
           },
           "hiddenSeries": false,
           "id": 40,
