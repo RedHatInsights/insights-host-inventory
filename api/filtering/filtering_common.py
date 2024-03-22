@@ -39,6 +39,7 @@ GRAPHQL_OPERATIONS_LOOKUP = {
     "integer": OPERATION_SETS.eq.value[0],
 }
 
+# Converts our filter param comparison operators into their SQL equivalents.
 POSTGRES_COMPARATOR_LOOKUP = {
     "lt": "<",
     "lte": "<=",
@@ -49,6 +50,7 @@ POSTGRES_COMPARATOR_LOOKUP = {
     "is": "IS",
 }
 
+# These are the default SQL comparison operators to use for each data type.
 POSTGRES_DEFAULT_COMPARATOR = {
     "string": "=",
     "wildcard": "ILIKE",

@@ -163,6 +163,8 @@ def _unique_paths(
         # Not a leaf node
         for key in node.keys():
             if key in ignore_nodes:
+                # Skip recursion on ignored nodes.
+                # Instead, just add the whole thing to the output.
                 all_filters.append(node)
             else:
                 all_filters += _unique_paths(node[key], ignore_nodes, [*current_path, key])
