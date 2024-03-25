@@ -113,8 +113,10 @@ def run(config, logger, session, event_producer, shutdown_handler):
 
     query = session.query(Host).filter(or_(False, *filter_hosts_to_delete))
     hosts_processed = config.host_delete_chunk_size
+    deletions_remaining = query.count()
 
     while hosts_processed == config.host_delete_chunk_size:
+        logger.info(f"Reaper starting batch; {deletions_remaining} remaining.")
         with session_guard(session):
             events = delete_hosts(query, event_producer, config.host_delete_chunk_size, shutdown_handler.shut_down)
             hosts_processed = len(list(events))
@@ -123,6 +125,8 @@ def run(config, logger, session, event_producer, shutdown_handler):
                     log_host_delete_succeeded(logger, host_id, "REAPER")
                 else:
                     log_host_delete_failed(logger, host_id, "REAPER")
+
+        deletions_remaining -= hosts_processed
 
 
 def main(logger):
