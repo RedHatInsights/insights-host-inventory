@@ -44,7 +44,7 @@ pytest-cov = "~=4.1.0"
 pytest-mock = "~=3.11.1"
 pytest-subtests = "~=0.12.1"
 coverage = "*"
-pre-commit = "~=3.3.3"
+pre-commit = "~=3.7.0"
 sqlalchemy-utils = "==0.41.1"
 
 [requires]
