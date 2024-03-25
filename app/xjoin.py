@@ -12,6 +12,7 @@ from app import IDENTITY_HEADER
 from app import REQUEST_ID_HEADER
 from app.config import HOST_TYPES
 from app.culling import staleness_to_conditions
+from app.models import OLD_TO_NEW_REPORTER_MAP
 from app.serialization import serialize_staleness_to_dict
 
 __all__ = (
@@ -149,23 +150,43 @@ def _stale_timestamp_per_reporter_filter(gt=None, lte=None, host_type=None, repo
     if lte:
         filter_["lte"] = lte.isoformat()
 
+    # When filtering on old reporter name, include the names of the
+    # new reporters associated with the old reporter.
+    reporter_list = [reporter]
+    if reporter in OLD_TO_NEW_REPORTER_MAP.keys():
+        reporter_list.extend(OLD_TO_NEW_REPORTER_MAP[reporter])
+
     if reporter.startswith("!"):
         return {
-            "AND": {
-                "spf_host_type": {"eq": host_type},
-                "NOT": {
-                    "per_reporter_staleness": {"reporter": {"eq": reporter.replace("!", "")}},
+            "AND": [
+                {"spf_host_type": {"eq": host_type}},
+                {
+                    "AND": [
+                        {
+                            "NOT": {
+                                "per_reporter_staleness": {"reporter": {"eq": rep.replace("!", "")}},
+                            }
+                        }
+                        for rep in reporter_list
+                    ]
                 },
-                "modified_on": filter_,
-            }
+                {"modified_on": filter_},
+            ]
         }
     else:
         return {
-            "AND": {
-                "spf_host_type": {"eq": host_type},
-                "per_reporter_staleness": {
-                    "reporter": {"eq": reporter.replace("!", "")},
-                    "last_check_in": filter_,
+            "AND": [
+                {"spf_host_type": {"eq": host_type}},
+                {
+                    "OR": [
+                        {
+                            "per_reporter_staleness": {
+                                "reporter": {"eq": rep},
+                                "last_check_in": filter_,
+                            }
+                        }
+                        for rep in reporter_list
+                    ]
                 },
-            }
+            ]
         }

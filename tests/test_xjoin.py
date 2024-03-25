@@ -544,52 +544,50 @@ def _build_prs_array(mocker, reporters):
     }
 
     prs_array = []
-    for old_reporter in OLD_TO_NEW_REPORTER_MAP:
-        if old_reporter in reporters:
-            reporters.extend(OLD_TO_NEW_REPORTER_MAP[old_reporter])
-            reporters = list(set(reporters))  # Remove duplicates
     for reporter in reporters:
+        reporter_list = [reporter]
+        if reporter in OLD_TO_NEW_REPORTER_MAP:
+            reporter_list.extend(OLD_TO_NEW_REPORTER_MAP[reporter])
+
         if reporter.startswith("!"):
             prs_item = [
                 {
-                    "AND": {
-                        "spf_host_type": {"eq": "edge"},
-                        "NOT": {
-                            "per_reporter_staleness": {"reporter": {"eq": reporter.replace("!", "")}},
+                    "AND": [
+                        {"spf_host_type": {"eq": host_type}},
+                        {
+                            "AND": [
+                                {
+                                    "NOT": {
+                                        "per_reporter_staleness": {"reporter": {"eq": rep.replace("!", "")}},
+                                    },
+                                }
+                                for rep in reporter_list
+                            ]
                         },
-                        "modified_on": {"gt": mocker.ANY},
-                    }
-                },
-                {
-                    "AND": {
-                        "spf_host_type": {"eq": None},
-                        "NOT": {
-                            "per_reporter_staleness": {"reporter": {"eq": reporter.replace("!", "")}},
-                        },
-                        "modified_on": {"gt": mocker.ANY},
-                    }
-                },
+                        {"modified_on": {"gt": mocker.ANY}},
+                    ]
+                }
+                for host_type in ["edge", None]
             ]
         else:
             prs_item = [
                 {
-                    "AND": {
-                        "per_reporter_staleness": {
-                            "last_check_in": {"gt": mocker.ANY},
-                            "reporter": {"eq": reporter.replace("!", "")},
+                    "AND": [
+                        {"spf_host_type": {"eq": host_type}},
+                        {
+                            "OR": [
+                                {
+                                    "per_reporter_staleness": {
+                                        "last_check_in": {"gt": mocker.ANY},
+                                        "reporter": {"eq": rep.replace("!", "")},
+                                    }
+                                }
+                                for rep in reporter_list
+                            ]
                         },
-                        "spf_host_type": {"eq": "edge"},
-                    }
-                },
-                {
-                    "AND": {
-                        "per_reporter_staleness": {
-                            "last_check_in": {"gt": mocker.ANY},
-                            "reporter": {"eq": reporter.replace("!", "")},
-                        },
-                        "spf_host_type": {"eq": None},
-                    }
-                },
+                    ]
+                }
+                for host_type in ["edge", None]
             ]
 
         for n_items in prs_item:
