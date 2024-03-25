@@ -111,7 +111,7 @@ def find_hosts_to_delete(logger, session):
 def run(config, logger, session, event_producer, shutdown_handler):
     filter_hosts_to_delete = find_hosts_to_delete(logger, session)
 
-    query = session.query(Host).filter(or_(False, *filter_hosts_to_delete)).limit(config.host_delete_chunk_size)
+    query = session.query(Host).filter(or_(False, *filter_hosts_to_delete))
     hosts_processed = config.host_delete_chunk_size
 
     while hosts_processed == config.host_delete_chunk_size:
