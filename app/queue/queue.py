@@ -318,10 +318,20 @@ def handle_message(message, event_producer, notification_event_producer, message
                 ve,
                 extra={"host": {"reporter": host.get("reporter")}},
             )
-            send_kafka_error_message(notification_event_producer, host=host, detail=str(ve.detail))
+            send_notification_event(
+                notification_event_producer,
+                NotificationType.validation_error,
+                host=_build_minimal_host_info(host),
+                detail=str(ve.detail),
+            )
             raise
         except InventoryException as ie:
-            send_kafka_error_message(notification_event_producer, host, str(ie.detail))
+            send_notification_event(
+                notification_event_producer,
+                NotificationType.validation_error,
+                host=_build_minimal_host_info(host),
+                detail=str(ie.detail),
+            )
             raise
 
 
@@ -362,16 +372,15 @@ def initialize_thread_local_storage(request_id):
     threadctx.request_id = request_id
 
 
-def send_kafka_error_message(notification_event_producer, host, detail):
+def send_notification_event(notification_event_producer, notif_type, host, detail):
     message_id = str(uuid.uuid4())
-    minimal_host = _build_minimal_host_info(host)
-    event = build_notification_event(NotificationType.validation_error, message_id, minimal_host, detail)
+    event = build_notification_event(notif_type, message_id, host, detail)
     rh_message_id = bytearray(message_id.encode())  # ensures the correct processing of the message
     headers = notification_message_headers(
-        NotificationType.validation_error,
+        notif_type,
         rh_message_id=rh_message_id,
     )
-    insights_id = minimal_host.get("canonical_facts" or {}).get("insights_id")
+    insights_id = host.get("canonical_facts" or {}).get("insights_id")
     key = insights_id if type(insights_id) is str else None
 
     notification_event_producer.write_event(event, key, headers, wait=True)
