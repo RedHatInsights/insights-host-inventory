@@ -154,7 +154,7 @@ def _stale_timestamp_per_reporter_filter(gt=None, lte=None, host_type=None, repo
     # new reporters associated with the old reporter.
     non_negative_reporter = reporter.replace("!", "")
     reporter_list = [non_negative_reporter]
-    if reporter in OLD_TO_NEW_REPORTER_MAP.keys():
+    if non_negative_reporter in OLD_TO_NEW_REPORTER_MAP.keys():
         reporter_list.extend(OLD_TO_NEW_REPORTER_MAP[non_negative_reporter])
 
     if reporter.startswith("!"):
