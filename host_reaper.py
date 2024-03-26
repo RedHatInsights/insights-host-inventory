@@ -110,14 +110,23 @@ def find_hosts_to_delete(logger, session):
 @host_reaper_fail_count.count_exceptions()
 def run(config, logger, session, event_producer, shutdown_handler):
     filter_hosts_to_delete = find_hosts_to_delete(logger, session)
-    query = session.query(Host).filter(or_(False, *filter_hosts_to_delete))
 
-    events = delete_hosts(query, event_producer, config.host_delete_chunk_size, shutdown_handler.shut_down)
-    for host_id, deleted in events:
-        if deleted:
-            log_host_delete_succeeded(logger, host_id, "REAPER")
-        else:
-            log_host_delete_failed(logger, host_id, "REAPER")
+    query = session.query(Host).filter(or_(False, *filter_hosts_to_delete))
+    hosts_processed = config.host_delete_chunk_size
+    deletions_remaining = query.count()
+
+    while hosts_processed == config.host_delete_chunk_size:
+        logger.info(f"Reaper starting batch; {deletions_remaining} remaining.")
+        with session_guard(session):
+            events = delete_hosts(query, event_producer, config.host_delete_chunk_size, shutdown_handler.shut_down)
+            hosts_processed = len(list(events))
+            for host_id, deleted in events:
+                if deleted:
+                    log_host_delete_succeeded(logger, host_id, "REAPER")
+                else:
+                    log_host_delete_failed(logger, host_id, "REAPER")
+
+        deletions_remaining -= hosts_processed
 
 
 def main(logger):
@@ -140,8 +149,7 @@ def main(logger):
     shutdown_handler = ShutdownHandler()
     shutdown_handler.register()
 
-    with session_guard(session):
-        run(config, logger, session, event_producer, shutdown_handler)
+    run(config, logger, session, event_producer, shutdown_handler)
 
 
 if __name__ == "__main__":
