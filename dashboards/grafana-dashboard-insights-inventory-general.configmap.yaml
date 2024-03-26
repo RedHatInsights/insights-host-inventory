@@ -2942,7 +2942,7 @@ data:
           "gridPos": {
             "h": 7,
             "w": 9,
-            "x": 12,
+            "x": 15,
             "y": 39
           },
           "hiddenSeries": false,
