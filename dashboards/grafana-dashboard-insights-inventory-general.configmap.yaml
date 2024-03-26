@@ -2909,7 +2909,7 @@ data:
             }
           ],
           "thresholds": "0.00001,0.1",
-          "title": "message produce failure ratio",
+          "title": "produce failure ratio",
           "type": "singlestat",
           "valueFontSize": "80%",
           "valueMaps": [
