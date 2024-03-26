@@ -545,9 +545,10 @@ def _build_prs_array(mocker, reporters):
 
     prs_array = []
     for reporter in reporters:
-        reporter_list = [reporter]
-        if reporter in OLD_TO_NEW_REPORTER_MAP:
-            reporter_list.extend(OLD_TO_NEW_REPORTER_MAP[reporter])
+        non_negative_reporter = reporter.replace("!", "")
+        reporter_list = [non_negative_reporter]
+        if reporter in OLD_TO_NEW_REPORTER_MAP.keys():
+            reporter_list.extend(OLD_TO_NEW_REPORTER_MAP[non_negative_reporter])
 
         if reporter.startswith("!"):
             prs_item = [
