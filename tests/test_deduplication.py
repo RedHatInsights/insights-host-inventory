@@ -1,6 +1,10 @@
+import pytest
 from pytest import mark
 
+from app.auth.identity import Identity
+from app.exceptions import InventoryException
 from app.models import ProviderType
+from lib.host_repository import find_existing_host
 from tests.helpers.db_utils import assert_host_exists_in_db
 from tests.helpers.db_utils import assert_host_missing_from_db
 from tests.helpers.db_utils import minimal_db_host
@@ -95,7 +99,11 @@ def test_no_merge_when_no_match(mq_create_or_update_host):
 
 @mark.parametrize("changing_id", ("provider_id", "insights_id"))
 def test_elevated_id_priority_order_nomatch(db_create_host, changing_id):
-    base_canonical_facts = {"insights_id": generate_uuid(), "subscription_manager_id": generate_uuid()}
+    base_canonical_facts = {
+        "insights_id": generate_uuid(),
+        "subscription_manager_id": generate_uuid(),
+        "provider_type": ProviderType.AWS,
+    }
 
     created_host_canonical_facts = base_canonical_facts.copy()
     created_host_canonical_facts[changing_id] = generate_uuid()
@@ -113,6 +121,7 @@ def test_elevated_id_priority_order_nomatch(db_create_host, changing_id):
 def test_elevated_id_priority_order_match(db_create_host, changing_id):
     base_canonical_facts = {
         "provider_id": generate_uuid(),
+        "provider_type": ProviderType.AWS,
         "insights_id": generate_uuid(),
         "subscription_manager_id": generate_uuid(),
     }
@@ -169,7 +178,7 @@ def test_find_host_using_subscription_manager_id_match(db_create_host):
 def test_rhsm_conduit_elevated_id_priority_no_identity(mq_create_or_update_host, changing_id):
     base_canonical_facts = {
         "account": SYSTEM_IDENTITY["account_number"],
-        "provider_type": ProviderType.AWS,  # Doesn't matter
+        "provider_type": ProviderType.AWS,
         "provider_id": generate_uuid(),
         "insights_id": generate_uuid(),
         "subscription_manager_id": generate_uuid(),
@@ -206,3 +215,111 @@ def test_mac_addresses_case_insensitive(mq_create_or_update_host):
         minimal_host(fqdn="foo.bar.com", mac_addresses=["c2:00:d0:c8:61:01", "AA:BB:CC:DD:EE:FF"])
     )
     assert first_host.id == second_host.id
+
+
+def test_find_host_using_provider_id_and_type_match(db_create_host):
+    canonical_facts = {
+        "insights_id": generate_uuid(),
+        "provider_id": generate_uuid(),
+        "provider_type": ProviderType.AWS,
+    }
+
+    search_canonical_facts = {
+        "provider_id": canonical_facts["provider_id"],
+        "provider_type": canonical_facts["provider_type"],
+    }
+
+    host = minimal_db_host(canonical_facts=canonical_facts)
+    created_host = db_create_host(host=host)
+
+    assert_host_exists_in_db(created_host.id, search_canonical_facts)
+
+
+def test_find_host_using_provider_id_different_type_nomatch(db_create_host):
+    canonical_facts = {
+        "insights_id": generate_uuid(),
+        "provider_id": generate_uuid(),
+        "provider_type": ProviderType.AWS,
+    }
+
+    search_canonical_facts = {
+        "provider_id": canonical_facts["provider_id"],
+        "provider_type": ProviderType.IBM,
+    }
+
+    host = minimal_db_host(canonical_facts=canonical_facts)
+    db_create_host(host=host)
+
+    assert_host_missing_from_db(search_canonical_facts)
+
+
+def test_find_host_using_provider_id_no_type_exception(db_create_host):
+    canonical_facts = {
+        "insights_id": generate_uuid(),
+        "provider_id": generate_uuid(),
+        "provider_type": ProviderType.AWS,
+    }
+
+    search_canonical_facts = {
+        "provider_id": canonical_facts["provider_id"],
+    }
+
+    host = minimal_db_host(canonical_facts=canonical_facts)
+    db_create_host(host=host)
+
+    with pytest.raises(InventoryException):
+        find_existing_host(Identity(SYSTEM_IDENTITY), search_canonical_facts)
+
+
+def test_find_host_using_provider_id_existing_with_match(db_create_host):
+    canonical_facts = {
+        "insights_id": generate_uuid(),
+        "provider_id": generate_uuid(),
+        "provider_type": ProviderType.AWS,
+    }
+
+    search_canonical_facts = {
+        "insights_id": canonical_facts["insights_id"],
+    }
+
+    host = minimal_db_host(canonical_facts=canonical_facts)
+    created_host = db_create_host(host=host)
+
+    assert_host_exists_in_db(created_host.id, search_canonical_facts)
+
+
+def test_find_host_using_provider_id_existing_without_match(db_create_host):
+    canonical_facts = {"insights_id": generate_uuid()}
+
+    search_canonical_facts = {
+        "insights_id": canonical_facts["insights_id"],
+        "provider_id": generate_uuid(),
+        "provider_type": ProviderType.AWS,
+    }
+
+    host = minimal_db_host(canonical_facts=canonical_facts)
+    created_host = db_create_host(host=host)
+
+    assert_host_exists_in_db(created_host.id, search_canonical_facts)
+
+
+def test_find_correct_host_varying_provider_type(db_create_host, mq_create_or_update_host):
+    provider_id = generate_uuid()  # common provider_id
+    aws_canonical_facts = {"provider_id": provider_id, "provider_type": ProviderType.AWS}
+    ibm_canonical_facts = {"provider_id": provider_id, "provider_type": ProviderType.IBM}
+
+    aws_host = db_create_host(host=minimal_db_host(canonical_facts=aws_canonical_facts))
+    aws_host_id = aws_host.id
+    assert_host_exists_in_db(aws_host_id, aws_canonical_facts)
+
+    ibm_host = db_create_host(host=minimal_db_host(canonical_facts=ibm_canonical_facts))
+    ibm_host_id = ibm_host.id
+    assert_host_exists_in_db(ibm_host_id, ibm_canonical_facts)
+
+    aws_found_host = mq_create_or_update_host(minimal_host(**aws_canonical_facts))
+    assert aws_found_host.id == str(aws_host_id)
+
+    ibm_found_host = mq_create_or_update_host(minimal_host(**ibm_canonical_facts))
+    assert ibm_found_host.id == str(ibm_host_id)
+
+    assert aws_found_host.id != ibm_found_host.id
