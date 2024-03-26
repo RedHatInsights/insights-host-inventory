@@ -1,5 +1,6 @@
 from copy import deepcopy
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
 from confluent_kafka import KafkaException
@@ -10,6 +11,7 @@ from app.queue.event_producer import MessageDetails
 from lib.host_delete import delete_hosts
 from lib.host_repository import get_host_list_by_id_list_from_db
 from tests.helpers.api_utils import assert_response_status
+from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import HOST_WRITE_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
@@ -567,6 +569,37 @@ def test_delete_host_RBAC_denied_specific_groups(
     assert_response_status(response_status, expected_status=404)
 
     assert db_get_host(host_id)
+
+
+def test_create_and_immediately_delete_host(
+    mocker, db_create_host, api_get, api_delete_filtered_hosts, event_producer_mock
+):
+    insights_id = generate_uuid()
+    host_id = str(db_create_host(extra_data={"canonical_facts": {"insights_id": insights_id}}).id)
+
+    # Create another host that we don't want to be deleted
+    not_deleted_host_id = str(db_create_host(extra_data={"canonical_facts": {"insights_id": generate_uuid()}}).id)
+
+    with patch("api.host.get_flag_value", return_value=True):
+        # Fetch the host and confirm its creation
+        url = build_hosts_url(host_id)
+        response_status, response_data = api_get(url)
+        assert_response_status(response_status, expected_status=200)
+        assert response_data["results"][0]["id"] == host_id
+
+        # Delete the host using the bulk deletion endpoint
+        response_status, response_data = api_delete_filtered_hosts({"insights_id": insights_id})
+        assert_response_status(response_status, expected_status=202)
+
+        # Make sure it was deleted and produced an event
+        assert '"type": "delete"' in event_producer_mock.event
+        assert_response_status(response_status, expected_status=202)
+        assert response_data["hosts_deleted"] == 1
+
+        # Make sure the other host wasn't deleted
+        response_status, response_data = api_get(build_hosts_url(not_deleted_host_id))
+        assert_response_status(response_status, expected_status=200)
+        assert response_data["results"][0]["id"] == not_deleted_host_id
 
 
 class DeleteHostsMock:
