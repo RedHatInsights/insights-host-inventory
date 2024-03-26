@@ -507,7 +507,7 @@ def test_query_all(mq_create_three_specific_hosts, api_get, subtests):
 def test_query_using_display_name(mq_create_three_specific_hosts, api_get):
     created_hosts = mq_create_three_specific_hosts
     expected_host_list = build_expected_host_list([created_hosts[0]])
-    url = build_hosts_url(query=f"?display_name={created_hosts[0].display_name}")
+    url = build_hosts_url(query=f"?display_name={created_hosts[0].display_name.upper()}")
 
     with patch("api.host.get_flag_value", return_value=True):
         response_status, response_data = api_get(url)
@@ -521,7 +521,7 @@ def test_query_using_fqdn_two_results(mq_create_three_specific_hosts, api_get):
     created_hosts = mq_create_three_specific_hosts
     expected_host_list = build_expected_host_list([created_hosts[0], created_hosts[1]])
 
-    url = build_hosts_url(query=f"?fqdn={created_hosts[0].fqdn}")
+    url = build_hosts_url(query=f"?fqdn={created_hosts[0].fqdn.upper()}")
     with patch("api.host.get_flag_value", return_value=True):
         response_status, response_data = api_get(url)
 
@@ -626,7 +626,7 @@ def test_query_using_non_existent_id(mq_create_three_specific_hosts, api_get, su
 
 def test_query_using_insights_id(mq_create_three_specific_hosts, api_get, subtests):
     created_hosts = mq_create_three_specific_hosts
-    url = build_hosts_url(query=f"?insights_id={created_hosts[0].insights_id}")
+    url = build_hosts_url(query=f"?insights_id={created_hosts[0].insights_id.upper()}")
 
     with patch("api.host.get_flag_value", return_value=True):
         response_status, response_data = api_get(url)
@@ -925,7 +925,7 @@ def test_query_using_group_name(db_create_group_with_hosts, api_get, num_groups)
     # Some other group that we don't want to see in the response
     db_create_group_with_hosts("some_other_group", 5)
 
-    group_name_params = "&".join([f"group_name=existing_group_{i}" for i in range(num_groups)])
+    group_name_params = "&".join([f"group_name=EXISTING_GROUP_{i}" for i in range(num_groups)])
     url = build_hosts_url(query=f"?{group_name_params}")
 
     with patch("api.host.get_flag_value", return_value=True):
