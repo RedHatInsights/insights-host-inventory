@@ -48,6 +48,7 @@ class Config:
         self.notification_topic = topic(os.environ.get("KAFKA_NOTIFICATION_TOPIC"))
         self.event_topic = topic(os.environ.get("KAFKA_EVENT_TOPIC"))
         self.payload_tracker_kafka_topic = topic("platform.payload-status")
+        self.export_service_topic = topic("platform.export.requests")
 
         self.bootstrap_servers = ",".join(app_common_python.KafkaServers)
         broker_cfg = cfg.kafka.brokers[0]
@@ -148,6 +149,7 @@ class Config:
         self.tenant_translator_url = os.environ.get("TENANT_TRANSLATOR_URL", "http://localhost:8892/internal/orgIds")
 
         self.host_ingress_consumer_group = os.environ.get("KAFKA_HOST_INGRESS_GROUP", "inventory-mq")
+        self.inv_export_service_consumer_group = os.environ.get("KAFKA_EXPORT_SERVICE_GROUP", "inv-export-service")
         self.sp_validator_max_messages = int(os.environ.get("KAFKA_SP_VALIDATOR_MAX_MESSAGES", "10000"))
 
         self.prometheus_pushgateway = os.environ.get("PROMETHEUS_PUSHGATEWAY", "localhost:9091")

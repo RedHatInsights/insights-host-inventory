@@ -10,6 +10,7 @@ from marshmallow import Schema
 from marshmallow import ValidationError
 from sqlalchemy.exc import OperationalError
 
+from api.host_query_db import get_hosts_to_export
 from api.staleness_query import get_staleness_obj
 from app.auth.identity import create_mock_identity_with_org_id
 from app.auth.identity import Identity
@@ -47,12 +48,33 @@ logger = get_logger(__name__)
 
 CONSUMER_POLL_TIMEOUT_SECONDS = 1
 SYSTEM_IDENTITY = {"auth_type": "cert-auth", "system": {"cert_type": "system"}, "type": "System"}
+EXPORT_EVENT_SOURCE = "urn:redhat:source:console:app:export-service"
 
 
 class OperationSchema(Schema):
     operation = fields.Str(required=True)
     operation_args = fields.Dict()
     platform_metadata = fields.Dict()
+    data = fields.Dict(required=True)
+    id = fields.UUID()
+    type = fields.Str()
+    specversion = fields.Str()
+    time = fields.Str()
+    redhatorgid = fields.Str()
+    dataschema = fields.Str()
+    source = fields.Str()
+    subject = fields.Str()
+
+
+class ExportEventSchema(Schema):
+    id = fields.UUID()
+    source = fields.Str()
+    subject = fields.Str()
+    specversion = fields.Str()
+    type = fields.Str()
+    time = fields.Str()
+    redhatorgid = fields.Str()
+    dataschema = fields.Str()
     data = fields.Dict(required=True)
 
 
@@ -172,21 +194,44 @@ def parse_operation_message(message):
         metrics.ingress_message_parsing_failure.labels("invalid").inc()
         raise
 
-    try:
-        parsed_operation = OperationSchema().load(parsed_message)
-    except ValidationError as e:
-        logger.error(
-            "Input validation error while parsing operation message:%s", e, extra={"operation": parsed_message}
-        )  # logger.error is used to avoid printing out the same traceback twice
-        metrics.ingress_message_parsing_failure.labels("invalid").inc()
-        raise
-    except Exception:
-        logger.exception("Error parsing operation message", extra={"operation": parsed_message})
-        metrics.ingress_message_parsing_failure.labels("error").inc()
-        raise
+    if parsed_message["source"] == EXPORT_EVENT_SOURCE:
+        try:
+            if "$schema" in parsed_message:
+                del parsed_message["$schema"]
+            parsed_operation = ExportEventSchema().load(parsed_message)
+        except ValidationError as e:
+            logger.error(
+                "Input validation error while parsing export event message:%s", e, extra={"operation": parsed_message}
+            )  # logger.error is used to avoid printing out the same traceback twice
 
-    logger.debug("parsed_message: %s", parsed_operation)
-    return parsed_operation
+            # TODO: Change this metric
+            metrics.ingress_message_parsing_failure.labels("invalid").inc()
+            raise
+        except Exception:
+            logger.exception("Error parsing export event message", extra={"operation": parsed_message})
+
+            # TODO: Change this metric
+            metrics.ingress_message_parsing_failure.labels("error").inc()
+            raise
+
+        logger.debug("parsed_message: %s", parsed_operation)
+        return parsed_operation
+    else:
+        try:
+            parsed_operation = OperationSchema().load(parsed_message)
+        except ValidationError as e:
+            logger.error(
+                "Input validation error while parsing operation message:%s", e, extra={"operation": parsed_message}
+            )  # logger.error is used to avoid printing out the same traceback twice
+            metrics.ingress_message_parsing_failure.labels("invalid").inc()
+            raise
+        except Exception:
+            logger.exception("Error parsing operation message", extra={"operation": parsed_message})
+            metrics.ingress_message_parsing_failure.labels("error").inc()
+            raise
+
+        logger.debug("parsed_message: %s", parsed_operation)
+        return parsed_operation
 
 
 def sync_event_message(message, session, event_producer):
@@ -282,6 +327,28 @@ def add_host(host_data, platform_metadata, operation_args={}):
             raise
 
 
+def create_export(export_svc_data, org_id, operation_args={}):
+    from requests import Session
+
+    identity = create_mock_identity_with_org_id(org_id)
+    export_format = export_svc_data["data"]["resource_request"]["format"]
+    data_to_export = get_hosts_to_export(identity=identity, export_format=export_format)
+    exportUUID = export_svc_data["data"]["resource_request"]["export_request_uuid"]
+    applicationName = export_svc_data["data"]["resource_request"]["application"]
+    resourceUUID = export_svc_data["data"]["resource_request"]["uuid"]
+    session = Session()
+    request_headers = {"content-type": "application/json"}
+    request_url = f"http://127.0.0.1:10010/app/export/v1/{exportUUID}/{applicationName}/{resourceUUID}/upload"
+    try:
+        response = session.post(url=request_url, headers=request_headers, data=json.dumps(data_to_export))
+        resp_data = response.json()
+        logger.info(resp_data)
+    except Exception as e:
+        logger.error(e)
+    finally:
+        session.close()
+
+
 @metrics.ingress_message_handler_time.time()
 def handle_message(message, event_producer, notification_event_producer, message_operation=add_host):
     validated_operation_msg = parse_operation_message(message)
@@ -333,6 +400,18 @@ def handle_message(message, event_producer, notification_event_producer, message
                 detail=str(ie.detail),
             )
             raise
+
+
+# Add metric here
+def handle_export_message(message, event_producer, notification_event_producer, message_operation=create_export):
+    validated_msg = parse_operation_message(message)
+    if validated_msg and validated_msg["data"]["resource_request"]["application"] == "host-inventory":
+        logger.info("Found host-inventory application export message")
+        org_id = validated_msg["redhatorgid"]
+        create_export(validated_msg, org_id)
+    else:
+        logger.debug("Found export message not related to host-inventory")
+        pass
 
 
 def event_loop(consumer, flask_app, event_producer, notification_event_producer, handler, interrupt):

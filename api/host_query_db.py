@@ -13,13 +13,17 @@ from sqlalchemy.sql.expression import ColumnElement
 from api.filtering.db_filters import host_id_list_filter
 from api.filtering.db_filters import query_filters
 from api.filtering.db_filters import rbac_permissions_filter
+from api.staleness_query import get_staleness_obj
 from app import db
 from app.auth import get_current_identity
+from app.common import inventory_config
+from app.culling import Timestamps
 from app.instrumentation import log_get_host_list_succeeded
 from app.logging import get_logger
 from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
+from app.serialization import serialize_host
 from lib.host_repository import update_query_for_owner_id
 
 __all__ = (
@@ -170,8 +174,10 @@ def _order_how(column, order_how: str):
         raise ValueError('Unsupported ordering direction, use "ASC" or "DESC".')
 
 
-def _find_all_hosts(columns: List[ColumnElement] = None) -> Query:
-    identity = get_current_identity()
+def _find_all_hosts(columns: List[ColumnElement] = None, identity: object = None) -> Query:
+    if not identity:
+        identity = get_current_identity()
+
     query = (
         db.session.query(Host)
         .join(HostGroupAssoc, isouter=True)
@@ -517,3 +523,24 @@ def get_host_ids_list(
     host_list = [str(res[0]) for res in _find_all_hosts([Host.id]).filter(*all_filters).all()]
     db.session.close()
     return host_list
+
+
+def get_hosts_to_export(identity: object, filters: object = {}, export_format: str = "json") -> list:
+    # columns = [Host.id, Host.display_name, Group.id, Group.name, Host.tags]
+    staleness_timestamps = Timestamps.from_config(inventory_config())
+    staleness = get_staleness_obj(identity)
+    query = (
+        Host.query.join(HostGroupAssoc, isouter=True)
+        .join(Group, isouter=True)
+        .filter(Host.org_id == identity.org_id)
+        .group_by(Host.id, Group.id, Group.name)
+    )
+    results = query.all()
+    if export_format == "json":
+        serialized_hosts_list = [
+            serialize_host(host, staleness_timestamps=staleness_timestamps, staleness=staleness) for host in results
+        ]
+    else:
+        # Do CSV export here
+        pass
+    return serialized_hosts_list
