@@ -1,6 +1,7 @@
 from typing import List
 from typing import Tuple
 
+from flask import abort
 from sqlalchemy import Boolean
 from sqlalchemy import func
 from sqlalchemy import text
@@ -108,7 +109,13 @@ def get_host_list_by_id_list(
     all_filters = host_id_list_filter(host_id_list)
     all_filters += rbac_permissions_filter(rbac_filter)
 
-    return _get_host_list_using_filters(all_filters, page, per_page, param_order_by, param_order_how, fields)
+    items, total, additional_fields, system_profile_fields = _get_host_list_using_filters(
+        all_filters, page, per_page, param_order_by, param_order_how, fields
+    )
+    if total == 0:
+        abort(404)
+
+    return items, total, additional_fields, system_profile_fields
 
 
 def params_to_order_by(order_by: str = None, order_how: str = None) -> Tuple:
