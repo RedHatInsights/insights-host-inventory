@@ -1078,6 +1078,13 @@ def test_query_using_id_list(mq_create_three_specific_hosts, api_get, subtests, 
     assert len(response_data["results"]) == num_hosts_to_query
 
 
+def test_query_using_id_list_nonexistent_host(api_get):
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(build_hosts_url(generate_uuid()))
+
+    assert response_status == 404
+
+
 @pytest.mark.parametrize("num_hosts_to_query", (1, 2, 3))
 @pytest.mark.parametrize("sparse_request", (True, False))
 def test_query_sp_by_id_list_sparse(db_create_multiple_hosts, api_get, num_hosts_to_query, sparse_request):
@@ -1186,21 +1193,31 @@ def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
                 "last_check_in": (_now - timedelta(days=1)).isoformat(),
                 "stale_timestamp": (_now + timedelta(days=6)).isoformat(),
                 "check_in_succeeded": True,
-            }
+            },
+            "satellite": {
+                "last_check_in": (_now - timedelta(days=3)).isoformat(),
+                "stale_timestamp": (_now + timedelta(days=4)).isoformat(),
+                "check_in_succeeded": True,
+            },
         },
         {
             "puptoo": {
                 "last_check_in": (_now - timedelta(days=30)).isoformat(),
                 "stale_timestamp": (_now - timedelta(days=23)).isoformat(),
                 "check_in_succeeded": True,
-            }
+            },
+            "discovery": {
+                "last_check_in": (_now - timedelta(days=3)).isoformat(),
+                "stale_timestamp": (_now + timedelta(days=4)).isoformat(),
+                "check_in_succeeded": True,
+            },
         },
         {
             "rhsm-conduit": {
                 "last_check_in": (_now - timedelta(days=1)).isoformat(),
                 "stale_timestamp": (_now + timedelta(days=6)).isoformat(),
                 "check_in_succeeded": True,
-            }
+            },
         },
     ]
     insights_ids = [generate_uuid() for _ in range(len(registered_with_data))]
@@ -1222,9 +1239,10 @@ def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
 
     expected_reporter_results_map = {
         "puptoo": 2,
-        "yupana": 1,
+        "yupana": 3,
+        "!yupana": 1,
         "rhsm-conduit": 1,
-        "rhsm-conduit&registered_with=yupana": 2,
+        "rhsm-conduit&registered_with=yupana": 4,
     }
     for reporter, count in expected_reporter_results_map.items():
         with subtests.test():
