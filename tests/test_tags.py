@@ -98,6 +98,18 @@ def test_host_tag_response_and_pagination_via_db(mq_create_three_specific_hosts,
         assert response_data["per_page"] == 50  # The default value, since we didn't specify
 
 
+def test_host_tags_via_db_invalid_updated_params(api_get):
+    """
+    Test using an updated_start that's later than updated_end
+    """
+
+    with patch("api.tag.get_flag_value", return_value=True):
+        query_params = "?updated_start=2024-01-19T15:00:00.000Z&updated_end=2024-01-15T09:00:00.000Z"
+        url = build_tags_url(query=query_params)
+        response_status, _ = api_get(url)
+        assert response_status == 400
+
+
 def test_tag_counting_and_pagination(mq_create_three_specific_hosts, api_get, patch_xjoin_post):
     """
     Given a set response from xjoin, verify that the tag count URL returns data correctly.
@@ -174,7 +186,7 @@ def test_get_list_of_tags_with_host_filters_via_db(db_create_multiple_hosts, api
     insights_id = generate_uuid()
     provider_id = generate_uuid()
     display_name = "test-example-host"
-    namespace = "insights-client"
+    namespace = None
     tag_key = "database"
     tag_value = "postgresql"
     per_reporter_staleness = {

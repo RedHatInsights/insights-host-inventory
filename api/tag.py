@@ -86,39 +86,39 @@ def get_tags(
         # Escaped so that the string literals are not interpreted as regex
         escaped_search = f".*{custom_escape(search)}.*"
 
-    if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
-        results, total = get_tag_list_db(
-            limit=limit,
-            offset=offset,
-            search=escaped_search,
-            tags=tags,
-            display_name=display_name,
-            fqdn=fqdn,
-            hostname_or_id=hostname_or_id,
-            insights_id=insights_id,
-            provider_id=provider_id,
-            provider_type=provider_type,
-            updated_start=updated_start,
-            updated_end=updated_end,
-            group_name=group_name,
-            order_by=order_by,
-            order_how=order_how,
-            staleness=staleness,
-            registered_with=registered_with,
-            filter=filter,
-            rbac_filter=rbac_filter,
-        )
-        return flask_json_response(build_collection_response(results, page, per_page, total))
-
-    variables = {
-        "order_by": order_by,
-        "order_how": order_how,
-        "limit": limit,
-        "offset": offset,
-        "hostFilter": {},
-    }
-
     try:
+        if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
+            results, total = get_tag_list_db(
+                limit=limit,
+                offset=offset,
+                search=escaped_search,
+                tags=tags,
+                display_name=display_name,
+                fqdn=fqdn,
+                hostname_or_id=hostname_or_id,
+                insights_id=insights_id,
+                provider_id=provider_id,
+                provider_type=provider_type,
+                updated_start=updated_start,
+                updated_end=updated_end,
+                group_name=group_name,
+                order_by=order_by,
+                order_how=order_how,
+                staleness=staleness,
+                registered_with=registered_with,
+                filter=filter,
+                rbac_filter=rbac_filter,
+            )
+            return flask_json_response(build_collection_response(results, page, per_page, total))
+
+        variables = {
+            "order_by": order_by,
+            "order_how": order_how,
+            "limit": limit,
+            "offset": offset,
+            "hostFilter": {},
+        }
+
         hostfilter_and_variables = query_filters(
             fqdn,
             display_name,
