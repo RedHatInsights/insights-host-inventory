@@ -337,12 +337,12 @@ def create_export(export_svc_data, org_id, operation_args={}):
     applicationName = export_svc_data["data"]["resource_request"]["application"]
     resourceUUID = export_svc_data["data"]["resource_request"]["uuid"]
     session = Session()
-    request_headers = {"content-type": "application/json"}
+    request_headers = {"x-rh-exports-psk": "testing-a-psk", "content-type": "application/json"}
     request_url = f"http://127.0.0.1:10010/app/export/v1/{exportUUID}/{applicationName}/{resourceUUID}/upload"
     try:
         response = session.post(url=request_url, headers=request_headers, data=json.dumps(data_to_export))
         resp_data = response.json()
-        logger.info(resp_data)
+        print(resp_data)
     except Exception as e:
         logger.error(e)
     finally:
