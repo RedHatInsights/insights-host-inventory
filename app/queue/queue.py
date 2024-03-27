@@ -36,8 +36,8 @@ from app.queue.events import build_event
 from app.queue.events import EventType
 from app.queue.events import message_headers
 from app.queue.events import operation_results_to_event_type
-from app.queue.notifications import build_notification_event
-from app.queue.notifications import notification_message_headers
+from app.queue.notifications import build_notification
+from app.queue.notifications import notification_headers
 from app.queue.notifications import NotificationType
 from app.serialization import deserialize_canonical_facts
 from app.serialization import deserialize_host
@@ -318,7 +318,7 @@ def handle_message(message, event_producer, notification_event_producer, message
                 ve,
                 extra={"host": {"reporter": host.get("reporter")}},
             )
-            send_notification_event(
+            send_notification(
                 notification_event_producer,
                 NotificationType.validation_error,
                 host=_build_minimal_host_info(host),
@@ -326,7 +326,7 @@ def handle_message(message, event_producer, notification_event_producer, message
             )
             raise
         except InventoryException as ie:
-            send_notification_event(
+            send_notification(
                 notification_event_producer,
                 NotificationType.validation_error,
                 host=_build_minimal_host_info(host),
@@ -372,15 +372,14 @@ def initialize_thread_local_storage(request_id):
     threadctx.request_id = request_id
 
 
-def send_notification_event(notification_event_producer, notif_type, host, detail):
+def send_notification(notification_event_producer, notification_type, host, detail):
     message_id = str(uuid.uuid4())
-    event = build_notification_event(notif_type, message_id, host, detail)
-    rh_message_id = bytearray(message_id.encode())  # ensures the correct processing of the message
-    headers = notification_message_headers(
-        notif_type,
+    event = build_notification(notification_type, message_id, host, detail)
+    # ensures the correct processing of the message
+    rh_message_id = bytearray(message_id.encode())  # "rh_message_id" is a mandatory variable name
+    headers = notification_headers(
+        notification_type,
         rh_message_id=rh_message_id,
     )
-    insights_id = host.get("canonical_facts" or {}).get("insights_id")
-    key = insights_id if type(insights_id) is str else None
 
-    notification_event_producer.write_event(event, key, headers, wait=True)
+    notification_event_producer.write_event(event, None, headers, wait=True)
