@@ -1290,6 +1290,8 @@ def test_query_by_staleness(db_create_multiple_hosts, api_get, subtests):
         "[bootc_status][booted][image]=quay.io*",
         "[sap_sids][contains][]=ABC",
         "[sap_sids][contains]=ABC",
+        "[sap][sids][contains][]=ABC",
+        "[sap][sids][contains]=ABC",
         "[systemd][failed_services][contains][]=foo",
     ),
 )
@@ -1300,7 +1302,7 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
             "arch": "x86_64",
             "insights_client_version": "3.0.1-2.el4_2",
             "host_type": "edge",
-            "sap": {"sap_system": True},
+            "sap": {"sap_system": True, "sids": ["ABC"]},
             "bootc_status": {"booted": {"image": "quay.io/centos-bootc/fedora-bootc-cloud:eln"}},
             "sap_sids": ["ABC"],
             "systemd": {"failed_services": ["foo", "bar"]},
