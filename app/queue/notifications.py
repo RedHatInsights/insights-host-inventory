@@ -36,7 +36,7 @@ class BaseNotificationEvent(MarshmallowSchema):
 class HostValidationErrorContextSchema(MarshmallowSchema):
     event_name = fields.Str(required=True, validate=marshmallow_validate.Length(max=255))
     display_name = fields.Str(required=True)
-    inventory_id = fields.Str()
+    inventory_id = fields.Str(required=True)
 
 
 class HostValidationErrorSchema(MarshmallowSchema):
