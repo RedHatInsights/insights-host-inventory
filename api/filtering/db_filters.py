@@ -6,6 +6,7 @@ from uuid import UUID
 from dateutil import parser
 from sqlalchemy import and_
 from sqlalchemy import DateTime
+from sqlalchemy import func
 from sqlalchemy import not_
 from sqlalchemy import or_
 from sqlalchemy.dialects.postgresql import JSON
@@ -31,12 +32,14 @@ logger = get_logger(__name__)
 DEFAULT_STALENESS_VALUES = ["not_culled"]
 
 
-def _canonical_fact_filter(canonical_fact: str, value) -> List:
+def _canonical_fact_filter(canonical_fact: str, value, case_insensitive: bool = False) -> List:
+    if case_insensitive:
+        return [func.lower(Host.canonical_facts[canonical_fact].astext) == value.lower()]
     return [Host.canonical_facts[canonical_fact].astext == value]
 
 
 def _display_name_filter(display_name: str) -> List:
-    return [Host.display_name.comparator.contains(display_name)]
+    return [func.lower(Host.display_name).comparator.contains(display_name.lower())]
 
 
 def _tags_filter(string_tags: List[str]) -> List:
@@ -52,8 +55,9 @@ def _tags_filter(string_tags: List[str]) -> List:
 
 def _group_names_filter(group_name_list: List) -> List:
     _query_filter = []
+    group_name_list_lower = [group_name.lower() for group_name in group_name_list]
     if len(group_name_list) > 0:
-        group_filters = [Group.name.in_(group_name_list)]
+        group_filters = [func.lower(Group.name).in_(group_name_list_lower)]
         if "" in group_name_list:
             group_filters += [HostGroupAssoc.group_id.is_(None)]
 
@@ -186,8 +190,8 @@ def _system_profile_filter(filter: dict) -> List:
 
 def _hostname_or_id_filter(hostname_or_id: str) -> List:
     filter_list = [
-        Host.display_name.comparator.contains(hostname_or_id),
-        Host.canonical_facts["fqdn"].astext.contains(hostname_or_id),
+        func.lower(Host.display_name).comparator.contains(hostname_or_id.lower()),
+        func.lower(Host.canonical_facts["fqdn"].astext).contains(hostname_or_id.lower()),
     ]
 
     try:
@@ -249,16 +253,16 @@ def query_filters(
 ) -> List:
     filters = []
     if fqdn:
-        filters += _canonical_fact_filter("fqdn", fqdn)
+        filters += _canonical_fact_filter("fqdn", fqdn, case_insensitive=True)
     elif display_name:
         filters += _display_name_filter(display_name)
     elif hostname_or_id:
         filters += _hostname_or_id_filter(hostname_or_id)
     elif insights_id:
-        filters += _canonical_fact_filter("insights_id", insights_id)
+        filters += _canonical_fact_filter("insights_id", insights_id, case_insensitive=True)
 
     if provider_id:
-        filters += _canonical_fact_filter("provider_id", provider_id)
+        filters += _canonical_fact_filter("provider_id", provider_id, case_insensitive=True)
     if provider_type:
         filters += _canonical_fact_filter("provider_type", provider_type)
     if updated_start or updated_end:
