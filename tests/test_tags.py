@@ -186,7 +186,7 @@ def test_get_list_of_tags_with_host_filters_via_db(db_create_multiple_hosts, api
     insights_id = generate_uuid()
     provider_id = generate_uuid()
     display_name = "test-example-host"
-    namespace = "insights-client"
+    namespace = None
     tag_key = "database"
     tag_value = "postgresql"
     per_reporter_staleness = {

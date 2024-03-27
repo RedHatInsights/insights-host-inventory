@@ -218,6 +218,12 @@ def params_to_order_by_for_tags(order_by: str = None, order_how: str = None) -> 
     return ordering
 
 
+def _convert_null_string(input: str):
+    if input == "null":
+        return None
+    return input
+
+
 def get_tag_list(
     display_name: str,
     fqdn: str,
@@ -304,7 +310,10 @@ def get_tag_list(
     query_results = query.offset(offset).limit(limit).all()
     tag_list = []
     for result in query_results:
-        tag = {"tag": {"namespace": result[0], "key": result[1], "value": result[2]}, "count": result[3]}
+        namespace = _convert_null_string(result[0])
+        tagkey = _convert_null_string(result[1])
+        tagvalue = _convert_null_string(result[2])
+        tag = {"tag": {"namespace": namespace, "key": tagkey, "value": tagvalue}, "count": result[3]}
         tag_list.append(tag)
     return tag_list, query_count
 
