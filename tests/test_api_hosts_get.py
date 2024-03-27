@@ -552,6 +552,26 @@ def test_query_using_non_existent_fqdn(api_get):
     assert len(response_data["results"]) == 0
 
 
+@pytest.mark.parametrize(
+    "query",
+    (
+        (f"fqdn={generate_uuid()}&display_name={generate_uuid()}"),
+        (f"fqdn={generate_uuid()}&hostname_or_id={generate_uuid()}"),
+        (f"fqdn={generate_uuid()}&insights_id={generate_uuid()}"),
+        (f"display_name={generate_uuid()}&hostname_or_id={generate_uuid()}"),
+        (f"display_name={generate_uuid()}&insights_id={generate_uuid()}"),
+        (f"hostname_or_id={generate_uuid()}&insights_id={generate_uuid()}"),
+    ),
+)
+def test_query_by_conflitcting_ids(api_get, query):
+    # Not allowed to query on more than one of these fields at once
+    url = build_hosts_url(query=f"?{query}")
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, _ = api_get(url)
+
+    assert response_status == 400
+
+
 def test_query_using_display_name_substring(mq_create_three_specific_hosts, api_get, subtests):
     created_hosts = mq_create_three_specific_hosts
     expected_host_list = build_expected_host_list(created_hosts)
@@ -996,9 +1016,14 @@ def test_query_hosts_filter_updated_start_end(mq_create_or_update_host, api_get)
 
 @pytest.mark.parametrize("order_how", ("ASC", "DESC"))
 def test_get_hosts_order_by_group_name(db_create_group_with_hosts, api_get, subtests, order_how):
-    hosts_per_group = 2
-    names = ["A Group", "B Group", "C Group"]
-    [db_create_group_with_hosts(group_name, hosts_per_group) for group_name in names]
+    hosts_per_group = 3
+    names = ["ABC Group", "BCD Group", "CDE Group", "DEF Group"]
+
+    # Shuffle the list so the groups aren't created in alphabetical order
+    # Just to make sure it's actually ordering by name and not date
+    shuffled_group_names = names.copy()
+    random.shuffle(shuffled_group_names)
+    [db_create_group_with_hosts(group_name, hosts_per_group) for group_name in shuffled_group_names]
 
     url = build_hosts_url(query=f"?order_by=group_name&order_how={order_how}")
 
@@ -1020,7 +1045,7 @@ def test_get_hosts_order_by_group_name(db_create_group_with_hosts, api_get, subt
             )
 
 
-@pytest.mark.parametrize("order_how", ("ASC", "DESC"))
+@pytest.mark.parametrize("order_how", ("", "ASC", "DESC"))
 def test_get_hosts_order_by_operating_system(mq_create_or_update_host, api_get, order_how):
     # Create some operating systems in ASC sort order
     ordered_operating_system_data = [
@@ -1049,7 +1074,11 @@ def test_get_hosts_order_by_operating_system(mq_create_or_update_host, api_get, 
         )
         for insights_id in shuffled_insights_ids
     ]
-    url = build_hosts_url(query=f"?order_by=operating_system&order_how={order_how}")
+    query = "?order_by=operating_system"
+    if order_how:
+        query += f"&order_how={order_how}"
+
+    url = build_hosts_url(query=query)
 
     with patch("api.host.get_flag_value", return_value=True):
         # Validate the basics, i.e. response code and results size
@@ -1058,7 +1087,7 @@ def test_get_hosts_order_by_operating_system(mq_create_or_update_host, api_get, 
         assert len(created_hosts) == len(response_data["results"])
 
     # If descending order is requested, reverse the expected order of hosts
-    if order_how == "DESC":
+    if order_how != "ASC":
         ordered_insights_ids.reverse()
 
     for index in range(len(ordered_insights_ids)):
@@ -1284,8 +1313,17 @@ def test_query_by_staleness(db_create_multiple_hosts, api_get, subtests):
         "[arch]=x86_64&filter[system_profile][host_type]=edge",
         "[insights_client_version][]=3.0.*&filter[system_profile][insights_client_version][]=*el4_2",
         "[greenboot_status][is]=nil",
-        "[host_type][is]=not_nil",
+        "[host_type]=not_nil",
+        "[greenboot_status][is][]=nil",
+        "[host_type][]=not_nil",
         "[bootc_status][booted][image]=quay.io*",
+        "[sap_sids][contains][]=ABC",
+        "[sap_sids][contains]=ABC",
+        "[sap][sids][contains][]=ABC",
+        "[sap][sids][contains]=ABC",
+        "[systemd][failed_services][contains][]=foo",
+        f"[bios_vendor]={quote('%3E/%3AX%26x5wVZCj%25mC')}",
+        "[system_memory_bytes][lte]=8292048963606259",
     ),
 )
 def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
@@ -1295,8 +1333,12 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
             "arch": "x86_64",
             "insights_client_version": "3.0.1-2.el4_2",
             "host_type": "edge",
-            "sap": {"sap_system": True},
+            "sap": {"sap_system": True, "sids": ["ABC"]},
             "bootc_status": {"booted": {"image": "quay.io/centos-bootc/fedora-bootc-cloud:eln"}},
+            "sap_sids": ["ABC"],
+            "systemd": {"failed_services": ["foo", "bar"]},
+            "bios_vendor": quote("%3E/%3AX%26x5wVZCj%25mC"),
+            "system_memory_bytes": 8192,
         }
     }
     match_host_id = str(db_create_host(extra_data=match_sp_data).id)
@@ -1308,6 +1350,7 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
             "insights_client_version": "1.2.3",
             "greenboot_status": "green",
             "bootc_status": {"booted": {"image": "192.168.0.1:5000/foo/foo:latest"}},
+            "sap_sids": ["DEF"],
         }
     }
     nomatch_host_id = str(db_create_host(extra_data=nomatch_sp_data).id)
@@ -1330,6 +1373,8 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
     (
         "[RHEL][version]=8.11",
         "[RHEL][version][eq]=8.11",
+        "[RHEL][version][eq][]=8.11",
+        "[RHEL][version][eq][]=8.11&filter[system_profile][operating_system][RHEL][version][eq][]=9.1",
         "[RHEL][version][gt]=8",
         "[RHEL][version][gte]=8.11&filter[system_profile][operating_system][RHEL][version][eq]=8.11",
     ),
@@ -1458,6 +1503,7 @@ def test_query_all_sp_filters_multiple_of_same_field(db_create_host, api_get, sp
         "[bootc_status][foo]=val",  # Invalid non-top-level field
         "[bootc_status][booted][foo]=val",  # Invalid non-top-level field
         "[arch][gteq]=val",  # Invalid comparator/field
+        "[system_memory_bytes]=8292048963606259",  # Number too large for field's data type
     ),
 )
 def test_query_all_sp_filters_invalid_field(api_get, sp_filter_param):

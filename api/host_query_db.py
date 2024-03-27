@@ -139,7 +139,7 @@ def params_to_order_by(order_by: str = None, order_how: str = None) -> Tuple:
         if order_how:
             ordering = (_order_how(Host.operating_system, order_how),)
         else:
-            ordering = (Host.operating_system.asc(),)
+            ordering = (Host.operating_system.desc(),)
     elif order_by:
         raise ValueError(
             'Unsupported ordering column: use "updated", "display_name", "group_name", or "operating_system".'
