@@ -87,23 +87,37 @@ def _stale_timestamp_filter(gt=None, lte=None, host_type=None):
 
 
 def _stale_timestamp_per_reporter_filter(gt=None, lte=None, host_type=None, reporter=None):
+    non_negative_reporter = reporter.replace("!", "")
+    reporter_list = [non_negative_reporter]
+    if non_negative_reporter in OLD_TO_NEW_REPORTER_MAP.keys():
+        reporter_list.extend(OLD_TO_NEW_REPORTER_MAP[non_negative_reporter])
+
     if reporter.startswith("!"):
         time_filter_ = _get_host_modified_on_time_filter(gt=gt, lte=lte)
         return and_(
-            Host.system_profile_facts["host_type"].astext == host_type,
-            not_(Host.per_reporter_staleness.has_key(reporter.replace("!", ""))),
-            time_filter_,
+            and_(
+                Host.system_profile_facts["host_type"].astext == host_type,
+                not_(Host.per_reporter_staleness.has_key(rep)),
+                time_filter_,
+            )
+            for rep in reporter_list
         )
     else:
-        if gt:
-            time_filter_ = Host.per_reporter_staleness[reporter]["last_check_in"].astext.cast(DateTime) > gt
-        if lte:
-            time_filter_ = Host.per_reporter_staleness[reporter]["last_check_in"].astext.cast(DateTime) <= lte
-        return and_(
-            Host.system_profile_facts["host_type"].astext == host_type,
-            Host.per_reporter_staleness.has_key(reporter),
-            time_filter_,
-        )
+        or_filter = []
+        for rep in reporter_list:
+            if gt:
+                time_filter_ = Host.per_reporter_staleness[rep]["last_check_in"].astext.cast(DateTime) > gt
+            if lte:
+                time_filter_ = Host.per_reporter_staleness[rep]["last_check_in"].astext.cast(DateTime) <= lte
+            or_filter.append(
+                and_(
+                    Host.system_profile_facts["host_type"].astext == host_type,
+                    Host.per_reporter_staleness.has_key(rep),
+                    time_filter_,
+                )
+            )
+
+        return or_(*or_filter)
 
 
 def per_reporter_staleness_filter(staleness, reporter):
@@ -138,12 +152,6 @@ def _registered_with_filter(registered_with: List[str]) -> List:
         reg_with_copy.remove("insights")
     if not reg_with_copy:
         return _query_filter
-    # When filtering on old reporter name, include the names of the
-    # new reporters associated with the old reporter.
-    for old_reporter in OLD_TO_NEW_REPORTER_MAP:
-        if old_reporter in reg_with_copy:
-            reg_with_copy.extend(OLD_TO_NEW_REPORTER_MAP[old_reporter])
-            reg_with_copy = list(set(reg_with_copy))  # Remove duplicates
 
     # Get the per_report_staleness check_in value for the reporter
     # and build the filter based on it
