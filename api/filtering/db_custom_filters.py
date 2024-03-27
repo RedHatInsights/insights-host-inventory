@@ -28,7 +28,7 @@ def _check_field_in_spec(spec, field_name):
 #   jsonb_path: The jsonb path, i.e. system_profile_facts->sap->>sap_system
 #   pg_op: The comparison to use (e.g. =, >, <)
 #   value: The filter's value
-def _convert_dict_to_text_filter_and_value(filter: dict) -> tuple:
+def _convert_dict_to_text_filter_and_value(filter: dict, get_node_instead_of_value: bool = False) -> tuple:
     key = next(iter(filter.keys()))
     val = filter[key]
 
@@ -37,18 +37,24 @@ def _convert_dict_to_text_filter_and_value(filter: dict) -> tuple:
         # Skip comparison node if present (eq, lt, gte, etc)
         next_key = next(iter(val.keys()))
         if next_key in POSTGRES_COMPARATOR_LOOKUP.keys():
-            return f"->>'{key}'", POSTGRES_COMPARATOR_LOOKUP.get(next_key), next(iter(val.values()))
+            jsonb_operator = "->" if get_node_instead_of_value else "->>"
+            return f"{jsonb_operator}'{key}'", POSTGRES_COMPARATOR_LOOKUP.get(next_key), next(iter(val.values()))
 
         # Recurse
-        next_val, pg_op, deepest_value = _convert_dict_to_text_filter_and_value(val)
+        next_val, pg_op, deepest_value = _convert_dict_to_text_filter_and_value(val, get_node_instead_of_value)
         return f"->'{key}'{next_val}", pg_op, deepest_value
     else:
         # Get the final jsonb path node and its value; no comparator was specified
-        return f"->>'{key}'", None, val
+        jsonb_operator = "->" if get_node_instead_of_value else "->>"
+        return f"{jsonb_operator}'{key}'", None, val
 
 
 # Gets the deepest node in the "filter" object, and looks up its field_filter in sp_spec
 def _get_field_filter_for_deepest_param(sp_spec: dict, filter: dict) -> str:
+    # If the node is an array, that's as far as we go
+    if sp_spec.get("is_array") is True:
+        return "array"
+
     # Skip through "children" nodes in the spec
     if "children" in sp_spec:
         return _get_field_filter_for_deepest_param(sp_spec["children"], filter)
@@ -192,7 +198,7 @@ def build_single_text_filter(filter_param: dict) -> str:
 
         logger.debug(f"generating filter: field: {field_name}, type: {field_filter}, field_input: {field_input}")
 
-        jsonb_path, pg_op, value = _convert_dict_to_text_filter_and_value(filter_param)
+        jsonb_path, pg_op, value = _convert_dict_to_text_filter_and_value(filter_param, field_filter == "array")
 
         if not pg_op:
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter)
@@ -207,7 +213,7 @@ def build_single_text_filter(filter_param: dict) -> str:
                 value = "NOT NULL"
 
         # Put value in quotes if appropriate for the field type and operation
-        if field_filter in ["wildcard", "string", "timestamp", "boolean"] and pg_op != "IS":
+        if field_filter in ["wildcard", "string", "timestamp", "boolean", "array"] and pg_op != "IS":
             value = f"'{value}'"
 
         pg_cast = FIELD_FILTER_TO_POSTGRES_CAST.get(field_filter, "")

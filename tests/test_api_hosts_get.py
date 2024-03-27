@@ -552,6 +552,26 @@ def test_query_using_non_existent_fqdn(api_get):
     assert len(response_data["results"]) == 0
 
 
+@pytest.mark.parametrize(
+    "query",
+    (
+        (f"fqdn={generate_uuid()}&display_name={generate_uuid()}"),
+        (f"fqdn={generate_uuid()}&hostname_or_id={generate_uuid()}"),
+        (f"fqdn={generate_uuid()}&insights_id={generate_uuid()}"),
+        (f"display_name={generate_uuid()}&hostname_or_id={generate_uuid()}"),
+        (f"display_name={generate_uuid()}&insights_id={generate_uuid()}"),
+        (f"hostname_or_id={generate_uuid()}&insights_id={generate_uuid()}"),
+    ),
+)
+def test_query_by_conflitcting_ids(api_get, query):
+    # Not allowed to query on more than one of these fields at once
+    url = build_hosts_url(query=f"?{query}")
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, _ = api_get(url)
+
+    assert response_status == 400
+
+
 def test_query_using_display_name_substring(mq_create_three_specific_hosts, api_get, subtests):
     created_hosts = mq_create_three_specific_hosts
     expected_host_list = build_expected_host_list(created_hosts)
@@ -1268,6 +1288,9 @@ def test_query_by_staleness(db_create_multiple_hosts, api_get, subtests):
         "[greenboot_status][is]=nil",
         "[host_type][is]=not_nil",
         "[bootc_status][booted][image]=quay.io*",
+        "[sap_sids][contains][]=ABC",
+        "[sap_sids][contains]=ABC",
+        "[systemd][failed_services][contains][]=foo",
     ),
 )
 def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
@@ -1279,6 +1302,8 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
             "host_type": "edge",
             "sap": {"sap_system": True},
             "bootc_status": {"booted": {"image": "quay.io/centos-bootc/fedora-bootc-cloud:eln"}},
+            "sap_sids": ["ABC"],
+            "systemd": {"failed_services": ["foo", "bar"]},
         }
     }
     match_host_id = str(db_create_host(extra_data=match_sp_data).id)
@@ -1290,6 +1315,7 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
             "insights_client_version": "1.2.3",
             "greenboot_status": "green",
             "bootc_status": {"booted": {"image": "192.168.0.1:5000/foo/foo:latest"}},
+            "sap_sids": ["DEF"],
         }
     }
     nomatch_host_id = str(db_create_host(extra_data=nomatch_sp_data).id)

@@ -48,6 +48,7 @@ POSTGRES_COMPARATOR_LOOKUP = {
     "eq": "=",
     "neq": "<>",
     "is": "IS",
+    "contains": "?",
 }
 
 # These are the default SQL comparison operators to use for each data type.
@@ -58,6 +59,7 @@ POSTGRES_DEFAULT_COMPARATOR = {
     "operating_system": "=",
     "integer": "=",
     "date-time": "=",
+    "array": "?",
 }
 
 FIELD_FILTER_TO_POSTGRES_CAST = {"integer": "::integer", "boolean": "::boolean"}
