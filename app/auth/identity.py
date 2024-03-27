@@ -175,7 +175,14 @@ class ServiceAccountIdentitySchema(IdentityBaseSchema):
 # Messages from the system_profile topic don't need to provide a real Identity,
 # So this helper function creates a basic User-type identity from the host data.
 def create_mock_identity_with_org_id(org_id):
-    return Identity({"org_id": org_id, "type": IdentityType.USER.value, "auth_type": AuthType.BASIC})
+    return Identity(
+        {
+            "org_id": org_id,
+            "type": IdentityType.USER.value,
+            "auth_type": AuthType.BASIC,
+            "user": {"is_org_admin": False},
+        }
+    )
 
 
 def to_auth_header(identity: Identity):

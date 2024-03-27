@@ -6,7 +6,6 @@ from prometheus_client import start_http_server
 from app import create_app
 from app.environment import RuntimeEnvironment
 from app.logging import get_logger
-from app.queue.event_producer import EventProducer
 from app.queue.queue import create_export
 from app.queue.queue import event_loop
 from app.queue.queue import handle_export_message
@@ -35,26 +34,19 @@ def main():
     consumer_shutdown = partial(consumer.close, autocommit=True)
     register_shutdown(consumer_shutdown, "Closing consumer")
 
-    event_producer = EventProducer(config, config.event_topic)
-    register_shutdown(event_producer.close, "Closing producer")
-
-    notification_event_producer = EventProducer(config, config.notification_topic)
-    register_shutdown(notification_event_producer.close, "Closing notification producer")
-
     shutdown_handler = ShutdownHandler()
     shutdown_handler.register()
 
     message_handler = partial(
         handle_export_message,
         message_operation=topic_to_handler[config.kafka_consumer_topic],
-        notification_event_producer=notification_event_producer,
     )
 
     event_loop(
         consumer,
         application.app,
-        event_producer,
-        notification_event_producer,
+        None,
+        None,
         message_handler,
         shutdown_handler.shut_down,
     )

@@ -525,22 +525,54 @@ def get_host_ids_list(
     return host_list
 
 
-def get_hosts_to_export(identity: object, filters: object = {}, export_format: str = "json") -> list:
-    # columns = [Host.id, Host.display_name, Group.id, Group.name, Host.tags]
+
+def get_hosts_to_export(identity: object, filters: object = {}, export_format: str = "json", rbac_filter=None) -> list:
+    columns = [
+        Host.id,
+        Host.account,
+        Host.org_id,
+        Host.display_name,
+        Host.ansible_host,
+        Host.facts,
+        Host.reporter,
+        Host.groups,
+        Host.system_profile_facts,
+        Host.modified_on,
+        Host.created_on,
+        Host.canonical_facts,
+        Host.per_reporter_staleness,
+        Host.groups,
+    ]
+
     staleness_timestamps = Timestamps.from_config(inventory_config())
     staleness = get_staleness_obj(identity)
+    filters = query_filters(rbac_filter=rbac_filter)
+    filters += [Host.org_id == identity.org_id]
     query = (
         Host.query.join(HostGroupAssoc, isouter=True)
         .join(Group, isouter=True)
-        .filter(Host.org_id == identity.org_id)
+        .filter(*filters)
         .group_by(Host.id, Group.id, Group.name)
     )
-    results = query.all()
+    results = query.with_entities(*columns)
+    serialized_hosts_list = [
+        serialize_host(host, staleness_timestamps=staleness_timestamps, for_mq=False, staleness=staleness)
+        for host in results
+    ]
     if export_format == "json":
-        serialized_hosts_list = [
-            serialize_host(host, staleness_timestamps=staleness_timestamps, staleness=staleness) for host in results
-        ]
+        return serialized_hosts_list
     else:
         # Do CSV export here
+        _convert_to_csv(serialized_hosts_list)
         pass
-    return serialized_hosts_list
+
+
+def _convert_to_csv(hosts: list):
+    has_header = False
+    csv_string = ""
+    for host in hosts:
+        if not has_header:
+            header = ",".join(host.keys())
+            csv_string += header
+            has_header = True
+        # values = host.values()

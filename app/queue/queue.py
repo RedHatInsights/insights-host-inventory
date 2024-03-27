@@ -10,7 +10,6 @@ from marshmallow import Schema
 from marshmallow import ValidationError
 from sqlalchemy.exc import OperationalError
 
-from api.host_query_db import get_hosts_to_export
 from api.staleness_query import get_staleness_obj
 from app.auth.identity import create_mock_identity_with_org_id
 from app.auth.identity import Identity
@@ -37,6 +36,7 @@ from app.queue.events import build_event
 from app.queue.events import EventType
 from app.queue.events import message_headers
 from app.queue.events import operation_results_to_event_type
+from app.queue.export_service import create_export
 from app.queue.notifications import build_notification
 from app.queue.notifications import notification_headers
 from app.queue.notifications import NotificationType
@@ -325,28 +325,6 @@ def add_host(host_data, platform_metadata, operation_args={}):
             logger.exception("Error while adding host", extra={"host": host_data})
             metrics.add_host_failure.labels("Exception", host_data.get("reporter", "null")).inc()
             raise
-
-
-def create_export(export_svc_data, org_id, operation_args={}):
-    from requests import Session
-
-    identity = create_mock_identity_with_org_id(org_id)
-    export_format = export_svc_data["data"]["resource_request"]["format"]
-    data_to_export = get_hosts_to_export(identity=identity, export_format=export_format)
-    exportUUID = export_svc_data["data"]["resource_request"]["export_request_uuid"]
-    applicationName = export_svc_data["data"]["resource_request"]["application"]
-    resourceUUID = export_svc_data["data"]["resource_request"]["uuid"]
-    session = Session()
-    request_headers = {"content-type": "application/json"}
-    request_url = f"http://127.0.0.1:10010/app/export/v1/{exportUUID}/{applicationName}/{resourceUUID}/upload"
-    try:
-        response = session.post(url=request_url, headers=request_headers, data=json.dumps(data_to_export))
-        resp_data = response.json()
-        logger.info(resp_data)
-    except Exception as e:
-        logger.error(e)
-    finally:
-        session.close()
 
 
 @metrics.ingress_message_handler_time.time()

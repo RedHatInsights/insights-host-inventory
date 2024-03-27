@@ -360,6 +360,84 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_MQ_SP}
             memory: ${MEMORY_REQUEST_MQ_SP}
+    - name: export-service
+      minReplicas: ${{REPLICAS_SP}}
+      podSpec:
+        command:
+        - /bin/sh
+        - -c
+        - python3 inv_export_service.py
+        env:
+        - name: INVENTORY_LOG_LEVEL
+          value: ${LOG_LEVEL}
+        - name: INVENTORY_DB_SSL_MODE
+          value: ${INVENTORY_DB_SSL_MODE}
+        - name: INVENTORY_DB_SSL_CERT
+          value: ${INVENTORY_DB_SSL_CERT}
+        - name: KAFKA_CONSUMER_TOPIC
+          value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
+        - name: KAFKA_HOST_INGRESS_TOPIC
+          value: ${KAFKA_HOST_INGRESS_TOPIC}
+        - name: KAFKA_EVENT_TOPIC
+          value: ${KAFKA_EVENT_TOPIC}
+        - name: KAFKA_NOTIFICATION_TOPIC
+          value: ${KAFKA_NOTIFICATION_TOPIC}
+        - name: KAFKA_SYSTEM_PROFILE_TOPIC
+          value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
+        - name: KAFKA_HOST_INGRESS_GROUP
+          value: ${KAFKA_HOST_INGRESS_GROUP}
+        - name: PAYLOAD_TRACKER_SERVICE_NAME
+          value: inventory-mq-service
+        - name: PAYLOAD_TRACKER_ENABLED
+          value: 'true'
+        - name: KAFKA_PRODUCER_ACKS
+          value: ${KAFKA_PRODUCER_ACKS}
+        - name: KAFKA_PRODUCER_RETRIES
+          value: ${KAFKA_PRODUCER_RETRIES}
+        - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+          value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+        - name: KAFKA_SECURITY_PROTOCOL
+          value: ${KAFKA_SECURITY_PROTOCOL}
+        - name: KAFKA_SASL_MECHANISM
+          value: ${KAFKA_SASL_MECHANISM}
+        - name: TENANT_TRANSLATOR_URL
+          value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
+        - name: BYPASS_TENANT_TRANSLATION
+          value: ${BYPASS_TENANT_TRANSLATION}
+        - name: CLOWDER_ENABLED
+          value: "true"
+        - name: UNLEASH_URL
+          value: ${UNLEASH_URL}
+        - name: UNLEASH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: ${UNLEASH_SECRET_NAME}
+              key: CLIENT_ACCESS_TOKEN
+              optional: true
+        - name: BYPASS_UNLEASH
+          value: ${BYPASS_UNLEASH}
+        image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /
+            port: 9000
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+        readinessProbe:
+          tcpSocket:
+            port: 9000
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_MQ_SP}
+            memory: ${MEMORY_LIMIT_MQ_SP}
+          requests:
+            cpu: ${CPU_REQUEST_MQ_SP}
+            memory: ${MEMORY_REQUEST_MQ_SP}
+
     jobs:
     - name: reaper
       schedule: '@hourly'
