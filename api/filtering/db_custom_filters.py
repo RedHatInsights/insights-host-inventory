@@ -210,11 +210,13 @@ def build_single_text_filter(filter_param: dict) -> str:
         # Handle wildcard fields (use ILIKE, replace * with %)
         if pg_op == "ILIKE":
             value = value.replace("*", "%")
-        elif pg_op == "IS":
-            if value == "nil":
-                value = "NULL"
-            elif value == "not_nil":
-                value = "NOT NULL"
+
+        if value == "nil":
+            pg_op = "IS"
+            value = "NULL"
+        elif value == "not_nil":
+            pg_op = "IS"
+            value = "NOT NULL"
 
         # Put value in quotes if appropriate for the field type and operation
         if field_filter in ["wildcard", "string", "timestamp", "boolean", "array"] and pg_op != "IS":
