@@ -1016,9 +1016,14 @@ def test_query_hosts_filter_updated_start_end(mq_create_or_update_host, api_get)
 
 @pytest.mark.parametrize("order_how", ("ASC", "DESC"))
 def test_get_hosts_order_by_group_name(db_create_group_with_hosts, api_get, subtests, order_how):
-    hosts_per_group = 2
-    names = ["A Group", "B Group", "C Group"]
-    [db_create_group_with_hosts(group_name, hosts_per_group) for group_name in names]
+    hosts_per_group = 3
+    names = ["ABC Group", "BCD Group", "CDE Group", "DEF Group"]
+
+    # Shuffle the list so the groups aren't created in alphabetical order
+    # Just to make sure it's actually ordering by name and not date
+    shuffled_group_names = names.copy()
+    random.shuffle(shuffled_group_names)
+    [db_create_group_with_hosts(group_name, hosts_per_group) for group_name in shuffled_group_names]
 
     url = build_hosts_url(query=f"?order_by=group_name&order_how={order_how}")
 
