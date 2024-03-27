@@ -1358,6 +1358,8 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
     (
         "[RHEL][version]=8.11",
         "[RHEL][version][eq]=8.11",
+        "[RHEL][version][eq][]=8.11",
+        "[RHEL][version][eq][]=8.11&filter[system_profile][operating_system][RHEL][version][eq][]=9.1",
         "[RHEL][version][gt]=8",
         "[RHEL][version][gte]=8.11&filter[system_profile][operating_system][RHEL][version][eq]=8.11",
     ),

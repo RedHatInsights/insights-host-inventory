@@ -98,17 +98,21 @@ def separate_operating_system_filters(filter_param: dict) -> list[OsComparison]:
             version_node = {"eq": version_node}
 
         for os_comparator in version_node.keys():
-            version = version_node[os_comparator]
-            version_split = version.split(".")
-            if len(version_split) < 2:
-                version_split.append("0")
-            if len(version_split) > 2:
-                raise ValidationException("operating_system filter can only have a major and minor version.")
-            for v in version_split:
-                if not v.isdigit():
-                    raise ValidationException("operating_system major and minor versions must be numerical.")
+            version_array = version_node[os_comparator]
+            if not isinstance(version_array, list):
+                version_array = [version_array]
 
-            os_filter_list.append(OsComparison(os_name, os_comparator, version_split[0], version_split[1]))
+            for version in version_array:
+                version_split = version.split(".")
+                if len(version_split) < 2:
+                    version_split.append("0")
+                if len(version_split) > 2:
+                    raise ValidationException("operating_system filter can only have a major and minor version.")
+                for v in version_split:
+                    if not v.isdigit():
+                        raise ValidationException("operating_system major and minor versions must be numerical.")
+
+                os_filter_list.append(OsComparison(os_name, os_comparator, version_split[0], version_split[1]))
 
     return os_filter_list
 
