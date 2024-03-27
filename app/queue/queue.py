@@ -374,7 +374,7 @@ def initialize_thread_local_storage(request_id):
 
 def send_notification(notification_event_producer, notification_type, host, detail):
     message_id = str(uuid.uuid4())
-    event = build_notification(notification_type, message_id, host, detail)
+    notification = build_notification(notification_type, message_id, host, detail)
     # ensures the correct processing of the message
     rh_message_id = bytearray(message_id.encode())  # "rh_message_id" is a mandatory variable name
     headers = notification_headers(
@@ -382,4 +382,4 @@ def send_notification(notification_event_producer, notification_type, host, deta
         rh_message_id=rh_message_id,
     )
 
-    notification_event_producer.write_event(event, None, headers, wait=True)
+    notification_event_producer.write_event(notification, None, headers, wait=True)
