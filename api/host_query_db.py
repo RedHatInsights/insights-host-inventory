@@ -1,6 +1,7 @@
 from typing import List
 from typing import Tuple
 
+from flask import abort
 from sqlalchemy import Boolean
 from sqlalchemy import func
 from sqlalchemy import text
@@ -31,9 +32,8 @@ logger = get_logger(__name__)
 
 
 def get_all_hosts() -> List:
-    query = _find_all_hosts()
-    query_results = query.all()
-    ids_list = [str(host.id) for host in query_results]
+    query_results = _find_all_hosts([Host.id]).all()
+    ids_list = [str(result[0]) for result in query_results]
 
     log_get_host_list_succeeded(logger, ids_list)
     return ids_list
@@ -109,7 +109,13 @@ def get_host_list_by_id_list(
     all_filters = host_id_list_filter(host_id_list)
     all_filters += rbac_permissions_filter(rbac_filter)
 
-    return _get_host_list_using_filters(all_filters, page, per_page, param_order_by, param_order_how, fields)
+    items, total, additional_fields, system_profile_fields = _get_host_list_using_filters(
+        all_filters, page, per_page, param_order_by, param_order_how, fields
+    )
+    if total == 0:
+        abort(404)
+
+    return items, total, additional_fields, system_profile_fields
 
 
 def params_to_order_by(order_by: str = None, order_how: str = None) -> Tuple:
@@ -436,3 +442,40 @@ def get_sparse_system_profile(
     query_results = sp_query.paginate(page, per_page, True)
 
     return query_results.total, [{"id": str(item[0]), "system_profile": item[1]} for item in query_results.items]
+
+
+def get_host_ids_list(
+    display_name: str,
+    fqdn: str,
+    hostname_or_id: str,
+    insights_id: str,
+    provider_id: str,
+    provider_type: str,
+    updated_start: str,
+    updated_end: str,
+    group_name: str,
+    registered_with: List[str],
+    staleness: List[str],
+    tags: List[str],
+    filter: dict,
+    rbac_filter: dict,
+) -> List[str]:
+    all_filters = query_filters(
+        fqdn,
+        display_name,
+        hostname_or_id,
+        insights_id,
+        provider_id,
+        provider_type,
+        updated_start,
+        updated_end,
+        group_name,
+        None,
+        tags,
+        staleness,
+        registered_with,
+        filter,
+        rbac_filter,
+    )
+
+    return [str(res[0]) for res in _find_all_hosts([Host.id]).filter(*all_filters).all()]
