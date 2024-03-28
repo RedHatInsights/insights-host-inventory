@@ -88,6 +88,12 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "Request could not be completed."
+          },
+          "503": {
+            "description": "Internal error."
           }
         }
       },
@@ -644,6 +650,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Groups not found."
           }
         }
       },
@@ -683,6 +692,12 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Invalid request."
+          },
+          "403": {
+            "description": "Forbidden - Invalid RBAC permission."
           }
         }
       }
@@ -954,6 +969,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Resource types not found."
           }
         }
       }
@@ -992,6 +1010,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Groups not found."
           }
         }
       }
@@ -1334,6 +1355,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Invalid request."
           }
         }
       },
@@ -1373,6 +1397,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Invalid request."
           }
         }
       },
@@ -1412,6 +1439,12 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Invalid request."
+          },
+          "404": {
+            "description": "Staleness record not found."
           }
         }
       },
@@ -1469,6 +1502,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Invalid request."
           }
         }
       }
