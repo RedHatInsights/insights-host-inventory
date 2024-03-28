@@ -50,16 +50,16 @@ event_serialization_time = Summary(
 )
 notification_event_producer_success = Counter(
     "notification_event_producer_successes",
-    "Total amount of messages successfully written",
+    "Total amount of notification messages successfully written",
     ["notification_type", "topic"],
 )
 notification_event_producer_failure = Counter(
     "notification_event_producer_failures",
-    "Total amount of failures while writing messages",
+    "Total amount of failures while writing notification messages",
     ["notification_type", "topic"],
 )
 notification_serialization_time = Summary(
-    "notification_serialization_seconds", "Time spent parsing a message", ["notification_type"]
+    "notification_serialization_seconds", "Time spent parsing a notification message", ["notification_type"]
 )
 rbac_fetching_failure = Counter("inventory_rbac_fetching_failures", "Total amount of failures fetching RBAC data")
 rbac_access_denied = Counter(

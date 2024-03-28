@@ -24,7 +24,6 @@ class EventListSchema(MarshmallowSchema):
 
 class NotificationSchema(MarshmallowSchema):
     id = fields.UUID(required=True)  # message_id, also sent in the reader as rh_message_id
-    account_id = fields.Str(validate=marshmallow_validate.Length(min=0, max=36))
     org_id = fields.Str(required=True, validate=marshmallow_validate.Length(min=0, max=36))
     application = fields.Str(required=True, validate=marshmallow_validate.Equal("inventory"))
     bundle = fields.Str(required=True, validate=marshmallow_validate.Equal("rhel"))
@@ -91,12 +90,11 @@ def host_validation_error_notification(notification_type, message_id, host, deta
     return (HostValidationErrorNotificationSchema, notification.update(base_notification_obj))
 
 
-def notification_headers(event_type: NotificationType, rh_message_id: bytearray = None):
+def notification_headers(event_type: NotificationType):
     return {
         "event_type": event_type.name,
         "request_id": threadctx.request_id,
         "producer": hostname(),
-        "rh-message-id": rh_message_id,
     }
 
 
@@ -111,7 +109,6 @@ def build_notification(notification_type, message_id, host, detail, **kwargs):
 def build_base_notification_obj(notification_type, message_id, host):
     base_obj = {
         "id": message_id,
-        "account_id": host.get("account_id") or "",
         "org_id": host.get("org_id"),
         "application": "inventory",
         "bundle": "rhel",
