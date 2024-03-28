@@ -17,6 +17,7 @@ depends_on = None
 
 def upgrade():
     with op.get_context().autocommit_block():
+        op.drop_index("idxaccount", table_name="hosts", postgresql_concurrently=True, if_exists=True)
         op.create_index(
             "idxdisplay_name",
             "hosts",
@@ -25,19 +26,10 @@ def upgrade():
             postgresql_concurrently=True,
             if_not_exists=True,
         )
-        op.drop_index("idxaccount", table_name="hosts", postgresql_concurrently=True, if_exists=True)
         op.create_index(
             "idxsystem_profile_facts",
             "hosts",
             [sa.text("system_profile_facts jsonb_ops")],
-            postgresql_using="gin",
-            postgresql_concurrently=True,
-            if_not_exists=True,
-        )
-        op.create_index(
-            "idxgroups",
-            "hosts",
-            [sa.text("groups jsonb_ops")],
             postgresql_using="gin",
             postgresql_concurrently=True,
             if_not_exists=True,
@@ -47,5 +39,4 @@ def upgrade():
 def downgrade():
     op.drop_index("idxdisplay_name", table_name="hosts", postgresql_concurrently=True, if_exists=True)
     op.drop_index("idxsystem_profile_facts", table_name="hosts", postgresql_concurrently=True, if_exists=True)
-    op.drop_index("idxgroups", table_name="hosts", postgresql_concurrently=True, if_exists=True)
     op.create_index("idxaccount", "hosts", ["account"], unique=False, postgresql_concurrently=True, if_not_exists=True)
