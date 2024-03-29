@@ -1,11 +1,10 @@
-"""Add indexes for display_name, system_profile, and group_name. Remove account index.
+"""Add index for display_name. Remove account index.
 
 Revision ID: 7c97d8464b6b
 Revises: 727301ac6483
 Create Date: 2024-03-07 11:46:14.512390
 
 """
-import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
@@ -26,17 +25,8 @@ def upgrade():
             postgresql_concurrently=True,
             if_not_exists=True,
         )
-        op.create_index(
-            "idxsystem_profile_facts",
-            "hosts",
-            [sa.text("system_profile_facts jsonb_ops")],
-            postgresql_using="gin",
-            postgresql_concurrently=True,
-            if_not_exists=True,
-        )
 
 
 def downgrade():
     op.drop_index("idxdisplay_name", table_name="hosts", postgresql_concurrently=True, if_exists=True)
-    op.drop_index("idxsystem_profile_facts", table_name="hosts", postgresql_concurrently=True, if_exists=True)
     op.create_index("idxaccount", "hosts", ["account"], unique=False, postgresql_concurrently=True, if_not_exists=True)
