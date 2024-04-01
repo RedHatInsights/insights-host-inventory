@@ -27,7 +27,7 @@ fi
 # run unit tests in containers
 DB_CONTAINER_NAME="inventory-db-${IMAGE_TAG}"
 NETWORK="inventory-test-${IMAGE_TAG}"
-POSTGRES_IMAGE="quay.io/cloudservices/postgresql-rds:cyndi-13-1"
+POSTGRES_IMAGE="quay.io/cloudservices/postgresql-rds:cyndi-13"
 
 function teardown_podman {
 	podman rm -f $DB_CONTAINER_ID || true
