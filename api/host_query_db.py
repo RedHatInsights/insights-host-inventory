@@ -268,41 +268,32 @@ def get_tag_list(
         rbac_filter,
     )
 
-    namespace_query = query.filter(*all_filters).distinct().subquery()
+    namespace_query = query.filter(*all_filters).subquery()
     keys_query = (
         db.session.query(
-            namespace_query.c.namespace.label("key_namespace"),
-            func.jsonb_object_keys(Host.tags[namespace_query.c.namespace]).label("key_key"),
+            namespace_query.c.namespace.label("namespace"),
+            func.jsonb_object_keys(Host.tags[namespace_query.c.namespace]).label("key"),
         )
         .filter(*all_filters)
-        .distinct()
         .subquery()
     )
-
     val_query = (
         db.session.query(
-            keys_query.c.key_namespace.label("val_namespace"),
-            keys_query.c.key_key.label("val_key"),
-            func.jsonb_array_elements_text(Host.tags[keys_query.c.key_namespace][keys_query.c.key_key]).label(
-                "val_value"
-            ),
+            keys_query.c.namespace.label("namespace"),
+            keys_query.c.key.label("key"),
+            func.jsonb_array_elements_text(Host.tags[keys_query.c.namespace][keys_query.c.key]).label("value"),
         )
         .filter(*all_filters)
         .subquery()
     )
-
-    query = (
-        db.session.query(
-            keys_query.c.key_namespace.label("namespace"),
-            keys_query.c.key_key.label("key"),
-            val_query.c.val_value.label("value"),
-            func.count().label("count"),
-        )
-        .filter(keys_query.c.key_namespace == val_query.c.val_namespace)
-        .filter(keys_query.c.key_key == val_query.c.val_key)
+    query = db.session.query(
+        val_query.c.namespace.label("namespace"),
+        val_query.c.key.label("key"),
+        val_query.c.value.label("value"),
+        func.count().label("count"),
     )
     if search:
-        query = query.filter(text("val_namespace ~:reg OR val_key ~:reg OR val_value ~:reg")).params(reg=search)
+        query = query.filter(text("namespace ~:reg OR key ~:reg OR value ~:reg")).params(reg=search)
 
     query = query.group_by("namespace", "key", "value")
     query_count = query.count()
