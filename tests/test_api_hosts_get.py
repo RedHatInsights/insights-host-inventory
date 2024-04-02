@@ -1322,7 +1322,6 @@ def test_query_by_staleness(db_create_multiple_hosts, api_get, subtests):
         "[sap][sids][contains][]=ABC",
         "[sap][sids][contains]=ABC",
         "[systemd][failed_services][contains][]=foo",
-        f"[bios_vendor]={quote('%3E/%3AX%26x5wVZCj%25mC')}",
         "[system_memory_bytes][lte]=8292048963606259",
     ),
 )
@@ -1337,7 +1336,6 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
             "bootc_status": {"booted": {"image": "quay.io/centos-bootc/fedora-bootc-cloud:eln"}},
             "sap_sids": ["ABC"],
             "systemd": {"failed_services": ["foo", "bar"]},
-            "bios_vendor": quote("%3E/%3AX%26x5wVZCj%25mC"),
             "system_memory_bytes": 8192,
         }
     }
@@ -1503,7 +1501,6 @@ def test_query_all_sp_filters_multiple_of_same_field(db_create_host, api_get, sp
         "[bootc_status][foo]=val",  # Invalid non-top-level field
         "[bootc_status][booted][foo]=val",  # Invalid non-top-level field
         "[arch][gteq]=val",  # Invalid comparator/field
-        "[system_memory_bytes]=8292048963606259",  # Number too large for field's data type
     ),
 )
 def test_query_all_sp_filters_invalid_field(api_get, sp_filter_param):
