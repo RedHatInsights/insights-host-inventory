@@ -507,7 +507,7 @@ def test_query_all(mq_create_three_specific_hosts, api_get, subtests):
 def test_query_using_display_name(mq_create_three_specific_hosts, api_get):
     created_hosts = mq_create_three_specific_hosts
     expected_host_list = build_expected_host_list([created_hosts[0]])
-    url = build_hosts_url(query=f"?display_name={created_hosts[0].display_name}")
+    url = build_hosts_url(query=f"?display_name={created_hosts[0].display_name.upper()}")
 
     with patch("api.host.get_flag_value", return_value=True):
         response_status, response_data = api_get(url)
@@ -521,7 +521,7 @@ def test_query_using_fqdn_two_results(mq_create_three_specific_hosts, api_get):
     created_hosts = mq_create_three_specific_hosts
     expected_host_list = build_expected_host_list([created_hosts[0], created_hosts[1]])
 
-    url = build_hosts_url(query=f"?fqdn={created_hosts[0].fqdn}")
+    url = build_hosts_url(query=f"?fqdn={created_hosts[0].fqdn.upper()}")
     with patch("api.host.get_flag_value", return_value=True):
         response_status, response_data = api_get(url)
 
@@ -550,6 +550,26 @@ def test_query_using_non_existent_fqdn(api_get):
 
     assert response_status == 200
     assert len(response_data["results"]) == 0
+
+
+@pytest.mark.parametrize(
+    "query",
+    (
+        (f"fqdn={generate_uuid()}&display_name={generate_uuid()}"),
+        (f"fqdn={generate_uuid()}&hostname_or_id={generate_uuid()}"),
+        (f"fqdn={generate_uuid()}&insights_id={generate_uuid()}"),
+        (f"display_name={generate_uuid()}&hostname_or_id={generate_uuid()}"),
+        (f"display_name={generate_uuid()}&insights_id={generate_uuid()}"),
+        (f"hostname_or_id={generate_uuid()}&insights_id={generate_uuid()}"),
+    ),
+)
+def test_query_by_conflitcting_ids(api_get, query):
+    # Not allowed to query on more than one of these fields at once
+    url = build_hosts_url(query=f"?{query}")
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, _ = api_get(url)
+
+    assert response_status == 400
 
 
 def test_query_using_display_name_substring(mq_create_three_specific_hosts, api_get, subtests):
@@ -626,7 +646,7 @@ def test_query_using_non_existent_id(mq_create_three_specific_hosts, api_get, su
 
 def test_query_using_insights_id(mq_create_three_specific_hosts, api_get, subtests):
     created_hosts = mq_create_three_specific_hosts
-    url = build_hosts_url(query=f"?insights_id={created_hosts[0].insights_id}")
+    url = build_hosts_url(query=f"?insights_id={created_hosts[0].insights_id.upper()}")
 
     with patch("api.host.get_flag_value", return_value=True):
         response_status, response_data = api_get(url)
@@ -925,7 +945,7 @@ def test_query_using_group_name(db_create_group_with_hosts, api_get, num_groups)
     # Some other group that we don't want to see in the response
     db_create_group_with_hosts("some_other_group", 5)
 
-    group_name_params = "&".join([f"group_name=existing_group_{i}" for i in range(num_groups)])
+    group_name_params = "&".join([f"group_name=EXISTING_GROUP_{i}" for i in range(num_groups)])
     url = build_hosts_url(query=f"?{group_name_params}")
 
     with patch("api.host.get_flag_value", return_value=True):
@@ -996,9 +1016,14 @@ def test_query_hosts_filter_updated_start_end(mq_create_or_update_host, api_get)
 
 @pytest.mark.parametrize("order_how", ("ASC", "DESC"))
 def test_get_hosts_order_by_group_name(db_create_group_with_hosts, api_get, subtests, order_how):
-    hosts_per_group = 2
-    names = ["A Group", "B Group", "C Group"]
-    [db_create_group_with_hosts(group_name, hosts_per_group) for group_name in names]
+    hosts_per_group = 3
+    names = ["ABC Group", "BCD Group", "CDE Group", "DEF Group"]
+
+    # Shuffle the list so the groups aren't created in alphabetical order
+    # Just to make sure it's actually ordering by name and not date
+    shuffled_group_names = names.copy()
+    random.shuffle(shuffled_group_names)
+    [db_create_group_with_hosts(group_name, hosts_per_group) for group_name in shuffled_group_names]
 
     url = build_hosts_url(query=f"?order_by=group_name&order_how={order_how}")
 
@@ -1020,7 +1045,7 @@ def test_get_hosts_order_by_group_name(db_create_group_with_hosts, api_get, subt
             )
 
 
-@pytest.mark.parametrize("order_how", ("ASC", "DESC"))
+@pytest.mark.parametrize("order_how", ("", "ASC", "DESC"))
 def test_get_hosts_order_by_operating_system(mq_create_or_update_host, api_get, order_how):
     # Create some operating systems in ASC sort order
     ordered_operating_system_data = [
@@ -1049,7 +1074,11 @@ def test_get_hosts_order_by_operating_system(mq_create_or_update_host, api_get, 
         )
         for insights_id in shuffled_insights_ids
     ]
-    url = build_hosts_url(query=f"?order_by=operating_system&order_how={order_how}")
+    query = "?order_by=operating_system"
+    if order_how:
+        query += f"&order_how={order_how}"
+
+    url = build_hosts_url(query=query)
 
     with patch("api.host.get_flag_value", return_value=True):
         # Validate the basics, i.e. response code and results size
@@ -1058,7 +1087,7 @@ def test_get_hosts_order_by_operating_system(mq_create_or_update_host, api_get, 
         assert len(created_hosts) == len(response_data["results"])
 
     # If descending order is requested, reverse the expected order of hosts
-    if order_how == "DESC":
+    if order_how != "ASC":
         ordered_insights_ids.reverse()
 
     for index in range(len(ordered_insights_ids)):
@@ -1078,8 +1107,16 @@ def test_query_using_id_list(mq_create_three_specific_hosts, api_get, subtests, 
     assert len(response_data["results"]) == num_hosts_to_query
 
 
+def test_query_using_id_list_nonexistent_host(api_get):
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(build_hosts_url(generate_uuid()))
+
+    assert response_status == 404
+
+
 @pytest.mark.parametrize("num_hosts_to_query", (1, 2, 3))
-def test_query_sp_by_id_list_sparse(db_create_multiple_hosts, api_get, num_hosts_to_query):
+@pytest.mark.parametrize("sparse_request", (True, False))
+def test_query_sp_by_id_list_sparse(db_create_multiple_hosts, api_get, num_hosts_to_query, sparse_request):
     sp_data = {
         "system_profile_facts": {
             "arch": "x86_64",
@@ -1091,7 +1128,9 @@ def test_query_sp_by_id_list_sparse(db_create_multiple_hosts, api_get, num_hosts
     created_hosts = db_create_multiple_hosts(how_many=3, extra_data=sp_data)
     created_hosts_ids = [str(host.id) for host in created_hosts]
     host_list_url = build_hosts_url(host_list_or_id=created_hosts[:num_hosts_to_query])
-    url = f"{host_list_url}/system_profile?fields[system_profile]=arch,os_kernel_version,installed_packages,host_type"
+    url = f"{host_list_url}/system_profile"
+    if sparse_request:
+        url += "?fields[system_profile]=arch,os_kernel_version,installed_packages,host_type"
 
     with patch("api.host.get_flag_value", return_value=True):
         response_status, response_data = api_get(url)
@@ -1100,7 +1139,9 @@ def test_query_sp_by_id_list_sparse(db_create_multiple_hosts, api_get, num_hosts
     assert len(response_data["results"]) == num_hosts_to_query
     for response_host in response_data["results"]:
         assert response_host["id"] in created_hosts_ids
-        assert "owner_id" not in response_host["system_profile"]
+
+        # "!=" works as an XOR
+        assert sparse_request != ("owner_id" in response_host["system_profile"])
         for fact in ["arch", "os_kernel_version", "host_type"]:
             assert fact in response_host["system_profile"]
 
@@ -1117,6 +1158,33 @@ def test_query_all_sparse_fields(db_create_multiple_hosts, api_get):
     }
     db_create_multiple_hosts(how_many=3, extra_data=sp_data)
     url = build_hosts_url(query="?fields[system_profile]=arch,host_type")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    # Assert that the system_profile is not in the response by default
+    for result in response_data["results"]:
+        assert "system_profile" in result
+        assert "arch" in result["system_profile"]
+        assert "host_type" in result["system_profile"]
+        assert "os_kernel_version" not in result["system_profile"]
+        assert "owner_id" not in result["system_profile"]
+
+
+def test_query_sys_profile_with_sql_characters(db_create_multiple_hosts, api_get):
+    # Create hosts that have a system profile
+    sp_data = {
+        "system_profile_facts": {
+            "arch": "x86_64",
+            "os_kernel_version": "4.18.2",
+            "host_type": "edge",
+            "owner_id": "1b36b20f-7fa0-4454-a6d2-008294e06378",
+        }
+    }
+    db_create_multiple_hosts(how_many=3, extra_data=sp_data)
+    url = build_hosts_url(query="?filter[system_profile][bios_vendor]=%3E/%3AX%26x5wVZCj%25mC")
 
     with patch("api.host.get_flag_value", return_value=True):
         response_status, response_data = api_get(url)
@@ -1181,21 +1249,31 @@ def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
                 "last_check_in": (_now - timedelta(days=1)).isoformat(),
                 "stale_timestamp": (_now + timedelta(days=6)).isoformat(),
                 "check_in_succeeded": True,
-            }
+            },
+            "satellite": {
+                "last_check_in": (_now - timedelta(days=3)).isoformat(),
+                "stale_timestamp": (_now + timedelta(days=4)).isoformat(),
+                "check_in_succeeded": True,
+            },
         },
         {
             "puptoo": {
                 "last_check_in": (_now - timedelta(days=30)).isoformat(),
                 "stale_timestamp": (_now - timedelta(days=23)).isoformat(),
                 "check_in_succeeded": True,
-            }
+            },
+            "discovery": {
+                "last_check_in": (_now - timedelta(days=3)).isoformat(),
+                "stale_timestamp": (_now + timedelta(days=4)).isoformat(),
+                "check_in_succeeded": True,
+            },
         },
         {
             "rhsm-conduit": {
                 "last_check_in": (_now - timedelta(days=1)).isoformat(),
                 "stale_timestamp": (_now + timedelta(days=6)).isoformat(),
                 "check_in_succeeded": True,
-            }
+            },
         },
     ]
     insights_ids = [generate_uuid() for _ in range(len(registered_with_data))]
@@ -1217,9 +1295,10 @@ def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
 
     expected_reporter_results_map = {
         "puptoo": 2,
-        "yupana": 1,
+        "yupana": 3,
+        "!yupana": 1,
         "rhsm-conduit": 1,
-        "rhsm-conduit&registered_with=yupana": 2,
+        "rhsm-conduit&registered_with=yupana": 4,
     }
     for reporter, count in expected_reporter_results_map.items():
         with subtests.test():
@@ -1229,3 +1308,261 @@ def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
                 response_status, response_data = api_get(url)
                 assert response_status == 200
                 assert count == len(response_data["results"])
+
+
+def test_query_by_staleness(db_create_multiple_hosts, api_get, subtests):
+    expected_staleness_results_map = {
+        "fresh": 3,
+        "stale": 4,
+        "stale_warning": 2,
+    }
+    staleness_timestamp_map = {
+        "fresh": now(),
+        "stale": now() - timedelta(days=3),
+        "stale_warning": now() - timedelta(days=10),
+    }
+    staleness_to_host_ids_map = dict()
+
+    # Create the hosts in each state
+    for staleness, num_hosts in expected_staleness_results_map.items():
+        # Patch the "now" function so the hosts are created in the desired state
+        with patch("app.models.datetime", **{"now.return_value": staleness_timestamp_map[staleness]}):
+            staleness_to_host_ids_map[staleness] = [str(h.id) for h in db_create_multiple_hosts(how_many=num_hosts)]
+
+    for staleness, count in expected_staleness_results_map.items():
+        with subtests.test():
+            url = build_hosts_url(query=f"?staleness={staleness}")
+            with patch("api.host.get_flag_value", return_value=True):
+                # Validate the basics, i.e. response code and results size
+                response_status, response_data = api_get(url)
+                assert response_status == 200
+                assert count == len(response_data["results"])
+
+
+@pytest.mark.parametrize(
+    "sp_filter_param",
+    (
+        "[arch]=x86_64",
+        "[arch][eq]=x86_64",
+        "[arch][neq]=ARM",
+        "[insights_client_version]=3.0.1-2.el4_2",
+        "[insights_client_version]=3.0.*",
+        "[host_type]=edge",
+        "[sap][sap_system]=True",
+        "[arch]=x86_64&filter[system_profile][host_type]=edge",
+        "[insights_client_version][]=3.0.*&filter[system_profile][insights_client_version][]=*el4_2",
+        "[greenboot_status][is]=nil",
+        "[host_type]=not_nil",
+        "[greenboot_status][is][]=nil",
+        "[host_type][]=not_nil",
+        "[bootc_status][booted][image]=quay.io*",
+        "[sap_sids][contains][]=ABC",
+        "[sap_sids][contains]=ABC",
+        "[sap][sids][contains][]=ABC",
+        "[sap][sids][contains]=ABC",
+        "[systemd][failed_services][contains][]=foo",
+        "[system_memory_bytes][lte]=8292048963606259",
+    ),
+)
+def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
+    # Create host with this system profile
+    match_sp_data = {
+        "system_profile_facts": {
+            "arch": "x86_64",
+            "insights_client_version": "3.0.1-2.el4_2",
+            "host_type": "edge",
+            "sap": {"sap_system": True, "sids": ["ABC"]},
+            "bootc_status": {"booted": {"image": "quay.io/centos-bootc/fedora-bootc-cloud:eln"}},
+            "sap_sids": ["ABC"],
+            "systemd": {"failed_services": ["foo", "bar"]},
+            "system_memory_bytes": 8192,
+        }
+    }
+    match_host_id = str(db_create_host(extra_data=match_sp_data).id)
+
+    # Create host with differing SP
+    nomatch_sp_data = {
+        "system_profile_facts": {
+            "arch": "ARM",
+            "insights_client_version": "1.2.3",
+            "greenboot_status": "green",
+            "bootc_status": {"booted": {"image": "192.168.0.1:5000/foo/foo:latest"}},
+            "sap_sids": ["DEF"],
+        }
+    }
+    nomatch_host_id = str(db_create_host(extra_data=nomatch_sp_data).id)
+
+    url = build_hosts_url(query=f"?filter[system_profile]{sp_filter_param}")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    # Assert that only the matching host is returned
+    response_ids = [result["id"] for result in response_data["results"]]
+    assert match_host_id in response_ids
+    assert nomatch_host_id not in response_ids
+
+
+@pytest.mark.parametrize(
+    "sp_filter_param",
+    (
+        "[RHEL][version]=8.11",
+        "[RHEL][version][eq]=8.11",
+        "[RHEL][version][eq][]=8.11",
+        "[RHEL][version][eq][]=8.11&filter[system_profile][operating_system][RHEL][version][eq][]=9.1",
+        "[RHEL][version][gt]=8",
+        "[RHEL][version][gte]=8.11&filter[system_profile][operating_system][RHEL][version][eq]=8.11",
+    ),
+)
+def test_query_all_sp_filters_operating_system(db_create_host, api_get, sp_filter_param):
+    # Create host with this system profile
+    match_sp_data = {
+        "system_profile_facts": {
+            "operating_system": {
+                "name": "RHEL",
+                "major": "8",
+                "minor": "11",
+            }
+        }
+    }
+    match_host_id = str(db_create_host(extra_data=match_sp_data).id)
+
+    # Create host with differing SP
+    nomatch_sp_data = {
+        "system_profile_facts": {
+            "operating_system": {
+                "name": "RHEL",
+                "major": "7",
+                "minor": "12",
+            }
+        }
+    }
+    nomatch_host_id_1 = str(db_create_host(extra_data=nomatch_sp_data).id)
+
+    # Create host with differing SP
+    nomatch_sp_data = {
+        "system_profile_facts": {
+            "operating_system": {
+                "name": "RHEL",
+                "major": "7",
+                "minor": "5",
+            }
+        }
+    }
+    nomatch_host_id_2 = str(db_create_host(extra_data=nomatch_sp_data).id)
+
+    # Create host with differing SP
+    nomatch_sp_data = {
+        "system_profile_facts": {
+            "operating_system": {
+                "name": "CentOS",
+                "major": "7",
+                "minor": "0",
+            }
+        }
+    }
+    nomatch_host_id_3 = str(db_create_host(extra_data=nomatch_sp_data).id)
+
+    url = build_hosts_url(query=f"?filter[system_profile][operating_system]{sp_filter_param}")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    # Assert that only the matching host is returned
+    response_ids = [result["id"] for result in response_data["results"]]
+    assert match_host_id in response_ids
+    assert nomatch_host_id_1 not in response_ids
+    assert nomatch_host_id_2 not in response_ids
+    assert nomatch_host_id_3 not in response_ids
+
+
+@pytest.mark.parametrize(
+    "sp_filter_param_list",
+    (
+        ["[arch][eq][]=x86_64", "[arch][eq][]=ARM"],  # Uses OR (same comparator)
+        ["[insights_client_version][]=3.0.1*", "[insights_client_version][]=1.2.3"],  # Uses OR (same comparator)
+        ["[systemd][jobs_queued][lt][]=10", "[systemd][jobs_queued][gte][]=1"],  # Uses AND (different comparators)
+    ),
+)
+def test_query_all_sp_filters_multiple_of_same_field(db_create_host, api_get, sp_filter_param_list):
+    # Create two hosts that we want to show up in the results
+    match_1_sp_data = {
+        "system_profile_facts": {
+            "arch": "x86_64",
+            "insights_client_version": "3.0.1-2.el4_2",
+            "systemd": {"jobs_queued": "1"},
+        }
+    }
+    match_1_host_id = str(db_create_host(extra_data=match_1_sp_data).id)
+
+    match_2_sp_data = {
+        "system_profile_facts": {
+            "arch": "ARM",
+            "insights_client_version": "1.2.3",
+            "systemd": {"jobs_queued": "5"},
+        }
+    }
+    match_2_host_id = str(db_create_host(extra_data=match_2_sp_data).id)
+
+    # Create a host that we don't want to appear in the results
+    nomatch_sp_data = {
+        "system_profile_facts": {
+            "arch": "RISC-V",
+            "insights_client_version": "4.5.6",
+            "systemd": {"jobs_queued": "10"},
+        }
+    }
+    nomatch_host_id = str(db_create_host(extra_data=nomatch_sp_data).id)
+
+    sp_query_filter = "&".join([f"filter[system_profile]{param}" for param in sp_filter_param_list])
+    url = build_hosts_url(query=f"?{sp_query_filter}")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    # Assert that only the matching host is returned
+    response_ids = [result["id"] for result in response_data["results"]]
+    assert match_1_host_id in response_ids
+    assert match_2_host_id in response_ids
+    assert nomatch_host_id not in response_ids
+
+
+@pytest.mark.parametrize(
+    "sp_filter_param",
+    (
+        "[foo]=val",  # Invalid top-level field
+        "[bootc_status][foo]=val",  # Invalid non-top-level field
+        "[bootc_status][booted][foo]=val",  # Invalid non-top-level field
+        "[arch][gteq]=val",  # Invalid comparator/field
+    ),
+)
+def test_query_all_sp_filters_invalid_field(api_get, sp_filter_param):
+    url = build_hosts_url(query=f"?filter[system_profile]{sp_filter_param}")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 400
+    assert "invalid filter field" in response_data.get("detail")
+
+
+@pytest.mark.parametrize(
+    "sp_filter_param",
+    (
+        "[operating_system][foo][version]=8.1",  # Invalid OS name
+        "[operating_system][RHEL][version]=bar",  # Invalid OS version
+    ),
+)
+def test_query_all_sp_filters_invalid_operating_system(api_get, sp_filter_param):
+    url = build_hosts_url(query=f"?filter[system_profile]{sp_filter_param}")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, _ = api_get(url)
+
+    assert response_status == 400

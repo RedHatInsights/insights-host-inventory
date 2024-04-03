@@ -79,8 +79,12 @@ def run_migrations_online():
 
     try:
         with context.begin_transaction():
+            # Lock so multiple pods don't run the same migration simultaneously
+            context.execute("select pg_advisory_lock(1);")
             context.run_migrations()
     finally:
+        # Release the lock
+        context.execute("select pg_advisory_unlock(1);")
         connection.close()
 
 

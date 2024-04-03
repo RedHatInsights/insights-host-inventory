@@ -165,7 +165,10 @@ def process_spec(spec, process_unindexed=False):
                 "is_array": "array" == props.get("type"),
             }
 
-            if field_filter == "object":
+            if "enum" in props:
+                system_profile_spec_processed[field]["enum"] = props.get("enum")
+
+            if field_filter in ["object", "operating_system"]:
                 system_profile_spec_processed[field]["children"], _ = process_spec(props["properties"], True)
 
         if not props.get("x-indexed", True):
@@ -181,7 +184,11 @@ def process_system_profile_spec():
 
 
 def create_app(runtime_environment):
-    connexion_options = {"swagger_ui": True, "uri_parser_class": customURIParser}
+    connexion_options = {
+        "swagger_ui": True,
+        "uri_parser_class": customURIParser,
+        "openapi_spec_path": "/dev/openapi.json",
+    }
     # This feels like a hack but it is needed.  The logging configuration
     # needs to be setup before the flask app is initialized.
     configure_logging()

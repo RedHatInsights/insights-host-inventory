@@ -13,6 +13,7 @@ from api import metrics
 from api.host_query import build_paginated_host_list_response
 from api.host_query import staleness_timestamps
 from api.host_query_db import get_all_hosts
+from api.host_query_db import get_host_ids_list as get_host_ids_list_postgres
 from api.host_query_db import get_host_list as get_host_list_postgres
 from api.host_query_db import get_host_list_by_id_list as get_host_list_by_id_list_postgres
 from api.host_query_db import get_host_tags_list_by_id_list as get_host_tags_list_by_id_list_postgres
@@ -191,23 +192,42 @@ def delete_hosts_by_filter(
         flask.abort(400, "bulk-delete operation needs at least one input property to filter on.")
 
     try:
-        ids_list = get_host_ids_list_xjoin(
-            display_name,
-            fqdn,
-            hostname_or_id,
-            insights_id,
-            provider_id,
-            provider_type,
-            updated_start,
-            updated_end,
-            group_name,
-            registered_with,
-            staleness,
-            tags,
-            filter,
-            rbac_filter,
-        )
-
+        current_identity = get_current_identity()
+        if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
+            logger.info(f"{FLAG_INVENTORY_DISABLE_XJOIN} is applied to {current_identity.org_id}")
+            ids_list = get_host_ids_list_postgres(
+                display_name,
+                fqdn,
+                hostname_or_id,
+                insights_id,
+                provider_id,
+                provider_type,
+                updated_start,
+                updated_end,
+                group_name,
+                registered_with,
+                staleness,
+                tags,
+                filter,
+                rbac_filter,
+            )
+        else:
+            ids_list = get_host_ids_list_xjoin(
+                display_name,
+                fqdn,
+                hostname_or_id,
+                insights_id,
+                provider_id,
+                provider_type,
+                updated_start,
+                updated_end,
+                group_name,
+                registered_with,
+                staleness,
+                tags,
+                filter,
+                rbac_filter,
+            )
     except ValueError as err:
         log_get_host_list_failed(logger)
         flask.abort(400, str(err))

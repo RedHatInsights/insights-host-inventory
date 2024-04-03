@@ -1,6 +1,7 @@
 from typing import List
 from typing import Tuple
 
+from flask import abort
 from sqlalchemy import Boolean
 from sqlalchemy import func
 from sqlalchemy import text
@@ -31,9 +32,8 @@ logger = get_logger(__name__)
 
 
 def get_all_hosts() -> List:
-    query = _find_all_hosts()
-    query_results = query.all()
-    ids_list = [str(host.id) for host in query_results]
+    query_results = _find_all_hosts([Host.id]).all()
+    ids_list = [str(result[0]) for result in query_results]
 
     log_get_host_list_succeeded(logger, ids_list)
     return ids_list
@@ -109,7 +109,13 @@ def get_host_list_by_id_list(
     all_filters = host_id_list_filter(host_id_list)
     all_filters += rbac_permissions_filter(rbac_filter)
 
-    return _get_host_list_using_filters(all_filters, page, per_page, param_order_by, param_order_how, fields)
+    items, total, additional_fields, system_profile_fields = _get_host_list_using_filters(
+        all_filters, page, per_page, param_order_by, param_order_how, fields
+    )
+    if total == 0:
+        abort(404)
+
+    return items, total, additional_fields, system_profile_fields
 
 
 def params_to_order_by(order_by: str = None, order_how: str = None) -> Tuple:
@@ -133,7 +139,7 @@ def params_to_order_by(order_by: str = None, order_how: str = None) -> Tuple:
         if order_how:
             ordering = (_order_how(Host.operating_system, order_how),)
         else:
-            ordering = (Host.operating_system.asc(),)
+            ordering = (Host.operating_system.desc(),)
     elif order_by:
         raise ValueError(
             'Unsupported ordering column: use "updated", "display_name", "group_name", or "operating_system".'
@@ -212,6 +218,12 @@ def params_to_order_by_for_tags(order_by: str = None, order_how: str = None) -> 
     return ordering
 
 
+def _convert_null_string(input: str):
+    if input == "null":
+        return None
+    return input
+
+
 def get_tag_list(
     display_name: str,
     fqdn: str,
@@ -256,41 +268,32 @@ def get_tag_list(
         rbac_filter,
     )
 
-    namespace_query = query.filter(*all_filters).distinct().subquery()
+    namespace_query = query.filter(*all_filters).subquery()
     keys_query = (
         db.session.query(
-            namespace_query.c.namespace.label("key_namespace"),
-            func.jsonb_object_keys(Host.tags[namespace_query.c.namespace]).label("key_key"),
+            namespace_query.c.namespace.label("namespace"),
+            func.jsonb_object_keys(Host.tags[namespace_query.c.namespace]).label("key"),
         )
         .filter(*all_filters)
-        .distinct()
         .subquery()
     )
-
     val_query = (
         db.session.query(
-            keys_query.c.key_namespace.label("val_namespace"),
-            keys_query.c.key_key.label("val_key"),
-            func.jsonb_array_elements_text(Host.tags[keys_query.c.key_namespace][keys_query.c.key_key]).label(
-                "val_value"
-            ),
+            keys_query.c.namespace.label("namespace"),
+            keys_query.c.key.label("key"),
+            func.jsonb_array_elements_text(Host.tags[keys_query.c.namespace][keys_query.c.key]).label("value"),
         )
         .filter(*all_filters)
         .subquery()
     )
-
-    query = (
-        db.session.query(
-            keys_query.c.key_namespace.label("namespace"),
-            keys_query.c.key_key.label("key"),
-            val_query.c.val_value.label("value"),
-            func.count().label("count"),
-        )
-        .filter(keys_query.c.key_namespace == val_query.c.val_namespace)
-        .filter(keys_query.c.key_key == val_query.c.val_key)
+    query = db.session.query(
+        val_query.c.namespace.label("namespace"),
+        val_query.c.key.label("key"),
+        val_query.c.value.label("value"),
+        func.count().label("count"),
     )
     if search:
-        query = query.filter(text("val_namespace ~:reg OR val_key ~:reg OR val_value ~:reg")).params(reg=search)
+        query = query.filter(text("namespace ~:reg OR key ~:reg OR value ~:reg")).params(reg=search)
 
     query = query.group_by("namespace", "key", "value")
     query_count = query.count()
@@ -298,7 +301,10 @@ def get_tag_list(
     query_results = query.offset(offset).limit(limit).all()
     tag_list = []
     for result in query_results:
-        tag = {"tag": {"namespace": result[0], "key": result[1], "value": result[2]}, "count": result[3]}
+        namespace = _convert_null_string(result[0])
+        tagkey = _convert_null_string(result[1])
+        tagvalue = _convert_null_string(result[2])
+        tag = {"tag": {"namespace": namespace, "key": tagkey, "value": tagvalue}, "count": result[3]}
         tag_list.append(tag)
     return tag_list, query_count
 
@@ -412,18 +418,21 @@ def get_sparse_system_profile(
     fields: List[str],
     rbac_filter: dict,
 ) -> Tuple[List[Host], int]:
-    columns = [
-        Host.id,
-        func.jsonb_strip_nulls(
-            func.jsonb_build_object(
-                *[
-                    kv
-                    for key in fields.get("system_profile")
-                    for kv in (key, Host.system_profile_facts[key].label(key))
-                ]
-            ).label("system_profile_facts")
-        ),
-    ]
+    if fields and fields.get("system_profile"):
+        columns = [
+            Host.id,
+            func.jsonb_strip_nulls(
+                func.jsonb_build_object(
+                    *[
+                        kv
+                        for key in fields.get("system_profile")
+                        for kv in (key, Host.system_profile_facts[key].label(key))
+                    ]
+                ).label("system_profile_facts")
+            ),
+        ]
+    else:
+        columns = [Host.id, Host.system_profile_facts]
 
     all_filters = host_id_list_filter(host_id_list) + rbac_permissions_filter(rbac_filter)
     sp_query = (
@@ -433,3 +442,40 @@ def get_sparse_system_profile(
     query_results = sp_query.paginate(page, per_page, True)
 
     return query_results.total, [{"id": str(item[0]), "system_profile": item[1]} for item in query_results.items]
+
+
+def get_host_ids_list(
+    display_name: str,
+    fqdn: str,
+    hostname_or_id: str,
+    insights_id: str,
+    provider_id: str,
+    provider_type: str,
+    updated_start: str,
+    updated_end: str,
+    group_name: str,
+    registered_with: List[str],
+    staleness: List[str],
+    tags: List[str],
+    filter: dict,
+    rbac_filter: dict,
+) -> List[str]:
+    all_filters = query_filters(
+        fqdn,
+        display_name,
+        hostname_or_id,
+        insights_id,
+        provider_id,
+        provider_type,
+        updated_start,
+        updated_end,
+        group_name,
+        None,
+        tags,
+        staleness,
+        registered_with,
+        filter,
+        rbac_filter,
+    )
+
+    return [str(res[0]) for res in _find_all_hosts([Host.id]).filter(*all_filters).all()]

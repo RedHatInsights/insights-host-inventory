@@ -31,6 +31,7 @@ ENV PIPENV_VENV_IN_PROJECT=1
 
 RUN python3 -m pip install --upgrade pip setuptools wheel && \
     python3 -m pip install pipenv && \
+    python3 -m pip install dumb-init && \
     pipenv install --system --dev && \
     pgxn install pg_repack
 
@@ -48,4 +49,4 @@ RUN microdnf remove -y $( comm -13 packages-before-devel-install.txt packages-af
 
 USER 1001
 
-CMD bash -c 'make upgrade_db && make run_inv_mq_service'
+ENTRYPOINT [ "dumb-init", "./run_command.sh" ]

@@ -1,5 +1,6 @@
 from copy import deepcopy
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
 from confluent_kafka import KafkaException
@@ -10,6 +11,7 @@ from app.queue.event_producer import MessageDetails
 from lib.host_delete import delete_hosts
 from lib.host_repository import get_host_list_by_id_list_from_db
 from tests.helpers.api_utils import assert_response_status
+from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import HOST_WRITE_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
@@ -193,6 +195,7 @@ def test_delete_over_100_filtered_hosts(
     # for querying for deletion using filters
     patched_post = patch_xjoin_post(response, status=200)
     patched_delete = mocker.patch("api.host._delete_host_list")
+    patched_delete.return_value = 0  # We don't care about the return value
 
     # delete hosts using the IDs supposedly returned by the query_filter
     response_status, response_data = api_delete_filtered_hosts({"staleness": "stale"})
@@ -567,6 +570,52 @@ def test_delete_host_RBAC_denied_specific_groups(
     assert_response_status(response_status, expected_status=404)
 
     assert db_get_host(host_id)
+
+
+def test_postgres_delete_filtered_hosts(
+    mocker, db_create_host, api_get, api_delete_filtered_hosts, event_producer_mock
+):
+    host_1_id = db_create_host(extra_data={"display_name": "foobar"}).id
+    host_2_id = db_create_host(extra_data={"display_name": "foobaz"}).id
+
+    # Create another host that we don't want to be deleted
+    not_deleted_host_id = str(db_create_host(extra_data={"canonical_facts": {"insights_id": generate_uuid()}}).id)
+
+    with patch("api.host.get_flag_value", return_value=True):
+        # Delete the first two hosts using the bulk deletion endpoint
+        response_status, response_data = api_delete_filtered_hosts({"hostname_or_id": "foo"})
+        assert_response_status(response_status, expected_status=202)
+        assert response_data["hosts_deleted"] == 2
+
+        # Make sure they were both deleted and produced deletion events
+        assert '"type": "delete"' in event_producer_mock.event
+        response_status, response_data = api_get(build_hosts_url(host_1_id))
+        assert_response_status(response_status, expected_status=404)
+        response_status, response_data = api_get(build_hosts_url(host_2_id))
+        assert_response_status(response_status, expected_status=404)
+
+        # Make sure the other host wasn't deleted
+        response_status, response_data = api_get(build_hosts_url(not_deleted_host_id))
+        assert_response_status(response_status, expected_status=200)
+        assert response_data["results"][0]["id"] == not_deleted_host_id
+
+
+def test_postgres_delete_filtered_hosts_nomatch(
+    db_create_host, api_get, api_delete_filtered_hosts, event_producer_mock
+):
+    # Create a host that we don't want to be deleted
+    not_deleted_host_id = str(db_create_host(extra_data={"canonical_facts": {"insights_id": generate_uuid()}}).id)
+
+    with patch("api.host.get_flag_value", return_value=True):
+        # Call the delete endpoint when no hosts match the criteria
+        response_status, response_data = api_delete_filtered_hosts({"insights_id": generate_uuid()})
+        assert response_data["hosts_found"] == 0
+        assert response_data["hosts_deleted"] == 0
+
+        # Make sure the existing host wasn't deleted
+        response_status, response_data = api_get(build_hosts_url(not_deleted_host_id))
+        assert_response_status(response_status, expected_status=200)
+        assert response_data["results"][0]["id"] == not_deleted_host_id
 
 
 class DeleteHostsMock:

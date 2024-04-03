@@ -27,19 +27,19 @@ fi
 # run unit tests in containers
 DB_CONTAINER_NAME="inventory-db-${IMAGE_TAG}"
 NETWORK="inventory-test-${IMAGE_TAG}"
-POSTGRES_IMAGE="quay.io/cloudservices/postgresql-rds:cyndi-13-1"
+POSTGRES_IMAGE="quay.io/cloudservices/postgresql-rds:cyndi-13"
 
-function teardown_docker {
-	docker rm -f $DB_CONTAINER_ID || true
-	docker rm -f $TEST_CONTAINER_ID || true
-	docker network rm $NETWORK || true
+function teardown_podman {
+	podman rm -f $DB_CONTAINER_ID || true
+	podman rm -f $TEST_CONTAINER_ID || true
+	podman network rm $NETWORK || true
 }
 
-trap "teardown_docker" EXIT SIGINT SIGTERM
+trap "teardown_podman" EXIT SIGINT SIGTERM
 
-docker network create --driver bridge $NETWORK
+podman network create --driver bridge $NETWORK
 
-DB_CONTAINER_ID=$(docker run -d \
+DB_CONTAINER_ID=$(podman run -d \
 	--name "${DB_CONTAINER_NAME}" \
 	--network "${NETWORK}" \
 	-e POSTGRESQL_USER="inventory-test" \
@@ -52,10 +52,10 @@ if [[ "$DB_CONTAINER_ID" == "0" ]]; then
 	exit 1
 fi
 
-DB_IP_ADDR=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $DB_CONTAINER_ID)
+DB_IP_ADDR=$(podman inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $DB_CONTAINER_ID)
 
 # Do tests
-TEST_CONTAINER_ID=$(docker run -d \
+TEST_CONTAINER_ID=$(podman run -d \
 	--network ${NETWORK} \
 	-e INVENTORY_DB_NAME="inventory-test" \
 	-e INVENTORY_DB_HOST="${DB_IP_ADDR}" \
@@ -63,7 +63,7 @@ TEST_CONTAINER_ID=$(docker run -d \
 	-e INVENTORY_DB_USER="inventory-test" \
 	-e INVENTORY_DB_PASS="inventory-test" \
 	$IMAGE:$IMAGE_TAG \
-	/bin/bash -c 'sleep infinity' || echo "0")
+	sleep infinity || echo "0")
 
 if [[ "$TEST_CONTAINER_ID" == "0" ]]; then
 	echo "Failed to start test container"
@@ -78,7 +78,7 @@ echo '===================================='
 echo '=== Installing Pip Dependencies ===='
 echo '===================================='
 set +e
-docker exec $TEST_CONTAINER_ID /bin/bash -c 'pipenv install --system --dev'
+podman exec $TEST_CONTAINER_ID pipenv install --system --dev"
 TEST_RESULT=$?
 set -e
 if [ $TEST_RESULT -ne 0 ]; then
@@ -93,12 +93,12 @@ echo '===================================='
 echo '====        Running Tests       ===='
 echo '===================================='
 set +e
-docker exec $TEST_CONTAINER_ID /bin/bash -c 'FLASK_APP=manage.py flask db upgrade && pytest --cov=. --junitxml=junit-unittest.xml --cov-report html -sv'
+podman exec $TEST_CONTAINER_ID --entrypoint=["FLASK_APP=manage.py", "flask", "db", "upgrade", "&&", "pytest", "--cov=.", "--junitxml=junit-unittest.xml", "--cov-report html", "-sv"]
 TEST_RESULT=$?
 set -e
 
 # Copy junit report
-docker cp $TEST_CONTAINER_ID:junit-unittest.xml $WORKSPACE/artifacts
+podman cp $TEST_CONTAINER_ID:junit-unittest.xml $WORKSPACE/artifacts
 
 if [ $TEST_RESULT -ne 0 ]; then
 	echo '====================================='
@@ -111,4 +111,4 @@ echo '====================================='
 echo '====   ✔ SUCCESS: PASSED TESTS   ===='
 echo '====================================='
 
-teardown_docker
+teardown_podman

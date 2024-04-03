@@ -6,13 +6,16 @@ from uuid import UUID
 from dateutil import parser
 from sqlalchemy import and_
 from sqlalchemy import DateTime
+from sqlalchemy import func
 from sqlalchemy import not_
 from sqlalchemy import or_
 from sqlalchemy.dialects.postgresql import JSON
 
+from api.filtering.db_custom_filters import build_system_profile_filter
 from api.staleness_query import get_staleness_obj
 from app.config import HOST_TYPES
 from app.culling import staleness_to_conditions
+from app.exceptions import ValidationException
 from app.logging import get_logger
 from app.models import Group
 from app.models import Host
@@ -20,6 +23,8 @@ from app.models import HostGroupAssoc
 from app.models import OLD_TO_NEW_REPORTER_MAP
 from app.serialization import serialize_staleness_to_dict
 from app.utils import Tag
+from lib.feature_flags import FLAG_HIDE_EDGE_HOSTS
+from lib.feature_flags import get_flag_value
 
 __all__ = ("query_filters", "host_id_list_filter", "rbac_permissions_filter")
 
@@ -27,12 +32,14 @@ logger = get_logger(__name__)
 DEFAULT_STALENESS_VALUES = ["not_culled"]
 
 
-def _canonical_fact_filter(canonical_fact: str, value) -> List:
+def _canonical_fact_filter(canonical_fact: str, value, case_insensitive: bool = False) -> List:
+    if case_insensitive:
+        return [func.lower(Host.canonical_facts[canonical_fact].astext) == value.lower()]
     return [Host.canonical_facts[canonical_fact].astext == value]
 
 
 def _display_name_filter(display_name: str) -> List:
-    return [Host.display_name.comparator.contains(display_name)]
+    return [func.lower(Host.display_name).comparator.contains(display_name.lower())]
 
 
 def _tags_filter(string_tags: List[str]) -> List:
@@ -48,8 +55,9 @@ def _tags_filter(string_tags: List[str]) -> List:
 
 def _group_names_filter(group_name_list: List) -> List:
     _query_filter = []
+    group_name_list_lower = [group_name.lower() for group_name in group_name_list]
     if len(group_name_list) > 0:
-        group_filters = [Group.name.in_(group_name_list)]
+        group_filters = [func.lower(Group.name).in_(group_name_list_lower)]
         if "" in group_name_list:
             group_filters += [HostGroupAssoc.group_id.is_(None)]
 
@@ -70,27 +78,53 @@ def _group_ids_filter(group_id_list: List) -> List:
     return _query_filter
 
 
+def _get_host_modified_on_time_filter(gt=None, lte=None):
+    filters = []
+    if gt:
+        filters.append(Host.modified_on > gt)
+    if lte:
+        filters.append(Host.modified_on <= lte)
+
+    return and_(*filters)
+
+
+def _stale_timestamp_filter(gt=None, lte=None, host_type=None):
+    time_filter_ = _get_host_modified_on_time_filter(gt=gt, lte=lte)
+    return and_(Host.system_profile_facts["host_type"].astext == host_type, time_filter_)
+
+
 def _stale_timestamp_per_reporter_filter(gt=None, lte=None, host_type=None, reporter=None):
+    non_negative_reporter = reporter.replace("!", "")
+    reporter_list = [non_negative_reporter]
+    if non_negative_reporter in OLD_TO_NEW_REPORTER_MAP.keys():
+        reporter_list.extend(OLD_TO_NEW_REPORTER_MAP[non_negative_reporter])
+
     if reporter.startswith("!"):
-        if gt:
-            time_filter_ = Host.modified_on > gt
-        if lte:
-            time_filter_ = Host.modified_on <= lte
+        time_filter_ = _get_host_modified_on_time_filter(gt=gt, lte=lte)
         return and_(
-            Host.system_profile_facts["host_type"].astext == host_type,
-            not_(Host.per_reporter_staleness.has_key(reporter.replace("!", ""))),
-            time_filter_,
+            and_(
+                Host.system_profile_facts["host_type"].astext == host_type,
+                not_(Host.per_reporter_staleness.has_key(rep)),
+                time_filter_,
+            )
+            for rep in reporter_list
         )
     else:
-        if gt:
-            time_filter_ = Host.per_reporter_staleness[reporter]["last_check_in"].astext.cast(DateTime) > gt
-        if lte:
-            time_filter_ = Host.per_reporter_staleness[reporter]["last_check_in"].astext.cast(DateTime) <= lte
-        return and_(
-            Host.system_profile_facts["host_type"].astext == host_type,
-            Host.per_reporter_staleness.has_key(reporter),
-            time_filter_,
-        )
+        or_filter = []
+        for rep in reporter_list:
+            if gt:
+                time_filter_ = Host.per_reporter_staleness[rep]["last_check_in"].astext.cast(DateTime) > gt
+            if lte:
+                time_filter_ = Host.per_reporter_staleness[rep]["last_check_in"].astext.cast(DateTime) <= lte
+            or_filter.append(
+                and_(
+                    Host.system_profile_facts["host_type"].astext == host_type,
+                    Host.per_reporter_staleness.has_key(rep),
+                    time_filter_,
+                )
+            )
+
+        return or_(*or_filter)
 
 
 def per_reporter_staleness_filter(staleness, reporter):
@@ -106,9 +140,13 @@ def per_reporter_staleness_filter(staleness, reporter):
 
 
 def _staleness_filter(staleness: List[str]) -> List:
-    _query_filter = []
-    # TODO
-    return _query_filter
+    staleness_obj = serialize_staleness_to_dict(get_staleness_obj())
+    staleness_conditions = tuple()
+    for host_type in HOST_TYPES:
+        staleness_conditions += tuple(
+            staleness_to_conditions(staleness_obj, staleness, host_type, _stale_timestamp_filter)
+        )
+    return [or_(*staleness_conditions)]
 
 
 def _registered_with_filter(registered_with: List[str]) -> List:
@@ -121,12 +159,6 @@ def _registered_with_filter(registered_with: List[str]) -> List:
         reg_with_copy.remove("insights")
     if not reg_with_copy:
         return _query_filter
-    # When filtering on old reporter name, include the names of the
-    # new reporters associated with the old reporter.
-    for old_reporter in OLD_TO_NEW_REPORTER_MAP:
-        if old_reporter in reg_with_copy:
-            reg_with_copy.extend(OLD_TO_NEW_REPORTER_MAP[old_reporter])
-            reg_with_copy = list(set(reg_with_copy))  # Remove duplicates
 
     # Get the per_report_staleness check_in value for the reporter
     # and build the filter based on it
@@ -138,16 +170,31 @@ def _registered_with_filter(registered_with: List[str]) -> List:
     return [or_(*_query_filter)]
 
 
-def _system_profile_filter(sp_filter: dict) -> List:
-    _query_filter = []
-    # TODO
-    return _query_filter
+def _system_profile_filter(filter: dict) -> List:
+    query_filters = []
+
+    # If this feature flag is set, we should hide edge hosts by default, even if a filter wasn't provided.
+    if get_flag_value(FLAG_HIDE_EDGE_HOSTS) and not filter:
+        filter = {"system_profile": {"host_type": {"eq": "nil"}}}
+
+    if filter:
+        for key in filter:
+            if key == "system_profile":
+                # If a host_type filter wasn't provided in the request, filter out edge hosts.
+                if get_flag_value(FLAG_HIDE_EDGE_HOSTS) and "host_type" not in filter["system_profile"]:
+                    filter["system_profile"]["host_type"] = {"eq": "nil"}
+
+                query_filters += build_system_profile_filter(filter["system_profile"])
+            else:
+                raise ValidationException("filter key is invalid")
+
+    return query_filters
 
 
 def _hostname_or_id_filter(hostname_or_id: str) -> List:
     filter_list = [
-        Host.display_name.comparator.contains(hostname_or_id),
-        Host.canonical_facts["fqdn"].astext.contains(hostname_or_id),
+        func.lower(Host.display_name).comparator.contains(hostname_or_id.lower()),
+        func.lower(Host.canonical_facts["fqdn"].astext).contains(hostname_or_id.lower()),
     ]
 
     try:
@@ -207,18 +254,28 @@ def query_filters(
     filter: dict = None,
     rbac_filter: dict = None,
 ) -> List:
+    num_ids = 0
+    for id_param in [fqdn, display_name, hostname_or_id, insights_id]:
+        if id_param:
+            num_ids += 1
+
+    if num_ids > 1:
+        raise ValidationException(
+            "Only one of [fqdn, display_name, hostname_or_id, insights_id] may be provided at a time."
+        )
+
     filters = []
     if fqdn:
-        filters += _canonical_fact_filter("fqdn", fqdn)
+        filters += _canonical_fact_filter("fqdn", fqdn, case_insensitive=True)
     elif display_name:
         filters += _display_name_filter(display_name)
     elif hostname_or_id:
         filters += _hostname_or_id_filter(hostname_or_id)
     elif insights_id:
-        filters += _canonical_fact_filter("insights_id", insights_id)
+        filters += _canonical_fact_filter("insights_id", insights_id, case_insensitive=True)
 
     if provider_id:
-        filters += _canonical_fact_filter("provider_id", provider_id)
+        filters += _canonical_fact_filter("provider_id", provider_id, case_insensitive=True)
     if provider_type:
         filters += _canonical_fact_filter("provider_type", provider_type)
     if updated_start or updated_end:
