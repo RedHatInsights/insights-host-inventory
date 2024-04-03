@@ -79,10 +79,13 @@ def _group_ids_filter(group_id_list: List) -> List:
 
 
 def _get_host_modified_on_time_filter(gt=None, lte=None):
+    filters = []
     if gt:
-        return Host.modified_on > gt
+        filters.append(Host.modified_on > gt)
     if lte:
-        return Host.modified_on <= lte
+        filters.append(Host.modified_on <= lte)
+
+    return and_(*filters)
 
 
 def _stale_timestamp_filter(gt=None, lte=None, host_type=None):
