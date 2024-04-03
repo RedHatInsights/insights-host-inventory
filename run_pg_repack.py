@@ -1,3 +1,4 @@
+#!/usr/bin/python
 import subprocess
 from os import environ
 from sys import exit

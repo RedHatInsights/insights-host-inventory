@@ -17,10 +17,9 @@ WORKDIR $APP_ROOT
 
 RUN microdnf module enable postgresql:13 python39:3.9 && \
     microdnf upgrade -y && \
-    microdnf install --setopt=tsflags=nodocs -y postgresql python39 rsync tar procps-ng make snappy gcc postgresql-devel \
-    redhat-rpm-config openssl-devel postgresql-static.x86_64 readline-devel lz4-devel && \
+    microdnf install --setopt=tsflags=nodocs -y postgresql python39 rsync tar procps-ng make snappy && \
     rpm -qa | sort > packages-before-devel-install.txt && \
-    microdnf install --setopt=tsflags=nodocs -y libpq-devel python39-devel && \
+    microdnf install --setopt=tsflags=nodocs -y libpq-devel python39-devel gcc && \
     rpm -qa | sort > packages-after-devel-install.txt
 
 COPY . .
@@ -32,8 +31,7 @@ ENV PIPENV_VENV_IN_PROJECT=1
 RUN python3 -m pip install --upgrade pip setuptools wheel && \
     python3 -m pip install pipenv && \
     python3 -m pip install dumb-init && \
-    pipenv install --system --dev && \
-    pgxn install pg_repack
+    pipenv install --system --dev
 
 # allows pre-commit and unit tests to run successfully within the container if image is built in "test" environment
 RUN if [ "$TEST_IMAGE" = "true" ]; then \

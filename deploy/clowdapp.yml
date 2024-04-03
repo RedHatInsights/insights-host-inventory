@@ -615,14 +615,12 @@ objects:
             memory: ${MEMORY_REQUEST_SYNCHRONIZER}
     - name: pg-repack
       schedule: '@weekly'
+      concurrencyPolicy: "Forbid"
       suspend: ${{PG_REPACK_SUSPEND}}
       podSpec:
-        image: ${IMAGE}:${IMAGE_TAG}
+        image: ${PG_REPACK_IMAGE}:${IMAGE_TAG}
         restartPolicy: Never
-        command:
-          - /bin/sh
-          - -c
-          - python3 run_pg_repack.py
+        args: ["./run_pg_repack.py"]
         env:
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
@@ -813,6 +811,10 @@ parameters:
   name: IMAGE
   required: true
   value: quay.io/cloudservices/insights-inventory
+- description: pg_repack image name
+  name: PG_REPACK_IMAGE
+  required: true
+  value: quay.io/cloudservices/insights-inventory-pg-repack
 - description : ClowdEnvironment name
   name: ENV_NAME
   value: stage

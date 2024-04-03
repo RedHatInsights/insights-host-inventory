@@ -1,0 +1,18 @@
+FROM quay.io/repository/cloudservices/insights-inventory:latest
+
+ARG TEST_IMAGE=false
+
+USER root
+
+ENV APP_ROOT=/opt/app-root/src
+WORKDIR $APP_ROOT
+
+RUN redhat-rpm-config openssl-devel postgresql-static.x86_64 readline-devel lz4-devel && \
+    microdnf install --setopt=tsflags=nodocs -y gcc postgresql-devel && \
+    pgxn install pg_repack
+
+COPY . .
+
+USER 1001
+
+ENTRYPOINT [ "dumb-init", "./run_command.sh" ]
