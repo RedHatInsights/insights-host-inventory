@@ -1564,6 +1564,23 @@ def test_query_all_sp_filters_invalid_field(api_get, sp_filter_param):
 @pytest.mark.parametrize(
     "sp_filter_param",
     (
+        "[number_of_cpus]=",  # Blank not allowed for non-string field
+        "[number_of_cpus]=asdf",  # String not allowed for non-string field
+    ),
+)
+def test_query_all_sp_filters_invalid_value(api_get, sp_filter_param):
+    url = build_hosts_url(query=f"?filter[system_profile]{sp_filter_param}")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 400
+    assert "is an invalid value for field" in response_data.get("detail")
+
+
+@pytest.mark.parametrize(
+    "sp_filter_param",
+    (
         "[operating_system][foo][version]=8.1",  # Invalid OS name
         "[operating_system][RHEL][version]=bar",  # Invalid OS version
     ),
