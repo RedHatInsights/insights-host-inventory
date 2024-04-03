@@ -73,6 +73,10 @@ def _get_field_filter_for_deepest_param(sp_spec: dict, filter: dict) -> str:
         if key in sp_spec:
             return _get_field_filter_for_deepest_param(sp_spec[key], filter[key])
 
+    # If the next node is an array, that's as far as we go
+    if sp_spec[key].get("is_array") is True:
+        return "array"
+
     return sp_spec[key]["filter"]
 
 
@@ -104,22 +108,46 @@ def separate_operating_system_filters(filter_param: dict) -> list[OsComparison]:
 
             for version in version_array:
                 version_split = version.split(".")
-                if len(version_split) < 2:
-                    version_split.append("0")
                 if len(version_split) > 2:
                     raise ValidationException("operating_system filter can only have a major and minor version.")
+
                 for v in version_split:
                     if not v.isdigit():
                         raise ValidationException("operating_system major and minor versions must be numerical.")
 
-                os_filter_list.append(OsComparison(os_name, os_comparator, version_split[0], version_split[1]))
+                if len(version_split) == 2:
+                    os_filter_list.append(OsComparison(os_name, os_comparator, version_split[0], version_split[1]))
+                else:
+                    # If the minor version is not provided, then things get more complicated.
+                    # Using version 8 as an example, here's how the logic should work:
+                    # gte 8 -> gte 8.0
+                    # gt  8 -> gte 9.0
+                    # lte 8 -> lt  9.0
+                    # lt  8 -> lt  8.0
+                    # eq  8 -> gte 8.0 AND lt 9.0
+
+                    if os_comparator == "eq":
+                        os_filter_list.append(OsComparison(os_name, "gte", version_split[0], 0))
+                        os_filter_list.append(OsComparison(os_name, "lt", str(int(version_split[0]) + 1), 0))
+                    else:
+                        new_major_version = version_split[0]
+                        new_comparator = os_comparator
+                        if os_comparator in ["gt", "lte"]:
+                            new_major_version = str(int(new_major_version) + 1)
+                        if os_comparator == "gt":
+                            new_comparator = "gte"
+                        elif os_comparator == "lte":
+                            new_comparator = "lt"
+
+                        os_filter_list.append(OsComparison(os_name, new_comparator, new_major_version, 0))
 
     return os_filter_list
 
 
 # Takes an OS filter param and converts it into a tuple containing the DB filter
 def build_operating_system_filter(filter_param: dict) -> tuple:
-    os_filter_list = []
+    os_filter_list = []  # Top-level filter
+    os_range_filter_list = []  # Contains the OS filters that use range operations
     separated_filters = separate_operating_system_filters(filter_param["operating_system"])
 
     for os_comparison in separated_filters:
@@ -132,17 +160,22 @@ def build_operating_system_filter(filter_param: dict) -> tuple:
                 f"(system_profile_facts->'operating_system'->>'major')::int = {os_comparison.major} AND "
                 f"(system_profile_facts->'operating_system'->>'minor')::int = {os_comparison.minor})"
             )
+            os_filter_list.append(os_filter_text)
         else:
+            # Add to AND filter
             os_filter_text = (
                 f"(system_profile_facts->'operating_system'->>'name' = '{os_comparison.name}' AND "
                 f"((system_profile_facts->'operating_system'->>'major')::int {comparator_no_eq} {os_comparison.major}"
                 f" OR ((system_profile_facts->'operating_system'->>'major')::int = {os_comparison.major} AND "
                 f"(system_profile_facts->'operating_system'->>'minor')::int {comparator} {os_comparison.minor})))"
             )
+            os_range_filter_list.append(os_filter_text)
 
-        os_filter_list.append(os_filter_text)
+    # If there's anything in the range operations filter list, AND them and add to the main list.
+    if len(os_range_filter_list) > 0:
+        os_filter_list.append(f"({' AND '.join(os_range_filter_list)})")
 
-    # If multiple OS filters are provided, it should be treated as "OR"
+    # The top-level filter list should be joined using "OR"
     return " OR ".join(os_filter_list)
 
 
@@ -248,8 +281,14 @@ def build_system_profile_filter(system_profile_param: dict) -> tuple:
 
     for grouped_filter_param in filter_param_list:
         if isinstance(grouped_filter_param, list):
-            # When multiple filters are grouped, join the list with "OR"
-            filter_list = " OR ".join(
+            # Usually, when multiple filters are grouped, join the list with "OR"
+            conjunction = " OR "
+            # When the filtered field is an array or OS, join the list with " AND "
+            # TODO: Do the same for operating_system filter
+            if _get_field_filter_for_deepest_param(system_profile_spec(), grouped_filter_param[0]) == "array":
+                conjunction = " AND "
+
+            filter_list = conjunction.join(
                 [build_single_text_filter(single_filter) for single_filter in grouped_filter_param]
             )
             text_filter = f"({filter_list})"

@@ -1111,7 +1111,8 @@ def test_query_using_id_list_nonexistent_host(api_get):
     with patch("api.host.get_flag_value", return_value=True):
         response_status, response_data = api_get(build_hosts_url(generate_uuid()))
 
-    assert response_status == 404
+    assert response_status == 200
+    assert len(response_data["results"]) == 0
 
 
 @pytest.mark.parametrize("num_hosts_to_query", (1, 2, 3))
@@ -1357,9 +1358,13 @@ def test_query_by_staleness(db_create_multiple_hosts, api_get, subtests):
         "[host_type][]=not_nil",
         "[bootc_status][booted][image]=quay.io*",
         "[sap_sids][contains][]=ABC",
+        "[sap_sids][contains][]=ABC&filter[system_profile][sap_sids][contains][]=DEF",
         "[sap_sids][contains]=ABC",
+        "[sap_sids][]=ABC",
+        "[sap][sids][contains][]=ABC&filter[system_profile][sap][sids][contains][]=DEF",
         "[sap][sids][contains][]=ABC",
         "[sap][sids][contains]=ABC",
+        "[sap][sids][]=ABC",
         "[systemd][failed_services][contains][]=foo",
         "[system_memory_bytes][lte]=8292048963606259",
     ),
@@ -1371,9 +1376,9 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
             "arch": "x86_64",
             "insights_client_version": "3.0.1-2.el4_2",
             "host_type": "edge",
-            "sap": {"sap_system": True, "sids": ["ABC"]},
+            "sap": {"sap_system": True, "sids": ["ABC", "DEF"]},
             "bootc_status": {"booted": {"image": "quay.io/centos-bootc/fedora-bootc-cloud:eln"}},
-            "sap_sids": ["ABC"],
+            "sap_sids": ["ABC", "DEF"],
             "systemd": {"failed_services": ["foo", "bar"]},
             "system_memory_bytes": 8192,
         }
@@ -1411,9 +1416,13 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
         "[RHEL][version]=8.11",
         "[RHEL][version][eq]=8.11",
         "[RHEL][version][eq][]=8.11",
+        "[RHEL][version][eq][]=8.11&filter[system_profile][operating_system][RHEL][version][gt][]=8",
         "[RHEL][version][eq][]=8.11&filter[system_profile][operating_system][RHEL][version][eq][]=9.1",
-        "[RHEL][version][gt]=8",
-        "[RHEL][version][gte]=8.11&filter[system_profile][operating_system][RHEL][version][eq]=8.11",
+        "[RHEL][version][gte]=8",
+        "[RHEL][version][gt]=7",  # Minor version should be ignored
+        "[RHEL][version][eq]=8",  # Minor version should be ignored
+        "[RHEL][version]=8",  # Minor version should be ignored
+        "[RHEL][version][gte]=8&filter[system_profile][operating_system][RHEL][version][lte]=8",
     ),
 )
 def test_query_all_sp_filters_operating_system(db_create_host, api_get, sp_filter_param):
