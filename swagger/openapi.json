@@ -88,12 +88,6 @@
                 }
               }
             }
-          },
-          "500": {
-            "description": "Request could not be completed."
-          },
-          "503": {
-            "description": "Internal error."
           }
         }
       },
