@@ -216,26 +216,28 @@ def test_get_list_of_tags_with_host_filters_via_db(db_create_multiple_hosts, api
     )
 
     with patch("api.tag.get_flag_value", return_value=True):
-        for query in (
-            f"?display_name={display_name}",
-            f"?insights_id={insights_id}",
-            f"?provider_id={provider_id}",
-            f"?provider_type={ProviderType.AZURE.value}",
-            f"?search={tag_key}",
-            "?registered_with=puptoo",
-            "?registered_with=yupana",
-            "?staleness=fresh",
+        for test_case in (
+            {"query": f"?display_name={display_name}", "expected_count": 1},
+            {"query": f"?insights_id={insights_id}", "expected_count": 1},
+            {"query": f"?provider_id={provider_id}", "expected_count": 1},
+            {"query": f"?provider_type={ProviderType.AZURE.value}", "expected_count": 1},
+            {"query": f"?search={tag_key}", "expected_count": 1},
+            {"query": "?search=not-found", "expected_count": 0},
+            {"query": "?registered_with=puptoo", "expected_count": 1},
+            {"query": "?registered_with=yupana", "expected_count": 1},
+            {"query": "?staleness=fresh", "expected_count": 1},
         ):
-            with subtests.test(query=query):
-                url = build_tags_url(query=query)
+            with subtests.test(query=test_case.get("query")):
+                url = build_tags_url(query=test_case.get("query"))
                 response_status, response_data = api_get(url)
 
                 assert_response_status(response_status, 200)
-                assert response_data["total"] == 1
-                assert response_data["results"][0]["tag"]["namespace"] == namespace
-                assert response_data["results"][0]["tag"]["key"] == tag_key
-                assert response_data["results"][0]["tag"]["value"] == tag_value
-                assert response_data["results"][0]["count"] == 1
+                assert response_data["total"] == test_case.get("expected_count")
+                if test_case.get("expected_count") == 1:
+                    assert response_data["results"][0]["tag"]["namespace"] == namespace
+                    assert response_data["results"][0]["tag"]["key"] == tag_key
+                    assert response_data["results"][0]["tag"]["value"] == tag_value
+                    assert response_data["results"][0]["count"] == 1
 
 
 def test_get_tags_invalid_start_end(patch_xjoin_post, api_get, subtests):
