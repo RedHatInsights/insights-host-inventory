@@ -1413,6 +1413,47 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
 @pytest.mark.parametrize(
     "sp_filter_param",
     (
+        "[system_memory_bytes][eq]=8292048963606259",
+        "[system_memory_bytes][]=8292048963606259",
+        "[system_memory_bytes]=8292048963606259",
+        "[arch]=x86",  # EQ field, no wildcard
+        "[host_type]=",  # Valid bc it's a string field, but no match
+        "[sap][sids][contains][]=ABC&filter[system_profile][sap][sids][contains][]=GHI",
+    ),
+)
+def test_query_all_sp_filters_not_found(db_create_host, api_get, sp_filter_param):
+    # Create host with this system profile
+    nomatch_sp_data = {
+        "system_profile_facts": {
+            "arch": "x86_64",
+            "host_type": "edge",
+            "sap_sids": ["ABC", "DEF"],
+            "system_memory_bytes": 8192,
+        }
+    }
+    db_create_host(extra_data=nomatch_sp_data)
+
+    # This host has none of the fields, so it shouldn't be returned either
+    nomatch_sp_data = {
+        "system_profile_facts": {
+            "bios_vendor": "ex1",
+        }
+    }
+    db_create_host(extra_data=nomatch_sp_data)
+
+    url = build_hosts_url(query=f"?filter[system_profile]{sp_filter_param}")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+        # Assert that the request succeeds but no hosts are returned
+        assert response_status == 200
+        assert len(response_data["results"]) == 0
+
+
+@pytest.mark.parametrize(
+    "sp_filter_param",
+    (
         "[RHEL][version]=8.11",
         "[RHEL][version][eq]=8.11",
         "[RHEL][version][eq][]=8.11",
