@@ -195,6 +195,7 @@ def test_delete_over_100_filtered_hosts(
     # for querying for deletion using filters
     patched_post = patch_xjoin_post(response, status=200)
     patched_delete = mocker.patch("api.host._delete_host_list")
+    patched_delete.return_value = 0  # We don't care about the return value
 
     # delete hosts using the IDs supposedly returned by the query_filter
     response_status, response_data = api_delete_filtered_hosts({"staleness": "stale"})
