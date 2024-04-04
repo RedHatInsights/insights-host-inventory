@@ -331,8 +331,9 @@ def get_os_info(
     filters = query_filters(
         tags=tags, staleness=staleness, registered_with=registered_with, filter=filter, rbac_filter=rbac_filter
     )
-    if filters:
-        os_query = os_query.filter(*filters)
+    # Only include records that have set an operating_system.name
+    filters += (columns[0].isnot(None),)
+    os_query = os_query.filter(*filters)
 
     subquery = os_query.subquery()
     agg_query = db.session.query(subquery, func.count()).group_by("name", "major", "minor")
