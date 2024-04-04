@@ -264,7 +264,9 @@ def build_single_text_filter(filter_param: dict) -> str:
         # Put value in quotes if appropriate for the field type and operation
         if field_filter in ["wildcard", "string", "timestamp", "boolean", "array"] and pg_op != "IS":
             value = f"'{value}'"
-        elif value == "" or (field_filter == "integer" and not value.isdigit()):
+        elif value == "" or (
+            field_filter == "integer" and (not value.isdigit() and value not in ["NULL", "NOT NULL"])
+        ):
             raise ValidationException(f"'{value}' is an invalid value for field {field_name}")
 
         pg_cast = FIELD_FILTER_TO_POSTGRES_CAST.get(field_filter, "")

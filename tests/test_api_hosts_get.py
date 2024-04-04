@@ -1367,6 +1367,8 @@ def test_query_by_staleness(db_create_multiple_hosts, api_get, subtests):
         "[sap][sids][]=ABC",
         "[systemd][failed_services][contains][]=foo",
         "[system_memory_bytes][lte]=8292048963606259",
+        "[number_of_cpus][is]=nil",
+        "[number_of_cpus]=nil",
     ),
 )
 def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
@@ -1393,6 +1395,7 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
             "greenboot_status": "green",
             "bootc_status": {"booted": {"image": "192.168.0.1:5000/foo/foo:latest"}},
             "sap_sids": ["DEF"],
+            "number_of_cpus": 8,
         }
     }
     nomatch_host_id = str(db_create_host(extra_data=nomatch_sp_data).id)
