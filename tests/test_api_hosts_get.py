@@ -1411,6 +1411,45 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
 
 
 @pytest.mark.parametrize(
+    "query_filter_param,match_host_facts",
+    (
+        ("?display_name=1*m", [{"display_name": "HkqL12lmIW"}]),
+        (
+            "?hostname_or_id=1*m",
+            [
+                {"display_name": "HkqL12lmIW"},
+                {"canonical_facts": {"fqdn": "HkqL1m2lIW"}},
+            ],
+        ),
+    ),
+)
+def test_query_host_fuzzy_match(db_create_host, api_get, query_filter_param, match_host_facts):
+    # Create host with matching data
+    match_host_id_list = [str(db_create_host(extra_data=host_fact).id) for host_fact in match_host_facts]
+
+    # Create host with differing SP
+    nomatch_host_facts = [
+        {"display_name": "masdf1"},
+        {"canonical_facts": {"fqdn": "masdf1"}},
+    ]
+    nomatch_host_id_list = [str(db_create_host(extra_data=host_fact).id) for host_fact in nomatch_host_facts]
+
+    url = build_hosts_url(query=query_filter_param)
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    # Assert that only the matching host is returned
+    response_ids = [result["id"] for result in response_data["results"]]
+    assert response_status == 200
+    assert len(response_ids) == len(match_host_facts)
+
+    for response_id in response_ids:
+        assert response_id in match_host_id_list
+        assert response_id not in nomatch_host_id_list
+
+
+@pytest.mark.parametrize(
     "sp_filter_param",
     (
         "[system_memory_bytes][eq]=8292048963606259",
