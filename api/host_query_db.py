@@ -129,9 +129,16 @@ def params_to_order_by(order_by: str = None, order_how: str = None) -> Tuple:
             ordering = (Host.display_name.asc(),)
     elif order_by == "group_name":
         if order_how:
-            ordering = (_order_how(Group.name, order_how),)
+            base_ordering = _order_how(Group.name, order_how)
         else:
-            ordering = (Group.name.asc(),)
+            base_ordering = Group.name.asc()
+
+        # Override default sorting
+        # When sorting by group_name ASC, ungrouped hosts should show first
+        if order_how == "DESC":
+            ordering = (base_ordering.nulls_last(),)
+        else:
+            ordering = (base_ordering.nulls_first(),)
     elif order_by == "operating_system":
         if order_how:
             ordering = (_order_how(Host.operating_system, order_how),)

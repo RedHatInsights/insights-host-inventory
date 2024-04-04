@@ -1015,8 +1015,11 @@ def test_query_hosts_filter_updated_start_end(mq_create_or_update_host, api_get)
 
 
 @pytest.mark.parametrize("order_how", ("ASC", "DESC"))
-def test_get_hosts_order_by_group_name(db_create_group_with_hosts, api_get, subtests, order_how):
+def test_get_hosts_order_by_group_name(
+    db_create_group_with_hosts, db_create_multiple_hosts, api_get, subtests, order_how
+):
     hosts_per_group = 3
+    num_ungrouped_hosts = 5
     names = ["ABC Group", "BCD Group", "CDE Group", "DEF Group"]
 
     # Shuffle the list so the groups aren't created in alphabetical order
@@ -1025,20 +1028,28 @@ def test_get_hosts_order_by_group_name(db_create_group_with_hosts, api_get, subt
     random.shuffle(shuffled_group_names)
     [db_create_group_with_hosts(group_name, hosts_per_group) for group_name in shuffled_group_names]
 
+    # Create some ungrouped hosts
+    db_create_multiple_hosts(how_many=num_ungrouped_hosts)
+
     url = build_hosts_url(query=f"?order_by=group_name&order_how={order_how}")
 
     with patch("api.host.get_flag_value", return_value=True):
         response_status, response_data = api_get(url)
 
     assert response_status == 200
-    assert len(names) * hosts_per_group == len(response_data["results"])
+    assert len(names) * hosts_per_group + num_ungrouped_hosts == len(response_data["results"])
 
-    # If descending order is requested, reverse the expected order of group names
     if order_how == "DESC":
+        # If DESC, reverse the expected order of group names
         names.reverse()
+        ungrouped_buffer = 0
+    else:
+        # If ASC, set a buffer for the ungrouped hosts (which should show first)
+        ungrouped_buffer = num_ungrouped_hosts
 
     for group_index in range(len(names)):
-        for host_index in range(hosts_per_group):
+        # Ungrouped hosts should show at the top for order_how=ASC
+        for host_index in range(ungrouped_buffer, ungrouped_buffer + hosts_per_group):
             assert (
                 response_data["results"][group_index * hosts_per_group + host_index]["groups"][0]["name"]
                 == names[group_index]
