@@ -26,7 +26,7 @@ podman build --pull=true -f Dockerfile -t "${IMAGE}:${IMAGE_TAG}" .
 podman push "${IMAGE}:${IMAGE_TAG}"
 
 # Build and push pg_repack image
-podman build --pull=true -f Dockerfile_pg_repack -t "${PG_REPACK_IMAGE}:${IMAGE_TAG}" .
+podman build --pull=true -f pg_repack.dockerfile -t "${PG_REPACK_IMAGE}:${IMAGE_TAG}" .
 podman push "${PG_REPACK_IMAGE}:${IMAGE_TAG}"
 
 if [[ $GIT_BRANCH == *"security-compliance"* ]]; then
