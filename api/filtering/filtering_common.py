@@ -62,7 +62,7 @@ POSTGRES_DEFAULT_COMPARATOR = {
     "array": "?",
 }
 
-FIELD_FILTER_TO_POSTGRES_CAST = {"integer": "::integer", "boolean": "::boolean"}
+FIELD_FILTER_TO_POSTGRES_CAST = {"integer": "::bigint", "boolean": "::boolean"}
 
 
 def lookup_operations(filter_type, filter_format=None, is_array=False):

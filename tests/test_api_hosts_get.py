@@ -1366,7 +1366,8 @@ def test_query_by_staleness(db_create_multiple_hosts, api_get, subtests):
         "[sap][sids][contains]=ABC",
         "[sap][sids][]=ABC",
         "[systemd][failed_services][contains][]=foo",
-        "[system_memory_bytes][lte]=8292048963606259",
+        "[system_memory_bytes][lte]=9000000000000000",
+        "[system_memory_bytes][eq]=8292048963606259",
         "[number_of_cpus][is]=nil",
         "[number_of_cpus]=nil",
     ),
@@ -1382,7 +1383,7 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
             "bootc_status": {"booted": {"image": "quay.io/centos-bootc/fedora-bootc-cloud:eln"}},
             "sap_sids": ["ABC", "DEF"],
             "systemd": {"failed_services": ["foo", "bar"]},
-            "system_memory_bytes": 8192,
+            "system_memory_bytes": 8292048963606259,
         }
     }
     match_host_id = str(db_create_host(extra_data=match_sp_data).id)
