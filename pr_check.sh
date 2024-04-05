@@ -29,7 +29,7 @@ IQE_CJI_TIMEOUT="30m"
 # We'll take it from here ...
 # ---------------------------
 
-export BONFIRE_REPO_BRANCH="mknop/creds_fail_job
+export BONFIRE_REPO_BRANCH="mknop/creds_fail_job"
 
 # Get bonfire helper scripts
 CICD_URL=https://raw.githubusercontent.com/RedHatInsights/cicd-tools/mknop/creds_fail_job
