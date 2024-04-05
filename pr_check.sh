@@ -30,7 +30,7 @@ IQE_CJI_TIMEOUT="30m"
 # ---------------------------
 
 # Get bonfire helper scripts
-CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
+CICD_URL=https://raw.githubusercontent.com/RedHatInsights/cicd-tools/mknop/creds_fail_job
 curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh && source .cicd_bootstrap.sh
 
 # build the PR commit image
