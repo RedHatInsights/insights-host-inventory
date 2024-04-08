@@ -1015,8 +1015,11 @@ def test_query_hosts_filter_updated_start_end(mq_create_or_update_host, api_get)
 
 
 @pytest.mark.parametrize("order_how", ("ASC", "DESC"))
-def test_get_hosts_order_by_group_name(db_create_group_with_hosts, api_get, subtests, order_how):
+def test_get_hosts_order_by_group_name(
+    db_create_group_with_hosts, db_create_multiple_hosts, api_get, subtests, order_how
+):
     hosts_per_group = 3
+    num_ungrouped_hosts = 5
     names = ["ABC Group", "BCD Group", "CDE Group", "DEF Group"]
 
     # Shuffle the list so the groups aren't created in alphabetical order
@@ -1025,20 +1028,28 @@ def test_get_hosts_order_by_group_name(db_create_group_with_hosts, api_get, subt
     random.shuffle(shuffled_group_names)
     [db_create_group_with_hosts(group_name, hosts_per_group) for group_name in shuffled_group_names]
 
+    # Create some ungrouped hosts
+    db_create_multiple_hosts(how_many=num_ungrouped_hosts)
+
     url = build_hosts_url(query=f"?order_by=group_name&order_how={order_how}")
 
     with patch("api.host.get_flag_value", return_value=True):
         response_status, response_data = api_get(url)
 
     assert response_status == 200
-    assert len(names) * hosts_per_group == len(response_data["results"])
+    assert len(names) * hosts_per_group + num_ungrouped_hosts == len(response_data["results"])
 
-    # If descending order is requested, reverse the expected order of group names
     if order_how == "DESC":
+        # If DESC, reverse the expected order of group names
         names.reverse()
+        ungrouped_buffer = 0
+    else:
+        # If ASC, set a buffer for the ungrouped hosts (which should show first)
+        ungrouped_buffer = num_ungrouped_hosts
 
     for group_index in range(len(names)):
-        for host_index in range(hosts_per_group):
+        # Ungrouped hosts should show at the top for order_how=ASC
+        for host_index in range(ungrouped_buffer, ungrouped_buffer + hosts_per_group):
             assert (
                 response_data["results"][group_index * hosts_per_group + host_index]["groups"][0]["name"]
                 == names[group_index]
@@ -1111,7 +1122,8 @@ def test_query_using_id_list_nonexistent_host(api_get):
     with patch("api.host.get_flag_value", return_value=True):
         response_status, response_data = api_get(build_hosts_url(generate_uuid()))
 
-    assert response_status == 404
+    assert response_status == 200
+    assert len(response_data["results"]) == 0
 
 
 @pytest.mark.parametrize("num_hosts_to_query", (1, 2, 3))
@@ -1357,11 +1369,18 @@ def test_query_by_staleness(db_create_multiple_hosts, api_get, subtests):
         "[host_type][]=not_nil",
         "[bootc_status][booted][image]=quay.io*",
         "[sap_sids][contains][]=ABC",
+        "[sap_sids][contains][]=ABC&filter[system_profile][sap_sids][contains][]=DEF",
         "[sap_sids][contains]=ABC",
+        "[sap_sids][]=ABC",
+        "[sap][sids][contains][]=ABC&filter[system_profile][sap][sids][contains][]=DEF",
         "[sap][sids][contains][]=ABC",
         "[sap][sids][contains]=ABC",
+        "[sap][sids][]=ABC",
         "[systemd][failed_services][contains][]=foo",
-        "[system_memory_bytes][lte]=8292048963606259",
+        "[system_memory_bytes][lte]=9000000000000000",
+        "[system_memory_bytes][eq]=8292048963606259",
+        "[number_of_cpus][is]=nil",
+        "[number_of_cpus]=nil",
     ),
 )
 def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
@@ -1371,11 +1390,11 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
             "arch": "x86_64",
             "insights_client_version": "3.0.1-2.el4_2",
             "host_type": "edge",
-            "sap": {"sap_system": True, "sids": ["ABC"]},
+            "sap": {"sap_system": True, "sids": ["ABC", "DEF"]},
             "bootc_status": {"booted": {"image": "quay.io/centos-bootc/fedora-bootc-cloud:eln"}},
-            "sap_sids": ["ABC"],
+            "sap_sids": ["ABC", "DEF"],
             "systemd": {"failed_services": ["foo", "bar"]},
-            "system_memory_bytes": 8192,
+            "system_memory_bytes": 8292048963606259,
         }
     }
     match_host_id = str(db_create_host(extra_data=match_sp_data).id)
@@ -1388,6 +1407,7 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
             "greenboot_status": "green",
             "bootc_status": {"booted": {"image": "192.168.0.1:5000/foo/foo:latest"}},
             "sap_sids": ["DEF"],
+            "number_of_cpus": 8,
         }
     }
     nomatch_host_id = str(db_create_host(extra_data=nomatch_sp_data).id)
@@ -1406,14 +1426,98 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
 
 
 @pytest.mark.parametrize(
+    "query_filter_param,match_host_facts",
+    (
+        ("?display_name=1*m", [{"display_name": "HkqL12lmIW"}]),
+        (
+            "?hostname_or_id=1*m",
+            [
+                {"display_name": "HkqL12lmIW"},
+                {"canonical_facts": {"fqdn": "HkqL1m2lIW"}},
+            ],
+        ),
+    ),
+)
+def test_query_host_fuzzy_match(db_create_host, api_get, query_filter_param, match_host_facts):
+    # Create host with matching data
+    match_host_id_list = [str(db_create_host(extra_data=host_fact).id) for host_fact in match_host_facts]
+
+    # Create host with differing SP
+    nomatch_host_facts = [
+        {"display_name": "masdf1"},
+        {"canonical_facts": {"fqdn": "masdf1"}},
+    ]
+    nomatch_host_id_list = [str(db_create_host(extra_data=host_fact).id) for host_fact in nomatch_host_facts]
+
+    url = build_hosts_url(query=query_filter_param)
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    # Assert that only the matching host is returned
+    response_ids = [result["id"] for result in response_data["results"]]
+    assert response_status == 200
+    assert len(response_ids) == len(match_host_facts)
+
+    for response_id in response_ids:
+        assert response_id in match_host_id_list
+        assert response_id not in nomatch_host_id_list
+
+
+@pytest.mark.parametrize(
+    "sp_filter_param",
+    (
+        "[system_memory_bytes][eq]=8292048963606259",
+        "[system_memory_bytes][]=8292048963606259",
+        "[system_memory_bytes]=8292048963606259",
+        "[arch]=x86",  # EQ field, no wildcard
+        "[host_type]=",  # Valid bc it's a string field, but no match
+        "[sap][sids][contains][]=ABC&filter[system_profile][sap][sids][contains][]=GHI",
+    ),
+)
+def test_query_all_sp_filters_not_found(db_create_host, api_get, sp_filter_param):
+    # Create host with this system profile
+    nomatch_sp_data = {
+        "system_profile_facts": {
+            "arch": "x86_64",
+            "host_type": "edge",
+            "sap_sids": ["ABC", "DEF"],
+            "system_memory_bytes": 8192,
+        }
+    }
+    db_create_host(extra_data=nomatch_sp_data)
+
+    # This host has none of the fields, so it shouldn't be returned either
+    nomatch_sp_data = {
+        "system_profile_facts": {
+            "bios_vendor": "ex1",
+        }
+    }
+    db_create_host(extra_data=nomatch_sp_data)
+
+    url = build_hosts_url(query=f"?filter[system_profile]{sp_filter_param}")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+        # Assert that the request succeeds but no hosts are returned
+        assert response_status == 200
+        assert len(response_data["results"]) == 0
+
+
+@pytest.mark.parametrize(
     "sp_filter_param",
     (
         "[RHEL][version]=8.11",
         "[RHEL][version][eq]=8.11",
         "[RHEL][version][eq][]=8.11",
+        "[RHEL][version][eq][]=8.11&filter[system_profile][operating_system][RHEL][version][gt][]=8",
         "[RHEL][version][eq][]=8.11&filter[system_profile][operating_system][RHEL][version][eq][]=9.1",
-        "[RHEL][version][gt]=8",
-        "[RHEL][version][gte]=8.11&filter[system_profile][operating_system][RHEL][version][eq]=8.11",
+        "[RHEL][version][gte]=8",
+        "[RHEL][version][gt]=7",  # Minor version should be ignored
+        "[RHEL][version][eq]=8",  # Minor version should be ignored
+        "[RHEL][version]=8",  # Minor version should be ignored
+        "[RHEL][version][gte]=8&filter[system_profile][operating_system][RHEL][version][lte]=8",
     ),
 )
 def test_query_all_sp_filters_operating_system(db_create_host, api_get, sp_filter_param):
@@ -1550,6 +1654,23 @@ def test_query_all_sp_filters_invalid_field(api_get, sp_filter_param):
 
     assert response_status == 400
     assert "invalid filter field" in response_data.get("detail")
+
+
+@pytest.mark.parametrize(
+    "sp_filter_param",
+    (
+        "[number_of_cpus]=",  # Blank not allowed for non-string field
+        "[number_of_cpus]=asdf",  # String not allowed for non-string field
+    ),
+)
+def test_query_all_sp_filters_invalid_value(api_get, sp_filter_param):
+    url = build_hosts_url(query=f"?filter[system_profile]{sp_filter_param}")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 400
+    assert "is an invalid value for field" in response_data.get("detail")
 
 
 @pytest.mark.parametrize(
