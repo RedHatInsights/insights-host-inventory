@@ -320,7 +320,7 @@ def handle_message(message, event_producer, notification_event_producer, message
             )
             send_notification(
                 notification_event_producer,
-                NotificationType.validation_error,
+                notification_type=NotificationType.validation_error,
                 host=_build_minimal_host_info(host),
                 detail=str(ve.detail),
             )
@@ -328,7 +328,7 @@ def handle_message(message, event_producer, notification_event_producer, message
         except InventoryException as ie:
             send_notification(
                 notification_event_producer,
-                NotificationType.validation_error,
+                notification_type=NotificationType.validation_error,
                 host=_build_minimal_host_info(host),
                 detail=str(ie.detail),
             )
