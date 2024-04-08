@@ -81,13 +81,14 @@ def host_validation_error_notification(notification_type, message_id, host, deta
                         "code": "VE001",
                         "message": detail,
                         "stack_trace": stack_trace,
-                        "severity": EventSeverity.error,
+                        "severity": EventSeverity.error.name,
                     },
                 },
             },
         ],
     }
-    return (HostValidationErrorNotificationSchema, notification.update(base_notification_obj))
+    notification.update(base_notification_obj)
+    return (HostValidationErrorNotificationSchema, notification)
 
 
 def notification_headers(event_type: NotificationType):
