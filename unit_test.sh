@@ -1,5 +1,6 @@
 #!/bin/bash
 
+set -x
 cd "$APP_ROOT"
 
 # pre-commit -- run using container image built for PR, mount workspace as volume so it has access to .git
@@ -94,8 +95,8 @@ echo '===================================='
 echo '====        Running Tests       ===='
 echo '===================================='
 set +e
-podman exec "$TEST_CONTAINER_ID" \
-    -e FLASK_APP=manage.py bash -c 'flask db upgrade && pytest --cov=. --junitxml=junit-unittest.xml --cov-report html -sv'
+podman exec -e FLASK_APP=manage.py "$TEST_CONTAINER_ID" \
+    bash -c 'flask db upgrade && pytest --cov=. --junitxml=junit-unittest.xml --cov-report html -sv'
 TEST_RESULT=$?
 set -e
 
