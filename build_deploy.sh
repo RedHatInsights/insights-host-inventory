@@ -24,9 +24,10 @@ function job_cleanup() {
 
 trap job_cleanup EXIT ERR SIGINT SIGTERM
 
-# Set up docker/podman cfg
-export DOCKER_CONFIG="${TMP_JOB_DIR}/.docker"
-mkdir -p "$DOCKER_CONFIG"
+# Set up podman cfg
+AUTH_CONF_DIR="${TMP_JOB_DIR}/.podman"
+mkdir -p $AUTH_CONF_DIR
+export REGISTRY_AUTH_FILE="$AUTH_CONF_DIR/auth.json"
 
 
 podman login -u="$QUAY_USER" -p="$QUAY_TOKEN" quay.io
