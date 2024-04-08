@@ -1,5 +1,7 @@
 # Host Based Inventory
 
+a change
+
 You've arrived at the repo for the backend of the Host Based Inventory (HBI).
 If you're looking for API, integration or user documentation for HBI please see the [Inventory section in our Platform Docs site](https://consoledot.pages.redhat.com/docs/dev/services/inventory.html).
 
