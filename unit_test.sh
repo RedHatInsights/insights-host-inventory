@@ -94,7 +94,8 @@ echo '===================================='
 echo '====        Running Tests       ===='
 echo '===================================='
 set +e
-podman exec "$TEST_CONTAINER_ID" --entrypoint=["FLASK_APP=manage.py", "flask", "db", "upgrade", "&&", "pytest", "--cov=.", "--junitxml=junit-unittest.xml", "--cov-report html", "-sv"]
+podman exec "$TEST_CONTAINER_ID" \
+    -e FLASK_APP=manage.py bash -c 'flask db upgrade && pytest --cov=. --junitxml=junit-unittest.xml --cov-report html -sv'
 TEST_RESULT=$?
 set -e
 
