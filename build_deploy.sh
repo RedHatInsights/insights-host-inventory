@@ -13,10 +13,21 @@ if [[ -z "$QUAY_USER" || -z "$QUAY_TOKEN" ]]; then
     exit 1
 fi
 
+# Create tmp dir to store data in during job run (do NOT store in $WORKSPACE)
+export TMP_JOB_DIR=$(mktemp -d -p "$HOME" -t "jenkins-${JOB_NAME}-${BUILD_NUMBER}-XXXXXX")
+echo "job tmp dir location: $TMP_JOB_DIR"
 
-AUTH_CONF_DIR="$(pwd)/.podman"
-mkdir -p $AUTH_CONF_DIR
-export REGISTRY_AUTH_FILE="$AUTH_CONF_DIR/auth.json"
+function job_cleanup() {
+    echo "cleaning up job tmp dir: $TMP_JOB_DIR"
+    rm -fr $TMP_JOB_DIR
+}
+
+trap job_cleanup EXIT ERR SIGINT SIGTERM
+
+# Set up docker/podman cfg
+export DOCKER_CONFIG="${TMP_JOB_DIR}/.docker"
+mkdir -p "$DOCKER_CONFIG"
+
 
 podman login -u="$QUAY_USER" -p="$QUAY_TOKEN" quay.io
 podman login -u="$RH_REGISTRY_USER" -p="$RH_REGISTRY_TOKEN" registry.redhat.io
