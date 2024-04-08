@@ -1,7 +1,6 @@
 from typing import List
 from typing import Tuple
 
-from flask import abort
 from sqlalchemy import Boolean
 from sqlalchemy import func
 from sqlalchemy import text
@@ -112,8 +111,6 @@ def get_host_list_by_id_list(
     items, total, additional_fields, system_profile_fields = _get_host_list_using_filters(
         all_filters, page, per_page, param_order_by, param_order_how, fields
     )
-    if total == 0:
-        abort(404)
 
     return items, total, additional_fields, system_profile_fields
 
@@ -132,9 +129,16 @@ def params_to_order_by(order_by: str = None, order_how: str = None) -> Tuple:
             ordering = (Host.display_name.asc(),)
     elif order_by == "group_name":
         if order_how:
-            ordering = (_order_how(Group.name, order_how),)
+            base_ordering = _order_how(Group.name, order_how)
         else:
-            ordering = (Group.name.asc(),)
+            base_ordering = Group.name.asc()
+
+        # Override default sorting
+        # When sorting by group_name ASC, ungrouped hosts should show first
+        if order_how == "DESC":
+            ordering = (base_ordering.nulls_last(),)
+        else:
+            ordering = (base_ordering.nulls_first(),)
     elif order_by == "operating_system":
         if order_how:
             ordering = (_order_how(Host.operating_system, order_how),)
@@ -327,8 +331,9 @@ def get_os_info(
     filters = query_filters(
         tags=tags, staleness=staleness, registered_with=registered_with, filter=filter, rbac_filter=rbac_filter
     )
-    if filters:
-        os_query = os_query.filter(*filters)
+    # Only include records that have set an operating_system.name
+    filters += (columns[0].isnot(None),)
+    os_query = os_query.filter(*filters)
 
     subquery = os_query.subquery()
     agg_query = db.session.query(subquery, func.count()).group_by("name", "major", "minor")

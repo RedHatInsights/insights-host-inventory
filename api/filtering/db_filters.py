@@ -39,7 +39,7 @@ def _canonical_fact_filter(canonical_fact: str, value, case_insensitive: bool = 
 
 
 def _display_name_filter(display_name: str) -> List:
-    return [func.lower(Host.display_name).comparator.contains(display_name.lower())]
+    return [Host.display_name.ilike(f"%{display_name.replace('*', '%')}%")]
 
 
 def _tags_filter(string_tags: List[str]) -> List:
@@ -192,9 +192,10 @@ def _system_profile_filter(filter: dict) -> List:
 
 
 def _hostname_or_id_filter(hostname_or_id: str) -> List:
+    wildcard_id = f"%{hostname_or_id.replace('*', '%')}%"
     filter_list = [
-        func.lower(Host.display_name).comparator.contains(hostname_or_id.lower()),
-        func.lower(Host.canonical_facts["fqdn"].astext).contains(hostname_or_id.lower()),
+        Host.display_name.ilike(wildcard_id),
+        Host.canonical_facts["fqdn"].astext.ilike(wildcard_id),
     ]
 
     try:
