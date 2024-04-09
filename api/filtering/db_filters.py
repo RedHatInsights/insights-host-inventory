@@ -25,6 +25,7 @@ from app.serialization import serialize_staleness_to_dict
 from app.utils import Tag
 from lib.feature_flags import FLAG_HIDE_EDGE_HOSTS
 from lib.feature_flags import get_flag_value
+from lib.host_repository import ALL_STALENESS_STATES
 
 __all__ = ("query_filters", "host_id_list_filter", "rbac_permissions_filter")
 
@@ -225,7 +226,9 @@ def _modified_on_filter(updated_start: str, updated_end: str) -> List:
 
 
 def host_id_list_filter(host_id_list: List[str]) -> List:
-    return [Host.id.in_(host_id_list)]
+    all_filters = [Host.id.in_(host_id_list)]
+    all_filters += _staleness_filter(ALL_STALENESS_STATES)
+    return all_filters
 
 
 def rbac_permissions_filter(rbac_filter: dict) -> List:

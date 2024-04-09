@@ -1204,6 +1204,19 @@ def test_query_by_id_sparse_fields(db_create_multiple_hosts, api_get):
         assert "owner_id" in result["system_profile"]
 
 
+def test_query_by_id_culled_hosts(db_create_host, api_get):
+    # Create a culled host
+    with patch("app.models.datetime", **{"now.return_value": now() - timedelta(days=365)}):
+        created_host_id = str(db_create_host().id)
+
+    url = build_hosts_url(host_list_or_id=created_host_id)
+    with patch("api.host.get_flag_value", return_value=True):
+        # The host should not be returned as it is in the "culled" state
+        response_status, response_data = api_get(url)
+        assert response_status == 200
+        assert 0 == len(response_data["results"])
+
+
 def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
     _now = now()
     registered_with_data = [
