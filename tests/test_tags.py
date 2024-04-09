@@ -1,6 +1,8 @@
 from datetime import timedelta
 from unittest.mock import patch
 
+import pytest
+
 from api.host_query_xjoin import HOST_TAGS_QUERY
 from app.models import ProviderType
 from app.serialization import _deserialize_tags
@@ -51,13 +53,20 @@ def test_get_tags_of_multiple_hosts_query(
     )
 
 
-def test_get_tags_of_multiple_hosts_query_via_db(mq_create_three_specific_hosts, api_get):
+@pytest.mark.parametrize(
+    "search",
+    (
+        "&search=NS1",
+        "&search=NS1/key2=val1",
+    ),
+)
+def test_get_tags_of_multiple_hosts_query_via_db(mq_create_three_specific_hosts, api_get, search):
     """
     Send a request for the tag count of multiple hosts and validate the query
     """
     created_hosts = mq_create_three_specific_hosts
 
-    url = build_host_tags_url(host_list_or_id=created_hosts, query="?order_by=updated&order_how=ASC")
+    url = build_host_tags_url(host_list_or_id=created_hosts, query=f"?order_by=updated&order_how=ASC{search}")
     with patch("api.host.get_flag_value", return_value=True):
         response_status, response = api_get(url)
         assert response_status == 200
