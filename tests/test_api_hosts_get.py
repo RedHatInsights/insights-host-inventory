@@ -1705,3 +1705,81 @@ def test_query_all_sp_filters_sql_character_issues(api_get, sp_filter_param):
         response_status, _ = api_get(url)
 
     assert response_status == 200
+
+
+@pytest.mark.parametrize(
+    "sp_filter_param",
+    (
+        "[arch]=qbe%5Dd%3Fsdx%60.%7B0%60sTfX%3AGP%26dp%24kf%3By0%60F3%3B%60%5EZ1aa-b-%5B%3A9%24%26s48%5E08W%3EC%7C%2565D488De%23",  # noqa: E501
+        "[arch]=%25T%5E%3EGYlS%22Q%2A2K%3A6v57YGLU5.7H%2Ap%23kEHqhTH1u6yEX%3AyaJyFkCRN%3Ew%22xX%5B3_",
+        "[arch]=0~j%40TiIP%5ExYk%26yoFc0f%28%22El%6073g2%3B%22pqm%250z",
+        "[arch]=%5Bw%7B%22%28caY4%28m%605A%7D%5B%2Cn8Eif%25%25%25E8%3FFg%3FC%3By%7BA%23Viv3SZVgAUhQ",
+        "[arch]=Zk0%2A%2CgJjkL%3E%7CM%25b2W%60KZgY%5BjIaH%7DB-c%2CtfWv%2AdkpHR%29%7Cje",
+        "[arch]=7%25%23a%40%7CyEptSf7_%3F%28SQ%60G%7CMc_Q8P1%3F",
+    ),
+)
+def test_query_all_sp_filters_sql_char_contents(db_create_host, api_get, sp_filter_param):
+    # Create host with this system profile
+    sp_data = {
+        "system_profile_facts": {
+            "arch": "qbe]d?sdx`.{0`sTfX:GP&dp$kf;y0`F3;`^Z1aa-b-[:9$&s48^08W>C|%65D488De#",
+            "host_type": "edge",
+            "sap_sids": ["ABC", "DEF"],
+            "system_memory_bytes": 8192,
+        }
+    }
+    db_create_host(extra_data=sp_data)
+    sp_data = {
+        "system_profile_facts": {
+            "arch": '%T^>GYlS"Q*2K:6v57YGLU5.7H*p#kEHqhTH1u6yEX:yaJyFkCRN>w"xX[3_',
+            "host_type": "edge",
+            "sap_sids": ["ABC", "DEF"],
+            "system_memory_bytes": 8192,
+        }
+    }
+    db_create_host(extra_data=sp_data)
+    sp_data = {
+        "system_profile_facts": {
+            "arch": '0~j@TiIP^xYk&yoFc0f("El`73g2;"pqm%0z',
+            "host_type": "edge",
+            "sap_sids": ["ABC", "DEF"],
+            "system_memory_bytes": 8192,
+        }
+    }
+    db_create_host(extra_data=sp_data)
+    sp_data = {
+        "system_profile_facts": {
+            "arch": '[w{"(caY4(m`5A}[,n8Eif%%%E8?Fg?C;y{A#Viv3SZVgAUhQ',
+            "host_type": "edge",
+            "sap_sids": ["ABC", "DEF"],
+            "system_memory_bytes": 8192,
+        }
+    }
+    db_create_host(extra_data=sp_data)
+    sp_data = {
+        "system_profile_facts": {
+            "arch": "Zk0*,gJjkL>|M%b2W`KZgY[jIaH}B-c,tfWv*dkpHR)|je",
+            "host_type": "edge",
+            "sap_sids": ["ABC", "DEF"],
+            "system_memory_bytes": 8192,
+        }
+    }
+    db_create_host(extra_data=sp_data)
+    sp_data = {
+        "system_profile_facts": {
+            "arch": "7%#a@|yEptSf7_?(SQ`G|Mc_Q8P1?",
+            "host_type": "edge",
+            "sap_sids": ["ABC", "DEF"],
+            "system_memory_bytes": 8192,
+        }
+    }
+    db_create_host(extra_data=sp_data)
+
+    url = build_hosts_url(query=f"?filter[system_profile]{sp_filter_param}")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+        # Assert that the request succeeds but no hosts are returned
+        assert response_status == 200
+        assert len(response_data["results"]) == 1
