@@ -222,6 +222,7 @@ def test_get_list_of_tags_with_host_filters_via_db(db_create_multiple_hosts, api
             {"query": f"?provider_id={provider_id}", "expected_count": 1},
             {"query": f"?provider_type={ProviderType.AZURE.value}", "expected_count": 1},
             {"query": f"?search={tag_key}", "expected_count": 1},
+            {"query": f"?search={tag_key.swapcase()}", "expected_count": 1},
             {"query": "?search=not-found", "expected_count": 0},
             {"query": "?registered_with=puptoo", "expected_count": 1},
             {"query": "?registered_with=yupana", "expected_count": 1},
