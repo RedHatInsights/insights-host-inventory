@@ -310,7 +310,7 @@ def get_tag_list(
         func.count().label("count"),
     )
     if search:
-        query = query.filter(text("namespace||'/'||key||'='||value ~*:reg")).params(reg=search)
+        query = query.filter(text("(namespace || '/' || key || '=' || value) ~*:reg")).params(reg=search)
 
     query = query.group_by("namespace", "key", "value")
     query_count = query.count()

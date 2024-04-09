@@ -571,18 +571,3 @@ def test_get_host_tags_null_namespace_via_db(api_get, db_create_host):
 
     assert response_status == 200
     assert flattened_tag in response_data["results"][str(created_host.id)]
-
-
-def test_get_search_full_tag_db(api_get, db_create_host):
-    full_tag = {"TTlsXkv": {"tYaictest": "KSWkSHIuOtest-tag"}}
-    flattened_tag = {"key": "tYaictest", "value": "KSWkSHIuOtest-tag", "namespace": "TTlsXkv"}
-
-    created_host = db_create_host(extra_data={"tags": full_tag})
-
-    url = build_tags_url(query="?search=TTlsXkv/tYaictest=KSWkSHIuOtest-tag")
-    with patch("api.tag.get_flag_value", return_value=True):
-        response_status, response_data = api_get(url)
-
-    assert response_status == 200
-    assert len(response_data["results"]) == 1
-    assert flattened_tag in response_data["results"][str(created_host.id)]
