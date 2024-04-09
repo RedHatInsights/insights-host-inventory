@@ -718,7 +718,7 @@
         },
         "responses": {
           "200": {
-            "description": "Successfully merged group information.",
+            "description": "Group information successfully or already previously merged.",
             "content": {
               "application/json": {
                 "schema": {
@@ -874,7 +874,7 @@
         },
         "responses": {
           "200": {
-            "description": "Successfully associated hosts with group.",
+            "description": "Hosts successfully or already previously associated with group.",
             "content": {
               "application/json": {
                 "schema": {
