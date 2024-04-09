@@ -186,7 +186,7 @@ def test_get_list_of_tags_with_host_filters_via_db(db_create_multiple_hosts, api
     insights_id = generate_uuid()
     provider_id = generate_uuid()
     display_name = "test-example-host"
-    namespace = None
+    namespace = "ns1"
     tag_key = "database"
     tag_value = "postgresql"
     per_reporter_staleness = {
@@ -223,6 +223,7 @@ def test_get_list_of_tags_with_host_filters_via_db(db_create_multiple_hosts, api
             {"query": f"?provider_type={ProviderType.AZURE.value}", "expected_count": 1},
             {"query": f"?search={tag_key}", "expected_count": 1},
             {"query": f"?search={tag_key.swapcase()}", "expected_count": 1},
+            {"query": f"?search={namespace}/{tag_key}={tag_value}", "expected_count": 1},
             {"query": "?search=not-found", "expected_count": 0},
             {"query": "?registered_with=puptoo", "expected_count": 1},
             {"query": "?registered_with=yupana", "expected_count": 1},
@@ -569,4 +570,19 @@ def test_get_host_tags_null_namespace_via_db(api_get, db_create_host):
         response_status, response_data = api_get(url)
 
     assert response_status == 200
+    assert flattened_tag in response_data["results"][str(created_host.id)]
+
+
+def test_get_search_full_tag_db(api_get, db_create_host):
+    full_tag = {"TTlsXkv": {"tYaictest": "KSWkSHIuOtest-tag"}}
+    flattened_tag = {"key": "tYaictest", "value": "KSWkSHIuOtest-tag", "namespace": "TTlsXkv"}
+
+    created_host = db_create_host(extra_data={"tags": full_tag})
+
+    url = build_tags_url(query="?search=TTlsXkv/tYaictest=KSWkSHIuOtest-tag")
+    with patch("api.tag.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
     assert flattened_tag in response_data["results"][str(created_host.id)]
