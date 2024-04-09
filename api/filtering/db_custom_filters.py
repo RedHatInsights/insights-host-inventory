@@ -262,7 +262,7 @@ def build_single_text_filter(filter_param: dict) -> str:
             value = "NOT NULL"
 
         # Put value in quotes if appropriate for the field type and operation
-        if field_filter in ["wildcard", "string", "timestamp", "boolean", "array"] and pg_op != "IS":
+        if field_filter in ["wildcard", "string", "timestamp", "array"] and pg_op != "IS":
             value = f"'{value}'"
         elif value == "" or (
             field_filter == "integer" and (not value.isdigit() and value not in ["NULL", "NOT NULL"])

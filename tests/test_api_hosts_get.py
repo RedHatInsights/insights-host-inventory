@@ -1623,6 +1623,9 @@ def test_query_all_sp_filters_invalid_field(api_get, sp_filter_param):
     "sp_filter_param",
     (
         "[number_of_cpus]=",  # Blank not allowed for non-string field
+        "[number_of_cpus][eq]=",  # Blank not allowed for non-string field
+        "[is_marketplace]=",  # Blank not allowed for non-string field
+        "[is_marketplace][eq]=",  # Blank not allowed for non-string field
         "[number_of_cpus]=asdf",  # String not allowed for non-string field
     ),
 )
