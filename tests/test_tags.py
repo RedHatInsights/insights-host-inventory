@@ -543,3 +543,16 @@ def test_get_tags_sap_sids(patch_xjoin_post, api_get, subtests):
 
                 assert_response_status(response_status, 200)
                 assert response_data["total"] == 1
+
+
+def test_get_host_tags_null_value_via_db(api_get, db_create_host):
+    null_value_tag = {"ns1": {"key1": None}}
+    flattened_tag = {"namespace": "ns1", "key": "key1", "value": None}
+    created_host = db_create_host(extra_data={"tags": null_value_tag})
+
+    url = build_host_tags_url(host_list_or_id=created_host.id)
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert flattened_tag in response_data["results"][str(created_host.id)]
