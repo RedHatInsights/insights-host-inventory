@@ -556,3 +556,16 @@ def test_get_host_tags_null_value_via_db(api_get, db_create_host):
 
     assert response_status == 200
     assert flattened_tag in response_data["results"][str(created_host.id)]
+
+
+def test_get_host_tags_null_namespace_via_db(api_get, db_create_host):
+    null_namespace_tag = {None: {"key1": "val1"}}
+    flattened_tag = {"namespace": None, "key": "key1", "value": "val1"}
+    created_host = db_create_host(extra_data={"tags": null_namespace_tag})
+
+    url = build_host_tags_url(host_list_or_id=created_host.id)
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert flattened_tag in response_data["results"][str(created_host.id)]

@@ -198,12 +198,22 @@ def _expand_host_tags(hosts: List[Host]) -> dict:
         host_namespace_tags_dict = host.tags
         for host_namespace, host_namespace_tags in host_namespace_tags_dict.items():
             for tag_key, tag_values in host_namespace_tags.items():
-                if tag_values is None:
-                    host_tags.append({"namespace": host_namespace, "key": tag_key, "value": None})
-                else:
+                if isinstance(tag_values, List):
                     for tag_value in tag_values:
-                        host_tag_obj = {"namespace": host_namespace, "key": tag_key, "value": tag_value}
+                        host_tag_obj = {
+                            "namespace": _convert_null_string(host_namespace),
+                            "key": _convert_null_string(tag_key),
+                            "value": _convert_null_string(tag_value),
+                        }
                         host_tags.append(host_tag_obj)
+                else:
+                    host_tags.append(
+                        {
+                            "namespace": _convert_null_string(host_namespace),
+                            "key": _convert_null_string(tag_key),
+                            "value": _convert_null_string(tag_values),
+                        }
+                    )
         host_tags_dict[host.id] = host_tags
     return host_tags_dict
 
