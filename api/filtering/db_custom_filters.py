@@ -227,8 +227,12 @@ def escape_sql_from_string_val(val: str) -> str:
     value = val
     if "%" in value:
         value = value.replace("%", r"\%")
+    if "/" in value:
+        value = value.replace("/", r"\/")
     if ":" in value:
         value = value.replace(":", r"\:")
+    if "'" in value:
+        value = value.replace("'", r"''")
     return value
 
 
