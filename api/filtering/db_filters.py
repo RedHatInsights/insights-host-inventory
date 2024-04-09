@@ -46,7 +46,7 @@ def _tags_filter(string_tags: List[str]) -> List:
     tags = []
 
     for string_tag in string_tags:
-        tags.append(Tag.from_string(string_tag).to_nested())
+        tags.append(Tag.create_nested_from_tags([Tag.from_string(string_tag)]))
 
     return [or_(Host.tags.contains(tag) for tag in tags)]
 
