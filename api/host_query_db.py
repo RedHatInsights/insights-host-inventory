@@ -184,9 +184,10 @@ def get_host_tags_list_by_id_list(
 ) -> Tuple[dict, int]:
     columns = [Host.id, Host.tags]
     query = _find_all_hosts(columns)
-    host_filter = host_id_list_filter(host_id_list=host_id_list)
+    all_filters = host_id_list_filter(host_id_list=host_id_list)
+    all_filters += rbac_permissions_filter(rbac_filter)
     order = params_to_order_by(order_by, order_how)
-    query_results = query.filter(*host_filter).order_by(*order).offset(offset).limit(limit).all()
+    query_results = query.filter(*all_filters).order_by(*order).offset(offset).limit(limit).all()
     host_tags_dict = _expand_host_tags(query_results)
     return host_tags_dict, len(host_id_list)
 
