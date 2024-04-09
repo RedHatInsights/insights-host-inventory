@@ -337,32 +337,33 @@ def test_validate_sp_for_invalid_days(api_post):
 
 def test_system_profile_operating_system(mq_create_or_update_host, api_get):
     # Create some operating systems
-    ordered_operating_system_data = [
-        {"name": "CentOS", "major": 4, "minor": 0},
-        {"name": "CentOS", "major": 4, "minor": 1},
-        {"name": "CentOS", "major": 5, "minor": 1},
-        {"name": "CentOS", "major": 5, "minor": 1},
-        {"name": "RHEL", "major": 3, "minor": 0},
-        {"name": "RHEL", "major": 3, "minor": 11},
-        {"name": "RHEL", "major": 8, "minor": 1},
-        {"name": "RHEL", "major": 8, "minor": 1},
+    ordered_sp_data = [
+        {"operating_system": {"name": "CentOS", "major": 4, "minor": 0}},
+        {"operating_system": {"name": "CentOS", "major": 4, "minor": 0}},
+        {"operating_system": {"name": "CentOS", "major": 4, "minor": 1}},
+        {"operating_system": {"name": "CentOS", "major": 5, "minor": 1}},
+        {"operating_system": {"name": "CentOS", "major": 5, "minor": 1}},
+        {"operating_system": {"name": "RHEL", "major": 3, "minor": 0}},
+        {"operating_system": {"name": "RHEL", "major": 3, "minor": 11}},
+        {"operating_system": {"name": "RHEL", "major": 8, "minor": 1}},
+        {"operating_system": {"name": "RHEL", "major": 8, "minor": 1}},
+        {},
     ]
-    ordered_insights_ids = [generate_uuid() for _ in range(len(ordered_operating_system_data))]
+    ordered_insights_ids = [generate_uuid() for _ in range(len(ordered_sp_data))]
     # Create an association between the insights IDs
-    ordered_host_data = dict(zip(ordered_insights_ids, ordered_operating_system_data))
+    ordered_host_data = dict(zip(ordered_insights_ids, ordered_sp_data))
 
     # Create hosts for the above host data (in shuffled order)
     _ = [
-        mq_create_or_update_host(
-            minimal_host(insights_id=insights_id, system_profile={"operating_system": ordered_host_data[insights_id]})
-        )
+        mq_create_or_update_host(minimal_host(insights_id=insights_id, system_profile=ordered_host_data[insights_id]))
         for insights_id in ordered_insights_ids
     ]
     url = build_system_profile_operating_system_url()
 
     os_list = []
     os_dict = {}
-    for os_datum in ordered_operating_system_data:
+    # Only collect data from hosts that have operating_system
+    for os_datum in [x["operating_system"] for x in ordered_sp_data if "operating_system" in x]:
         os_datum_name = f"{os_datum['name']}_{os_datum['major']}.{os_datum['minor']}"
         if os_datum not in os_list:
             os_list.append(os_datum)

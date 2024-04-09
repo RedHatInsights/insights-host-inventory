@@ -572,9 +572,7 @@ def test_delete_host_RBAC_denied_specific_groups(
     assert db_get_host(host_id)
 
 
-def test_postgres_delete_filtered_hosts(
-    mocker, db_create_host, api_get, api_delete_filtered_hosts, event_producer_mock
-):
+def test_postgres_delete_filtered_hosts(db_create_host, api_get, api_delete_filtered_hosts, event_producer_mock):
     host_1_id = db_create_host(extra_data={"display_name": "foobar"}).id
     host_2_id = db_create_host(extra_data={"display_name": "foobaz"}).id
 
@@ -589,10 +587,10 @@ def test_postgres_delete_filtered_hosts(
 
         # Make sure they were both deleted and produced deletion events
         assert '"type": "delete"' in event_producer_mock.event
-        response_status, response_data = api_get(build_hosts_url(host_1_id))
-        assert_response_status(response_status, expected_status=404)
-        response_status, response_data = api_get(build_hosts_url(host_2_id))
-        assert_response_status(response_status, expected_status=404)
+        _, response_data = api_get(build_hosts_url(host_1_id))
+        assert len(response_data["results"]) == 0
+        _, response_data = api_get(build_hosts_url(host_2_id))
+        assert len(response_data["results"]) == 0
 
         # Make sure the other host wasn't deleted
         response_status, response_data = api_get(build_hosts_url(not_deleted_host_id))
