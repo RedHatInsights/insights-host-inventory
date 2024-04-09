@@ -688,24 +688,27 @@ def test_get_multiple_hosts_by_tag(mq_create_three_specific_hosts, api_get, subt
         assert host.id == result["id"]
 
 
-def test_get_host_by_multiple_tags(mq_create_three_specific_hosts, api_get, subtests):
+def test_get_host_by_multiple_tags(db_create_host, api_get, subtests):
     """
     Get only the host with all three tags on it, and not the other hosts,
     which both have some (but not all) of the tags we query for.
     """
-    created_hosts = mq_create_three_specific_hosts
-    expected_response_list = [created_hosts[1]]
-    url = build_hosts_url(query="?tags=NS1/key1=val1&tags=NS2/key2=val2&tags=NS3/key3=val3")
+    tags_data_list = [
+        {"tags": {"ns1": {"key1": ["val1"]}}},
+        {"tags": {"ns1": {"key1": ["val1"], "key2": ["val2"]}}},
+        {"tags": {"ns1": {"key1": ["val1"], "key3": ["val3"]}}},
+        {"tags": {"ns1": {"key3": ["val3"], "key4": ["val4"]}}},
+    ]
+
+    host_ids = [str(db_create_host(extra_data=tags_data).id) for tags_data in tags_data_list]
+    url = build_hosts_url(query="?tags=ns1/key1=val1&tags=ns1/key2=val2")
 
     with patch("api.host.get_flag_value", return_value=True):
-        api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
-        response_status, response_data = api_get(url)
+        api_pagination_test(api_get, subtests, url, expected_total=3)
+        _, response_data = api_get(url)
 
-    assert response_status == 200
-    assert len(expected_response_list) == len(response_data["results"])
-
-    for host, result in zip(expected_response_list, response_data["results"]):
-        assert host.id == result["id"]
+    for result in response_data["results"]:
+        assert result["id"] in host_ids[:3]
 
 
 def test_get_host_by_subset_of_tags(mq_create_three_specific_hosts, api_get, subtests):

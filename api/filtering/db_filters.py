@@ -46,11 +46,9 @@ def _tags_filter(string_tags: List[str]) -> List:
     tags = []
 
     for string_tag in string_tags:
-        tags.append(Tag.from_string(string_tag))
+        tags.append(Tag.from_string(string_tag).to_nested())
 
-    tags_to_find = Tag.create_nested_from_tags(tags)
-
-    return [Host.tags.contains(tags_to_find)]
+    return [or_(Host.tags.contains(tag) for tag in tags)]
 
 
 def _group_names_filter(group_name_list: List) -> List:
