@@ -223,9 +223,9 @@ def _unique_paths(
     return all_filters
 
 
-def escape_sql_from_string_val(val: str) -> str:
+def escape_sql_from_string_val(val: str, pg_op: str) -> str:
     value = val
-    if "%" in value:
+    if "%" in value and pg_op == "ILIKE":
         value = value.replace("%", r"\%")
     if "/" in value:
         value = value.replace("/", r"\/")
@@ -249,10 +249,11 @@ def build_single_text_filter(filter_param: dict) -> str:
         logger.debug(f"generating filter: field: {field_name}, type: {field_filter}, field_input: {field_input}")
 
         jsonb_path, pg_op, value = _convert_dict_to_text_filter_and_value(filter_param, field_filter == "array")
-        value = escape_sql_from_string_val(value)
 
         if not pg_op:
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter)
+
+        value = escape_sql_from_string_val(value, pg_op)
 
         # Handle wildcard fields (use ILIKE, replace * with %)
         if pg_op == "ILIKE":
