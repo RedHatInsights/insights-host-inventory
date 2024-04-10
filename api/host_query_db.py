@@ -184,9 +184,10 @@ def get_host_tags_list_by_id_list(
 ) -> Tuple[dict, int]:
     columns = [Host.id, Host.tags]
     query = _find_all_hosts(columns)
-    host_filter = host_id_list_filter(host_id_list=host_id_list)
+    all_filters = host_id_list_filter(host_id_list=host_id_list)
+    all_filters += rbac_permissions_filter(rbac_filter)
     order = params_to_order_by(order_by, order_how)
-    query_results = query.filter(*host_filter).order_by(*order).offset(offset).limit(limit).all()
+    query_results = query.filter(*all_filters).order_by(*order).offset(offset).limit(limit).all()
     host_tags_dict = _expand_host_tags(query_results)
     return host_tags_dict, len(host_id_list)
 
@@ -198,9 +199,22 @@ def _expand_host_tags(hosts: List[Host]) -> dict:
         host_namespace_tags_dict = host.tags
         for host_namespace, host_namespace_tags in host_namespace_tags_dict.items():
             for tag_key, tag_values in host_namespace_tags.items():
-                for tag_value in tag_values:
-                    host_tag_obj = {"namespace": host_namespace, "key": tag_key, "value": tag_value}
-                    host_tags.append(host_tag_obj)
+                if isinstance(tag_values, List):
+                    for tag_value in tag_values:
+                        host_tag_obj = {
+                            "namespace": _convert_null_string(host_namespace),
+                            "key": _convert_null_string(tag_key),
+                            "value": _convert_null_string(tag_value),
+                        }
+                        host_tags.append(host_tag_obj)
+                else:
+                    host_tags.append(
+                        {
+                            "namespace": _convert_null_string(host_namespace),
+                            "key": _convert_null_string(tag_key),
+                            "value": _convert_null_string(tag_values),
+                        }
+                    )
         host_tags_dict[host.id] = host_tags
     return host_tags_dict
 
@@ -297,7 +311,7 @@ def get_tag_list(
         func.count().label("count"),
     )
     if search:
-        query = query.filter(text("namespace ~:reg OR key ~:reg OR value ~:reg")).params(reg=search)
+        query = query.filter(text("(namespace || '/' || key || '=' || value) ~*:reg")).params(reg=search)
 
     query = query.group_by("namespace", "key", "value")
     query_count = query.count()

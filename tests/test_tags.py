@@ -1,6 +1,8 @@
 from datetime import timedelta
 from unittest.mock import patch
 
+import pytest
+
 from api.host_query_xjoin import HOST_TAGS_QUERY
 from app.models import ProviderType
 from app.serialization import _deserialize_tags
@@ -51,13 +53,20 @@ def test_get_tags_of_multiple_hosts_query(
     )
 
 
-def test_get_tags_of_multiple_hosts_query_via_db(mq_create_three_specific_hosts, api_get):
+@pytest.mark.parametrize(
+    "search",
+    (
+        "&search=NS1",
+        "&search=NS1/key2=val1",
+    ),
+)
+def test_get_tags_of_multiple_hosts_query_via_db(mq_create_three_specific_hosts, api_get, search):
     """
     Send a request for the tag count of multiple hosts and validate the query
     """
     created_hosts = mq_create_three_specific_hosts
 
-    url = build_host_tags_url(host_list_or_id=created_hosts, query="?order_by=updated&order_how=ASC")
+    url = build_host_tags_url(host_list_or_id=created_hosts, query=f"?order_by=updated&order_how=ASC{search}")
     with patch("api.host.get_flag_value", return_value=True):
         response_status, response = api_get(url)
         assert response_status == 200
@@ -186,7 +195,7 @@ def test_get_list_of_tags_with_host_filters_via_db(db_create_multiple_hosts, api
     insights_id = generate_uuid()
     provider_id = generate_uuid()
     display_name = "test-example-host"
-    namespace = None
+    namespace = "ns1"
     tag_key = "database"
     tag_value = "postgresql"
     per_reporter_staleness = {
@@ -222,6 +231,8 @@ def test_get_list_of_tags_with_host_filters_via_db(db_create_multiple_hosts, api
             {"query": f"?provider_id={provider_id}", "expected_count": 1},
             {"query": f"?provider_type={ProviderType.AZURE.value}", "expected_count": 1},
             {"query": f"?search={tag_key}", "expected_count": 1},
+            {"query": f"?search={tag_key.swapcase()}", "expected_count": 1},
+            {"query": f"?search={namespace}/{tag_key}={tag_value}", "expected_count": 1},
             {"query": "?search=not-found", "expected_count": 0},
             {"query": "?registered_with=puptoo", "expected_count": 1},
             {"query": "?registered_with=yupana", "expected_count": 1},
@@ -543,3 +554,29 @@ def test_get_tags_sap_sids(patch_xjoin_post, api_get, subtests):
 
                 assert_response_status(response_status, 200)
                 assert response_data["total"] == 1
+
+
+def test_get_host_tags_null_value_via_db(api_get, db_create_host):
+    null_value_tag = {"ns1": {"key1": None}}
+    flattened_tag = {"namespace": "ns1", "key": "key1", "value": None}
+    created_host = db_create_host(extra_data={"tags": null_value_tag})
+
+    url = build_host_tags_url(host_list_or_id=created_host.id)
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert flattened_tag in response_data["results"][str(created_host.id)]
+
+
+def test_get_host_tags_null_namespace_via_db(api_get, db_create_host):
+    null_namespace_tag = {None: {"key1": "val1"}}
+    flattened_tag = {"namespace": None, "key": "key1", "value": "val1"}
+    created_host = db_create_host(extra_data={"tags": null_namespace_tag})
+
+    url = build_host_tags_url(host_list_or_id=created_host.id)
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert flattened_tag in response_data["results"][str(created_host.id)]
