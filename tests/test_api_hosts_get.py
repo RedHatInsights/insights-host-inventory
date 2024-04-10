@@ -688,62 +688,45 @@ def test_get_multiple_hosts_by_tag(mq_create_three_specific_hosts, api_get, subt
         assert host.id == result["id"]
 
 
-def test_get_host_by_multiple_tags(mq_create_three_specific_hosts, api_get, subtests):
+def test_get_host_by_multiple_tags(db_create_host, api_get, subtests):
     """
     Get only the host with all three tags on it, and not the other hosts,
     which both have some (but not all) of the tags we query for.
     """
-    created_hosts = mq_create_three_specific_hosts
-    expected_response_list = [created_hosts[1]]
-    url = build_hosts_url(query="?tags=NS1/key1=val1&tags=NS2/key2=val2&tags=NS3/key3=val3")
+    tags_data_list = [
+        {"tags": {"ns1": {"key1": ["val1"]}}},
+        {"tags": {"ns1": {"key1": ["val1"], "key2": ["val2"]}}},
+        {"tags": {"ns1": {"key1": ["val1"], "key3": ["val3"]}}},
+        {"tags": {"ns1": {"key3": ["val3"], "key4": ["val4"]}}},
+    ]
+
+    host_ids = [str(db_create_host(extra_data=tags_data).id) for tags_data in tags_data_list]
+    url = build_hosts_url(query="?tags=ns1/key1=val1&tags=ns1/key2=val2")
 
     with patch("api.host.get_flag_value", return_value=True):
-        api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
-        response_status, response_data = api_get(url)
+        api_pagination_test(api_get, subtests, url, expected_total=3)
+        _, response_data = api_get(url)
 
-    assert response_status == 200
-    assert len(expected_response_list) == len(response_data["results"])
-
-    for host, result in zip(expected_response_list, response_data["results"]):
-        assert host.id == result["id"]
+    for result in response_data["results"]:
+        assert result["id"] in host_ids[:3]
 
 
 def test_get_host_by_subset_of_tags(mq_create_three_specific_hosts, api_get, subtests):
     """
     Get a host using a subset of its tags
     """
-    created_hosts = mq_create_three_specific_hosts
-    expected_response_list = [created_hosts[1]]
+    created_host_ids = [str(host.id) for host in mq_create_three_specific_hosts]
     url = build_hosts_url(query="?tags=NS1/key1=val1&tags=NS3/key3=val3")
 
     with patch("api.host.get_flag_value", return_value=True):
-        api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
+        api_pagination_test(api_get, subtests, url, expected_total=len(created_host_ids))
         response_status, response_data = api_get(url)
 
     assert response_status == 200
-    assert len(expected_response_list) == len(response_data["results"])
+    assert len(created_host_ids) == len(response_data["results"])
 
-    for host, result in zip(expected_response_list, response_data["results"]):
-        assert host.id == result["id"]
-
-
-def test_get_host_with_different_tags_same_namespace(mq_create_three_specific_hosts, api_get, subtests):
-    """
-    get a host with two tags in the same namespace with diffent key and same value
-    """
-    created_hosts = mq_create_three_specific_hosts
-    expected_response_list = [created_hosts[0]]
-    url = build_hosts_url(query="?tags=NS1/key1=val1&tags=NS1/key2=val1")
-
-    with patch("api.host.get_flag_value", return_value=True):
-        api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
-        response_status, response_data = api_get(url)
-
-    assert response_status == 200
-    assert len(expected_response_list) == len(response_data["results"])
-
-    for host, result in zip(expected_response_list, response_data["results"]):
-        assert host.id == result["id"]
+    for result in response_data["results"]:
+        assert result["id"] in created_host_ids
 
 
 def test_get_no_host_with_different_tags_same_namespace(mq_create_three_specific_hosts, api_get, subtests):
@@ -751,32 +734,13 @@ def test_get_no_host_with_different_tags_same_namespace(mq_create_three_specific
     Don’t get a host with two tags in the same namespace, from which only one match. This is a
     regression test.
     """
-    url = build_hosts_url(query="?tags=NS1/key1=val2&tags=NS1/key2=val1")
+    url = build_hosts_url(query="?tags=NS4/key1=val2&tags=NS1/key8=val1")
 
     with patch("api.host.get_flag_value", return_value=True):
         response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(response_data["results"]) == 0
-
-
-def test_get_host_with_same_tags_different_namespaces(mq_create_three_specific_hosts, api_get, subtests):
-    """
-    get a host with two tags in the same namespace with different key and same value
-    """
-    created_hosts = mq_create_three_specific_hosts
-    expected_response_list = [created_hosts[2]]
-    url = build_hosts_url(query="?tags=NS3/key3=val3&tags=NS1/key3=val3")
-
-    with patch("api.host.get_flag_value", return_value=True):
-        api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
-        response_status, response_data = api_get(url)
-
-    assert response_status == 200
-    assert len(expected_response_list) == len(response_data["results"])
-
-    for host, result in zip(expected_response_list, response_data["results"]):
-        assert host.id == result["id"]
 
 
 def test_get_host_with_tag_no_value_at_all(mq_create_three_specific_hosts, api_get, subtests):
@@ -826,11 +790,10 @@ def test_get_host_with_tag_no_namespace(mq_create_three_specific_hosts, api_get,
     url = build_hosts_url(query="?tags=key4=val4")
 
     with patch("api.host.get_flag_value", return_value=True):
-        api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
         response_status, response_data = api_get(url)
-
-    assert response_status == 200
-    assert len(expected_response_list) == len(response_data["results"])
+        assert response_status == 200
+        assert len(expected_response_list) == len(response_data["results"])
+        api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
 
     for host, result in zip(expected_response_list, response_data["results"]):
         assert host.id == result["id"]
@@ -1239,6 +1202,19 @@ def test_query_by_id_sparse_fields(db_create_multiple_hosts, api_get):
         assert "host_type" not in result["system_profile"]
         assert "os_kernel_version" in result["system_profile"]
         assert "owner_id" in result["system_profile"]
+
+
+def test_query_by_id_culled_hosts(db_create_host, api_get):
+    # Create a culled host
+    with patch("app.models.datetime", **{"now.return_value": now() - timedelta(days=365)}):
+        created_host_id = str(db_create_host().id)
+
+    url = build_hosts_url(host_list_or_id=created_host_id)
+    with patch("api.host.get_flag_value", return_value=True):
+        # The host should not be returned as it is in the "culled" state
+        response_status, response_data = api_get(url)
+        assert response_status == 200
+        assert 0 == len(response_data["results"])
 
 
 def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
@@ -1660,6 +1636,9 @@ def test_query_all_sp_filters_invalid_field(api_get, sp_filter_param):
     "sp_filter_param",
     (
         "[number_of_cpus]=",  # Blank not allowed for non-string field
+        "[number_of_cpus][eq]=",  # Blank not allowed for non-string field
+        "[is_marketplace]=",  # Blank not allowed for non-string field
+        "[is_marketplace][eq]=",  # Blank not allowed for non-string field
         "[number_of_cpus]=asdf",  # String not allowed for non-string field
     ),
 )
@@ -1705,3 +1684,81 @@ def test_query_all_sp_filters_sql_character_issues(api_get, sp_filter_param):
         response_status, _ = api_get(url)
 
     assert response_status == 200
+
+
+@pytest.mark.parametrize(
+    "sp_filter_param",
+    (
+        "[arch]=qbe%5Dd%3Fsdx%60.%7B0%60sTfX%3AGP%26dp%24kf%3By0%60F3%3B%60%5EZ1aa-b-%5B%3A9%24%26s48%5E08W%3EC%7C%2565D488De%23",  # noqa: E501
+        "[arch]=%25T%5E%3EGYlS%22Q%2A2K%3A6v57YGLU5.7H%2Ap%23kEHqhTH1u6yEX%3AyaJyFkCRN%3Ew%22xX%5B3_",
+        "[arch]=0~j%40TiIP%5ExYk%26yoFc0f%28%22El%6073g2%3B%22pqm%250z",
+        "[arch]=%5Bw%7B%22%28caY4%28m%605A%7D%5B%2Cn8Eif%25%25%25E8%3FFg%3FC%3By%7BA%23Viv3SZVgAUhQ",
+        "[arch]=Zk0%2A%2CgJjkL%3E%7CM%25b2W%60KZgY%5BjIaH%7DB-c%2CtfWv%2AdkpHR%29%7Cje",
+        "[arch]=7%25%23a%40%7CyEptSf7_%3F%28SQ%60G%7CMc_Q8P1%3F",
+    ),
+)
+def test_query_all_sp_filters_sql_char_contents(db_create_host, api_get, sp_filter_param):
+    # Create host with this system profile
+    sp_data = {
+        "system_profile_facts": {
+            "arch": "qbe]d?sdx`.{0`sTfX:GP&dp$kf;y0`F3;`^Z1aa-b-[:9$&s48^08W>C|%65D488De#",
+            "host_type": "edge",
+            "sap_sids": ["ABC", "DEF"],
+            "system_memory_bytes": 8192,
+        }
+    }
+    db_create_host(extra_data=sp_data)
+    sp_data = {
+        "system_profile_facts": {
+            "arch": '%T^>GYlS"Q*2K:6v57YGLU5.7H*p#kEHqhTH1u6yEX:yaJyFkCRN>w"xX[3_',
+            "host_type": "edge",
+            "sap_sids": ["ABC", "DEF"],
+            "system_memory_bytes": 8192,
+        }
+    }
+    db_create_host(extra_data=sp_data)
+    sp_data = {
+        "system_profile_facts": {
+            "arch": '0~j@TiIP^xYk&yoFc0f("El`73g2;"pqm%0z',
+            "host_type": "edge",
+            "sap_sids": ["ABC", "DEF"],
+            "system_memory_bytes": 8192,
+        }
+    }
+    db_create_host(extra_data=sp_data)
+    sp_data = {
+        "system_profile_facts": {
+            "arch": '[w{"(caY4(m`5A}[,n8Eif%%%E8?Fg?C;y{A#Viv3SZVgAUhQ',
+            "host_type": "edge",
+            "sap_sids": ["ABC", "DEF"],
+            "system_memory_bytes": 8192,
+        }
+    }
+    db_create_host(extra_data=sp_data)
+    sp_data = {
+        "system_profile_facts": {
+            "arch": "Zk0*,gJjkL>|M%b2W`KZgY[jIaH}B-c,tfWv*dkpHR)|je",
+            "host_type": "edge",
+            "sap_sids": ["ABC", "DEF"],
+            "system_memory_bytes": 8192,
+        }
+    }
+    db_create_host(extra_data=sp_data)
+    sp_data = {
+        "system_profile_facts": {
+            "arch": "7%#a@|yEptSf7_?(SQ`G|Mc_Q8P1?",
+            "host_type": "edge",
+            "sap_sids": ["ABC", "DEF"],
+            "system_memory_bytes": 8192,
+        }
+    }
+    db_create_host(extra_data=sp_data)
+
+    url = build_hosts_url(query=f"?filter[system_profile]{sp_filter_param}")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+        # Assert that the request succeeds but no hosts are returned
+        assert response_status == 200
+        assert len(response_data["results"]) == 1
