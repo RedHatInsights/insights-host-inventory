@@ -24,6 +24,7 @@ class EventListSchema(MarshmallowSchema):
 
 class NotificationSchema(MarshmallowSchema):
     id = fields.UUID(required=True)  # message_id, also sent in the reader as rh_message_id
+    account_id = fields.Str(validate=marshmallow_validate.Length(min=0, max=36))  # will be removed in future PR
     org_id = fields.Str(required=True, validate=marshmallow_validate.Length(min=0, max=36))
     application = fields.Str(required=True, validate=marshmallow_validate.Equal("inventory"))
     bundle = fields.Str(required=True, validate=marshmallow_validate.Equal("rhel"))
@@ -110,6 +111,7 @@ def build_notification(notification_type, message_id, host, detail, **kwargs):
 def build_base_notification_obj(notification_type, message_id, host):
     base_obj = {
         "id": message_id,
+        "account_id": host.get("account_id") or "",
         "org_id": host.get("org_id"),
         "application": "inventory",
         "bundle": "rhel",
