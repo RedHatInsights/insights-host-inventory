@@ -28,14 +28,17 @@ COPY app/ app/
 COPY lib/ lib/
 COPY migrations/ migrations/
 COPY swagger/ swagger/
+COPY tests/ tests/
 COPY Makefile Makefile
 COPY host_reaper.py host_reaper.py
 COPY host_synchronizer.py host_synchronizer.py
 COPY inv_mq_service.py inv_mq_service.py
+COPY logconfig.yaml logconfig.yaml
 COPY manage.py manage.py
 COPY pendo_syncher.py pendo_syncher.py
 COPY Pipfile Pipfile
 COPY Pipfile.lock Pipfile.lock
+COPY pytest.ini pytest.ini
 COPY rebuild_events_topic.py rebuild_events_topic.py
 COPY run_gunicorn.py run_gunicorn.py
 COPY run_command.sh run_command.sh
