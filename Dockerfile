@@ -44,6 +44,7 @@ COPY rebuild_events_topic.py rebuild_events_topic.py
 COPY run_gunicorn.py run_gunicorn.py
 COPY run_command.sh run_command.sh
 COPY run_pg_repack.py run_pg_repack.py
+COPY run.py run.py
 COPY system_profile_validator.py system_profile_validator.py
 
 ENV PIP_NO_CACHE_DIR=1
