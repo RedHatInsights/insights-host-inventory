@@ -31,6 +31,7 @@ COPY swagger/ swagger/
 COPY tests/ tests/
 COPY utils/ utils/
 COPY Makefile Makefile
+COPY gunicorn.conf.py gunicorn.conf.py
 COPY host_reaper.py host_reaper.py
 COPY host_synchronizer.py host_synchronizer.py
 COPY inv_mq_service.py inv_mq_service.py
