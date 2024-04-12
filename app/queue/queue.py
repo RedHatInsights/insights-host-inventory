@@ -36,8 +36,8 @@ from app.queue.events import build_event
 from app.queue.events import EventType
 from app.queue.events import message_headers
 from app.queue.events import operation_results_to_event_type
-from app.queue.notifications import build_notification_event
-from app.queue.notifications import notification_message_headers
+from app.queue.notifications import build_notification
+from app.queue.notifications import notification_headers
 from app.queue.notifications import NotificationType
 from app.serialization import deserialize_canonical_facts
 from app.serialization import deserialize_host
@@ -318,10 +318,20 @@ def handle_message(message, event_producer, notification_event_producer, message
                 ve,
                 extra={"host": {"reporter": host.get("reporter")}},
             )
-            send_kafka_error_message(notification_event_producer, host=host, detail=str(ve.detail))
+            send_notification(
+                notification_event_producer,
+                notification_type=NotificationType.validation_error,
+                host=_build_minimal_host_info(host),
+                detail=str(ve.detail),
+            )
             raise
         except InventoryException as ie:
-            send_kafka_error_message(notification_event_producer, host, str(ie.detail))
+            send_notification(
+                notification_event_producer,
+                notification_type=NotificationType.validation_error,
+                host=_build_minimal_host_info(host),
+                detail=str(ie.detail),
+            )
             raise
 
 
@@ -362,16 +372,9 @@ def initialize_thread_local_storage(request_id):
     threadctx.request_id = request_id
 
 
-def send_kafka_error_message(notification_event_producer, host, detail):
+def send_notification(notification_event_producer, notification_type, host, detail):
     message_id = str(uuid.uuid4())
-    minimal_host = _build_minimal_host_info(host)
-    event = build_notification_event(NotificationType.validation_error, message_id, minimal_host, detail)
-    rh_message_id = bytearray(message_id.encode())  # ensures the correct processing of the message
-    headers = notification_message_headers(
-        NotificationType.validation_error,
-        rh_message_id=rh_message_id,
-    )
-    insights_id = minimal_host.get("canonical_facts" or {}).get("insights_id")
-    key = insights_id if type(insights_id) is str else None
+    notification = build_notification(notification_type, message_id, host, detail)
+    headers = notification_headers(notification_type)
 
-    notification_event_producer.write_event(event, key, headers, wait=True)
+    notification_event_producer.write_event(notification, None, headers, wait=True)
