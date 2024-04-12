@@ -28,6 +28,7 @@ COPY lib/ lib/
 COPY migrations/ migrations/
 COPY swagger/ swagger/
 COPY tests/ tests/
+COPY utils/ utils/
 COPY Makefile Makefile
 COPY host_reaper.py host_reaper.py
 COPY host_synchronizer.py host_synchronizer.py
