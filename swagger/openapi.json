@@ -3862,6 +3862,18 @@
                 }
               }
             }
+          },
+          "conversions": {
+            "description": "Object containing information about 3rd party migration on instances",
+            "type": "object",
+            "properties": {
+              "activity": {
+                "description": "Whether the conversion activity has been done or not",
+                "type": "boolean",
+                "x-indexed": false,
+                "example": true
+              }
+            }
           }
         }
       },
