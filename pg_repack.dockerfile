@@ -56,7 +56,7 @@ RUN python3 -m pip install --upgrade pip setuptools wheel && \
     python3 -m pip install pipenv && \
     python3 -m pip install dumb-init && \
     pipenv install --system --dev && \
-    pgxn install pg_repack
+    pgxn install 'pg_repack=1.4.6'
 
 # allows pre-commit and unit tests to run successfully within the container if image is built in "test" environment
 RUN if [ "$TEST_IMAGE" = "true" ]; then \
