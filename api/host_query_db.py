@@ -218,18 +218,14 @@ def _expand_host_tags(hosts: List[Host]) -> Tuple[dict, dict]:
         host_namespace_tags_dict = host.tags
         for host_namespace, host_namespace_tags in host_namespace_tags_dict.items():
             for tag_key, tag_values in host_namespace_tags.items():
-                if isinstance(tag_values, List):
-                    if not tag_values:
-                        host_tags, host_tags_tracker = _add_tag_values(
-                            host_namespace, tag_key, None, host.id, host_tags, host_tags_tracker
-                        )
+                if isinstance(tag_values, List) and tag_values:
                     for tag_value in tag_values:
                         host_tags, host_tags_tracker = _add_tag_values(
                             host_namespace, tag_key, tag_value, host.id, host_tags, host_tags_tracker
                         )
                 else:
                     host_tags, host_tags_tracker = _add_tag_values(
-                        host_namespace, tag_key, tag_values, host.id, host_tags, host_tags_tracker
+                        host_namespace, tag_key, tag_values or None, host.id, host_tags, host_tags_tracker
                     )
         host_tags_dict[host.id] = host_tags
     return host_tags_dict, host_tags_tracker
