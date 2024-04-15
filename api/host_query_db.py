@@ -194,6 +194,22 @@ def get_host_tags_list_by_id_list(
     return host_tags_dict, len(host_id_list)
 
 
+def _add_tag_values(host_namespace, tag_key, tag_value, host_id, host_tags, host_tags_tracker) -> Tuple[dict, dict]:
+    converted_tag_value = _convert_null_string(tag_value) if tag_value else None
+    host_tag_str = f"{_convert_null_string(host_namespace)}/{_convert_null_string(tag_key)}={converted_tag_value}"
+    host_tag_obj = {
+        "namespace": _convert_null_string(host_namespace),
+        "key": _convert_null_string(tag_key),
+        "value": tag_value,
+    }
+    host_tags.append(host_tag_obj)
+    if host_tag_str not in host_tags_tracker:
+        host_tags_tracker[host_tag_str] = {"output": host_tag_obj, "hosts": [host_id]}
+    else:
+        host_tags_tracker[host_tag_str].get("hosts").append(host_id)
+    return host_tags, host_tags_tracker
+
+
 def _expand_host_tags(hosts: List[Host]) -> Tuple[dict, dict]:
     host_tags_tracker = {}
     host_tags_dict = {}
@@ -204,43 +220,17 @@ def _expand_host_tags(hosts: List[Host]) -> Tuple[dict, dict]:
             for tag_key, tag_values in host_namespace_tags.items():
                 if isinstance(tag_values, List):
                     if not tag_values:
-                        host_tag_str = (
-                            f"{_convert_null_string(host_namespace)}/{_convert_null_string(tag_key)}="  # noqa: E501
+                        host_tags, host_tags_tracker = _add_tag_values(
+                            host_namespace, tag_key, None, host.id, host_tags, host_tags_tracker
                         )
-                        host_tag_obj = {
-                            "namespace": _convert_null_string(host_namespace),
-                            "key": _convert_null_string(tag_key),
-                            "value": None,
-                        }
-                        host_tags.append(host_tag_obj)
-                        if host_tag_str not in host_tags_tracker:
-                            host_tags_tracker[host_tag_str] = {"output": host_tag_obj, "hosts": [host.id]}
-                        else:
-                            host_tags_tracker[host_tag_str].get("hosts").append(host.id)
                     for tag_value in tag_values:
-                        host_tag_str = f"{_convert_null_string(host_namespace)}/{_convert_null_string(tag_key)}={_convert_null_string(tag_value)}"  # noqa: E501
-                        host_tag_obj = {
-                            "namespace": _convert_null_string(host_namespace),
-                            "key": _convert_null_string(tag_key),
-                            "value": _convert_null_string(tag_value),
-                        }
-                        host_tags.append(host_tag_obj)
-                        if host_tag_str not in host_tags_tracker:
-                            host_tags_tracker[host_tag_str] = {"output": host_tag_obj, "hosts": [host.id]}
-                        else:
-                            host_tags_tracker[host_tag_str].get("hosts").append(host.id)
+                        host_tags, host_tags_tracker = _add_tag_values(
+                            host_namespace, tag_key, tag_value, host.id, host_tags, host_tags_tracker
+                        )
                 else:
-                    host_tag_str = f"{_convert_null_string(host_namespace)}/{_convert_null_string(tag_key)}={_convert_null_string(tag_values)}"  # noqa: E501
-                    host_tag_obj = {
-                        "namespace": _convert_null_string(host_namespace),
-                        "key": _convert_null_string(tag_key),
-                        "value": _convert_null_string(tag_values),
-                    }
-                    host_tags.append(host_tag_obj)
-                    if host_tag_str not in host_tags_tracker:
-                        host_tags_tracker[host_tag_str] = {"output": host_tag_obj, "hosts": [host.id]}
-                    else:
-                        host_tags_tracker[host_tag_str].get("hosts").append(host.id)
+                    host_tags, host_tags_tracker = _add_tag_values(
+                        host_namespace, tag_key, tag_values, host.id, host_tags, host_tags_tracker
+                    )
         host_tags_dict[host.id] = host_tags
     return host_tags_dict, host_tags_tracker
 
