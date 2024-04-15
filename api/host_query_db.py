@@ -203,6 +203,20 @@ def _expand_host_tags(hosts: List[Host]) -> Tuple[dict, dict]:
         for host_namespace, host_namespace_tags in host_namespace_tags_dict.items():
             for tag_key, tag_values in host_namespace_tags.items():
                 if isinstance(tag_values, List):
+                    if not tag_values:
+                        host_tag_str = (
+                            f"{_convert_null_string(host_namespace)}/{_convert_null_string(tag_key)}="  # noqa: E501
+                        )
+                        host_tag_obj = {
+                            "namespace": _convert_null_string(host_namespace),
+                            "key": _convert_null_string(tag_key),
+                            "value": None,
+                        }
+                        host_tags.append(host_tag_obj)
+                        if host_tag_str not in host_tags_tracker:
+                            host_tags_tracker[host_tag_str] = {"output": host_tag_obj, "hosts": [host.id]}
+                        else:
+                            host_tags_tracker[host_tag_str].get("hosts").append(host.id)
                     for tag_value in tag_values:
                         host_tag_str = f"{_convert_null_string(host_namespace)}/{_convert_null_string(tag_key)}={_convert_null_string(tag_value)}"  # noqa: E501
                         host_tag_obj = {
