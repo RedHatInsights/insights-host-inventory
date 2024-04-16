@@ -35,6 +35,12 @@ def main(logger):
             str(cfg._db_user),
             "-k",
             str(cfg._db_name),
+            "-t",
+            "hosts",
+            "-t",
+            "groups",
+            "-t",
+            "hosts_groups",
         ],
         capture_output=True,
     )

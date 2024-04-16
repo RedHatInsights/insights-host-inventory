@@ -15,3 +15,7 @@ swagger/inventory-schemas/
 coverage.xml
 
 sonarqube/
+
+.docker
+.podman
+.kube

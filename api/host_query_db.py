@@ -1,3 +1,5 @@
+import re
+from itertools import islice
 from typing import List
 from typing import Tuple
 
@@ -188,56 +190,49 @@ def get_host_tags_list_by_id_list(
     all_filters += rbac_permissions_filter(rbac_filter)
     order = params_to_order_by(order_by, order_how)
     query_results = query.filter(*all_filters).order_by(*order).offset(offset).limit(limit).all()
-    host_tags_dict = _expand_host_tags(query_results)
+    host_tags_dict, _ = _expand_host_tags(query_results)
     return host_tags_dict, len(host_id_list)
 
 
-def _expand_host_tags(hosts: List[Host]) -> dict:
+def _add_tag_values(host_namespace, tag_key, tag_value, host_id, host_tags, host_tags_tracker) -> Tuple[dict, dict]:
+    converted_value = _convert_null_string(tag_value) if tag_value else ""
+    host_tag_str = f"{_convert_null_string(host_namespace)}/{_convert_null_string(tag_key)}={converted_value}"
+    host_tag_obj = {
+        "namespace": _convert_null_string(host_namespace),
+        "key": _convert_null_string(tag_key),
+        "value": _convert_null_string(tag_value),
+    }
+    host_tags.append(host_tag_obj)
+    if host_tag_str not in host_tags_tracker:
+        host_tags_tracker[host_tag_str] = {"output": host_tag_obj, "hosts": [host_id]}
+    else:
+        host_tags_tracker[host_tag_str].get("hosts").append(host_id)
+    return host_tags, host_tags_tracker
+
+
+def _expand_host_tags(hosts: List[Host]) -> Tuple[dict, dict]:
+    host_tags_tracker = {}
     host_tags_dict = {}
     for host in hosts:
         host_tags = []
         host_namespace_tags_dict = host.tags
         for host_namespace, host_namespace_tags in host_namespace_tags_dict.items():
             for tag_key, tag_values in host_namespace_tags.items():
-                if isinstance(tag_values, List):
+                if isinstance(tag_values, List) and tag_values:
                     for tag_value in tag_values:
-                        host_tag_obj = {
-                            "namespace": _convert_null_string(host_namespace),
-                            "key": _convert_null_string(tag_key),
-                            "value": _convert_null_string(tag_value),
-                        }
-                        host_tags.append(host_tag_obj)
+                        host_tags, host_tags_tracker = _add_tag_values(
+                            host_namespace, tag_key, tag_value, host.id, host_tags, host_tags_tracker
+                        )
                 else:
-                    host_tags.append(
-                        {
-                            "namespace": _convert_null_string(host_namespace),
-                            "key": _convert_null_string(tag_key),
-                            "value": _convert_null_string(tag_values),
-                        }
+                    host_tags, host_tags_tracker = _add_tag_values(
+                        host_namespace, tag_key, tag_values or None, host.id, host_tags, host_tags_tracker
                     )
         host_tags_dict[host.id] = host_tags
-    return host_tags_dict
-
-
-def params_to_order_by_for_tags(order_by: str = None, order_how: str = None) -> str:
-    if order_by not in ["tag", "count"]:
-        raise ValueError('Unsupported ordering column: use "tag" or "count".')
-    elif order_how and order_by not in ["tag", "count"]:
-        raise ValueError(
-            "Providing ordering direction without a column is not supported. Provide order_by={tag,count}."
-        )
-    order_dir = "ASC"
-    if order_how.upper() == "DESC":
-        order_dir = "DESC"
-    if order_by == "tag":
-        ordering = f"namespace {order_dir}, key {order_dir}, value {order_dir}"
-    elif order_by == "count":
-        ordering = f"count {order_dir}"
-    return ordering
+    return host_tags_dict, host_tags_tracker
 
 
 def _convert_null_string(input: str):
-    if input == "null":
+    if input == "null" or input == []:
         return None
     return input
 
@@ -263,10 +258,14 @@ def get_tag_list(
     filter: dict,
     rbac_filter: dict,
 ) -> Tuple[dict, int]:
-    ordering = params_to_order_by_for_tags(order_by=order_by, order_how=order_how)
-    columns = [
-        func.jsonb_object_keys(Host.tags).label("namespace"),
-    ]
+    if order_by not in ["tag", "count"]:
+        raise ValueError('Unsupported ordering column: use "tag" or "count".')
+    elif order_how and order_by not in ["tag", "count"]:
+        raise ValueError(
+            "Providing ordering direction without a column is not supported. Provide order_by={tag,count}."
+        )
+
+    columns = [Host.id, Host.tags]
     query = _find_all_hosts(columns)
     all_filters = query_filters(
         fqdn,
@@ -286,44 +285,34 @@ def get_tag_list(
         rbac_filter,
     )
 
-    namespace_query = query.filter(*all_filters).subquery()
-    keys_query = (
-        db.session.query(
-            namespace_query.c.namespace.label("namespace"),
-            func.jsonb_object_keys(Host.tags[namespace_query.c.namespace]).label("key"),
-        )
-        .filter(*all_filters)
-        .subquery()
-    )
-    val_query = (
-        db.session.query(
-            keys_query.c.namespace.label("namespace"),
-            keys_query.c.key.label("key"),
-            func.jsonb_array_elements_text(Host.tags[keys_query.c.namespace][keys_query.c.key]).label("value"),
-        )
-        .filter(*all_filters)
-        .subquery()
-    )
-    query = db.session.query(
-        val_query.c.namespace.label("namespace"),
-        val_query.c.key.label("key"),
-        val_query.c.value.label("value"),
-        func.count().label("count"),
-    )
+    query_results = query.filter(*all_filters).all()
+    _, host_tags_dict = _expand_host_tags(query_results)
+    host_tags = host_tags_dict
     if search:
-        query = query.filter(text("(namespace || '/' || key || '=' || value) ~*:reg")).params(reg=search)
+        regex = re.compile(search, re.IGNORECASE)
+        host_tags = {}
+        for key in host_tags_dict.keys():
+            if regex.search(key):
+                host_tags[key] = host_tags_dict[key]
 
-    query = query.group_by("namespace", "key", "value")
-    query_count = query.count()
-    query = query.order_by(text(f"{ordering}"))
-    query_results = query.offset(offset).limit(limit).all()
     tag_list = []
-    for result in query_results:
-        namespace = _convert_null_string(result[0])
-        tagkey = _convert_null_string(result[1])
-        tagvalue = _convert_null_string(result[2])
-        tag = {"tag": {"namespace": namespace, "key": tagkey, "value": tagvalue}, "count": result[3]}
-        tag_list.append(tag)
+    query_count = 0
+    tag_count_list = []
+    for stored_key, tag_contents in host_tags.items():
+        tag_count_item = {"tag": stored_key, "count": len(tag_contents.get("hosts"))}
+        tag_count_list.append(tag_count_item)
+    if order_by == "tag":
+        sorted_tag_count_list = sorted(tag_count_list, reverse=order_how == "DESC", key=lambda item: item["tag"])
+    if order_by == "count":
+        sorted_tag_count_list = sorted(tag_count_list, reverse=order_how == "DESC", key=lambda item: item["count"])
+    for tag_item in sorted_tag_count_list:
+        tag_key = tag_item.get("tag")
+        tag_dict = host_tags[tag_key]
+        output = {"tag": tag_dict.get("output", {}), "count": len(tag_dict.get("hosts", []))}
+        tag_list.append(output)
+
+    query_count = len(tag_list)
+    tag_list = list(islice(islice(tag_list, offset, None), limit))
     return tag_list, query_count
 
 

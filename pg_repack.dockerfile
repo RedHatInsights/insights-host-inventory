@@ -23,7 +23,30 @@ RUN microdnf module enable postgresql:13 python39:3.9 && \
     microdnf install --setopt=tsflags=nodocs -y libpq-devel python39-devel gcc && \
     rpm -qa | sort > packages-after-devel-install.txt
 
-COPY . .
+COPY api/ api/
+COPY app/ app/
+COPY lib/ lib/
+COPY migrations/ migrations/
+COPY swagger/ swagger/
+COPY tests/ tests/
+COPY utils/ utils/
+COPY Makefile Makefile
+COPY gunicorn.conf.py gunicorn.conf.py
+COPY host_reaper.py host_reaper.py
+COPY host_synchronizer.py host_synchronizer.py
+COPY inv_mq_service.py inv_mq_service.py
+COPY logconfig.yaml logconfig.yaml
+COPY manage.py manage.py
+COPY pendo_syncher.py pendo_syncher.py
+COPY Pipfile Pipfile
+COPY Pipfile.lock Pipfile.lock
+COPY pytest.ini pytest.ini
+COPY rebuild_events_topic.py rebuild_events_topic.py
+COPY run_gunicorn.py run_gunicorn.py
+COPY run_command.sh run_command.sh
+COPY run_pg_repack.py run_pg_repack.py
+COPY run.py run.py
+COPY system_profile_validator.py system_profile_validator.py
 
 ENV PIP_NO_CACHE_DIR=1
 ENV PIPENV_CLEAR=1
@@ -33,7 +56,7 @@ RUN python3 -m pip install --upgrade pip setuptools wheel && \
     python3 -m pip install pipenv && \
     python3 -m pip install dumb-init && \
     pipenv install --system --dev && \
-    pgxn install pg_repack
+    pgxn install 'pg_repack=1.4.6'
 
 # allows pre-commit and unit tests to run successfully within the container if image is built in "test" environment
 RUN if [ "$TEST_IMAGE" = "true" ]; then \
