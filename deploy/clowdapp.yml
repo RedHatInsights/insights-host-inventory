@@ -614,7 +614,7 @@ objects:
             cpu: ${CPU_REQUEST_SYNCHRONIZER}
             memory: ${MEMORY_REQUEST_SYNCHRONIZER}
     - name: pg-repack
-      schedule: '@weekly'
+      schedule: ${PG_REPACK_SCHEDULE}
       concurrencyPolicy: "Forbid"
       suspend: ${{PG_REPACK_SUSPEND}}
       podSpec:
@@ -895,6 +895,8 @@ parameters:
   value: 'true'
 - name: PG_REPACK_SUSPEND
   value: 'true'
+- name: PG_REPACK_SCHEDULE
+  value: '* * * * 10'
 - name: KAFKA_SP_VALIDATOR_MAX_MESSAGES
   value: '10000'
 - name: TENANT_TRANSLATOR_HOST
