@@ -894,7 +894,7 @@ parameters:
 - name: REAPER_SUSPEND
   value: 'true'
 - name: PG_REPACK_SUSPEND
-  value: 'true'
+  value: 'false'
 - name: PG_REPACK_SCHEDULE
   value: '* * * * 10'
 - name: KAFKA_SP_VALIDATOR_MAX_MESSAGES
