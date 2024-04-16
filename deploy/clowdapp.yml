@@ -896,7 +896,7 @@ parameters:
 - name: PG_REPACK_SUSPEND
   value: 'true'
 - name: PG_REPACK_SCHEDULE
-  value: '*/10 * * * *'
+  value: '@weekly'
 - name: KAFKA_SP_VALIDATOR_MAX_MESSAGES
   value: '10000'
 - name: TENANT_TRANSLATOR_HOST
