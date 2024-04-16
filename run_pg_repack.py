@@ -1,6 +1,8 @@
 #!/usr/bin/python
-import subprocess
 from os import environ
+from subprocess import PIPE
+from subprocess import Popen
+from subprocess import STDOUT
 from sys import exit
 
 from app.config import Config
@@ -21,10 +23,15 @@ def _init_config():
     return config
 
 
+def log_subprocess_output(pipe):
+    for line in iter(pipe.readline, b""):
+        logger.info("pg_repack: %r", line)
+
+
 def main(logger):
     cfg = _init_config()
     environ["PGPASSWORD"] = str(cfg._db_password)
-    result = subprocess.run(
+    process = Popen(
         [
             "pg_repack",
             "-h",
@@ -35,19 +42,16 @@ def main(logger):
             str(cfg._db_user),
             "-k",
             str(cfg._db_name),
-            "-t",
-            "hosts",
-            "-t",
-            "groups",
-            "-t",
-            "hosts_groups",
         ],
-        capture_output=True,
+        stdout=PIPE,
+        stderr=STDOUT,
     )
-    logger.info(result.stdout)
-    if result.returncode != 0 or result.stderr:
-        logger.error(f"Call to pg_repack failed with error: {result.stderr}")
-        exit(result.returncode)
+
+    with process.stdout:
+        log_subprocess_output(process.stdout)
+
+    returncode = process.wait()
+    exit(returncode)
 
 
 if __name__ == "__main__":
