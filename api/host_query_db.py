@@ -195,9 +195,8 @@ def get_host_tags_list_by_id_list(
 
 
 def _add_tag_values(host_namespace, tag_key, tag_value, host_id, host_tags, host_tags_tracker) -> Tuple[dict, dict]:
-    host_tag_str = (
-        f"{_convert_null_string(host_namespace)}/{_convert_null_string(tag_key)}={_convert_null_string(tag_value)}"
-    )
+    converted_value = _convert_null_string(tag_value) if tag_value else ""
+    host_tag_str = f"{_convert_null_string(host_namespace)}/{_convert_null_string(tag_key)}={converted_value}"
     host_tag_obj = {
         "namespace": _convert_null_string(host_namespace),
         "key": _convert_null_string(tag_key),
