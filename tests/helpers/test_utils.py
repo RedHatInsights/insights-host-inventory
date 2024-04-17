@@ -87,17 +87,29 @@ def set_environment(new_env=None):
     patched_dict.stop()
 
 
-def minimal_host(**values):
-    data = {
+def _base_host_data(**values):
+    return {
         "org_id": USER_IDENTITY["org_id"],
         "display_name": "test" + generate_random_string(),
-        "ip_addresses": ["10.10.0.1"],
         "stale_timestamp": (now() + timedelta(days=randint(1, 7))).isoformat(),
         "reporter": "test" + generate_random_string(),
         **values,
     }
 
-    return HostWrapper(data)
+
+# This method returns a host wrapper that doesn't contain any canonical facts.
+# It should be used in test cases that explicitly set canonical facts.
+def base_host(**values):
+    return HostWrapper(_base_host_data(**values))
+
+
+# This method returns a host wrapper that contains a single canonical fact, making it
+# a minimal host that's valid for use with mq_create_or_update_host().
+# It should be used in test cases where specific canonical facts are not needed.
+def minimal_host(**values):
+    host_wrapper = HostWrapper(_base_host_data(**values))
+    host_wrapper.bios_uuid = generate_uuid()
+    return host_wrapper
 
 
 def valid_system_profile(owner_id=None, additional_yum_repo=None):
