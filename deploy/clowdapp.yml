@@ -18,7 +18,7 @@ objects:
       - ingress
     deployments:
     - name: service
-      minReplicas: ${{REPLICAS_SVC}}
+      replicas: ${{REPLICAS_SVC}}
       webServices:
         public:
           enabled: true
@@ -136,7 +136,7 @@ objects:
             medium: Memory
           name: gunicorn-worker-dir
     - name: mq-pmin
-      minReplicas: ${{REPLICAS_PMIN}}
+      replicas: ${{REPLICAS_PMIN}}
       podSpec:
         args: ["./inv_mq_service.py"]
         env:
@@ -210,7 +210,7 @@ objects:
             cpu: ${CPU_REQUEST_MQ_PMIN}
             memory: ${MEMORY_REQUEST_MQ_PMIN}
     - name: mq-p1
-      minReplicas: ${{REPLICAS_P1}}
+      replicas: ${{REPLICAS_P1}}
       podSpec:
         initContainers:
         - args: ["FLASK_APP=./manage.py", "flask", "db", "upgrade"]
@@ -287,7 +287,7 @@ objects:
             cpu: ${CPU_REQUEST_MQ_P1}
             memory: ${MEMORY_REQUEST_MQ_P1}
     - name: mq-sp
-      minReplicas: ${{REPLICAS_SP}}
+      replicas: ${{REPLICAS_SP}}
       podSpec:
         args: ["./inv_mq_service.py"]
         env:
