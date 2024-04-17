@@ -8,6 +8,7 @@ from lib.host_repository import find_existing_host
 from tests.helpers.db_utils import assert_host_exists_in_db
 from tests.helpers.db_utils import assert_host_missing_from_db
 from tests.helpers.db_utils import minimal_db_host
+from tests.helpers.test_utils import base_host
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import SYSTEM_IDENTITY
@@ -81,8 +82,7 @@ def test_find_correct_host_when_similar_canonical_facts(db_create_host):
 
 
 def test_no_merge_when_no_match(mq_create_or_update_host):
-    wrapper = minimal_host(fqdn="test_fqdn", insights_id=generate_uuid())
-    del wrapper.ip_addresses
+    wrapper = base_host(fqdn="test_fqdn", insights_id=generate_uuid())
     first_host = mq_create_or_update_host(wrapper)
 
     second_host = mq_create_or_update_host(
@@ -95,6 +95,17 @@ def test_no_merge_when_no_match(mq_create_or_update_host):
     )
 
     assert first_host.id != second_host.id
+
+
+def test_elevated_change_secondary_match(mq_create_or_update_host):
+    mac = ["c2:00:c0:c8:61:01", "aa:bb:cc:dd:ee:ff"]
+    wrapper = base_host(subscription_manager_id=generate_uuid(), mac_addresses=mac)
+    first_host = mq_create_or_update_host(wrapper)
+
+    wrapper = base_host(insights_id=generate_uuid(), subscription_manager_id=generate_uuid(), mac_addresses=mac)
+    second_host = mq_create_or_update_host(wrapper)
+
+    assert first_host.id == second_host.id
 
 
 @mark.parametrize("changing_id", ("provider_id", "insights_id"))
@@ -209,10 +220,10 @@ def test_subscription_manager_id_case_insensitive(mq_create_or_update_host):
 
 def test_mac_addresses_case_insensitive(mq_create_or_update_host):
     first_host = mq_create_or_update_host(
-        minimal_host(fqdn="foo.bar.com", mac_addresses=["C2:00:D0:C8:61:01", "aa:bb:cc:dd:ee:ff"])
+        base_host(fqdn="foo.bar.com", mac_addresses=["C2:00:D0:C8:61:01", "aa:bb:cc:dd:ee:ff"])
     )
     second_host = mq_create_or_update_host(
-        minimal_host(fqdn="foo.bar.com", mac_addresses=["c2:00:d0:c8:61:01", "AA:BB:CC:DD:EE:FF"])
+        base_host(fqdn="foo.bar.com", mac_addresses=["c2:00:d0:c8:61:01", "AA:BB:CC:DD:EE:FF"])
     )
     assert first_host.id == second_host.id
 

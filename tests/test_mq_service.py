@@ -30,6 +30,7 @@ from tests.helpers.mq_utils import wrap_message
 from tests.helpers.system_profile_utils import INVALID_SYSTEM_PROFILES
 from tests.helpers.system_profile_utils import mock_system_profile_specification
 from tests.helpers.system_profile_utils import system_profile_specification
+from tests.helpers.test_utils import base_host
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import get_encoded_idstr
 from tests.helpers.test_utils import get_platform_metadata
@@ -1359,7 +1360,7 @@ def test_host_account_using_mq(mq_create_or_update_host, api_get, db_get_host, d
 @pytest.mark.parametrize("id_type", ("id", "insights_id", "fqdn"))
 def test_update_system_profile(mq_create_or_update_host, db_get_host, id_type):
     expected_ids = {"insights_id": generate_uuid(), "fqdn": "foo.test.redhat.com"}
-    input_host = minimal_host(**expected_ids, system_profile={"owner_id": OWNER_ID, "number_of_cpus": 1})
+    input_host = base_host(**expected_ids, system_profile={"owner_id": OWNER_ID, "number_of_cpus": 1})
     first_host_from_event = mq_create_or_update_host(input_host)
     first_host_from_db = db_get_host(first_host_from_event.id)
     expected_ids["id"] = str(first_host_from_db.id)
@@ -1367,7 +1368,7 @@ def test_update_system_profile(mq_create_or_update_host, db_get_host, id_type):
     assert str(first_host_from_db.canonical_facts["insights_id"]) == expected_ids["insights_id"]
     assert first_host_from_db.system_profile_facts.get("number_of_cpus") == 1
 
-    input_host = minimal_host(
+    input_host = base_host(
         **{id_type: expected_ids[id_type]}, system_profile={"number_of_cpus": 4, "number_of_sockets": 8}
     )
     input_host.stale_timestamp = None
@@ -1389,14 +1390,12 @@ def test_update_system_profile(mq_create_or_update_host, db_get_host, id_type):
 def test_update_system_profile_not_found(mocker, mq_create_or_update_host, db_get_host):
     mock_notification_event_producer = mocker.Mock()
     expected_insights_id = generate_uuid()
-    input_host = minimal_host(
+    input_host = base_host(
         insights_id=expected_insights_id, system_profile={"owner_id": OWNER_ID, "number_of_cpus": 1}
     )
     mq_create_or_update_host(input_host)
 
-    input_host = minimal_host(
-        insights_id=generate_uuid(), system_profile={"number_of_cpus": 4, "number_of_sockets": 8}
-    )
+    input_host = base_host(insights_id=generate_uuid(), system_profile={"number_of_cpus": 4, "number_of_sockets": 8})
 
     # Should raise an exception due to missing host
     with pytest.raises(InventoryException):
