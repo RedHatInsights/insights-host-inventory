@@ -5,7 +5,6 @@ from typing import Tuple
 
 from sqlalchemy import Boolean
 from sqlalchemy import func
-from sqlalchemy import text
 from sqlalchemy.orm import Query
 from sqlalchemy.sql.expression import ColumnElement
 
@@ -387,34 +386,41 @@ def get_sap_sids_info(
     search: str,
 ):
     columns = [
+        Host.id,
         func.jsonb_array_elements_text(Host.system_profile_facts["sap_sids"]).label("sap_sids"),
     ]
     sap_sids_query = _find_all_hosts(columns)
     filters = query_filters(
         tags=tags, staleness=staleness, registered_with=registered_with, filter=filter, rbac_filter=rbac_filter
     )
-    subquery = sap_sids_query.filter(*filters).subquery()
+    query_results = sap_sids_query.filter(*filters).all()
+    sap_sids = {}
+    for result in query_results:
+        host_id = result[0]
+        sap_sid = result[1]
+        if sap_sid not in sap_sids:
+            sap_sids[sap_sid] = {host_id}
+        else:
+            sap_sids[sap_sid].add(host_id)
 
-    subquery_counts = (
-        db.session.query(subquery.c.sap_sids, func.count().label("count")).group_by(subquery.c.sap_sids).subquery()
-    )
-
+    sap_sids_dict = sap_sids
     if search:
-        agg_query = (
-            db.session.query(subquery_counts.c.sap_sids, subquery_counts.c.count)
-            .filter(text("sap_sids ~ :reg"))
-            .params(reg=search)
-            .order_by(subquery_counts.c.count.desc())
-        )
-    else:
-        agg_query = db.session.query(subquery_counts.c.sap_sids, subquery_counts.c.count).order_by(
-            subquery_counts.c.count.desc()
-        )
+        regex = re.compile(search, re.IGNORECASE)
+        sap_sids_dict = {}
+        for key in sap_sids.keys():
+            if regex.search(key):
+                sap_sids_dict[key] = sap_sids[key]
 
-    query_total = agg_query.count()
-    query_results = agg_query.offset(offset).limit(limit).all()
-    result = [{"value": qr[0], "count": qr[1]} for qr in query_results]
-    return result, query_total
+    sap_sids_list = []
+    query_count = 0
+    sap_sids_count_list = []
+    for sap_sid, host_list in sap_sids_dict.items():
+        sap_sid_count_item = {"value": sap_sid, "count": len(host_list)}
+        sap_sids_count_list.append(sap_sid_count_item)
+    sap_sids_count_list = sorted(sap_sids_count_list, reverse=True, key=lambda item: item["count"])
+    query_count = len(sap_sids_count_list)
+    sap_sids_list = list(islice(islice(sap_sids_count_list, offset, None), limit))
+    return sap_sids_list, query_count
 
 
 def get_sparse_system_profile(
