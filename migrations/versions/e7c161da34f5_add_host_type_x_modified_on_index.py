@@ -18,13 +18,16 @@ depends_on = None
 def upgrade():
     with op.get_context().autocommit_block():
         op.create_index(
-            "idx_host_type_modified_on",
+            "idx_host_type_modified_on_org_id",
             "hosts",
-            [sa.text("(system_profile_facts ->> 'host_type')"), "modified_on"],
+            ["org_id", "modified_on", sa.text("(system_profile_facts ->> 'host_type')")],
             postgresql_concurrently=True,
             if_not_exists=True,
         )
 
 
 def downgrade():
-    op.drop_index("idx_host_type_modified_on", table_name="hosts", postgresql_concurrently=True, if_exists=True)
+    with op.get_context().autocommit_block():
+        op.drop_index(
+            "idx_host_type_modified_on_org_id", table_name="hosts", postgresql_concurrently=True, if_exists=True
+        )
