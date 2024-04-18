@@ -5,7 +5,9 @@ from typing import Tuple
 
 from sqlalchemy import Boolean
 from sqlalchemy import func
+from sqlalchemy import String
 from sqlalchemy.orm import Query
+from sqlalchemy.sql.expression import cast
 from sqlalchemy.sql.expression import ColumnElement
 
 from api.filtering.db_filters import host_id_list_filter
@@ -326,8 +328,8 @@ def get_os_info(
 ):
     columns = [
         Host.system_profile_facts["operating_system"]["name"].label("name"),
-        Host.system_profile_facts["operating_system"]["major"].label("major"),
-        Host.system_profile_facts["operating_system"]["minor"].label("minor"),
+        cast(Host.system_profile_facts["operating_system"]["major"], String).label("major"),
+        cast(Host.system_profile_facts["operating_system"]["minor"], String).label("minor"),
     ]
     os_query = _find_all_hosts(columns)
     filters = query_filters(
@@ -338,21 +340,18 @@ def get_os_info(
     os_query = os_query.filter(*filters)
 
     query_results = os_query.filter(*filters).all()
-    operating_systems = {}
+    os_dict = {}
     for result in query_results:
         operating_system = ".".join(result)
-        if operating_system not in operating_systems:
-            operating_systems[operating_system] = 0
+        if operating_system not in os_dict:
+            os_dict[operating_system] = 1
         else:
-            operating_systems[operating_system] += 1
+            os_dict[operating_system] += 1
 
-    os_dict = operating_systems
-
-    query_count = 0
     os_count_list = []
     for os_joined, count in os_dict.items():
-        os = ".".split(os_joined)
-        os_count_item = {"value": {"name": os[0], "major": os[1], "minor": os[2]}, "count": count}
+        os = os_joined.split(".")
+        os_count_item = {"value": {"name": os[0], "major": int(os[1]), "minor": int(os[2])}, "count": count}
         os_count_list.append(os_count_item)
 
     os_count_list = sorted(os_count_list, reverse=True, key=lambda item: item["count"])
