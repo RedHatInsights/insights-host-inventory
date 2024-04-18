@@ -103,6 +103,8 @@ objects:
           env:
             - name: VNC_GEOMETRY
               value: ${VNC_GEOMETRY}
+            - name: SE_NODE_MAX_SESSIONS
+              value: ${SE_NODE_MAX_SESSIONS}
           resources:
             limits:
               cpu: ${SELENIUM_CPU_LIMIT}
@@ -166,3 +168,5 @@ parameters:
   value: '1920x1080'
 - name: IQE_PARALLEL_ENABLED
   value: 'false'
+- name: SE_NODE_MAX_SESSIONS
+  value: 2
