@@ -54,6 +54,8 @@ objects:
             value: ${IQE_REQUIREMENTS_PRIORITY}
           - name: IQE_TEST_IMPORTANCE
             value: ${IQE_TEST_IMPORTANCE}
+          - name: IQE_PARALLEL_ENABLED
+            value: ${IQE_PARALLEL_ENABLED}
           - name: DYNACONF_IQE_VAULT_LOADER_ENABLED
             value: "true"
           - name: DYNACONF_IQE_VAULT_VERIFY
