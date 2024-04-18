@@ -48,7 +48,7 @@ class Config:
         self.notification_topic = topic(os.environ.get("KAFKA_NOTIFICATION_TOPIC"))
         self.event_topic = topic(os.environ.get("KAFKA_EVENT_TOPIC"))
         self.payload_tracker_kafka_topic = topic("platform.payload-status")
-        self.export_service_topic = topic(os.environ.get("KAFKA_EXPORT_SERVICE_TOPIC"))
+        self.export_service_topic = topic(os.environ.get("KAFKA_EXPORT_SERVICE_TOPIC", "platform.export.requests"))
 
         self.bootstrap_servers = ",".join(app_common_python.KafkaServers)
         broker_cfg = cfg.kafka.brokers[0]

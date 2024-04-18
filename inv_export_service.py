@@ -20,7 +20,7 @@ def main():
     config = application.app.config["INVENTORY_CONFIG"]
     start_http_server(config.metrics_port)
 
-    topic_to_handler = {config.kafka_consumer_topic: create_export}
+    topic_to_handler = {config.export_service_topic: create_export}
 
     consumer = KafkaConsumer(
         {
@@ -30,7 +30,7 @@ def main():
             **config.kafka_consumer,
         }
     )
-    consumer.subscribe([config.kafka_consumer_topic])
+    consumer.subscribe([config.export_service_topic])
     consumer_shutdown = partial(consumer.close, autocommit=True)
     register_shutdown(consumer_shutdown, "Closing consumer")
 
@@ -39,7 +39,7 @@ def main():
 
     message_handler = partial(
         handle_export_message,
-        message_operation=topic_to_handler[config.kafka_consumer_topic],
+        message_operation=topic_to_handler[config.export_service_topic],
     )
 
     event_loop(

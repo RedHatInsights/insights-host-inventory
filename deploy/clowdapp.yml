@@ -387,7 +387,7 @@ objects:
         - name: KAFKA_HOST_INGRESS_GROUP
           value: ${KAFKA_HOST_INGRESS_GROUP}
         - name: KAFKA_EXPORT_SERVICE_TOPIC
-          valie: ${KAFKA_EXPORT_SERVICE_TOPIC}
+          value: ${KAFKA_EXPORT_SERVICE_TOPIC}
         - name: PAYLOAD_TRACKER_SERVICE_NAME
           value: inventory-mq-service
         - name: PAYLOAD_TRACKER_ENABLED
