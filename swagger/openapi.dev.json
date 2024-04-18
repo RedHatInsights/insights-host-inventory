@@ -3903,20 +3903,15 @@
                     "example": "sha256:806d77394f96e47cf99b1233561ce970c94521244a2d8f2affa12c3261961223, sha256:92e476435ced1c148350c660b09c744717defbd300a15d33deda5b50ad6b21a0",
                     "maxLength": 128,
                     "pattern": "^(sha256\\:)[a-fA-F0-9]{64}$"
-                  }
-                }
-              },
-              "cachedUpdate": {
-                "type": "object",
-                "properties": {
-                  "image": {
+                  },
+                  "cached_image": {
                     "description": "Name of the image",
                     "type": "string",
                     "example": "quay.io/centos-bootc/fedora-bootc-cloud:eln, 192.168.0.1:5000/foo/foo:latest",
                     "maxLength": 128,
                     "x-wildcard": true
                   },
-                  "image_digest": {
+                  "cached_image_digest": {
                     "description": "Digest of the image",
                     "type": "string",
                     "example": "sha256:806d77394f96e47cf99b1233561ce970c94521244a2d8f2affa12c3261961223, sha256:92e476435ced1c148350c660b09c744717defbd300a15d33deda5b50ad6b21a0",
@@ -3941,6 +3936,20 @@
                     "example": "sha256:806d77394f96e47cf99b1233561ce970c94521244a2d8f2affa12c3261961223, sha256:92e476435ced1c148350c660b09c744717defbd300a15d33deda5b50ad6b21a0",
                     "maxLength": 128,
                     "pattern": "^(sha256\\:)[a-fA-F0-9]{64}$"
+                  },
+                  "cached_image": {
+                    "description": "Name of the image",
+                    "type": "string",
+                    "example": "quay.io/centos-bootc/fedora-bootc-cloud:eln, 192.168.0.1:5000/foo/foo:latest",
+                    "maxLength": 128,
+                    "x-wildcard": true
+                  },
+                  "cached_image_digest": {
+                    "description": "Digest of the image",
+                    "type": "string",
+                    "example": "sha256:806d77394f96e47cf99b1233561ce970c94521244a2d8f2affa12c3261961223, sha256:92e476435ced1c148350c660b09c744717defbd300a15d33deda5b50ad6b21a0",
+                    "maxLength": 128,
+                    "pattern": "^(sha256\\:)[a-fA-F0-9]{64}$"
                   }
                 }
               },
@@ -3955,6 +3964,20 @@
                     "x-wildcard": true
                   },
                   "image_digest": {
+                    "description": "Digest of the image",
+                    "type": "string",
+                    "example": "sha256:806d77394f96e47cf99b1233561ce970c94521244a2d8f2affa12c3261961223, sha256:92e476435ced1c148350c660b09c744717defbd300a15d33deda5b50ad6b21a0",
+                    "maxLength": 128,
+                    "pattern": "^(sha256\\:)[a-fA-F0-9]{64}$"
+                  },
+                  "cached_image": {
+                    "description": "Name of the image",
+                    "type": "string",
+                    "example": "quay.io/centos-bootc/fedora-bootc-cloud:eln, 192.168.0.1:5000/foo/foo:latest",
+                    "maxLength": 128,
+                    "x-wildcard": true
+                  },
+                  "cached_image_digest": {
                     "description": "Digest of the image",
                     "type": "string",
                     "example": "sha256:806d77394f96e47cf99b1233561ce970c94521244a2d8f2affa12c3261961223, sha256:92e476435ced1c148350c660b09c744717defbd300a15d33deda5b50ad6b21a0",
