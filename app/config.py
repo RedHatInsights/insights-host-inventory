@@ -127,7 +127,7 @@ class Config:
 
         self._db_ssl_mode = os.getenv("INVENTORY_DB_SSL_MODE", "")
         self.db_pool_timeout = int(os.getenv("INVENTORY_DB_POOL_TIMEOUT", "5"))
-        self.db_pool_size = int(os.getenv("INVENTORY_DB_POOL_SIZE", "5"))
+        self.db_pool_size = int(os.getenv("INVENTORY_DB_POOL_SIZE", "15"))
 
         self.db_uri = self._build_db_uri(self._db_ssl_mode)
 
