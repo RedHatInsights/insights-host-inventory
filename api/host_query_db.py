@@ -53,6 +53,7 @@ def _get_host_list_using_filters(
 
     host_query = _find_all_hosts().filter(*all_filters).order_by(*params_to_order_by(param_order_by, param_order_how))
     query_results = host_query.paginate(page, per_page, True)
+    db.session.close()
 
     return query_results.items, query_results.total, additional_fields, system_profile_fields
 
@@ -192,6 +193,7 @@ def get_host_tags_list_by_id_list(
     all_filters += rbac_permissions_filter(rbac_filter)
     order = params_to_order_by(order_by, order_how)
     query_results = query.filter(*all_filters).order_by(*order).offset(offset).limit(limit).all()
+    db.session.close()
     host_tags_dict, _ = _expand_host_tags(query_results)
     return host_tags_dict, len(host_id_list)
 
@@ -288,6 +290,7 @@ def get_tag_list(
     )
 
     query_results = query.filter(*all_filters).all()
+    db.session.close()
     _, host_tags_dict = _expand_host_tags(query_results)
     host_tags = host_tags_dict
     if search:
@@ -341,6 +344,7 @@ def get_os_info(
     os_query = os_query.filter(*filters)
 
     query_results = os_query.filter(*filters).all()
+    db.session.close()
     os_dict = {}
     for result in query_results:
         operating_system = ".".join(result)
@@ -387,6 +391,7 @@ def get_sap_system_info(
     agg_query = db.session.query(subquery, func.count()).group_by("value")
     query_total = agg_query.count()
     query_results = agg_query.offset(offset).limit(limit).all()
+    db.session.close()
     result = [{"value": qr[0], "count": qr[1]} for qr in query_results]
     return result, query_total
 
@@ -410,6 +415,7 @@ def get_sap_sids_info(
         tags=tags, staleness=staleness, registered_with=registered_with, filter=filter, rbac_filter=rbac_filter
     )
     query_results = sap_sids_query.filter(*filters).all()
+    db.session.close()
     sap_sids = {}
     for result in query_results:
         host_id = result[0]
@@ -470,6 +476,7 @@ def get_sparse_system_profile(
     )
 
     query_results = sp_query.paginate(page, per_page, True)
+    db.session.close()
 
     return query_results.total, [{"id": str(item[0]), "system_profile": item[1]} for item in query_results.items]
 
@@ -507,5 +514,6 @@ def get_host_ids_list(
         filter,
         rbac_filter,
     )
-
-    return [str(res[0]) for res in _find_all_hosts([Host.id]).filter(*all_filters).all()]
+    host_list = [str(res[0]) for res in _find_all_hosts([Host.id]).filter(*all_filters).all()]
+    db.session.close()
+    return host_list
