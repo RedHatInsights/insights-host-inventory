@@ -85,7 +85,6 @@ def rbac(resource_type, required_permission, permission_base="inventory", org_id
             else:
                 current_identity = create_mock_identity_with_org_id(org_id)
 
-            current_identity = get_current_identity()
             if current_identity.identity_type not in CHECKED_TYPES:
                 if resource_type == RbacResourceType.HOSTS:
                     return func(*args, **kwargs)
@@ -96,33 +95,33 @@ def rbac(resource_type, required_permission, permission_base="inventory", org_id
             g.access_control_rule = "RBAC"
             logger.debug("access_control_rule set")
 
-            # rbac_data = get_rbac_permissions(permission_base)
-            rbac_data = [
-                {
-                    "resourceDefinitions": [
-                        {
-                            "attributeFilter": {
-                                "key": "group.id",
-                                "value": ["ff4cc1dc-7a43-4ed7-818b-71fe857a8185"],
-                                "operation": "in",
-                            }
-                        }
-                    ],
-                    "permission": "inventory:hosts:read",
-                },
-                {
-                    "resourceDefinitions": [
-                        {
-                            "attributeFilter": {
-                                "key": "group.id",
-                                "value": ["ff4cc1dc-7a43-4ed7-818b-71fe857a8185"],
-                                "operation": "in",
-                            }
-                        }
-                    ],
-                    "permission": "inventory:groups:read",
-                },
-            ]
+            rbac_data = get_rbac_permissions(permission_base)
+            # rbac_data = [
+            #    {
+            #        "resourceDefinitions": [
+            #            {
+            #                "attributeFilter": {
+            #                    "key": "group.id",
+            #                    "value": ["ff4cc1dc-7a43-4ed7-818b-71fe857a8185"],
+            #                    "operation": "in",
+            #                }
+            #            }
+            #        ],
+            #        "permission": "inventory:hosts:read",
+            #    },
+            #    {
+            #        "resourceDefinitions": [
+            #            {
+            #                "attributeFilter": {
+            #                    "key": "group.id",
+            #                    "value": ["ff4cc1dc-7a43-4ed7-818b-71fe857a8185"],
+            #                    "operation": "in",
+            #                }
+            #            }
+            #        ],
+            #        "permission": "inventory:groups:read",
+            #    },
+            # ]
 
             # Determines whether the endpoint can be accessed at all
             allowed = False

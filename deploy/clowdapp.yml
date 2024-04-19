@@ -16,6 +16,7 @@ objects:
       - rbac
       - xjoin-search
       - ingress
+      - export-service
     deployments:
     - name: service
       replicas: ${{REPLICAS_SVC}}
