@@ -37,6 +37,13 @@ class Config:
                 port = endpoint.tlsPort if cfg.tlsCAPath else endpoint.port
                 self.rbac_endpoint = f"{protocol}://{endpoint.hostname}:{port}"
 
+        self.export_service_endpoint = ""
+        for endpoint in cfg.privateEndpoints:
+            if endpoint.app == "export-service":
+                protocol = "https" if cfg.tlsCAPath else "http"
+                port = endpoint.tlsPort if cfg.tlsCAPath else endpoint.port
+                self.export_service_endpoint = f"{protocol}://{endpoint.hostname}:{port}"
+
         def topic(t):
             return app_common_python.KafkaTopics[t].name if t else None
 
@@ -92,6 +99,7 @@ class Config:
         self._db_port = os.getenv("INVENTORY_DB_PORT", 5432)
         self._db_name = os.getenv("INVENTORY_DB_NAME", "insights")
         self.rbac_endpoint = os.environ.get("RBAC_ENDPOINT", "http://localhost:8111")
+        self.export_service_endpoint = os.environ.get("EXPORT_SERVICE_ENDPOINT", "http://localhost:10010")
         self.host_ingress_topic = os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress")
         self.additional_validation_topic = os.environ.get(
             "KAFKA_ADDITIONAL_VALIDATION_TOPIC", "platform.inventory.host-ingress-p1"
