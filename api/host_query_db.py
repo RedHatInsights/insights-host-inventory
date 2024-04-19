@@ -172,7 +172,8 @@ def _order_how(column, order_how: str):
 def _find_all_hosts(columns: List[ColumnElement] = None) -> Query:
     identity = get_current_identity()
     query = (
-        Host.query.join(HostGroupAssoc, isouter=True)
+        db.session.query(Host)
+        .join(HostGroupAssoc, isouter=True)
         .join(Group, isouter=True)
         .filter(Host.org_id == identity.org_id)
         .group_by(Host.id, Group.name)
