@@ -43,11 +43,12 @@ def tenant_translator_url() -> str:
     return inventory_config().tenant_translator_url
 
 
-def get_rbac_permissions(app):
-    request_header = {
-        IDENTITY_HEADER: request.headers[IDENTITY_HEADER],
-        REQUEST_ID_HEADER: request.headers.get(REQUEST_ID_HEADER),
-    }
+def get_rbac_permissions(app, request_header=None):
+    if not request_header:
+        request_header = {
+            IDENTITY_HEADER: request.headers[IDENTITY_HEADER],
+            REQUEST_ID_HEADER: request.headers.get(REQUEST_ID_HEADER),
+        }
 
     request_session = Session()
     retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
@@ -73,7 +74,7 @@ def get_rbac_permissions(app):
     return resp_data["data"]
 
 
-def rbac(resource_type, required_permission, permission_base="inventory", org_id=None):
+def rbac(resource_type, required_permission, permission_base="inventory", org_id=None, rbac_request_headers=None):
     def other_func(func):
         @wraps(func)
         def modified_func(*args, **kwargs):
@@ -95,7 +96,7 @@ def rbac(resource_type, required_permission, permission_base="inventory", org_id
             g.access_control_rule = "RBAC"
             logger.debug("access_control_rule set")
 
-            rbac_data = get_rbac_permissions(permission_base)
+            rbac_data = get_rbac_permissions(permission_base, rbac_request_headers)
             # rbac_data = [
             #    {
             #        "resourceDefinitions": [
