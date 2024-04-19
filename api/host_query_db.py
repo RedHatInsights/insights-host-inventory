@@ -5,7 +5,9 @@ from typing import Tuple
 
 from sqlalchemy import Boolean
 from sqlalchemy import func
+from sqlalchemy import String
 from sqlalchemy.orm import Query
+from sqlalchemy.sql.expression import cast
 from sqlalchemy.sql.expression import ColumnElement
 
 from api.filtering.db_filters import host_id_list_filter
@@ -326,8 +328,8 @@ def get_os_info(
 ):
     columns = [
         Host.system_profile_facts["operating_system"]["name"].label("name"),
-        Host.system_profile_facts["operating_system"]["major"].label("major"),
-        Host.system_profile_facts["operating_system"]["minor"].label("minor"),
+        cast(Host.system_profile_facts["operating_system"]["major"], String).label("major"),
+        cast(Host.system_profile_facts["operating_system"]["minor"], String).label("minor"),
     ]
     os_query = _find_all_hosts(columns)
     filters = query_filters(
@@ -337,12 +339,25 @@ def get_os_info(
     filters += (columns[0].isnot(None),)
     os_query = os_query.filter(*filters)
 
-    subquery = os_query.subquery()
-    agg_query = db.session.query(subquery, func.count()).group_by("name", "major", "minor")
-    query_total = agg_query.count()
-    query_results = agg_query.offset(offset).limit(limit).all()
-    result = [{"value": {"name": qr[0], "major": qr[1], "minor": qr[2]}, "count": qr[3]} for qr in query_results]
-    return result, query_total
+    query_results = os_query.filter(*filters).all()
+    os_dict = {}
+    for result in query_results:
+        operating_system = ".".join(result)
+        if operating_system not in os_dict:
+            os_dict[operating_system] = 1
+        else:
+            os_dict[operating_system] += 1
+
+    os_count_list = []
+    for os_joined, count in os_dict.items():
+        os = os_joined.split(".")
+        os_count_item = {"value": {"name": os[0], "major": int(os[1]), "minor": int(os[2])}, "count": count}
+        os_count_list.append(os_count_item)
+
+    os_count_list = sorted(os_count_list, reverse=True, key=lambda item: item["count"])
+    query_count = len(os_count_list)
+    os_list = list(islice(islice(os_count_list, offset, None), limit))
+    return os_list, query_count
 
 
 def get_sap_system_info(
