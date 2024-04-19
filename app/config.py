@@ -36,7 +36,6 @@ class Config:
                 protocol = "https" if cfg.tlsCAPath else "http"
                 port = endpoint.tlsPort if cfg.tlsCAPath else endpoint.port
                 self.rbac_endpoint = f"{protocol}://{endpoint.hostname}:{port}"
-                break
 
         def topic(t):
             return app_common_python.KafkaTopics[t].name if t else None
