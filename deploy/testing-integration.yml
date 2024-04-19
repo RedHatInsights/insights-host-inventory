@@ -171,4 +171,4 @@ parameters:
 - name: IQE_PARALLEL_ENABLED
   value: 'false'
 - name: SE_NODE_MAX_SESSIONS
-  value: 2
+  value: '2'
