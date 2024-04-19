@@ -370,7 +370,7 @@ objects:
         - python3 inv_export_service.py
         env:
         - name: INVENTORY_LOG_LEVEL
-          value: ${LOG_LEVEL}
+          value: DEBUG
         - name: INVENTORY_DB_SSL_MODE
           value: ${INVENTORY_DB_SSL_MODE}
         - name: INVENTORY_DB_SSL_CERT

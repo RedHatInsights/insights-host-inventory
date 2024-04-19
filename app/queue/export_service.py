@@ -17,9 +17,9 @@ logger = get_logger(__name__)
 
 def _handle_rbac_to_export(func, org_id):
     rbac_result = rbac(RbacResourceType.HOSTS, RbacPermission.READ, org_id=org_id)
-    filter = rbac_result(func)
-    a = filter()
-    return a
+    filter_func = rbac_result(func)
+    filter = filter_func()
+    return filter
 
 
 def create_export(export_svc_data, org_id, operation_args={}, rbac_filter=None):
@@ -38,18 +38,26 @@ def create_export(export_svc_data, org_id, operation_args={}, rbac_filter=None):
         request_url = (
             f"{config.export_service_endpoint}/app/export/v1/{exportUUID}/{applicationName}/{resourceUUID}/upload"
         )
+        # Change to DEBUG log
+        logger.info(f"Trying to get data for org_id: {identity.org_id}")
         data_to_export = _handle_rbac_to_export(
             partial(get_hosts_to_export, identity=identity, export_format=exportFormat), org_id=identity.org_id
         )
         if data_to_export:
+            # Change to DEBUG log
+            logger.info(f"Trying to upload data using URL:{request_url}")
             response = session.post(url=request_url, headers=request_headers, data=json.dumps(data_to_export))
             _handle_export_response(response, exportFormat, exportUUID)
         else:
+            # Change to DEBUG log
+            logger.info(f"No data found for org_id: {identity.org_id}")
             request_url = (
                 f"{config.export_service_endpoint}/app/export/v1/{exportUUID}/{applicationName}/{resourceUUID}/error"
             )
             response = session.post(
-                url=request_url, headers=request_headers, data=json.dumps({"message": "data not found", "error": 404})
+                url=request_url,
+                headers=request_headers,
+                data=json.dumps({"message": f"No data found for org_id: {identity.org_id}", "error": 404}),
             )
             _handle_export_response(response, exportFormat, exportUUID)
     except Exception as e:
