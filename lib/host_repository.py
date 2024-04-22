@@ -42,6 +42,8 @@ AddHostResult = Enum("AddHostResult", ("created", "updated"))
 ELEVATED_CANONICAL_FACT_FIELDS = ("provider_id", "insights_id", "subscription_manager_id")
 COMPOUND_CANONICAL_FACTS_MAP = {"provider_id": "provider_type"}
 COMPOUND_CANONICAL_FACTS = tuple(COMPOUND_CANONICAL_FACTS_MAP.values())
+IMMUTABLE_CANONICAL_FACTS = ("provider_id",)
+MUTABLE_CANONICAL_FACTS = tuple(set(ELEVATED_CANONICAL_FACT_FIELDS).difference(set(IMMUTABLE_CANONICAL_FACTS)))
 
 ALL_STALENESS_STATES = ("fresh", "stale", "stale_warning")
 NULL = None
@@ -84,6 +86,12 @@ def find_existing_host(identity, canonical_facts):
         #
         secondary_facts = canonical_facts.copy()
         for key in ELEVATED_CANONICAL_FACT_FIELDS:
+            #
+            # If an immutable fact changes, we shouldn't match,
+            # even if the secondary facts are the same.
+            #
+            if key in IMMUTABLE_CANONICAL_FACTS:
+                continue
             secondary_facts.pop(key, None)
             if compound_fact := COMPOUND_CANONICAL_FACTS_MAP.get(key):
                 secondary_facts.pop(compound_fact, None)

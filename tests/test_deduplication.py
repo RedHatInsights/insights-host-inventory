@@ -5,6 +5,8 @@ from app.auth.identity import Identity
 from app.exceptions import InventoryException
 from app.models import ProviderType
 from lib.host_repository import find_existing_host
+from lib.host_repository import MUTABLE_CANONICAL_FACTS
+from lib.host_repository import IMMUTABLE_CANONICAL_FACTS
 from tests.helpers.db_utils import assert_host_exists_in_db
 from tests.helpers.db_utils import assert_host_missing_from_db
 from tests.helpers.db_utils import minimal_db_host
@@ -97,15 +99,44 @@ def test_no_merge_when_no_match(mq_create_or_update_host):
     assert first_host.id != second_host.id
 
 
-def test_elevated_change_secondary_match(mq_create_or_update_host):
-    mac = ["c2:00:c0:c8:61:01", "aa:bb:cc:dd:ee:ff"]
-    wrapper = base_host(subscription_manager_id=generate_uuid(), mac_addresses=mac)
+@mark.parametrize("changing_id", MUTABLE_CANONICAL_FACTS)
+def test_elevated_change_secondary_match(mq_create_or_update_host, changing_id):
+    base_canonical_facts = {
+        "mac_addresses": ["c2:00:c0:c8:61:01", "aa:bb:cc:dd:ee:ff"],
+        changing_id: generate_uuid()
+    }
+
+    wrapper = base_host(**base_canonical_facts)
     first_host = mq_create_or_update_host(wrapper)
 
-    wrapper = base_host(insights_id=generate_uuid(), subscription_manager_id=generate_uuid(), mac_addresses=mac)
+    changed_canonical_facts = base_canonical_facts.copy()
+    changed_canonical_facts[changing_id] = generate_uuid()
+
+    wrapper = base_host(**changed_canonical_facts)
     second_host = mq_create_or_update_host(wrapper)
 
     assert first_host.id == second_host.id
+
+
+@mark.parametrize("changing_id", IMMUTABLE_CANONICAL_FACTS)
+def test_immutable_elevated_change_secondary_nomatch(mq_create_or_update_host, changing_id):
+    base_canonical_facts = {
+        "mac_addresses": ["c2:00:c0:c8:61:01", "aa:bb:cc:dd:ee:ff"],
+        changing_id: generate_uuid()
+    }
+    if changing_id == "provider_id":
+        base_canonical_facts["provider_type"] = ProviderType.AWS
+
+    wrapper = base_host(**base_canonical_facts)
+    first_host = mq_create_or_update_host(wrapper)
+
+    changed_canonical_facts = base_canonical_facts.copy()
+    changed_canonical_facts[changing_id] = generate_uuid()
+
+    wrapper = base_host(**changed_canonical_facts)
+    second_host = mq_create_or_update_host(wrapper)
+
+    assert first_host.id != second_host.id
 
 
 @mark.parametrize("changing_id", ("provider_id", "insights_id"))
@@ -113,8 +144,9 @@ def test_elevated_id_priority_order_nomatch(db_create_host, changing_id):
     base_canonical_facts = {
         "insights_id": generate_uuid(),
         "subscription_manager_id": generate_uuid(),
-        "provider_type": ProviderType.AWS,
     }
+    if changing_id == "provider_id":
+        base_canonical_facts["provider_type"] = ProviderType.AWS
 
     created_host_canonical_facts = base_canonical_facts.copy()
     created_host_canonical_facts[changing_id] = generate_uuid()
