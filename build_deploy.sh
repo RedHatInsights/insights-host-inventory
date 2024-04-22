@@ -33,18 +33,25 @@ export REGISTRY_AUTH_FILE="$AUTH_CONF_DIR/auth.json"
 podman login -u="$QUAY_USER" -p="$QUAY_TOKEN" quay.io
 podman login -u="$RH_REGISTRY_USER" -p="$RH_REGISTRY_TOKEN" registry.redhat.io
 
-# Build and push main image
+# Build main image
 podman build --pull=true -f Dockerfile -t "${IMAGE}:${IMAGE_TAG}" .
-podman push "${IMAGE}:${IMAGE_TAG}"
 
-# Build and push pg_repack image
+# Build pg_repack image
 podman build --pull=true -f pg_repack.dockerfile -t "${PG_REPACK_IMAGE}:${IMAGE_TAG}" .
-podman push "${PG_REPACK_IMAGE}:${IMAGE_TAG}"
 
-if [[ $GIT_BRANCH == *"security-compliance"* ]]; then
+if [[ "$GIT_BRANCH" == "origin/security-compliance" ]]; then
     podman tag "${IMAGE}:${IMAGE_TAG}" "${IMAGE}:${SECURITY_COMPLIANCE_TAG}"
     podman push "${IMAGE}:${SECURITY_COMPLIANCE_TAG}"
+
+    podman tag "${PG_REPACK_IMAGE}:${IMAGE_TAG}" "${IMAGE}:${SECURITY_COMPLIANCE_TAG}"
+    podman push "${PG_REPACK_IMAGE}:${SECURITY_COMPLIANCE_TAG}"
 else
+    # push main image
+    podman push "${IMAGE}:${IMAGE_TAG}"
+
+    # push pg_repack image
+    podman push "${PG_REPACK_IMAGE}:${IMAGE_TAG}"
+
     # To enable backwards compatibility with ci, qa, and smoke, always push latest and qa tags
     podman tag "${IMAGE}:${IMAGE_TAG}" "${IMAGE}:latest"
     podman push "${IMAGE}:latest"
