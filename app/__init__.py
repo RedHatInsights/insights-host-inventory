@@ -196,7 +196,6 @@ def create_app(runtime_environment):
     app_config = Config(runtime_environment)
     app_config.log_configuration()
 
-    # connexion_app = connexion.FlaskApp("inventory", specification_dir="./swagger/", options=connexion_options)
     connexion_app = connexion.FlaskApp("inventory", specification_dir="./swagger/", uri_parser_class=customURIParser)
 
     parser = TranslatingParser(SPECIFICATION_FILE)
