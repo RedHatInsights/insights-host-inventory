@@ -194,7 +194,7 @@ def parse_operation_message(message):
         metrics.ingress_message_parsing_failure.labels("invalid").inc()
         raise
 
-    if parsed_message["source"] == EXPORT_EVENT_SOURCE:
+    if "source" in parsed_message and parsed_message["source"] == EXPORT_EVENT_SOURCE:
         try:
             if "$schema" in parsed_message:
                 del parsed_message["$schema"]
