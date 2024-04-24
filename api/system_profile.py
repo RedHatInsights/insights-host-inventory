@@ -130,12 +130,11 @@ OPERATING_SYSTEM_QUERY = """
 def get_sap_system(
     tags=None, page=None, per_page=None, staleness=None, registered_with=None, filter=None, rbac_filter=None
 ):
-    limit, offset = pagination_params(page, per_page)
     current_identity = get_current_identity()
     if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
         results, total = get_sap_system_info_db(
-            limit,
-            offset,
+            page,
+            per_page,
             staleness=staleness,
             tags=tags,
             registered_with=registered_with,
@@ -144,6 +143,7 @@ def get_sap_system(
         )
         return flask_json_response(build_collection_response(results, page, per_page, total))
 
+    limit, offset = pagination_params(page, per_page)
     variables = {
         "hostFilter": {},
         "limit": limit,

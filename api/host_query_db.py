@@ -366,8 +366,8 @@ def get_os_info(
 
 
 def get_sap_system_info(
-    limit: int,
-    offset: int,
+    page: int,
+    per_page: int,
     staleness: List[str],
     tags: List[str],
     registered_with: List[str],
@@ -389,11 +389,10 @@ def get_sap_system_info(
 
     subquery = sap_query.subquery()
     agg_query = db.session.query(subquery, func.count()).group_by("value")
-    query_total = agg_query.count()
-    query_results = agg_query.offset(offset).limit(limit).all()
+    query_results = agg_query.paginate(page, per_page, True)
     db.session.close()
-    result = [{"value": qr[0], "count": qr[1]} for qr in query_results]
-    return result, query_total
+    result = [{"value": qr[0], "count": qr[1]} for qr in query_results.items]
+    return result, query_results.total
 
 
 def get_sap_sids_info(
