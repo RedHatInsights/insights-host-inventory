@@ -2073,61 +2073,61 @@ components:
             type: array
             items:
               $ref: '#/components/schemas/GroupOutWithHostCount'
+    StalenessTimeout:
+      type: integer
+      minimum: 1
+
     StalenessIn:
       title: Account Staleness In
       description: >-
         Data of a single account staleness.
       type: object
-      anyOf:
-        - properties:
-            conventional_time_to_stale:
-              type: integer
-              minimum: 1
-            conventional_time_to_stale_warning:
-              type: integer
-              minimum: 1
-            conventional_time_to_delete:
-              type: integer
-              minimum: 1
-            immutable_time_to_stale:
-              type: integer
-              minimum: 1
-            immutable_time_to_stale_warning:
-              type: integer
-              minimum: 1
-            immutable_time_to_delete:
-              type: integer
-              minimum: 1
+      properties:
+        conventional_time_to_stale:
+          $ref: '#/components/schemas/StalenessTimeout'
+        conventional_time_to_stale_warning:
+          $ref: '#/components/schemas/StalenessTimeout'
+        conventional_time_to_delete:
+          $ref: '#/components/schemas/StalenessTimeout'
+        immutable_time_to_stale:
+          $ref: '#/components/schemas/StalenessTimeout'
+        immutable_time_to_stale_warning:
+          $ref: '#/components/schemas/StalenessTimeout'
+        immutable_time_to_delete:
+          $ref: '#/components/schemas/StalenessTimeout'
     StalenessOutput:
       title: Account Staleness Out
       description: >-
         Data of a account staleness.
       type: object
-      properties:
-        id:
-          $ref: "#/components/schemas/StalenessId"
-        org_id:
-          $ref: "#/components/schemas/OrgId"
-        conventional_time_to_stale:
-          type: integer
-        conventional_time_to_stale_warning:
-          type: integer
-        conventional_time_to_delete:
-          type: integer
-        immutable_time_to_stale:
-          type: integer
-        immutable_time_to_stale_warning:
-          type: integer
-        immutable_time_to_delete:
-          type: integer
-        created_at:
-          description: A timestamp when the entry was created.
-          type: string
-          format: date-time
-        updated_at:
-          description: A timestamp when the entry was last updated.
-          type: string
-          format: date-time
+      allOf:
+      - $ref: "#/components/schemas/StalenessIn"
+      - required:
+        - conventional_time_to_stale
+        - conventional_time_to_stale_warning
+        - conventional_time_to_delete
+        - immutable_time_to_stale
+        - immutable_time_to_stale_warning
+        - immutable_time_to_delete
+      - properties:
+          id:
+            $ref: "#/components/schemas/StalenessId"
+          org_id:
+            $ref: "#/components/schemas/OrgId"
+          created_at:
+            description: A timestamp when the entry was created.
+            type: string
+            format: date-time
+          updated_at:
+            description: A timestamp when the entry was last updated.
+            type: string
+            format: date-time
+        required:
+        - id
+        - org_id
+        - created_at
+        - updated_at
+
 
     # include renames for system_profile
     SystemProfile:
