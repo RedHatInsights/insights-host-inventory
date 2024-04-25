@@ -208,7 +208,7 @@ def _unique_paths(
             if key in ignore_nodes:
                 # Skip recursion on ignored nodes.
                 # Instead, just add the whole thing to the output.
-                all_filters.append(node)
+                all_filters.append({key: node[key]})
             else:
                 all_filters += _unique_paths(node[key], ignore_nodes, [*current_path, key])
     else:
