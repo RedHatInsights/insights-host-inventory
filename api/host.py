@@ -53,13 +53,14 @@ from app.serialization import serialize_host
 from app.utils import Tag
 from app.xjoin import pagination_params
 from lib.feature_flags import FLAG_INVENTORY_DISABLE_XJOIN
-from lib.feature_flags import get_flag_value
 from lib.host_delete import delete_hosts
 from lib.host_repository import find_existing_host
 from lib.host_repository import find_non_culled_hosts
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.host_repository import update_query_for_owner_id
 from lib.middleware import rbac
+
+# from lib.feature_flags import get_flag_value
 
 
 FactOperations = Enum("FactOperations", ("merge", "replace"))
@@ -95,10 +96,10 @@ def get_host_list(
     total = 0
     host_list = ()
     current_identity = get_current_identity()
-    is_bootc = filter.get("system_profile", {}).get("bootc_status", {})
+    # is_bootc = filter.get("system_profile", {}).get("bootc_status", {})
 
     try:
-        if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}) or is_bootc:
+        if True:
             logger.info(f"{FLAG_INVENTORY_DISABLE_XJOIN} is applied to {current_identity.org_id}")
             host_list, total, additional_fields, system_profile_fields = get_host_list_postgres(
                 display_name,
@@ -194,7 +195,7 @@ def delete_hosts_by_filter(
 
     try:
         current_identity = get_current_identity()
-        if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
+        if True:
             logger.info(f"{FLAG_INVENTORY_DISABLE_XJOIN} is applied to {current_identity.org_id}")
             ids_list = get_host_ids_list_postgres(
                 display_name,
@@ -326,7 +327,7 @@ def delete_host_by_id(host_id_list, rbac_filter=None):
 def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None, fields=None, rbac_filter=None):
     current_identity = get_current_identity()
     try:
-        if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
+        if True:
             logger.info(f"{FLAG_INVENTORY_DISABLE_XJOIN} is applied to {current_identity.org_id}")
             host_list, total, additional_fields, system_profile_fields = get_host_list_by_id_list_postgres(
                 host_id_list, page, per_page, order_by, order_how, fields, rbac_filter
@@ -355,7 +356,7 @@ def get_host_system_profile_by_id(
 ):
     current_identity = get_current_identity()
     try:
-        if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
+        if True:
             logger.info(f"{FLAG_INVENTORY_DISABLE_XJOIN} is applied to {current_identity.org_id}")
             total, host_list = get_sparse_system_profile_postgres(
                 host_id_list, page, per_page, order_by, order_how, fields, rbac_filter
@@ -492,7 +493,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
 @metrics.api_request_time.time()
 def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_how=None, rbac_filter=None):
     current_identity = get_current_identity()
-    if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
+    if True:
         logger.info(f"{FLAG_INVENTORY_DISABLE_XJOIN} is applied to {current_identity.org_id}")
         limit, offset = pagination_params(page, per_page)
         host_list, total = get_host_tags_list_by_id_list_postgres(
@@ -512,7 +513,7 @@ def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_
 @metrics.api_request_time.time()
 def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=None, search=None, rbac_filter=None):
     current_identity = get_current_identity()
-    if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
+    if True:
         logger.info(f"{FLAG_INVENTORY_DISABLE_XJOIN} is applied to {current_identity.org_id}")
         limit, offset = pagination_params(page, per_page)
         host_list, total = get_host_tags_list_by_id_list_postgres(

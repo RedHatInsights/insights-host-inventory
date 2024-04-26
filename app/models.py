@@ -6,7 +6,7 @@ from datetime import timezone
 from enum import Enum
 from os.path import join
 
-from connexion.decorators.validation import coerce_type
+from connexion.utils import coerce_type
 from dateutil.parser import isoparse
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy

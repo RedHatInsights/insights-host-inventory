@@ -9,16 +9,18 @@ from api.filtering.filtering import query_filters
 from api.host_query_db import get_tag_list as get_tag_list_db
 from app import RbacPermission
 from app import RbacResourceType
-from app.auth import get_current_identity
 from app.instrumentation import log_get_tags_failed
 from app.instrumentation import log_get_tags_succeeded
 from app.logging import get_logger
 from app.xjoin import check_pagination
 from app.xjoin import graphql_query
 from app.xjoin import pagination_params
-from lib.feature_flags import FLAG_INVENTORY_DISABLE_XJOIN
-from lib.feature_flags import get_flag_value
 from lib.middleware import rbac
+
+# from app.auth import get_current_identity
+
+# from lib.feature_flags import FLAG_INVENTORY_DISABLE_XJOIN
+# from lib.feature_flags import get_flag_value
 
 logger = get_logger(__name__)
 
@@ -80,14 +82,14 @@ def get_tags(
     rbac_filter=None,
 ):
     limit, offset = pagination_params(page, per_page)
-    current_identity = get_current_identity()
+    # current_identity = get_current_identity()
     escaped_search = None
     if search:
         # Escaped so that the string literals are not interpreted as regex
         escaped_search = f".*{custom_escape(search)}.*"
 
     try:
-        if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
+        if True:
             results, total = get_tag_list_db(
                 limit=limit,
                 offset=offset,

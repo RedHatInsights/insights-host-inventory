@@ -184,11 +184,11 @@ def process_system_profile_spec():
 
 
 def create_app(runtime_environment):
-    connexion_options = {
-        "swagger_ui": True,
-        "uri_parser_class": customURIParser,
-        "openapi_spec_path": "/dev/openapi.json",
-    }
+    # connexion_options = {
+    #     "swagger_ui": True,
+    #     "uri_parser_class": customURIParser,
+    #     "openapi_spec_path": "/dev/openapi.json",
+    # }
     # This feels like a hack but it is needed.  The logging configuration
     # needs to be setup before the flask app is initialized.
     configure_logging()
@@ -196,7 +196,7 @@ def create_app(runtime_environment):
     app_config = Config(runtime_environment)
     app_config.log_configuration()
 
-    connexion_app = connexion.FlaskApp("inventory", specification_dir="./swagger/", options=connexion_options)
+    connexion_app = connexion.FlaskApp("inventory", specification_dir="./swagger/", uri_parser_class=customURIParser)
 
     parser = TranslatingParser(SPECIFICATION_FILE)
     parser.parse()
@@ -210,7 +210,8 @@ def create_app(runtime_environment):
                 arguments={"title": "RestyResolver Example"},
                 resolver=RestyResolver("api"),
                 validate_responses=True,
-                strict_validation=True,
+                strict_validation=False,
+                swagger_ui=True,
                 base_path=api_url,
                 validator_map=build_validator_map(system_profile_spec=sp_spec, unindexed_fields=unindexed_fields),
             )
@@ -253,11 +254,11 @@ def create_app(runtime_environment):
         unleash_fallback_msg += " Feature flag toggles will default to their fallback values."
         logger.warning(unleash_fallback_msg)
 
-    db.init_app(flask_app)
+    with flask_app.app_context():
+        db.init_app(flask_app)
+        # register_shutdown(db.get_engine(flask_app).dispose, "Closing database")
+        flask_app.register_blueprint(monitoring_blueprint, url_prefix=app_config.mgmt_url_path_prefix)
 
-    register_shutdown(db.get_engine(flask_app).dispose, "Closing database")
-
-    flask_app.register_blueprint(monitoring_blueprint, url_prefix=app_config.mgmt_url_path_prefix)
     for api_url in app_config.api_urls:
         flask_app.register_blueprint(spec_blueprint, url_prefix=api_url, name=f"{api_url}{spec_blueprint.name}")
 
