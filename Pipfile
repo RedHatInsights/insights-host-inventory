@@ -5,15 +5,13 @@ name = "pypi"
 
 [packages]
 werkzeug = "==2.2.2"
-flask-sqlalchemy = "~=3.0.2"
+flask-sqlalchemy = "~=3.1.1"
 # package above this line added while trying to update connexion to v3.0.6
 flask = "==2.2.5"
-flask-sqlalchemy = "~=3.1.1"
 # package above this line added while trying to update connexion to v3.0.6
 jsonify = "==0.5"  # Not semver
 flask-restful = "~=0.3.7"
 requests = "~=2.31.0"
-# flask-sqlalchemy = "~=2.5.1"
 psycopg2 = "~=2.9.9"
 flask-migrate = "~=4.0.5"
 itsdangerous = "==2.1.2"

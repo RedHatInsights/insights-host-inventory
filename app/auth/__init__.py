@@ -34,5 +34,4 @@ def bearer_token_handler(token):
 
 
 def get_current_identity():
-    # return connexion.context["user"]
     return connexion.context.context["user"]
