@@ -15,7 +15,6 @@ from jsonschema import Draft7Validator
 from jsonschema import ValidationError
 from jsonschema.validators import extend
 
-# from connexion.validators.abstract import AbstractRequestBodyValidator
 
 logger = logging.getLogger(__name__)
 
