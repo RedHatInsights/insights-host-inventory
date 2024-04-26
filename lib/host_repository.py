@@ -80,9 +80,9 @@ def find_existing_host(identity, canonical_facts):
 
     if not existing_host:
         #
-        # If we didn't find a host based on elevated IDs, it could mean that one or more
-        # of the elevated IDs have changed. We remove the elevated IDs from the following
-        # search so they won't prevent a match on secondary IDs, if that is the case.
+        # If we didn't find a host based on elevated facts, it could mean that one or more
+        # of the elevated facts have changed. We remove the elevated facts from the following
+        # search so they won't prevent a match on secondary facts, if that is the case.
         #
         secondary_facts = canonical_facts.copy()
         for key in ELEVATED_CANONICAL_FACT_FIELDS:
@@ -184,6 +184,7 @@ def find_host_by_multiple_canonical_facts(identity, canonical_facts):
     logger.debug("find_host_by_multiple_canonical_facts(%s)", canonical_facts)
 
     # If no canonical facts are supplied, it can't match anything.
+    # Just in case the last canonical fact was removed during the process.
     if not canonical_facts:
         return None
 
