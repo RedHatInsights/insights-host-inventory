@@ -3,6 +3,7 @@
         "hash": {
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
             "sha256": "69fa244e02504c4a4603666d6ab10bc3e3e90328128d98b420119fb9e38f3a45"
 =======
             "sha256": "54c1c9b67f142387e6caa8785a7b90bf268078db55f0ed02a4563a26d428ce54"
@@ -10,6 +11,9 @@
 =======
             "sha256": "6f7e90d442311fa3ababee6556da3ce46896eb342c53c43f21ed860b1cbe0793"
 >>>>>>> b012b8b (Working with validate_responses and strict_validation turned off)
+=======
+            "sha256": "898e4ebb4261c9d7a7735d152f4a39779f1c386e1b2b362a66946583b1de7d42"
+>>>>>>> 7e79460 (Working with validate_responses and strict_validation turned off)
         },
         "pipfile-spec": 6,
         "requires": {
@@ -464,6 +468,7 @@
         "flask-sqlalchemy": {
             "hashes": [
 <<<<<<< HEAD
+<<<<<<< HEAD
                 "sha256:4ba4be7f419dc72f4efd8802d69974803c37259dd42f3913b0dcf75c9447e0a0",
                 "sha256:e4b68bb881802dda1a7d878b2fc84c06d1ee57fb40b874d3dc97dabfa36b8312"
             ],
@@ -476,6 +481,13 @@
             "index": "pypi",
             "version": "==3.0.5"
 >>>>>>> aede3b2 (api_server_does not work)
+=======
+                "sha256:4ba4be7f419dc72f4efd8802d69974803c37259dd42f3913b0dcf75c9447e0a0",
+                "sha256:e4b68bb881802dda1a7d878b2fc84c06d1ee57fb40b874d3dc97dabfa36b8312"
+            ],
+            "index": "pypi",
+            "version": "==3.1.1"
+>>>>>>> 7e79460 (Working with validate_responses and strict_validation turned off)
         },
         "flask-unleash": {
             "hashes": [

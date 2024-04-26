@@ -256,7 +256,6 @@ def create_app(runtime_environment):
 
     with flask_app.app_context():
         db.init_app(flask_app)
-        # register_shutdown(db.get_engine(flask_app).dispose, "Closing database")
         flask_app.register_blueprint(monitoring_blueprint, url_prefix=app_config.mgmt_url_path_prefix)
 
     for api_url in app_config.api_urls:
