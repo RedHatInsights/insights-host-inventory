@@ -52,7 +52,7 @@ def _get_host_list_using_filters(
         additional_fields = tuple()
 
     host_query = _find_all_hosts().filter(*all_filters).order_by(*params_to_order_by(param_order_by, param_order_how))
-    query_results = host_query.paginate(page, per_page, True)
+    query_results = host_query.paginate(page=page, per_page=per_page, error_out=True)
     db.session.close()
 
     return query_results.items, query_results.total, additional_fields, system_profile_fields

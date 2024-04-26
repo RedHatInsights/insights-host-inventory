@@ -2,7 +2,7 @@ import re
 from urllib.parse import quote
 from urllib.parse import unquote
 
-from connexion.decorators.uri_parsing import OpenAPIURIParser
+from connexion.uri_parsing import OpenAPIURIParser
 
 from app.exceptions import ValidationException
 
