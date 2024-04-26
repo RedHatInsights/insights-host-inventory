@@ -81,13 +81,14 @@ def get_tags(
 ):
     limit, offset = pagination_params(page, per_page)
     current_identity = get_current_identity()
+    is_bootc = filter.get("system_profile", {}).get("bootc_status")
     escaped_search = None
     if search:
         # Escaped so that the string literals are not interpreted as regex
         escaped_search = f".*{custom_escape(search)}.*"
 
     try:
-        if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
+        if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}) or is_bootc:
             results, total = get_tag_list_db(
                 limit=limit,
                 offset=offset,
