@@ -95,7 +95,7 @@ def get_host_list(
     total = 0
     host_list = ()
     current_identity = get_current_identity()
-    is_bootc = filter.get("system_profile", {}).get("bootc_status", {})
+    is_bootc = filter.get("system_profile", {}).get("bootc_status")
 
     try:
         if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}) or is_bootc:
