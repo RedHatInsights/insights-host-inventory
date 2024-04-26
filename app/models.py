@@ -46,6 +46,8 @@ from app.validators import verify_mac_address_format
 from app.validators import verify_satellite_id
 from app.validators import verify_uuid_format
 
+# from connexion.decorators.validation import coerce_type
+
 
 logger = get_logger(__name__)
 
