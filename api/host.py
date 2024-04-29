@@ -194,7 +194,8 @@ def delete_hosts_by_filter(
 
     try:
         current_identity = get_current_identity()
-        if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
+        is_bootc = filter.get("system_profile", {}).get("bootc_status")
+        if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}) or is_bootc:
             logger.info(f"{FLAG_INVENTORY_DISABLE_XJOIN} is applied to {current_identity.org_id}")
             ids_list = get_host_ids_list_postgres(
                 display_name,
