@@ -131,7 +131,8 @@ def get_sap_system(
     tags=None, page=None, per_page=None, staleness=None, registered_with=None, filter=None, rbac_filter=None
 ):
     current_identity = get_current_identity()
-    if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
+    is_bootc = filter.get("system_profile", {}).get("bootc_status")
+    if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}) or is_bootc:
         results, total = get_sap_system_info_db(
             page,
             per_page,
@@ -184,11 +185,12 @@ def get_sap_sids(
 ):
     limit, offset = pagination_params(page, per_page)
     current_identity = get_current_identity()
+    is_bootc = filter.get("system_profile", {}).get("bootc_status")
     escaped_search = None
     if search:
         # Escaped so that the string literals are not interpreted as regex
         escaped_search = f".*{custom_escape(search)}.*"
-    if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
+    if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}) or is_bootc:
         results, total = get_sap_sids_info_db(
             limit,
             offset,
@@ -243,7 +245,8 @@ def get_operating_system(
 ):
     limit, offset = pagination_params(page, per_page)
     current_identity = get_current_identity()
-    if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
+    is_bootc = filter.get("system_profile", {}).get("bootc_status")
+    if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}) or is_bootc:
         results, total = get_os_info_db(
             limit,
             offset,
