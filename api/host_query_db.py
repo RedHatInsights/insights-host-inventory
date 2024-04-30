@@ -32,6 +32,23 @@ __all__ = (
 
 logger = get_logger(__name__)
 
+DEFAULT_COLUMNS = [
+    Host.canonical_facts,
+    Host.id,
+    Host.account,
+    Host.org_id,
+    Host.display_name,
+    Host.ansible_host,
+    Host.facts,
+    Host.reporter,
+    Host.per_reporter_staleness,
+    Host.stale_timestamp,
+    Host.created_on,
+    Host.modified_on,
+    Host.groups,
+    Host.system_profile_facts["host_type"].label("host_type"),
+]
+
 
 def get_all_hosts() -> List:
     query_results = _find_all_hosts([Host.id]).all()
@@ -44,14 +61,21 @@ def get_all_hosts() -> List:
 def _get_host_list_using_filters(
     all_filters: List, page: int, per_page: int, param_order_by: str, param_order_how: str, fields: List[str]
 ) -> Tuple[List[Host], int, Tuple[str], List[str]]:
+    columns = DEFAULT_COLUMNS
     system_profile_fields = ["host_type"]
     if fields and fields.get("system_profile"):
         additional_fields = ("system_profile",)
         system_profile_fields += list(fields.get("system_profile").keys())
+        columns = list(DEFAULT_COLUMNS)
+        columns.append(Host.system_profile_facts)
     else:
         additional_fields = tuple()
 
-    host_query = _find_all_hosts().filter(*all_filters).order_by(*params_to_order_by(param_order_by, param_order_how))
+    host_query = (
+        _find_all_hosts(columns=columns)
+        .filter(*all_filters)
+        .order_by(*params_to_order_by(param_order_by, param_order_how))
+    )
     query_results = host_query.paginate(page, per_page, True)
     db.session.close()
 

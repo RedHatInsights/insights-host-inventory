@@ -35,6 +35,7 @@ from sqlalchemy import UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import column_property
 from yaml import safe_load
 
 from app.exceptions import InventoryException
@@ -248,6 +249,7 @@ class LimitedHost(db.Model):
     canonical_facts = db.Column(JSONB)
     system_profile_facts = db.Column(JSONB)
     groups = db.Column(JSONB)
+    host_type = column_property(system_profile_facts["host_type"])
 
 
 class Host(LimitedHost):
