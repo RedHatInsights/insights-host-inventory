@@ -23,6 +23,8 @@ class AuthType(str, Enum):
     CERT = "cert-auth"
     JWT = "jwt-auth"
     UHC = "uhc-auth"
+    SAML = "saml-auth"
+    X509 = "X509"
 
 
 class CertType(str, Enum):
@@ -37,6 +39,8 @@ class IdentityType(str, Enum):
     SYSTEM = "System"
     USER = "User"
     SERVICE_ACCOUNT = "ServiceAccount"
+    ASSOCIATE = "Associate"
+    X509 = "X509"
 
 
 class Identity:
