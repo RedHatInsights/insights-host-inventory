@@ -1762,3 +1762,84 @@ def test_query_all_sp_filters_sql_char_contents(db_create_host, api_get, sp_filt
         # Assert that the request succeeds but no hosts are returned
         assert response_status == 200
         assert len(response_data["results"]) == 1
+
+
+def test_query_sp_filters_os_and_rhc_client_id(db_create_host, api_get):
+    # Create host with this system profile
+    match_sp_data = {
+        "system_profile_facts": {
+            "arch": "x86_64",
+            "insights_client_version": "3.0.1-2.el4_2",
+            "host_type": "edge",
+            "sap": {"sap_system": True, "sids": ["ABC", "DEF"]},
+            "bootc_status": {"booted": {"image": "quay.io/centos-bootc/fedora-bootc-cloud:eln"}},
+            "sap_sids": ["ABC", "DEF"],
+            "systemd": {"failed_services": ["foo", "bar"]},
+            "system_memory_bytes": 8292048963606259,
+            "rhc_client_id": "6b655c07-0daf-4564-9e1b-f6fb95510370",
+            "operating_system": {"name": "RHEL", "major": 8, "minor": 6},
+        }
+    }
+    match_host_id = str(db_create_host(extra_data=match_sp_data).id)
+
+    # Create host with differing SP
+    nomatch_sp_data = {
+        "system_profile_facts": {
+            "arch": "ARM",
+            "insights_client_version": "1.2.3",
+            "greenboot_status": "green",
+            "bootc_status": {"booted": {"image": "192.168.0.1:5000/foo/foo:latest"}},
+            "sap_sids": ["DEF"],
+            "number_of_cpus": 8,
+        }
+    }
+    nomatch_host_id = str(db_create_host(extra_data=nomatch_sp_data).id)
+
+    url = build_hosts_url(
+        query="?filter[system_profile][operating_system][RHEL][version][eq][]=8.6&filter[system_profile][rhc_client_id][]=not_nil"  # noqa: E501
+    )
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    # Assert that only the matching host is returned
+    response_ids = [result["id"] for result in response_data["results"]]
+    assert match_host_id in response_ids
+    assert nomatch_host_id not in response_ids
+
+
+@pytest.mark.parametrize(
+    "sp_filter_param",
+    (
+        "[bootc_status][is]=nil",
+        "[bootc_status][is]=not_nil",
+        "[bootc_status][booted][is]=nil",
+        "[bootc_status][booted][is]=not_nil",
+    ),
+)
+def test_query_sp_filters_query_on_object_with_is_successful_request(db_create_host, api_get, sp_filter_param):
+    # Create host with this system profile
+    match_sp_data = {
+        "system_profile_facts": {
+            "arch": "x86_64",
+            "insights_client_version": "3.0.1-2.el4_2",
+            "host_type": "edge",
+            "sap": {"sap_system": True, "sids": ["ABC", "DEF"]},
+            "bootc_status": {"booted": {"image": "quay.io/centos-bootc/fedora-bootc-cloud:eln"}},
+            "sap_sids": ["ABC", "DEF"],
+            "systemd": {"failed_services": ["foo", "bar"]},
+            "system_memory_bytes": 8292048963606259,
+            "rhc_client_id": "6b655c07-0daf-4564-9e1b-f6fb95510370",
+            "operating_system": {"name": "RHEL", "major": 8, "minor": 6},
+        }
+    }
+    db_create_host(extra_data=match_sp_data)
+
+    url = build_hosts_url(query=f"?filter[system_profile]{sp_filter_param}")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200

@@ -63,7 +63,10 @@ def _get_field_filter_for_deepest_param(sp_spec: dict, filter: dict) -> str:
 
     # If the current key is a comparator, we're already at the deepest node
     if key in POSTGRES_COMPARATOR_LOOKUP.keys():
-        return sp_spec["filter"]
+        if "filter" in sp_spec.keys():
+            return sp_spec["filter"]
+        elif sp_spec:
+            return "object"
 
     # Make sure the requested field is in the spec
     _check_field_in_spec(sp_spec, key)
@@ -208,7 +211,7 @@ def _unique_paths(
             if key in ignore_nodes:
                 # Skip recursion on ignored nodes.
                 # Instead, just add the whole thing to the output.
-                all_filters.append(node)
+                all_filters.append({key: node[key]})
             else:
                 all_filters += _unique_paths(node[key], ignore_nodes, [*current_path, key])
     else:
