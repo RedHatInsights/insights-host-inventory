@@ -24,7 +24,7 @@ class AuthType(str, Enum):
     JWT = "jwt-auth"
     UHC = "uhc-auth"
     SAML = "saml-auth"
-    X509 = "x509"
+    X509 = "X509"
 
 
 class CertType(str, Enum):
