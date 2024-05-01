@@ -31,8 +31,16 @@ def downgrade():
             "hosts_subscription_manager_id_index",
             "hosts",
             [sa.text("(canonical_facts ->> 'subscription_manager_id')")],
+            postgresql_concurrently=True,
+            if_not_exists=True,
         )
-        op.create_index("idx_reporter", "hosts", ["reporter"])
+        op.create_index(
+            "idx_reporter", 
+            "hosts", 
+            ["reporter"],
+            postgresql_concurrently=True,
+            if_not_exists=True,
+        )
         op.create_index(
             "idxdisplay_name",
             "hosts",
