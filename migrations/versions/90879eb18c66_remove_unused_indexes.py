@@ -35,8 +35,8 @@ def downgrade():
             if_not_exists=True,
         )
         op.create_index(
-            "idx_reporter", 
-            "hosts", 
+            "idx_reporter",
+            "hosts",
             ["reporter"],
             postgresql_concurrently=True,
             if_not_exists=True,
