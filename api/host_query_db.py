@@ -365,7 +365,6 @@ def get_os_info(
     )
     # Only include records that have set an operating_system.name
     filters += (columns[0].isnot(None),)
-    os_query = os_query.filter(*filters)
 
     query_results = os_query.filter(*filters).all()
     db.session.close()
