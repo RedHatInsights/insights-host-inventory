@@ -52,18 +52,29 @@ class CustomResponseValidator(AbstractResponseBodyValidator):
 class CustomParameterValidator(ParameterValidator):
     def __init__(self, *args, system_profile_spec, unindexed_fields, **kwargs):
         super().__init__(*args, **kwargs)
+
         self.sp_spec = system_profile_spec
         self.unindexed_fields = unindexed_fields
 
-    def validate_query_parameter_list(self, request):
-        for param in [
+    def validate_query_parameter_list(self, request, security_params=None):
+        # for param in [
+        #     p
+        #     for p in self.parameters.get("query", [])
+        #     if p.get("x-validator") == "sparseFields" and request.query.get(p["name"])
+        # ]:
+
+        # entries = self.parameters.get("query", [])
+        # params  = []
+
+        for _ in [
             p
             for p in self.parameters.get("query", [])
-            if p.get("x-validator") == "sparseFields" and request.query.get(p["name"])
+            if p.get("x-validator") == "sparseFields" and p["name"] in request.get("query_string").decode()
         ]:
-            fields = request.query[param["name"]]
+            fields = request.get("query_string").decode().split("=")[0]
             if "system_profile" in fields:
-                query_fields = list(fields.get("system_profile").keys())
+                keys = request.get("query_string").decode().split("=")[1]
+                query_fields = list(keys.split(","))
                 system_profile_schema = self.sp_spec
                 unindexed_fields = self.unindexed_fields
                 for field in query_fields:
@@ -75,6 +86,9 @@ class CustomParameterValidator(ParameterValidator):
                 flask.abort(400)
 
         return super().validate_query_parameter_list(request)
+
+    def _validate(self, request):
+        return super()._validate(request)
 
 
 def build_validator_map(system_profile_spec, unindexed_fields):
