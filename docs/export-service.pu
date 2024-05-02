@@ -15,7 +15,7 @@ alt if application == host-inventory
     hbiExportSvc -> RBAC: Query user's data
 end
 
-RBAC --> hbiExportSvc: Return User's data
+RBAC --> hbiExportSvc: Return user's data
 hbiExportSvc -> hbiDb: Query user's \n host data
 hbiDb --> hbiExportSvc: Return user's \n host data
 
