@@ -1,0 +1,32 @@
+@startuml
+
+participant "Export Service" as exportSvc
+participant Kafka
+participant "HBI Export Svc" as hbiExportSvc
+participant RBAC
+database "HBI DB" as hbiDb
+
+exportSvc -> Kafka: Send event
+loop reading events
+    hbiExportSvc -> Kafka
+end
+
+alt if application == host-inventory
+    hbiExportSvc -> RBAC: Query user's data
+end
+
+RBAC --> hbiExportSvc: Return User's data
+hbiExportSvc -> hbiDb: Query user's \n host data
+hbiDb --> hbiExportSvc: Return user's \n host data
+
+activate hbiExportSvc
+alt success
+    hbiExportSvc -> hbiExportSvc: \t Serialize \n database content
+    hbiExportSvc -> hbiExportSvc: \t Format \n export content \n\t(CSV/JSON)
+    hbiExportSvc --> exportSvc: POST formatted data
+else failed to process
+    hbiExportSvc --> exportSvc: POST error details
+end
+deactivate
+
+@enduml
