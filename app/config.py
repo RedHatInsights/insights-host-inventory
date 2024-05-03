@@ -36,7 +36,13 @@ class Config:
                 protocol = "https" if cfg.tlsCAPath else "http"
                 port = endpoint.tlsPort if cfg.tlsCAPath else endpoint.port
                 self.rbac_endpoint = f"{protocol}://{endpoint.hostname}:{port}"
-                break
+
+        self.export_service_endpoint = ""
+        for endpoint in cfg.privateEndpoints:
+            if endpoint.app == "export-service":
+                protocol = "https" if cfg.tlsCAPath else "http"
+                port = endpoint.tlsPort if cfg.tlsCAPath else endpoint.port
+                self.export_service_endpoint = f"{protocol}://{endpoint.hostname}:{port}"
 
         def topic(t):
             return app_common_python.KafkaTopics[t].name if t else None
@@ -48,6 +54,7 @@ class Config:
         self.notification_topic = topic(os.environ.get("KAFKA_NOTIFICATION_TOPIC"))
         self.event_topic = topic(os.environ.get("KAFKA_EVENT_TOPIC"))
         self.payload_tracker_kafka_topic = topic("platform.payload-status")
+        self.export_service_topic = topic(os.environ.get("KAFKA_EXPORT_SERVICE_TOPIC", "platform.export.requests"))
 
         self.bootstrap_servers = ",".join(app_common_python.KafkaServers)
         broker_cfg = cfg.kafka.brokers[0]
@@ -92,6 +99,7 @@ class Config:
         self._db_port = os.getenv("INVENTORY_DB_PORT", 5432)
         self._db_name = os.getenv("INVENTORY_DB_NAME", "insights")
         self.rbac_endpoint = os.environ.get("RBAC_ENDPOINT", "http://localhost:8111")
+        self.export_service_endpoint = os.environ.get("EXPORT_SERVICE_ENDPOINT", "http://localhost:10010")
         self.host_ingress_topic = os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress")
         self.additional_validation_topic = os.environ.get(
             "KAFKA_ADDITIONAL_VALIDATION_TOPIC", "platform.inventory.host-ingress-p1"
@@ -99,6 +107,7 @@ class Config:
         self.system_profile_topic = os.environ.get("KAFKA_SYSTEM_PROFILE_TOPIC", "platform.inventory.system-profile")
         self.kafka_consumer_topic = os.environ.get("KAFKA_CONSUMER_TOPIC", "platform.inventory.host-ingress")
         self.notification_topic = os.environ.get("KAFKA_NOTIFICATION_TOPIC", "platform.notifications.ingress")
+        self.export_service_topic = os.environ.get("KAFKA_EXPORT_SERVICE_TOPIC", "platform.export.requests")
         self.bootstrap_servers = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")
         self.event_topic = os.environ.get("KAFKA_EVENT_TOPIC", "platform.inventory.events")
         self.payload_tracker_kafka_topic = os.environ.get("PAYLOAD_TRACKER_KAFKA_TOPIC", "platform.payload-status")
@@ -148,6 +157,7 @@ class Config:
         self.tenant_translator_url = os.environ.get("TENANT_TRANSLATOR_URL", "http://localhost:8892/internal/orgIds")
 
         self.host_ingress_consumer_group = os.environ.get("KAFKA_HOST_INGRESS_GROUP", "inventory-mq")
+        self.inv_export_service_consumer_group = os.environ.get("KAFKA_EXPORT_SERVICE_GROUP", "inv-export-service")
         self.sp_validator_max_messages = int(os.environ.get("KAFKA_SP_VALIDATOR_MAX_MESSAGES", "10000"))
 
         self.prometheus_pushgateway = os.environ.get("PROMETHEUS_PUSHGATEWAY", "localhost:9091")

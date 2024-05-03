@@ -13,13 +13,17 @@ from sqlalchemy.sql.expression import ColumnElement
 from api.filtering.db_filters import host_id_list_filter
 from api.filtering.db_filters import query_filters
 from api.filtering.db_filters import rbac_permissions_filter
+from api.staleness_query import get_staleness_obj
 from app import db
 from app.auth import get_current_identity
+from app.common import inventory_config
+from app.culling import Timestamps
 from app.instrumentation import log_get_host_list_succeeded
 from app.logging import get_logger
 from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
+from app.serialization import serialize_host
 from lib.host_repository import update_query_for_owner_id
 
 __all__ = (
@@ -194,8 +198,10 @@ def _order_how(column, order_how: str):
         raise ValueError('Unsupported ordering direction, use "ASC" or "DESC".')
 
 
-def _find_all_hosts(columns: List[ColumnElement] = None) -> Query:
-    identity = get_current_identity()
+def _find_all_hosts(columns: List[ColumnElement] = None, identity: object = None) -> Query:
+    if not identity:
+        identity = get_current_identity()
+
     query = (
         db.session.query(Host)
         .join(HostGroupAssoc, isouter=True)
@@ -539,3 +545,56 @@ def get_host_ids_list(
     host_list = [str(res[0]) for res in _find_all_hosts([Host.id]).filter(*all_filters).all()]
     db.session.close()
     return host_list
+
+
+
+def get_hosts_to_export(identity: object, filters: object = {}, export_format: str = "json", rbac_filter=None) -> list:
+    columns = [
+        Host.id,
+        Host.account,
+        Host.org_id,
+        Host.display_name,
+        Host.ansible_host,
+        Host.facts,
+        Host.reporter,
+        Host.groups,
+        Host.system_profile_facts,
+        Host.modified_on,
+        Host.created_on,
+        Host.canonical_facts,
+        Host.per_reporter_staleness,
+        Host.groups,
+    ]
+
+    staleness_timestamps = Timestamps.from_config(inventory_config())
+    staleness = get_staleness_obj(identity)
+    filters = query_filters(rbac_filter=rbac_filter)
+    filters += [Host.org_id == identity.org_id]
+    query = (
+        Host.query.join(HostGroupAssoc, isouter=True)
+        .join(Group, isouter=True)
+        .filter(*filters)
+        .group_by(Host.id, Group.id, Group.name)
+    )
+    results = query.with_entities(*columns)
+    serialized_hosts_list = [
+        serialize_host(host, staleness_timestamps=staleness_timestamps, for_mq=False, staleness=staleness)
+        for host in results
+    ]
+    if export_format == "json":
+        return serialized_hosts_list
+    else:
+        # Do CSV export here
+        _convert_to_csv(serialized_hosts_list)
+        pass
+
+
+def _convert_to_csv(hosts: list):
+    has_header = False
+    csv_string = ""
+    for host in hosts:
+        if not has_header:
+            header = ",".join(host.keys())
+            csv_string += header
+            has_header = True
+        # values = host.values()
