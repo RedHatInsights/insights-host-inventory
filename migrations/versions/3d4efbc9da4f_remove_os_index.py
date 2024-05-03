@@ -1,4 +1,4 @@
-"""Remove OS index
+"""Remove OS index, set replica identity for groups and hosts_groups
 
 Revision ID: 3d4efbc9da4f
 Revises: 90879eb18c66
@@ -18,10 +18,14 @@ depends_on = None
 def upgrade():
     with op.get_context().autocommit_block():
         op.drop_index("idx_operating_system", table_name="hosts", postgresql_concurrently=True, if_exists=True)
+        op.execute('ALTER TABLE "groups" REPLICA IDENTITY FULL')
+        op.execute('ALTER TABLE "hosts_groups" REPLICA IDENTITY FULL')
 
 
 def downgrade():
     with op.get_context().autocommit_block():
+        op.execute('ALTER TABLE "groups" REPLICA IDENTITY DEFAULT')
+        op.execute('ALTER TABLE "hosts_groups" REPLICA IDENTITY DEFAULT')
         op.create_index(
             "idx_operating_system",
             "hosts",
