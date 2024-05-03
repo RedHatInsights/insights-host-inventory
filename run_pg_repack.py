@@ -48,6 +48,8 @@ def main(logger):
             "groups",
             "-t",
             "hosts_groups",
+            "-t",
+            "staleness",
         ],
         stdout=PIPE,
         stderr=STDOUT,
