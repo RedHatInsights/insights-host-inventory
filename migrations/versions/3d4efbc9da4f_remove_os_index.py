@@ -18,9 +18,9 @@ depends_on = None
 def upgrade():
     with op.get_context().autocommit_block():
         op.drop_index("idx_operating_system", table_name="hosts", postgresql_concurrently=True, if_exists=True)
-        op.execute('ALTER TABLE "groups" REPLICA IDENTITY FULL')
-        op.execute('ALTER TABLE "hosts_groups" REPLICA IDENTITY FULL')
-        op.execute('ALTER TABLE "staleness" REPLICA IDENTITY FULL')
+        op.execute('ALTER TABLE "groups" REPLICA IDENTITY USING INDEX groups_pkey')
+        op.execute('ALTER TABLE "hosts_groups" REPLICA IDENTITY USING INDEX hosts_groups_pkey')
+        op.execute('ALTER TABLE "staleness" REPLICA IDENTITY USING INDEX staleness_pkey')
 
 
 def downgrade():
