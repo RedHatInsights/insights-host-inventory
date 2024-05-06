@@ -389,7 +389,7 @@ def get_sap_system_info(
 
     subquery = sap_query.subquery()
     agg_query = db.session.query(subquery, func.count()).group_by("value")
-    query_results = agg_query.paginate(page, per_page, True)
+    query_results = agg_query.paginate(page=page, per_page=page, error_out=True)
     db.session.close()
     result = [{"value": qr[0], "count": qr[1]} for qr in query_results.items]
     return result, query_results.total
@@ -474,7 +474,7 @@ def get_sparse_system_profile(
         _find_all_hosts(columns).filter(*all_filters).order_by(*params_to_order_by(param_order_by, param_order_how))
     )
 
-    query_results = sp_query.paginate(page, per_page, True)
+    query_results = sp_query.paginate(page=page, per_page=per_page, error_out=True)
     db.session.close()
 
     return query_results.total, [{"id": str(item[0]), "system_profile": item[1]} for item in query_results.items]
