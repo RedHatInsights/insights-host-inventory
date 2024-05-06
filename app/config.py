@@ -44,6 +44,14 @@ class Config:
                 self.rbac_endpoint = f"{protocol}://{endpoint.hostname}:{port}"
                 break
 
+        self.export_service_endpoint = ""
+        for endpoint in cfg.privateEndpoints:
+            if endpoint.app == "export-service":
+                protocol = "https" if cfg.tlsCAPath else "http"
+                port = endpoint.tlsPort if cfg.tlsCAPath else endpoint.port
+                self.export_service_endpoint = f"{protocol}://{endpoint.hostname}:{port}"
+                break
+
         def topic(t):
             return app_common_python.KafkaTopics[t].name if t else None
 
