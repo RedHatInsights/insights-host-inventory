@@ -1,6 +1,7 @@
 from copy import deepcopy
 from functools import partial
 from typing import List
+from typing import Tuple
 from uuid import UUID
 
 from dateutil import parser
@@ -13,6 +14,7 @@ from sqlalchemy.dialects.postgresql import JSON
 
 from api.filtering.db_custom_filters import build_system_profile_filter
 from api.staleness_query import get_staleness_obj
+from app import db
 from app.config import HOST_TYPES
 from app.culling import staleness_to_conditions
 from app.exceptions import ValidationException
@@ -255,7 +257,8 @@ def query_filters(
     registered_with: List[str] = None,
     filter: dict = None,
     rbac_filter: dict = None,
-) -> List:
+    order_by: str = None,
+) -> Tuple[List, bool]:
     num_ids = 0
     for id_param in [fqdn, display_name, hostname_or_id, insights_id]:
         if id_param:
@@ -282,10 +285,10 @@ def query_filters(
         filters += _canonical_fact_filter("provider_type", provider_type)
     if updated_start or updated_end:
         filters += _modified_on_filter(updated_start, updated_end)
-    if group_name:
-        filters += _group_names_filter(group_name)
     if group_ids:
         filters += _group_ids_filter(group_ids)
+    if group_name:
+        filters += _group_names_filter(group_name)
     if tags:
         filters += _tags_filter(tags)
     if staleness:
@@ -297,4 +300,17 @@ def query_filters(
     if rbac_filter:
         filters += rbac_permissions_filter(rbac_filter)
 
-    return filters
+    # Determine query_base
+    if group_name or order_by == "group_name":
+        query_base = (
+            db.session.query(Host)
+            .join(HostGroupAssoc, isouter=True)
+            .join(Group, isouter=True)
+            .group_by(Host.id, Group.name)
+        )
+    elif group_ids or rbac_filter:
+        query_base = db.session.query(Host).join(HostGroupAssoc, isouter=True).group_by(Host.id)
+    else:
+        query_base = db.session.query(Host)
+
+    return filters, query_base

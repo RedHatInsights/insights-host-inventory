@@ -51,7 +51,7 @@ DEFAULT_COLUMNS = [
 
 
 def get_all_hosts() -> List:
-    query_results = _find_all_hosts([Host.id]).all()
+    query_results = _find_all_hosts(columns=[Host.id]).all()
     ids_list = [str(result[0]) for result in query_results]
 
     log_get_host_list_succeeded(logger, ids_list)
@@ -59,7 +59,13 @@ def get_all_hosts() -> List:
 
 
 def _get_host_list_using_filters(
-    all_filters: List, page: int, per_page: int, param_order_by: str, param_order_how: str, fields: List[str]
+    query_base,
+    all_filters: List,
+    page: int,
+    per_page: int,
+    param_order_by: str,
+    param_order_how: str,
+    fields: List[str],
 ) -> Tuple[List[Host], int, Tuple[str], List[str]]:
     columns = DEFAULT_COLUMNS
     system_profile_fields = ["host_type"]
@@ -72,7 +78,7 @@ def _get_host_list_using_filters(
         additional_fields = tuple()
 
     host_query = (
-        _find_all_hosts(columns=columns)
+        _find_all_hosts(query_base=query_base, columns=columns)
         .filter(*all_filters)
         .order_by(*params_to_order_by(param_order_by, param_order_how))
     )
@@ -103,7 +109,7 @@ def get_host_list(
     fields: List[str],
     rbac_filter: dict,
 ) -> Tuple[List[Host], int, Tuple[str], List[str]]:
-    all_filters = query_filters(
+    all_filters, query_base = query_filters(
         fqdn,
         display_name,
         hostname_or_id,
@@ -119,9 +125,12 @@ def get_host_list(
         registered_with,
         filter,
         rbac_filter,
+        param_order_by,
     )
 
-    return _get_host_list_using_filters(all_filters, page, per_page, param_order_by, param_order_how, fields)
+    return _get_host_list_using_filters(
+        query_base, all_filters, page, per_page, param_order_by, param_order_how, fields
+    )
 
 
 def get_host_list_by_id_list(
@@ -137,7 +146,7 @@ def get_host_list_by_id_list(
     all_filters += rbac_permissions_filter(rbac_filter)
 
     items, total, additional_fields, system_profile_fields = _get_host_list_using_filters(
-        all_filters, page, per_page, param_order_by, param_order_how, fields
+        None, all_filters, page, per_page, param_order_by, param_order_how, fields
     )
 
     return items, total, additional_fields, system_profile_fields
@@ -194,15 +203,16 @@ def _order_how(column, order_how: str):
         raise ValueError('Unsupported ordering direction, use "ASC" or "DESC".')
 
 
-def _find_all_hosts(columns: List[ColumnElement] = None) -> Query:
+def _find_all_hosts(query_base=None, columns: List[ColumnElement] = None) -> Query:
+    if query_base is None:
+        query_base = (
+            db.session.query(Host)
+            .join(HostGroupAssoc, isouter=True)
+            .join(Group, isouter=True)
+            .group_by(Host.id, Group.name)
+        )
     identity = get_current_identity()
-    query = (
-        db.session.query(Host)
-        .join(HostGroupAssoc, isouter=True)
-        .join(Group, isouter=True)
-        .filter(Host.org_id == identity.org_id)
-        .group_by(Host.id, Group.name)
-    )
+    query = query_base.filter(Host.org_id == identity.org_id)
     if columns:
         query = query.with_entities(*columns)
     return update_query_for_owner_id(identity, query)
@@ -212,7 +222,7 @@ def get_host_tags_list_by_id_list(
     host_id_list: List[str], limit: int, offset: int, order_by: str, order_how: str, rbac_filter: dict
 ) -> Tuple[dict, int]:
     columns = [Host.id, Host.tags]
-    query = _find_all_hosts(columns)
+    query = _find_all_hosts(columns=columns)
     all_filters = host_id_list_filter(host_id_list=host_id_list)
     all_filters += rbac_permissions_filter(rbac_filter)
     order = params_to_order_by(order_by, order_how)
@@ -294,8 +304,7 @@ def get_tag_list(
         )
 
     columns = [Host.id, Host.tags]
-    query = _find_all_hosts(columns)
-    all_filters = query_filters(
+    all_filters, query_base = query_filters(
         fqdn,
         display_name,
         hostname_or_id,
@@ -311,7 +320,9 @@ def get_tag_list(
         registered_with,
         filter,
         rbac_filter,
+        order_by,
     )
+    query = _find_all_hosts(query_base=query_base, columns=columns)
 
     query_results = query.filter(*all_filters).all()
     db.session.close()
@@ -359,10 +370,12 @@ def get_os_info(
         cast(Host.system_profile_facts["operating_system"]["major"], String).label("major"),
         cast(Host.system_profile_facts["operating_system"]["minor"], String).label("minor"),
     ]
-    os_query = _find_all_hosts(columns)
-    filters = query_filters(
+
+    filters, query_base = query_filters(
         tags=tags, staleness=staleness, registered_with=registered_with, filter=filter, rbac_filter=rbac_filter
     )
+    os_query = _find_all_hosts(query_base=query_base, columns=columns)
+
     # Only include records that have set an operating_system.name
     filters += (columns[0].isnot(None),)
 
@@ -400,14 +413,15 @@ def get_sap_system_info(
     columns = [
         Host.system_profile_facts["sap_system"].label("value"),
     ]
-    sap_query = _find_all_hosts(columns)
+
+    filters, query_base = query_filters(
+        tags=tags, staleness=staleness, registered_with=registered_with, filter=filter, rbac_filter=rbac_filter
+    )
+    sap_query = _find_all_hosts(query_base=query_base, columns=columns)
     sap_filter = [
         func.jsonb_typeof(Host.system_profile_facts["sap_system"]) == "boolean",
         Host.system_profile_facts["sap_system"].astext.cast(Boolean) != None,  # noqa:E711
     ]
-    filters = query_filters(
-        tags=tags, staleness=staleness, registered_with=registered_with, filter=filter, rbac_filter=rbac_filter
-    )
     sap_query = sap_query.filter(*filters).filter(*sap_filter)
 
     subquery = sap_query.subquery()
@@ -432,10 +446,10 @@ def get_sap_sids_info(
         Host.id,
         func.jsonb_array_elements_text(Host.system_profile_facts["sap_sids"]).label("sap_sids"),
     ]
-    sap_sids_query = _find_all_hosts(columns)
-    filters = query_filters(
+    filters, query_base = query_filters(
         tags=tags, staleness=staleness, registered_with=registered_with, filter=filter, rbac_filter=rbac_filter
     )
+    sap_sids_query = _find_all_hosts(query_base=query_base, columns=columns)
     query_results = sap_sids_query.filter(*filters).all()
     db.session.close()
     sap_sids = {}
@@ -494,7 +508,9 @@ def get_sparse_system_profile(
 
     all_filters = host_id_list_filter(host_id_list) + rbac_permissions_filter(rbac_filter)
     sp_query = (
-        _find_all_hosts(columns).filter(*all_filters).order_by(*params_to_order_by(param_order_by, param_order_how))
+        _find_all_hosts(columns=columns)
+        .filter(*all_filters)
+        .order_by(*params_to_order_by(param_order_by, param_order_how))
     )
 
     query_results = sp_query.paginate(page, per_page, True)
@@ -519,7 +535,7 @@ def get_host_ids_list(
     filter: dict,
     rbac_filter: dict,
 ) -> List[str]:
-    all_filters = query_filters(
+    all_filters, base_query = query_filters(
         fqdn,
         display_name,
         hostname_or_id,
@@ -536,6 +552,6 @@ def get_host_ids_list(
         filter,
         rbac_filter,
     )
-    host_list = [str(res[0]) for res in _find_all_hosts([Host.id]).filter(*all_filters).all()]
+    host_list = [str(res[0]) for res in _find_all_hosts(base_query, [Host.id]).filter(*all_filters).all()]
     db.session.close()
     return host_list
