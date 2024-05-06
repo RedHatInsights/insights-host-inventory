@@ -299,12 +299,6 @@ def query_filters(
         filters += _system_profile_filter(filter)
     if rbac_filter:
         filters += rbac_permissions_filter(rbac_filter)
-        query_base = (
-            db.session.query(Host)
-            .join(HostGroupAssoc, isouter=True)
-            .join(Group, isouter=True)
-            .group_by(Host.id, Group.name)
-        )
 
     # Determine query_base
     if group_name or order_by == "group_name":
