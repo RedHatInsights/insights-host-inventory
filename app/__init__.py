@@ -13,7 +13,7 @@ from prance import _TranslatingParser as TranslatingParser
 from prometheus_flask_exporter.multiprocess import GunicornPrometheusMetrics
 
 from api.mgmt import monitoring_blueprint
-from api.parsing import CustomURIParser
+from api.parsing import customURIParser
 from api.spec import spec_blueprint
 from app import payload_tracker
 from app.config import Config
@@ -191,8 +191,8 @@ def create_app(runtime_environment):
     app_config = Config(runtime_environment)
     app_config.log_configuration()
 
-    connexion_app = connexion.FlaskApp("inventory", specification_dir="./swagger/", uri_parser_class=CustomURIParser)
-    # connexion_app = connexion.FlaskApp("inventory", specification_dir="./swagger/")
+    # connexion_app = connexion.FlaskApp("inventory", specification_dir="./swagger/", uri_parser_class=customURIParser)
+    connexion_app = connexion.FlaskApp("inventory", specification_dir="./swagger/")
 
     parser = TranslatingParser(SPECIFICATION_FILE)
     parser.parse()
@@ -208,7 +208,7 @@ def create_app(runtime_environment):
                 validate_responses=True,
                 strict_validation=True,
                 swagger_ui=True,
-                uri_parser_class=CustomURIParser,
+                uri_parser_class=customURIParser,
                 base_path=api_url,
                 validator_map=build_validator_map(system_profile_spec=sp_spec, unindexed_fields=unindexed_fields),
             )

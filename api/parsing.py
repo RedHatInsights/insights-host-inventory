@@ -6,6 +6,9 @@ from connexion.uri_parsing import OpenAPIURIParser
 
 from app.exceptions import ValidationException
 
+# from connexion.uri_parsing import Swagger2URIParser
+# from connexion.lifecycle import ConnexionRequest
+
 
 def custom_fields_parser(root_key, key_path, val):
     """consumes values like ("a",["foo"],["baz,hello","world"])

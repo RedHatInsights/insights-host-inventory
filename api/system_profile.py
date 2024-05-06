@@ -28,10 +28,11 @@ from app.xjoin import check_pagination
 from app.xjoin import graphql_query
 from app.xjoin import pagination_params
 from app.xjoin import staleness_filter
-from lib.feature_flags import FLAG_INVENTORY_DISABLE_XJOIN
-from lib.feature_flags import get_flag_value
 from lib.middleware import rbac
 from lib.system_profile_validate import validate_sp_for_branch
+
+# from lib.feature_flags import FLAG_INVENTORY_DISABLE_XJOIN
+# from lib.feature_flags import get_flag_value
 
 logger = get_logger(__name__)
 
@@ -130,8 +131,8 @@ OPERATING_SYSTEM_QUERY = """
 def get_sap_system(
     tags=None, page=None, per_page=None, staleness=None, registered_with=None, filter=None, rbac_filter=None
 ):
-    current_identity = get_current_identity()
-    if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
+    # current_identity = get_current_identity()
+    if True:
         results, total = get_sap_system_info_db(
             page,
             per_page,
@@ -183,12 +184,12 @@ def get_sap_sids(
     rbac_filter=None,
 ):
     limit, offset = pagination_params(page, per_page)
-    current_identity = get_current_identity()
+    # current_identity = get_current_identity()
     escaped_search = None
     if search:
         # Escaped so that the string literals are not interpreted as regex
         escaped_search = f".*{custom_escape(search)}.*"
-    if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
+    if True:
         results, total = get_sap_sids_info_db(
             limit,
             offset,
@@ -242,8 +243,8 @@ def get_operating_system(
     rbac_filter=None,
 ):
     limit, offset = pagination_params(page, per_page)
-    current_identity = get_current_identity()
-    if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
+    # current_identity = get_current_identity()
+    if True:
         results, total = get_os_info_db(
             limit,
             offset,
