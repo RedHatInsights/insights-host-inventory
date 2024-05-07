@@ -131,24 +131,19 @@ def per_reporter_staleness_filter(staleness, reporter, host_type_filter):
     staleness_obj = serialize_staleness_to_dict(get_staleness_obj())
     staleness_conditions = []
     for host_type in host_type_filter:
-        conditions = or_(
-            *staleness_to_conditions(
-                staleness_obj,
-                staleness,
-                host_type,
-                partial(_stale_timestamp_per_reporter_filter, reporter=reporter),
+        staleness_conditions.append(
+            and_(
+                Host.system_profile_facts["host_type"].astext == host_type,
+                or_(
+                    *staleness_to_conditions(
+                        staleness_obj,
+                        staleness,
+                        host_type,
+                        partial(_stale_timestamp_per_reporter_filter, reporter=reporter),
+                    )
+                ),
             )
         )
-        if len(host_type_filter) > 1:
-            staleness_conditions.append(
-                and_(
-                    Host.system_profile_facts["host_type"].astext == host_type,
-                    conditions,
-                )
-            )
-        else:
-            staleness_conditions.append(conditions)
-
     return staleness_conditions
 
 
@@ -156,17 +151,12 @@ def _staleness_filter(staleness: List[str], host_type_filter: Set[str]) -> List:
     staleness_obj = serialize_staleness_to_dict(get_staleness_obj())
     staleness_conditions = []
     for host_type in host_type_filter:
-        conditions = or_(*staleness_to_conditions(staleness_obj, staleness, host_type, _stale_timestamp_filter))
-        if len(host_type_filter) > 1:
-            staleness_conditions.append(
-                and_(
-                    Host.system_profile_facts["host_type"].astext == host_type,
-                    conditions,
-                )
+        staleness_conditions.append(
+            and_(
+                Host.system_profile_facts["host_type"].astext == host_type,
+                or_(*staleness_to_conditions(staleness_obj, staleness, host_type, _stale_timestamp_filter)),
             )
-        else:
-            staleness_conditions.append(conditions)
-
+        )
     return [or_(*staleness_conditions)]
 
 
