@@ -90,11 +90,10 @@ def _get_host_modified_on_time_filter(gt=None, lte=None):
 
 
 def _stale_timestamp_filter(gt=None, lte=None, host_type=None):
-    time_filter_ = _get_host_modified_on_time_filter(gt=gt, lte=lte)
-    return and_(Host.system_profile_facts["host_type"].astext == host_type, time_filter_)
+    return _get_host_modified_on_time_filter(gt=gt, lte=lte)
 
 
-def _stale_timestamp_per_reporter_filter(gt=None, lte=None, host_type=None, reporter=None):
+def _stale_timestamp_per_reporter_filter(gt=None, lte=None, reporter=None, host_type=None):
     non_negative_reporter = reporter.replace("!", "")
     reporter_list = [non_negative_reporter]
     if non_negative_reporter in OLD_TO_NEW_REPORTER_MAP.keys():
@@ -104,7 +103,6 @@ def _stale_timestamp_per_reporter_filter(gt=None, lte=None, host_type=None, repo
         time_filter_ = _get_host_modified_on_time_filter(gt=gt, lte=lte)
         return and_(
             and_(
-                Host.system_profile_facts["host_type"].astext == host_type,
                 not_(Host.per_reporter_staleness.has_key(rep)),
                 time_filter_,
             )
@@ -119,7 +117,6 @@ def _stale_timestamp_per_reporter_filter(gt=None, lte=None, host_type=None, repo
                 time_filter_ = Host.per_reporter_staleness[rep]["last_check_in"].astext.cast(DateTime) <= lte
             or_filter.append(
                 and_(
-                    Host.system_profile_facts["host_type"].astext == host_type,
                     Host.per_reporter_staleness.has_key(rep),
                     time_filter_,
                 )
@@ -130,11 +127,19 @@ def _stale_timestamp_per_reporter_filter(gt=None, lte=None, host_type=None, repo
 
 def per_reporter_staleness_filter(staleness, reporter):
     staleness_obj = serialize_staleness_to_dict(get_staleness_obj())
-    staleness_conditions = tuple()
+    staleness_conditions = []
     for host_type in HOST_TYPES:
-        staleness_conditions += tuple(
-            staleness_to_conditions(
-                staleness_obj, staleness, host_type, partial(_stale_timestamp_per_reporter_filter, reporter=reporter)
+        staleness_conditions.append(
+            and_(
+                Host.system_profile_facts["host_type"].astext == host_type,
+                or_(
+                    *staleness_to_conditions(
+                        staleness_obj,
+                        staleness,
+                        host_type,
+                        partial(_stale_timestamp_per_reporter_filter, reporter=reporter),
+                    )
+                ),
             )
         )
     return staleness_conditions
@@ -142,10 +147,13 @@ def per_reporter_staleness_filter(staleness, reporter):
 
 def _staleness_filter(staleness: List[str]) -> List:
     staleness_obj = serialize_staleness_to_dict(get_staleness_obj())
-    staleness_conditions = tuple()
+    staleness_conditions = []
     for host_type in HOST_TYPES:
-        staleness_conditions += tuple(
-            staleness_to_conditions(staleness_obj, staleness, host_type, _stale_timestamp_filter)
+        staleness_conditions.append(
+            and_(
+                Host.system_profile_facts["host_type"].astext == host_type,
+                or_(*staleness_to_conditions(staleness_obj, staleness, host_type, _stale_timestamp_filter)),
+            )
         )
     return [or_(*staleness_conditions)]
 
