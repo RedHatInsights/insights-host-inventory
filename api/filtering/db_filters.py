@@ -1,6 +1,7 @@
 from copy import deepcopy
 from functools import partial
 from typing import List
+from typing import Set
 from typing import Tuple
 from uuid import UUID
 
@@ -13,6 +14,7 @@ from sqlalchemy import or_
 from sqlalchemy.dialects.postgresql import JSON
 
 from api.filtering.db_custom_filters import build_system_profile_filter
+from api.filtering.db_custom_filters import get_host_types_from_filter
 from api.staleness_query import get_staleness_obj
 from app import db
 from app.config import HOST_TYPES
@@ -125,10 +127,10 @@ def _stale_timestamp_per_reporter_filter(gt=None, lte=None, reporter=None, host_
         return or_(*or_filter)
 
 
-def per_reporter_staleness_filter(staleness, reporter):
+def per_reporter_staleness_filter(staleness, reporter, host_type_filter):
     staleness_obj = serialize_staleness_to_dict(get_staleness_obj())
     staleness_conditions = []
-    for host_type in HOST_TYPES:
+    for host_type in host_type_filter:
         staleness_conditions.append(
             and_(
                 Host.system_profile_facts["host_type"].astext == host_type,
@@ -145,10 +147,10 @@ def per_reporter_staleness_filter(staleness, reporter):
     return staleness_conditions
 
 
-def _staleness_filter(staleness: List[str]) -> List:
+def _staleness_filter(staleness: List[str], host_type_filter: Set[str]) -> List:
     staleness_obj = serialize_staleness_to_dict(get_staleness_obj())
     staleness_conditions = []
-    for host_type in HOST_TYPES:
+    for host_type in host_type_filter:
         staleness_conditions.append(
             and_(
                 Host.system_profile_facts["host_type"].astext == host_type,
@@ -158,7 +160,7 @@ def _staleness_filter(staleness: List[str]) -> List:
     return [or_(*staleness_conditions)]
 
 
-def _registered_with_filter(registered_with: List[str]) -> List:
+def _registered_with_filter(registered_with: List[str], host_type_filter: Set[str]) -> List:
     _query_filter = []
     if not registered_with:
         return _query_filter
@@ -172,15 +174,16 @@ def _registered_with_filter(registered_with: List[str]) -> List:
     # Get the per_report_staleness check_in value for the reporter
     # and build the filter based on it
     for reporter in reg_with_copy:
-        prs_item = per_reporter_staleness_filter(DEFAULT_STALENESS_VALUES, reporter)
+        prs_item = per_reporter_staleness_filter(DEFAULT_STALENESS_VALUES, reporter, host_type_filter)
 
         for n_items in prs_item:
             _query_filter.append(n_items)
     return [or_(*_query_filter)]
 
 
-def _system_profile_filter(filter: dict) -> List:
+def _system_profile_filter(filter: dict) -> Tuple[List, str]:
     query_filters = []
+    host_types = HOST_TYPES.copy()
 
     # If this feature flag is set, we should hide edge hosts by default, even if a filter wasn't provided.
     if get_flag_value(FLAG_HIDE_EDGE_HOSTS) and not filter:
@@ -193,11 +196,14 @@ def _system_profile_filter(filter: dict) -> List:
                 if get_flag_value(FLAG_HIDE_EDGE_HOSTS) and "host_type" not in filter["system_profile"]:
                     filter["system_profile"]["host_type"] = {"eq": "nil"}
 
+                # Get the host_types we're filtering on, if any
+                host_types = get_host_types_from_filter(filter["system_profile"].get("host_type"))
+
                 query_filters += build_system_profile_filter(filter["system_profile"])
             else:
                 raise ValidationException("filter key is invalid")
 
-    return query_filters
+    return query_filters, host_types
 
 
 def _hostname_or_id_filter(hostname_or_id: str) -> List:
@@ -237,7 +243,7 @@ def _modified_on_filter(updated_start: str, updated_end: str) -> List:
 
 def host_id_list_filter(host_id_list: List[str]) -> List:
     all_filters = [Host.id.in_(host_id_list)]
-    all_filters += _staleness_filter(ALL_STALENESS_STATES)
+    all_filters += _staleness_filter(ALL_STALENESS_STATES, set(HOST_TYPES))
     return all_filters
 
 
@@ -268,6 +274,7 @@ def query_filters(
     order_by: str = None,
 ) -> Tuple[List, bool]:
     num_ids = 0
+    host_type_filter = set(HOST_TYPES)
     for id_param in [fqdn, display_name, hostname_or_id, insights_id]:
         if id_param:
             num_ids += 1
@@ -299,12 +306,13 @@ def query_filters(
         filters += _group_names_filter(group_name)
     if tags:
         filters += _tags_filter(tags)
-    if staleness:
-        filters += _staleness_filter(staleness)
-    if registered_with:
-        filters += _registered_with_filter(registered_with)
     if filter:
-        filters += _system_profile_filter(filter)
+        sp_filter, host_type_filter = _system_profile_filter(filter)
+        filters += sp_filter
+    if staleness:
+        filters += _staleness_filter(staleness, host_type_filter)
+    if registered_with:
+        filters += _registered_with_filter(registered_with, host_type_filter)
     if rbac_filter:
         filters += rbac_permissions_filter(rbac_filter)
 
