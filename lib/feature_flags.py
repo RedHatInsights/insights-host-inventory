@@ -1,3 +1,4 @@
+import os
 from typing import Tuple
 
 from flask_unleash import Unleash
@@ -47,7 +48,10 @@ def custom_fallback(feature_name: str, context: dict) -> bool:
 # Returns a tuple containing the flag's value and whether or not the fallback value was used.
 def get_flag_value_and_fallback(flag_name: str, context: dict = {}) -> Tuple[bool, bool]:
     # Get flag name and default to fallback value
-    flag_value = FLAG_FALLBACK_VALUES[flag_name]
+    if os.environ.get("BYPASS_XJOIN", "false").lower() == "true":
+        flag_value = True
+    else:
+        flag_value = FLAG_FALLBACK_VALUES[flag_name]
     using_fallback = True
 
     # Attempt to get the feature flag via Unleash
