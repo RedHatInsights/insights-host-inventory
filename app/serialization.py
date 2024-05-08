@@ -185,7 +185,7 @@ def serialize_host(
     if "updated" in fields:
         serialized_host["updated"] = _serialize_datetime(host.modified_on)
     if "tags" in fields:
-        serialized_host["tags"] = _serialize_tags(host.tags)
+        serialized_host["tags"] = serialize_tags(host.tags)
     if "system_profile" in fields:
         if host.system_profile_facts:
             if system_profile_fields:
@@ -390,7 +390,7 @@ def _deserialize_tags_dict(tags):
     return deserialized_tags
 
 
-def _serialize_tags(tags):
+def serialize_tags(tags):
     return [tag.data() for tag in Tag.create_tags_from_nested(tags)]
 
 

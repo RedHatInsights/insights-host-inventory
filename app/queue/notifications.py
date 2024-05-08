@@ -160,6 +160,16 @@ def system_deleted_notification(notification_type, host):
     return result
 
 
+def build_rhel_version(system_profile: dict) -> str:
+    os = system_profile.get("operating_system")
+    if os:
+        if os.get("name") == "rhel":
+            major = os.get("major")
+            minor = os.get("minor")
+            return f"{major:03}.{minor:03}"
+    return ""
+
+
 def notification_headers(event_type: NotificationType):
     return {
         "event_type": event_type.name,

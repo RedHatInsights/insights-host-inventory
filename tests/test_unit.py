@@ -1646,7 +1646,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                 )
 
 
-@patch("app.serialization._serialize_tags")
+@patch("app.serialization.serialize_tags")
 @patch("app.serialization.serialize_facts")
 @patch("app.serialization.serialize_canonical_facts")
 class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTestCase):
