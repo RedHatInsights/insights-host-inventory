@@ -16,6 +16,7 @@ from tests.helpers.api_utils import build_system_profile_url
 from tests.helpers.api_utils import build_tags_count_url
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.mq_utils import assert_delete_event_is_valid
+from tests.helpers.mq_utils import assert_delete_notification_is_valid
 from tests.helpers.test_utils import get_staleness_timestamps
 
 
@@ -156,6 +157,7 @@ def test_system_profile_doesnt_use_staleness_parameter(mq_create_hosts_in_all_st
 def test_culled_host_is_removed(
     event_producer_mock,
     event_datetime_mock,
+    notification_event_producer_mock,
     db_create_host,
     db_get_host,
     inventory_config,
@@ -176,19 +178,31 @@ def test_culled_host_is_removed(
             inventory_config,
             mock.Mock(),
             db.session,
-            event_producer_mock,
+            event_producer=event_producer_mock,
+            notification_event_producer=notification_event_producer_mock,
             shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
         )
 
         assert not db_get_host(created_host.id)
 
         assert_delete_event_is_valid(
-            event_producer=event_producer_mock, host=created_host, timestamp=event_datetime_mock, identity=None
+            event_producer=event_producer_mock,
+            host=created_host,
+            timestamp=event_datetime_mock,
+            identity=None,
+        )
+
+        assert_delete_notification_is_valid(
+            notification_event_producer=notification_event_producer_mock,
+            host=created_host,
+            timestamp=event_datetime_mock,
         )
 
 
 @pytest.mark.host_reaper
-def test_culled_edge_host_is_not_removed(event_producer_mock, db_create_host, db_get_host, inventory_config):
+def test_culled_edge_host_is_not_removed(
+    event_producer_mock, notification_event_producer_mock, db_create_host, db_get_host, inventory_config
+):
     staleness_timestamps = get_staleness_timestamps()
 
     host = minimal_db_host(
@@ -206,6 +220,7 @@ def test_culled_edge_host_is_not_removed(event_producer_mock, db_create_host, db
         mock.Mock(),
         db.session,
         event_producer_mock,
+        notification_event_producer_mock,
         shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
     )
 
@@ -214,7 +229,9 @@ def test_culled_edge_host_is_not_removed(event_producer_mock, db_create_host, db
 
 
 @pytest.mark.host_reaper
-def test_non_culled_host_is_not_removed(event_producer_mock, db_create_host, db_get_hosts, inventory_config):
+def test_non_culled_host_is_not_removed(
+    event_producer_mock, notification_event_producer_mock, db_create_host, db_get_hosts, inventory_config
+):
     staleness_timestamps = get_staleness_timestamps()
     created_hosts = []
 
@@ -238,6 +255,7 @@ def test_non_culled_host_is_not_removed(event_producer_mock, db_create_host, db_
         mock.Mock(),
         db.session,
         event_producer_mock,
+        notification_event_producer_mock,
         shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
     )
 
@@ -248,7 +266,9 @@ def test_non_culled_host_is_not_removed(event_producer_mock, db_create_host, db_
 
 
 @pytest.mark.host_reaper
-def test_reaper_shutdown_handler(db_create_host, db_get_hosts, inventory_config, event_producer_mock):
+def test_reaper_shutdown_handler(
+    db_create_host, db_get_hosts, inventory_config, event_producer_mock, notification_event_producer_mock
+):
     with patch("app.models.datetime") as mock_datetime:
         mock_datetime.now.return_value = datetime(year=2023, month=4, day=2, hour=1, minute=1, second=1)
         mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
@@ -274,6 +294,7 @@ def test_reaper_shutdown_handler(db_create_host, db_get_hosts, inventory_config,
             mock.Mock(),
             db.session,
             fake_event_producer,
+            notification_event_producer_mock,
             shutdown_handler=mock.Mock(**{"shut_down.side_effect": (False, True)}),
         )
 
@@ -284,7 +305,11 @@ def test_reaper_shutdown_handler(db_create_host, db_get_hosts, inventory_config,
 
 @pytest.mark.host_reaper
 def test_unknown_host_is_not_removed(
-    event_producer_mock, db_create_host_in_unknown_state, db_get_host, inventory_config
+    event_producer_mock,
+    notification_event_producer_mock,
+    db_create_host_in_unknown_state,
+    db_get_host,
+    inventory_config,
 ):
     created_host = db_create_host_in_unknown_state
     retrieved_host = db_get_host(created_host.id)
@@ -299,6 +324,7 @@ def test_unknown_host_is_not_removed(
         mock.Mock(),
         db.session,
         event_producer_mock,
+        notification_event_producer_mock,
         shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
     )
 
@@ -324,6 +350,7 @@ def assert_system_culling_data(response_host, expected_stale_timestamp, expected
 def test_reaper_stops_after_kafka_producer_error(
     produce_side_effects,
     event_producer,
+    notification_event_producer,
     db_create_multiple_hosts,
     db_get_hosts,
     inventory_config,
@@ -336,6 +363,7 @@ def test_reaper_stops_after_kafka_producer_error(
         mocker.patch("lib.host_delete.kafka_available")
 
         event_producer._kafka_producer.produce.side_effect = produce_side_effects
+        notification_event_producer._kafka_producer.produce.side_effect = produce_side_effects
 
         staleness_timestamps = get_staleness_timestamps()
 
@@ -356,6 +384,7 @@ def test_reaper_stops_after_kafka_producer_error(
                 mock.Mock(),
                 db.session,
                 event_producer,
+                notification_event_producer,
                 shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
             )
 

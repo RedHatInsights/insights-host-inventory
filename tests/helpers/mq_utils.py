@@ -142,6 +142,31 @@ def assert_delete_event_is_valid(
         assert event["metadata"] == expected_metadata
 
 
+def assert_delete_notification_is_valid(notification_event_producer, host, timestamp):
+    event = json.loads(notification_event_producer.event)
+
+    assert isinstance(event, dict)
+
+    expected_keys = {
+        "timestamp",
+        "event_type",
+        "account_id",
+        "org_id",
+        "application",
+        "bundle",
+        "context",
+        "events",
+        "source",
+    }
+    assert set(event.keys()) == expected_keys
+
+    # assert timestamp.replace(tzinfo=timezone.utc).isoformat() == event["timestamp"]
+
+    assert "system-deleted" == event["event_type"]
+
+    assert host.canonical_facts.get("insights_id") == event["events"][0]["payload"]["insights_id"]
+
+
 def assert_patch_event_is_valid(
     host,
     event_producer,

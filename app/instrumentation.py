@@ -58,7 +58,7 @@ def message_not_produced(logger, error, topic, event, key, headers, message=None
     logger.error(msg)
     if "notification" in topic:
         notification_event_producer_failure.labels(
-            event_type=dict(headers)["event_type"].decode("utf-8"), topic=topic
+            notification_type=dict(headers)["event_type"].decode("utf-8"), topic=topic
         ).inc()
     else:
         event_producer_failure.labels(event_type=dict(headers)["event_type"].decode("utf-8"), topic=topic).inc()

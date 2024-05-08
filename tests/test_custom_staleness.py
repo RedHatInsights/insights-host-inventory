@@ -48,6 +48,7 @@ def test_delete_only_immutable_hosts(
     inventory_config,
     db_create_multiple_hosts,
     event_producer_mock,
+    notification_event_producer_mock,
     db_get_hosts,
 ):
     db_create_staleness_culling(**CUSTOM_STALENESS_DELETE_ONLY_IMMUTABLE)
@@ -65,6 +66,7 @@ def test_delete_only_immutable_hosts(
         mock.Mock(),
         db.session,
         event_producer_mock,
+        notification_event_producer_mock,
         shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
     )
     assert 0 == len(db_get_hosts(immutable_hosts).all())
@@ -76,6 +78,7 @@ def test_delete_only_conventional_hosts(
     inventory_config,
     db_create_multiple_hosts,
     event_producer_mock,
+    notification_event_producer_mock,
     db_get_hosts,
 ):
     db_create_staleness_culling(**CUSTOM_STALENESS_DELETE_ONLY_CONVENTIONAL)
@@ -93,6 +96,7 @@ def test_delete_only_conventional_hosts(
         mock.Mock(),
         db.session,
         event_producer_mock,
+        notification_event_producer_mock,
         shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
     )
     assert 2 == len(db_get_hosts(immutable_hosts).all())
@@ -104,6 +108,7 @@ def test_delete_conventional_immutable_hosts(
     inventory_config,
     db_create_multiple_hosts,
     event_producer_mock,
+    notification_event_producer_mock,
     db_get_hosts,
 ):
     db_create_staleness_culling(**CUSTOM_STALENESS_DELETE_CONVENTIONAL_IMMUTABLE)
@@ -121,6 +126,7 @@ def test_delete_conventional_immutable_hosts(
         mock.Mock(),
         db.session,
         event_producer_mock,
+        notification_event_producer_mock,
         shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
     )
     assert 0 == len(db_get_hosts(immutable_hosts).all())
@@ -132,6 +138,7 @@ def test_no_hosts_to_delete(
     inventory_config,
     db_create_multiple_hosts,
     event_producer_mock,
+    notification_event_producer_mock,
     db_get_hosts,
 ):
     db_create_staleness_culling(**CUSTOM_STALENESS_NO_HOSTS_TO_DELETE)
@@ -149,6 +156,7 @@ def test_no_hosts_to_delete(
         mock.Mock(),
         db.session,
         event_producer_mock,
+        notification_event_producer_mock,
         shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
     )
     assert 2 == len(db_get_hosts(immutable_hosts).all())

@@ -619,14 +619,31 @@ def test_postgres_delete_filtered_hosts_nomatch(
 class DeleteHostsMock:
     @classmethod
     def create_mock(cls, hosts_ids_to_delete):
-        def _constructor(select_query, event_producer, chunk_size, identity=None):
-            return cls(hosts_ids_to_delete, select_query, event_producer, chunk_size, identity=identity)
+        def _constructor(select_query, event_producer, notification_event_producer, chunk_size, identity=None):
+            return cls(
+                hosts_ids_to_delete,
+                select_query,
+                event_producer,
+                notification_event_producer,
+                chunk_size,
+                identity=identity,
+            )
 
         return _constructor
 
-    def __init__(self, host_ids_to_delete, original_query, event_producer, chunk_size, identity=None):
+    def __init__(
+        self,
+        host_ids_to_delete,
+        original_query,
+        event_producer,
+        notification_event_producer,
+        chunk_size,
+        identity=None,
+    ):
         self.host_ids_to_delete = host_ids_to_delete
-        self.original_query = delete_hosts(original_query, event_producer, chunk_size, identity=identity)
+        self.original_query = delete_hosts(
+            original_query, event_producer, notification_event_producer, chunk_size, identity=identity
+        )
 
     def __getattr__(self, item):
         """
