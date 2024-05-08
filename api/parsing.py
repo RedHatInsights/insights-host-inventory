@@ -2,7 +2,9 @@ import re
 from urllib.parse import quote
 from urllib.parse import unquote
 
+from connexion.exceptions import TypeValidationError
 from connexion.uri_parsing import OpenAPIURIParser
+from connexion.utils import coerce_type
 
 from app.exceptions import ValidationException
 
@@ -55,6 +57,11 @@ class customURIParser(OpenAPIURIParser):
                     resolved_param[k] = self._split(values, param_defn, _in)
             else:
                 resolved_param[k] = values[-1]
+
+            try:
+                resolved_param[k] = coerce_type(param_defn, resolved_param[k], "parameter", k)
+            except TypeValidationError:
+                pass
 
         return resolved_param
 

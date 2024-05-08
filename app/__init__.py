@@ -191,8 +191,7 @@ def create_app(runtime_environment):
     app_config = Config(runtime_environment)
     app_config.log_configuration()
 
-    # connexion_app = connexion.FlaskApp("inventory", specification_dir="./swagger/", uri_parser_class=customURIParser)
-    connexion_app = connexion.FlaskApp("inventory", specification_dir="./swagger/")
+    app = connexion.FlaskApp("inventory", specification_dir="./swagger/", uri_parser_class=customURIParser)
 
     parser = TranslatingParser(SPECIFICATION_FILE)
     parser.parse()
@@ -201,14 +200,12 @@ def create_app(runtime_environment):
 
     for api_url in app_config.api_urls:
         if api_url:
-            connexion_app.add_api(
+            app.add_api(
                 parser.specification,
                 arguments={"title": "RestyResolver Example"},
                 resolver=RestyResolver("api"),
                 validate_responses=True,
-                strict_validation=True,
-                swagger_ui=True,
-                uri_parser_class=customURIParser,
+                strict_validation=False,
                 base_path=api_url,
                 validator_map=build_validator_map(system_profile_spec=sp_spec, unindexed_fields=unindexed_fields),
             )
@@ -216,9 +213,8 @@ def create_app(runtime_environment):
 
     # Add an error handler that will convert our top level exceptions
     # into error responses
-    connexion_app.add_error_handler(InventoryException, render_exception)
-
-    flask_app = connexion_app.app
+    app.add_error_handler(InventoryException, render_exception)
+    flask_app = app.app
 
     flask_app.config["SQLALCHEMY_ECHO"] = False
     flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
@@ -306,4 +302,4 @@ def create_app(runtime_environment):
 
     initialize_segmentio(app_config)
 
-    return connexion_app
+    return app
