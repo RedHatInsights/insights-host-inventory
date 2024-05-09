@@ -1,9 +1,12 @@
+from typing import Set
+
 from sqlalchemy import text
 
 from api.filtering.filtering_common import FIELD_FILTER_TO_POSTGRES_CAST
 from api.filtering.filtering_common import POSTGRES_COMPARATOR_LOOKUP
 from api.filtering.filtering_common import POSTGRES_DEFAULT_COMPARATOR
 from app import system_profile_spec
+from app.config import HOST_TYPES
 from app.exceptions import ValidationException
 from app.logging import get_logger
 
@@ -282,6 +285,45 @@ def build_single_text_filter(filter_param: dict) -> str:
         text_filter = f"(system_profile_facts{jsonb_path}){pg_cast} {pg_op} {value}"
 
         return text_filter
+
+
+# Standardize host_type SP filter and get its value(s)
+def get_host_types_from_filter(host_type_filter: dict) -> Set[str]:
+    if host_type_filter:
+        host_types = set()
+
+        # Standardize the input in dict format
+        if not isinstance(host_type_filter, dict):
+            host_type_filter = {"eq": host_type_filter}
+        for key in host_type_filter.keys():
+            if key in POSTGRES_COMPARATOR_LOOKUP.keys():
+                comparator = key
+                value = host_type_filter[key]
+            else:
+                comparator = "eq"
+                value = key
+
+            # Convert single values to list format
+            if not isinstance(value, list):
+                value = [value]
+
+            for val in value:
+                if val == "not_nil":
+                    val = HOST_TYPES[0]
+                elif val == "nil":
+                    val = HOST_TYPES[1]
+
+                if comparator == "eq":
+                    host_types.add(val)
+                elif comparator == "neq":
+                    tmp_host_types = HOST_TYPES.copy()
+                    tmp_host_types.remove(val)
+                    host_types.update(tmp_host_types)
+
+    else:
+        host_types = set(HOST_TYPES.copy())
+
+    return host_types
 
 
 # Takes a System Profile filter param and turns it into sql filters.
