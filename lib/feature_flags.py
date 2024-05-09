@@ -1,3 +1,4 @@
+import os
 from typing import Tuple
 
 from flask_unleash import Unleash
@@ -17,7 +18,7 @@ FLAG_FALLBACK_VALUES = {
     FLAG_INVENTORY_ASSIGNMENT_RULES: True,
     FLAG_INVENTORY_CUSTOM_STALENESS: True,
     FLAG_HIDE_EDGE_HOSTS: False,
-    FLAG_INVENTORY_DISABLE_XJOIN: False,
+    FLAG_INVENTORY_DISABLE_XJOIN: os.environ.get("FLAG_INVENTORY_DISABLE_XJOIN", "false").lower() == "true",
 }
 
 
