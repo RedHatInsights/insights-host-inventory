@@ -546,7 +546,9 @@ def test_patch_host_with_RBAC_bypassed_as_system(api_patch, db_create_host, even
     assert_response_status(response_status, 200)
 
 
-def test_update_delete_race(event_producer, db_create_host, db_get_host, api_patch, api_delete_host, mocker):
+def test_update_delete_race(
+    event_producer, notification_event_producer, db_create_host, db_get_host, api_patch, api_delete_host, mocker
+):
     mocker.patch.object(event_producer, "write_event")
     mocker.patch("lib.host_delete.kafka_available")
 
@@ -567,7 +569,7 @@ def test_update_delete_race(event_producer, db_create_host, db_get_host, api_pat
     patchThread.start()
 
     # as PATCH is running, concurrently delete the host
-    response_status, response_data = api_delete_host(host.id)
+    response_status, _ = api_delete_host(host.id)
     assert_response_status(response_status, expected_status=200)
 
     # wait for PATCH to finish

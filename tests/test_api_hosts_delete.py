@@ -22,7 +22,7 @@ from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
-def test_delete_non_existent_host(event_producer_mock, api_delete_host):
+def test_delete_non_existent_host(event_producer_mock, notification_event_producer_mock, api_delete_host):
     host_id = generate_uuid()
 
     response_status, response_data = api_delete_host(host_id)
@@ -38,7 +38,14 @@ def test_delete_with_invalid_host_id(api_delete_host):
     assert_response_status(response_status, expected_status=400)
 
 
-def test_create_then_delete(event_datetime_mock, event_producer_mock, db_create_host, db_get_host, api_delete_host):
+def test_create_then_delete(
+    event_datetime_mock,
+    event_producer_mock,
+    notification_event_producer_mock,
+    db_create_host,
+    db_get_host,
+    api_delete_host,
+):
     host = db_create_host()
 
     response_status, response_data = api_delete_host(host.id)
@@ -51,7 +58,12 @@ def test_create_then_delete(event_datetime_mock, event_producer_mock, db_create_
 
 
 def test_create_then_delete_with_branch_id(
-    event_datetime_mock, event_producer_mock, db_create_host, db_get_host, api_delete_host
+    event_datetime_mock,
+    event_producer_mock,
+    notification_event_producer_mock,
+    db_create_host,
+    db_get_host,
+    api_delete_host,
 ):
     host = db_create_host()
 
@@ -64,7 +76,9 @@ def test_create_then_delete_with_branch_id(
     assert not db_get_host(host.id)
 
 
-def test_create_then_delete_with_request_id(event_datetime_mock, event_producer_mock, db_create_host, api_delete_host):
+def test_create_then_delete_with_request_id(
+    event_datetime_mock, event_producer_mock, notification_event_producer_mock, db_create_host, api_delete_host
+):
     host = db_create_host(extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}})
 
     request_id = generate_uuid()
@@ -80,7 +94,7 @@ def test_create_then_delete_with_request_id(event_datetime_mock, event_producer_
 
 
 def test_create_then_delete_without_request_id(
-    event_datetime_mock, event_producer_mock, db_create_host, api_delete_host
+    event_datetime_mock, event_producer_mock, notification_event_producer_mock, db_create_host, api_delete_host
 ):
     host = db_create_host()
 
@@ -97,7 +111,7 @@ def test_create_then_delete_without_request_id(
 
 
 def test_create_then_delete_without_insights_id(
-    event_datetime_mock, event_producer_mock, db_create_host, api_delete_host
+    event_datetime_mock, event_producer_mock, notification_event_producer_mock, db_create_host, api_delete_host
 ):
     host = db_host()
     del host.canonical_facts["insights_id"]
@@ -126,6 +140,7 @@ def test_create_then_delete_without_insights_id(
 )
 def test_delete_hosts_using_filter_and_registered_with(
     event_producer_mock,
+    notification_event_producer_mock,
     db_create_multiple_hosts,
     db_get_hosts,
     api_delete_filtered_hosts,
@@ -211,7 +226,12 @@ def test_delete_over_100_filtered_hosts(
 
 
 def test_delete_all_hosts(
-    event_producer_mock, db_create_multiple_hosts, db_get_hosts, api_delete_all_hosts, patch_xjoin_post
+    event_producer_mock,
+    notification_event_producer_mock,
+    db_create_multiple_hosts,
+    db_get_hosts,
+    api_delete_all_hosts,
+    patch_xjoin_post,
 ):
     created_hosts = db_create_multiple_hosts(how_many=len(XJOIN_HOSTS_RESPONSE_FOR_FILTERING["hosts"]["data"]))
     host_ids = [str(host.id) for host in created_hosts]
@@ -248,7 +268,9 @@ def test_delete_all_hosts_with_missing_required_params(api_delete_all_hosts, eve
     assert event_producer_mock.event is None
 
 
-def test_create_then_delete_check_metadata(event_datetime_mock, event_producer_mock, db_create_host, api_delete_host):
+def test_create_then_delete_check_metadata(
+    event_datetime_mock, event_producer_mock, notification_event_producer_mock, db_create_host, api_delete_host
+):
     host = db_create_host(
         SYSTEM_IDENTITY, extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}}
     )
@@ -269,7 +291,9 @@ def test_create_then_delete_check_metadata(event_datetime_mock, event_producer_m
     )
 
 
-def test_delete_when_one_host_is_deleted(event_producer_mock, db_create_host, api_delete_host, mocker):
+def test_delete_when_one_host_is_deleted(
+    event_producer_mock, notification_event_producer_mock, db_create_host, api_delete_host, mocker
+):
     host = db_create_host(
         SYSTEM_IDENTITY, extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}}
     )
@@ -285,7 +309,9 @@ def test_delete_when_one_host_is_deleted(event_producer_mock, db_create_host, ap
     assert event_producer_mock.event is None
 
 
-def test_delete_when_all_hosts_are_deleted(event_producer_mock, db_create_multiple_hosts, api_delete_host, mocker):
+def test_delete_when_all_hosts_are_deleted(
+    event_producer_mock, notification_event_producer_mock, db_create_multiple_hosts, api_delete_host, mocker
+):
     hosts = db_create_multiple_hosts(how_many=2)
     host_id_list = [str(hosts[0].id), str(hosts[1].id)]
 
@@ -300,7 +326,9 @@ def test_delete_when_all_hosts_are_deleted(event_producer_mock, db_create_multip
     assert event_producer_mock.event is None
 
 
-def test_delete_when_some_hosts_is_deleted(event_producer_mock, db_create_multiple_hosts, api_delete_host, mocker):
+def test_delete_when_some_hosts_is_deleted(
+    event_producer_mock, notification_event_producer_mock, db_create_multiple_hosts, api_delete_host, mocker
+):
     hosts = db_create_multiple_hosts(how_many=2)
     host_id_list = [str(hosts[0].id), str(hosts[1].id)]
 
@@ -321,6 +349,7 @@ def test_delete_host_with_RBAC_allowed(
     api_delete_host,
     event_datetime_mock,
     event_producer_mock,
+    notification_event_producer_mock,
     db_get_host,
     db_create_host,
     enable_rbac,
@@ -344,7 +373,14 @@ def test_delete_host_with_RBAC_allowed(
 
 
 def test_delete_host_with_RBAC_denied(
-    subtests, mocker, api_delete_host, event_producer_mock, db_create_host, db_get_host, enable_rbac
+    subtests,
+    mocker,
+    api_delete_host,
+    event_producer_mock,
+    notification_event_producer_mock,
+    db_create_host,
+    db_get_host,
+    enable_rbac,
 ):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
@@ -363,7 +399,13 @@ def test_delete_host_with_RBAC_denied(
 
 
 def test_delete_host_with_RBAC_bypassed_as_system(
-    api_delete_host, event_datetime_mock, event_producer_mock, db_get_host, db_create_host, enable_rbac
+    api_delete_host,
+    event_datetime_mock,
+    event_producer_mock,
+    notification_event_producer_mock,
+    db_get_host,
+    db_create_host,
+    enable_rbac,
 ):
     host = db_create_host(
         SYSTEM_IDENTITY, extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}}
@@ -381,7 +423,12 @@ def test_delete_host_with_RBAC_bypassed_as_system(
 
 
 def test_delete_hosts_chunk_size(
-    event_producer_mock, db_create_multiple_hosts, api_delete_host, mocker, inventory_config
+    event_producer_mock,
+    notification_event_producer_mock,
+    db_create_multiple_hosts,
+    api_delete_host,
+    mocker,
+    inventory_config,
 ):
     inventory_config.host_delete_chunk_size = 5
 
@@ -400,7 +447,13 @@ def test_delete_hosts_chunk_size(
 
 @pytest.mark.parametrize("send_side_effects", ((mock.Mock(), KafkaException()), (mock.Mock(), KafkaException("oops"))))
 def test_delete_stops_after_kafka_exception(
-    mocker, send_side_effects, event_producer, db_create_multiple_hosts, api_delete_host, db_get_hosts
+    mocker,
+    send_side_effects,
+    event_producer,
+    notification_event_producer,
+    db_create_multiple_hosts,
+    api_delete_host,
+    db_get_hosts,
 ):
     mocker.patch("lib.host_delete.kafka_available")
     hosts = db_create_multiple_hosts(how_many=3)
@@ -408,7 +461,7 @@ def test_delete_stops_after_kafka_exception(
 
     event_producer._kafka_producer.produce.side_effect = send_side_effects
 
-    response_status, response_data = api_delete_host(",".join(host_id_list))
+    response_status, _ = api_delete_host(",".join(host_id_list))
 
     assert_response_status(response_status, expected_status=500)
 
@@ -420,6 +473,7 @@ def test_delete_stops_after_kafka_exception(
 def test_delete_with_callback_receiving_error(
     mocker,
     event_producer,
+    notification_event_producer,
     db_create_host,
     api_delete_host,
     db_get_hosts,
@@ -450,6 +504,7 @@ def test_delete_with_callback_receiving_error(
 
 def test_delete_host_that_belongs_to_group_success(
     event_producer_mock,
+    notification_event_producer_mock,
     db_create_group,
     db_create_host,
     db_get_hosts_for_group,
@@ -483,6 +538,7 @@ def test_delete_host_that_belongs_to_group_success(
 
 def test_delete_host_that_belongs_to_group_fail(
     event_producer_mock,
+    notification_event_producer_mock,
     mocker,
     db_create_group,
     db_create_host,
@@ -527,6 +583,7 @@ def test_delete_host_RBAC_allowed_specific_groups(
     db_get_hosts_for_group,
     enable_rbac,
     event_producer_mock,
+    notification_event_producer_mock,
 ):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     host_id = db_create_host().id
@@ -572,7 +629,9 @@ def test_delete_host_RBAC_denied_specific_groups(
     assert db_get_host(host_id)
 
 
-def test_postgres_delete_filtered_hosts(db_create_host, api_get, api_delete_filtered_hosts, event_producer_mock):
+def test_postgres_delete_filtered_hosts(
+    db_create_host, api_get, api_delete_filtered_hosts, event_producer_mock, notification_event_producer_mock
+):
     host_1_id = db_create_host(extra_data={"display_name": "foobar"}).id
     host_2_id = db_create_host(extra_data={"display_name": "foobaz"}).id
 

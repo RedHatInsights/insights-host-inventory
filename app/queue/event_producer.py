@@ -12,8 +12,6 @@ logger = get_logger(__name__)
 
 
 def _encode_headers(headers):
-    if "rh-message-id" in headers.keys():
-        return [(hk, (hv or "").encode("utf-8")) for hk, hv in headers.items() if hk != "rh-message-id"]
     return [(hk, (hv or "").encode("utf-8")) for hk, hv in headers.items()]
 
 

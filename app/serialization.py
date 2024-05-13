@@ -464,3 +464,13 @@ def _serialize_per_reporter_staleness(host, staleness, staleness_timestamps):
         host.per_reporter_staleness[reporter]["culled_timestamp"] = _serialize_staleness_to_string(delete_timestamp)
 
     return host.per_reporter_staleness
+
+
+def build_rhel_version_str(system_profile: dict) -> str:
+    os = system_profile.get("operating_system")
+    if os:
+        if os.get("name") == "rhel":
+            major = os.get("major")
+            minor = os.get("minor")
+            return f"{major:03}.{minor:03}"
+    return ""

@@ -45,7 +45,6 @@ from app.queue.events import operation_results_to_event_type
 from app.queue.export_service import create_export
 from app.queue.notifications import NotificationType
 from app.queue.notifications import send_notification
-from app.serialization import deserialize_canonical_facts
 from app.serialization import deserialize_host
 from app.serialization import serialize_host
 from lib import host_repository

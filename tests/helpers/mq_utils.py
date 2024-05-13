@@ -156,7 +156,6 @@ def assert_delete_notification_is_valid(notification_event_producer, host, times
         "bundle",
         "context",
         "events",
-        "source",
     }
     assert set(event.keys()) == expected_keys
 

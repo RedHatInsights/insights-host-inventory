@@ -9,8 +9,8 @@ from marshmallow import validate as marshmallow_validate
 from app.logging import threadctx
 from app.queue.events import hostname
 from app.queue.metrics import notification_serialization_time
-from app.validators import verify_satellite_id
-from app.validators import verify_uuid_format
+from app.serialization import build_rhel_version_str
+from app.serialization import deserialize_canonical_facts
 
 NotificationType = Enum("NotificationType", ("validation_error", "system_deleted"))
 EventSeverity = Enum("EventSeverity", ("warning", "error", "critical"))
@@ -76,12 +76,10 @@ class SystemDeletedContextSchema(MarshmallowSchema):
 
 
 class SystemDeletedPayloadSchema(MarshmallowSchema):
-    groups = fields.List(fields.Str())
-    insights_id = fields.Str(required=True, validate=verify_uuid_format)
-    reporter = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=255))
-    subscription_manager_id = fields.Str(required=True, validate=verify_uuid_format)
-    satellite_id = fields.Str(validate=verify_satellite_id)
-    system_check_in = fields.Date(fields.Dict())
+    groups = fields.List(fields.Dict())
+    insights_id = fields.Str(required=True)
+    subscription_manager_id = fields.Str(required=True)
+    satellite_id = fields.Str(required=True)
 
 
 class SystemDeletedEventListSchema(EventListSchema):
@@ -91,7 +89,6 @@ class SystemDeletedEventListSchema(EventListSchema):
 class SystemDeletedSchema(NotificationSchema):
     context = fields.Nested(SystemDeletedContextSchema())
     events = fields.List(fields.Nested(SystemDeletedEventListSchema()))
-    source = fields.Dict()
 
 
 def host_validation_error_notification(notification_type, host, detail, stack_trace=None):
@@ -107,7 +104,7 @@ def host_validation_error_notification(notification_type, host, detail, stack_tr
                 "payload": {
                     "request_id": threadctx.request_id,
                     "display_name": host.get("display_name"),
-                    "canonical_facts": host.get("canonical_facts"),
+                    "canonical_facts": deserialize_canonical_facts(host, all=True),
                     "error": {
                         "code": "VE001",
                         "message": detail,
@@ -132,41 +129,24 @@ def system_deleted_notification(notification_type, host):
             "inventory_id": host.get("id"),
             "hostname": canonical_facts.get("fqdn", ""),
             "display_name": host.get("display_name"),
-            "rhel_version": build_rhel_version(system_profile),
+            "rhel_version": build_rhel_version_str(system_profile),
             "tags": host.get("tags"),
         },
         "events": [
             {
                 "metadata": {},
                 "payload": {
-                    "insights_id": canonical_facts.get("insights_id"),
-                    "subscription_manager_id": canonical_facts.get("subscription_manager_id"),
-                    "satellite_id": canonical_facts.get("satellite_id"),
-                    "groups": [{"id": group.id, "name": group.name} for group in host.get("groups")],
-                    "reporter": host.get("reporter"),
-                    "system_check_in": system_profile.get("modified_on"),
+                    "insights_id": canonical_facts.get("insights_id", ""),
+                    "subscription_manager_id": canonical_facts.get("subscription_manager_id", ""),
+                    "satellite_id": canonical_facts.get("satellite_id", ""),
+                    "groups": [{"id": group.get("id"), "name": group.get("name")} for group in host.get("groups")],
                 },
             }
         ],
-        "source": {
-            "application": {"display_name": "Inventory"},
-            "bundle": {"display_name": "Red Hat Enterprise Linux"},
-            "event_type": {"display_name": "System deleted"},
-        },
     }
 
     notification.update(base_notification_obj)
     return (SystemDeletedSchema, notification)
-
-
-def build_rhel_version(system_profile: dict) -> str:
-    os = system_profile.get("operating_system")
-    if os:
-        if os.get("name") == "rhel":
-            major = os.get("major")
-            minor = os.get("minor")
-            return f"{major:03}.{minor:03}"
-    return ""
 
 
 def notification_headers(event_type: NotificationType):
@@ -203,7 +183,7 @@ def send_notification(notification_event_producer, notification_type, host, deta
     else:
         notification = build_notification(notification_type, host)
     headers = notification_headers(notification_type)
-
+    # handle error
     notification_event_producer.write_event(notification, None, headers, wait=True)
 
 
