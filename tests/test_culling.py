@@ -364,7 +364,6 @@ def test_reaper_stops_after_kafka_producer_error(
         mocker.patch("lib.host_delete.kafka_available")
 
         event_producer._kafka_producer.produce.side_effect = produce_side_effects
-        notification_event_producer._kafka_producer.produce.side_effect = produce_side_effects
 
         staleness_timestamps = get_staleness_timestamps()
 

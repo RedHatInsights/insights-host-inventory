@@ -152,53 +152,6 @@ def system_deleted_notification(notification_type, host):
     return result
 
 
-def system_deleted_notification(notification_type, host):
-    base_notification_obj = build_base_notification_obj(notification_type, host)
-
-    canonical_facts = host.get("canonical_facts")
-    system_profile = host.get("system_profile")
-    notification = {
-        "context": {
-            "inventory_id": host.get("id"),
-            "hostname": canonical_facts.get("fqdn", ""),
-            "display_name": host.get("display_name"),
-            "rhel_version": build_rhel_version(system_profile),
-            "tags": host.get("tags"),
-        },
-        "events": [
-            {
-                "metadata": {},
-                "payload": {
-                    "insights_id": canonical_facts.get("insights_id"),
-                    "subscription_manager_id": canonical_facts.get("subscription_manager_id"),
-                    "satellite_id": canonical_facts.get("satellite_id"),
-                    "groups": [{"id": group.id, "name": group.name} for group in host.get("groups")],
-                    "reporter": host.get("reporter"),
-                    "system_check_in": system_profile.get("modified_on"),
-                },
-            }
-        ],
-        "source": {
-            "application": {"display_name": "Inventory"},
-            "bundle": {"display_name": "Red Hat Enterprise Linux"},
-            "event_type": {"display_name": "System deleted"},
-        },
-    }
-
-    notification.update(base_notification_obj)
-    return (SystemDeletedSchema, notification)
-
-
-def build_rhel_version(system_profile: dict) -> str:
-    os = system_profile.get("operating_system")
-    if os:
-        if os.get("name") == "rhel":
-            major = os.get("major")
-            minor = os.get("minor")
-            return f"{major:03}.{minor:03}"
-    return ""
-
-
 def notification_headers(event_type: NotificationType):
     return {
         "event_type": event_type.name,
