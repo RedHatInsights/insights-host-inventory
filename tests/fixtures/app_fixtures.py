@@ -10,7 +10,6 @@ from tests.helpers.db_utils import clean_tables
 @pytest.fixture(scope="session")
 def new_flask_app(database):
     application = create_app(RuntimeEnvironment.TEST)
-
     with application.app.app_context():
         db.create_all()
 

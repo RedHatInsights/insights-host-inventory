@@ -115,7 +115,7 @@ def kafka_producer(mocker):
 
 @pytest.fixture(scope="function")
 def event_producer(flask_app, kafka_producer):
-    config = flask_app.config["INVENTORY_CONFIG"]
+    config = flask_app.app.config["INVENTORY_CONFIG"]
     flask_app.event_producer = EventProducer(config, config.event_topic)
     yield flask_app.event_producer
     flask_app.event_producer = None

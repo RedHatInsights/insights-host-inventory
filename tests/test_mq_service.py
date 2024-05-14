@@ -143,7 +143,7 @@ def test_handle_message_happy_path(identity, mocker, event_datetime_mock, flask_
 
 
 def test_request_id_is_reset(mocker, flask_app):
-    with flask_app.app_context():
+    with flask_app.app.app_context():
         mock_event_producer = mocker.Mock()
         mock_notification_event_producer = mocker.Mock()
         add_host_mock = mocker.patch(

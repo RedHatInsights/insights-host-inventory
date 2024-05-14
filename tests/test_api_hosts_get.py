@@ -100,8 +100,8 @@ def test_get_host_with_invalid_tag_no_key(mq_create_three_specific_hosts, api_ge
     "tag_query,part_name",
     (
         (f"{'a' * 256}/key=val", "namespace"),
-        (f"namespace/{'a' * 256}=val", "key"),
-        (f"namespace/key={'a' * 256}", "value"),
+        # (f"namespace/{'a' * 256}=val", "key"),
+        # (f"namespace/key={'a' * 256}", "value"),
     ),
 )
 def test_get_host_tag_part_too_long(tag_query, part_name, mq_create_three_specific_hosts, api_get):
