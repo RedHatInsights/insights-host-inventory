@@ -2902,7 +2902,7 @@ data:
           "tableColumn": "",
           "targets": [
             {
-              "expr": "sum(increase(inventory_produce_large_message_failures_total[$__range])) / sum(increase(inventory_event_producer_successes_total[$__range]))",
+              "expr": "sum(increase(inventory_produce_large_message_failures_total[$__range])) / sum(increase(inventory_event_producer_failures[$__range]))",
               "instant": true,
               "interval": "5m",
               "refId": "A"
@@ -2975,13 +2975,13 @@ data:
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(inventory_consumed_message_size_sum[$__rate_interval]))",
+              "expr": "max(rate(inventory_consumed_message_size_sum[$__rate_interval]))",
               "interval": "1m",
               "legendFormat": "Consumed",
               "refId": "A"
             },
             {
-              "expr": "sum(rate(inventory_produced_message_size_sum[$__rate_interval]))",
+              "expr": "max(rate(inventory_produced_message_size_sum[$__rate_interval]))",
               "interval": "1m",
               "legendFormat": "Produced",
               "refId": "B"
@@ -2991,7 +2991,7 @@ data:
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "Message sizes",
+          "title": "Maximum message sizes",
           "tooltip": {
             "shared": true,
             "sort": 0,
