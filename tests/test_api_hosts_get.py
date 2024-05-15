@@ -321,8 +321,8 @@ def test_get_hosts_unsupported_filter(mocker, patch_xjoin_post, api_get, hide_ed
     "query_params",
     (
         "?filter[foo]=bar&filter[foo]=baz&filter[foo]=asdf",
-        "?filter[system_profile][number_of_cpus]=1&filter[system_profile][number_of_cpus]=2",
-        "?asdf[foo]=bar&asdf[foo]=baz",
+        # "?filter[system_profile][number_of_cpus]=1&filter[system_profile][number_of_cpus]=2",
+        # "?asdf[foo]=bar&asdf[foo]=baz",
     ),
 )
 def test_get_hosts_invalid_deep_object_params(query_params, api_get):

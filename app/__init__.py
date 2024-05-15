@@ -207,6 +207,7 @@ def create_app(runtime_environment):
                 validate_responses=True,
                 strict_validation=False,
                 base_path=api_url,
+                swagger_ui=True,
                 validator_map=build_validator_map(system_profile_spec=sp_spec, unindexed_fields=unindexed_fields),
             )
             logger.info("Listening on API: %s", api_url)

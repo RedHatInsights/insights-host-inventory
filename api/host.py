@@ -4,6 +4,7 @@ from http import HTTPStatus
 import flask
 from confluent_kafka.error import KafkaError
 from flask import current_app
+from httpx import InvalidURL
 from marshmallow import ValidationError
 
 from api import api_operation
@@ -30,6 +31,7 @@ from app import RbacResourceType
 from app.auth import get_current_identity
 from app.auth.identity import to_auth_header
 from app.common import inventory_config
+from app.exceptions import ValidationException
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_get_host_list_failed
 from app.instrumentation import log_get_host_list_succeeded
@@ -143,9 +145,10 @@ def get_host_list(
                 fields,
                 rbac_filter,
             )
-    except ValueError as e:
+    # except (ValidationException, ValueError, InvalidURL) as ve:
+    except (InvalidURL, ValidationException, ValueError) as ve:
         log_get_host_list_failed(logger)
-        flask.abort(400, str(e))
+        flask.abort(400, str(ve))
 
     json_data = build_paginated_host_list_response(
         total, page, per_page, host_list, additional_fields, system_profile_fields

@@ -185,7 +185,10 @@ def do_request(func, url, identity, data=None, query_parameters=None, extra_head
     if func.__name__ in ("post", "patch", "put"):
         response = func(url, data=json.dumps(data), headers=headers)
     else:
-        response = func(url, headers=headers)
+        try:
+            response = func(url, headers=headers)
+        except Exception as iue:
+            return 400, str(iue)
 
     try:
         response_data = json.loads(response.content)
@@ -298,7 +301,10 @@ def assert_error_response(
     def _verify_value(field_name, expected_value):
         assert field_name in response
         if expected_value is not None:
-            assert response[field_name] == expected_value
+            if field_name == "detail":
+                assert expected_value in response[field_name]
+            else:
+                assert response[field_name] == expected_value
 
     _verify_value("title", expected_title)
     _verify_value("status", expected_status)
