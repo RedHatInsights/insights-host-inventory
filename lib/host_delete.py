@@ -11,8 +11,6 @@ from app.queue.events import EventType
 from app.queue.events import message_headers
 from app.queue.notifications import NotificationType
 from app.queue.notifications import send_notification
-from app.serialization import serialize_canonical_facts
-from app.serialization import serialize_tags
 from lib.db import session_guard
 from lib.host_kafka import kafka_available
 from lib.metrics import delete_host_count
@@ -62,8 +60,7 @@ def _delete_host(session, event_producer, notification_event_producer, host, ide
                 host.system_profile_facts.get("operating_system", {}).get("name"),
             )
             event_producer.write_event(event, str(host.id), headers, wait=True)
-            formatted_host = _format_host_for_notification(host)
-            send_notification(notification_event_producer, NotificationType.system_deleted, formatted_host)
+            send_notification(notification_event_producer, NotificationType.system_deleted, vars(host))
             session.commit()
             return host_deleted
         else:
@@ -81,18 +78,3 @@ def _deleted_by_this_query(model):
     # change that the host is called by a new query and, if deleted by a
     # different process, triggers the ObjectDeletedError and is not emitted.
     return not instance_state(model).expired
-
-
-def _format_host_for_notification(host):
-    formatted_host = {
-        "id": host.id,
-        "display_name": host.display_name,
-        "account_id": host.account,
-        "org_id": host.org_id,
-        "groups": host.groups,
-        "reporter": host.reporter,
-        "canonical_facts": serialize_canonical_facts(host.canonical_facts),
-        "system_profile": host.system_profile_facts or {},
-        "tags": serialize_tags(host.tags),
-    }
-    return formatted_host

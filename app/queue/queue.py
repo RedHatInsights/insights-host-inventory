@@ -401,7 +401,7 @@ def handle_message(message, notification_event_producer, message_operation=add_h
             send_notification(
                 notification_event_producer,
                 notification_type=NotificationType.validation_error,
-                host=_build_minimal_host_info(host),
+                host=host,
                 detail=str(ve.detail),
             )
             raise
@@ -409,7 +409,7 @@ def handle_message(message, notification_event_producer, message_operation=add_h
             send_notification(
                 notification_event_producer,
                 notification_type=NotificationType.validation_error,
-                host=_build_minimal_host_info(host),
+                host=host,
                 detail=str(ie.detail),
             )
             raise

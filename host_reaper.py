@@ -127,8 +127,7 @@ def run(config, logger, session, event_producer, notification_event_producer, sh
                 shutdown_handler.shut_down,
             )
             hosts_processed = len(list(events))
-            for host, deleted in events:
-                host_id = host.get("id")
+            for host_id, deleted in events:
                 if deleted:
                     log_host_delete_succeeded(logger, host_id, "REAPER")
                 else:

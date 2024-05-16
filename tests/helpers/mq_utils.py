@@ -142,7 +142,7 @@ def assert_delete_event_is_valid(
         assert event["metadata"] == expected_metadata
 
 
-def assert_delete_notification_is_valid(notification_event_producer, host, timestamp):
+def assert_delete_notification_is_valid(notification_event_producer, host):
     event = json.loads(notification_event_producer.event)
 
     assert isinstance(event, dict)
@@ -158,8 +158,6 @@ def assert_delete_notification_is_valid(notification_event_producer, host, times
         "events",
     }
     assert set(event.keys()) == expected_keys
-
-    # assert timestamp.replace(tzinfo=timezone.utc).isoformat() == event["timestamp"]
 
     assert "system-deleted" == event["event_type"]
 

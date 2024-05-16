@@ -18,6 +18,7 @@ from tests.helpers.api_utils import HOST_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.db_utils import db_host
 from tests.helpers.graphql_utils import XJOIN_HOSTS_RESPONSE_FOR_FILTERING
 from tests.helpers.mq_utils import assert_delete_event_is_valid
+from tests.helpers.mq_utils import assert_delete_notification_is_valid
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 
@@ -48,11 +49,15 @@ def test_create_then_delete(
 ):
     host = db_create_host()
 
-    response_status, response_data = api_delete_host(host.id)
+    response_status, _ = api_delete_host(host.id)
 
     assert_response_status(response_status, expected_status=200)
 
     assert_delete_event_is_valid(event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock)
+    assert_delete_notification_is_valid(
+        notification_event_producer=notification_event_producer_mock,
+        host=host,
+    )
 
     assert not db_get_host(host.id)
 
@@ -73,6 +78,8 @@ def test_create_then_delete_with_branch_id(
 
     assert_delete_event_is_valid(event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock)
 
+    assert_delete_notification_is_valid(notification_event_producer=notification_event_producer_mock, host=host)
+
     assert not db_get_host(host.id)
 
 
@@ -92,6 +99,8 @@ def test_create_then_delete_with_request_id(
         event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock, expected_request_id=request_id
     )
 
+    assert_delete_notification_is_valid(notification_event_producer=notification_event_producer_mock, host=host)
+
 
 def test_create_then_delete_without_request_id(
     event_datetime_mock, event_producer_mock, notification_event_producer_mock, db_create_host, api_delete_host
@@ -108,6 +117,8 @@ def test_create_then_delete_without_request_id(
         timestamp=event_datetime_mock,
         expected_request_id=None,
     )
+
+    assert_delete_notification_is_valid(notification_event_producer=notification_event_producer_mock, host=host)
 
 
 def test_create_then_delete_without_insights_id(
@@ -290,6 +301,8 @@ def test_create_then_delete_check_metadata(
         expected_metadata={"request_id": request_id},
     )
 
+    assert_delete_notification_is_valid(notification_event_producer=notification_event_producer_mock, host=host)
+
 
 def test_delete_when_one_host_is_deleted(
     event_producer_mock, notification_event_producer_mock, db_create_host, api_delete_host, mocker
@@ -307,6 +320,7 @@ def test_delete_when_one_host_is_deleted(
     assert_response_status(response_status, expected_status=404)
 
     assert event_producer_mock.event is None
+    assert notification_event_producer_mock.event is None
 
 
 def test_delete_when_all_hosts_are_deleted(
@@ -324,6 +338,7 @@ def test_delete_when_all_hosts_are_deleted(
     assert_response_status(response_status, expected_status=404)
 
     assert event_producer_mock.event is None
+    assert notification_event_producer_mock.event is None
 
 
 def test_delete_when_some_hosts_is_deleted(
@@ -368,6 +383,10 @@ def test_delete_host_with_RBAC_allowed(
             assert_response_status(response_status, 200)
 
             assert_delete_event_is_valid(event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock)
+
+            assert_delete_notification_is_valid(
+                notification_event_producer=notification_event_producer_mock, host=host
+            )
 
             assert not db_get_host(host.id)
 
@@ -419,6 +438,8 @@ def test_delete_host_with_RBAC_bypassed_as_system(
         event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock, identity=SYSTEM_IDENTITY
     )
 
+    assert_delete_notification_is_valid(notification_event_producer=notification_event_producer_mock, host=host)
+
     assert not db_get_host(host.id)
 
 
@@ -468,6 +489,7 @@ def test_delete_stops_after_kafka_exception(
     remaining_hosts = db_get_hosts(host_id_list)
     assert remaining_hosts.count() == 2
     assert event_producer._kafka_producer.produce.call_count == 2
+    assert notification_event_producer._kafka_producer.produce.call_count == 1
 
 
 def test_delete_with_callback_receiving_error(
@@ -497,6 +519,7 @@ def test_delete_with_callback_receiving_error(
 
     assert remaining_hosts.count() == 0
     assert event_producer._kafka_producer.produce.call_count == 1
+    assert notification_event_producer._kafka_producer.produce.call_count == 1
     message_not_produced_mock.assert_called_once_with(
         event_producer_logger, error, None, event, host.id, headers, message
     )

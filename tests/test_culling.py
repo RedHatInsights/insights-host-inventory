@@ -193,9 +193,7 @@ def test_culled_host_is_removed(
         )
 
         assert_delete_notification_is_valid(
-            notification_event_producer=notification_event_producer_mock,
-            host=created_host,
-            timestamp=event_datetime_mock,
+            notification_event_producer=notification_event_producer_mock, host=created_host
         )
 
 
@@ -226,6 +224,7 @@ def test_culled_edge_host_is_not_removed(
 
     assert db_get_host(created_host_id)
     assert event_producer_mock.event is None
+    assert notification_event_producer_mock.event is None
 
 
 @pytest.mark.host_reaper
@@ -263,6 +262,7 @@ def test_non_culled_host_is_not_removed(
 
     assert created_host_ids == sorted(host.id for host in retrieved_hosts)
     assert event_producer_mock.event is None
+    assert notification_event_producer_mock.event is None
 
 
 @pytest.mark.host_reaper
@@ -329,6 +329,7 @@ def test_unknown_host_is_not_removed(
     )
 
     assert event_producer_mock.event is None
+    assert notification_event_producer_mock.event is None
 
 
 def assert_system_culling_data(response_host, expected_stale_timestamp, expected_reporter):
@@ -390,3 +391,4 @@ def test_reaper_stops_after_kafka_producer_error(
         remaining_hosts = db_get_hosts(created_host_ids)
         assert remaining_hosts.count() == 2
         assert event_producer._kafka_producer.produce.call_count == 2
+        assert notification_event_producer._kafka_producer.produce.call_count == 1

@@ -5,7 +5,9 @@ from enum import Enum
 from marshmallow import fields
 from marshmallow import Schema as MarshmallowSchema
 from marshmallow import validate as marshmallow_validate
+from marshmallow import ValidationError
 
+from app.exceptions import ValidationException
 from app.logging import threadctx
 from app.queue.events import hostname
 from app.queue.metrics import notification_serialization_time
@@ -71,8 +73,8 @@ class SystemDeletedContextSchema(MarshmallowSchema):
     inventory_id = fields.Str(required=True)
     hostname = fields.Str(required=True)
     dysplay_name = fields.Str(required=True)
-    rhel_version = fields.Str(required=True, validate=marshmallow_validate.Length(max=30))
-    tags = fields.List(fields.Dict())
+    rhel_version = fields.Str(required=True)
+    tags = fields.Dict()
 
 
 class SystemDeletedPayloadSchema(MarshmallowSchema):
@@ -116,14 +118,18 @@ def host_validation_error_notification(notification_type, host, detail, stack_tr
         ],
     }
     notification.update(base_notification_obj)
-    return (HostValidationErrorNotificationSchema, notification)
+    try:
+        result = HostValidationErrorNotificationSchema().dumps(notification)
+    except ValidationError as e:
+        raise ValidationException(str(e.messages)) from None
+    return result
 
 
 def system_deleted_notification(notification_type, host):
     base_notification_obj = build_base_notification_obj(notification_type, host)
 
     canonical_facts = host.get("canonical_facts")
-    system_profile = host.get("system_profile")
+    system_profile = host.get("system_profile_facts")
     notification = {
         "context": {
             "inventory_id": host.get("id"),
@@ -141,12 +147,16 @@ def system_deleted_notification(notification_type, host):
                     "satellite_id": canonical_facts.get("satellite_id", ""),
                     "groups": [{"id": group.get("id"), "name": group.get("name")} for group in host.get("groups")],
                 },
-            }
+            },
         ],
     }
 
     notification.update(base_notification_obj)
-    return (SystemDeletedSchema, notification)
+    try:
+        result = SystemDeletedSchema().dumps(notification)
+    except ValidationError as e:
+        raise ValidationException(str(e.messages)) from None
+    return result
 
 
 def notification_headers(event_type: NotificationType):
@@ -157,15 +167,14 @@ def notification_headers(event_type: NotificationType):
     }
 
 
-def build_notification(notification_type, host, **kwargs):
+def build_notification(notification_type, host: dict, **kwargs):
     with notification_serialization_time.labels(notification_type.name).time():
         build = NOTIFICATION_TYPE_MAP[notification_type]
-        schema, event = build(notification_type, host, **kwargs)
-        result = schema().dumps(event)
+        result = build(notification_type, host, **kwargs)
         return result
 
 
-def build_base_notification_obj(notification_type, host):
+def build_base_notification_obj(notification_type, host: dict):
     base_obj = {
         "account_id": host.get("account_id") or "",
         "org_id": host.get("org_id"),
@@ -177,13 +186,9 @@ def build_base_notification_obj(notification_type, host):
     return base_obj
 
 
-def send_notification(notification_event_producer, notification_type, host, detail=None):
-    if detail:
-        notification = build_notification(notification_type, host, detail=detail)
-    else:
-        notification = build_notification(notification_type, host)
+def send_notification(notification_event_producer, notification_type, host: dict, **kwargs):
+    notification = build_notification(notification_type, host, **kwargs)
     headers = notification_headers(notification_type)
-    # handle error
     notification_event_producer.write_event(notification, None, headers, wait=True)
 
 
