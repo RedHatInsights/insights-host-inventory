@@ -228,6 +228,9 @@ def create_app(runtime_environment):
     flask_app.config["SQLALCHEMY_ENGINE_OPTIONS['pool_size']"] = app_config.db_pool_size
     flask_app.config["SQLALCHEMY_ENGINE_OPTIONS['pool_timeout']"] = app_config.db_pool_timeout
     flask_app.config["SQLALCHEMY_ENGINE_OPTIONS['pool_pre_ping']"] = True
+    flask_app.config["SQLALCHEMY_ENGINE_OPTIONS['connect_args']"] = {
+        "options": f"-c statement_timeout={app_config.db_statement_timeout}"
+    }
 
     flask_app.config["INVENTORY_CONFIG"] = app_config
 
