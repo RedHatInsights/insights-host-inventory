@@ -18,6 +18,7 @@ from api.spec import spec_blueprint
 from app import payload_tracker
 from app.config import Config
 from app.custom_validator import build_validator_map
+from app.environment import RuntimeEnvironment
 from app.exceptions import InventoryException
 from app.logging import configure_logging
 from app.logging import get_logger
@@ -228,6 +229,10 @@ def create_app(runtime_environment):
     flask_app.config["SQLALCHEMY_ENGINE_OPTIONS['pool_size']"] = app_config.db_pool_size
     flask_app.config["SQLALCHEMY_ENGINE_OPTIONS['pool_timeout']"] = app_config.db_pool_timeout
     flask_app.config["SQLALCHEMY_ENGINE_OPTIONS['pool_pre_ping']"] = True
+    if runtime_environment == RuntimeEnvironment.SERVER and app_config.db_statement_timeout > 0:
+        flask_app.config["SQLALCHEMY_ENGINE_OPTIONS['connect_args']"] = {
+            "options": f"-c statement_timeout={app_config.db_statement_timeout}"
+        }
 
     flask_app.config["INVENTORY_CONFIG"] = app_config
 

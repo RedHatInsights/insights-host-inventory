@@ -83,6 +83,8 @@ objects:
           value: ${BYPASS_TENANT_TRANSLATION}
         - name: CLOWDER_ENABLED
           value: "true"
+        - name: INVENTORY_DB_STATEMENT_TIMEOUT
+          value: "${INVENTORY_DB_STATEMENT_TIMEOUT}"
         - name: UNLEASH_URL
           value: ${UNLEASH_URL}
         - name: UNLEASH_TOKEN
@@ -915,6 +917,8 @@ parameters:
   value: '500'
 - name: REBUILD_EVENTS_TIME_LIMIT
   value: '3600'
+- name: INVENTORY_DB_STATEMENT_TIMEOUT
+  value: '30000'
 
 # Feature flags
 - description: Unleash secret name
