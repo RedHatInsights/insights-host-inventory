@@ -367,7 +367,7 @@ def get_host_system_profile_by_id(
             total, host_list = get_sparse_system_profile(
                 host_id_list, page, per_page, order_by, order_how, fields, rbac_filter
             )
-    except ValueError as e:
+    except (ValidationException, ValueError, Exception) as e:
         log_get_host_list_failed(logger)
         flask.abort(400, str(e))
 
