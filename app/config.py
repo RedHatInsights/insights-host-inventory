@@ -129,9 +129,11 @@ class Config:
         self.db_pool_timeout = int(os.getenv("INVENTORY_DB_POOL_TIMEOUT", "5"))
         self.db_pool_size = int(os.getenv("INVENTORY_DB_POOL_SIZE", "5"))
         self.db_statement_timeout = 0
-        # Allow configuring a statement timeout on engine connection
+        self.db_lock_timeout = 0
+        # Allow configuring a statement timeout & lock_timeout on engine connection
         if runtime_environment == RuntimeEnvironment.SERVER:
             self.db_statement_timeout = int(os.getenv("INVENTORY_DB_STATEMENT_TIMEOUT", "30000"))
+            self.db_lock_timeout = int(os.getenv("INVENTORY_DB_LOCK_TIMEOUT", "90000"))
 
         self.db_uri = self._build_db_uri(self._db_ssl_mode)
 
