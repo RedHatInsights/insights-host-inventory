@@ -21,13 +21,15 @@ def upgrade():
             "idx_operating_system_multi",
             "hosts",
             [
+                "org_id",
+                "modified_on",
                 sa.text("(system_profile_facts -> 'operating_system' ->> 'name')"),
-                sa.text("(system_profile_facts -> 'operating_system' ->> 'major')"),
-                sa.text("(system_profile_facts -> 'operating_system' ->> 'minor')"),
+                sa.text("((system_profile_facts -> 'operating_system' ->> 'major')::INTEGER)"),
+                sa.text("((system_profile_facts -> 'operating_system' ->> 'minor')::INTEGER)"),
             ],
             postgresql_concurrently=True,
             if_not_exists=True,
-            postgresql_where=(sa.text("(system_profile_facts->>'operating_system') IS NOT NULL")),
+            postgresql_where=(sa.text("(system_profile_facts ? 'operating_system')")),
         )
 
 
