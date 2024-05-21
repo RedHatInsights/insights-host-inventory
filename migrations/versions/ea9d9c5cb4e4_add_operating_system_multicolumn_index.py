@@ -33,4 +33,4 @@ def upgrade():
 
 def downgrade():
     with op.get_context().autocommit_block():
-        op.drop_index("idx_operating_system_multi", "hosts")
+        op.drop_index("idx_operating_system_multi", table_name="hosts", postgresql_concurrently=True, if_exists=True)
