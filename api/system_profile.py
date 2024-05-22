@@ -15,6 +15,7 @@ from api.host_query_db import get_sap_system_info as get_sap_system_info_db
 from app import RbacPermission
 from app import RbacResourceType
 from app.auth import get_current_identity
+from app.common import inventory_config
 from app.config import Config
 from app.environment import RuntimeEnvironment
 from app.instrumentation import log_get_operating_system_failed
@@ -132,7 +133,14 @@ def get_sap_system(
 ):
     current_identity = get_current_identity()
     is_bootc = filter.get("system_profile", {}).get("bootc_status")
-    if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}) or is_bootc:
+    if (
+        get_flag_value(
+            FLAG_INVENTORY_DISABLE_XJOIN,
+            context={"schema": current_identity.org_id},
+            overriden_flag_by_config=inventory_config().bypass_xjoin,
+        )
+        or is_bootc
+    ):
         results, total = get_sap_system_info_db(
             page,
             per_page,
@@ -190,7 +198,14 @@ def get_sap_sids(
     if search:
         # Escaped so that the string literals are not interpreted as regex
         escaped_search = f".*{custom_escape(search)}.*"
-    if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}) or is_bootc:
+    if (
+        get_flag_value(
+            FLAG_INVENTORY_DISABLE_XJOIN,
+            context={"schema": current_identity.org_id},
+            overriden_flag_by_config=inventory_config().bypass_xjoin,
+        )
+        or is_bootc
+    ):
         results, total = get_sap_sids_info_db(
             limit,
             offset,
@@ -246,7 +261,14 @@ def get_operating_system(
     limit, offset = pagination_params(page, per_page)
     current_identity = get_current_identity()
     is_bootc = filter.get("system_profile", {}).get("bootc_status")
-    if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}) or is_bootc:
+    if (
+        get_flag_value(
+            FLAG_INVENTORY_DISABLE_XJOIN,
+            context={"schema": current_identity.org_id},
+            overriden_flag_by_config=inventory_config().bypass_xjoin,
+        )
+        or is_bootc
+    ):
         results, total = get_os_info_db(
             limit,
             offset,

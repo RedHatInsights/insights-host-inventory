@@ -149,6 +149,7 @@ class Config:
         self.rbac_timeout = os.environ.get("RBAC_TIMEOUT", 10)
 
         self.bypass_unleash = os.environ.get("BYPASS_UNLEASH", "false").lower() == "true"
+        self.bypass_xjoin = os.environ.get("BYPASS_XJOIN", "false").lower() == "true"
 
         self.bypass_tenant_translation = os.environ.get("BYPASS_TENANT_TRANSLATION", "false").lower() == "true"
         self.tenant_translator_url = os.environ.get("TENANT_TRANSLATOR_URL", "http://localhost:8892/internal/orgIds")
@@ -346,6 +347,8 @@ class Config:
             self.logger.info("RBAC Endpoint: %s", self.rbac_endpoint)
             self.logger.info("RBAC Retry Times: %s", self.rbac_retries)
             self.logger.info("RBAC Timeout Seconds: %s", self.rbac_timeout)
+
+            self.logger.info("Xjoin Bypassed by config: %s", self.bypass_xjoin)
 
             self.logger.info("Unleash (feature flags) Bypassed by config: %s", self.bypass_unleash)
             self.logger.info("Unleash (feature flags) Bypassed by missing token: %s", self.unleash_token is None)

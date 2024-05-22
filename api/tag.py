@@ -10,6 +10,7 @@ from api.host_query_db import get_tag_list as get_tag_list_db
 from app import RbacPermission
 from app import RbacResourceType
 from app.auth import get_current_identity
+from app.common import inventory_config
 from app.instrumentation import log_get_tags_failed
 from app.instrumentation import log_get_tags_succeeded
 from app.logging import get_logger
@@ -88,7 +89,14 @@ def get_tags(
         escaped_search = f".*{custom_escape(search)}.*"
 
     try:
-        if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}) or is_bootc:
+        if (
+            get_flag_value(
+                FLAG_INVENTORY_DISABLE_XJOIN,
+                context={"schema": current_identity.org_id},
+                overriden_flag_by_config=inventory_config().bypass_xjoin,
+            )
+            or is_bootc
+        ):
             results, total = get_tag_list_db(
                 limit=limit,
                 offset=offset,

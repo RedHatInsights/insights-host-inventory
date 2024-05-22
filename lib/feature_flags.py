@@ -45,9 +45,14 @@ def custom_fallback(feature_name: str, context: dict) -> bool:
 # Gets a feature flag's value from Unleash, if available.
 # Accepts a string with the name of the feature flag.
 # Returns a tuple containing the flag's value and whether or not the fallback value was used.
-def get_flag_value_and_fallback(flag_name: str, context: dict = {}) -> Tuple[bool, bool]:
+def get_flag_value_and_fallback(
+    flag_name: str, context: dict = {}, overriden_flag_by_config: bool = False
+) -> Tuple[bool, bool]:
     # Get flag name and default to fallback value
-    flag_value = FLAG_FALLBACK_VALUES[flag_name]
+    if overriden_flag_by_config:
+        flag_value = True
+    else:
+        flag_value = FLAG_FALLBACK_VALUES[flag_name]
     using_fallback = True
 
     # Attempt to get the feature flag via Unleash
@@ -69,5 +74,5 @@ def get_flag_value_and_fallback(flag_name: str, context: dict = {}) -> Tuple[boo
 # Gets a feature flag's value from Unleash, if available.
 # Accepts a string with the name of the feature flag.
 # Returns the value of the feature flag, whether it's the fallback or real value.
-def get_flag_value(flag_name: str, context: dict = {}) -> bool:
-    return get_flag_value_and_fallback(flag_name, context)[0]
+def get_flag_value(flag_name: str, context: dict = {}, overriden_flag_by_config: bool = False) -> bool:
+    return get_flag_value_and_fallback(flag_name, context, overriden_flag_by_config)[0]
