@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 from datetime import timezone
 from enum import Enum
@@ -72,7 +73,7 @@ class HostValidationErrorNotificationSchema(NotificationSchema):
 class SystemDeletedContextSchema(MarshmallowSchema):
     inventory_id = fields.Str(required=True)
     hostname = fields.Str(required=True)
-    dysplay_name = fields.Str(required=True)
+    display_name = fields.Str(required=True)
     rhel_version = fields.Str(required=True)
     tags = fields.Dict()
 
@@ -164,6 +165,7 @@ def notification_headers(event_type: NotificationType):
         "event_type": event_type.name,
         "request_id": threadctx.request_id,
         "producer": hostname(),
+        "rh-message-id": str(uuid.uuid4()),  # protects against duplicate processing
     }
 
 
@@ -176,7 +178,7 @@ def build_notification(notification_type, host: dict, **kwargs):
 
 def build_base_notification_obj(notification_type, host: dict):
     base_obj = {
-        "account_id": host.get("account_id") or "",
+        "account_id": host.get("account", ""),
         "org_id": host.get("org_id"),
         "application": "inventory",
         "bundle": "rhel",

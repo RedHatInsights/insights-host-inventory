@@ -43,7 +43,7 @@ def message_produced(logger, message, headers):
 
     if "notification" in topic:
         notification_event_producer_success.labels(
-            event_type=dict(headers)["event_type"].decode("utf-8"), topic=topic
+            notification_type=dict(headers)["event_type"].decode("utf-8"), topic=topic
         ).inc()
     else:
         event_producer_success.labels(event_type=dict(headers)["event_type"].decode("utf-8"), topic=topic).inc()
