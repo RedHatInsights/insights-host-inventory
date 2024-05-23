@@ -54,7 +54,7 @@ def main():
 
     event_loop(
         consumer,
-        application.app,
+        application,
         event_producer,
         notification_event_producer,
         message_handler,

@@ -139,9 +139,9 @@ def get_tags(
             rbac_filter,
         )
     # except ValueError as e:
-    except ValidationException as e:
+    except (ValidationException, ValueError) as ve:
         log_get_tags_failed(logger)
-        flask.abort(400, str(e))
+        flask.abort(400, str(ve))
 
     if escaped_search:
         variables["filter"] = {

@@ -31,6 +31,7 @@ from app import RbacResourceType
 from app.auth import get_current_identity
 from app.auth.identity import to_auth_header
 from app.common import inventory_config
+from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_get_host_list_failed
@@ -62,6 +63,8 @@ from lib.host_repository import find_non_culled_hosts
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.host_repository import update_query_for_owner_id
 from lib.middleware import rbac
+
+# from types import NoneType # available in py 3.10+ but using python v3.10 breaks a lot of dependencies
 
 
 FactOperations = Enum("FactOperations", ("merge", "replace"))
@@ -329,7 +332,8 @@ def delete_host_by_id(host_id_list, rbac_filter=None):
 def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None, fields=None, rbac_filter=None):
     current_identity = get_current_identity()
     try:
-        if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
+        # if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
+        if True:
             logger.info(f"{FLAG_INVENTORY_DISABLE_XJOIN} is applied to {current_identity.org_id}")
             host_list, total, additional_fields, system_profile_fields = get_host_list_by_id_list_postgres(
                 host_id_list, page, per_page, order_by, order_how, fields, rbac_filter
@@ -367,6 +371,7 @@ def get_host_system_profile_by_id(
             total, host_list = get_sparse_system_profile(
                 host_id_list, page, per_page, order_by, order_how, fields, rbac_filter
             )
+    # except (ValidationException, ValueError, Exception, NoneType) as e:
     except (ValidationException, ValueError, Exception) as e:
         log_get_host_list_failed(logger)
         flask.abort(400, str(e))
@@ -408,13 +413,16 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
     identity = get_current_identity()
     staleness = get_staleness_obj(identity)
 
-    for host in hosts_to_update:
-        host.patch(validated_patch_host_data)
-
-        if db.session.is_modified(host):
-            db.session.commit()
-            serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
-            _emit_patch_event(serialized_host, host)
+    try:
+        for host in hosts_to_update:
+            host.patch(validated_patch_host_data)
+            if db.session.is_modified(host):
+                db.session.commit()
+                serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
+                _emit_patch_event(serialized_host, host)
+    except InventoryException as ie:
+        log_patch_host_failed(logger, host_id_list)
+        flask.abort(400, str(ie))
 
     log_patch_host_success(logger, host_id_list)
     return 200

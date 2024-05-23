@@ -456,12 +456,15 @@ class ConfigTestCase(TestCase):
 @patch("app.Config", **{"return_value.mgmt_url_path_prefix": "/", "return_value.unleash_token": ""})
 class CreateAppConfigTestCase(TestCase):
     def test_config_is_assigned(self, config, get_engine):
+        # def test_config_is_assigned(self, get_engine):
         application = create_app(RuntimeEnvironment.TEST)
         self.assertIn("INVENTORY_CONFIG", application.app.config)
         self.assertEqual(config.return_value, application.app.config["INVENTORY_CONFIG"])
+        # self.assertEqual(type(application.app.config["INVENTORY_CONFIG"]), Config)
 
 
 @patch("app.connexion.FlaskApp")
+# @patch("app.connexion.apps.flask.FlaskApp")
 @patch("app.db.get_engine")
 class CreateAppConnexionAppInitTestCase(TestCase):
     @patch("app.TranslatingParser")
