@@ -452,23 +452,21 @@ class ConfigTestCase(TestCase):
                 self.assertEqual(config.kafka_producer[param], expected_value)
 
 
-@patch("app.db.get_engine")
+@patch("app.db.init_app")
 @patch("app.Config", **{"return_value.mgmt_url_path_prefix": "/", "return_value.unleash_token": ""})
 class CreateAppConfigTestCase(TestCase):
-    def test_config_is_assigned(self, config, get_engine):
-        # def test_config_is_assigned(self, get_engine):
+    def test_config_is_assigned(self, config, init_app):
         application = create_app(RuntimeEnvironment.TEST)
         self.assertIn("INVENTORY_CONFIG", application.app.config)
         self.assertEqual(config.return_value, application.app.config["INVENTORY_CONFIG"])
-        # self.assertEqual(type(application.app.config["INVENTORY_CONFIG"]), Config)
 
 
 @patch("app.connexion.FlaskApp")
 # @patch("app.connexion.apps.flask.FlaskApp")
-@patch("app.db.get_engine")
+@patch("app.db.init_app")
 class CreateAppConnexionAppInitTestCase(TestCase):
     @patch("app.TranslatingParser")
-    def test_specification_is_provided(self, translating_parser, get_engine, app):
+    def test_specification_is_provided(self, translating_parser, init_app, app):
         create_app(RuntimeEnvironment.TEST)
 
         translating_parser.assert_called_once_with(SPECIFICATION_FILE)
@@ -479,7 +477,7 @@ class CreateAppConnexionAppInitTestCase(TestCase):
         assert len(args) == 1
         assert args[0] is translating_parser.return_value.specification
 
-    def test_specification_is_parsed(self, get_engine, app):
+    def test_specification_is_parsed(self, init_app, app):
         create_app(RuntimeEnvironment.TEST)
         app.return_value.add_api.assert_called_once()
         args = app.return_value.add_api.mock_calls[0].args
@@ -488,7 +486,7 @@ class CreateAppConnexionAppInitTestCase(TestCase):
 
     # Test here the parsing is working with the referenced schemas from system_profile.spec.yaml
     # and the check parser.specification["components"]["schemas"] - this is more a library test
-    def test_translatingparser(self, get_engine, app):
+    def test_translatingparser(self, init_app, app):
         create_app(RuntimeEnvironment.TEST)
         # Check whether SystemProfileNetworkInterface is inside the schemas section
         # add_api uses the specification as firts argument
@@ -500,7 +498,7 @@ class CreateAppConnexionAppInitTestCase(TestCase):
 
     # Create an app with bad defs assert that it wont create and will raise and exception
     @patch("app.SPECIFICATION_FILE", value="./swagger/api.spec.yaml")
-    def test_yaml_specification(self, translating_parser, get_engine, app):
+    def test_yaml_specification(self, translating_parser, init_app, app):
         with patch("app.create_app", side_effect=Exception("mocked error")):
             with self.assertRaises(Exception):
                 create_app(RuntimeEnvironment.TEST)
