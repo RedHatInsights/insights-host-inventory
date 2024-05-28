@@ -85,6 +85,8 @@ objects:
           value: "true"
         - name: INVENTORY_DB_STATEMENT_TIMEOUT
           value: "${INVENTORY_DB_STATEMENT_TIMEOUT}"
+        - name: INVENTORY_DB_LOCK_TIMEOUT
+          value: "${INVENTORY_DB_LOCK_TIMEOUT}"
         - name: UNLEASH_URL
           value: ${UNLEASH_URL}
         - name: UNLEASH_TOKEN
@@ -918,6 +920,8 @@ parameters:
 - name: REBUILD_EVENTS_TIME_LIMIT
   value: '3600'
 - name: INVENTORY_DB_STATEMENT_TIMEOUT
+  value: '30000'
+- name: INVENTORY_DB_LOCK_TIMEOUT
   value: '30000'
 
 # Feature flags
