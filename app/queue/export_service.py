@@ -3,6 +3,7 @@ from http import HTTPStatus
 from app import RbacPermission
 from app import RbacResourceType
 from app.logging import get_logger
+from lib import metrics
 from lib.middleware import rbac
 
 logger = get_logger(__name__)
@@ -19,10 +20,13 @@ def _handle_rbac_to_export(func, org_id, rbac_request_headers):
     return filter
 
 
+@metrics.create_export_processing_time.time()
 def create_export(export_svc_data, org_id, operation_args={}, rbac_filter=None):
     # Here we make the DB call and create the export
     # Check PoC reference:
     # https://github.com/RedHatInsights/insights-host-inventory/pull/1671/files#diff-13296d264df528a2181ea43f8fa5ebaed8a5f66b06767e5e75bbc3549ac0f29aR30-R88
+
+    metrics.create_export_count.inc()
     logger.info("Creating export for HBI")
     return True
 

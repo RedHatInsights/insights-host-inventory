@@ -206,19 +206,25 @@ def _build_minimal_host_info(host_data):
     }
 
 
-@metrics.ingress_message_parsing_time.time()
-def parse_operation_message(message):
+@metrics.common_message_parsing_time.time()
+def common_message_parser(message):
     try:
         # Due to RHCLOUD-3610 we're receiving messages with invalid unicode code points (invalid surrogate pairs)
         # Python pretty much ignores that but it is not possible to store such strings in the database (db INSERTS
         # blow up)
         parsed_message = json.loads(message)
+        return parsed_message
     except json.decoder.JSONDecodeError:
         # The "extra" dict cannot have a key named "msg" or "message"
         # otherwise an exception in thrown in the logging code
         logger.exception("Unable to parse json message from message queue", extra={"incoming_message": message})
-        metrics.ingress_message_parsing_failure.labels("invalid").inc()
+        metrics.common_message_parsing_failure.labels("invalid").inc()
         raise
+
+
+@metrics.ingress_message_parsing_time.time()
+def parse_operation_message(message):
+    parsed_message = common_message_parser(message)
 
     try:
         _validate_json_object_for_utf8(parsed_message)
@@ -445,7 +451,7 @@ def write_message_batch(event_producer, processed_rows):
                 write_add_update_event_message(event_producer, result)
 
 
-@metrics.export_service_message_parsing_time.time()
+@metrics.export_service_message_handler_time.time()
 def handle_export_message(message, event_producer, notification_event_producer, message_operation=create_export):
     validated_msg = parse_export_service_message(message)
     if validated_msg and validated_msg["data"]["resource_request"]["application"] == EXPORT_SERVICE_APPLICATION:
@@ -455,7 +461,7 @@ def handle_export_message(message, event_producer, notification_event_producer, 
             metrics.export_service_message_handler_success.inc()
             return True
         else:
-            metrics.export_service__message_handler_failure.inc()
+            metrics.export_service_message_handler_failure.inc()
             return False
     else:
         logger.debug("Found export message not related to host-inventory")
