@@ -332,8 +332,7 @@ def delete_host_by_id(host_id_list, rbac_filter=None):
 def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None, fields=None, rbac_filter=None):
     current_identity = get_current_identity()
     try:
-        # if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
-        if True:
+        if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
             logger.info(f"{FLAG_INVENTORY_DISABLE_XJOIN} is applied to {current_identity.org_id}")
             host_list, total, additional_fields, system_profile_fields = get_host_list_by_id_list_postgres(
                 host_id_list, page, per_page, order_by, order_how, fields, rbac_filter

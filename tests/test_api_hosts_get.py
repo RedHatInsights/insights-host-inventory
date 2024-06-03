@@ -1024,13 +1024,13 @@ def test_get_hosts_order_by_group_name(
 def test_get_hosts_order_by_operating_system(mq_create_or_update_host, api_get, order_how):
     # Create some operating systems in ASC sort order
     ordered_operating_system_data = [
-        # {"name": "CentOS", "major": 4, "minor": 0},
-        # {"name": "CentOS", "major": 4, "minor": 1},
-        # {"name": "CentOS", "major": 5, "minor": 0},
-        # {"name": "CentOS", "major": 5, "minor": 1},
-        # {"name": "RHEL", "major": 3, "minor": 0},
-        # {"name": "RHEL", "major": 3, "minor": 11},
-        # {"name": "RHEL", "major": 8, "minor": 0},
+        {"name": "CentOS", "major": 4, "minor": 0},
+        {"name": "CentOS", "major": 4, "minor": 1},
+        {"name": "CentOS", "major": 5, "minor": 0},
+        {"name": "CentOS", "major": 5, "minor": 1},
+        {"name": "RHEL", "major": 3, "minor": 0},
+        {"name": "RHEL", "major": 3, "minor": 11},
+        {"name": "RHEL", "major": 8, "minor": 0},
         {"name": "RHEL", "major": 8, "minor": 1},
     ]
     ordered_insights_ids = [generate_uuid() for _ in range(len(ordered_operating_system_data))]

@@ -221,18 +221,16 @@ class LimitedHost(db.Model):
         return case(
             # If the host has system_profile_facts.operating_system,
             # generate the string value to be sorted by ("name maj.min")
-            [
-                (
-                    cls.system_profile_facts.has_key("operating_system"),
-                    func.concat(
-                        cls.system_profile_facts["operating_system"]["name"],
-                        " ",
-                        func.lpad(cast(cls.system_profile_facts["operating_system"]["major"], String), 3, "0"),
-                        ".",
-                        func.lpad(cast(cls.system_profile_facts["operating_system"]["minor"], String), 3, "0"),
-                    ),
-                )
-            ],
+            (
+                cls.system_profile_facts.has_key("operating_system"),
+                func.concat(
+                    cls.system_profile_facts["operating_system"]["name"],
+                    " ",
+                    func.lpad(cast(cls.system_profile_facts["operating_system"]["major"], String), 3, "0"),
+                    ".",
+                    func.lpad(cast(cls.system_profile_facts["operating_system"]["minor"], String), 3, "0"),
+                ),
+            ),
             else_=" 000.000",
         )
 
