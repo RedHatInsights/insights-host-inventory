@@ -57,8 +57,8 @@ def test_validate_invalid_identity(flask_client):
     """
     Identity header is not valid – empty in this case
     """
-    # response = flask_client.get(HOST_URL, headers={"x-rh-identity": ""})
-    response = flask_client.get(HOST_URL, headers={"x-rh-Cidentity": ""})
+    response = flask_client.get(HOST_URL, headers={"x-rh-identity": ""})
+    # response = flask_client.get(HOST_URL, headers={"x-rh-Cidentity": ""})
     assert 401 == response.status_code
 
 
@@ -141,8 +141,8 @@ def test_invalid_system_identities(flask_client, subtests):
 
     for payload in payloads:
         with subtests.test():
-            # response = flask_client.get(HOST_URL, headers={"x-rh-identity": payload})
-            response = flask_client.get(HOST_URL, headers={"x-rh-Cidentity": payload})
+            response = flask_client.get(HOST_URL, headers={"x-rh-identity": payload})
+            # response = flask_client.get(HOST_URL, headers={"x-rh-Cidentity": payload})
             assert 401 == response.status_code  # Bad identity
 
 

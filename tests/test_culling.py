@@ -124,8 +124,8 @@ def test_get_host_by_id_doesnt_use_staleness_parameter(mq_create_hosts_in_all_st
     response_status, response_data = api_get(url, query_parameters={"staleness": "fresh"})
 
     # TODO: Check should this test expect 200 or 400
-    # assert response_status == 400
-    assert response_status == 200
+    assert response_status == 400
+    # assert response_status == 200
 
 
 def test_tags_doesnt_use_staleness_parameter(mq_create_hosts_in_all_states, api_get):
@@ -135,8 +135,8 @@ def test_tags_doesnt_use_staleness_parameter(mq_create_hosts_in_all_states, api_
     response_status, response_data = api_get(url, query_parameters={"staleness": "fresh"})
 
     # TODO: Check should this test expect 200 or 400
-    # assert response_status == 400
-    assert response_status == 200
+    assert response_status == 400
+    # assert response_status == 200
 
 
 def test_tags_count_doesnt_use_staleness_parameter(mq_create_hosts_in_all_states, api_get):
@@ -146,8 +146,8 @@ def test_tags_count_doesnt_use_staleness_parameter(mq_create_hosts_in_all_states
     response_status, response_data = api_get(url, query_parameters={"staleness": "fresh"})
 
     # TODO: Check should this test expect 200 or 400
-    # assert response_status == 400
-    assert response_status == 200
+    assert response_status == 400
+    # assert response_status == 200
 
 
 def test_system_profile_doesnt_use_staleness_parameter(mq_create_hosts_in_all_states, api_get):
@@ -157,8 +157,8 @@ def test_system_profile_doesnt_use_staleness_parameter(mq_create_hosts_in_all_st
     response_status, response_data = api_get(url, query_parameters={"staleness": "fresh"})
 
     # TODO: Check should this test expect 200 or 400
-    # assert response_status == 400
-    assert response_status == 200
+    assert response_status == 400
+    # assert response_status == 200
 
 
 @pytest.mark.host_reaper
