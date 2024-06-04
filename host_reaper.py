@@ -33,6 +33,8 @@ from lib.metrics import delete_host_count
 from lib.metrics import delete_host_processing_time
 from lib.metrics import host_reaper_fail_count
 
+# Test PR
+
 __all__ = ("main", "run")
 
 PROMETHEUS_JOB = "inventory-reaper"
