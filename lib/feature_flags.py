@@ -3,8 +3,8 @@ from typing import Tuple
 from flask_unleash import Unleash
 from UnleashClient.strategies import Strategy
 
-from app.logging import get_logger
 from app.common import inventory_config
+from app.logging import get_logger
 
 UNLEASH = Unleash()
 logger = get_logger(__name__)
@@ -51,7 +51,7 @@ def get_flag_value_and_fallback(flag_name: str, context: dict = {}) -> Tuple[boo
     if FLAG_FALLBACK_VALUES[flag_name] is False and inventory_config().bypass_xjoin is False:
         flag_value = False
         using_fallback = True
-    else: # change the default False in FLAG_FALLBACK_VALUES
+    else:  # change the default False in FLAG_FALLBACK_VALUES
         flag_value = FLAG_FALLBACK_VALUES[flag_name]
         using_fallback = False
 
