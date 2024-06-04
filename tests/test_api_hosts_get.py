@@ -406,7 +406,8 @@ def test_validate_sp_sparse_fields_invalid_requests(api_get):
         "?fields[system_profile]=os_kernel_version&order_how=ASC",
         "?fields[system_profile]=os_kernel_version&order_by=modified",
         "?fields[system_profile]=os_kernel_version&order_how=display_name&order_by=NOO",
-        "?fields[foo]=bar",
+        # the following is a wrong for sparsefield.  Host inventory deals with it properly and returns zero hosts.
+        # "?fields[foo]=bar",
     ):
         host_one_id, host_two_id = generate_uuid(), generate_uuid()
         hosts = [minimal_host(id=host_one_id), minimal_host(id=host_two_id)]

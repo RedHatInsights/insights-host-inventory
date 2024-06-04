@@ -376,6 +376,7 @@ def handle_message(message, notification_event_producer, message_operation=add_h
             raise
 
 
+<<<<<<< HEAD
 def write_add_update_event_message(event_producer: EventProducer, result: OperationResult):
     # The request ID in the headers is fetched from threadctx.request_id
     request_id = result.platform_metadata.get("request_id")
@@ -435,6 +436,10 @@ def handle_export_message(message):
 
 def export_service_event_loop(consumer, flask_app, interrupt):
     with flask_app.app_context():
+=======
+def event_loop(consumer, flask_app, event_producer, notification_event_producer, handler, interrupt):
+    with flask_app.app.app_context():
+>>>>>>> 781869d0 (sometests still failing)
         while not interrupt():
             messages = consumer.consume(timeout=CONSUMER_POLL_TIMEOUT_SECONDS)
             for msg in messages:

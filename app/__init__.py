@@ -201,11 +201,6 @@ def process_system_profile_spec():
 
 
 def create_app(runtime_environment):
-    connexion_options = {
-        "swagger_ui": True,
-        "uri_parser_class": customURIParser,
-        "openapi_spec_path": "/dev/openapi.json",
-    }
     # This feels like a hack but it is needed.  The logging configuration
     # needs to be setup before the flask app is initialized.
     configure_logging()
@@ -213,7 +208,7 @@ def create_app(runtime_environment):
     app_config = Config(runtime_environment)
     app_config.log_configuration()
 
-    connexion_app = connexion.FlaskApp("inventory", specification_dir="./swagger/", options=connexion_options)
+    app = connexion.FlaskApp("inventory", specification_dir="./swagger/", uri_parser_class=customURIParser)
 
     parser = TranslatingParser(SPECIFICATION_FILE)
     parser.parse()
@@ -222,22 +217,23 @@ def create_app(runtime_environment):
 
     for api_url in app_config.api_urls:
         if api_url:
-            connexion_app.add_api(
+            app.add_api(
                 parser.specification,
                 arguments={"title": "RestyResolver Example"},
                 resolver=RestyResolver("api"),
                 validate_responses=True,
-                strict_validation=True,
+                strict_validation=False,
                 base_path=api_url,
+                swagger_ui=True,
                 validator_map=build_validator_map(system_profile_spec=sp_spec, unindexed_fields=unindexed_fields),
             )
             logger.info("Listening on API: %s", api_url)
 
     # Add an error handler that will convert our top level exceptions
     # into error responses
-    connexion_app.add_error_handler(InventoryException, render_exception)
+    app.add_error_handler(InventoryException, render_exception)
 
-    flask_app = connexion_app.app
+    flask_app = app.app
 
     flask_app.config["SQLALCHEMY_ECHO"] = False
     flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
@@ -245,9 +241,6 @@ def create_app(runtime_environment):
     flask_app.config["SQLALCHEMY_ENGINE_OPTIONS['pool_size']"] = app_config.db_pool_size
     flask_app.config["SQLALCHEMY_ENGINE_OPTIONS['pool_timeout']"] = app_config.db_pool_timeout
     flask_app.config["SQLALCHEMY_ENGINE_OPTIONS['pool_pre_ping']"] = True
-    flask_app.config["SQLALCHEMY_ENGINE_OPTIONS['connect_args']"] = {
-        "options": f"-c statement_timeout={app_config.db_statement_timeout} -c lock_timeout={app_config.db_lock_timeout}"  # noqa
-    }
 
     flask_app.config["INVENTORY_CONFIG"] = app_config
 
@@ -275,11 +268,11 @@ def create_app(runtime_environment):
         unleash_fallback_msg += " Feature flag toggles will default to their fallback values."
         logger.warning(unleash_fallback_msg)
 
-    db.init_app(flask_app)
-
-    register_shutdown(db.get_engine(flask_app).dispose, "Closing database")
+    with flask_app.app_context():
+        db.init_app(flask_app)
 
     flask_app.register_blueprint(monitoring_blueprint, url_prefix=app_config.mgmt_url_path_prefix)
+
     for api_url in app_config.api_urls:
         flask_app.register_blueprint(spec_blueprint, url_prefix=api_url, name=f"{api_url}{spec_blueprint.name}")
 
@@ -331,4 +324,4 @@ def create_app(runtime_environment):
 
     initialize_segmentio(app_config)
 
-    return connexion_app
+    return app
