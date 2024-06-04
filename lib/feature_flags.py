@@ -52,7 +52,7 @@ def get_flag_value_and_fallback(flag_name: str, context: dict = {}) -> Tuple[boo
         flag_value = False
         using_fallback = True
     else: # change the default False in FLAG_FALLBACK_VALUES
-        FLAG_FALLBACK_VALUES[flag_name]
+        flag_value = FLAG_FALLBACK_VALUES[flag_name]
         using_fallback = False
 
     # Attempt to get the feature flag via Unleash
