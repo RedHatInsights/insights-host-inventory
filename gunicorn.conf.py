@@ -5,7 +5,7 @@ from app.environment import RuntimeEnvironment
 
 
 def when_ready(server):
-    config = Config(RuntimeEnvironment.SERVICE)
+    config = Config(RuntimeEnvironment.SERVER)
     GunicornPrometheusMetrics.start_http_server_when_ready(config.metrics_port)
 
 
