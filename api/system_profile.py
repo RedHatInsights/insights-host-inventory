@@ -8,6 +8,8 @@ from api import build_collection_response
 from api import custom_escape
 from api import flask_json_response
 from api import metrics
+from api.cache import CACHE
+from api.cache_key import make_key
 from api.filtering.filtering import query_filters
 from api.host_query_db import get_os_info as get_os_info_db
 from api.host_query_db import get_sap_sids_info as get_sap_sids_info_db
@@ -125,6 +127,7 @@ OPERATING_SYSTEM_QUERY = """
 
 
 @api_operation
+@CACHE.cached(key_prefix=make_key)
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_sap_system(
@@ -171,6 +174,7 @@ def get_sap_system(
 
 
 @api_operation
+@CACHE.cached(key_prefix=make_key)
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_sap_sids(
@@ -232,6 +236,7 @@ def get_sap_sids(
 
 
 @api_operation
+@CACHE.cached(key_prefix=make_key)
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_operating_system(

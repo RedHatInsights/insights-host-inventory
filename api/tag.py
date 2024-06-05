@@ -5,6 +5,8 @@ from api import build_collection_response
 from api import custom_escape
 from api import flask_json_response
 from api import metrics
+from api.cache import CACHE
+from api.cache_key import make_key
 from api.filtering.filtering import query_filters
 from api.host_query_db import get_tag_list as get_tag_list_db
 from app import RbacPermission
@@ -56,6 +58,7 @@ TAGS_QUERY = """
 
 
 @api_operation
+@CACHE.cached(key_prefix=make_key)
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_tags(
