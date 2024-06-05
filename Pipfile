@@ -38,6 +38,7 @@ python-snappy = "*"
 flask-unleash = "*"
 segment-analytics-python = "*"
 flask-caching = "*"
+redis = "*"
 
 [dev-packages]
 pytest = "~=8.1.1"
