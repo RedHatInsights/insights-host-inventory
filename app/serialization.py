@@ -404,8 +404,8 @@ def serialize_staleness_response(staleness):
         "immutable_time_to_stale": staleness.immutable_time_to_stale,
         "immutable_time_to_stale_warning": staleness.immutable_time_to_stale_warning,
         "immutable_time_to_delete": staleness.immutable_time_to_delete,
-        "created": "N/A" if staleness.created_on == "N/A" else _serialize_datetime(staleness.created_on),
-        "updated": "N/A" if staleness.modified_on == "N/A" else _serialize_datetime(staleness.modified_on),
+        "created": _serialize_datetime(staleness.created_on) if staleness.created_on is not None else None,
+        "updated": _serialize_datetime(staleness.modified_on) if staleness.modified_on is not None else None,
     }
 
 

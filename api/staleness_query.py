@@ -49,8 +49,8 @@ def _build_staleness_sys_default(org_id, config=None):
             "immutable_time_to_stale": config.immutable_time_to_stale_seconds,
             "immutable_time_to_stale_warning": config.immutable_time_to_stale_warning_seconds,
             "immutable_time_to_delete": config.immutable_time_to_delete_seconds,
-            "created_on": "N/A",
-            "modified_on": "N/A",
+            "created_on": None,
+            "modified_on": None,
         }
     )
 

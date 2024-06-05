@@ -2116,7 +2116,9 @@ components:
             description: A timestamp when the entry was created.
             type: string
             format: date-time
+            nullable: true
           updated_at:
+            nullable: true
             description: A timestamp when the entry was last updated.
             type: string
             format: date-time
