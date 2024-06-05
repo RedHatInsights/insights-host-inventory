@@ -269,6 +269,8 @@ class Config:
         self.script_chunk_size = int(os.getenv("SCRIPT_CHUNK_SIZE", "500"))
         self.rebuild_events_time_limit = int(os.getenv("REBUILD_EVENTS_TIME_LIMIT", "3600"))  # 1 hour
         self.sp_authorized_users = os.getenv("SP_AUTHORIZED_USERS", "tuser@redhat.com").split()
+        self.mq_db_batch_max_messages = int(os.getenv("MQ_DB_BATCH_MAX_MESSAGES", "50"))
+        self.mq_db_batch_max_seconds = int(os.getenv("MQ_DB_BATCH_MAX_SECONDS", "3"))
 
         if self._runtime_environment == RuntimeEnvironment.PENDO_JOB:
             self.pendo_sync_active = os.environ.get("PENDO_SYNC_ACTIVE", "false").lower() == "true"
