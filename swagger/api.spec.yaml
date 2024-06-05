@@ -375,6 +375,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/GroupQueryOutput'
+        '400':
+          description: Groups not found.
+
     post:
       operationId: api.group.create_group
       tags:
@@ -401,6 +404,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/GroupOutWithHostCount'
+        "400": {
+          "description": "Invalid request."
+        }
+        "403": {
+          "description": "Forbidden - Invalid RBAC permission."
+        }
   '/groups/{group_id}':
     patch:
       operationId: api.group.patch_group_by_id
@@ -424,7 +433,7 @@ paths:
               $ref: '#/components/schemas/GroupIn'
       responses:
         '200':
-          description: Successfully merged group information.
+          description: Group information successfully or already previously merged.
           content:
             application/json:
               schema:
@@ -523,7 +532,7 @@ paths:
               $ref: '#/components/schemas/HostIds'
       responses:
         '200':
-          description: Successfully associated hosts with group.
+          description: Hosts successfully or already previously associated with group.
           content:
             application/json:
               schema:
@@ -577,6 +586,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ResourceTypesQueryOutput'
+        '400':
+          description: Resource types not found.
+
   /resource-types/inventory-groups:
     get:
       operationId: api.resource_type.get_resource_type_groups_list
@@ -600,6 +612,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ResourceTypesGroupsQueryOutput'
+        '400':
+          description: Groups not found.
 
   /tags:
     get:
@@ -791,6 +805,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/StalenessOutput'
+        '400':
+          description: "Invalid request."
     post:
       operationId: api.staleness.create_staleness
       tags:
@@ -816,6 +832,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/StalenessOutput'
+        '400':
+          description: "Invalid request."
     patch:
       operationId: api.staleness.update_staleness
       tags:
@@ -841,6 +859,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/StalenessOutput'
+        '400':
+          description: Invalid request.
+        '404':
+          description: Staleness record not found.
     delete:
       operationId: api.staleness.delete_staleness
       tags:
@@ -1244,16 +1266,6 @@ components:
       required: false
       description: >-
         Filters hosts based on system_profile fields. For example:
-        <br /><br />
-        &nbsp;&nbsp;&nbsp;&nbsp;{"system_profile": {"sap_system": {"eq": "true"}}}
-        <br /><br />
-        which equates to the URL param:
-        <br /><br />
-        &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][sap_system][eq]=true"
-        <br /><br />
-        Hosts with host_type "edge" are filtered out by default.
-        <br /><br />
-        To get "edge" hosts, use this explicit filter:
         <br /><br />
         &nbsp;&nbsp;&nbsp;&nbsp;{"system_profile": {"host_type": {"eq": "edge"}}}
         <br /><br />
