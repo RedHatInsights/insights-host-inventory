@@ -37,6 +37,7 @@ urllib3 = ">=1.26.5"
 python-snappy = "*"
 flask-unleash = "*"
 segment-analytics-python = "*"
+flask-caching = "*"
 
 [dev-packages]
 pytest = "~=8.1.1"

@@ -1,3 +1,5 @@
+import base64
+import json
 import os
 from enum import Enum
 from os.path import join
@@ -12,6 +14,7 @@ from flask import request
 from prance import _TranslatingParser as TranslatingParser
 from prometheus_flask_exporter.multiprocess import GunicornPrometheusMetrics
 
+from api.cache import init_cache
 from api.mgmt import monitoring_blueprint
 from api.parsing import customURIParser
 from api.spec import spec_blueprint
@@ -152,6 +155,20 @@ def _get_field_filter(field_name, props):
     return field_type
 
 
+def process_identity_header(encoded_id_header):
+    decoded_id_header = base64.b64decode(encoded_id_header).decode("utf-8")
+    id_header_dict = json.loads(decoded_id_header)
+    identity = id_header_dict.get("identity", {})
+    org_id = identity.get("org_id")
+    id_type = identity.get("type")
+    access_id = None
+    if id_type == "User":
+        access_id = identity.get("user", {}).get("user_id")
+    if id_type == "ServiceAccount":
+        access_id = identity.get("service_account", {}).get("client_id")
+    return org_id, access_id
+
+
 def process_spec(spec, process_unindexed=False):
     system_profile_spec_processed = {}
     unindexed_fields = []
@@ -236,6 +253,8 @@ def create_app(runtime_environment):
 
     flask_app.config["SYSTEM_PROFILE_SPEC"] = sp_spec
     flask_app.config["UNINDEXED_FIELDS"] = unindexed_fields
+
+    init_cache(app_config, flask_app)
 
     # Configure Unleash (feature flags)
     if not app_config.bypass_unleash and app_config.unleash_token:
