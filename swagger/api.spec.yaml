@@ -1841,7 +1841,8 @@ components:
       example: bA6deCFc19564430AB814bf8F70E8cEf
     SystemDefaultId:
       type: string
-      pattern: system_default
+      enum:
+      - system_default
       example: system_default
     GroupId:
       description: >-
