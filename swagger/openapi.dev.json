@@ -2783,7 +2783,9 @@
       },
       "SystemDefaultId": {
         "type": "string",
-        "pattern": "system_default",
+        "enum": [
+          "system_default"
+        ],
         "example": "system_default"
       },
       "GroupId": {
@@ -2839,18 +2841,14 @@
         "title": "Group In",
         "description": "Data of a single group belonging to an account.",
         "type": "object",
-        "allOf": [
-          {
-            "properties": {
-              "name": {
-                "$ref": "#/components/schemas/GroupName"
-              },
-              "host_ids": {
-                "$ref": "#/components/schemas/HostIds"
-              }
-            }
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/GroupName"
+          },
+          "host_ids": {
+            "$ref": "#/components/schemas/HostIds"
           }
-        ]
+        }
       },
       "AssignmentRuleIn": {
         "title": "Assignment Rule In",
