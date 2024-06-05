@@ -10,6 +10,7 @@ objects:
   spec:
     envName: ${ENV_NAME}
     featureFlags: true
+    inMemoryDb: true
     testing:
       iqePlugin: host-inventory
     dependencies:
@@ -87,6 +88,10 @@ objects:
           value: "${INVENTORY_DB_STATEMENT_TIMEOUT}"
         - name: INVENTORY_DB_LOCK_TIMEOUT
           value: "${INVENTORY_DB_LOCK_TIMEOUT}"
+        - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
+          value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
+        - name: INVENTORY_API_CACHE_TYPE
+          value: "${INVENTORY_API_CACHE_TYPE}"
         - name: UNLEASH_URL
           value: ${UNLEASH_URL}
         - name: UNLEASH_TOKEN
@@ -935,6 +940,10 @@ parameters:
   value: '30000'
 - name: INVENTORY_DB_LOCK_TIMEOUT
   value: '30000'
+- name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
+  value: '0'
+- name: INVENTORY_API_CACHE_TYPE
+  value: 'NullCache'
 - name: MQ_DB_BATCH_MAX_MESSAGES
   value: '50'
 - name: MQ_DB_BATCH_MAX_SECONDS

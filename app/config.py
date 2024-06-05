@@ -30,6 +30,12 @@ class Config:
         if cfg.database.rdsCa:
             self._db_ssl_cert = cfg.rds_ca()
 
+        self._cache_host = None
+        self._cache_port = None
+        if cfg.inMemoryDb:
+            self._cache_host = cfg.inMemoryDb.hostname
+            self._cache_port = cfg.inMemoryDb.port
+
         self.rbac_endpoint = ""
         for endpoint in cfg.endpoints:
             if endpoint.app == "rbac":
@@ -134,6 +140,8 @@ class Config:
         if runtime_environment == RuntimeEnvironment.SERVER:
             self.db_statement_timeout = int(os.getenv("INVENTORY_DB_STATEMENT_TIMEOUT", "30000"))
             self.db_lock_timeout = int(os.getenv("INVENTORY_DB_LOCK_TIMEOUT", "90000"))
+        self.api_cache_timeout = int(os.getenv("INVENTORY_API_CACHE_TIMEOUT_SECONDS", "0"))
+        self.api_cache_type = os.getenv("INVENTORY_API_CACHE_TYPE", "NullCache")
 
         self.db_uri = self._build_db_uri(self._db_ssl_mode)
 
@@ -149,6 +157,7 @@ class Config:
         self.rbac_timeout = os.environ.get("RBAC_TIMEOUT", 10)
 
         self.bypass_unleash = os.environ.get("BYPASS_UNLEASH", "false").lower() == "true"
+        self.bypass_xjoin = os.environ.get("BYPASS_XJOIN", "false").lower() == "true"
 
         self.bypass_tenant_translation = os.environ.get("BYPASS_TENANT_TRANSLATION", "false").lower() == "true"
         self.tenant_translator_url = os.environ.get("TENANT_TRANSLATOR_URL", "http://localhost:8892/internal/orgIds")
