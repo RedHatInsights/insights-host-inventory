@@ -13,6 +13,7 @@ from marshmallow import Schema
 from marshmallow import ValidationError
 from sqlalchemy.exc import OperationalError
 
+from api.cache import delete_keys
 from api.staleness_query import get_staleness_obj
 from app.auth.identity import create_mock_identity_with_org_id
 from app.auth.identity import Identity
@@ -307,11 +308,11 @@ def handle_message(message, notification_event_producer, message_operation=add_h
     ):
         try:
             host = validated_operation_msg["data"]
-
+            org_id = host["org_id"]
             host_row, operation_result, identity, success_logger = message_operation(
                 host, platform_metadata, validated_operation_msg.get("operation_args", {})
             )
-
+            delete_keys(org_id)
             staleness_timestamps = Timestamps.from_config(inventory_config())
             event_type = operation_results_to_event_type(operation_result)
             return OperationResult(
