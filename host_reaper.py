@@ -140,7 +140,6 @@ def run(config, logger, session, event_producer, notification_event_producer, sh
 def main(logger):
     config = _init_config()
     init_cache(config, application)
-
     registry = CollectorRegistry()
     for metric in COLLECTED_METRICS:
         registry.register(metric)

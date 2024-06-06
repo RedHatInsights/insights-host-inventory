@@ -28,6 +28,7 @@ def delete_hosts(
         while select_query.count():
             for host in select_query.limit(chunk_size):
                 host_id = host.id
+                cache_keys_to_invalidate.add(host.org_id)
                 with delete_host_processing_time.time():
                     host_deleted = _delete_host(
                         select_query.session, event_producer, notification_event_producer, host, identity

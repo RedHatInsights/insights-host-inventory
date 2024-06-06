@@ -514,7 +514,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
             _emit_patch_event(serialized_host, host)
 
     logger.debug("hosts_to_update:%s", hosts_to_update)
-
+    delete_keys(current_identity.org_id)
     return 200
 
 
