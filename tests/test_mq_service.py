@@ -2,6 +2,7 @@ import json
 from copy import deepcopy
 from datetime import datetime
 from datetime import timedelta
+from types import SimpleNamespace
 
 import marshmallow
 import pytest
@@ -1741,3 +1742,51 @@ def test_add_host_with_invalid_identity(mocker, event_datetime_mock, mq_create_o
         )
 
     mock_notification_event_producer.write_event.assert_called_once()
+
+
+def test_batch_mq_operations(mocker, event_producer, flask_app):
+    msg = json.dumps(wrap_message(minimal_host().data(), "add_host", get_platform_metadata()))
+
+    # Patch batch settings in inventory_config()
+    mocker.patch(
+        "app.queue.queue.inventory_config",
+        return_value=SimpleNamespace(
+            mq_db_batch_max_messages=7,
+            mq_db_batch_max_seconds=1,
+            culling_stale_warning_offset_delta=1,
+            culling_culled_offset_delta=1,
+            conventional_time_to_stale_seconds=1,
+            conventional_time_to_stale_warning_seconds=1,
+            conventional_time_to_delete_seconds=1,
+            immutable_time_to_stale_seconds=1,
+            immutable_time_to_stale_warning_seconds=1,
+            immutable_time_to_delete_seconds=1,
+        ),
+    )
+    write_batch_patch = mocker.patch("app.queue.queue.write_message_batch")
+
+    fake_consumer = mocker.Mock(
+        **{
+            "consume.side_effect": [
+                [FakeMessage(message=msg) for _ in range(5)],
+                [FakeMessage(message=msg) for _ in range(3)],
+                [FakeMessage(message=msg) for _ in range(4)],
+                [],
+                [],
+                [],
+                [],
+            ]
+        }
+    )
+
+    event_loop(
+        fake_consumer,
+        flask_app,
+        event_producer,
+        mocker.Mock(),
+        handler=handle_message,
+        interrupt=mocker.Mock(side_effect=([False for _ in range(6)] + [True, True])),
+    )
+
+    # 12 messages were sent, but it should have only committed twice
+    assert write_batch_patch.call_count == 2

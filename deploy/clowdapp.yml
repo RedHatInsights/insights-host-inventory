@@ -947,7 +947,7 @@ parameters:
 - name: MQ_DB_BATCH_MAX_MESSAGES
   value: '50'
 - name: MQ_DB_BATCH_MAX_SECONDS
-  value: '3'
+  value: '1'
 
 # Feature flags
 - description: Unleash secret name

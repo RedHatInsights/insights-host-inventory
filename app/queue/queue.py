@@ -362,6 +362,12 @@ def write_add_update_event_message(event_producer: EventProducer, result: Operat
     result.success_logger(output_host)
 
 
+def write_message_batch(event_producer, processed_rows):
+    for result in processed_rows:
+        if result is not None:
+            write_add_update_event_message(event_producer, result)
+
+
 def event_loop(consumer, flask_app, event_producer, notification_event_producer, handler, interrupt):
     with flask_app.app_context():
         while not interrupt():
@@ -396,7 +402,6 @@ def event_loop(consumer, flask_app, event_producer, notification_event_producer,
                                 processed_rows.append(
                                     handler(
                                         msg.value(),
-                                        event_producer,
                                         notification_event_producer=notification_event_producer,
                                     )
                                 )
@@ -414,11 +419,10 @@ def event_loop(consumer, flask_app, event_producer, notification_event_producer,
                                 logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
                                 break
 
-            # The above session is automatically committed or rolled back.
-            # Now we need to send out messages for the batch of hosts we just processed.
-            for result in processed_rows:
-                if result is not None:
-                    write_add_update_event_message(event_producer, result)
+                db.session.commit()
+                # The above session is automatically committed or rolled back.
+                # Now we need to send out messages for the batch of hosts we just processed.
+                write_message_batch(event_producer, processed_rows)
 
 
 def initialize_thread_local_storage(request_id):
