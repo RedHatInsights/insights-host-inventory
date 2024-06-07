@@ -18,8 +18,8 @@ from lib.metrics import delete_host_processing_time
 
 __all__ = ("delete_hosts",)
 logger = get_logger(__name__)
- 
-    
+
+
 def delete_hosts(
     select_query, event_producer, notification_event_producer, chunk_size, interrupt=lambda: False, identity=None
 ):
