@@ -66,7 +66,7 @@ def test_event_loop_exception_handling(mocker, event_producer, flask_app):
         event_producer,
         fake_notification_event_producer,
         handler=handle_message_mock,
-        interrupt=mocker.Mock(side_effect=(False, False, False, False, True, True)),
+        interrupt=mocker.Mock(side_effect=(False, False, False, False, False, True, True)),
     )
     assert handle_message_mock.call_count == 3
 
@@ -86,7 +86,7 @@ def test_event_loop_with_error_message_handling(mocker, event_producer, flask_ap
         event_producer,
         fake_notification_event_producer,
         handler=handle_message_mock,
-        interrupt=mocker.Mock(side_effect=(False, False, False, False, True, True)),
+        interrupt=mocker.Mock(side_effect=(False, False, False, False, False, True, True)),
     )
 
     assert handle_message_mock.call_count == 2
@@ -1785,8 +1785,11 @@ def test_batch_mq_operations(mocker, event_producer, flask_app):
         event_producer,
         mocker.Mock(),
         handler=handle_message,
-        interrupt=mocker.Mock(side_effect=([False for _ in range(6)] + [True, True])),
+        interrupt=mocker.Mock(side_effect=([False for _ in range(8)] + [True, True])),
     )
 
-    # 12 messages were sent, but it should have only committed twice
-    assert write_batch_patch.call_count == 2
+    # 12 messages were sent, but it should have only committed three times:
+    # - Once after 7 messages (the batch size)
+    # - Once after all messages have been produced
+    # - Once after it tries to consume more messages but gets an empty array
+    assert write_batch_patch.call_count == 3

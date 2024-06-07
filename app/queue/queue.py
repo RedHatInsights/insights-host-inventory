@@ -382,10 +382,7 @@ def event_loop(consumer, flask_app, event_producer, notification_event_producer,
                 ):
                     messages = consumer.consume(timeout=CONSUMER_POLL_TIMEOUT_SECONDS)
 
-                    # If no messages were consumed, go ahead and commit so we're not waiting for no reason
-                    if len(messages) == 0:
-                        break
-
+                    commit_batch_early = True
                     for msg in messages:
                         if msg is None:
                             continue
@@ -406,6 +403,7 @@ def event_loop(consumer, flask_app, event_producer, notification_event_producer,
                                         notification_event_producer=notification_event_producer,
                                     )
                                 )
+                                commit_batch_early = False
                                 metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
                                 metrics.ingress_message_handler_success.inc()
                             except OperationalError as oe:
@@ -418,7 +416,10 @@ def event_loop(consumer, flask_app, event_producer, notification_event_producer,
                             except Exception:
                                 metrics.ingress_message_handler_failure.inc()
                                 logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
-                                break
+
+                    # If no messages were consumed, go ahead and commit so we're not waiting for no reason
+                    if commit_batch_early:
+                        break
 
                 db.session.commit()
                 # The above session is automatically committed or rolled back.
