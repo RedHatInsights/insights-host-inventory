@@ -11,9 +11,6 @@ from api import api_operation
 from api import build_collection_response
 from api import flask_json_response
 from api import metrics
-from api.cache import CACHE
-from api.cache import delete_keys
-from api.cache_key import make_key
 from api.host_query import build_paginated_host_list_response
 from api.host_query import staleness_timestamps
 from api.host_query_db import get_all_hosts
@@ -75,7 +72,6 @@ logger = get_logger(__name__)
 
 
 @api_operation
-@CACHE.cached(key_prefix=make_key)
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_host_list(
@@ -290,7 +286,6 @@ def _delete_host_list(host_id_list, rbac_filter):
             ) as payload_tracker_processing_ctx:
                 payload_tracker_processing_ctx.inventory_id = host_id
 
-    delete_keys(current_identity.org_id)
     return deletion_count
 
 
@@ -364,7 +359,6 @@ def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=
 
 
 @api_operation
-@CACHE.cached(key_prefix=make_key)
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_host_system_profile_by_id(
@@ -420,8 +414,8 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
         log_patch_host_failed(logger, host_id_list)
         return flask.abort(HTTPStatus.NOT_FOUND, "Requested host not found.")
 
-    current_identity = get_current_identity()
-    staleness = get_staleness_obj(current_identity)
+    identity = get_current_identity()
+    staleness = get_staleness_obj(identity)
 
     try:
         for host in hosts_to_update:
@@ -443,7 +437,6 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
             serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
             _emit_patch_event(serialized_host, host)
 
-    delete_keys(current_identity.org_id)
     log_patch_host_success(logger, host_id_list)
     return 200
 
@@ -514,12 +507,11 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
             _emit_patch_event(serialized_host, host)
 
     logger.debug("hosts_to_update:%s", hosts_to_update)
-    delete_keys(current_identity.org_id)
+
     return 200
 
 
 @api_operation
-@CACHE.cached(key_prefix=make_key)
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_how=None, rbac_filter=None):
@@ -540,7 +532,6 @@ def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_
 
 
 @api_operation
-@CACHE.cached(key_prefix=make_key)
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=None, search=None, rbac_filter=None):
@@ -579,7 +570,6 @@ def host_checkin(body, rbac_filter=None):
         db.session.commit()
         serialized_host = serialize_host(existing_host, staleness_timestamps(), staleness=staleness)
         _emit_patch_event(serialized_host, existing_host)
-        delete_keys(current_identity.org_id)
         return flask_json_response(serialized_host, 201)
     else:
         flask.abort(404, "No hosts match the provided canonical facts.")
