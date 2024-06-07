@@ -9,7 +9,6 @@ from sqlalchemy import create_engine
 from sqlalchemy import or_
 from sqlalchemy.orm import sessionmaker
 
-from api.cache import init_cache
 from app import create_app
 from app.auth.identity import create_mock_identity_with_org_id
 from app.config import Config
@@ -132,7 +131,7 @@ def run(config, logger, session, event_producer, shutdown_handler):
 
 def main(logger):
     config = _init_config()
-    init_cache(config, application)
+
     registry = CollectorRegistry()
     for metric in COLLECTED_METRICS:
         registry.register(metric)

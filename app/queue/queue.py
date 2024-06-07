@@ -10,7 +10,6 @@ from marshmallow import Schema
 from marshmallow import ValidationError
 from sqlalchemy.exc import OperationalError
 
-from api.cache import delete_keys
 from api.staleness_query import get_staleness_obj
 from app.auth.identity import create_mock_identity_with_org_id
 from app.auth.identity import Identity
@@ -298,11 +297,10 @@ def handle_message(message, event_producer, notification_event_producer, message
     ):
         try:
             host = validated_operation_msg["data"]
-            org_id = host["org_id"]
+
             output_host, host_id, insights_id, operation_result = message_operation(
                 host, platform_metadata, validated_operation_msg.get("operation_args", {})
             )
-            delete_keys(org_id)
             event_type = operation_results_to_event_type(operation_result)
             event = build_event(event_type, output_host, platform_metadata=platform_metadata)
 
