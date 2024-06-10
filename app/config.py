@@ -113,6 +113,8 @@ class Config:
 
         self.unleash_url = os.environ.get("UNLEASH_URL", "http://unleash:4242/api")
         self.unleash_token = os.environ.get("UNLEASH_TOKEN", "")
+        self._cache_host = os.environ.get("CACHE_HOST", "localhost")
+        self._cache_port = os.environ.get("CACHE_PORT", "6379")
 
     def days_to_seconds(self, n_days):
         factor = 86400
