@@ -79,11 +79,7 @@ class Config:
         self.unleash_cache_directory = os.getenv("UNLEASH_CACHE_DIR", "/tmp/.unleashcache")
         if unleash:
             self.unleash_token = unleash.clientAccessToken
-            unleash_url = f"{unleash.hostname}:{unleash.port}/api"
-            if unleash.port in (80, 8080):
-                self.unleash_url = f"http://{unleash_url}"
-            else:
-                self.unleash_url = f"https://{unleash_url}"
+            self.unleash_url = f"{unleash.scheme.value}://{unleash.hostname}:{unleash.port}/api"
         else:
             self.unleash_url = os.getenv("UNLEASH_URL")
             self.unleash_token = os.getenv("UNLEASH_TOKEN")
@@ -117,6 +113,8 @@ class Config:
 
         self.unleash_url = os.environ.get("UNLEASH_URL", "http://unleash:4242/api")
         self.unleash_token = os.environ.get("UNLEASH_TOKEN", "")
+        self._cache_host = os.environ.get("CACHE_HOST", "localhost")
+        self._cache_port = os.environ.get("CACHE_PORT", "6379")
 
     def days_to_seconds(self, n_days):
         factor = 86400

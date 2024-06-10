@@ -13,6 +13,7 @@ from marshmallow import Schema
 from marshmallow import ValidationError
 from sqlalchemy.exc import OperationalError
 
+from api.cache import delete_keys
 from api.staleness_query import get_staleness_obj
 from app.auth.identity import create_mock_identity_with_org_id
 from app.auth.identity import Identity
@@ -349,6 +350,7 @@ def write_add_update_event_message(event_producer: EventProducer, result: Operat
     insights_id = result.host_row.canonical_facts.get("insights_id")
     event = build_event(result.event_type, output_host, platform_metadata=result.platform_metadata)
 
+    org_id = output_host["org_id"]
     headers = message_headers(
         result.event_type,
         insights_id,
@@ -357,6 +359,7 @@ def write_add_update_event_message(event_producer: EventProducer, result: Operat
         output_host.get("system_profile", {}).get("operating_system", {}).get("name"),
     )
     event_producer.write_event(event, str(result.host_row.id), headers, wait=True)
+    delete_keys(org_id)
     result.success_logger(output_host)
 
 

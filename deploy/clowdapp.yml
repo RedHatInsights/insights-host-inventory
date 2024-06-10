@@ -187,6 +187,10 @@ objects:
           value: ${BYPASS_TENANT_TRANSLATION}
         - name: CLOWDER_ENABLED
           value: "true"
+        - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
+          value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
+        - name: INVENTORY_API_CACHE_TYPE
+          value: "${INVENTORY_API_CACHE_TYPE}"
         - name: UNLEASH_URL
           value: ${UNLEASH_URL}
         - name: UNLEASH_TOKEN
@@ -268,6 +272,10 @@ objects:
           value: ${BYPASS_TENANT_TRANSLATION}
         - name: CLOWDER_ENABLED
           value: "true"
+        - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
+          value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
+        - name: INVENTORY_API_CACHE_TYPE
+          value: "${INVENTORY_API_CACHE_TYPE}"
         - name: UNLEASH_URL
           value: ${UNLEASH_URL}
         - name: UNLEASH_TOKEN
@@ -346,6 +354,10 @@ objects:
           value: ${BYPASS_TENANT_TRANSLATION}
         - name: CLOWDER_ENABLED
           value: "true"
+        - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
+          value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
+        - name: INVENTORY_API_CACHE_TYPE
+          value: "${INVENTORY_API_CACHE_TYPE}"
         - name: UNLEASH_URL
           value: ${UNLEASH_URL}
         - name: UNLEASH_TOKEN
@@ -427,6 +439,10 @@ objects:
             value: ${KAFKA_SASL_MECHANISM}
           - name: CLOWDER_ENABLED
             value: "true"
+          - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
+            value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
+          - name: INVENTORY_API_CACHE_TYPE
+            value: "${INVENTORY_API_CACHE_TYPE}"
           - name: UNLEASH_URL
             value: ${UNLEASH_URL}
           - name: UNLEASH_TOKEN
