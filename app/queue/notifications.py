@@ -6,9 +6,7 @@ from enum import Enum
 from marshmallow import fields
 from marshmallow import Schema as MarshmallowSchema
 from marshmallow import validate as marshmallow_validate
-from marshmallow import ValidationError
 
-from app.exceptions import ValidationException
 from app.logging import threadctx
 from app.queue.events import hostname
 from app.queue.metrics import notification_serialization_time
@@ -119,10 +117,7 @@ def host_validation_error_notification(notification_type, host, detail, stack_tr
         ],
     }
     notification.update(base_notification_obj)
-    try:
-        result = HostValidationErrorNotificationSchema().dumps(notification)
-    except ValidationError as e:
-        raise ValidationException(str(e.messages)) from None
+    result = HostValidationErrorNotificationSchema().dumps(notification)
     return result
 
 
@@ -153,21 +148,8 @@ def system_deleted_notification(notification_type, host):
     }
 
     notification.update(base_notification_obj)
-    try:
-        result = SystemDeletedSchema().dumps(notification)
-    except ValidationError as e:
-        raise ValidationException(str(e.messages)) from None
+    result = SystemDeletedSchema().dumps(notification)
     return result
-
-
-def build_rhel_version(system_profile: dict) -> str:
-    os = system_profile.get("operating_system")
-    if os:
-        if os.get("name") == "rhel":
-            major = os.get("major")
-            minor = os.get("minor")
-            return f"{major:03}.{minor:03}"
-    return ""
 
 
 def notification_headers(event_type: NotificationType):
@@ -179,14 +161,14 @@ def notification_headers(event_type: NotificationType):
     }
 
 
-def build_notification(notification_type, host: dict, **kwargs):
+def build_notification(notification_type, host, **kwargs):
     with notification_serialization_time.labels(notification_type.name).time():
         build = NOTIFICATION_TYPE_MAP[notification_type]
         result = build(notification_type, host, **kwargs)
         return result
 
 
-def build_base_notification_obj(notification_type, host: dict):
+def build_base_notification_obj(notification_type, host):
     base_obj = {
         "account_id": host.get("account", ""),
         "org_id": host.get("org_id"),
@@ -198,7 +180,7 @@ def build_base_notification_obj(notification_type, host: dict):
     return base_obj
 
 
-def send_notification(notification_event_producer, notification_type, host: dict, **kwargs):
+def send_notification(notification_event_producer, notification_type, host, **kwargs):
     notification = build_notification(notification_type, host, **kwargs)
     headers = notification_headers(notification_type)
     notification_event_producer.write_event(notification, None, headers, wait=True)

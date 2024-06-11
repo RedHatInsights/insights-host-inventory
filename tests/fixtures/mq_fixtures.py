@@ -120,7 +120,7 @@ def kafka_producer(mocker):
 # Creating a second kafka producer so the event producer and the
 # notification event producer can act separately in the tests
 @pytest.fixture(scope="function")
-def notif_kafka_producer(mocker):
+def notification_kafka_producer(mocker):
     kafka_producer = mocker.patch("app.queue.event_producer.KafkaProducer")
     yield kafka_producer
 
@@ -134,7 +134,7 @@ def event_producer(flask_app, kafka_producer):
 
 
 @pytest.fixture(scope="function")
-def notification_event_producer(flask_app, notif_kafka_producer):
+def notification_event_producer(flask_app, notification_kafka_producer):
     config = flask_app.config["INVENTORY_CONFIG"]
     flask_app.notification_event_producer = EventProducer(config, config.notification_topic)
     yield flask_app.notification_event_producer
