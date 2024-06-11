@@ -8,7 +8,7 @@ __all__ = ("build_paginated_host_list_response", "staleness_timestamps")
 
 
 def build_paginated_host_list_response(
-    total, page, per_page, host_list, additional_fields=tuple(), system_profile_fields=None
+    total, page, per_page, host_list, additional_fields=(), system_profile_fields=None
 ):
     timestamps = staleness_timestamps()
     identity = get_current_identity()

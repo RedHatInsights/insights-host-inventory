@@ -59,7 +59,7 @@ def test_remove_hosts_from_existing_group(
     assert len(hosts_before) == 3
 
     # Remove the first two hosts from the group
-    response_status, _ = api_remove_hosts_from_group(group_id, [host for host in host_id_list[0:2]])
+    response_status, _ = api_remove_hosts_from_group(group_id, host_id_list[0:2])
     assert response_status == 204
 
     # Confirm that the group now only contains the last host

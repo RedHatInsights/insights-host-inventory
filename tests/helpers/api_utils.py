@@ -498,10 +498,10 @@ def build_facts_url(host_list_or_id, namespace, query=None):
 
 
 def build_id_list_for_url(id_or_id_list):
-    if type(id_or_id_list) == dict:
+    if isinstance(id_or_id_list, dict):
         id_or_id_list = list(id_or_id_list.values())
 
-    if type(id_or_id_list) == list:
+    if isinstance(id_or_id_list, list):
         # check if the list contains hosts or strings
         if not any(isinstance(item, str) for item in id_or_id_list):
             return ",".join(get_id_list_from_hosts(id_or_id_list))

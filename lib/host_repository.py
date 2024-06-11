@@ -52,7 +52,7 @@ NULL = None
 logger = get_logger(__name__)
 
 
-def add_host(input_host, identity, staleness_offset, update_system_profile=True, operation_args={}):
+def add_host(input_host, identity, staleness_offset, update_system_profile=True, operation_args=None):
     """
     Add or update a host
 
@@ -60,6 +60,8 @@ def add_host(input_host, identity, staleness_offset, update_system_profile=True,
      - at least one of the canonical facts fields is required
      - org_id
     """
+    if operation_args is None:
+        operation_args = {}
     with session_guard(db.session):
         existing_host = find_existing_host(identity, input_host.canonical_facts)
         staleness = get_staleness_obj(identity)

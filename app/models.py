@@ -5,6 +5,8 @@ from datetime import datetime
 from datetime import timezone
 from enum import Enum
 from os.path import join
+from pathlib import Path
+from typing import Any
 
 from connexion.decorators.validation import coerce_type
 from dateutil.parser import isoparse
@@ -50,14 +52,17 @@ from app.validators import verify_uuid_format
 
 logger = get_logger(__name__)
 
-db = SQLAlchemy()
+db: Any = SQLAlchemy()
 migrate = Migrate(db)
 
 TAG_NAMESPACE_VALIDATION = marshmallow_validate.Length(max=255)
 TAG_KEY_VALIDATION = marshmallow_validate.Length(min=1, max=255)
 TAG_VALUE_VALIDATION = marshmallow_validate.Length(max=255)
 
-SPECIFICATION_DIR = "./swagger/"
+
+ROOT = Path(__file__).parent.parent
+SPECIFICATION_DIR = ROOT / "swagger"
+assert SPECIFICATION_DIR.is_dir()
 SYSTEM_PROFILE_SPECIFICATION_FILE = "system_profile.spec.yaml"
 
 # set edge host stale_timestamp way out in future to Year 2260
@@ -140,7 +145,7 @@ class SystemProfileNormalizer:
         return self.schema["$defs"]["SystemProfile"]
 
     def _object_filter(self, schema, payload):
-        if not schema.properties or type(payload) is not dict:
+        if not schema.properties or not isinstance(payload, dict):
             return
 
         for key in payload.keys() - schema.properties.keys():
@@ -149,7 +154,7 @@ class SystemProfileNormalizer:
             self.filter_keys(payload[key], schema.properties[key])
 
     def _array_filter(self, schema, payload):
-        if not schema.items or type(payload) is not list:
+        if not schema.items or not isinstance(payload, list):
             return
 
         for value in payload:
@@ -178,10 +183,14 @@ class LimitedHost(db.Model):
         account=None,
         org_id=None,
         facts=None,
-        tags={},
+        tags=None,
         system_profile_facts=None,
-        groups=[],
+        groups=None,
     ):
+        if groups is None:
+            groups = []
+        if tags is None:
+            tags = {}
         self.canonical_facts = canonical_facts
 
         if display_name:
@@ -265,13 +274,17 @@ class Host(LimitedHost):
         account=None,
         org_id=None,
         facts=None,
-        tags={},
+        tags=None,
         system_profile_facts=None,
         stale_timestamp=None,
         reporter=None,
         per_reporter_staleness=None,
-        groups=[],
+        groups=None,
     ):
+        if groups is None:
+            groups = []
+        if tags is None:
+            tags = {}
         if not canonical_facts:
             raise ValidationException("At least one of the canonical fact fields must be present.")
 
@@ -613,7 +626,7 @@ class Staleness(db.Model):
         self.immutable_time_to_stale_warning = immutable_time_to_stale_warning
         self.immutable_time_to_delete = immutable_time_to_delete
 
-    def days_to_seconds(n_days):
+    def days_to_seconds(n_days: int) -> int:
         factor = 86400
         return n_days * factor
 
@@ -877,9 +890,6 @@ class PatchHostSchema(MarshmallowSchema):
     ansible_host = fields.Str(validate=marshmallow_validate.Length(min=0, max=255))
     display_name = fields.Str(validate=marshmallow_validate.Length(min=1, max=200))
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
 
 class InputGroupSchema(MarshmallowSchema):
     name = fields.Str(validate=marshmallow_validate.Length(min=1, max=255))
@@ -892,9 +902,6 @@ class InputGroupSchema(MarshmallowSchema):
 
         return in_data
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
 
 class InputAssignmentRule(MarshmallowSchema):
     name = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=255))
@@ -902,9 +909,6 @@ class InputAssignmentRule(MarshmallowSchema):
     group_id = fields.Str(required=True, validate=verify_uuid_format)
     filter = fields.Dict(required=True)
     enabled = fields.Bool()
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
 
 
 class StalenessSchema(MarshmallowSchema):
@@ -939,6 +943,3 @@ class StalenessSchema(MarshmallowSchema):
                         >= data[(field_2 := f"{host_type}_{staleness_fields[j]}")]
                     ):
                         raise MarshmallowValidationError(f"{field_1} must be lower than {field_2}")
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)

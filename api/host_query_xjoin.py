@@ -119,7 +119,7 @@ def get_host_list_using_filters(all_filters, page, per_page, param_order_by, par
     limit, offset = pagination_params(page, per_page)
     xjoin_order_by, xjoin_order_how = params_to_order(param_order_by, param_order_how)
 
-    additional_fields = tuple()
+    additional_fields = ()
 
     # Adding host_type permanently so inventory can differentiate
     # immutable/edge, and conventional system when serializing host data
