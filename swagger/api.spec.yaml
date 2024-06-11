@@ -1957,10 +1957,10 @@ components:
           type: object
         enabled:
           type: boolean
-        created_on:
+        created:
           type: string
           format: date-time
-        modified_on:
+        modified:
           type: string
           format: date-time
       required:
@@ -1968,8 +1968,8 @@ components:
         - group_id
         - filter
         - enabled
-        - created_on
-        - modified_on
+        - created
+        - modified
     GroupOutWithHostCount:
       title: Group properties with host count
       description: >-
@@ -2124,12 +2124,12 @@ components:
             $ref: "#/components/schemas/StalenessId"
           org_id:
             $ref: "#/components/schemas/OrgId"
-          created_at:
+          created:
             description: A timestamp when the entry was created.
             type: string
             format: date-time
             nullable: true
-          updated_at:
+          updated:
             nullable: true
             description: A timestamp when the entry was last updated.
             type: string
@@ -2137,8 +2137,8 @@ components:
         required:
         - id
         - org_id
-        - created_at
-        - updated_at
+        - created
+        - updated
 
 
     # include renames for system_profile

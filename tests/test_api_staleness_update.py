@@ -42,7 +42,7 @@ def test_update_staleness_rbac_allowed(subtests, mocker, api_patch, db_create_st
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
             response_status, data = api_patch(url, _INPUT_DATA)
-            #todo: unify responses and always print
+            # todo: unify responses and always print
             pprint(data)
             assert_response_status(response_status, 200)
 
