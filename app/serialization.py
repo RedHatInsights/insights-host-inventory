@@ -248,8 +248,8 @@ def serialize_assignment_rule(assign_rule):
         "group_id": _serialize_uuid(assign_rule.group_id),
         "filter": assign_rule.filter,
         "enabled": assign_rule.enabled,
-        "created_on": _serialize_datetime(assign_rule.created_on),
-        "modified_on": _serialize_datetime(assign_rule.modified_on),
+        "created": _serialize_datetime(assign_rule.created_on),
+        "modified": _serialize_datetime(assign_rule.modified_on),
     }
 
 
@@ -404,8 +404,8 @@ def serialize_staleness_response(staleness):
         "immutable_time_to_stale": staleness.immutable_time_to_stale,
         "immutable_time_to_stale_warning": staleness.immutable_time_to_stale_warning,
         "immutable_time_to_delete": staleness.immutable_time_to_delete,
-        "created": "N/A" if staleness.created_on == "N/A" else _serialize_datetime(staleness.created_on),
-        "updated": "N/A" if staleness.modified_on == "N/A" else _serialize_datetime(staleness.modified_on),
+        "created": _serialize_datetime(staleness.created_on) if staleness.created_on is not None else None,
+        "updated": _serialize_datetime(staleness.modified_on) if staleness.modified_on is not None else None,
     }
 
 

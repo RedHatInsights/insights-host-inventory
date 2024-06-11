@@ -336,8 +336,8 @@ def assert_assign_rule_response(response_data, expected_data):
     assert response_data["group_id"] == expected_data["group_id"]
     assert response_data["filter"] == expected_data["filter"]
     assert response_data["enabled"] == expected_data["enabled"]
-    assert "created_on" in response_data
-    assert "modified_on" in response_data
+    assert "created" in response_data
+    assert "modified" in response_data
 
 
 def api_per_page_test(api_get, subtests, url, per_page, num_pages):

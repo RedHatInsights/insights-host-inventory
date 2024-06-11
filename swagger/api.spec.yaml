@@ -375,6 +375,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/GroupQueryOutput'
+        '400':
+          description: Groups not found.
+
     post:
       operationId: api.group.create_group
       tags:
@@ -401,6 +404,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/GroupOutWithHostCount'
+        "400":
+          "description": "Invalid request."
+        "403":
+          "description": "Forbidden - Invalid RBAC permission."
   '/groups/{group_id}':
     patch:
       operationId: api.group.patch_group_by_id
@@ -424,7 +431,7 @@ paths:
               $ref: '#/components/schemas/GroupIn'
       responses:
         '200':
-          description: Successfully merged group information.
+          description: Group information successfully or already previously merged.
           content:
             application/json:
               schema:
@@ -523,7 +530,7 @@ paths:
               $ref: '#/components/schemas/HostIds'
       responses:
         '200':
-          description: Successfully associated hosts with group.
+          description: Hosts successfully or already previously associated with group.
           content:
             application/json:
               schema:
@@ -577,6 +584,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ResourceTypesQueryOutput'
+        '400':
+          description: Resource types not found.
+
   /resource-types/inventory-groups:
     get:
       operationId: api.resource_type.get_resource_type_groups_list
@@ -600,6 +610,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ResourceTypesGroupsQueryOutput'
+        '400':
+          description: Groups not found.
 
   /tags:
     get:
@@ -791,6 +803,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/StalenessOutput'
+        '400':
+          description: "Invalid request."
     post:
       operationId: api.staleness.create_staleness
       tags:
@@ -816,6 +830,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/StalenessOutput'
+        '400':
+          description: "Invalid request."
     patch:
       operationId: api.staleness.update_staleness
       tags:
@@ -841,6 +857,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/StalenessOutput'
+        '400':
+          description: Invalid request.
+        '404':
+          description: Staleness record not found.
     delete:
       operationId: api.staleness.delete_staleness
       tags:
@@ -1764,25 +1784,23 @@ components:
             name.
           type: string
           example: host1.mydomain.com
+
+    TimeStamp:
+        type: string
+        format: date-time
+        example: '2020-02-10T08:07:03.354307+00:00'
+
     PerReporterStaleness:
       type: object
       properties:
         last_check_in:
-          type: string
-          format: date-time
-          example: '2020-02-10T08:07:03.354307+00:00'
+          $ref: '#/components/schemas/TimeStamp'
         stale_timestamp:
-          type: string
-          format: date-time
-          example: '2020-02-17T08:07:03.354307+00:00'
+          $ref: '#/components/schemas/TimeStamp'
         stale_warning_timestamp:
-          type: string
-          format: date-time
-          example: '2020-02-17T08:07:03.354307+00:00'
+          $ref: '#/components/schemas/TimeStamp'
         culled_timestamp:
-          type: string
-          format: date-time
-          example: '2020-02-17T08:07:03.354307+00:00'
+          $ref: '#/components/schemas/TimeStamp'
         check_in_succeeded:
           type: boolean
     ActiveTags:
@@ -1843,7 +1861,8 @@ components:
       example: bA6deCFc19564430AB814bf8F70E8cEf
     SystemDefaultId:
       type: string
-      pattern: system_default
+      enum:
+      - system_default
       example: system_default
     GroupId:
       description: >-
@@ -1890,12 +1909,11 @@ components:
       description: >-
         Data of a single group belonging to an account.
       type: object
-      allOf:
-        - properties:
-            name:
-              $ref: "#/components/schemas/GroupName"
-            host_ids:
-              $ref: "#/components/schemas/HostIds"
+      properties:
+        name:
+          $ref: "#/components/schemas/GroupName"
+        host_ids:
+          $ref: "#/components/schemas/HostIds"
     AssignmentRuleIn:
       title: Assignment Rule In
       description: >-
@@ -1947,10 +1965,10 @@ components:
           type: object
         enabled:
           type: boolean
-        created_on:
+        created:
           type: string
           format: date-time
-        modified_on:
+        modified:
           type: string
           format: date-time
       required:
@@ -1958,8 +1976,8 @@ components:
         - group_id
         - filter
         - enabled
-        - created_on
-        - modified_on
+        - created
+        - modified
     GroupOutWithHostCount:
       title: Group properties with host count
       description: >-
@@ -2073,61 +2091,63 @@ components:
             type: array
             items:
               $ref: '#/components/schemas/GroupOutWithHostCount'
+    StalenessTimeout:
+      type: integer
+      minimum: 1
+
     StalenessIn:
       title: Account Staleness In
       description: >-
         Data of a single account staleness.
       type: object
-      anyOf:
-        - properties:
-            conventional_time_to_stale:
-              type: integer
-              minimum: 1
-            conventional_time_to_stale_warning:
-              type: integer
-              minimum: 1
-            conventional_time_to_delete:
-              type: integer
-              minimum: 1
-            immutable_time_to_stale:
-              type: integer
-              minimum: 1
-            immutable_time_to_stale_warning:
-              type: integer
-              minimum: 1
-            immutable_time_to_delete:
-              type: integer
-              minimum: 1
+      properties:
+        conventional_time_to_stale:
+          $ref: '#/components/schemas/StalenessTimeout'
+        conventional_time_to_stale_warning:
+          $ref: '#/components/schemas/StalenessTimeout'
+        conventional_time_to_delete:
+          $ref: '#/components/schemas/StalenessTimeout'
+        immutable_time_to_stale:
+          $ref: '#/components/schemas/StalenessTimeout'
+        immutable_time_to_stale_warning:
+          $ref: '#/components/schemas/StalenessTimeout'
+        immutable_time_to_delete:
+          $ref: '#/components/schemas/StalenessTimeout'
     StalenessOutput:
       title: Account Staleness Out
       description: >-
         Data of a account staleness.
       type: object
-      properties:
-        id:
-          $ref: "#/components/schemas/StalenessId"
-        org_id:
-          $ref: "#/components/schemas/OrgId"
-        conventional_time_to_stale:
-          type: integer
-        conventional_time_to_stale_warning:
-          type: integer
-        conventional_time_to_delete:
-          type: integer
-        immutable_time_to_stale:
-          type: integer
-        immutable_time_to_stale_warning:
-          type: integer
-        immutable_time_to_delete:
-          type: integer
-        created_at:
-          description: A timestamp when the entry was created.
-          type: string
-          format: date-time
-        updated_at:
-          description: A timestamp when the entry was last updated.
-          type: string
-          format: date-time
+      allOf:
+      - $ref: "#/components/schemas/StalenessIn"
+      - required:
+        - conventional_time_to_stale
+        - conventional_time_to_stale_warning
+        - conventional_time_to_delete
+        - immutable_time_to_stale
+        - immutable_time_to_stale_warning
+        - immutable_time_to_delete
+      - properties:
+          id:
+            $ref: "#/components/schemas/StalenessId"
+          org_id:
+            $ref: "#/components/schemas/OrgId"
+          created:
+            description: A timestamp when the entry was created.
+            type: string
+            format: date-time
+            nullable: true
+          updated:
+            nullable: true
+            description: A timestamp when the entry was last updated.
+            type: string
+            format: date-time
+        required:
+        - id
+        - org_id
+        - created
+        - updated
+
 
     # include renames for system_profile
     SystemProfile:

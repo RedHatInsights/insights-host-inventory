@@ -644,6 +644,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Groups not found."
           }
         }
       },
@@ -683,6 +686,12 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Invalid request."
+          },
+          "403": {
+            "description": "Forbidden - Invalid RBAC permission."
           }
         }
       }
@@ -718,7 +727,7 @@
         },
         "responses": {
           "200": {
-            "description": "Successfully merged group information.",
+            "description": "Group information successfully or already previously merged.",
             "content": {
               "application/json": {
                 "schema": {
@@ -874,7 +883,7 @@
         },
         "responses": {
           "200": {
-            "description": "Successfully associated hosts with group.",
+            "description": "Hosts successfully or already previously associated with group.",
             "content": {
               "application/json": {
                 "schema": {
@@ -954,6 +963,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Resource types not found."
           }
         }
       }
@@ -992,6 +1004,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Groups not found."
           }
         }
       }
@@ -1334,6 +1349,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Invalid request."
           }
         }
       },
@@ -1373,6 +1391,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Invalid request."
           }
         }
       },
@@ -1412,6 +1433,12 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Invalid request."
+          },
+          "404": {
+            "description": "Staleness record not found."
           }
         }
       },
@@ -2674,28 +2701,25 @@
           }
         }
       },
+      "TimeStamp": {
+        "type": "string",
+        "format": "date-time",
+        "example": "2020-02-10T08:07:03.354307+00:00"
+      },
       "PerReporterStaleness": {
         "type": "object",
         "properties": {
           "last_check_in": {
-            "type": "string",
-            "format": "date-time",
-            "example": "2020-02-10T08:07:03.354307+00:00"
+            "$ref": "#/components/schemas/TimeStamp"
           },
           "stale_timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "example": "2020-02-17T08:07:03.354307+00:00"
+            "$ref": "#/components/schemas/TimeStamp"
           },
           "stale_warning_timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "example": "2020-02-17T08:07:03.354307+00:00"
+            "$ref": "#/components/schemas/TimeStamp"
           },
           "culled_timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "example": "2020-02-17T08:07:03.354307+00:00"
+            "$ref": "#/components/schemas/TimeStamp"
           },
           "check_in_succeeded": {
             "type": "boolean"
@@ -2786,7 +2810,9 @@
       },
       "SystemDefaultId": {
         "type": "string",
-        "pattern": "system_default",
+        "enum": [
+          "system_default"
+        ],
         "example": "system_default"
       },
       "GroupId": {
@@ -2842,18 +2868,14 @@
         "title": "Group In",
         "description": "Data of a single group belonging to an account.",
         "type": "object",
-        "allOf": [
-          {
-            "properties": {
-              "name": {
-                "$ref": "#/components/schemas/GroupName"
-              },
-              "host_ids": {
-                "$ref": "#/components/schemas/HostIds"
-              }
-            }
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/GroupName"
+          },
+          "host_ids": {
+            "$ref": "#/components/schemas/HostIds"
           }
-        ]
+        }
       },
       "AssignmentRuleIn": {
         "title": "Assignment Rule In",
@@ -2920,11 +2942,11 @@
           "enabled": {
             "type": "boolean"
           },
-          "created_on": {
+          "created": {
             "type": "string",
             "format": "date-time"
           },
-          "modified_on": {
+          "modified": {
             "type": "string",
             "format": "date-time"
           }
@@ -2934,8 +2956,8 @@
           "group_id",
           "filter",
           "enabled",
-          "created_on",
-          "modified_on"
+          "created",
+          "modified"
         ]
       },
       "GroupOutWithHostCount": {
@@ -3102,81 +3124,82 @@
           }
         ]
       },
+      "StalenessTimeout": {
+        "type": "integer",
+        "minimum": 1
+      },
       "StalenessIn": {
         "title": "Account Staleness In",
         "description": "Data of a single account staleness.",
         "type": "object",
-        "anyOf": [
-          {
-            "properties": {
-              "conventional_time_to_stale": {
-                "type": "integer",
-                "minimum": 1
-              },
-              "conventional_time_to_stale_warning": {
-                "type": "integer",
-                "minimum": 1
-              },
-              "conventional_time_to_delete": {
-                "type": "integer",
-                "minimum": 1
-              },
-              "immutable_time_to_stale": {
-                "type": "integer",
-                "minimum": 1
-              },
-              "immutable_time_to_stale_warning": {
-                "type": "integer",
-                "minimum": 1
-              },
-              "immutable_time_to_delete": {
-                "type": "integer",
-                "minimum": 1
-              }
-            }
+        "properties": {
+          "conventional_time_to_stale": {
+            "$ref": "#/components/schemas/StalenessTimeout"
+          },
+          "conventional_time_to_stale_warning": {
+            "$ref": "#/components/schemas/StalenessTimeout"
+          },
+          "conventional_time_to_delete": {
+            "$ref": "#/components/schemas/StalenessTimeout"
+          },
+          "immutable_time_to_stale": {
+            "$ref": "#/components/schemas/StalenessTimeout"
+          },
+          "immutable_time_to_stale_warning": {
+            "$ref": "#/components/schemas/StalenessTimeout"
+          },
+          "immutable_time_to_delete": {
+            "$ref": "#/components/schemas/StalenessTimeout"
           }
-        ]
+        }
       },
       "StalenessOutput": {
         "title": "Account Staleness Out",
         "description": "Data of a account staleness.",
         "type": "object",
-        "properties": {
-          "id": {
-            "$ref": "#/components/schemas/StalenessId"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/StalenessIn"
           },
-          "org_id": {
-            "$ref": "#/components/schemas/OrgId"
+          {
+            "required": [
+              "conventional_time_to_stale",
+              "conventional_time_to_stale_warning",
+              "conventional_time_to_delete",
+              "immutable_time_to_stale",
+              "immutable_time_to_stale_warning",
+              "immutable_time_to_delete"
+            ]
           },
-          "conventional_time_to_stale": {
-            "type": "integer"
-          },
-          "conventional_time_to_stale_warning": {
-            "type": "integer"
-          },
-          "conventional_time_to_delete": {
-            "type": "integer"
-          },
-          "immutable_time_to_stale": {
-            "type": "integer"
-          },
-          "immutable_time_to_stale_warning": {
-            "type": "integer"
-          },
-          "immutable_time_to_delete": {
-            "type": "integer"
-          },
-          "created_at": {
-            "description": "A timestamp when the entry was created.",
-            "type": "string",
-            "format": "date-time"
-          },
-          "updated_at": {
-            "description": "A timestamp when the entry was last updated.",
-            "type": "string",
-            "format": "date-time"
+          {
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/StalenessId"
+              },
+              "org_id": {
+                "$ref": "#/components/schemas/OrgId"
+              },
+              "created": {
+                "description": "A timestamp when the entry was created.",
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "updated": {
+                "nullable": true,
+                "description": "A timestamp when the entry was last updated.",
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "id",
+              "org_id",
+              "created",
+              "updated"
+            ]
           }
-        }
+        ]
       },
       "SystemProfile": {
         "title": "SystemProfile",
