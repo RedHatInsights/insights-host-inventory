@@ -232,8 +232,8 @@ def log_add_host_attempt(logger, input_host):
     )
 
 
-def log_add_update_host_succeeded(logger, add_result, host_data, output_host):
-    metrics.add_host_success.labels(add_result.name, host_data.get("reporter", "null")).inc()  # created vs updated
+def log_add_update_host_succeeded(logger, add_result, output_host):
+    metrics.add_host_success.labels(add_result.name, output_host.get("reporter", "null")).inc()  # created vs updated
     # log all the incoming host data except facts and system_profile b/c they can be quite large
     logger.info(
         "Host %s",

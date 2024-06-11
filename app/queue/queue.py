@@ -3,6 +3,9 @@ import json
 import sys
 import uuid
 from copy import deepcopy
+from datetime import datetime
+from datetime import timedelta
+from functools import partial
 from uuid import UUID
 
 from marshmallow import fields
@@ -27,12 +30,14 @@ from app.instrumentation import log_update_system_profile_failure
 from app.instrumentation import log_update_system_profile_success
 from app.logging import get_logger
 from app.logging import threadctx
+from app.models import db
 from app.models import Host
 from app.models import LimitedHostSchema
 from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
 from app.queue import metrics
+from app.queue.event_producer import EventProducer
 from app.queue.events import build_event
 from app.queue.events import EventType
 from app.queue.events import message_headers
@@ -42,7 +47,9 @@ from app.queue.notifications import notification_headers
 from app.queue.notifications import NotificationType
 from app.serialization import deserialize_canonical_facts
 from app.serialization import deserialize_host
+from app.serialization import serialize_host
 from lib import host_repository
+from lib.db import session_guard
 
 logger = get_logger(__name__)
 
@@ -55,6 +62,17 @@ class OperationSchema(Schema):
     operation_args = fields.Dict()
     platform_metadata = fields.Dict()
     data = fields.Dict(required=True)
+
+
+# Helper class to facilitate batch operations
+class OperationResult:
+    def __init__(self, hr, pm, st, so, et, sl):
+        self.host_row = hr
+        self.platform_metadata = pm
+        self.staleness_timestamps = st
+        self.staleness_object = so
+        self.event_type = et
+        self.success_logger = sl
 
 
 # input is a base64 encoded utf-8 string. b64decode returns bytes, which
@@ -219,19 +237,14 @@ def update_system_profile(host_data, platform_metadata, operation_args={}):
         payload_tracker,
         processing_status_message="updating host system profile",
         current_operation="updating host system profile",
-    ) as payload_tracker_processing_ctx:
+    ):
         try:
             input_host = deserialize_host(host_data, schema=LimitedHostSchema)
             input_host.id = host_data.get("id")
-            staleness_timestamps = Timestamps.from_config(inventory_config())
             identity = create_mock_identity_with_org_id(input_host.org_id)
-            staleness = get_staleness_obj(identity)
-            output_host, host_id, insights_id, update_result = host_repository.update_system_profile(
-                input_host, identity, staleness_timestamps, staleness=staleness
-            )
-            log_update_system_profile_success(logger, output_host)
-            payload_tracker_processing_ctx.inventory_id = output_host["id"]
-            return output_host, host_id, insights_id, update_result
+            output_host, update_result = host_repository.update_system_profile(input_host, identity)
+            success_logger = partial(log_update_system_profile_success, logger)
+            return output_host, update_result, identity, success_logger
         except ValidationException:
             metrics.update_system_profile_failure.labels("ValidationException").inc()
             raise
@@ -252,7 +265,7 @@ def add_host(host_data, platform_metadata, operation_args={}):
 
     with PayloadTrackerProcessingContext(
         payload_tracker, processing_status_message="adding/updating host", current_operation="adding/updating host"
-    ) as payload_tracker_processing_ctx:
+    ):
         try:
             identity = _get_identity(host_data, platform_metadata)
             # basic-auth does not need owner_id
@@ -260,14 +273,11 @@ def add_host(host_data, platform_metadata, operation_args={}):
                 host_data = _set_owner(host_data, identity)
 
             input_host = deserialize_host(host_data)
-            staleness_timestamps = Timestamps.from_config(inventory_config())
             log_add_host_attempt(logger, input_host)
-            output_host, host_id, insights_id, add_result = host_repository.add_host(
-                input_host, identity, staleness_timestamps, operation_args=operation_args
-            )
-            log_add_update_host_succeeded(logger, add_result, host_data, output_host)
-            payload_tracker_processing_ctx.inventory_id = output_host["id"]
-            return output_host, host_id, insights_id, add_result
+            host_row, add_result = host_repository.add_host(input_host, identity, operation_args=operation_args)
+            success_logger = partial(log_add_update_host_succeeded, logger, add_result)
+
+            return host_row, add_result, identity, success_logger
         except ValidationException:
             metrics.add_host_failure.labels("ValidationException", host_data.get("reporter", "null")).inc()
             raise
@@ -284,7 +294,7 @@ def add_host(host_data, platform_metadata, operation_args={}):
 
 
 @metrics.ingress_message_handler_time.time()
-def handle_message(message, event_producer, notification_event_producer, message_operation=add_host):
+def handle_message(message, notification_event_producer, message_operation=add_host):
     validated_operation_msg = parse_operation_message(message)
     platform_metadata = validated_operation_msg.get("platform_metadata", {})
 
@@ -298,23 +308,20 @@ def handle_message(message, event_producer, notification_event_producer, message
     ):
         try:
             host = validated_operation_msg["data"]
-            org_id = host["org_id"]
-
-            output_host, host_id, insights_id, operation_result = message_operation(
+            host_row, operation_result, identity, success_logger = message_operation(
                 host, platform_metadata, validated_operation_msg.get("operation_args", {})
             )
+            staleness_timestamps = Timestamps.from_config(inventory_config())
             event_type = operation_results_to_event_type(operation_result)
-            event = build_event(event_type, output_host, platform_metadata=platform_metadata)
-
-            headers = message_headers(
-                operation_result,
-                insights_id,
-                host.get("reporter"),
-                output_host.get("system_profile", {}).get("host_type"),
-                output_host.get("system_profile", {}).get("operating_system", {}).get("name"),
+            return OperationResult(
+                host_row,
+                platform_metadata,
+                staleness_timestamps,
+                get_staleness_obj(identity),
+                event_type,
+                success_logger,
             )
-            event_producer.write_event(event, str(host_id), headers, wait=True)
-            delete_keys(org_id)
+
         except ValidationException as ve:
             logger.error(
                 "Validation error while adding or updating host: %s",
@@ -338,37 +345,95 @@ def handle_message(message, event_producer, notification_event_producer, message
             raise
 
 
+def write_add_update_event_message(event_producer: EventProducer, result: OperationResult):
+    output_host = serialize_host(result.host_row, result.staleness_timestamps, staleness=result.staleness_object)
+    insights_id = result.host_row.canonical_facts.get("insights_id")
+    event = build_event(result.event_type, output_host, platform_metadata=result.platform_metadata)
+
+    org_id = output_host["org_id"]
+    headers = message_headers(
+        result.event_type,
+        insights_id,
+        output_host.get("reporter"),
+        output_host.get("system_profile", {}).get("host_type"),
+        output_host.get("system_profile", {}).get("operating_system", {}).get("name"),
+    )
+    event_producer.write_event(event, str(result.host_row.id), headers, wait=True)
+    delete_keys(org_id)
+    result.success_logger(output_host)
+
+
+def write_message_batch(event_producer, processed_rows):
+    for result in processed_rows:
+        if result is not None:
+            request_id = result.platform_metadata.get("request_id")
+            payload_tracker = get_payload_tracker(request_id=request_id)
+
+            with PayloadTrackerContext(
+                payload_tracker,
+                received_status_message="host operation complete",
+                current_operation="write_message_batch",
+            ) as payload_tracker_processing_ctx:
+                payload_tracker_processing_ctx.inventory_id = result.host_row.id
+                write_add_update_event_message(event_producer, result)
+
+
 def event_loop(consumer, flask_app, event_producer, notification_event_producer, handler, interrupt):
     with flask_app.app_context():
         while not interrupt():
-            messages = consumer.consume(timeout=CONSUMER_POLL_TIMEOUT_SECONDS)
-            for msg in messages:
-                if msg is None:
-                    continue
-                elif msg.error():
-                    # This error is returned by the very first of consumer.consume() against a newly started Kafka.
-                    # msg.error() produces:
-                    # KafkaError{code=UNKNOWN_TOPIC_OR_PART,val=3,str="Subscribed topic not available:
-                    #   platform.inventory.host-ingress: Broker: Unknown topic or partition"}
-                    logger.error(f"Message received but has an error, which is {str(msg.error())}")
-                    metrics.ingress_message_handler_failure.inc()
-                else:
-                    logger.debug("Message received")
+            processed_rows = []
+            start_time = datetime.now()
+            with session_guard(db.session):
+                while (
+                    not interrupt()
+                    and (len(processed_rows) < inventory_config().mq_db_batch_max_messages)
+                    and (start_time + timedelta(seconds=inventory_config().mq_db_batch_max_seconds) > datetime.now())
+                ):
+                    messages = consumer.consume(timeout=CONSUMER_POLL_TIMEOUT_SECONDS)
 
-                    try:
-                        handler(msg.value(), event_producer, notification_event_producer=notification_event_producer)
-                        metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
-                        metrics.ingress_message_handler_success.inc()
-                    except OperationalError as oe:
-                        """sqlalchemy.exc.OperationalError: This error occurs when an
-                        authentication failure occurs or the DB is not accessible.
-                        Exit the process to restart the pod
-                        """
-                        logger.error(f"Could not access DB {str(oe)}")
-                        sys.exit(3)
-                    except Exception:
-                        metrics.ingress_message_handler_failure.inc()
-                        logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
+                    commit_batch_early = True
+                    for msg in messages:
+                        if msg is None:
+                            continue
+                        elif msg.error():
+                            # This error is raised by the first consumer.consume() on a newly started Kafka.
+                            # msg.error() produces:
+                            # KafkaError{code=UNKNOWN_TOPIC_OR_PART,val=3,str="Subscribed topic not available:
+                            #   platform.inventory.host-ingress: Broker: Unknown topic or partition"}
+                            logger.error(f"Message received but has an error, which is {str(msg.error())}")
+                            metrics.ingress_message_handler_failure.inc()
+                        else:
+                            logger.debug("Message received")
+
+                            try:
+                                processed_rows.append(
+                                    handler(
+                                        msg.value(),
+                                        notification_event_producer=notification_event_producer,
+                                    )
+                                )
+                                commit_batch_early = False
+                                metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
+                                metrics.ingress_message_handler_success.inc()
+                            except OperationalError as oe:
+                                """sqlalchemy.exc.OperationalError: This error occurs when an
+                                authentication failure occurs or the DB is not accessible.
+                                Exit the process to restart the pod
+                                """
+                                logger.error(f"Could not access DB {str(oe)}")
+                                sys.exit(3)
+                            except Exception:
+                                metrics.ingress_message_handler_failure.inc()
+                                logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
+
+                    # If no messages were consumed, go ahead and commit so we're not waiting for no reason
+                    if commit_batch_early:
+                        break
+
+                db.session.commit()
+                # The above session is automatically committed or rolled back.
+                # Now we need to send out messages for the batch of hosts we just processed.
+                write_message_batch(event_producer, processed_rows)
 
 
 def initialize_thread_local_storage(request_id):

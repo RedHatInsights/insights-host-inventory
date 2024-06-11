@@ -201,6 +201,10 @@ objects:
               optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
+        - name: MQ_DB_BATCH_MAX_MESSAGES
+          value: ${MQ_DB_BATCH_MAX_MESSAGES}
+        - name: MQ_DB_BATCH_MAX_SECONDS
+          value: ${MQ_DB_BATCH_MAX_SECONDS}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -282,6 +286,10 @@ objects:
               optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
+        - name: MQ_DB_BATCH_MAX_MESSAGES
+          value: ${MQ_DB_BATCH_MAX_MESSAGES}
+        - name: MQ_DB_BATCH_MAX_SECONDS
+          value: ${MQ_DB_BATCH_MAX_SECONDS}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -360,6 +368,10 @@ objects:
               optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
+        - name: MQ_DB_BATCH_MAX_MESSAGES
+          value: ${MQ_DB_BATCH_MAX_MESSAGES}
+        - name: MQ_DB_BATCH_MAX_SECONDS
+          value: ${MQ_DB_BATCH_MAX_SECONDS}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -948,6 +960,10 @@ parameters:
   value: '0'
 - name: INVENTORY_API_CACHE_TYPE
   value: 'NullCache'
+- name: MQ_DB_BATCH_MAX_MESSAGES
+  value: '1'
+- name: MQ_DB_BATCH_MAX_SECONDS
+  value: '1'
 
 # Feature flags
 - description: Unleash secret name
