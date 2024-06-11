@@ -404,12 +404,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/GroupOutWithHostCount'
-        "400": {
+        "400":
           "description": "Invalid request."
-        }
-        "403": {
+        "403":
           "description": "Forbidden - Invalid RBAC permission."
-        }
   '/groups/{group_id}':
     patch:
       operationId: api.group.patch_group_by_id
