@@ -13,13 +13,10 @@ from app.config import HOST_TYPES
 from app.culling import staleness_to_conditions
 from app.exceptions import InventoryException
 from app.logging import get_logger
-from app.models import db
 from app.models import Host
 from app.models import HostGroupAssoc
-from app.serialization import serialize_host
 from app.serialization import serialize_staleness_to_dict
 from lib import metrics
-from lib.db import session_guard
 
 
 __all__ = (
@@ -52,7 +49,7 @@ NULL = None
 logger = get_logger(__name__)
 
 
-def add_host(input_host, identity, staleness_offset, update_system_profile=True, operation_args={}):
+def add_host(input_host, identity, update_system_profile=True, operation_args={}):
     """
     Add or update a host
 
@@ -60,22 +57,18 @@ def add_host(input_host, identity, staleness_offset, update_system_profile=True,
      - at least one of the canonical facts fields is required
      - org_id
     """
-    with session_guard(db.session):
-        existing_host = find_existing_host(identity, input_host.canonical_facts)
-        staleness = get_staleness_obj(identity)
-        if existing_host:
-            defer_to_reporter = operation_args.get("defer_to_reporter", None)
-            if defer_to_reporter is not None:
-                logger.debug("host_repository.add_host: defer_to_reporter = %s", defer_to_reporter)
-                if not existing_host.reporter_stale(defer_to_reporter):
-                    logger.debug("host_repository.add_host: setting update_system_profile = False")
-                    update_system_profile = False
+    existing_host = find_existing_host(identity, input_host.canonical_facts)
+    if existing_host:
+        defer_to_reporter = operation_args.get("defer_to_reporter", None)
+        if defer_to_reporter is not None:
+            logger.debug("host_repository.add_host: defer_to_reporter = %s", defer_to_reporter)
+            if not existing_host.reporter_stale(defer_to_reporter):
+                logger.debug("host_repository.add_host: setting update_system_profile = False")
+                update_system_profile = False
 
-            return update_existing_host(
-                existing_host, input_host, staleness_offset, update_system_profile, staleness=staleness
-            )
-        else:
-            return create_new_host(input_host, staleness_offset, staleness=staleness)
+        return update_existing_host(existing_host, input_host, update_system_profile)
+    else:
+        return create_new_host(input_host)
 
 
 @metrics.host_dedup_processing_time.time()
@@ -221,35 +214,28 @@ def find_non_culled_hosts(query, identity=None):
 
 
 @metrics.new_host_commit_processing_time.time()
-def create_new_host(input_host, staleness_offset, staleness):
+def create_new_host(input_host):
     logger.debug("Creating a new host")
 
     input_host.save()
-    db.session.commit()
 
     metrics.create_host_count.inc()
-    logger.debug("Created host:%s", input_host)
+    logger.debug("Created host (uncommitted):%s", input_host)
 
-    output_host = serialize_host(input_host, staleness_offset, staleness=staleness)
-    insights_id = input_host.canonical_facts.get("insights_id")
-
-    return output_host, input_host.id, insights_id, AddHostResult.created
+    return input_host, AddHostResult.created
 
 
 @metrics.update_host_commit_processing_time.time()
-def update_existing_host(existing_host, input_host, staleness_offset, update_system_profile, staleness):
+def update_existing_host(existing_host, input_host, update_system_profile):
     logger.debug("Updating an existing host")
     logger.debug(f"existing host = {existing_host}")
 
     existing_host.update(input_host, update_system_profile)
-    db.session.commit()
 
     metrics.update_host_count.inc()
-    logger.debug("Updated host:%s", existing_host)
-    output_host = serialize_host(existing_host, staleness_offset, staleness=staleness)
-    insights_id = existing_host.canonical_facts.get("insights_id")
+    logger.debug("Updated host (uncommitted):%s", existing_host)
 
-    return output_host, existing_host.id, insights_id, AddHostResult.updated
+    return existing_host, AddHostResult.updated
 
 
 def stale_timestamp_filter(gt=None, lte=None, host_type=None):
@@ -299,35 +285,31 @@ def update_query_for_owner_id(identity, query):
         return query
 
 
-def update_system_profile(input_host, identity, staleness_offset, staleness):
+def update_system_profile(input_host, identity):
     if not input_host.system_profile_facts:
         raise InventoryException(
             title="Invalid request", detail="Cannot update System Profile, since no System Profile data was provided."
         )
 
-    with session_guard(db.session):
-        if input_host.id:
-            existing_host = find_existing_host_by_id(identity, input_host.id)
-        else:
-            existing_host = find_existing_host(identity, input_host.canonical_facts)
+    if input_host.id:
+        existing_host = find_existing_host_by_id(identity, input_host.id)
+    else:
+        existing_host = find_existing_host(identity, input_host.canonical_facts)
 
-        if existing_host:
-            logger.debug("Updating system profile on an existing host")
-            logger.debug(f"existing host = {existing_host}")
+    if existing_host:
+        logger.debug("Updating system profile on an existing host")
+        logger.debug(f"existing host = {existing_host}")
 
-            existing_host.update_system_profile(input_host.system_profile_facts)
-            db.session.commit()
+        existing_host.update_system_profile(input_host.system_profile_facts)
 
-            metrics.update_host_count.inc()
-            logger.debug("Updated system profile for host:%s", existing_host)
+        metrics.update_host_count.inc()
+        logger.debug("Updated system profile for host (uncommitted):%s", existing_host)
 
-            output_host = serialize_host(existing_host, staleness_offset, staleness=staleness)
-            insights_id = existing_host.canonical_facts.get("insights_id")
-            return output_host, existing_host.id, insights_id, AddHostResult.updated
-        else:
-            raise InventoryException(
-                title="Invalid request", detail="Could not find an existing host with the provided facts."
-            )
+        return existing_host, AddHostResult.updated
+    else:
+        raise InventoryException(
+            title="Invalid request", detail="Could not find an existing host with the provided facts."
+        )
 
 
 def get_host_list_by_id_list_from_db(host_id_list, rbac_filter=None, columns=None):

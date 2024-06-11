@@ -5,9 +5,11 @@ from unittest.mock import patch
 
 import pytest
 
+from app import db
 from app.queue.event_producer import EventProducer
 from app.queue.queue import add_host
 from app.queue.queue import handle_message
+from app.queue.queue import write_add_update_event_message
 from app.utils import HostWrapper
 from tests.helpers.api_utils import FACTS
 from tests.helpers.api_utils import TAGS
@@ -36,7 +38,9 @@ def mq_create_or_update_host(flask_app, event_producer_mock, notification_event_
             platform_metadata = get_platform_metadata()
 
         message = wrap_message(host_data.data(), platform_metadata=platform_metadata, operation_args=operation_args)
-        handle_message(json.dumps(message), event_producer, notification_event_producer, message_operation)
+        result = handle_message(json.dumps(message), notification_event_producer, message_operation)
+        db.session.commit()
+        write_add_update_event_message(event_producer, result)
         event = json.loads(event_producer.event)
 
         if return_all_data:

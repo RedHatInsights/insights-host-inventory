@@ -38,11 +38,11 @@ class MockEventProducer:
 
 class FakeMessage:
     def __init__(self, error=None, message=None):
-        self.message = message
+        self.message = message or Mock()
         self._error = error
 
     def value(self):
-        return Mock()
+        return self.message
 
     def error(self):
         return self._error
