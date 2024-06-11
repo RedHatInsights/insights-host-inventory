@@ -406,7 +406,6 @@ def serialize_staleness_response(staleness):
         "immutable_time_to_delete": staleness.immutable_time_to_delete,
         "created": _serialize_datetime(staleness.created_on) if staleness.created_on is not None else None,
         "updated": _serialize_datetime(staleness.modified_on) if staleness.modified_on is not None else None,
-        # TODO: investigate why e serialized ot the wrong names
     }
 
 
