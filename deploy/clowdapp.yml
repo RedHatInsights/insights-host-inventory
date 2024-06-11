@@ -961,7 +961,7 @@ parameters:
 - name: INVENTORY_API_CACHE_TYPE
   value: 'NullCache'
 - name: MQ_DB_BATCH_MAX_MESSAGES
-  value: '50'
+  value: '1'
 - name: MQ_DB_BATCH_MAX_SECONDS
   value: '1'
 
