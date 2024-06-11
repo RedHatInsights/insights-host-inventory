@@ -66,7 +66,7 @@ def test_event_loop_exception_handling(mocker, event_producer, flask_app):
         event_producer,
         fake_notification_event_producer,
         handler=handle_message_mock,
-        interrupt=mocker.Mock(side_effect=(False, False, False, False, False, True, True)),
+        interrupt=mocker.Mock(side_effect=(False, False, False, False, False, False, False, True, True)),
     )
     assert handle_message_mock.call_count == 3
 
@@ -86,7 +86,7 @@ def test_event_loop_with_error_message_handling(mocker, event_producer, flask_ap
         event_producer,
         fake_notification_event_producer,
         handler=handle_message_mock,
-        interrupt=mocker.Mock(side_effect=(False, False, False, False, False, True, True)),
+        interrupt=mocker.Mock(side_effect=(False, False, False, False, False, False, False, True, True)),
     )
 
     assert handle_message_mock.call_count == 2

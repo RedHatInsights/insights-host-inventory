@@ -366,7 +366,16 @@ def write_add_update_event_message(event_producer: EventProducer, result: Operat
 def write_message_batch(event_producer, processed_rows):
     for result in processed_rows:
         if result is not None:
-            write_add_update_event_message(event_producer, result)
+            request_id = result.platform_metadata.get("request_id")
+            payload_tracker = get_payload_tracker(request_id=request_id)
+
+            with PayloadTrackerContext(
+                payload_tracker,
+                received_status_message="host operation complete",
+                current_operation="write_message_batch",
+            ) as payload_tracker_processing_ctx:
+                payload_tracker_processing_ctx.inventory_id = result.host_row.id
+                write_add_update_event_message(event_producer, result)
 
 
 def event_loop(consumer, flask_app, event_producer, notification_event_producer, handler, interrupt):
