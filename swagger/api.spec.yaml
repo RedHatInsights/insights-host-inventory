@@ -900,6 +900,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/StalenessOutput'
+        '400':
+          description: "Invalid request."
 
   /assignment-rules:
     get:
