@@ -4025,6 +4025,30 @@
                 "example": true
               }
             }
+          },
+          "third_party_services": {
+            "description": "Object containing information about system facts of third party services",
+            "type": "object",
+            "properties": {
+              "crowdstrike": {
+                "description": "Object containing information about CrowdStrike system facts",
+                "type": "object",
+                "properties": {
+                  "falcon_aid": {
+                    "description": "CrowdStrike Falcon Agent ID",
+                    "type": "string",
+                    "example": "44e3b7d20b434a2bb2815d9808fa3a8b",
+                    "maxLength": 32
+                  },
+                  "falcon_backend": {
+                    "description": "CrowdStrike Falcon Sensor backend",
+                    "type": "string",
+                    "example": "auto, kernel, bpf",
+                    "maxLength": 32
+                  }
+                }
+              }
+            }
           }
         }
       },
