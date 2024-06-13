@@ -1048,6 +1048,9 @@ def test_get_hosts_order_by_operating_system(mq_create_or_update_host, api_get, 
         )
         for insights_id in shuffled_insights_ids
     ]
+    # Create host without operating system
+    minimal_host(insights_id=generate_uuid(), system_profile={})
+
     query = "?order_by=operating_system"
     if order_how:
         query += f"&order_how={order_how}"
