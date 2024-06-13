@@ -193,16 +193,6 @@ def _validate_json_object_for_utf8(json_object):
         pass
 
 
-def _build_minimal_host_info(host_data):
-    return {
-        "account_id": host_data.get("account"),
-        "org_id": host_data.get("org_id"),
-        "display_name": host_data.get("display_name"),
-        "id": host_data.get("host_id"),
-        "canonical_facts": deserialize_canonical_facts(host_data, all=True),
-    }
-
-
 @metrics.common_message_parsing_time.time()
 def common_message_parser(message):
     try:
