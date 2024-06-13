@@ -430,6 +430,7 @@ objects:
             secretKeyRef:
               name: export-service-psk
               key: psk
+              optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
         image: ${IMAGE}:${IMAGE_TAG}
