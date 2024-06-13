@@ -89,6 +89,8 @@ def create_group(body, rbac_filter=None):
         created_group = add_group(validated_create_group_data, current_app.event_producer)
         create_group_count.inc()
 
+        current_identity = get_current_identity()
+        delete_keys(current_identity.org_id)
         log_create_group_succeeded(logger, created_group.id)
     except IntegrityError as inte:
         group_name = validated_create_group_data.get("name")
