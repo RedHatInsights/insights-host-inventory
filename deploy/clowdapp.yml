@@ -17,6 +17,7 @@ objects:
       - rbac
       - xjoin-search
       - ingress
+      - export-service
     deployments:
     - name: service
       replicas: ${{REPLICAS_SVC}}
@@ -393,6 +394,61 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_MQ_SP}
             memory: ${MEMORY_REQUEST_MQ_SP}
+    - name: export-service
+      minReplicas: ${{REPLICAS_EXPORT_SVC}}
+      podSpec:
+        args: ["./inv_mq_service.py"]
+        env:
+        - name: INVENTORY_LOG_LEVEL
+          value: DEBUG
+        - name: INVENTORY_DB_SSL_MODE
+          value: ${INVENTORY_DB_SSL_MODE}
+        - name: INVENTORY_DB_SSL_CERT
+          value: ${INVENTORY_DB_SSL_CERT}
+        - name: KAFKA_EXPORT_SERVICE_TOPIC
+          value: ${KAFKA_EXPORT_SERVICE_TOPIC}
+        - name: KAFKA_SECURITY_PROTOCOL
+          value: ${KAFKA_SECURITY_PROTOCOL}
+        - name: KAFKA_SASL_MECHANISM
+          value: ${KAFKA_SASL_MECHANISM}
+        - name: TENANT_TRANSLATOR_URL
+          value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
+        - name: BYPASS_TENANT_TRANSLATION
+          value: ${BYPASS_TENANT_TRANSLATION}
+        - name: CLOWDER_ENABLED
+          value: "true"
+        - name: UNLEASH_URL
+          value: ${UNLEASH_URL}
+        - name: UNLEASH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: ${UNLEASH_SECRET_NAME}
+              key: CLIENT_ACCESS_TOKEN
+              optional: true
+        - name: BYPASS_UNLEASH
+          value: ${BYPASS_UNLEASH}
+        image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /
+            port: 9000
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+        readinessProbe:
+          tcpSocket:
+            port: 9000
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_EXPORT_SVC}
+            memory: ${MEMORY_LIMIT_EXPORT_SVC}
+          requests:
+            cpu: ${CPU_REQUEST_EXPORT_SVC}
+            memory: ${MEMORY_REQUEST_EXPORT_SVC}
+
     jobs:
     - name: reaper
       schedule: '@hourly'
@@ -694,6 +750,8 @@ objects:
         partitions: 1
       - topicName: ${KAFKA_HOST_INGRESS_P1_TOPIC}
         partitions: 1
+      - topicName: ${KAFKA_EXPORT_SERVICE_TOPIC}
+        partitions: 1
 # this service proxies requests for the old URL (insights-inventory:8080) to the clowderized service (host-inventory-service:8000)
 - apiVersion: v1
   kind: Service
@@ -829,6 +887,15 @@ parameters:
 - name: MEMORY_LIMIT_PG_REPACK
   value: 512Mi
 
+- name: CPU_REQUEST_EXPORT_SVC
+  value: 250m
+- name: CPU_LIMIT_EXPORT_SVC
+  value: 500m
+- name: MEMORY_REQUEST_EXPORT_SVC
+  value: 256Mi
+- name: MEMORY_LIMIT_EXPORT_SVC
+  value: 512Mi
+
 - description: Replica count for p1 consumer
   name: REPLICAS_P1
   value: "5"
@@ -841,6 +908,9 @@ parameters:
 - description: Replica count for webservice
   name: REPLICAS_SVC
   value: "10"
+- description: Replica count for export-service
+  name: REPLICAS_EXPORT_SVC
+  value: "2"
 - description: Image tag
   name: IMAGE_TAG
   required: true
@@ -904,6 +974,9 @@ parameters:
 - name: KAFKA_SYSTEM_PROFILE_TOPIC
   description: The topic containing Host data for System Profile updates
   value: platform.inventory.system-profile
+- name: KAFKA_EXPORT_SERVICE_TOPIC
+  description: The topic used to consume Export Service data
+  value: platform.export.requests
 - name: KAFKA_HOST_INGRESS_GROUP
   description: The Kafka consumer group name
   value: inventory-mq

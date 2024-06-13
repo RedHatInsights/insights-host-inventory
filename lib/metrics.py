@@ -46,3 +46,9 @@ pendo_fetching_failure = Counter(
 )
 
 delete_duplicate_host_count = Counter("inventory_delete_duplicate_host_count", "The total amount of hosts deleted")
+
+# Export Service
+create_export_processing_time = Summary(
+    "inventory_new_export_seconds", "Time spent to create a new host export report"
+)
+create_export_count = Counter("inventory_create_export", "The total amount of host exports created")

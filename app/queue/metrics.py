@@ -4,6 +4,15 @@ from prometheus_client import Summary
 
 from app.common import get_build_version
 
+
+common_message_parsing_time = Summary(
+    "inventory_common_message_parsing_seconds", "Time spent parsing common inventory messages"
+)
+common_message_parsing_failure = Counter(
+    "inventory_common_message_parsing_failures",
+    "Total amount of failures parsing common inventory messages",
+    ["cause"],
+)
 ingress_message_parsing_time = Summary(
     "inventory_ingress_message_parsing_seconds", "Time spent parsing a message from the ingress queue"
 )
@@ -72,4 +81,25 @@ db_communication_error = Counter(
     "inventory_mq_db_communication_error",
     "Total number of connection errors between inventory-mq and the DB",
     ["id", "reporter"],
+)
+export_service_message_parsing_time = Summary(
+    "inventory_export_service_message_parsing_seconds", "Time spent parsing a message from the export service"
+)
+export_service_message_parsing_failure = Counter(
+    "inventory_export_service_message_parsing_failures",
+    "Total amount of failures parsing export service messages",
+    ["cause"],
+)
+
+export_service_message_handler_success = Counter(
+    "export_service_message_handler_successes",
+    "Total amount of successfully handled messages from the export service queue",
+)
+
+export_service_message_handler_failure = Counter(
+    "export_service_message_handler_failures",
+    "Total amount of failures handling messages from the export service queue",
+)
+export_service_message_handler_time = Summary(
+    "export_service_message_handler_seconds", "Total time spent handling messages from the export service queue"
 )
