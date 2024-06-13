@@ -452,12 +452,12 @@ def write_message_batch(event_producer, processed_rows):
 
 
 @metrics.export_service_message_handler_time.time()
-def handle_export_message(message, event_producer, notification_event_producer, message_operation=create_export):
+def handle_export_message(message):
     validated_msg = parse_export_service_message(message)
     if validated_msg and validated_msg["data"]["resource_request"]["application"] == EXPORT_SERVICE_APPLICATION:
         logger.info("Found host-inventory application export message")
         org_id = validated_msg["redhatorgid"]
-        if message_operation(validated_msg, org_id):
+        if create_export(validated_msg, org_id):
             metrics.export_service_message_handler_success.inc()
             return True
         else:
@@ -466,6 +466,34 @@ def handle_export_message(message, event_producer, notification_event_producer, 
     else:
         logger.debug("Found export message not related to host-inventory")
         pass
+
+
+def export_service_event_loop(consumer, flask_app, interrupt):
+    with flask_app.app_context():
+        while not interrupt():
+            messages = consumer.consume(timeout=CONSUMER_POLL_TIMEOUT_SECONDS)
+            for msg in messages:
+                if msg is None:
+                    continue
+                elif msg.error():
+                    logger.error(f"Message received but has an error, which is {str(msg.error())}")
+                    metrics.ingress_message_handler_failure.inc()
+                else:
+                    logger.debug("Message received")
+                    try:
+                        handle_export_message(msg.value())
+                        metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
+                        metrics.ingress_message_handler_success.inc()
+                    except OperationalError as oe:
+                        """sqlalchemy.exc.OperationalError: This error occurs when an
+                        authentication failure occurs or the DB is not accessible.
+                        Exit the process to restart the pod
+                        """
+                        logger.error(f"Could not access DB {str(oe)}")
+                        sys.exit(3)
+                    except Exception:
+                        metrics.ingress_message_handler_failure.inc()
+                        logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
 
 
 def event_loop(consumer, flask_app, event_producer, notification_event_producer, handler, interrupt):

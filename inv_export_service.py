@@ -6,9 +6,7 @@ from prometheus_client import start_http_server
 from app import create_app
 from app.environment import RuntimeEnvironment
 from app.logging import get_logger
-from app.queue.queue import create_export
-from app.queue.queue import event_loop
-from app.queue.queue import handle_export_message
+from app.queue.queue import export_service_event_loop
 from lib.handlers import register_shutdown
 from lib.handlers import ShutdownHandler
 
@@ -35,17 +33,9 @@ def main():
     shutdown_handler = ShutdownHandler()
     shutdown_handler.register()
 
-    message_handler = partial(
-        handle_export_message,
-        message_operation=create_export,
-    )
-
-    event_loop(
+    export_service_event_loop(
         consumer,
         application.app,
-        None,
-        None,
-        message_handler,
         shutdown_handler.shut_down,
     )
 
