@@ -383,7 +383,7 @@ def event_loop(consumer, flask_app, event_producer, notification_event_producer,
         while not interrupt():
             processed_rows = []
             start_time = datetime.now()
-            with session_guard(db.session):
+            with session_guard(db.session), db.session.no_autoflush:
                 while (
                     not interrupt()
                     and (len(processed_rows) < inventory_config().mq_db_batch_max_messages)
