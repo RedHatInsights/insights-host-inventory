@@ -3,6 +3,7 @@ from pytest import mark
 
 from app.auth.identity import Identity
 from app.exceptions import InventoryException
+from app.exceptions import ValidationException
 from app.models import ProviderType
 from lib.host_repository import find_existing_host
 from lib.host_repository import IMMUTABLE_CANONICAL_FACTS
@@ -14,6 +15,7 @@ from tests.helpers.test_utils import generate_fact
 from tests.helpers.test_utils import generate_fact_dict
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
+from tests.helpers.test_utils import random_mac
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
@@ -358,6 +360,88 @@ def test_subscription_manager_id_case_insensitive(mq_create_or_update_host):
 
     first_host = mq_create_or_update_host(minimal_host(subscription_manager_id=smid.upper()))
     second_host = mq_create_or_update_host(minimal_host(subscription_manager_id=smid.lower()))
+    assert first_host.id == second_host.id
+
+
+#
+# An empty list of mac_addresses should result in a ValidationException.
+#
+def test_mac_address_empty_list_error(mq_create_or_update_host):
+    canonical_facts = generate_fact_dict("mac_addresses", 0)
+    assert not canonical_facts["mac_addresses"]
+
+    with pytest.raises(ValidationException):
+        mq_create_or_update_host(base_host(**canonical_facts))
+
+
+#
+# Identical mac_address lists should match.
+#
+def test_mac_address_exact_list_match(mq_create_or_update_host):
+    canonical_facts = generate_fact_dict("mac_addresses", 3)
+    first_host = mq_create_or_update_host(base_host(**canonical_facts))
+    second_host = mq_create_or_update_host(base_host(**canonical_facts))
+    assert first_host.id == second_host.id
+
+
+#
+# Input mac_addresses subset of existing, should match.
+#
+def test_mac_address_subset_list_match(mq_create_or_update_host):
+    canonical_facts = generate_fact_dict("mac_addresses", 3)
+    first_host = mq_create_or_update_host(base_host(**canonical_facts))
+
+    del canonical_facts["mac_addresses"][-1]
+    second_host = mq_create_or_update_host(base_host(**canonical_facts))
+    assert first_host.id == second_host.id
+
+
+#
+# Input mac_addresses superset of existing, should not match.
+#
+def test_mac_address_superset_list_nomatch(mq_create_or_update_host):
+    canonical_facts = generate_fact_dict("mac_addresses", 3)
+    first_host = mq_create_or_update_host(base_host(**canonical_facts))
+
+    canonical_facts["mac_addresses"].append(random_mac())
+    second_host = mq_create_or_update_host(base_host(**canonical_facts))
+    assert first_host.id != second_host.id
+
+
+#
+# Some mac_addresses match, some don't, should not match.
+#
+def test_mac_address_partial_list_nomatch(mq_create_or_update_host):
+    canonical_facts = generate_fact_dict("mac_addresses", 3)
+    first_host = mq_create_or_update_host(base_host(**canonical_facts))
+
+    canonical_facts["mac_addresses"][0] = random_mac()
+    second_host = mq_create_or_update_host(base_host(**canonical_facts))
+    assert first_host.id != second_host.id
+
+
+#
+# Existing mac_addresses have duplicate, input doesn't, should match.
+#
+def test_mac_address_duplicate_item_match(mq_create_or_update_host):
+    canonical_facts = generate_fact_dict("mac_addresses", 3)
+    canonical_facts["mac_addresses"].append(canonical_facts["mac_addresses"][0])
+    first_host = mq_create_or_update_host(base_host(**canonical_facts))
+
+    del canonical_facts["mac_addresses"][-1]
+    second_host = mq_create_or_update_host(base_host(**canonical_facts))
+    assert first_host.id == second_host.id
+
+
+#
+# Input mac_addresses have duplicate, existing doesn't, should match.
+#
+def test_mac_address_duplicate_input_item_match(mq_create_or_update_host):
+    canonical_facts = generate_fact_dict("mac_addresses", 3)
+    first_host = mq_create_or_update_host(base_host(**canonical_facts))
+
+    canonical_facts["mac_addresses"].append(canonical_facts["mac_addresses"][0])
+    second_host = mq_create_or_update_host(base_host(**canonical_facts))
     assert first_host.id == second_host.id
 
 
