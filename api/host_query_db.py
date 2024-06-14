@@ -383,6 +383,8 @@ def get_os_info(
     db.session.close()
     os_dict = {}
     for result in query_results:
+        if not result or None in result:
+            continue
         operating_system = ".".join(result)
         if operating_system not in os_dict:
             os_dict[operating_system] = 1
