@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 from datetime import timezone
 from enum import Enum
@@ -9,8 +10,10 @@ from marshmallow import validate as marshmallow_validate
 from app.logging import threadctx
 from app.queue.events import hostname
 from app.queue.metrics import notification_serialization_time
+from app.serialization import build_rhel_version_str
+from app.serialization import deserialize_canonical_facts
 
-NotificationType = Enum("NotificationType", ("validation_error"))
+NotificationType = Enum("NotificationType", ("validation_error", "system_deleted"))
 EventSeverity = Enum("EventSeverity", ("warning", "error", "critical"))
 
 
@@ -23,7 +26,6 @@ class EventListSchema(MarshmallowSchema):
 
 
 class NotificationSchema(MarshmallowSchema):
-    id = fields.UUID(required=True)  # message_id, also sent in the reader as rh_message_id
     account_id = fields.Str(validate=marshmallow_validate.Length(min=0, max=36))  # will be removed in future PR
     org_id = fields.Str(required=True, validate=marshmallow_validate.Length(min=0, max=36))
     application = fields.Str(required=True, validate=marshmallow_validate.Equal("inventory"))
@@ -34,6 +36,7 @@ class NotificationSchema(MarshmallowSchema):
     timestamp = fields.DateTime(required=True, format="iso8601")
 
 
+# Host Validation Error Notification
 class HostValidationErrorContextSchema(MarshmallowSchema):
     event_name = fields.Str(required=True, validate=marshmallow_validate.Length(max=255))
     display_name = fields.Str(required=True)
@@ -64,8 +67,33 @@ class HostValidationErrorNotificationSchema(NotificationSchema):
     events = fields.List(fields.Nested(HostValidationErrorEventListSchema()))
 
 
-def host_validation_error_notification(notification_type, message_id, host, detail, stack_trace=None):
-    base_notification_obj = build_base_notification_obj(notification_type, message_id, host)
+# System deleted notification
+class SystemDeletedContextSchema(MarshmallowSchema):
+    inventory_id = fields.Str(required=True)
+    hostname = fields.Str(required=True)
+    display_name = fields.Str(required=True)
+    rhel_version = fields.Str(required=True)
+    tags = fields.Dict()
+
+
+class SystemDeletedPayloadSchema(MarshmallowSchema):
+    groups = fields.List(fields.Dict())
+    insights_id = fields.Str(required=True)
+    subscription_manager_id = fields.Str(required=True)
+    satellite_id = fields.Str(required=True)
+
+
+class SystemDeletedEventListSchema(EventListSchema):
+    payload = fields.Nested(SystemDeletedPayloadSchema())
+
+
+class SystemDeletedSchema(NotificationSchema):
+    context = fields.Nested(SystemDeletedContextSchema())
+    events = fields.List(fields.Nested(SystemDeletedEventListSchema()))
+
+
+def host_validation_error_notification(notification_type, host, detail, stack_trace=None):
+    base_notification_obj = build_base_notification_obj(notification_type, host)
     notification = {
         "context": {
             "event_name": "Host Validation Error",
@@ -77,7 +105,7 @@ def host_validation_error_notification(notification_type, message_id, host, deta
                 "payload": {
                     "request_id": threadctx.request_id,
                     "display_name": host.get("display_name"),
-                    "canonical_facts": host.get("canonical_facts"),
+                    "canonical_facts": deserialize_canonical_facts(host, all=True),
                     "error": {
                         "code": "VE001",
                         "message": detail,
@@ -89,7 +117,39 @@ def host_validation_error_notification(notification_type, message_id, host, deta
         ],
     }
     notification.update(base_notification_obj)
-    return (HostValidationErrorNotificationSchema, notification)
+    result = HostValidationErrorNotificationSchema().dumps(notification)
+    return result
+
+
+def system_deleted_notification(notification_type, host):
+    base_notification_obj = build_base_notification_obj(notification_type, host)
+
+    canonical_facts = host.get("canonical_facts")
+    system_profile = host.get("system_profile_facts")
+    notification = {
+        "context": {
+            "inventory_id": host.get("id"),
+            "hostname": canonical_facts.get("fqdn", ""),
+            "display_name": host.get("display_name"),
+            "rhel_version": build_rhel_version_str(system_profile),
+            "tags": host.get("tags"),
+        },
+        "events": [
+            {
+                "metadata": {},
+                "payload": {
+                    "insights_id": canonical_facts.get("insights_id", ""),
+                    "subscription_manager_id": canonical_facts.get("subscription_manager_id", ""),
+                    "satellite_id": canonical_facts.get("satellite_id", ""),
+                    "groups": [{"id": group.get("id"), "name": group.get("name")} for group in host.get("groups")],
+                },
+            },
+        ],
+    }
+
+    notification.update(base_notification_obj)
+    result = SystemDeletedSchema().dumps(notification)
+    return result
 
 
 def notification_headers(event_type: NotificationType):
@@ -97,21 +157,20 @@ def notification_headers(event_type: NotificationType):
         "event_type": event_type.name,
         "request_id": threadctx.request_id,
         "producer": hostname(),
+        "rh-message-id": str(uuid.uuid4()),  # protects against duplicate processing
     }
 
 
-def build_notification(notification_type, message_id, host, detail, **kwargs):
+def build_notification(notification_type, host, **kwargs):
     with notification_serialization_time.labels(notification_type.name).time():
         build = NOTIFICATION_TYPE_MAP[notification_type]
-        schema, event = build(notification_type, message_id, host, detail, **kwargs)
-        result = schema().dumps(event)
+        result = build(notification_type, host, **kwargs)
         return result
 
 
-def build_base_notification_obj(notification_type, message_id, host):
+def build_base_notification_obj(notification_type, host):
     base_obj = {
-        "id": message_id,
-        "account_id": host.get("account_id") or "",
+        "account_id": host.get("account", ""),
         "org_id": host.get("org_id"),
         "application": "inventory",
         "bundle": "rhel",
@@ -121,6 +180,13 @@ def build_base_notification_obj(notification_type, message_id, host):
     return base_obj
 
 
+def send_notification(notification_event_producer, notification_type, host, **kwargs):
+    notification = build_notification(notification_type, host, **kwargs)
+    headers = notification_headers(notification_type)
+    notification_event_producer.write_event(notification, None, headers, wait=True)
+
+
 NOTIFICATION_TYPE_MAP = {
     NotificationType.validation_error: host_validation_error_notification,
+    NotificationType.system_deleted: system_deleted_notification,
 }

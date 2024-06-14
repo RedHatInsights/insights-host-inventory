@@ -1,7 +1,6 @@
 import base64
 import json
 import sys
-import uuid
 from copy import deepcopy
 from datetime import datetime
 from datetime import timedelta
@@ -44,10 +43,8 @@ from app.queue.events import EventType
 from app.queue.events import message_headers
 from app.queue.events import operation_results_to_event_type
 from app.queue.export_service import create_export
-from app.queue.notifications import build_notification
-from app.queue.notifications import notification_headers
 from app.queue.notifications import NotificationType
-from app.serialization import deserialize_canonical_facts
+from app.queue.notifications import send_notification
 from app.serialization import deserialize_host
 from app.serialization import serialize_host
 from lib import host_repository
@@ -194,16 +191,6 @@ def _validate_json_object_for_utf8(json_object):
             _validate_json_object_for_utf8(item)
     else:
         pass
-
-
-def _build_minimal_host_info(host_data):
-    return {
-        "account_id": host_data.get("account"),
-        "org_id": host_data.get("org_id"),
-        "display_name": host_data.get("display_name"),
-        "id": host_data.get("host_id"),
-        "canonical_facts": deserialize_canonical_facts(host_data, all=True),
-    }
 
 
 @metrics.common_message_parsing_time.time()
@@ -404,7 +391,7 @@ def handle_message(message, notification_event_producer, message_operation=add_h
             send_notification(
                 notification_event_producer,
                 notification_type=NotificationType.validation_error,
-                host=_build_minimal_host_info(host),
+                host=host,
                 detail=str(ve.detail),
             )
             raise
@@ -412,7 +399,7 @@ def handle_message(message, notification_event_producer, message_operation=add_h
             send_notification(
                 notification_event_producer,
                 notification_type=NotificationType.validation_error,
-                host=_build_minimal_host_info(host),
+                host=host,
                 detail=str(ie.detail),
             )
             raise
@@ -556,11 +543,3 @@ def event_loop(consumer, flask_app, event_producer, notification_event_producer,
 
 def initialize_thread_local_storage(request_id):
     threadctx.request_id = request_id
-
-
-def send_notification(notification_event_producer, notification_type, host, detail):
-    message_id = str(uuid.uuid4())
-    notification = build_notification(notification_type, message_id, host, detail)
-    headers = notification_headers(notification_type)
-
-    notification_event_producer.write_event(notification, None, headers, wait=True)
