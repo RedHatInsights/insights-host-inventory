@@ -12,7 +12,7 @@ export QUAY_EXPIRE_TIME="40d"
 cat /etc/redhat-release
 
 export COMPONENT_NAME="host-inventory"  # name of app-sre "resourceTemplate" in deploy.yaml for this component
-export COMPONENTS_W_RESOURCES="host-inventory"  # this gives us resources defined in app-sre, otherwise we run low on memory
+export COMPONENTS_W_RESOURCES="all"  # this gives us resources defined in app-sre, otherwise we run low on memory
 export IQE_PLUGINS="host_inventory"
 
 # Get bonfire helper scripts
