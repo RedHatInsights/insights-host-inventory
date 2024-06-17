@@ -425,6 +425,12 @@ objects:
               name: ${UNLEASH_SECRET_NAME}
               key: CLIENT_ACCESS_TOKEN
               optional: true
+        - name: EXPORT_SERVICE_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: export-service-psk
+              key: psk
+              optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
         image: ${IMAGE}:${IMAGE_TAG}
