@@ -52,6 +52,8 @@ class Config:
                 self.export_service_endpoint = f"{protocol}://{endpoint.hostname}:{port}"
                 break
 
+        self.export_service_token = os.environ.get("EXPORT_SERVICE_TOKEN", "testing-a-psk")
+
         def topic(t):
             return app_common_python.KafkaTopics[t].name if t else None
 
@@ -126,6 +128,7 @@ class Config:
         self.unleash_token = os.environ.get("UNLEASH_TOKEN", "")
         self._cache_host = os.environ.get("CACHE_HOST", "localhost")
         self._cache_port = os.environ.get("CACHE_PORT", "6379")
+        self.export_service_token = os.environ.get("EXPORT_SERVICE_TOKEN", "testing-a-psk")
 
     def days_to_seconds(self, n_days):
         factor = 86400
