@@ -1793,3 +1793,63 @@ def test_batch_mq_operations(mocker, event_producer, flask_app):
     # - Once after all messages have been produced
     # - Once after it tries to consume more messages but gets an empty array
     assert write_batch_patch.call_count == 3
+
+
+def test_batch_mq_header_request_id_updates(mocker, flask_app):
+    # Verifies that when messages are sent as part of the same batch,
+    # the request_id used in the header is updated correctly.
+    msg_list = []
+    request_id_list = []
+    for _ in range(5):
+        metadata = get_platform_metadata()
+        request_id = generate_uuid()
+        metadata["request_id"] = request_id
+        request_id_list.append(request_id)
+        msg_list.append(json.dumps(wrap_message(minimal_host().data(), "add_host", metadata)))
+
+    # Patch batch settings in inventory_config()
+    mocker.patch(
+        "app.queue.queue.inventory_config",
+        return_value=SimpleNamespace(
+            mq_db_batch_max_messages=7,
+            mq_db_batch_max_seconds=1,
+            culling_stale_warning_offset_delta=1,
+            culling_culled_offset_delta=1,
+            conventional_time_to_stale_seconds=1,
+            conventional_time_to_stale_warning_seconds=1,
+            conventional_time_to_delete_seconds=1,
+            immutable_time_to_stale_seconds=1,
+            immutable_time_to_stale_warning_seconds=1,
+            immutable_time_to_delete_seconds=1,
+        ),
+    )
+
+    fake_consumer = mocker.Mock(
+        **{
+            "consume.side_effect": [
+                [FakeMessage(message=msg_list[i]) for i in range(5)],
+                [],
+                [],
+                [],
+                [],
+            ]
+        }
+    )
+
+    event_producer_mock = mocker.Mock()
+
+    event_loop(
+        fake_consumer,
+        flask_app,
+        event_producer_mock,
+        mocker.Mock(),
+        handler=handle_message,
+        interrupt=mocker.Mock(side_effect=([False for _ in range(4)] + [True, True])),
+    )
+
+    # Should have been called once per host
+    assert event_producer_mock.write_event.call_count == 5
+
+    for i in range(5):
+        headers = event_producer_mock.write_event.call_args_list[i][0][2]
+        assert headers["request_id"] == request_id_list[i]

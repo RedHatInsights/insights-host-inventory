@@ -219,13 +219,18 @@ class PayloadTrackerContext:
 
 class PayloadTrackerProcessingContext:
     def __init__(
-        self, payload_tracker=None, processing_status_message=None, success_status_message=None, current_operation=None
+        self,
+        payload_tracker=None,
+        processing_status_message=None,
+        success_status_message=None,
+        current_operation=None,
+        inventory_id=None,
     ):
         self._payload_tracker = payload_tracker
         self._processing_status_msg = processing_status_message
         self._success_status_msg = success_status_message
         self._current_operation = current_operation
-        self._inventory_id = None
+        self._inventory_id = inventory_id
 
     def __enter__(self):
         self._payload_tracker.processing(status_message=self._processing_status_msg)
