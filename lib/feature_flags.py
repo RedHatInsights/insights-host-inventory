@@ -48,11 +48,10 @@ def custom_fallback(feature_name: str, context: dict) -> bool:
 # Returns a tuple containing the flag's value and whether or not the fallback value was used.
 def get_flag_value_and_fallback(flag_name: str, context: dict = {}) -> Tuple[bool, bool]:
     # Get flag name and default to fallback value
-    if FLAG_FALLBACK_VALUES[flag_name] is False and inventory_config().bypass_xjoin is False:
-        flag_value = False
-        using_fallback = True
-    else:  # change the default False in FLAG_FALLBACK_VALUES
-        flag_value = FLAG_FALLBACK_VALUES[flag_name]
+    flag_value = FLAG_FALLBACK_VALUES[flag_name]
+    using_fallback = True
+    if inventory_config().bypass_xjoin:
+        flag_value = True
         using_fallback = False
 
     # Attempt to get the feature flag via Unleash
