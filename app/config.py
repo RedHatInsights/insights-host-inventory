@@ -371,8 +371,6 @@ class Config:
             self.logger.info("RBAC Retry Times: %s", self.rbac_retries)
             self.logger.info("RBAC Timeout Seconds: %s", self.rbac_timeout)
 
-            self.logger.info("Xjoin Bypassed by config: %s", self.bypass_xjoin)
-
             self.logger.info("Unleash (feature flags) Bypassed by config: %s", self.bypass_unleash)
             self.logger.info("Unleash (feature flags) Bypassed by missing token: %s", self.unleash_token is None)
 
