@@ -8,7 +8,7 @@ from lib.middleware import rbac
 
 logger = get_logger(__name__)
 
-EXPORT_SERVICE_RESOURCE = "urn:redhat:application:inventory:export:systems"
+EXPORT_SERVICE_SYSTEMS_RESOURCE = "urn:redhat:application:inventory:export:systems"
 
 
 # This function is used by create_export

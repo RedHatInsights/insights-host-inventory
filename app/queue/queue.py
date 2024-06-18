@@ -447,8 +447,6 @@ def export_service_event_loop(consumer, flask_app, interrupt):
                     logger.debug("Export Service message received")
                     try:
                         handle_export_message(msg.value())
-                        metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
-                        metrics.ingress_message_handler_success.inc()
                     except OperationalError as oe:
                         """sqlalchemy.exc.OperationalError: This error occurs when an
                         authentication failure occurs or the DB is not accessible.
@@ -457,7 +455,6 @@ def export_service_event_loop(consumer, flask_app, interrupt):
                         logger.error(f"Could not access DB {str(oe)}")
                         sys.exit(3)
                     except Exception:
-                        metrics.ingress_message_handler_failure.inc()
                         logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
 
 
