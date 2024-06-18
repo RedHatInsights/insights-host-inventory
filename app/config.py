@@ -414,6 +414,7 @@ class Config:
                 self.logger.info("Kafka Events Topic: %s", self.event_topic)
                 self.logger.info("Kafka Notification Topic: %s", self.notification_topic)
                 self.logger.info("Kafka Export Service Topic: %s", self.export_service_topic)
+                self.logger.info("Export Service Endpoint: %s", self.export_service_endpoint)
 
             if self._runtime_environment.event_producer_enabled:
                 self.logger.info("Kafka Event Topic: %s", self.event_topic)

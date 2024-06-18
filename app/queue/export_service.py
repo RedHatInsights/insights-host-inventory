@@ -2,6 +2,7 @@ import json
 from http import HTTPStatus
 
 from requests import Session
+from requests.adapters import HTTPAdapter
 
 from api.host_query_db import get_hosts_to_export
 from app import IDENTITY_HEADER
@@ -9,7 +10,6 @@ from app import RbacPermission
 from app import RbacResourceType
 from app import REQUEST_ID_HEADER
 from app.auth.identity import create_mock_identity_with_org_id
-from app.common import inventory_config
 from app.logging import get_logger
 from lib import metrics
 from lib.middleware import get_rbac_filter
@@ -17,14 +17,11 @@ from utils.json_to_csv import json_arr_to_csv
 
 logger = get_logger(__name__)
 
-EXPORT_SERVICE_SYSTEMS_RESOURCE = "urn:redhat:application:inventory:export:systems"
-
 HEADER_CONTENT_TYPE = {"json": "application/json", "csv": "text/csv"}
 
 
 @metrics.create_export_processing_time.time()
-def create_export(export_svc_data, org_id, operation_args={}, rbac_filter={}):
-    config = inventory_config()
+def create_export(export_svc_data, org_id, inventory_config, operation_args={}, rbac_filter={}):
     identity = create_mock_identity_with_org_id(org_id)
 
     metrics.create_export_count.inc()
@@ -40,11 +37,17 @@ def create_export(export_svc_data, org_id, operation_args={}, rbac_filter={}):
         REQUEST_ID_HEADER: exportUUID,
     }
 
+    # x-rh-exports-psk must be an env variable
+    request_headers = {
+        "x-rh-exports-psk": inventory_config.export_service_token,
+        "content-type": HEADER_CONTENT_TYPE[exportFormat.lower()],
+    }
     session = Session()
     try:
-        request_url = {
-            f"{config.export_service_endpoint}/app/export/v1/{exportUUID}/{applicationName}/{resourceUUID}/upload"
-        }
+        export_service_endpoint = inventory_config.export_service_endpoint
+        request_url = f"{export_service_endpoint}/app/export/v1/{exportUUID}/{applicationName}/{resourceUUID}/upload"
+
+        session.mount(request_url, HTTPAdapter(max_retries=3))
 
         logger.info(f"Trying to get data for org_id: {identity.org_id}")
 
@@ -54,23 +57,33 @@ def create_export(export_svc_data, org_id, operation_args={}, rbac_filter={}):
         data_to_export = get_hosts_to_export(identity, export_format=exportFormat, rbac_filter=rbac_filter)
 
         if data_to_export:
-            # todo(gchamoul):
-            # Next Step will done here:
-            # - POST to export service with the data to be exported
+            logger.debug(f"Trying to upload data using URL:{request_url}")
             logger.info(
                 f"{len(data_to_export)} hosts will be exported (format: {exportFormat}) for org_id {identity.org_id}"
             )
-            logger.info(f"Trying to upload data using URL: {request_url}")
+            response = session.post(
+                url=request_url, headers=request_headers, data=_format_export_data(data_to_export, exportFormat)
+            )
+            _handle_export_response(response, exportFormat, exportUUID)
             return True
         else:
-            # todo(gchamoul):
-            # POST to export service and handle an 404 error properly
-            logger.info(f"No data found for org_id: {identity.org_id}")
+            logger.debug(f"No data found for org_id: {identity.org_id}")
+            request_url = (
+                f"{export_service_endpoint}/app/export/v1/{exportUUID}/{applicationName}/{resourceUUID}/error"
+            )
+            response = session.post(
+                url=request_url,
+                headers=request_headers,
+                data=json.dumps({"message": f"No data found for org_id: {identity.org_id}", "error": 404}),
+            )
+            _handle_export_response(response, exportFormat, exportUUID)
             return False
     except Exception as e:
         logger.error(e)
-        # todo(gchamoul):
-        # POST to export service and handle an 500 error properly
+        request_url = f"{export_service_endpoint}/app/export/v1/{exportUUID}/{applicationName}/{resourceUUID}/error"
+        response = session.post(
+            url=request_url, headers=request_headers, data=json.dumps({"message": str(e), "error": 500})
+        )
         return False
     finally:
         session.close()
