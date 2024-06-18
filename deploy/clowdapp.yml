@@ -397,7 +397,7 @@ objects:
     - name: export-service
       minReplicas: ${{REPLICAS_EXPORT_SVC}}
       podSpec:
-        args: ["./inv_mq_service.py"]
+        args: ["./inv_export_service.py"]
         env:
         - name: INVENTORY_LOG_LEVEL
           value: DEBUG
