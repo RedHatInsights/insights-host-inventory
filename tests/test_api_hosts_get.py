@@ -34,6 +34,7 @@ from tests.helpers.graphql_utils import XJOIN_TAGS_RESPONSE
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
+from tests.helpers.test_utils import SERVICE_ACCOUNT_IDENTITY
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
@@ -1846,3 +1847,60 @@ def test_query_sp_filters_query_on_object_with_is_successful_request(db_create_h
         response_status, response_data = api_get(url)
 
     assert response_status == 200
+
+
+def test_query_hosts_multiple_os(api_get, db_create_host, subtests):
+    sp_facts_list = [
+        {
+            "operating_system": {"name": "RHEL", "major": 7, "minor": 7},
+            "host_type": "edge",
+        },
+        {
+            "operating_system": {"name": "RHEL", "major": 7, "minor": 8},
+            "host_type": "edge",
+        },
+        {
+            "operating_system": {"name": "RHEL", "major": 7, "minor": 7},
+        },
+        {
+            "operating_system": {"name": "RHEL", "major": 7, "minor": 8},
+        },
+        {
+            "operating_system": {"name": "RHEL", "major": 7, "minor": 8},
+        },
+    ]
+
+    for sp_facts in sp_facts_list:
+        # Create the hosts we expect to be returned
+        db_create_host(extra_data={"system_profile_facts": sp_facts})
+
+        # Create hosts with the same data, but on a different account
+        db_create_host(
+            identity=SERVICE_ACCOUNT_IDENTITY,
+            extra_data={
+                "system_profile_facts": sp_facts,
+            },
+        )
+
+    sp_filter_param_list = [
+        ("[operating_system][RHEL][version]=7.7", 2),
+        ("[operating_system][RHEL][version][]=7.7&filter[system_profile][operating_system][RHEL][version][]=7.9", 2),
+        ("[operating_system][RHEL][version][]=7.7&filter[system_profile][operating_system][RHEL][version][]=7.8", 5),
+        (
+            (
+                "[operating_system][RHEL][version][]=7.7&filter[system_profile][operating_system][RHEL][version][]=7.8"
+                "&filter[system_profile][operating_system][RHEL][version]=7.9&filter[system_profile][host_type][]=edge"
+            ),
+            2,
+        ),
+    ]
+
+    for sp_filter_param, expected_host_count in sp_filter_param_list:
+        with subtests.test(query_param=sp_filter_param):
+            url = build_hosts_url(query=f"?filter[system_profile]{sp_filter_param}")
+
+            with patch("api.host.get_flag_value", return_value=True):
+                response_status, response_data = api_get(url)
+
+            assert response_status == 200
+            assert response_data["count"] == expected_host_count

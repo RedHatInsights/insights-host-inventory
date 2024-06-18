@@ -182,7 +182,7 @@ def build_operating_system_filter(filter_param: dict) -> tuple:
         os_filter_list.append(f"({' AND '.join(os_range_filter_list)})")
 
     # The top-level filter list should be joined using "OR"
-    return " OR ".join(os_filter_list)
+    return "(" + " OR ".join(os_filter_list) + ")"
 
 
 # Turns a list into a dict like this:
