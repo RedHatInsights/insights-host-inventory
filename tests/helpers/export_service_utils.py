@@ -15,7 +15,7 @@ def create_export_message_mock():
             "dataschema": "https://console.redhat.com/api/schemas/apps/export-service/v1/resource-request.json",
             "data": {
                 "resource_request": {
-                    "application": "host-inventory",
+                    "application": "urn:redhat:application:inventory",
                     "export_request_uuid": "9becbc61-49a4-49be-beb1-1f0a7cbc6e36",
                     "filters": {
                         "endDate": "2024-03-01T00:00:00Z",
@@ -23,7 +23,7 @@ def create_export_message_mock():
                         "startDate": "2024-01-01T00:00:00Z",
                     },
                     "format": "json",
-                    "resource": "exampleResource",
+                    "resource": "urn:redhat:application:inventory:export:systems",
                     "uuid": "2844f3a1-e047-45b1-b0ce-fb9812ad6a6f",
                     "x-rh-identity": (
                         "eyJpZGVudGl0eSI6IHsib3JnX2lkIjogIjU4OTQzMD"
@@ -50,7 +50,7 @@ def create_export_message_missing_field_mock(field_to_remove):
         "dataschema": "https://console.redhat.com/api/schemas/apps/export-service/v1/resource-request.json",
         "data": {
             "resource_request": {
-                "application": "host-inventory",
+                "application": "urn:redhat:application:inventory",
                 "export_request_uuid": "9becbc61-49a4-49be-beb1-1f0a7cbc6e36",
                 "filters": {
                     "endDate": "2022-03-01T00:00:00Z",
@@ -58,7 +58,7 @@ def create_export_message_missing_field_mock(field_to_remove):
                     "startDate": "2022-01-01T00:00:00Z",
                 },
                 "format": "json",
-                "resource": "exampleResource",
+                "resource": "urn:redhat:application:inventory:export:systems",
                 "uuid": "2844f3a1-e047-45b1-b0ce-fb9812ad6a6f",
                 "x-rh-identity": (
                     "eyJpZGVudGl0eSI6IHsib3JnX2lkIjogIjU4OTQzMD"
