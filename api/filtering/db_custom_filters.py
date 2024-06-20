@@ -14,6 +14,7 @@ logger = get_logger(__name__)
 
 
 # Utility class to facilitate OS filter comparison
+# The list of comparators can be seen in POSTGRES_COMPARATOR_LOOKUP
 class OsComparison:
     def __init__(self, name="", comparator="", major=0, minor=0):
         self.name = name
@@ -97,7 +98,7 @@ def _get_valid_os_names() -> list:
 #   OsComparison{name: 'RHEL', comparator: 'gt', major: '8', minor: '5'}
 # ]
 # Has a similar purpose to _unique_paths, but the OS filter works a bit differently.
-def separate_operating_system_filters(filter_param: dict) -> list[OsComparison]:
+def separate_operating_system_filters(filter_param) -> list[OsComparison]:
     os_filter_list = []
 
     # Handle filter_param if a list is passed in
@@ -108,6 +109,7 @@ def separate_operating_system_filters(filter_param: dict) -> list[OsComparison]:
     if isinstance(filter_param, str):
         return [OsComparison(comparator=filter_param)]
 
+    # filter_param is a dict
     for os_name in filter_param.keys():
         if os_name not in (os_names := _get_valid_os_names()):
             raise ValidationException(f"operating_system filter only supports these OS names: {os_names}.")

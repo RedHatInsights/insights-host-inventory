@@ -1578,7 +1578,10 @@ def test_query_all_sp_filters_operating_system(db_create_host, api_get, sp_filte
                     },
                 }
             ],
-            ["[operating_system][]=nil", "[operating_system]=nil"],
+            [
+                "[operating_system][]=nil",
+                "[operating_system]=nil",
+            ],
         ),
         (
             [
@@ -1591,7 +1594,10 @@ def test_query_all_sp_filters_operating_system(db_create_host, api_get, sp_filte
                 }
             ],
             [None],
-            ["[operating_system][]=not_nil", "[operating_system]=not_nil"],
+            [
+                "[operating_system][]=not_nil",
+                "[operating_system]=not_nil",
+            ],
         ),
         (
             [
