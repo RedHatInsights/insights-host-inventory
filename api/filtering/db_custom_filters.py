@@ -106,7 +106,7 @@ def separate_operating_system_filters(filter_param) -> list[OsComparison]:
         return [OsComparison(comparator=param) for param in filter_param]
 
     # Handle filter_param if a str is passed in
-    if isinstance(filter_param, str):
+    elif isinstance(filter_param, str):
         return [OsComparison(comparator=filter_param)]
 
     # filter_param is a dict
