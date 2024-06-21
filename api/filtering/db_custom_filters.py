@@ -14,8 +14,9 @@ logger = get_logger(__name__)
 
 
 # Utility class to facilitate OS filter comparison
+# The list of comparators can be seen in POSTGRES_COMPARATOR_LOOKUP
 class OsComparison:
-    def __init__(self, name, comparator, major, minor):
+    def __init__(self, name="", comparator="", major=0, minor=0):
         self.name = name
         self.comparator = comparator
         self.major = major
@@ -97,8 +98,18 @@ def _get_valid_os_names() -> list:
 #   OsComparison{name: 'RHEL', comparator: 'gt', major: '8', minor: '5'}
 # ]
 # Has a similar purpose to _unique_paths, but the OS filter works a bit differently.
-def separate_operating_system_filters(filter_param: dict) -> list[OsComparison]:
+def separate_operating_system_filters(filter_param) -> list[OsComparison]:
     os_filter_list = []
+
+    # Handle filter_param if a list is passed in
+    if isinstance(filter_param, list):
+        return [OsComparison(comparator=param) for param in filter_param]
+
+    # Handle filter_param if a str is passed in
+    elif isinstance(filter_param, str):
+        return [OsComparison(comparator=filter_param)]
+
+    # filter_param is a dict
     for os_name in filter_param.keys():
         if os_name not in (os_names := _get_valid_os_names()):
             raise ValidationException(f"operating_system filter only supports these OS names: {os_names}.")
@@ -160,7 +171,9 @@ def build_operating_system_filter(filter_param: dict) -> tuple:
         comparator = POSTGRES_COMPARATOR_LOOKUP.get(os_comparison.comparator)
         comparator_no_eq = comparator[:1]
 
-        if os_comparison.comparator == "eq":
+        if os_comparison.comparator in ["nil", "not_nil"]:
+            os_filter_list.append(f"(system_profile_facts->>'operating_system' {comparator})")
+        elif os_comparison.comparator == "eq":
             os_filter_text = (
                 f"(system_profile_facts->'operating_system'->>'name' = '{os_comparison.name}' AND "
                 f"(system_profile_facts->'operating_system'->>'major')::int = {os_comparison.major} AND "

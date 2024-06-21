@@ -49,6 +49,8 @@ POSTGRES_COMPARATOR_LOOKUP = {
     "neq": "<>",
     "is": "IS",
     "contains": "?",
+    "nil": "IS NULL",
+    "not_nil": "IS NOT NULL",
 }
 
 # These are the default SQL comparison operators to use for each data type.
