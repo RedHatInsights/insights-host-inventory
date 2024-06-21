@@ -30,6 +30,26 @@ class Config:
         if cfg.database.rdsCa:
             self._db_ssl_cert = cfg.rds_ca()
 
+        use_read_replica = os.getenv("INVENTORY_API_USE_READREPLICA", "false").lower() == "true"
+        read_replica_file_list = [
+            "/etc/db/readreplica/db_host",
+            "/etc/db/readreplica/db_port",
+            "/etc/db/readreplica/db_name",
+            "/etc/db/readreplica/db_user",
+            "/etc/db/readreplica/db_password",
+        ]
+        if use_read_replica and all(list(map(os.path.isfile, read_replica_file_list))):
+            self.logger.info("Read replica files exist.")
+            with open("/etc/db/readreplica/db_host") as file:
+                self._db_host = file.read().rstrip()
+            with open("/etc/db/readreplica/db_port") as file:
+                self._db_port = file.read().rstrip()
+            with open("/etc/db/readreplica/db_name") as file:
+                self._db_name = file.read().rstrip()
+            with open("/etc/db/readreplica/db_user") as file:
+                self._db_user = file.read().rstrip()
+            with open("/etc/db/readreplica/db_password") as file:
+                self._db_password = file.read().rstrip()
         self._cache_host = None
         self._cache_port = None
         if cfg.inMemoryDb:
