@@ -7,6 +7,7 @@ This PR is being created to address [RHINENG-xxxx](https://issues.redhat.com/bro
 
 - [ ] Keep PR title short, ideally under 72 characters
 - [ ] Descriptive comments provided in complex code blocks
+- [ ] Include raw query examples in the PR description, if adding/modifying SQL query
 - [ ] Tests: validate optimal/expected output
 - [ ] Tests: validate exceptions and failure scenarios
 - [ ] Tests: edge cases
