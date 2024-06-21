@@ -13,7 +13,7 @@ from app.queue.metrics import notification_serialization_time
 from app.serialization import build_rhel_version_str
 from app.serialization import deserialize_canonical_facts
 
-NotificationType = Enum("NotificationType", ("validation_error", "system_deleted"))
+NotificationType = Enum("NotificationType", ("validation_error", "system_deleted", "system_became_stale"))
 EventSeverity = Enum("EventSeverity", ("warning", "error", "critical"))
 
 
@@ -92,6 +92,32 @@ class SystemDeletedSchema(NotificationSchema):
     events = fields.List(fields.Nested(SystemDeletedEventListSchema()))
 
 
+# Stale became stale notification
+class SystemStaleContextSchema(MarshmallowSchema):
+    inventory_id = fields.Str(required=True)
+    hostname = fields.Str(required=True)
+    display_name = fields.Str(required=True)
+    rhel_version = fields.Str(required=True)
+    host_url = fields.Str(required=True)
+    tags = fields.Dict()
+
+
+class SystemStalePayloadSchema(MarshmallowSchema):
+    groups = fields.List(fields.Dict())
+    insights_id = fields.Str(required=True)
+    subscription_manager_id = fields.Str(required=True)
+    satellite_id = fields.Str(required=True)
+
+
+class SystemStaleEventListSchema(EventListSchema):
+    payload = fields.Nested(SystemStalePayloadSchema())
+
+
+class SystemStaleSchema(NotificationSchema):
+    context = fields.Nested(SystemStaleContextSchema())
+    events = fields.List(fields.Nested(SystemStaleEventListSchema()))
+
+
 def host_validation_error_notification(notification_type, host, detail, stack_trace=None):
     base_notification_obj = build_base_notification_obj(notification_type, host)
     notification = {
@@ -152,6 +178,39 @@ def system_deleted_notification(notification_type, host):
     return result
 
 
+def system_stale_notification(notification_type, host):
+    base_notification_obj = build_base_notification_obj(notification_type, host)
+
+    canonical_facts = host.get("canonical_facts")
+    system_profile = host.get("system_profile_facts")
+    notification = {
+        "context": {
+            "inventory_id": host.get("id"),
+            "hostname": canonical_facts.get("fqdn", ""),
+            "display_name": host.get("display_name"),
+            "rhel_version": build_rhel_version_str(system_profile),
+            # get host url
+            "host_url": "",
+            "tags": host.get("tags"),
+        },
+        "events": [
+            {
+                "metadata": {},
+                "payload": {
+                    "insights_id": canonical_facts.get("insights_id", ""),
+                    "subscription_manager_id": canonical_facts.get("subscription_manager_id", ""),
+                    "satellite_id": canonical_facts.get("satellite_id", ""),
+                    "groups": [{"id": group.get("id"), "name": group.get("name")} for group in host.get("groups")],
+                },
+            },
+        ],
+    }
+
+    notification.update(base_notification_obj)
+    result = SystemStaleSchema().dumps(notification)
+    return result
+
+
 def notification_headers(event_type: NotificationType):
     return {
         "event_type": event_type.name,
@@ -189,4 +248,5 @@ def send_notification(notification_event_producer, notification_type, host, **kw
 NOTIFICATION_TYPE_MAP = {
     NotificationType.validation_error: host_validation_error_notification,
     NotificationType.system_deleted: system_deleted_notification,
+    NotificationType.system_became_stale: system_stale_notification,
 }
