@@ -62,6 +62,7 @@ from lib.host_repository import find_existing_host
 from lib.host_repository import find_non_culled_hosts
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.host_repository import update_query_for_owner_id
+from lib.middleware import ensure_org_data_integrity
 from lib.middleware import rbac
 
 
@@ -74,6 +75,7 @@ logger = get_logger(__name__)
 @api_operation
 @CACHE.cached(key_prefix=make_key)
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
+@ensure_org_data_integrity()
 @metrics.api_request_time.time()
 def get_host_list(
     display_name=None,
@@ -159,6 +161,7 @@ def get_host_list(
 
 @api_operation
 @rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
+@ensure_org_data_integrity()
 @metrics.api_request_time.time()
 def delete_hosts_by_filter(
     display_name=None,
@@ -320,6 +323,7 @@ def delete_all_hosts(confirm_delete_all=None, rbac_filter=None):
 
 @api_operation
 @rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
+@ensure_org_data_integrity()
 @metrics.api_request_time.time()
 def delete_host_by_id(host_id_list, rbac_filter=None):
     delete_count = _delete_host_list(host_id_list, rbac_filter)
@@ -332,6 +336,7 @@ def delete_host_by_id(host_id_list, rbac_filter=None):
 
 @api_operation
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
+@ensure_org_data_integrity()
 @metrics.api_request_time.time()
 def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None, fields=None, rbac_filter=None):
     current_identity = get_current_identity()
@@ -360,6 +365,7 @@ def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=
 @api_operation
 @CACHE.cached(key_prefix=make_key)
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
+@ensure_org_data_integrity()
 @metrics.api_request_time.time()
 def get_host_system_profile_by_id(
     host_id_list, page=1, per_page=100, order_by=None, order_how=None, fields=None, rbac_filter=None
@@ -398,6 +404,7 @@ def _emit_patch_event(serialized_host, host):
 
 @api_operation
 @rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
+@ensure_org_data_integrity()
 @metrics.api_request_time.time()
 def patch_host_by_id(host_id_list, body, rbac_filter=None):
     try:
@@ -431,6 +438,7 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
 
 @api_operation
 @rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
+@ensure_org_data_integrity()
 @metrics.api_request_time.time()
 def replace_facts(host_id_list, namespace, body, rbac_filter=None):
     return update_facts_by_namespace(FactOperations.replace, host_id_list, namespace, body, rbac_filter)
@@ -438,6 +446,7 @@ def replace_facts(host_id_list, namespace, body, rbac_filter=None):
 
 @api_operation
 @rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
+@ensure_org_data_integrity()
 @metrics.api_request_time.time()
 def merge_facts(host_id_list, namespace, body, rbac_filter=None):
     if not body:
@@ -549,6 +558,7 @@ def _build_paginated_host_tags_response(total, page, per_page, tags_list):
 
 @api_operation
 @rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
+@ensure_org_data_integrity()
 @metrics.api_request_time.time()
 def host_checkin(body, rbac_filter=None):
     current_identity = get_current_identity()
