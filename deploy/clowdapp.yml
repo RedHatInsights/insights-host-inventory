@@ -65,7 +65,7 @@ objects:
           name: api-nginx-conf
         volumes:
         - configMap:
-            name: nginx-conf
+            name: inventory-nginx-conf
           name: api-nginx-conf
       replicas: ${{NGINX_REPLICAS}}
       webServices:
@@ -1075,7 +1075,7 @@ objects:
       }
   kind: ConfigMap
   metadata:
-    name: nginx-conf
+    name: inventory-nginx-conf
 
 parameters:
 - name: LOG_LEVEL
