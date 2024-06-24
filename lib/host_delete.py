@@ -1,7 +1,6 @@
 from confluent_kafka import KafkaException
 from sqlalchemy.orm.base import instance_state
 
-from api.cache import delete_keys
 from app.auth.identity import to_auth_header
 from app.logging import get_logger
 from app.models import Host
@@ -37,8 +36,6 @@ def delete_hosts(
 
                 if interrupt():
                     return
-    for org_id in cache_keys_to_invalidate:
-        delete_keys(org_id)
 
 
 def _delete_host(session, event_producer, notification_event_producer, host, identity=None):

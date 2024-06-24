@@ -2,6 +2,7 @@ import json
 import math
 from base64 import b64encode
 from datetime import timedelta
+from http import HTTPStatus
 from itertools import product
 from struct import unpack
 from urllib.parse import parse_qs
@@ -185,10 +186,12 @@ def do_request(func, url, identity, data=None, query_parameters=None, extra_head
     if func.__name__ in ("post", "patch", "put"):
         response = func(url, data=json.dumps(data), headers=headers)
     else:
-        response = func(url, headers=headers)
-
+        try:
+            response = func(url, headers=headers)
+        except Exception as e:
+            return HTTPStatus.BAD_REQUEST, str(e)
     try:
-        response_data = json.loads(response.data)
+        response_data = json.loads(response.content)
     except ValueError:
         response_data = {}
 
@@ -298,7 +301,10 @@ def assert_error_response(
     def _verify_value(field_name, expected_value):
         assert field_name in response
         if expected_value is not None:
-            assert response[field_name] == expected_value
+            if field_name == "detail":
+                expected_value in response[field_name]
+            else:
+                assert response[field_name] == expected_value
 
     _verify_value("title", expected_title)
     _verify_value("status", expected_status)

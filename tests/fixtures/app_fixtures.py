@@ -14,7 +14,7 @@ def new_flask_app(database):
     with application.app.app_context():
         db.create_all()
 
-        yield application.app
+        yield application
 
         db.session.remove()
         db.drop_all()
@@ -29,5 +29,5 @@ def flask_app(new_flask_app):
 
 @pytest.fixture(scope="function")
 def inventory_config(flask_app):
-    yield flask_app.config["INVENTORY_CONFIG"]
-    flask_app.config["INVENTORY_CONFIG"] = Config(RuntimeEnvironment.TEST)
+    yield flask_app.app.config["INVENTORY_CONFIG"]
+    flask_app.app.config["INVENTORY_CONFIG"] = Config(RuntimeEnvironment.TEST)

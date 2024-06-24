@@ -12,7 +12,6 @@ from marshmallow import Schema
 from marshmallow import ValidationError
 from sqlalchemy.exc import OperationalError
 
-from api.cache import delete_keys
 from api.staleness_query import get_staleness_obj
 from app.auth.identity import create_mock_identity_with_org_id
 from app.auth.identity import Identity

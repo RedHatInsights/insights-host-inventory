@@ -10,4 +10,4 @@ app = application.app
 
 if __name__ == "__main__":
     listen_port = int(os.getenv("LISTEN_PORT", 8080))
-    application.run(host="0.0.0.0", port=listen_port)
+    app.run(host="0.0.0.0", port=listen_port)

@@ -82,7 +82,7 @@ def test_replace_facts_without_fact_dict(api_put):
     facts_url = build_facts_url(1, DB_FACTS_NAMESPACE)
     response_status, response_data = api_put(facts_url, None)
 
-    assert_error_response(response_data, expected_status=400, expected_detail="Request body is not valid JSON")
+    assert_error_response(response_data, expected_status=400, expected_detail="does not match")
 
 
 def test_replace_facts_on_multiple_hosts(db_create_multiple_hosts, db_get_hosts, api_put, event_producer_mock):
