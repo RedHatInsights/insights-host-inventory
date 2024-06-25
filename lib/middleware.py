@@ -188,7 +188,7 @@ def ensure_org_data_integrity():
             if isinstance(result, Response):
                 data = result.get_json()
             elif isinstance(result, tuple):
-                data, _ = result
+                data = result[0]
             else:
                 data = result
             if isinstance(data, dict):
