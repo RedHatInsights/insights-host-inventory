@@ -1,8 +1,10 @@
 import json
+from functools import wraps
 
 from sqlalchemy import event as sqlevent
 
 try:
+    # sqlparse if optional, but the output is much easier to read when it's installed.
     from sqlparse import format as sql_formatter
 except ModuleNotFoundError:
 
@@ -31,3 +33,23 @@ class SQLDump:
         self.write_method("\n**** PARAMETERS:\n")
         self.write_method(json.dumps(clauseelement.compile().params, sort_keys=True, indent=4, default=str))
         self.write_method("\n****************\n")
+
+
+def dumps_sql(_func=None, *, dump_method=None, write_method=print):
+    def decorator_dumps_sql(old_func):
+        @wraps(old_func)
+        def new_func(*args, **kwargs):
+            sqld = SQLDump(dump_method=dump_method, write_method=write_method)
+            sqld.__enter__()
+
+            results = old_func(*args, **kwargs)
+
+            sqld.__exit__(None, None, None)
+            return results
+
+        return new_func
+
+    if _func is None:
+        return decorator_dumps_sql
+    else:
+        return decorator_dumps_sql(_func)
