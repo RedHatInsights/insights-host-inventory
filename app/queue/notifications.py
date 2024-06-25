@@ -92,7 +92,7 @@ class SystemDeletedSchema(NotificationSchema):
     events = fields.List(fields.Nested(SystemDeletedEventListSchema()))
 
 
-# Stale became stale notification
+# System became stale notification
 class SystemStaleContextSchema(MarshmallowSchema):
     inventory_id = fields.Str(required=True)
     hostname = fields.Str(required=True)
@@ -155,7 +155,7 @@ def system_deleted_notification(notification_type, host):
     notification = {
         "context": {
             "inventory_id": host.get("id"),
-            "hostname": canonical_facts.get("fqdn", ""),
+            "fqnd": canonical_facts.get("fqdn", ""),
             "display_name": host.get("display_name"),
             "rhel_version": build_rhel_version_str(system_profile),
             "tags": host.get("tags"),
@@ -181,16 +181,16 @@ def system_deleted_notification(notification_type, host):
 def system_stale_notification(notification_type, host):
     base_notification_obj = build_base_notification_obj(notification_type, host)
 
+    host_id = host.get("id")
     canonical_facts = host.get("canonical_facts")
     system_profile = host.get("system_profile_facts")
     notification = {
         "context": {
-            "inventory_id": host.get("id"),
-            "hostname": canonical_facts.get("fqdn", ""),
+            "inventory_id": host_id,
+            "fqnd": canonical_facts.get("fqdn", ""),
             "display_name": host.get("display_name"),
             "rhel_version": build_rhel_version_str(system_profile),
-            # get host url
-            "host_url": "",
+            "host_url": f"https://console.redhat.com/insights/inventory/{host_id}",
             "tags": host.get("tags"),
         },
         "events": [
@@ -207,8 +207,7 @@ def system_stale_notification(notification_type, host):
     }
 
     notification.update(base_notification_obj)
-    result = SystemStaleSchema().dumps(notification)
-    return result
+    return SystemStaleSchema().dumps(notification)
 
 
 def notification_headers(event_type: NotificationType):
