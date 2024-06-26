@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import json
 import os
 import uuid
@@ -408,8 +409,14 @@ def rpm_list():
     ]
 
 
+IS_EDGE = os.environ.get("IS_EDGE", False)
+BOOTC_BOOTED_IMAGE = os.environ.get("BOOTC_BOOTED_IMAGE")
+BOOTC_STAGED_IMAGE = os.environ.get("BOOTC_STAGED_IMAGE")
+BOOTC_ROLLBACK_IMAGE = os.environ.get("BOOTC_ROLLBACK_IMAGE")
+
+
 def create_system_profile():
-    return {
+    system_profile = {
         "owner_id": "1b36b20f-7fa0-4454-a6d2-008294e06378",
         "rhc_client_id": "044e36dc-4e2b-4e69-8948-9c65a7bf4976",
         "rhc_config_state": "044e36dc-4e2b-4e69-8948-9c65a7bf4976",
@@ -473,6 +480,22 @@ def create_system_profile():
         "operating_system": {"name": "RHEL", "major": 8, "minor": 1},
         "system_update_method": "yum",  # "dnf, rpm-ostree, yum"
     }
+    if IS_EDGE:
+        system_profile["host_type"] = "edge"
+    bootc_status = {}
+    for img_type, img in (
+        ("booted", BOOTC_BOOTED_IMAGE),
+        ("staged", BOOTC_STAGED_IMAGE),
+        ("rollback", BOOTC_ROLLBACK_IMAGE),
+    ):
+        if img:
+            input = img_type + img
+            hashstr = f"sha256:{hashlib.sha256(input.encode('utf-8')).hexdigest()}"
+            bootc_status[img_type] = {"image": img, "image_digest": hashstr}
+    if bootc_status:
+        system_profile["bootc_status"] = bootc_status
+    print("system_profile " + str(system_profile))
+    return system_profile
 
 
 def build_rhsm_payload():
@@ -554,16 +577,10 @@ def random_uuid():
     return str(uuid.uuid4())
 
 
-IS_EDGE = os.environ.get("IS_EDGE", False)
-
-
 def build_host_chunk():
     org_id = os.environ.get("INVENTORY_HOST_ACCOUNT", IDENTITY["org_id"])
     fqdn = random_uuid()[:6] + ".foo.redhat.com"
     system_profile = create_system_profile()
-
-    if IS_EDGE:
-        system_profile["host_type"] = "edge"
 
     payload = {
         "bios_uuid": random_uuid(),
