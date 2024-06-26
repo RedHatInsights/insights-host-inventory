@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ###########################
-# This script sources the security-scan.sh script from 
+# This script sources the security-scan.sh script from
 # https://github.com/RedHatInsights/platform-security-gh-workflow
 # This script, in combination with Jenkins, scans a repo's Dockerfile
 # to provide a Software Bill of Materials (SBOM) and scan security vulnerabilities.
