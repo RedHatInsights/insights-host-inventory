@@ -95,7 +95,7 @@ class SystemDeletedSchema(NotificationSchema):
 # System became stale notification
 class SystemStaleContextSchema(MarshmallowSchema):
     inventory_id = fields.Str(required=True)
-    hostname = fields.Str(required=True)
+    fqdn = fields.Str(required=True)
     display_name = fields.Str(required=True)
     rhel_version = fields.Str(required=True)
     host_url = fields.Str(required=True)
@@ -155,7 +155,7 @@ def system_deleted_notification(notification_type, host):
     notification = {
         "context": {
             "inventory_id": host.get("id"),
-            "fqnd": canonical_facts.get("fqdn", ""),
+            "fqdn": canonical_facts.get("fqdn", ""),
             "display_name": host.get("display_name"),
             "rhel_version": build_rhel_version_str(system_profile),
             "tags": host.get("tags"),
@@ -187,7 +187,7 @@ def system_stale_notification(notification_type, host):
     notification = {
         "context": {
             "inventory_id": host_id,
-            "fqnd": canonical_facts.get("fqdn", ""),
+            "fqdn": canonical_facts.get("fqdn", ""),
             "display_name": host.get("display_name"),
             "rhel_version": build_rhel_version_str(system_profile),
             "host_url": f"https://console.redhat.com/insights/inventory/{host_id}",
