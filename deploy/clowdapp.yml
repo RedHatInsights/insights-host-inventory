@@ -1032,7 +1032,8 @@ objects:
         server_tokens       off;
 
         upstream host-inventory-service-reads {
-          server host-inventory-service-reads:8000;
+          server host-inventory-service-reads:8000 weight=${ROUND_ROBIN_READS_WEIGHT};
+          server host-inventory-service-writes:8000;
         }
         upstream host-inventory-service-writes {
           server host-inventory-service-writes:8000;
@@ -1339,6 +1340,10 @@ parameters:
   name: NGINX_CPU_LIMIT
   required: true
   value: 200m
+- displayName: Round robin weight to send traffic to the reads API
+  name: ROUND_ROBIN_READS_WEIGHT
+  required: true
+  value: '8'
 
 # Feature flags
 - description: Unleash secret name
