@@ -750,7 +750,7 @@ class CanonicalFactsSchema(MarshmallowSchema):
                     )
             else:
                 if "provider_id" in data:
-                    raise MarshmallowValidationError("provider_id is supplied when is_virtual = False.")
+                    raise MarshmallowValidationError("provider_id is not allowed when is_virtual = False.")
 
         provider_type = data.get("provider_type")
         provider_id = data.get("provider_id")
