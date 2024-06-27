@@ -36,6 +36,9 @@ def init_cache(app_config, flask_app):
 
 
 def _delete_keys_simple(prefix):
+    global CACHE
+    if not CACHE:
+        return
     cache_dict = CACHE.cache._cache
     for cache_key in list(cache_dict.keys()):
         if cache_key.startswith(f"flask_cache_{prefix}"):
@@ -54,8 +57,9 @@ def _delete_keys_redis(prefix):
 
 
 def delete_keys(prefix):
-    if CACHE and CACHE.config["CACHE_TYPE"] == "SimpleCache":
+    global CACHE_CONFIG
+    if CACHE_CONFIG and CACHE_CONFIG.get("CACHE_TYPE") == "SimpleCache":
         _delete_keys_simple(prefix)
 
-    if CACHE and CACHE.config["CACHE_TYPE"] == "RedisCache":
+    if CACHE_CONFIG and CACHE_CONFIG.get("CACHE_TYPE") == "RedisCache":
         _delete_keys_redis(prefix)

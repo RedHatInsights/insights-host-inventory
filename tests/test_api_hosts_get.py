@@ -34,6 +34,7 @@ from tests.helpers.graphql_utils import XJOIN_TAGS_RESPONSE
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
+from tests.helpers.test_utils import SERVICE_ACCOUNT_IDENTITY
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
@@ -1564,6 +1565,92 @@ def test_query_all_sp_filters_operating_system(db_create_host, api_get, sp_filte
 
 
 @pytest.mark.parametrize(
+    "os_match_data_list,os_nomatch_data_list,sp_filter_param_list",
+    (
+        (
+            [None],
+            [
+                {
+                    "operating_system": {
+                        "name": "RHEL",
+                        "major": "8",
+                        "minor": "1",
+                    },
+                }
+            ],
+            [
+                "[operating_system][]=nil",
+                "[operating_system]=nil",
+            ],
+        ),
+        (
+            [
+                {
+                    "operating_system": {
+                        "name": "RHEL",
+                        "major": "8",
+                        "minor": "1",
+                    },
+                }
+            ],
+            [None],
+            [
+                "[operating_system][]=not_nil",
+                "[operating_system]=not_nil",
+            ],
+        ),
+        (
+            [
+                None,
+                {
+                    "operating_system": {
+                        "name": "RHEL",
+                        "major": "8",
+                        "minor": "1",
+                    },
+                },
+            ],
+            None,
+            [
+                "[operating_system][]=nil&filter[system_profile][operating_system][]=not_nil",
+            ],
+        ),
+    ),
+)
+def test_query_all_operating_system_nil(
+    db_create_host, api_get, os_match_data_list, os_nomatch_data_list, sp_filter_param_list, subtests
+):
+    # Create host with this system profile
+    match_host_id_list = [
+        str(db_create_host(extra_data={"system_profile_facts": {"operating_system": os_data}}).id)
+        for os_data in os_match_data_list
+    ]
+    if os_nomatch_data_list:
+        nomatch_host_id_list = [
+            str(db_create_host(extra_data={"system_profile_facts": {"operating_system": os_data}}).id)
+            for os_data in os_nomatch_data_list
+        ]
+
+    for sp_filter_param in sp_filter_param_list:
+        with subtests.test(query_param=sp_filter_param):
+            url = build_hosts_url(query=f"?filter[system_profile]{sp_filter_param}")
+
+            with patch("api.host.get_flag_value", return_value=True):
+                response_status, response_data = api_get(url)
+
+            assert response_status == 200
+
+            # Assert that only the matching hosts are returned
+            response_ids = [result["id"] for result in response_data["results"]]
+            for match_host_id in match_host_id_list:
+                assert match_host_id in response_ids
+
+            if os_nomatch_data_list:
+                for nomatch_host_id in nomatch_host_id_list:
+                    assert nomatch_host_id not in response_ids
+
+
+@pytest.mark.parametrize(
     "sp_filter_param_list",
     (
         ["[arch][eq][]=x86_64", "[arch][eq][]=ARM"],  # Uses OR (same comparator)
@@ -1846,3 +1933,60 @@ def test_query_sp_filters_query_on_object_with_is_successful_request(db_create_h
         response_status, response_data = api_get(url)
 
     assert response_status == 200
+
+
+def test_query_hosts_multiple_os(api_get, db_create_host, subtests):
+    sp_facts_list = [
+        {
+            "operating_system": {"name": "RHEL", "major": 7, "minor": 7},
+            "host_type": "edge",
+        },
+        {
+            "operating_system": {"name": "RHEL", "major": 7, "minor": 8},
+            "host_type": "edge",
+        },
+        {
+            "operating_system": {"name": "RHEL", "major": 7, "minor": 7},
+        },
+        {
+            "operating_system": {"name": "RHEL", "major": 7, "minor": 8},
+        },
+        {
+            "operating_system": {"name": "RHEL", "major": 7, "minor": 8},
+        },
+    ]
+
+    for sp_facts in sp_facts_list:
+        # Create the hosts we expect to be returned
+        db_create_host(extra_data={"system_profile_facts": sp_facts})
+
+        # Create hosts with the same data, but on a different account
+        db_create_host(
+            identity=SERVICE_ACCOUNT_IDENTITY,
+            extra_data={
+                "system_profile_facts": sp_facts,
+            },
+        )
+
+    sp_filter_param_list = [
+        ("[operating_system][RHEL][version]=7.7", 2),
+        ("[operating_system][RHEL][version][]=7.7&filter[system_profile][operating_system][RHEL][version][]=7.9", 2),
+        ("[operating_system][RHEL][version][]=7.7&filter[system_profile][operating_system][RHEL][version][]=7.8", 5),
+        (
+            (
+                "[operating_system][RHEL][version][]=7.7&filter[system_profile][operating_system][RHEL][version][]=7.8"
+                "&filter[system_profile][operating_system][RHEL][version]=7.9&filter[system_profile][host_type][]=edge"
+            ),
+            2,
+        ),
+    ]
+
+    for sp_filter_param, expected_host_count in sp_filter_param_list:
+        with subtests.test(query_param=sp_filter_param):
+            url = build_hosts_url(query=f"?filter[system_profile]{sp_filter_param}")
+
+            with patch("api.host.get_flag_value", return_value=True):
+                response_status, response_data = api_get(url)
+
+            assert response_status == 200
+            assert response_data["count"] == expected_host_count

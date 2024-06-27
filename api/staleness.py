@@ -24,6 +24,7 @@ from app.serialization import serialize_staleness_response
 from app.serialization import serialize_staleness_to_dict
 from lib.feature_flags import FLAG_INVENTORY_CUSTOM_STALENESS
 from lib.feature_flags import get_flag_value
+from lib.middleware import ensure_org_data_integrity
 from lib.middleware import rbac
 from lib.staleness import add_staleness
 from lib.staleness import patch_staleness
@@ -49,6 +50,7 @@ def _validate_input_data(body):
 @api_operation
 @rbac(RbacResourceType.STALENESS, RbacPermission.READ, permission_base="staleness")
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
+@ensure_org_data_integrity()
 @metrics.api_request_time.time()
 def get_staleness(rbac_filter=None):
     try:
@@ -63,6 +65,7 @@ def get_staleness(rbac_filter=None):
 @api_operation
 @rbac(RbacResourceType.STALENESS, RbacPermission.READ, permission_base="staleness")
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
+@ensure_org_data_integrity()
 @metrics.api_request_time.time()
 def get_default_staleness(rbac_filter=None):
     try:
@@ -78,6 +81,7 @@ def get_default_staleness(rbac_filter=None):
 @api_operation
 @rbac(RbacResourceType.STALENESS, RbacPermission.WRITE, permission_base="staleness")
 @rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
+@ensure_org_data_integrity()
 @metrics.api_request_time.time()
 def create_staleness(body):
     if not get_flag_value(FLAG_INVENTORY_CUSTOM_STALENESS):
@@ -108,6 +112,7 @@ def create_staleness(body):
 @api_operation
 @rbac(RbacResourceType.STALENESS, RbacPermission.WRITE, permission_base="staleness")
 @rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
+@ensure_org_data_integrity()
 @metrics.api_request_time.time()
 def delete_staleness():
     if not get_flag_value(FLAG_INVENTORY_CUSTOM_STALENESS):
@@ -126,6 +131,7 @@ def delete_staleness():
 @api_operation
 @rbac(RbacResourceType.STALENESS, RbacPermission.WRITE, permission_base="staleness")
 @rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
+@ensure_org_data_integrity()
 @metrics.api_request_time.time()
 def update_staleness(body):
     if not get_flag_value(FLAG_INVENTORY_CUSTOM_STALENESS):

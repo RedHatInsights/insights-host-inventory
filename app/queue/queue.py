@@ -9,7 +9,6 @@ from uuid import UUID
 
 from marshmallow import fields
 from marshmallow import Schema
-from marshmallow import validates_schema
 from marshmallow import ValidationError
 from sqlalchemy.exc import OperationalError
 
@@ -55,7 +54,7 @@ logger = get_logger(__name__)
 CONSUMER_POLL_TIMEOUT_SECONDS = 1
 SYSTEM_IDENTITY = {"auth_type": "cert-auth", "system": {"cert_type": "system"}, "type": "System"}
 EXPORT_EVENT_SOURCE = "urn:redhat:source:console:app:export-service"
-EXPORT_SERVICE_APPLICATION = "host-inventory"
+EXPORT_SERVICE_APPLICATION = "urn:redhat:application:inventory"
 
 
 class OperationSchema(Schema):
@@ -84,11 +83,6 @@ class ExportResourceRequest(Schema):
     resource = fields.Str(required=True)
     uuid = fields.Str(required=True)
     x_rh_identity = fields.Str(required=True, data_key="x-rh-identity")
-
-    @validates_schema
-    def check_application_name(self, data, **kwargs):
-        if data["application"] != EXPORT_SERVICE_APPLICATION:
-            raise ValidationError('application field must be "host-inventory"')
 
 
 class ExportDataSchema(Schema):
@@ -241,7 +235,8 @@ def parse_operation_message(message):
 def parse_export_service_message(message):
     parsed_message = common_message_parser(message)
     try:
-        parsed_operation = ExportEventSchema().load(parsed_message)
+        parsed_export_msg = ExportEventSchema().load(parsed_message)
+        return parsed_export_msg
     except ValidationError as e:
         logger.error(
             "Input validation error while parsing export event message:%s", e, extra={"operation": parsed_message}
@@ -254,18 +249,6 @@ def parse_export_service_message(message):
 
         metrics.export_service_message_parsing_failure.labels("error").inc()
         raise
-
-    if (
-        "source" in parsed_message
-        and parsed_message["source"] == EXPORT_EVENT_SOURCE
-        and parsed_message["data"]["resource_request"]["application"] == EXPORT_SERVICE_APPLICATION
-    ):
-        logger.info("Consuming export-service event message")
-
-        logger.debug("parsed_message: %s", parsed_operation)
-        return parsed_operation
-    else:
-        logger.debug("Message not related to host-inventory found and not processed")
 
 
 def sync_event_message(message, session, event_producer):
@@ -291,66 +274,54 @@ def sync_event_message(message, session, event_producer):
 
 
 def update_system_profile(host_data, platform_metadata, operation_args={}):
-    payload_tracker = get_payload_tracker(request_id=threadctx.request_id)
-
-    with PayloadTrackerProcessingContext(
-        payload_tracker,
-        processing_status_message="updating host system profile",
-        current_operation="updating host system profile",
-    ):
-        try:
-            input_host = deserialize_host(host_data, schema=LimitedHostSchema)
-            input_host.id = host_data.get("id")
-            identity = create_mock_identity_with_org_id(input_host.org_id)
-            output_host, update_result = host_repository.update_system_profile(input_host, identity)
-            success_logger = partial(log_update_system_profile_success, logger)
-            return output_host, update_result, identity, success_logger
-        except ValidationException:
-            metrics.update_system_profile_failure.labels("ValidationException").inc()
-            raise
-        except InventoryException:
-            log_update_system_profile_failure(logger, host_data)
-            raise
-        except OperationalError as oe:
-            log_db_access_failure(logger, f"Could not access DB {str(oe)}", host_data)
-            raise oe
-        except Exception:
-            logger.exception("Error while updating host system profile", extra={"host": host_data})
-            metrics.update_system_profile_failure.labels("Exception").inc()
-            raise
+    try:
+        input_host = deserialize_host(host_data, schema=LimitedHostSchema)
+        input_host.id = host_data.get("id")
+        identity = create_mock_identity_with_org_id(input_host.org_id)
+        output_host, update_result = host_repository.update_system_profile(input_host, identity)
+        success_logger = partial(log_update_system_profile_success, logger)
+        return output_host, update_result, identity, success_logger
+    except ValidationException:
+        metrics.update_system_profile_failure.labels("ValidationException").inc()
+        raise
+    except InventoryException:
+        log_update_system_profile_failure(logger, host_data)
+        raise
+    except OperationalError as oe:
+        log_db_access_failure(logger, f"Could not access DB {str(oe)}", host_data)
+        raise oe
+    except Exception:
+        logger.exception("Error while updating host system profile", extra={"host": host_data})
+        metrics.update_system_profile_failure.labels("Exception").inc()
+        raise
 
 
 def add_host(host_data, platform_metadata, operation_args={}):
-    payload_tracker = get_payload_tracker(request_id=threadctx.request_id)
+    try:
+        identity = _get_identity(host_data, platform_metadata)
+        # basic-auth does not need owner_id
+        if identity.identity_type == IdentityType.SYSTEM:
+            host_data = _set_owner(host_data, identity)
 
-    with PayloadTrackerProcessingContext(
-        payload_tracker, processing_status_message="adding/updating host", current_operation="adding/updating host"
-    ):
-        try:
-            identity = _get_identity(host_data, platform_metadata)
-            # basic-auth does not need owner_id
-            if identity.identity_type == IdentityType.SYSTEM:
-                host_data = _set_owner(host_data, identity)
+        input_host = deserialize_host(host_data)
+        log_add_host_attempt(logger, input_host)
+        host_row, add_result = host_repository.add_host(input_host, identity, operation_args=operation_args)
+        success_logger = partial(log_add_update_host_succeeded, logger, add_result)
 
-            input_host = deserialize_host(host_data)
-            log_add_host_attempt(logger, input_host)
-            host_row, add_result = host_repository.add_host(input_host, identity, operation_args=operation_args)
-            success_logger = partial(log_add_update_host_succeeded, logger, add_result)
-
-            return host_row, add_result, identity, success_logger
-        except ValidationException:
-            metrics.add_host_failure.labels("ValidationException", host_data.get("reporter", "null")).inc()
-            raise
-        except InventoryException as ie:
-            log_add_host_failure(logger, str(ie.detail), host_data)
-            raise
-        except OperationalError as oe:
-            log_db_access_failure(logger, f"Could not access DB {str(oe)}", host_data)
-            raise oe
-        except Exception:
-            logger.exception("Error while adding host", extra={"host": host_data})
-            metrics.add_host_failure.labels("Exception", host_data.get("reporter", "null")).inc()
-            raise
+        return host_row, add_result, identity, success_logger
+    except ValidationException:
+        metrics.add_host_failure.labels("ValidationException", host_data.get("reporter", "null")).inc()
+        raise
+    except InventoryException as ie:
+        log_add_host_failure(logger, str(ie.detail), host_data)
+        raise
+    except OperationalError as oe:
+        log_db_access_failure(logger, f"Could not access DB {str(oe)}", host_data)
+        raise oe
+    except Exception:
+        logger.exception("Error while adding host", extra={"host": host_data})
+        metrics.add_host_failure.labels("Exception", host_data.get("reporter", "null")).inc()
+        raise
 
 
 @metrics.ingress_message_handler_time.time()
@@ -420,17 +391,30 @@ def write_delete_event_message(event_producer: EventProducer, result: OperationR
 
 
 def write_add_update_event_message(event_producer: EventProducer, result: OperationResult):
-    output_host = serialize_host(result.host_row, result.staleness_timestamps, staleness=result.staleness_object)
-    insights_id = result.host_row.canonical_facts.get("insights_id")
-    event = build_event(result.event_type, output_host, platform_metadata=result.platform_metadata)
+    # The request ID in the headers is fetched from threadctx.request_id
+    request_id = result.platform_metadata.get("request_id")
+    initialize_thread_local_storage(request_id)
 
-    headers = message_headers(
-        result.event_type,
-        insights_id,
-        output_host.get("reporter"),
-        output_host.get("system_profile", {}).get("host_type"),
-        output_host.get("system_profile", {}).get("operating_system", {}).get("name"),
-    )
+    payload_tracker = get_payload_tracker(request_id=request_id)
+
+    with PayloadTrackerProcessingContext(
+        payload_tracker,
+        processing_status_message="host operation complete",
+        current_operation="write_message_batch",
+        inventory_id=result.host_row.id,
+    ):
+        output_host = serialize_host(result.host_row, result.staleness_timestamps, staleness=result.staleness_object)
+        insights_id = result.host_row.canonical_facts.get("insights_id")
+        event = build_event(result.event_type, output_host, platform_metadata=result.platform_metadata)
+
+        headers = message_headers(
+            result.event_type,
+            insights_id,
+            output_host.get("reporter"),
+            output_host.get("system_profile", {}).get("host_type"),
+            output_host.get("system_profile", {}).get("operating_system", {}).get("name"),
+        )
+
     event_producer.write_event(event, str(result.host_row.id), headers, wait=True)
     delete_keys(output_host["org_id"])
     result.success_logger(output_host)
@@ -439,23 +423,18 @@ def write_add_update_event_message(event_producer: EventProducer, result: Operat
 def write_message_batch(event_producer, processed_rows):
     for result in processed_rows:
         if result is not None:
-            request_id = result.platform_metadata.get("request_id")
-            payload_tracker = get_payload_tracker(request_id=request_id)
-
-            with PayloadTrackerContext(
-                payload_tracker,
-                received_status_message="host operation complete",
-                current_operation="write_message_batch",
-            ) as payload_tracker_processing_ctx:
-                payload_tracker_processing_ctx.inventory_id = result.host_row.id
-                write_add_update_event_message(event_producer, result)
+            write_add_update_event_message(event_producer, result)
 
 
 @metrics.export_service_message_handler_time.time()
 def handle_export_message(message):
     validated_msg = parse_export_service_message(message)
-    if validated_msg and validated_msg["data"]["resource_request"]["application"] == EXPORT_SERVICE_APPLICATION:
+    if (
+        validated_msg["source"] == EXPORT_EVENT_SOURCE
+        and validated_msg["data"]["resource_request"]["application"] == EXPORT_SERVICE_APPLICATION
+    ):
         logger.info("Found host-inventory application export message")
+        logger.debug("parsed_message: %s", validated_msg)
         org_id = validated_msg["redhatorgid"]
         if create_export(validated_msg, org_id):
             metrics.export_service_message_handler_success.inc()
@@ -465,7 +444,7 @@ def handle_export_message(message):
             return False
     else:
         logger.debug("Found export message not related to host-inventory")
-        pass
+        return False
 
 
 def export_service_event_loop(consumer, flask_app, interrupt):
@@ -479,11 +458,9 @@ def export_service_event_loop(consumer, flask_app, interrupt):
                     logger.error(f"Message received but has an error, which is {str(msg.error())}")
                     metrics.ingress_message_handler_failure.inc()
                 else:
-                    logger.debug("Message received")
+                    logger.debug("Export Service message received")
                     try:
                         handle_export_message(msg.value())
-                        metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
-                        metrics.ingress_message_handler_success.inc()
                     except OperationalError as oe:
                         """sqlalchemy.exc.OperationalError: This error occurs when an
                         authentication failure occurs or the DB is not accessible.
@@ -492,7 +469,6 @@ def export_service_event_loop(consumer, flask_app, interrupt):
                         logger.error(f"Could not access DB {str(oe)}")
                         sys.exit(3)
                     except Exception:
-                        metrics.ingress_message_handler_failure.inc()
                         logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
 
 

@@ -36,6 +36,7 @@ from lib.group_repository import get_group_using_host_id
 from lib.group_repository import patch_group
 from lib.group_repository import remove_hosts_from_group
 from lib.metrics import create_group_count
+from lib.middleware import ensure_org_data_integrity
 from lib.middleware import rbac
 from lib.middleware import rbac_group_id_check
 
@@ -44,6 +45,7 @@ logger = get_logger(__name__)
 
 @api_operation
 @rbac(RbacResourceType.GROUPS, RbacPermission.READ)
+@ensure_org_data_integrity()
 @metrics.api_request_time.time()
 def get_group_list(
     name=None,
@@ -66,6 +68,7 @@ def get_group_list(
 
 @api_operation
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
+@ensure_org_data_integrity()
 @metrics.api_request_time.time()
 def create_group(body, rbac_filter=None):
     # If there is an attribute filter on the RBAC permissions,
@@ -114,6 +117,7 @@ def create_group(body, rbac_filter=None):
 
 @api_operation
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
+@ensure_org_data_integrity()
 @metrics.api_request_time.time()
 def patch_group_by_id(group_id, body, rbac_filter=None):
     rbac_group_id_check(rbac_filter, {group_id})
@@ -154,6 +158,7 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
 
 @api_operation
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
+@ensure_org_data_integrity()
 @metrics.api_request_time.time()
 def delete_groups(group_id_list, rbac_filter=None):
     rbac_group_id_check(rbac_filter, set(group_id_list))
@@ -171,6 +176,7 @@ def delete_groups(group_id_list, rbac_filter=None):
 
 @api_operation
 @rbac(RbacResourceType.GROUPS, RbacPermission.READ)
+@ensure_org_data_integrity()
 @metrics.api_request_time.time()
 def get_groups_by_id(
     group_id_list,
@@ -197,6 +203,7 @@ def get_groups_by_id(
 
 @api_operation
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
+@ensure_org_data_integrity()
 @metrics.api_request_time.time()
 def delete_hosts_from_group(group_id, host_id_list, rbac_filter=None):
     rbac_group_id_check(rbac_filter, {group_id})
@@ -214,6 +221,7 @@ def delete_hosts_from_group(group_id, host_id_list, rbac_filter=None):
 
 @api_operation
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
+@ensure_org_data_integrity()
 @metrics.api_request_time.time()
 def delete_hosts_from_different_groups(host_id_list, rbac_filter=None):
     hosts_per_group = {}
