@@ -266,9 +266,7 @@ def test_non_culled_host_is_not_removed(
 
 
 @pytest.mark.host_reaper
-def test_reaper_shutdown_handler(
-    db_create_host, db_get_hosts, inventory_config, event_producer_mock, notification_event_producer_mock
-):
+def test_reaper_shutdown_handler(db_create_host, db_get_hosts, inventory_config, notification_event_producer_mock):
     with patch("app.models.datetime") as mock_datetime:
         mock_datetime.now.return_value = datetime(year=2023, month=4, day=2, hour=1, minute=1, second=1)
         mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
@@ -288,6 +286,7 @@ def test_reaper_shutdown_handler(
         fake_event_producer = mock.Mock()
 
         threadctx.request_id = None
+        inventory_config.host_delete_chunk_size = 1
 
         host_reaper_run(
             inventory_config,
@@ -295,7 +294,7 @@ def test_reaper_shutdown_handler(
             db.session,
             fake_event_producer,
             notification_event_producer_mock,
-            shutdown_handler=mock.Mock(**{"shut_down.side_effect": (False, True)}),
+            shutdown_handler=mock.Mock(**{"shut_down.side_effect": (False, False, True)}),
         )
 
         remaining_hosts = db_get_hosts(created_host_ids)
@@ -377,6 +376,7 @@ def test_reaper_stops_after_kafka_producer_error(
         assert hosts.count() == host_count
 
         threadctx.request_id = None
+        inventory_config.host_delete_chunk_size = 1
 
         with pytest.raises(KafkaException):
             host_reaper_run(
