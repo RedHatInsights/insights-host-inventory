@@ -731,7 +731,7 @@ class CanonicalFactsSchema(MarshmallowSchema):
     provider_type = fields.Str(validate=marshmallow_validate.Length(min=1, max=50))
 
     @validates_schema
-    def validate_provider(self, data, **kwargs):
+    def validate_schema(self, data, **kwargs):
         schema_version = data.get("canonical_facts_version")
 
         if schema_version > MIN_CANONICAL_FACTS_VERSION:
