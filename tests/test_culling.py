@@ -4,6 +4,7 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
+import pytz
 from confluent_kafka import KafkaException
 
 from app import db
@@ -154,22 +155,35 @@ def test_system_profile_doesnt_use_staleness_parameter(mq_create_hosts_in_all_st
 
 
 @pytest.mark.host_reaper
+@pytest.mark.parametrize(
+    "is_host_grouped",
+    (True, False),
+)
 def test_culled_host_is_removed(
     event_producer_mock,
     event_datetime_mock,
     notification_event_producer_mock,
     db_create_host,
     db_get_host,
+    db_create_group,
+    db_create_host_group_assoc,
     inventory_config,
+    is_host_grouped,
 ):
     with patch("app.models.datetime") as mock_datetime:
-        mock_datetime.now.return_value = datetime(year=2023, month=4, day=2, hour=1, minute=1, second=1)
+        mock_datetime.now.return_value = datetime(
+            year=2023, month=4, day=2, hour=1, minute=1, second=1, tzinfo=pytz.utc
+        )
         mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
 
         staleness_timestamps = get_staleness_timestamps()
 
         host = minimal_db_host(stale_timestamp=staleness_timestamps["culled"], reporter="some reporter")
         created_host = db_create_host(host=host)
+
+        if is_host_grouped:
+            group = db_create_group("test_group")
+            db_create_host_group_assoc(created_host.id, group.id)
 
         assert db_get_host(created_host.id)
 
