@@ -50,7 +50,7 @@ def get_flag_value_and_fallback(flag_name: str, context: dict = {}) -> Tuple[boo
     # Get flag name and default to fallback value
     flag_value = FLAG_FALLBACK_VALUES[flag_name]
     using_fallback = True
-    if inventory_config().bypass_xjoin:
+    if flag_name == "hbi.api.disable-xjoin" and inventory_config().bypass_xjoin:
         flag_value = True
         using_fallback = False
 
