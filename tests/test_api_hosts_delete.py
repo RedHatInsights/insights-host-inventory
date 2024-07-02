@@ -475,8 +475,10 @@ def test_delete_stops_after_kafka_exception(
     db_create_multiple_hosts,
     api_delete_host,
     db_get_hosts,
+    inventory_config,
 ):
     mocker.patch("lib.host_delete.kafka_available")
+    inventory_config.host_delete_chunk_size = 1
     hosts = db_create_multiple_hosts(how_many=3)
     host_id_list = [str(host.id) for host in hosts]
 
@@ -701,7 +703,9 @@ def test_postgres_delete_filtered_hosts_nomatch(
 class DeleteHostsMock:
     @classmethod
     def create_mock(cls, hosts_ids_to_delete):
-        def _constructor(select_query, event_producer, notification_event_producer, chunk_size, identity=None):
+        def _constructor(
+            select_query, event_producer, notification_event_producer, chunk_size, identity=None, control_rule=None
+        ):
             return cls(
                 hosts_ids_to_delete,
                 select_query,
@@ -709,6 +713,7 @@ class DeleteHostsMock:
                 notification_event_producer,
                 chunk_size,
                 identity=identity,
+                control_rule=control_rule,
             )
 
         return _constructor
@@ -721,10 +726,16 @@ class DeleteHostsMock:
         notification_event_producer,
         chunk_size,
         identity=None,
+        control_rule=None,
     ):
         self.host_ids_to_delete = host_ids_to_delete
         self.original_query = delete_hosts(
-            original_query, event_producer, notification_event_producer, chunk_size, identity=identity
+            original_query,
+            event_producer,
+            notification_event_producer,
+            chunk_size,
+            identity=identity,
+            control_rule=control_rule,
         )
 
     def __getattr__(self, item):

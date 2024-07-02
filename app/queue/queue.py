@@ -376,6 +376,20 @@ def handle_message(message, notification_event_producer, message_operation=add_h
             raise
 
 
+def write_delete_event_message(event_producer: EventProducer, result: OperationResult):
+    event = build_event(EventType.delete, result.host_row, platform_metadata=result.platform_metadata)
+    headers = message_headers(
+        EventType.delete,
+        result.host_row.canonical_facts.get("insights_id"),
+        result.host_row.reporter,
+        result.host_row.system_profile_facts.get("host_type"),
+        result.host_row.system_profile_facts.get("operating_system", {}).get("name"),
+    )
+    event_producer.write_event(event, str(result.host_row.id), headers, wait=True)
+    delete_keys(result.host_row.org_id)
+    result.success_logger()
+
+
 def write_add_update_event_message(event_producer: EventProducer, result: OperationResult):
     # The request ID in the headers is fetched from threadctx.request_id
     request_id = result.platform_metadata.get("request_id")
@@ -393,7 +407,6 @@ def write_add_update_event_message(event_producer: EventProducer, result: Operat
         insights_id = result.host_row.canonical_facts.get("insights_id")
         event = build_event(result.event_type, output_host, platform_metadata=result.platform_metadata)
 
-        org_id = output_host["org_id"]
         headers = message_headers(
             result.event_type,
             insights_id,
@@ -401,9 +414,10 @@ def write_add_update_event_message(event_producer: EventProducer, result: Operat
             output_host.get("system_profile", {}).get("host_type"),
             output_host.get("system_profile", {}).get("operating_system", {}).get("name"),
         )
-        event_producer.write_event(event, str(result.host_row.id), headers, wait=True)
-        delete_keys(org_id)
-        result.success_logger(output_host)
+
+    event_producer.write_event(event, str(result.host_row.id), headers, wait=True)
+    delete_keys(output_host["org_id"])
+    result.success_logger(output_host)
 
 
 def write_message_batch(event_producer, processed_rows):

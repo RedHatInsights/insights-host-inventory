@@ -14,8 +14,6 @@ from app import create_app
 from app.auth.identity import create_mock_identity_with_org_id
 from app.config import Config
 from app.environment import RuntimeEnvironment
-from app.instrumentation import log_host_delete_failed
-from app.instrumentation import log_host_delete_succeeded
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
@@ -24,7 +22,6 @@ from app.queue.event_producer import EventProducer
 from app.queue.metrics import event_producer_failure
 from app.queue.metrics import event_producer_success
 from app.queue.metrics import event_serialization_time
-from lib.db import session_guard
 from lib.handlers import register_shutdown
 from lib.handlers import ShutdownHandler
 from lib.host_delete import delete_hosts
@@ -118,21 +115,19 @@ def run(config, logger, session, event_producer, notification_event_producer, sh
 
     while hosts_processed == config.host_delete_chunk_size:
         logger.info(f"Reaper starting batch; {deletions_remaining} remaining.")
-        with session_guard(session):
+        try:
             events = delete_hosts(
                 query,
                 event_producer,
                 notification_event_producer,
                 config.host_delete_chunk_size,
                 shutdown_handler.shut_down,
+                control_rule="REAPER",
             )
             hosts_processed = len(list(events))
-            for host, deleted in events:
-                host_id = host.get("id")
-                if deleted:
-                    log_host_delete_succeeded(logger, host_id, "REAPER")
-                else:
-                    log_host_delete_failed(logger, host_id, "REAPER")
+        except InterruptedError:
+            events = []
+            hosts_processed = 0
 
         deletions_remaining -= hosts_processed
 
