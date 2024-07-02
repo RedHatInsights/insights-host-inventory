@@ -1,6 +1,7 @@
 from functools import partial
 from functools import wraps
 from http import HTTPStatus
+from time import sleep
 from uuid import UUID
 
 from app_common_python import LoadedConfig
@@ -20,10 +21,14 @@ from app import REQUEST_ID_HEADER
 from app.auth import get_current_identity
 from app.auth.identity import IdentityType
 from app.common import inventory_config
+from app.config import Config
+from app.environment import RuntimeEnvironment
 from app.instrumentation import rbac_failure
 from app.instrumentation import rbac_group_permission_denied
 from app.instrumentation import rbac_permission_denied
 from app.logging import get_logger
+from lib.feature_flags import FLAG_INVENTORY_SATELLITE_THROTTLE
+from lib.feature_flags import get_flag_value
 
 
 logger = get_logger(__name__)
@@ -206,6 +211,21 @@ def ensure_org_data_integrity():
                         if org_id and (org_id != current_identity.org_id):
                             logger.error(message)
                             abort(HTTPStatus.FORBIDDEN)
+            return result
+
+        return decorator_method
+
+    return decorator
+
+
+def throttled_response():
+    def decorator(func):
+        @wraps(func)
+        def decorator_method(*args, **kwargs):
+            result = func(*args, **kwargs)
+            if get_flag_value(FLAG_INVENTORY_SATELLITE_THROTTLE) and "Satellite" in request.headers.get("User-Agent"):
+                config = Config(RuntimeEnvironment.SERVER)
+                sleep(config.api_satellite_throttle_delay_ms / 1000)  # Add delay in seconds
             return result
 
         return decorator_method
