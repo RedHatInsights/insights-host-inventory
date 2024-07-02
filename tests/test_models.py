@@ -15,6 +15,8 @@ from app.models import Host
 from app.models import HostSchema
 from app.models import InputGroupSchema
 from app.models import LimitedHost
+from app.models import MAX_CANONICAL_FACTS_VERSION
+from app.models import MIN_CANONICAL_FACTS_VERSION
 from app.utils import Tag
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import now
@@ -515,27 +517,110 @@ def test_update_per_reporter_staleness_yupana_replacement(db_create_host, models
     }
 
 
-@pytest.mark.parametrize(
-    "provider",
-    (
-        {"type": "alibaba", "id": generate_uuid()},
-        {"type": "aws", "id": "i-05d2313e6b9a42b16"},
-        {"type": "azure", "id": generate_uuid()},
-        {"type": "gcp", "id": generate_uuid()},
-        {"type": "ibm", "id": generate_uuid()},
-    ),
-)
-def test_valid_providers(provider):
-    canonical_facts = {"provider_id": provider.get("id"), "provider_type": provider.get("type")}
+def test_canonical_facts_version_default():
+    canonical_facts = {"insights_id": generate_uuid()}
     validated_host = CanonicalFactsSchema().load(canonical_facts)
 
-    assert validated_host["provider_id"] == provider.get("id")
-    assert validated_host["provider_type"] == provider.get("type")
+    assert validated_host["canonical_facts_version"] == MIN_CANONICAL_FACTS_VERSION
+
+
+def test_canonical_facts_version_min():
+    canonical_facts = {"canonical_facts_version": MIN_CANONICAL_FACTS_VERSION, "insights_id": generate_uuid()}
+    validated_host = CanonicalFactsSchema().load(canonical_facts)
+
+    assert validated_host["canonical_facts_version"] == MIN_CANONICAL_FACTS_VERSION
+
+
+def test_canonical_facts_version_max():
+    canonical_facts = {
+        "canonical_facts_version": MAX_CANONICAL_FACTS_VERSION,
+        "is_virtual": False,
+        "mac_addresses": ["c2:00:d0:c8:61:01", "aa:bb:cc:dd:ee:ff"],
+        "insights_id": generate_uuid(),
+    }
+    validated_host = CanonicalFactsSchema().load(canonical_facts)
+
+    assert validated_host["canonical_facts_version"] == MAX_CANONICAL_FACTS_VERSION
+
+
+def test_canonical_facts_version_toolow():
+    canonical_facts = {"canonical_facts_version": MIN_CANONICAL_FACTS_VERSION - 1, "insights_id": generate_uuid()}
+
+    with pytest.raises(MarshmallowValidationError):
+        CanonicalFactsSchema().load(canonical_facts)
+
+
+def test_canonical_facts_version_toohigh():
+    canonical_facts = {"canonical_facts_version": MAX_CANONICAL_FACTS_VERSION + 1, "insights_id": generate_uuid()}
+
+    with pytest.raises(MarshmallowValidationError):
+        CanonicalFactsSchema().load(canonical_facts)
 
 
 @pytest.mark.parametrize(
     "canonical_facts",
     (
+        #
+        # canonical_facts_version = 0
+        #
+        {"provider_type": "alibaba", "provider_id": generate_uuid()},
+        {"provider_type": "aws", "provider_id": "i-05d2313e6b9a42b16"},
+        {"provider_type": "azure", "provider_id": generate_uuid()},
+        {"provider_type": "gcp", "provider_id": generate_uuid()},
+        {"provider_type": "ibm", "provider_id": generate_uuid()},
+        #
+        # canonical_facts_version = 1
+        #
+        {
+            "canonical_facts_version": 1,
+            "is_virtual": True,
+            "mac_addresses": ["c2:00:d0:c8:61:01", "aa:bb:cc:dd:ee:ff"],
+            "provider_type": "alibaba",
+            "provider_id": generate_uuid(),
+        },
+        {
+            "canonical_facts_version": 1,
+            "is_virtual": True,
+            "mac_addresses": ["c2:00:d0:c8:61:01", "aa:bb:cc:dd:ee:ff"],
+            "provider_type": "aws",
+            "provider_id": "i-05d2313e6b9a42b16",
+        },
+        {
+            "canonical_facts_version": 1,
+            "is_virtual": True,
+            "mac_addresses": ["c2:00:d0:c8:61:01", "aa:bb:cc:dd:ee:ff"],
+            "provider_type": "azure",
+            "provider_id": generate_uuid(),
+        },
+        {
+            "canonical_facts_version": 1,
+            "is_virtual": True,
+            "mac_addresses": ["c2:00:d0:c8:61:01", "aa:bb:cc:dd:ee:ff"],
+            "provider_type": "gcp",
+            "provider_id": generate_uuid(),
+        },
+        {
+            "canonical_facts_version": 1,
+            "is_virtual": True,
+            "mac_addresses": ["c2:00:d0:c8:61:01", "aa:bb:cc:dd:ee:ff"],
+            "provider_type": "ibm",
+            "provider_id": generate_uuid(),
+        },
+    ),
+)
+def test_valid_providers(canonical_facts):
+    validated_host = CanonicalFactsSchema().load(canonical_facts)
+
+    assert validated_host["provider_id"] == canonical_facts.get("provider_id")
+    assert validated_host["provider_type"] == canonical_facts.get("provider_type")
+
+
+@pytest.mark.parametrize(
+    "canonical_facts",
+    (
+        #
+        # canonical_facts_version = 0
+        #
         {
             "provider_type": "invalid",
             "provider_id": "i-05d2313e6b9a42b16",
@@ -546,7 +631,64 @@ def test_valid_providers(provider):
         {"provider_type": None, "provider_id": generate_uuid()},  # invalid provider_type (None)
         {"provider_type": "azure", "provider_id": ""},  # invalid provider_id (empty string)
         {"provider_type": "aws", "provider_id": "  "},  # invalid provider_id (blank space)
-        {"provider_type": "aws", "provider_id": "\t"},  # invalid provider_id (tab)
+        {"provider_type": "aws", "provider_id": "\t"},  # invalid provider_id (tab),
+        #
+        # canonical_facts_version = 1
+        #
+        {
+            "canonical_facts_version": 1,
+            "is_virtual": False,
+            "mac_addresses": ["c2:00:d0:c8:61:01", "aa:bb:cc:dd:ee:ff"],
+            "provider_type": "invalid",
+            "provider_id": "i-05d2313e6b9a42b16",
+        },  # invalid provider_type (value not in enum)
+        {
+            "canonical_facts_version": 1,
+            "is_virtual": False,
+            "mac_addresses": ["c2:00:d0:c8:61:01", "aa:bb:cc:dd:ee:ff"],
+            "provider_id": generate_uuid(),
+        },  # missing provider_type
+        {
+            "canonical_facts_version": 1,
+            "is_virtual": False,
+            "mac_addresses": ["c2:00:d0:c8:61:01", "aa:bb:cc:dd:ee:ff"],
+            "provider_type": "azure",
+        },  # missing provider_id
+        {
+            "canonical_facts_version": 1,
+            "is_virtual": False,
+            "mac_addresses": ["c2:00:d0:c8:61:01", "aa:bb:cc:dd:ee:ff"],
+            "provider_type": "aws",
+            "provider_id": None,
+        },  # invalid provider_id (None)
+        {
+            "canonical_facts_version": 1,
+            "is_virtual": False,
+            "mac_addresses": ["c2:00:d0:c8:61:01", "aa:bb:cc:dd:ee:ff"],
+            "provider_type": None,
+            "provider_id": generate_uuid(),
+        },  # invalid provider_type (None)
+        {
+            "canonical_facts_version": 1,
+            "is_virtual": False,
+            "mac_addresses": ["c2:00:d0:c8:61:01", "aa:bb:cc:dd:ee:ff"],
+            "provider_type": "azure",
+            "provider_id": "",
+        },  # invalid provider_id (empty string)
+        {
+            "canonical_facts_version": 1,
+            "is_virtual": False,
+            "mac_addresses": ["c2:00:d0:c8:61:01", "aa:bb:cc:dd:ee:ff"],
+            "provider_type": "aws",
+            "provider_id": "  ",
+        },  # invalid provider_id (blank space)
+        {
+            "canonical_facts_version": 1,
+            "is_virtual": False,
+            "mac_addresses": ["c2:00:d0:c8:61:01", "aa:bb:cc:dd:ee:ff"],
+            "provider_type": "aws",
+            "provider_id": "\t",
+        },  # invalid provider_id (tab)
     ),
 )
 def test_invalid_providers(canonical_facts):
@@ -555,26 +697,199 @@ def test_invalid_providers(canonical_facts):
 
 
 @pytest.mark.parametrize(
-    "ip_addresses", (["127.0.0.1"], ["1.2.3.4"], ["2001:db8:3333:4444:5555:6666:7777:8888"], ["::"], ["2001:db8::"])
+    "canonical_facts",
+    (
+        #
+        # canonical_facts_version = 0
+        #
+        {"ip_addresses": ["127.0.0.1"]},
+        {"ip_addresses": ["1.2.3.4"]},
+        {"ip_addresses": ["2001:db8:3333:4444:5555:6666:7777:8888"]},
+        {"ip_addresses": ["::"]},
+        {"ip_addresses": ["2001:db8::"]},
+        #
+        # canonical_facts_version = 1
+        #
+        {
+            "canonical_facts_version": 1,
+            "is_virtual": False,
+            "mac_addresses": ["c2:00:d0:c8:61:01", "aa:bb:cc:dd:ee:ff"],
+            "ip_addresses": ["127.0.0.1"],
+        },
+        {
+            "canonical_facts_version": 1,
+            "is_virtual": False,
+            "mac_addresses": ["c2:00:d0:c8:61:01", "aa:bb:cc:dd:ee:ff"],
+            "ip_addresses": ["1.2.3.4"],
+        },
+        {
+            "canonical_facts_version": 1,
+            "is_virtual": False,
+            "mac_addresses": ["c2:00:d0:c8:61:01", "aa:bb:cc:dd:ee:ff"],
+            "ip_addresses": ["2001:db8:3333:4444:5555:6666:7777:8888"],
+        },
+        {
+            "canonical_facts_version": 1,
+            "is_virtual": False,
+            "mac_addresses": ["c2:00:d0:c8:61:01", "aa:bb:cc:dd:ee:ff"],
+            "ip_addresses": ["::"],
+        },
+        {
+            "canonical_facts_version": 1,
+            "is_virtual": False,
+            "mac_addresses": ["c2:00:d0:c8:61:01", "aa:bb:cc:dd:ee:ff"],
+            "ip_addresses": ["2001:db8::"],
+        },
+    ),
 )
-def test_valid_ip_addresses(ip_addresses):
-    CanonicalFactsSchema().load({"ip_addresses": ip_addresses})
+def test_valid_ip_addresses(canonical_facts):
+    CanonicalFactsSchema().load(canonical_facts)
 
 
 @pytest.mark.parametrize(
-    "ip_addresses",
+    "canonical_facts",
     (
-        ["just_a_string"],
-        ["1.2.3"],
-        ["1.2.3.4.5"],
-        ["1.2.256.0"],
-        ["2001:db8:3333:4444:5555:6666:7777:8888:9999"],
-        ["1111:2222:3333:4444:5555:6666:7777:gb8"],
+        #
+        # canonical_facts_version = 0
+        #
+        {"ip_addresses": ["just_a_string"]},
+        {"ip_addresses": ["1.2.3"]},
+        {"ip_addresses": ["1.2.3.4.5"]},
+        {"ip_addresses": ["1.2.256.0"]},
+        {"ip_addresses": ["2001:db8:3333:4444:5555:6666:7777:8888:9999"]},
+        {"ip_addresses": ["1111:2222:3333:4444:5555:6666:7777:gb8"]},
+        #
+        # canonical_facts_version = 1
+        #
+        {
+            "canonical_facts_version": 1,
+            "is_virtual": False,
+            "mac_addresses": ["c2:00:d0:c8:61:01", "aa:bb:cc:dd:ee:ff"],
+            "ip_addresses": ["just_a_string"],
+        },
+        {
+            "canonical_facts_version": 1,
+            "is_virtual": False,
+            "mac_addresses": ["c2:00:d0:c8:61:01", "aa:bb:cc:dd:ee:ff"],
+            "ip_addresses": ["1.2.3"],
+        },
+        {
+            "canonical_facts_version": 1,
+            "is_virtual": False,
+            "mac_addresses": ["c2:00:d0:c8:61:01", "aa:bb:cc:dd:ee:ff"],
+            "ip_addresses": ["1.2.3.4.5"],
+        },
+        {
+            "canonical_facts_version": 1,
+            "is_virtual": False,
+            "mac_addresses": ["c2:00:d0:c8:61:01", "aa:bb:cc:dd:ee:ff"],
+            "ip_addresses": ["1.2.256.0"],
+        },
+        {
+            "canonical_facts_version": 1,
+            "is_virtual": False,
+            "mac_addresses": ["c2:00:d0:c8:61:01", "aa:bb:cc:dd:ee:ff"],
+            "ip_addresses": ["2001:db8:3333:4444:5555:6666:7777:8888:9999"],
+        },
+        {
+            "canonical_facts_version": 1,
+            "is_virtual": False,
+            "mac_addresses": ["c2:00:d0:c8:61:01", "aa:bb:cc:dd:ee:ff"],
+            "ip_addresses": ["1111:2222:3333:4444:5555:6666:7777:gb8"],
+        },
     ),
 )
-def test_invalid_ip_addresses(ip_addresses):
+def test_invalid_ip_addresses(canonical_facts):
     with pytest.raises(MarshmallowValidationError):
-        CanonicalFactsSchema().load({"ip_addresses": ip_addresses})
+        CanonicalFactsSchema().load(canonical_facts)
+
+
+def test_canonical_facts_v1_is_virtual_required():
+    canonical_facts = {"canonical_facts_version": 1, "mac_addresses": ["c2:00:d0:c8:61:01", "aa:bb:cc:dd:ee:ff"]}
+    with pytest.raises(MarshmallowValidationError):
+        CanonicalFactsSchema().load(canonical_facts)
+
+
+@pytest.mark.parametrize("is_virtual", (None, "", "XXX", 1))
+def test_canonical_facts_v1_is_virtual_badvalues(is_virtual):
+    canonical_facts = {
+        "canonical_facts_version": 1,
+        "is_virtual": is_virtual,
+        "mac_addresses": ["c2:00:d0:c8:61:01", "aa:bb:cc:dd:ee:ff"],
+    }
+    with pytest.raises(MarshmallowValidationError):
+        CanonicalFactsSchema().load(canonical_facts)
+
+
+@pytest.mark.parametrize(
+    "canonical_facts",
+    (
+        {
+            "canonical_facts_version": 1,
+            "is_virtual": True,
+            "mac_addresses": ["c2:00:d0:c8:61:01", "aa:bb:cc:dd:ee:ff"],
+            "provider_type": "ibm",
+            "provider_id": generate_uuid(),
+        },
+        {
+            "canonical_facts_version": 1,
+            "is_virtual": "True",
+            "mac_addresses": ["c2:00:d0:c8:61:01", "aa:bb:cc:dd:ee:ff"],
+            "provider_type": "ibm",
+            "provider_id": generate_uuid(),
+        },
+        {
+            "canonical_facts_version": 1,
+            "is_virtual": False,
+            "mac_addresses": ["c2:00:d0:c8:61:01", "aa:bb:cc:dd:ee:ff"],
+        },
+        {
+            "canonical_facts_version": 1,
+            "is_virtual": "False",
+            "mac_addresses": ["c2:00:d0:c8:61:01", "aa:bb:cc:dd:ee:ff"],
+        },
+    ),
+)
+def test_canonical_facts_v1_is_virtual_goodvalues(canonical_facts):
+    validated_host = CanonicalFactsSchema().load(canonical_facts)
+    assert validated_host["is_virtual"] is True or validated_host["is_virtual"] is False
+
+
+def test_canonical_facts_v1_mac_addresses_required():
+    canonical_facts = {"canonical_facts_version": 1, "is_virtual": False}
+    with pytest.raises(MarshmallowValidationError):
+        CanonicalFactsSchema().load(canonical_facts)
+
+
+@pytest.mark.parametrize("mac_addresses", (None, [], (), "c2:00:d0:c8:61:01", ["XXX"]))
+def test_canonical_facts_v1_mac_addresses_badvalues(mac_addresses):
+    canonical_facts = {"canonical_facts_version": 1, "is_virtual": False, "mac_addresses": mac_addresses}
+    with pytest.raises(MarshmallowValidationError):
+        CanonicalFactsSchema().load(canonical_facts)
+
+
+@pytest.mark.parametrize("mac_addresses", (["c2:00:d0:c8:61:01"], ["c2:00:d0:c8:61:01", "aa:bb:cc:dd:ee:ff"]))
+def test_canonical_facts_v1_mac_addresses_goodvalues(mac_addresses):
+    canonical_facts = {"canonical_facts_version": 1, "is_virtual": False, "mac_addresses": mac_addresses}
+    CanonicalFactsSchema().load(canonical_facts)
+
+
+def test_canonical_facts_v1_provider_required_for_virtual():
+    canonical_facts = {"canonical_facts_version": 1, "is_virtual": True, "mac_addresses": ["c2:00:d0:c8:61:01"]}
+    with pytest.raises(MarshmallowValidationError):
+        CanonicalFactsSchema().load(canonical_facts)
+
+
+def test_canonical_facts_v1_noprovider_when_notvirtual():
+    canonical_facts = {
+        "canonical_facts_version": 1,
+        "is_virtual": False,
+        "mac_addresses": ["c2:00:d0:c8:61:01"],
+        "provider_type": "ibm",
+        "provider_id": generate_uuid(),
+    }
+    with pytest.raises(MarshmallowValidationError):
+        CanonicalFactsSchema().load(canonical_facts)
 
 
 def test_create_delete_group_happy(db_create_group, db_get_group_by_id, db_delete_group):
