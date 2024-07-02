@@ -10,6 +10,7 @@ from api import api_operation
 from api import flask_json_response
 from api import json_error_response
 from api import metrics
+from api.cache import delete_keys
 from api.staleness_query import get_staleness_obj
 from api.staleness_query import get_sys_default_staleness_api
 from app import RbacPermission
@@ -88,6 +89,7 @@ def create_staleness(body):
         return Response(None, HTTPStatus.NOT_IMPLEMENTED)
 
     # Validate account staleness input data
+    org_id = get_current_identity().org_id
     try:
         validated_data = _validate_input_data(body)
     except ValidationError as e:
@@ -97,12 +99,12 @@ def create_staleness(body):
     try:
         # Create account staleness with validated data
         created_staleness = add_staleness(validated_data)
-
+        delete_keys(org_id)
         log_create_staleness_succeeded(logger, created_staleness.id)
     except IntegrityError:
-        error_message = f"Staleness record for org_id {get_current_identity().org_id} already exists."
+        error_message = f"Staleness record for org_id {org_id} already exists."
 
-        log_create_staleness_failed(logger, get_current_identity().org_id)
+        log_create_staleness_failed(logger, org_id)
         logger.exception(error_message)
         return json_error_response("Integrity error", error_message, HTTPStatus.BAD_REQUEST)
 
@@ -118,13 +120,15 @@ def delete_staleness():
     if not get_flag_value(FLAG_INVENTORY_CUSTOM_STALENESS):
         return Response(None, HTTPStatus.NOT_IMPLEMENTED)
 
+    org_id = get_current_identity().org_id
     try:
         remove_staleness()
+        delete_keys(org_id)
         return flask_json_response(None, HTTPStatus.NO_CONTENT)
     except NoResultFound:
         abort(
             HTTPStatus.NOT_FOUND,
-            f"Staleness record for org_id {get_current_identity().org_id} does not exist.",
+            f"Staleness record for org_id {org_id} does not exist.",
         )
 
 
@@ -144,17 +148,19 @@ def update_staleness(body):
         logger.exception(f'Input validation error, "{str(e.messages)}", while creating account staleness: {body}')
         return json_error_response("Validation Error", str(e.messages), HTTPStatus.BAD_REQUEST)
 
+    org_id = get_current_identity().org_id
     try:
         updated_staleness = patch_staleness(validated_data)
         if updated_staleness is None:
             # since update only return None with no record instead of exception.
             raise NoResultFound
 
+        delete_keys(org_id)
         log_patch_staleness_succeeded(logger, updated_staleness.id)
 
         return flask_json_response(serialize_staleness_response(updated_staleness), HTTPStatus.OK)
     except NoResultFound:
         abort(
             HTTPStatus.NOT_FOUND,
-            f"Staleness record for org_id {get_current_identity().org_id} does not exist.",
+            f"Staleness record for org_id {org_id} does not exist.",
         )
