@@ -2,6 +2,7 @@ import base64
 import contextlib
 import json
 import os
+import random
 import string
 import unittest.mock
 import uuid
@@ -12,7 +13,9 @@ from datetime import timezone
 from random import choice
 from random import randint
 
+from app.models import ProviderType
 from app.utils import HostWrapper
+from lib.host_repository import COMPOUND_CANONICAL_FACTS_MAP
 
 NS = "testns"
 ID = "whoabuddy"
@@ -53,6 +56,8 @@ YUM_REPO2 = {"id": "repo2", "name": "repo2", "gpgcheck": True, "enabled": True, 
 SATELLITE_IDENTITY = deepcopy(SYSTEM_IDENTITY)
 SATELLITE_IDENTITY["system"]["cert_type"] = "satellite"
 
+COMPOUND_FACT_VALUES = {"provider_type": ProviderType.AWS}
+
 
 def generate_uuid():
     return str(uuid.uuid4())
@@ -87,17 +92,29 @@ def set_environment(new_env=None):
     patched_dict.stop()
 
 
-def minimal_host(**values):
-    data = {
+def _base_host_data(**values):
+    return {
         "org_id": USER_IDENTITY["org_id"],
         "display_name": "test" + generate_random_string(),
-        "ip_addresses": ["10.10.0.1"],
         "stale_timestamp": (now() + timedelta(days=randint(1, 7))).isoformat(),
         "reporter": "test" + generate_random_string(),
         **values,
     }
 
-    return HostWrapper(data)
+
+# This method returns a host wrapper that doesn't contain any canonical facts.
+# It should be used in test cases that explicitly set canonical facts.
+def base_host(**values):
+    return HostWrapper(_base_host_data(**values))
+
+
+# This method returns a host wrapper that contains a single canonical fact, making it
+# a minimal host that's valid for use with mq_create_or_update_host().
+# It should be used in test cases where specific canonical facts are not needed.
+def minimal_host(**values):
+    host_wrapper = HostWrapper(_base_host_data(**values))
+    host_wrapper.bios_uuid = generate_uuid()
+    return host_wrapper
 
 
 def valid_system_profile(owner_id=None, additional_yum_repo=None):
@@ -188,6 +205,39 @@ def get_platform_metadata(identity=SYSTEM_IDENTITY):
         "archive_url": "http://s3.aws.com/redhat/insights/1234567",
         "b64_identity": get_encoded_idstr(identity),
     }
+
+
+def random_mac():
+    return "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}".format(
+        random.randint(0, 255),
+        random.randint(0, 255),
+        random.randint(0, 255),
+        random.randint(0, 255),
+        random.randint(0, 255),
+        random.randint(0, 255),
+    )
+
+
+def generate_mac_addresses(num_mac):
+    macs = []
+    for i in range(num_mac):
+        macs.append(random_mac())
+    return macs
+
+
+# Extend this method as new types are required.
+def generate_fact(fact_name, num=1):
+    if fact_name == "mac_addresses":
+        return generate_mac_addresses(num)
+    return generate_uuid()
+
+
+def generate_fact_dict(fact_name, num=1):
+    fact_dict = {fact_name: generate_fact(fact_name, num)}
+    if compound_fact := COMPOUND_CANONICAL_FACTS_MAP.get(fact_name):
+        fact_dict[compound_fact] = COMPOUND_FACT_VALUES[compound_fact]
+
+    return fact_dict
 
 
 class MockResponseObject:

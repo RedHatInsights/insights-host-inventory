@@ -3,13 +3,19 @@ from pytest import mark
 
 from app.auth.identity import Identity
 from app.exceptions import InventoryException
+from app.exceptions import ValidationException
 from app.models import ProviderType
 from lib.host_repository import find_existing_host
+from lib.host_repository import IMMUTABLE_CANONICAL_FACTS
 from tests.helpers.db_utils import assert_host_exists_in_db
 from tests.helpers.db_utils import assert_host_missing_from_db
 from tests.helpers.db_utils import minimal_db_host
+from tests.helpers.test_utils import base_host
+from tests.helpers.test_utils import generate_fact
+from tests.helpers.test_utils import generate_fact_dict
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
+from tests.helpers.test_utils import random_mac
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
@@ -81,8 +87,7 @@ def test_find_correct_host_when_similar_canonical_facts(db_create_host):
 
 
 def test_no_merge_when_no_match(mq_create_or_update_host):
-    wrapper = minimal_host(fqdn="test_fqdn", insights_id=generate_uuid())
-    del wrapper.ip_addresses
+    wrapper = base_host(fqdn="test_fqdn", insights_id=generate_uuid())
     first_host = mq_create_or_update_host(wrapper)
 
     second_host = mq_create_or_update_host(
@@ -97,24 +102,120 @@ def test_no_merge_when_no_match(mq_create_or_update_host):
     assert first_host.id != second_host.id
 
 
+#
+# When lower priority facts change, we still match on high priority facts.
+#
+@pytest.mark.parametrize(
+    "high_prio_match, low_prio_change",
+    (
+        ("provider_id", "insights_id"),
+        ("provider_id", "subscription_manager_id"),
+        ("mac_addresses", "insights_id"),
+        ("mac_addresses", "subscription_manager_id"),
+    ),
+)
+def test_high_prio_match_low_prio_change(mq_create_or_update_host, high_prio_match, low_prio_change):
+    base_canonical_facts = generate_fact_dict(high_prio_match)
+    base_canonical_facts[low_prio_change] = generate_fact(low_prio_change)
+
+    wrapper = base_host(**base_canonical_facts)
+    first_host = mq_create_or_update_host(wrapper)
+
+    base_canonical_facts[low_prio_change] = generate_fact(low_prio_change)
+
+    wrapper = base_host(**base_canonical_facts)
+    second_host = mq_create_or_update_host(wrapper)
+
+    assert first_host.id == second_host.id
+
+
+#
+# When mutable high priority facts change, match on lower level facts.
+# When immutable high priority facts are different, no match even when lower level facts match.
+#
+@pytest.mark.parametrize(
+    "high_prio_change, low_prio_match",
+    (
+        ("provider_id", "insights_id"),
+        ("provider_id", "subscription_manager_id"),
+        ("mac_addresses", "insights_id"),
+        ("mac_addresses", "subscription_manager_id"),
+    ),
+)
+def test_high_prio_change_low_prio_match(mq_create_or_update_host, high_prio_change, low_prio_match):
+    base_canonical_facts = generate_fact_dict(high_prio_change)
+    base_canonical_facts[low_prio_match] = generate_fact(low_prio_match)
+
+    wrapper = base_host(**base_canonical_facts)
+    first_host = mq_create_or_update_host(wrapper)
+
+    base_canonical_facts.update(generate_fact_dict(high_prio_change))
+
+    wrapper = base_host(**base_canonical_facts)
+    second_host = mq_create_or_update_host(wrapper)
+
+    if high_prio_change in IMMUTABLE_CANONICAL_FACTS:
+        # When an immutable fact is different, then it should never match.
+        assert first_host.id != second_host.id
+    else:
+        assert first_host.id == second_host.id
+
+
+#
+# When a mutable canonical fact changes, and a higher priority fact is not set in the database
+# but the higher priority fact is provided in the report, there should be no match.
+#
+@pytest.mark.parametrize(
+    "high_prio_fact, low_prio_fact",
+    (
+        ("provider_id", "insights_id"),
+        ("provider_id", "subscription_manager_id"),
+        ("mac_addresses", "insights_id"),
+        ("mac_addresses", "subscription_manager_id"),
+    ),
+)
+def test_lowlevel_change_highlevel_notset_provided_nomatch(mq_create_or_update_host, high_prio_fact, low_prio_fact):
+    base_canonical_facts = generate_fact_dict(low_prio_fact)
+
+    wrapper = base_host(**base_canonical_facts)
+    first_host = mq_create_or_update_host(wrapper)
+
+    changed_canonical_facts = base_canonical_facts.copy()
+    changed_canonical_facts[low_prio_fact] = generate_fact(low_prio_fact)
+    changed_canonical_facts.update(generate_fact_dict(high_prio_fact))
+
+    wrapper = base_host(**changed_canonical_facts)
+    second_host = mq_create_or_update_host(wrapper)
+
+    assert first_host.id != second_host.id
+
+
 @mark.parametrize("changing_id", ("provider_id", "insights_id"))
 def test_elevated_id_priority_order_nomatch(db_create_host, changing_id):
     base_canonical_facts = {
         "insights_id": generate_uuid(),
         "subscription_manager_id": generate_uuid(),
-        "provider_type": ProviderType.AWS,
     }
 
     created_host_canonical_facts = base_canonical_facts.copy()
-    created_host_canonical_facts[changing_id] = generate_uuid()
+    created_host_canonical_facts.update(generate_fact_dict(changing_id))
 
     search_canonical_facts = base_canonical_facts.copy()
-    search_canonical_facts[changing_id] = generate_uuid()
+    search_canonical_facts.update(generate_fact_dict(changing_id))
 
     created_host = db_create_host(host=minimal_db_host(canonical_facts=created_host_canonical_facts))
 
     assert_host_exists_in_db(created_host.id, created_host_canonical_facts)
-    assert_host_missing_from_db(search_canonical_facts)
+    if changing_id in IMMUTABLE_CANONICAL_FACTS:
+        # When an immutable fact is different, then it should never match.
+        assert_host_missing_from_db(search_canonical_facts)
+    else:
+        # When a mutable fact is different, we should still try to match
+        # on lower-priority facts, assuming the mutable fact may have changed.
+        # In this case, we failed to match on insights_id, but we did match
+        # on subscription_manager_id. Here, it's reasonably safe to conclude
+        # the insights_id has changed, and this is the host that needs to be updated.
+        assert_host_exists_in_db(created_host.id, search_canonical_facts)
 
 
 @mark.parametrize("changing_id", ("insights_id", "subscription_manager_id"))
@@ -129,7 +230,7 @@ def test_elevated_id_priority_order_match(db_create_host, changing_id):
     created_host = db_create_host(host=minimal_db_host(canonical_facts=base_canonical_facts))
 
     match_host_canonical_facts = base_canonical_facts.copy()
-    match_host_canonical_facts[changing_id] = generate_uuid()
+    match_host_canonical_facts[changing_id] = generate_fact(changing_id)
 
     assert_host_exists_in_db(created_host.id, match_host_canonical_facts)
 
@@ -174,6 +275,61 @@ def test_find_host_using_subscription_manager_id_match(db_create_host):
     assert_host_exists_in_db(created_host.id, search_canonical_facts)
 
 
+#
+# This test reproduces the sequence of events that caused the creation
+# of duplicate hosts with the same provider_id/provider_type.
+# The test asserts that this sequence of events no longer results
+# in the creation of such duplicates.
+#
+def test_provider_id_dup(mq_create_or_update_host, db_get_host):
+    provider_id = generate_uuid()
+
+    subscription_manager_id_x = generate_uuid()
+    subscription_manager_id_y = generate_uuid()
+
+    canonical_facts = {
+        "subscription_manager_id": subscription_manager_id_x,
+        "provider_id": provider_id,
+        "provider_type": ProviderType.AWS,
+    }
+    first_host = minimal_host(**canonical_facts)
+    del first_host.ip_addresses
+    first_host.reporter = "rhsm-system-profile-bridge"
+    created_first_host = mq_create_or_update_host(first_host)
+
+    assert_host_exists_in_db(created_first_host.id, canonical_facts)
+    assert created_first_host.provider_id == provider_id
+
+    canonical_facts = {
+        "subscription_manager_id": subscription_manager_id_y,
+        "provider_id": provider_id,
+        "provider_type": ProviderType.AWS,
+    }
+    second_host = minimal_host(**canonical_facts)
+    del second_host.ip_addresses
+    second_host.reporter = "cloud-connector"
+    created_second_host = mq_create_or_update_host(second_host)
+
+    assert_host_exists_in_db(created_second_host.id, canonical_facts)
+    # Should have matched the first host.
+    assert created_second_host.id == created_first_host.id
+    assert created_second_host.provider_id == provider_id
+
+    canonical_facts = {
+        "subscription_manager_id": subscription_manager_id_y,
+        "provider_id": provider_id,
+        "provider_type": ProviderType.AWS,
+    }
+    third_host = minimal_host(**canonical_facts)
+    del third_host.ip_addresses
+    third_host.reporter = "rhsm-system-profile-bridge"
+    created_third_host = mq_create_or_update_host(third_host)
+
+    assert_host_exists_in_db(created_third_host.id, canonical_facts)
+    assert created_third_host.id == created_first_host.id
+    assert created_third_host.id == created_second_host.id
+
+
 @mark.parametrize("changing_id", ("insights_id", "subscription_manager_id"))
 def test_rhsm_conduit_elevated_id_priority_no_identity(mq_create_or_update_host, changing_id):
     base_canonical_facts = {
@@ -191,7 +347,7 @@ def test_rhsm_conduit_elevated_id_priority_no_identity(mq_create_or_update_host,
     created_first_host = mq_create_or_update_host(first_host, platform_metadata=platform_metadata)
 
     second_host_canonical_facts = base_canonical_facts.copy()
-    second_host_canonical_facts[changing_id] = generate_uuid()
+    second_host_canonical_facts[changing_id] = generate_fact(changing_id)
     second_host = minimal_host(**second_host_canonical_facts)
     second_host.reporter = "rhsm-conduit"
     created_second_host = mq_create_or_update_host(second_host, platform_metadata=platform_metadata)
@@ -207,12 +363,94 @@ def test_subscription_manager_id_case_insensitive(mq_create_or_update_host):
     assert first_host.id == second_host.id
 
 
+#
+# An empty list of mac_addresses should result in a ValidationException.
+#
+def test_mac_address_empty_list_error(mq_create_or_update_host):
+    canonical_facts = generate_fact_dict("mac_addresses", 0)
+    assert not canonical_facts["mac_addresses"]
+
+    with pytest.raises(ValidationException):
+        mq_create_or_update_host(base_host(**canonical_facts))
+
+
+#
+# Identical mac_address lists should match.
+#
+def test_mac_address_exact_list_match(mq_create_or_update_host):
+    canonical_facts = generate_fact_dict("mac_addresses", 3)
+    first_host = mq_create_or_update_host(base_host(**canonical_facts))
+    second_host = mq_create_or_update_host(base_host(**canonical_facts))
+    assert first_host.id == second_host.id
+
+
+#
+# Input mac_addresses subset of existing, should match.
+#
+def test_mac_address_subset_list_match(mq_create_or_update_host):
+    canonical_facts = generate_fact_dict("mac_addresses", 3)
+    first_host = mq_create_or_update_host(base_host(**canonical_facts))
+
+    del canonical_facts["mac_addresses"][-1]
+    second_host = mq_create_or_update_host(base_host(**canonical_facts))
+    assert first_host.id == second_host.id
+
+
+#
+# Input mac_addresses superset of existing, should not match.
+#
+def test_mac_address_superset_list_nomatch(mq_create_or_update_host):
+    canonical_facts = generate_fact_dict("mac_addresses", 3)
+    first_host = mq_create_or_update_host(base_host(**canonical_facts))
+
+    canonical_facts["mac_addresses"].append(random_mac())
+    second_host = mq_create_or_update_host(base_host(**canonical_facts))
+    assert first_host.id != second_host.id
+
+
+#
+# Some mac_addresses match, some don't, should not match.
+#
+def test_mac_address_partial_list_nomatch(mq_create_or_update_host):
+    canonical_facts = generate_fact_dict("mac_addresses", 3)
+    first_host = mq_create_or_update_host(base_host(**canonical_facts))
+
+    canonical_facts["mac_addresses"][0] = random_mac()
+    second_host = mq_create_or_update_host(base_host(**canonical_facts))
+    assert first_host.id != second_host.id
+
+
+#
+# Existing mac_addresses have duplicate, input doesn't, should match.
+#
+def test_mac_address_duplicate_item_match(mq_create_or_update_host):
+    canonical_facts = generate_fact_dict("mac_addresses", 3)
+    canonical_facts["mac_addresses"].append(canonical_facts["mac_addresses"][0])
+    first_host = mq_create_or_update_host(base_host(**canonical_facts))
+
+    del canonical_facts["mac_addresses"][-1]
+    second_host = mq_create_or_update_host(base_host(**canonical_facts))
+    assert first_host.id == second_host.id
+
+
+#
+# Input mac_addresses have duplicate, existing doesn't, should match.
+#
+def test_mac_address_duplicate_input_item_match(mq_create_or_update_host):
+    canonical_facts = generate_fact_dict("mac_addresses", 3)
+    first_host = mq_create_or_update_host(base_host(**canonical_facts))
+
+    canonical_facts["mac_addresses"].append(canonical_facts["mac_addresses"][0])
+    second_host = mq_create_or_update_host(base_host(**canonical_facts))
+    assert first_host.id == second_host.id
+
+
 def test_mac_addresses_case_insensitive(mq_create_or_update_host):
     first_host = mq_create_or_update_host(
-        minimal_host(fqdn="foo.bar.com", mac_addresses=["C2:00:D0:C8:61:01", "aa:bb:cc:dd:ee:ff"])
+        base_host(fqdn="foo.bar.com", mac_addresses=["C2:00:D0:C8:61:01", "aa:bb:cc:dd:ee:ff"])
     )
     second_host = mq_create_or_update_host(
-        minimal_host(fqdn="foo.bar.com", mac_addresses=["c2:00:d0:c8:61:01", "AA:BB:CC:DD:EE:FF"])
+        base_host(fqdn="foo.bar.com", mac_addresses=["c2:00:d0:c8:61:01", "AA:BB:CC:DD:EE:FF"])
     )
     assert first_host.id == second_host.id
 
