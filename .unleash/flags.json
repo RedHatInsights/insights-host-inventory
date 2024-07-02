@@ -80,6 +80,22 @@
             ],
             "variants": [],
             "createdAt": "2024-01-10T20:20:42.531Z"
+        },
+        {
+            "name": "hbi.api.satellite-throttle",
+            "description": "If active, a configured delay will be added to requests from Satellite clients",
+            "type": "release",
+            "project": "default",
+            "stale": false,
+            "enabled": false,
+            "strategies": [
+                {
+                    "name": "default",
+                    "parameters": {}
+                }
+            ],
+            "variants": [],
+            "createdAt": "2024-01-10T20:18:18.842Z"
         }
     ],
     "strategies": [

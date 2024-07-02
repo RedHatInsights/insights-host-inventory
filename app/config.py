@@ -174,6 +174,7 @@ class Config:
             self.db_lock_timeout = int(os.getenv("INVENTORY_DB_LOCK_TIMEOUT", "90000"))
         self.api_cache_timeout = int(os.getenv("INVENTORY_API_CACHE_TIMEOUT_SECONDS", "0"))
         self.api_cache_type = os.getenv("INVENTORY_API_CACHE_TYPE", "NullCache")
+        self.api_satellite_throttle_delay_ms = float(os.getenv("INVENTORY_API_SATELLITE_THROTTLE_DELAY_MS", "500"))
 
         self.db_uri = self._build_db_uri(self._db_ssl_mode)
 
