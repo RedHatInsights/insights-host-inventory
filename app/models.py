@@ -68,6 +68,9 @@ NEW_TO_OLD_REPORTER_MAP = {"satellite": "yupana", "discovery": "yupana"}
 # Used in filtering.
 OLD_TO_NEW_REPORTER_MAP = {"yupana": ("satellite", "discovery")}
 
+MIN_CANONICAL_FACTS_VERSION = 0
+MAX_CANONICAL_FACTS_VERSION = 1
+
 
 class ProviderType(str, Enum):
     ALIBABA = "alibaba"
@@ -708,6 +711,13 @@ class CanonicalFactsSchema(MarshmallowSchema):
     class Meta:
         unknown = EXCLUDE
 
+    canonical_facts_version = fields.Integer(
+        required=False,
+        load_default=MIN_CANONICAL_FACTS_VERSION,
+        validate=marshmallow_validate.Range(min=MIN_CANONICAL_FACTS_VERSION, max=MAX_CANONICAL_FACTS_VERSION),
+    )
+    is_virtual = fields.Boolean(required=False)
+
     insights_id = fields.Str(validate=verify_uuid_format)
     subscription_manager_id = fields.Str(validate=verify_uuid_format)
     satellite_id = fields.Str(validate=verify_satellite_id)
@@ -721,7 +731,27 @@ class CanonicalFactsSchema(MarshmallowSchema):
     provider_type = fields.Str(validate=marshmallow_validate.Length(min=1, max=50))
 
     @validates_schema
-    def validate_provider(self, data, **kwargs):
+    def validate_schema(self, data, **kwargs):
+        schema_version = data.get("canonical_facts_version")
+
+        if schema_version > MIN_CANONICAL_FACTS_VERSION:
+            if "is_virtual" not in data:
+                raise MarshmallowValidationError(
+                    f"is_virtual is required for canonical_facts_version > {MIN_CANONICAL_FACTS_VERSION}."
+                )
+            if "mac_addresses" not in data:
+                raise MarshmallowValidationError(
+                    f"mac_addresses is required for canonical_facts_version > {MIN_CANONICAL_FACTS_VERSION}."
+                )
+            if data["is_virtual"]:
+                if "provider_id" not in data:
+                    raise MarshmallowValidationError(
+                        "provider_id and provider_type are required when is_virtual = True."
+                    )
+            else:
+                if "provider_id" in data:
+                    raise MarshmallowValidationError("provider_id is not allowed when is_virtual = False.")
+
         provider_type = data.get("provider_type")
         provider_id = data.get("provider_id")
 
