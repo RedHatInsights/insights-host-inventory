@@ -36,10 +36,58 @@ sudo apt-get install libpq-dev
 brew install postgresql
 ```
 
+### Configure the environment variables
+
+To run *HBI* locally, first you will have to create an `.env` file with the following content.
+
+*Warning*: This will overwrite an existing `.env` file if there is one at the root directory of your `git` repository.
+
+```bash
+cat > ${PWD}/.env<<EOF
+# RUNNNING HBI Locally
+PROMETHEUS_MULTIPROC_DIR=/tmp
+prometheus_multiproc_dir=/tmp
+
+BYPASS_RBAC="true"
+BYPASS_UNLEASH="true"
+BYPASS_XJOIN="true"
+
+# If you want to use the legacy prefix, otherwise don't set PATH_PREFIX
+# PATH_PREFIX="/r/insights/platform"
+
+APP_NAME="inventory"
+INVENTORY_DB_USER="insights"
+INVENTORY_DB_PASS="insights"
+INVENTORY_DB_HOST="localhost"
+INVENTORY_DB_NAME="insights"
+INVENTORY_DB_POOL_TIMEOUT="5"
+INVENTORY_DB_POOL_SIZE="5"
+INVENTORY_DB_SSL_MODE=""
+INVENTORY_DB_SSL_CERT=""
+UNLEASH_TOKEN='*:*.dbffffc83b1f92eeaf133a7eb878d4c58231acc159b5e1478ce53cfc'
+UNLEASH_CACHE_DIR=./.unleash
+UNLEASH_URL="http://localhost:4242/api"
+
+# for export service
+KAFKA_EXPORT_SERVICE_TOPIC="platform.export.requests"
+EOF
+```
+
+Make all the appropriate changes as needed, and source it.
+
+```bash
+source .env
+```
+
+To force an ssl connection to the db set `INVENTORY_DB_SSL_MODE` to `"verify-full"`
+and provide the path to the certificate you'd like to use.
+
 ### Install dependencies
 
-This project uses pipenv to manage the development and deployment environments.
-To set the project up for development, we recommend using [pyenv](https://github.com/pyenv/pyenv) to install/manage the appropriate python (currently 3.8.x), pip and pipenv version. Once you have pipenv, do the following:
+This project uses `pipenv` to manage the development and deployment environments.
+To set the project up for development, we recommend using [pyenv](https://github.com/pyenv/pyenv) to
+install/manage the appropriate `Python` (currently `3.9.x`), `pip` and `pipenv` version.
+Once you have `pipenv`, do the following:
 
 ```bash
 pipenv install --dev
@@ -64,20 +112,68 @@ Run the following commands to run the db migration scripts which will
 maintain the db tables.
 
 The database migration scripts determine the DB location, username,
-password and db name from the INVENTORY_DB_HOST, INVENTORY_DB_USER,
-INVENTORY_DB_PASS and INVENTORY_DB_NAME environment variables.
+password and db name from the `INVENTORY_DB_HOST`, `INVENTORY_DB_USER`,
+`INVENTORY_DB_PASS` and `INVENTORY_DB_NAME` environment variables present in
+the `.env` file.
 
 ```bash
 make upgrade_db
 ```
 
 By default the database container will use a bit of local storage so that data
-you enter will be persisted across multiple starts of the container.  If you
+you enter will persist across multiple starts of the container. If you
 want to destroy that data do the following:
 
 ```bash
-docker-compose down
+docker-compose -f dev.yml down
 ```
+
+### Create hosts data in the Database
+
+First, start the `mq` service by running the following command in a new terminal:
+
+```bash
+pipenv shell
+# You will probably need to add a new host line in the /etc/hosts file for kafka service
+sudo echo "127.0.0.1   kafka" >> /etc/hosts
+# Run the MQ service for the Inventory
+make run_inv_mq_service
+```
+
+Open a new terminal, and run the following commands to create some hosts:
+
+```bash
+pipenv shell
+make run_inv_mq_service_test_producer NUM_HOSTS=800
+```
+
+By default, if you don't pass `NUM_HOSTS` as parameter, it will create only one host in the database.
+
+In the terminal running the `mq` service, you should see all the events passing and the hosts creation logs.
+
+## Creating Export Service Events
+
+To be able to play with the export service, you have to follow the previous steps above:
+
+1. Running the containers (See *Initiate the database* section above)
+2. And creating some hosts (See *Create hosts data in the Database* section above)
+
+### Run the export service event loop
+
+In one terminal, run the following command:
+
+```bash
+pipenv shell
+python3 inv_export_service.py
+```
+
+In one other terminal, generate event towards the export service with the following command:
+
+```bash
+make sample-request-create-export
+```
+
+To modify the data sent to the export service, take a look at the `example_export_request.json`
 
 ## Running the Tests
 
@@ -97,7 +193,7 @@ pytest test_json_validators.py
 ```
 
 Depending on the environment, it might be necessary to set the DB related environment
-variables (INVENTORY_DB_NAME, INVENTORY_DB_HOST, etc).
+variables (`INVENTORY_DB_NAME`, `INVENTORY_DB_HOST`, etc).
 
 ## Sonar Integration
 
@@ -158,29 +254,6 @@ Honcho provides a command to run MQ and web services at once:
 ```bash
 honcho start
 ```
-
-## Config env vars
-
-```bash
- prometheus_multiproc_dir=/path/to/prometheus_dir
- APP_NAME="inventory"
- PATH_PREFIX="/r/insights/platform"
- INVENTORY_DB_USER="insights"
- INVENTORY_DB_PASS="insights"
- INVENTORY_DB_HOST="localhost"
- INVENTORY_DB_NAME="insights"
- INVENTORY_DB_POOL_TIMEOUT="5"
- INVENTORY_DB_POOL_SIZE="5"
- INVENTORY_LOGGING_CONFIG_FILE=logconf.ini
- INVENTORY_DB_SSL_MODE=""
- INVENTORY_DB_SSL_CERT=""
- UNLEASH_TOKEN='*:*.dbffffc83b1f92eeaf133a7eb878d4c58231acc159b5e1478ce53cfc'
- UNLEASH_CACHE_DIR=./.unleash
- UNLEASH_URL="http://localhost:4242/api"
-```
-
-To force an ssl connection to the db set INVENTORY_DB_SSL_MODE to "verify-full"
-and provide the path to the certificate you'd like to use.
 
 ## Identity
 
