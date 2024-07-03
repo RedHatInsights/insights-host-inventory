@@ -62,6 +62,7 @@ from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.host_repository import update_query_for_owner_id
 from lib.middleware import ensure_org_data_integrity
 from lib.middleware import rbac
+from lib.middleware import throttled_response
 
 
 FactOperations = Enum("FactOperations", ("merge", "replace"))
@@ -74,6 +75,7 @@ logger = get_logger(__name__)
 @CACHE.cached(key_prefix=make_key)
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @ensure_org_data_integrity()
+@throttled_response()
 @metrics.api_request_time.time()
 def get_host_list(
     display_name=None,
