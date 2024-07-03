@@ -36,8 +36,6 @@ from app.common import inventory_config
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_get_host_list_failed
 from app.instrumentation import log_get_host_list_succeeded
-from app.instrumentation import log_host_delete_failed
-from app.instrumentation import log_host_delete_succeeded
 from app.instrumentation import log_patch_host_failed
 from app.instrumentation import log_patch_host_success
 from app.logging import get_logger
@@ -268,21 +266,21 @@ def _delete_host_list(host_id_list, rbac_filter):
     ):
         query = get_host_list_by_id_list_from_db(host_id_list, rbac_filter)
 
-        deletion_count = 0
-
-        for host_id, deleted in delete_hosts(
+        result_list = delete_hosts(
             query,
             current_app.event_producer,
             current_app.notification_event_producer,
             inventory_config().host_delete_chunk_size,
             identity=current_identity,
-        ):
-            if deleted:
-                log_host_delete_succeeded(logger, host_id, get_control_rule())
+            control_rule=get_control_rule(),
+        )
+
+        deleted_id_list = [str(r.host_row.id) for r in result_list]
+
+        for host_id in host_id_list:
+            if host_id in deleted_id_list:
                 tracker_message = "deleted host"
-                deletion_count += 1
             else:
-                log_host_delete_failed(logger, host_id, get_control_rule())
                 tracker_message = "not deleted host"
 
             with PayloadTrackerProcessingContext(
@@ -291,7 +289,7 @@ def _delete_host_list(host_id_list, rbac_filter):
                 payload_tracker_processing_ctx.inventory_id = host_id
 
     delete_keys(current_identity.org_id)
-    return deletion_count
+    return len(deleted_id_list)
 
 
 @api_operation
