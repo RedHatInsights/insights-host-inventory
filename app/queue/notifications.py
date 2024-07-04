@@ -13,7 +13,9 @@ from app.queue.metrics import notification_serialization_time
 from app.serialization import build_rhel_version_str
 from app.serialization import deserialize_canonical_facts
 
-NotificationType = Enum("NotificationType", ("validation_error", "system_deleted", "system_became_stale"))
+NotificationType = Enum(
+    "NotificationType", ("validation_error", "system_deleted", "system_became_stale", "new_system_registered")
+)
 EventSeverity = Enum("EventSeverity", ("warning", "error", "critical"))
 
 
@@ -119,6 +121,35 @@ class SystemStaleSchema(NotificationSchema):
     events = fields.List(fields.Nested(SystemStaleEventListSchema()))
 
 
+# New system registered notification
+class SystemRegisteredContextSchema(MarshmallowSchema):
+    inventory_id = fields.Str(required=True)
+    # hostname is used for consistency with other notifications; corresponds to fqdn on our model
+    hostname = fields.Str(required=True)
+    display_name = fields.Str(required=True)
+    rhel_version = fields.Str(required=True)
+    host_url = fields.Str(required=True)
+    tags = fields.Dict()
+
+
+class SystemRegisteredPayloadSchema(MarshmallowSchema):
+    groups = fields.List(fields.Dict())
+    insights_id = fields.Str(required=True)
+    subscription_manager_id = fields.Str(required=True)
+    satellite_id = fields.Str(required=True)
+    reporter = fields.Str(required=True)
+    system_check_in = fields.Str(required=True)
+
+
+class SystemRegisteredEventListSchema(EventListSchema):
+    payload = fields.Nested(SystemRegisteredPayloadSchema())
+
+
+class SystemRegisteredSchema(NotificationSchema):
+    context = fields.Nested(SystemRegisteredContextSchema())
+    events = fields.List(fields.Nested(SystemRegisteredEventListSchema()))
+
+
 def host_validation_error_notification(notification_type, host, detail, stack_trace=None):
     base_notification_obj = build_base_notification_obj(notification_type, host)
     notification = {
@@ -211,6 +242,40 @@ def system_stale_notification(notification_type, host):
     return SystemStaleSchema().dumps(notification)
 
 
+def system_registered_notification(notification_type, host):
+    base_notification_obj = build_base_notification_obj(notification_type, host)
+
+    host_id = host.get("id")
+    canonical_facts = host.get("canonical_facts")
+    system_profile = host.get("system_profile_facts")
+    notification = {
+        "context": {
+            "inventory_id": host_id,
+            "hostname": canonical_facts.get("fqdn", ""),
+            "display_name": host.get("display_name"),
+            "rhel_version": build_rhel_version_str(system_profile),
+            "host_url": f"https://console.redhat.com/insights/inventory/{host_id}",
+            "tags": host.get("tags"),
+        },
+        "events": [
+            {
+                "metadata": {},
+                "payload": {
+                    "insights_id": canonical_facts.get("insights_id", ""),
+                    "subscription_manager_id": canonical_facts.get("subscription_manager_id", ""),
+                    "satellite_id": canonical_facts.get("satellite_id", ""),
+                    "groups": [{"id": group.get("id"), "name": group.get("name")} for group in host.get("groups")],
+                    "reporter": host.get("reporter"),
+                    "system_check_in": host.get("modified_on"),
+                },
+            },
+        ],
+    }
+
+    notification.update(base_notification_obj)
+    return SystemRegisteredSchema().dumps(notification)
+
+
 def notification_headers(event_type: NotificationType):
     return {
         "event_type": event_type.name,
@@ -249,4 +314,5 @@ NOTIFICATION_TYPE_MAP = {
     NotificationType.validation_error: host_validation_error_notification,
     NotificationType.system_deleted: system_deleted_notification,
     NotificationType.system_became_stale: system_stale_notification,
+    NotificationType.new_system_registered: system_registered_notification,
 }
