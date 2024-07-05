@@ -1064,11 +1064,6 @@ objects:
               allow               all;
               return              200;
           }
-          location /metrics {
-              auth_basic          off;
-              allow               all;
-              return              200;
-          }
           location / {
             proxy_pass http://$upstream_location;
             proxy_read_timeout 600s;
