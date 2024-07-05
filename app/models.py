@@ -6,7 +6,7 @@ from datetime import timezone
 from enum import Enum
 from os.path import join
 
-from connexion.decorators.validation import coerce_type
+from connexion.utils import coerce_type
 from dateutil.parser import isoparse
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
@@ -225,18 +225,16 @@ class LimitedHost(db.Model):
         return case(
             # If the host has system_profile_facts.operating_system,
             # generate the string value to be sorted by ("name maj.min")
-            [
-                (
-                    cls.system_profile_facts.has_key("operating_system"),
-                    func.concat(
-                        cls.system_profile_facts["operating_system"]["name"],
-                        " ",
-                        func.lpad(cast(cls.system_profile_facts["operating_system"]["major"], String), 3, "0"),
-                        ".",
-                        func.lpad(cast(cls.system_profile_facts["operating_system"]["minor"], String), 3, "0"),
-                    ),
-                )
-            ],
+            (
+                cls.system_profile_facts.has_key("operating_system"),
+                func.concat(
+                    cls.system_profile_facts["operating_system"]["name"],
+                    " ",
+                    func.lpad(cast(cls.system_profile_facts["operating_system"]["major"], String), 3, "0"),
+                    ".",
+                    func.lpad(cast(cls.system_profile_facts["operating_system"]["minor"], String), 3, "0"),
+                ),
+            ),
             else_=" 000.000",
         )
 

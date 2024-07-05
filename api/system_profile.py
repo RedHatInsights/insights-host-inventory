@@ -1,3 +1,4 @@
+from http import HTTPStatus
 from typing import Optional
 
 import flask
@@ -19,6 +20,7 @@ from app import RbacResourceType
 from app.auth import get_current_identity
 from app.config import Config
 from app.environment import RuntimeEnvironment
+from app.exceptions import ValidationException
 from app.instrumentation import log_get_operating_system_failed
 from app.instrumentation import log_get_operating_system_succeeded
 from app.instrumentation import log_get_sap_sids_failed
@@ -154,23 +156,27 @@ def get_sap_system(
         "offset": offset,
     }
 
-    hostfilter_and_variables = query_filters(
-        tags=tags, registered_with=registered_with, filter=filter, staleness=staleness
-    )
+    try:
+        hostfilter_and_variables = query_filters(
+            tags=tags, registered_with=registered_with, filter=filter, staleness=staleness
+        )
 
-    if hostfilter_and_variables != ():
-        variables["hostFilter"] = hostfilter_and_variables
+        if hostfilter_and_variables != ():
+            variables["hostFilter"] = hostfilter_and_variables
 
-    response = graphql_query(SAP_SYSTEM_QUERY, variables, log_get_sap_system_failed)
+        response = graphql_query(SAP_SYSTEM_QUERY, variables, log_get_sap_system_failed)
 
-    data = response["hostSystemProfile"]
+        data = response["hostSystemProfile"]
 
-    check_pagination(offset, data["sap_system"]["meta"]["total"])
+        check_pagination(offset, data["sap_system"]["meta"]["total"])
 
-    log_get_sap_system_succeeded(logger, data)
-    return flask_json_response(
-        build_collection_response(data["sap_system"]["data"], page, per_page, data["sap_system"]["meta"]["total"])
-    )
+        log_get_sap_system_succeeded(logger, data)
+        return flask_json_response(
+            build_collection_response(data["sap_system"]["data"], page, per_page, data["sap_system"]["meta"]["total"])
+        )
+    except ValidationException as ve:
+        log_get_sap_system_failed(logger)
+        flask.abort(HTTPStatus.BAD_REQUEST, str(ve))
 
 
 @api_operation
@@ -216,23 +222,27 @@ def get_sap_sids(
     if escaped_search:
         variables["filter"] = {"search": {"regex": escaped_search}}
 
-    hostfilter_and_variables = query_filters(
-        tags=tags, registered_with=registered_with, filter=filter, rbac_filter=rbac_filter, staleness=staleness
-    )
+    try:
+        hostfilter_and_variables = query_filters(
+            tags=tags, registered_with=registered_with, filter=filter, rbac_filter=rbac_filter, staleness=staleness
+        )
 
-    if hostfilter_and_variables != ():
-        variables["hostFilter"] = hostfilter_and_variables
+        if hostfilter_and_variables != ():
+            variables["hostFilter"] = hostfilter_and_variables
 
-    response = graphql_query(SAP_SIDS_QUERY, variables, log_get_sap_sids_failed)
+        response = graphql_query(SAP_SIDS_QUERY, variables, log_get_sap_sids_failed)
 
-    data = response["hostSystemProfile"]
+        data = response["hostSystemProfile"]
 
-    check_pagination(offset, data["sap_sids"]["meta"]["total"])
+        check_pagination(offset, data["sap_sids"]["meta"]["total"])
 
-    log_get_sap_sids_succeeded(logger, data)
-    return flask_json_response(
-        build_collection_response(data["sap_sids"]["data"], page, per_page, data["sap_sids"]["meta"]["total"])
-    )
+        log_get_sap_sids_succeeded(logger, data)
+        return flask_json_response(
+            build_collection_response(data["sap_sids"]["data"], page, per_page, data["sap_sids"]["meta"]["total"])
+        )
+    except ValidationException as ve:
+        log_get_sap_sids_failed(logger)
+        flask.abort(HTTPStatus.BAD_REQUEST, str(ve))
 
 
 @api_operation
@@ -321,6 +331,6 @@ def validate_schema(repo_fork="RedHatInsights", repo_branch="master", days=1, ma
         )
         consumer.close()
         return flask_json_response(response)
-    except (ValueError, AttributeError) as e:
+    except (ValidationException, ValueError, AttributeError) as e:
         consumer.close()
         flask.abort(400, str(e))

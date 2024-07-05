@@ -4,6 +4,7 @@ from http import HTTPStatus
 import flask
 from confluent_kafka.error import KafkaError
 from flask import current_app
+from httpx import InvalidURL
 from marshmallow import ValidationError
 
 from api import api_operation
@@ -33,6 +34,7 @@ from app import RbacResourceType
 from app.auth import get_current_identity
 from app.auth.identity import to_auth_header
 from app.common import inventory_config
+from app.exceptions import InventoryException, ValidationException
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_get_host_list_failed
 from app.instrumentation import log_get_host_list_succeeded
@@ -147,7 +149,7 @@ def get_host_list(
                 fields,
                 rbac_filter,
             )
-    except ValueError as e:
+    except (InvalidURL, ValidationException, ValueError) as e:
         log_get_host_list_failed(logger)
         flask.abort(400, str(e))
 
@@ -379,7 +381,7 @@ def get_host_system_profile_by_id(
             total, host_list = get_sparse_system_profile(
                 host_id_list, page, per_page, order_by, order_how, fields, rbac_filter
             )
-    except ValueError as e:
+    except (ValidationException, ValueError, Exception) as e:
         log_get_host_list_failed(logger)
         flask.abort(400, str(e))
 
@@ -420,6 +422,18 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
 
     current_identity = get_current_identity()
     staleness = get_staleness_obj(current_identity)
+
+    try:
+        for host in hosts_to_update:
+            host.patch(validated_patch_host_data)
+
+            if db.session.is_modified(host):
+                db.session.commit()
+                serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
+                _emit_patch_event(serialized_host, host)
+    except InventoryException as ie:
+        log_patch_host_failed(logger, host_id_list)
+        flask.abort(400, str(ie))
 
     for host in hosts_to_update:
         host.patch(validated_patch_host_data)

@@ -2523,7 +2523,7 @@ def test_spf_rhc_client_invalid_field_value(subtests, graphql_query_empty_respon
             url = build_hosts_url(query=param)
             response_status, response_data = api_get(url)
             assert response_status == 400
-            assert response_data["title"] == "Validation Error"
+            assert response_data["title"] == "Bad Request"
 
 
 @pytest.mark.parametrize(
@@ -2645,7 +2645,7 @@ def test_spf_owner_id_invalid_field_value(subtests, graphql_query_empty_response
             url = build_hosts_url(query=param)
             response_status, response_data = api_get(url)
             assert response_status == 400
-            assert response_data["title"] == "Validation Error"
+            assert response_data["title"] == "Bad Request"
 
 
 # system_profile host_type tests
@@ -2770,7 +2770,7 @@ def test_spf_host_type_invalid_field_value(subtests, graphql_query_empty_respons
             url = build_hosts_url(query=param)
             response_status, response_data = api_get(url)
             assert response_status == 400
-            assert response_data["title"] == "Validation Error"
+            assert response_data["title"] == "Bad Request"
 
 
 # system_profile insights_client_version tests
@@ -2968,7 +2968,7 @@ def test_query_hosts_filter_spf_operating_system_exception_handling(
             response_status, response_data = api_get(url)
 
             assert response_status == 400
-            assert response_data["title"] == "Validation Error"
+            assert response_data["title"] == "Bad Request"
 
 
 # system_profile ansible filtering tests
@@ -3099,7 +3099,7 @@ def test_query_hosts_filter_spf_not_in_schema_exception_handling(subtests, api_g
             response_status, response_data = api_get(url)
 
             assert response_status == 400
-            assert response_data["title"] == "Validation Error"
+            assert response_data["title"] == "Bad Request"
 
 
 # system_profile ansible failstate tests
@@ -3117,7 +3117,7 @@ def test_query_hosts_filter_spf_ansible_exception_handling(subtests, api_get):
             response_status, response_data = api_get(url)
 
             assert response_status == 400
-            assert response_data["title"] == "Validation Error"
+            assert response_data["title"] == "Bad Request"
 
 
 def test_query_hosts_system_identity(mocker, subtests, graphql_query_empty_response, api_get):
@@ -3637,7 +3637,7 @@ def test_generic_filtering_string_invalid_values(subtests, patch_xjoin_post, api
                     url = url_builder(query=prefix + suffix)
                     response_status, response_data = api_get(url)
                     assert response_status == 400
-                    assert response_data["title"] == "Validation Error"
+                    assert response_data["title"] == "Bad Request"
 
 
 def test_generic_filtering_boolean(
@@ -3780,7 +3780,7 @@ def test_generic_filtering_booleans_invalid_values(subtests, patch_xjoin_post, a
                     url = url_builder(query=prefix + suffix)
                     response_status, response_data = api_get(url)
                     assert response_status == 400
-                    assert response_data["title"] == "Validation Error"
+                    assert response_data["title"] == "Bad Request"
 
 
 def test_generic_filtering_integer_equality(
@@ -4044,7 +4044,7 @@ def test_generic_filtering_integer_invalid_values(subtests, patch_xjoin_post, ap
                     url = url_builder(query=prefix + suffix)
                     response_status, response_data = api_get(url)
                     assert response_status == 400
-                    assert response_data["title"] == "Validation Error"
+                    assert response_data["title"] == "Bad Request"
 
 
 def test_generic_filtering_timestamp_invalid_values(subtests, patch_xjoin_post, api_get):
@@ -4074,7 +4074,7 @@ def test_generic_filtering_timestamp_invalid_values(subtests, patch_xjoin_post, 
                 url = url_builder(query=prefix + suffix)
                 response_status, response_data = api_get(url)
                 assert response_status == 400
-                assert response_data["title"] == "Validation Error"
+                assert response_data["title"] == "Bad Request"
 
 
 def test_generic_filtering_wildcard(
@@ -4177,7 +4177,7 @@ def test_generic_filtering_wildcard_invalid_values(subtests, patch_xjoin_post, a
                     response_status, response_data = api_get(url)
 
                     assert response_status == 400
-                    assert response_data["title"] == "Validation Error"
+                    assert response_data["title"] == "Bad Request"
 
 
 # Test generic filtering for object fields (the object itself, not its properties)
@@ -4313,4 +4313,4 @@ def test_generic_filtering_objects_invalid_values(subtests, patch_xjoin_post, ap
                     response_status, response_data = api_get(url)
 
                     assert response_status == 400
-                    assert response_data["title"] == "Validation Error"
+                    assert response_data["title"] == "Bad Request"

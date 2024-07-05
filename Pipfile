@@ -4,16 +4,19 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-flask = "==2.2.5"
+# flask = "==2.2.5"
+flask = "==3.0.3"
 jsonify = "==0.5"  # Not semver
 flask-restful = "~=0.3.7"
 requests = "~=2.31.0"
-flask-sqlalchemy = "~=2.5.1"
+# flask-sqlalchemy = "~=2.5.1"
+flask-sqlalchemy = "~=3.1.1"
 psycopg2 = "~=2.9.9"
 flask-migrate = "~=4.0.5"
 itsdangerous = "==2.1.2"
 gunicorn = "~=22.0.0"
-connexion = {version = "~=2.14.2",extras = ["swagger-ui", "flask"]}
+# connexion = {version = "~=2.14.2",extras = ["swagger-ui", "flask"]}
+connexion = {version = "~=3.0.6",extras = ["swagger-ui", "flask", "uvicorn"]}
 markupsafe = "==2.1.5"
 openapi-schema-validator = "==0.6.2"
 openapi-spec-validator = "==0.7.1"

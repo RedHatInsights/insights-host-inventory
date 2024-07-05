@@ -6,6 +6,7 @@ from typing import Tuple
 from uuid import UUID
 
 from dateutil import parser
+from flask_sqlalchemy.query import Query
 from sqlalchemy import and_
 from sqlalchemy import DateTime
 from sqlalchemy import func
@@ -282,7 +283,8 @@ def query_filters(
     filter: dict = None,
     rbac_filter: dict = None,
     order_by: str = None,
-) -> Tuple[List, bool]:
+# ) -> Tuple[List, bool]:
+) -> Tuple[List, Query]:
     num_ids = 0
     host_type_filter = set(HOST_TYPES)
     for id_param in [fqdn, display_name, hostname_or_id, insights_id]:
