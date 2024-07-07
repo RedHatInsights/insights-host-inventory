@@ -267,6 +267,7 @@ def sync_event_message(message, session, event_producer):
                 message["host"].get("reporter"),
                 host.system_profile_facts.get("host_type"),
                 host.system_profile_facts.get("operating_system", {}).get("name"),
+                host.system_profile_facts.get.get("bootc_status", {}).get("booted") is not None,
             )
             # add back "wait=True", if needed.
             event_producer.write_event(event, host.id, headers, wait=True)
@@ -385,6 +386,7 @@ def write_delete_event_message(event_producer: EventProducer, result: OperationR
         result.host_row.reporter,
         result.host_row.system_profile_facts.get("host_type"),
         result.host_row.system_profile_facts.get("operating_system", {}).get("name"),
+        result.host_row.system_profile_facts.get("bootc_status", {}).get("booted") is not None,
     )
     event_producer.write_event(event, str(result.host_row.id), headers, wait=True)
     delete_keys(result.host_row.org_id)
