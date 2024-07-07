@@ -77,7 +77,12 @@ class HostDeleteEvent(Schema):
 
 
 def message_headers(
-    event_type: EventType, insights_id: str = None, reporter: str = None, host_type: str = None, os_name: str = None
+    event_type: EventType,
+    insights_id: str = None,
+    reporter: str = None,
+    host_type: str = None,
+    os_name: str = None,
+    is_bootc: bool = False,
 ):
     return {
         "event_type": event_type.name,
@@ -87,6 +92,7 @@ def message_headers(
         "reporter": reporter,
         "host_type": host_type,
         "os_name": os_name,
+        "is_bootc": is_bootc,
     }
 
 

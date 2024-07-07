@@ -414,6 +414,7 @@ def write_add_update_event_message(event_producer: EventProducer, result: Operat
             output_host.get("reporter"),
             output_host.get("system_profile", {}).get("host_type"),
             output_host.get("system_profile", {}).get("operating_system", {}).get("name"),
+            output_host.get("system_profile", {}).get("bootc_status", {}).get("booted") is not None,
         )
 
     event_producer.write_event(event, str(result.host_row.id), headers, wait=True)
