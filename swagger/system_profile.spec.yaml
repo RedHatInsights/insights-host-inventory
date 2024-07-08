@@ -798,3 +798,8 @@ $defs:
                 type: string
                 example: "auto, kernel, bpf"
                 maxLength: 32
+              falcon_version:
+                description: CrowdStrike running Falcon Sensor version
+                type: string
+                example: "7.14.16703.0, 6.33.13003.0"
+                maxLength: 32
