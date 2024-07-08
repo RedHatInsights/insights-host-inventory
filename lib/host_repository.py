@@ -164,6 +164,10 @@ def find_host_by_multiple_canonical_facts(identity, canonical_facts):
     """
     logger.debug("find_host_by_multiple_canonical_facts(%s)", canonical_facts)
 
+    # If no canonical facts are supplied, it can't match anything.
+    if not canonical_facts:
+        return None
+
     host = (
         multiple_canonical_facts_host_query(identity, canonical_facts, restrict_to_owner_id=False)
         .order_by(Host.modified_on.desc())
