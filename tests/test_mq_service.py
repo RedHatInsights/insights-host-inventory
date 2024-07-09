@@ -135,7 +135,7 @@ def test_handle_message_happy_path(identity, mocker, flask_app):
 
 
 def test_request_id_is_reset(mocker, flask_app, db_create_host):
-    with flask_app.app_context():
+    with flask_app.app.app_context():
         mock_event_producer = mocker.Mock()
         mock_notification_event_producer = mocker.Mock()
         metadata = get_platform_metadata()
