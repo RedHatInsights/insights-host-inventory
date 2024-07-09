@@ -71,20 +71,19 @@ def filter_culled_hosts_using_custom_staleness(logger, session):
     staleness_objects = session.query(Staleness).all()
     org_ids = []
 
-    with application.app.app_context():
-        query_filters = []
-        for staleness_obj in staleness_objects:
-            # Validate which host types for a given org_id never get deleted
-            logger.debug(f"Looking for hosts from org_id {staleness_obj.org_id} that use custom staleness")
-            org_ids.append(staleness_obj.org_id)
-            identity = create_mock_identity_with_org_id(staleness_obj.org_id)
-            query_filters.append(
-                and_(
-                    (Host.org_id == staleness_obj.org_id),
-                    find_hosts_by_staleness_reaper(["culled"], identity),
-                )
+    query_filters = []
+    for staleness_obj in staleness_objects:
+        # Validate which host types for a given org_id never get deleted
+        logger.debug(f"Looking for hosts from org_id {staleness_obj.org_id} that use custom staleness")
+        org_ids.append(staleness_obj.org_id)
+        identity = create_mock_identity_with_org_id(staleness_obj.org_id)
+        query_filters.append(
+            and_(
+                (Host.org_id == staleness_obj.org_id),
+                find_hosts_by_staleness_reaper(["culled"], identity),
             )
-        return query_filters, org_ids
+        )
+    return query_filters, org_ids
 
 
 def filter_culled_hosts_using_sys_default_staleness(logger, org_ids):
