@@ -1,3 +1,4 @@
+import json
 from http import HTTPStatus
 
 from requests import Session
@@ -12,10 +13,13 @@ from app.common import inventory_config
 from app.logging import get_logger
 from lib import metrics
 from lib.middleware import get_rbac_filter
+from utils.json_to_csv import json_arr_to_csv
 
 logger = get_logger(__name__)
 
 EXPORT_SERVICE_SYSTEMS_RESOURCE = "urn:redhat:application:inventory:export:systems"
+
+HEADER_CONTENT_TYPE = {"json": "application/json", "csv": "text/csv"}
 
 
 @metrics.create_export_processing_time.time()
@@ -78,3 +82,10 @@ def _handle_export_response(response, exportFormat, exportUUID):
         raise Exception(response.text)
     else:
         logger.info(f"{response.text} for export ID {exportUUID} in {exportFormat.upper()} format")
+
+
+def _format_export_data(data, exportFormat):
+    if exportFormat == "json":
+        return json.dumps(data)
+    elif exportFormat == "csv":
+        return json_arr_to_csv(data)
