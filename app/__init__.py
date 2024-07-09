@@ -7,7 +7,6 @@ from os.path import join
 import connexion
 import segment.analytics as analytics
 import yaml
-from connexion.options import SwaggerUIOptions
 from connexion.resolver import RestyResolver
 from flask import current_app
 from flask import jsonify
@@ -225,7 +224,6 @@ def create_app(runtime_environment):
                 validate_responses=True,
                 strict_validation=False,
                 base_path=api_url,
-                swagger_ui_options=SwaggerUIOptions(),
                 validator_map=build_validator_map(system_profile_spec=sp_spec, unindexed_fields=unindexed_fields),
             )
             logger.info("Listening on API: %s", api_url)
@@ -242,6 +240,9 @@ def create_app(runtime_environment):
     flask_app.config["SQLALCHEMY_ENGINE_OPTIONS['pool_size']"] = app_config.db_pool_size
     flask_app.config["SQLALCHEMY_ENGINE_OPTIONS['pool_timeout']"] = app_config.db_pool_timeout
     flask_app.config["SQLALCHEMY_ENGINE_OPTIONS['pool_pre_ping']"] = True
+    flask_app.config["SQLALCHEMY_ENGINE_OPTIONS['connect_args']"] = {
+        "options": f"-c statement_timeout={app_config.db_statement_timeout} -c lock_timeout={app_config.db_lock_timeout}"  # noqa
+    }
 
     flask_app.config["INVENTORY_CONFIG"] = app_config
 

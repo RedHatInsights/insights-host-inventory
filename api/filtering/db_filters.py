@@ -283,7 +283,6 @@ def query_filters(
     filter: dict = None,
     rbac_filter: dict = None,
     order_by: str = None,
-# ) -> Tuple[List, bool]:
 ) -> Tuple[List, Query]:
     num_ids = 0
     host_type_filter = set(HOST_TYPES)
