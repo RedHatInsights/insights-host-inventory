@@ -250,7 +250,7 @@ def create_app(runtime_environment):
     flask_app.config["SYSTEM_PROFILE_SPEC"] = sp_spec
     flask_app.config["UNINDEXED_FIELDS"] = unindexed_fields
 
-    init_cache(app_config, flask_app)
+    init_cache(app_config, app)
 
     # Configure Unleash (feature flags)
     if not app_config.bypass_unleash and app_config.unleash_token:
