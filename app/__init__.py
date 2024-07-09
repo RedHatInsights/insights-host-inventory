@@ -202,8 +202,6 @@ def process_system_profile_spec():
 
 
 def create_app(runtime_environment):
-    options = SwaggerUIOptions(swagger_ui_path="/docs")
-
     # This feels like a hack but it is needed.  The logging configuration
     # needs to be setup before the flask app is initialized.
     configure_logging()
@@ -227,7 +225,7 @@ def create_app(runtime_environment):
                 validate_responses=True,
                 strict_validation=False,
                 base_path=api_url,
-                swagger_ui_options=options,
+                swagger_ui_options=SwaggerUIOptions(),
                 validator_map=build_validator_map(system_profile_spec=sp_spec, unindexed_fields=unindexed_fields),
             )
             logger.info("Listening on API: %s", api_url)

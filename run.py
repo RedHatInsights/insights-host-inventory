@@ -4,8 +4,7 @@ import os
 from app import create_app
 from app.environment import RuntimeEnvironment
 
-application = create_app(RuntimeEnvironment.SERVER)
-app = application.app
+app = create_app(RuntimeEnvironment.SERVER)
 
 
 if __name__ == "__main__":
