@@ -34,7 +34,7 @@ def run_server():
     bind = f"0.0.0.0:{LISTEN_PORT}"
     run(
         (
-            "gunicorn", 
+            "gunicorn",
             "--log-level=debug",
             f"--bind={bind}",
             "--reload",

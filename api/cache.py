@@ -1,10 +1,8 @@
-from flask import Flask
+import connexion
 from flask_caching import Cache
 from redis import Redis
 
 from app.logging import get_logger
-
-import connexion
 
 CACHE_CONFIG = {"CACHE_TYPE": "NullCache"}
 CACHE = Cache(config=CACHE_CONFIG)
