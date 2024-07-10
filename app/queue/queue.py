@@ -11,6 +11,7 @@ from marshmallow import fields
 from marshmallow import Schema
 from marshmallow import ValidationError
 from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm.exc import StaleDataError
 
 from api.cache import delete_keys
 from api.staleness_query import get_staleness_obj
@@ -423,7 +424,11 @@ def write_add_update_event_message(event_producer: EventProducer, result: Operat
 def write_message_batch(event_producer, processed_rows):
     for result in processed_rows:
         if result is not None:
-            write_add_update_event_message(event_producer, result)
+            try:
+                write_add_update_event_message(event_producer, result)
+            except Exception as exc:
+                metrics.ingress_message_handler_failure.inc()
+                logger.exception("Error while producing message", exc_info=exc)
 
 
 @metrics.export_service_message_handler_time.time()
@@ -478,6 +483,7 @@ def event_loop(consumer, flask_app, event_producer, notification_event_producer,
             processed_rows = []
             start_time = datetime.now()
             with session_guard(db.session), db.session.no_autoflush:
+                messages = []
                 while (
                     not interrupt()
                     and (len(processed_rows) < inventory_config().mq_db_batch_max_messages)
@@ -518,16 +524,24 @@ def event_loop(consumer, flask_app, event_producer, notification_event_producer,
                                 sys.exit(3)
                             except Exception:
                                 metrics.ingress_message_handler_failure.inc()
+                                commit_batch_early = True
                                 logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
 
                     # If no messages were consumed, go ahead and commit so we're not waiting for no reason
                     if commit_batch_early:
                         break
 
-                db.session.commit()
-                # The above session is automatically committed or rolled back.
-                # Now we need to send out messages for the batch of hosts we just processed.
-                write_message_batch(event_producer, processed_rows)
+                try:
+                    db.session.commit()
+                    # The above session is automatically committed or rolled back.
+                    # Now we need to send out messages for the batch of hosts we just processed.
+                    write_message_batch(event_producer, processed_rows)
+                except StaleDataError as exc:
+                    metrics.ingress_message_handler_failure.inc(amount=len(messages))
+                    logger.error(
+                        f"Session data is stale; failed to commit data from {len(messages)} payloads.", exc_info=exc
+                    )
+                    db.session.rollback()
 
 
 def initialize_thread_local_storage(request_id):

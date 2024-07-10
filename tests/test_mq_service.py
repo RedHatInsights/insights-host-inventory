@@ -2,11 +2,13 @@ import json
 from copy import deepcopy
 from datetime import datetime
 from datetime import timedelta
+from functools import partial
 from types import SimpleNamespace
 
 import marshmallow
 import pytest
 from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm.exc import StaleDataError
 
 from app.auth.identity import create_mock_identity_with_org_id
 from app.auth.identity import Identity
@@ -1419,7 +1421,7 @@ def test_handle_message_side_effect(mocker, flask_app):
 
 
 @pytest.mark.parametrize("platform_metadata", (None, {}, {"request_id": "12345"}))
-def test_update_system_profile_no_identity(mocker, event_datetime_mock, flask_app, platform_metadata, db_create_host):
+def test_update_system_profile_no_identity(mocker, platform_metadata, db_create_host):
     message = wrap_message(
         minimal_host(account="foobar", system_profile={"number_of_cpus": 4}).data(), "add_host", platform_metadata
     )
@@ -1435,6 +1437,35 @@ def test_update_system_profile_no_identity(mocker, event_datetime_mock, flask_ap
 
     # Just make sure it doesn't complain about missing Identity/metadata
     handle_message(json.dumps(message), mocker.Mock(), update_system_profile)
+
+
+def test_update_system_profile_host_not_found(mocker, flask_app):
+    message = json.dumps(
+        wrap_message(
+            minimal_host(org_id="nomatch", account="nomatch", system_profile={"number_of_cpus": 4}).data(),
+            "add_host",
+            get_platform_metadata(),
+        )
+    )
+
+    fake_consumer = mocker.Mock()
+    fake_consumer.consume.return_value = [FakeMessage(message=message)]
+
+    message_handler = partial(
+        handle_message,
+        message_operation=update_system_profile,
+        notification_event_producer=mocker.Mock(),
+    )
+
+    # Make sure the "not found" exception is properly handled
+    event_loop(
+        fake_consumer,
+        flask_app,
+        mocker.Mock(),
+        mocker.Mock(),
+        handler=message_handler,
+        interrupt=mocker.Mock(side_effect=([False for _ in range(2)] + [True, True])),
+    )
 
 
 # Adding a host requires identity or rhsm-conduit reporter, which does not have identity
@@ -1853,3 +1884,60 @@ def test_batch_mq_header_request_id_updates(mocker, flask_app):
     for i in range(5):
         headers = event_producer_mock.write_event.call_args_list[i][0][2]
         assert headers["request_id"] == request_id_list[i]
+
+
+def test_batch_mq_graceful_rollback(mocker, flask_app):
+    # Verifies that when the DB session runs into a StaleDataError, it's handled gracefully
+    msg_list = []
+    for _ in range(5):
+        msg_list.append(json.dumps(wrap_message(minimal_host().data(), "add_host", get_platform_metadata())))
+
+    # Patch batch settings in inventory_config()
+    mocker.patch(
+        "app.queue.queue.inventory_config",
+        return_value=SimpleNamespace(
+            mq_db_batch_max_messages=3,
+            mq_db_batch_max_seconds=1,
+            culling_stale_warning_offset_delta=1,
+            culling_culled_offset_delta=1,
+            conventional_time_to_stale_seconds=1,
+            conventional_time_to_stale_warning_seconds=1,
+            conventional_time_to_delete_seconds=1,
+            immutable_time_to_stale_seconds=1,
+            immutable_time_to_stale_warning_seconds=1,
+            immutable_time_to_delete_seconds=1,
+        ),
+    )
+
+    # Make it so the commit raises a StaleDataError
+    mocker.patch(
+        "app.queue.queue.db.session.commit", side_effect=[StaleDataError("Stale data"), None, None, None, None, None]
+    )
+    write_batch_patch = mocker.patch("app.queue.queue.write_message_batch")
+
+    fake_consumer = mocker.Mock(
+        **{
+            "consume.side_effect": [
+                [FakeMessage(message=msg_list[i]) for i in range(5)],
+                [],
+                [],
+                [],
+                [],
+            ]
+        }
+    )
+    event_producer_mock = mocker.Mock()
+
+    event_loop(
+        fake_consumer,
+        flask_app,
+        event_producer_mock,
+        mocker.Mock(),
+        handler=handle_message,
+        interrupt=mocker.Mock(side_effect=([False for _ in range(4)] + [True, True])),
+    )
+
+    # Assert that the hosts that came in after the error were still processed
+    # Since batch size is 3 and we're sending 5 messages,the first batch (3 messages) will get dropped,
+    # but the second batch (2 messages) should have events produced.
+    assert write_batch_patch.call_count == 1
