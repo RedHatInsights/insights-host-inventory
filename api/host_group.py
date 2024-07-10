@@ -1,6 +1,5 @@
 from http import HTTPStatus
 
-import flask
 from flask import abort
 from flask import current_app
 from flask import Response
@@ -13,7 +12,6 @@ from api.group_query import build_group_response
 from app import RbacPermission
 from app import RbacResourceType
 from app.auth import get_current_identity
-from app.exceptions import InventoryException
 from app.instrumentation import log_host_group_add_succeeded
 from app.instrumentation import log_patch_group_failed
 from app.logging import get_logger
@@ -51,10 +49,7 @@ def add_host_list_to_group(group_id, body, rbac_filter=None):
 
     # Next, add the host-group associations
     if host_id_list is not None:
-        try:
-            add_hosts_to_group(group_id, body, current_app.event_producer)
-        except InventoryException as ie:
-            flask.abort(HTTPStatus.BAD_REQUEST, str(ie))
+        add_hosts_to_group(group_id, body, current_app.event_producer)
 
     updated_group = get_group_by_id_from_db(group_id)
     current_identity = get_current_identity()

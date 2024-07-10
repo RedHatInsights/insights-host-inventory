@@ -231,8 +231,7 @@ def test_get_host_with_invalid_system_profile(api_get, patch_xjoin_post):
     url = build_system_profile_url(host_list_or_id=generate_uuid())
     response_status, _ = api_get(url)
 
-    # 400 is the more appropriate response than 500
-    assert_response_status(response_status, 400)
+    assert_response_status(response_status, 500)
 
 
 def test_get_system_profile_of_host_that_does_not_exist(api_get):

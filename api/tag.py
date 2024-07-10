@@ -12,7 +12,6 @@ from api.host_query_db import get_tag_list as get_tag_list_db
 from app import RbacPermission
 from app import RbacResourceType
 from app.auth import get_current_identity
-from app.exceptions import ValidationException
 from app.instrumentation import log_get_tags_failed
 from app.instrumentation import log_get_tags_succeeded
 from app.logging import get_logger
@@ -141,7 +140,7 @@ def get_tags(
             filter,
             rbac_filter,
         )
-    except (ValidationException, ValueError) as e:
+    except ValueError as e:
         log_get_tags_failed(logger)
         flask.abort(400, str(e))
 

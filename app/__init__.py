@@ -228,11 +228,11 @@ def create_app(runtime_environment):
             )
             logger.info("Listening on API: %s", api_url)
 
+    flask_app = app.app
+
     # Add an error handler that will convert our top level exceptions
     # into error responses
-    app.add_error_handler(InventoryException, render_exception)
-
-    flask_app = app.app
+    flask_app.register_error_handler(InventoryException, render_exception)
 
     flask_app.config["SQLALCHEMY_ECHO"] = False
     flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
