@@ -186,6 +186,7 @@ def do_request(func, url, identity, data=None, query_parameters=None, extra_head
         response = func(url, data=json.dumps(data), headers=headers)
     else:
         response = func(url, headers=headers)
+
     try:
         response_data = json.loads(response.content)
     except ValueError:

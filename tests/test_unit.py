@@ -17,6 +17,7 @@ from uuid import UUID
 from uuid import uuid4
 
 from confluent_kafka import KafkaException
+from connexion.exceptions import BadRequestProblem
 
 from api import api_operation
 from api import custom_escape
@@ -2393,7 +2394,7 @@ class QueryParameterParsingTestCase(TestCase):
             ("asdf[foo]", ["bar", "baz"]),
             ("system_profile[field1][field2]", ["value1", "value2", "value3"]),
         ):
-            with self.assertRaises(ValidationException):
+            with self.assertRaises(BadRequestProblem):
                 customURIParser._make_deep_object(key, value)
 
 
