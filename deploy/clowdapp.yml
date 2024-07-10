@@ -149,8 +149,6 @@ objects:
           value: "${INVENTORY_API_CACHE_TYPE}"
         - name: INVENTORY_API_USE_READREPLICA
           value: "${INVENTORY_API_USE_READREPLICA}"
-        - name: INVENTORY_API_SATELLITE_THROTTLE_DELAY_MS
-          value: "${INVENTORY_API_SATELLITE_THROTTLE_DELAY_MS}"
         - name: UNLEASH_URL
           value: ${UNLEASH_URL}
         - name: UNLEASH_TOKEN
@@ -1314,8 +1312,6 @@ parameters:
   value: '1'
 - name: INVENTORY_API_USE_READREPLICA
   value: 'false'
-- name: INVENTORY_API_SATELLITE_THROTTLE_DELAY_MS
-  value: '500'
 
 # NGINX
 - displayName: Minimum replicas
