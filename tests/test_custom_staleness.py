@@ -44,6 +44,7 @@ CUSTOM_STALENESS_NO_HOSTS_TO_DELETE = {
 
 
 def test_delete_only_immutable_hosts(
+    flask_app,
     db_create_staleness_culling,
     inventory_config,
     db_create_multiple_hosts,
@@ -68,12 +69,14 @@ def test_delete_only_immutable_hosts(
         event_producer_mock,
         notification_event_producer_mock,
         shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
+        application=flask_app,
     )
     assert 0 == len(db_get_hosts(immutable_hosts).all())
     assert 2 == len(db_get_hosts(conventional_hosts).all())
 
 
 def test_delete_only_conventional_hosts(
+    flask_app,
     db_create_staleness_culling,
     inventory_config,
     db_create_multiple_hosts,
@@ -98,12 +101,14 @@ def test_delete_only_conventional_hosts(
         event_producer_mock,
         notification_event_producer_mock,
         shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
+        application=flask_app,
     )
     assert 2 == len(db_get_hosts(immutable_hosts).all())
     assert 0 == len(db_get_hosts(conventional_hosts).all())
 
 
 def test_delete_conventional_immutable_hosts(
+    flask_app,
     db_create_staleness_culling,
     inventory_config,
     db_create_multiple_hosts,
@@ -128,12 +133,14 @@ def test_delete_conventional_immutable_hosts(
         event_producer_mock,
         notification_event_producer_mock,
         shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
+        application=flask_app,
     )
     assert 0 == len(db_get_hosts(immutable_hosts).all())
     assert 0 == len(db_get_hosts(conventional_hosts).all())
 
 
 def test_no_hosts_to_delete(
+    flask_app,
     db_create_staleness_culling,
     inventory_config,
     db_create_multiple_hosts,
@@ -158,6 +165,7 @@ def test_no_hosts_to_delete(
         event_producer_mock,
         notification_event_producer_mock,
         shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
+        application=flask_app,
     )
     assert 2 == len(db_get_hosts(immutable_hosts).all())
     assert 2 == len(db_get_hosts(conventional_hosts).all())
