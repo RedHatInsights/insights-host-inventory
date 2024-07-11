@@ -10,6 +10,7 @@ tags
 /.scannerwork/
 .env
 .prometheus_dir/
+tmp/
 
 swagger/inventory-schemas/
 coverage.xml

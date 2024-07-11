@@ -1,43 +1,86 @@
 version: '3.1'
 services:
     db:
-        image: postgres
+        container_name: hbi-db
+        image: docker.io/library/postgres
         restart: always
         environment:
             POSTGRES_PASSWORD: insights
             POSTGRES_USER: insights
             PGUSER: insights
             POSTGRES_DB: insights
+        privileged: true
         ports:
             - "5432:5432"
         volumes:
           - ./.unleash/create_unleashdb.sql:/docker-entrypoint-initdb.d/create_unleashdb.sql
+          - ./.export-service/create_exportdb.sql:/docker-entrypoint-initdb.d/create_exportdb.sql
         healthcheck:
           test: "pg_isready -h db"
           interval: 2s
           timeout: 5s
           retries: 5
+
+    export-service:
+      container_name: export-service
+      image: quay.io/cloudservices/export-service
+      environment:
+        - PGSQL_PORT=5432
+        - PGSQL_HOSTNAME=db
+        - PGSQL_USER=insights
+        - PGSQL_PASSWORD=insights
+        - PGSQL_DATABASE=export_service
+        - DEBUG=true
+        - OPEN_API_FILE_PATH=/var/tmp/openapi.json
+        - OPEN_API_PRIVATE_PATH=/var/tmp/private.json
+        - KAFKA_BROKERS=kafka:29092
+        - PSKS=testing-a-psk
+        - AWS_ACCESS_KEY=minio
+        - AWS_SECRET_ACCESS_KEY=minioadmin
+        - FAFKA_ANNOUNCE_TOPIC=platform.export.requests
+        - PUBLIC_PORT=8001
+        - METRICS_PORT=9090
+        - MINIO_PORT=9098
+        - PRIVATE_PORT=10010
+      depends_on:
+        db:
+          condition: service_healthy
+      volumes:
+        - './.export-service:/.export-service'
+      ports:
+        - 8001:8001
+        - 9090:9090
+        - 9099:9099
+        - 10010:10010
+      command: >
+        /bin/sh -c "export-service migrate_db upgrade;
+        export-service api_server;
+        "
+
     zookeeper:
-      image: confluentinc/cp-zookeeper
+      container_name: zookeeper
+      image: docker.io/confluentinc/cp-zookeeper
       environment:
         - ZOOKEEPER_CLIENT_PORT=32181
         - ZOOKEEPER_SERVER_ID=1
+
     kafka:
-      image: confluentinc/cp-kafka
+      container_name: kafka
+      image: docker.io/confluentinc/cp-kafka
       ports:
         - 29092:29092
         - 9092:9092
       depends_on:
         - zookeeper
       environment:
-        - KAFKA_LISTENERS=INTERNAL://kafka:9092,EXTERNAL://kafka:29092
-        - KAFKA_ADVERTISED_LISTENERS=INTERNAL://kafka:9092,EXTERNAL://localhost:29092
-        - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
-        - KAFKA_INTER_BROKER_LISTENER_NAME=INTERNAL
+        - KAFKA_ADVERTISED_LISTENERS=DOCKER://${KAFKA_QUEUE_HOST-kafka}:${KAFKA_QUEUE_PORT-29092},LOCALHOST://localhost:${KAFKA_QUEUE_PORT-9092}
+        - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=DOCKER:PLAINTEXT,LOCALHOST:PLAINTEXT
+        - KAFKA_INTER_BROKER_LISTENER_NAME=DOCKER
         - KAFKA_BROKER_ID=1
         - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
         - KAFKA_ZOOKEEPER_CONNECT=zookeeper:32181
         - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
+
     unleash:
       container_name: unleash
       image: quay.io/cloudservices/unleash-server:4.21.0
@@ -60,5 +103,29 @@ services:
       depends_on:
         db:
           condition: service_healthy
-      links:
-        - db:db
+
+    s3:
+      container_name: s3
+      image: docker.io/minio/minio
+      ports:
+        - 9098:9098
+        - 9991:9991
+      volumes:
+        - ./tmp/minio:/data:Z
+      environment:
+        - MINIO_ROOT_USER=minio
+        - MINIO_ROOT_PASSWORD=minioadmin
+      command: server --address 0.0.0.0:9098 --console-address 0.0.0.0:9991 /data
+
+    s3-createbucket:
+      container_name: s3-createbucket
+      image: docker.io/minio/mc
+      depends_on:
+        - s3
+      restart: on-failure
+      entrypoint: >
+        /bin/sh -c "
+        /usr/bin/mc config host add myminio http://localhost:9098 minio minioadmin || exit 1;
+        /usr/bin/mc mb --ignore-existing myminio/exports-bucket;
+        /usr/bin/mc policy set public myminio/exports-bucket;
+        "
