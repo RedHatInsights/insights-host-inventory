@@ -54,7 +54,7 @@ def database(database_name):
 @pytest.fixture(scope="function")
 def db_get_host(flask_app):
     def _db_get_host(host_id):
-        return Host.query.get(host_id)
+        return Host.query.filter(Host.id == host_id).one_or_none()
 
     return _db_get_host
 
