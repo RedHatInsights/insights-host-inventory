@@ -1,5 +1,8 @@
 .PHONY: init test run_inv_mq_service
 
+IDENTITY_HEADER="eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiYWNjb3VudDEyMyIsICJvcmdfaWQiOiAiNTg5NDMwMCIsICJ0eXBlIjogIlVzZXIiLCAidXNlciI6IHsiaXNfb3JnX2FkbWluIjogdHJ1ZSwgInVzZXJuYW1lIjogImZyZWQifSwgImludGVybmFsIjogeyJvcmdfaWQiOiAib3JnMTIzIn19fQ=="
+NUM_HOSTS=1
+
 init:
 	pipenv shell
 
@@ -24,7 +27,7 @@ run_inv_mq_service:
 	KAFKA_EVENT_TOPIC=platform.inventory.events PAYLOAD_TRACKER_SERVICE_NAME=inventory-mq-service INVENTORY_LOG_LEVEL=DEBUG BYPASS_TENANT_TRANSLATION=true python3 inv_mq_service.py
 
 run_inv_mq_service_test_producer:
-	python3 utils/kafka_producer.py
+	NUM_HOSTS=${NUM_HOSTS} python3 utils/kafka_producer.py
 
 run_inv_mq_service_test_consumer:
 	python3 utils/kafka_consumer.py
@@ -58,3 +61,10 @@ update-schema:
 	git add swagger/system_profile.spec.yaml
 	git add swagger/system_profile_commit_id
 	git diff --cached
+
+sample-request-create-export:
+	@curl -sS -X POST http://localhost:8001/api/export/v1/exports -H "x-rh-identity: ${IDENTITY_HEADER}" -H "Content-Type: application/json" -d @example_export_request.json > response.json
+	@cat response.json | jq
+	@cat response.json | jq -r '.id' | xargs -I {} echo "EXPORT_ID: {}"
+	@cat response.json | jq -r '.sources[] | "EXPORT_APPLICATION: \(.application)\nEXPORT_RESOURCE: \(.id)\n---"'
+	@rm response.json
