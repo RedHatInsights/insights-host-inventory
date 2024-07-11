@@ -94,7 +94,8 @@ objects:
           "0.0.0.0:8000",
           "-t",
           "60",
-          "run"
+          "--worker-class=uvicorn.workers.UvicornWorker",
+          "run:app"
         ]
         env:
         - name: APP_NAME
@@ -239,7 +240,8 @@ objects:
           "0.0.0.0:8000",
           "-t",
           "60",
-          "run"
+          "--worker-class=uvicorn.workers.UvicornWorker",
+          "run:app"
         ]
         env:
         - name: APP_NAME

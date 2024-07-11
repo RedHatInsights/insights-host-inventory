@@ -453,7 +453,7 @@ def handle_export_message(message):
 
 
 def export_service_event_loop(consumer, flask_app, interrupt):
-    with flask_app.app.app_context():
+    with flask_app.app_context():
         while not interrupt():
             messages = consumer.consume(timeout=CONSUMER_POLL_TIMEOUT_SECONDS)
             for msg in messages:
@@ -478,7 +478,7 @@ def export_service_event_loop(consumer, flask_app, interrupt):
 
 
 def event_loop(consumer, flask_app, event_producer, notification_event_producer, handler, interrupt):
-    with flask_app.app.app_context():
+    with flask_app.app_context():
         while not interrupt():
             processed_rows = []
             start_time = datetime.now()
