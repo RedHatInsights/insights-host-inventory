@@ -232,7 +232,7 @@ def assert_patch_event_is_valid(
 
 
 def expected_headers(
-    event_type, request_id, insights_id=None, reporter=None, host_type=None, os_name=None, is_bootc=False
+    event_type, request_id, insights_id=None, reporter=None, host_type=None, os_name=None, is_bootc="False"
 ):
     return {
         "event_type": event_type,

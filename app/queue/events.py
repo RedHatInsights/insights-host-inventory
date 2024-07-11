@@ -82,7 +82,7 @@ def message_headers(
     reporter: str = None,
     host_type: str = None,
     os_name: str = None,
-    is_bootc: bool = False,
+    is_bootc: str = "False",
 ):
     return {
         "event_type": event_type.name,

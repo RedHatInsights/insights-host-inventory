@@ -394,7 +394,7 @@ def _emit_patch_event(serialized_host, host):
         host.reporter,
         host.system_profile_facts.get("host_type"),
         host.system_profile_facts.get("operating_system", {}).get("name"),
-        host.system_profile_facts.get("bootc_status", {}).get("booted") is not None,
+        str(host.system_profile_facts.get("bootc_status", {}).get("booted") is not None),
     )
     metadata = {"b64_identity": to_auth_header(get_current_identity())}
     event = build_event(EventType.updated, serialized_host, platform_metadata=metadata)

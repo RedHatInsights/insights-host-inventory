@@ -319,10 +319,10 @@ def test_handle_message_verify_message_headers(mocker, add_host_result, mq_creat
 @pytest.mark.parametrize(
     "expected_value, system_profile",
     [
-        (False, {}),
-        (False, {"bootc_status": {}}),
-        (True, {"bootc_status": {"booted": {}}}),
-        (True, {"bootc_status": {"booted": {"image": "192.168.0.1:5000/foo/foo:latest"}}}),
+        ("False", {}),
+        ("False", {"bootc_status": {}}),
+        ("True", {"bootc_status": {"booted": {}}}),
+        ("True", {"bootc_status": {"booted": {"image": "192.168.0.1:5000/foo/foo:latest"}}}),
     ],
 )
 def test_verify_bootc_in_headers(expected_value, system_profile, mq_create_or_update_host):
