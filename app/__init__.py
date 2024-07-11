@@ -270,8 +270,7 @@ def create_app(runtime_environment):
         unleash_fallback_msg += " Feature flag toggles will default to their fallback values."
         logger.warning(unleash_fallback_msg)
 
-    with flask_app.app_context():
-        db.init_app(flask_app)
+    db.init_app(flask_app)
 
     flask_app.register_blueprint(monitoring_blueprint, url_prefix=app_config.mgmt_url_path_prefix)
     for api_url in app_config.api_urls:

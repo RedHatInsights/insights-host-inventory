@@ -558,25 +558,25 @@ def test_update_delete_race(
 
     mocker.patch("app.models.Host.update_display_name", wraps=sleep)
 
-    host = db_create_host()
+    host_id = db_create_host().id
 
     def patch_host():
-        url = build_hosts_url(host_list_or_id=host.id)
+        url = build_hosts_url(host_list_or_id=host_id)
         api_patch(url, {"ansible_host": "localhost.localdomain"})
 
     # run PATCH asynchronously
-    patchThread = Thread(target=patch_host)
+    patchThread = Thread(target=patch_host, daemon=True)
     patchThread.start()
 
     # as PATCH is running, concurrently delete the host
-    response_status, _ = api_delete_host(host.id)
+    response_status, _ = api_delete_host(host_id)
     assert_response_status(response_status, expected_status=200)
 
     # wait for PATCH to finish
     patchThread.join()
 
     # the host should be deleted and the last message to be produced should be the delete message
-    assert not db_get_host(host.id)
+    assert not db_get_host(host_id)
     assert event_producer.write_event.call_args_list[-1][0][2]["event_type"] == "delete"
 
 
