@@ -13,6 +13,8 @@ from sqlalchemy.sql.expression import ColumnElement
 from api.filtering.db_filters import host_id_list_filter
 from api.filtering.db_filters import query_filters
 from api.filtering.db_filters import rbac_permissions_filter
+from api.host_query import staleness_timestamps
+from api.staleness_query import get_staleness_obj
 from app import db
 from app.auth import get_current_identity
 from app.instrumentation import log_get_host_list_succeeded
@@ -20,6 +22,7 @@ from app.logging import get_logger
 from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
+from app.serialization import serialize_host
 from lib.host_repository import update_query_for_owner_id
 
 __all__ = (
@@ -203,7 +206,7 @@ def _order_how(column, order_how: str):
         raise ValueError('Unsupported ordering direction, use "ASC" or "DESC".')
 
 
-def _find_all_hosts(query_base=None, columns: List[ColumnElement] = None) -> Query:
+def _find_all_hosts(query_base=None, columns: List[ColumnElement] = None, identity: object = None) -> Query:
     if query_base is None:
         query_base = (
             db.session.query(Host)
@@ -211,7 +214,10 @@ def _find_all_hosts(query_base=None, columns: List[ColumnElement] = None) -> Que
             .join(Group, isouter=True)
             .group_by(Host.id, Group.name)
         )
-    identity = get_current_identity()
+
+    if not identity:
+        identity = get_current_identity()
+
     query = query_base.filter(Host.org_id == identity.org_id)
     if columns:
         query = query.with_entities(*columns)
@@ -557,3 +563,24 @@ def get_host_ids_list(
     host_list = [str(res[0]) for res in _find_all_hosts(base_query, [Host.id]).filter(*all_filters).all()]
     db.session.close()
     return host_list
+
+
+def get_hosts_to_export(
+    identity: object,
+    filters: object = {},
+    export_format: str = "json",
+    rbac_filter: dict = {},
+) -> list:
+    st_timestamps = staleness_timestamps()
+    staleness = get_staleness_obj(identity)
+
+    q_filters, _ = query_filters(filter=filters, rbac_filter=rbac_filter)
+    export_host_query = _find_all_hosts(identity=identity).filter(*q_filters)
+    db.session.close()
+
+    serialized_hosts_list = [
+        serialize_host(host, staleness_timestamps=st_timestamps, for_mq=False, staleness=staleness)
+        for host in export_host_query.all()
+    ]
+
+    return serialized_hosts_list
