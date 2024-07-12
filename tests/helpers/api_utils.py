@@ -298,10 +298,7 @@ def assert_error_response(
     def _verify_value(field_name, expected_value):
         assert field_name in response
         if expected_value is not None:
-            if field_name == "detail":
-                assert expected_value in response[field_name]
-            else:
-                assert response[field_name] == expected_value
+            assert response[field_name] == expected_value
 
     _verify_value("title", expected_title)
     _verify_value("status", expected_status)

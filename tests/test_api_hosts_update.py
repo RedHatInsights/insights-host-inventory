@@ -337,10 +337,10 @@ def test_event_producer_instrumentation(mocker, event_producer, db_create_host, 
 
 
 def test_add_facts_without_fact_dict(api_patch, db_create_host):
-    facts_url = build_facts_url(host_list_or_id=1, namespace=DB_FACTS_NAMESPACE)
+    facts_url = build_facts_url(host_list_or_id=generate_uuid(), namespace=DB_FACTS_NAMESPACE)
     response_status, response_data = api_patch(facts_url, None)
 
-    assert_error_response(response_data, expected_status=400, expected_detail="does not match")
+    assert_error_response(response_data, expected_status=400, expected_detail="Request body must not be empty")
 
 
 def test_add_facts_to_multiple_hosts(event_producer_mock, db_create_multiple_hosts, db_get_hosts, api_patch):
