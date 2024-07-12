@@ -1,4 +1,7 @@
+import csv
 import json
+
+from app.serialization import _EXPORT_SERVICE_FIELDS
 
 EXPORT_DATA = [
     {
@@ -140,3 +143,36 @@ def create_export_message_missing_field_mock(field_to_remove):
     }
     message.pop(field_to_remove)
     return json.dumps(message)
+
+
+def read_csv(csv_content):
+    data = []
+    with open(csv_content, newline="") as csvfile:
+        reader = csv.reader(csvfile)
+        for row in reader:
+            data.append(row)
+    return data
+
+
+def create_export_csv_mock(mocker):
+    row = [mocker.ANY] * len(_EXPORT_SERVICE_FIELDS)
+
+    return [_EXPORT_SERVICE_FIELDS, row]
+
+
+def create_export_json_mock(mocker):
+    return [
+        {
+            "id": mocker.ANY,
+            "subscription_manager_id": mocker.ANY,
+            "satellite_id": mocker.ANY,
+            "display_name": mocker.ANY,
+            "group_id": mocker.ANY,
+            "group_name": mocker.ANY,
+            "os_release": mocker.ANY,
+            "updated": mocker.ANY,
+            "state": mocker.ANY,
+            "tags": mocker.ANY,
+            "host_type": mocker.ANY,
+        }
+    ]
