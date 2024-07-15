@@ -1,5 +1,74 @@
 import json
 
+EXPORT_DATA = [
+    {
+        "account": None,
+        "ansible_host": None,
+        "bios_uuid": "84353df8-b7c4-4175-9381-d5db8620256a",
+        "created": "2024-07-01T14:10:07.477718+00:00",
+        "culled_timestamp": "2024-07-15T14:10:07.477723+00:00",
+        "display_name": "5b7809.foo.redhat.com",
+        "facts": [],
+        "fqdn": None,
+        "groups": [],
+        "id": "a4f67e55-211e-48b9-aca2-6ca75d3e7df2",
+        "insights_id": None,
+        "ip_addresses": None,
+        "mac_addresses": None,
+        "org_id": "5894300",
+        "per_reporter_staleness": {
+            "puptoo": {
+                "check_in_succeeded": True,
+                "culled_timestamp": "2024-07-15T14:10:07.471297+00:00",
+                "last_check_in": "2024-07-01T14:10:07.471297+00:00",
+                "stale_timestamp": "2024-07-02T19:10:07.471297+00:00",
+                "stale_warning_timestamp": "2024-07-08T14:10:07.471297+00:00",
+            }
+        },
+        "provider_id": None,
+        "provider_type": None,
+        "reporter": "puptoo",
+        "satellite_id": None,
+        "stale_timestamp": "2024-07-02T19:10:07.477723+00:00",
+        "stale_warning_timestamp": "2024-07-08T14:10:07.477723+00:00",
+        "subscription_manager_id": None,
+        "updated": "2024-07-01T14:10:07.477723+00:00",
+    },
+    {
+        "account": None,
+        "ansible_host": None,
+        "bios_uuid": "c02323d4-7c46-485b-be0c-48d9b469e9b2",
+        "created": "2024-07-01T14:09:59.483978+00:00",
+        "culled_timestamp": "2024-07-15T14:09:59.483983+00:00",
+        "display_name": "c5f819.foo.redhat.com",
+        "facts": [],
+        "fqdn": None,
+        "groups": [],
+        "id": "31cf889d-25f8-46e2-b615-33c0e173a10b",
+        "insights_id": None,
+        "ip_addresses": None,
+        "mac_addresses": None,
+        "org_id": "5894300",
+        "per_reporter_staleness": {
+            "puptoo": {
+                "check_in_succeeded": True,
+                "culled_timestamp": "2024-07-15T14:09:59.478123+00:00",
+                "last_check_in": "2024-07-01T14:09:59.478123+00:00",
+                "stale_timestamp": "2024-07-02T19:09:59.478123+00:00",
+                "stale_warning_timestamp": "2024-07-08T14:09:59.478123+00:00",
+            }
+        },
+        "provider_id": None,
+        "provider_type": None,
+        "reporter": "puptoo",
+        "satellite_id": None,
+        "stale_timestamp": "2024-07-02T19:09:59.483983+00:00",
+        "stale_warning_timestamp": "2024-07-08T14:09:59.483983+00:00",
+        "subscription_manager_id": None,
+        "updated": "2024-07-01T14:09:59.483983+00:00",
+    },
+]
+
 
 def create_export_message_mock():
     return json.dumps(

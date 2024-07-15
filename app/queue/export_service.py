@@ -1,7 +1,15 @@
+from functools import partial
 from http import HTTPStatus
 
+from requests import Session
+
+from api.host_query_db import get_hosts_to_export
+from app import IDENTITY_HEADER
 from app import RbacPermission
 from app import RbacResourceType
+from app import REQUEST_ID_HEADER
+from app.auth.identity import create_mock_identity_with_org_id
+from app.common import inventory_config
 from app.logging import get_logger
 from lib import metrics
 from lib.middleware import rbac
@@ -23,14 +31,58 @@ def _handle_rbac_to_export(func, org_id, rbac_request_headers):
 
 
 @metrics.create_export_processing_time.time()
-def create_export(export_svc_data, org_id, operation_args={}, rbac_filter=None):
-    # Here we make the DB call and create the export
-    # Check PoC reference:
-    # https://github.com/RedHatInsights/insights-host-inventory/pull/1671/files#diff-13296d264df528a2181ea43f8fa5ebaed8a5f66b06767e5e75bbc3549ac0f29aR30-R88
+def create_export(export_svc_data, org_id, operation_args={}, rbac_filter={}):
+    config = inventory_config()
+    identity = create_mock_identity_with_org_id(org_id)
 
     metrics.create_export_count.inc()
     logger.info("Creating export for HBI")
-    return True
+
+    exportFormat = export_svc_data["data"]["resource_request"]["format"]
+    exportUUID = export_svc_data["data"]["resource_request"]["export_request_uuid"]
+    applicationName = export_svc_data["data"]["resource_request"]["application"]
+    resourceUUID = export_svc_data["data"]["resource_request"]["uuid"]
+
+    rbac_request_headers = {
+        IDENTITY_HEADER: export_svc_data["data"]["resource_request"]["x_rh_identity"],
+        REQUEST_ID_HEADER: exportUUID,
+    }
+
+    session = Session()
+    try:
+        request_url = {
+            f"{config.export_service_endpoint}/app/export/v1/{exportUUID}/{applicationName}/{resourceUUID}/upload"
+        }
+
+        logger.info(f"Trying to get data for org_id: {identity.org_id}")
+
+        data_to_export = _handle_rbac_to_export(
+            partial(get_hosts_to_export, identity=identity, export_format=exportFormat, rbac_filter=rbac_filter),
+            org_id=identity.org_id,
+            rbac_request_headers=rbac_request_headers,
+        )
+
+        if data_to_export:
+            # todo(gchamoul):
+            # Next Step will done here:
+            # - POST to export service with the data to be exported
+            logger.info(
+                f"{len(data_to_export)} hosts will be exported (format: {exportFormat}) for org_id {identity.org_id}"
+            )
+            logger.info(f"Trying to upload data using URL: {request_url}")
+            return True
+        else:
+            # todo(gchamoul):
+            # POST to export service and handle an 404 error properly
+            logger.info(f"No data found for org_id: {identity.org_id}")
+            return False
+    except Exception as e:
+        logger.error(e)
+        # todo(gchamoul):
+        # POST to export service and handle an 500 error properly
+        return False
+    finally:
+        session.close()
 
 
 # This function is used by create_export, needs improvement
