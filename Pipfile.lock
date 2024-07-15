@@ -1820,7 +1820,9 @@
             "version": "==3.4.0"
         },
         "coverage": {
-            "extras": [],
+            "extras": [
+
+            ],
             "hashes": [
                 "sha256:018a12985185038a5b2bcafab04ab833a9a0f2c59995b3cec07e10074c78635f",
                 "sha256:02ff6e898197cc1e9fa375581382b72498eb2e6d5fc0b53f03e496cfee3fac6d",
@@ -2121,11 +2123,12 @@
         },
         "setuptools": {
             "hashes": [
-                "sha256:0ff4183f8f42cd8fa3acea16c45205521a4ef28f73c6391d8a25e92893134f2e",
-                "sha256:c21c49fb1042386df081cb5d86759792ab89efca84cf114889191cd09aacc80c"
+                "sha256:54faa7f2e8d2d11bcd2c07bed282eef1046b5c080d1c32add737d7b5817b1ad4",
+                "sha256:f211a66637b8fa059bb28183da127d4e86396c991a942b028c6650d4319c3fd0"
             ],
+            "index": "pypi",
             "markers": "python_version >= '3.8'",
-            "version": "==69.2.0"
+            "version": "==70.0.0"
         },
         "six": {
             "hashes": [
