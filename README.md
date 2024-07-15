@@ -164,7 +164,7 @@ In one terminal, run the following command:
 
 ```bash
 pipenv shell
-python3 inv_export_service.py
+make run_inv_export_service
 ```
 
 In one other terminal, generate event towards the export service with the following command:
