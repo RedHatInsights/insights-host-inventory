@@ -371,7 +371,7 @@ def test_query_variables_provider_type_and_id(mocker, graphql_query_empty_respon
     )
 
 
-@pytest.mark.parametrize("provider_type", ("invalid", " ", "\t"))
+@pytest.mark.parametrize("provider_type", ("invalid", " ", "&#9;"))
 def test_query_using_invalid_provider_type(mocker, graphql_query_empty_response, api_get, provider_type):
     url = build_hosts_url(query=f"?provider_type={provider_type}")
     response_status, response_data = api_get(url)
@@ -3056,7 +3056,7 @@ def test_query_hosts_filter_deep_objects(mocker, subtests, flask_app, graphql_qu
         {"AND": [{"spf_ansible": {"d0n1": {"d1n1": {"d2n2": {"name": {"eq": None}}}}}}]},
     )
 
-    with flask_app.app_context():
+    with flask_app.app.app_context():
         mocker.patch(
             "api.filtering.filtering.system_profile_spec",
             return_value=process_spec(system_profile_deep_object_spec()["$defs"]["SystemProfile"]["properties"])[0],

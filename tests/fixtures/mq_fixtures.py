@@ -127,34 +127,34 @@ def notification_kafka_producer(mocker):
 
 @pytest.fixture(scope="function")
 def event_producer(flask_app, kafka_producer):
-    config = flask_app.config["INVENTORY_CONFIG"]
-    flask_app.event_producer = EventProducer(config, config.event_topic)
-    yield flask_app.event_producer
-    flask_app.event_producer = None
+    config = flask_app.app.config["INVENTORY_CONFIG"]
+    flask_app.app.event_producer = EventProducer(config, config.event_topic)
+    yield flask_app.app.event_producer
+    flask_app.app.event_producer = None
 
 
 @pytest.fixture(scope="function")
 def notification_event_producer(flask_app, notification_kafka_producer):
-    config = flask_app.config["INVENTORY_CONFIG"]
-    flask_app.notification_event_producer = EventProducer(config, config.notification_topic)
-    yield flask_app.notification_event_producer
-    flask_app.notification_event_producer = None
+    config = flask_app.app.config["INVENTORY_CONFIG"]
+    flask_app.app.notification_event_producer = EventProducer(config, config.notification_topic)
+    yield flask_app.app.notification_event_producer
+    flask_app.app.notification_event_producer = None
 
 
 @pytest.fixture(scope="function")
 def event_producer_mock(flask_app, mocker):
-    flask_app.event_producer = MockEventProducer()
+    flask_app.app.event_producer = MockEventProducer()
     mocker.patch("lib.host_delete.kafka_available")
-    yield flask_app.event_producer
-    flask_app.event_producer = None
+    yield flask_app.app.event_producer
+    flask_app.app.event_producer = None
 
 
 @pytest.fixture(scope="function")
 def notification_event_producer_mock(flask_app, mocker):
-    flask_app.notification_event_producer = MockEventProducer()
+    flask_app.app.notification_event_producer = MockEventProducer()
     mocker.patch("lib.host_delete.kafka_available")
-    yield flask_app.notification_event_producer
-    flask_app.notification_event_producer = None
+    yield flask_app.app.notification_event_producer
+    flask_app.app.notification_event_producer = None
 
 
 @pytest.fixture(scope="function")

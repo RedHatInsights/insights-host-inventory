@@ -2,9 +2,9 @@ import re
 from urllib.parse import quote
 from urllib.parse import unquote
 
-from connexion.decorators.uri_parsing import OpenAPIURIParser
-
-from app.exceptions import ValidationException
+from connexion.exceptions import BadRequestProblem
+from connexion.uri_parsing import OpenAPIURIParser
+from connexion.utils import coerce_type
 
 
 def custom_fields_parser(root_key, key_path, val):
@@ -53,6 +53,8 @@ class customURIParser(OpenAPIURIParser):
             else:
                 resolved_param[k] = values[-1]
 
+            resolved_param[k] = coerce_type(param_defn, resolved_param[k], "parameter", k)
+
         return resolved_param
 
     @staticmethod
@@ -84,7 +86,7 @@ class customURIParser(OpenAPIURIParser):
             prev[prev_k] = v
         else:
             if len(v) > 1:
-                raise ValidationException(f"Param {root_key} must be appended with [] to accept multiple values.")
+                raise BadRequestProblem(f"Param {root_key} must be appended with [] to accept multiple values.")
             prev[k] = v[0]
 
         return (root_key, [root], True)

@@ -64,7 +64,7 @@ def test_event_loop_exception_handling(mocker, event_producer, flask_app):
     )
     event_loop(
         fake_consumer,
-        flask_app,
+        flask_app.app,
         event_producer,
         fake_notification_event_producer,
         handler=handle_message_mock,
@@ -84,7 +84,7 @@ def test_event_loop_with_error_message_handling(mocker, event_producer, flask_ap
     handle_message_mock = mocker.Mock(return_value=None, side_effect=None)
     event_loop(
         fake_consumer,
-        flask_app,
+        flask_app.app,
         event_producer,
         fake_notification_event_producer,
         handler=handle_message_mock,
@@ -137,7 +137,7 @@ def test_handle_message_happy_path(identity, mocker, flask_app):
 
 
 def test_request_id_is_reset(mocker, flask_app, db_create_host):
-    with flask_app.app_context():
+    with flask_app.app.app_context():
         mock_event_producer = mocker.Mock()
         mock_notification_event_producer = mocker.Mock()
         metadata = get_platform_metadata()
@@ -175,7 +175,7 @@ def test_shutdown_handler(mocker, flask_app):
     handle_message_mock = mocker.Mock(return_value=None, side_effect=[None, None])
     event_loop(
         fake_consumer,
-        flask_app,
+        flask_app.app,
         fake_event_producer,
         fake_notification_event_producer,
         handler=handle_message_mock,
@@ -1460,7 +1460,7 @@ def test_update_system_profile_host_not_found(mocker, flask_app):
     # Make sure the "not found" exception is properly handled
     event_loop(
         fake_consumer,
-        flask_app,
+        flask_app.app,
         mocker.Mock(),
         mocker.Mock(),
         handler=message_handler,
@@ -1812,7 +1812,7 @@ def test_batch_mq_operations(mocker, event_producer, flask_app):
 
     event_loop(
         fake_consumer,
-        flask_app,
+        flask_app.app,
         event_producer,
         mocker.Mock(),
         handler=handle_message,
@@ -1871,7 +1871,7 @@ def test_batch_mq_header_request_id_updates(mocker, flask_app):
 
     event_loop(
         fake_consumer,
-        flask_app,
+        flask_app.app,
         event_producer_mock,
         mocker.Mock(),
         handler=handle_message,
@@ -1930,7 +1930,7 @@ def test_batch_mq_graceful_rollback(mocker, flask_app):
 
     event_loop(
         fake_consumer,
-        flask_app,
+        flask_app.app,
         event_producer_mock,
         mocker.Mock(),
         handler=handle_message,
