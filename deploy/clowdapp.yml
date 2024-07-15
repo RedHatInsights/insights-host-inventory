@@ -218,7 +218,153 @@ objects:
               path: db_port
             - key: db.user
               path: db_user
-            secretName: host-inventory-read-only-db
+            secretName: ${INVENTORY_API_READREPLICA_SECRET}
+            optional: true
+    - name: service-secondary-reads
+      replicas: ${{REPLICAS_SVC_SECONDARY_READS}}
+      webServices:
+        public:
+          enabled: true
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: [
+          "gunicorn",
+          "--workers=${GUNICORN_WORKERS}",
+          "--threads=${GUNICORN_THREADS}",
+          "--limit-request-field_size=${GUNICORN_REQUEST_FIELD_LIMIT}",
+          "--limit-request-line=${GUNICORN_REQUEST_LINE_LIMIT}",
+          "--worker-tmp-dir=/gunicorn",
+          "-c",
+          "gunicorn.conf.py",
+          "-b",
+          "0.0.0.0:8000",
+          "-t",
+          "60",
+          "--worker-class=uvicorn.workers.UvicornWorker",
+          "run:app"
+        ]
+        env:
+        - name: APP_NAME
+          value: ${APP_NAME}
+        - name: PATH_PREFIX
+          value: ${PATH_PREFIX}
+        - name: INVENTORY_LEGACY_API_URL
+          value: /r/insights/platform/inventory/v1/
+        - name: prometheus_multiproc_dir
+          value: /tmp/inventory/prometheus
+        - name: INVENTORY_LOG_LEVEL
+          value: ${LOG_LEVEL}
+        - name: URLLIB3_LOG_LEVEL
+          value: ${URLLIB3_LOG_LEVEL}
+        - name: INVENTORY_DB_SSL_MODE
+          value: ${INVENTORY_DB_SSL_MODE}
+        - name: PAYLOAD_TRACKER_SERVICE_NAME
+          value: inventory
+        - name: PAYLOAD_TRACKER_ENABLED
+          value: 'true'
+        - name: XJOIN_GRAPHQL_URL
+          value: http://${XJOIN_SEARCH_HOST}:${XJOIN_SEARCH_PORT}/graphql
+        - name: BYPASS_RBAC
+          value: ${BYPASS_RBAC}
+        - name: KAFKA_PRODUCER_ACKS
+          value: ${KAFKA_PRODUCER_ACKS}
+        - name: KAFKA_PRODUCER_RETRIES
+          value: ${KAFKA_PRODUCER_RETRIES}
+        - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+          value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+        - name: KAFKA_SECURITY_PROTOCOL
+          value: ${KAFKA_SECURITY_PROTOCOL}
+        - name: KAFKA_SASL_MECHANISM
+          value: ${KAFKA_SASL_MECHANISM}
+        - name: KAFKA_EVENT_TOPIC
+          value: ${KAFKA_EVENT_TOPIC}
+        - name: KAFKA_NOTIFICATION_TOPIC
+          value: ${KAFKA_NOTIFICATION_TOPIC}
+        - name: TENANT_TRANSLATOR_URL
+          value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
+        - name: BYPASS_TENANT_TRANSLATION
+          value: ${BYPASS_TENANT_TRANSLATION}
+        - name: CLOWDER_ENABLED
+          value: "true"
+        - name: INVENTORY_DB_STATEMENT_TIMEOUT
+          value: "${INVENTORY_DB_STATEMENT_TIMEOUT}"
+        - name: INVENTORY_DB_LOCK_TIMEOUT
+          value: "${INVENTORY_DB_LOCK_TIMEOUT}"
+        - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
+          value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
+        - name: INVENTORY_API_CACHE_TYPE
+          value: "${INVENTORY_API_CACHE_TYPE}"
+        - name: INVENTORY_API_USE_READREPLICA
+          value: "${INVENTORY_API_USE_READREPLICA}"
+        - name: UNLEASH_URL
+          value: ${UNLEASH_URL}
+        - name: UNLEASH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: ${UNLEASH_SECRET_NAME}
+              key: CLIENT_ACCESS_TOKEN
+              optional: true
+        - name: BYPASS_UNLEASH
+          value: ${BYPASS_UNLEASH}
+        - name: SEGMENTIO_WRITE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: segmentio
+              key: WRITE_KEY
+              optional: true
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_SERVICE}
+            memory: ${MEMORY_LIMIT_SERVICE}
+          requests:
+            cpu: ${CPU_REQUEST_SERVICE}
+            memory: ${MEMORY_REQUEST_SERVICE}
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /health
+            port: 8000
+            scheme: HTTP
+          periodSeconds: 30
+          successThreshold: 1
+          timeoutSeconds: 60
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /health
+            port: 8000
+            scheme: HTTP
+          periodSeconds: 30
+          successThreshold: 1
+          timeoutSeconds: 60
+        volumeMounts:
+        - mountPath: /tmp/inventory/prometheus
+          name: prometheus-volume
+        - mountPath: /gunicorn
+          name: gunicorn-worker-dir
+        - mountPath: /etc/db/readreplica
+          name: host-inventory-read-only-db
+          readOnly: true
+        volumes:
+        - emptyDir: {}
+          name: prometheus-volume
+        - emptyDir:
+            medium: Memory
+          name: gunicorn-worker-dir
+        - name: host-inventory-read-only-db
+          secret:
+            items:
+            - key: db.host
+              path: db_host
+            - key: db.name
+              path: db_name
+            - key: db.password
+              path: db_password
+            - key: db.port
+              path: db_port
+            - key: db.user
+              path: db_user
+            secretName: ${INVENTORY_API_SECONDARY_READREPLICA_SECRET}
             optional: true
     - name: service-writes
       replicas: ${{REPLICAS_SVC_WRITES}}
@@ -1035,6 +1181,7 @@ objects:
 
         upstream host-inventory-service-reads {
           server host-inventory-service-reads:8000;
+          server host-inventory-service-secondary-reads:8000;
         }
         upstream host-inventory-service-writes {
           server host-inventory-service-writes:8000;
@@ -1181,6 +1328,9 @@ parameters:
   name: REPLICAS_SVC_READS
   value: "7"
 - description: Replica count for webservice
+  name: REPLICAS_SVC_SECONDARY_READS
+  value: "1"
+- description: Replica count for webservice
   name: REPLICAS_SVC_WRITES
   value: "3"
 - description: Replica count for export-service
@@ -1314,6 +1464,10 @@ parameters:
   value: '1'
 - name: INVENTORY_API_USE_READREPLICA
   value: 'false'
+- name: INVENTORY_API_READREPLICA_SECRET
+  value: 'host-inventory-read-only-db'
+- name: INVENTORY_API_SECONDARY_READREPLICA_SECRET
+  value: 'host-inventory-read-only-db'
 
 # NGINX
 - displayName: Minimum replicas
