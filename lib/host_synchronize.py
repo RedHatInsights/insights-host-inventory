@@ -47,6 +47,7 @@ def synchronize_hosts(
                 host.reporter,
                 host.system_profile_facts.get("host_type"),
                 host.system_profile_facts.get("operating_system", {}).get("name"),
+                str(host.system_profile_facts.get("bootc_status", {}).get("booted") is not None),
             )
             # in case of a failed update event, event_producer logs the message.
             # Workaround to solve: https://issues.redhat.com/browse/RHINENG-4856

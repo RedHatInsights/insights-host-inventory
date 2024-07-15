@@ -1,4 +1,4 @@
-from flask import Flask
+import connexion
 from flask_caching import Cache
 from redis import Redis
 
@@ -28,9 +28,10 @@ def init_cache(app_config, flask_app):
         CACHE = Cache(config=CACHE_CONFIG)
     else:
         logger.info(f"Cache using config={CACHE_CONFIG}")
-    if isinstance(flask_app, Flask):
+
+    if isinstance(flask_app, connexion.apps.flask.FlaskApp):
         logger.info("Cache initialized with app.")
-        CACHE = CACHE.init_app(flask_app, config=CACHE_CONFIG)
+        CACHE.init_app(flask_app.app, config=CACHE_CONFIG)
     else:
         logger.info(f"Cache not initialized with app. Passed the following for the app={flask_app}.")
 

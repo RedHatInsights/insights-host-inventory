@@ -29,4 +29,5 @@ def test_metrics(flask_client):
 
 def test_version(api_get):
     response_status, response_data = api_get(VERSION_URL)
+    assert response_status == 200
     assert response_data["version"] is not None

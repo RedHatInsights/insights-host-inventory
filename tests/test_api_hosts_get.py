@@ -401,18 +401,21 @@ def test_sp_sparse_fields_xjoin_response_with_invalid_field(patch_xjoin_post, db
     assert response_data["results"][0]["system_profile"] == {}
 
 
-def test_validate_sp_sparse_fields_invalid_requests(api_get):
+def test_validate_sp_sparse_fields_invalid_requests(api_get, subtests):
     for query in (
         "?fields[system_profile]=os_kernel_version&order_how=ASC",
         "?fields[system_profile]=os_kernel_version&order_by=modified",
         "?fields[system_profile]=os_kernel_version&order_how=display_name&order_by=NOO",
-        "?fields[foo]=bar",
+        # Bypass until https://github.com/spec-first/connexion/issues/1920 is resolved,
+        # or until we make a workaround and re-enable strict_validation.
+        # "?fields[foo]=bar",
     ):
-        host_one_id, host_two_id = generate_uuid(), generate_uuid()
-        hosts = [minimal_host(id=host_one_id), minimal_host(id=host_two_id)]
+        with subtests.test(query=query):
+            host_one_id, host_two_id = generate_uuid(), generate_uuid()
+            hosts = [minimal_host(id=host_one_id), minimal_host(id=host_two_id)]
 
-        response_status, response_data = api_get(build_system_profile_url(hosts, query=query))
-        assert response_status == 400
+            response_status, _ = api_get(build_system_profile_url(hosts, query=query))
+            assert response_status == 400
 
 
 def test_host_list_sp_fields_requested(patch_xjoin_post, api_get):
