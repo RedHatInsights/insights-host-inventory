@@ -55,6 +55,7 @@ def _produce_host_update_events(event_producer, host_id_list, group_id_list=[], 
             host.reporter,
             host.system_profile_facts.get("host_type"),
             host.system_profile_facts.get("operating_system", {}).get("name"),
+            str(host.system_profile_facts.get("bootc_status", {}).get("booted") is not None),
         )
         event = build_event(EventType.updated, serialized_host, platform_metadata=metadata)
         event_producer.write_event(event, serialized_host["id"], headers, wait=True)

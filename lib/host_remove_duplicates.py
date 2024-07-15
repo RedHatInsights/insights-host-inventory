@@ -144,6 +144,7 @@ def delete_duplicate_hosts(
                 host.reporter,
                 host.system_profile_facts.get("host_type"),
                 host.system_profile_facts.get("operating_system", {}).get("name"),
+                str(host.system_profile_facts.get("bootc_status", {}).get("booted") is not None),
             )
             # add back "wait=True", if needed.
             event_producer.write_event(event, str(host.id), headers, wait=True)
