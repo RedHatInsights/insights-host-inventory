@@ -1330,7 +1330,7 @@
           "accounts_staleness"
         ],
         "summary": "Read the entire list of account staleness",
-        "description": "Read the entire list of all accounts staleness available. Required permissions: inventory:TODO:read",
+        "description": "Read the entire list of all accounts staleness available. Required permissions: staleness:staleness:read",
         "security": [
           {
             "ApiKeyAuth": []
@@ -1361,7 +1361,7 @@
           "accounts_staleness"
         ],
         "summary": "Create account staleness record",
-        "description": "Create account staleness record. Required permissions: inventory:TODO:write",
+        "description": "Create account staleness record. Required permissions: staleness:staleness:write",
         "security": [
           {
             "ApiKeyAuth": []
@@ -1403,7 +1403,7 @@
           "accounts_staleness"
         ],
         "summary": "Update account staleness record",
-        "description": "Update account staleness record. Required permissions: inventory:staleness:write",
+        "description": "Update account staleness record. Required permissions: staleness:staleness:write",
         "security": [
           {
             "ApiKeyAuth": []
@@ -1448,7 +1448,7 @@
           "accounts_staleness"
         ],
         "summary": "Delete an account staleness",
-        "description": "Delete an account staleness <br /><br /> Required permissions: inventory:staleness:write",
+        "description": "Delete an account staleness <br /><br /> Required permissions: staleness:staleness:write",
         "security": [
           {
             "ApiKeyAuth": []
@@ -1477,7 +1477,7 @@
           "accounts_staleness"
         ],
         "summary": "Read the entire list of account staleness",
-        "description": "Read the entire list of all accounts staleness available. Required permissions: inventory:TODO:read",
+        "description": "Read the entire list of all accounts staleness available. Required permissions: staleness:staleness:read",
         "security": [
           {
             "ApiKeyAuth": []
