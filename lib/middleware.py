@@ -134,9 +134,7 @@ def get_rbac_filter(
     if inventory_config().bypass_rbac:
         return True, None
 
-    current_identity = get_current_identity()
-
-    if current_identity.identity_type not in CHECKED_TYPES:
+    if identity.identity_type not in CHECKED_TYPES:
         if resource_type == RbacResourceType.HOSTS:
             return True, None
         else:
