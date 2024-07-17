@@ -1,4 +1,3 @@
-from functools import partial
 from http import HTTPStatus
 
 from requests import Session
@@ -12,22 +11,11 @@ from app.auth.identity import create_mock_identity_with_org_id
 from app.common import inventory_config
 from app.logging import get_logger
 from lib import metrics
-from lib.middleware import rbac
+from lib.middleware import get_rbac_filter
 
 logger = get_logger(__name__)
 
 EXPORT_SERVICE_SYSTEMS_RESOURCE = "urn:redhat:application:inventory:export:systems"
-
-
-# This function is used by create_export
-def _handle_rbac_to_export(func, org_id, rbac_request_headers):
-    logger.debug("Getting RBAC data")
-    rbac_result = rbac(
-        RbacResourceType.HOSTS, RbacPermission.READ, org_id=org_id, rbac_request_headers=rbac_request_headers
-    )
-    filter_func = rbac_result(func)
-    filter = filter_func()
-    return filter
 
 
 @metrics.create_export_processing_time.time()
@@ -56,11 +44,10 @@ def create_export(export_svc_data, org_id, operation_args={}, rbac_filter={}):
 
         logger.info(f"Trying to get data for org_id: {identity.org_id}")
 
-        data_to_export = _handle_rbac_to_export(
-            partial(get_hosts_to_export, identity=identity, export_format=exportFormat, rbac_filter=rbac_filter),
-            org_id=identity.org_id,
-            rbac_request_headers=rbac_request_headers,
+        rbac_filter = get_rbac_filter(
+            RbacResourceType.HOSTS, RbacPermission.READ, identity=identity, rbac_request_headers=rbac_request_headers
         )
+        data_to_export = get_hosts_to_export(identity, export_format=exportFormat, rbac_filter=rbac_filter)
 
         if data_to_export:
             # todo(gchamoul):

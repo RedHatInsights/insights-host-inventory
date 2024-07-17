@@ -8,7 +8,7 @@ from app.queue.queue import handle_export_message
 from tests.helpers import export_service_utils as es_utils
 
 
-@mock.patch("app.queue.export_service._handle_rbac_to_export", return_value=es_utils.EXPORT_DATA)
+@mock.patch("app.queue.export_service.get_hosts_to_export", return_value=es_utils.EXPORT_DATA)
 @mock.patch("app.queue.export_service.create_export", return_value=True)
 def test_handle_create_export_request_with_data_to_export(mock_export, mock_rbac, inventory_config):
     export_message = es_utils.create_export_message_mock()
@@ -16,7 +16,7 @@ def test_handle_create_export_request_with_data_to_export(mock_export, mock_rbac
     assert resp is True
 
 
-@mock.patch("app.queue.export_service._handle_rbac_to_export", return_value=[])
+@mock.patch("app.queue.export_service.get_hosts_to_export", return_value=[])
 @mock.patch("app.queue.export_service.create_export", return_value=False)
 def test_handle_create_export_request_with_no_data_to_export(mock_export, mock_rbac, inventory_config):
     export_message = es_utils.create_export_message_mock()
