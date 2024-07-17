@@ -25,6 +25,7 @@ from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_URL
+from tests.helpers.api_utils import LEGACY_HOST_URL
 from tests.helpers.api_utils import quote
 from tests.helpers.api_utils import quote_everything
 from tests.helpers.graphql_utils import XJOIN_HOSTS_RESPONSE
@@ -496,13 +497,17 @@ def test_get_hosts_timestamp_invalid_value_graceful_rejection(patch_xjoin_post, 
     assert 400 == api_get(build_hosts_url(query="?filter[system_profile][last_boot_time][eq]=foo"))[0]
 
 
-def test_query_all(mq_create_three_specific_hosts, api_get, subtests):
+@pytest.mark.parametrize(
+    "host_url",
+    (HOST_URL, LEGACY_HOST_URL),
+)
+def test_query_all(mq_create_three_specific_hosts, api_get, subtests, host_url):
     created_hosts = mq_create_three_specific_hosts
     expected_host_list = build_expected_host_list(created_hosts)
 
     with patch("api.host.get_flag_value", return_value=True):
-        response_status, response_data = api_get(HOST_URL)
-        api_base_pagination_test(api_get, subtests, HOST_URL, expected_total=len(expected_host_list))
+        response_status, response_data = api_get(host_url)
+        api_base_pagination_test(api_get, subtests, host_url, expected_total=len(expected_host_list))
 
     assert response_status == 200
     assert_host_lists_equal(expected_host_list, response_data["results"])
