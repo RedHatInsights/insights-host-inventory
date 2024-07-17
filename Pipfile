@@ -7,7 +7,7 @@ name = "pypi"
 flask = "==3.0.3"
 jsonify = "==0.5"  # Not semver
 flask-restful = "~=0.3.7"
-requests = "~=2.31.0"
+requests = "~=2.32.2"
 flask-sqlalchemy = "~=3.1.1"
 psycopg2 = "~=2.9.9"
 flask-migrate = "~=4.0.5"
