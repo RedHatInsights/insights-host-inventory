@@ -22,6 +22,9 @@ RUN microdnf module enable postgresql:13 python39:3.9 && \
     microdnf install --setopt=tsflags=nodocs -y libpq-devel python39-devel gcc && \
     rpm -qa | sort > packages-after-devel-install.txt
 
+RUN microdnf install --setopt=tsflags=nodocs -y npm
+RUN npm i -g @redocly/cli@latest
+
 COPY api/ api/
 COPY app/ app/
 COPY lib/ lib/
