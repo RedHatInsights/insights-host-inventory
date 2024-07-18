@@ -15,7 +15,7 @@ RUN FULL_RHEL=$(microdnf repolist --enabled | grep rhel-8) ; \
 ENV APP_ROOT=/opt/app-root/src
 WORKDIR $APP_ROOT
 
-RUN microdnf module enable postgresql:13 python39:3.9 nodejs:20 && \
+RUN microdnf module enable postgresql:13 python39:3.9 && \
     microdnf upgrade -y && \
     microdnf install --setopt=tsflags=nodocs -y postgresql python39 rsync tar procps-ng make snappy && \
     rpm -qa | sort > packages-before-devel-install.txt && \
@@ -59,7 +59,8 @@ RUN python3 -m pip install --upgrade pip setuptools wheel && \
 
 # allows pre-commit and unit tests to run successfully within the container if image is built in "test" environment
 RUN if [ "$TEST_IMAGE" = "true" ]; then \
-        microdnf install --setopt=tsflags=nodocs -y git npm which && \
+        microdnf module enable nodejs:20 && \
+        microdnf install --setopt=tsflags=nodocs -y git which && \
         npm i -g @redocly/cli && \
         chgrp -R 0 $APP_ROOT && \
         chmod -R g=u $APP_ROOT ; \
