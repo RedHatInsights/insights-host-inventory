@@ -16,8 +16,10 @@ from app.auth.identity import IdentityType
 from tests.helpers.test_utils import now
 
 BASE_URL = "/api/inventory/v1"
+LEGACY_BASE_URL = "/r/insights/platform/inventory/v1"
 ASSIGNMENT_RULE_URL = f"{BASE_URL}/assignment-rules"
 HOST_URL = f"{BASE_URL}/hosts"
+LEGACY_HOST_URL = f"{LEGACY_BASE_URL}/hosts"
 GROUP_URL = f"{BASE_URL}/groups"
 TAGS_URL = f"{BASE_URL}/tags"
 SYSTEM_PROFILE_URL = f"{BASE_URL}/system_profile"
