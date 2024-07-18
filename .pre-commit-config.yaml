@@ -29,17 +29,6 @@ repos:
   rev: 6.0.0
   hooks:
   - id: flake8
-- repo: https://github.com/APIDevTools/swagger-cli
-  rev: v4.0.4
-  hooks:
-  - id: swagger-validation
-    args: ["bundle", "swagger/api.spec.yaml", "-o", "swagger/openapi.dev.json"]
-- repo: https://github.com/APIDevTools/swagger-cli
-  rev: v4.0.4
-  hooks:
-  - id: swagger-validation
-    files: swagger/openapi.json$
-    exclude: swagger/inventory-schemas/
 
 - repo: local
   hooks:
