@@ -1601,7 +1601,7 @@ data:
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(increase(api_3scale_gateway_api_status{exported_service=\"inventory\"}[1m]))",
+              "expr": "sum(increase(api_3scale_gateway_api_time_count{exported_service=\"inventory\"}[1m]))",
               "interval": "1m",
               "refId": "A"
             }
