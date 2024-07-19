@@ -59,8 +59,8 @@ def _delete_keys_redis(prefix):
 
 def delete_keys(prefix):
     global CACHE_CONFIG
-    if CACHE_CONFIG and CACHE_CONFIG.get("CACHE_TYPE") == "SimpleCache":
+    if CACHE_CONFIG and CACHE_CONFIG.get("CACHE_TYPE") == "SimpleCache" and prefix:
         _delete_keys_simple(prefix)
 
-    if CACHE_CONFIG and CACHE_CONFIG.get("CACHE_TYPE") == "RedisCache":
+    if CACHE_CONFIG and CACHE_CONFIG.get("CACHE_TYPE") == "RedisCache" and prefix:
         _delete_keys_redis(prefix)

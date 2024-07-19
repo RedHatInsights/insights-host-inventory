@@ -148,6 +148,8 @@ objects:
           value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
         - name: INVENTORY_API_CACHE_TYPE
           value: "${INVENTORY_API_CACHE_TYPE}"
+        - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
+          value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
         - name: INVENTORY_API_USE_READREPLICA
           value: "${INVENTORY_API_USE_READREPLICA}"
         - name: UNLEASH_URL
@@ -294,6 +296,8 @@ objects:
           value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
         - name: INVENTORY_API_CACHE_TYPE
           value: "${INVENTORY_API_CACHE_TYPE}"
+        - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
+          value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
         - name: INVENTORY_API_USE_READREPLICA
           value: "${INVENTORY_API_USE_READREPLICA}"
         - name: UNLEASH_URL
@@ -440,6 +444,8 @@ objects:
           value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
         - name: INVENTORY_API_CACHE_TYPE
           value: "${INVENTORY_API_CACHE_TYPE}"
+        - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
+          value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
         - name: UNLEASH_URL
           value: ${UNLEASH_URL}
         - name: UNLEASH_TOKEN
@@ -539,6 +545,8 @@ objects:
           value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
         - name: INVENTORY_API_CACHE_TYPE
           value: "${INVENTORY_API_CACHE_TYPE}"
+        - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
+          value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
         - name: UNLEASH_URL
           value: ${UNLEASH_URL}
         - name: UNLEASH_TOKEN
@@ -624,6 +632,8 @@ objects:
           value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
         - name: INVENTORY_API_CACHE_TYPE
           value: "${INVENTORY_API_CACHE_TYPE}"
+        - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
+          value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
         - name: UNLEASH_URL
           value: ${UNLEASH_URL}
         - name: UNLEASH_TOKEN
@@ -706,6 +716,8 @@ objects:
           value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
         - name: INVENTORY_API_CACHE_TYPE
           value: "${INVENTORY_API_CACHE_TYPE}"
+        - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
+          value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
         - name: UNLEASH_URL
           value: ${UNLEASH_URL}
         - name: UNLEASH_TOKEN
@@ -852,6 +864,8 @@ objects:
             value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
           - name: INVENTORY_API_CACHE_TYPE
             value: "${INVENTORY_API_CACHE_TYPE}"
+          - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
+            value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
           - name: UNLEASH_URL
             value: ${UNLEASH_URL}
           - name: UNLEASH_TOKEN
@@ -1468,6 +1482,8 @@ parameters:
   value: 'host-inventory-read-only-db'
 - name: INVENTORY_API_SECONDARY_READREPLICA_SECRET
   value: 'host-inventory-read-only-db'
+- name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
+  value: '129600'
 
 # NGINX
 - displayName: Minimum replicas
