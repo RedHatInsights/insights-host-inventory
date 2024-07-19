@@ -59,7 +59,8 @@ RUN python3 -m pip install --upgrade pip setuptools wheel && \
 
 # allows pre-commit and unit tests to run successfully within the container if image is built in "test" environment
 RUN if [ "$TEST_IMAGE" = "true" ]; then \
-        microdnf install --setopt=tsflags=nodocs -y git && \
+        microdnf module enable nodejs:20 && \
+        microdnf install --setopt=tsflags=nodocs -y git npm which && \
         chgrp -R 0 $APP_ROOT && \
         chmod -R g=u $APP_ROOT ; \
     fi
