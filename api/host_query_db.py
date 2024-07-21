@@ -579,7 +579,9 @@ def get_hosts_to_export(
     db.session.close()
 
     serialized_hosts_list = [
-        serialize_host(host, staleness_timestamps=st_timestamps, for_mq=False, staleness=staleness)
+        serialize_host(
+            host, for_mq=False, for_export_svc=True, staleness_timestamps=st_timestamps, staleness=staleness
+        )
         for host in export_host_query.all()
     ]
 
