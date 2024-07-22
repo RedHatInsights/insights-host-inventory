@@ -792,7 +792,7 @@ paths:
       summary: Read the entire list of account staleness
       description: >-
         Read the entire list of all accounts staleness available.
-        Required permissions: inventory:TODO:read
+        Required permissions: staleness:staleness:read
       security:
         - ApiKeyAuth: []
         - BearerAuth: []
@@ -812,7 +812,7 @@ paths:
       summary: Create account staleness record
       description: >-
         Create account staleness record.
-        Required permissions: inventory:TODO:write
+        Required permissions: staleness:staleness:write
       security:
         - ApiKeyAuth: []
         - BearerAuth: []
@@ -839,7 +839,7 @@ paths:
       summary: Update account staleness record
       description: >-
         Update account staleness record.
-        Required permissions: inventory:staleness:write
+        Required permissions: staleness:staleness:write
       security:
         - ApiKeyAuth: []
         - BearerAuth: []
@@ -869,7 +869,7 @@ paths:
       description: >-
         Delete an account staleness
         <br /><br />
-        Required permissions: inventory:staleness:write
+        Required permissions: staleness:staleness:write
       security:
         - ApiKeyAuth: []
         - BearerAuth: []
@@ -889,7 +889,7 @@ paths:
       summary: Read the entire list of account staleness
       description: >-
         Read the entire list of all accounts staleness available.
-        Required permissions: inventory:TODO:read
+        Required permissions: staleness:staleness:read
       security:
         - ApiKeyAuth: []
         - BearerAuth: []

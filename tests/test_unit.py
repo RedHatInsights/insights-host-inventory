@@ -472,14 +472,14 @@ class CreateAppConnexionAppInitTestCase(TestCase):
         translating_parser.assert_called_once_with(SPECIFICATION_FILE)
         assert "lazy" not in translating_parser.mock_calls[0].kwargs
 
-        app.return_value.add_api.assert_called_once()
+        assert app.return_value.add_api.call_count == 2
         args = app.return_value.add_api.mock_calls[0].args
         assert len(args) == 1
         assert args[0] is translating_parser.return_value.specification
 
     def test_specification_is_parsed(self, init_app, app):
         create_app(RuntimeEnvironment.TEST)
-        app.return_value.add_api.assert_called_once()
+        assert app.return_value.add_api.call_count == 2
         args = app.return_value.add_api.mock_calls[0].args
         assert len(args) == 1
         assert args[0] is not None

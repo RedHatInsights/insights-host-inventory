@@ -179,7 +179,7 @@ class Config:
 
         self.base_url_path = self._build_base_url_path()
         self.api_url_path_prefix = self._build_api_path()
-        self.legacy_api_url_path_prefix = os.getenv("INVENTORY_LEGACY_API_URL", "")
+        self.legacy_api_url_path_prefix = os.getenv("INVENTORY_LEGACY_API_URL", "/r/insights/platform/inventory/v1")
         self.mgmt_url_path_prefix = os.getenv("INVENTORY_MANAGEMENT_URL_PATH_PREFIX", "/")
 
         self.api_urls = [self.api_url_path_prefix, self.legacy_api_url_path_prefix]
