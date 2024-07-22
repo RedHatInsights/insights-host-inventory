@@ -280,7 +280,7 @@ def sync_event_message(message, session, event_producer):
     return
 
 
-def update_system_profile(host_data, platform_metadata, operation_args={}):
+def update_system_profile(host_data, platform_metadata, notification_event_producer=None, operation_args={}):
     try:
         input_host = deserialize_host(host_data, schema=LimitedHostSchema)
         input_host.id = host_data.get("id")
@@ -303,7 +303,7 @@ def update_system_profile(host_data, platform_metadata, operation_args={}):
         raise
 
 
-def add_host(host_data, platform_metadata, operation_args={}):
+def add_host(host_data, platform_metadata, notification_event_producer, operation_args={}):
     try:
         identity = _get_identity(host_data, platform_metadata)
         # basic-auth does not need owner_id
@@ -314,6 +314,12 @@ def add_host(host_data, platform_metadata, operation_args={}):
         log_add_host_attempt(logger, input_host)
         host_row, add_result = host_repository.add_host(input_host, identity, operation_args=operation_args)
         success_logger = partial(log_add_update_host_succeeded, logger, add_result)
+
+        send_notification(
+            notification_event_producer,
+            notification_type=NotificationType.new_system_registered,
+            host=host_data,
+        )
 
         return host_row, add_result, identity, success_logger
     except ValidationException:
@@ -347,17 +353,11 @@ def handle_message(message, notification_event_producer, message_operation=add_h
         try:
             host = validated_operation_msg["data"]
             host_row, operation_result, identity, success_logger = message_operation(
-                host, platform_metadata, validated_operation_msg.get("operation_args", {})
+                host, platform_metadata, notification_event_producer, validated_operation_msg.get("operation_args", {})
             )
             staleness_timestamps = Timestamps.from_config(inventory_config())
             event_type = operation_results_to_event_type(operation_result)
 
-            if message_operation == add_host:
-                send_notification(
-                    notification_event_producer,
-                    notification_type=NotificationType.new_system_registered,
-                    host=host,
-                )
             return OperationResult(
                 host_row,
                 platform_metadata,

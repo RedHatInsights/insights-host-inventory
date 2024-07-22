@@ -240,7 +240,6 @@ def assert_system_registered_notification_is_valid(notification_event_producer, 
     expected_keys = {
         "timestamp",
         "event_type",
-        "account_id",
         "org_id",
         "application",
         "bundle",

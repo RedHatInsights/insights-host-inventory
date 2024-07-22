@@ -517,7 +517,7 @@ def _serialize_per_reporter_staleness(host, staleness, staleness_timestamps):
 def build_rhel_version_str(system_profile: dict) -> str:
     os = system_profile.get("operating_system")
     if os:
-        if os.get("name").lower() == "rhel":
+        if os.get("name", "").lower() == "rhel":
             major = os.get("major")
             minor = os.get("minor")
             return f"{major}.{minor}"
