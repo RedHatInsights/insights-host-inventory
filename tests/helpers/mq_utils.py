@@ -230,9 +230,51 @@ def assert_patch_event_is_valid(
     )
 
 
-def expected_headers(
-    event_type, request_id, insights_id=None, reporter=None, host_type=None, os_name=None, is_bootc="False"
-):
+def assert_system_registered_notification_is_valid(notification_event_producer, host):
+    event = json.loads(notification_event_producer.event)
+    context = event["context"]
+    payload = event["events"][0]["payload"]
+
+    assert isinstance(event, dict)
+
+    expected_keys = {
+        "timestamp",
+        "event_type",
+        "account_id",
+        "org_id",
+        "application",
+        "bundle",
+        "context",
+        "events",
+    }
+
+    expected_context_keys = {
+        "inventory_id",
+        "hostname",
+        "display_name",
+        "rhel_version",
+        "tags",
+        "host_url",
+    }
+
+    expected_payload_keys = {
+        "insights_id",
+        "subscription_manager_id",
+        "satellite_id",
+        "groups",
+        "reporter",
+        "system_check_in",
+    }
+    assert set(event.keys()) == expected_keys
+    assert set(context.keys()) == expected_context_keys
+    assert set(payload.keys()) == expected_payload_keys
+
+    assert "new-system-registered" == event["event_type"]
+
+    assert host.insights_id == event["events"][0]["payload"]["insights_id"]
+
+
+def expected_headers(event_type, request_id, insights_id=None, reporter=None, host_type=None, os_name=None):
     return {
         "event_type": event_type,
         "request_id": request_id,
