@@ -351,6 +351,13 @@ def handle_message(message, notification_event_producer, message_operation=add_h
             )
             staleness_timestamps = Timestamps.from_config(inventory_config())
             event_type = operation_results_to_event_type(operation_result)
+
+            if message_operation == add_host:
+                send_notification(
+                    notification_event_producer,
+                    notification_type=NotificationType.new_system_registered,
+                    host=host,
+                )
             return OperationResult(
                 host_row,
                 platform_metadata,

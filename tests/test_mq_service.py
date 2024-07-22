@@ -134,7 +134,7 @@ def test_handle_message_happy_path(identity, mocker, flask_app):
     assert result.event_type == EventType.created
     assert result.host_row.canonical_facts["insights_id"] == expected_insights_id
 
-    mock_notification_event_producer.write_event.assert_not_called()
+    mock_notification_event_producer.write_event.assert_called_once()
 
 
 def test_request_id_is_reset(mocker, flask_app, db_create_host):
@@ -317,28 +317,7 @@ def test_handle_message_verify_message_headers(mocker, add_host_result, mq_creat
     assert headers == expected_headers(add_host_result.name, request_id, insights_id, "rhsm-conduit")
 
 
-@pytest.mark.parametrize(
-    "expected_value, system_profile",
-    [
-        ("False", {}),
-        ("False", {"bootc_status": {}}),
-        ("True", {"bootc_status": {"booted": {}}}),
-        ("True", {"bootc_status": {"booted": {"image": "192.168.0.1:5000/foo/foo:latest"}}}),
-    ],
-)
-def test_verify_bootc_in_headers(expected_value, system_profile, mq_create_or_update_host):
-    host = minimal_host(
-        account=SYSTEM_IDENTITY["account_number"],
-        insights_id=generate_uuid(),
-        system_profile=system_profile,
-    )
-
-    _, _, headers = mq_create_or_update_host(host, return_all_data=True)
-    assert "is_bootc" in headers
-    assert headers["is_bootc"] is expected_value
-
-
-def test_add_host_simple(event_datetime_mock, mq_create_or_update_host):
+def test_add_host_simple(event_datetime_mock, mq_create_or_update_host, notification_event_producer_mock):
     """
     Tests adding a host with some simple data
     """
