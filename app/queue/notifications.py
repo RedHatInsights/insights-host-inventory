@@ -228,7 +228,7 @@ def populate_events(base_notification_obj, host_list, extra_fields=[]):
                 "insights_id": canonical_facts.get("insights_id", ""),
                 "subscription_manager_id": canonical_facts.get("subscription_manager_id", ""),
                 "satellite_id": canonical_facts.get("satellite_id", ""),
-                "groups": [{"id": group.get("id"), "name": group.get("name")} for group in host.get("groups")],
+                "groups": [{"id": group.get("id"), "name": group.get("name")} for group in host.get("groups", [])],
             },
         }
 
