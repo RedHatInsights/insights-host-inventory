@@ -6,6 +6,7 @@ from marshmallow import ValidationError
 
 from api.staleness_query import get_staleness_obj
 from app.common import inventory_config
+from app.culling import Conditions
 from app.culling import Timestamps
 from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
@@ -18,6 +19,20 @@ from app.utils import Tag
 
 __all__ = ("deserialize_host", "serialize_host", "serialize_host_system_profile", "serialize_canonical_facts")
 
+
+_EXPORT_SERVICE_FIELDS = [
+    "id",
+    "subscription_manager_id",
+    "satellite_id",
+    "display_name",
+    "group_id",
+    "group_name",
+    "os_release",
+    "updated",
+    "state",
+    "tags",
+    "host_type",
+]
 
 _CANONICAL_FACTS_FIELDS = (
     "insights_id",
@@ -51,6 +66,13 @@ DEFAULT_FIELDS = (
 ADDITIONAL_HOST_MQ_FIELDS = (
     "tags",
     "system_profile",
+)
+
+ADDITIONAL_EXPORT_SERVICE_FIELDS = (
+    "os_release",
+    "state",
+    "tags",
+    "host_type",
 )
 
 
@@ -120,6 +142,7 @@ def serialize_host(
     additional_fields=tuple(),
     staleness=None,
     system_profile_fields=None,
+    for_export_svc=False,
 ):
     # TODO: In future, this must handle groups staleness
 
@@ -151,6 +174,8 @@ def serialize_host(
     fields = DEFAULT_FIELDS + additional_fields
     if for_mq:
         fields += ADDITIONAL_HOST_MQ_FIELDS
+    if for_export_svc:
+        fields += ADDITIONAL_EXPORT_SERVICE_FIELDS
 
     if "id" in fields:
         serialized_host["id"] = _serialize_uuid(host.id)
@@ -208,6 +233,28 @@ def serialize_host(
             ]
         else:
             serialized_host["groups"] = host.groups or []
+        if for_export_svc:
+            if host.groups:
+                serialized_host["group_id"] = host.groups[0]["id"]  # Assuming just one group per host
+                serialized_host["group_name"] = host.groups[0]["name"]  # Assuming just one group per host
+            else:
+                serialized_host["group_id"] = None  # Assuming just one group per host
+                serialized_host["group_name"] = None  # Assuming just one group per host
+    if "os_release" in fields:
+        if "os_release" in host.system_profile_facts:
+            serialized_host["os_release"] = host.system_profile_facts["os_release"]
+        else:
+            serialized_host["os_release"] = None
+
+    if "state" in fields:
+        serialized_host["state"] = Conditions.find_host_state(
+            stale_timestamp=stale_timestamp, stale_warning_timestamp=stale_warning_timestamp
+        )
+    if "host_type" in fields:
+        serialized_host["host_type"] = host.host_type
+
+    if for_export_svc:
+        serialized_host = {key: serialized_host[key] for key in _EXPORT_SERVICE_FIELDS}
 
     return serialized_host
 

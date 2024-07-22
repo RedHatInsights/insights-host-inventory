@@ -82,6 +82,16 @@ class Conditions:
         offset = timedelta(seconds=self.staleness_host_type[self.host_type]["culled"])
         return self.now - offset
 
+    @staticmethod
+    def find_host_state(stale_timestamp, stale_warning_timestamp):
+        now = datetime.now(timezone.utc)
+        if now < stale_timestamp:
+            return "fresh"
+        if now >= stale_timestamp and now < stale_warning_timestamp:
+            return "stale"
+        else:
+            return "stale warning"
+
 
 def staleness_to_conditions(staleness, staleness_states, host_type, timestamp_filter_func):
     condition = Conditions(staleness, host_type)
