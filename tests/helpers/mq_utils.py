@@ -274,7 +274,9 @@ def assert_system_registered_notification_is_valid(notification_event_producer, 
     assert host.insights_id == event["events"][0]["payload"]["insights_id"]
 
 
-def expected_headers(event_type, request_id, insights_id=None, reporter=None, host_type=None, os_name=None):
+def expected_headers(
+    event_type, request_id, insights_id=None, reporter=None, host_type=None, os_name=None, is_bootc="False"
+):
     return {
         "event_type": event_type,
         "request_id": request_id,
