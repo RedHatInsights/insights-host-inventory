@@ -13,13 +13,12 @@ OWNER_ID = SYSTEM_IDENTITY["system"]["cn"]
 
 # New System Registered
 def test_add_basic_host_success(mq_create_or_update_host, notification_event_producer_mock):
-    """
-    Tests notification production after adding a host
-    """
+    # Tests notification production after adding a host
+
     expected_insights_id = generate_uuid()
 
     host = minimal_host(
-        account=SYSTEM_IDENTITY["account_number"],
+        org_id=SYSTEM_IDENTITY["org_id"],
         insights_id=expected_insights_id,
     )
 
@@ -32,7 +31,7 @@ def test_new_system_notification_fields(mq_create_or_update_host, notification_e
     expected_insights_id = generate_uuid()
 
     host = minimal_host(
-        account=SYSTEM_IDENTITY["account_number"],
+        org_id=SYSTEM_IDENTITY["org_id"],
         insights_id=expected_insights_id,
         system_profile={
             "operating_system": {"name": "RHEL", "major": 8, "minor": 6},
@@ -45,7 +44,7 @@ def test_new_system_notification_fields(mq_create_or_update_host, notification_e
     assert_system_registered_notification_is_valid(notification_event_producer_mock, host)
 
     assert notification["context"]["rhel_version"] == "8.6"
-    assert notification["account_id"] == SYSTEM_IDENTITY["account_number"]
+    assert notification["org_id"] == SYSTEM_IDENTITY["org_id"]
 
 
 # this test should pass, RHINENG-11348 was created to fix this behavior
@@ -71,7 +70,7 @@ def test_add_host_fail(mq_create_or_update_host, notification_event_producer_moc
     Test new system notification is not produced after add host fails
     """
     owner_id = "Mike Wazowski"
-    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], system_profile={"owner_id": owner_id})
+    host = minimal_host(org_id=SYSTEM_IDENTITY["org_id"], system_profile={"owner_id": owner_id})
 
     with pytest.raises(ValidationException):
         mq_create_or_update_host(host, notification_event_producer=notification_event_producer_mock)
