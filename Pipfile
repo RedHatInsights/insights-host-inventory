@@ -7,7 +7,7 @@ name = "pypi"
 flask = "==3.0.3"
 jsonify = "==0.5"  # Not semver
 flask-restful = "~=0.3.7"
-requests = "~=2.31.0"
+requests = "~=2.32.3"
 flask-sqlalchemy = "~=3.1.1"
 psycopg2 = "~=2.9.9"
 flask-migrate = "~=4.0.5"
@@ -39,6 +39,8 @@ flask-unleash = "*"
 segment-analytics-python = "*"
 flask-caching = "*"
 redis = "*"
+setuptools = "~=71.1.0"
+certifi = "~=2024.7.4"
 
 [dev-packages]
 pytest = "~=8.1.1"
