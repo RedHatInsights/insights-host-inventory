@@ -41,6 +41,7 @@ flask-caching = "*"
 redis = "*"
 setuptools = "~=71.1.0"
 certifi = "~=2024.7.4"
+ratelimit = "*"
 
 [dev-packages]
 pytest = "~=8.1.1"
