@@ -48,7 +48,6 @@ def api_operation(old_func):
             segmentio_track(old_func.__name__, contextual_data[PROCESSING_TIME], contextual_data, logger)
         except RateLimitException:
             logger.debug("segmentio_track: rate limit exceeded.")
-            print("\n****** segmentio_track: rate limit exceeded.")
 
         logger.debug("Leaving %s", old_func.__name__, extra=contextual_data)
         return results
