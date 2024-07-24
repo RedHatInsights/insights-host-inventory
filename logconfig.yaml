@@ -12,14 +12,16 @@ loggers:
     - cloudwatch
     propagate: false
   gunicorn.error:
-    level: ERROR
+    level: INFO
     handlers:
     - logstash
+    - cloudwatch
     propagate: true
   gunicorn.access:
-    level: ERROR
+    level: INFO
     handlers:
     - logstash
+    - cloudwatch
     propagate: true
   sqlalchemy.engine:
     level: WARNING

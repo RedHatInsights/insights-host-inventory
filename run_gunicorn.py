@@ -37,6 +37,8 @@ def run_server():
             "gunicorn",
             "--log-level=debug",
             f"--bind={bind}",
+            "--log-file=-",
+            "--access-logfile=-",
             "--reload",
             "--worker-class=uvicorn.workers.UvicornWorker",
             "run:app",
