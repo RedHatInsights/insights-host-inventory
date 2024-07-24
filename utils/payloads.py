@@ -555,6 +555,7 @@ def random_uuid():
 
 
 IS_EDGE = os.environ.get("IS_EDGE", False)
+IS_INSIGHTS_CLIENT = os.environ.get("IS_INSIGHTS_CLIENT", False)
 
 
 def build_host_chunk():
@@ -579,6 +580,8 @@ def build_host_chunk():
         "stale_timestamp": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         "reporter": "puptoo",
     }
+    if IS_INSIGHTS_CLIENT:
+        payload["insights_id"] = random_uuid()
     return payload
 
 

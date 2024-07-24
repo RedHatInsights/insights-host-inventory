@@ -80,6 +80,22 @@
             ],
             "variants": [],
             "createdAt": "2024-01-10T20:20:42.531Z"
+        },
+        {
+            "name": "hbi.api.use-cached-insights-client-system",
+            "description": "If active, use cached system data for requests from insights-client",
+            "type": "release",
+            "project": "default",
+            "stale": false,
+            "enabled": false,
+            "strategies": [
+                {
+                    "name": "default",
+                    "parameters": {}
+                }
+            ],
+            "variants": [],
+            "createdAt": "2024-01-10T20:18:18.842Z"
         }
     ],
     "strategies": [
