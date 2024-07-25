@@ -64,3 +64,10 @@ def delete_keys(prefix):
 
     if CACHE_CONFIG and CACHE_CONFIG.get("CACHE_TYPE") == "RedisCache" and prefix:
         _delete_keys_redis(prefix)
+
+
+def delete_cached_system_keys(insights_id=None, org_id=None):
+    if insights_id:
+        delete_keys(f"insights_id={insights_id}")
+    if org_id:
+        delete_keys(f"insights_id=*_org={org_id}")
