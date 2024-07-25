@@ -103,7 +103,7 @@ Included is a docker-compose file `dev.yml` that will start a postgres database 
 useful for development.
 
 ```bash
-docker-compose -f dev.yml up
+docker compose -f dev.yml up
 ```
 
 ### Initialize the database
@@ -125,7 +125,7 @@ you enter will persist across multiple starts of the container. If you
 want to destroy that data do the following:
 
 ```bash
-docker-compose -f dev.yml down
+docker compose -f dev.yml down
 ```
 
 ### Create hosts data in the Database
