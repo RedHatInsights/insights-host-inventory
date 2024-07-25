@@ -11,3 +11,4 @@ outbound_http_response_time = Histogram(
     "Time spent waiting for an external service to respond",
     ["dependency"],
 )
+api_cached_systems_hit = Counter("inventory_api_cached_systems_hit_count", "The total amount of system cache hits")
