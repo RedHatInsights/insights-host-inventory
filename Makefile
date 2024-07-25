@@ -65,9 +65,19 @@ update-schema:
 	git add swagger/system_profile_commit_id
 	git diff --cached
 
+ifndef format
+override format = json
+endif
+
 sample-request-create-export:
-	@curl -sS -X POST http://localhost:8001/api/export/v1/exports -H "x-rh-identity: ${IDENTITY_HEADER}" -H "Content-Type: application/json" -d @example_export_request.json > response.json
+	@curl -sS -X POST http://localhost:8001/api/export/v1/exports -H "x-rh-identity: ${IDENTITY_HEADER}" -H "Content-Type: application/json" -d @example_${format}_export_request.json > response.json
 	@cat response.json | jq
 	@cat response.json | jq -r '.id' | xargs -I {} echo "EXPORT_ID: {}"
 	@cat response.json | jq -r '.sources[] | "EXPORT_APPLICATION: \(.application)\nEXPORT_RESOURCE: \(.id)\n---"'
 	@rm response.json
+
+sample-request-get-exports:
+	curl -X GET http://localhost:8001/api/export/v1/exports -H "x-rh-identity: ${IDENTITY_HEADER}" | jq
+
+sample-request-export-download:
+	curl -X GET http://localhost:8001/api/export/v1/exports/$(EXPORT_ID) -H "x-rh-identity: ${IDENTITY_HEADER}" -f --output ./export_download.zip

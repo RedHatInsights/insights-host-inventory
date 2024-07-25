@@ -1,25 +1,25 @@
 version: '3.1'
 services:
     db:
-        container_name: hbi-db
-        image: docker.io/library/postgres
-        restart: always
-        environment:
-            POSTGRES_PASSWORD: insights
-            POSTGRES_USER: insights
-            PGUSER: insights
-            POSTGRES_DB: insights
-        privileged: true
-        ports:
-            - "5432:5432"
-        volumes:
-          - ./.unleash/create_unleashdb.sql:/docker-entrypoint-initdb.d/create_unleashdb.sql
-          - ./.export-service/create_exportdb.sql:/docker-entrypoint-initdb.d/create_exportdb.sql
-        healthcheck:
-          test: "pg_isready -h db"
-          interval: 2s
-          timeout: 5s
-          retries: 5
+      container_name: hbi-db
+      image: docker.io/library/postgres
+      restart: always
+      environment:
+          POSTGRES_PASSWORD: insights
+          POSTGRES_USER: insights
+          PGUSER: insights
+          POSTGRES_DB: insights
+      privileged: true
+      ports:
+          - "5432:5432"
+      volumes:
+        - ./.unleash/create_unleashdb.sql:/docker-entrypoint-initdb.d/create_unleashdb.sql
+        - ./.export-service/create_exportdb.sql:/docker-entrypoint-initdb.d/create_exportdb.sql
+      healthcheck:
+        test: "pg_isready -h db"
+        interval: 2s
+        timeout: 5s
+        retries: 5
 
     export-service:
       container_name: export-service
@@ -40,7 +40,8 @@ services:
         - FAFKA_ANNOUNCE_TOPIC=platform.export.requests
         - PUBLIC_PORT=8001
         - METRICS_PORT=9090
-        - MINIO_PORT=9098
+        - MINIO_PORT=9099
+        - MINIO_HOST=minio
         - PRIVATE_PORT=10010
       depends_on:
         db:
@@ -50,7 +51,6 @@ services:
       ports:
         - 8001:8001
         - 9090:9090
-        - 9099:9099
         - 10010:10010
       command: >
         /bin/sh -c "export-service migrate_db upgrade;
@@ -104,28 +104,31 @@ services:
         db:
           condition: service_healthy
 
-    s3:
-      container_name: s3
+    minio:
+      container_name: minio
       image: docker.io/minio/minio
       ports:
-        - 9098:9098
+        - 9099:9099
         - 9991:9991
       volumes:
         - ./tmp/minio:/data:Z
       environment:
-        - MINIO_ROOT_USER=minio
-        - MINIO_ROOT_PASSWORD=minioadmin
-      command: server --address 0.0.0.0:9098 --console-address 0.0.0.0:9991 /data
+        - MINIO_ROOT_USER=${AWS_ACCESS_KEY-minio}
+        - MINIO_ROOT_PASSWORD=${AWS_SECRET_ACCESS_KEY-minioadmin}
+      command: server --address 0.0.0.0:9099 --console-address 0.0.0.0:9991 /data
 
     s3-createbucket:
       container_name: s3-createbucket
       image: docker.io/minio/mc
       depends_on:
-        - s3
+        - minio
       restart: on-failure
       entrypoint: >
         /bin/sh -c "
-        /usr/bin/mc config host add myminio http://localhost:9098 minio minioadmin || exit 1;
+        sleep 10;
+        /usr/bin/mc config host add myminio http://minio:9099 ${AWS_ACCESS_KEY-minio} ${AWS_SECRET_ACCESS_KEY-minioadmin};
+        /usr/bin/mc alias set minio http://minio:9099 ${AWS_ACCESS_KEY-minio} ${AWS_SECRET_ACCESS_KEY-minioadmin};
         /usr/bin/mc mb --ignore-existing myminio/exports-bucket;
         /usr/bin/mc policy set public myminio/exports-bucket;
+        exit 0;
         "

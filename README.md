@@ -173,7 +173,13 @@ In one other terminal, generate event towards the export service with the follow
 make sample-request-create-export
 ```
 
-To modify the data sent to the export service, take a look at the `example_export_request.json`
+By default, it will send a json format request. However, you can choose the format you want, as below:
+
+```bash
+make sample-request-create-export format=[json|csv]
+```
+
+To modify the data sent to the export service, take a look at the `example_[json|csv]_export_request.json`
 
 ## Running the Tests
 

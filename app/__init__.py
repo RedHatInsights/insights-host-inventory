@@ -166,6 +166,8 @@ def process_identity_header(encoded_id_header):
         access_id = identity.get("user", {}).get("user_id")
     if id_type == "ServiceAccount":
         access_id = identity.get("service_account", {}).get("client_id")
+    if id_type == "System":
+        access_id = identity.get("system", {}).get("cn")
     return org_id, access_id
 
 

@@ -31,6 +31,7 @@ from app import db
 from app import RbacPermission
 from app import RbacResourceType
 from app.auth import get_current_identity
+from app.auth.identity import IdentityType
 from app.auth.identity import to_auth_header
 from app.common import inventory_config
 from app.instrumentation import get_control_rule
@@ -54,6 +55,7 @@ from app.serialization import serialize_host
 from app.utils import Tag
 from app.xjoin import pagination_params
 from lib.feature_flags import FLAG_INVENTORY_DISABLE_XJOIN
+from lib.feature_flags import FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM
 from lib.feature_flags import get_flag_value
 from lib.host_delete import delete_hosts
 from lib.host_repository import find_existing_host
@@ -100,6 +102,41 @@ def get_host_list(
     host_list = ()
     current_identity = get_current_identity()
     is_bootc = filter.get("system_profile", {}).get("bootc_status")
+
+    if (
+        current_identity.identity_type == IdentityType.SYSTEM
+        and current_identity.system
+        and insights_id
+        and page == 1
+        and not any(
+            [
+                display_name,
+                fqdn,
+                hostname_or_id,
+                provider_id,
+                provider_type,
+                updated_start,
+                updated_end,
+                group_name,
+                tags,
+                order_by,
+                order_how,
+                registered_with,
+                filter,
+                fields,
+            ]
+        )
+        and get_flag_value(FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM)
+    ):
+        logger.info(f"{FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM} is applied")
+        system_key = (
+            f"insights_id={insights_id}_org={current_identity.org_id}_user=SYSTEM-{current_identity.system.get('cn')}"
+        )
+        stored_system = CACHE.get(system_key)
+        if stored_system:
+            host_list = [stored_system]
+            json_data = build_paginated_host_list_response(1, page, per_page, host_list, serialize_hosts=False)
+            return flask_json_response(json_data)
 
     try:
         if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}) or is_bootc:
@@ -429,6 +466,9 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
             db.session.commit()
             serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
             _emit_patch_event(serialized_host, host)
+            insights_id = host.canonical_facts.get("insights_id")
+            if insights_id:
+                delete_keys(f"insights_id={insights_id}")
 
     delete_keys(current_identity.org_id)
     log_patch_host_success(logger, host_id_list)
@@ -501,6 +541,9 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
             db.session.commit()
             serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
             _emit_patch_event(serialized_host, host)
+            insights_id = host.canonical_facts.get("insights_id")
+            if insights_id:
+                delete_keys(f"insights_id={insights_id}")
 
     logger.debug("hosts_to_update:%s", hosts_to_update)
 
@@ -569,6 +612,9 @@ def host_checkin(body, rbac_filter=None):
         db.session.commit()
         serialized_host = serialize_host(existing_host, staleness_timestamps(), staleness=staleness)
         _emit_patch_event(serialized_host, existing_host)
+        insights_id = existing_host.canonical_facts.get("insights_id")
+        if insights_id:
+            delete_keys(f"insights_id={insights_id}")
         delete_keys(current_identity.org_id)
         return flask_json_response(serialized_host, 201)
     else:

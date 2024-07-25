@@ -11,6 +11,7 @@ tags
 .env
 .prometheus_dir/
 tmp/
+*.zip
 
 swagger/inventory-schemas/
 coverage.xml
