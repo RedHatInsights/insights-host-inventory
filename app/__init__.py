@@ -7,6 +7,7 @@ from os.path import join
 import connexion
 import segment.analytics as analytics
 import yaml
+from connexion.options import SwaggerUIOptions
 from connexion.resolver import RestyResolver
 from flask import current_app
 from flask import jsonify
@@ -209,8 +210,13 @@ def create_app(runtime_environment):
 
     app_config = Config(runtime_environment)
     app_config.log_configuration()
-
-    app = connexion.FlaskApp("inventory", specification_dir="./swagger/", uri_parser_class=customURIParser)
+    swagger_options = SwaggerUIOptions(serve_spec=False)
+    app = connexion.FlaskApp(
+        "inventory",
+        specification_dir="./swagger/",
+        uri_parser_class=customURIParser,
+        swagger_ui_options=swagger_options,
+    )
 
     parser = TranslatingParser(SPECIFICATION_FILE)
     parser.parse()
