@@ -34,7 +34,7 @@ def create_export(export_svc_data, org_id, inventory_config, operation_args={}, 
 
     rbac_request_headers = {
         IDENTITY_HEADER: export_svc_data["data"]["resource_request"]["x_rh_identity"],
-        REQUEST_ID_HEADER: exportUUID,
+        REQUEST_ID_HEADER: str(exportUUID),
     }
 
     # x-rh-exports-psk must be an env variable
