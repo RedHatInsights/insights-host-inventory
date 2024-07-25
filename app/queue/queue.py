@@ -453,7 +453,7 @@ def write_message_batch(event_producer, processed_rows):
 
 
 @metrics.export_service_message_handler_time.time()
-def handle_export_message(message):
+def handle_export_message(message, inventory_config):
     validated_msg = parse_export_service_message(message)
     if (
         validated_msg["source"] == EXPORT_EVENT_SOURCE
@@ -462,7 +462,7 @@ def handle_export_message(message):
         logger.info("Found host-inventory application export message")
         logger.debug("parsed_message: %s", validated_msg)
         org_id = validated_msg["redhatorgid"]
-        if create_export(validated_msg, org_id):
+        if create_export(validated_msg, org_id, inventory_config):
             metrics.export_service_message_handler_success.inc()
             return True
         else:
@@ -475,6 +475,7 @@ def handle_export_message(message):
 
 def export_service_event_loop(consumer, flask_app, interrupt):
     with flask_app.app_context():
+        inventory_config = flask_app.config.get("INVENTORY_CONFIG")
         while not interrupt():
             messages = consumer.consume(timeout=CONSUMER_POLL_TIMEOUT_SECONDS)
             for msg in messages:
@@ -486,7 +487,7 @@ def export_service_event_loop(consumer, flask_app, interrupt):
                 else:
                     logger.debug("Export Service message received")
                     try:
-                        handle_export_message(msg.value())
+                        handle_export_message(msg.value(), inventory_config)
                     except OperationalError as oe:
                         """sqlalchemy.exc.OperationalError: This error occurs when an
                         authentication failure occurs or the DB is not accessible.
