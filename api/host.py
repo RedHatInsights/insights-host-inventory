@@ -11,8 +11,10 @@ from api import build_collection_response
 from api import flask_json_response
 from api import metrics
 from api.cache import CACHE
+from api.cache import delete_cached_system_keys
 from api.cache import delete_keys
 from api.cache_key import make_key
+from api.cache_key import make_system_cache_key
 from api.host_query import build_paginated_host_list_response
 from api.host_query import staleness_timestamps
 from api.host_query_db import get_all_hosts
@@ -52,6 +54,7 @@ from app.queue.events import EventType
 from app.queue.events import message_headers
 from app.serialization import deserialize_canonical_facts
 from app.serialization import serialize_host
+from app.serialization import serialize_host_with_params
 from app.utils import Tag
 from app.xjoin import pagination_params
 from lib.feature_flags import FLAG_INVENTORY_DISABLE_XJOIN
@@ -100,91 +103,74 @@ def get_host_list(
 ):
     total = 0
     host_list = ()
+    owner_id = None
     current_identity = get_current_identity()
     is_bootc = filter.get("system_profile", {}).get("bootc_status")
-
-    if (
+    has_complex_params = any(
+        [
+            display_name,
+            fqdn,
+            hostname_or_id,
+            provider_id,
+            provider_type,
+            updated_start,
+            updated_end,
+            group_name,
+            tags,
+            order_by,
+            order_how,
+            registered_with,
+            filter,
+            fields,
+        ]
+    )
+    is_cached_insights_client_system_query = (
         current_identity.identity_type == IdentityType.SYSTEM
         and current_identity.system
+        and current_identity.system.get("cn")
         and insights_id
         and page == 1
-        and not any(
-            [
-                display_name,
-                fqdn,
-                hostname_or_id,
-                provider_id,
-                provider_type,
-                updated_start,
-                updated_end,
-                group_name,
-                tags,
-                order_by,
-                order_how,
-                registered_with,
-                filter,
-                fields,
-            ]
-        )
+        and not has_complex_params
         and get_flag_value(FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM)
-    ):
+    )
+    if is_cached_insights_client_system_query:
         logger.info(f"{FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM} is applied")
-        system_key = (
-            f"insights_id={insights_id}_org={current_identity.org_id}_user=SYSTEM-{current_identity.system.get('cn')}"
-        )
-        stored_system = CACHE.get(system_key)
+        owner_id = current_identity.system.get("cn")
+        system_key = make_system_cache_key(insights_id, current_identity.org_id, owner_id)
+        stored_system = CACHE.get(f"{system_key}")
         if stored_system:
             host_list = [stored_system]
             json_data = build_paginated_host_list_response(1, page, per_page, host_list, serialize_hosts=False)
             metrics.api_cached_systems_hit.inc()
             return flask_json_response(json_data)
 
+    _get_host_list = get_host_list_xjoin
+    if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}) or is_bootc:
+        logger.info(f"{FLAG_INVENTORY_DISABLE_XJOIN} is applied to {current_identity.org_id}")
+        _get_host_list = get_host_list_postgres
+
     try:
-        if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}) or is_bootc:
-            logger.info(f"{FLAG_INVENTORY_DISABLE_XJOIN} is applied to {current_identity.org_id}")
-            host_list, total, additional_fields, system_profile_fields = get_host_list_postgres(
-                display_name,
-                fqdn,
-                hostname_or_id,
-                insights_id,
-                provider_id,
-                provider_type,
-                updated_start,
-                updated_end,
-                group_name,
-                tags,
-                page,
-                per_page,
-                order_by,
-                order_how,
-                staleness,
-                registered_with,
-                filter,
-                fields,
-                rbac_filter,
-            )
-        else:
-            host_list, total, additional_fields, system_profile_fields = get_host_list_xjoin(
-                display_name,
-                fqdn,
-                hostname_or_id,
-                insights_id,
-                provider_id,
-                provider_type,
-                updated_start,
-                updated_end,
-                group_name,
-                tags,
-                page,
-                per_page,
-                order_by,
-                order_how,
-                staleness,
-                registered_with,
-                filter,
-                fields,
-                rbac_filter,
-            )
+        host_list, total, additional_fields, system_profile_fields = _get_host_list(
+            display_name,
+            fqdn,
+            hostname_or_id,
+            insights_id,
+            provider_id,
+            provider_type,
+            updated_start,
+            updated_end,
+            group_name,
+            tags,
+            page,
+            per_page,
+            order_by,
+            order_how,
+            staleness,
+            registered_with,
+            filter,
+            fields,
+            rbac_filter,
+        )
     except ValueError as e:
         log_get_host_list_failed(logger)
         flask.abort(400, str(e))
@@ -192,6 +178,12 @@ def get_host_list(
     json_data = build_paginated_host_list_response(
         total, page, per_page, host_list, additional_fields, system_profile_fields
     )
+    if is_cached_insights_client_system_query and len(host_list) == 1:
+        system_key = make_system_cache_key(insights_id, current_identity.org_id, owner_id)
+        output_host = serialize_host_with_params(host_list[0])
+        timeout = inventory_config().cache_insights_client_system_timeout_sec
+        CACHE.set(key=system_key, value=output_host, timeout=timeout)
+
     return flask_json_response(json_data)
 
 
@@ -469,7 +461,7 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
             _emit_patch_event(serialized_host, host)
             insights_id = host.canonical_facts.get("insights_id")
             if insights_id:
-                delete_keys(f"insights_id={insights_id}")
+                delete_cached_system_keys(insights_id=insights_id)
 
     delete_keys(current_identity.org_id)
     log_patch_host_success(logger, host_id_list)
@@ -544,7 +536,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
             _emit_patch_event(serialized_host, host)
             insights_id = host.canonical_facts.get("insights_id")
             if insights_id:
-                delete_keys(f"insights_id={insights_id}")
+                delete_cached_system_keys(insights_id=insights_id)
 
     logger.debug("hosts_to_update:%s", hosts_to_update)
 
@@ -615,7 +607,7 @@ def host_checkin(body, rbac_filter=None):
         _emit_patch_event(serialized_host, existing_host)
         insights_id = existing_host.canonical_facts.get("insights_id")
         if insights_id:
-            delete_keys(f"insights_id={insights_id}")
+            delete_cached_system_keys(insights_id=insights_id)
         delete_keys(current_identity.org_id)
         return flask_json_response(serialized_host, 201)
     else:
