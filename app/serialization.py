@@ -5,6 +5,7 @@ from dateutil.parser import isoparse
 from marshmallow import ValidationError
 
 from api.staleness_query import get_staleness_obj
+from app.auth import get_current_identity
 from app.common import inventory_config
 from app.culling import Conditions
 from app.culling import Timestamps
@@ -521,3 +522,10 @@ def build_rhel_version_str(system_profile: dict) -> str:
             minor = os.get("minor")
             return f"{major:03}.{minor:03}"
     return ""
+
+
+def serialize_host_with_params(host, additional_fields=tuple(), system_profile_fields=None):
+    timestamps = Timestamps.from_config(inventory_config())
+    identity = get_current_identity()
+    staleness = get_staleness_obj(identity)
+    return serialize_host(host, timestamps, False, additional_fields, staleness, system_profile_fields)

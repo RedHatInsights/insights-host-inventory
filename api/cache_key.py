@@ -20,3 +20,7 @@ def make_key():
         return
     key = f"{org_id}_{access_id}_{request.path}_{args}"
     return key
+
+
+def make_system_cache_key(insights_id, org_id, owner_id):
+    return f"insights_id={insights_id}_org={org_id}_user=SYSTEM-{owner_id}"
