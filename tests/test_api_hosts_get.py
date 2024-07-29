@@ -1369,6 +1369,7 @@ def test_query_by_staleness(db_create_multiple_hosts, api_get, subtests):
         "[system_memory_bytes][eq]=8292048963606259",
         "[number_of_cpus][is]=nil",
         "[number_of_cpus]=nil",
+        "[bios_version]=2.0/3.5A",
     ),
 )
 def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
@@ -1383,6 +1384,7 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
             "sap_sids": ["ABC", "DEF"],
             "systemd": {"failed_services": ["foo", "bar"]},
             "system_memory_bytes": 8292048963606259,
+            "bios_version": "2.0/3.5A",
         }
     }
     match_host_id = str(db_create_host(extra_data=match_sp_data).id)
@@ -1396,6 +1398,7 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
             "bootc_status": {"booted": {"image": "192.168.0.1:5000/foo/foo:latest"}},
             "sap_sids": ["DEF"],
             "number_of_cpus": 8,
+            "bios_version": "2.0-3.5A",
         }
     }
     nomatch_host_id = str(db_create_host(extra_data=nomatch_sp_data).id)
