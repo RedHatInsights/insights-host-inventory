@@ -553,6 +553,10 @@ objects:
           value: "${INVENTORY_API_CACHE_TYPE}"
         - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
           value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
+        - name: KAFKA_CONSUMER_SESSION_TIMEOUT_MS
+          value: "${KAFKA_CONSUMER_SESSION_TIMEOUT_MS}"
+        - name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
+          value: "${KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS}"
         - name: UNLEASH_URL
           value: ${UNLEASH_URL}
         - name: UNLEASH_TOKEN
@@ -640,6 +644,10 @@ objects:
           value: "${INVENTORY_API_CACHE_TYPE}"
         - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
           value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
+        - name: KAFKA_CONSUMER_SESSION_TIMEOUT_MS
+          value: "${KAFKA_CONSUMER_SESSION_TIMEOUT_MS}"
+        - name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
+          value: "${KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS}"
         - name: UNLEASH_URL
           value: ${UNLEASH_URL}
         - name: UNLEASH_TOKEN
@@ -1495,6 +1503,10 @@ parameters:
   value: 'host-inventory-read-only-db'
 - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
   value: '129600'
+- name: KAFKA_CONSUMER_SESSION_TIMEOUT_MS
+  value: '10000'
+- name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
+  value: '3000'
 
 # NGINX
 - displayName: Minimum replicas
