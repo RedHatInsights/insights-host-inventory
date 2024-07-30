@@ -174,7 +174,7 @@ def delete_groups(group_id_list, rbac_filter=None):
 
     current_identity = get_current_identity()
     delete_keys(current_identity.org_id)
-    delete_cached_system_keys(current_identity.org_id)
+    delete_cached_system_keys(org_id=current_identity.org_id)
     return Response(None, HTTPStatus.NO_CONTENT)
 
 
