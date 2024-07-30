@@ -76,8 +76,8 @@ logger = get_logger(__name__)
 
 
 @api_operation
-@CACHE.cached(key_prefix=make_key)
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
+@CACHE.cached(key_prefix=make_key)
 @ensure_org_data_integrity()
 @metrics.api_request_time.time()
 def get_host_list(
@@ -391,8 +391,8 @@ def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=
 
 
 @api_operation
-@CACHE.cached(key_prefix=make_key)
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
+@CACHE.cached(key_prefix=make_key)
 @ensure_org_data_integrity()
 @metrics.api_request_time.time()
 def get_host_system_profile_by_id(
@@ -544,8 +544,8 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
 
 
 @api_operation
-@CACHE.cached(key_prefix=make_key)
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
+@CACHE.cached(key_prefix=make_key)
 @metrics.api_request_time.time()
 def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_how=None, rbac_filter=None):
     current_identity = get_current_identity()
@@ -565,8 +565,8 @@ def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_
 
 
 @api_operation
-@CACHE.cached(key_prefix=make_key)
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
+@CACHE.cached(key_prefix=make_key)
 @metrics.api_request_time.time()
 def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=None, search=None, rbac_filter=None):
     current_identity = get_current_identity()

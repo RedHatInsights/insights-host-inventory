@@ -127,8 +127,8 @@ OPERATING_SYSTEM_QUERY = """
 
 
 @api_operation
-@CACHE.cached(key_prefix=make_key)
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
+@CACHE.cached(key_prefix=make_key)
 @metrics.api_request_time.time()
 def get_sap_system(
     tags=None, page=None, per_page=None, staleness=None, registered_with=None, filter=None, rbac_filter=None
@@ -174,8 +174,8 @@ def get_sap_system(
 
 
 @api_operation
-@CACHE.cached(key_prefix=make_key)
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
+@CACHE.cached(key_prefix=make_key)
 @metrics.api_request_time.time()
 def get_sap_sids(
     search=None,
@@ -236,8 +236,8 @@ def get_sap_sids(
 
 
 @api_operation
-@CACHE.cached(key_prefix=make_key)
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
+@CACHE.cached(key_prefix=make_key)
 @metrics.api_request_time.time()
 def get_operating_system(
     tags=None,
