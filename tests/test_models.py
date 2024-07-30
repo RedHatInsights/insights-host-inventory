@@ -1,4 +1,5 @@
 import uuid
+from contextlib import suppress
 from copy import deepcopy
 from datetime import datetime
 from datetime import timedelta
@@ -17,6 +18,7 @@ from app.models import InputGroupSchema
 from app.models import LimitedHost
 from app.models import MAX_CANONICAL_FACTS_VERSION
 from app.models import MIN_CANONICAL_FACTS_VERSION
+from app.models import ZERO_MAC_ADDRESS
 from app.utils import Tag
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import now
@@ -802,6 +804,111 @@ def test_valid_ip_addresses(canonical_facts):
 def test_invalid_ip_addresses(canonical_facts):
     with pytest.raises(MarshmallowValidationError):
         CanonicalFactsSchema().load(canonical_facts)
+
+
+@pytest.mark.parametrize(
+    "canonical_facts",
+    (
+        {
+            "canonical_facts_version": 0,
+            "mac_addresses": [ZERO_MAC_ADDRESS],
+        },
+        {
+            "canonical_facts_version": 1,
+            "is_virtual": False,
+            "mac_addresses": [ZERO_MAC_ADDRESS],
+        },
+        {
+            "canonical_facts_version": 0,
+            "mac_addresses": [ZERO_MAC_ADDRESS, ZERO_MAC_ADDRESS],
+        },
+        {
+            "canonical_facts_version": 1,
+            "is_virtual": False,
+            "mac_addresses": [ZERO_MAC_ADDRESS, ZERO_MAC_ADDRESS],
+        },
+    ),
+)
+def test_zero_mac_address_only(canonical_facts):
+    #
+    # The zero mac address should be filtered out and it should fail as though it was an empty list.
+    #
+    with pytest.raises(MarshmallowValidationError):
+        CanonicalFactsSchema().load(canonical_facts)
+
+
+@pytest.mark.parametrize(
+    "canonical_facts",
+    (
+        {
+            "canonical_facts_version": 0,
+            "mac_addresses": ["c2:00:d0:c8:61:01", ZERO_MAC_ADDRESS],
+        },
+        {
+            "canonical_facts_version": 1,
+            "is_virtual": False,
+            "mac_addresses": ["c2:00:d0:c8:61:01", ZERO_MAC_ADDRESS],
+        },
+        {
+            "canonical_facts_version": 0,
+            "mac_addresses": [ZERO_MAC_ADDRESS, "c2:00:d0:c8:61:01", ZERO_MAC_ADDRESS],
+        },
+        {
+            "canonical_facts_version": 1,
+            "is_virtual": False,
+            "mac_addresses": [ZERO_MAC_ADDRESS, "c2:00:d0:c8:61:01", ZERO_MAC_ADDRESS],
+        },
+    ),
+)
+def test_zero_mac_address_filtered(canonical_facts):
+    validated_host = CanonicalFactsSchema().load(canonical_facts)
+
+    #
+    # If the zero mac address isn't the only element in the list,
+    # it should succeed but the zero mac addresses should be removed.
+    #
+    assert len(validated_host["mac_addresses"]) == 1
+    assert "c2:00:d0:c8:61:01" in validated_host["mac_addresses"]
+
+
+@pytest.mark.parametrize(
+    "canonical_facts",
+    (
+        {
+            "canonical_facts_version": 0,
+            "mac_addresses": [ZERO_MAC_ADDRESS],
+        },
+        {
+            "canonical_facts_version": 1,
+            "mac_addresses": [ZERO_MAC_ADDRESS],
+        },
+        {
+            "canonical_facts_version": 0,
+            "mac_addresses": ["c2:00:d0:c8:61:01", ZERO_MAC_ADDRESS],
+        },
+        {
+            "canonical_facts_version": 1,
+            "is_virtual": False,
+            "mac_addresses": ["c2:00:d0:c8:61:01", ZERO_MAC_ADDRESS],
+        },
+        {
+            "canonical_facts_version": 0,
+            "mac_addresses": [ZERO_MAC_ADDRESS, "c2:00:d0:c8:61:01", ZERO_MAC_ADDRESS],
+        },
+        {
+            "canonical_facts_version": 1,
+            "is_virtual": False,
+            "mac_addresses": [ZERO_MAC_ADDRESS, "c2:00:d0:c8:61:01", ZERO_MAC_ADDRESS],
+        },
+    ),
+)
+def test_zero_mac_address_warning(mocker, canonical_facts):
+    mock_logger_warn = mocker.patch("app.models.logger.warning")
+
+    with suppress(MarshmallowValidationError):
+        CanonicalFactsSchema().load(canonical_facts)
+
+    assert mock_logger_warn.call_count >= 1
 
 
 def test_canonical_facts_v1_is_virtual_required():

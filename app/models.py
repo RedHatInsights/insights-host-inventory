@@ -71,6 +71,8 @@ OLD_TO_NEW_REPORTER_MAP = {"yupana": ("satellite", "discovery")}
 MIN_CANONICAL_FACTS_VERSION = 0
 MAX_CANONICAL_FACTS_VERSION = 1
 
+ZERO_MAC_ADDRESS = "00:00:00:00:00:00"
+
 
 class ProviderType(str, Enum):
     ALIBABA = "alibaba"
@@ -731,6 +733,14 @@ class CanonicalFactsSchema(MarshmallowSchema):
     @validates_schema
     def validate_schema(self, data, **kwargs):
         schema_version = data.get("canonical_facts_version")
+
+        if "mac_addresses" in data:
+            mac_addresses = data["mac_addresses"]
+            while ZERO_MAC_ADDRESS in mac_addresses:
+                logger.warning(f"Zero MAC address reported by: {data.get('reporter', 'Not Available')}")
+                mac_addresses.remove(ZERO_MAC_ADDRESS)
+            if not mac_addresses:
+                raise MarshmallowValidationError("mac_addresses must contain at least on unique MAC address.")
 
         if schema_version > MIN_CANONICAL_FACTS_VERSION:
             if "is_virtual" not in data:
