@@ -202,12 +202,7 @@ def build_base_notification_obj(notification_type, host):
 
     canonical_facts = host.get("canonical_facts", deserialize_canonical_facts(host))
 
-    system_profile = {}
-    if host.get("system_profile_facts") is None:
-        if host.get("system_profile") is not None:
-            system_profile = host.get("system_profile")
-    else:
-        system_profile = host.get("system_profile_facts")
+    system_profile = host.get("system_profile_facts", host.get("system_profile", {}))
 
     complete_base_obj = {
         "context": {
