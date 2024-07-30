@@ -30,7 +30,7 @@ def init_cache(app_config, flask_app):
     else:
         logger.info(f"Cache using config={CACHE_CONFIG}")
 
-    if flask_app and flask_app.app and isinstance(flask_app, connexion.apps.flask.FlaskApp) and not CACHE.app:
+    if flask_app and flask_app.app and isinstance(flask_app, connexion.apps.flask.FlaskApp):
         logger.info("Cache initialized with app.")
         CACHE.init_app(flask_app.app, config=CACHE_CONFIG)
     else:
