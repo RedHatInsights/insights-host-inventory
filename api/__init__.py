@@ -15,7 +15,7 @@ __all__ = ["api_operation"]
 STATUS_CODE = "status_code"
 PROCESSING_TIME = "processing_time"
 
-ESCAPE_CHARS = {c for c in '.?+*|{}[]()"\\#@&<>~'}
+ESCAPE_CHARS = {c for c in '.?+*|{}[]()"\\#@&<>~$'}
 
 logger = get_logger(__name__)
 
