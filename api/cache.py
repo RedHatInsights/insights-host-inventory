@@ -29,7 +29,7 @@ def init_cache(app_config, flask_app):
     else:
         logger.info(f"Cache using config={CACHE_CONFIG}")
 
-    if isinstance(flask_app, connexion.apps.flask.FlaskApp):
+    if flask_app and flask_app.app and isinstance(flask_app, connexion.apps.flask.FlaskApp) and not CACHE.app:
         logger.info("Cache initialized with app.")
         CACHE.init_app(flask_app.app, config=CACHE_CONFIG)
     else:
@@ -71,3 +71,16 @@ def delete_cached_system_keys(insights_id=None, org_id=None):
         delete_keys(f"insights_id={insights_id}")
     if org_id:
         delete_keys(f"insights_id=*_org={org_id}")
+
+
+def set_cached_system(system_key, host, config):
+    global CACHE_CONFIG
+    global CACHE
+
+    if not CACHE:
+        logger.info("Cache is unset when attampting to set value.")
+        init_cache(config, None)
+    try:
+        CACHE.set(key=system_key, value=host, timeout=config.cache_insights_client_system_timeout_sec)
+    except Exception as exec:
+        logger.exception("Cache deletion failed", exc_info=exec)
