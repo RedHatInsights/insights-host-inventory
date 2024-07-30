@@ -6,6 +6,7 @@ from app.logging import get_logger
 
 CACHE_CONFIG = {"CACHE_TYPE": "NullCache"}
 CACHE = Cache(config=CACHE_CONFIG)
+REDIS_CLIENT = None
 logger = get_logger("cache")
 
 
@@ -48,11 +49,13 @@ def _delete_keys_simple(prefix):
 
 def _delete_keys_redis(prefix):
     global CACHE_CONFIG
+    global REDIS_CLIENT
     try:
-        redis_client = Redis(host=CACHE_CONFIG.get("CACHE_REDIS_HOST"), port=CACHE_CONFIG.get("CACHE_REDIS_PORT"))
+        if not REDIS_CLIENT:
+            REDIS_CLIENT = Redis(host=CACHE_CONFIG.get("CACHE_REDIS_HOST"), port=CACHE_CONFIG.get("CACHE_REDIS_PORT"))
         # Use SCAN to find keys to delete that start with the prefix; default prefix is flask_cache_
-        for key in redis_client.scan_iter(f"flask_cache_{prefix}*"):
-            redis_client.delete(key)
+        for key in REDIS_CLIENT.scan_iter(f"flask_cache_{prefix}*"):
+            REDIS_CLIENT.delete(key)
     except Exception as exec:
         logger.exception("Cache deletion failed", exc_info=exec)
 
