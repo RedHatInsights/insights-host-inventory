@@ -13,18 +13,14 @@ from marshmallow import ValidationError
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.exc import StaleDataError
 
-from api.cache import CACHE
 from api.cache import delete_cached_system_keys
 from api.cache import delete_keys
-from api.cache_key import make_system_cache_key
 from api.staleness_query import get_staleness_obj
 from app.auth.identity import create_mock_identity_with_org_id
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
 from app.common import inventory_config
-from app.config import Config
 from app.culling import Timestamps
-from app.environment import RuntimeEnvironment
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.instrumentation import log_add_host_attempt
@@ -430,18 +426,6 @@ def write_add_update_event_message(event_producer: EventProducer, result: Operat
     org_id = output_host.get("org_id")
     delete_keys(org_id)
     result.success_logger(output_host)
-    try:
-        owner_id = output_host.get("system_profile", {}).get("owner_id")
-        if owner_id and insights_id and org_id:
-            system_key = make_system_cache_key(insights_id, org_id, owner_id)
-            config = Config(RuntimeEnvironment.SERVICE)
-            if "tags" in output_host:
-                del output_host["tags"]
-            if "system_profile" in output_host:
-                del output_host["system_profile"]
-            CACHE.set(key=system_key, value=output_host, timeout=config.cache_insights_client_system_timeout_sec)
-    except Exception as ex:
-        logger.error("Error during set cache", ex)
 
 
 def write_message_batch(event_producer, processed_rows):

@@ -58,8 +58,8 @@ TAGS_QUERY = """
 
 
 @api_operation
-@CACHE.cached(key_prefix=make_key)
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
+@CACHE.cached(key_prefix=make_key)
 @metrics.api_request_time.time()
 def get_tags(
     search=None,
