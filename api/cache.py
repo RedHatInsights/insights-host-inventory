@@ -15,8 +15,6 @@ def init_cache(app_config, flask_app):
     global CACHE_CONFIG
     cache_type = "NullCache"
     logger.info("Initializing Cache")
-    if app_config.api_cache_timeout:
-        cache_type = "SimpleCache"
 
     CACHE_CONFIG = {"CACHE_TYPE": cache_type, "CACHE_DEFAULT_TIMEOUT": app_config.api_cache_timeout}
     if app_config.api_cache_type == "RedisCache" and app_config._cache_host and app_config._cache_port:
@@ -37,16 +35,6 @@ def init_cache(app_config, flask_app):
         logger.info(f"Cache not initialized with app. Passed the following for the app={flask_app}.")
 
 
-def _delete_keys_simple(prefix):
-    global CACHE
-    if not CACHE:
-        return
-    cache_dict = CACHE.cache._cache
-    for cache_key in list(cache_dict.keys()):
-        if cache_key.startswith(f"flask_cache_{prefix}"):
-            cache_dict.pop(cache_key)
-
-
 def _delete_keys_redis(prefix):
     global CACHE_CONFIG
     global REDIS_CLIENT
@@ -62,8 +50,6 @@ def _delete_keys_redis(prefix):
 
 def delete_keys(prefix):
     global CACHE_CONFIG
-    if CACHE_CONFIG and CACHE_CONFIG.get("CACHE_TYPE") == "SimpleCache" and prefix:
-        _delete_keys_simple(prefix)
 
     if CACHE_CONFIG and CACHE_CONFIG.get("CACHE_TYPE") == "RedisCache" and prefix:
         _delete_keys_redis(prefix)
