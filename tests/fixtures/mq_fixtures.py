@@ -16,6 +16,7 @@ from tests.helpers.api_utils import TAGS
 from tests.helpers.mq_utils import MockEventProducer
 from tests.helpers.mq_utils import MockFuture
 from tests.helpers.mq_utils import wrap_message
+from tests.helpers.test_utils import base_host
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import get_platform_metadata
 from tests.helpers.test_utils import get_staleness_timestamps
@@ -56,11 +57,24 @@ def mq_create_or_update_host(flask_app, event_producer_mock, notification_event_
 def mq_create_three_specific_hosts(mq_create_or_update_host):
     created_hosts = []
     for i in range(1, 4):
-        fqdn = "host1.DOMAIN.test" if i in (1, 2) else f"host{i}.domain.test"
-        host = minimal_host(
+        fqdn = f"host{i}.domain.test"
+        host = base_host(
             insights_id=generate_uuid(), display_name=f"host{i}", fqdn=fqdn, facts=FACTS, tags=TAGS[i - 1]
         )
         created_host = mq_create_or_update_host(host)
+
+        if i == 2:
+            # Update second host to duplicate the FQDN of the first.
+            # We do this in the loop as to not change the create/update order.
+            host = minimal_host(
+                insights_id=created_host.insights_id,
+                display_name=created_host.display_name,
+                fqdn=created_hosts[0].fqdn,
+                facts=FACTS,
+                tags=created_host.tags,
+            )
+            created_host = mq_create_or_update_host(host)
+
         created_hosts.append(created_host)
 
     return created_hosts

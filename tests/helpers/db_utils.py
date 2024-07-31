@@ -164,4 +164,4 @@ def assert_host_exists_in_db(host_id, search_canonical_facts, identity=USER_IDEN
     found_host = find_existing_host(identity, search_canonical_facts)
 
     assert found_host
-    assert host_id == found_host.id
+    assert str(host_id) == str(found_host.id)
