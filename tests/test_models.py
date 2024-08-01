@@ -811,16 +811,32 @@ def test_invalid_ip_addresses(canonical_facts):
     (
         {
             "canonical_facts_version": 0,
-            "mac_addresses": [ZERO_MAC_ADDRESS],
-        },
-        {
-            "canonical_facts_version": 1,
             "is_virtual": False,
             "mac_addresses": [ZERO_MAC_ADDRESS],
         },
         {
             "canonical_facts_version": 0,
+            "is_virtual": False,
             "mac_addresses": [ZERO_MAC_ADDRESS, ZERO_MAC_ADDRESS],
+        },
+    ),
+)
+def test_zero_mac_address_only_v0(canonical_facts):
+    #
+    # For version 0 canonical facts, the zero mac address should be filtered out.
+    # If the list is then empty it should proceed as though mac_addresses weren't provided.
+    #
+    validated_host = CanonicalFactsSchema().load(canonical_facts)
+    assert "mac_addresses" not in validated_host
+
+
+@pytest.mark.parametrize(
+    "canonical_facts",
+    (
+        {
+            "canonical_facts_version": 1,
+            "is_virtual": False,
+            "mac_addresses": [ZERO_MAC_ADDRESS],
         },
         {
             "canonical_facts_version": 1,
@@ -829,9 +845,10 @@ def test_invalid_ip_addresses(canonical_facts):
         },
     ),
 )
-def test_zero_mac_address_only(canonical_facts):
+def test_zero_mac_address_only_v1(canonical_facts):
     #
-    # The zero mac address should be filtered out and it should fail as though it was an empty list.
+    # For version 1 canonical facts, the zero mac address should be filtered out.
+    # If the list is then empty it should fail as though it was an empty list.
     #
     with pytest.raises(MarshmallowValidationError):
         CanonicalFactsSchema().load(canonical_facts)

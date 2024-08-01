@@ -735,12 +735,20 @@ class CanonicalFactsSchema(MarshmallowSchema):
         schema_version = data.get("canonical_facts_version")
 
         if "mac_addresses" in data:
+            #
+            # Remove all zero mac addresses from the list.
+            #
             mac_addresses = data["mac_addresses"]
             while ZERO_MAC_ADDRESS in mac_addresses:
                 logger.warning(f"Zero MAC address reported by: {data.get('reporter', 'Not Available')}")
                 mac_addresses.remove(ZERO_MAC_ADDRESS)
             if not mac_addresses:
-                raise MarshmallowValidationError("mac_addresses must contain at least on unique MAC address.")
+                #
+                # If mac_addresses is now empty, we remove the mac_addresses key.
+                # This is so we don't introduce a new failure case for varsion 0, and will
+                # only fail for version 1.
+                #
+                del data["mac_addresses"]
 
         if schema_version > MIN_CANONICAL_FACTS_VERSION:
             if "is_virtual" not in data:
