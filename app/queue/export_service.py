@@ -1,4 +1,5 @@
 import json
+import tracemalloc
 from http import HTTPStatus
 
 from requests import Session
@@ -54,7 +55,14 @@ def create_export(export_svc_data, org_id, inventory_config, operation_args={}, 
         rbac_filter = get_rbac_filter(
             RbacResourceType.HOSTS, RbacPermission.READ, identity=identity, rbac_request_headers=rbac_request_headers
         )
+
+        # START: Remove tracemalloc after analyzing stage
+        tracemalloc.start()
         data_to_export = get_hosts_to_export(identity, export_format=exportFormat, rbac_filter=rbac_filter)
+        first_size, first_peak = tracemalloc.get_traced_memory()
+        logger.info(f"{first_size=}, {first_peak=}, size diff:{first_peak-first_size}")
+        tracemalloc.reset_peak()
+        # END: Remove tracemalloc after analyzing stage
 
         if data_to_export:
             logger.debug(f"Trying to upload data using URL:{request_url}")
