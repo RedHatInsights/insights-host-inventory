@@ -177,6 +177,7 @@ class Config:
         self.cache_insights_client_system_timeout_sec = int(
             os.getenv("INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC", "129600")
         )
+        self.api_cache_max_thread_pool_workers = int(os.getenv("INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS", "5"))
 
         self.db_uri = self._build_db_uri(self._db_ssl_mode)
 
