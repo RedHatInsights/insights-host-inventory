@@ -194,6 +194,9 @@ def process_identity_header(encoded_id_header):
         access_id = identity.get("service_account", {}).get("client_id")
     if id_type == "System":
         access_id = identity.get("system", {}).get("cn")
+    if not org_id or not access_id:
+        message = f"Invalid identity encountered; id_type={id_type} org_id={org_id}, access_id={access_id}."
+        raise Exception(message)
     return org_id, access_id
 
 
