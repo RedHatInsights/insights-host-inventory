@@ -4,6 +4,7 @@ from json import dumps
 
 import pytest
 
+from app import process_identity_header
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
 from tests.helpers.api_utils import build_token_auth_header
@@ -148,3 +149,23 @@ def test_validate_invalid_token_on_get(flask_client):
     auth_header = build_token_auth_header("NotTheSuperSecretValue")
     response = flask_client.get(HOST_URL, headers=auth_header)
     assert 401 == response.status_code
+
+
+def test_invalid_system_identities_processing():
+    no_system = Identity(SYSTEM_IDENTITY)._asdict()
+    no_system.pop("system", None)
+    dict_ = {"identity": no_system}
+    json = dumps(dict_)
+    identity_payload = b64encode(json.encode())
+    with pytest.raises(Exception):
+        process_identity_header(identity_payload)
+
+
+def test_valid_system_identities_processing():
+    system = Identity(SYSTEM_IDENTITY)._asdict()
+    dict_ = {"identity": system}
+    json = dumps(dict_)
+    identity_payload = b64encode(json.encode())
+    org_id, access_id = process_identity_header(identity_payload)
+    assert org_id == system.get("org_id")
+    assert access_id == system.get("system", {}).get("cn")
