@@ -98,7 +98,7 @@ def create_export(export_svc_data, org_id, inventory_config, operation_args={}, 
 def _handle_export_response(response, exportFormat, exportUUID):
     if response.status_code != HTTPStatus.ACCEPTED:
         raise Exception(response.text)
-    else:
+    elif response.text != "":
         logger.info(f"{response.text} for export ID {exportUUID} in {exportFormat.upper()} format")
 
 
