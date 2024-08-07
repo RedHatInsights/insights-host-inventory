@@ -22,14 +22,15 @@ __all__ = ("deserialize_host", "serialize_host", "serialize_host_system_profile"
 
 
 _EXPORT_SERVICE_FIELDS = [
-    "id",
+    "host_id",
+    "hostname",
     "subscription_manager_id",
     "satellite_id",
     "display_name",
     "group_id",
     "group_name",
-    "os_release",
-    "updated",
+    "os_version",
+    "last_updated",
     "state",
     "tags",
     "host_type",
@@ -70,6 +71,7 @@ ADDITIONAL_HOST_MQ_FIELDS = (
 )
 
 ADDITIONAL_EXPORT_SERVICE_FIELDS = (
+    "fqdn",
     "os_release",
     "state",
     "tags",
@@ -180,12 +182,18 @@ def serialize_host(
 
     if "id" in fields:
         serialized_host["id"] = _serialize_uuid(host.id)
+        if for_export_svc:
+            serialized_host["host_id"] = serialized_host["id"]
     if "account" in fields:
         serialized_host["account"] = host.account
     if "org_id" in fields:
         serialized_host["org_id"] = host.org_id
     if "display_name" in fields:
         serialized_host["display_name"] = host.display_name
+        if for_export_svc and "fqdn" in fields and serialized_host["fqdn"]:
+            serialized_host["hostname"] = serialized_host["fqdn"]
+        else:
+            serialized_host["hostname"] = host.display_name
     if "ansible_host" in fields:
         serialized_host["ansible_host"] = host.ansible_host
     if "facts" in fields:
@@ -210,6 +218,8 @@ def serialize_host(
         serialized_host["created"] = _serialize_datetime(host.created_on)
     if "updated" in fields:
         serialized_host["updated"] = _serialize_datetime(host.modified_on)
+        if for_export_svc:
+            serialized_host["last_updated"] = serialized_host["updated"]
     if "tags" in fields:
         serialized_host["tags"] = _serialize_tags(host.tags)
     if "system_profile" in fields:
@@ -246,6 +256,8 @@ def serialize_host(
             serialized_host["os_release"] = host.system_profile_facts["os_release"]
         else:
             serialized_host["os_release"] = None
+        if for_export_svc:
+            serialized_host["os_version"] = serialized_host["os_release"]
 
     if "state" in fields:
         serialized_host["state"] = Conditions.find_host_state(
@@ -253,6 +265,10 @@ def serialize_host(
         )
     if "host_type" in fields:
         serialized_host["host_type"] = host.host_type
+        if for_export_svc and not host.host_type:
+            # For export service, host_type should be exported as conventional
+            # if the host is not an edge one instead of None.
+            serialized_host["host_type"] = "conventional"
 
     if for_export_svc:
         serialized_host = {key: serialized_host[key] for key in _EXPORT_SERVICE_FIELDS}
