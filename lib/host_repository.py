@@ -39,9 +39,11 @@ AddHostResult = Enum("AddHostResult", ("created", "updated"))
 # given priority in the host deduplication process.
 # NOTE: The order of this tuple is important.  The order defines
 # the priority.
-ELEVATED_CANONICAL_FACT_FIELDS = ("provider_id", "insights_id", "subscription_manager_id")
+ELEVATED_CANONICAL_FACT_FIELDS = ("provider_id", "mac_addresses", "insights_id", "subscription_manager_id")
 COMPOUND_CANONICAL_FACTS_MAP = {"provider_id": "provider_type"}
 COMPOUND_CANONICAL_FACTS = tuple(COMPOUND_CANONICAL_FACTS_MAP.values())
+IMMUTABLE_CANONICAL_FACTS = ("provider_id",)
+MUTABLE_CANONICAL_FACTS = tuple(set(ELEVATED_CANONICAL_FACT_FIELDS).difference(set(IMMUTABLE_CANONICAL_FACTS)))
 
 ALL_STALENESS_STATES = ("fresh", "stale", "stale_warning")
 NULL = None
@@ -76,8 +78,10 @@ def find_existing_host(identity, canonical_facts):
     logger.debug("find_existing_host(%s, %s)", identity, canonical_facts)
     existing_host = _find_host_by_elevated_ids(identity, canonical_facts)
 
-    if not existing_host:
-        existing_host = find_host_by_multiple_canonical_facts(identity, canonical_facts)
+    if existing_host:
+        return existing_host
+
+    existing_host = find_host_by_multiple_canonical_facts(identity, canonical_facts)
 
     return existing_host
 
@@ -91,38 +95,52 @@ def find_existing_host_by_id(identity, host_id):
 @metrics.find_host_using_elevated_ids.time()
 def _find_host_by_elevated_ids(identity, canonical_facts):
     elevated_facts = {}
+    elevated_keys = []
+    immutable_facts = {}
     for key in ELEVATED_CANONICAL_FACT_FIELDS:
         if key not in canonical_facts.keys():
             continue
-        elevated_facts[key] = canonical_facts[key]
+
+        if key in IMMUTABLE_CANONICAL_FACTS:
+            immutable_facts[key] = canonical_facts[key]
+            if compound_fact := COMPOUND_CANONICAL_FACTS_MAP.get(key):
+                if compound_fact_val := canonical_facts.get(compound_fact):
+                    immutable_facts[compound_fact] = compound_fact_val
+        else:
+            elevated_facts[key] = canonical_facts[key]
+            elevated_keys.append(key)
+
+    # First search based on immutable elevated canonical facts.
+    if immutable_facts:
+        existing_host = (
+            multiple_canonical_facts_host_query(identity, immutable_facts, False)
+            .order_by(Host.modified_on.desc())
+            .first()
+        )
+        if existing_host:
+            return existing_host
+
+    if not elevated_facts:
+        return None
+
+    for target_key in elevated_keys:
+        #
+        # Keep immutable facts in the search, to prevent matching if
+        # they are different.
+        #
+        target_facts = dict(immutable_facts, **{target_key: elevated_facts[target_key]})
 
         # Ensure both components of compound facts are collected.
-        if compound_fact := COMPOUND_CANONICAL_FACTS_MAP.get(key):
+        if compound_fact := COMPOUND_CANONICAL_FACTS_MAP.get(target_key):
             if compound_fact_val := canonical_facts.get(compound_fact):
-                elevated_facts[compound_fact] = compound_fact_val
-
-    if elevated_facts:
-        elevated_keys = [key for key in ELEVATED_CANONICAL_FACT_FIELDS if key in canonical_facts.keys()]
-        elevated_keys.reverse()
-
-        for del_key in elevated_keys:
-            existing_host = (
-                multiple_canonical_facts_host_query(identity, elevated_facts, False)
-                .order_by(Host.modified_on.desc())
-                .first()
-            )
-            if existing_host:
-                return existing_host
-
-            #
-            # When we remove the primary component of a compound canonical fact from the list,
-            # remove its corresponding secondary component. Because we shouldn't search for
-            # one component without the other.
-            #
-            if del_key in COMPOUND_CANONICAL_FACTS_MAP:
-                del elevated_facts[COMPOUND_CANONICAL_FACTS_MAP[del_key]]
-
-            del elevated_facts[del_key]
+                target_facts[compound_fact] = compound_fact_val
+        existing_host = (
+            multiple_canonical_facts_host_query(identity, target_facts, False)
+            .order_by(Host.modified_on.desc())
+            .first()
+        )
+        if existing_host:
+            return existing_host
 
     return None
 
@@ -165,6 +183,7 @@ def find_host_by_multiple_canonical_facts(identity, canonical_facts):
     logger.debug("find_host_by_multiple_canonical_facts(%s)", canonical_facts)
 
     # If no canonical facts are supplied, it can't match anything.
+    # Just in case the last canonical fact was removed during the process.
     if not canonical_facts:
         return None
 

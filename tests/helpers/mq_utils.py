@@ -150,7 +150,6 @@ def assert_delete_notification_is_valid(notification_event_producer, host):
     expected_keys = {
         "timestamp",
         "event_type",
-        "account_id",
         "org_id",
         "application",
         "bundle",

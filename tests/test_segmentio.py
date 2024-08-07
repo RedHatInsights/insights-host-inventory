@@ -1,5 +1,10 @@
+import os
+from importlib import reload
+from unittest import mock
+
 import segment.analytics as analytics
 
+import api.segmentio
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_resource_types_url
 
@@ -93,3 +98,45 @@ def test_segmentio_track_insights_client(mocker, api_get):
 
     assert [] == mock_track.call_args_list
     assert mock_track.call_count == 0
+
+
+def test_segmentio_rate_limit(mocker, api_get):
+    mock_track = mocker.patch("api.segmentio.analytics.track")
+    analytics.write_key = "test_write_key"
+    max_calls = 4
+
+    #
+    # Test calls that don't exceed the limit.
+    #
+    for idx in range(max_calls * 2):
+        response_status, response_data = api_get(
+            build_resource_types_url(), extra_headers={"User-Agent": "test-user-agent"}
+        )
+        assert_response_status(response_status, 200)
+
+    #
+    # All the calls should have been made.
+    #
+    assert mock_track.call_count == max_calls * 2
+
+    #
+    # Lower the maximum call limit.
+    #
+    with mock.patch.dict(os.environ, {"SEGMENTIO_LIMIT_CALLS": str(max_calls)}):
+        reload(api.segmentio)
+        reload(api)
+
+    #
+    # Test calls that do exceed the limit.
+    #
+    mock_track.call_count = 0
+    for idx in range(max_calls * 2):
+        response_status, response_data = api_get(
+            build_resource_types_url(), extra_headers={"User-Agent": "test-user-agent"}
+        )
+        assert_response_status(response_status, 200)
+
+    #
+    # Only max_calls calls should have been made.
+    #
+    assert mock_track.call_count == max_calls
