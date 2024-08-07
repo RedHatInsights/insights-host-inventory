@@ -12,7 +12,7 @@ from app.culling import Timestamps
 from app.queue.export_service import _format_export_data
 from app.queue.queue import handle_export_message
 from app.serialization import _EXPORT_SERVICE_FIELDS
-from app.serialization import serialize_host
+from app.serialization import serialize_host_for_export_svc
 from tests.helpers import export_service_utils as es_utils
 from tests.helpers.db_utils import db_host
 
@@ -82,8 +82,8 @@ def test_host_serialization(flask_app, db_create_host):
         config = CullingConfig(stale_warning_offset_delta=timedelta(days=7), culled_offset_delta=timedelta(days=14))
         staleness_timestamps = Timestamps(config)
         staleness = get_sys_default_staleness()
-        serialized_host = serialize_host(
-            host, for_mq=False, for_export_svc=True, staleness_timestamps=staleness_timestamps, staleness=staleness
+        serialized_host = serialize_host_for_export_svc(
+            host, staleness_timestamps=staleness_timestamps, staleness=staleness
         )
 
         assert expected_fields == list(serialized_host.keys())
@@ -95,8 +95,8 @@ def test_handle_csv_format(flask_app, db_create_host, mocker):
         config = CullingConfig(stale_warning_offset_delta=timedelta(days=7), culled_offset_delta=timedelta(days=14))
         staleness_timestamps = Timestamps(config)
         staleness = get_sys_default_staleness()
-        serialized_host = serialize_host(
-            host, for_mq=False, for_export_svc=True, staleness_timestamps=staleness_timestamps, staleness=staleness
+        serialized_host = serialize_host_for_export_svc(
+            host, staleness_timestamps=staleness_timestamps, staleness=staleness
         )
         export_host = _format_export_data([serialized_host], "csv")
 
@@ -114,8 +114,8 @@ def test_handle_json_format(flask_app, db_create_host, mocker):
         config = CullingConfig(stale_warning_offset_delta=timedelta(days=7), culled_offset_delta=timedelta(days=14))
         staleness_timestamps = Timestamps(config)
         staleness = get_sys_default_staleness()
-        serialized_host = serialize_host(
-            host, for_mq=False, for_export_svc=True, staleness_timestamps=staleness_timestamps, staleness=staleness
+        serialized_host = serialize_host_for_export_svc(
+            host, staleness_timestamps=staleness_timestamps, staleness=staleness
         )
 
         export_host = json.loads(_format_export_data([serialized_host], "json"))
