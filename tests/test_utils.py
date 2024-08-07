@@ -5,8 +5,10 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from pytest import mark
+from pytest import raises
 from yaml import safe_load
 
+from api.cache_key import make_system_cache_key
 from lib.feature_flags import FLAG_FALLBACK_VALUES
 from lib.feature_flags import get_flag_value_and_fallback
 from lib.feature_flags import UNLEASH
@@ -188,3 +190,19 @@ def test_feature_flag_bypass_xjoin_with_initialized_unleash(enable_unleash, inve
         flag_value, using_fallback = get_flag_value_and_fallback(TEST_FEATURE_FLAG)
         assert flag_value
         assert not using_fallback
+
+
+def test_make_system_cache_key_invalid():
+    insights_id = None
+    org_id = "101010191"
+    owner_id = "1919388393"
+    with raises(Exception):
+        make_system_cache_key(insights_id, org_id, owner_id)
+
+
+def test_make_system_cache_key_valid():
+    insights_id = "c89080c6-4ae8-444c-bbd0-470860397b4b"
+    org_id = "101010191"
+    owner_id = "1919388393"
+    key = make_system_cache_key(insights_id, org_id, owner_id)
+    assert key == f"insights_id={insights_id}_org={org_id}_user=SYSTEM-{owner_id}"

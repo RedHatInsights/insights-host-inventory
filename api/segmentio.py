@@ -1,13 +1,19 @@
+import os
 import re
 
 import connexion
 import segment.analytics as analytics
+from ratelimit import limits
 
 from app.auth import get_current_identity
 
 USER_AGENT_IDENTIFIER = re.compile("Mozilla|Satellite|OpenAPI-Generator|insights-client")
 
+LIMIT_CALLS = int(os.environ.get("SEGMENTIO_LIMIT_CALLS", "500"))
+LIMIT_PERIOD = int(os.environ.get("SEGMENTIO_LIMIT_PERIOD", "60"))  # seconds
 
+
+@limits(calls=LIMIT_CALLS, period=LIMIT_PERIOD)
 def segmentio_track(op_name, processing_time, contextual_data, logger):
     if analytics.write_key:
         user_agent_header = connexion.request.headers.get("User-Agent", "")

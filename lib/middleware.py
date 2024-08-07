@@ -8,7 +8,6 @@ from app_common_python import LoadedConfig
 from flask import abort
 from flask import g
 from flask import request
-from flask import Response
 from requests import Session
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
@@ -218,38 +217,3 @@ def rbac_group_id_check(rbac_filter: dict, requested_ids: set) -> None:
             joined_ids = ", ".join(disallowed_ids)
             rbac_group_permission_denied(logger, joined_ids, required_permission)
             abort(HTTPStatus.FORBIDDEN, f"You do not have access to the the following groups: {joined_ids}")
-
-
-def ensure_org_data_integrity():
-    def decorator(func):
-        @wraps(func)
-        def decorator_method(*args, **kwargs):
-            current_identity = get_current_identity()
-            result = func(*args, **kwargs)
-
-            if isinstance(result, Response):
-                data = result.get_json()
-            elif isinstance(result, tuple):
-                data = result[0]
-            else:
-                data = result
-            if isinstance(data, dict):
-                message = (
-                    f"Response contained data for another org_id. Path={request.path}, parameters={request.args}."
-                )
-                if "org_id" in data:
-                    if data.get("org_id") and (data.get("org_id") != current_identity.org_id):
-                        logger.error(message)
-                        abort(HTTPStatus.FORBIDDEN)
-                if "results" in data:
-                    results_array = data.get("results", [])
-                    for system in results_array:
-                        org_id = system.get("org_id")
-                        if org_id and (org_id != current_identity.org_id):
-                            logger.error(message)
-                            abort(HTTPStatus.FORBIDDEN)
-            return result
-
-        return decorator_method
-
-    return decorator

@@ -36,6 +36,7 @@ from app.queue.metrics import notification_event_producer_failure
 from app.queue.metrics import notification_event_producer_success
 from app.queue.metrics import rbac_access_denied
 from app.queue.notifications import NotificationType
+from lib.check_org import check_org_id
 from lib.feature_flags import init_unleash_app
 from lib.feature_flags import SchemaStrategy
 from lib.handlers import register_shutdown
@@ -55,6 +56,30 @@ SYSTEM_PROFILE_BLOCK_LIST_FILE = join(SPECIFICATION_DIR, "system_profile_block_l
 SPEC_TYPES_LOOKUP = {"string": str, "integer": int, "boolean": bool, "array": list, "object": dict}
 
 custom_filter_fields = ["operating_system"]
+
+ORG_ID_CHECK_ENDPOINTS = [
+    "api_host_get_host_list",
+    "api_host_delete_hosts_by_filter",
+    "api_host_delete_host_by_id",
+    "api_host_get_host_by_id",
+    "api_host_get_host_system_profile_by_id",
+    "api_host_patch_host_by_id",
+    "api_host_replace_facts",
+    "api_host_merge_facts",
+    "api_host_host_checkin",
+    "api_staleness_get_staleness",
+    "api_staleness_get_default_staleness",
+    "api_staleness_create_staleness",
+    "api_staleness_delete_staleness",
+    "api_staleness_update_staleness",
+    "api_group_get_group_list",
+    "api_group_create_group",
+    "api_group_patch_group_by_id",
+    "api_group_delete_groups",
+    "api_group_get_groups_by_id",
+    "api_group_delete_hosts_from_group",
+    "api_group_delete_hosts_from_different_groups",
+]
 
 
 class RbacPermission(Enum):
@@ -169,6 +194,9 @@ def process_identity_header(encoded_id_header):
         access_id = identity.get("service_account", {}).get("client_id")
     if id_type == "System":
         access_id = identity.get("system", {}).get("cn")
+    if not org_id or not access_id:
+        message = f"Invalid identity encountered; id_type={id_type} org_id={org_id}, access_id={access_id}."
+        raise Exception(message)
     return org_id, access_id
 
 
@@ -287,6 +315,12 @@ def create_app(runtime_environment):
     @flask_app.before_request
     def set_request_id():
         threadctx.request_id = request.headers.get(REQUEST_ID_HEADER)
+
+    @flask_app.after_request
+    def after_request_org_check(response):
+        if any(endpoint in request.endpoint for endpoint in ORG_ID_CHECK_ENDPOINTS):
+            response = check_org_id(response)
+        return response
 
     if runtime_environment.event_producer_enabled:
         flask_app.event_producer = EventProducer(app_config, app_config.event_topic)

@@ -7,6 +7,7 @@ from marshmallow import fields
 from marshmallow import Schema as MarshmallowSchema
 from marshmallow import validate as marshmallow_validate
 
+from app.common import inventory_config
 from app.logging import threadctx
 from app.queue.events import hostname
 from app.queue.metrics import notification_serialization_time
@@ -20,20 +21,35 @@ EventSeverity = Enum("EventSeverity", ("warning", "error", "critical"))
 
 
 # Schemas
-class EventListSchema(MarshmallowSchema):
+class BasePayloadSchema(MarshmallowSchema):
+    groups = fields.List(fields.Dict())
+    insights_id = fields.Str()
+    subscription_manager_id = fields.Str(required=True)
+    satellite_id = fields.Str(required=True)
+
+
+class BaseContextSchema(MarshmallowSchema):
+    inventory_id = fields.Str(required=True)
+    # hostname is used for consistency with other notifications; corresponds to fqnd on our model
+    hostname = fields.Str(required=True)
+    display_name = fields.Str(required=True)
+    rhel_version = fields.Str(required=True)
+    tags = fields.Raw()
+
+
+class BaseEventListSchema(MarshmallowSchema):
     metadata = fields.Dict(
         validate=marshmallow_validate.Equal({})
     )  # future-proofing as per notification documentation
-    payload = fields.Dict()
+    payload = fields.Nested(BasePayloadSchema)
 
 
-class NotificationSchema(MarshmallowSchema):
-    account_id = fields.Str(validate=marshmallow_validate.Length(min=0, max=36))  # will be removed in future PR
+class BaseNotificationSchema(MarshmallowSchema):
     org_id = fields.Str(required=True, validate=marshmallow_validate.Length(min=0, max=36))
     application = fields.Str(required=True, validate=marshmallow_validate.Equal("inventory"))
     bundle = fields.Str(required=True, validate=marshmallow_validate.Equal("rhel"))
-    context = fields.Dict()
-    events = fields.List(fields.Nested(EventListSchema()))
+    context = fields.Nested(BaseContextSchema)
+    events = fields.List(fields.Nested(BaseEventListSchema()))
     event_type = fields.Str(required=True, validate=marshmallow_validate.OneOf(NotificationType))
     timestamp = fields.DateTime(required=True, format="iso8601")
 
@@ -48,104 +64,51 @@ class HostValidationErrorContextSchema(MarshmallowSchema):
 class HostValidationErrorSchema(MarshmallowSchema):
     code = fields.Str(required=True)
     message = fields.Str(required=True, validate=marshmallow_validate.Length(max=1024))
-    stack_trace = fields.Str()
+    stack_trace = fields.Str(required=True)
     severity = fields.Str(required=True, validate=marshmallow_validate.OneOf(EventSeverity))
 
 
 class HostValidationErrorPayloadSchema(MarshmallowSchema):
     request_id = fields.Str(required=True)
     host_id = fields.UUID(required=True)
-    display_name = fields.Str()
-    canonical_facts = fields.Dict()
+    display_name = fields.Str(required=True)
+    canonical_facts = fields.Dict(required=True)
     error = fields.Nested(HostValidationErrorSchema())
 
 
-class HostValidationErrorEventListSchema(EventListSchema):
+class HostValidationErrorEventListSchema(BaseEventListSchema):
     payload = fields.Nested(HostValidationErrorPayloadSchema())
 
 
-class HostValidationErrorNotificationSchema(NotificationSchema):
+class HostValidationErrorNotificationSchema(BaseNotificationSchema):
     context = fields.Nested(HostValidationErrorContextSchema())
     events = fields.List(fields.Nested(HostValidationErrorEventListSchema()))
 
 
-# System deleted notification
-class SystemDeletedContextSchema(MarshmallowSchema):
-    inventory_id = fields.Str(required=True)
-    hostname = fields.Str(required=True)
-    display_name = fields.Str(required=True)
-    rhel_version = fields.Str(required=True)
-    tags = fields.Dict()
-
-
-class SystemDeletedPayloadSchema(MarshmallowSchema):
-    groups = fields.List(fields.Dict())
-    insights_id = fields.Str(required=True)
-    subscription_manager_id = fields.Str(required=True)
-    satellite_id = fields.Str(required=True)
-
-
-class SystemDeletedEventListSchema(EventListSchema):
-    payload = fields.Nested(SystemDeletedPayloadSchema())
-
-
-class SystemDeletedSchema(NotificationSchema):
-    context = fields.Nested(SystemDeletedContextSchema())
-    events = fields.List(fields.Nested(SystemDeletedEventListSchema()))
-
-
 # System became stale notification
-class SystemStaleContextSchema(MarshmallowSchema):
-    inventory_id = fields.Str(required=True)
-    # hostname is used for consistency with other notifications; corresponds to fqnd on our model
-    hostname = fields.Str(required=True)
-    display_name = fields.Str(required=True)
-    rhel_version = fields.Str(required=True)
+class SystemStaleContextSchema(BaseContextSchema):
     host_url = fields.Str(required=True)
-    tags = fields.Dict()
 
 
-class SystemStalePayloadSchema(MarshmallowSchema):
-    groups = fields.List(fields.Dict())
-    insights_id = fields.Str(required=True)
-    subscription_manager_id = fields.Str(required=True)
-    satellite_id = fields.Str(required=True)
-
-
-class SystemStaleEventListSchema(EventListSchema):
-    payload = fields.Nested(SystemStalePayloadSchema())
-
-
-class SystemStaleSchema(NotificationSchema):
+class SystemStaleSchema(BaseNotificationSchema):
     context = fields.Nested(SystemStaleContextSchema())
-    events = fields.List(fields.Nested(SystemStaleEventListSchema()))
 
 
 # New system registered notification
-class SystemRegisteredContextSchema(MarshmallowSchema):
-    inventory_id = fields.Str(required=True)
-    # hostname is used for consistency with other notifications; corresponds to fqdn on our model
-    hostname = fields.Str(required=True)
-    display_name = fields.Str(required=True)
-    rhel_version = fields.Str(required=True)
+class SystemRegisteredContextSchema(BaseContextSchema):
     host_url = fields.Str(required=True)
-    tags = fields.Dict()
 
 
-class SystemRegisteredPayloadSchema(MarshmallowSchema):
-    groups = fields.List(fields.Dict())
-    insights_id = fields.Str(required=True)
-    subscription_manager_id = fields.Str(required=True)
-    satellite_id = fields.Str(required=True)
+class SystemRegisteredPayloadSchema(BasePayloadSchema):
     reporter = fields.Str(required=True)
     system_check_in = fields.Str(required=True)
 
 
-class SystemRegisteredEventListSchema(EventListSchema):
+class SystemRegisteredEventListSchema(BaseEventListSchema):
     payload = fields.Nested(SystemRegisteredPayloadSchema())
 
 
-class SystemRegisteredSchema(NotificationSchema):
+class SystemRegisteredSchema(BaseNotificationSchema):
     context = fields.Nested(SystemRegisteredContextSchema())
     events = fields.List(fields.Nested(SystemRegisteredEventListSchema()))
 
@@ -160,6 +123,7 @@ def host_validation_error_notification(notification_type, host, detail, stack_tr
         },
         "events": [
             {
+                "metadata": {},
                 "payload": {
                     "request_id": threadctx.request_id,
                     "display_name": host.get("display_name"),
@@ -182,98 +146,30 @@ def host_validation_error_notification(notification_type, host, detail, stack_tr
 def system_deleted_notification(notification_type, host):
     base_notification_obj = build_base_notification_obj(notification_type, host)
 
-    canonical_facts = host.get("canonical_facts")
-    system_profile = host.get("system_profile_facts")
-    notification = {
-        "context": {
-            "inventory_id": host.get("id"),
-            "hostname": canonical_facts.get("fqdn", ""),
-            "display_name": host.get("display_name"),
-            "rhel_version": build_rhel_version_str(system_profile),
-            "tags": host.get("tags"),
-        },
-        "events": [
-            {
-                "metadata": {},
-                "payload": {
-                    "insights_id": canonical_facts.get("insights_id", ""),
-                    "subscription_manager_id": canonical_facts.get("subscription_manager_id", ""),
-                    "satellite_id": canonical_facts.get("satellite_id", ""),
-                    "groups": [{"id": group.get("id"), "name": group.get("name")} for group in host.get("groups")],
-                },
-            },
-        ],
-    }
+    notification_obj = populate_events(base_notification_obj, [host])
 
-    notification.update(base_notification_obj)
-    result = SystemDeletedSchema().dumps(notification)
+    result = BaseNotificationSchema().dumps(notification_obj)
     return result
 
 
 def system_stale_notification(notification_type, host):
     base_notification_obj = build_base_notification_obj(notification_type, host)
 
-    host_id = host.get("id")
-    canonical_facts = host.get("canonical_facts")
-    system_profile = host.get("system_profile_facts")
-    notification = {
-        "context": {
-            "inventory_id": host_id,
-            "hostname": canonical_facts.get("fqdn", ""),
-            "display_name": host.get("display_name"),
-            "rhel_version": build_rhel_version_str(system_profile),
-            "host_url": f"https://console.redhat.com/insights/inventory/{host_id}",
-            "tags": host.get("tags"),
-        },
-        "events": [
-            {
-                "metadata": {},
-                "payload": {
-                    "insights_id": canonical_facts.get("insights_id", ""),
-                    "subscription_manager_id": canonical_facts.get("subscription_manager_id", ""),
-                    "satellite_id": canonical_facts.get("satellite_id", ""),
-                    "groups": [{"id": group.get("id"), "name": group.get("name")} for group in host.get("groups")],
-                },
-            },
-        ],
-    }
+    base_notification_obj["context"]["host_url"] = f"{inventory_config().base_url_path}/hosts/{host.get('id')}"
 
-    notification.update(base_notification_obj)
-    return SystemStaleSchema().dumps(notification)
+    notification_obj = populate_events(base_notification_obj, [host], ["reporter", "system_check_in"])
+
+    return SystemStaleSchema().dumps(notification_obj)
 
 
 def system_registered_notification(notification_type, host):
     base_notification_obj = build_base_notification_obj(notification_type, host)
 
-    host_id = host.get("id")
-    canonical_facts = host.get("canonical_facts")
-    system_profile = host.get("system_profile_facts")
-    notification = {
-        "context": {
-            "inventory_id": host_id,
-            "hostname": canonical_facts.get("fqdn", ""),
-            "display_name": host.get("display_name"),
-            "rhel_version": build_rhel_version_str(system_profile),
-            "host_url": f"https://console.redhat.com/insights/inventory/{host_id}",
-            "tags": host.get("tags"),
-        },
-        "events": [
-            {
-                "metadata": {},
-                "payload": {
-                    "insights_id": canonical_facts.get("insights_id", ""),
-                    "subscription_manager_id": canonical_facts.get("subscription_manager_id", ""),
-                    "satellite_id": canonical_facts.get("satellite_id", ""),
-                    "groups": [{"id": group.get("id"), "name": group.get("name")} for group in host.get("groups")],
-                    "reporter": host.get("reporter"),
-                    "system_check_in": host.get("modified_on"),
-                },
-            },
-        ],
-    }
+    base_notification_obj["context"]["host_url"] = f"{inventory_config().base_url_path}/hosts/{host.get('id')}"
 
-    notification.update(base_notification_obj)
-    return SystemRegisteredSchema().dumps(notification)
+    notification_obj = populate_events(base_notification_obj, [host], ["reporter", "system_check_in"])
+
+    return SystemRegisteredSchema().dumps(notification_obj)
 
 
 def notification_headers(event_type: NotificationType):
@@ -294,14 +190,53 @@ def build_notification(notification_type, host, **kwargs):
 
 def build_base_notification_obj(notification_type, host):
     base_obj = {
-        "account_id": host.get("account", ""),
         "org_id": host.get("org_id"),
         "application": "inventory",
         "bundle": "rhel",
         "event_type": notification_type.name.replace("_", "-"),
         "timestamp": datetime.now(timezone.utc),
     }
-    return base_obj
+
+    if notification_type == NotificationType.validation_error:
+        return base_obj
+
+    canonical_facts = host.get("canonical_facts", deserialize_canonical_facts(host))
+
+    system_profile = host.get("system_profile_facts", host.get("system_profile", {}))
+
+    complete_base_obj = {
+        "context": {
+            "inventory_id": host.get("id"),
+            "hostname": canonical_facts.get("fqdn", ""),
+            "display_name": host.get("display_name"),
+            "rhel_version": build_rhel_version_str(system_profile),
+            "tags": host.get("tags"),
+        },
+        "events": [],
+    }
+    complete_base_obj.update(base_obj)
+    return complete_base_obj
+
+
+def populate_events(base_notification_obj, host_list, extra_fields=[]):
+    for host in host_list:
+        canonical_facts = host.get("canonical_facts", deserialize_canonical_facts(host))
+
+        event_output_obj = {
+            "metadata": {},
+            "payload": {
+                "insights_id": canonical_facts.get("insights_id", ""),
+                "subscription_manager_id": canonical_facts.get("subscription_manager_id", ""),
+                "satellite_id": canonical_facts.get("satellite_id", ""),
+                "groups": [{"id": group.get("id"), "name": group.get("name")} for group in host.get("groups")],
+            },
+        }
+
+        for field in extra_fields:
+            event_output_obj["payload"][field] = host.get(field)
+
+        base_notification_obj["events"].append(event_output_obj)
+    return base_notification_obj
 
 
 def send_notification(notification_event_producer, notification_type, host, **kwargs):

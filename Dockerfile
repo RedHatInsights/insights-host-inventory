@@ -66,7 +66,7 @@ RUN if [ "$TEST_IMAGE" = "true" ]; then \
     fi
 
 # remove devel packages that were only necessary for psycopg2 to compile
-RUN microdnf remove -y $( comm -13 packages-before-devel-install.txt packages-after-devel-install.txt ) && \
+RUN microdnf remove -y $( comm -13 packages-before-devel-install.txt packages-after-devel-install.txt ) python39-setuptools && \
     rm packages-before-devel-install.txt packages-after-devel-install.txt && \
     microdnf clean all
 
