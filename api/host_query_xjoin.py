@@ -147,7 +147,7 @@ def get_host_list_using_filters(all_filters, page, per_page, param_order_by, par
     total = response["meta"]["total"]
     check_pagination(offset, total)
 
-    return map(deserialize_host, response["data"]), total, additional_fields, system_profile_fields
+    return list(map(deserialize_host, response["data"])), total, additional_fields, system_profile_fields
 
 
 def get_host_tags_list_using_filters(all_filters, page, per_page, param_order_by, param_order_how):
