@@ -601,3 +601,27 @@ def test_get_host_tags_null_namespace_via_db(api_get, db_create_host):
 
     assert response_status == 200
     assert flattened_tag in response_data["results"][str(created_host.id)]
+
+
+@pytest.mark.parametrize(
+    "tag, flattened_tag",
+    (
+        (
+            {"insights-client": {"char-$-in-key": "50"}},
+            {"namespace": "insights-client", "key": "char-$-in-key", "value": "50"},
+        ),
+        (
+            {"insights-client": {"test-key": "char-$-in-value"}},
+            {"namespace": "insights-client", "key": "test-key", "value": "char-$-in-value"},
+        ),
+    ),
+)
+def test_get_tags_with_dollar_signs_via_db(api_get, db_create_host, tag, flattened_tag):
+    db_create_host(extra_data={"tags": tag})
+
+    url = build_tags_url(query="?search=char-$-in")
+    with patch("api.tag.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert flattened_tag == response_data["results"][0]["tag"]
