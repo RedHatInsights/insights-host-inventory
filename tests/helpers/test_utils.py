@@ -34,7 +34,7 @@ USER_IDENTITY = {
     "org_id": "test",
     "type": "User",
     "auth_type": "basic-auth",
-    "user": {"email": "tuser@redhat.com", "first_name": "test"},
+    "user": {"email": "tuser@redhat.com", "first_name": "test", "username": "tuser@redhat.com"},
 }
 
 SERVICE_ACCOUNT_IDENTITY = {
