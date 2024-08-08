@@ -1130,7 +1130,7 @@ def test_invalid_without_timezone(graphql_query, api_get):
     graphql_query(return_value=response)
     response_status, response_data = api_get(HOST_URL)
 
-    assert response_status == 500
+    assert response_status == 503
 
 
 def test_tags_headers_forwarded(mocker, patch_xjoin_post, api_get):

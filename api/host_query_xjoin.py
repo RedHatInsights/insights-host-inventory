@@ -147,7 +147,13 @@ def get_host_list_using_filters(all_filters, page, per_page, param_order_by, par
     total = response["meta"]["total"]
     check_pagination(offset, total)
 
-    return map(deserialize_host, response["data"]), total, additional_fields, system_profile_fields
+    try:
+        host_list = list(map(deserialize_host, response["data"]))
+    except ValueError as ve:
+        logger.exception("xjoin-search responded with invalid value", exc_info=ve)
+        flask.abort(503)
+
+    return host_list, total, additional_fields, system_profile_fields
 
 
 def get_host_tags_list_using_filters(all_filters, page, per_page, param_order_by, param_order_how):
