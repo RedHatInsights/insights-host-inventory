@@ -134,7 +134,7 @@ def test_handle_message_happy_path(identity, mocker, flask_app):
     assert result.event_type == EventType.created
     assert result.host_row.canonical_facts["insights_id"] == expected_insights_id
 
-    mock_notification_event_producer.write_event.assert_not_called()
+    mock_notification_event_producer.write_event.assert_called_once()
 
 
 def test_request_id_is_reset(mocker, flask_app, db_create_host):
@@ -245,7 +245,7 @@ def test_handle_message_unicode_not_damaged(mocker, flask_app, db_create_host, s
                 mocker.MagicMock(),
             )
             handle_message(message, mocker.Mock(), add_host)
-            add_host.assert_called_once_with(json.loads(message)["data"], mocker.ANY, {})
+            add_host.assert_called_once_with(json.loads(message)["data"], mocker.ANY, mocker.ANY, {})
 
 
 def test_handle_message_verify_metadata_pass_through(mq_create_or_update_host):

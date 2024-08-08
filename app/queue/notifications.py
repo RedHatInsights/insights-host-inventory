@@ -11,6 +11,7 @@ from app.common import inventory_config
 from app.logging import threadctx
 from app.queue.events import hostname
 from app.queue.metrics import notification_serialization_time
+from app.serialization import _deserialize_tags
 from app.serialization import build_rhel_version_str
 from app.serialization import deserialize_canonical_facts
 
@@ -34,7 +35,7 @@ class BaseContextSchema(MarshmallowSchema):
     hostname = fields.Str(required=True)
     display_name = fields.Str(required=True)
     rhel_version = fields.Str(required=True)
-    tags = fields.Raw()
+    tags = fields.Dict()
 
 
 class BaseEventListSchema(MarshmallowSchema):
@@ -210,7 +211,7 @@ def build_base_notification_obj(notification_type, host):
             "hostname": canonical_facts.get("fqdn", ""),
             "display_name": host.get("display_name"),
             "rhel_version": build_rhel_version_str(system_profile),
-            "tags": host.get("tags"),
+            "tags": _deserialize_tags(host.get("tags")),
         },
         "events": [],
     }
@@ -228,7 +229,7 @@ def populate_events(base_notification_obj, host_list, extra_fields=[]):
                 "insights_id": canonical_facts.get("insights_id", ""),
                 "subscription_manager_id": canonical_facts.get("subscription_manager_id", ""),
                 "satellite_id": canonical_facts.get("satellite_id", ""),
-                "groups": [{"id": group.get("id"), "name": group.get("name")} for group in host.get("groups")],
+                "groups": [{"id": group.get("id"), "name": group.get("name")} for group in host.get("groups", [])],
             },
         }
 
