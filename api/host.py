@@ -176,7 +176,7 @@ def get_host_list(
     json_data = build_paginated_host_list_response(
         total, page, per_page, host_list, additional_fields, system_profile_fields
     )
-    if is_cached_insights_client_system_query and len(host_list) == 1:
+    if is_cached_insights_client_system_query and isinstance(host_list, list) and len(host_list) == 1:
         system_key = make_system_cache_key(insights_id, current_identity.org_id, owner_id)
         output_host = serialize_host_with_params(host_list[0])
         timeout = inventory_config().cache_insights_client_system_timeout_sec
