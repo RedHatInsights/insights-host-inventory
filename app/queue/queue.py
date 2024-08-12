@@ -43,6 +43,7 @@ from app.queue import metrics
 from app.queue.event_producer import EventProducer
 from app.queue.events import build_event
 from app.queue.events import EventType
+from app.queue.events import HOST_EVENT_TYPE_CREATED
 from app.queue.events import message_headers
 from app.queue.events import operation_results_to_event_type
 from app.queue.export_service import create_export
@@ -315,12 +316,6 @@ def add_host(host_data, platform_metadata, notification_event_producer, operatio
         host_row, add_result = host_repository.add_host(input_host, identity, operation_args=operation_args)
         success_logger = partial(log_add_update_host_succeeded, logger, add_result)
 
-        send_notification(
-            notification_event_producer,
-            notification_type=NotificationType.new_system_registered,
-            host=host_data,
-        )
-
         return host_row, add_result, identity, success_logger
     except ValidationException:
         metrics.add_host_failure.labels("ValidationException", host_data.get("reporter", "null")).inc()
@@ -568,6 +563,20 @@ def event_loop(consumer, flask_app, event_producer, notification_event_producer,
                     # The above session is automatically committed or rolled back.
                     # Now we need to send out messages for the batch of hosts we just processed.
                     write_message_batch(event_producer, processed_rows)
+
+                    # Find the operation related to 'host_created' and send the notification
+                    for operation_result_obj in processed_rows:
+                        if operation_result_obj and operation_result_obj.event_type.name == HOST_EVENT_TYPE_CREATED:
+                            send_notification(
+                                notification_event_producer,
+                                notification_type=NotificationType.new_system_registered,
+                                host=serialize_host(
+                                    operation_result_obj.host_row,
+                                    staleness_timestamps=operation_result_obj.staleness_timestamps,
+                                    staleness=operation_result_obj.staleness_object,
+                                    omit_null_facts=True,
+                                ),
+                            )
                 except StaleDataError as exc:
                     metrics.ingress_message_handler_failure.inc(amount=len(messages))
                     logger.error(

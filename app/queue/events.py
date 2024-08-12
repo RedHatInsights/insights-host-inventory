@@ -18,6 +18,8 @@ logger = logging.getLogger(__name__)
 
 EventType = Enum("EventType", ("created", "updated", "delete"))
 
+HOST_EVENT_TYPE_CREATED = "created"
+
 
 def hostname():
     return os.uname().nodename
