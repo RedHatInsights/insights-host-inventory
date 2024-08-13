@@ -167,7 +167,7 @@ def get_host_id_by_insights_id(insights_id: str, rbac_filter=None) -> str:
     query = db.session.query(Host).filter(*all_filters)
     query = update_query_for_owner_id(identity, query)
 
-    found_id = query.with_entities(Host.id).first()
+    found_id = query.with_entities(Host.id).order_by(Host.modified_on.desc()).first()
     return str(found_id[0]) if found_id else None
 
 
