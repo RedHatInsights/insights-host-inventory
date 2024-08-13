@@ -454,7 +454,7 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
             _emit_patch_event(serialized_host, host)
             insights_id = host.canonical_facts.get("insights_id")
             if insights_id:
-                delete_cached_system_keys(insights_id=insights_id)
+                delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id)
 
     delete_keys(current_identity.org_id)
     log_patch_host_success(logger, host_id_list)
@@ -527,7 +527,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
             _emit_patch_event(serialized_host, host)
             insights_id = host.canonical_facts.get("insights_id")
             if insights_id:
-                delete_cached_system_keys(insights_id=insights_id)
+                delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id)
 
     logger.debug("hosts_to_update:%s", hosts_to_update)
 
@@ -597,7 +597,7 @@ def host_checkin(body, rbac_filter=None):
         _emit_patch_event(serialized_host, existing_host)
         insights_id = existing_host.canonical_facts.get("insights_id")
         if insights_id:
-            delete_cached_system_keys(insights_id=insights_id)
+            delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id)
         delete_keys(current_identity.org_id)
         return flask_json_response(serialized_host, 201)
     else:
