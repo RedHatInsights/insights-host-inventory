@@ -16,6 +16,7 @@ from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import threadctx
 from app.queue.events import EventType
+from app.queue.notifications import NotificationType
 from app.queue.queue import _validate_json_object_for_utf8
 from app.queue.queue import event_loop
 from app.queue.queue import handle_message
@@ -41,7 +42,6 @@ from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import valid_system_profile
 from tests.helpers.test_utils import YUM_REPO2
-
 
 OWNER_ID = SYSTEM_IDENTITY["system"]["cn"]
 
@@ -134,7 +134,7 @@ def test_handle_message_happy_path(identity, mocker, flask_app):
     assert result.event_type == EventType.created
     assert result.host_row.canonical_facts["insights_id"] == expected_insights_id
 
-    mock_notification_event_producer.write_event.assert_called_once()
+    mock_notification_event_producer.write_event.assert_not_called()
 
 
 def test_request_id_is_reset(mocker, flask_app, db_create_host):
@@ -968,11 +968,17 @@ def test_add_host_with_invalid_tags_2(tags, mocker, mq_create_or_update_host):
 def test_update_display_name(mq_create_or_update_host, db_get_host_by_insights_id):
     insights_id = generate_uuid()
 
-    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], display_name="test_host", insights_id=insights_id)
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"],
+        display_name="test_host",
+        insights_id=insights_id,
+    )
     mq_create_or_update_host(host)
 
     host = minimal_host(
-        account=SYSTEM_IDENTITY["account_number"], display_name="better_test_host", insights_id=insights_id
+        account=SYSTEM_IDENTITY["account_number"],
+        display_name="better_test_host",
+        insights_id=insights_id,
     )
     mq_create_or_update_host(host)
 
@@ -1795,8 +1801,18 @@ def test_add_host_with_invalid_identity(mocker, event_datetime_mock, mq_create_o
     mock_notification_event_producer.write_event.assert_called_once()
 
 
-def test_batch_mq_operations(mocker, event_producer, flask_app):
-    msg = json.dumps(wrap_message(minimal_host().data(), "add_host", get_platform_metadata()))
+def test_batch_mq_add_host_operations(mocker, event_producer, flask_app):
+    host = minimal_host(
+        insights_id=generate_uuid(),
+    ).data()
+
+    msg = json.dumps(
+        wrap_message(
+            host,
+            "add_host",
+            get_platform_metadata(),
+        )
+    )
 
     # Patch batch settings in inventory_config()
     mocker.patch(
@@ -1830,14 +1846,27 @@ def test_batch_mq_operations(mocker, event_producer, flask_app):
         }
     )
 
+    send_notification_patch = mocker.patch("app.queue.queue.send_notification")
+
+    mock_notification_event_producer = mocker.Mock()
+
+    message_handler = partial(handle_message, notification_event_producer=mock_notification_event_producer)
+
     event_loop(
         fake_consumer,
         flask_app.app,
         event_producer,
-        mocker.Mock(),
-        handler=handle_message,
+        mock_notification_event_producer,
+        handler=message_handler,
         interrupt=mocker.Mock(side_effect=([False for _ in range(8)] + [True, True])),
     )
+
+    # Validate that the send_notification message was sent,
+    # and validate its arguments.
+    send_notification_patch.assert_called()
+    assert send_notification_patch.call_args_list[-1][0][0] == mock_notification_event_producer
+    assert send_notification_patch.call_args_list[-1][1]["notification_type"] == NotificationType.new_system_registered
+    assert send_notification_patch.call_args_list[-1][1]["host"]["insights_id"] == host["insights_id"]
 
     # 12 messages were sent, but it should have only committed three times:
     # - Once after 7 messages (the batch size)
@@ -1856,7 +1885,15 @@ def test_batch_mq_header_request_id_updates(mocker, flask_app):
         request_id = generate_uuid()
         metadata["request_id"] = request_id
         request_id_list.append(request_id)
-        msg_list.append(json.dumps(wrap_message(minimal_host().data(), "add_host", metadata)))
+        msg_list.append(
+            json.dumps(
+                wrap_message(
+                    minimal_host().data(),
+                    "add_host",
+                    metadata,
+                )
+            )
+        )
 
     # Patch batch settings in inventory_config()
     mocker.patch(
@@ -1888,6 +1925,7 @@ def test_batch_mq_header_request_id_updates(mocker, flask_app):
     )
 
     event_producer_mock = mocker.Mock()
+    send_notification_patch = mocker.patch("app.queue.queue.send_notification")
 
     event_loop(
         fake_consumer,
@@ -1899,6 +1937,7 @@ def test_batch_mq_header_request_id_updates(mocker, flask_app):
     )
 
     # Should have been called once per host
+    assert send_notification_patch.call_count == 5
     assert event_producer_mock.write_event.call_count == 5
 
     for i in range(5):

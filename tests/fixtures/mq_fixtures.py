@@ -7,6 +7,8 @@ import pytest
 
 from app import db
 from app.queue.event_producer import EventProducer
+from app.queue.notifications import NotificationType
+from app.queue.notifications import send_notification
 from app.queue.queue import add_host
 from app.queue.queue import handle_message
 from app.queue.queue import write_add_update_event_message
