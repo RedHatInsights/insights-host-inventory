@@ -604,6 +604,41 @@
         }
       }
     },
+    "/host_exists": {
+      "get": {
+        "summary": "Find one host by insights_id, if it exists",
+        "description": "Find one host by insights_id, if it exists. <br /><br /> Required permissions: inventory:hosts:read",
+        "operationId": "api.host.get_host_exists",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/insightsId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Found a matching host.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostIdOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request."
+          },
+          "404": {
+            "description": "Host not found."
+          }
+        }
+      }
+    },
     "/groups": {
       "get": {
         "operationId": "api.group.get_group_list",
@@ -2625,6 +2660,16 @@
             ]
           }
         ]
+      },
+      "HostIdOut": {
+        "title": "A Host ID query result",
+        "description": "A single Host ID that belongs to a host.",
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/HostId"
+          }
+        }
       },
       "HostQueryOutput": {
         "title": "A Host Inventory query result",

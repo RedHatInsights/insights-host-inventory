@@ -10,6 +10,7 @@ from sqlalchemy.orm import Query
 from sqlalchemy.sql.expression import cast
 from sqlalchemy.sql.expression import ColumnElement
 
+from api.filtering.db_filters import canonical_fact_filter
 from api.filtering.db_filters import host_id_list_filter
 from api.filtering.db_filters import query_filters
 from api.filtering.db_filters import rbac_permissions_filter
@@ -153,6 +154,21 @@ def get_host_list_by_id_list(
     )
 
     return items, total, additional_fields, system_profile_fields
+
+
+def get_host_id_by_insights_id(insights_id: str, rbac_filter=None) -> str:
+    identity = get_current_identity()
+    all_filters = (
+        [Host.org_id == identity.org_id]
+        + canonical_fact_filter("insights_id", insights_id, True)
+        + rbac_permissions_filter(rbac_filter)
+    )
+
+    query = db.session.query(Host).filter(*all_filters)
+    query = update_query_for_owner_id(identity, query)
+
+    found_id = query.with_entities(Host.id).first()
+    return str(found_id[0]) if found_id else None
 
 
 def params_to_order_by(order_by: str = None, order_how: str = None) -> Tuple:

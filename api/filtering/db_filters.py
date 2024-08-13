@@ -38,7 +38,7 @@ logger = get_logger(__name__)
 DEFAULT_STALENESS_VALUES = ["not_culled"]
 
 
-def _canonical_fact_filter(canonical_fact: str, value, case_insensitive: bool = False) -> List:
+def canonical_fact_filter(canonical_fact: str, value, case_insensitive: bool = False) -> List:
     if case_insensitive:
         return [func.lower(Host.canonical_facts[canonical_fact].astext) == value.lower()]
     return [Host.canonical_facts[canonical_fact].astext == value]
@@ -297,18 +297,18 @@ def query_filters(
 
     filters = []
     if fqdn:
-        filters += _canonical_fact_filter("fqdn", fqdn, case_insensitive=True)
+        filters += canonical_fact_filter("fqdn", fqdn, case_insensitive=True)
     elif display_name:
         filters += _display_name_filter(display_name)
     elif hostname_or_id:
         filters += _hostname_or_id_filter(hostname_or_id)
     elif insights_id:
-        filters += _canonical_fact_filter("insights_id", insights_id, case_insensitive=True)
+        filters += canonical_fact_filter("insights_id", insights_id, case_insensitive=True)
 
     if provider_id:
-        filters += _canonical_fact_filter("provider_id", provider_id, case_insensitive=True)
+        filters += canonical_fact_filter("provider_id", provider_id, case_insensitive=True)
     if provider_type:
-        filters += _canonical_fact_filter("provider_type", provider_type)
+        filters += canonical_fact_filter("provider_type", provider_type)
     if updated_start or updated_end:
         filters += _modified_on_filter(updated_start, updated_end)
     if group_ids:

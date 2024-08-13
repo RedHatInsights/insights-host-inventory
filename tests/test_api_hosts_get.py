@@ -15,6 +15,7 @@ from tests.helpers.api_utils import assert_host_lists_equal
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_expected_host_list
 from tests.helpers.api_utils import build_fields_query_parameters
+from tests.helpers.api_utils import build_host_exists_url
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import build_order_query_parameters
 from tests.helpers.api_utils import build_system_profile_sap_sids_url
@@ -2001,3 +2002,21 @@ def test_query_hosts_multiple_os(api_get, db_create_host, subtests):
 
             assert response_status == 200
             assert response_data["count"] == expected_host_count
+
+
+def test_get_host_exists_found(db_create_host, api_get):
+    insights_id = generate_uuid()
+    created_host = db_create_host(extra_data={"canonical_facts": {"insights_id": insights_id}})
+
+    url = build_host_exists_url(insights_id)
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert response_data["id"] == str(created_host.id)
+
+
+def test_get_host_exists_not_found(api_get):
+    url = build_host_exists_url(generate_uuid())
+    response_status, _ = api_get(url)
+
+    assert response_status == 404
