@@ -222,7 +222,7 @@ def test_elevated_id_priority_order_nomatch(db_create_host, changing_id):
 def test_elevated_id_priority_order_match(db_create_host, changing_id):
     base_canonical_facts = {
         "provider_id": generate_uuid(),
-        "provider_type": ProviderType.AWS,
+        "provider_type": ProviderType.AWS.value,
         "insights_id": generate_uuid(),
         "subscription_manager_id": generate_uuid(),
     }
@@ -290,7 +290,7 @@ def test_provider_id_dup(mq_create_or_update_host, db_get_host):
     canonical_facts = {
         "subscription_manager_id": subscription_manager_id_x,
         "provider_id": provider_id,
-        "provider_type": ProviderType.AWS,
+        "provider_type": ProviderType.AWS.value,
     }
     first_host = minimal_host(**canonical_facts)
     del first_host.ip_addresses
@@ -303,7 +303,7 @@ def test_provider_id_dup(mq_create_or_update_host, db_get_host):
     canonical_facts = {
         "subscription_manager_id": subscription_manager_id_y,
         "provider_id": provider_id,
-        "provider_type": ProviderType.AWS,
+        "provider_type": ProviderType.AWS.value,
     }
     second_host = minimal_host(**canonical_facts)
     del second_host.ip_addresses
@@ -318,7 +318,7 @@ def test_provider_id_dup(mq_create_or_update_host, db_get_host):
     canonical_facts = {
         "subscription_manager_id": subscription_manager_id_y,
         "provider_id": provider_id,
-        "provider_type": ProviderType.AWS,
+        "provider_type": ProviderType.AWS.value,
     }
     third_host = minimal_host(**canonical_facts)
     del third_host.ip_addresses
@@ -334,7 +334,7 @@ def test_provider_id_dup(mq_create_or_update_host, db_get_host):
 def test_rhsm_conduit_elevated_id_priority_no_identity(mq_create_or_update_host, changing_id):
     base_canonical_facts = {
         "account": SYSTEM_IDENTITY["account_number"],
-        "provider_type": ProviderType.AWS,
+        "provider_type": ProviderType.AWS.value,
         "provider_id": generate_uuid(),
         "insights_id": generate_uuid(),
         "subscription_manager_id": generate_uuid(),
@@ -459,7 +459,7 @@ def test_find_host_using_provider_id_and_type_match(db_create_host):
     canonical_facts = {
         "insights_id": generate_uuid(),
         "provider_id": generate_uuid(),
-        "provider_type": ProviderType.AWS,
+        "provider_type": ProviderType.AWS.value,
     }
 
     search_canonical_facts = {
@@ -477,12 +477,12 @@ def test_find_host_using_provider_id_different_type_nomatch(db_create_host):
     canonical_facts = {
         "insights_id": generate_uuid(),
         "provider_id": generate_uuid(),
-        "provider_type": ProviderType.AWS,
+        "provider_type": ProviderType.AWS.value,
     }
 
     search_canonical_facts = {
         "provider_id": canonical_facts["provider_id"],
-        "provider_type": ProviderType.IBM,
+        "provider_type": ProviderType.IBM.value,
     }
 
     host = minimal_db_host(canonical_facts=canonical_facts)
@@ -495,7 +495,7 @@ def test_find_host_using_provider_id_no_type_exception(db_create_host):
     canonical_facts = {
         "insights_id": generate_uuid(),
         "provider_id": generate_uuid(),
-        "provider_type": ProviderType.AWS,
+        "provider_type": ProviderType.AWS.value,
     }
 
     search_canonical_facts = {
@@ -513,7 +513,7 @@ def test_find_host_using_provider_id_existing_with_match(db_create_host):
     canonical_facts = {
         "insights_id": generate_uuid(),
         "provider_id": generate_uuid(),
-        "provider_type": ProviderType.AWS,
+        "provider_type": ProviderType.AWS.value,
     }
 
     search_canonical_facts = {
@@ -532,7 +532,7 @@ def test_find_host_using_provider_id_existing_without_match(db_create_host):
     search_canonical_facts = {
         "insights_id": canonical_facts["insights_id"],
         "provider_id": generate_uuid(),
-        "provider_type": ProviderType.AWS,
+        "provider_type": ProviderType.AWS.value,
     }
 
     host = minimal_db_host(canonical_facts=canonical_facts)
@@ -543,8 +543,8 @@ def test_find_host_using_provider_id_existing_without_match(db_create_host):
 
 def test_find_correct_host_varying_provider_type(db_create_host, mq_create_or_update_host):
     provider_id = generate_uuid()  # common provider_id
-    aws_canonical_facts = {"provider_id": provider_id, "provider_type": ProviderType.AWS}
-    ibm_canonical_facts = {"provider_id": provider_id, "provider_type": ProviderType.IBM}
+    aws_canonical_facts = {"provider_id": provider_id, "provider_type": ProviderType.AWS.value}
+    ibm_canonical_facts = {"provider_id": provider_id, "provider_type": ProviderType.IBM.value}
 
     aws_host = db_create_host(host=minimal_db_host(canonical_facts=aws_canonical_facts))
     aws_host_id = aws_host.id
