@@ -38,7 +38,6 @@ from app.auth.identity import IdentityType
 from app.auth.identity import to_auth_header
 from app.common import inventory_config
 from app.instrumentation import get_control_rule
-from app.instrumentation import log_get_host_exists_failed
 from app.instrumentation import log_get_host_exists_succeeded
 from app.instrumentation import log_get_host_list_failed
 from app.instrumentation import log_get_host_list_succeeded
@@ -611,11 +610,7 @@ def host_checkin(body, rbac_filter=None):
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_host_exists(insights_id, rbac_filter=None):
-    try:
-        host_id = get_host_id_by_insights_id(insights_id, rbac_filter)
-    except ValueError as e:
-        log_get_host_exists_failed(logger)
-        flask.abort(400, str(e))
+    host_id = get_host_id_by_insights_id(insights_id, rbac_filter)
 
     if not host_id:
         flask.abort(404, f"No host found for Insights ID '{insights_id}'.")

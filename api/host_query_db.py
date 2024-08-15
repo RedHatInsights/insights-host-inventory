@@ -160,15 +160,15 @@ def get_host_id_by_insights_id(insights_id: str, rbac_filter=None) -> str:
     identity = get_current_identity()
     all_filters = (
         [Host.org_id == identity.org_id]
-        + canonical_fact_filter("insights_id", insights_id, True)
+        + canonical_fact_filter("insights_id", insights_id)
         + rbac_permissions_filter(rbac_filter)
     )
 
     query = db.session.query(Host).filter(*all_filters)
     query = update_query_for_owner_id(identity, query)
 
-    found_id = query.with_entities(Host.id).order_by(Host.modified_on.desc()).first()
-    return str(found_id[0]) if found_id else None
+    found_id = query.with_entities(Host.id).order_by(Host.modified_on.desc()).scalar()
+    return str(found_id) if found_id else None
 
 
 def params_to_order_by(order_by: str = None, order_how: str = None) -> Tuple:
