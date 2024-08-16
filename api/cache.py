@@ -48,6 +48,7 @@ def _delete_keys_redis(cache_key, wildcard=True):
     try:
         if not REDIS_CLIENT:
             REDIS_CLIENT = Redis(host=CACHE_CONFIG.get("CACHE_REDIS_HOST"), port=CACHE_CONFIG.get("CACHE_REDIS_PORT"))
+            logger.info("Instantiated Redis client")
         if wildcard:
             keys_to_delete = []
             # Use SCAN to find keys to delete that start with the prefix; default prefix is flask_cache_
@@ -55,8 +56,12 @@ def _delete_keys_redis(cache_key, wildcard=True):
                 keys_to_delete.append(key)
             if keys_to_delete:
                 REDIS_CLIENT.delete(*keys_to_delete)
+                logger.info(f"Deleted cache keys: {keys_to_delete}")
+            else:
+                logger.info(f"Found no matching cache keys for pattern: {CACHE_PREFIX}{cache_key}*")
         else:
             REDIS_CLIENT.delete(f"{CACHE_PREFIX}{cache_key}")
+            logger.info(f"Deleted single cache key: {CACHE_PREFIX}{cache_key}")
     except Exception as exec:
         logger.exception("Cache deletion failed", exc_info=exec)
 
@@ -67,6 +72,7 @@ def delete_keys(cache_key, wildcard=True, spawn=False):
 
     if CACHE_CONFIG and CACHE_CONFIG.get("CACHE_TYPE") == CACHE_TYPE_REDIS_CACHE and cache_key:
         if spawn and CACHE_EXECUTOR:
+            logger.info("Submitted cache-deletion callable to executor")
             CACHE_EXECUTOR.submit(_delete_keys_redis, (cache_key, wildcard))
         else:
             _delete_keys_redis(cache_key=cache_key, wildcard=wildcard)
