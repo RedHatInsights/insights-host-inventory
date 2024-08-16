@@ -73,7 +73,7 @@ def delete_keys(cache_key, wildcard=True, spawn=False):
     if CACHE_CONFIG and CACHE_CONFIG.get("CACHE_TYPE") == CACHE_TYPE_REDIS_CACHE and cache_key:
         if spawn and CACHE_EXECUTOR:
             logger.info("Submitted cache-deletion callable to executor")
-            CACHE_EXECUTOR.submit(_delete_keys_redis, (cache_key, wildcard))
+            CACHE_EXECUTOR.submit(_delete_keys_redis, cache_key, wildcard)
         else:
             _delete_keys_redis(cache_key=cache_key, wildcard=wildcard)
     else:
