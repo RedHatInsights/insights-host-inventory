@@ -429,12 +429,11 @@ def write_add_update_event_message(event_producer: EventProducer, result: Operat
 
     event_producer.write_event(event, str(result.host_row.id), headers, wait=True)
     org_id = output_host.get("org_id")
-    owner_id = output_host.get("system_profile", {}).get("owner_id")
     delete_keys(org_id, spawn=True)
-    delete_cached_system_keys(insights_id=insights_id, org_id=result.host_row.org_id, owner_id=owner_id, spawn=True)
     result.success_logger(output_host)
     if get_flag_value(FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM):
         try:
+            owner_id = output_host.get("system_profile", {}).get("owner_id")
             if owner_id and insights_id and org_id:
                 system_key = make_system_cache_key(insights_id, org_id, owner_id)
                 if "tags" in output_host:
