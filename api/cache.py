@@ -76,6 +76,14 @@ def delete_keys(cache_key, wildcard=True, spawn=False):
             CACHE_EXECUTOR.submit(_delete_keys_redis, (cache_key, wildcard))
         else:
             _delete_keys_redis(cache_key=cache_key, wildcard=wildcard)
+    else:
+        if not CACHE_CONFIG:
+            logger.info("Not deleting cache: CACHE_CONFIG is falsy")
+        elif not cache_key:
+            logger.info("Not deleting cache: cache_key is falsy")
+        else:
+            cache_type = CACHE_CONFIG.get("CACHE_TYPE")
+            logger.info(f"Not deleting cache: CACHE_TYPE '{cache_type}' != '{CACHE_TYPE_REDIS_CACHE}'")
 
 
 def delete_cached_system_keys(insights_id=None, org_id=None, owner_id=None, spawn=False):
