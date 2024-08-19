@@ -56,7 +56,7 @@ YUM_REPO2 = {"id": "repo2", "name": "repo2", "gpgcheck": True, "enabled": True, 
 SATELLITE_IDENTITY = deepcopy(SYSTEM_IDENTITY)
 SATELLITE_IDENTITY["system"]["cert_type"] = "satellite"
 
-COMPOUND_FACT_VALUES = {"provider_type": ProviderType.AWS}
+COMPOUND_FACT_VALUES = {"provider_type": ProviderType.AWS.value}
 
 
 def generate_uuid():

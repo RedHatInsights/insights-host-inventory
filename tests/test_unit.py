@@ -454,7 +454,14 @@ class ConfigTestCase(TestCase):
 
 
 @patch("app.db.init_app")
-@patch("app.Config", **{"return_value.mgmt_url_path_prefix": "/", "return_value.unleash_token": ""})
+@patch(
+    "app.Config",
+    **{
+        "return_value.mgmt_url_path_prefix": "/",
+        "return_value.unleash_token": "",
+        "return_value.api_cache_max_thread_pool_workers": 5,
+    },
+)
 class CreateAppConfigTestCase(TestCase):
     def test_config_is_assigned(self, config, init_app):
         application = create_app(RuntimeEnvironment.TEST)
@@ -1716,7 +1723,7 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
         }
         self.assertEqual(expected, actual)
 
-        serialize_canonical_facts.assert_called_once_with(host_init_data["canonical_facts"])
+        serialize_canonical_facts.assert_called_once_with(host_init_data["canonical_facts"], omit_null_facts=False)
         serialize_facts.assert_called_once_with(host_init_data["facts"])
         serialize_tags.assert_called_once_with(host_init_data["tags"])
 
