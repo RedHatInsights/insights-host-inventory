@@ -2020,3 +2020,18 @@ def test_get_host_exists_not_found(api_get):
     response_status, _ = api_get(url)
 
     assert response_status == 404
+
+
+def test_get_host_exists_error_multiple_found(db_create_host, api_get):
+    insights_id = generate_uuid()
+
+    # Create 2 hosts with the same Insights ID
+    for _ in range(2):
+        db_create_host(
+            extra_data={"canonical_facts": {"insights_id": insights_id, "subscription_manager_id": generate_uuid()}}
+        )
+
+    url = build_host_exists_url(insights_id)
+    response_status, _ = api_get(url)
+
+    assert response_status == 409

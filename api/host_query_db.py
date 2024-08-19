@@ -6,6 +6,7 @@ from typing import Tuple
 from sqlalchemy import Boolean
 from sqlalchemy import func
 from sqlalchemy import String
+from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.orm import Query
 from sqlalchemy.sql.expression import cast
 from sqlalchemy.sql.expression import ColumnElement
@@ -18,6 +19,7 @@ from api.host_query import staleness_timestamps
 from api.staleness_query import get_staleness_obj
 from app import db
 from app.auth import get_current_identity
+from app.exceptions import InventoryException
 from app.instrumentation import log_get_host_list_succeeded
 from app.logging import get_logger
 from app.models import Group
@@ -167,7 +169,14 @@ def get_host_id_by_insights_id(insights_id: str, rbac_filter=None) -> str:
     query = db.session.query(Host).filter(*all_filters)
     query = update_query_for_owner_id(identity, query)
 
-    found_id = query.with_entities(Host.id).order_by(Host.modified_on.desc()).scalar()
+    try:
+        found_id = query.with_entities(Host.id).order_by(Host.modified_on.desc()).scalar()
+    except MultipleResultsFound:
+        raise InventoryException(
+            status=409,
+            detail=f"More than one host was found with the Insights ID {insights_id}",
+        )
+
     return str(found_id) if found_id else None
 
 
