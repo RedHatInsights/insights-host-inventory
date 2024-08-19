@@ -39,7 +39,7 @@ flask-unleash = "*"
 segment-analytics-python = "*"
 flask-caching = "*"
 redis = "*"
-setuptools = "~=71.1.0"
+setuptools = "~=72.2.0"
 certifi = "~=2024.7.4"
 ratelimit = "*"
 
