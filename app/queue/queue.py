@@ -43,6 +43,7 @@ from app.queue import metrics
 from app.queue.event_producer import EventProducer
 from app.queue.events import build_event
 from app.queue.events import EventType
+from app.queue.events import HOST_EVENT_TYPE_CREATED
 from app.queue.events import message_headers
 from app.queue.events import operation_results_to_event_type
 from app.queue.export_service import create_export
@@ -280,7 +281,7 @@ def sync_event_message(message, session, event_producer):
     return
 
 
-def update_system_profile(host_data, platform_metadata, operation_args={}):
+def update_system_profile(host_data, platform_metadata, notification_event_producer=None, operation_args={}):
     try:
         input_host = deserialize_host(host_data, schema=LimitedHostSchema)
         input_host.id = host_data.get("id")
@@ -303,7 +304,7 @@ def update_system_profile(host_data, platform_metadata, operation_args={}):
         raise
 
 
-def add_host(host_data, platform_metadata, operation_args={}):
+def add_host(host_data, platform_metadata, notification_event_producer, operation_args={}):
     try:
         identity = _get_identity(host_data, platform_metadata)
         # basic-auth does not need owner_id
@@ -347,10 +348,11 @@ def handle_message(message, notification_event_producer, message_operation=add_h
         try:
             host = validated_operation_msg["data"]
             host_row, operation_result, identity, success_logger = message_operation(
-                host, platform_metadata, validated_operation_msg.get("operation_args", {})
+                host, platform_metadata, notification_event_producer, validated_operation_msg.get("operation_args", {})
             )
             staleness_timestamps = Timestamps.from_config(inventory_config())
             event_type = operation_results_to_event_type(operation_result)
+
             return OperationResult(
                 host_row,
                 platform_metadata,
@@ -561,6 +563,20 @@ def event_loop(consumer, flask_app, event_producer, notification_event_producer,
                     # The above session is automatically committed or rolled back.
                     # Now we need to send out messages for the batch of hosts we just processed.
                     write_message_batch(event_producer, processed_rows)
+
+                    # Find the operation related to 'host_created' and send the notification
+                    for operation_result_obj in processed_rows:
+                        if operation_result_obj and operation_result_obj.event_type.name == HOST_EVENT_TYPE_CREATED:
+                            send_notification(
+                                notification_event_producer,
+                                notification_type=NotificationType.new_system_registered,
+                                host=serialize_host(
+                                    operation_result_obj.host_row,
+                                    staleness_timestamps=operation_result_obj.staleness_timestamps,
+                                    staleness=operation_result_obj.staleness_object,
+                                    omit_null_facts=True,
+                                ),
+                            )
                 except StaleDataError as exc:
                     metrics.ingress_message_handler_failure.inc(amount=len(messages))
                     logger.error(

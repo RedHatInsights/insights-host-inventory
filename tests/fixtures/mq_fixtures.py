@@ -7,6 +7,8 @@ import pytest
 
 from app import db
 from app.queue.event_producer import EventProducer
+from app.queue.notifications import NotificationType
+from app.queue.notifications import send_notification
 from app.queue.queue import add_host
 from app.queue.queue import handle_message
 from app.queue.queue import write_add_update_event_message
@@ -42,6 +44,7 @@ def mq_create_or_update_host(flask_app, event_producer_mock, notification_event_
         result = handle_message(json.dumps(message), notification_event_producer, message_operation)
         db.session.commit()
         write_add_update_event_message(event_producer, result)
+        send_notification(notification_event_producer_mock, NotificationType.new_system_registered, host_data.data())
         event = json.loads(event_producer.event)
 
         if return_all_data:

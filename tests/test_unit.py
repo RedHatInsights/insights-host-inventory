@@ -1723,7 +1723,7 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
         }
         self.assertEqual(expected, actual)
 
-        serialize_canonical_facts.assert_called_once_with(host_init_data["canonical_facts"])
+        serialize_canonical_facts.assert_called_once_with(host_init_data["canonical_facts"], omit_null_facts=False)
         serialize_facts.assert_called_once_with(host_init_data["facts"])
         serialize_tags.assert_called_once_with(host_init_data["tags"])
 

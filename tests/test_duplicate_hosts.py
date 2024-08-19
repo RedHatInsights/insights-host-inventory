@@ -27,7 +27,7 @@ logger = get_logger(__name__)
 def test_delete_duplicate_host(event_producer_mock, db_create_host, db_get_host, inventory_config):
     # make two hosts that are the same
     canonical_facts = {
-        "provider_type": ProviderType.AWS,  # Doesn't matter
+        "provider_type": ProviderType.AWS.value,  # Doesn't matter
         "provider_id": generate_uuid(),
         "insights_id": generate_uuid(),
         "subscription_manager_id": generate_uuid(),
