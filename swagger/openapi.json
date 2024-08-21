@@ -635,6 +635,9 @@
           },
           "404": {
             "description": "Host not found."
+          },
+          "409": {
+            "description": "Multiple matching hosts detected."
           }
         }
       }

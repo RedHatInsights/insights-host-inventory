@@ -373,6 +373,8 @@ paths:
           description: Invalid request.
         '404':
           description: Host not found.
+        '409':
+          description: Multiple matching hosts detected.
   /groups:
     get:
       operationId: api.group.get_group_list
