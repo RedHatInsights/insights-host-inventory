@@ -1,5 +1,6 @@
 import re
 from itertools import islice
+from typing import Iterator
 from typing import List
 from typing import Tuple
 
@@ -593,22 +594,20 @@ def get_host_ids_list(
 
 def get_hosts_to_export(
     identity: object, filters: object = {}, export_format: str = "json", rbac_filter: dict = {}, batch_size: int = 0
-) -> list:
+) -> Iterator[dict]:
     st_timestamps = staleness_timestamps()
     staleness = get_staleness_obj(identity)
 
     q_filters, _ = query_filters(filter=filters, rbac_filter=rbac_filter)
     export_host_query = _find_all_hosts(identity=identity).filter(*q_filters)
     export_host_query = export_host_query.execution_options(yield_per=batch_size)
-    serialized_hosts_list = []
-    for partition in db.session.scalars(export_host_query).partitions():
-        for host in partition:
-            serialized_hosts_list.append(
-                serialize_host(
-                    host, for_mq=False, for_export_svc=True, staleness_timestamps=st_timestamps, staleness=staleness
-                )
-            )
+
+    num_hosts = export_host_query.count()
+    logger.debug(f"Number of hosts to be exported: {num_hosts}")
+
+    for host in db.session.scalars(export_host_query):
+        yield serialize_host(
+            host, for_mq=False, for_export_svc=True, staleness_timestamps=st_timestamps, staleness=staleness
+        )
 
     db.session.close()
-
-    return serialized_hosts_list
