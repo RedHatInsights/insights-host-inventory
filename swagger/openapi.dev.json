@@ -4026,6 +4026,34 @@
               }
             }
           },
+          "rhel_ai": {
+            "description": "Object containing information about RHEL AI",
+            "type": "object",
+            "properties": {
+              "variant": {
+                "description": "RHEL AI VARIANT",
+                "type": "string",
+                "example": "RHEL AI",
+                "maxLength": 7
+              },
+              "rhel_ai_version_id": {
+                "description": "RHEL AI VERSION ID",
+                "type": "string",
+                "example": "v1.1.3",
+                "maxLength": 16
+              },
+              "nvidia_gpu_models": {
+                "description": "Model name of Nvidia GPUs in the GPU index order",
+                "type": "array",
+                "items": {
+                  "description": "The Nvidia GPU model",
+                  "type": "string",
+                  "example": "Tesla V100-PCIE-16GB",
+                  "maxLength": 64
+                }
+              }
+            }
+          },
           "third_party_services": {
             "description": "Object containing information about system facts of third party services",
             "type": "object",
