@@ -588,7 +588,7 @@ def test_delete_host_that_belongs_to_group_fail(
 
     # Patch it so the DB deletion fails
     deleted_by_this_query_mock = mocker.patch("lib.host_delete._deleted_by_this_query")
-    deleted_by_this_query_mock.side_effect = False
+    deleted_by_this_query_mock.side_effect = InterruptedError()
 
     # Delete the first host
     api_delete_host(host_id_list[0])
