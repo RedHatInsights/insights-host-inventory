@@ -32,7 +32,7 @@ from lib.feature_flags import FLAG_HIDE_EDGE_HOSTS
 from lib.feature_flags import get_flag_value
 from lib.host_repository import ALL_STALENESS_STATES
 
-__all__ = ("query_filters", "host_id_list_filter", "rbac_permissions_filter")
+__all__ = ("canonical_fact_filter", "query_filters", "host_id_list_filter", "rbac_permissions_filter")
 
 logger = get_logger(__name__)
 DEFAULT_STALENESS_VALUES = ["not_culled"]
