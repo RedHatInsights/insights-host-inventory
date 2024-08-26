@@ -14,7 +14,6 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.exc import StaleDataError
 
 from api.cache import delete_cached_system_keys
-from api.cache import delete_keys
 from api.cache import set_cached_system
 from api.cache_key import make_system_cache_key
 from api.staleness_query import get_staleness_obj
@@ -396,7 +395,6 @@ def write_delete_event_message(event_producer: EventProducer, result: OperationR
         str(result.host_row.system_profile_facts.get("bootc_status", {}).get("booted") is not None),
     )
     event_producer.write_event(event, str(result.host_row.id), headers, wait=True)
-    delete_keys(result.host_row.org_id, spawn=True)
     insights_id = result.host_row.canonical_facts.get("insights_id")
     owner_id = result.host_row.system_profile_facts.get("owner_id")
     delete_cached_system_keys(insights_id=insights_id, org_id=result.host_row.org_id, owner_id=owner_id, spawn=True)
@@ -431,7 +429,6 @@ def write_add_update_event_message(event_producer: EventProducer, result: Operat
 
     event_producer.write_event(event, str(result.host_row.id), headers, wait=True)
     org_id = output_host.get("org_id")
-    delete_keys(org_id, spawn=True)
     result.success_logger(output_host)
     if get_flag_value(FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM):
         try:

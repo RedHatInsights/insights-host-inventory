@@ -12,8 +12,6 @@ from api import flask_json_response
 from api import metrics
 from api.cache import CACHE
 from api.cache import delete_cached_system_keys
-from api.cache import delete_keys
-from api.cache_key import make_key
 from api.cache_key import make_system_cache_key
 from api.host_query import build_paginated_host_list_response
 from api.host_query import staleness_timestamps
@@ -76,7 +74,6 @@ logger = get_logger(__name__)
 
 @api_operation
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
-@CACHE.cached(key_prefix=make_key)
 @metrics.api_request_time.time()
 def get_host_list(
     display_name=None,
@@ -313,7 +310,6 @@ def _delete_host_list(host_id_list, rbac_filter):
             ) as payload_tracker_processing_ctx:
                 payload_tracker_processing_ctx.inventory_id = host_id
 
-    delete_keys(current_identity.org_id)
     return len(deleted_id_list)
 
 
@@ -387,7 +383,6 @@ def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=
 
 @api_operation
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
-@CACHE.cached(key_prefix=make_key)
 @metrics.api_request_time.time()
 def get_host_system_profile_by_id(
     host_id_list, page=1, per_page=100, order_by=None, order_how=None, fields=None, rbac_filter=None
@@ -456,7 +451,6 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
             if insights_id:
                 delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id)
 
-    delete_keys(current_identity.org_id)
     log_patch_host_success(logger, host_id_list)
     return 200
 
@@ -536,7 +530,6 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
 
 @api_operation
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
-@CACHE.cached(key_prefix=make_key)
 @metrics.api_request_time.time()
 def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_how=None, rbac_filter=None):
     current_identity = get_current_identity()
@@ -557,7 +550,6 @@ def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_
 
 @api_operation
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
-@CACHE.cached(key_prefix=make_key)
 @metrics.api_request_time.time()
 def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=None, search=None, rbac_filter=None):
     current_identity = get_current_identity()
@@ -598,7 +590,6 @@ def host_checkin(body, rbac_filter=None):
         insights_id = existing_host.canonical_facts.get("insights_id")
         if insights_id:
             delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id)
-        delete_keys(current_identity.org_id)
         return flask_json_response(serialized_host, 201)
     else:
         flask.abort(404, "No hosts match the provided canonical facts.")

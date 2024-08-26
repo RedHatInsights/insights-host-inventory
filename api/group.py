@@ -11,7 +11,6 @@ from api import flask_json_response
 from api import json_error_response
 from api import metrics
 from api.cache import delete_cached_system_keys
-from api.cache import delete_keys
 from api.group_query import build_group_response
 from api.group_query import build_paginated_group_list_response
 from api.group_query import get_filtered_group_list_db
@@ -91,7 +90,6 @@ def create_group(body, rbac_filter=None):
         create_group_count.inc()
 
         current_identity = get_current_identity()
-        delete_keys(current_identity.org_id)
         delete_cached_system_keys(org_id=current_identity.org_id)
         log_create_group_succeeded(logger, created_group.id)
     except IntegrityError as inte:
@@ -149,7 +147,6 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
 
     updated_group = get_group_by_id_from_db(group_id)
     current_identity = get_current_identity()
-    delete_keys(current_identity.org_id)
     delete_cached_system_keys(org_id=current_identity.org_id)
     log_patch_group_success(logger, group_id)
     return flask_json_response(build_group_response(updated_group), HTTPStatus.OK)
@@ -168,7 +165,6 @@ def delete_groups(group_id_list, rbac_filter=None):
         abort(HTTPStatus.NOT_FOUND, "No groups found for deletion.")
 
     current_identity = get_current_identity()
-    delete_keys(current_identity.org_id)
     delete_cached_system_keys(org_id=current_identity.org_id)
     return Response(None, HTTPStatus.NO_CONTENT)
 
@@ -212,7 +208,6 @@ def delete_hosts_from_group(group_id, host_id_list, rbac_filter=None):
         abort(HTTPStatus.NOT_FOUND, "Group or hosts not found.")
 
     current_identity = get_current_identity()
-    delete_keys(current_identity.org_id)
     delete_cached_system_keys(org_id=current_identity.org_id)
     return Response(None, HTTPStatus.NO_CONTENT)
 
@@ -247,6 +242,5 @@ def delete_hosts_from_different_groups(host_id_list, rbac_filter=None):
         abort(HTTPStatus.NOT_FOUND, "The provided hosts were not found.")
 
     current_identity = get_current_identity()
-    delete_keys(current_identity.org_id)
     delete_cached_system_keys(org_id=current_identity.org_id)
     return Response(None, HTTPStatus.NO_CONTENT)

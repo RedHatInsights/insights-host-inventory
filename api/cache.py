@@ -56,7 +56,7 @@ def _delete_keys_redis(cache_key, wildcard=True):
                 keys_to_delete.append(key)
             if keys_to_delete:
                 REDIS_CLIENT.delete(*keys_to_delete)
-                logger.info(f"Deleted cache keys: {keys_to_delete}")
+                logger.info(f"Deleted cache keys count: {len(keys_to_delete)}")
             else:
                 logger.info(f"Found no matching cache keys for pattern: {CACHE_PREFIX}{cache_key}*")
         else:
