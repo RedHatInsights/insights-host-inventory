@@ -448,8 +448,8 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
             serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
             _emit_patch_event(serialized_host, host)
             insights_id = host.canonical_facts.get("insights_id")
-            if insights_id:
-                delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id)
+            owner_id = host.system_profile_facts.get("owner_id")
+            delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id, owner_id=owner_id)
 
     log_patch_host_success(logger, host_id_list)
     return 200
@@ -520,8 +520,8 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
             serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
             _emit_patch_event(serialized_host, host)
             insights_id = host.canonical_facts.get("insights_id")
-            if insights_id:
-                delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id)
+            owner_id = host.system_profile_facts.get("owner_id")
+            delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id, owner_id=owner_id)
 
     logger.debug("hosts_to_update:%s", hosts_to_update)
 
@@ -588,8 +588,8 @@ def host_checkin(body, rbac_filter=None):
         serialized_host = serialize_host(existing_host, staleness_timestamps(), staleness=staleness)
         _emit_patch_event(serialized_host, existing_host)
         insights_id = existing_host.canonical_facts.get("insights_id")
-        if insights_id:
-            delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id)
+        owner_id = existing_host.system_profile_facts.get("owner_id")
+        delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id, owner_id=owner_id)
         return flask_json_response(serialized_host, 201)
     else:
         flask.abort(404, "No hosts match the provided canonical facts.")
