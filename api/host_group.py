@@ -53,7 +53,7 @@ def add_host_list_to_group(group_id, body, rbac_filter=None):
 
     updated_group = get_group_by_id_from_db(group_id)
     current_identity = get_current_identity()
-    delete_cached_system_keys(org_id=current_identity.org_id)
+    delete_cached_system_keys(org_id=current_identity.org_id, spawn=True)
     log_host_group_add_succeeded(logger, host_id_list, group_id)
     return flask_json_response(build_group_response(updated_group), HTTPStatus.OK)
 
@@ -70,5 +70,5 @@ def delete_hosts_from_group(group_id, host_id_list, rbac_filter=None):
         abort(HTTPStatus.NOT_FOUND, "Group or hosts not found.")
 
     current_identity = get_current_identity()
-    delete_cached_system_keys(org_id=current_identity.org_id)
+    delete_cached_system_keys(org_id=current_identity.org_id, spawn=True)
     return Response(None, HTTPStatus.NO_CONTENT)
