@@ -95,7 +95,7 @@ def create_staleness(body):
     try:
         # Create account staleness with validated data
         created_staleness = add_staleness(validated_data)
-        delete_cached_system_keys(org_id=org_id)
+        delete_cached_system_keys(org_id=org_id, spawn=True)
         log_create_staleness_succeeded(logger, created_staleness.id)
     except IntegrityError:
         error_message = f"Staleness record for org_id {org_id} already exists."
@@ -118,7 +118,7 @@ def delete_staleness():
     org_id = get_current_identity().org_id
     try:
         remove_staleness()
-        delete_cached_system_keys(org_id=org_id)
+        delete_cached_system_keys(org_id=org_id, spawn=True)
         return flask_json_response(None, HTTPStatus.NO_CONTENT)
     except NoResultFound:
         abort(
@@ -149,7 +149,7 @@ def update_staleness(body):
             # since update only return None with no record instead of exception.
             raise NoResultFound
 
-        delete_cached_system_keys(org_id=org_id)
+        delete_cached_system_keys(org_id=org_id, spawn=True)
         log_patch_staleness_succeeded(logger, updated_staleness.id)
 
         return flask_json_response(serialize_staleness_response(updated_staleness), HTTPStatus.OK)
