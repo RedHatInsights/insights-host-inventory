@@ -397,7 +397,10 @@ def write_delete_event_message(event_producer: EventProducer, result: OperationR
     event_producer.write_event(event, str(result.host_row.id), headers, wait=True)
     insights_id = result.host_row.canonical_facts.get("insights_id")
     owner_id = result.host_row.system_profile_facts.get("owner_id")
-    delete_cached_system_keys(insights_id=insights_id, org_id=result.host_row.org_id, owner_id=owner_id, spawn=True)
+    if insights_id and owner_id:
+        delete_cached_system_keys(
+            insights_id=insights_id, org_id=result.host_row.org_id, owner_id=owner_id, spawn=True
+        )
     result.success_logger()
 
 
