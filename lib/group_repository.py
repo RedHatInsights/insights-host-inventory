@@ -43,7 +43,8 @@ def _update_hosts_for_group_changes(host_id_list, group_id_list=[]):
     # Update groups data on each host record
     Host.query.filter(Host.id.in_(host_id_list)).update({"groups": serialized_groups}, synchronize_session="fetch")
     db.session.commit()
-    return serialized_groups, get_host_list_by_id_list_from_db(host_id_list)
+    host_list = get_host_list_by_id_list_from_db(host_id_list)
+    return serialized_groups, host_list
 
 
 def _produce_host_update_events(event_producer, serialized_groups, host_list, staleness=None):
@@ -294,7 +295,7 @@ def patch_group(group: Group, patch_data: dict, event_producer: EventProducer):
 
         deleted_host_uuids = [str(host_id) for host_id in (existing_host_ids - new_host_ids)]
         serialized_groups, host_list = _update_hosts_for_group_changes(deleted_host_uuids, [])
-        _produce_host_update_events(event_producer, deleted_host_uuids, [], staleness=staleness)
+        _produce_host_update_events(event_producer, serialized_groups, host_list, staleness=staleness)
         _invalidate_system_cache(host_list)
 
         added_host_uuids = [str(host_id) for host_id in new_host_ids]
