@@ -1,5 +1,6 @@
 from typing import List
 
+from api.cache import delete_cached_system_keys
 from api.host_query import staleness_timestamps
 from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
@@ -59,6 +60,11 @@ def _produce_host_update_events(event_producer, host_id_list, group_id_list=[], 
         )
         event = build_event(EventType.updated, serialized_host, platform_metadata=metadata)
         event_producer.write_event(event, serialized_host["id"], headers, wait=True)
+
+    for host in host_list:
+        insights_id = host.canonical_facts.get("insights_id")
+        owner_id = host.system_profile_facts.get("owner_id")
+        delete_cached_system_keys(insights_id=insights_id, org_id=identity.org_id, owner_id=owner_id)
 
 
 def _add_hosts_to_group(group_id: str, host_id_list: List[str]):

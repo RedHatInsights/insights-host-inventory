@@ -7,12 +7,9 @@ from flask import Response
 from api import api_operation
 from api import flask_json_response
 from api import metrics
-from api.cache import delete_cached_system_keys
-from api.cache import delete_keys
 from api.group_query import build_group_response
 from app import RbacPermission
 from app import RbacResourceType
-from app.auth import get_current_identity
 from app.instrumentation import log_host_group_add_succeeded
 from app.instrumentation import log_patch_group_failed
 from app.logging import get_logger
@@ -53,9 +50,6 @@ def add_host_list_to_group(group_id, body, rbac_filter=None):
         add_hosts_to_group(group_id, body, current_app.event_producer)
 
     updated_group = get_group_by_id_from_db(group_id)
-    current_identity = get_current_identity()
-    delete_keys(current_identity.org_id)
-    delete_cached_system_keys(org_id=current_identity.org_id)
     log_host_group_add_succeeded(logger, host_id_list, group_id)
     return flask_json_response(build_group_response(updated_group), HTTPStatus.OK)
 
@@ -70,8 +64,4 @@ def delete_hosts_from_group(group_id, host_id_list, rbac_filter=None):
 
     if delete_count == 0:
         abort(HTTPStatus.NOT_FOUND, "Group or hosts not found.")
-
-    current_identity = get_current_identity()
-    delete_keys(current_identity.org_id)
-    delete_cached_system_keys(org_id=current_identity.org_id)
     return Response(None, HTTPStatus.NO_CONTENT)
