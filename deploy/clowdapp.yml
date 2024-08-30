@@ -845,9 +845,9 @@ objects:
       schedule: '@hourly'
       concurrencyPolicy: "Forbid"
       suspend: ${{REAPER_SUSPEND}}
+      restartPolicy: Never
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        restartPolicy: Never
         args: ["./host_reaper.py"]
         env:
           - name: INVENTORY_LOG_LEVEL
@@ -914,9 +914,9 @@ objects:
     - name: sp-validator
       schedule: '@hourly'
       suspend: ${{SP_VALIDATOR_SUSPEND}}
+      restartPolicy: Never
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        restartPolicy: Never
         args: ["./system_profile_validator.py"]
         env:
           - name: INVENTORY_LOG_LEVEL
@@ -995,9 +995,9 @@ objects:
     - name: pendo-syncher
       schedule: ${PENDO_CRON_SCHEDULE}
       suspend: ${{PENDO_SYNCHER_SUSPEND}}
+      restartPolicy: Never
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        restartPolicy: Never
         args: ["./pendo_syncher.py"]
         env:
           - name: INVENTORY_LOG_LEVEL
@@ -1039,9 +1039,9 @@ objects:
             cpu: ${CPU_REQUEST_PENDO_SYNCHER}
             memory: ${MEMORY_REQUEST_PENDO_SYNCHER}
     - name: synchronizer
+      restartPolicy: OnFailure
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        restartPolicy: OnFailure
         args: ["./rebuild_events_topic.py", "&&", "./host_synchronizer.py"]
         env:
           - name: INVENTORY_LOG_LEVEL
@@ -1105,9 +1105,9 @@ objects:
       schedule: ${PG_REPACK_SCHEDULE}
       concurrencyPolicy: "Forbid"
       suspend: ${{PG_REPACK_SUSPEND}}
+      restartPolicy: Never
       podSpec:
         image: ${PG_REPACK_IMAGE}:${IMAGE_TAG}
-        restartPolicy: Never
         args: ["./run_pg_repack.py"]
         env:
           - name: INVENTORY_LOG_LEVEL
