@@ -42,7 +42,7 @@ AddHostResult = Enum("AddHostResult", ("created", "updated"))
 ELEVATED_CANONICAL_FACT_FIELDS = ("provider_id", "mac_addresses", "insights_id", "subscription_manager_id")
 COMPOUND_CANONICAL_FACTS_MAP = {"provider_id": "provider_type"}
 COMPOUND_CANONICAL_FACTS = tuple(COMPOUND_CANONICAL_FACTS_MAP.values())
-IMMUTABLE_CANONICAL_FACTS = ("provider_id", "mac_addresses")
+IMMUTABLE_CANONICAL_FACTS = ("provider_id",)
 MUTABLE_CANONICAL_FACTS = tuple(set(ELEVATED_CANONICAL_FACT_FIELDS).difference(set(IMMUTABLE_CANONICAL_FACTS)))
 
 ALL_STALENESS_STATES = ("fresh", "stale", "stale_warning")
