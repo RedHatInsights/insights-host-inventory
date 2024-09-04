@@ -1,7 +1,6 @@
 from http import HTTPStatus
 
 from flask import abort
-from flask import Response
 from marshmallow import ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
@@ -23,8 +22,6 @@ from app.logging import get_logger
 from app.models import StalenessSchema
 from app.serialization import serialize_staleness_response
 from app.serialization import serialize_staleness_to_dict
-from lib.feature_flags import FLAG_INVENTORY_CUSTOM_STALENESS
-from lib.feature_flags import get_flag_value
 from lib.middleware import rbac
 from lib.staleness import add_staleness
 from lib.staleness import patch_staleness
@@ -81,9 +78,6 @@ def get_default_staleness(rbac_filter=None):
 @rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def create_staleness(body):
-    if not get_flag_value(FLAG_INVENTORY_CUSTOM_STALENESS):
-        return Response(None, HTTPStatus.NOT_IMPLEMENTED)
-
     # Validate account staleness input data
     org_id = get_current_identity().org_id
     try:
@@ -112,9 +106,6 @@ def create_staleness(body):
 @rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def delete_staleness():
-    if not get_flag_value(FLAG_INVENTORY_CUSTOM_STALENESS):
-        return Response(None, HTTPStatus.NOT_IMPLEMENTED)
-
     org_id = get_current_identity().org_id
     try:
         remove_staleness()
@@ -132,9 +123,6 @@ def delete_staleness():
 @rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def update_staleness(body):
-    if not get_flag_value(FLAG_INVENTORY_CUSTOM_STALENESS):
-        return Response(None, HTTPStatus.NOT_IMPLEMENTED)
-
     # Validate account staleness input data
     try:
         validated_data = _validate_input_data(body)
