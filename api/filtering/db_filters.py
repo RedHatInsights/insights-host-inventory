@@ -303,7 +303,7 @@ def query_filters(
     elif hostname_or_id:
         filters += _hostname_or_id_filter(hostname_or_id)
     elif insights_id:
-        filters += canonical_fact_filter("insights_id", insights_id, case_insensitive=True)
+        filters += canonical_fact_filter("insights_id", insights_id.lower())
 
     if provider_id:
         filters += canonical_fact_filter("provider_id", provider_id, case_insensitive=True)
