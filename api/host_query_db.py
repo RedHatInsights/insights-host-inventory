@@ -1,5 +1,6 @@
 import re
 from itertools import islice
+from typing import Iterator
 from typing import List
 from typing import Tuple
 
@@ -27,6 +28,7 @@ from app.models import Host
 from app.models import HostGroupAssoc
 from app.serialization import serialize_host
 from lib.host_repository import update_query_for_owner_id
+
 
 __all__ = (
     "get_all_hosts",
@@ -591,23 +593,21 @@ def get_host_ids_list(
 
 
 def get_hosts_to_export(
-    identity: object,
-    filters: object = {},
-    export_format: str = "json",
-    rbac_filter: dict = {},
-) -> list:
+    identity: object, filters: object = {}, export_format: str = "json", rbac_filter: dict = {}, batch_size: int = 0
+) -> Iterator[dict]:
     st_timestamps = staleness_timestamps()
     staleness = get_staleness_obj(identity)
 
     q_filters, _ = query_filters(filter=filters, rbac_filter=rbac_filter)
     export_host_query = _find_all_hosts(identity=identity).filter(*q_filters)
-    db.session.close()
+    export_host_query = export_host_query.execution_options(yield_per=batch_size)
 
-    serialized_hosts_list = [
-        serialize_host(
+    num_hosts = export_host_query.count()
+    logger.debug(f"Number of hosts to be exported: {num_hosts}")
+
+    for host in db.session.scalars(export_host_query):
+        yield serialize_host(
             host, for_mq=False, for_export_svc=True, staleness_timestamps=st_timestamps, staleness=staleness
         )
-        for host in export_host_query.all()
-    ]
 
-    return serialized_hosts_list
+    db.session.close()

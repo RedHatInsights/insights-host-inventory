@@ -313,6 +313,7 @@ class Config:
 
         self.host_delete_chunk_size = int(os.getenv("HOST_DELETE_CHUNK_SIZE", "1000"))
         self.script_chunk_size = int(os.getenv("SCRIPT_CHUNK_SIZE", "500"))
+        self.export_svc_batch_size = int(os.getenv("EXPORT_SVC_BATCH_SIZE", "500"))
         self.rebuild_events_time_limit = int(os.getenv("REBUILD_EVENTS_TIME_LIMIT", "3600"))  # 1 hour
         self.sp_authorized_users = os.getenv("SP_AUTHORIZED_USERS", "tuser@redhat.com").split()
         self.mq_db_batch_max_messages = int(os.getenv("MQ_DB_BATCH_MAX_MESSAGES", "1"))

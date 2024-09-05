@@ -54,15 +54,24 @@ def create_export(export_svc_data, org_id, inventory_config, operation_args={}, 
         rbac_filter = get_rbac_filter(
             RbacResourceType.HOSTS, RbacPermission.READ, identity=identity, rbac_request_headers=rbac_request_headers
         )
-        data_to_export = get_hosts_to_export(identity, export_format=exportFormat, rbac_filter=rbac_filter)
 
-        if data_to_export:
+        # create a generator with serialized host data
+        host_data = list(
+            get_hosts_to_export(
+                identity,
+                export_format=exportFormat,
+                rbac_filter=rbac_filter,
+                batch_size=inventory_config.export_svc_batch_size,
+            )
+        )
+
+        if host_data:
             logger.debug(f"Trying to upload data using URL:{request_url}")
             logger.info(
-                f"{len(data_to_export)} hosts will be exported (format: {exportFormat}) for org_id {identity.org_id}"
+                f"{len(host_data)} hosts will be exported (format: {exportFormat}) for org_id {identity.org_id}"
             )
             response = session.post(
-                url=request_url, headers=request_headers, data=_format_export_data(data_to_export, exportFormat)
+                url=request_url, headers=request_headers, data=_format_export_data(host_data, exportFormat)
             )
             _handle_export_response(response, exportFormat, exportUUID)
             return True
@@ -93,7 +102,7 @@ def create_export(export_svc_data, org_id, inventory_config, operation_args={}, 
 def _handle_export_response(response, exportFormat, exportUUID):
     if response.status_code != HTTPStatus.ACCEPTED:
         raise Exception(response.text)
-    else:
+    elif response.text != "":
         logger.info(f"{response.text} for export ID {exportUUID} in {exportFormat.upper()} format")
 
 

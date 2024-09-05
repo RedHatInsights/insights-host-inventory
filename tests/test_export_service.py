@@ -18,7 +18,7 @@ from tests.helpers.db_utils import db_host
 
 
 @mock.patch("requests.Session.post", autospec=True)
-@mock.patch("app.queue.export_service.get_hosts_to_export", return_value=es_utils.EXPORT_DATA)
+@mock.patch("app.queue.export_service.get_hosts_to_export", return_value=iter(es_utils.EXPORT_DATA))
 @mock.patch("app.queue.export_service.create_export", return_value=True)
 def test_handle_create_export_request_with_data_to_export(mock_export, mock_rbac, mock_post, flask_app):
     with flask_app.app.app_context():
