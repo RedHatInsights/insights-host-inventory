@@ -3,7 +3,7 @@
 # Prepare env
 source $(pwd)/pr_check_common.sh
 
-export IQE_MARKER_EXPRESSION="smoke"
+export IQE_MARKER_EXPRESSION="backend and smoke"
 export IQE_FILTER_EXPRESSION=""
 export IQE_CJI_TIMEOUT="30m"
 

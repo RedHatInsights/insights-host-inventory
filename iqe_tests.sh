@@ -4,7 +4,7 @@
 source $(pwd)/pr_check_common.sh
 
 export REF_ENV="insights-stage"
-export IQE_MARKER_EXPRESSION="not resilience and not cert_auth and not rbac_dependent"
+export IQE_MARKER_EXPRESSION="backend and not resilience and not cert_auth and not rbac_dependent"
 export IQE_FILTER_EXPRESSION=""
 export IQE_CJI_TIMEOUT="4h"
 export RESERVE_DURATION="4h"

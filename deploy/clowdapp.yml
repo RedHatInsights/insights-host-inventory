@@ -32,7 +32,7 @@ objects:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        image: quay.io/cloudservices/ubi8-nginx-124
+        image: quay.io/cloudservices/ubi8-nginx-124:1-24.1724231541
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -185,18 +185,18 @@ objects:
             path: /health
             port: 8000
             scheme: HTTP
-          periodSeconds: 30
+          periodSeconds: ${{INVENTORY_API_READS_LIVENESS_PROBE_PERIOD_SECONDS}}
           successThreshold: 1
-          timeoutSeconds: 60
+          timeoutSeconds: ${{INVENTORY_API_READS_LIVENESS_PROBE_TIMEOUT_SECONDS}}
         readinessProbe:
           failureThreshold: 3
           httpGet:
             path: /health
             port: 8000
             scheme: HTTP
-          periodSeconds: 30
+          periodSeconds: ${{INVENTORY_API_READS_READINESS_PROBE_PERIOD_SECONDS}}
           successThreshold: 1
-          timeoutSeconds: 60
+          timeoutSeconds: ${{INVENTORY_API_READS_READINESS_PROBE_TIMEOUT_SECONDS}}
         volumeMounts:
         - mountPath: /tmp/inventory/prometheus
           name: prometheus-volume
@@ -337,18 +337,18 @@ objects:
             path: /health
             port: 8000
             scheme: HTTP
-          periodSeconds: 30
+          periodSeconds: ${{INVENTORY_API_READS_LIVENESS_PROBE_PERIOD_SECONDS}}
           successThreshold: 1
-          timeoutSeconds: 60
+          timeoutSeconds: ${{INVENTORY_API_READS_LIVENESS_PROBE_TIMEOUT_SECONDS}}
         readinessProbe:
           failureThreshold: 3
           httpGet:
             path: /health
             port: 8000
             scheme: HTTP
-          periodSeconds: 30
+          periodSeconds: ${{INVENTORY_API_READS_READINESS_PROBE_PERIOD_SECONDS}}
           successThreshold: 1
-          timeoutSeconds: 60
+          timeoutSeconds: ${{INVENTORY_API_READS_READINESS_PROBE_TIMEOUT_SECONDS}}
         volumeMounts:
         - mountPath: /tmp/inventory/prometheus
           name: prometheus-volume
@@ -487,18 +487,18 @@ objects:
             path: /health
             port: 8000
             scheme: HTTP
-          periodSeconds: 30
+          periodSeconds: ${{INVENTORY_API_WRITES_LIVENESS_PROBE_PERIOD_SECONDS}}
           successThreshold: 1
-          timeoutSeconds: 60
+          timeoutSeconds: ${{INVENTORY_API_WRITES_LIVENESS_PROBE_TIMEOUT_SECONDS}}
         readinessProbe:
           failureThreshold: 3
           httpGet:
             path: /health
             port: 8000
             scheme: HTTP
-          periodSeconds: 30
+          periodSeconds: ${{INVENTORY_API_WRITES_READINESS_PROBE_PERIOD_SECONDS}}
           successThreshold: 1
-          timeoutSeconds: 60
+          timeoutSeconds: ${{INVENTORY_API_WRITES_READINESS_PROBE_TIMEOUT_SECONDS}}
         volumeMounts:
         - mountPath: /tmp/inventory/prometheus
           name: prometheus-volume
@@ -845,9 +845,9 @@ objects:
       schedule: '@hourly'
       concurrencyPolicy: "Forbid"
       suspend: ${{REAPER_SUSPEND}}
+      restartPolicy: Never
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        restartPolicy: Never
         args: ["./host_reaper.py"]
         env:
           - name: INVENTORY_LOG_LEVEL
@@ -914,9 +914,9 @@ objects:
     - name: sp-validator
       schedule: '@hourly'
       suspend: ${{SP_VALIDATOR_SUSPEND}}
+      restartPolicy: Never
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        restartPolicy: Never
         args: ["./system_profile_validator.py"]
         env:
           - name: INVENTORY_LOG_LEVEL
@@ -995,9 +995,9 @@ objects:
     - name: pendo-syncher
       schedule: ${PENDO_CRON_SCHEDULE}
       suspend: ${{PENDO_SYNCHER_SUSPEND}}
+      restartPolicy: Never
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        restartPolicy: Never
         args: ["./pendo_syncher.py"]
         env:
           - name: INVENTORY_LOG_LEVEL
@@ -1039,9 +1039,9 @@ objects:
             cpu: ${CPU_REQUEST_PENDO_SYNCHER}
             memory: ${MEMORY_REQUEST_PENDO_SYNCHER}
     - name: synchronizer
+      restartPolicy: OnFailure
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        restartPolicy: OnFailure
         args: ["./rebuild_events_topic.py", "&&", "./host_synchronizer.py"]
         env:
           - name: INVENTORY_LOG_LEVEL
@@ -1105,9 +1105,9 @@ objects:
       schedule: ${PG_REPACK_SCHEDULE}
       concurrencyPolicy: "Forbid"
       suspend: ${{PG_REPACK_SUSPEND}}
+      restartPolicy: Never
       podSpec:
         image: ${PG_REPACK_IMAGE}:${IMAGE_TAG}
-        restartPolicy: Never
         args: ["./run_pg_repack.py"]
         env:
           - name: INVENTORY_LOG_LEVEL
@@ -1523,6 +1523,22 @@ parameters:
   value: '10000'
 - name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
   value: '3000'
+- name: INVENTORY_API_WRITES_LIVENESS_PROBE_PERIOD_SECONDS
+  value: '30'
+- name: INVENTORY_API_WRITES_LIVENESS_PROBE_TIMEOUT_SECONDS
+  value: '60'
+- name: INVENTORY_API_READS_LIVENESS_PROBE_PERIOD_SECONDS
+  value: '30'
+- name: INVENTORY_API_READS_LIVENESS_PROBE_TIMEOUT_SECONDS
+  value: '60'
+- name: INVENTORY_API_WRITES_READINESS_PROBE_PERIOD_SECONDS
+  value: '30'
+- name: INVENTORY_API_WRITES_READINESS_PROBE_TIMEOUT_SECONDS
+  value: '60'
+- name: INVENTORY_API_READS_READINESS_PROBE_PERIOD_SECONDS
+  value: '30'
+- name: INVENTORY_API_READS_READINESS_PROBE_TIMEOUT_SECONDS
+  value: '60'
 
 # NGINX
 - displayName: Minimum replicas

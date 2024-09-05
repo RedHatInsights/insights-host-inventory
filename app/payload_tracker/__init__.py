@@ -192,8 +192,11 @@ class KafkaPayloadTracker(PayloadTracker):
 
 
 class NullProducer:
-    def send(self, topic, msg):
+    def produce(self, topic, msg):
         print(f"sending message: {topic} - {msg}")
+
+    def poll(self, timeout: float = 0.0):
+        pass  # It's not useful to know when the NullProducer polls
 
 
 class PayloadTrackerContext:

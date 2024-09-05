@@ -16,7 +16,13 @@ from app.serialization import build_rhel_version_str
 from app.serialization import deserialize_canonical_facts
 
 NotificationType = Enum(
-    "NotificationType", ("validation_error", "system_deleted", "system_became_stale", "new_system_registered")
+    "NotificationType",
+    (
+        ("validation_error", "validation-error"),
+        ("system_deleted", "system-deleted"),
+        ("new_system_registered", "new-system-registered"),
+        ("system_became_stale", "system-became-stale"),
+    ),
 )
 EventSeverity = Enum("EventSeverity", ("warning", "error", "critical"))
 
@@ -175,7 +181,7 @@ def system_registered_notification(notification_type, host):
 
 def notification_headers(event_type: NotificationType):
     return {
-        "event_type": event_type.name,
+        "event_type": event_type.value,
         "request_id": threadctx.request_id,
         "producer": hostname(),
         "rh-message-id": str(uuid.uuid4()),  # protects against duplicate processing
@@ -184,21 +190,21 @@ def notification_headers(event_type: NotificationType):
 
 def build_notification(notification_type, host, **kwargs):
     with notification_serialization_time.labels(notification_type.name).time():
-        build = NOTIFICATION_TYPE_MAP[notification_type]
-        result = build(notification_type, host, **kwargs)
+        build = NOTIFICATION_TYPE_MAP[notification_type.name]
+        result = build(notification_type.value, host, **kwargs)
         return result
 
 
-def build_base_notification_obj(notification_type, host):
+def build_base_notification_obj(notification_type: str, host: dict):
     base_obj = {
         "org_id": host.get("org_id"),
         "application": "inventory",
         "bundle": "rhel",
-        "event_type": notification_type.name.replace("_", "-"),
+        "event_type": notification_type,
         "timestamp": datetime.now(timezone.utc),
     }
 
-    if notification_type == NotificationType.validation_error:
+    if notification_type == NotificationType.validation_error.value:
         return base_obj
 
     canonical_facts = host.get("canonical_facts", deserialize_canonical_facts(host))
@@ -247,8 +253,8 @@ def send_notification(notification_event_producer, notification_type, host, **kw
 
 
 NOTIFICATION_TYPE_MAP = {
-    NotificationType.validation_error: host_validation_error_notification,
-    NotificationType.system_deleted: system_deleted_notification,
-    NotificationType.system_became_stale: system_stale_notification,
-    NotificationType.new_system_registered: system_registered_notification,
+    NotificationType.validation_error.name: host_validation_error_notification,
+    NotificationType.system_deleted.name: system_deleted_notification,
+    NotificationType.system_became_stale.name: system_stale_notification,
+    NotificationType.new_system_registered.name: system_registered_notification,
 }

@@ -4,7 +4,7 @@
 source $(pwd)/pr_check_common.sh
 
 export REF_ENV="insights-stage"
-export IQE_MARKER_EXPRESSION="rbac_dependent and not cert_auth and not service_account"
+export IQE_MARKER_EXPRESSION="backend and rbac_dependent and not cert_auth and not service_account"
 export IQE_FILTER_EXPRESSION=""
 export IQE_CJI_TIMEOUT="1h"
 export EXTRA_DEPLOY_ARGS="-p host-inventory/BYPASS_RBAC=false"
