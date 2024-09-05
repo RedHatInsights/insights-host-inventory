@@ -32,13 +32,13 @@ from lib.feature_flags import FLAG_HIDE_EDGE_HOSTS
 from lib.feature_flags import get_flag_value
 from lib.host_repository import ALL_STALENESS_STATES
 
-__all__ = ("query_filters", "host_id_list_filter", "rbac_permissions_filter")
+__all__ = ("canonical_fact_filter", "query_filters", "host_id_list_filter", "rbac_permissions_filter")
 
 logger = get_logger(__name__)
 DEFAULT_STALENESS_VALUES = ["not_culled"]
 
 
-def _canonical_fact_filter(canonical_fact: str, value, case_insensitive: bool = False) -> List:
+def canonical_fact_filter(canonical_fact: str, value, case_insensitive: bool = False) -> List:
     if case_insensitive:
         return [func.lower(Host.canonical_facts[canonical_fact].astext) == value.lower()]
     return [Host.canonical_facts[canonical_fact].astext == value]
@@ -297,7 +297,7 @@ def query_filters(
 
     filters = []
     if fqdn:
-        filters += _canonical_fact_filter("fqdn", fqdn, case_insensitive=True)
+        filters += canonical_fact_filter("fqdn", fqdn, case_insensitive=True)
     elif display_name:
         filters += _display_name_filter(display_name)
     elif hostname_or_id:
@@ -306,9 +306,9 @@ def query_filters(
         filters += _canonical_fact_filter("insights_id", insights_id.lower())
 
     if provider_id:
-        filters += _canonical_fact_filter("provider_id", provider_id, case_insensitive=True)
+        filters += canonical_fact_filter("provider_id", provider_id, case_insensitive=True)
     if provider_type:
-        filters += _canonical_fact_filter("provider_type", provider_type)
+        filters += canonical_fact_filter("provider_type", provider_type)
     if updated_start or updated_end:
         filters += _modified_on_filter(updated_start, updated_end)
     if group_ids:

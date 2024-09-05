@@ -91,6 +91,11 @@ def log_get_host_list_failed(logger):
     logger.debug("hosts not found", extra={"access_rule": get_control_rule()})
 
 
+# get single host by insights ID
+def log_get_host_exists_succeeded(logger, host_id):
+    logger.debug("Found host by insights_id: %s", host_id, extra={"access_rule": get_control_rule()})
+
+
 # get group
 def log_get_group_list_succeeded(logger, results_list):
     logger.info("Found groups: %s", results_list, extra={"access_rule": get_control_rule()})

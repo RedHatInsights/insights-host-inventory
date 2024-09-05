@@ -6,10 +6,12 @@ from typing import Tuple
 from sqlalchemy import Boolean
 from sqlalchemy import func
 from sqlalchemy import String
+from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.orm import Query
 from sqlalchemy.sql.expression import cast
 from sqlalchemy.sql.expression import ColumnElement
 
+from api.filtering.db_filters import canonical_fact_filter
 from api.filtering.db_filters import host_id_list_filter
 from api.filtering.db_filters import query_filters
 from api.filtering.db_filters import rbac_permissions_filter
@@ -17,6 +19,7 @@ from api.host_query import staleness_timestamps
 from api.staleness_query import get_staleness_obj
 from app import db
 from app.auth import get_current_identity
+from app.exceptions import InventoryException
 from app.instrumentation import log_get_host_list_succeeded
 from app.logging import get_logger
 from app.models import Group
@@ -153,6 +156,28 @@ def get_host_list_by_id_list(
     )
 
     return items, total, additional_fields, system_profile_fields
+
+
+def get_host_id_by_insights_id(insights_id: str, rbac_filter=None) -> str:
+    identity = get_current_identity()
+    all_filters = (
+        [Host.org_id == identity.org_id]
+        + canonical_fact_filter("insights_id", insights_id)
+        + rbac_permissions_filter(rbac_filter)
+    )
+
+    query = db.session.query(Host).filter(*all_filters)
+    query = update_query_for_owner_id(identity, query)
+
+    try:
+        found_id = query.with_entities(Host.id).order_by(Host.modified_on.desc()).scalar()
+    except MultipleResultsFound:
+        raise InventoryException(
+            status=409,
+            detail=f"More than one host was found with the Insights ID {insights_id}",
+        )
+
+    return str(found_id) if found_id else None
 
 
 def params_to_order_by(order_by: str = None, order_how: str = None) -> Tuple:
