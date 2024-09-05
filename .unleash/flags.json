@@ -36,22 +36,6 @@
             "createdAt": "2024-01-10T20:16:35.042Z"
         },
         {
-            "name": "hbi.custom-staleness",
-            "description": "If active, Custom host staleness/culling features will be enabled in the API and UI",
-            "type": "release",
-            "project": "default",
-            "stale": false,
-            "enabled": true,
-            "strategies": [
-                {
-                    "name": "default",
-                    "parameters": {}
-                }
-            ],
-            "variants": [],
-            "createdAt": "2024-01-10T20:18:18.842Z"
-        },
-        {
             "name": "hbi.api.hide-edge-by-default",
             "description": "If this is toggled, the HBI API will hide Edge hosts by default on all requests. If the request has a host-type filter, that is used instead.",
             "type": "release",

@@ -10,14 +10,12 @@ UNLEASH = Unleash()
 logger = get_logger(__name__)
 
 FLAG_INVENTORY_ASSIGNMENT_RULES = "hbi.group-assignment-rules"
-FLAG_INVENTORY_CUSTOM_STALENESS = "hbi.custom-staleness"
 FLAG_HIDE_EDGE_HOSTS = "hbi.api.hide-edge-by-default"
 FLAG_INVENTORY_DISABLE_XJOIN = "hbi.api.disable-xjoin"
 FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM = "hbi.api.use-cached-insights-client-system"
 
 FLAG_FALLBACK_VALUES = {
     FLAG_INVENTORY_ASSIGNMENT_RULES: True,
-    FLAG_INVENTORY_CUSTOM_STALENESS: True,
     FLAG_HIDE_EDGE_HOSTS: False,
     FLAG_INVENTORY_DISABLE_XJOIN: False,
     FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM: False,
