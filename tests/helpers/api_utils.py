@@ -19,6 +19,7 @@ BASE_URL = "/api/inventory/v1"
 LEGACY_BASE_URL = "/r/insights/platform/inventory/v1"
 ASSIGNMENT_RULE_URL = f"{BASE_URL}/assignment-rules"
 HOST_URL = f"{BASE_URL}/hosts"
+HOST_EXISTS_URL = f"{BASE_URL}/host_exists"
 LEGACY_HOST_URL = f"{LEGACY_BASE_URL}/hosts"
 GROUP_URL = f"{BASE_URL}/groups"
 TAGS_URL = f"{BASE_URL}/tags"
@@ -461,6 +462,10 @@ def build_hosts_url(host_list_or_id=None, path=None, query=None):
         host_list_or_id = build_id_list_for_url(host_list_or_id)
 
     return _build_url(id_list=host_list_or_id, path=path, query=query)
+
+
+def build_host_exists_url(insights_id):
+    return _build_url(base_url=HOST_EXISTS_URL, query=f"?insights_id={insights_id}")
 
 
 def build_host_checkin_url():
