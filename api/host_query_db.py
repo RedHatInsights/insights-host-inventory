@@ -176,7 +176,7 @@ def get_host_id_by_insights_id(insights_id: str, rbac_filter=None) -> str:
     except MultipleResultsFound:
         raise InventoryException(
             status=409,
-            detail=f"More than one host was found with the Insights ID {insights_id}",
+            detail=f"More than one host was found with the Insights ID '{insights_id}'",
         )
 
     return str(found_id) if found_id else None
