@@ -12,7 +12,7 @@ flask-sqlalchemy = "~=3.1.1"
 psycopg2 = "~=2.9.9"
 flask-migrate = "~=4.0.5"
 itsdangerous = "==2.2.0"
-gunicorn = "~=22.0.0"
+gunicorn = "~=23.0.0"
 connexion = {version = "~=3.1.0",extras = ["swagger-ui", "flask", "uvicorn"]}
 markupsafe = "==2.1.5"
 openapi-schema-validator = "==0.6.2"
