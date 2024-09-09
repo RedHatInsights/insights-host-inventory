@@ -6,10 +6,11 @@ from app.serialization import _EXPORT_SERVICE_FIELDS
 EXPORT_DATA = [
     {
         "display_name": "b4f637.foo.redhat.com",
+        "fqdn": "b4f637.foo.redhat.com",
         "group_id": None,
         "group_name": None,
-        "host_type": None,
-        "id": "80e3f012-c8e9-4435-8d84-307ff85536e4",
+        "host_type": "conventional",
+        "host_id": "80e3f012-c8e9-4435-8d84-307ff85536e4",
         "os_release": "Red Hat EL 7.0.1",
         "satellite_id": None,
         "state": "fresh",
@@ -24,10 +25,11 @@ EXPORT_DATA = [
     },
     {
         "display_name": "063406.foo.redhat.com",
+        "fqdn": "063406.foo.redhat.com",
         "group_id": None,
         "group_name": None,
-        "host_type": None,
-        "id": "c1eb8355-b00c-4b0e-af59-c691a0f88629",
+        "host_type": "conventional",
+        "host_id": "c1eb8355-b00c-4b0e-af59-c691a0f88629",
         "os_release": "Red Hat EL 7.0.1",
         "satellite_id": None,
         "state": "fresh",
@@ -42,10 +44,11 @@ EXPORT_DATA = [
     },
     {
         "display_name": "43794f.foo.redhat.com",
+        "fqdn": "43794f.foo.redhat.com",
         "group_id": None,
         "group_name": None,
-        "host_type": None,
-        "id": "c0f828f6-5efe-476e-8abc-be4e93c4098c",
+        "host_type": "conventional",
+        "host_id": "c0f828f6-5efe-476e-8abc-be4e93c4098c",
         "os_release": "Red Hat EL 7.0.1",
         "satellite_id": None,
         "state": "fresh",
@@ -151,10 +154,11 @@ def create_export_csv_mock(mocker):
 def create_export_json_mock(mocker):
     return [
         {
-            "id": mocker.ANY,
+            "host_id": mocker.ANY,
             "subscription_manager_id": mocker.ANY,
             "satellite_id": mocker.ANY,
             "display_name": mocker.ANY,
+            "fqdn": mocker.ANY,
             "group_id": mocker.ANY,
             "group_name": mocker.ANY,
             "os_release": mocker.ANY,

@@ -26,7 +26,7 @@ from app.logging import get_logger
 from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
-from app.serialization import serialize_host
+from app.serialization import serialize_host_for_export_svc
 from lib.host_repository import update_query_for_owner_id
 
 
@@ -606,8 +606,6 @@ def get_hosts_to_export(
     logger.debug(f"Number of hosts to be exported: {num_hosts}")
 
     for host in db.session.scalars(export_host_query):
-        yield serialize_host(
-            host, for_mq=False, for_export_svc=True, staleness_timestamps=st_timestamps, staleness=staleness
-        )
+        yield serialize_host_for_export_svc(host, staleness_timestamps=st_timestamps, staleness=staleness)
 
     db.session.close()

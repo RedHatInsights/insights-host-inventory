@@ -22,7 +22,8 @@ __all__ = ("deserialize_host", "serialize_host", "serialize_host_system_profile"
 
 
 _EXPORT_SERVICE_FIELDS = [
-    "id",
+    "host_id",
+    "fqdn",
     "subscription_manager_id",
     "satellite_id",
     "display_name",
@@ -70,7 +71,7 @@ ADDITIONAL_HOST_MQ_FIELDS = (
 )
 
 ADDITIONAL_EXPORT_SERVICE_FIELDS = (
-    "os_release",
+    "fqdn",
     "state",
     "tags",
     "host_type",
@@ -143,7 +144,6 @@ def serialize_host(
     additional_fields=tuple(),
     staleness=None,
     system_profile_fields=None,
-    for_export_svc=False,
     omit_null_facts=False,
 ):
     # TODO: In future, this must handle groups staleness
@@ -176,8 +176,6 @@ def serialize_host(
     fields = DEFAULT_FIELDS + additional_fields
     if for_mq:
         fields += ADDITIONAL_HOST_MQ_FIELDS
-    if for_export_svc:
-        fields += ADDITIONAL_EXPORT_SERVICE_FIELDS
 
     if "id" in fields:
         serialized_host["id"] = _serialize_uuid(host.id)
@@ -235,13 +233,6 @@ def serialize_host(
             ]
         else:
             serialized_host["groups"] = host.groups or []
-        if for_export_svc:
-            if host.groups:
-                serialized_host["group_id"] = host.groups[0]["id"]  # Assuming just one group per host
-                serialized_host["group_name"] = host.groups[0]["name"]  # Assuming just one group per host
-            else:
-                serialized_host["group_id"] = None  # Assuming just one group per host
-                serialized_host["group_name"] = None  # Assuming just one group per host
     if "os_release" in fields:
         if "os_release" in host.system_profile_facts:
             serialized_host["os_release"] = host.system_profile_facts["os_release"]
@@ -252,12 +243,37 @@ def serialize_host(
         serialized_host["state"] = Conditions.find_host_state(
             stale_timestamp=stale_timestamp, stale_warning_timestamp=stale_warning_timestamp
         )
+
     if "host_type" in fields:
         serialized_host["host_type"] = host.host_type
 
-    if for_export_svc:
-        serialized_host = {key: serialized_host[key] for key in _EXPORT_SERVICE_FIELDS}
+    return serialized_host
 
+
+def serialize_host_for_export_svc(
+    host,
+    staleness_timestamps,
+    staleness=None,
+):
+    serialized_host = serialize_host(
+        host, staleness_timestamps=staleness_timestamps, staleness=staleness, additional_fields=("os_release", "state")
+    )
+
+    serialized_host["host_id"] = _serialize_uuid(host.id)
+    serialized_host["hostname"] = host.display_name
+    if host.groups:
+        serialized_host["group_id"] = host.groups[0]["id"]  # Assuming just one group per host
+        serialized_host["group_name"] = host.groups[0]["name"]  # Assuming just one group per host
+    else:
+        serialized_host["group_id"] = None  # Assuming just one group per host
+        serialized_host["group_name"] = None  # Assuming just one group per host
+    serialized_host["host_type"] = host.host_type
+    if not host.host_type:
+        # For export service, host_type should be exported as conventional
+        # if the host is not an edge one instead of None.
+        serialized_host["host_type"] = "conventional"
+
+    serialized_host = {key: serialized_host[key] for key in _EXPORT_SERVICE_FIELDS}
     return serialized_host
 
 
