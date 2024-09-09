@@ -407,7 +407,7 @@ def write_delete_event_message(event_producer: EventProducer, result: OperationR
 def write_add_update_event_message(event_producer: EventProducer, result: OperationResult):
     # The request ID in the headers is fetched from threadctx.request_id
     request_id = result.platform_metadata.get("request_id")
-    initialize_thread_local_storage(request_id)
+    initialize_thread_local_storage(request_id, result.host_row.org_id, result.host_row.account)
 
     payload_tracker = get_payload_tracker(request_id=request_id)
 
@@ -585,5 +585,9 @@ def event_loop(consumer, flask_app, event_producer, notification_event_producer,
                     db.session.rollback()
 
 
-def initialize_thread_local_storage(request_id):
+def initialize_thread_local_storage(request_id: str, org_id: str = None, account: str = None):
     threadctx.request_id = request_id
+    if org_id:
+        threadctx.org_id = org_id
+    if account:
+        threadctx.account = account
