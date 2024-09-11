@@ -2588,9 +2588,9 @@ data:
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(aws_kafka_bytes_in_per_sec_average{topic=~'(platform-mq-stage.|platform-mq-prod)?platform.inventory.host-ingress.*'}) by (topic)",
+              "expr": "sum(aws_kafka_bytes_out_per_sec_average{topic=~'(platform-mq-stage.|platform-mq-prod)?platform.inventory.host-ingress.*'}) by (topic)",
               "interval": "1m",
-              "legendFormat": "topic",
+              "legendFormat": "{{topic}}",
               "refId": "A"
             }
           ],
@@ -2598,7 +2598,7 @@ data:
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "WIP consumed byte rate (ingress)",
+          "title": "outgoing byte rate (ingress)",
           "tooltip": {
             "shared": true,
             "sort": 0,
