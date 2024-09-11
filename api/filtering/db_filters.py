@@ -329,14 +329,9 @@ def query_filters(
 
     # Determine query_base
     if group_name or order_by == "group_name":
-        query_base = (
-            db.session.query(Host)
-            .join(HostGroupAssoc, isouter=True)
-            .join(Group, isouter=True)
-            .group_by(Host.id, Group.name)
-        )
+        query_base = db.session.query(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
     elif group_ids or rbac_filter:
-        query_base = db.session.query(Host).join(HostGroupAssoc, isouter=True).group_by(Host.id)
+        query_base = db.session.query(Host).join(HostGroupAssoc, isouter=True)
     else:
         query_base = db.session.query(Host)
 
