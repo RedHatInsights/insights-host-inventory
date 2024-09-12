@@ -1,5 +1,3 @@
-from unittest.mock import patch
-
 import pytest
 
 from app.config import Config
@@ -12,16 +10,11 @@ from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_system_profile_operating_system_url
 from tests.helpers.api_utils import build_system_profile_sap_sids_url
 from tests.helpers.api_utils import build_system_profile_sap_system_url
-from tests.helpers.api_utils import build_system_profile_url
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_URL
 from tests.helpers.api_utils import SYSTEM_PROFILE_URL
-from tests.helpers.graphql_utils import xjoin_host_response
-from tests.helpers.graphql_utils import XJOIN_INVALID_SYSTEM_PROFILE
-from tests.helpers.graphql_utils import XJOIN_SYSTEM_PROFILE_SAP_SIDS
-from tests.helpers.graphql_utils import XJOIN_SYSTEM_PROFILE_SAP_SYSTEM
 from tests.helpers.mq_utils import create_kafka_consumer_mock
 from tests.helpers.system_profile_utils import system_profile_specification
 from tests.helpers.test_utils import generate_uuid
@@ -31,21 +24,6 @@ from tests.helpers.test_utils import valid_system_profile
 
 
 OWNER_ID = SYSTEM_IDENTITY["system"]["cn"]
-
-
-# system_profile tests
-def test_system_profile_includes_owner_id(api_get, patch_xjoin_post):
-    host_id = generate_uuid()
-    response = xjoin_host_response("2021-02-10T08:07:03Z")
-    response["hosts"]["data"][0]["id"] = host_id
-    patch_xjoin_post({"data": response})
-
-    url = build_system_profile_url(host_list_or_id=host_id)
-
-    response_status, response_data = api_get(url)
-
-    assert "owner_id" in response_data["results"][0]["system_profile"]
-    assert response_status == 200
 
 
 @pytest.mark.parametrize(
@@ -90,40 +68,7 @@ def test_system_profile_valid_date_format(mq_create_or_update_host, boot_time):
     mq_create_or_update_host(host)
 
 
-# sap endpoint tests
-def test_system_profile_sap_system_endpoint_response(
-    mocker, graphql_system_profile_sap_system_query_with_response, api_get
-):
-    url = build_system_profile_sap_system_url()
-
-    response_status, response_data = api_get(url)
-
-    assert response_status == 200
-    assert response_data["results"] == XJOIN_SYSTEM_PROFILE_SAP_SYSTEM["hostSystemProfile"]["sap_system"]["data"]
-    assert (
-        response_data["total"] == XJOIN_SYSTEM_PROFILE_SAP_SYSTEM["hostSystemProfile"]["sap_system"]["meta"]["total"]
-    )
-    assert (
-        response_data["count"] == XJOIN_SYSTEM_PROFILE_SAP_SYSTEM["hostSystemProfile"]["sap_system"]["meta"]["count"]
-    )
-
-
-def test_system_profile_sap_sids_endpoint_response(
-    mocker, graphql_system_profile_sap_sids_query_with_response, api_get
-):
-    url = build_system_profile_sap_sids_url()
-
-    response_status, response_data = api_get(url)
-
-    assert response_status == 200
-    assert response_data["results"] == XJOIN_SYSTEM_PROFILE_SAP_SIDS["hostSystemProfile"]["sap_sids"]["data"]
-    assert response_data["total"] == XJOIN_SYSTEM_PROFILE_SAP_SIDS["hostSystemProfile"]["sap_sids"]["meta"]["total"]
-    assert response_data["count"] == XJOIN_SYSTEM_PROFILE_SAP_SIDS["hostSystemProfile"]["sap_sids"]["meta"]["count"]
-
-
-def test_get_system_profile_sap_system_with_RBAC_allowed(
-    subtests, mocker, graphql_system_profile_sap_system_query_with_response, api_get, enable_rbac
-):
+def test_get_system_profile_sap_system_with_RBAC_allowed(subtests, mocker, api_get, enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     url = build_system_profile_sap_system_url()
@@ -138,9 +83,7 @@ def test_get_system_profile_sap_system_with_RBAC_allowed(
             assert_response_status(response_status, 200)
 
 
-def test_get_system_profile_sap_sids_with_RBAC_allowed(
-    subtests, mocker, graphql_system_profile_sap_sids_query_with_response, api_get, enable_rbac
-):
+def test_get_system_profile_sap_sids_with_RBAC_allowed(subtests, mocker, api_get, enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     url = build_system_profile_sap_sids_url()
@@ -171,9 +114,7 @@ def test_get_system_profile_with_RBAC_denied(subtests, mocker, api_get, enable_r
                 assert_response_status(response_status, 403)
 
 
-def test_get_system_profile_sap_system_with_RBAC_bypassed_as_system(
-    graphql_system_profile_sap_system_query_with_response, api_get, enable_rbac
-):
+def test_get_system_profile_sap_system_with_RBAC_bypassed_as_system(api_get, enable_rbac):
     url = build_system_profile_sap_system_url()
 
     response_status, response_data = api_get(url, SYSTEM_IDENTITY)
@@ -181,9 +122,7 @@ def test_get_system_profile_sap_system_with_RBAC_bypassed_as_system(
     assert_response_status(response_status, 200)
 
 
-def test_get_system_profile_sap_sids_with_RBAC_bypassed_as_system(
-    graphql_system_profile_sap_sids_query_with_response, api_get, enable_rbac
-):
+def test_get_system_profile_sap_sids_with_RBAC_bypassed_as_system(api_get, enable_rbac):
     url = build_system_profile_sap_sids_url()
 
     response_status, response_data = api_get(url, SYSTEM_IDENTITY)
@@ -223,15 +162,6 @@ def test_get_system_profile_RBAC_denied(mocker, subtests, api_get, enable_rbac):
 
             assert_response_status(response_status, 403)
             find_hosts_by_staleness_mock.assert_not_called()
-
-
-def test_get_host_with_invalid_system_profile(api_get, patch_xjoin_post):
-    # patch xjoin post to respond with graphql_utils.XJOIN_INVALID_SYSTEM_PROFILE
-    patch_xjoin_post(XJOIN_INVALID_SYSTEM_PROFILE)
-    url = build_system_profile_url(host_list_or_id=generate_uuid())
-    response_status, _ = api_get(url)
-
-    assert_response_status(response_status, 500)
 
 
 def test_get_system_profile_of_host_that_does_not_exist(api_get):
@@ -371,11 +301,10 @@ def test_system_profile_operating_system(mq_create_or_update_host, api_get):
         else:
             os_dict[os_datum_name]["count"] += 1
 
-    with patch("api.system_profile.get_flag_value", return_value=True):
-        # Validate the basics, i.e. response code and results size
-        response_status, response_data = api_get(url)
-        assert response_status == 200
-        assert len(os_list) == len(response_data["results"])
+    # Validate the basics, i.e. response code and results size
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    assert len(os_list) == len(response_data["results"])
 
     for index in range(len(os_list)):
         item = response_data["results"][index]
@@ -409,11 +338,10 @@ def test_system_profile_sap_system(mq_create_or_update_host, api_get):
         else:
             not_sap_list.append(datum)
 
-    with patch("api.system_profile.get_flag_value", return_value=True):
-        # Validate the basics, i.e. response code and results size
-        response_status, response_data = api_get(url)
-        assert response_status == 200
-        assert len(set(ordered_sap_system_data)) == len(response_data["results"])
+    # Validate the basics, i.e. response code and results size
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    assert len(set(ordered_sap_system_data)) == len(response_data["results"])
 
     for index in range(len(response_data["results"])):
         item = response_data["results"][index]
@@ -442,11 +370,10 @@ def test_system_profile_sap_sids(mq_create_or_update_host, api_get):
 
     expected_counts = {"ABC": 2, "HZO": 1, "XYZ": 2}
 
-    with patch("api.system_profile.get_flag_value", return_value=True):
-        # Validate the basics, i.e. response code and results size
-        response_status, response_data = api_get(url)
-        assert response_status == 200
-        assert len(expected_counts.keys()) == len(response_data["results"])
+    # Validate the basics, i.e. response code and results size
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    assert len(expected_counts.keys()) == len(response_data["results"])
 
     for index in range(len(response_data["results"])):
         item = response_data["results"][index]
@@ -473,11 +400,10 @@ def test_system_profile_sap_sids_with_search(mq_create_or_update_host, api_get):
 
     expected_counts = {"ABC": 2}
 
-    with patch("api.system_profile.get_flag_value", return_value=True):
-        # Validate the basics, i.e. response code and results size
-        response_status, response_data = api_get(url)
-        assert response_status == 200
-        assert len(expected_counts.keys()) == len(response_data["results"])
+    # Validate the basics, i.e. response code and results size
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    assert len(expected_counts.keys()) == len(response_data["results"])
 
     for index in range(len(response_data["results"])):
         item = response_data["results"][index]

@@ -270,6 +270,9 @@ def build_single_text_filter(filter_param: dict) -> str:
         if not pg_op:
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter)
 
+        if pg_op == "?" and field_filter != "array":
+            raise ValidationException(f"'contains' is an invalid operation for non-array field {field_name}")
+
         value = escape_sql_from_string_val(value, pg_op)
 
         # Handle wildcard fields (use ILIKE, replace * with %)
@@ -286,8 +289,10 @@ def build_single_text_filter(filter_param: dict) -> str:
         # Put value in quotes if appropriate for the field type and operation
         if field_filter in ["wildcard", "string", "timestamp", "array"] and pg_op != "IS":
             value = f"'{value}'"
-        elif value == "" or (
-            field_filter == "integer" and (not value.isdigit() and value not in ["NULL", "NOT NULL"])
+        elif (
+            value == ""
+            or (field_filter == "integer" and (not value.isdigit() and value not in ["NULL", "NOT NULL"]))
+            or (field_filter == "boolean" and value.lower() not in ["true", "false"])
         ):
             raise ValidationException(f"'{value}' is an invalid value for field {field_name}")
 
