@@ -606,6 +606,9 @@
     },
     "/host_exists": {
       "get": {
+        "tags": [
+          "hosts"
+        ],
         "summary": "Find one host by insights_id, if it exists",
         "description": "Find one host by insights_id, if it exists. <br /><br /> Required permissions: inventory:hosts:read",
         "operationId": "api.host.get_host_exists",
