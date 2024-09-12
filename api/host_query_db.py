@@ -85,15 +85,16 @@ def _get_host_list_using_filters(
     else:
         additional_fields = tuple()
 
-    host_query = (
-        _find_all_hosts(query_base=query_base, columns=columns)
-        .filter(*all_filters)
-        .order_by(*params_to_order_by(param_order_by, param_order_how))
-    )
-    query_results = host_query.paginate(page=page, per_page=per_page, error_out=True)
+    base_query = _find_all_hosts(query_base=query_base, columns=columns).filter(*all_filters)
+    host_query = base_query.order_by(*params_to_order_by(param_order_by, param_order_how))
+
+    # Count separately because the COUNT done by .paginate() is inefficient
+    count_total = base_query.with_entities(func.count()).scalar()
+
+    query_results = host_query.paginate(page=page, per_page=per_page, error_out=True, count=False)
     db.session.close()
 
-    return query_results.items, query_results.total, additional_fields, system_profile_fields
+    return query_results.items, count_total, additional_fields, system_profile_fields
 
 
 def get_host_list(
@@ -235,12 +236,7 @@ def _order_how(column, order_how: str):
 
 def _find_all_hosts(query_base=None, columns: List[ColumnElement] = None, identity: object = None) -> Query:
     if query_base is None:
-        query_base = (
-            db.session.query(Host)
-            .join(HostGroupAssoc, isouter=True)
-            .join(Group, isouter=True)
-            .group_by(Host.id, Group.name)
-        )
+        query_base = db.session.query(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
 
     if not identity:
         identity = get_current_identity()
