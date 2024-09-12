@@ -8,6 +8,7 @@ from sqlalchemy import Boolean
 from sqlalchemy import func
 from sqlalchemy import String
 from sqlalchemy.exc import MultipleResultsFound
+from sqlalchemy.orm import load_only
 from sqlalchemy.orm import Query
 from sqlalchemy.sql.expression import cast
 from sqlalchemy.sql.expression import ColumnElement
@@ -234,7 +235,9 @@ def _order_how(column, order_how: str):
         raise ValueError('Unsupported ordering direction, use "ASC" or "DESC".')
 
 
-def _find_all_hosts(query_base=None, columns: List[ColumnElement] = None, identity: object = None) -> Query:
+def _find_all_hosts(
+    query_base=None, columns: List[ColumnElement] = None, identity: object = None, load_only_option: bool = False
+) -> Query:
     if query_base is None:
         query_base = db.session.query(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
 
@@ -243,7 +246,10 @@ def _find_all_hosts(query_base=None, columns: List[ColumnElement] = None, identi
 
     query = query_base.filter(Host.org_id == identity.org_id)
     if columns:
-        query = query.with_entities(*columns)
+        if load_only_option:
+            query = query.options(load_only(*columns))
+        else:
+            query = query.with_entities(*columns)
     return update_query_for_owner_id(identity, query)
 
 
@@ -595,7 +601,20 @@ def get_hosts_to_export(
     staleness = get_staleness_obj(identity)
 
     q_filters, _ = query_filters(filter=filters, rbac_filter=rbac_filter)
-    export_host_query = _find_all_hosts(identity=identity).filter(*q_filters)
+    columns = [
+        Host.id,
+        Host.account,
+        Host.org_id,
+        Host.display_name,
+        Host.host_type,
+        Host.system_profile_facts,
+        Host.modified_on,
+        Host.facts,
+        Host.reporter,
+        Host.created_on,
+        Host.groups,
+    ]
+    export_host_query = _find_all_hosts(identity=identity, columns=columns, load_only_option=True).filter(*q_filters)
     export_host_query = export_host_query.execution_options(yield_per=batch_size)
 
     num_hosts = export_host_query.count()
