@@ -292,7 +292,7 @@ def build_single_text_filter(filter_param: dict) -> str:
         elif (
             value == ""
             or (field_filter == "integer" and (not value.isdigit() and value not in ["NULL", "NOT NULL"]))
-            or (field_filter == "boolean" and value.lower() not in ["true", "false"])
+            or (field_filter == "boolean" and value.lower() not in ["true", "false", "null", "not null"])
         ):
             raise ValidationException(f"'{value}' is an invalid value for field {field_name}")
 
