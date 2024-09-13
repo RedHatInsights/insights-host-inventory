@@ -74,7 +74,7 @@ def create_export_message_mock():
             "specversion": "1.0",
             "type": "com.redhat.console.export-service.request",
             "time": "2024-05-28T14:59:36Z",
-            "redhatorgid": "5894300",
+            "redhatorgid": "test",
             "dataschema": "https://console.redhat.com/api/schemas/apps/export-service/v1/resource-request.json",
             "data": {
                 "resource_request": {
@@ -109,7 +109,7 @@ def create_export_message_missing_field_mock(field_to_remove):
         "specversion": "1.0",
         "type": "com.redhat.console.export-service.request",
         "time": "2024-05-28T14:59:36Z",
-        "redhatorgid": "5894300",
+        "redhatorgid": "test",
         "dataschema": "https://console.redhat.com/api/schemas/apps/export-service/v1/resource-request.json",
         "data": {
             "resource_request": {

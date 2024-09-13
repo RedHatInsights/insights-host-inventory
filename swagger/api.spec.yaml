@@ -352,6 +352,8 @@ paths:
           description: Invalid request.
   '/host_exists':
     get:
+      tags:
+        - hosts
       summary: Find one host by insights_id, if it exists
       description: >-
         Find one host by insights_id, if it exists.

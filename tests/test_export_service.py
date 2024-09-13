@@ -18,6 +18,17 @@ from tests.helpers.db_utils import db_host
 
 
 @mock.patch("requests.Session.post", autospec=True)
+def test_handle_create_export_happy_path(mock_post, db_create_host, flask_app):
+    with flask_app.app.app_context():
+        db_create_host()
+        config = flask_app.app.config.get("INVENTORY_CONFIG")
+        export_message = es_utils.create_export_message_mock()
+        mock_post.return_value.status_code = 202
+        resp = handle_export_message(message=export_message, inventory_config=config)
+        assert resp is True
+
+
+@mock.patch("requests.Session.post", autospec=True)
 @mock.patch("app.queue.export_service.get_hosts_to_export", return_value=iter(es_utils.EXPORT_DATA))
 @mock.patch("app.queue.export_service.create_export", return_value=True)
 def test_handle_create_export_request_with_data_to_export(mock_export, mock_rbac, mock_post, flask_app):
