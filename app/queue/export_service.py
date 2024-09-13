@@ -23,17 +23,21 @@ logger = get_logger(__name__)
 HEADER_CONTENT_TYPE = {"json": "application/json", "csv": "text/csv"}
 
 
-@metrics.create_export_processing_time.time()
-def create_export(export_svc_data, org_id, inventory_config, operation_args={}, rbac_filter={}):
-    identity = create_mock_identity_with_org_id(org_id)
-
-    metrics.create_export_count.inc()
-    logger.info("Creating export for HBI")
-
+def extract_export_svc_data(export_svc_data):
     exportFormat = export_svc_data["data"]["resource_request"]["format"]
     exportUUID = export_svc_data["data"]["resource_request"]["export_request_uuid"]
     applicationName = export_svc_data["data"]["resource_request"]["application"]
     resourceUUID = export_svc_data["data"]["resource_request"]["uuid"]
+    x_rh_identity = export_svc_data["data"]["resource_request"]["x_rh_identity"]
+
+    return exportFormat, exportUUID, applicationName, resourceUUID, x_rh_identity
+
+
+def build_headers(x_rh_identity, exportUUID, inventory_config, exportFormat):
+    rbac_request_headers = {
+        IDENTITY_HEADER: x_rh_identity,
+        REQUEST_ID_HEADER: str(exportUUID),
+    }
 
     # x-rh-exports-psk must be an env variable
     request_headers = {
@@ -42,9 +46,36 @@ def create_export(export_svc_data, org_id, inventory_config, operation_args={}, 
     }
 
     rbac_request_headers = {
-        IDENTITY_HEADER: export_svc_data["data"]["resource_request"]["x_rh_identity"],
+        IDENTITY_HEADER: x_rh_identity,
         REQUEST_ID_HEADER: str(exportUUID),
     }
+
+    return rbac_request_headers, request_headers
+
+
+def get_host_list(identity, exportFormat, rbac_filter, inventory_config):
+    host_data = list(
+        get_hosts_to_export(
+            identity,
+            export_format=exportFormat,
+            rbac_filter=rbac_filter,
+            batch_size=inventory_config.export_svc_batch_size,
+        )
+    )
+
+    return host_data
+
+
+@metrics.create_export_processing_time.time()
+def create_export(export_svc_data, org_id, inventory_config, operation_args={}, rbac_filter={}):
+    identity = create_mock_identity_with_org_id(org_id)
+
+    metrics.create_export_count.inc()
+    logger.info("Creating export for HBI")
+
+    exportFormat, exportUUID, applicationName, resourceUUID, x_rh_identity = extract_export_svc_data(export_svc_data)
+
+    rbac_request_headers, request_headers = build_headers(x_rh_identity, exportUUID, inventory_config, exportFormat)
 
     allowed, rbac_filter = get_rbac_filter(
         RbacResourceType.HOSTS, RbacPermission.READ, identity=identity, rbac_request_headers=rbac_request_headers
@@ -67,18 +98,11 @@ def create_export(export_svc_data, org_id, inventory_config, operation_args={}, 
             exportFormat,
         )
         return False
-
+    
     session = Session()
     try:
         # create a generator with serialized host data
-        host_data = list(
-            get_hosts_to_export(
-                identity,
-                export_format=exportFormat,
-                rbac_filter=rbac_filter,
-                batch_size=inventory_config.export_svc_batch_size,
-            )
-        )
+        host_data = get_host_list(identity, exportFormat, rbac_filter, inventory_config)
 
         request_url = _build_export_request_url(
             export_service_endpoint, exportUUID, applicationName, resourceUUID, "upload"
