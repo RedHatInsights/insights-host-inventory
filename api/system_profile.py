@@ -9,9 +9,9 @@ from api import custom_escape
 from api import flask_json_response
 from api import metrics
 from api import pagination_params
-from api.host_query_db import get_os_info as get_os_info_db
-from api.host_query_db import get_sap_sids_info as get_sap_sids_info_db
-from api.host_query_db import get_sap_system_info as get_sap_system_info_db
+from api.host_query_db import get_os_info
+from api.host_query_db import get_sap_sids_info
+from api.host_query_db import get_sap_system_info
 from app import RbacPermission
 from app import RbacResourceType
 from app.auth import get_current_identity
@@ -33,7 +33,7 @@ logger = get_logger(__name__)
 def get_sap_system(
     tags=None, page=None, per_page=None, staleness=None, registered_with=None, filter=None, rbac_filter=None
 ):
-    results, total = get_sap_system_info_db(
+    results, total = get_sap_system_info(
         page,
         per_page,
         staleness=staleness,
@@ -65,7 +65,7 @@ def get_sap_sids(
         # Escaped so that the string literals are not interpreted as regex
         escaped_search = f".*{custom_escape(search)}.*"
 
-    results, total = get_sap_sids_info_db(
+    results, total = get_sap_sids_info(
         limit,
         offset,
         staleness=staleness,
@@ -92,7 +92,7 @@ def get_operating_system(
     rbac_filter=None,
 ):
     limit, offset = pagination_params(page, per_page)
-    results, total = get_os_info_db(
+    results, total = get_os_info(
         limit,
         offset,
         staleness=staleness,
