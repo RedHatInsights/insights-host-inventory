@@ -32,29 +32,39 @@ def create_export(export_svc_data, org_id, inventory_config, operation_args={}, 
     applicationName = export_svc_data["data"]["resource_request"]["application"]
     resourceUUID = export_svc_data["data"]["resource_request"]["uuid"]
 
-    rbac_request_headers = {
-        IDENTITY_HEADER: export_svc_data["data"]["resource_request"]["x_rh_identity"],
-        REQUEST_ID_HEADER: str(exportUUID),
-    }
-
     # x-rh-exports-psk must be an env variable
     request_headers = {
         "x-rh-exports-psk": inventory_config.export_service_token,
         "content-type": HEADER_CONTENT_TYPE[exportFormat.lower()],
     }
+
+    rbac_request_headers = {
+        IDENTITY_HEADER: export_svc_data["data"]["resource_request"]["x_rh_identity"],
+        REQUEST_ID_HEADER: str(exportUUID),
+    }
+
+    allowed, rbac_filter = get_rbac_filter(
+        RbacResourceType.HOSTS, RbacPermission.READ, identity=identity, rbac_request_headers=rbac_request_headers
+    )
+
+    export_service_endpoint = inventory_config.export_service_endpoint
+
+    if not allowed:
+        session = Session()
+        request_url = _build_export_request_url(
+            export_service_endpoint, exportUUID, applicationName, resourceUUID, "error"
+        )
+        _handle_export_error(
+            "You don't have the permission to access the requested resource.",
+            "403",
+            request_url,
+            session,
+            request_headers,
+        )
+        return False
+
     session = Session()
     try:
-        export_service_endpoint = inventory_config.export_service_endpoint
-        request_url = f"{export_service_endpoint}/app/export/v1/{exportUUID}/{applicationName}/{resourceUUID}/upload"
-
-        session.mount(request_url, HTTPAdapter(max_retries=3))
-
-        logger.info(f"Trying to get data for org_id: {identity.org_id}")
-
-        rbac_filter = get_rbac_filter(
-            RbacResourceType.HOSTS, RbacPermission.READ, identity=identity, rbac_request_headers=rbac_request_headers
-        )
-
         # create a generator with serialized host data
         host_data = list(
             get_hosts_to_export(
@@ -64,6 +74,14 @@ def create_export(export_svc_data, org_id, inventory_config, operation_args={}, 
                 batch_size=inventory_config.export_svc_batch_size,
             )
         )
+
+        request_url = _build_export_request_url(
+            export_service_endpoint, exportUUID, applicationName, resourceUUID, "upload"
+        )
+
+        session.mount(request_url, HTTPAdapter(max_retries=3))
+
+        logger.info(f"Trying to get data for org_id: {identity.org_id}")
 
         if host_data:
             logger.debug(f"Trying to upload data using URL:{request_url}")
@@ -77,8 +95,8 @@ def create_export(export_svc_data, org_id, inventory_config, operation_args={}, 
             return True
         else:
             logger.debug(f"No data found for org_id: {identity.org_id}")
-            request_url = (
-                f"{export_service_endpoint}/app/export/v1/{exportUUID}/{applicationName}/{resourceUUID}/error"
+            request_url = _build_export_request_url(
+                export_service_endpoint, exportUUID, applicationName, resourceUUID, "error"
             )
             response = session.post(
                 url=request_url,
@@ -88,14 +106,24 @@ def create_export(export_svc_data, org_id, inventory_config, operation_args={}, 
             _handle_export_response(response, exportFormat, exportUUID)
             return False
     except Exception as e:
-        logger.error(e)
-        request_url = f"{export_service_endpoint}/app/export/v1/{exportUUID}/{applicationName}/{resourceUUID}/error"
-        response = session.post(
-            url=request_url, headers=request_headers, data=json.dumps({"message": str(e), "error": 500})
+        request_url = _build_export_request_url(
+            export_service_endpoint, exportUUID, applicationName, resourceUUID, "error"
         )
+        _handle_export_error(e, 500, request_url, session, request_headers)
         return False
     finally:
         session.close()
+
+
+def _build_export_request_url(
+    export_service_endpoint, exportUUID, applicationName, resourceUUID, request_type: str
+) -> str:
+    return f"{export_service_endpoint}/app/export/v1/{exportUUID}/{applicationName}/{resourceUUID}/{request_type}"
+
+
+def _handle_export_error(e, status_code, request_url, session, request_headers):
+    logger.error(e)
+    session.post(url=request_url, headers=request_headers, data=json.dumps({"message": str(e), "error": status_code}))
 
 
 # This function is used by create_export, needs improvement
