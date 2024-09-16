@@ -10,6 +10,7 @@ from api import api_operation
 from api import build_collection_response
 from api import flask_json_response
 from api import metrics
+from api import pagination_params
 from api.cache import CACHE
 from api.cache import delete_cached_system_keys
 from api.cache_key import make_system_cache_key
@@ -17,16 +18,11 @@ from api.host_query import build_paginated_host_list_response
 from api.host_query import staleness_timestamps
 from api.host_query_db import get_all_hosts
 from api.host_query_db import get_host_id_by_insights_id
-from api.host_query_db import get_host_ids_list as get_host_ids_list_postgres
-from api.host_query_db import get_host_list as get_host_list_postgres
-from api.host_query_db import get_host_list_by_id_list as get_host_list_by_id_list_postgres
-from api.host_query_db import get_host_tags_list_by_id_list as get_host_tags_list_by_id_list_postgres
-from api.host_query_db import get_sparse_system_profile as get_sparse_system_profile_postgres
-from api.host_query_xjoin import get_host_ids_list as get_host_ids_list_xjoin
-from api.host_query_xjoin import get_host_list as get_host_list_xjoin
-from api.host_query_xjoin import get_host_list_by_id_list as get_host_list_by_id_list_xjoin
-from api.host_query_xjoin import get_host_tags_list_by_id_list
-from api.sparse_host_list_system_profile import get_sparse_system_profile
+from api.host_query_db import get_host_ids_list
+from api.host_query_db import get_host_list as get_host_list_from_db
+from api.host_query_db import get_host_list_by_id_list
+from api.host_query_db import get_host_tags_list_by_id_list
+from api.host_query_db import get_sparse_system_profile
 from api.staleness_query import get_staleness_obj
 from app import db
 from app import RbacPermission
@@ -56,8 +52,6 @@ from app.serialization import deserialize_canonical_facts
 from app.serialization import serialize_host
 from app.serialization import serialize_host_with_params
 from app.utils import Tag
-from app.xjoin import pagination_params
-from lib.feature_flags import FLAG_INVENTORY_DISABLE_XJOIN
 from lib.feature_flags import FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM
 from lib.feature_flags import get_flag_value
 from lib.host_delete import delete_hosts
@@ -102,7 +96,6 @@ def get_host_list(
     host_list = ()
     owner_id = None
     current_identity = get_current_identity()
-    is_bootc = filter.get("system_profile", {}).get("bootc_status")
     has_complex_params = any(
         [
             display_name,
@@ -141,13 +134,8 @@ def get_host_list(
             metrics.api_cached_systems_hit.inc()
             return flask_json_response(json_data)
 
-    _get_host_list = get_host_list_xjoin
-    if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}) or is_bootc:
-        logger.info(f"{FLAG_INVENTORY_DISABLE_XJOIN} is applied to {current_identity.org_id}")
-        _get_host_list = get_host_list_postgres
-
     try:
-        host_list, total, additional_fields, system_profile_fields = _get_host_list(
+        host_list, total, additional_fields, system_profile_fields = get_host_list_from_db(
             display_name,
             fqdn,
             hostname_or_id,
@@ -224,49 +212,25 @@ def delete_hosts_by_filter(
         flask.abort(400, "bulk-delete operation needs at least one input property to filter on.")
 
     try:
-        current_identity = get_current_identity()
-        is_bootc = filter.get("system_profile", {}).get("bootc_status")
-        if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}) or is_bootc:
-            logger.info(f"{FLAG_INVENTORY_DISABLE_XJOIN} is applied to {current_identity.org_id}")
-            ids_list = get_host_ids_list_postgres(
-                display_name,
-                fqdn,
-                hostname_or_id,
-                insights_id,
-                provider_id,
-                provider_type,
-                updated_start,
-                updated_end,
-                group_name,
-                registered_with,
-                staleness,
-                tags,
-                filter,
-                rbac_filter,
-            )
-        else:
-            ids_list = get_host_ids_list_xjoin(
-                display_name,
-                fqdn,
-                hostname_or_id,
-                insights_id,
-                provider_id,
-                provider_type,
-                updated_start,
-                updated_end,
-                group_name,
-                registered_with,
-                staleness,
-                tags,
-                filter,
-                rbac_filter,
-            )
+        ids_list = get_host_ids_list(
+            display_name,
+            fqdn,
+            hostname_or_id,
+            insights_id,
+            provider_id,
+            provider_type,
+            updated_start,
+            updated_end,
+            group_name,
+            registered_with,
+            staleness,
+            tags,
+            filter,
+            rbac_filter,
+        )
     except ValueError as err:
         log_get_host_list_failed(logger)
         flask.abort(400, str(err))
-    except ConnectionError:
-        logger.error("xjoin-search not accessible")
-        flask.abort(503)
 
     try:
         delete_count = _delete_host_list(ids_list, rbac_filter) if ids_list else 0
@@ -324,14 +288,10 @@ def delete_all_hosts(confirm_delete_all=None, rbac_filter=None):
         flask.abort(400, "To delete all hosts, provide confirm_delete_all=true in the request.")
 
     try:
-        # get all hosts from the DB; bypasses xjoin-search, which limits the number hosts to 10 by default.
         ids_list = get_all_hosts()
     except ValueError as err:
         log_get_host_list_failed(logger)
         flask.abort(400, str(err))
-    except ConnectionError:
-        logger.error("xjoin-search not accessible")
-        flask.abort(503)
 
     try:
         delete_count = _delete_host_list(ids_list, rbac_filter)
@@ -360,17 +320,10 @@ def delete_host_by_id(host_id_list, rbac_filter=None):
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None, fields=None, rbac_filter=None):
-    current_identity = get_current_identity()
     try:
-        if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
-            logger.info(f"{FLAG_INVENTORY_DISABLE_XJOIN} is applied to {current_identity.org_id}")
-            host_list, total, additional_fields, system_profile_fields = get_host_list_by_id_list_postgres(
-                host_id_list, page, per_page, order_by, order_how, fields, rbac_filter
-            )
-        else:
-            host_list, total, additional_fields, system_profile_fields = get_host_list_by_id_list_xjoin(
-                host_id_list, page, per_page, order_by, order_how, fields, rbac_filter
-            )
+        host_list, total, additional_fields, system_profile_fields = get_host_list_by_id_list(
+            host_id_list, page, per_page, order_by, order_how, fields, rbac_filter
+        )
     except ValueError as e:
         log_get_host_list_failed(logger)
         flask.abort(400, str(e))
@@ -389,17 +342,10 @@ def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=
 def get_host_system_profile_by_id(
     host_id_list, page=1, per_page=100, order_by=None, order_how=None, fields=None, rbac_filter=None
 ):
-    current_identity = get_current_identity()
     try:
-        if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
-            logger.info(f"{FLAG_INVENTORY_DISABLE_XJOIN} is applied to {current_identity.org_id}")
-            total, host_list = get_sparse_system_profile_postgres(
-                host_id_list, page, per_page, order_by, order_how, fields, rbac_filter
-            )
-        else:
-            total, host_list = get_sparse_system_profile(
-                host_id_list, page, per_page, order_by, order_how, fields, rbac_filter
-            )
+        total, host_list = get_sparse_system_profile(
+            host_id_list, page, per_page, order_by, order_how, fields, rbac_filter
+        )
     except ValueError as e:
         log_get_host_list_failed(logger)
         flask.abort(400, str(e))
@@ -536,17 +482,8 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_how=None, rbac_filter=None):
-    current_identity = get_current_identity()
-    if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
-        logger.info(f"{FLAG_INVENTORY_DISABLE_XJOIN} is applied to {current_identity.org_id}")
-        limit, offset = pagination_params(page, per_page)
-        host_list, total = get_host_tags_list_by_id_list_postgres(
-            host_id_list, limit, offset, order_by, order_how, rbac_filter
-        )
-    else:
-        host_list, total = get_host_tags_list_by_id_list(
-            host_id_list, page, per_page, order_by, order_how, rbac_filter
-        )
+    limit, offset = pagination_params(page, per_page)
+    host_list, total = get_host_tags_list_by_id_list(host_id_list, limit, offset, order_by, order_how, rbac_filter)
 
     counts = {host_id: len(host_tags) for host_id, host_tags in host_list.items()}
     return _build_paginated_host_tags_response(total, page, per_page, counts)
@@ -556,17 +493,8 @@ def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=None, search=None, rbac_filter=None):
-    current_identity = get_current_identity()
-    if get_flag_value(FLAG_INVENTORY_DISABLE_XJOIN, context={"schema": current_identity.org_id}):
-        logger.info(f"{FLAG_INVENTORY_DISABLE_XJOIN} is applied to {current_identity.org_id}")
-        limit, offset = pagination_params(page, per_page)
-        host_list, total = get_host_tags_list_by_id_list_postgres(
-            host_id_list, limit, offset, order_by, order_how, rbac_filter
-        )
-    else:
-        host_list, total = get_host_tags_list_by_id_list(
-            host_id_list, page, per_page, order_by, order_how, rbac_filter
-        )
+    limit, offset = pagination_params(page, per_page)
+    host_list, total = get_host_tags_list_by_id_list(host_id_list, limit, offset, order_by, order_how, rbac_filter)
 
     filtered_list = {host_id: Tag.filter_tags(host_tags, search) for host_id, host_tags in host_list.items()}
 

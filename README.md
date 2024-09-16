@@ -50,7 +50,6 @@ prometheus_multiproc_dir=/tmp
 
 BYPASS_RBAC="true"
 BYPASS_UNLEASH="true"
-BYPASS_XJOIN="true"
 
 # If you want to use the legacy prefix, otherwise don't set PATH_PREFIX
 # PATH_PREFIX="/r/insights/platform"
@@ -458,14 +457,6 @@ make update-schema
 
 This will pull the latest version of the System Profile schema from inventory-schemas and update files as necessary.
 Open a PR with these changes, and it will be reviewed and merged as per [the standard process](#release-process).
-
-## Deploying Host Inventory and Xjoin-search to Kubernetes Namespaces
-
-A list of high level steps is provided [here](docs/connect_to_k8s_env.md)
-
-## Debugging Local Code with Services Deployed to Kubernetes Namespaces
-
-This section relies on successful deployment of host-inventory and xjoin-search following the instructions in the [previous section](#deploying-host-inventory-and-xjoin-search-to-kubernetes-cluster-ephmeral).  To make local code work with the services running in Kubernetes requires some actions provided [here](docs/debug_local_code.md)
 
 ## Running ad hoc jobs using a different image
 

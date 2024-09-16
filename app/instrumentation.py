@@ -187,17 +187,9 @@ def log_get_sap_system_succeeded(logger, data):
     logger.debug("Found sap_system: %s", data, extra={"access_rule": get_control_rule()})
 
 
-def log_get_sap_system_failed(logger):
-    logger.debug("sap_system not found", extra={"access_rule": get_control_rule()})
-
-
 # get sap_sids
 def log_get_sap_sids_succeeded(logger, data):
     logger.debug("Found sap_sids: %s", data, extra={"access_rule": get_control_rule()})
-
-
-def log_get_sap_sids_failed(logger):
-    logger.debug("sap_sids not found", extra={"access_rule": get_control_rule()})
 
 
 # get operating_system
@@ -205,17 +197,9 @@ def log_get_operating_system_succeeded(logger, data):
     logger.debug("Found operating_system: %s", data, extra={"access_rule": get_control_rule()})
 
 
-def log_get_operating_system_failed(logger):
-    logger.debug("operating_system not found", extra={"access_rule": get_control_rule()})
-
-
 # sparse system_profile
 def log_get_sparse_system_profile_succeeded(logger, data):
     logger.debug("Found sparse system_profile: %s", data, extra={"access_rule": get_control_rule()})
-
-
-def log_get_sparse_system_profile_failed(logger):
-    logger.debug("Sparse system_profile not found", extra={"access_rule": get_control_rule()})
 
 
 # add host

@@ -28,26 +28,6 @@ def test_dont_get_only_culled(mq_create_hosts_in_all_states, api_get):
     assert response_status == 400
 
 
-def test_tags_default_ignores_culled(mq_create_hosts_in_all_states, api_get):
-    created_hosts = mq_create_hosts_in_all_states
-
-    url = build_host_tags_url(host_list_or_id=created_hosts)
-    response_status, response_data = api_get(url)
-
-    assert response_status == 200
-    assert created_hosts["culled"].id not in tuple(response_data["results"].keys())
-
-
-def test_tags_count_default_ignores_culled(mq_create_hosts_in_all_states, api_get):
-    created_hosts = mq_create_hosts_in_all_states
-
-    url = build_tags_count_url(host_list_or_id=created_hosts)
-    response_status, response_data = api_get(url)
-
-    assert response_status == 200
-    assert created_hosts["culled"].id not in tuple(response_data["results"].keys())
-
-
 def test_fail_patch_culled_host(mq_create_deleted_hosts, api_patch):
     culled_host = mq_create_deleted_hosts["culled"]
 

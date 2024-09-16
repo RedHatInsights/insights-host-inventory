@@ -15,7 +15,6 @@ objects:
       iqePlugin: host-inventory
     dependencies:
       - rbac
-      - xjoin-search
       - ingress
       - export-service
     deployments:
@@ -118,8 +117,6 @@ objects:
           value: inventory
         - name: PAYLOAD_TRACKER_ENABLED
           value: 'true'
-        - name: XJOIN_GRAPHQL_URL
-          value: http://${XJOIN_SEARCH_HOST}:${XJOIN_SEARCH_PORT}/graphql
         - name: BYPASS_RBAC
           value: ${BYPASS_RBAC}
         - name: KAFKA_PRODUCER_ACKS
@@ -270,8 +267,6 @@ objects:
           value: inventory
         - name: PAYLOAD_TRACKER_ENABLED
           value: 'true'
-        - name: XJOIN_GRAPHQL_URL
-          value: http://${XJOIN_SEARCH_HOST}:${XJOIN_SEARCH_PORT}/graphql
         - name: BYPASS_RBAC
           value: ${BYPASS_RBAC}
         - name: KAFKA_PRODUCER_ACKS
@@ -422,8 +417,6 @@ objects:
           value: inventory
         - name: PAYLOAD_TRACKER_ENABLED
           value: 'true'
-        - name: XJOIN_GRAPHQL_URL
-          value: http://${XJOIN_SEARCH_HOST}:${XJOIN_SEARCH_PORT}/graphql
         - name: BYPASS_RBAC
           value: ${BYPASS_RBAC}
         - name: KAFKA_PRODUCER_ACKS
@@ -1409,10 +1402,6 @@ parameters:
   value: api
 - name: URLLIB3_LOG_LEVEL
   value: WARNING
-- name: XJOIN_SEARCH_HOST
-  value: localhost
-- name: XJOIN_SEARCH_PORT
-  value: '4000'
 - description: SSL validation mode for the DB
   name: INVENTORY_DB_SSL_MODE
   value: prefer

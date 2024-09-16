@@ -83,3 +83,9 @@ def custom_escape(expression):
 
 def json_error_response(title, detail, status=HTTPStatus.BAD_REQUEST):
     return flask_json_response({"title": title, "detail": detail}, status)
+
+
+def pagination_params(page, per_page):
+    limit = per_page
+    offset = (page - 1) * per_page
+    return limit, offset

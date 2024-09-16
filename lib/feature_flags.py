@@ -3,7 +3,6 @@ from typing import Tuple
 from flask_unleash import Unleash
 from UnleashClient.strategies import Strategy
 
-from app.common import inventory_config
 from app.logging import get_logger
 
 UNLEASH = Unleash()
@@ -11,13 +10,11 @@ logger = get_logger(__name__)
 
 FLAG_INVENTORY_ASSIGNMENT_RULES = "hbi.group-assignment-rules"
 FLAG_HIDE_EDGE_HOSTS = "hbi.api.hide-edge-by-default"
-FLAG_INVENTORY_DISABLE_XJOIN = "hbi.api.disable-xjoin"
 FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM = "hbi.api.use-cached-insights-client-system"
 
 FLAG_FALLBACK_VALUES = {
     FLAG_INVENTORY_ASSIGNMENT_RULES: True,
     FLAG_HIDE_EDGE_HOSTS: False,
-    FLAG_INVENTORY_DISABLE_XJOIN: False,
     FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM: False,
 }
 
@@ -50,9 +47,6 @@ def get_flag_value_and_fallback(flag_name: str, context: dict = {}) -> Tuple[boo
     # Get flag name and default to fallback value
     flag_value = FLAG_FALLBACK_VALUES[flag_name]
     using_fallback = True
-    if flag_name == "hbi.api.disable-xjoin" and inventory_config().bypass_xjoin:
-        flag_value = True
-        using_fallback = False
 
     # Attempt to get the feature flag via Unleash
     try:
