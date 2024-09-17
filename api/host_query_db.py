@@ -169,9 +169,7 @@ def get_host_id_by_insights_id(insights_id: str, rbac_filter=None) -> str:
         + canonical_fact_filter("insights_id", insights_id)
         + rbac_permissions_filter(rbac_filter)
     )
-
-    query = db.session.query(Host).filter(*all_filters)
-    query = update_query_for_owner_id(identity, query)
+    query = _find_all_hosts(columns=[Host.id], identity=identity).filter(*all_filters)
 
     try:
         found_id = query.with_entities(Host.id).order_by(Host.modified_on.desc()).scalar()
