@@ -1710,12 +1710,12 @@
         },
         "watchtower": {
             "hashes": [
-                "sha256:3c41396e022dd48af2261737d3e78edaaa2d1c60ad59704fc7e2524ddfe50bfb",
-                "sha256:7d515b2d0ae0d36168d3b32937e7f79c19b3efd25bbd16bcda233a092666b98c"
+                "sha256:5e654f52b54b39e279592d6c18a033b22cfbffda676f5b3cf6dfef712ed5738c",
+                "sha256:72d4f3f2ec906302e0478c042a2076611eb22f5a491ceda6411fec531aa2ee85"
             ],
             "index": "pypi",
             "markers": "python_version >= '3.8'",
-            "version": "==3.2.0"
+            "version": "==3.3.1"
         },
         "websockets": {
             "hashes": [
