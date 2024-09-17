@@ -11,7 +11,6 @@ pytest_plugins = [
     "tests.fixtures.api_fixtures",
     "tests.fixtures.app_fixtures",
     "tests.fixtures.db_fixtures",
-    "tests.fixtures.graphql_fixtures",
     "tests.fixtures.mq_fixtures",
     "tests.fixtures.tracker_fixtures",
 ]

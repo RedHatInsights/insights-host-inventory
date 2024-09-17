@@ -160,38 +160,6 @@ def test_feature_uninitialized_fallback(enable_unleash):
         assert using_fallback
 
 
-@patch.dict(FLAG_FALLBACK_VALUES, {TEST_FEATURE_FLAG: False})
-def test_feature_flag_fallback_with_bypass_xjoin(enable_unleash, inventory_config):
-    inventory_config.bypass_xjoin = True
-    TEST_FEATURE_FLAG = "hbi.api.disable-xjoin"
-    with patch.object(UNLEASH, "client", None):
-        flag_value, using_fallback = get_flag_value_and_fallback(TEST_FEATURE_FLAG)
-        assert flag_value
-        assert not using_fallback
-
-
-@patch.dict(FLAG_FALLBACK_VALUES, {TEST_FEATURE_FLAG: False})
-def test_feature_flag_fallback_without_bypass_xjoin(enable_unleash, inventory_config):
-    inventory_config.bypass_xjoin = False
-    TEST_FEATURE_FLAG = "hbi.api.disable-xjoin"
-    with patch.object(UNLEASH, "client", None):
-        flag_value, using_fallback = get_flag_value_and_fallback(TEST_FEATURE_FLAG)
-        assert not flag_value
-        assert using_fallback
-
-
-@patch.dict(FLAG_FALLBACK_VALUES, {TEST_FEATURE_FLAG: False})
-def test_feature_flag_bypass_xjoin_with_initialized_unleash(enable_unleash, inventory_config):
-    inventory_config.bypass_xjoin = True
-    TEST_FEATURE_FLAG = "hbi.api.disable-xjoin"
-    unleash_mock = MagicMock()
-    unleash_mock.is_enabled.return_value = True
-    with patch.object(UNLEASH, "client", unleash_mock):
-        flag_value, using_fallback = get_flag_value_and_fallback(TEST_FEATURE_FLAG)
-        assert flag_value
-        assert not using_fallback
-
-
 def test_make_system_cache_key_invalid():
     insights_id = None
     org_id = "101010191"
