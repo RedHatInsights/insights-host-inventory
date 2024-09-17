@@ -29,10 +29,6 @@ from tests.helpers.api_utils import HOST_URL
 from tests.helpers.api_utils import LEGACY_HOST_URL
 from tests.helpers.api_utils import quote
 from tests.helpers.api_utils import quote_everything
-from tests.helpers.graphql_utils import XJOIN_HOSTS_RESPONSE
-from tests.helpers.graphql_utils import XJOIN_SYSTEM_PROFILE_SAP_SIDS
-from tests.helpers.graphql_utils import XJOIN_SYSTEM_PROFILE_SAP_SYSTEM
-from tests.helpers.graphql_utils import XJOIN_TAGS_RESPONSE
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
@@ -248,68 +244,22 @@ def test_get_hosts_with_RBAC_bypassed_as_system(db_create_host, api_get, enable_
     assert_response_status(response_status, 200)
 
 
-def test_get_hosts_sap_system(patch_xjoin_post, api_get, subtests):
-    patch_xjoin_post(response={"data": {"hosts": {"meta": {"total": 1}, "data": []}}})
+def test_get_hosts_sap_system_bad_parameter_values(api_get):
+    implicit_url = build_hosts_url(query="?filter[system_profile][sap_system]=Garfield")
+    eq_url = build_hosts_url(query="?filter[system_profile][sap_system][eq]=Garfield")
 
-    values = ("true", "false", "nil", "not_nil")
+    implicit_response_status, _ = api_get(implicit_url)
+    eq_response_status, _ = api_get(eq_url)
 
-    for value in values:
-        with subtests.test(value=value):
-            implicit_url = build_hosts_url(query=f"?filter[system_profile][sap_system]={value}")
-            eq_url = build_hosts_url(query=f"?filter[system_profile][sap_system][eq]={value}")
-
-            implicit_response_status, implicit_response_data = api_get(implicit_url)
-            eq_response_status, eq_response_data = api_get(eq_url)
-
-            assert_response_status(implicit_response_status, 200)
-            assert_response_status(eq_response_status, 200)
-            assert implicit_response_data["total"] == 1
-            assert eq_response_data["total"] == 1
-
-
-def test_get_hosts_sap_sids(patch_xjoin_post, api_get, subtests):
-    patch_xjoin_post(response={"data": {"hosts": {"meta": {"total": 1}, "data": []}}})
-
-    filter_paths = ("[system_profile][sap_sids][]", "[system_profile][sap_sids][contains][]")
-    value_sets = (("ABC",), ("BEN", "A72"), ("CDA", "MK2", "C2C"))
-
-    for path in filter_paths:
-        for values in value_sets:
-            with subtests.test(values=values, path=path):
-                url = build_hosts_url(query="?" + "".join([f"filter{path}={value}&" for value in values]))
-
-                response_status, response_data = api_get(url)
-
-                assert_response_status(response_status, 200)
-                assert response_data["total"] == 1
-
-
-def test_get_hosts_sap_system_bad_parameter_values(patch_xjoin_post, api_get, subtests):
-    patch_xjoin_post(response={})
-
-    values = "Garfield"
-
-    for value in values:
-        with subtests.test(value=value):
-            implicit_url = build_hosts_url(query=f"?filter[system_profile][sap_system]={value}")
-            eq_url = build_hosts_url(query=f"?filter[system_profile][sap_system][eq]={value}")
-
-            implicit_response_status, implicit_response_data = api_get(implicit_url)
-            eq_response_status, eq_response_data = api_get(eq_url)
-
-            assert_response_status(implicit_response_status, 400)
-            assert_response_status(eq_response_status, 400)
+    assert_response_status(implicit_response_status, 400)
+    assert_response_status(eq_response_status, 400)
 
 
 @pytest.mark.parametrize(
     "hide_edge_hosts",
     (True, False),
 )
-def test_get_hosts_unsupported_filter(mocker, patch_xjoin_post, api_get, hide_edge_hosts):
-    patch_xjoin_post(response={})
-    # Should work whether hide-edge-hosts feature flag is on or off
-    mocker.patch("api.filtering.filtering.get_flag_value", return_value=hide_edge_hosts)
-
+def test_get_hosts_unsupported_filter(mocker, api_get, hide_edge_hosts):
     implicit_url = build_hosts_url(query="?filter[system_profile][bad_thing]=Banana")
     eq_url = build_hosts_url(query="?filter[Bad_thing][Extra_bad_one][eq]=Pinapple")
 
@@ -335,74 +285,6 @@ def test_get_hosts_invalid_deep_object_params(query_params, api_get):
     assert_response_status(response_code, 400)
 
 
-def test_sp_sparse_fields_xjoin_response_translation(patch_xjoin_post, api_get):
-    host_one_id, host_two_id = generate_uuid(), generate_uuid()
-
-    hosts = [minimal_host(id=host_one_id), minimal_host(id=host_two_id)]
-
-    for query, xjoin_post in (
-        (
-            "?fields[system_profile]=os_kernel_version,arch,sap_sids",
-            [
-                {
-                    "id": host_one_id,
-                    "system_profile_facts": {
-                        "os_kernel_version": "3.10.0",
-                        "arch": "string",
-                        "sap_sids": ["H2O", "PH3", "CO2"],
-                    },
-                },
-                {"id": host_two_id, "system_profile_facts": {"os_kernel_version": "1.11.1", "arch": "host_arch"}},
-            ],
-        ),
-        (
-            "?fields[system_profile]=arch",
-            [{"id": host_one_id, "system_profile_facts": {}}, {"id": host_two_id, "system_profile_facts": {}}],
-        ),
-        (
-            "?fields[system_profile]=os_kernel_version,arch&fields[system_profile]=sap_sids",
-            [
-                {
-                    "id": host_one_id,
-                    "system_profile_facts": {
-                        "os_kernel_version": "3.10.0",
-                        "arch": "string",
-                        "sap_sids": ["H2O", "PH3", "CO2"],
-                    },
-                },
-                {"id": host_two_id, "system_profile_facts": {"os_kernel_version": "1.11.1", "arch": "host_arch"}},
-            ],
-        ),
-    ):
-        patch_xjoin_post(response={"data": {"hosts": {"meta": {"total": 2, "count": 2}, "data": xjoin_post}}})
-        response_status, response_data = api_get(build_system_profile_url(hosts, query=query))
-
-        assert_response_status(response_status, 200)
-        assert response_data["total"] == 2
-        assert response_data["count"] == 2
-        assert response_data["results"][0]["system_profile"] == xjoin_post[0]["system_profile_facts"]
-
-
-def test_sp_sparse_fields_xjoin_response_with_invalid_field(patch_xjoin_post, db_create_host, api_get):
-    host = minimal_host(id=generate_uuid())
-
-    xjoin_post = [
-        {
-            "id": str(host.id),
-            "invalid_key": {"os_kernel_version": "3.10.0", "arch": "string", "sap_sids": ["H2O", "PH3", "CO2"]},
-        }
-    ]
-    patch_xjoin_post(response={"data": {"hosts": {"meta": {"total": 1, "count": 1}, "data": xjoin_post}}})
-    response_status, response_data = api_get(
-        build_system_profile_url([host], query="?fields[system_profile]=os_kernel_version,arch,sap_sids")
-    )
-
-    assert_response_status(response_status, 200)
-    assert response_data["total"] == 1
-    assert response_data["count"] == 1
-    assert response_data["results"][0]["system_profile"] == {}
-
-
 def test_validate_sp_sparse_fields_invalid_requests(api_get, subtests):
     for query in (
         "?fields[system_profile]=os_kernel_version&order_how=ASC",
@@ -420,67 +302,8 @@ def test_validate_sp_sparse_fields_invalid_requests(api_get, subtests):
             assert response_status == 400
 
 
-def test_host_list_sp_fields_requested(patch_xjoin_post, api_get):
-    patch_xjoin_post(response={"data": XJOIN_HOSTS_RESPONSE})
-    fields = ["arch", "kernel_modules", "owner_id"]
-    response_status, response_data = api_get(HOST_URL + f"?fields[system_profile]={','.join(fields)}")
-
-    assert response_status == 200
-
-    for host_data in response_data["results"]:
-        assert "system_profile" in host_data
-        for key in host_data["system_profile"].keys():
-            assert key in fields
-
-
-def test_host_list_sp_fields_not_requested(patch_xjoin_post, api_get):
-    patch_xjoin_post(response={"data": XJOIN_HOSTS_RESPONSE})
-    response_status, response_data = api_get(HOST_URL)
-
-    assert response_status == 200
-
-    for host_data in response_data["results"]:
-        assert "system_profile" not in host_data
-
-
-def test_unindexed_fields_fail_gracefully(api_get):
-    url_builders = (
-        build_hosts_url,
-        build_system_profile_sap_sids_url,
-        build_tags_url,
-        build_system_profile_sap_system_url,
-    )
-
-    for url_builder in url_builders:
-        for query in ("?filter[system_profile][installed_packages_delta]=foo",):
-            response_status, _ = api_get(url_builder(query=query))
-            assert response_status == 400
-
-
-# This test verifies that the [contains] operation is accepted for a string array field such as cpu_flags
-def test_get_hosts_contains_works_on_string_array(patch_xjoin_post, api_get, subtests):
-    url_builders = (
-        build_hosts_url,
-        build_system_profile_sap_sids_url,
-        build_tags_url,
-        build_system_profile_sap_system_url,
-    )
-    responses = (
-        XJOIN_HOSTS_RESPONSE,
-        XJOIN_SYSTEM_PROFILE_SAP_SIDS,
-        XJOIN_TAGS_RESPONSE,
-        XJOIN_SYSTEM_PROFILE_SAP_SYSTEM,
-    )
-    query = "?filter[system_profile][cpu_flags][contains]=ex1"
-    for url_builder, response in zip(url_builders, responses):
-        with subtests.test(url_builder=url_builder, response=response, query=query):
-            patch_xjoin_post(response={"data": response})
-            response_status, _ = api_get(url_builder(query=query))
-            assert response_status == 200
-
-
 # This test verifies that the [contains] operation is denied for a non-array string field such as cpu_model
-def test_get_hosts_contains_invalid_on_string_not_array(patch_xjoin_post, api_get, subtests):
+def test_get_hosts_contains_invalid_on_string_not_array(api_get, subtests):
     url_builders = (
         build_hosts_url,
         build_system_profile_sap_sids_url,
@@ -492,10 +315,6 @@ def test_get_hosts_contains_invalid_on_string_not_array(patch_xjoin_post, api_ge
         with subtests.test(url_builder=url_builder, query=query):
             response_status, _ = api_get(url_builder(query=query))
             assert response_status == 400
-
-
-def test_get_hosts_timestamp_invalid_value_graceful_rejection(patch_xjoin_post, api_get):
-    assert 400 == api_get(build_hosts_url(query="?filter[system_profile][last_boot_time][eq]=foo"))[0]
 
 
 @pytest.mark.parametrize(

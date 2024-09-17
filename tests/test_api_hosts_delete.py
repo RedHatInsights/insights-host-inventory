@@ -1,4 +1,3 @@
-from copy import deepcopy
 from unittest import mock
 from unittest.mock import patch
 
@@ -16,7 +15,6 @@ from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import HOST_WRITE_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.db_utils import db_host
-from tests.helpers.graphql_utils import XJOIN_HOSTS_RESPONSE_FOR_FILTERING
 from tests.helpers.mq_utils import assert_delete_event_is_valid
 from tests.helpers.mq_utils import assert_delete_notification_is_valid
 from tests.helpers.test_utils import generate_uuid
@@ -136,126 +134,15 @@ def test_create_then_delete_without_insights_id(
     assert_delete_event_is_valid(event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock)
 
 
-@pytest.mark.parametrize(
-    "field,value",
-    (
-        ("insights_id", "a58c53e0-8000-4384-b902-c70b69faacc5"),
-        ("staleness", "stale"),
-        ("registered_with", "insights"),
-        ("registered_with", "cloud-connector"),
-        ("registered_with", "puptoo"),
-        ("registered_with", "rhsm-conduit"),
-        ("registered_with", "yupana"),
-        ("registered_with", ["puptoo", "yupana"]),
-    ),
-)
-def test_delete_hosts_using_filter_and_registered_with(
-    event_producer_mock,
-    notification_event_producer_mock,
-    db_create_multiple_hosts,
-    db_get_hosts,
-    api_delete_filtered_hosts,
-    patch_xjoin_post,
-    field,
-    value,
-):
-    num = len(XJOIN_HOSTS_RESPONSE_FOR_FILTERING["hosts"]["data"])
-
-    created_hosts = db_create_multiple_hosts(how_many=num)
-    host_ids = [str(host.id) for host in created_hosts]
-
-    # set the new host ids in the xjoin search reference.
-    resp = deepcopy(XJOIN_HOSTS_RESPONSE_FOR_FILTERING)
-    for ind, id in enumerate(host_ids):
-        resp["hosts"]["data"][ind]["id"] = id
-    response = {"data": resp}
-
-    # Make the new hosts available in xjoin-search to make them available
-    # for querying for deletion using filters
-    patch_xjoin_post(response, status=200)
-
-    new_hosts = db_create_multiple_hosts(how_many=num)
-    new_ids = [str(host.id) for host in new_hosts]
-
-    # delete hosts using the IDs supposedly returned by the query_filter
-    response_status, response_data = api_delete_filtered_hosts({field: value})
-
-    assert '"type": "delete"' in event_producer_mock.event
-    assert_response_status(response_status, expected_status=202)
-    assert len(host_ids) == response_data["hosts_deleted"]
-    assert len(host_ids) > 0
-
-    # check db for the deleted hosts using their IDs
-    host_id_list = [str(host.id) for host in created_hosts]
-    deleted_hosts = db_get_hosts(host_id_list)
-    assert deleted_hosts.count() == 0
-
-    # now verify that the second set of hosts still available.
-    remaining_hosts = db_get_hosts(new_ids)
-    assert len(new_hosts) == remaining_hosts.count()
-
-
-@pytest.mark.parametrize(
-    "total_hosts,expected_times_called",
-    (
-        ("105", 2),
-        ("729", 8),
-        ("2048", 21),
-    ),
-)
-def test_delete_over_100_filtered_hosts(
-    api_delete_filtered_hosts,
-    patch_xjoin_post,
-    mocker,
-    total_hosts,
-    expected_times_called,
-):
-    hosts_per_call = len(XJOIN_HOSTS_RESPONSE_FOR_FILTERING["hosts"]["data"])
-
-    # set the new host ids in the xjoin search reference.
-    resp = deepcopy(XJOIN_HOSTS_RESPONSE_FOR_FILTERING)
-    resp["hosts"]["meta"]["total"] = total_hosts
-    response = {"data": resp}
-
-    # Make the new hosts available in xjoin-search to make them available
-    # for querying for deletion using filters
-    patched_post = patch_xjoin_post(response, status=200)
-    patched_delete = mocker.patch("api.host._delete_host_list")
-    patched_delete.return_value = 0  # We don't care about the return value
-
-    # delete hosts using the IDs supposedly returned by the query_filter
-    response_status, response_data = api_delete_filtered_hosts({"staleness": "stale"})
-
-    # Just double-check that it didn't error out
-    assert_response_status(response_status, expected_status=202)
-
-    assert patched_post.call_count == expected_times_called
-
-    # The actual number of hosts deleted should be equal to this,
-    # because only hosts_per_call hosts are returned on each call
-    assert len(patched_delete.call_args[0][0]) == hosts_per_call * expected_times_called
-
-
 def test_delete_all_hosts(
     event_producer_mock,
     notification_event_producer_mock,
     db_create_multiple_hosts,
     db_get_hosts,
     api_delete_all_hosts,
-    patch_xjoin_post,
 ):
-    created_hosts = db_create_multiple_hosts(how_many=len(XJOIN_HOSTS_RESPONSE_FOR_FILTERING["hosts"]["data"]))
+    created_hosts = db_create_multiple_hosts(how_many=5)
     host_ids = [str(host.id) for host in created_hosts]
-
-    # set the new host ids in the xjoin search reference.
-    resp = deepcopy(XJOIN_HOSTS_RESPONSE_FOR_FILTERING)
-    for ind, id in enumerate(host_ids):
-        resp["hosts"]["data"][ind]["id"] = id
-    response = {"data": resp}
-
-    # Make the new hosts available in xjoin-search to make them available
-    # for querying for deletion using filters
-    patch_xjoin_post(response, status=200)
 
     # delete all hosts on the current org_id
     response_status, response_data = api_delete_all_hosts({"confirm_delete_all": True})

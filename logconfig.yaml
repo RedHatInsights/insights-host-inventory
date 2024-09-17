@@ -35,11 +35,6 @@ loggers:
     - logstash
     - cloudwatch
     propagate: false
-  inventory.xjoin:
-    level: WARNING
-    handlers:
-    - logstash
-    propagate: false
   urllib3:
     level: WARNING
     handlers:

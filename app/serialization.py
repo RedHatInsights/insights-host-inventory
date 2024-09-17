@@ -12,8 +12,6 @@ from app.culling import Timestamps
 from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
 from app.models import CanonicalFactsSchema
-from app.models import Group
-from app.models import Host as Host
 from app.models import HostSchema
 from app.utils import Tag
 
@@ -102,39 +100,6 @@ def deserialize_canonical_facts(raw_data, all=False):
         raise ValidationException(str(e.messages)) from None
 
     return _deserialize_canonical_facts(validated_data)
-
-
-def deserialize_host_xjoin(data):
-    host = Host(
-        canonical_facts=data["canonical_facts"],
-        display_name=data["display_name"],
-        ansible_host=data["ansible_host"],
-        account=data.get("account"),
-        org_id=data["org_id"],
-        facts=data["facts"] or {},
-        tags={},  # Not a part of host list output
-        system_profile_facts=data["system_profile_facts"] or {},
-        stale_timestamp=_deserialize_datetime(data["stale_timestamp"]),
-        reporter=data["reporter"],
-        per_reporter_staleness=data.get("per_reporter_staleness", {}) or {},
-        groups=data["groups"]["data"] if "groups" in data else [],
-    )
-    for field in ("created_on", "modified_on"):
-        setattr(host, field, _deserialize_datetime(data[field]))
-    host.id = data["id"]
-    return host
-
-
-def deserialize_group_xjoin(data):
-    group = Group(
-        org_id=data["org_id"],
-        name=data["name"],
-        account=data.get("account"),
-    )
-    for field in ("created_on", "modified_on"):
-        setattr(group, field, _deserialize_datetime(data[field]))
-    group.id = data["id"]
-    return group
 
 
 def serialize_host(
@@ -320,10 +285,6 @@ def serialize_assignment_rule(assign_rule):
 
 def serialize_host_system_profile(host):
     return {"id": _serialize_uuid(host.id), "system_profile": host.system_profile_facts or {}}
-
-
-def serialize_host_system_profile_xjoin(host_data):
-    return {"id": _serialize_uuid(host_data["id"]), "system_profile": host_data.get("system_profile_facts") or {}}
 
 
 def _recursive_casefold(field_data):
