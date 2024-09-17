@@ -154,10 +154,7 @@ def per_reporter_staleness_filter(staleness, reporter, host_type_filter):
 
 
 def _staleness_filter(staleness: List[str], host_type_filter: Set[str], identity=None) -> List:
-    if identity:
-        staleness_obj = serialize_staleness_to_dict(get_staleness_obj(identity))
-    else:
-        staleness_obj = serialize_staleness_to_dict(get_staleness_obj())
+    staleness_obj = serialize_staleness_to_dict(get_staleness_obj(identity))
     staleness_conditions = []
     for host_type in host_type_filter:
         conditions = or_(*staleness_to_conditions(staleness_obj, staleness, host_type, _stale_timestamp_filter))
