@@ -322,10 +322,7 @@ def query_filters(
         sp_filter, host_type_filter = _system_profile_filter(filter)
         filters += sp_filter
     if staleness:
-        if identity:
-            filters += _staleness_filter(staleness, host_type_filter, identity)
-        else:
-            filters += _staleness_filter(staleness, host_type_filter, identity)
+        filters += _staleness_filter(staleness, host_type_filter, identity)
     if registered_with:
         filters += _registered_with_filter(registered_with, host_type_filter)
     if rbac_filter:
