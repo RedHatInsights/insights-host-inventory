@@ -5,15 +5,6 @@ If you're looking for API, integration or user documentation for HBI please see 
 
 ## Getting Started
 
-### Snappy
-
-This project uses [Snappy compression](http://google.github.io/snappy/) to enhance its Kafka usage.
-The `python-snappy` package requires the core Snappy library to be installed on the machine, so start off by running the following:
-
-```bash
-sudo dnf install snappy
-```
-
 ### pg_config
 
 Local development also requires the `pg_config` file, which is installed with the postgres developer library. To install this, use the command appropriate to your system:

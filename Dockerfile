@@ -17,7 +17,7 @@ WORKDIR $APP_ROOT
 
 RUN microdnf module enable postgresql:13 python39:3.9 && \
     microdnf upgrade -y && \
-    microdnf install --setopt=tsflags=nodocs -y postgresql python39 rsync tar procps-ng make snappy && \
+    microdnf install --setopt=tsflags=nodocs -y postgresql python39 rsync tar procps-ng make && \
     rpm -qa | sort > packages-before-devel-install.txt && \
     microdnf install --setopt=tsflags=nodocs -y libpq-devel python39-devel gcc && \
     rpm -qa | sort > packages-after-devel-install.txt
