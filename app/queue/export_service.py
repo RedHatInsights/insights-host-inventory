@@ -1,6 +1,9 @@
 import json
 from http import HTTPStatus
+from typing import Union
+from uuid import UUID
 
+from requests import Response
 from requests import Session
 from requests.adapters import HTTPAdapter
 
@@ -60,6 +63,8 @@ def create_export(export_svc_data, org_id, inventory_config, operation_args={}, 
             request_url,
             session,
             request_headers,
+            exportUUID,
+            exportFormat,
         )
         return False
 
@@ -91,7 +96,7 @@ def create_export(export_svc_data, org_id, inventory_config, operation_args={}, 
             response = session.post(
                 url=request_url, headers=request_headers, data=_format_export_data(host_data, exportFormat)
             )
-            _handle_export_response(response, exportFormat, exportUUID)
+            _handle_export_response(response, exportUUID, exportFormat)
             return True
         else:
             logger.debug(f"No data found for org_id: {identity.org_id}")
@@ -103,35 +108,48 @@ def create_export(export_svc_data, org_id, inventory_config, operation_args={}, 
                 headers=request_headers,
                 data=json.dumps({"message": f"No data found for org_id: {identity.org_id}", "error": 404}),
             )
-            _handle_export_response(response, exportFormat, exportUUID)
+            _handle_export_response(response, exportUUID, exportFormat)
             return False
     except Exception as e:
         request_url = _build_export_request_url(
             export_service_endpoint, exportUUID, applicationName, resourceUUID, "error"
         )
-        _handle_export_error(e, 500, request_url, session, request_headers)
+        _handle_export_error(e, 500, request_url, session, request_headers, exportUUID, exportFormat)
         return False
     finally:
         session.close()
 
 
 def _build_export_request_url(
-    export_service_endpoint, exportUUID, applicationName, resourceUUID, request_type: str
+    export_service_endpoint: str, exportUUID: str, applicationName: str, resourceUUID: str, request_type: str
 ) -> str:
     return f"{export_service_endpoint}/app/export/v1/{exportUUID}/{applicationName}/{resourceUUID}/{request_type}"
 
 
-def _handle_export_error(e, status_code, request_url, session, request_headers):
-    logger.error(e)
-    session.post(url=request_url, headers=request_headers, data=json.dumps({"message": str(e), "error": status_code}))
+def _handle_export_error(
+    error_message: Union[str, Exception],
+    status_code: Union[str, int],
+    request_url: str,
+    session: Session,
+    request_headers: dict,
+    exportUUID: UUID,
+    exportFormat: str,
+):
+    logger.error(error_message)
+    response = session.post(
+        url=request_url,
+        headers=request_headers,
+        data=json.dumps({"message": str(error_message), "error": status_code}),
+    )
+    _handle_export_response(response, exportUUID, exportFormat)
 
 
 # This function is used by create_export, needs improvement
-def _handle_export_response(response, exportFormat, exportUUID):
+def _handle_export_response(response: Response, exportUUID: UUID, exportFormat: str):
     if response.status_code != HTTPStatus.ACCEPTED:
         raise Exception(response.text)
     elif response.text != "":
-        logger.info(f"{response.text} for export ID {exportUUID} in {exportFormat.upper()} format")
+        logger.info(f"{response.text} for export ID {str(exportUUID)} in {exportFormat.upper()} format")
 
 
 def _format_export_data(data, exportFormat):
