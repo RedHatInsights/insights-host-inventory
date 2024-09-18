@@ -12,7 +12,7 @@ from app import IDENTITY_HEADER
 from app import RbacPermission
 from app import RbacResourceType
 from app import REQUEST_ID_HEADER
-from app.auth.identity import create_mock_identity_with_org_id
+from app.auth.identity import from_auth_header
 from app.logging import get_logger
 from lib import metrics
 from lib.middleware import get_rbac_filter
@@ -67,8 +67,8 @@ def get_host_list(identity, exportFormat, rbac_filter, inventory_config):
 
 
 @metrics.create_export_processing_time.time()
-def create_export(export_svc_data, org_id, inventory_config, operation_args={}, rbac_filter={}):
-    identity = create_mock_identity_with_org_id(org_id)
+def create_export(export_svc_data, base64_x_rh_identity, inventory_config, operation_args={}, rbac_filter={}):
+    identity = from_auth_header(base64_x_rh_identity)
 
     metrics.create_export_count.inc()
     logger.info("Creating export for HBI")
