@@ -35,6 +35,7 @@ __all__ = (
     "get_all_hosts",
     "get_host_list",
     "get_host_list_by_id_list",
+    "get_host_id_by_insights_id",
     "get_host_tags_list_by_id_list",
     "params_to_order_by",
 )
@@ -164,14 +165,8 @@ def get_host_list_by_id_list(
 
 def get_host_id_by_insights_id(insights_id: str, rbac_filter=None) -> str:
     identity = get_current_identity()
-    all_filters = (
-        [Host.org_id == identity.org_id]
-        + canonical_fact_filter("insights_id", insights_id)
-        + rbac_permissions_filter(rbac_filter)
-    )
-
-    query = db.session.query(Host).filter(*all_filters)
-    query = update_query_for_owner_id(identity, query)
+    all_filters = canonical_fact_filter("insights_id", insights_id) + rbac_permissions_filter(rbac_filter)
+    query = _find_all_hosts(columns=[Host.id], identity=identity).filter(*all_filters)
 
     try:
         found_id = query.with_entities(Host.id).order_by(Host.modified_on.desc()).scalar()

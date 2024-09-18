@@ -1854,3 +1854,47 @@ def test_get_host_exists_error_multiple_found(db_create_host, api_get):
     response_status, _ = api_get(url)
 
     assert response_status == 409
+
+
+def test_get_host_exists_granular_rbac(
+    db_create_host, db_create_group, db_create_host_group_assoc, api_get, mocker, enable_rbac
+):
+    # Create 3 hosts with unique insights IDs that the user has access to
+    accessible_group_id = db_create_group("accessible_group").id
+    accessible_insights_id_list = [generate_uuid() for _ in range(3)]
+    accessible_host_id_list = [
+        db_create_host(extra_data={"canonical_facts": {"insights_id": insights_id}}).id
+        for insights_id in accessible_insights_id_list
+    ]
+    for host_id in accessible_host_id_list:
+        db_create_host_group_assoc(host_id, accessible_group_id)
+
+    # Create 2 hosts with unique insights IDs that the user does not have access to
+    inaccessible_group_id = db_create_group("inaccessible_group").id
+    inaccessible_insights_id_list = [generate_uuid() for _ in range(2)]
+    inaccessible_host_id_list = [
+        db_create_host(extra_data={"canonical_facts": {"insights_id": insights_id}}).id
+        for insights_id in inaccessible_insights_id_list
+    ]
+    for host_id in inaccessible_host_id_list:
+        db_create_host_group_assoc(host_id, inaccessible_group_id)
+
+    # Grant access to first group
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-hosts-read-resource-defs-template.json"
+    )
+    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = [str(accessible_group_id)]
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    # Verify that the user can see each of the hosts in the "accessible" group
+    for insights_id in accessible_insights_id_list:
+        url = build_host_exists_url(insights_id)
+        response_status, _ = api_get(url)
+        assert_response_status(response_status, 200)
+
+    # Verify that the user can NOT see the hosts in the "inaccessible" group
+    for insights_id in inaccessible_insights_id_list:
+        url = build_host_exists_url(insights_id)
+        response_status, _ = api_get(url)
+        assert_response_status(response_status, 404)
