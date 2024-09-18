@@ -98,7 +98,7 @@ def create_export(export_svc_data, base64_x_rh_identity, inventory_config, opera
             exportFormat,
         )
         return False
-    
+
     session = Session()
     try:
         # create a generator with serialized host data
