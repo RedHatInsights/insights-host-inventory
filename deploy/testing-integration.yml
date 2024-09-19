@@ -29,7 +29,7 @@ objects:
             optional: true
         containers:
         - name: host-inventory-e2e-iqe-${IMAGE_TAG}-${UID}
-          image: ${IQE_IMAGE}
+          image: ${IQE_IMAGE}:${IQE_IMAGE_TAG}
           imagePullPolicy: Always
           args:
           - ${IQE_CONTAINER_ARGS}
