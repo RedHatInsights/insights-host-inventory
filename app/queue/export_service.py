@@ -1,5 +1,7 @@
 import json
 from http import HTTPStatus
+from typing import List
+from typing import Tuple
 from typing import Union
 from uuid import UUID
 
@@ -13,6 +15,8 @@ from app import RbacPermission
 from app import RbacResourceType
 from app import REQUEST_ID_HEADER
 from app.auth.identity import from_auth_header
+from app.auth.identity import Identity
+from app.config import Config
 from app.logging import get_logger
 from lib import metrics
 from lib.middleware import get_rbac_filter
@@ -23,7 +27,7 @@ logger = get_logger(__name__)
 HEADER_CONTENT_TYPE = {"json": "application/json", "csv": "text/csv"}
 
 
-def extract_export_svc_data(export_svc_data):
+def extract_export_svc_data(export_svc_data: dict) -> Tuple[str, UUID, str, str, str]:
     exportFormat = export_svc_data["data"]["resource_request"]["format"]
     exportUUID = export_svc_data["data"]["resource_request"]["export_request_uuid"]
     applicationName = export_svc_data["data"]["resource_request"]["application"]
@@ -33,7 +37,9 @@ def extract_export_svc_data(export_svc_data):
     return exportFormat, exportUUID, applicationName, resourceUUID, x_rh_identity
 
 
-def build_headers(x_rh_identity, exportUUID, inventory_config, exportFormat):
+def build_headers(
+    x_rh_identity: str, exportUUID: UUID, inventory_config: Config, exportFormat: str
+) -> Tuple[dict, dict]:
     rbac_request_headers = {
         IDENTITY_HEADER: x_rh_identity,
         REQUEST_ID_HEADER: str(exportUUID),
@@ -45,15 +51,10 @@ def build_headers(x_rh_identity, exportUUID, inventory_config, exportFormat):
         "content-type": HEADER_CONTENT_TYPE[exportFormat.lower()],
     }
 
-    rbac_request_headers = {
-        IDENTITY_HEADER: x_rh_identity,
-        REQUEST_ID_HEADER: str(exportUUID),
-    }
-
     return rbac_request_headers, request_headers
 
 
-def get_host_list(identity, exportFormat, rbac_filter, inventory_config):
+def get_host_list(identity: Identity, exportFormat: str, rbac_filter: dict, inventory_config: Config) -> List[dict]:
     host_data = list(
         get_hosts_to_export(
             identity,
@@ -67,7 +68,13 @@ def get_host_list(identity, exportFormat, rbac_filter, inventory_config):
 
 
 @metrics.create_export_processing_time.time()
-def create_export(export_svc_data, base64_x_rh_identity, inventory_config, operation_args={}, rbac_filter={}):
+def create_export(
+    export_svc_data: dict,
+    base64_x_rh_identity: str,
+    inventory_config: Config,
+    operation_args={},
+    rbac_filter: dict = {},
+) -> bool:
     identity = from_auth_header(base64_x_rh_identity)
 
     metrics.create_export_count.inc()
@@ -83,8 +90,10 @@ def create_export(export_svc_data, base64_x_rh_identity, inventory_config, opera
 
     export_service_endpoint = inventory_config.export_service_endpoint
 
+    export_created = False
+    session = Session()
+
     if not allowed:
-        session = Session()
         request_url = _build_export_request_url(
             export_service_endpoint, exportUUID, applicationName, resourceUUID, "error"
         )
@@ -97,9 +106,9 @@ def create_export(export_svc_data, base64_x_rh_identity, inventory_config, opera
             exportUUID,
             exportFormat,
         )
-        return False
+        session.close()
+        return export_created
 
-    session = Session()
     try:
         # create a generator with serialized host data
         host_data = get_host_list(identity, exportFormat, rbac_filter, inventory_config)
@@ -121,7 +130,7 @@ def create_export(export_svc_data, base64_x_rh_identity, inventory_config, opera
                 url=request_url, headers=request_headers, data=_format_export_data(host_data, exportFormat)
             )
             _handle_export_response(response, exportUUID, exportFormat)
-            return True
+            export_created = True
         else:
             logger.debug(f"No data found for org_id: {identity.org_id}")
             request_url = _build_export_request_url(
@@ -133,15 +142,16 @@ def create_export(export_svc_data, base64_x_rh_identity, inventory_config, opera
                 data=json.dumps({"message": f"No data found for org_id: {identity.org_id}", "error": 404}),
             )
             _handle_export_response(response, exportUUID, exportFormat)
-            return False
+            export_created = False
     except Exception as e:
         request_url = _build_export_request_url(
             export_service_endpoint, exportUUID, applicationName, resourceUUID, "error"
         )
         _handle_export_error(e, 500, request_url, session, request_headers, exportUUID, exportFormat)
-        return False
+        export_created = False
     finally:
         session.close()
+        return export_created
 
 
 def _build_export_request_url(
@@ -176,7 +186,7 @@ def _handle_export_response(response: Response, exportUUID: UUID, exportFormat: 
         logger.info(f"{response.text} for export ID {str(exportUUID)} in {exportFormat.upper()} format")
 
 
-def _format_export_data(data, exportFormat):
+def _format_export_data(data: dict, exportFormat: str) -> str:
     if exportFormat == "json":
         return json.dumps(data)
     elif exportFormat == "csv":
