@@ -14,6 +14,9 @@ from app.queue.queue import handle_export_message
 from app.serialization import _EXPORT_SERVICE_FIELDS
 from app.serialization import serialize_host_for_export_svc
 from tests.helpers import export_service_utils as es_utils
+from tests.helpers.api_utils import create_mock_rbac_response
+from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.db_utils import db_host
 
 
@@ -132,3 +135,39 @@ def test_handle_json_format(flask_app, db_create_host, mocker):
         export_host = json.loads(_format_export_data([serialized_host], "json"))
         mocked_json = es_utils.create_export_json_mock(mocker)
         assert mocked_json == export_host
+
+
+@mock.patch("requests.Session.post", autospec=True)
+def test_handle_rbac_allowed(mock_post, subtests, flask_app, db_create_host, mocker, enable_rbac):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+
+    for response_file in HOST_READ_ALLOWED_RBAC_RESPONSE_FILES:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+        with subtests.test():
+            with flask_app.app.app_context():
+                get_rbac_permissions_mock.return_value = mock_rbac_response
+
+                db_create_host()
+                config = flask_app.app.config.get("INVENTORY_CONFIG")
+                export_message = es_utils.create_export_message_mock()
+                mock_post.return_value.status_code = 202
+                resp = handle_export_message(message=export_message, inventory_config=config)
+                assert resp is True
+
+
+@mock.patch("requests.Session.post", autospec=True)
+def test_handle_rbac_prohibited(mock_post, subtests, flask_app, db_create_host, mocker, enable_rbac):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+
+    for response_file in HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+        with subtests.test():
+            with flask_app.app.app_context():
+                get_rbac_permissions_mock.return_value = mock_rbac_response
+
+                db_create_host()
+                config = flask_app.app.config.get("INVENTORY_CONFIG")
+                export_message = es_utils.create_export_message_mock()
+                mock_post.return_value.status_code = 202
+                resp = handle_export_message(message=export_message, inventory_config=config)
+                assert resp is False
