@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi9/python-38
+FROM registry.access.redhat.com/ubi8/python-38
 
 USER 0
 # use general package name instead of a specific one,
