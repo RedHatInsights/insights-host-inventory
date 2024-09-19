@@ -1,6 +1,9 @@
 import json
 from http import HTTPStatus
+from typing import Union
+from uuid import UUID
 
+from requests import Response
 from requests import Session
 from requests.adapters import HTTPAdapter
 
@@ -32,29 +35,41 @@ def create_export(export_svc_data, org_id, inventory_config, operation_args={}, 
     applicationName = export_svc_data["data"]["resource_request"]["application"]
     resourceUUID = export_svc_data["data"]["resource_request"]["uuid"]
 
-    rbac_request_headers = {
-        IDENTITY_HEADER: export_svc_data["data"]["resource_request"]["x_rh_identity"],
-        REQUEST_ID_HEADER: str(exportUUID),
-    }
-
     # x-rh-exports-psk must be an env variable
     request_headers = {
         "x-rh-exports-psk": inventory_config.export_service_token,
         "content-type": HEADER_CONTENT_TYPE[exportFormat.lower()],
     }
+
+    rbac_request_headers = {
+        IDENTITY_HEADER: export_svc_data["data"]["resource_request"]["x_rh_identity"],
+        REQUEST_ID_HEADER: str(exportUUID),
+    }
+
+    allowed, rbac_filter = get_rbac_filter(
+        RbacResourceType.HOSTS, RbacPermission.READ, identity=identity, rbac_request_headers=rbac_request_headers
+    )
+
+    export_service_endpoint = inventory_config.export_service_endpoint
+
+    if not allowed:
+        session = Session()
+        request_url = _build_export_request_url(
+            export_service_endpoint, exportUUID, applicationName, resourceUUID, "error"
+        )
+        _handle_export_error(
+            "You don't have the permission to access the requested resource.",
+            "403",
+            request_url,
+            session,
+            request_headers,
+            exportUUID,
+            exportFormat,
+        )
+        return False
+
     session = Session()
     try:
-        export_service_endpoint = inventory_config.export_service_endpoint
-        request_url = f"{export_service_endpoint}/app/export/v1/{exportUUID}/{applicationName}/{resourceUUID}/upload"
-
-        session.mount(request_url, HTTPAdapter(max_retries=3))
-
-        logger.info(f"Trying to get data for org_id: {identity.org_id}")
-
-        rbac_filter = get_rbac_filter(
-            RbacResourceType.HOSTS, RbacPermission.READ, identity=identity, rbac_request_headers=rbac_request_headers
-        )
-
         # create a generator with serialized host data
         host_data = list(
             get_hosts_to_export(
@@ -65,6 +80,14 @@ def create_export(export_svc_data, org_id, inventory_config, operation_args={}, 
             )
         )
 
+        request_url = _build_export_request_url(
+            export_service_endpoint, exportUUID, applicationName, resourceUUID, "upload"
+        )
+
+        session.mount(request_url, HTTPAdapter(max_retries=3))
+
+        logger.info(f"Trying to get data for org_id: {identity.org_id}")
+
         if host_data:
             logger.debug(f"Trying to upload data using URL:{request_url}")
             logger.info(
@@ -73,37 +96,60 @@ def create_export(export_svc_data, org_id, inventory_config, operation_args={}, 
             response = session.post(
                 url=request_url, headers=request_headers, data=_format_export_data(host_data, exportFormat)
             )
-            _handle_export_response(response, exportFormat, exportUUID)
+            _handle_export_response(response, exportUUID, exportFormat)
             return True
         else:
             logger.debug(f"No data found for org_id: {identity.org_id}")
-            request_url = (
-                f"{export_service_endpoint}/app/export/v1/{exportUUID}/{applicationName}/{resourceUUID}/error"
+            request_url = _build_export_request_url(
+                export_service_endpoint, exportUUID, applicationName, resourceUUID, "error"
             )
             response = session.post(
                 url=request_url,
                 headers=request_headers,
                 data=json.dumps({"message": f"No data found for org_id: {identity.org_id}", "error": 404}),
             )
-            _handle_export_response(response, exportFormat, exportUUID)
+            _handle_export_response(response, exportUUID, exportFormat)
             return False
     except Exception as e:
-        logger.error(e)
-        request_url = f"{export_service_endpoint}/app/export/v1/{exportUUID}/{applicationName}/{resourceUUID}/error"
-        response = session.post(
-            url=request_url, headers=request_headers, data=json.dumps({"message": str(e), "error": 500})
+        request_url = _build_export_request_url(
+            export_service_endpoint, exportUUID, applicationName, resourceUUID, "error"
         )
+        _handle_export_error(e, 500, request_url, session, request_headers, exportUUID, exportFormat)
         return False
     finally:
         session.close()
 
 
+def _build_export_request_url(
+    export_service_endpoint: str, exportUUID: str, applicationName: str, resourceUUID: str, request_type: str
+) -> str:
+    return f"{export_service_endpoint}/app/export/v1/{exportUUID}/{applicationName}/{resourceUUID}/{request_type}"
+
+
+def _handle_export_error(
+    error_message: Union[str, Exception],
+    status_code: Union[str, int],
+    request_url: str,
+    session: Session,
+    request_headers: dict,
+    exportUUID: UUID,
+    exportFormat: str,
+):
+    logger.error(error_message)
+    response = session.post(
+        url=request_url,
+        headers=request_headers,
+        data=json.dumps({"message": str(error_message), "error": status_code}),
+    )
+    _handle_export_response(response, exportUUID, exportFormat)
+
+
 # This function is used by create_export, needs improvement
-def _handle_export_response(response, exportFormat, exportUUID):
+def _handle_export_response(response: Response, exportUUID: UUID, exportFormat: str):
     if response.status_code != HTTPStatus.ACCEPTED:
         raise Exception(response.text)
     elif response.text != "":
-        logger.info(f"{response.text} for export ID {exportUUID} in {exportFormat.upper()} format")
+        logger.info(f"{response.text} for export ID {str(exportUUID)} in {exportFormat.upper()} format")
 
 
 def _format_export_data(data, exportFormat):
