@@ -202,34 +202,28 @@ def process_identity_header(encoded_id_header):
     return org_id, access_id
 
 
-def process_spec(spec, process_unindexed=False):
+def process_spec(spec):
     system_profile_spec_processed = {}
-    unindexed_fields = []
     for field, props in spec.items():
-        if props.get("x-indexed", True) or process_unindexed:
-            field_filter = _get_field_filter(field, props)
-            system_profile_spec_processed[field] = {
-                "type": _spec_type_to_python_type(props["type"]),  # cast from string to type
-                "filter": field_filter,
-                "format": props.get("format"),
-                "is_array": "array" == props.get("type"),
-            }
+        field_filter = _get_field_filter(field, props)
+        system_profile_spec_processed[field] = {
+            "type": _spec_type_to_python_type(props["type"]),  # cast from string to type
+            "filter": field_filter,
+            "format": props.get("format"),
+            "is_array": "array" == props.get("type"),
+        }
 
-            if "enum" in props:
-                system_profile_spec_processed[field]["enum"] = props.get("enum")
+        if "enum" in props:
+            system_profile_spec_processed[field]["enum"] = props.get("enum")
 
-            if field_filter in ["object", "operating_system"]:
-                system_profile_spec_processed[field]["children"], _ = process_spec(props["properties"], True)
+        if field_filter in ["object", "operating_system"]:
+            system_profile_spec_processed[field]["children"] = process_spec(props["properties"])
 
-        if not props.get("x-indexed", True):
-            unindexed_fields.append(field)
-
-    return system_profile_spec_processed, unindexed_fields
+    return system_profile_spec_processed
 
 
 def process_system_profile_spec():
     with open(SYSTEM_PROFILE_SPECIFICATION_FILE) as fp:
-        # TODO: add some handling here for if loading fails for some reason
         return process_spec(yaml.safe_load(fp)["$defs"]["SystemProfile"]["properties"])
 
 
@@ -251,7 +245,7 @@ def create_app(runtime_environment):
     parser = TranslatingParser(SPECIFICATION_FILE)
     parser.parse()
 
-    sp_spec, unindexed_fields = process_system_profile_spec()
+    sp_spec = process_system_profile_spec()
 
     for api_url in app_config.api_urls:
         if api_url:
@@ -262,7 +256,7 @@ def create_app(runtime_environment):
                 validate_responses=True,
                 strict_validation=False,
                 base_path=api_url,
-                validator_map=build_validator_map(system_profile_spec=sp_spec, unindexed_fields=unindexed_fields),
+                validator_map=build_validator_map(system_profile_spec=sp_spec),
             )
             logger.info("Listening on API: %s", api_url)
 
@@ -283,9 +277,7 @@ def create_app(runtime_environment):
     }
 
     flask_app.config["INVENTORY_CONFIG"] = app_config
-
     flask_app.config["SYSTEM_PROFILE_SPEC"] = sp_spec
-    flask_app.config["UNINDEXED_FIELDS"] = unindexed_fields
 
     init_cache(app_config, app)
 

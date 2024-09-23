@@ -33,7 +33,6 @@ $defs:
           uid: "0"
           ro: true
         "$ref": "#/$defs/NestedObject"
-        x-indexed: false
       mount_point:
         description: The mount point
         example: "/mnt/remote_nfs_shares, /mnt/local_nfs, /mnt/foo"
@@ -292,7 +291,6 @@ $defs:
         example: "ex1, ex2, ex3"
       bios_release_date:
         type: string
-        x-indexed: false
         x-wildcard: true
         maxLength: 50
         example: "ex1, ex2, ex3"
@@ -398,7 +396,6 @@ $defs:
         maxLength: 50
       running_processes:
         type: array  # techincally a set, ordering is not important
-        x-indexed: false
         items:
           description: A single running process. This will be truncated to 1000 characters when saved.
           type: string
@@ -422,7 +419,6 @@ $defs:
         example: "aws, ms, ibm"
       public_ipv4_addresses:
         type: array
-        x-indexed: false
         items:
           description: The external IPv4 address of the system
           type: string
@@ -431,7 +427,6 @@ $defs:
           format: ipv4
       public_dns:
         type: array
-        x-indexed: false
         items:
           description: The external DNS of the system
           type: string
@@ -440,7 +435,6 @@ $defs:
           format: string
       yum_repos:
         type: array  # technically a set, ordering is not important
-        x-indexed: false
         items:
           $ref: '#/$defs/YumRepo'
       dnf_modules:
@@ -474,7 +468,6 @@ $defs:
           maxLength: 512
       installed_packages_delta:
         type: array  # packages not in installed_packages, ordered by RPM sorting algorithm
-        x-indexed: false
         items:
           description: A NEVRA string for a single installed package
           example: "krb5-libs-0:-1.16.1-23.fc29.i686, arb5-libs-0:-1.16.1-23.fc29.i686, brb5-libs-0:-1.16.1-23.fc29.i686"
@@ -778,7 +771,6 @@ $defs:
           activity:
             description: Whether the conversion activity has been done or not
             type: boolean
-            x-indexed: false
             example: true
       rhel_ai:
         description: Object containing information about RHEL AI
