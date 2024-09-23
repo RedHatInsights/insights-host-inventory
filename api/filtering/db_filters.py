@@ -28,8 +28,6 @@ from app.models import HostGroupAssoc
 from app.models import OLD_TO_NEW_REPORTER_MAP
 from app.serialization import serialize_staleness_to_dict
 from app.utils import Tag
-from lib.feature_flags import FLAG_HIDE_EDGE_HOSTS
-from lib.feature_flags import get_flag_value
 from lib.host_repository import ALL_STALENESS_STATES
 
 __all__ = ("canonical_fact_filter", "query_filters", "host_id_list_filter", "rbac_permissions_filter")
@@ -196,17 +194,9 @@ def _system_profile_filter(filter: dict) -> Tuple[List, str]:
     query_filters = []
     host_types = HOST_TYPES.copy()
 
-    # If this feature flag is set, we should hide edge hosts by default, even if a filter wasn't provided.
-    if get_flag_value(FLAG_HIDE_EDGE_HOSTS) and not filter:
-        filter = {"system_profile": {"host_type": {"eq": "nil"}}}
-
     if filter:
         for key in filter:
             if key == "system_profile":
-                # If a host_type filter wasn't provided in the request, filter out edge hosts.
-                if get_flag_value(FLAG_HIDE_EDGE_HOSTS) and "host_type" not in filter["system_profile"]:
-                    filter["system_profile"]["host_type"] = {"eq": "nil"}
-
                 # Get the host_types we're filtering on, if any
                 host_types = get_host_types_from_filter(filter["system_profile"].get("host_type"))
 
