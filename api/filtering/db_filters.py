@@ -153,8 +153,8 @@ def per_reporter_staleness_filter(staleness, reporter, host_type_filter):
     return staleness_conditions
 
 
-def _staleness_filter(staleness: List[str], host_type_filter: Set[str]) -> List:
-    staleness_obj = serialize_staleness_to_dict(get_staleness_obj())
+def _staleness_filter(staleness: List[str], host_type_filter: Set[str], identity=None) -> List:
+    staleness_obj = serialize_staleness_to_dict(get_staleness_obj(identity))
     staleness_conditions = []
     for host_type in host_type_filter:
         conditions = or_(*staleness_to_conditions(staleness_obj, staleness, host_type, _stale_timestamp_filter))
@@ -283,6 +283,7 @@ def query_filters(
     filter: dict = None,
     rbac_filter: dict = None,
     order_by: str = None,
+    identity=None,
 ) -> Tuple[List, Query]:
     num_ids = 0
     host_type_filter = set(HOST_TYPES)
@@ -321,7 +322,7 @@ def query_filters(
         sp_filter, host_type_filter = _system_profile_filter(filter)
         filters += sp_filter
     if staleness:
-        filters += _staleness_filter(staleness, host_type_filter)
+        filters += _staleness_filter(staleness, host_type_filter, identity)
     if registered_with:
         filters += _registered_with_filter(registered_with, host_type_filter)
     if rbac_filter:
