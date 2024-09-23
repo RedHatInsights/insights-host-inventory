@@ -28,6 +28,7 @@ from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
 from app.serialization import serialize_host_for_export_svc
+from lib.host_repository import ALL_STALENESS_STATES
 from lib.host_repository import update_query_for_owner_id
 
 
@@ -595,7 +596,9 @@ def get_hosts_to_export(
     st_timestamps = staleness_timestamps()
     staleness = get_staleness_obj(identity)
 
-    q_filters, _ = query_filters(filter=filters, rbac_filter=rbac_filter)
+    q_filters, _ = query_filters(
+        filter=filters, rbac_filter=rbac_filter, staleness=ALL_STALENESS_STATES, identity=identity
+    )
     columns = [
         Host.id,
         Host.account,
