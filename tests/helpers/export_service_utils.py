@@ -89,10 +89,10 @@ def create_export_message_mock():
                     "resource": "urn:redhat:application:inventory:export:systems",
                     "uuid": "2844f3a1-e047-45b1-b0ce-fb9812ad6a6f",
                     "x-rh-identity": (
-                        "eyJpZGVudGl0eSI6IHsib3JnX2lkIjogIjU4OTQzMD"
-                        "AiLCAidHlwZSI6ICJVc2VyIiwgImF1dGhfdHlwZSI6"
-                        "ICJiYXNpYy1hdXRoIiwgInVzZXIiOiB7ImVtYWlsIj"
-                        "ogImpyYW1vc0ByZWRoYXQuY29tIiwgImZpcnN0X25hbWUiOiAidGVzdCJ9fX0="
+                        "eyJpZGVudGl0eSI6IHsib3JnX2lkIjogInRlc3QiL"
+                        "CAidHlwZSI6ICJVc2VyIiwgImF1dGhfdHlwZSI6IC"
+                        "JiYXNpYy1hdXRoIiwgInVzZXIiOiB7ImVtYWlsIjo"
+                        "gInRlc3RAcmVkaGF0LmNvbSIsICJmaXJzdF9uYW1lIjogInRlc3QifX19"
                     ),
                 }
             },
@@ -124,10 +124,12 @@ def create_export_message_missing_field_mock(field_to_remove):
                 "resource": "urn:redhat:application:inventory:export:systems",
                 "uuid": "2844f3a1-e047-45b1-b0ce-fb9812ad6a6f",
                 "x-rh-identity": (
-                    "eyJpZGVudGl0eSI6IHsib3JnX2lkIjogIjU4OTQzMD"
-                    "AiLCAidHlwZSI6ICJVc2VyIiwgImF1dGhfdHlwZSI6"
-                    "ICJiYXNpYy1hdXRoIiwgInVzZXIiOiB7ImVtYWlsIj"
-                    "ogImpyYW1vc0ByZWRoYXQuY29tIiwgImZpcnN0X25hbWUiOiAidGVzdCJ9fX0="
+                    "eyJpZGVudGl0eSI6IHsib3JnX2lkI"
+                    "jogInRlc3QiLCAidHlwZSI6ICJVc2"
+                    "VyIiwgImF1dGhfdHlwZSI6ICJiYXN"
+                    "pYy1hdXRoIiwgInVzZXIiOiB7ImVt"
+                    "YWlsIjogInRlc3RAcmVkaGF0LmNvb"
+                    "SIsICJmaXJzdF9uYW1lIjogInRlc3QifX19"
                 ),
             }
         },
