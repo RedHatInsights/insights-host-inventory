@@ -460,23 +460,31 @@ def write_message_batch(event_producer, processed_rows):
 @metrics.export_service_message_handler_time.time()
 def handle_export_message(message, inventory_config):
     validated_msg = parse_export_service_message(message)
-    if (
-        validated_msg["source"] == EXPORT_EVENT_SOURCE
-        and validated_msg["data"]["resource_request"]["application"] == EXPORT_SERVICE_APPLICATION
-    ):
-        logger.info("Found host-inventory application export message")
-        logger.debug("parsed_message: %s", validated_msg)
-        base64_x_rh_identity = validated_msg["data"]["resource_request"]["x_rh_identity"]
+    message_handled = False
+    try:
+        if (
+            validated_msg["source"] == EXPORT_EVENT_SOURCE
+            and validated_msg["data"]["resource_request"]["application"] == EXPORT_SERVICE_APPLICATION
+        ):
+            logger.info("Found host-inventory application export message")
+            logger.debug("parsed_message: %s", validated_msg)
+            base64_x_rh_identity = validated_msg["data"]["resource_request"]["x_rh_identity"]
 
-        if create_export(validated_msg, base64_x_rh_identity, inventory_config):
-            metrics.export_service_message_handler_success.inc()
-            return True
+            if create_export(validated_msg, base64_x_rh_identity, inventory_config):
+                metrics.export_service_message_handler_success.inc()
+                message_handled = True
+            else:
+                metrics.export_service_message_handler_failure.inc()
+                message_handled = False
         else:
-            metrics.export_service_message_handler_failure.inc()
-            return False
-    else:
-        logger.debug("Found export message not related to host-inventory")
-        return False
+            logger.debug("Found export message not related to host-inventory")
+            message_handled = False
+    except Exception as e:
+        logger.error(e)
+        metrics.export_service_message_handler_failure.inc()
+        message_handled = False
+    finally:
+        return message_handled
 
 
 def export_service_event_loop(consumer, flask_app, interrupt):
