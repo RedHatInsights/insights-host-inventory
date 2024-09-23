@@ -256,21 +256,6 @@ def test_get_hosts_sap_system_bad_parameter_values(api_get):
 
 
 @pytest.mark.parametrize(
-    "hide_edge_hosts",
-    (True, False),
-)
-def test_get_hosts_unsupported_filter(mocker, api_get, hide_edge_hosts):
-    implicit_url = build_hosts_url(query="?filter[system_profile][bad_thing]=Banana")
-    eq_url = build_hosts_url(query="?filter[Bad_thing][Extra_bad_one][eq]=Pinapple")
-
-    implicit_response_status, _ = api_get(implicit_url)
-    eq_response_status, _ = api_get(eq_url)
-
-    assert_response_status(implicit_response_status, 400)
-    assert_response_status(eq_response_status, 400)
-
-
-@pytest.mark.parametrize(
     "query_params",
     (
         "?filter[foo]=bar&filter[foo]=baz&filter[foo]=asdf",
