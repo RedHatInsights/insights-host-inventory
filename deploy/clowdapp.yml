@@ -1094,52 +1094,6 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_SYNCHRONIZER}
             memory: ${MEMORY_REQUEST_SYNCHRONIZER}
-    - name: pg-repack
-      schedule: ${PG_REPACK_SCHEDULE}
-      concurrencyPolicy: "Forbid"
-      suspend: ${{PG_REPACK_SUSPEND}}
-      restartPolicy: Never
-      podSpec:
-        image: ${PG_REPACK_IMAGE}:${IMAGE_TAG}
-        args: ["./run_pg_repack.py"]
-        env:
-          - name: INVENTORY_LOG_LEVEL
-            value: ${LOG_LEVEL}
-          - name: INVENTORY_DB_SSL_MODE
-            value: ${INVENTORY_DB_SSL_MODE}
-          - name: INVENTORY_DB_SSL_CERT
-            value: ${INVENTORY_DB_SSL_CERT}
-          - name: NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
-          - name: CLOWDER_ENABLED
-            value: "true"
-        resources:
-          limits:
-            cpu: ${CPU_LIMIT_PG_REPACK}
-            memory: ${MEMORY_LIMIT_PG_REPACK}
-          requests:
-            cpu: ${CPU_REQUEST_PG_REPACK}
-            memory: ${MEMORY_REQUEST_PG_REPACK}
-    database:
-      name: ${DB_NAME}
-      version: 13
-    kafkaTopics:
-      - topicName: ${KAFKA_SYSTEM_PROFILE_TOPIC}
-        partitions: 1
-      - topicName: platform.payload-status
-        partitions: 1
-      - topicName: ${KAFKA_EVENT_TOPIC}
-        partitions: 1
-      - topicName: ${KAFKA_NOTIFICATION_TOPIC}
-        partitions: 1
-      - topicName: ${KAFKA_HOST_INGRESS_TOPIC}
-        partitions: 1
-      - topicName: ${KAFKA_HOST_INGRESS_P1_TOPIC}
-        partitions: 1
-      - topicName: ${KAFKA_EXPORT_SERVICE_TOPIC}
-        partitions: 1
 # this service proxies requests for the old URL (insights-inventory:8080) to the clowderized service (host-inventory-service:8000)
 - apiVersion: v1
   kind: Service
@@ -1337,15 +1291,6 @@ parameters:
 - name: MEMORY_LIMIT_SYNCHRONIZER
   value: 512Mi
 
-- name: CPU_REQUEST_PG_REPACK
-  value: 250m
-- name: CPU_LIMIT_PG_REPACK
-  value: 500m
-- name: MEMORY_REQUEST_PG_REPACK
-  value: 256Mi
-- name: MEMORY_LIMIT_PG_REPACK
-  value: 512Mi
-
 - name: CPU_REQUEST_EXPORT_SVC
   value: 250m
 - name: CPU_LIMIT_EXPORT_SVC
@@ -1383,10 +1328,6 @@ parameters:
   name: IMAGE
   required: true
   value: quay.io/cloudservices/insights-inventory
-- description: pg_repack image name
-  name: PG_REPACK_IMAGE
-  required: true
-  value: quay.io/cloudservices/insights-inventory-pg-repack
 - description : ClowdEnvironment name
   name: ENV_NAME
   value: stage
@@ -1464,10 +1405,6 @@ parameters:
   value: 'true'
 - name: REAPER_SUSPEND
   value: 'true'
-- name: PG_REPACK_SUSPEND
-  value: 'true'
-- name: PG_REPACK_SCHEDULE
-  value: '@weekly'
 - name: KAFKA_SP_VALIDATOR_MAX_MESSAGES
   value: '10000'
 - name: TENANT_TRANSLATOR_HOST
