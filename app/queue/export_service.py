@@ -2,7 +2,6 @@ import json
 from http import HTTPStatus
 from typing import List
 from typing import Tuple
-from typing import Union
 from uuid import UUID
 
 from requests import Response
@@ -99,7 +98,7 @@ def create_export(
         )
         _handle_export_error(
             "You don't have the permission to access the requested resource.",
-            "403",
+            403,
             request_url,
             session,
             request_headers,
@@ -147,7 +146,7 @@ def create_export(
         request_url = _build_export_request_url(
             export_service_endpoint, exportUUID, applicationName, resourceUUID, "error"
         )
-        _handle_export_error(e, 500, request_url, session, request_headers, exportUUID, exportFormat)
+        _handle_export_error(str(e), 500, request_url, session, request_headers, exportUUID, exportFormat)
         export_created = False
     finally:
         session.close()
@@ -161,8 +160,8 @@ def _build_export_request_url(
 
 
 def _handle_export_error(
-    error_message: Union[str, Exception],
-    status_code: Union[str, int],
+    error_message: str,
+    status_code: int,
     request_url: str,
     session: Session,
     request_headers: dict,
