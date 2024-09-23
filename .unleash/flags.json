@@ -18,21 +18,6 @@
             "createdAt": "2024-01-10T20:16:35.042Z"
         },
         {
-            "name": "hbi.api.hide-edge-by-default",
-            "description": "If this is toggled, the HBI API will hide Edge hosts by default on all requests. If the request has a host-type filter, that is used instead.",
-            "type": "release",
-            "project": "default",
-            "stale": false,
-            "strategies": [
-                {
-                    "name": "default",
-                    "parameters": {}
-                }
-            ],
-            "variants": [],
-            "createdAt": "2024-01-10T20:19:30.848Z"
-        },
-        {
             "name": "edgeParity.groups-migration",
             "description": "In the context of edge-parity, enables the migrate of edge management groups to insights inventory groups.",
             "type": "release",
