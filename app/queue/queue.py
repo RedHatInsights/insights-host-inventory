@@ -466,8 +466,9 @@ def handle_export_message(message, inventory_config):
     ):
         logger.info("Found host-inventory application export message")
         logger.debug("parsed_message: %s", validated_msg)
-        org_id = validated_msg["redhatorgid"]
-        if create_export(validated_msg, org_id, inventory_config):
+        base64_x_rh_identity = validated_msg["data"]["resource_request"]["x_rh_identity"]
+
+        if create_export(validated_msg, base64_x_rh_identity, inventory_config):
             metrics.export_service_message_handler_success.inc()
             return True
         else:
