@@ -3,7 +3,6 @@
 set -exv
 
 IMAGE="quay.io/cloudservices/insights-inventory"
-PG_REPACK_IMAGE="quay.io/cloudservices/insights-inventory-pg-repack"
 IMAGE_TAG=$(git rev-parse --short=7 HEAD)
 SMOKE_TEST_TAG="latest"
 SECURITY_COMPLIANCE_TAG="sc-$(date +%Y%m%d)-$(git rev-parse --short=7 HEAD)"
@@ -36,31 +35,16 @@ podman login -u="$RH_REGISTRY_USER" -p="$RH_REGISTRY_TOKEN" registry.redhat.io
 # Build main image
 podman build --pull=true -f Dockerfile -t "${IMAGE}:${IMAGE_TAG}" .
 
-# Build pg_repack image
-podman build --pull=true -f pg_repack.dockerfile -t "${PG_REPACK_IMAGE}:${IMAGE_TAG}" .
-
 if [[ "$GIT_BRANCH" == "origin/security-compliance" ]]; then
     podman tag "${IMAGE}:${IMAGE_TAG}" "${IMAGE}:${SECURITY_COMPLIANCE_TAG}"
     podman push "${IMAGE}:${SECURITY_COMPLIANCE_TAG}"
-
-    podman tag "${PG_REPACK_IMAGE}:${IMAGE_TAG}" "${IMAGE}:${SECURITY_COMPLIANCE_TAG}"
-    podman push "${PG_REPACK_IMAGE}:${SECURITY_COMPLIANCE_TAG}"
 else
     # push main image
     podman push "${IMAGE}:${IMAGE_TAG}"
-
-    # push pg_repack image
-    podman push "${PG_REPACK_IMAGE}:${IMAGE_TAG}"
 
     # To enable backwards compatibility with ci, qa, and smoke, always push latest and qa tags
     podman tag "${IMAGE}:${IMAGE_TAG}" "${IMAGE}:latest"
     podman push "${IMAGE}:latest"
     podman tag "${IMAGE}:${IMAGE_TAG}" "${IMAGE}:qa"
     podman push "${IMAGE}:qa"
-
-    # Same for the pg_repack image
-    podman tag "${PG_REPACK_IMAGE}:${IMAGE_TAG}" "${PG_REPACK_IMAGE}:latest"
-    podman push "${PG_REPACK_IMAGE}:latest"
-    podman tag "${PG_REPACK_IMAGE}:${IMAGE_TAG}" "${PG_REPACK_IMAGE}:qa"
-    podman push "${PG_REPACK_IMAGE}:qa"
 fi
