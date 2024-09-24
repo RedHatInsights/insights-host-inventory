@@ -2052,7 +2052,7 @@
         "in": "query",
         "name": "filter",
         "required": false,
-        "description": "Filters hosts based on system_profile fields. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"sap_system\": {\"eq\": \"true\"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][sap_system][eq]=true\" <br /><br /> Hosts with host_type \"edge\" are filtered out by default. <br /><br /> To get \"edge\" hosts, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"host_type\": {\"eq\": \"edge\"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\"",
+        "description": "Filters hosts based on system_profile fields. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"sap_system\": {\"eq\": \"true\"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][sap_system][eq]=true\" <br /><br /> To get \"edge\" hosts, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"host_type\": {\"eq\": \"edge\"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\"",
         "style": "deepObject",
         "explode": true,
         "example": {},
@@ -3353,7 +3353,6 @@
           },
           "bios_release_date": {
             "type": "string",
-            "x-indexed": false,
             "x-wildcard": true,
             "maxLength": 50,
             "example": "ex1, ex2, ex3"
@@ -3495,7 +3494,6 @@
           },
           "running_processes": {
             "type": "array",
-            "x-indexed": false,
             "items": {
               "description": "A single running process. This will be truncated to 1000 characters when saved.",
               "type": "string",
@@ -3526,7 +3524,6 @@
           },
           "public_ipv4_addresses": {
             "type": "array",
-            "x-indexed": false,
             "items": {
               "description": "The external IPv4 address of the system",
               "type": "string",
@@ -3537,7 +3534,6 @@
           },
           "public_dns": {
             "type": "array",
-            "x-indexed": false,
             "items": {
               "description": "The external DNS of the system",
               "type": "string",
@@ -3548,7 +3544,6 @@
           },
           "yum_repos": {
             "type": "array",
-            "x-indexed": false,
             "items": {
               "$ref": "#/components/schemas/SystemProfileYumRepo"
             }
@@ -3593,7 +3588,6 @@
           },
           "installed_packages_delta": {
             "type": "array",
-            "x-indexed": false,
             "items": {
               "description": "A NEVRA string for a single installed package",
               "example": "krb5-libs-0:-1.16.1-23.fc29.i686, arb5-libs-0:-1.16.1-23.fc29.i686, brb5-libs-0:-1.16.1-23.fc29.i686",
@@ -4072,7 +4066,6 @@
               "activity": {
                 "description": "Whether the conversion activity has been done or not",
                 "type": "boolean",
-                "x-indexed": false,
                 "example": true
               }
             }
@@ -4177,8 +4170,7 @@
               "uid": "0",
               "ro": true
             },
-            "$ref": "#/components/schemas/SystemProfileNestedObject",
-            "x-indexed": false
+            "$ref": "#/components/schemas/SystemProfileNestedObject"
           },
           "mount_point": {
             "description": "The mount point",

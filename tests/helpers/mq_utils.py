@@ -1,6 +1,7 @@
 import json
 import os
 from collections import namedtuple
+from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
 from types import SimpleNamespace
@@ -233,7 +234,6 @@ def assert_patch_event_is_valid(
 def assert_system_registered_notification_is_valid(notification_event_producer, host):
     event = json.loads(notification_event_producer.event)
     context = event["context"]
-    payload = event["events"][0]["payload"]
 
     assert isinstance(event, dict)
 
@@ -266,11 +266,13 @@ def assert_system_registered_notification_is_valid(notification_event_producer, 
     }
     assert set(event.keys()) == expected_keys
     assert set(context.keys()) == expected_context_keys
-    assert set(payload.keys()) == expected_payload_keys
-
     assert "new-system-registered" == event["event_type"]
 
-    assert host.insights_id == event["events"][0]["payload"]["insights_id"]
+    for item in event["events"]:
+        payload = item["payload"]
+        assert set(payload.keys()) == expected_payload_keys
+        assert host.insights_id == payload["insights_id"]
+        assert isinstance(datetime.fromisoformat(payload["system_check_in"]), datetime)
 
 
 def expected_headers(

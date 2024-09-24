@@ -1300,8 +1300,6 @@ components:
         <br /><br />
         &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][sap_system][eq]=true"
         <br /><br />
-        Hosts with host_type "edge" are filtered out by default.
-        <br /><br />
         To get "edge" hosts, use this explicit filter:
         <br /><br />
         &nbsp;&nbsp;&nbsp;&nbsp;{"system_profile": {"host_type": {"eq": "edge"}}}

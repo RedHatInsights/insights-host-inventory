@@ -112,7 +112,6 @@ def serialize_host(
     omit_null_facts=False,
 ):
     # TODO: In future, this must handle groups staleness
-
     if host.host_type == "edge" or (
         hasattr(host, "system_profile_facts")
         and host.system_profile_facts
@@ -211,7 +210,6 @@ def serialize_host(
 
     if "host_type" in fields:
         serialized_host["host_type"] = host.host_type
-
     return serialized_host
 
 
