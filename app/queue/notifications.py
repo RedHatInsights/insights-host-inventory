@@ -164,7 +164,10 @@ def system_stale_notification(notification_type, host):
 
     base_notification_obj["context"]["host_url"] = f"{inventory_config().base_url_path}/hosts/{host.get('id')}"
 
-    notification_obj = populate_events(base_notification_obj, [host], ["reporter", "system_check_in"])
+    # the list of dicts corresponds the notification field with the host field
+    notification_obj = populate_events(
+        base_notification_obj, [host], [{"reporter": "reporter"}, {"system_check_in": "created"}]
+    )
 
     return SystemStaleSchema().dumps(notification_obj)
 
@@ -174,7 +177,9 @@ def system_registered_notification(notification_type, host):
 
     base_notification_obj["context"]["host_url"] = f"{inventory_config().base_url_path}/hosts/{host.get('id')}"
 
-    notification_obj = populate_events(base_notification_obj, [host], ["reporter", "system_check_in"])
+    notification_obj = populate_events(
+        base_notification_obj, [host], [{"reporter": "reporter"}, {"system_check_in": "created"}]
+    )
 
     return SystemRegisteredSchema().dumps(notification_obj)
 
@@ -240,7 +245,8 @@ def populate_events(base_notification_obj, host_list, extra_fields=[]):
         }
 
         for field in extra_fields:
-            event_output_obj["payload"][field] = host.get(field)
+            ((notif_field, host_field),) = field.items()
+            event_output_obj["payload"][notif_field] = host.get(host_field)
 
         base_notification_obj["events"].append(event_output_obj)
     return base_notification_obj
