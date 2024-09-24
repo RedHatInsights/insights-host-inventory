@@ -1165,20 +1165,19 @@ objects:
 - apiVersion: metrics.console.redhat.com/v1alpha1
   kind: FloorPlan
   metadata:
-    name: host-inventory-success-metrics
+    name: host-inventory-hms
   spec:
     database:
       secretName: ${FLOORIST_DB_SECRET_NAME}
     objectStore:
-      secretName: ${FLOORIST_BUCKET_SECRET_NAME}
+      secretName: ${FLOORIST_HMS_BUCKET_SECRET_NAME}
     suspend: ${{FLOORIST_SUSPEND}}
     logLevel: ${FLOORIST_LOGLEVEL}
     queries:
-      - prefix: insights/inventory/hosts_success_metrics
-        query: >-
+      - prefix: insights/inventory/hosts
           SELECT
             "id",
-            "account" AS "account_number",
+            COALESCE("account", 0) AS "account_number",
             "org_id" AS "org_id",
             "created_on" AS "created_at",
             "modified_on" AS "updated_at",
@@ -1187,7 +1186,7 @@ objects:
         query: >-
           SELECT
             "id",
-            "account" AS "account_number",
+            COALESCE("account", 0) AS "account_number",
             "org_id" AS "org_id",
             "created_on" AS "created_at",
             "modified_on" AS "updated_at",
@@ -1554,6 +1553,10 @@ parameters:
   name: FLOORIST_BUCKET_SECRET_NAME
   required: true
   value: dummy-secret
+- description: bucket secret name
+  name: FLOORIST_HMS_BUCKET_SECRET_NAME
+  required: true
+  value: dummy-hms-secret
 - name: FLOORIST_LOGLEVEL
   description: Floorist loglevel config
   value: 'INFO'
