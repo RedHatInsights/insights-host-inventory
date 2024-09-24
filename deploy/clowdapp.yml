@@ -1162,90 +1162,24 @@ objects:
             "system_profile_facts"->'sap' AS "sap_workload",
             "system_profile_facts"->'rhc_client_id' AS "rhc_client_id"
           FROM "hosts"
-      - prefix: insights/inventory/host-groups-count
+      - prefix: insights/inventory/hosts_success_metrics
         query: >-
-          -- "SELECT count(*) from groups"
           SELECT
-            COUNT(*)
-          FROM "groups"
-      - prefix: insights/inventory/number-of-accounts-with-host-groups
-        query: >-
-          -- "SELECT count(DISTINCT account) from groups"
-          SELECT
-            COUNT(DISTINCT "account")
-          FROM "groups"
-      - prefix: insights/inventory/host-groups-count-by-account
-        query: >-
-          -- "SELECT DISTINCT account as account, COUNT(id) FROM groups GROUP BY account ORDER BY count DESC"
-          SELECT
-            DISTINCT "account" AS "account",
-            COUNT("id")
-          FROM "groups"
-          GROUP BY "account"
-          ORDER BY COUNT DESC
-      - prefix: insights/inventory/org-ids-with-null-accounts
-        query: >-
-          -- "SELECT DISTINCT org_id as org_id, count(id) FROM groups WHERE account IS NULL GROUP BY org_id ORDER BY count DESC"
-          SELECT
-            DISTINCT "org_id" AS "org_id",
-            COUNT("id")
-          FROM "groups"
-          WHERE "account" IS NULL
-          GROUP BY "org_id"
-          ORDER BY COUNT DESC
-      - prefix: insights/inventory/org-ids-with-group-names
-        query: >-
-          -- "SELECT DISTINCT org_id as org_id, name as name FROM groups GROUP BY org_id, name ORDER BY name ASC"
-          SELECT
-            DISTINCT "org_id" AS "org_id",
-            "name" AS "name"
-          FROM "groups"
-          GROUP BY "org_id", "name"
-          ORDER BY "name" ASC
-
-      - prefix: insights/inventory/total-number-of-hosts
-        query: >-
-          -- "SELECT count(*) from hosts"
-          SELECT
-            COUNT(*)
+            "id",
+            "account" AS "account_number",
+            "org_id" AS "org_id",
+            "created_on" AS "created_at",
+            "modified_on" AS "updated_at",
           FROM "hosts"
-
-      - prefix: insights/inventory/number-of-distinct-accounts
+      - prefix: insights/inventory/groups_success_metrics
         query: >-
-          -- "SELECT count(DISTINCT account) from hosts"
           SELECT
-            COUNT(DISTINCT "account")
-          FROM "hosts"
-
-      - prefix: insights/inventory/number-of-distinct-orgIds
-        query: >-
-          -- "SELECT count(DISTINCT org_id) from hosts"
-          SELECT
-            COUNT(DISTINCT org_id)
-          FROM "hosts"
-
-      - prefix: insights/inventory/hosts-created-by-each-reporter
-        query: >-
-          -- "SELECT reporter, count(*) as hosts_created FROM hosts WHERE created_on >= NOW() - INTERVAL '1 week' GROUP BY reporter"
-          SELECT
-            "reporter" AS "reporter",
-            COUNT(*) AS "hosts_created"
-          FROM "hosts"
-          WHERE
-            "created_on" >= NOW() - INTERVAL '1 week'
-          GROUP BY "reporter"
-
-      - prefix: insights/inventory/hosts-updated-by-earch-reporter
-        query: >-
-          -- "SELECT reporter, count(*) as hosts_updated FROM hosts WHERE modified_on >= NOW() - INTERVAL '1 week' GROUP BY reporter"
-          SELECT
-            "reporter" AS "reporter",
-            COUNT(*) AS "hosts_updated"
-          FROM "hosts"
-          WHERE
-            "modified_on" >= NOW() - INTERVAL '1 week'
-          GROUP BY ""
-
+            "id",
+            "account" AS "account_number",
+            "org_id" AS "org_id",
+            "created_on" AS "created_at",
+            "modified_on" AS "updated_at",
+          FROM "groups"
 - apiVersion: v1
   data:
     nginx.conf: |-
