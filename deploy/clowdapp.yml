@@ -1162,7 +1162,36 @@ objects:
             "system_profile_facts"->'sap' AS "sap_workload",
             "system_profile_facts"->'rhc_client_id' AS "rhc_client_id"
           FROM "hosts"
-
+- apiVersion: metrics.console.redhat.com/v1alpha1
+  kind: FloorPlan
+  metadata:
+    name: host-inventory-success-metrics
+  spec:
+    database:
+      secretName: ${FLOORIST_DB_SECRET_NAME}
+    objectStore:
+      secretName: ${FLOORIST_BUCKET_SECRET_NAME}
+    suspend: ${{FLOORIST_SUSPEND}}
+    logLevel: ${FLOORIST_LOGLEVEL}
+    queries:
+      - prefix: insights/inventory/hosts_success_metrics
+        query: >-
+          SELECT
+            "id",
+            "account" AS "account_number",
+            "org_id" AS "org_id",
+            "created_on" AS "created_at",
+            "modified_on" AS "updated_at",
+          FROM "hosts"
+      - prefix: insights/inventory/groups_success_metrics
+        query: >-
+          SELECT
+            "id",
+            "account" AS "account_number",
+            "org_id" AS "org_id",
+            "created_on" AS "created_at",
+            "modified_on" AS "updated_at",
+          FROM "groups"
 - apiVersion: v1
   data:
     nginx.conf: |-
