@@ -1770,6 +1770,12 @@ def test_query_hosts_multiple_os(api_get, db_create_host, subtests):
         {
             "operating_system": {"name": "RHEL", "major": 7, "minor": 8},
         },
+        {
+            "operating_system": {"name": "RHEL", "major": 8, "minor": 5},
+        },
+        {
+            "operating_system": {"name": "RHEL", "major": 9, "minor": 1},
+        },
     ]
 
     for sp_facts in sp_facts_list:
@@ -1794,6 +1800,13 @@ def test_query_hosts_multiple_os(api_get, db_create_host, subtests):
                 "&filter[system_profile][operating_system][RHEL][version]=7.9&filter[system_profile][host_type][]=edge"
             ),
             2,
+        ),
+        (
+            (
+                "[operating_system][RHEL][version][eq][]=7"
+                "&filter[system_profile][operating_system][RHEL][version][eq][]=8"
+            ),
+            6,
         ),
     ]
 
