@@ -6,8 +6,8 @@ source $(pwd)/pr_check_common.sh
 export REF_ENV="insights-stage"
 export IQE_MARKER_EXPRESSION="backend and not resilience and not cert_auth and not rbac_dependent"
 export IQE_FILTER_EXPRESSION=""
-export IQE_CJI_TIMEOUT="4h"
-export RESERVE_DURATION="4h"
+export IQE_CJI_TIMEOUT="2h"
+export RESERVE_DURATION="2h"
 
 # Wait until the PR image is built
 check_image
@@ -19,15 +19,5 @@ fi
 
 # Deploy ephemeral env and run IQE tests
 source $CICD_ROOT/deploy_ephemeral_env.sh
-
-# Workaround for bonfire CICD script issue: https://github.com/RedHatInsights/bonfire/issues/283
-# Restart `oc logs -f` after 1 hour
-sed -i \
-'s/oc_wrapper logs -n $NAMESPACE $POD -c $CONTAINER -f &/ \
-oc_wrapper logs -n $NAMESPACE $POD -c $CONTAINER -f \&\n \
-LOGS_PID=$!\n sleep 3600\n kill $LOGS_PID\n \
-oc_wrapper logs -n $NAMESPACE $POD -c $CONTAINER -f \&/' \
-$CICD_ROOT/cji_smoke_test.sh
-
 source $CICD_ROOT/cji_smoke_test.sh
 source $CICD_ROOT/post_test_results.sh
