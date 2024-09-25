@@ -166,7 +166,7 @@ def build_operating_system_filter(filter_param: dict) -> tuple:
                 # If the minor version is specified, the comparison logic is a bit more complex. For instance:
                 # input: version <= 9.5
                 # output: (major < 9) OR (major = 9 AND minor <= 5)
-                comparator_no_eq = POSTGRES_COMPARATOR_LOOKUP.get(comparison.comparator[:1])
+                comparator_no_eq = POSTGRES_COMPARATOR_LOOKUP.get(comparison.comparator[:1]) or comparator
                 os_filter_text = (
                     f"(system_profile_facts->'operating_system'->>'name' = '{comparison.name}' AND "
                     f"((system_profile_facts->'operating_system'->>'major')::int {comparator_no_eq} {comparison.major}"
