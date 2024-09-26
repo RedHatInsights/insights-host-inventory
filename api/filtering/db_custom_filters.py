@@ -16,7 +16,7 @@ logger = get_logger(__name__)
 # Utility class to facilitate OS filter comparison
 # The list of comparators can be seen in POSTGRES_COMPARATOR_LOOKUP
 class OsComparison:
-    def __init__(self, name="", comparator="", major=0, minor=0):
+    def __init__(self, name="", comparator="", major=0, minor=None):
         self.name = name
         self.comparator = comparator
         self.major = major
@@ -162,11 +162,11 @@ def build_operating_system_filter(filter_param: dict) -> tuple:
 
             os_filter_list.append(os_filter_text)
         else:
-            if comparison.minor:
+            if comparison.minor is not None:
                 # If the minor version is specified, the comparison logic is a bit more complex. For instance:
                 # input: version <= 9.5
                 # output: (major < 9) OR (major = 9 AND minor <= 5)
-                comparator_no_eq = POSTGRES_COMPARATOR_LOOKUP.get(comparison.comparator[:1]) or comparator
+                comparator_no_eq = comparator[:1]
                 os_filter_text = (
                     f"(system_profile_facts->'operating_system'->>'name' = '{comparison.name}' AND "
                     f"((system_profile_facts->'operating_system'->>'major')::int {comparator_no_eq} {comparison.major}"

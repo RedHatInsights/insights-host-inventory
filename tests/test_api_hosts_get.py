@@ -1774,6 +1774,12 @@ def test_query_hosts_multiple_os(api_get, db_create_host, subtests):
             "operating_system": {"name": "RHEL", "major": 7, "minor": 8},
         },
         {
+            "operating_system": {"name": "RHEL", "major": 7, "minor": 10},
+        },
+        {
+            "operating_system": {"name": "RHEL", "major": 8, "minor": 0},
+        },
+        {
             "operating_system": {"name": "RHEL", "major": 8, "minor": 5},
         },
         {
@@ -1797,6 +1803,11 @@ def test_query_hosts_multiple_os(api_get, db_create_host, subtests):
         ("[operating_system][RHEL][version]=7.7", 2),
         ("[operating_system][RHEL][version][]=7.7&filter[system_profile][operating_system][RHEL][version][]=7.9", 2),
         ("[operating_system][RHEL][version][]=7.7&filter[system_profile][operating_system][RHEL][version][]=7.8", 5),
+        ("[operating_system][RHEL][version][gt]=7.7", 7),
+        ("[operating_system][RHEL][version][gte]=7.8", 7),
+        ("[operating_system][RHEL][version][gte]=7.10", 4),
+        ("[operating_system][RHEL][version][lte]=7.6", 0),
+        ("[operating_system][RHEL][version][lte]=7.8", 5),
         (
             (
                 "[operating_system][RHEL][version][]=7.7&filter[system_profile][operating_system][RHEL][version][]=7.8"
@@ -1809,11 +1820,19 @@ def test_query_hosts_multiple_os(api_get, db_create_host, subtests):
                 "[operating_system][RHEL][version][eq][]=7"
                 "&filter[system_profile][operating_system][RHEL][version][eq][]=8"
             ),
-            6,
+            8,
         ),
         (
             (
                 "[operating_system][RHEL][version][eq][]=8"
+                "&filter[system_profile][operating_system][RHEL][version][eq][]=7.8"
+                "&filter[system_profile][operating_system][RHEL][version][eq][]=7.7"
+            ),
+            7,
+        ),
+        (
+            (
+                "[operating_system][RHEL][version][eq][]=8.0"
                 "&filter[system_profile][operating_system][RHEL][version][eq][]=7.8"
                 "&filter[system_profile][operating_system][RHEL][version][eq][]=7.7"
             ),
@@ -1826,6 +1845,13 @@ def test_query_hosts_multiple_os(api_get, db_create_host, subtests):
                 "&filter[system_profile][operating_system][RHEL][version][lt][]=9.1"
             ),
             4,
+        ),
+        (
+            (
+                "[operating_system][RHEL][version][gte][]=7.10"
+                "&filter[system_profile][operating_system][RHEL][version][lte][]=7.10"
+            ),
+            1,
         ),
     ]
 
