@@ -1182,7 +1182,7 @@ objects:
             "created_on" AS "created_at",
             "modified_on" AS "updated_at",
           FROM "hosts"
-      - prefix: insights/inventory/groups_success_metrics
+      - prefix: insights/inventory/groups
         query: >-
           SELECT
             "id",
