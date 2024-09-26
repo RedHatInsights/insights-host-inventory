@@ -2446,7 +2446,7 @@ data:
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$datasource-appsre",
+          "datasource": "$datasource_appsre",
           "fieldConfig": {
             "defaults": {
               "custom": {},
@@ -2493,7 +2493,7 @@ data:
             {
               "expr": "sum(aws_kafka_bytes_in_per_sec_average{topic=~'(platform-mq-stage.|platform-mq-prod)?platform.inventory.host-ingress.*'}) by (topic)",
               "interval": "1m",
-              "legendFormat": "topic",
+              "legendFormat": "{{topic}}",
               "refId": "A"
             }
           ],
@@ -2501,7 +2501,7 @@ data:
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "incoming byte rate (ingress)",
+          "title": "Incoming byte rate (ingress)",
           "tooltip": {
             "shared": true,
             "sort": 0,
@@ -2543,7 +2543,7 @@ data:
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$datasource-appsre",
+          "datasource": "$datasource_appsre",
           "fieldConfig": {
             "defaults": {
               "custom": {},
@@ -2598,7 +2598,7 @@ data:
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "outgoing byte rate (ingress)",
+          "title": "Outgoing byte rate (ingress)",
           "tooltip": {
             "shared": true,
             "sort": 0,
@@ -4195,7 +4195,7 @@ data:
             "includeAll": false,
             "label": "Datasource - App SRE",
             "multi": false,
-            "name": "datasource-appsre",
+            "name": "datasource_appsre",
             "options": [],
             "query": "prometheus",
             "refresh": 1,
