@@ -266,6 +266,7 @@ def assert_system_registered_notification_is_valid(notification_event_producer, 
     }
     assert set(event.keys()) == expected_keys
     assert set(context.keys()) == expected_context_keys
+    assert context["host_url"].endswith(f"/insights/inventory/{context['inventory_id']}")
     assert "new-system-registered" == event["event_type"]
 
     for item in event["events"]:
