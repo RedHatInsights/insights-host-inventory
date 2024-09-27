@@ -44,6 +44,8 @@ BYPASS_UNLEASH="true"
 
 # If you want to use the legacy prefix, otherwise don't set PATH_PREFIX
 # PATH_PREFIX="/r/insights/platform"
+# For testing notifications in stage/ephemeral, set this to the appropriate url
+# PLATFORM_HOSTNAME="https://console.redhat.com"
 
 APP_NAME="inventory"
 INVENTORY_DB_USER="insights"
