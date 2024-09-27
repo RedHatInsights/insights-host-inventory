@@ -16,7 +16,7 @@ logger = get_logger(__name__)
 # Utility class to facilitate OS filter comparison
 # The list of comparators can be seen in POSTGRES_COMPARATOR_LOOKUP
 class OsComparison:
-    def __init__(self, name="", comparator="", major=0, minor=0):
+    def __init__(self, name="", comparator="", major=0, minor=None):
         self.name = name
         self.comparator = comparator
         self.major = major
@@ -132,31 +132,7 @@ def separate_operating_system_filters(filter_param) -> list[OsComparison]:
                     if not v.isdigit():
                         raise ValidationException("operating_system major and minor versions must be numerical.")
 
-                if len(version_split) == 2:
-                    os_filter_list.append(OsComparison(os_name, os_comparator, version_split[0], version_split[1]))
-                else:
-                    # If the minor version is not provided, then things get more complicated.
-                    # Using version 8 as an example, here's how the logic should work:
-                    # gte 8 -> gte 8.0
-                    # gt  8 -> gte 9.0
-                    # lte 8 -> lt  9.0
-                    # lt  8 -> lt  8.0
-                    # eq  8 -> gte 8.0 AND lt 9.0
-
-                    if os_comparator == "eq":
-                        os_filter_list.append(OsComparison(os_name, "gte", version_split[0], 0))
-                        os_filter_list.append(OsComparison(os_name, "lt", str(int(version_split[0]) + 1), 0))
-                    else:
-                        new_major_version = version_split[0]
-                        new_comparator = os_comparator
-                        if os_comparator in ["gt", "lte"]:
-                            new_major_version = str(int(new_major_version) + 1)
-                        if os_comparator == "gt":
-                            new_comparator = "gte"
-                        elif os_comparator == "lte":
-                            new_comparator = "lt"
-
-                        os_filter_list.append(OsComparison(os_name, new_comparator, new_major_version, 0))
+                os_filter_list.append(OsComparison(os_name, os_comparator, *version_split))
 
     return os_filter_list
 
@@ -167,27 +143,43 @@ def build_operating_system_filter(filter_param: dict) -> tuple:
     os_range_filter_list = []  # Contains the OS filters that use range operations
     separated_filters = separate_operating_system_filters(filter_param["operating_system"])
 
-    for os_comparison in separated_filters:
-        comparator = POSTGRES_COMPARATOR_LOOKUP.get(os_comparison.comparator)
-        comparator_no_eq = comparator[:1]
+    for comparison in separated_filters:
+        comparator = POSTGRES_COMPARATOR_LOOKUP.get(comparison.comparator)
 
-        if os_comparison.comparator in ["nil", "not_nil"]:
+        if comparison.comparator in ["nil", "not_nil"]:
             os_filter_list.append(f"(system_profile_facts->>'operating_system' {comparator})")
-        elif os_comparison.comparator == "eq":
-            os_filter_text = (
-                f"(system_profile_facts->'operating_system'->>'name' = '{os_comparison.name}' AND "
-                f"(system_profile_facts->'operating_system'->>'major')::int = {os_comparison.major} AND "
-                f"(system_profile_facts->'operating_system'->>'minor')::int = {os_comparison.minor})"
+        elif comparison.comparator == "eq":
+            # Filter on the minor version as well, but only if a minor version is specified
+            os_minor_filter = (
+                f"AND (system_profile_facts->'operating_system'->>'minor')::int = {comparison.minor}"
+                if comparison.minor
+                else ""
             )
+            os_filter_text = (
+                f"(system_profile_facts->'operating_system'->>'name' = '{comparison.name}' AND "
+                f"(system_profile_facts->'operating_system'->>'major')::int = {comparison.major} {os_minor_filter})"
+            )
+
             os_filter_list.append(os_filter_text)
         else:
+            if comparison.minor is not None:
+                # If the minor version is specified, the comparison logic is a bit more complex. For instance:
+                # input: version <= 9.5
+                # output: (major < 9) OR (major = 9 AND minor <= 5)
+                comparator_no_eq = comparator[:1]
+                os_filter_text = (
+                    f"(system_profile_facts->'operating_system'->>'name' = '{comparison.name}' AND "
+                    f"((system_profile_facts->'operating_system'->>'major')::int {comparator_no_eq} {comparison.major}"
+                    f" OR ((system_profile_facts->'operating_system'->>'major')::int = {comparison.major} AND "
+                    f"(system_profile_facts->'operating_system'->>'minor')::int {comparator} {comparison.minor})))"
+                )
+            else:
+                # If the minor version is not specified, it's simple.
+                os_filter_text = (
+                    f"(system_profile_facts->'operating_system'->>'name' = '{comparison.name}' AND "
+                    f"(system_profile_facts->'operating_system'->>'major')::int {comparator} {comparison.major})"
+                )
             # Add to AND filter
-            os_filter_text = (
-                f"(system_profile_facts->'operating_system'->>'name' = '{os_comparison.name}' AND "
-                f"((system_profile_facts->'operating_system'->>'major')::int {comparator_no_eq} {os_comparison.major}"
-                f" OR ((system_profile_facts->'operating_system'->>'major')::int = {os_comparison.major} AND "
-                f"(system_profile_facts->'operating_system'->>'minor')::int {comparator} {os_comparison.minor})))"
-            )
             os_range_filter_list.append(os_filter_text)
 
     # If there's anything in the range operations filter list, AND them and add to the main list.

@@ -1310,8 +1310,11 @@ def test_query_all_sp_filters_not_found(db_create_host, api_get, sp_filter_param
         "[RHEL][version][eq][]=8.11&filter[system_profile][operating_system][RHEL][version][gt][]=8",
         "[RHEL][version][eq][]=8.11&filter[system_profile][operating_system][RHEL][version][eq][]=9.1",
         "[RHEL][version][gte]=8",
+        "[RHEL][version][gte][]=8",
         "[RHEL][version][gt]=7",  # Minor version should be ignored
+        "[RHEL][version][gt][]=7",
         "[RHEL][version][eq]=8",  # Minor version should be ignored
+        "[RHEL][version][eq][]=8",
         "[RHEL][version]=8",  # Minor version should be ignored
         "[RHEL][version][gte]=8&filter[system_profile][operating_system][RHEL][version][lte]=8",
     ),
@@ -1770,6 +1773,18 @@ def test_query_hosts_multiple_os(api_get, db_create_host, subtests):
         {
             "operating_system": {"name": "RHEL", "major": 7, "minor": 8},
         },
+        {
+            "operating_system": {"name": "RHEL", "major": 7, "minor": 10},
+        },
+        {
+            "operating_system": {"name": "RHEL", "major": 8, "minor": 0},
+        },
+        {
+            "operating_system": {"name": "RHEL", "major": 8, "minor": 5},
+        },
+        {
+            "operating_system": {"name": "RHEL", "major": 9, "minor": 1},
+        },
     ]
 
     for sp_facts in sp_facts_list:
@@ -1788,12 +1803,55 @@ def test_query_hosts_multiple_os(api_get, db_create_host, subtests):
         ("[operating_system][RHEL][version]=7.7", 2),
         ("[operating_system][RHEL][version][]=7.7&filter[system_profile][operating_system][RHEL][version][]=7.9", 2),
         ("[operating_system][RHEL][version][]=7.7&filter[system_profile][operating_system][RHEL][version][]=7.8", 5),
+        ("[operating_system][RHEL][version][gt]=7.7", 7),
+        ("[operating_system][RHEL][version][gte]=7.8", 7),
+        ("[operating_system][RHEL][version][gte]=7.10", 4),
+        ("[operating_system][RHEL][version][lte]=7.6", 0),
+        ("[operating_system][RHEL][version][lte]=7.8", 5),
         (
             (
                 "[operating_system][RHEL][version][]=7.7&filter[system_profile][operating_system][RHEL][version][]=7.8"
                 "&filter[system_profile][operating_system][RHEL][version]=7.9&filter[system_profile][host_type][]=edge"
             ),
             2,
+        ),
+        (
+            (
+                "[operating_system][RHEL][version][eq][]=7"
+                "&filter[system_profile][operating_system][RHEL][version][eq][]=8"
+            ),
+            8,
+        ),
+        (
+            (
+                "[operating_system][RHEL][version][eq][]=8"
+                "&filter[system_profile][operating_system][RHEL][version][eq][]=7.8"
+                "&filter[system_profile][operating_system][RHEL][version][eq][]=7.7"
+            ),
+            7,
+        ),
+        (
+            (
+                "[operating_system][RHEL][version][eq][]=8.0"
+                "&filter[system_profile][operating_system][RHEL][version][eq][]=7.8"
+                "&filter[system_profile][operating_system][RHEL][version][eq][]=7.7"
+            ),
+            6,
+        ),
+        (
+            (
+                "[operating_system][RHEL][version][eq][]=7.8"
+                "&filter[system_profile][operating_system][RHEL][version][gt][]=8.1"
+                "&filter[system_profile][operating_system][RHEL][version][lt][]=9.1"
+            ),
+            4,
+        ),
+        (
+            (
+                "[operating_system][RHEL][version][gte][]=7.10"
+                "&filter[system_profile][operating_system][RHEL][version][lte][]=7.10"
+            ),
+            1,
         ),
     ]
 
