@@ -143,6 +143,8 @@ objects:
           value: "${INVENTORY_DB_STATEMENT_TIMEOUT}"
         - name: INVENTORY_DB_LOCK_TIMEOUT
           value: "${INVENTORY_DB_LOCK_TIMEOUT}"
+        - name: INVENTORY_DB_SCHEMA
+          value: "${INVENTORY_DB_SCHEMA}"
         - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
           value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
         - name: INVENTORY_API_CACHE_TYPE
@@ -293,6 +295,8 @@ objects:
           value: "${INVENTORY_DB_STATEMENT_TIMEOUT}"
         - name: INVENTORY_DB_LOCK_TIMEOUT
           value: "${INVENTORY_DB_LOCK_TIMEOUT}"
+        - name: INVENTORY_DB_SCHEMA
+          value: "${INVENTORY_DB_SCHEMA}"
         - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
           value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
         - name: INVENTORY_API_CACHE_TYPE
@@ -443,6 +447,8 @@ objects:
           value: "${INVENTORY_DB_STATEMENT_TIMEOUT}"
         - name: INVENTORY_DB_LOCK_TIMEOUT
           value: "${INVENTORY_DB_LOCK_TIMEOUT}"
+        - name: INVENTORY_DB_SCHEMA
+          value: "${INVENTORY_DB_SCHEMA}"
         - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
           value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
         - name: INVENTORY_API_CACHE_TYPE
@@ -546,6 +552,8 @@ objects:
           value: ${BYPASS_TENANT_TRANSLATION}
         - name: CLOWDER_ENABLED
           value: "true"
+        - name: INVENTORY_DB_SCHEMA
+          value: "${INVENTORY_DB_SCHEMA}"
         - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
           value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
         - name: INVENTORY_API_CACHE_TYPE
@@ -639,6 +647,8 @@ objects:
           value: ${BYPASS_TENANT_TRANSLATION}
         - name: CLOWDER_ENABLED
           value: "true"
+        - name: INVENTORY_DB_SCHEMA
+          value: "${INVENTORY_DB_SCHEMA}"
         - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
           value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
         - name: INVENTORY_API_CACHE_TYPE
@@ -729,6 +739,8 @@ objects:
           value: ${BYPASS_TENANT_TRANSLATION}
         - name: CLOWDER_ENABLED
           value: "true"
+        - name: INVENTORY_DB_SCHEMA
+          value: "${INVENTORY_DB_SCHEMA}"
         - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
           value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
         - name: INVENTORY_API_CACHE_TYPE
@@ -795,6 +807,8 @@ objects:
           value: ${BYPASS_TENANT_TRANSLATION}
         - name: CLOWDER_ENABLED
           value: "true"
+        - name: INVENTORY_DB_SCHEMA
+          value: "${INVENTORY_DB_SCHEMA}"
         - name: UNLEASH_URL
           value: ${UNLEASH_URL}
         - name: UNLEASH_TOKEN
@@ -879,6 +893,8 @@ objects:
             value: ${KAFKA_SASL_MECHANISM}
           - name: CLOWDER_ENABLED
             value: "true"
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
           - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
             value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
           - name: INVENTORY_API_CACHE_TYPE
@@ -968,6 +984,8 @@ objects:
             value: ${KAFKA_SASL_MECHANISM}
           - name: CLOWDER_ENABLED
             value: "true"
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
           - name: UNLEASH_URL
             value: ${UNLEASH_URL}
           - name: UNLEASH_TOKEN
@@ -999,6 +1017,8 @@ objects:
             value: ${INVENTORY_DB_SSL_MODE}
           - name: INVENTORY_DB_SSL_CERT
             value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
           - name: PROMETHEUS_PUSHGATEWAY
             value: ${PROMETHEUS_PUSHGATEWAY}
           - name: PENDO_SYNC_ACTIVE
@@ -1043,6 +1063,8 @@ objects:
             value: ${INVENTORY_DB_SSL_MODE}
           - name: INVENTORY_DB_SSL_CERT
             value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
           - name: KAFKA_BOOTSTRAP_SERVERS
             value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
           - name: KAFKA_EVENT_TOPIC
@@ -1511,6 +1533,8 @@ parameters:
   value: '30'
 - name: INVENTORY_API_READS_READINESS_PROBE_TIMEOUT_SECONDS
   value: '60'
+- name: INVENTORY_DB_SCHEMA
+  value: 'public'
 
 # NGINX
 - displayName: Minimum replicas
