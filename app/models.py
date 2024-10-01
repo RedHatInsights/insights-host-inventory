@@ -1,3 +1,4 @@
+import os
 import uuid
 from collections import namedtuple
 from copy import deepcopy
@@ -72,6 +73,8 @@ MIN_CANONICAL_FACTS_VERSION = 0
 MAX_CANONICAL_FACTS_VERSION = 1
 
 ZERO_MAC_ADDRESS = "00:00:00:00:00:00"
+
+INVENTORY_SCHEMA = os.getenv("INVENTORY_DB_SCHEMA", "public")
 
 
 class ProviderType(str, Enum):
@@ -173,6 +176,7 @@ class LimitedHost(db.Model):
         Index("idxdisplay_name", "display_name"),
         Index("idxsystem_profile_facts", "system_profile_facts", postgresql_using="gin"),
         Index("idxgroups", "groups", postgresql_using="gin"),
+        {"schema": INVENTORY_SCHEMA},
     )
 
     def __init__(
@@ -471,6 +475,7 @@ class Group(db.Model):
     __table_args__ = (
         Index("idxgrouporgid", "org_id"),
         Index("idx_groups_org_id_name_nocase", "org_id", text("lower(name)"), unique=True),
+        {"schema": INVENTORY_SCHEMA},
     )
 
     def __init__(
@@ -512,7 +517,7 @@ class Group(db.Model):
     name = db.Column(db.String(255), nullable=False)
     created_on = db.Column(db.DateTime(timezone=True), default=_time_now)
     modified_on = db.Column(db.DateTime(timezone=True), default=_time_now, onupdate=_time_now)
-    hosts = orm.relationship("Host", secondary="hosts_groups")
+    hosts = orm.relationship("Host", secondary=f"{INVENTORY_SCHEMA}.hosts_groups")
 
 
 class HostGroupAssoc(db.Model):
@@ -521,6 +526,7 @@ class HostGroupAssoc(db.Model):
         Index("idxhostsgroups", "host_id", "group_id"),
         Index("idxgroups_hosts", "group_id", "host_id"),
         UniqueConstraint("host_id", name="hosts_groups_unique_host_id"),
+        {"schema": INVENTORY_SCHEMA},
     )
 
     def __init__(
@@ -531,13 +537,16 @@ class HostGroupAssoc(db.Model):
         self.host_id = host_id
         self.group_id = group_id
 
-    host_id = db.Column(UUID(as_uuid=True), ForeignKey("hosts.id"), primary_key=True)
-    group_id = db.Column(UUID(as_uuid=True), ForeignKey("groups.id"), primary_key=True)
+    host_id = db.Column(UUID(as_uuid=True), ForeignKey(f"{INVENTORY_SCHEMA}.hosts.id"), primary_key=True)
+    group_id = db.Column(UUID(as_uuid=True), ForeignKey(f"{INVENTORY_SCHEMA}.groups.id"), primary_key=True)
 
 
 class AssignmentRule(db.Model):
     __tablename__ = "assignment_rules"
-    __table_args__ = (Index("idxassrulesorgid", "org_id"),)
+    __table_args__ = (
+        Index("idxassrulesorgid", "org_id"),
+        {"schema": INVENTORY_SCHEMA},
+    )
 
     def __init__(
         self,
@@ -581,7 +590,7 @@ class AssignmentRule(db.Model):
     account = db.Column(db.String(10))
     name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.String(255))
-    group_id = db.Column(UUID(as_uuid=True), ForeignKey("groups.id"))
+    group_id = db.Column(UUID(as_uuid=True), ForeignKey(f"{INVENTORY_SCHEMA}.groups.id"))
     filter = db.Column(JSONB, nullable=False)
     enabled = db.Column(db.Boolean(), default=True)
     created_on = db.Column(db.DateTime(timezone=True), default=_time_now)
@@ -593,6 +602,7 @@ class Staleness(db.Model):
     __table_args__ = (
         Index("idxaccstaleorgid", "org_id"),
         UniqueConstraint("org_id", name="staleness_unique_org_id"),
+        {"schema": INVENTORY_SCHEMA},
     )
 
     def __init__(
