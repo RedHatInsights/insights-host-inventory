@@ -13,6 +13,7 @@ from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
 from app.serialization import serialize_facts
 from app.utils import Tag
+from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import USER_IDENTITY
 
@@ -39,7 +40,7 @@ class MockEventProducer:
 
 class FakeMessage:
     def __init__(self, error=None, message=None):
-        self.message = message or Mock()
+        self.message = message or json.dumps({"platform_metadata": {"request_id": generate_uuid()}})
         self._error = error
 
     def value(self):
@@ -47,6 +48,12 @@ class FakeMessage:
 
     def error(self):
         return self._error
+
+    def partition(self):
+        return 0
+
+    def offset(self):
+        return 0
 
 
 class MockFuture:
