@@ -518,7 +518,7 @@ def event_loop(consumer, flask_app, event_producer, notification_event_producer,
             processed_rows = []
             with session_guard(db.session), db.session.no_autoflush:
                 messages = consumer.consume(
-                    messages=inventory_config().mq_db_batch_max_messages,
+                    num_messages=inventory_config().mq_db_batch_max_messages,
                     timeout=inventory_config().mq_db_batch_max_seconds,
                 )
 
