@@ -252,10 +252,6 @@ def populate_events(base_notification_obj, host_list, extra_fields=[]):
     return base_notification_obj
 
 
-def get_base_url():
-    return f"{inventory_config().platform_hostname}/insights/inventory"
-
-
 def send_notification(notification_event_producer, notification_type, host, **kwargs):
     notification = build_notification(notification_type, host, **kwargs)
     headers = notification_headers(notification_type)

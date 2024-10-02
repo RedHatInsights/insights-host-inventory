@@ -115,8 +115,6 @@ class Config:
             self.unleash_url = os.getenv("UNLEASH_URL")
             self.unleash_token = os.getenv("UNLEASH_TOKEN")
 
-        self.platform_hostname = os.getenv("PLATFORM_HOSTNAME", "https://console.redhat.com")
-
     def non_clowder_config(self):
         self.is_clowder = False
         self.metrics_port = 9126
@@ -151,8 +149,6 @@ class Config:
         self._cache_host = os.environ.get("CACHE_HOST", "localhost")
         self._cache_port = os.environ.get("CACHE_PORT", "6379")
         self.export_service_token = os.environ.get("EXPORT_SERVICE_TOKEN", "testing-a-psk")
-
-        self.platform_hostname = os.getenv("PLATFORM_HOSTNAME", "https://console.redhat.com")
 
     def days_to_seconds(self, n_days):
         factor = 86400
