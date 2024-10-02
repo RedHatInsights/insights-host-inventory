@@ -69,7 +69,7 @@ def test_event_loop_exception_handling(mocker, event_producer, flask_app):
         event_producer,
         fake_notification_event_producer,
         handler=handle_message_mock,
-        interrupt=mocker.Mock(side_effect=(False, False, False, False, False, False, False, True, True)),
+        interrupt=mocker.Mock(side_effect=(False, False, False, True)),
     )
     assert handle_message_mock.call_count == 3
 
@@ -89,7 +89,7 @@ def test_event_loop_with_error_message_handling(mocker, event_producer, flask_ap
         event_producer,
         fake_notification_event_producer,
         handler=handle_message_mock,
-        interrupt=mocker.Mock(side_effect=(False, False, False, False, False, False, False, True, True)),
+        interrupt=mocker.Mock(side_effect=(False, False, False, True)),
     )
 
     assert handle_message_mock.call_count == 2
@@ -180,7 +180,7 @@ def test_shutdown_handler(mocker, flask_app):
         fake_event_producer,
         fake_notification_event_producer,
         handler=handle_message_mock,
-        interrupt=mocker.Mock(side_effect=(False, False, True, True)),
+        interrupt=mocker.Mock(side_effect=(False, True)),
     )
     fake_consumer.consume.assert_called_once()
 
@@ -1490,7 +1490,7 @@ def test_update_system_profile_host_not_found(mocker, flask_app):
         mocker.Mock(),
         mocker.Mock(),
         handler=message_handler,
-        interrupt=mocker.Mock(side_effect=([False for _ in range(2)] + [True, True])),
+        interrupt=mocker.Mock(side_effect=(False, True)),
     )
 
 
@@ -1858,7 +1858,7 @@ def test_batch_mq_add_host_operations(mocker, event_producer, flask_app):
         event_producer,
         mock_notification_event_producer,
         handler=message_handler,
-        interrupt=mocker.Mock(side_effect=([False for _ in range(8)] + [True, True])),
+        interrupt=mocker.Mock(side_effect=(False, False, False, True)),
     )
 
     # Validate that the send_notification message was sent,
@@ -1933,7 +1933,7 @@ def test_batch_mq_header_request_id_updates(mocker, flask_app):
         event_producer_mock,
         mocker.Mock(),
         handler=handle_message,
-        interrupt=mocker.Mock(side_effect=([False for _ in range(4)] + [True, True])),
+        interrupt=mocker.Mock(side_effect=([False for _ in range(2)] + [True])),
     )
 
     # Should have been called once per host
@@ -1993,7 +1993,7 @@ def test_batch_mq_graceful_rollback(mocker, flask_app):
         event_producer_mock,
         mocker.Mock(),
         handler=handle_message,
-        interrupt=mocker.Mock(side_effect=([False for _ in range(4)] + [True, True])),
+        interrupt=mocker.Mock(side_effect=([False for _ in range(2)] + [True])),
     )
 
     # Assert that the hosts that came in after the error were still processed

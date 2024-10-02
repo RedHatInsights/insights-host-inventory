@@ -2,8 +2,6 @@ import base64
 import json
 import sys
 from copy import deepcopy
-from datetime import datetime
-from datetime import timedelta
 from functools import partial
 from uuid import UUID
 
@@ -58,7 +56,7 @@ from lib.feature_flags import get_flag_value
 
 logger = get_logger(__name__)
 
-CONSUMER_POLL_TIMEOUT_SECONDS = 1
+CONSUMER_POLL_TIMEOUT_SECONDS = 0.5
 SYSTEM_IDENTITY = {"auth_type": "cert-auth", "system": {"cert_type": "system"}, "type": "System"}
 EXPORT_EVENT_SOURCE = "urn:redhat:source:console:app:export-service"
 EXPORT_SERVICE_APPLICATION = "urn:redhat:application:inventory"
@@ -518,56 +516,56 @@ def event_loop(consumer, flask_app, event_producer, notification_event_producer,
     with flask_app.app_context():
         while not interrupt():
             processed_rows = []
-            start_time = datetime.now()
             with session_guard(db.session), db.session.no_autoflush:
-                messages = []
-                while (
-                    not interrupt()
-                    and (len(processed_rows) < inventory_config().mq_db_batch_max_messages)
-                    and (start_time + timedelta(seconds=inventory_config().mq_db_batch_max_seconds) > datetime.now())
-                ):
-                    messages = consumer.consume(timeout=CONSUMER_POLL_TIMEOUT_SECONDS)
+                messages = consumer.consume(
+                    messages=inventory_config().mq_db_batch_max_messages,
+                    timeout=inventory_config().mq_db_batch_max_seconds,
+                )
 
-                    commit_batch_early = True
-                    for msg in messages:
-                        if msg is None:
-                            continue
-                        elif msg.error():
-                            # This error is raised by the first consumer.consume() on a newly started Kafka.
-                            # msg.error() produces:
-                            # KafkaError{code=UNKNOWN_TOPIC_OR_PART,val=3,str="Subscribed topic not available:
-                            #   platform.inventory.host-ingress: Broker: Unknown topic or partition"}
-                            logger.error(f"Message received but has an error, which is {str(msg.error())}")
-                            metrics.ingress_message_handler_failure.inc()
-                        else:
-                            logger.debug("Message received")
-                            log_message_consumed(logger, msg)
+                for msg in messages:
+                    if msg is None:
+                        continue
+                    elif msg.error():
+                        # This error is raised by the first consumer.consume() on a newly started Kafka.
+                        # msg.error() produces:
+                        # KafkaError{code=UNKNOWN_TOPIC_OR_PART,val=3,str="Subscribed topic not available:
+                        #   platform.inventory.host-ingress: Broker: Unknown topic or partition"}
+                        logger.error(f"Message received but has an error, which is {str(msg.error())}")
+                        metrics.ingress_message_handler_failure.inc()
+                    else:
+                        logger.debug("Message received")
+                        log_message_consumed(logger, msg)
 
-                            try:
-                                processed_rows.append(
-                                    handler(
-                                        msg.value(),
-                                        notification_event_producer=notification_event_producer,
-                                    )
+                        try:
+                            # TODO: Check whether the incoming host payload would match to any of the records
+                            # we've already processed in the batch.
+                            # Reuse logic from host_repository.find_existing_host? This one will be hard
+
+                            # TODO: Check whether the host ID for the record we just processed
+                            # already exists in the current batch
+
+                            # We might be able to prevent this issue if we turn System Profile into a table
+                            # instead of jsonb. After we do that, we should be able to update specific columns
+                            # on the row rather than replacing it wholesale
+
+                            processed_rows.append(
+                                handler(
+                                    msg.value(),
+                                    notification_event_producer=notification_event_producer,
                                 )
-                                commit_batch_early = False
-                                metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
-                                metrics.ingress_message_handler_success.inc()
-                            except OperationalError as oe:
-                                """sqlalchemy.exc.OperationalError: This error occurs when an
-                                authentication failure occurs or the DB is not accessible.
-                                Exit the process to restart the pod
-                                """
-                                logger.error(f"Could not access DB {str(oe)}")
-                                sys.exit(3)
-                            except Exception:
-                                metrics.ingress_message_handler_failure.inc()
-                                commit_batch_early = True
-                                logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
-
-                    # If no messages were consumed, go ahead and commit so we're not waiting for no reason
-                    if commit_batch_early:
-                        break
+                            )
+                            metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
+                            metrics.ingress_message_handler_success.inc()
+                        except OperationalError as oe:
+                            """sqlalchemy.exc.OperationalError: This error occurs when an
+                            authentication failure occurs or the DB is not accessible.
+                            Exit the process to restart the pod
+                            """
+                            logger.error(f"Could not access DB {str(oe)}")
+                            sys.exit(3)
+                        except Exception:
+                            metrics.ingress_message_handler_failure.inc()
+                            logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
 
                 try:
                     db.session.commit()
