@@ -162,7 +162,7 @@ def system_deleted_notification(notification_type, host):
 def system_stale_notification(notification_type, host):
     base_notification_obj = build_base_notification_obj(notification_type, host)
 
-    base_notification_obj["context"]["host_url"] = f"{get_base_url()}/{host.get('id')}"
+    base_notification_obj["context"]["host_url"] = f"{inventory_config().base_ui_url}/{host.get('id')}"
 
     # the list of dicts corresponds the notification field with the host field
     notification_obj = populate_events(
@@ -175,7 +175,7 @@ def system_stale_notification(notification_type, host):
 def system_registered_notification(notification_type, host):
     base_notification_obj = build_base_notification_obj(notification_type, host)
 
-    base_notification_obj["context"]["host_url"] = f"{get_base_url()}/{host.get('id')}"
+    base_notification_obj["context"]["host_url"] = f"{inventory_config().base_ui_url}/{host.get('id')}"
 
     notification_obj = populate_events(
         base_notification_obj, [host], [{"reporter": "reporter"}, {"system_check_in": "created"}]
@@ -250,10 +250,6 @@ def populate_events(base_notification_obj, host_list, extra_fields=[]):
 
         base_notification_obj["events"].append(event_output_obj)
     return base_notification_obj
-
-
-def get_base_url():
-    return f"{inventory_config().platform_hostname}/insights/inventory"
 
 
 def send_notification(notification_event_producer, notification_type, host, **kwargs):
