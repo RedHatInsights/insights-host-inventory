@@ -204,6 +204,9 @@ class Config:
         self.prometheus_pushgateway = os.environ.get("PROMETHEUS_PUSHGATEWAY", "localhost:9091")
         self.kubernetes_namespace = os.environ.get("NAMESPACE")
 
+        self.consoledot_hostname = os.getenv("CONSOLEDOT_HOSTNAME", "localhost")
+        self.base_ui_url = f"https://{self.consoledot_hostname}/insights/inventory"
+
         self.kafka_ssl_configs = {
             "security.protocol": self.kafka_security_protocol,
             "ssl.ca.location": self.kafka_ssl_cafile,
