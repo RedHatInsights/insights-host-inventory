@@ -462,7 +462,7 @@ def write_add_update_event_message(
             logger.error("Error during set cache", ex)
 
 
-async def write_message_batch(
+def write_message_batch(
     event_producer: EventProducer, notification_event_producer: EventProducer, processed_rows: List[OperationResult]
 ):
     for result in processed_rows:
