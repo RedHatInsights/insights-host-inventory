@@ -16,12 +16,12 @@ from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import threadctx
 from app.queue.events import EventType
+from app.queue.host_mq import _validate_json_object_for_utf8
+from app.queue.host_mq import event_loop
+from app.queue.host_mq import handle_message
+from app.queue.host_mq import update_system_profile
+from app.queue.host_mq import write_add_update_event_message
 from app.queue.notifications import NotificationType
-from app.queue.queue import _validate_json_object_for_utf8
-from app.queue.queue import event_loop
-from app.queue.queue import handle_message
-from app.queue.queue import update_system_profile
-from app.queue.queue import write_add_update_event_message
 from lib.host_repository import AddHostResult
 from tests.helpers.db_utils import create_reference_host_in_db
 from tests.helpers.mq_utils import assert_mq_host_data
@@ -143,7 +143,7 @@ def test_request_id_is_reset(mocker, flask_app, db_create_host):
         mock_notification_event_producer = mocker.Mock()
         metadata = get_platform_metadata()
         add_host_mock = mocker.patch(
-            "app.queue.queue.add_host",
+            "app.queue.host_mq.add_host",
             return_value=(
                 db_create_host(),
                 AddHostResult.created,
@@ -198,8 +198,8 @@ def test_shutdown_handler(mocker, flask_app):
 
 @pytest.mark.parametrize("display_name", ("\udce2\udce2", "\\udce2\\udce2", "\udce2\udce2\\udce2\\udce2"))
 def test_handle_message_failure_invalid_surrogates(mocker, display_name):
-    mocker.patch("app.queue.queue.build_event")
-    add_host = mocker.patch("app.queue.queue.add_host", return_value=(mocker.MagicMock(), None, mocker.MagicMock()))
+    mocker.patch("app.queue.host_mq.build_event")
+    add_host = mocker.patch("app.queue.host_mq.add_host", return_value=(mocker.MagicMock(), None, mocker.MagicMock()))
 
     invalid_message = f'{{"operation": "", "data": {{"display_name": "hello{display_name}"}}}}'
 
@@ -210,9 +210,9 @@ def test_handle_message_failure_invalid_surrogates(mocker, display_name):
 
 
 def test_handle_message_unicode_not_damaged(mocker, flask_app, db_create_host, subtests):
-    mocker.patch("app.queue.queue.build_event")
+    mocker.patch("app.queue.host_mq.build_event")
     add_host = mocker.patch(
-        "app.queue.queue.add_host",
+        "app.queue.host_mq.add_host",
         return_value=(mocker.MagicMock(), None, Identity(SYSTEM_IDENTITY), mocker.MagicMock()),
     )
 
@@ -306,7 +306,7 @@ def test_handle_message_verify_message_headers(mocker, add_host_result, mq_creat
     )
 
     mock_add_host = mocker.patch(
-        "app.queue.queue.add_host",
+        "app.queue.host_mq.add_host",
         return_value=(db_host, add_host_result, Identity(SYSTEM_IDENTITY), mocker.MagicMock()),
     )
 
@@ -1280,7 +1280,7 @@ def test_invalid_string_raises_exception():
 
 
 def test_dicts_are_traversed(mocker):
-    mock = mocker.patch("app.queue.queue._validate_json_object_for_utf8")
+    mock = mocker.patch("app.queue.host_mq._validate_json_object_for_utf8")
 
     _validate_json_object_for_utf8({"first": "item", "second": "value"})
 
@@ -1290,7 +1290,7 @@ def test_dicts_are_traversed(mocker):
 
 
 def test_lists_are_traversed(mocker):
-    mock = mocker.patch("app.queue.queue._validate_json_object_for_utf8")
+    mock = mocker.patch("app.queue.host_mq._validate_json_object_for_utf8")
 
     _validate_json_object_for_utf8(["first", "second"])
 
@@ -1532,7 +1532,7 @@ def test_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_app, r
     expected_insights_id = generate_uuid()
 
     mock_add_host = mocker.patch(
-        "app.queue.queue.add_host",
+        "app.queue.host_mq.add_host",
         return_value=(
             db_create_host(),
             AddHostResult.created,
@@ -1816,7 +1816,7 @@ def test_batch_mq_add_host_operations(mocker, event_producer, flask_app):
 
     # Patch batch settings in inventory_config()
     mocker.patch(
-        "app.queue.queue.inventory_config",
+        "app.queue.host_mq.inventory_config",
         return_value=SimpleNamespace(
             mq_db_batch_max_messages=7,
             mq_db_batch_max_seconds=1,
@@ -1830,7 +1830,7 @@ def test_batch_mq_add_host_operations(mocker, event_producer, flask_app):
             immutable_time_to_delete_seconds=1,
         ),
     )
-    write_batch_patch = mocker.patch("app.queue.queue.write_message_batch")
+    write_batch_patch = mocker.patch("app.queue.host_mq.write_message_batch")
 
     fake_consumer = mocker.Mock(
         **{
@@ -1846,7 +1846,7 @@ def test_batch_mq_add_host_operations(mocker, event_producer, flask_app):
         }
     )
 
-    send_notification_patch = mocker.patch("app.queue.queue.send_notification")
+    send_notification_patch = mocker.patch("app.queue.host_mq.send_notification")
 
     mock_notification_event_producer = mocker.Mock()
 
@@ -1897,7 +1897,7 @@ def test_batch_mq_header_request_id_updates(mocker, flask_app):
 
     # Patch batch settings in inventory_config()
     mocker.patch(
-        "app.queue.queue.inventory_config",
+        "app.queue.host_mq.inventory_config",
         return_value=SimpleNamespace(
             mq_db_batch_max_messages=7,
             mq_db_batch_max_seconds=1,
@@ -1925,7 +1925,7 @@ def test_batch_mq_header_request_id_updates(mocker, flask_app):
     )
 
     event_producer_mock = mocker.Mock()
-    send_notification_patch = mocker.patch("app.queue.queue.send_notification")
+    send_notification_patch = mocker.patch("app.queue.host_mq.send_notification")
 
     event_loop(
         fake_consumer,
@@ -1953,7 +1953,7 @@ def test_batch_mq_graceful_rollback(mocker, flask_app):
 
     # Patch batch settings in inventory_config()
     mocker.patch(
-        "app.queue.queue.inventory_config",
+        "app.queue.host_mq.inventory_config",
         return_value=SimpleNamespace(
             mq_db_batch_max_messages=3,
             mq_db_batch_max_seconds=1,
@@ -1970,9 +1970,9 @@ def test_batch_mq_graceful_rollback(mocker, flask_app):
 
     # Make it so the commit raises a StaleDataError
     mocker.patch(
-        "app.queue.queue.db.session.commit", side_effect=[StaleDataError("Stale data"), None, None, None, None, None]
+        "app.queue.host_mq.db.session.commit", side_effect=[StaleDataError("Stale data"), None, None, None, None, None]
     )
-    write_batch_patch = mocker.patch("app.queue.queue.write_message_batch")
+    write_batch_patch = mocker.patch("app.queue.host_mq.write_message_batch")
 
     fake_consumer = mocker.Mock(
         **{
