@@ -16,7 +16,6 @@ from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import threadctx
 from app.queue.events import EventType
-from app.queue.notifications import NotificationType
 from app.queue.queue import _validate_json_object_for_utf8
 from app.queue.queue import event_loop
 from app.queue.queue import handle_message
@@ -154,7 +153,7 @@ def test_request_id_is_reset(mocker, flask_app, db_create_host):
 
         message = wrap_message(minimal_host().data(), "add_host", metadata)
         result = handle_message(json.dumps(message), mock_notification_event_producer, add_host_mock)
-        write_add_update_event_message(mock_event_producer, result)
+        write_add_update_event_message(mock_event_producer, mock_notification_event_producer, result)
         assert json.loads(mock_event_producer.write_event.call_args[0][0])["metadata"]["request_id"] == metadata.get(
             "request_id"
         )
@@ -1556,7 +1555,7 @@ def test_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_app, r
     message = wrap_message(host.data(), "add_host", platform_metadata)
 
     result = handle_message(json.dumps(message), mock_notification_event_producer, mock_add_host)
-    write_add_update_event_message(mock_event_producer, result)
+    write_add_update_event_message(mock_event_producer, mock_notification_event_producer, result)
 
     mock_event_producer.write_event.assert_called_once()
     mock_notification_event_producer.assert_not_called()
@@ -1846,10 +1845,7 @@ def test_batch_mq_add_host_operations(mocker, event_producer, flask_app):
         }
     )
 
-    send_notification_patch = mocker.patch("app.queue.queue.send_notification")
-
     mock_notification_event_producer = mocker.Mock()
-
     message_handler = partial(handle_message, notification_event_producer=mock_notification_event_producer)
 
     event_loop(
@@ -1860,13 +1856,6 @@ def test_batch_mq_add_host_operations(mocker, event_producer, flask_app):
         handler=message_handler,
         interrupt=mocker.Mock(side_effect=(False, False, False, True)),
     )
-
-    # Validate that the send_notification message was sent,
-    # and validate its arguments.
-    send_notification_patch.assert_called()
-    assert send_notification_patch.call_args_list[-1][0][0] == mock_notification_event_producer
-    assert send_notification_patch.call_args_list[-1][1]["notification_type"] == NotificationType.new_system_registered
-    assert send_notification_patch.call_args_list[-1][1]["host"]["insights_id"] == host["insights_id"]
 
     # 12 messages were sent, but it should have only committed three times:
     # - Once after 7 messages (the batch size)

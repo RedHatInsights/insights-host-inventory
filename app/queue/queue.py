@@ -3,6 +3,8 @@ import json
 import sys
 from copy import deepcopy
 from functools import partial
+from multiprocessing import Process
+from typing import List
 from uuid import UUID
 
 from marshmallow import fields
@@ -403,11 +405,12 @@ def write_delete_event_message(event_producer: EventProducer, result: OperationR
     result.success_logger()
 
 
-def write_add_update_event_message(event_producer: EventProducer, result: OperationResult):
+def write_add_update_event_message(
+    event_producer: EventProducer, notification_event_producer: EventProducer, result: OperationResult
+):
     # The request ID in the headers is fetched from threadctx.request_id
     request_id = result.platform_metadata.get("request_id")
     initialize_thread_local_storage(request_id, result.host_row.org_id, result.host_row.account)
-
     payload_tracker = get_payload_tracker(request_id=request_id)
 
     with PayloadTrackerProcessingContext(
@@ -430,8 +433,21 @@ def write_add_update_event_message(event_producer: EventProducer, result: Operat
         )
 
     event_producer.write_event(event, str(result.host_row.id), headers, wait=True)
-    org_id = output_host.get("org_id")
+
+    if result.event_type.name == HOST_EVENT_TYPE_CREATED:
+        send_notification(
+            notification_event_producer,
+            notification_type=NotificationType.new_system_registered,
+            host=serialize_host(
+                result.host_row,
+                staleness_timestamps=result.staleness_timestamps,
+                staleness=result.staleness_object,
+                omit_null_facts=True,
+            ),
+        )
     result.success_logger(output_host)
+
+    org_id = output_host.get("org_id")
     if get_flag_value(FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM):
         try:
             owner_id = output_host.get("system_profile", {}).get("owner_id")
@@ -446,11 +462,13 @@ def write_add_update_event_message(event_producer: EventProducer, result: Operat
             logger.error("Error during set cache", ex)
 
 
-def write_message_batch(event_producer, processed_rows):
+async def write_message_batch(
+    event_producer: EventProducer, notification_event_producer: EventProducer, processed_rows: List[OperationResult]
+):
     for result in processed_rows:
         if result is not None:
             try:
-                write_add_update_event_message(event_producer, result)
+                write_add_update_event_message(event_producer, notification_event_producer, result)
             except Exception as exc:
                 metrics.ingress_message_handler_failure.inc()
                 logger.exception("Error while producing message", exc_info=exc)
@@ -571,21 +589,18 @@ def event_loop(consumer, flask_app, event_producer, notification_event_producer,
                     db.session.commit()
                     # The above session is automatically committed or rolled back.
                     # Now we need to send out messages for the batch of hosts we just processed.
-                    write_message_batch(event_producer, processed_rows)
+                    # TODO: Spawn new process or thread for this?
+                    p = Process(
+                        target=partial(
+                            write_message_batch, event_producer, notification_event_producer, processed_rows
+                        )
+                    )
+                    p.daemon = True
+                    logger.info("Before write message batch")
+                    p.start()
+                    # write_message_batch(event_producer, notification_event_producer, processed_rows)
+                    logger.info("After write message batch")
 
-                    # Find the operation related to 'host_created' and send the notification
-                    for operation_result_obj in processed_rows:
-                        if operation_result_obj and operation_result_obj.event_type.name == HOST_EVENT_TYPE_CREATED:
-                            send_notification(
-                                notification_event_producer,
-                                notification_type=NotificationType.new_system_registered,
-                                host=serialize_host(
-                                    operation_result_obj.host_row,
-                                    staleness_timestamps=operation_result_obj.staleness_timestamps,
-                                    staleness=operation_result_obj.staleness_object,
-                                    omit_null_facts=True,
-                                ),
-                            )
                 except StaleDataError as exc:
                     metrics.ingress_message_handler_failure.inc(amount=len(messages))
                     logger.error(
