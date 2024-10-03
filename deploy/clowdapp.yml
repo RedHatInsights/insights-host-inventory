@@ -1388,7 +1388,7 @@ parameters:
 - name: PATH_PREFIX
   value: api
 - name: CONSOLEDOT_HOSTNAME
-  value: 'console.redhat.com'
+  value: 'localhost'
 - name: URLLIB3_LOG_LEVEL
   value: WARNING
 - description: SSL validation mode for the DB
