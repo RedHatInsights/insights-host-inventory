@@ -237,7 +237,7 @@ def log_add_host_attempt(logger, input_host):
 def log_message_consumed(logger, message):
     partition = message.partition()
     offset = message.offset()
-    request_id = json.loads(message.value())["platform_metadata"]["request_id"]
+    request_id = json.loads(message.value())["platform_metadata"].get("request_id")
     logger.info(f"Host message consumed, partition={partition}, offset={offset}, request_id={request_id}")
 
 
