@@ -1,9 +1,9 @@
 import base64
 import json
 import sys
+from concurrent.futures import ProcessPoolExecutor
 from copy import deepcopy
 from functools import partial
-from multiprocessing import Process
 from typing import List
 from uuid import UUID
 
@@ -531,7 +531,7 @@ def export_service_event_loop(consumer, flask_app, interrupt):
 
 
 def event_loop(consumer, flask_app, event_producer, notification_event_producer, handler, interrupt):
-    with flask_app.app_context():
+    with flask_app.app_context(), ProcessPoolExecutor() as executor:
         while not interrupt():
             processed_rows = []
             with session_guard(db.session), db.session.no_autoflush:
@@ -586,20 +586,18 @@ def event_loop(consumer, flask_app, event_producer, notification_event_producer,
                             logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
 
                 try:
-                    db.session.commit()
-                    # The above session is automatically committed or rolled back.
-                    # Now we need to send out messages for the batch of hosts we just processed.
-                    # TODO: Spawn new process or thread for this?
-                    p = Process(
-                        target=partial(
-                            write_message_batch, event_producer, notification_event_producer, processed_rows
+                    if len(processed_rows) > 0:
+                        db.session.commit()
+                        # The above session is automatically committed or rolled back.
+                        # Now we need to send out messages for the batch of hosts we just processed.
+                        # TODO: Spawn new process or thread for this?
+                        logger.info("Submitting message batch")
+                        executor.submit(
+                            lambda: write_message_batch(event_producer, notification_event_producer, processed_rows)
                         )
-                    )
-                    p.daemon = True
-                    logger.info("Before write message batch")
-                    p.start()
-                    # write_message_batch(event_producer, notification_event_producer, processed_rows)
-                    logger.info("After write message batch")
+
+                        # write_message_batch(event_producer, notification_event_producer, processed_rows)
+                        logger.info("After write message batch")
 
                 except StaleDataError as exc:
                     metrics.ingress_message_handler_failure.inc(amount=len(messages))
