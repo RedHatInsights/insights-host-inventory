@@ -18,7 +18,7 @@ from app.logging import configure_logging
 from app.logging import get_logger
 from app.logging import threadctx
 from app.queue.event_producer import EventProducer
-from app.queue.queue import sync_event_message
+from app.queue.host_mq import sync_event_message
 from lib.db import session_guard
 from lib.handlers import register_shutdown
 from lib.handlers import ShutdownHandler
