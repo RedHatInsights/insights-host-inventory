@@ -9,14 +9,14 @@ from app import create_app
 from app.environment import RuntimeEnvironment
 from app.logging import get_logger
 from app.queue.event_producer import EventProducer
-from app.queue.queue import add_host
-from app.queue.queue import event_loop
-from app.queue.queue import handle_message
-from app.queue.queue import update_system_profile
+from app.queue.host_mq import add_host
+from app.queue.host_mq import event_loop
+from app.queue.host_mq import handle_message
+from app.queue.host_mq import update_system_profile
 from lib.handlers import register_shutdown
 from lib.handlers import ShutdownHandler
 
-logger = get_logger("mq_service")
+logger = get_logger("host_mq_service")
 
 
 def main():
