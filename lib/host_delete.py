@@ -10,10 +10,10 @@ from app.models import Host
 from app.models import HostGroupAssoc
 from app.queue.event_producer import EventProducer
 from app.queue.events import EventType
+from app.queue.host_mq import OperationResult
+from app.queue.host_mq import write_delete_event_message
 from app.queue.notifications import NotificationType
 from app.queue.notifications import send_notification
-from app.queue.queue import OperationResult
-from app.queue.queue import write_delete_event_message
 from lib.db import session_guard
 from lib.host_kafka import kafka_available
 from lib.metrics import delete_host_count

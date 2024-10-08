@@ -132,7 +132,7 @@ def db_create_multiple_hosts(flask_app):
     def _db_create_multiple_hosts(identity=SYSTEM_IDENTITY, hosts=None, how_many=10, extra_data=None):
         extra_data = extra_data or {}
         created_hosts = []
-        if type(hosts) == list:
+        if isinstance(hosts, list):
             for host in hosts:
                 db.session.add(host)
                 created_hosts.append(host)
