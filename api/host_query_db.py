@@ -62,7 +62,7 @@ DEFAULT_COLUMNS = [
 
 
 def get_all_hosts() -> List:
-    query_results = _find_all_hosts(columns=[Host.id]).all()
+    query_results = _find_hosts_entities_query(columns=[Host.id]).all()
     ids_list = [str(result[0]) for result in query_results]
 
     log_get_host_list_succeeded(logger, ids_list)
@@ -88,7 +88,7 @@ def _get_host_list_using_filters(
     else:
         additional_fields = tuple()
 
-    base_query = _find_all_hosts(query_base=query_base, columns=columns).filter(*all_filters)
+    base_query = _find_hosts_entities_query(query_base=query_base, columns=columns).filter(*all_filters)
     host_query = base_query.order_by(*params_to_order_by(param_order_by, param_order_how))
 
     # Count separately because the COUNT done by .paginate() is inefficient
@@ -167,7 +167,7 @@ def get_host_list_by_id_list(
 def get_host_id_by_insights_id(insights_id: str, rbac_filter=None) -> str:
     identity = get_current_identity()
     all_filters = canonical_fact_filter("insights_id", insights_id) + rbac_permissions_filter(rbac_filter)
-    query = _find_all_hosts(columns=[Host.id], identity=identity).filter(*all_filters)
+    query = _find_hosts_entities_query(columns=[Host.id], identity=identity).filter(*all_filters)
 
     try:
         found_id = query.with_entities(Host.id).order_by(Host.modified_on.desc()).scalar()
@@ -231,9 +231,7 @@ def _order_how(column, order_how: str):
         raise ValueError('Unsupported ordering direction, use "ASC" or "DESC".')
 
 
-def _find_all_hosts(
-    query_base=None, columns: List[ColumnElement] = None, identity: object = None, load_only_option: bool = False
-) -> Query:
+def _find_hosts_entities_query(query_base=None, columns: List[ColumnElement] = None, identity: object = None) -> Query:
     if query_base is None:
         query_base = db.session.query(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
 
@@ -242,10 +240,23 @@ def _find_all_hosts(
 
     query = query_base.filter(Host.org_id == identity.org_id)
     if columns:
-        if load_only_option:
-            query = query.options(load_only(*columns))
-        else:
-            query = query.with_entities(*columns)
+        query = query.with_entities(*columns)
+    return update_query_for_owner_id(identity, query)
+
+
+def _find_hosts_model_query(columns: List[ColumnElement] = None, identity: object = None) -> Query:
+    query_base = db.session.query(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
+    query = query_base.filter(Host.org_id == identity.org_id)
+
+    # In this case, return a list of Hosts
+    # wih the requested columns.
+    # When used with scalars,
+    # the entire Host object is returned,
+    # instead of just the first column,
+    # that is the case of _find_hosts_entities_query
+    # See: https://docs.sqlalchemy.org/en/20/core/connections.html#sqlalchemy.engine.Result.scalars
+
+    query = query.options(load_only(*columns))
     return update_query_for_owner_id(identity, query)
 
 
@@ -253,7 +264,7 @@ def get_host_tags_list_by_id_list(
     host_id_list: List[str], limit: int, offset: int, order_by: str, order_how: str, rbac_filter: dict
 ) -> Tuple[dict, int]:
     columns = [Host.id, Host.tags]
-    query = _find_all_hosts(columns=columns)
+    query = _find_hosts_entities_query(columns=columns)
     all_filters = host_id_list_filter(host_id_list=host_id_list)
     all_filters += rbac_permissions_filter(rbac_filter)
     order = params_to_order_by(order_by, order_how)
@@ -353,7 +364,7 @@ def get_tag_list(
         rbac_filter,
         order_by,
     )
-    query = _find_all_hosts(query_base=query_base, columns=columns)
+    query = _find_hosts_entities_query(query_base=query_base, columns=columns)
 
     query_results = query.filter(*all_filters).all()
     db.session.close()
@@ -405,7 +416,7 @@ def get_os_info(
     filters, query_base = query_filters(
         tags=tags, staleness=staleness, registered_with=registered_with, filter=filter, rbac_filter=rbac_filter
     )
-    os_query = _find_all_hosts(query_base=query_base, columns=columns)
+    os_query = _find_hosts_entities_query(query_base=query_base, columns=columns)
 
     # Only include records that have set an operating_system.name
     filters += (columns[0].isnot(None),)
@@ -450,7 +461,7 @@ def get_sap_system_info(
     filters, query_base = query_filters(
         tags=tags, staleness=staleness, registered_with=registered_with, filter=filter, rbac_filter=rbac_filter
     )
-    sap_query = _find_all_hosts(query_base=query_base, columns=columns)
+    sap_query = _find_hosts_entities_query(query_base=query_base, columns=columns)
     sap_filter = [
         func.jsonb_typeof(Host.system_profile_facts["sap_system"]) == "boolean",
         Host.system_profile_facts["sap_system"].astext.cast(Boolean) != None,  # noqa:E711
@@ -482,7 +493,7 @@ def get_sap_sids_info(
     filters, query_base = query_filters(
         tags=tags, staleness=staleness, registered_with=registered_with, filter=filter, rbac_filter=rbac_filter
     )
-    sap_sids_query = _find_all_hosts(query_base=query_base, columns=columns)
+    sap_sids_query = _find_hosts_entities_query(query_base=query_base, columns=columns)
     query_results = sap_sids_query.filter(*filters).all()
     db.session.close()
     sap_sids = {}
@@ -541,7 +552,7 @@ def get_sparse_system_profile(
 
     all_filters = host_id_list_filter(host_id_list) + rbac_permissions_filter(rbac_filter)
     sp_query = (
-        _find_all_hosts(columns=columns)
+        _find_hosts_entities_query(columns=columns)
         .filter(*all_filters)
         .order_by(*params_to_order_by(param_order_by, param_order_how))
     )
@@ -585,7 +596,7 @@ def get_host_ids_list(
         filter,
         rbac_filter,
     )
-    host_list = [str(res[0]) for res in _find_all_hosts(base_query, [Host.id]).filter(*all_filters).all()]
+    host_list = [str(res[0]) for res in _find_hosts_entities_query(base_query, [Host.id]).filter(*all_filters).all()]
     db.session.close()
     return host_list
 
@@ -612,7 +623,8 @@ def get_hosts_to_export(
         Host.created_on,
         Host.groups,
     ]
-    export_host_query = _find_all_hosts(identity=identity, columns=columns, load_only_option=True).filter(*q_filters)
+
+    export_host_query = _find_hosts_model_query(identity=identity, columns=columns).filter(*q_filters)
     export_host_query = export_host_query.execution_options(yield_per=batch_size)
 
     num_hosts = export_host_query.count()
