@@ -1,7 +1,7 @@
 import base64
 import json
 import sys
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from functools import partial
 from typing import List
@@ -46,7 +46,7 @@ from app.queue.events import EventType
 from app.queue.events import HOST_EVENT_TYPE_CREATED
 from app.queue.events import message_headers
 from app.queue.events import operation_results_to_event_type
-from app.queue.export_service import create_export
+from app.queue.mq_common import common_message_parser
 from app.queue.notifications import NotificationType
 from app.queue.notifications import send_notification
 from app.serialization import deserialize_host
@@ -60,8 +60,6 @@ logger = get_logger(__name__)
 
 CONSUMER_POLL_TIMEOUT_SECONDS = 0.5
 SYSTEM_IDENTITY = {"auth_type": "cert-auth", "system": {"cert_type": "system"}, "type": "System"}
-EXPORT_EVENT_SOURCE = "urn:redhat:source:console:app:export-service"
-EXPORT_SERVICE_APPLICATION = "urn:redhat:application:inventory"
 
 
 class OperationSchema(Schema):
@@ -80,33 +78,6 @@ class OperationResult:
         self.staleness_object = so
         self.event_type = et
         self.success_logger = sl
-
-
-class ExportResourceRequest(Schema):
-    application = fields.Str(required=True)
-    export_request_uuid = fields.UUID(required=True)
-    filters = fields.Dict()
-    format = fields.Str(required=True)
-    resource = fields.Str(required=True)
-    uuid = fields.Str(required=True)
-    x_rh_identity = fields.Str(required=True, data_key="x-rh-identity")
-
-
-class ExportDataSchema(Schema):
-    resource_request = fields.Nested(ExportResourceRequest)
-
-
-class ExportEventSchema(Schema):
-    id = fields.UUID(required=True)
-    schema = fields.Str(data_key="$schema")
-    source = fields.Str(required=True)
-    subject = fields.Str(required=True)
-    specversion = fields.Str(required=True)
-    type = fields.Str(required=True)
-    time = fields.DateTime(required=True)
-    redhatorgid = fields.Str(required=True)
-    dataschema = fields.Str(required=True)
-    data = fields.Nested(ExportDataSchema, required=True)
 
 
 # input is a base64 encoded utf-8 string. b64decode returns bytes, which
@@ -194,22 +165,6 @@ def _validate_json_object_for_utf8(json_object):
         pass
 
 
-@metrics.common_message_parsing_time.time()
-def common_message_parser(message):
-    try:
-        # Due to RHCLOUD-3610 we're receiving messages with invalid unicode code points (invalid surrogate pairs)
-        # Python pretty much ignores that but it is not possible to store such strings in the database (db INSERTS
-        # blow up)
-        parsed_message = json.loads(message)
-        return parsed_message
-    except json.decoder.JSONDecodeError:
-        # The "extra" dict cannot have a key named "msg" or "message"
-        # otherwise an exception in thrown in the logging code
-        logger.exception("Unable to parse json message from message queue", extra={"incoming_message": message})
-        metrics.common_message_parsing_failure.labels("invalid").inc()
-        raise
-
-
 @metrics.ingress_message_parsing_time.time()
 def parse_operation_message(message):
     parsed_message = common_message_parser(message)
@@ -236,26 +191,6 @@ def parse_operation_message(message):
 
     logger.debug("parsed_message: %s", parsed_operation)
     return parsed_operation
-
-
-@metrics.export_service_message_parsing_time.time()
-def parse_export_service_message(message):
-    parsed_message = common_message_parser(message)
-    try:
-        parsed_export_msg = ExportEventSchema().load(parsed_message)
-        return parsed_export_msg
-    except ValidationError as e:
-        logger.error(
-            "Input validation error while parsing export event message:%s", e, extra={"operation": parsed_message}
-        )  # logger.error is used to avoid printing out the same traceback twice
-
-        metrics.export_service_message_parsing_failure.labels("invalid").inc()
-        raise
-    except Exception:
-        logger.exception("Error parsing export event message", extra={"operation": parsed_message})
-
-        metrics.export_service_message_parsing_failure.labels("error").inc()
-        raise
 
 
 def sync_event_message(message, session, event_producer):
@@ -463,75 +398,27 @@ def write_add_update_event_message(
 
 
 def write_message_batch(
-    event_producer: EventProducer, notification_event_producer: EventProducer, processed_rows: List[OperationResult]
+    event_producer: EventProducer,
+    notification_event_producer: EventProducer,
+    processed_rows: List[OperationResult],
+    app,
 ):
-    for result in processed_rows:
-        if result is not None:
-            try:
-                write_add_update_event_message(event_producer, notification_event_producer, result)
-            except Exception as exc:
-                metrics.ingress_message_handler_failure.inc()
-                logger.exception("Error while producing message", exc_info=exc)
-
-
-@metrics.export_service_message_handler_time.time()
-def handle_export_message(message, inventory_config):
-    validated_msg = parse_export_service_message(message)
-    message_handled = False
-    try:
-        if (
-            validated_msg["source"] == EXPORT_EVENT_SOURCE
-            and validated_msg["data"]["resource_request"]["application"] == EXPORT_SERVICE_APPLICATION
-        ):
-            logger.info("Found host-inventory application export message")
-            logger.debug("parsed_message: %s", validated_msg)
-            base64_x_rh_identity = validated_msg["data"]["resource_request"]["x_rh_identity"]
-
-            if create_export(validated_msg, base64_x_rh_identity, inventory_config):
-                metrics.export_service_message_handler_success.inc()
-                message_handled = True
-            else:
-                metrics.export_service_message_handler_failure.inc()
-                message_handled = False
-        else:
-            logger.debug("Found export message not related to host-inventory")
-            message_handled = False
-    except Exception as e:
-        logger.error(e)
-        metrics.export_service_message_handler_failure.inc()
-        message_handled = False
-    finally:
-        return message_handled
-
-
-def export_service_event_loop(consumer, flask_app, interrupt):
-    with flask_app.app_context():
-        inventory_config = flask_app.config.get("INVENTORY_CONFIG")
-        while not interrupt():
-            messages = consumer.consume(timeout=CONSUMER_POLL_TIMEOUT_SECONDS)
-            for msg in messages:
-                if msg is None:
-                    continue
-                elif msg.error():
-                    logger.error(f"Message received but has an error, which is {str(msg.error())}")
+    with app.app_context():
+        print(">>> WRITING MESSAGE BATCH")
+        logger.info(">>> WRITING MESSAGE BATCH")
+        for result in processed_rows:
+            if result is not None:
+                try:
+                    write_add_update_event_message(event_producer, notification_event_producer, result)
+                except Exception as exc:
                     metrics.ingress_message_handler_failure.inc()
-                else:
-                    logger.debug("Export Service message received")
-                    try:
-                        handle_export_message(msg.value(), inventory_config)
-                    except OperationalError as oe:
-                        """sqlalchemy.exc.OperationalError: This error occurs when an
-                        authentication failure occurs or the DB is not accessible.
-                        Exit the process to restart the pod
-                        """
-                        logger.error(f"Could not access DB {str(oe)}")
-                        sys.exit(3)
-                    except Exception:
-                        logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
+                    logger.exception("Error while producing message", exc_info=exc)
+
+    return True
 
 
 def event_loop(consumer, flask_app, event_producer, notification_event_producer, handler, interrupt):
-    with flask_app.app_context(), ProcessPoolExecutor() as executor:
+    with flask_app.app_context(), ThreadPoolExecutor(max_workers=4) as executor:
         while not interrupt():
             processed_rows = []
             with session_guard(db.session), db.session.no_autoflush:
@@ -590,14 +477,19 @@ def event_loop(consumer, flask_app, event_producer, notification_event_producer,
                         db.session.commit()
                         # The above session is automatically committed or rolled back.
                         # Now we need to send out messages for the batch of hosts we just processed.
-                        # TODO: Spawn new process or thread for this?
                         logger.info("Submitting message batch")
-                        executor.submit(
-                            lambda: write_message_batch(event_producer, notification_event_producer, processed_rows)
+                        future = executor.submit(
+                            partial(
+                                write_message_batch,
+                                event_producer,
+                                notification_event_producer,
+                                processed_rows,
+                                flask_app,
+                            )
                         )
 
-                        # write_message_batch(event_producer, notification_event_producer, processed_rows)
                         logger.info("After write message batch")
+                        print(f">>> future result: {future.result()}")
 
                 except StaleDataError as exc:
                     metrics.ingress_message_handler_failure.inc(amount=len(messages))

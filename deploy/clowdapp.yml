@@ -103,6 +103,8 @@ objects:
           value: ${APP_NAME}
         - name: PATH_PREFIX
           value: ${PATH_PREFIX}
+        - name: CONSOLEDOT_HOSTNAME
+          value: ${CONSOLEDOT_HOSTNAME}
         - name: INVENTORY_LEGACY_API_URL
           value: /r/insights/platform/inventory/v1
         - name: prometheus_multiproc_dir
@@ -255,6 +257,8 @@ objects:
           value: ${APP_NAME}
         - name: PATH_PREFIX
           value: ${PATH_PREFIX}
+        - name: CONSOLEDOT_HOSTNAME
+          value: ${CONSOLEDOT_HOSTNAME}
         - name: INVENTORY_LEGACY_API_URL
           value: /r/insights/platform/inventory/v1
         - name: prometheus_multiproc_dir
@@ -407,6 +411,8 @@ objects:
           value: ${APP_NAME}
         - name: PATH_PREFIX
           value: ${PATH_PREFIX}
+        - name: CONSOLEDOT_HOSTNAME
+          value: ${CONSOLEDOT_HOSTNAME}
         - name: INVENTORY_LEGACY_API_URL
           value: /r/insights/platform/inventory/v1
         - name: prometheus_multiproc_dir
@@ -1381,6 +1387,8 @@ parameters:
   value: host-inventory
 - name: PATH_PREFIX
   value: api
+- name: CONSOLEDOT_HOSTNAME
+  value: 'localhost'
 - name: URLLIB3_LOG_LEVEL
   value: WARNING
 - description: SSL validation mode for the DB

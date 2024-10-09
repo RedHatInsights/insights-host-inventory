@@ -7,9 +7,9 @@ import pytest
 
 from app import db
 from app.queue.event_producer import EventProducer
-from app.queue.queue import add_host
-from app.queue.queue import handle_message
-from app.queue.queue import write_add_update_event_message
+from app.queue.host_mq import add_host
+from app.queue.host_mq import handle_message
+from app.queue.host_mq import write_add_update_event_message
 from app.utils import HostWrapper
 from tests.helpers.api_utils import FACTS
 from tests.helpers.api_utils import TAGS
