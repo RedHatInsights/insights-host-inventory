@@ -940,11 +940,11 @@
         },
         "pyjwt": {
             "hashes": [
-                "sha256:57e28d156e3d5c10088e0c68abb90bfac3df82b40a71bd0daa20c65ccd5c23de",
-                "sha256:59127c392cc44c2da5bb3192169a91f429924e17aff6534d70fdc02ab3e04320"
+                "sha256:3b02fb0f44517787776cf48f2ae25d8e14f300e6d7545a4315cee571a415e850",
+                "sha256:7e1e5b56cc735432a7369cbfa0efe50fa113ebecdc04ae6922deba8b84582d0c"
             ],
-            "markers": "python_version >= '3.7'",
-            "version": "==2.8.0"
+            "markers": "python_version >= '3.8'",
+            "version": "==2.9.0"
         },
         "python-dateutil": {
             "hashes": [
@@ -1261,12 +1261,12 @@
         },
         "segment-analytics-python": {
             "hashes": [
-                "sha256:0ba881e019c396f17b4e0a66117691a189a555bc13da47de69cb8db8e3adecad",
-                "sha256:9321b1e03b0129fa69edba0b38c63c2de229db91abe7f849e3df015b8fbc1c36"
+                "sha256:769251706d71f4c96d2039391d119222dbd9faf00308400f7b314ec9fb86cfc7",
+                "sha256:ce6b3b4387ec9ebc5b55842c44d7dd63b4d4b0b8188e268c4492f909e5eeeed8"
             ],
             "index": "pypi",
             "markers": "python_full_version >= '3.6.0'",
-            "version": "==2.3.2"
+            "version": "==2.3.3"
         },
         "semver": {
             "hashes": [
