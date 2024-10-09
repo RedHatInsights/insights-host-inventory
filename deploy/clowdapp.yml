@@ -520,6 +520,8 @@ objects:
       podSpec:
         args: ["./inv_mq_service.py"]
         env:
+        - name: CONSOLEDOT_HOSTNAME
+          value: ${CONSOLEDOT_HOSTNAME}
         - name: INVENTORY_LOG_LEVEL
           value: ${LOG_LEVEL}
         - name: INVENTORY_DB_SSL_MODE
@@ -615,6 +617,8 @@ objects:
           inheritEnv: true
         args: ["./inv_mq_service.py"]
         env:
+        - name: CONSOLEDOT_HOSTNAME
+          value: ${CONSOLEDOT_HOSTNAME}
         - name: INVENTORY_LOG_LEVEL
           value: ${LOG_LEVEL}
         - name: INVENTORY_DB_SSL_MODE
@@ -707,6 +711,8 @@ objects:
       podSpec:
         args: ["./inv_mq_service.py"]
         env:
+        - name: CONSOLEDOT_HOSTNAME
+          value: ${CONSOLEDOT_HOSTNAME}
         - name: INVENTORY_LOG_LEVEL
           value: ${LOG_LEVEL}
         - name: INVENTORY_DB_SSL_MODE
@@ -1388,7 +1394,7 @@ parameters:
 - name: PATH_PREFIX
   value: api
 - name: CONSOLEDOT_HOSTNAME
-  value: 'localhost'
+  value: console.stage.redhat.com
 - name: URLLIB3_LOG_LEVEL
   value: WARNING
 - description: SSL validation mode for the DB
