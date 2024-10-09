@@ -95,6 +95,14 @@
             "markers": "python_version >= '3.7' and python_version < '4.0'",
             "version": "==2.2.1"
         },
+        "backports.entry-points-selectable": {
+            "hashes": [
+                "sha256:17a8b44ae700fba548686dd274ddc91c060371565cd63806c20a1d33911746e6",
+                "sha256:66f5da003eb4b283c7b60581bc8bb0baf0d810eb3e3068da786d3821b4d5746a"
+            ],
+            "markers": "python_version < '3.10'",
+            "version": "==1.3.0"
+        },
         "blinker": {
             "hashes": [
                 "sha256:1779309f71bf239144b9399d06ae925637cf6634cf6bd131104184531bf67c01",
@@ -471,11 +479,11 @@
         },
         "honcho": {
             "hashes": [
-                "sha256:a4d6e3a88a7b51b66351ecfc6e9d79d8f4b87351db9ad7e923f5632cc498122f",
-                "sha256:c5eca0bded4bef6697a23aec0422fd4f6508ea3581979a3485fc4b89357eb2a9"
+                "sha256:56dcd04fc72d362a4befb9303b1a1a812cba5da283526fbc6509be122918ddf3",
+                "sha256:af3815c03c634bf67d50f114253ea9fef72ecff26e4fd06b29234789ac5b8b2e"
             ],
             "index": "pypi",
-            "version": "==1.1.0"
+            "version": "==2.0.0"
         },
         "httpcore": {
             "hashes": [
