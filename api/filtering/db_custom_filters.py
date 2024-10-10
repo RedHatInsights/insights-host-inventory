@@ -23,9 +23,9 @@ class OsComparison:
         self.minor = minor
 
 
-def _check_field_in_spec(spec, field_name):
+def _check_field_in_spec(spec: dict, field_name: str, parent_node: str) -> None:
     if field_name not in spec.keys():
-        raise ValidationException(f"invalid filter field: {field_name}")
+        raise ValidationException(f"Invalid operation or child node for {parent_node}: {field_name}")
 
 
 # Takes a filter dict and converts it into:
@@ -54,14 +54,14 @@ def _convert_dict_to_text_filter_and_value(filter: dict, get_node_instead_of_val
 
 
 # Gets the deepest node in the "filter" object, and looks up its field_filter in sp_spec
-def _get_field_filter_for_deepest_param(sp_spec: dict, filter: dict) -> str:
+def _get_field_filter_for_deepest_param(sp_spec: dict, filter: dict, parent_node: str = "system_profile") -> str:
     # If the node is an array, that's as far as we go
     if sp_spec.get("is_array") is True:
         return "array"
 
     # Skip through "children" nodes in the spec
     if "children" in sp_spec:
-        return _get_field_filter_for_deepest_param(sp_spec["children"], filter)
+        return _get_field_filter_for_deepest_param(sp_spec["children"], filter, parent_node)
 
     key = next(iter(filter.keys()))
 
@@ -73,12 +73,12 @@ def _get_field_filter_for_deepest_param(sp_spec: dict, filter: dict) -> str:
             return "object"
 
     # Make sure the requested field is in the spec
-    _check_field_in_spec(sp_spec, key)
+    _check_field_in_spec(sp_spec, key, parent_node)
     val = filter[key]
 
     if isinstance(val, dict):
         if key in sp_spec:
-            return _get_field_filter_for_deepest_param(sp_spec[key], filter[key])
+            return _get_field_filter_for_deepest_param(sp_spec[key], filter[key], key)
 
     # If the next node is an array, that's as far as we go
     if sp_spec[key].get("is_array") is True:
