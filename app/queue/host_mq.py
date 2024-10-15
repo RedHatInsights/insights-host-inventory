@@ -49,6 +49,7 @@ from app.queue.mq_common import common_message_parser
 from app.queue.notifications import NotificationType
 from app.queue.notifications import send_notification
 from app.serialization import deserialize_host
+from app.serialization import remove_null_canonical_facts
 from app.serialization import serialize_host
 from lib import host_repository
 from lib.db import session_guard
@@ -369,15 +370,12 @@ def write_add_update_event_message(
     event_producer.write_event(event, str(result.host_row.id), headers, wait=True)
 
     if result.event_type.name == HOST_EVENT_TYPE_CREATED:
+        # Notifications are expected to omit null canonical facts
+        remove_null_canonical_facts(output_host)
         send_notification(
             notification_event_producer,
             notification_type=NotificationType.new_system_registered,
-            host=serialize_host(
-                result.host_row,
-                staleness_timestamps=result.staleness_timestamps,
-                staleness=result.staleness_object,
-                omit_null_facts=True,
-            ),
+            host=output_host,
         )
     result.success_logger(output_host)
 
