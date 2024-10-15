@@ -1268,6 +1268,7 @@ def test_query_host_fuzzy_match(db_create_host, api_get, query_filter_param, mat
         "[system_memory_bytes]=8292048963606259",
         "[arch]=x86",  # EQ field, no wildcard
         "[host_type]=",  # Valid bc it's a string field, but no match
+        "[host_type][eq]=",  # Same for this one
         "[sap][sids][contains][]=ABC&filter[system_profile][sap][sids][contains][]=GHI",
     ),
 )
