@@ -1,7 +1,6 @@
 import base64
 import json
 import sys
-from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from functools import partial
 from typing import List
@@ -401,24 +400,18 @@ def write_message_batch(
     event_producer: EventProducer,
     notification_event_producer: EventProducer,
     processed_rows: List[OperationResult],
-    app,
 ):
-    with app.app_context():
-        print(">>> WRITING MESSAGE BATCH")
-        logger.info(">>> WRITING MESSAGE BATCH")
-        for result in processed_rows:
-            if result is not None:
-                try:
-                    write_add_update_event_message(event_producer, notification_event_producer, result)
-                except Exception as exc:
-                    metrics.ingress_message_handler_failure.inc()
-                    logger.exception("Error while producing message", exc_info=exc)
-
-    return True
+    for result in processed_rows:
+        if result is not None:
+            try:
+                write_add_update_event_message(event_producer, notification_event_producer, result)
+            except Exception as exc:
+                metrics.ingress_message_handler_failure.inc()
+                logger.exception("Error while producing message", exc_info=exc)
 
 
 def event_loop(consumer, flask_app, event_producer, notification_event_producer, handler, interrupt):
-    with flask_app.app_context(), ThreadPoolExecutor(max_workers=4) as executor:
+    with flask_app.app_context():
         while not interrupt():
             processed_rows = []
             with session_guard(db.session), db.session.no_autoflush:
@@ -442,17 +435,6 @@ def event_loop(consumer, flask_app, event_producer, notification_event_producer,
                         log_message_consumed(logger, msg)
 
                         try:
-                            # TODO: Check whether the incoming host payload would match to any of the records
-                            # we've already processed in the batch.
-                            # Reuse logic from host_repository.find_existing_host? This one will be hard
-
-                            # TODO: Check whether the host ID for the record we just processed
-                            # already exists in the current batch
-
-                            # We might be able to prevent this issue if we turn System Profile into a table
-                            # instead of jsonb. After we do that, we should be able to update specific columns
-                            # on the row rather than replacing it wholesale
-
                             processed_rows.append(
                                 handler(
                                     msg.value(),
@@ -477,19 +459,7 @@ def event_loop(consumer, flask_app, event_producer, notification_event_producer,
                         db.session.commit()
                         # The above session is automatically committed or rolled back.
                         # Now we need to send out messages for the batch of hosts we just processed.
-                        logger.info("Submitting message batch")
-                        future = executor.submit(
-                            partial(
-                                write_message_batch,
-                                event_producer,
-                                notification_event_producer,
-                                processed_rows,
-                                flask_app,
-                            )
-                        )
-
-                        logger.info("After write message batch")
-                        print(f">>> future result: {future.result()}")
+                        write_message_batch(event_producer, notification_event_producer, processed_rows)
 
                 except StaleDataError as exc:
                     metrics.ingress_message_handler_failure.inc(amount=len(messages))

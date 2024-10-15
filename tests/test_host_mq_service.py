@@ -1830,7 +1830,7 @@ def test_batch_mq_add_host_operations(mocker, event_producer, flask_app):
         ),
     )
     # write_message_batch is submitted to the executor at the end of each batch
-    write_batch_patch = mocker.patch("app.queue.host_mq.ThreadPoolExecutor.submit")
+    write_batch_patch = mocker.patch("app.queue.host_mq.write_message_batch")
 
     fake_consumer = mocker.Mock(
         **{
@@ -1963,7 +1963,7 @@ def test_batch_mq_graceful_rollback(mocker, flask_app):
         "app.queue.host_mq.db.session.commit", side_effect=[StaleDataError("Stale data"), None, None, None, None, None]
     )
     # write_message_batch is submitted to the executor at the end of each batch
-    write_batch_patch = mocker.patch("app.queue.host_mq.ThreadPoolExecutor.submit")
+    write_batch_patch = mocker.patch("app.queue.host_mq.write_message_batch")
 
     fake_consumer = mocker.Mock(
         **{
