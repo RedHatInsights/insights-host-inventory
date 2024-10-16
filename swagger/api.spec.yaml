@@ -1911,15 +1911,6 @@ components:
       description: The number of hosts associated with the group.
       type: integer
       example: 3
-    UnleashToggleOut:
-      title: Unleash Toggle Out
-      properties:
-        flag_value:
-          description: The value of the feature flag toggle
-          type: boolean
-        using_fallback_value:
-          description: Whether the fallback value was used, if the Unleash server could not be accessed
-          type: boolean
     GroupIn:
       title: Group In
       description: >-
