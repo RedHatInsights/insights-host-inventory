@@ -2659,6 +2659,13 @@
                 "items": {
                   "$ref": "#/components/schemas/GroupOut"
                 }
+              },
+              "system_profile": {
+                "description": "The host system profile object",
+                "type": "object",
+                "items": {
+                  "$ref": "#/components/schemas/SystemProfile"
+                }
               }
             },
             "required": [
