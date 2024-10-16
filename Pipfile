@@ -9,7 +9,7 @@ jsonify = "==0.5"  # Not semver
 flask-restful = "~=0.3.7"
 requests = "~=2.32.3"
 flask-sqlalchemy = "~=3.1.1"
-psycopg2 = "~=2.9.9"
+psycopg2 = "~=2.9.10"
 flask-migrate = "~=4.0.5"
 itsdangerous = "==2.2.0"
 gunicorn = "~=23.0.0"
