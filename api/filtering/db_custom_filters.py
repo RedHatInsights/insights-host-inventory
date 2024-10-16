@@ -318,7 +318,7 @@ def get_host_types_from_filter(host_type_filter: dict) -> Set[str]:
             for val in value:
                 if val == "not_nil":
                     val = HOST_TYPES[0]
-                elif val == "nil":
+                elif val == "nil" or val == "":
                     val = HOST_TYPES[1]
 
                 if comparator == "eq":
