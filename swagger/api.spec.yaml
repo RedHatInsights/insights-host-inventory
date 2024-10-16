@@ -66,7 +66,7 @@ paths:
         - $ref: '#/components/parameters/updatedEnd'
         - $ref: '#/components/parameters/groupNameListParam'
         - $ref: '#/components/parameters/registered_with'
-        - $ref: '#/components/parameters/stalenessNoDefaultsParam'
+        - $ref: '#/components/parameters/stalenessParam'
         - $ref: '#/components/parameters/tagsParam'
         - $ref: '#/components/parameters/filter_param'
       responses:
@@ -1194,23 +1194,6 @@ components:
         Direction of the ordering; defaults to ASC for name, and to DESC
         for host_ids
     stalenessParam:
-      name: staleness
-      in: query
-      required: false
-      schema:
-        type: array
-        items:
-          type: string
-          enum:
-            - fresh
-            - stale
-            - stale_warning
-        default:
-          - fresh
-          - stale
-          - stale_warning
-      description: "Culling states of the hosts. Default: fresh, stale and stale_warning"
-    stalenessNoDefaultsParam:
       name: staleness
       in: query
       required: false
