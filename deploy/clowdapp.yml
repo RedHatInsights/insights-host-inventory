@@ -1488,7 +1488,7 @@ parameters:
 - name: MQ_DB_BATCH_MAX_MESSAGES
   value: '1'
 - name: MQ_DB_BATCH_MAX_SECONDS
-  value: '1'
+  value: '0.5'
 - name: INVENTORY_API_USE_READREPLICA
   value: 'false'
 - name: INVENTORY_API_READREPLICA_SECRET

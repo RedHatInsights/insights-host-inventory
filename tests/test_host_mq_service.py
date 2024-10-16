@@ -21,7 +21,6 @@ from app.queue.host_mq import event_loop
 from app.queue.host_mq import handle_message
 from app.queue.host_mq import update_system_profile
 from app.queue.host_mq import write_add_update_event_message
-from app.queue.notifications import NotificationType
 from lib.host_repository import AddHostResult
 from tests.helpers.db_utils import create_reference_host_in_db
 from tests.helpers.mq_utils import assert_mq_host_data
@@ -69,7 +68,7 @@ def test_event_loop_exception_handling(mocker, event_producer, flask_app):
         event_producer,
         fake_notification_event_producer,
         handler=handle_message_mock,
-        interrupt=mocker.Mock(side_effect=(False, False, False, False, False, False, False, True, True)),
+        interrupt=mocker.Mock(side_effect=(False, False, False, True)),
     )
     assert handle_message_mock.call_count == 3
 
@@ -89,7 +88,7 @@ def test_event_loop_with_error_message_handling(mocker, event_producer, flask_ap
         event_producer,
         fake_notification_event_producer,
         handler=handle_message_mock,
-        interrupt=mocker.Mock(side_effect=(False, False, False, False, False, False, False, True, True)),
+        interrupt=mocker.Mock(side_effect=(False, False, False, True)),
     )
 
     assert handle_message_mock.call_count == 2
@@ -154,7 +153,7 @@ def test_request_id_is_reset(mocker, flask_app, db_create_host):
 
         message = wrap_message(minimal_host().data(), "add_host", metadata)
         result = handle_message(json.dumps(message), mock_notification_event_producer, add_host_mock)
-        write_add_update_event_message(mock_event_producer, result)
+        write_add_update_event_message(mock_event_producer, mock_notification_event_producer, result)
         assert json.loads(mock_event_producer.write_event.call_args[0][0])["metadata"]["request_id"] == metadata.get(
             "request_id"
         )
@@ -180,7 +179,7 @@ def test_shutdown_handler(mocker, flask_app):
         fake_event_producer,
         fake_notification_event_producer,
         handler=handle_message_mock,
-        interrupt=mocker.Mock(side_effect=(False, False, True, True)),
+        interrupt=mocker.Mock(side_effect=(False, True)),
     )
     fake_consumer.consume.assert_called_once()
 
@@ -1490,7 +1489,7 @@ def test_update_system_profile_host_not_found(mocker, flask_app):
         mocker.Mock(),
         mocker.Mock(),
         handler=message_handler,
-        interrupt=mocker.Mock(side_effect=([False for _ in range(2)] + [True, True])),
+        interrupt=mocker.Mock(side_effect=(False, True)),
     )
 
 
@@ -1556,7 +1555,7 @@ def test_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_app, r
     message = wrap_message(host.data(), "add_host", platform_metadata)
 
     result = handle_message(json.dumps(message), mock_notification_event_producer, mock_add_host)
-    write_add_update_event_message(mock_event_producer, result)
+    write_add_update_event_message(mock_event_producer, mock_notification_event_producer, result)
 
     mock_event_producer.write_event.assert_called_once()
     mock_notification_event_producer.assert_not_called()
@@ -1846,10 +1845,7 @@ def test_batch_mq_add_host_operations(mocker, event_producer, flask_app):
         }
     )
 
-    send_notification_patch = mocker.patch("app.queue.host_mq.send_notification")
-
     mock_notification_event_producer = mocker.Mock()
-
     message_handler = partial(handle_message, notification_event_producer=mock_notification_event_producer)
 
     event_loop(
@@ -1858,15 +1854,8 @@ def test_batch_mq_add_host_operations(mocker, event_producer, flask_app):
         event_producer,
         mock_notification_event_producer,
         handler=message_handler,
-        interrupt=mocker.Mock(side_effect=([False for _ in range(8)] + [True, True])),
+        interrupt=mocker.Mock(side_effect=(False, False, False, True)),
     )
-
-    # Validate that the send_notification message was sent,
-    # and validate its arguments.
-    send_notification_patch.assert_called()
-    assert send_notification_patch.call_args_list[-1][0][0] == mock_notification_event_producer
-    assert send_notification_patch.call_args_list[-1][1]["notification_type"] == NotificationType.new_system_registered
-    assert send_notification_patch.call_args_list[-1][1]["host"]["insights_id"] == host["insights_id"]
 
     # 12 messages were sent, but it should have only committed three times:
     # - Once after 7 messages (the batch size)
@@ -1933,7 +1922,7 @@ def test_batch_mq_header_request_id_updates(mocker, flask_app):
         event_producer_mock,
         mocker.Mock(),
         handler=handle_message,
-        interrupt=mocker.Mock(side_effect=([False for _ in range(4)] + [True, True])),
+        interrupt=mocker.Mock(side_effect=([False for _ in range(2)] + [True])),
     )
 
     # Should have been called once per host
@@ -1977,8 +1966,8 @@ def test_batch_mq_graceful_rollback(mocker, flask_app):
     fake_consumer = mocker.Mock(
         **{
             "consume.side_effect": [
-                [FakeMessage(message=msg_list[i]) for i in range(5)],
-                [],
+                [FakeMessage(message=msg_list[i]) for i in range(3)],
+                [FakeMessage(message=msg_list[i]) for i in range(3, 5)],
                 [],
                 [],
                 [],
@@ -1993,7 +1982,7 @@ def test_batch_mq_graceful_rollback(mocker, flask_app):
         event_producer_mock,
         mocker.Mock(),
         handler=handle_message,
-        interrupt=mocker.Mock(side_effect=([False for _ in range(4)] + [True, True])),
+        interrupt=mocker.Mock(side_effect=([False for _ in range(2)] + [True])),
     )
 
     # Assert that the hosts that came in after the error were still processed
