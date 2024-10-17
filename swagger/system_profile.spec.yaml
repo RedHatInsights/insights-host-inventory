@@ -817,3 +817,19 @@ $defs:
                 type: string
                 example: "7.14.16703.0, 6.33.13003.0"
                 maxLength: 32
+      image_builder:
+        description: Object containing image builder facts
+        type: object
+        properties:
+          compliance_policy_id:
+            description: The compliance policy that was used and applied during the image build
+            type: string
+            example: 89b52baa-9912-4edc-9ed5-be15c06eaaa9
+            pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+            maxLength: 36
+          compliance_profile_id:
+            description: |
+              The profile that was applied during the image build on which the compliance policy was based
+            type: string
+            example: xccdf_org.ssgproject.content_profile_cis
+            maxLength: 255
