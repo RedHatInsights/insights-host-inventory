@@ -2659,6 +2659,9 @@
                 "items": {
                   "$ref": "#/components/schemas/GroupOut"
                 }
+              },
+              "system_profile": {
+                "$ref": "#/components/schemas/SystemProfile"
               }
             },
             "required": [
