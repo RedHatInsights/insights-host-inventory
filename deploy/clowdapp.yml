@@ -31,7 +31,7 @@ objects:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        image: quay.io/cloudservices/ubi8-nginx-124:1-24.1724231541
+        image: quay.io/cloudservices/ubi8-nginx-124:1-30
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -103,6 +103,8 @@ objects:
           value: ${APP_NAME}
         - name: PATH_PREFIX
           value: ${PATH_PREFIX}
+        - name: CONSOLEDOT_HOSTNAME
+          value: ${CONSOLEDOT_HOSTNAME}
         - name: INVENTORY_LEGACY_API_URL
           value: /r/insights/platform/inventory/v1
         - name: prometheus_multiproc_dir
@@ -255,6 +257,8 @@ objects:
           value: ${APP_NAME}
         - name: PATH_PREFIX
           value: ${PATH_PREFIX}
+        - name: CONSOLEDOT_HOSTNAME
+          value: ${CONSOLEDOT_HOSTNAME}
         - name: INVENTORY_LEGACY_API_URL
           value: /r/insights/platform/inventory/v1
         - name: prometheus_multiproc_dir
@@ -407,6 +411,8 @@ objects:
           value: ${APP_NAME}
         - name: PATH_PREFIX
           value: ${PATH_PREFIX}
+        - name: CONSOLEDOT_HOSTNAME
+          value: ${CONSOLEDOT_HOSTNAME}
         - name: INVENTORY_LEGACY_API_URL
           value: /r/insights/platform/inventory/v1
         - name: prometheus_multiproc_dir
@@ -514,6 +520,8 @@ objects:
       podSpec:
         args: ["./inv_mq_service.py"]
         env:
+        - name: CONSOLEDOT_HOSTNAME
+          value: ${CONSOLEDOT_HOSTNAME}
         - name: INVENTORY_LOG_LEVEL
           value: ${LOG_LEVEL}
         - name: INVENTORY_DB_SSL_MODE
@@ -609,6 +617,8 @@ objects:
           inheritEnv: true
         args: ["./inv_mq_service.py"]
         env:
+        - name: CONSOLEDOT_HOSTNAME
+          value: ${CONSOLEDOT_HOSTNAME}
         - name: INVENTORY_LOG_LEVEL
           value: ${LOG_LEVEL}
         - name: INVENTORY_DB_SSL_MODE
@@ -701,6 +711,8 @@ objects:
       podSpec:
         args: ["./inv_mq_service.py"]
         env:
+        - name: CONSOLEDOT_HOSTNAME
+          value: ${CONSOLEDOT_HOSTNAME}
         - name: INVENTORY_LOG_LEVEL
           value: ${LOG_LEVEL}
         - name: INVENTORY_DB_SSL_MODE
@@ -1409,6 +1421,8 @@ parameters:
   value: host-inventory
 - name: PATH_PREFIX
   value: api
+- name: CONSOLEDOT_HOSTNAME
+  value: localhost
 - name: URLLIB3_LOG_LEVEL
   value: WARNING
 - description: SSL validation mode for the DB
@@ -1502,7 +1516,7 @@ parameters:
 - name: MQ_DB_BATCH_MAX_MESSAGES
   value: '1'
 - name: MQ_DB_BATCH_MAX_SECONDS
-  value: '1'
+  value: '0.5'
 - name: INVENTORY_API_USE_READREPLICA
   value: 'false'
 - name: INVENTORY_API_READREPLICA_SECRET

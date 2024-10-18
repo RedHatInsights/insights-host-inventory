@@ -13,7 +13,7 @@ from app.culling import _Config as CullingConfig
 from app.culling import Timestamps
 from app.queue.export_service import _format_export_data
 from app.queue.export_service import get_host_list
-from app.queue.queue import handle_export_message
+from app.queue.export_service_mq import handle_export_message
 from app.serialization import _EXPORT_SERVICE_FIELDS
 from app.serialization import serialize_host_for_export_svc
 from tests.helpers import export_service_utils as es_utils

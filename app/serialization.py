@@ -102,6 +102,12 @@ def deserialize_canonical_facts(raw_data, all=False):
     return _deserialize_canonical_facts(validated_data)
 
 
+# Removes any null canonical facts from a serialized host.
+def remove_null_canonical_facts(serialized_host: dict):
+    for field_name in [f for f in _CANONICAL_FACTS_FIELDS if serialized_host[f] is None]:
+        del serialized_host[field_name]
+
+
 def serialize_host(
     host,
     staleness_timestamps,
@@ -109,7 +115,6 @@ def serialize_host(
     additional_fields=tuple(),
     staleness=None,
     system_profile_fields=None,
-    omit_null_facts=False,
 ):
     # TODO: In future, this must handle groups staleness
     if host.host_type == "edge" or (
@@ -135,7 +140,7 @@ def serialize_host(
             host.modified_on, staleness["conventional_time_to_delete"]
         )
 
-    serialized_host = {**serialize_canonical_facts(host.canonical_facts, omit_null_facts=omit_null_facts)}
+    serialized_host = {**serialize_canonical_facts(host.canonical_facts)}
 
     fields = DEFAULT_FIELDS + additional_fields
     if for_mq:
@@ -302,11 +307,8 @@ def _deserialize_all_canonical_facts(data):
     return {field: _recursive_casefold(data[field]) if data.get(field) else None for field in _CANONICAL_FACTS_FIELDS}
 
 
-def serialize_canonical_facts(canonical_facts, omit_null_facts=False):
-    if omit_null_facts:
-        return {field: canonical_facts.get(field) for field in _CANONICAL_FACTS_FIELDS if field in canonical_facts}
-    else:
-        return {field: canonical_facts.get(field) for field in _CANONICAL_FACTS_FIELDS}
+def serialize_canonical_facts(canonical_facts):
+    return {field: canonical_facts.get(field) for field in _CANONICAL_FACTS_FIELDS}
 
 
 def _deserialize_facts(data):

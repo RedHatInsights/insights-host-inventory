@@ -204,6 +204,9 @@ class Config:
         self.prometheus_pushgateway = os.environ.get("PROMETHEUS_PUSHGATEWAY", "localhost:9091")
         self.kubernetes_namespace = os.environ.get("NAMESPACE")
 
+        self.consoledot_hostname = os.getenv("CONSOLEDOT_HOSTNAME", "localhost")
+        self.base_ui_url = f"https://{self.consoledot_hostname}/insights/inventory"
+
         self.kafka_ssl_configs = {
             "security.protocol": self.kafka_security_protocol,
             "ssl.ca.location": self.kafka_ssl_cafile,
@@ -314,7 +317,7 @@ class Config:
         self.rebuild_events_time_limit = int(os.getenv("REBUILD_EVENTS_TIME_LIMIT", "3600"))  # 1 hour
         self.sp_authorized_users = os.getenv("SP_AUTHORIZED_USERS", "tuser@redhat.com").split()
         self.mq_db_batch_max_messages = int(os.getenv("MQ_DB_BATCH_MAX_MESSAGES", "1"))
-        self.mq_db_batch_max_seconds = int(os.getenv("MQ_DB_BATCH_MAX_SECONDS", "1"))
+        self.mq_db_batch_max_seconds = float(os.getenv("MQ_DB_BATCH_MAX_SECONDS", "0.5"))
 
         if self._runtime_environment == RuntimeEnvironment.PENDO_JOB:
             self.pendo_sync_active = os.environ.get("PENDO_SYNC_ACTIVE", "false").lower() == "true"

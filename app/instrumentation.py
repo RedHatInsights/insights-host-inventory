@@ -27,17 +27,30 @@ def message_produced(logger, message, headers):
 
     status = "PRODUCED"
     offset = message.offset()
+    partition = message.partition()
     topic = message.topic()
 
     timestamp = message_dict["timestamp"]
 
-    extra = {"status": status, "offset": offset, "timestamp": timestamp, "topic": topic, "key": key}
+    extra = {
+        "status": status,
+        "partition": partition,
+        "offset": offset,
+        "timestamp": timestamp,
+        "topic": topic,
+        "key": key,
+    }
 
     info_extra = {**extra, "headers": headers}
-    info_message = f"Message status={status}, offset={offset} timestamp={timestamp} topic={topic}, key={key}"
+    info_message = (
+        f"Message status={status}, partition={partition}, "
+        f"offset={offset}, timestamp={timestamp}, topic={topic}, key={key}"
+    )
     logger.info(f"{info_message}, extra={info_extra}")
 
-    debug_message = f"Message offset={offset} timestamp={timestamp} topic={topic} key={key} value={value}"
+    debug_message = (
+        f"Message partition= {partition} offset={offset} timestamp={timestamp} topic={topic} key={key} value={value}"
+    )
     debug_extra = {**extra, "value": value}
     logger.debug(debug_message, extra=debug_extra)
 
@@ -219,6 +232,16 @@ def log_add_host_attempt(logger, input_host):
             "access_rule": get_control_rule(),
         },
     )
+
+
+def log_message_consumed(logger, message):
+    try:
+        request_id = json.loads(message.value())["platform_metadata"]["request_id"]
+        partition = message.partition()
+        offset = message.offset()
+        logger.info(f"Host message consumed, partition={partition}, offset={offset}, request_id={request_id}")
+    except KeyError as ke:
+        logger.debug("Error retrieving request_id for log", exc_info=ke)
 
 
 def log_add_update_host_succeeded(logger, add_result, output_host):

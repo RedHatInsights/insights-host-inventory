@@ -2,9 +2,8 @@ import base64
 import json
 import sys
 from copy import deepcopy
-from datetime import datetime
-from datetime import timedelta
 from functools import partial
+from typing import List
 from uuid import UUID
 
 from marshmallow import fields
@@ -28,6 +27,7 @@ from app.instrumentation import log_add_host_attempt
 from app.instrumentation import log_add_host_failure
 from app.instrumentation import log_add_update_host_succeeded
 from app.instrumentation import log_db_access_failure
+from app.instrumentation import log_message_consumed
 from app.instrumentation import log_update_system_profile_failure
 from app.instrumentation import log_update_system_profile_success
 from app.logging import get_logger
@@ -45,10 +45,11 @@ from app.queue.events import EventType
 from app.queue.events import HOST_EVENT_TYPE_CREATED
 from app.queue.events import message_headers
 from app.queue.events import operation_results_to_event_type
-from app.queue.export_service import create_export
+from app.queue.mq_common import common_message_parser
 from app.queue.notifications import NotificationType
 from app.queue.notifications import send_notification
 from app.serialization import deserialize_host
+from app.serialization import remove_null_canonical_facts
 from app.serialization import serialize_host
 from lib import host_repository
 from lib.db import session_guard
@@ -57,10 +58,8 @@ from lib.feature_flags import get_flag_value
 
 logger = get_logger(__name__)
 
-CONSUMER_POLL_TIMEOUT_SECONDS = 1
+CONSUMER_POLL_TIMEOUT_SECONDS = 0.5
 SYSTEM_IDENTITY = {"auth_type": "cert-auth", "system": {"cert_type": "system"}, "type": "System"}
-EXPORT_EVENT_SOURCE = "urn:redhat:source:console:app:export-service"
-EXPORT_SERVICE_APPLICATION = "urn:redhat:application:inventory"
 
 
 class OperationSchema(Schema):
@@ -79,33 +78,6 @@ class OperationResult:
         self.staleness_object = so
         self.event_type = et
         self.success_logger = sl
-
-
-class ExportResourceRequest(Schema):
-    application = fields.Str(required=True)
-    export_request_uuid = fields.UUID(required=True)
-    filters = fields.Dict()
-    format = fields.Str(required=True)
-    resource = fields.Str(required=True)
-    uuid = fields.Str(required=True)
-    x_rh_identity = fields.Str(required=True, data_key="x-rh-identity")
-
-
-class ExportDataSchema(Schema):
-    resource_request = fields.Nested(ExportResourceRequest)
-
-
-class ExportEventSchema(Schema):
-    id = fields.UUID(required=True)
-    schema = fields.Str(data_key="$schema")
-    source = fields.Str(required=True)
-    subject = fields.Str(required=True)
-    specversion = fields.Str(required=True)
-    type = fields.Str(required=True)
-    time = fields.DateTime(required=True)
-    redhatorgid = fields.Str(required=True)
-    dataschema = fields.Str(required=True)
-    data = fields.Nested(ExportDataSchema, required=True)
 
 
 # input is a base64 encoded utf-8 string. b64decode returns bytes, which
@@ -193,22 +165,6 @@ def _validate_json_object_for_utf8(json_object):
         pass
 
 
-@metrics.common_message_parsing_time.time()
-def common_message_parser(message):
-    try:
-        # Due to RHCLOUD-3610 we're receiving messages with invalid unicode code points (invalid surrogate pairs)
-        # Python pretty much ignores that but it is not possible to store such strings in the database (db INSERTS
-        # blow up)
-        parsed_message = json.loads(message)
-        return parsed_message
-    except json.decoder.JSONDecodeError:
-        # The "extra" dict cannot have a key named "msg" or "message"
-        # otherwise an exception in thrown in the logging code
-        logger.exception("Unable to parse json message from message queue", extra={"incoming_message": message})
-        metrics.common_message_parsing_failure.labels("invalid").inc()
-        raise
-
-
 @metrics.ingress_message_parsing_time.time()
 def parse_operation_message(message):
     parsed_message = common_message_parser(message)
@@ -235,26 +191,6 @@ def parse_operation_message(message):
 
     logger.debug("parsed_message: %s", parsed_operation)
     return parsed_operation
-
-
-@metrics.export_service_message_parsing_time.time()
-def parse_export_service_message(message):
-    parsed_message = common_message_parser(message)
-    try:
-        parsed_export_msg = ExportEventSchema().load(parsed_message)
-        return parsed_export_msg
-    except ValidationError as e:
-        logger.error(
-            "Input validation error while parsing export event message:%s", e, extra={"operation": parsed_message}
-        )  # logger.error is used to avoid printing out the same traceback twice
-
-        metrics.export_service_message_parsing_failure.labels("invalid").inc()
-        raise
-    except Exception:
-        logger.exception("Error parsing export event message", extra={"operation": parsed_message})
-
-        metrics.export_service_message_parsing_failure.labels("error").inc()
-        raise
 
 
 def sync_event_message(message, session, event_producer):
@@ -404,11 +340,12 @@ def write_delete_event_message(event_producer: EventProducer, result: OperationR
     result.success_logger()
 
 
-def write_add_update_event_message(event_producer: EventProducer, result: OperationResult):
+def write_add_update_event_message(
+    event_producer: EventProducer, notification_event_producer: EventProducer, result: OperationResult
+):
     # The request ID in the headers is fetched from threadctx.request_id
     request_id = result.platform_metadata.get("request_id")
     initialize_thread_local_storage(request_id, result.host_row.org_id, result.host_row.account)
-
     payload_tracker = get_payload_tracker(request_id=request_id)
 
     with PayloadTrackerProcessingContext(
@@ -431,8 +368,18 @@ def write_add_update_event_message(event_producer: EventProducer, result: Operat
         )
 
     event_producer.write_event(event, str(result.host_row.id), headers, wait=True)
-    org_id = output_host.get("org_id")
+
+    if result.event_type.name == HOST_EVENT_TYPE_CREATED:
+        # Notifications are expected to omit null canonical facts
+        remove_null_canonical_facts(output_host)
+        send_notification(
+            notification_event_producer,
+            notification_type=NotificationType.new_system_registered,
+            host=output_host,
+        )
     result.success_logger(output_host)
+
+    org_id = output_host.get("org_id")
     if get_flag_value(FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM):
         try:
             owner_id = output_host.get("system_profile", {}).get("owner_id")
@@ -447,145 +394,71 @@ def write_add_update_event_message(event_producer: EventProducer, result: Operat
             logger.error("Error during set cache", ex)
 
 
-def write_message_batch(event_producer, processed_rows):
+def write_message_batch(
+    event_producer: EventProducer,
+    notification_event_producer: EventProducer,
+    processed_rows: List[OperationResult],
+):
     for result in processed_rows:
         if result is not None:
             try:
-                write_add_update_event_message(event_producer, result)
+                write_add_update_event_message(event_producer, notification_event_producer, result)
             except Exception as exc:
                 metrics.ingress_message_handler_failure.inc()
                 logger.exception("Error while producing message", exc_info=exc)
-
-
-@metrics.export_service_message_handler_time.time()
-def handle_export_message(message, inventory_config):
-    validated_msg = parse_export_service_message(message)
-    message_handled = False
-    try:
-        if (
-            validated_msg["source"] == EXPORT_EVENT_SOURCE
-            and validated_msg["data"]["resource_request"]["application"] == EXPORT_SERVICE_APPLICATION
-        ):
-            logger.info("Found host-inventory application export message")
-            logger.debug("parsed_message: %s", validated_msg)
-            base64_x_rh_identity = validated_msg["data"]["resource_request"]["x_rh_identity"]
-
-            if create_export(validated_msg, base64_x_rh_identity, inventory_config):
-                metrics.export_service_message_handler_success.inc()
-                message_handled = True
-            else:
-                metrics.export_service_message_handler_failure.inc()
-                message_handled = False
-        else:
-            logger.debug("Found export message not related to host-inventory")
-            message_handled = False
-    except Exception as e:
-        logger.error(e)
-        metrics.export_service_message_handler_failure.inc()
-        message_handled = False
-    finally:
-        return message_handled
-
-
-def export_service_event_loop(consumer, flask_app, interrupt):
-    with flask_app.app_context():
-        inventory_config = flask_app.config.get("INVENTORY_CONFIG")
-        while not interrupt():
-            messages = consumer.consume(timeout=CONSUMER_POLL_TIMEOUT_SECONDS)
-            for msg in messages:
-                if msg is None:
-                    continue
-                elif msg.error():
-                    logger.error(f"Message received but has an error, which is {str(msg.error())}")
-                    metrics.ingress_message_handler_failure.inc()
-                else:
-                    logger.debug("Export Service message received")
-                    try:
-                        handle_export_message(msg.value(), inventory_config)
-                    except OperationalError as oe:
-                        """sqlalchemy.exc.OperationalError: This error occurs when an
-                        authentication failure occurs or the DB is not accessible.
-                        Exit the process to restart the pod
-                        """
-                        logger.error(f"Could not access DB {str(oe)}")
-                        sys.exit(3)
-                    except Exception:
-                        logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
 
 
 def event_loop(consumer, flask_app, event_producer, notification_event_producer, handler, interrupt):
     with flask_app.app_context():
         while not interrupt():
             processed_rows = []
-            start_time = datetime.now()
             with session_guard(db.session), db.session.no_autoflush:
-                messages = []
-                while (
-                    not interrupt()
-                    and (len(processed_rows) < inventory_config().mq_db_batch_max_messages)
-                    and (start_time + timedelta(seconds=inventory_config().mq_db_batch_max_seconds) > datetime.now())
-                ):
-                    messages = consumer.consume(timeout=CONSUMER_POLL_TIMEOUT_SECONDS)
+                messages = consumer.consume(
+                    num_messages=inventory_config().mq_db_batch_max_messages,
+                    timeout=inventory_config().mq_db_batch_max_seconds,
+                )
 
-                    commit_batch_early = True
-                    for msg in messages:
-                        if msg is None:
-                            continue
-                        elif msg.error():
-                            # This error is raised by the first consumer.consume() on a newly started Kafka.
-                            # msg.error() produces:
-                            # KafkaError{code=UNKNOWN_TOPIC_OR_PART,val=3,str="Subscribed topic not available:
-                            #   platform.inventory.host-ingress: Broker: Unknown topic or partition"}
-                            logger.error(f"Message received but has an error, which is {str(msg.error())}")
-                            metrics.ingress_message_handler_failure.inc()
-                        else:
-                            logger.debug("Message received")
+                for msg in messages:
+                    if msg is None:
+                        continue
+                    elif msg.error():
+                        # This error is raised by the first consumer.consume() on a newly started Kafka.
+                        # msg.error() produces:
+                        # KafkaError{code=UNKNOWN_TOPIC_OR_PART,val=3,str="Subscribed topic not available:
+                        #   platform.inventory.host-ingress: Broker: Unknown topic or partition"}
+                        logger.error(f"Message received but has an error, which is {str(msg.error())}")
+                        metrics.ingress_message_handler_failure.inc()
+                    else:
+                        logger.debug("Message received")
+                        log_message_consumed(logger, msg)
 
-                            try:
-                                processed_rows.append(
-                                    handler(
-                                        msg.value(),
-                                        notification_event_producer=notification_event_producer,
-                                    )
+                        try:
+                            processed_rows.append(
+                                handler(
+                                    msg.value(),
+                                    notification_event_producer=notification_event_producer,
                                 )
-                                commit_batch_early = False
-                                metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
-                                metrics.ingress_message_handler_success.inc()
-                            except OperationalError as oe:
-                                """sqlalchemy.exc.OperationalError: This error occurs when an
-                                authentication failure occurs or the DB is not accessible.
-                                Exit the process to restart the pod
-                                """
-                                logger.error(f"Could not access DB {str(oe)}")
-                                sys.exit(3)
-                            except Exception:
-                                metrics.ingress_message_handler_failure.inc()
-                                commit_batch_early = True
-                                logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
-
-                    # If no messages were consumed, go ahead and commit so we're not waiting for no reason
-                    if commit_batch_early:
-                        break
+                            )
+                            metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
+                            metrics.ingress_message_handler_success.inc()
+                        except OperationalError as oe:
+                            """sqlalchemy.exc.OperationalError: This error occurs when an
+                            authentication failure occurs or the DB is not accessible.
+                            Exit the process to restart the pod
+                            """
+                            logger.error(f"Could not access DB {str(oe)}")
+                            sys.exit(3)
+                        except Exception:
+                            metrics.ingress_message_handler_failure.inc()
+                            logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
 
                 try:
-                    db.session.commit()
-                    # The above session is automatically committed or rolled back.
-                    # Now we need to send out messages for the batch of hosts we just processed.
-                    write_message_batch(event_producer, processed_rows)
+                    if len(processed_rows) > 0:
+                        db.session.commit()
+                        # The above session is automatically committed or rolled back.
+                        # Now we need to send out messages for the batch of hosts we just processed.
+                        write_message_batch(event_producer, notification_event_producer, processed_rows)
 
-                    # Find the operation related to 'host_created' and send the notification
-                    for operation_result_obj in processed_rows:
-                        if operation_result_obj and operation_result_obj.event_type.name == HOST_EVENT_TYPE_CREATED:
-                            send_notification(
-                                notification_event_producer,
-                                notification_type=NotificationType.new_system_registered,
-                                host=serialize_host(
-                                    operation_result_obj.host_row,
-                                    staleness_timestamps=operation_result_obj.staleness_timestamps,
-                                    staleness=operation_result_obj.staleness_object,
-                                    omit_null_facts=True,
-                                ),
-                            )
                 except StaleDataError as exc:
                     metrics.ingress_message_handler_failure.inc(amount=len(messages))
                     logger.error(

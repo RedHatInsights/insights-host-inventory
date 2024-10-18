@@ -7,11 +7,11 @@ from prometheus_client import start_http_server
 from app import create_app
 from app.environment import RuntimeEnvironment
 from app.logging import get_logger
-from app.queue.queue import export_service_event_loop
+from app.queue.export_service_mq import export_service_event_loop
 from lib.handlers import register_shutdown
 from lib.handlers import ShutdownHandler
 
-logger = get_logger("mq_service")
+logger = get_logger("export_sevice_mq")
 
 
 def main():

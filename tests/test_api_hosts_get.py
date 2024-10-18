@@ -1268,6 +1268,7 @@ def test_query_host_fuzzy_match(db_create_host, api_get, query_filter_param, mat
         "[system_memory_bytes]=8292048963606259",
         "[arch]=x86",  # EQ field, no wildcard
         "[host_type]=",  # Valid bc it's a string field, but no match
+        "[host_type][eq]=",  # Same for this one
         "[sap][sids][contains][]=ABC&filter[system_profile][sap][sids][contains][]=GHI",
     ),
 )
@@ -1523,22 +1524,20 @@ def test_query_all_sp_filters_multiple_of_same_field(db_create_host, api_get, sp
 
 
 @pytest.mark.parametrize(
-    "sp_filter_param",
+    "sp_filter_param,parent,child",
     (
-        "[foo]=val",  # Invalid top-level field
-        "[bootc_status][foo]=val",  # Invalid non-top-level field
-        "[bootc_status][booted][foo]=val",  # Invalid non-top-level field
-        "[arch][gteq]=val",  # Invalid comparator/field
+        ("[foo]=val", "system_profile", "foo"),  # Invalid top-level field
+        ("[bootc_status][foo]=val", "bootc_status", "foo"),  # Invalid non-top-level field
+        ("[bootc_status][booted][foo]=val", "booted", "foo"),  # Invalid non-top-level field
+        ("[arch][gteq]=val", "arch", "gteq"),  # Invalid comparator/field
     ),
 )
-def test_query_all_sp_filters_invalid_field(api_get, sp_filter_param):
+def test_query_all_sp_filters_invalid_field(api_get, sp_filter_param, parent, child):
     url = build_hosts_url(query=f"?filter[system_profile]{sp_filter_param}")
-
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url)
 
     assert response_status == 400
-    assert "invalid filter field" in response_data.get("detail")
+    assert f"Invalid operation or child node for {parent}: {child}" == response_data.get("detail")
 
 
 @pytest.mark.parametrize(
