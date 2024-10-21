@@ -135,7 +135,7 @@
             "$ref": "#/components/parameters/registered_with"
           },
           {
-            "$ref": "#/components/parameters/stalenessNoDefaultsParam"
+            "$ref": "#/components/parameters/stalenessParam"
           },
           {
             "$ref": "#/components/parameters/tagsParam"
@@ -1808,31 +1808,7 @@
             "enum": [
               "fresh",
               "stale",
-              "stale_warning",
-              "unknown"
-            ]
-          },
-          "default": [
-            "fresh",
-            "stale",
-            "stale_warning"
-          ]
-        },
-        "description": "Culling states of the hosts. Default: fresh, stale and stale_warning"
-      },
-      "stalenessNoDefaultsParam": {
-        "name": "staleness",
-        "in": "query",
-        "required": false,
-        "schema": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "enum": [
-              "fresh",
-              "stale",
-              "stale_warning",
-              "unknown"
+              "stale_warning"
             ]
           }
         },
@@ -2774,19 +2750,6 @@
         "description": "The number of hosts associated with the group.",
         "type": "integer",
         "example": 3
-      },
-      "UnleashToggleOut": {
-        "title": "Unleash Toggle Out",
-        "properties": {
-          "flag_value": {
-            "description": "The value of the feature flag toggle",
-            "type": "boolean"
-          },
-          "using_fallback_value": {
-            "description": "Whether the fallback value was used, if the Unleash server could not be accessed",
-            "type": "boolean"
-          }
-        }
       },
       "GroupIn": {
         "title": "Group In",
