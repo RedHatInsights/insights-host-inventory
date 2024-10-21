@@ -1550,7 +1550,7 @@ parameters:
 - name: INVENTORY_API_READS_READINESS_PROBE_TIMEOUT_SECONDS
   value: '60'
 - name: INVENTORY_DB_SCHEMA
-  value: 'public'
+  value: 'hbi'
 
 # NGINX
 - displayName: Minimum replicas
