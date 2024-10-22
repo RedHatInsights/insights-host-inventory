@@ -33,8 +33,6 @@ RBAC_ROUTE = "/api/rbac/v1/access/?application="
 CHECKED_TYPES = [IdentityType.USER, IdentityType.SERVICE_ACCOUNT]
 RETRY_STATUSES = [500, 502, 503, 504]
 
-outbound_http_metric = outbound_http_response_time.labels("rbac")
-
 
 def get_rbac_url(app: str) -> str:
     return inventory_config().rbac_endpoint + RBAC_ROUTE + app
@@ -50,7 +48,7 @@ def get_rbac_permissions(app: str, request_header: dict):
     request_session.mount(get_rbac_url(app), HTTPAdapter(max_retries=retry_config))
 
     try:
-        with outbound_http_metric.time():
+        with outbound_http_response_time.labels("rbac").time():
             rbac_response = request_session.get(
                 url=get_rbac_url(app),
                 headers=request_header,
