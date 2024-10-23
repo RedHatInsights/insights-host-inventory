@@ -281,7 +281,6 @@ def handle_message(message, notification_event_producer, message_operation=add_h
         payload_tracker, received_status_message="message received", current_operation="handle_message"
     ):
         try:
-            log_message_consumed(logger, message)
             host = validated_operation_msg["data"]
             host_row, operation_result, identity, success_logger = message_operation(
                 host, platform_metadata, notification_event_producer, validated_operation_msg.get("operation_args", {})
@@ -431,6 +430,13 @@ def event_loop(consumer, flask_app, event_producer, notification_event_producer,
                         metrics.ingress_message_handler_failure.inc()
                     else:
                         logger.debug("Message received")
+                        try:
+                            request_id = json.loads(msg.value())["platform_metadata"]["request_id"]
+                            initialize_thread_local_storage(request_id)
+                            log_message_consumed(logger, msg, request_id)
+                        except KeyError as ke:
+                            logger.debug("Error retrieving request_id for log", exc_info=ke)
+
                         try:
                             processed_rows.append(
                                 handler(
