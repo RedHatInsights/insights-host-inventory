@@ -430,7 +430,12 @@ def event_loop(consumer, flask_app, event_producer, notification_event_producer,
                         metrics.ingress_message_handler_failure.inc()
                     else:
                         logger.debug("Message received")
-                        log_message_consumed(logger, msg)
+                        try:
+                            request_id = json.loads(msg.value())["platform_metadata"]["request_id"]
+                            initialize_thread_local_storage(request_id)
+                            log_message_consumed(logger, msg, request_id)
+                        except KeyError as ke:
+                            logger.debug("Error retrieving request_id for log", exc_info=ke)
 
                         try:
                             processed_rows.append(

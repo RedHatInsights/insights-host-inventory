@@ -234,14 +234,10 @@ def log_add_host_attempt(logger, input_host):
     )
 
 
-def log_message_consumed(logger, message):
-    try:
-        request_id = json.loads(message.value())["platform_metadata"]["request_id"]
-        partition = message.partition()
-        offset = message.offset()
-        logger.info(f"Host message consumed, partition={partition}, offset={offset}, request_id={request_id}")
-    except KeyError as ke:
-        logger.debug("Error retrieving request_id for log", exc_info=ke)
+def log_message_consumed(logger, message, request_id):
+    partition = message.partition()
+    offset = message.offset()
+    logger.info(f"Host message consumed, partition={partition}, offset={offset}, request_id={request_id}")
 
 
 def log_add_update_host_succeeded(logger, add_result, output_host):
