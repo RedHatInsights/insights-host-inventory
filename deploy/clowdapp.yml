@@ -31,7 +31,7 @@ objects:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        image: quay.io/cloudservices/ubi8-nginx-124:1-24.1724231541
+        image: quay.io/cloudservices/ubi8-nginx-124:1-30
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -1196,6 +1196,36 @@ objects:
             "system_profile_facts"->'sap' AS "sap_workload",
             "system_profile_facts"->'rhc_client_id' AS "rhc_client_id"
           FROM "hosts"
+- apiVersion: metrics.console.redhat.com/v1alpha1
+  kind: FloorPlan
+  metadata:
+    name: host-inventory-hms
+  spec:
+    database:
+      secretName: ${FLOORIST_DB_SECRET_NAME}
+    objectStore:
+      secretName: ${FLOORIST_HMS_BUCKET_SECRET_NAME}
+    suspend: ${{FLOORIST_SUSPEND}}
+    logLevel: ${FLOORIST_LOGLEVEL}
+    queries:
+      - prefix: insights/inventory/hosts
+        query: >-
+          SELECT
+            "id",
+            COALESCE("account", '0') AS "account_number",
+            "org_id" AS "org_id",
+            "created_on" AS "created_at",
+            "modified_on" AS "updated_at"
+          FROM "hosts"
+      - prefix: insights/inventory/groups_success_metrics
+        query: >-
+          SELECT
+            "id",
+            COALESCE("account", '0') AS "account_number",
+            "org_id" AS "org_id",
+            "created_on" AS "created_at",
+            "modified_on" AS "updated_at"
+          FROM "groups"
 
 - apiVersion: v1
   data:
@@ -1488,7 +1518,7 @@ parameters:
 - name: MQ_DB_BATCH_MAX_MESSAGES
   value: '1'
 - name: MQ_DB_BATCH_MAX_SECONDS
-  value: '1'
+  value: '0.5'
 - name: INVENTORY_API_USE_READREPLICA
   value: 'false'
 - name: INVENTORY_API_READREPLICA_SECRET
@@ -1563,6 +1593,10 @@ parameters:
   name: FLOORIST_BUCKET_SECRET_NAME
   required: true
   value: dummy-secret
+- description: bucket secret name
+  name: FLOORIST_HMS_BUCKET_SECRET_NAME
+  required: true
+  value: dummy-hms-secret
 - name: FLOORIST_LOGLEVEL
   description: Floorist loglevel config
   value: 'INFO'

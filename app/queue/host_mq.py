@@ -2,9 +2,8 @@ import base64
 import json
 import sys
 from copy import deepcopy
-from datetime import datetime
-from datetime import timedelta
 from functools import partial
+from typing import List
 from uuid import UUID
 
 from marshmallow import fields
@@ -50,6 +49,7 @@ from app.queue.mq_common import common_message_parser
 from app.queue.notifications import NotificationType
 from app.queue.notifications import send_notification
 from app.serialization import deserialize_host
+from app.serialization import remove_null_canonical_facts
 from app.serialization import serialize_host
 from lib import host_repository
 from lib.db import session_guard
@@ -58,7 +58,7 @@ from lib.feature_flags import get_flag_value
 
 logger = get_logger(__name__)
 
-CONSUMER_POLL_TIMEOUT_SECONDS = 1
+CONSUMER_POLL_TIMEOUT_SECONDS = 0.5
 SYSTEM_IDENTITY = {"auth_type": "cert-auth", "system": {"cert_type": "system"}, "type": "System"}
 
 
@@ -340,11 +340,12 @@ def write_delete_event_message(event_producer: EventProducer, result: OperationR
     result.success_logger()
 
 
-def write_add_update_event_message(event_producer: EventProducer, result: OperationResult):
+def write_add_update_event_message(
+    event_producer: EventProducer, notification_event_producer: EventProducer, result: OperationResult
+):
     # The request ID in the headers is fetched from threadctx.request_id
     request_id = result.platform_metadata.get("request_id")
     initialize_thread_local_storage(request_id, result.host_row.org_id, result.host_row.account)
-
     payload_tracker = get_payload_tracker(request_id=request_id)
 
     with PayloadTrackerProcessingContext(
@@ -367,8 +368,18 @@ def write_add_update_event_message(event_producer: EventProducer, result: Operat
         )
 
     event_producer.write_event(event, str(result.host_row.id), headers, wait=True)
-    org_id = output_host.get("org_id")
+
+    if result.event_type.name == HOST_EVENT_TYPE_CREATED:
+        # Notifications are expected to omit null canonical facts
+        remove_null_canonical_facts(output_host)
+        send_notification(
+            notification_event_producer,
+            notification_type=NotificationType.new_system_registered,
+            host=output_host,
+        )
     result.success_logger(output_host)
+
+    org_id = output_host.get("org_id")
     if get_flag_value(FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM):
         try:
             owner_id = output_host.get("system_profile", {}).get("owner_id")
@@ -383,11 +394,15 @@ def write_add_update_event_message(event_producer: EventProducer, result: Operat
             logger.error("Error during set cache", ex)
 
 
-def write_message_batch(event_producer, processed_rows):
+def write_message_batch(
+    event_producer: EventProducer,
+    notification_event_producer: EventProducer,
+    processed_rows: List[OperationResult],
+):
     for result in processed_rows:
         if result is not None:
             try:
-                write_add_update_event_message(event_producer, result)
+                write_add_update_event_message(event_producer, notification_event_producer, result)
             except Exception as exc:
                 metrics.ingress_message_handler_failure.inc()
                 logger.exception("Error while producing message", exc_info=exc)
@@ -397,76 +412,58 @@ def event_loop(consumer, flask_app, event_producer, notification_event_producer,
     with flask_app.app_context():
         while not interrupt():
             processed_rows = []
-            start_time = datetime.now()
             with session_guard(db.session), db.session.no_autoflush:
-                messages = []
-                while (
-                    not interrupt()
-                    and (len(processed_rows) < inventory_config().mq_db_batch_max_messages)
-                    and (start_time + timedelta(seconds=inventory_config().mq_db_batch_max_seconds) > datetime.now())
-                ):
-                    messages = consumer.consume(timeout=CONSUMER_POLL_TIMEOUT_SECONDS)
+                messages = consumer.consume(
+                    num_messages=inventory_config().mq_db_batch_max_messages,
+                    timeout=inventory_config().mq_db_batch_max_seconds,
+                )
 
-                    commit_batch_early = True
-                    for msg in messages:
-                        if msg is None:
-                            continue
-                        elif msg.error():
-                            # This error is raised by the first consumer.consume() on a newly started Kafka.
-                            # msg.error() produces:
-                            # KafkaError{code=UNKNOWN_TOPIC_OR_PART,val=3,str="Subscribed topic not available:
-                            #   platform.inventory.host-ingress: Broker: Unknown topic or partition"}
-                            logger.error(f"Message received but has an error, which is {str(msg.error())}")
-                            metrics.ingress_message_handler_failure.inc()
-                        else:
-                            logger.debug("Message received")
-                            log_message_consumed(logger, msg)
+                for msg in messages:
+                    if msg is None:
+                        continue
+                    elif msg.error():
+                        # This error is raised by the first consumer.consume() on a newly started Kafka.
+                        # msg.error() produces:
+                        # KafkaError{code=UNKNOWN_TOPIC_OR_PART,val=3,str="Subscribed topic not available:
+                        #   platform.inventory.host-ingress: Broker: Unknown topic or partition"}
+                        logger.error(f"Message received but has an error, which is {str(msg.error())}")
+                        metrics.ingress_message_handler_failure.inc()
+                    else:
+                        logger.debug("Message received")
+                        try:
+                            request_id = json.loads(msg.value())["platform_metadata"]["request_id"]
+                            initialize_thread_local_storage(request_id)
+                            log_message_consumed(logger, msg, request_id)
+                        except KeyError as ke:
+                            logger.debug("Error retrieving request_id for log", exc_info=ke)
 
-                            try:
-                                processed_rows.append(
-                                    handler(
-                                        msg.value(),
-                                        notification_event_producer=notification_event_producer,
-                                    )
+                        try:
+                            processed_rows.append(
+                                handler(
+                                    msg.value(),
+                                    notification_event_producer=notification_event_producer,
                                 )
-                                commit_batch_early = False
-                                metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
-                                metrics.ingress_message_handler_success.inc()
-                            except OperationalError as oe:
-                                """sqlalchemy.exc.OperationalError: This error occurs when an
-                                authentication failure occurs or the DB is not accessible.
-                                Exit the process to restart the pod
-                                """
-                                logger.error(f"Could not access DB {str(oe)}")
-                                sys.exit(3)
-                            except Exception:
-                                metrics.ingress_message_handler_failure.inc()
-                                commit_batch_early = True
-                                logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
-
-                    # If no messages were consumed, go ahead and commit so we're not waiting for no reason
-                    if commit_batch_early:
-                        break
+                            )
+                            metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
+                            metrics.ingress_message_handler_success.inc()
+                        except OperationalError as oe:
+                            """sqlalchemy.exc.OperationalError: This error occurs when an
+                            authentication failure occurs or the DB is not accessible.
+                            Exit the process to restart the pod
+                            """
+                            logger.error(f"Could not access DB {str(oe)}")
+                            sys.exit(3)
+                        except Exception:
+                            metrics.ingress_message_handler_failure.inc()
+                            logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
 
                 try:
-                    db.session.commit()
-                    # The above session is automatically committed or rolled back.
-                    # Now we need to send out messages for the batch of hosts we just processed.
-                    write_message_batch(event_producer, processed_rows)
+                    if len(processed_rows) > 0:
+                        db.session.commit()
+                        # The above session is automatically committed or rolled back.
+                        # Now we need to send out messages for the batch of hosts we just processed.
+                        write_message_batch(event_producer, notification_event_producer, processed_rows)
 
-                    # Find the operation related to 'host_created' and send the notification
-                    for operation_result_obj in processed_rows:
-                        if operation_result_obj and operation_result_obj.event_type.name == HOST_EVENT_TYPE_CREATED:
-                            send_notification(
-                                notification_event_producer,
-                                notification_type=NotificationType.new_system_registered,
-                                host=serialize_host(
-                                    operation_result_obj.host_row,
-                                    staleness_timestamps=operation_result_obj.staleness_timestamps,
-                                    staleness=operation_result_obj.staleness_object,
-                                    omit_null_facts=True,
-                                ),
-                            )
                 except StaleDataError as exc:
                     metrics.ingress_message_handler_failure.inc(amount=len(messages))
                     logger.error(
