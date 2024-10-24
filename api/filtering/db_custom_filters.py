@@ -49,8 +49,8 @@ def _convert_dict_to_json_path_and_value(
     if isinstance(val, dict):
         # Skip comparison node if present (eq, lt, gte, etc)
         next_key = next(iter(val.keys()))
-        if next_key in POSTGRES_COMPARATOR_LOOKUP.keys():
-            return (key,), POSTGRES_COMPARATOR_LOOKUP.get(next_key), next(iter(val.values()))
+        if op := POSTGRES_COMPARATOR_LOOKUP.get(next_key):
+            return (key,), op, next(iter(val.values()))
 
         # Recurse
         next_val, pg_op, deepest_value = _convert_dict_to_json_path_and_value(val)
@@ -254,6 +254,16 @@ def _unique_paths(
     return all_filters
 
 
+def _validate_pg_op_and_value(pg_op: str, value: str, field_filter: str, field_name: str) -> None:
+    if field_filter != "array" and pg_op == "contains":
+        raise ValidationException(f"'contains' is an invalid operation for non-array field {field_name}")
+
+    if (field_filter == "integer" and (not value.isdigit() and value not in ["nil", "not_nil"])) or (
+        field_filter == "boolean" and value.lower() not in ["true", "false", "nil", "not_nil"]
+    ):
+        raise ValidationException(f"'{value}' is an invalid value for field {field_name}")
+
+
 def build_single_filter(filter_param: dict):
     field_name = next(iter(filter_param.keys()))
 
@@ -268,30 +278,25 @@ def build_single_filter(filter_param: dict):
 
         jsonb_path, pg_op, value = _convert_dict_to_json_path_and_value(filter_param)
         target_field = Host.system_profile_facts[(jsonb_path)].astext
+        _validate_pg_op_and_value(pg_op, value, field_filter, field_name)
 
-        if not pg_op or not value:
-            pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter)
-
+        # Arrays only support the "contains" operation
         if field_filter == "array":
             return target_field.contains(value)
-        else:
-            if pg_op == "contains":
-                raise ValidationException(f"'contains' is an invalid operation for non-array field {field_name}")
+
+        # Use the default comparator for the field type, if not provided
+        if not pg_op or not value:
+            pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter)
 
         # Handle wildcard fields (use ILIKE, replace * with %)
         if pg_op == ColumnOperators.ilike:
             value = value.replace("*", "%")
 
-        # Put value in quotes if appropriate for the field type and operation
-        if (field_filter == "integer" and (not value.isdigit() and value not in ["nil", "not_nil"])) or (
-            field_filter == "boolean" and value.lower() not in ["true", "false", "nil", "not_nil"]
-        ):
-            raise ValidationException(f"'{value}' is an invalid value for field {field_name}")
-
         if value in ["nil", "not_nil"]:
             pg_op = POSTGRES_COMPARATOR_LOOKUP[value]
             value = None
         elif pg_cast := FIELD_FILTER_TO_POSTGRES_CAST.get(field_filter):
+            # Cast column and value, if using an applicable type
             target_field = target_field.cast(pg_cast)
             value = FIELD_FILTER_TO_PYTHON_CAST.get(field_filter)(value)
 
@@ -346,12 +351,12 @@ def build_system_profile_filter(system_profile_param: dict) -> tuple:
 
     for grouped_filter_param in filter_param_list:
         if isinstance(grouped_filter_param, list):
-            # Usually, when multiple filters are grouped, join the list with "OR"
-            conjunction = or_
-            # When the filtered field is an array or OS, join the list with " AND "
-            if _get_field_filter_for_deepest_param(system_profile_spec(), grouped_filter_param[0]) == "array":
-                conjunction = and_
-
+            # Use AND when filtering on an array, but otherwise use OR.
+            conjunction = (
+                and_
+                if _get_field_filter_for_deepest_param(system_profile_spec(), grouped_filter_param[0]) == "array"
+                else or_
+            )
             filter = conjunction(build_single_filter(single_filter) for single_filter in grouped_filter_param)
         else:
             filter = build_single_filter(grouped_filter_param)
