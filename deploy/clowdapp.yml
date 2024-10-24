@@ -1212,19 +1212,19 @@ objects:
         query: >-
           SELECT
             "id",
-            COALESCE("account", 0) AS "account_number",
+            COALESCE("account", '0') AS "account_number",
             "org_id" AS "org_id",
             "created_on" AS "created_at",
-            "modified_on" AS "updated_at",
+            "modified_on" AS "updated_at"
           FROM "hosts"
       - prefix: insights/inventory/groups_success_metrics
         query: >-
           SELECT
             "id",
-            COALESCE("account", 0) AS "account_number",
+            COALESCE("account", '0') AS "account_number",
             "org_id" AS "org_id",
             "created_on" AS "created_at",
-            "modified_on" AS "updated_at",
+            "modified_on" AS "updated_at"
           FROM "groups"
 
 - apiVersion: v1
