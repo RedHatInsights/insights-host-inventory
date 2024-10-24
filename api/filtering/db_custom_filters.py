@@ -4,6 +4,7 @@ from typing import Tuple
 from sqlalchemy import and_
 from sqlalchemy import Integer
 from sqlalchemy import or_
+from sqlalchemy.sql.expression import ColumnElement
 from sqlalchemy.sql.expression import ColumnOperators
 
 from api.filtering.filtering_common import FIELD_FILTER_TO_POSTGRES_CAST
@@ -263,7 +264,7 @@ def _validate_pg_op_and_value(pg_op: str, value: str, field_filter: str, field_n
         raise ValidationException(f"'{value}' is an invalid value for field {field_name}")
 
 
-def build_single_filter(filter_param: dict):
+def build_single_filter(filter_param: dict) -> ColumnElement:
     field_name = next(iter(filter_param.keys()))
 
     if field_name == "operating_system":
