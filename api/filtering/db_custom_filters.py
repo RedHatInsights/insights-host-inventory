@@ -206,7 +206,6 @@ def build_operating_system_filter(filter_param: dict) -> tuple:
         os_filter_list.append(and_(*os_range_filter_list))
 
     # The top-level filter list should be joined using "OR"
-    # return "(" + " OR ".join(os_filter_list) + ")"
     return or_(*os_filter_list)
 
 
