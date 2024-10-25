@@ -280,10 +280,6 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
         target_field = Host.system_profile_facts[(jsonb_path)].astext
         _validate_pg_op_and_value(pg_op, value, field_filter, field_name)
 
-        # Arrays only support the "contains" operation
-        if field_filter == "array":
-            return target_field.contains(value)
-
         # Use the default comparator for the field type, if not provided
         if not pg_op or not value:
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter)
@@ -299,6 +295,10 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
             # Cast column and value, if using an applicable type
             target_field = target_field.cast(pg_cast)
             value = FIELD_FILTER_TO_PYTHON_CAST.get(field_filter)(value)
+
+        # "contains" is not a column operator, so we have to do it manually
+        if pg_op == "contains":
+            return target_field.contains(value)
 
         return target_field.operate(pg_op, value)
 

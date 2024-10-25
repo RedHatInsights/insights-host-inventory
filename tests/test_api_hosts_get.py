@@ -1180,6 +1180,9 @@ def test_query_by_staleness(db_create_multiple_hosts, api_get, subtests):
         "[number_of_cpus][is]=nil",
         "[number_of_cpus]=nil",
         "[bios_version]=2.0/3.5A",
+        "[cpu_flags][]=nil",
+        "[sap_sids][]=not_nil",
+        "[sap][sids][]=not_nil",
     ),
 )
 def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
@@ -1204,11 +1207,11 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
     nomatch_sp_data = {
         "system_profile_facts": {
             "arch": "ARM",
+            "cpu_flags": ["ex1", "ex2"],
             "insights_client_version": "1.2.3",
             "greenboot_status": "green",
-            "sap": {"sap_system": False, "sids": ["GHI"]},
+            "sap": {"sap_system": False},
             "bootc_status": {"booted": {"image": "192.168.0.1:5000/foo/foo:latest"}},
-            "sap_sids": ["DEF"],
             "is_marketplace": True,
             "number_of_cpus": 8,
             "bios_version": "2.0-3.5A",
