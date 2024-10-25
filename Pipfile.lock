@@ -113,20 +113,20 @@
         },
         "boto3": {
             "hashes": [
-                "sha256:a839ce09a844d92e0039f95851e88da9df80c89ebb4c7818b3e78247fd97a8a7",
-                "sha256:c9bab807b372d5b076d6aeb1d6513131fa0b74e32d8895128f8568b6521296ea"
+                "sha256:0b307f685875e9c7857ce21c0d3050d8d4f3778455a6852d5f98ac75194b400e",
+                "sha256:65b808e4cf1af8c2f405382d53656a0d92eee8f85c7388c43d64c7a5571b065f"
             ],
             "index": "pypi",
             "markers": "python_version >= '3.8'",
-            "version": "==1.35.46"
+            "version": "==1.35.47"
         },
         "botocore": {
             "hashes": [
-                "sha256:8bbc9a55cae65a8db7f2e33ff087f4dbfc13fce868e8e3c5273ce9af367a555a",
-                "sha256:8c0ff5fdd611a28f5752189d171c69690dbc484fa06d74376890bb0543ec3dc1"
+                "sha256:05f4493119a96799ff84d43e78691efac3177e1aec8840cca99511de940e342a",
+                "sha256:f8f703463d3cd8b6abe2bedc443a7ab29f0e2ff1588a2e83164b108748645547"
             ],
             "markers": "python_version >= '3.8'",
-            "version": "==1.35.46"
+            "version": "==1.35.47"
         },
         "cachelib": {
             "hashes": [
@@ -1056,12 +1056,12 @@
         },
         "redis": {
             "hashes": [
-                "sha256:f6c997521fedbae53387307c5d0bf784d9acc28d9f1d058abeac566ec4dbed72",
-                "sha256:f8ea06b7482a668c6475ae202ed8d9bcaa409f6e87fb77ed1043d912afd62e24"
+                "sha256:0b1087665a771b1ff2e003aa5bdd354f15a70c9e25d5a7dbf9c722c16528a7b0",
+                "sha256:ae174f2bb3b1bf2b09d54bf3e51fbc1469cf6c10aa03e21141f51969801a7897"
             ],
             "index": "pypi",
             "markers": "python_version >= '3.8'",
-            "version": "==5.1.1"
+            "version": "==5.2.0"
         },
         "referencing": {
             "hashes": [
