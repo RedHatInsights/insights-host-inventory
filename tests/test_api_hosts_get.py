@@ -1153,7 +1153,12 @@ def test_query_by_staleness(db_create_multiple_hosts, api_get, subtests):
         "[insights_client_version]=3.0.1-2.el4_2",
         "[insights_client_version]=3.0.*",
         "[host_type]=edge",
+        "[sap][sap_system]=true",
         "[sap][sap_system]=True",
+        "[sap][sap_system]=TRUE",
+        "[is_marketplace]=false",
+        "[is_marketplace]=False",
+        "[is_marketplace]=FALSE",
         "[arch]=x86_64&filter[system_profile][host_type]=edge",
         "[insights_client_version][]=3.0.*&filter[system_profile][insights_client_version][]=*el4_2",
         "[greenboot_status][is]=nil",
@@ -1175,6 +1180,9 @@ def test_query_by_staleness(db_create_multiple_hosts, api_get, subtests):
         "[number_of_cpus][is]=nil",
         "[number_of_cpus]=nil",
         "[bios_version]=2.0/3.5A",
+        "[cpu_flags][]=nil",
+        "[sap_sids][]=not_nil",
+        "[sap][sids][]=not_nil",
     ),
 )
 def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
@@ -1187,6 +1195,7 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
             "sap": {"sap_system": True, "sids": ["ABC", "DEF"]},
             "bootc_status": {"booted": {"image": "quay.io/centos-bootc/fedora-bootc-cloud:eln"}},
             "sap_sids": ["ABC", "DEF"],
+            "is_marketplace": False,
             "systemd": {"failed_services": ["foo", "bar"]},
             "system_memory_bytes": 8292048963606259,
             "bios_version": "2.0/3.5A",
@@ -1198,10 +1207,12 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
     nomatch_sp_data = {
         "system_profile_facts": {
             "arch": "ARM",
+            "cpu_flags": ["ex1", "ex2"],
             "insights_client_version": "1.2.3",
             "greenboot_status": "green",
+            "sap": {"sap_system": False},
             "bootc_status": {"booted": {"image": "192.168.0.1:5000/foo/foo:latest"}},
-            "sap_sids": ["DEF"],
+            "is_marketplace": True,
             "number_of_cpus": 8,
             "bios_version": "2.0-3.5A",
         }

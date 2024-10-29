@@ -1,14 +1,22 @@
 from typing import Set
+from typing import Tuple
 
-from sqlalchemy import text
+from sqlalchemy import and_
+from sqlalchemy import Integer
+from sqlalchemy import or_
+from sqlalchemy.sql.expression import ColumnElement
+from sqlalchemy.sql.expression import ColumnOperators
 
 from api.filtering.filtering_common import FIELD_FILTER_TO_POSTGRES_CAST
+from api.filtering.filtering_common import FIELD_FILTER_TO_PYTHON_CAST
 from api.filtering.filtering_common import POSTGRES_COMPARATOR_LOOKUP
+from api.filtering.filtering_common import POSTGRES_COMPARATOR_NO_EQ_LOOKUP
 from api.filtering.filtering_common import POSTGRES_DEFAULT_COMPARATOR
 from app import system_profile_spec
 from app.config import HOST_TYPES
 from app.exceptions import ValidationException
 from app.logging import get_logger
+from app.models import Host
 
 logger = get_logger(__name__)
 
@@ -29,10 +37,12 @@ def _check_field_in_spec(spec: dict, field_name: str, parent_node: str) -> None:
 
 
 # Takes a filter dict and converts it into:
-#   jsonb_path: The jsonb path, i.e. system_profile_facts->sap->>sap_system
+#   jsonb_path: The jsonb path, i.e. (system_profile_facts, sap, sap_system,)
 #   pg_op: The comparison to use (e.g. =, >, <)
 #   value: The filter's value
-def _convert_dict_to_text_filter_and_value(filter: dict, get_node_instead_of_value: bool = False) -> tuple:
+def _convert_dict_to_json_path_and_value(
+    filter: dict,
+) -> Tuple[Tuple[str], str, str]:  # Tuple of keys for the json path; pg_op; leaf node
     key = next(iter(filter.keys()))
     val = filter[key]
 
@@ -40,17 +50,22 @@ def _convert_dict_to_text_filter_and_value(filter: dict, get_node_instead_of_val
     if isinstance(val, dict):
         # Skip comparison node if present (eq, lt, gte, etc)
         next_key = next(iter(val.keys()))
-        if next_key in POSTGRES_COMPARATOR_LOOKUP.keys():
-            jsonb_operator = "->" if get_node_instead_of_value else "->>"
-            return f"{jsonb_operator}'{key}'", POSTGRES_COMPARATOR_LOOKUP.get(next_key), next(iter(val.values()))
+        if op := POSTGRES_COMPARATOR_LOOKUP.get(next_key):
+            return (key,), op, next(iter(val.values()))
 
         # Recurse
-        next_val, pg_op, deepest_value = _convert_dict_to_text_filter_and_value(val, get_node_instead_of_value)
-        return f"->'{key}'{next_val}", pg_op, deepest_value
+        next_val, pg_op, deepest_value = _convert_dict_to_json_path_and_value(val)
+        return (
+            (
+                key,
+                *next_val,
+            ),
+            pg_op,
+            deepest_value,
+        )
     else:
         # Get the final jsonb path node and its value; no comparator was specified
-        jsonb_operator = "->" if get_node_instead_of_value else "->>"
-        return f"{jsonb_operator}'{key}'", None, val
+        return (key,), None, val
 
 
 # Gets the deepest node in the "filter" object, and looks up its field_filter in sp_spec
@@ -142,52 +157,57 @@ def build_operating_system_filter(filter_param: dict) -> tuple:
     os_filter_list = []  # Top-level filter
     os_range_filter_list = []  # Contains the OS filters that use range operations
     separated_filters = separate_operating_system_filters(filter_param["operating_system"])
+    os_field = Host.system_profile_facts["operating_system"]
 
     for comparison in separated_filters:
         comparator = POSTGRES_COMPARATOR_LOOKUP.get(comparison.comparator)
 
         if comparison.comparator in ["nil", "not_nil"]:
-            os_filter_list.append(f"(system_profile_facts->>'operating_system' {comparator})")
-        elif comparison.comparator == "eq":
-            # Filter on the minor version as well, but only if a minor version is specified
-            os_minor_filter = (
-                f"AND (system_profile_facts->'operating_system'->>'minor')::int = {comparison.minor}"
-                if comparison.minor
-                else ""
-            )
-            os_filter_text = (
-                f"(system_profile_facts->'operating_system'->>'name' = '{comparison.name}' AND "
-                f"(system_profile_facts->'operating_system'->>'major')::int = {comparison.major} {os_minor_filter})"
-            )
+            # Uses the comparator with None, resulting in either is_(None) or is_not(None)
+            os_filter_list.append(os_field.astext.operate(comparator, None))
 
-            os_filter_list.append(os_filter_text)
+        elif comparison.comparator == "eq":
+            os_filters = [
+                os_field["name"].astext == comparison.name,
+                os_field["major"].astext.cast(Integer) == comparison.major,
+            ]
+
+            if comparison.minor:
+                os_filters.append(os_field["minor"].astext.cast(Integer) == comparison.minor)
+
+            os_filter_list.append(and_(*os_filters))
         else:
             if comparison.minor is not None:
                 # If the minor version is specified, the comparison logic is a bit more complex. For instance:
                 # input: version <= 9.5
                 # output: (major < 9) OR (major = 9 AND minor <= 5)
-                comparator_no_eq = comparator[:1]
-                os_filter_text = (
-                    f"(system_profile_facts->'operating_system'->>'name' = '{comparison.name}' AND "
-                    f"((system_profile_facts->'operating_system'->>'major')::int {comparator_no_eq} {comparison.major}"
-                    f" OR ((system_profile_facts->'operating_system'->>'major')::int = {comparison.major} AND "
-                    f"(system_profile_facts->'operating_system'->>'minor')::int {comparator} {comparison.minor})))"
+                comparator_no_eq = POSTGRES_COMPARATOR_NO_EQ_LOOKUP.get(comparison.comparator)
+                os_filter = and_(
+                    os_field["name"].astext == comparison.name,
+                    or_(
+                        os_field["major"].astext.cast(Integer).operate(comparator_no_eq, comparison.major),
+                        and_(
+                            os_field["major"].astext.cast(Integer) == comparison.major,
+                            os_field["minor"].astext.cast(Integer).operate(comparator, comparison.minor),
+                        ),
+                    ),
                 )
+
             else:
-                # If the minor version is not specified, it's simple.
-                os_filter_text = (
-                    f"(system_profile_facts->'operating_system'->>'name' = '{comparison.name}' AND "
-                    f"(system_profile_facts->'operating_system'->>'major')::int {comparator} {comparison.major})"
+                os_filter = and_(
+                    os_field["name"].astext == comparison.name,
+                    os_field["major"].astext.cast(Integer).operate(comparator, comparison.major),
                 )
+
             # Add to AND filter
-            os_range_filter_list.append(os_filter_text)
+            os_range_filter_list.append(os_filter)
 
     # If there's anything in the range operations filter list, AND them and add to the main list.
     if len(os_range_filter_list) > 0:
-        os_filter_list.append(f"({' AND '.join(os_range_filter_list)})")
+        os_filter_list.append(and_(*os_range_filter_list))
 
     # The top-level filter list should be joined using "OR"
-    return "(" + " OR ".join(os_filter_list) + ")"
+    return or_(*os_filter_list)
 
 
 # Turns a list into a dict like this:
@@ -234,18 +254,17 @@ def _unique_paths(
     return all_filters
 
 
-def escape_sql_from_string_val(val: str, pg_op: str) -> str:
-    value = val
-    if "%" in value and pg_op == "ILIKE":
-        value = value.replace("%", r"\%")
-    if ":" in value:
-        value = value.replace(":", r"\:")
-    if "'" in value:
-        value = value.replace("'", r"''")
-    return value
+def _validate_pg_op_and_value(pg_op: str, value: str, field_filter: str, field_name: str) -> None:
+    if field_filter != "array" and pg_op == "contains":
+        raise ValidationException(f"'contains' is an invalid operation for non-array field {field_name}")
+
+    if (field_filter == "integer" and (not value.isdigit() and value not in ["nil", "not_nil"])) or (
+        field_filter == "boolean" and value.lower() not in ["true", "false", "nil", "not_nil"]
+    ):
+        raise ValidationException(f"'{value}' is an invalid value for field {field_name}")
 
 
-def build_single_text_filter(filter_param: dict) -> str:
+def build_single_filter(filter_param: dict) -> ColumnElement:
     field_name = next(iter(filter_param.keys()))
 
     if field_name == "operating_system":
@@ -257,42 +276,31 @@ def build_single_text_filter(filter_param: dict) -> str:
 
         logger.debug(f"generating filter: field: {field_name}, type: {field_filter}, field_input: {field_input}")
 
-        jsonb_path, pg_op, value = _convert_dict_to_text_filter_and_value(filter_param, field_filter == "array")
+        jsonb_path, pg_op, value = _convert_dict_to_json_path_and_value(filter_param)
+        target_field = Host.system_profile_facts[(jsonb_path)].astext
+        _validate_pg_op_and_value(pg_op, value, field_filter, field_name)
 
-        if not pg_op:
+        # Use the default comparator for the field type, if not provided
+        if not pg_op or not value:
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter)
 
-        if pg_op == "?" and field_filter != "array":
-            raise ValidationException(f"'contains' is an invalid operation for non-array field {field_name}")
-
-        value = escape_sql_from_string_val(value, pg_op)
-
         # Handle wildcard fields (use ILIKE, replace * with %)
-        if pg_op == "ILIKE":
+        if pg_op == ColumnOperators.ilike:
             value = value.replace("*", "%")
 
-        if value == "nil":
-            pg_op = "IS"
-            value = "NULL"
-        elif value == "not_nil":
-            pg_op = "IS"
-            value = "NOT NULL"
+        if value in ["nil", "not_nil"]:
+            pg_op = POSTGRES_COMPARATOR_LOOKUP[value]
+            value = None
+        elif pg_cast := FIELD_FILTER_TO_POSTGRES_CAST.get(field_filter):
+            # Cast column and value, if using an applicable type
+            target_field = target_field.cast(pg_cast)
+            value = FIELD_FILTER_TO_PYTHON_CAST.get(field_filter)(value)
 
-        # Put value in quotes if appropriate for the field type and operation
-        if field_filter in ["wildcard", "string", "timestamp", "array"] and pg_op != "IS":
-            value = f"'{value}'"
-        elif (
-            value == ""
-            or (field_filter == "integer" and (not value.isdigit() and value not in ["NULL", "NOT NULL"]))
-            or (field_filter == "boolean" and value.lower() not in ["true", "false", "null", "not null"])
-        ):
-            raise ValidationException(f"'{value}' is an invalid value for field {field_name}")
+        # "contains" is not a column operator, so we have to do it manually
+        if pg_op == "contains":
+            return target_field.contains(value)
 
-        pg_cast = FIELD_FILTER_TO_POSTGRES_CAST.get(field_filter, "")
-
-        text_filter = f"(system_profile_facts{jsonb_path}){pg_cast} {pg_op} {value}"
-
-        return text_filter
+        return target_field.operate(pg_op, value)
 
 
 # Standardize host_type SP filter and get its value(s)
@@ -343,19 +351,16 @@ def build_system_profile_filter(system_profile_param: dict) -> tuple:
 
     for grouped_filter_param in filter_param_list:
         if isinstance(grouped_filter_param, list):
-            # Usually, when multiple filters are grouped, join the list with "OR"
-            conjunction = " OR "
-            # When the filtered field is an array or OS, join the list with " AND "
-            if _get_field_filter_for_deepest_param(system_profile_spec(), grouped_filter_param[0]) == "array":
-                conjunction = " AND "
-
-            filter_list = conjunction.join(
-                [build_single_text_filter(single_filter) for single_filter in grouped_filter_param]
+            # Use AND when filtering on an array, but otherwise use OR.
+            conjunction = (
+                and_
+                if _get_field_filter_for_deepest_param(system_profile_spec(), grouped_filter_param[0]) == "array"
+                else or_
             )
-            text_filter = f"({filter_list})"
+            filter = conjunction(build_single_filter(single_filter) for single_filter in grouped_filter_param)
         else:
-            text_filter = build_single_text_filter(grouped_filter_param)
+            filter = build_single_filter(grouped_filter_param)
 
-        system_profile_filter += (text(text_filter),)
+        system_profile_filter += (filter,)
 
     return system_profile_filter
