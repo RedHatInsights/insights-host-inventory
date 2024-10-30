@@ -1,5 +1,6 @@
 FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
 
+ARG pgRepo="https://copr.fedorainfracloud.org/coprs/mmraka/postgresql-16/repo/epel-8/mmraka-postgresql-16-epel-8.repo"
 ARG TEST_IMAGE=false
 
 USER root
@@ -15,12 +16,17 @@ RUN FULL_RHEL=$(microdnf repolist --enabled | grep rhel-8) ; \
 ENV APP_ROOT=/opt/app-root/src
 WORKDIR $APP_ROOT
 
-RUN microdnf module enable postgresql:13 python39:3.9 && \
+RUN (microdnf module enable -y postgresql:16 || curl -o /etc/yum.repos.d/postgresql.repo $pgRepo) && \
+    microdnf module enable python39:3.9 && \
     microdnf upgrade -y && \
     microdnf install --setopt=tsflags=nodocs -y postgresql python39 rsync tar procps-ng make && \
     rpm -qa | sort > packages-before-devel-install.txt && \
     microdnf install --setopt=tsflags=nodocs -y libpq-devel python39-devel gcc && \
     rpm -qa | sort > packages-after-devel-install.txt
+
+# creating symlink, libpq.so.5, which is missing from postgresql:16 and has "libpq.so.private16-5.16" instead.
+# This bandage should be replaced after the RDS has been upgraded to V16.x
+RUN ln -s /usr/lib64/libpq.so.private16-5.16 /usr/lib64/libpq.so.5
 
 COPY api/ api/
 COPY app/ app/
