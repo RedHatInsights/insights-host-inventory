@@ -5,14 +5,6 @@ ARG TEST_IMAGE=false
 
 USER root
 
-# install postgresql from centos if not building on RHSM system
-RUN FULL_RHEL=$(microdnf repolist --enabled | grep rhel-8) ; \
-    if [ -z "$FULL_RHEL" ] ; then \
-        rpm -Uvh http://mirror.centos.org/centos/8-stream/BaseOS/x86_64/os/Packages/centos-stream-repos-8-4.el8.noarch.rpm \
-                 http://mirror.centos.org/centos/8-stream/BaseOS/x86_64/os/Packages/centos-gpg-keys-8-4.el8.noarch.rpm && \
-        sed -i 's/^\(enabled.*\)/\1\npriority=200/;' /etc/yum.repos.d/CentOS*.repo ; \
-    fi
-
 ENV APP_ROOT=/opt/app-root/src
 WORKDIR $APP_ROOT
 
@@ -23,10 +15,6 @@ RUN (microdnf module enable -y postgresql:16 || curl -o /etc/yum.repos.d/postgre
     rpm -qa | sort > packages-before-devel-install.txt && \
     microdnf install --setopt=tsflags=nodocs -y libpq-devel python39-devel gcc && \
     rpm -qa | sort > packages-after-devel-install.txt
-
-# creating symlink, libpq.so.5, which is missing from postgresql:16 and has "libpq.so.private16-5.16" instead.
-# This bandage should be replaced after the RDS has been upgraded to V16.x
-RUN ln -s /usr/lib64/libpq.so.private16-5.16 /usr/lib64/libpq.so.5
 
 COPY api/ api/
 COPY app/ app/
