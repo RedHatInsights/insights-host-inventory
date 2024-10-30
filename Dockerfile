@@ -1,3 +1,4 @@
+# This comment is being added for creating a new image for testing build_pipeline
 FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
 
 ARG TEST_IMAGE=false
