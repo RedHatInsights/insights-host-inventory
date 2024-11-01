@@ -1208,7 +1208,7 @@ objects:
     suspend: ${{FLOORIST_SUSPEND}}
     logLevel: ${FLOORIST_LOGLEVEL}
     queries:
-      - prefix: insights/inventory/hosts
+      - prefix: hms_analytics/inventory/hosts
         query: >-
           SELECT
             "id",
@@ -1217,7 +1217,7 @@ objects:
             "created_on" AS "created_at",
             "modified_on" AS "updated_at"
           FROM "hosts"
-      - prefix: insights/inventory/groups_success_metrics
+      - prefix: hms_analytics/inventory/groups_success_metrics
         query: >-
           SELECT
             "id",
