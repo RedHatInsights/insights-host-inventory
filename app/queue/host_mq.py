@@ -3,12 +3,11 @@ import json
 import sys
 from copy import deepcopy
 from functools import partial
-from typing import List
 from uuid import UUID
 
-from marshmallow import fields
 from marshmallow import Schema
 from marshmallow import ValidationError
+from marshmallow import fields
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.exc import StaleDataError
 
@@ -16,9 +15,9 @@ from api.cache import delete_cached_system_keys
 from api.cache import set_cached_system
 from api.cache_key import make_system_cache_key
 from api.staleness_query import get_staleness_obj
-from app.auth.identity import create_mock_identity_with_org_id
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
+from app.auth.identity import create_mock_identity_with_org_id
 from app.common import inventory_config
 from app.culling import Timestamps
 from app.exceptions import InventoryException
@@ -32,17 +31,17 @@ from app.instrumentation import log_update_system_profile_failure
 from app.instrumentation import log_update_system_profile_success
 from app.logging import get_logger
 from app.logging import threadctx
-from app.models import db
 from app.models import Host
 from app.models import LimitedHostSchema
-from app.payload_tracker import get_payload_tracker
+from app.models import db
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
+from app.payload_tracker import get_payload_tracker
 from app.queue import metrics
 from app.queue.event_producer import EventProducer
-from app.queue.events import build_event
-from app.queue.events import EventType
 from app.queue.events import HOST_EVENT_TYPE_CREATED
+from app.queue.events import EventType
+from app.queue.events import build_event
 from app.queue.events import message_headers
 from app.queue.events import operation_results_to_event_type
 from app.queue.mq_common import common_message_parser
@@ -123,7 +122,7 @@ def _get_identity(host, metadata):
     try:
         identity = Identity(identity)
     except ValueError as e:
-        raise ValidationException(str(e))
+        raise ValidationException(str(e)) from e
     return identity
 
 
@@ -216,7 +215,10 @@ def sync_event_message(message, session, event_producer):
     return
 
 
-def update_system_profile(host_data, platform_metadata, notification_event_producer=None, operation_args={}):
+def update_system_profile(host_data, platform_metadata, notification_event_producer=None, operation_args=None):
+    if operation_args is None:
+        operation_args = {}
+
     try:
         input_host = deserialize_host(host_data, schema=LimitedHostSchema)
         input_host.id = host_data.get("id")
@@ -239,7 +241,9 @@ def update_system_profile(host_data, platform_metadata, notification_event_produ
         raise
 
 
-def add_host(host_data, platform_metadata, notification_event_producer, operation_args={}):
+def add_host(host_data, platform_metadata, notification_event_producer, operation_args=None):
+    if operation_args is None:
+        operation_args = {}
     try:
         identity = _get_identity(host_data, platform_metadata)
         # basic-auth does not need owner_id
@@ -397,7 +401,7 @@ def write_add_update_event_message(
 def write_message_batch(
     event_producer: EventProducer,
     notification_event_producer: EventProducer,
-    processed_rows: List[OperationResult],
+    processed_rows: list[OperationResult],
 ):
     for result in processed_rows:
         if result is not None:

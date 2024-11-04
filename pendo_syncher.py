@@ -21,10 +21,9 @@ from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
 from lib.db import session_guard
-from lib.handlers import register_shutdown
 from lib.handlers import ShutdownHandler
+from lib.handlers import register_shutdown
 from lib.metrics import pendo_fetching_failure
-
 
 __all__ = ("main", "run")
 

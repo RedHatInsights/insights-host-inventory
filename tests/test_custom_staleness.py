@@ -5,7 +5,6 @@ from app import db
 from app import threadctx
 from host_reaper import run as host_reaper_run
 
-
 CUSTOM_STALENESS_DELETE_ONLY_IMMUTABLE = {
     "conventional_time_to_stale": 86400,
     "conventional_time_to_stale_warning": 604800,
@@ -71,8 +70,8 @@ def test_delete_only_immutable_hosts(
         shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
         application=flask_app,
     )
-    assert 0 == len(db_get_hosts(immutable_hosts).all())
-    assert 2 == len(db_get_hosts(conventional_hosts).all())
+    assert len(db_get_hosts(immutable_hosts).all()) == 0
+    assert len(db_get_hosts(conventional_hosts).all()) == 2
 
 
 def test_delete_only_conventional_hosts(
@@ -103,8 +102,8 @@ def test_delete_only_conventional_hosts(
         shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
         application=flask_app,
     )
-    assert 2 == len(db_get_hosts(immutable_hosts).all())
-    assert 0 == len(db_get_hosts(conventional_hosts).all())
+    assert len(db_get_hosts(immutable_hosts).all()) == 2
+    assert len(db_get_hosts(conventional_hosts).all()) == 0
 
 
 def test_delete_conventional_immutable_hosts(
@@ -135,8 +134,8 @@ def test_delete_conventional_immutable_hosts(
         shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
         application=flask_app,
     )
-    assert 0 == len(db_get_hosts(immutable_hosts).all())
-    assert 0 == len(db_get_hosts(conventional_hosts).all())
+    assert len(db_get_hosts(immutable_hosts).all()) == 0
+    assert len(db_get_hosts(conventional_hosts).all()) == 0
 
 
 def test_no_hosts_to_delete(
@@ -167,5 +166,5 @@ def test_no_hosts_to_delete(
         shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
         application=flask_app,
     )
-    assert 2 == len(db_get_hosts(immutable_hosts).all())
-    assert 2 == len(db_get_hosts(conventional_hosts).all())
+    assert len(db_get_hosts(immutable_hosts).all()) == 2
+    assert len(db_get_hosts(conventional_hosts).all()) == 2

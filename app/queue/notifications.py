@@ -3,8 +3,8 @@ from datetime import datetime
 from datetime import timezone
 from enum import Enum
 
-from marshmallow import fields
 from marshmallow import Schema as MarshmallowSchema
+from marshmallow import fields
 from marshmallow import validate as marshmallow_validate
 
 from app.common import inventory_config
@@ -230,7 +230,10 @@ def build_base_notification_obj(notification_type: str, host: dict):
     return complete_base_obj
 
 
-def populate_events(base_notification_obj, host_list, extra_fields=[]):
+def populate_events(base_notification_obj, host_list, extra_fields=None):
+    if extra_fields is None:
+        extra_fields = []
+
     for host in host_list:
         canonical_facts = host.get("canonical_facts", deserialize_canonical_facts(host))
 

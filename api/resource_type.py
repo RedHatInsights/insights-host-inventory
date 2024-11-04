@@ -17,7 +17,6 @@ from app.logging import get_logger
 from app.serialization import serialize_group
 from lib.middleware import rbac
 
-
 logger = get_logger(__name__)
 
 

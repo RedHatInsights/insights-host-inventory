@@ -4,7 +4,6 @@ from prometheus_client import Summary
 
 from app.common import get_build_version
 
-
 common_message_parsing_time = Summary(
     "inventory_common_message_parsing_seconds", "Time spent parsing common inventory messages"
 )

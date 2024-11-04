@@ -5,7 +5,6 @@ from sqlalchemy.orm.session import Session
 
 from app.logging import get_logger
 
-
 __all__ = ("logger", "session")
 
 

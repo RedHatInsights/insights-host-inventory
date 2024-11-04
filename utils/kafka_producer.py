@@ -5,7 +5,6 @@ import sys
 import payloads
 from confluent_kafka import Producer as KafkaProducer
 
-
 HOST_INGRESS_TOPIC = os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress")
 BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")
 NUM_HOSTS = int(os.environ.get("NUM_HOSTS", 1))
@@ -22,7 +21,7 @@ def main():
 
     def delivery_callback(err, msg):
         if err:
-            sys.stderr.write("%% Message failed delivery: %s\n" % err)
+            sys.stderr.write(f"% Message failed delivery: {err}\n")
         else:
             sys.stderr.write("%% Message delivered to %s [%d] @ %d\n" % (msg.topic(), msg.partition(), msg.offset()))
 

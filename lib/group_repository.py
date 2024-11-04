@@ -1,5 +1,3 @@
-from typing import List
-
 from api.cache import delete_cached_system_keys
 from api.host_query import staleness_timestamps
 from api.staleness_query import get_staleness_obj
@@ -15,13 +13,13 @@ from app.instrumentation import log_host_group_add_succeeded
 from app.instrumentation import log_host_group_delete_failed
 from app.instrumentation import log_host_group_delete_succeeded
 from app.logging import get_logger
-from app.models import db
 from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
+from app.models import db
 from app.queue.event_producer import EventProducer
-from app.queue.events import build_event
 from app.queue.events import EventType
+from app.queue.events import build_event
 from app.queue.events import message_headers
 from app.serialization import serialize_group
 from app.serialization import serialize_host
@@ -36,7 +34,10 @@ from lib.metrics import delete_host_group_processing_time
 logger = get_logger(__name__)
 
 
-def _update_hosts_for_group_changes(host_id_list, group_id_list=[]):
+def _update_hosts_for_group_changes(host_id_list, group_id_list=None):
+    if group_id_list is None:
+        group_id_list = []
+
     identity = get_current_identity()
     serialized_groups = [serialize_group(get_group_by_id_from_db(group_id), identity) for group_id in group_id_list]
 
@@ -75,7 +76,7 @@ def _invalidate_system_cache(host_list):
             delete_cached_system_keys(insights_id=insights_id, org_id=identity.org_id, owner_id=owner_id)
 
 
-def _add_hosts_to_group(group_id: str, host_id_list: List[str]):
+def _add_hosts_to_group(group_id: str, host_id_list: list[str]):
     current_org_id = get_current_identity().org_id
 
     # Check if the hosts exist in Inventory and have correct org_id
@@ -118,7 +119,7 @@ def _add_hosts_to_group(group_id: str, host_id_list: List[str]):
     log_host_group_add_succeeded(logger, host_id_list, group_id)
 
 
-def add_hosts_to_group(group_id: str, host_id_list: List[str], event_producer: EventProducer):
+def add_hosts_to_group(group_id: str, host_id_list: list[str], event_producer: EventProducer):
     staleness = get_staleness_obj(get_current_identity())
     with session_guard(db.session):
         _add_hosts_to_group(group_id, host_id_list)
@@ -184,7 +185,7 @@ def _delete_group(group: Group) -> bool:
     return _deleted_by_this_query(group)
 
 
-def delete_group_list(group_id_list: List[str], event_producer: EventProducer) -> int:
+def delete_group_list(group_id_list: list[str], event_producer: EventProducer) -> int:
     deletion_count = 0
     deleted_host_ids = []
     staleness = get_staleness_obj(get_current_identity())

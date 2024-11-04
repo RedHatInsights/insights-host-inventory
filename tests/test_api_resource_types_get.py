@@ -1,11 +1,11 @@
 import pytest
 
+from tests.helpers.api_utils import RBAC_ADMIN_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import assert_resource_types_pagination
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_resource_types_groups_url
 from tests.helpers.api_utils import build_resource_types_url
 from tests.helpers.api_utils import create_mock_rbac_response
-from tests.helpers.api_utils import RBAC_ADMIN_PROHIBITED_RBAC_RESPONSE_FILES
 
 
 @pytest.mark.parametrize(

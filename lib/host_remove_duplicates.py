@@ -5,8 +5,8 @@ from sqlalchemy.dialects.postgresql import array
 
 from app.instrumentation import log_host_delete_succeeded
 from app.models import Host
-from app.queue.events import build_event
 from app.queue.events import EventType
+from app.queue.events import build_event
 from app.queue.events import message_headers
 from lib.metrics import delete_duplicate_host_count
 

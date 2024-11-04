@@ -6,6 +6,10 @@ from unittest.mock import patch
 import pytest
 
 from lib.host_repository import find_hosts_by_staleness
+from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import HOST_URL
+from tests.helpers.api_utils import LEGACY_HOST_URL
 from tests.helpers.api_utils import api_base_pagination_test
 from tests.helpers.api_utils import api_pagination_invalid_parameters_test
 from tests.helpers.api_utils import api_pagination_test
@@ -23,17 +27,13 @@ from tests.helpers.api_utils import build_system_profile_sap_system_url
 from tests.helpers.api_utils import build_system_profile_url
 from tests.helpers.api_utils import build_tags_url
 from tests.helpers.api_utils import create_mock_rbac_response
-from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
-from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
-from tests.helpers.api_utils import HOST_URL
-from tests.helpers.api_utils import LEGACY_HOST_URL
 from tests.helpers.api_utils import quote
 from tests.helpers.api_utils import quote_everything
+from tests.helpers.test_utils import SERVICE_ACCOUNT_IDENTITY
+from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
-from tests.helpers.test_utils import SERVICE_ACCOUNT_IDENTITY
-from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
 def test_query_single_non_existent_host(api_get, subtests):
@@ -717,7 +717,7 @@ def test_get_host_with_escaped_special_characters(namespace, key, value, mq_crea
 def test_query_using_group_name(db_create_group_with_hosts, api_get, num_groups):
     hosts_per_group = 3
     for i in range(num_groups):
-        db_create_group_with_hosts(f"existing_group_{i}", hosts_per_group).id
+        db_create_group_with_hosts(f"existing_group_{i}", hosts_per_group)
 
     # Some other group that we don't want to see in the response
     db_create_group_with_hosts("some_other_group", 5)
@@ -1031,7 +1031,7 @@ def test_query_by_id_culled_hosts(db_create_host, api_get):
         # The host should not be returned as it is in the "culled" state
         response_status, response_data = api_get(url)
         assert response_status == 200
-        assert 0 == len(response_data["results"])
+        assert len(response_data["results"]) == 0
 
 
 def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):

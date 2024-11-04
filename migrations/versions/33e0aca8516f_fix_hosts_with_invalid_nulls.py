@@ -5,6 +5,7 @@ Revises: 5544cd265053
 Create Date: 2020-03-26 10:52:44.373485
 
 """
+
 from alembic import op
 from sqlalchemy import Column
 from sqlalchemy import DateTime
@@ -15,7 +16,6 @@ from sqlalchemy.ext.declarative import declarative_base
 
 from migrations.helpers import logger
 from migrations.helpers import session
-
 
 # revision identifiers, used by Alembic.
 revision = "33e0aca8516f"

@@ -5,6 +5,7 @@ Revises: ea9d9c5cb4e4
 Create Date: 2024-07-19 15:12:16.100490
 
 """
+
 from sqlalchemy import Column
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID
@@ -12,7 +13,6 @@ from sqlalchemy.ext.declarative import declarative_base
 
 from migrations.helpers import logger
 from migrations.helpers import session
-
 
 """
 This code is meant to fix the hosts that contains

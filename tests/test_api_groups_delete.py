@@ -2,11 +2,11 @@ import json
 
 from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
+from tests.helpers.api_utils import GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
-from tests.helpers.api_utils import GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
-from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import USER_IDENTITY
+from tests.helpers.test_utils import generate_uuid
 
 
 def test_delete_non_existent_group(api_delete_groups, event_producer):

@@ -11,20 +11,19 @@ from sqlalchemy.exc import IntegrityError
 
 from app import db
 from app.exceptions import ValidationException
+from app.models import MAX_CANONICAL_FACTS_VERSION
+from app.models import MIN_CANONICAL_FACTS_VERSION
+from app.models import ZERO_MAC_ADDRESS
 from app.models import CanonicalFactsSchema
 from app.models import Host
 from app.models import HostSchema
 from app.models import InputGroupSchema
 from app.models import LimitedHost
-from app.models import MAX_CANONICAL_FACTS_VERSION
-from app.models import MIN_CANONICAL_FACTS_VERSION
-from app.models import ZERO_MAC_ADDRESS
 from app.utils import Tag
-from tests.helpers.test_utils import generate_uuid
-from tests.helpers.test_utils import now
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
-
+from tests.helpers.test_utils import generate_uuid
+from tests.helpers.test_utils import now
 
 """
 These tests are for testing the db model classes outside of the api.
