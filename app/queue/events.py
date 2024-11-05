@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import os
 from datetime import datetime
@@ -80,10 +82,10 @@ class HostDeleteEvent(Schema):
 
 def message_headers(
     event_type: EventType,
-    insights_id: str = None,
-    reporter: str = None,
-    host_type: str = None,
-    os_name: str = None,
+    insights_id: str | None = None,
+    reporter: str | None = None,
+    host_type: str | None = None,
+    os_name: str | None = None,
     is_bootc: str = "False",
 ):
     return {

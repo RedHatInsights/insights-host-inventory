@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from functools import partial
 from functools import wraps
 from http import HTTPStatus
@@ -114,6 +116,7 @@ def _get_group_list_from_resource_definition(resource_definition: dict) -> list[
                 )
 
             return group_list
+    return []
 
 
 def get_rbac_filter(
@@ -122,7 +125,7 @@ def get_rbac_filter(
     identity: Identity,
     rbac_request_headers: dict,
     permission_base: str = "inventory",
-) -> tuple[str, dict]:
+) -> tuple[bool, dict | None]:
     # Returns a 2-item tuple:
     # 1. Whether or not the request should be allowed at all
     # 2. The filter that should be applied to the data (if allowed)

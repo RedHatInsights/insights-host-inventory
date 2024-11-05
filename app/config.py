@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import os
 import tempfile
 from datetime import timedelta
 
 from app.common import get_build_version
+from app.culling import days_to_seconds
 from app.environment import RuntimeEnvironment
 from app.logging import get_logger
 
@@ -150,10 +153,6 @@ class Config:
         self._cache_port = os.environ.get("CACHE_PORT", "6379")
         self.export_service_token = os.environ.get("EXPORT_SERVICE_TOKEN", "testing-a-psk")
 
-    def days_to_seconds(self, n_days):
-        factor = 86400
-        return n_days * factor
-
     def __init__(self, runtime_environment):
         self.logger = get_logger(__name__)
         self._runtime_environment = runtime_environment
@@ -292,23 +291,21 @@ class Config:
         )  # 29 hours
 
         self.conventional_time_to_stale_warning_seconds = os.environ.get(
-            "CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS", self.days_to_seconds(7)
+            "CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS", days_to_seconds(7)
         )
 
         self.conventional_time_to_delete_seconds = os.environ.get(
-            "CONVENTIONAL_TIME_TO_DELETE_SECONDS", self.days_to_seconds(14)
+            "CONVENTIONAL_TIME_TO_DELETE_SECONDS", days_to_seconds(14)
         )
 
-        self.immutable_time_to_stale_seconds = os.environ.get(
-            "IMMUTABLE_TIME_TO_STALE_SECONDS", self.days_to_seconds(2)
-        )
+        self.immutable_time_to_stale_seconds = os.environ.get("IMMUTABLE_TIME_TO_STALE_SECONDS", days_to_seconds(2))
 
         self.immutable_time_to_stale_warning_seconds = os.environ.get(
-            "IMMUTABLE_TIME_TO_STALE_WARNING_SECONDS", self.days_to_seconds(180)
+            "IMMUTABLE_TIME_TO_STALE_WARNING_SECONDS", days_to_seconds(180)
         )
 
         self.immutable_time_to_delete_seconds = os.environ.get(
-            "IMMUTABLE_TIME_TO_DELETE_SECONDS", self.days_to_seconds(730)
+            "IMMUTABLE_TIME_TO_DELETE_SECONDS", days_to_seconds(730)
         )
 
         self.host_delete_chunk_size = int(os.getenv("HOST_DELETE_CHUNK_SIZE", "1000"))

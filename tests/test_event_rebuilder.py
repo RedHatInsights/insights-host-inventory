@@ -3,8 +3,8 @@ from unittest import mock
 
 import pytest
 
-from app import db
-from app import threadctx
+from app.logging import threadctx
+from app.models import db
 from app.queue.events import EventType
 from app.queue.events import build_event
 from rebuild_events_topic import run as rebuild_events_run

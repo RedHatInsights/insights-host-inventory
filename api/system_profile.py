@@ -86,8 +86,8 @@ def get_operating_system(
     tags=None,
     page: Optional[int] = None,
     per_page: Optional[int] = None,
-    staleness: Optional[str] = None,
-    registered_with: Optional[str] = None,
+    staleness: Optional[list[str]] = None,
+    registered_with: Optional[list[str]] = None,
     filter=None,
     rbac_filter=None,
 ):
