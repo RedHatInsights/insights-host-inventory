@@ -1,22 +1,6 @@
 default_language_version:
   python: python3.9
 repos:
-- repo: https://github.com/asottile/reorder_python_imports
-  rev: v3.14.0
-  hooks:
-  - id: reorder-python-imports
-    args: [--py38-plus]
-- repo: https://github.com/asottile/pyupgrade
-  rev: v3.19.0
-  hooks:
-  - id: pyupgrade
-    args: [--py38-plus]
-- repo: https://github.com/psf/black
-  rev: 23.12.1
-  hooks:
-  - id: black
-    args: [--line-length, "119"]
-    require_serial: true
 - repo: https://github.com/pre-commit/pre-commit-hooks
   rev: v5.0.0
   hooks:
@@ -25,10 +9,6 @@ repos:
     exclude: swagger/openapi\.json
   - id: check-yaml
   - id: debug-statements
-- repo: https://github.com/PyCQA/flake8
-  rev: 7.1.1
-  hooks:
-  - id: flake8
 - repo: https://github.com/APIDevTools/swagger-cli
   rev: v4.0.4
   hooks:
@@ -40,6 +20,12 @@ repos:
   - id: swagger-validation
     files: swagger/openapi.json$
     exclude: swagger/inventory-schemas/
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: v0.7.2
+  hooks:
+  - id: ruff
+    args: [--fix, --exit-non-zero-on-fix]
+  - id: ruff-format
 
 - repo: local
   hooks:

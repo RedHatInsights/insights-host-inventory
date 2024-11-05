@@ -9,7 +9,6 @@ from app.models import Group
 from app.models import HostGroupAssoc
 from app.serialization import serialize_group
 
-
 logger = get_logger(__name__)
 
 QUERY = """query Query (

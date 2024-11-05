@@ -1,10 +1,10 @@
 import pytest
 
 from tests.helpers.api_utils import ASSIGNMENT_RULE_URL
-from tests.helpers.api_utils import do_request
 from tests.helpers.api_utils import GROUP_URL
 from tests.helpers.api_utils import HOST_URL
 from tests.helpers.api_utils import STALENESS_URL
+from tests.helpers.api_utils import do_request
 from tests.helpers.test_utils import USER_IDENTITY
 
 

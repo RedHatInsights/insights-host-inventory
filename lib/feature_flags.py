@@ -1,4 +1,4 @@
-from typing import Tuple
+from __future__ import annotations
 
 from flask_unleash import Unleash
 from UnleashClient.strategies import Strategy
@@ -41,7 +41,10 @@ def custom_fallback(feature_name: str, context: dict) -> bool:
 # Gets a feature flag's value from Unleash, if available.
 # Accepts a string with the name of the feature flag.
 # Returns a tuple containing the flag's value and whether or not the fallback value was used.
-def get_flag_value_and_fallback(flag_name: str, context: dict = {}) -> Tuple[bool, bool]:
+def get_flag_value_and_fallback(flag_name: str, context: dict | None = None) -> tuple[bool, bool]:
+    if context is None:
+        context = {}
+
     # Get flag name and default to fallback value
     flag_value = FLAG_FALLBACK_VALUES[flag_name]
     using_fallback = True
@@ -58,12 +61,15 @@ def get_flag_value_and_fallback(flag_name: str, context: dict = {}) -> Tuple[boo
             f"Either could not connect to Unleash server, or feature toggle {flag_name} not found."
             f"Falling back to default value of {flag_value}"
         )
-    finally:
-        return flag_value, using_fallback
+
+    return flag_value, using_fallback
 
 
 # Gets a feature flag's value from Unleash, if available.
 # Accepts a string with the name of the feature flag.
 # Returns the value of the feature flag, whether it's the fallback or real value.
-def get_flag_value(flag_name: str, context: dict = {}) -> bool:
+def get_flag_value(flag_name: str, context: dict | None = None) -> bool:
+    if context is None:
+        context = {}
+
     return get_flag_value_and_fallback(flag_name, context)[0]

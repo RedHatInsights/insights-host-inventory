@@ -4,8 +4,8 @@ from datetime import datetime
 from datetime import timezone
 from enum import Enum
 
-from marshmallow import fields
 from marshmallow import Schema
+from marshmallow import fields
 
 from app.logging import threadctx
 from app.models import FactsSchema

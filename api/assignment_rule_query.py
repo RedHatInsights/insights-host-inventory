@@ -8,7 +8,6 @@ from app.logging import get_logger
 from app.models import AssignmentRule
 from app.serialization import serialize_assignment_rule
 
-
 logger = get_logger(__name__)
 
 ASSIGNMENT_RULES_ORDER_BY_MAPPING = {

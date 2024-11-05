@@ -20,8 +20,8 @@ from app.logging import threadctx
 from app.queue.event_producer import EventProducer
 from app.queue.host_mq import sync_event_message
 from lib.db import session_guard
-from lib.handlers import register_shutdown
 from lib.handlers import ShutdownHandler
+from lib.handlers import register_shutdown
 
 # from prometheus_client import start_http_server
 
@@ -82,8 +82,8 @@ def run(config, logger, session, consumer, event_producer, shutdown_handler):
         try:
             # pace the events production speed as flush completes sending all buffered records.
             event_producer._kafka_producer.flush(300)
-        except ProduceError:
-            raise ProduceError("ProduceError: Failed to flush produced Kafka messages within 300 seconds")
+        except ProduceError as e:
+            raise ProduceError("ProduceError: Failed to flush produced Kafka messages within 300 seconds") from e
 
         num_messages = len(new_messages)
         total_messages_processed += num_messages

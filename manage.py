@@ -5,7 +5,6 @@ from app import create_app
 from app import db
 from app.environment import RuntimeEnvironment
 
-
 application = create_app(RuntimeEnvironment.COMMAND)
 app = application.app
 migrate = Migrate(app, db)

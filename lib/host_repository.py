@@ -18,7 +18,6 @@ from app.models import HostGroupAssoc
 from app.serialization import serialize_staleness_to_dict
 from lib import metrics
 
-
 __all__ = (
     "add_host",
     "single_canonical_fact_host_query",
@@ -51,7 +50,7 @@ NULL = None
 logger = get_logger(__name__)
 
 
-def add_host(input_host, identity, update_system_profile=True, operation_args={}):
+def add_host(input_host, identity, update_system_profile=True, operation_args=None):
     """
     Add or update a host
 
@@ -59,6 +58,8 @@ def add_host(input_host, identity, update_system_profile=True, operation_args={}
      - at least one of the canonical facts fields is required
      - org_id
     """
+    if operation_args is None:
+        operation_args = {}
     existing_host = find_existing_host(identity, input_host.canonical_facts)
     if existing_host:
         defer_to_reporter = operation_args.get("defer_to_reporter", None)
@@ -103,7 +104,7 @@ def _find_host_by_elevated_ids(identity, canonical_facts):
 
         if key in IMMUTABLE_CANONICAL_FACTS:
             immutable_facts[key] = canonical_facts[key]
-            if compound_fact := COMPOUND_CANONICAL_FACTS_MAP.get(key):
+            if compound_fact := COMPOUND_CANONICAL_FACTS_MAP.get(key):  # noqa: SIM102
                 if compound_fact_val := canonical_facts.get(compound_fact):
                     immutable_facts[compound_fact] = compound_fact_val
         else:
@@ -131,7 +132,7 @@ def _find_host_by_elevated_ids(identity, canonical_facts):
         target_facts = dict(immutable_facts, **{target_key: elevated_facts[target_key]})
 
         # Ensure both components of compound facts are collected.
-        if compound_fact := COMPOUND_CANONICAL_FACTS_MAP.get(target_key):
+        if compound_fact := COMPOUND_CANONICAL_FACTS_MAP.get(target_key):  # noqa: SIM102
             if compound_fact_val := canonical_facts.get(compound_fact):
                 target_facts[compound_fact] = compound_fact_val
         existing_host = (

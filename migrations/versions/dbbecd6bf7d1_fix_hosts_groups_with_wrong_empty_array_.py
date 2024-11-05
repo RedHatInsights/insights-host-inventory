@@ -5,6 +5,7 @@ Revises: 11cd38415793
 Create Date: 2024-08-20 11:56:11.120018
 
 """
+
 from sqlalchemy import Column
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID

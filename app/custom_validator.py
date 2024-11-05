@@ -9,10 +9,9 @@ from connexion.json_schema import Draft4ResponseValidator
 from connexion.json_schema import format_error_with_path
 from connexion.validators.abstract import AbstractResponseBodyValidator
 from connexion.validators.parameter import ParameterValidator
-from jsonschema import draft4_format_checker
 from jsonschema import Draft4Validator
 from jsonschema import ValidationError
-
+from jsonschema import draft4_format_checker
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +32,7 @@ class CustomResponseValidator(AbstractResponseBodyValidator):
         try:
             return json.loads(body)
         except json.decoder.JSONDecodeError as e:
-            raise NonConformingResponseBody(str(e))
+            raise NonConformingResponseBody(str(e)) from e
 
     def _validate(self, body: dict):
         try:
@@ -46,7 +45,7 @@ class CustomResponseValidator(AbstractResponseBodyValidator):
             )
             raise NonConformingResponseBody(
                 detail=f"Response body does not conform to specification. {exception.message}{error_path_msg}"
-            )
+            ) from exception
 
 
 class CustomParameterValidator(ParameterValidator):

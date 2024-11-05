@@ -5,20 +5,20 @@ import pytest
 from confluent_kafka import KafkaException
 
 from app.models import Host
-from app.queue.event_producer import logger as event_producer_logger
 from app.queue.event_producer import MessageDetails
+from app.queue.event_producer import logger as event_producer_logger
 from lib.host_delete import delete_hosts
 from lib.host_repository import get_host_list_by_id_list_from_db
+from tests.helpers.api_utils import HOST_WRITE_ALLOWED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import HOST_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import create_mock_rbac_response
-from tests.helpers.api_utils import HOST_WRITE_ALLOWED_RBAC_RESPONSE_FILES
-from tests.helpers.api_utils import HOST_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.db_utils import db_host
 from tests.helpers.mq_utils import assert_delete_event_is_valid
 from tests.helpers.mq_utils import assert_delete_notification_is_valid
-from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import SYSTEM_IDENTITY
+from tests.helpers.test_utils import generate_uuid
 
 
 def test_delete_non_existent_host(event_producer_mock, notification_event_producer_mock, api_delete_host):

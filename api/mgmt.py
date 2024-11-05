@@ -1,7 +1,7 @@
 from flask import Blueprint
 from flask import jsonify
-from prometheus_client import CollectorRegistry
 from prometheus_client import CONTENT_TYPE_LATEST
+from prometheus_client import CollectorRegistry
 from prometheus_client import generate_latest
 from prometheus_client import multiprocess
 

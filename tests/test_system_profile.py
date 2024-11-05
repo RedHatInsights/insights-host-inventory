@@ -5,23 +5,22 @@ from app.environment import RuntimeEnvironment
 from app.exceptions import ValidationException
 from lib.host_repository import find_hosts_by_staleness
 from lib.system_profile_validate import validate_sp_for_branch
+from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import HOST_URL
+from tests.helpers.api_utils import SYSTEM_PROFILE_URL
 from tests.helpers.api_utils import assert_error_response
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_system_profile_operating_system_url
 from tests.helpers.api_utils import build_system_profile_sap_sids_url
 from tests.helpers.api_utils import build_system_profile_sap_system_url
 from tests.helpers.api_utils import create_mock_rbac_response
-from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
-from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
-from tests.helpers.api_utils import HOST_URL
-from tests.helpers.api_utils import SYSTEM_PROFILE_URL
 from tests.helpers.mq_utils import create_kafka_consumer_mock
 from tests.helpers.system_profile_utils import system_profile_specification
+from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
-from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import valid_system_profile
-
 
 OWNER_ID = SYSTEM_IDENTITY["system"]["cn"]
 
