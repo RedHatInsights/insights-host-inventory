@@ -1,7 +1,7 @@
 from app.auth import get_current_identity
 from app.logging import get_logger
-from app.models import db
 from app.models import Staleness
+from app.models import db
 from lib.db import session_guard
 
 logger = get_logger(__name__)

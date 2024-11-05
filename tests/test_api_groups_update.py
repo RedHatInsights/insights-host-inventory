@@ -9,9 +9,9 @@ from app.auth.identity import to_auth_header
 from tests.helpers.api_utils import assert_group_response
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
-from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
+from tests.helpers.test_utils import generate_uuid
 
 
 @pytest.mark.parametrize(
@@ -142,7 +142,7 @@ def test_patch_group_existing_name_different_org(
 @pytest.mark.parametrize("patch_name", ["existing_group", "EXISTING_GROUP"])
 def test_patch_group_existing_name_same_org(db_create_group, api_patch_group, patch_name):
     # Create 2 groups
-    db_create_group("existing_group").id
+    db_create_group("existing_group")
     new_id = db_create_group("another_group").id
 
     response_status, response_body = api_patch_group(new_id, {"name": patch_name})
@@ -259,7 +259,7 @@ def test_patch_group_hosts_in_diff_org(
     # Create 3 hosts in the same org
     host_id_list = [str(db_create_host().id) for _ in range(3)]
 
-    if host_in_other_org:
+    if host_in_other_org:  # noqa: SIM108
         # Create one host in a different org
         invalid_host_id = db_create_host(identity=diff_identity).id
     else:

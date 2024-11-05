@@ -32,7 +32,7 @@ def _api_method():
     return random.choice(API_METHODS)
 
 
-for n in range(num_calls):
+for _ in range(num_calls):
     api_method = _api_method()
     user_agent = _user_agent()
     print(f"api_method: {api_method.__name__}, User-Agent: {user_agent}")

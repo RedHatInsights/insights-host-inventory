@@ -1,17 +1,17 @@
+from __future__ import annotations
+
 import re
+from collections.abc import Iterator
 from itertools import islice
-from typing import Iterator
-from typing import List
-from typing import Tuple
 
 from sqlalchemy import Boolean
-from sqlalchemy import func
 from sqlalchemy import String
+from sqlalchemy import func
 from sqlalchemy.exc import MultipleResultsFound
-from sqlalchemy.orm import load_only
 from sqlalchemy.orm import Query
-from sqlalchemy.sql.expression import cast
+from sqlalchemy.orm import load_only
 from sqlalchemy.sql.expression import ColumnElement
+from sqlalchemy.sql.expression import cast
 
 from api.filtering.db_filters import canonical_fact_filter
 from api.filtering.db_filters import host_id_list_filter
@@ -30,7 +30,6 @@ from app.models import HostGroupAssoc
 from app.serialization import serialize_host_for_export_svc
 from lib.host_repository import ALL_STALENESS_STATES
 from lib.host_repository import update_query_for_owner_id
-
 
 __all__ = (
     "get_all_hosts",
@@ -61,7 +60,7 @@ DEFAULT_COLUMNS = [
 ]
 
 
-def get_all_hosts() -> List:
+def get_all_hosts() -> list:
     query_results = _find_hosts_entities_query(columns=[Host.id]).all()
     ids_list = [str(result[0]) for result in query_results]
 
@@ -71,13 +70,13 @@ def get_all_hosts() -> List:
 
 def _get_host_list_using_filters(
     query_base,
-    all_filters: List,
+    all_filters: list,
     page: int,
     per_page: int,
     param_order_by: str,
     param_order_how: str,
-    fields: List[str],
-) -> Tuple[List[Host], int, Tuple[str], List[str]]:
+    fields: list[str],
+) -> tuple[list[Host], int, tuple[str], list[str]]:
     columns = DEFAULT_COLUMNS
     system_profile_fields = ["host_type"]
     if fields and fields.get("system_profile"):
@@ -110,17 +109,17 @@ def get_host_list(
     updated_start: str,
     updated_end: str,
     group_name: str,
-    tags: List[str],
+    tags: list[str],
     page: int,
     per_page: int,
     param_order_by: str,
     param_order_how: str,
-    staleness: List[str],
-    registered_with: List[str],
+    staleness: list[str],
+    registered_with: list[str],
     filter: dict,
-    fields: List[str],
+    fields: list[str],
     rbac_filter: dict,
-) -> Tuple[List[Host], int, Tuple[str], List[str]]:
+) -> tuple[list[Host], int, tuple[str], list[str]]:
     all_filters, query_base = query_filters(
         fqdn,
         display_name,
@@ -146,14 +145,14 @@ def get_host_list(
 
 
 def get_host_list_by_id_list(
-    host_id_list: List[str],
+    host_id_list: list[str],
     page: int,
     per_page: int,
     param_order_by: str,
     param_order_how: str,
     fields=None,
     rbac_filter=None,
-) -> Tuple[List[Host], int, Tuple[str], List[str]]:
+) -> tuple[list[Host], int, tuple[str], list[str]]:
     all_filters = host_id_list_filter(host_id_list)
     all_filters += rbac_permissions_filter(rbac_filter)
 
@@ -171,16 +170,16 @@ def get_host_id_by_insights_id(insights_id: str, rbac_filter=None) -> str:
 
     try:
         found_id = query.with_entities(Host.id).order_by(Host.modified_on.desc()).scalar()
-    except MultipleResultsFound:
+    except MultipleResultsFound as e:
         raise InventoryException(
             status=409,
             detail=f"More than one host was found with the Insights ID '{insights_id}'",
-        )
+        ) from e
 
     return str(found_id) if found_id else None
 
 
-def params_to_order_by(order_by: str = None, order_how: str = None) -> Tuple:
+def params_to_order_by(order_by: str = None, order_how: str = None) -> tuple:
     modified_on_ordering = (Host.modified_on.desc(),)
     ordering = ()
 
@@ -188,27 +187,15 @@ def params_to_order_by(order_by: str = None, order_how: str = None) -> Tuple:
         if order_how:
             modified_on_ordering = (_order_how(Host.modified_on, order_how),)
     elif order_by == "display_name":
-        if order_how:
-            ordering = (_order_how(Host.display_name, order_how),)
-        else:
-            ordering = (Host.display_name.asc(),)
+        ordering = (_order_how(Host.display_name, order_how),) if order_how else (Host.display_name.asc(),)
     elif order_by == "group_name":
-        if order_how:
-            base_ordering = _order_how(Group.name, order_how)
-        else:
-            base_ordering = Group.name.asc()
+        base_ordering = _order_how(Group.name, order_how) if order_how else Group.name.asc()
 
         # Override default sorting
         # When sorting by group_name ASC, ungrouped hosts should show first
-        if order_how == "DESC":
-            ordering = (base_ordering.nulls_last(),)
-        else:
-            ordering = (base_ordering.nulls_first(),)
+        ordering = (base_ordering.nulls_last(),) if order_how == "DESC" else (base_ordering.nulls_first(),)
     elif order_by == "operating_system":
-        if order_how:
-            ordering = (_order_how(Host.operating_system, order_how),)
-        else:
-            ordering = (Host.operating_system.desc(),)
+        ordering = (_order_how(Host.operating_system, order_how),) if order_how else (Host.operating_system.desc(),)
     elif order_by:
         raise ValueError(
             'Unsupported ordering column: use "updated", "display_name", "group_name", or "operating_system".'
@@ -231,7 +218,7 @@ def _order_how(column, order_how: str):
         raise ValueError('Unsupported ordering direction, use "ASC" or "DESC".')
 
 
-def _find_hosts_entities_query(query_base=None, columns: List[ColumnElement] = None, identity: object = None) -> Query:
+def _find_hosts_entities_query(query_base=None, columns: list[ColumnElement] = None, identity: object = None) -> Query:
     if query_base is None:
         query_base = db.session.query(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
 
@@ -244,7 +231,7 @@ def _find_hosts_entities_query(query_base=None, columns: List[ColumnElement] = N
     return update_query_for_owner_id(identity, query)
 
 
-def _find_hosts_model_query(columns: List[ColumnElement] = None, identity: object = None) -> Query:
+def _find_hosts_model_query(columns: list[ColumnElement] = None, identity: object = None) -> Query:
     query_base = db.session.query(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
     query = query_base.filter(Host.org_id == identity.org_id)
 
@@ -261,8 +248,8 @@ def _find_hosts_model_query(columns: List[ColumnElement] = None, identity: objec
 
 
 def get_host_tags_list_by_id_list(
-    host_id_list: List[str], limit: int, offset: int, order_by: str, order_how: str, rbac_filter: dict
-) -> Tuple[dict, int]:
+    host_id_list: list[str], limit: int, offset: int, order_by: str, order_how: str, rbac_filter: dict
+) -> tuple[dict, int]:
     columns = [Host.id, Host.tags]
     query = _find_hosts_entities_query(columns=columns)
     all_filters = host_id_list_filter(host_id_list=host_id_list)
@@ -274,7 +261,7 @@ def get_host_tags_list_by_id_list(
     return host_tags_dict, len(host_id_list)
 
 
-def _add_tag_values(host_namespace, tag_key, tag_value, host_id, host_tags, host_tags_tracker) -> Tuple[dict, dict]:
+def _add_tag_values(host_namespace, tag_key, tag_value, host_id, host_tags, host_tags_tracker) -> tuple[dict, dict]:
     converted_value = _convert_null_string(tag_value) if tag_value else ""
     host_tag_str = f"{_convert_null_string(host_namespace)}/{_convert_null_string(tag_key)}={converted_value}"
     host_tag_obj = {
@@ -290,7 +277,7 @@ def _add_tag_values(host_namespace, tag_key, tag_value, host_id, host_tags, host
     return host_tags, host_tags_tracker
 
 
-def _expand_host_tags(hosts: List[Host]) -> Tuple[dict, dict]:
+def _expand_host_tags(hosts: list[Host]) -> tuple[dict, dict]:
     host_tags_tracker = {}
     host_tags_dict = {}
     for host in hosts:
@@ -298,7 +285,7 @@ def _expand_host_tags(hosts: List[Host]) -> Tuple[dict, dict]:
         host_namespace_tags_dict = host.tags
         for host_namespace, host_namespace_tags in host_namespace_tags_dict.items():
             for tag_key, tag_values in host_namespace_tags.items():
-                if isinstance(tag_values, List) and tag_values:
+                if isinstance(tag_values, list) and tag_values:
                     for tag_value in tag_values:
                         host_tags, host_tags_tracker = _add_tag_values(
                             host_namespace, tag_key, tag_value, host.id, host_tags, host_tags_tracker
@@ -327,17 +314,17 @@ def get_tag_list(
     updated_start: str,
     updated_end: str,
     group_name: str,
-    tags: List[str],
+    tags: list[str],
     limit: int,
     offset: int,
     order_by: str,
     order_how: str,
     search: str,
-    staleness: List[str],
-    registered_with: List[str],
+    staleness: list[str],
+    registered_with: list[str],
     filter: dict,
     rbac_filter: dict,
-) -> Tuple[dict, int]:
+) -> tuple[dict, int]:
     if order_by not in ["tag", "count"]:
         raise ValueError('Unsupported ordering column: use "tag" or "count".')
     elif order_how and order_by not in ["tag", "count"]:
@@ -401,9 +388,9 @@ def get_tag_list(
 def get_os_info(
     limit: int,
     offset: int,
-    staleness: List[str],
-    tags: List[str],
-    registered_with: List[str],
+    staleness: list[str],
+    tags: list[str],
+    registered_with: list[str],
     filter: dict,
     rbac_filter: dict,
 ):
@@ -448,9 +435,9 @@ def get_os_info(
 def get_sap_system_info(
     page: int,
     per_page: int,
-    staleness: List[str],
-    tags: List[str],
-    registered_with: List[str],
+    staleness: list[str],
+    tags: list[str],
+    registered_with: list[str],
     filter: dict,
     rbac_filter: dict,
 ):
@@ -479,9 +466,9 @@ def get_sap_system_info(
 def get_sap_sids_info(
     limit: int,
     offset: int,
-    staleness: List[str],
-    tags: List[str],
-    registered_with: List[str],
+    staleness: list[str],
+    tags: list[str],
+    registered_with: list[str],
     filter: dict,
     rbac_filter: dict,
     search: str,
@@ -526,14 +513,14 @@ def get_sap_sids_info(
 
 
 def get_sparse_system_profile(
-    host_id_list: List[str],
+    host_id_list: list[str],
     page: int,
     per_page: int,
     param_order_by: str,
     param_order_how: str,
-    fields: List[str],
+    fields: list[str],
     rbac_filter: dict,
-) -> Tuple[List[Host], int]:
+) -> tuple[list[Host], int]:
     if fields and fields.get("system_profile"):
         columns = [
             Host.id,
@@ -573,12 +560,12 @@ def get_host_ids_list(
     updated_start: str,
     updated_end: str,
     group_name: str,
-    registered_with: List[str],
-    staleness: List[str],
-    tags: List[str],
+    registered_with: list[str],
+    staleness: list[str],
+    tags: list[str],
     filter: dict,
     rbac_filter: dict,
-) -> List[str]:
+) -> list[str]:
     all_filters, base_query = query_filters(
         fqdn,
         display_name,
@@ -602,8 +589,17 @@ def get_host_ids_list(
 
 
 def get_hosts_to_export(
-    identity: object, filters: object = {}, export_format: str = "json", rbac_filter: dict = {}, batch_size: int = 0
+    identity: object,
+    filters: dict | None = None,
+    export_format: str = "json",
+    rbac_filter: dict | None = None,
+    batch_size: int = 0,
 ) -> Iterator[dict]:
+    if filters is None:
+        filters = {}
+    if rbac_filter is None:
+        rbac_filter = {}
+
     st_timestamps = staleness_timestamps()
     staleness = get_staleness_obj(identity)
 

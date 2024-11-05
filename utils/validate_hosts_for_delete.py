@@ -5,8 +5,8 @@ from app.environment import RuntimeEnvironment
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
-from app.queue.events import build_event
 from app.queue.events import EventType
+from app.queue.events import build_event
 
 logger = get_logger("utils")
 

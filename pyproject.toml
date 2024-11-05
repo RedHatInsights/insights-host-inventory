@@ -1,3 +1,34 @@
-[tool.black]
+[tool.ruff]
 line-length = 119
-target-version = ["py36"]
+target-version = "py39"
+
+lint.select = [
+    # pycodestyle
+    "E",
+    # pycodestyle warnings
+    "W",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+]
+
+lint.ignore = [
+    "SIM117", #merge stacked with statements
+    "SIM118", # replace dict.keys iteration with dictkeys set operations
+]
+
+lint.per-file-ignores."lib/host_remove_duplicates.py" = ["B023"]
+
+lint.extend-safe-fixes = [
+    "UP006", # Use tuple, list, etc. instead of typing.Tuple, typing.List in type annotations
+    "UP031", # Use f-string instead of percent format
+]
+
+lint.isort.force-single-line = true

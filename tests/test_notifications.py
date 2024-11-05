@@ -4,10 +4,9 @@ import pytest
 
 from app.exceptions import ValidationException
 from tests.helpers.mq_utils import assert_system_registered_notification_is_valid
+from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
-from tests.helpers.test_utils import SYSTEM_IDENTITY
-
 
 OWNER_ID = SYSTEM_IDENTITY["system"]["cn"]
 
@@ -59,7 +58,7 @@ def test_add_host_fail(mq_create_or_update_host, notification_event_producer_moc
     event = json.loads(notification_event_producer_mock.event)
 
     assert event is not None
-    assert "validation-error" == event["event_type"]
+    assert event["event_type"] == "validation-error"
 
 
 # System Became Stale

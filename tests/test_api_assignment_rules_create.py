@@ -1,9 +1,9 @@
 import pytest
 
+from tests.helpers.api_utils import GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import assert_assign_rule_response
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
-from tests.helpers.api_utils import GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.test_utils import generate_uuid
 
 

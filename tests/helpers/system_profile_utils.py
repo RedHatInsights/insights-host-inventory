@@ -7,11 +7,10 @@ from unittest.mock import patch
 from yaml import safe_dump
 from yaml import safe_load
 
-from app.models import HostSchema
-from app.models import LimitedHostSchema
 from app.models import SPECIFICATION_DIR
 from app.models import SYSTEM_PROFILE_SPECIFICATION_FILE
-
+from app.models import HostSchema
+from app.models import LimitedHostSchema
 
 INVALID_SYSTEM_PROFILES = (
     {"infrastructure_type": "x" * 101},

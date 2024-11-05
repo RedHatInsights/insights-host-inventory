@@ -54,7 +54,12 @@ def process_response(response):
     print(response.json())
 
 
-def hbi_get(endpoint, additional_headers={}, params={}, identity=USER_IDENTITY_ENC):
+def hbi_get(endpoint, additional_headers=None, params=None, identity=USER_IDENTITY_ENC):
+    if additional_headers is None:
+        additional_headers = {}
+    if params is None:
+        params = {}
+
     headers = {"x-rh-identity": identity} | additional_headers
     response = requests.get(f"{HBI_HOST}/{API_PATH}/{endpoint}", headers=headers, params=params)
     return response

@@ -1,8 +1,8 @@
 from http import HTTPStatus
 
+from flask import Response
 from flask import abort
 from flask import current_app
-from flask import Response
 from marshmallow import ValidationError
 from sqlalchemy.exc import IntegrityError
 

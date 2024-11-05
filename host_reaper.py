@@ -22,8 +22,8 @@ from app.queue.event_producer import EventProducer
 from app.queue.metrics import event_producer_failure
 from app.queue.metrics import event_producer_success
 from app.queue.metrics import event_serialization_time
-from lib.handlers import register_shutdown
 from lib.handlers import ShutdownHandler
+from lib.handlers import register_shutdown
 from lib.host_delete import delete_hosts
 from lib.host_repository import find_hosts_by_staleness_reaper
 from lib.host_repository import find_hosts_sys_default_staleness

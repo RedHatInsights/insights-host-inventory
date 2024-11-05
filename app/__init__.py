@@ -26,8 +26,8 @@ from app.exceptions import InventoryException
 from app.logging import configure_logging
 from app.logging import get_logger
 from app.logging import threadctx
-from app.models import db
 from app.models import SPECIFICATION_DIR
+from app.models import db
 from app.queue.event_producer import EventProducer
 from app.queue.events import EventType
 from app.queue.metrics import event_producer_failure
@@ -37,10 +37,9 @@ from app.queue.metrics import notification_event_producer_success
 from app.queue.metrics import rbac_access_denied
 from app.queue.notifications import NotificationType
 from lib.check_org import check_org_id
-from lib.feature_flags import init_unleash_app
 from lib.feature_flags import SchemaStrategy
+from lib.feature_flags import init_unleash_app
 from lib.handlers import register_shutdown
-
 
 logger = get_logger(__name__)
 
@@ -170,9 +169,8 @@ def _get_field_filter(field_name, props):
         return field_name
 
     # determine if the string field supports wildcard queries
-    if field_type == "string" and props.get("x-wildcard"):
-        if props["x-wildcard"] is True:
-            return "wildcard"
+    if field_type == "string" and props.get("x-wildcard") is True:
+        return "wildcard"
 
     # if it's an array determine filter type from members
     if field_type == "array":
@@ -198,7 +196,7 @@ def process_identity_header(encoded_id_header):
         access_id = identity.get("system", {}).get("cn")
     if not org_id or not access_id:
         message = f"Invalid identity encountered; id_type={id_type} org_id={org_id}, access_id={access_id}."
-        raise Exception(message)
+        raise Exception(message)  # TODO: Raise more specific exception
     return org_id, access_id
 
 
@@ -210,7 +208,7 @@ def process_spec(spec):
             "type": _spec_type_to_python_type(props["type"]),  # cast from string to type
             "filter": field_filter,
             "format": props.get("format"),
-            "is_array": "array" == props.get("type"),
+            "is_array": props.get("type") == "array",
         }
 
         if "enum" in props:

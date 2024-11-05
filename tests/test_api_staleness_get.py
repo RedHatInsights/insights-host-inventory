@@ -1,10 +1,10 @@
 from tests.helpers.api_utils import _INPUT_DATA
+from tests.helpers.api_utils import STALENESS_READ_ALLOWED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import STALENESS_READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_staleness_url
 from tests.helpers.api_utils import build_sys_default_staleness_url
 from tests.helpers.api_utils import create_mock_rbac_response
-from tests.helpers.api_utils import STALENESS_READ_ALLOWED_RBAC_RESPONSE_FILES
-from tests.helpers.api_utils import STALENESS_READ_PROHIBITED_RBAC_RESPONSE_FILES
 
 
 def test_get_default_staleness(api_get):

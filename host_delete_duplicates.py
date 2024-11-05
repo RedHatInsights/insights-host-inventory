@@ -13,8 +13,8 @@ from app.logging import get_logger
 from app.logging import threadctx
 from app.queue.event_producer import EventProducer
 from lib.db import multi_session_guard
-from lib.handlers import register_shutdown
 from lib.handlers import ShutdownHandler
+from lib.handlers import register_shutdown
 from lib.host_remove_duplicates import delete_duplicate_hosts
 from lib.metrics import delete_duplicate_host_count
 

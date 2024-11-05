@@ -10,7 +10,6 @@ import marshmallow as m
 from app.logging import get_logger
 from app.logging import threadctx
 
-
 __all__ = ["Identity", "from_auth_header", "from_bearer_token"]
 
 logger = get_logger(__name__)
