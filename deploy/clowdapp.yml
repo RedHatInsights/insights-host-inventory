@@ -1130,7 +1130,7 @@ objects:
             memory: ${MEMORY_REQUEST_SYNCHRONIZER}
     database:
       name: ${DB_NAME}
-      version: 13
+      version: 16
     kafkaTopics:
       - topicName: ${KAFKA_SYSTEM_PROFILE_TOPIC}
         partitions: 1
