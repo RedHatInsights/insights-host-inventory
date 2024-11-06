@@ -7,9 +7,9 @@ import pytest
 from app import process_identity_header
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
-from tests.helpers.api_utils import build_token_auth_header
 from tests.helpers.api_utils import HOST_URL
 from tests.helpers.api_utils import SYSTEM_PROFILE_URL
+from tests.helpers.api_utils import build_token_auth_header
 from tests.helpers.test_utils import SERVICE_ACCOUNT_IDENTITY
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
@@ -51,7 +51,7 @@ def test_validate_missing_identity(flask_client):
     Identity header is not present.
     """
     response = flask_client.get(HOST_URL, headers={})
-    assert 401 == response.status_code
+    assert response.status_code == 401
 
 
 def test_validate_invalid_identity(flask_client):
@@ -59,7 +59,7 @@ def test_validate_invalid_identity(flask_client):
     Identity header is not valid – empty in this case
     """
     response = flask_client.get(HOST_URL, headers={"x-rh-identity": ""})
-    assert 401 == response.status_code
+    assert response.status_code == 401
 
 
 @pytest.mark.parametrize(
@@ -76,7 +76,7 @@ def test_validate_valid_identity(flask_client, remove_account_number, identity):
 
     payload = create_identity_payload(identity)
     response = flask_client.get(HOST_URL, headers={"x-rh-identity": payload})
-    assert 200 == response.status_code  # OK
+    assert response.status_code == 200  # OK
 
 
 def test_validate_non_admin_user_identity(flask_client):
@@ -89,7 +89,7 @@ def test_validate_non_admin_user_identity(flask_client):
     response = flask_client.post(
         f"{SYSTEM_PROFILE_URL}/validate_schema?repo_branch=master&days=1", headers={"x-rh-identity": payload}
     )
-    assert 403 == response.status_code  # User is not an HBI admin
+    assert response.status_code == 403  # User is not an HBI admin
 
 
 def test_validate_non_admin_service_account_identity(flask_client):
@@ -102,7 +102,7 @@ def test_validate_non_admin_service_account_identity(flask_client):
     response = flask_client.post(
         f"{SYSTEM_PROFILE_URL}/validate_schema?repo_branch=master&days=1", headers={"x-rh-identity": payload}
     )
-    assert 403 == response.status_code  # User is not an HBI admin
+    assert response.status_code == 403  # User is not an HBI admin
 
 
 def test_validate_non_user_admin_endpoint(flask_client):
@@ -113,7 +113,7 @@ def test_validate_non_user_admin_endpoint(flask_client):
     response = flask_client.post(
         f"{SYSTEM_PROFILE_URL}/validate_schema?repo_branch=master&days=1", headers={"x-rh-identity": payload}
     )
-    assert 403 == response.status_code  # Endpoint not available to Systems
+    assert response.status_code == 403  # Endpoint not available to Systems
 
 
 def test_validate_valid_system_identity(flask_client):
@@ -122,7 +122,7 @@ def test_validate_valid_system_identity(flask_client):
     """
     payload = create_identity_payload(SYSTEM_IDENTITY)
     response = flask_client.get(HOST_URL, headers={"x-rh-identity": payload})
-    assert 200 == response.status_code  # OK
+    assert response.status_code == 200  # OK
 
 
 def test_validate_service_account_admin_endpoint(flask_client):
@@ -133,7 +133,7 @@ def test_validate_service_account_admin_endpoint(flask_client):
     response = flask_client.post(
         f"{SYSTEM_PROFILE_URL}/validate_schema?repo_branch=master&days=1", headers={"x-rh-identity": payload}
     )
-    assert 403 == response.status_code  # Endpoint not available to Service accounts
+    assert response.status_code == 403  # Endpoint not available to Service accounts
 
 
 def test_invalid_system_identities(flask_client, subtests):
@@ -142,13 +142,13 @@ def test_invalid_system_identities(flask_client, subtests):
     for payload in payloads:
         with subtests.test():
             response = flask_client.get(HOST_URL, headers={"x-rh-identity": payload})
-            assert 401 == response.status_code  # Bad identity
+            assert response.status_code == 401  # Bad identity
 
 
 def test_validate_invalid_token_on_get(flask_client):
     auth_header = build_token_auth_header("NotTheSuperSecretValue")
     response = flask_client.get(HOST_URL, headers=auth_header)
-    assert 401 == response.status_code
+    assert response.status_code == 401
 
 
 def test_invalid_system_identities_processing():
@@ -157,7 +157,7 @@ def test_invalid_system_identities_processing():
     dict_ = {"identity": no_system}
     json = dumps(dict_)
     identity_payload = b64encode(json.encode())
-    with pytest.raises(Exception):
+    with pytest.raises(Exception):  # noqa: B017
         process_identity_header(identity_payload)
 
 

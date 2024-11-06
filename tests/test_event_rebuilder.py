@@ -5,8 +5,8 @@ import pytest
 
 from app import db
 from app import threadctx
-from app.queue.events import build_event
 from app.queue.events import EventType
+from app.queue.events import build_event
 from rebuild_events_topic import run as rebuild_events_run
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.mq_utils import create_kafka_consumer_mock

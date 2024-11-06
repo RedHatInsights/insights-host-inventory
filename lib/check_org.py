@@ -1,12 +1,11 @@
 from http import HTTPStatus
 
+from flask import Response
 from flask import abort
 from flask import request
-from flask import Response
 
 from app.auth import get_current_identity
 from app.logging import get_logger
-
 
 logger = get_logger(__name__)
 
@@ -21,10 +20,9 @@ def check_org_id(result):
         data = result
     if isinstance(data, dict):
         message = f"Response contained data for another org_id. Path={request.path}, parameters={request.args}."
-        if "org_id" in data:
-            if data.get("org_id") and (data.get("org_id") != current_identity.org_id):
-                logger.error(message)
-                abort(HTTPStatus.FORBIDDEN)
+        if "org_id" in data and data["org_id"] != current_identity.org_id:
+            logger.error(message)
+            abort(HTTPStatus.FORBIDDEN)
         if "results" in data:
             results_array = data.get("results", [])
             for system in results_array:

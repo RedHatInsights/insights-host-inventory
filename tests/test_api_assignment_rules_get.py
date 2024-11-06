@@ -1,10 +1,10 @@
 import pytest
 
-from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import ASSIGNMENT_RULE_URL
+from tests.helpers.api_utils import GROUP_READ_PROHIBITED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_assignment_rules_url
 from tests.helpers.api_utils import create_mock_rbac_response
-from tests.helpers.api_utils import GROUP_READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.test_utils import generate_uuid
 
 
@@ -132,7 +132,7 @@ def test_page_and_page_number(db_create_assignment_rule, db_create_group, api_ge
     rule_1 = response_data["results"][0]
 
     # verify the rule was created successfully
-    assert "test_assignment_rule" == rule_1["name"]
+    assert rule_1["name"] == "test_assignment_rule"
 
     query = f"?page={page}&per_page={per_page}"
 

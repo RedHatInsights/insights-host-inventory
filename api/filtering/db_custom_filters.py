@@ -1,8 +1,7 @@
-from typing import Set
-from typing import Tuple
+from __future__ import annotations
 
-from sqlalchemy import and_
 from sqlalchemy import Integer
+from sqlalchemy import and_
 from sqlalchemy import or_
 from sqlalchemy.sql.expression import ColumnElement
 from sqlalchemy.sql.expression import ColumnOperators
@@ -42,7 +41,7 @@ def _check_field_in_spec(spec: dict, field_name: str, parent_node: str) -> None:
 #   value: The filter's value
 def _convert_dict_to_json_path_and_value(
     filter: dict,
-) -> Tuple[Tuple[str], str, str]:  # Tuple of keys for the json path; pg_op; leaf node
+) -> tuple[tuple[str], str, str]:  # Tuple of keys for the json path; pg_op; leaf node
     key = next(iter(filter.keys()))
     val = filter[key]
 
@@ -55,14 +54,7 @@ def _convert_dict_to_json_path_and_value(
 
         # Recurse
         next_val, pg_op, deepest_value = _convert_dict_to_json_path_and_value(val)
-        return (
-            (
-                key,
-                *next_val,
-            ),
-            pg_op,
-            deepest_value,
-        )
+        return ((key, *next_val), pg_op, deepest_value)
     else:
         # Get the final jsonb path node and its value; no comparator was specified
         return (key,), None, val
@@ -91,9 +83,8 @@ def _get_field_filter_for_deepest_param(sp_spec: dict, filter: dict, parent_node
     _check_field_in_spec(sp_spec, key, parent_node)
     val = filter[key]
 
-    if isinstance(val, dict):
-        if key in sp_spec:
-            return _get_field_filter_for_deepest_param(sp_spec[key], filter[key], key)
+    if isinstance(val, dict) and key in sp_spec:
+        return _get_field_filter_for_deepest_param(sp_spec[key], filter[key], key)
 
     # If the next node is an array, that's as far as we go
     if sp_spec[key].get("is_array") is True:
@@ -229,10 +220,15 @@ def _build_dict_from_path_list(path_list: list) -> dict:
 # [{"foo": {"bar": "val1"}}, [{"foo": {"baz": "val2"}}, {"foo": {"baz": "val3"}}]]
 def _unique_paths(
     node: dict,
-    ignore_nodes: list = [],
-    current_path: list = [],
+    ignore_nodes: list | None = None,
+    current_path: list | None = None,
 ) -> list[dict]:
+    if ignore_nodes is None:
+        ignore_nodes = []
+    if current_path is None:
+        current_path = []
     all_filters = []
+
     if isinstance(node, dict):
         # Not a leaf node
         for key in node.keys():
@@ -304,7 +300,7 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
 
 
 # Standardize host_type SP filter and get its value(s)
-def get_host_types_from_filter(host_type_filter: dict) -> Set[str]:
+def get_host_types_from_filter(host_type_filter: dict) -> set[str]:
     if host_type_filter:
         host_types = set()
 

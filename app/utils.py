@@ -282,10 +282,7 @@ class Tag:
         if len(nested_tag[namespace][key]) > 1:
             raise ValueError("too many values. Expecting 1")
 
-        if len(nested_tag[namespace][key]) == 1:
-            value = nested_tag[namespace][key][0]
-        else:
-            value = None
+        value = nested_tag[namespace][key][0] if len(nested_tag[namespace][key]) == 1 else None
 
         return Tag(namespace, key, value)
 

@@ -7,8 +7,8 @@ from datetime import timezone
 from itertools import product
 from json import dumps
 from random import choice
-from unittest import main
 from unittest import TestCase
+from unittest import main
 from unittest.mock import ANY
 from unittest.mock import MagicMock
 from unittest.mock import Mock
@@ -27,15 +27,15 @@ from api.host_query_db import params_to_order_by
 from api.parsing import custom_fields_parser
 from api.parsing import customURIParser
 from api.staleness_query import get_sys_default_staleness
-from app import create_app
 from app import SPECIFICATION_FILE
+from app import create_app
+from app.auth.identity import SHARED_SECRET_ENV_VAR
+from app.auth.identity import Identity
 from app.auth.identity import from_auth_header
 from app.auth.identity import from_bearer_token
-from app.auth.identity import Identity
-from app.auth.identity import SHARED_SECRET_ENV_VAR
 from app.config import Config
-from app.culling import _Config as CullingConfig
 from app.culling import Timestamps
+from app.culling import _Config as CullingConfig
 from app.environment import RuntimeEnvironment
 from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
@@ -45,8 +45,8 @@ from app.models import HostSchema
 from app.models import SystemProfileNormalizer
 from app.queue.event_producer import EventProducer
 from app.queue.event_producer import logger as event_producer_logger
-from app.queue.events import build_event
 from app.queue.events import EventType
+from app.queue.events import build_event
 from app.queue.events import message_headers
 from app.serialization import _deserialize_canonical_facts
 from app.serialization import _deserialize_facts
@@ -66,11 +66,11 @@ from lib import host_kafka
 from tests.helpers.system_profile_utils import INVALID_SYSTEM_PROFILES
 from tests.helpers.system_profile_utils import mock_system_profile_specification
 from tests.helpers.system_profile_utils import system_profile_specification
-from tests.helpers.test_utils import now
 from tests.helpers.test_utils import SERVICE_ACCOUNT_IDENTITY
-from tests.helpers.test_utils import set_environment
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
+from tests.helpers.test_utils import now
+from tests.helpers.test_utils import set_environment
 
 
 class ApiOperationTestCase(TestCase):
@@ -503,11 +503,11 @@ class CreateAppConnexionAppInitTestCase(TestCase):
         # This will pass with openapi.json because the schemas are inlined
         # This will pass when the library acts as it should, inlining the referenced schemas
 
-    # Create an app with bad defs assert that it wont create and will raise and exception
+    # Create an app with bad defs assert that it won't create and will raise an exception
     @patch("app.SPECIFICATION_FILE", value="./swagger/api.spec.yaml")
     def test_yaml_specification(self, translating_parser, init_app, app):
         with patch("app.create_app", side_effect=Exception("mocked error")):
-            with self.assertRaises(Exception):
+            with self.assertRaises(Exception):  # noqa: B017
                 create_app(RuntimeEnvironment.TEST)
 
 

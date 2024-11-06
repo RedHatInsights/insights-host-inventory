@@ -17,7 +17,7 @@ class Error:
 
 
 def validate(f):
-    print("Validating %s" % f)
+    print(f"Validating {f}")
     if not f.endswith(".yaml") and not f.endswith(".yml"):
         yield Error("Bad file name", f)
         return
@@ -37,13 +37,13 @@ def validate(f):
         key = list(d.keys())[0]
 
         if not key.endswith(".json"):
-            yield Error("Key does not end with .json: %s" % key, f)
+            yield Error(f"Key does not end with .json: {key}", f)
 
         dashboard = json.loads(d[key])
         if "panels" not in dashboard:
             yield Error("Dashboard object is not valid", f)
 
-        print("Dashboard %s successfully validated" % f)
+        print(f"Dashboard {f} successfully validated")
     except Exception as e:
         yield Error(e, f)
 

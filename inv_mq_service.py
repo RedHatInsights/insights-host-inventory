@@ -13,8 +13,8 @@ from app.queue.host_mq import add_host
 from app.queue.host_mq import event_loop
 from app.queue.host_mq import handle_message
 from app.queue.host_mq import update_system_profile
-from lib.handlers import register_shutdown
 from lib.handlers import ShutdownHandler
+from lib.handlers import register_shutdown
 
 logger = get_logger("host_mq_service")
 

@@ -59,10 +59,7 @@ def non_clowder_config():
 
 
 def cloudwatch_handler():
-    if os.environ.get("CLOWDER_ENABLED", "").lower() == "true":
-        f = clowder_config
-    else:
-        f = non_clowder_config
+    f = clowder_config if os.environ.get("CLOWDER_ENABLED", "").lower() == "true" else non_clowder_config
 
     aws_access_key_id, aws_secret_access_key, aws_region_name, aws_log_group, create_log_group = f()
 

@@ -3,21 +3,21 @@ from unittest.mock import patch
 
 import pytest
 
+from tests.helpers.api_utils import HOST_WRITE_ALLOWED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import HOST_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import assert_error_response
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_facts_url
 from tests.helpers.api_utils import build_id_list_for_url
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import get_id_list_from_hosts
-from tests.helpers.api_utils import HOST_WRITE_ALLOWED_RBAC_RESPONSE_FILES
-from tests.helpers.api_utils import HOST_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.db_utils import DB_FACTS
 from tests.helpers.db_utils import DB_FACTS_NAMESPACE
 from tests.helpers.db_utils import DB_NEW_FACTS
 from tests.helpers.db_utils import get_expected_facts_after_update
+from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import get_staleness_timestamps
-from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
 def test_replace_facts_to_multiple_hosts_with_branch_id(

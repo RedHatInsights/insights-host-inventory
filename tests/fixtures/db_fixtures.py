@@ -20,10 +20,10 @@ from tests.helpers.db_utils import db_group
 from tests.helpers.db_utils import db_staleness_culling
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.db_utils import minimal_db_host_dict
-from tests.helpers.test_utils import now
-from tests.helpers.test_utils import set_environment
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
+from tests.helpers.test_utils import now
+from tests.helpers.test_utils import set_environment
 
 
 @pytest.fixture(scope="session")

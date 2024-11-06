@@ -5,18 +5,18 @@ from app.auth.identity import Identity
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.models import ProviderType
-from lib.host_repository import find_existing_host
 from lib.host_repository import IMMUTABLE_CANONICAL_FACTS
+from lib.host_repository import find_existing_host
 from tests.helpers.db_utils import assert_host_exists_in_db
 from tests.helpers.db_utils import assert_host_missing_from_db
 from tests.helpers.db_utils import minimal_db_host
+from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import base_host
 from tests.helpers.test_utils import generate_fact
 from tests.helpers.test_utils import generate_fact_dict
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import random_mac
-from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
 def test_find_host_using_subset_canonical_fact_match(db_create_host):

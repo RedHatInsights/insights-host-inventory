@@ -15,7 +15,6 @@ from app.models import CanonicalFactsSchema
 from app.models import HostSchema
 from app.utils import Tag
 
-
 __all__ = ("deserialize_host", "serialize_host", "serialize_host_system_profile", "serialize_canonical_facts")
 
 
@@ -191,9 +190,12 @@ def serialize_host(
         else:
             serialized_host["system_profile"] = {}
 
-        if system_profile_fields and system_profile_fields.count("host_type") < 2:
-            if serialized_host["system_profile"].get("host_type"):
-                del serialized_host["system_profile"]["host_type"]
+        if (
+            system_profile_fields
+            and system_profile_fields.count("host_type") < 2
+            and serialized_host["system_profile"].get("host_type")
+        ):
+            del serialized_host["system_profile"]["host_type"]
     if "groups" in fields:
         # For MQ messages, we only include name and ID.
         if for_mq and host.groups:
@@ -203,10 +205,7 @@ def serialize_host(
         else:
             serialized_host["groups"] = host.groups or []
     if "os_release" in fields:
-        if "os_release" in host.system_profile_facts:
-            serialized_host["os_release"] = host.system_profile_facts["os_release"]
-        else:
-            serialized_host["os_release"] = None
+        serialized_host["os_release"] = host.system_profile_facts.get("os_release", None)
 
     if "state" in fields:
         serialized_host["state"] = Conditions.find_host_state(
@@ -319,11 +318,11 @@ def _deserialize_facts(data):
                 facts[fact["namespace"]].update(fact["facts"])
             else:
                 facts[fact["namespace"]] = fact["facts"]
-        except KeyError:
+        except KeyError as e:
             # The facts from the request are formatted incorrectly
             raise InputFormatException(
                 "Invalid format of Fact object.  Fact must contain 'namespace' and 'facts' keys."
-            )
+            ) from e
     return facts
 
 
@@ -497,11 +496,10 @@ def _serialize_per_reporter_staleness(host, staleness, staleness_timestamps):
 
 def build_rhel_version_str(system_profile: dict) -> str:
     os = system_profile.get("operating_system")
-    if os:
-        if os.get("name", "").lower() == "rhel":
-            major = os.get("major")
-            minor = os.get("minor")
-            return f"{major}.{minor}"
+    if os and os.get("name", "").lower() == "rhel":
+        major = os.get("major")
+        minor = os.get("minor")
+        return f"{major}.{minor}"
     return ""
 
 

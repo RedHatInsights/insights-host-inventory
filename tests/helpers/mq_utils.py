@@ -13,10 +13,9 @@ from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
 from app.serialization import serialize_facts
 from app.utils import Tag
+from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
-from tests.helpers.test_utils import USER_IDENTITY
-
 
 MockFutureCallback = namedtuple("MockFutureCallback", ("method", "args", "kwargs", "extra_arg"))
 
@@ -126,7 +125,7 @@ def assert_delete_event_is_valid(
 
     assert timestamp.replace(tzinfo=timezone.utc).isoformat() == event["timestamp"]
 
-    assert "delete" == event["type"]
+    assert event["type"] == "delete"
 
     assert host.canonical_facts.get("insights_id") == event["insights_id"]
 
@@ -166,7 +165,7 @@ def assert_delete_notification_is_valid(notification_event_producer, host):
     }
     assert set(event.keys()) == expected_keys
 
-    assert "system-deleted" == event["event_type"]
+    assert event["event_type"] == "system-deleted"
 
     assert host.canonical_facts.get("insights_id") == event["events"][0]["payload"]["insights_id"]
 
@@ -274,7 +273,7 @@ def assert_system_registered_notification_is_valid(notification_event_producer, 
     assert set(event.keys()) == expected_keys
     assert set(context.keys()) == expected_context_keys
     assert context["host_url"].endswith(f"/insights/inventory/{context['inventory_id']}")
-    assert "new-system-registered" == event["event_type"]
+    assert event["event_type"] == "new-system-registered"
 
     for item in event["events"]:
         payload = item["payload"]
@@ -321,7 +320,7 @@ def assert_synchronize_event_is_valid(
 
     assert set(event.keys()) == expected_keys
     assert timestamp.replace(tzinfo=timezone.utc).isoformat() == event["timestamp"]
-    assert "updated" == event["type"]
+    assert event["type"] == "updated"
     assert host.canonical_facts.get("insights_id") == event["host"]["insights_id"]
     assert str(host.id) in event_producer.key
     assert event_producer.headers == expected_headers(
