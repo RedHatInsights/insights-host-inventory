@@ -72,6 +72,13 @@ source .env
 To force an ssl connection to the db set `INVENTORY_DB_SSL_MODE` to `"verify-full"`
 and provide the path to the certificate you'd like to use.
 
+### Create database data directory
+Provide a local directory for holding the database data for persistence. e.g.
+```bash
+mkdir ~/.pg_data
+```
+If using a different directory, then update the directory path in `volumes` under `db` in dev.yml > services > db > volumes.
+
 ### Install dependencies
 
 This project uses `pipenv` to manage the development and deployment environments.
