@@ -1130,7 +1130,7 @@ objects:
             memory: ${MEMORY_REQUEST_SYNCHRONIZER}
     database:
       name: ${DB_NAME}
-      version: 16
+      version: 13
     kafkaTopics:
       - topicName: ${KAFKA_SYSTEM_PROFILE_TOPIC}
         partitions: 1
@@ -1384,25 +1384,25 @@ parameters:
 
 - description: Replica count for p1 consumer
   name: REPLICAS_P1
-  value: "5"
+  value: "0"
 - description: Replica count for pmin consumer
   name: REPLICAS_PMIN
-  value: "3"
+  value: "0"
 - description: Replica count for sp consumer
   name: REPLICAS_SP
-  value: "2"
+  value: "0"
 - description: Replica count for webservice
   name: REPLICAS_SVC_READS
-  value: "7"
+  value: "0"
 - description: Replica count for webservice
   name: REPLICAS_SVC_SECONDARY_READS
-  value: "1"
+  value: "0"
 - description: Replica count for webservice
   name: REPLICAS_SVC_WRITES
-  value: "3"
+  value: "0"
 - description: Replica count for export-service
   name: REPLICAS_EXPORT_SVC
-  value: "2"
+  value: "0"
 - description: Image tag
   name: IMAGE_TAG
   required: true
