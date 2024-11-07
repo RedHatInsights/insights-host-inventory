@@ -133,8 +133,12 @@ objects:
           value: ${KAFKA_SASL_MECHANISM}
         - name: KAFKA_EVENT_TOPIC
           value: ${KAFKA_EVENT_TOPIC}
+        - name: NUMBER_OF_KAFKA_EVENT_TOPIC_PARTITIONS
+          value: ${NUMBER_OF_KAFKA_EVENT_TOPIC_PARTITIONS}
         - name: KAFKA_NOTIFICATION_TOPIC
           value: ${KAFKA_NOTIFICATION_TOPIC}
+        - name: NUMBER_OF_KAFKA_NOTIFICATION_TOPIC_PARTITIONS
+          value: ${NUMBER_OF_KAFKA_NOTIFICATION_TOPIC_PARTITIONS}
         - name: TENANT_TRANSLATOR_URL
           value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
         - name: BYPASS_TENANT_TRANSLATION
@@ -287,8 +291,12 @@ objects:
           value: ${KAFKA_SASL_MECHANISM}
         - name: KAFKA_EVENT_TOPIC
           value: ${KAFKA_EVENT_TOPIC}
+        - name: NUMBER_OF_KAFKA_EVENT_TOPIC_PARTITIONS
+          value: ${NUMBER_OF_KAFKA_EVENT_TOPIC_PARTITIONS}
         - name: KAFKA_NOTIFICATION_TOPIC
           value: ${KAFKA_NOTIFICATION_TOPIC}
+        - name: NUMBER_OF_KAFKA_NOTIFICATION_TOPIC_PARTITIONS
+          value: ${NUMBER_OF_KAFKA_NOTIFICATION_TOPIC_PARTITIONS}
         - name: TENANT_TRANSLATOR_URL
           value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
         - name: BYPASS_TENANT_TRANSLATION
@@ -441,8 +449,12 @@ objects:
           value: ${KAFKA_SASL_MECHANISM}
         - name: KAFKA_EVENT_TOPIC
           value: ${KAFKA_EVENT_TOPIC}
+        - name: NUMBER_OF_KAFKA_EVENT_TOPIC_PARTITIONS
+          value: ${NUMBER_OF_KAFKA_EVENT_TOPIC_PARTITIONS}
         - name: KAFKA_NOTIFICATION_TOPIC
           value: ${KAFKA_NOTIFICATION_TOPIC}
+        - name: NUMBER_OF_KAFKA_NOTIFICATION_TOPIC_PARTITIONS
+          value: ${NUMBER_OF_KAFKA_NOTIFICATION_TOPIC_PARTITIONS}
         - name: TENANT_TRANSLATOR_URL
           value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
         - name: BYPASS_TENANT_TRANSLATION
@@ -532,12 +544,20 @@ objects:
           value: ${KAFKA_HOST_INGRESS_TOPIC}
         - name: KAFKA_HOST_INGRESS_TOPIC
           value: ${KAFKA_HOST_INGRESS_TOPIC}
+        - name: NUMBER_OF_KAFKA_HOST_INGRESS_TOPIC_PARTITIONS
+          value: ${NUMBER_OF_KAFKA_HOST_INGRESS_TOPIC_PARTITIONS}
         - name: KAFKA_EVENT_TOPIC
           value: ${KAFKA_EVENT_TOPIC}
+        - name: NUMBER_OF_KAFKA_EVENT_TOPIC_PARTITIONS
+          value: ${NUMBER_OF_KAFKA_EVENT_TOPIC_PARTITIONS}
         - name: KAFKA_NOTIFICATION_TOPIC
           value: ${KAFKA_NOTIFICATION_TOPIC}
+        - name: NUMBER_OF_KAFKA_NOTIFICATION_TOPIC_PARTITIONS
+          value: ${NUMBER_OF_KAFKA_NOTIFICATION_TOPIC_PARTITIONS}
         - name: KAFKA_SYSTEM_PROFILE_TOPIC
           value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
+        - name: NUMBER_OF_KAFKA_SYSTEM_PROFILE_TOPIC_PARTITIONS
+          value: ${NUMBER_OF_KAFKA_SYSTEM_PROFILE_TOPIC_PARTITIONS}
         - name: KAFKA_HOST_INGRESS_GROUP
           value: ${KAFKA_HOST_INGRESS_GROUP}
         - name: PAYLOAD_TRACKER_SERVICE_NAME
@@ -629,12 +649,21 @@ objects:
           value: ${KAFKA_HOST_INGRESS_P1_TOPIC}
         - name: KAFKA_HOST_INGRESS_TOPIC
           value: ${KAFKA_HOST_INGRESS_P1_TOPIC}
+        - name: NUMBER_OF_KAFKA_HOST_INGRESS_P1_TOPIC_PARTITIONS
+          value: ${NUMBER_OF_KAFKA_HOST_INGRESS_P1_TOPIC_PARTITIONS}
         - name: KAFKA_EVENT_TOPIC
           value: ${KAFKA_EVENT_TOPIC}
+        - name: NUMBER_OF_KAFKA_EVENT_TOPIC_PARTITIONS
+          value: ${NUMBER_OF_KAFKA_EVENT_TOPIC_PARTITIONS}
         - name: KAFKA_NOTIFICATION_TOPIC
           value: ${KAFKA_NOTIFICATION_TOPIC}
+        - name: NUMBER_OF_KAFKA_NOTIFICATION_TOPIC_PARTITIONS
+          value: ${NUMBER_OF_KAFKA_NOTIFICATION_TOPIC_PARTITIONS}
+
         - name: KAFKA_SYSTEM_PROFILE_TOPIC
           value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
+        - name: NUMBER_OF_KAFKA_SYSTEM_PROFILE_TOPIC_PARTITIONS
+          value: ${NUMBER_OF_KAFKA_SYSTEM_PROFILE_TOPIC_PARTITIONS}
         - name: KAFKA_HOST_INGRESS_GROUP
           value: ${KAFKA_HOST_INGRESS_GROUP}
         - name: PAYLOAD_TRACKER_SERVICE_NAME
@@ -723,12 +752,21 @@ objects:
           value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
         - name: KAFKA_HOST_INGRESS_TOPIC
           value: ${KAFKA_HOST_INGRESS_TOPIC}
+        - name: NUMBER_OF_KAFKA_HOST_INGRESS_TOPIC_PARTITIONS
+          value: ${NUMBER_OF_KAFKA_HOST_INGRESS_TOPIC_PARTITIONS}
         - name: KAFKA_EVENT_TOPIC
           value: ${KAFKA_EVENT_TOPIC}
+        - name: NUMBER_OF_KAFKA_EVENT_TOPIC_PARTITIONS
+          value: ${NUMBER_OF_KAFKA_EVENT_TOPIC_PARTITIONS}
         - name: KAFKA_NOTIFICATION_TOPIC
           value: ${KAFKA_NOTIFICATION_TOPIC}
+        - name: NUMBER_OF_KAFKA_NOTIFICATION_TOPIC_PARTITIONS
+          value: ${NUMBER_OF_KAFKA_NOTIFICATION_TOPIC_PARTITIONS}
+
         - name: KAFKA_SYSTEM_PROFILE_TOPIC
           value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
+        - name: NUMBER_OF_KAFKA_SYSTEM_PROFILE_TOPIC_PARTITIONS
+          value: ${NUMBER_OF_KAFKA_SYSTEM_PROFILE_TOPIC_PARTITIONS}
         - name: KAFKA_HOST_INGRESS_GROUP
           value: ${KAFKA_HOST_INGRESS_GROUP}
         - name: PAYLOAD_TRACKER_SERVICE_NAME
@@ -809,6 +847,8 @@ objects:
           value: ${INVENTORY_DB_SSL_CERT}
         - name: KAFKA_EXPORT_SERVICE_TOPIC
           value: ${KAFKA_EXPORT_SERVICE_TOPIC}
+        - name: NUMBER_OF_KAFKA_EXPORT_SERVICE_TOPIC_PARTITIONS
+          value: ${NUMBER_OF_KAFKA_EXPORT_SERVICE_TOPIC_PARTITIONS}
         - name: KAFKA_SECURITY_PROTOCOL
           value: ${KAFKA_SECURITY_PROTOCOL}
         - name: KAFKA_SASL_MECHANISM
@@ -878,7 +918,7 @@ objects:
           - name: KAFKA_BOOTSTRAP_SERVERS
             value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
           - name: PAYLOAD_TRACKER_KAFKA_TOPIC
-            value: platform.payload-status
+            value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
           - name: PAYLOAD_TRACKER_SERVICE_NAME
             value: inventory-mq-service
           - name: PAYLOAD_TRACKER_ENABLED
@@ -887,8 +927,13 @@ objects:
             value: ${PROMETHEUS_PUSHGATEWAY}
           - name: KAFKA_EVENT_TOPIC
             value: ${KAFKA_EVENT_TOPIC}
+          - name: NUMBER_OF_KAFKA_EVENT_TOPIC_PARTITIONS
+            value: ${NUMBER_OF_KAFKA_EVENT_TOPIC_PARTITIONS}
           - name: KAFKA_NOTIFICATION_TOPIC
             value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: NUMBER_OF_KAFKA_NOTIFICATION_TOPIC_PARTITIONS
+            value: ${NUMBER_OF_KAFKA_NOTIFICATION_TOPIC_PARTITIONS}
+
           - name: KAFKA_PRODUCER_ACKS
             value: ${KAFKA_PRODUCER_ACKS}
           - name: KAFKA_PRODUCER_RETRIES
@@ -959,7 +1004,7 @@ objects:
           - name: KAFKA_BOOTSTRAP_SERVERS
             value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
           - name: PAYLOAD_TRACKER_KAFKA_TOPIC
-            value: platform.payload-status
+            value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
           - name: PAYLOAD_TRACKER_SERVICE_NAME
             value: inventory-mq-service
           - name: PAYLOAD_TRACKER_ENABLED
@@ -980,12 +1025,21 @@ objects:
             value: ${KAFKA_HOST_INGRESS_TOPIC}
           - name: KAFKA_HOST_INGRESS_TOPIC
             value: ${KAFKA_HOST_INGRESS_TOPIC}
+          - name: NUMBER_OF_KAFKA_HOST_INGRESS_TOPIC_PARTITIONS
+            value: ${NUMBER_OF_KAFKA_HOST_INGRESS_TOPIC_PARTITIONS}
           - name: KAFKA_EVENT_TOPIC
             value: ${KAFKA_EVENT_TOPIC}
+          - name: NUMBER_OF_KAFKA_EVENT_TOPIC_PARTITIONS
+            value: ${NUMBER_OF_KAFKA_EVENT_TOPIC_PARTITIONS}
           - name: KAFKA_NOTIFICATION_TOPIC
             value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: NUMBER_OF_KAFKA_NOTIFICATION_TOPIC_PARTITIONS
+            value: ${NUMBER_OF_KAFKA_NOTIFICATION_TOPIC_PARTITIONS}
+
           - name: KAFKA_SYSTEM_PROFILE_TOPIC
             value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
+          - name: NUMBER_OF_KAFKA_SYSTEM_PROFILE_TOPIC_PARTITIONS
+            value: ${NUMBER_OF_KAFKA_SYSTEM_PROFILE_TOPIC_PARTITIONS}
           - name: KAFKA_ADDITIONAL_VALIDATION_TOPIC
             value: ${KAFKA_ADDITIONAL_VALIDATION_TOPIC}
           - name: KAFKA_SP_VALIDATOR_MAX_MESSAGES
@@ -1081,10 +1135,14 @@ objects:
             value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
           - name: KAFKA_EVENT_TOPIC
             value: ${KAFKA_EVENT_TOPIC}
+          - name: NUMBER_OF_KAFKA_EVENT_TOPIC_PARTITIONS
+            value: ${NUMBER_OF_KAFKA_EVENT_TOPIC_PARTITIONS}
           - name: KAFKA_NOTIFICATION_TOPIC
             value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: NUMBER_OF_KAFKA_NOTIFICATION_TOPIC_PARTITIONS
+            value: ${NUMBER_OF_KAFKA_NOTIFICATION_TOPIC_PARTITIONS}
           - name: PAYLOAD_TRACKER_KAFKA_TOPIC
-            value: platform.payload-status
+            value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
           - name: PAYLOAD_TRACKER_SERVICE_NAME
             value: inventory-mq-service
           - name: PAYLOAD_TRACKER_ENABLED
@@ -1133,19 +1191,19 @@ objects:
       version: 13
     kafkaTopics:
       - topicName: ${KAFKA_SYSTEM_PROFILE_TOPIC}
-        partitions: 1
-      - topicName: platform.payload-status
-        partitions: 1
+        partitions: ${NUMBER_OF_KAFKA_SYSTEM_PROFILE_TOPIC_PARTITIONS}
+      - topicName: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
+        partitions: ${NUMBER_OF_PAYLOAD_TRACKER_KAFKA_TOPIC_PARTITIONS}
       - topicName: ${KAFKA_EVENT_TOPIC}
-        partitions: 1
+        partitions: ${NUMBER_OF_KAFKA_EVENT_TOPIC_PARTITIONS}
       - topicName: ${KAFKA_NOTIFICATION_TOPIC}
-        partitions: 1
+        partitions: ${NUMBER_OF_KAFKA_NOTIFICATION_TOPIC_PARTITIONS}
       - topicName: ${KAFKA_HOST_INGRESS_TOPIC}
-        partitions: 1
+        partitions:  ${NUMBER_OF_KAFKA_HOST_INGRESS_TOPIC_PARTITIONS}
       - topicName: ${KAFKA_HOST_INGRESS_P1_TOPIC}
-        partitions: 1
+        partitions: $NUMBER_OF_{KAFKA_HOST_INGRESS_P1_TOPIC_PARTITIONS}
       - topicName: ${KAFKA_EXPORT_SERVICE_TOPIC}
-        partitions: 1
+        partitions: ${NUMBER_OF_KAFKA_EXPORT_SERVICE_TOPIC_PARTITIONS}
 # this service proxies requests for the old URL (insights-inventory:8080) to the clowderized service (host-inventory-service:8000)
 - apiVersion: v1
   kind: Service
@@ -1445,24 +1503,44 @@ parameters:
 - name: KAFKA_HOST_INGRESS_TOPIC
   description: The topic containing Host data sent by reporters
   value: platform.inventory.host-ingress
+- name: NUMBER_OF_KAFKA_HOST_INGRESS_TOPIC_PARTITIONS
+  value: 1
 - name: KAFKA_HOST_INGRESS_P1_TOPIC
   description: The TOP-PRIORITY topic containing Host data sent by reporters
   value: platform.inventory.host-ingress-p1
+- name: NUMBER_OF_KAFKA_HOST_INGRESS_P1_TOPIC_PARTITIONS
+  value: 1
 - name: KAFKA_EVENT_TOPIC
   description: The topic for Host data that were processed by Inventory
   value: platform.inventory.events
+- name: NUMBER_OF_KAFKA_EVENT_TOPIC_PARTITIONS
+  value: 1
 - name: KAFKA_NOTIFICATION_TOPIC
   description: The topic containing messages to be sent as notifications
   value: platform.notifications.ingress
+- name: NUMBER_OF_KAFKA_NOTIFICATION_TOPIC_PARTITIONS
+  value: 1
 - name: KAFKA_ADDITIONAL_VALIDATION_TOPIC
   description: Used by system_profile_validator
   value: platform.inventory.host-ingress-p1
 - name: KAFKA_SYSTEM_PROFILE_TOPIC
   description: The topic containing Host data for System Profile updates
   value: platform.inventory.system-profile
+- name: NUMBER_OF_SYSTEM_PROFILE_TOPIC_PARTITIONS
+  description: Number of partitions for the topic containing Host data for System Profile updates
+  value: 1
+- name: PAYLOAD_TRACKER_KAFKA_TOPIC
+  description: The topic for payload tracker
+  value: platform.payload-status
+- name: NUMBER_OF_PAYLOAD_TRACKER_KAFKA_TOPIC_PARTITIONS
+  description: The number of partitions for payload trcer topcs.
+  value: 1
 - name: KAFKA_EXPORT_SERVICE_TOPIC
   description: The topic used to consume Export Service data
   value: platform.export.requests
+- name: NUMBER_OF_KAFKA_EXPORT_SERVICE_TOPIC_PARTITIONS
+  description: The number of partitions for the export topic.
+  value: 1
 - name: KAFKA_HOST_INGRESS_GROUP
   description: The Kafka consumer group name
   value: inventory-mq
