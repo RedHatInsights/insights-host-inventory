@@ -44,7 +44,7 @@ ratelimit = "*"
 
 [dev-packages]
 pytest = "~=8.3.2"
-pytest-cov = "~=5.0.0"
+pytest-cov = "~=6.0.0"
 pytest-mock = "~=3.14.0"
 pytest-subtests = "~=0.13.1"
 coverage = "*"
