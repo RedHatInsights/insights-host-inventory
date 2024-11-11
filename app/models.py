@@ -74,7 +74,7 @@ MAX_CANONICAL_FACTS_VERSION = 1
 
 ZERO_MAC_ADDRESS = "00:00:00:00:00:00"
 
-INVENTORY_SCHEMA = os.getenv("INVENTORY_DB_SCHEMA", "public")
+INVENTORY_SCHEMA = os.getenv("INVENTORY_DB_SCHEMA", "hbi")
 
 
 class ProviderType(str, Enum):
