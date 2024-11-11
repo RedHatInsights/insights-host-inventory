@@ -8,8 +8,8 @@ from app import create_app
 from app.environment import RuntimeEnvironment
 from app.logging import get_logger
 from app.queue.export_service_mq import export_service_event_loop
-from lib.handlers import register_shutdown
 from lib.handlers import ShutdownHandler
+from lib.handlers import register_shutdown
 
 logger = get_logger("export_sevice_mq")
 

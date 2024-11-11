@@ -1,7 +1,7 @@
+from __future__ import annotations
+
 import json
 from http import HTTPStatus
-from typing import List
-from typing import Tuple
 from uuid import UUID
 
 from requests import Response
@@ -10,11 +10,11 @@ from requests.adapters import HTTPAdapter
 
 from api.host_query_db import get_hosts_to_export
 from app import IDENTITY_HEADER
+from app import REQUEST_ID_HEADER
 from app import RbacPermission
 from app import RbacResourceType
-from app import REQUEST_ID_HEADER
-from app.auth.identity import from_auth_header
 from app.auth.identity import Identity
+from app.auth.identity import from_auth_header
 from app.config import Config
 from app.logging import get_logger
 from lib import metrics
@@ -26,7 +26,7 @@ logger = get_logger(__name__)
 HEADER_CONTENT_TYPE = {"json": "application/json", "csv": "text/csv"}
 
 
-def extract_export_svc_data(export_svc_data: dict) -> Tuple[str, UUID, str, str, str]:
+def extract_export_svc_data(export_svc_data: dict) -> tuple[str, UUID, str, str, str]:
     exportFormat = export_svc_data["data"]["resource_request"]["format"]
     exportUUID = export_svc_data["data"]["resource_request"]["export_request_uuid"]
     applicationName = export_svc_data["data"]["resource_request"]["application"]
@@ -38,7 +38,7 @@ def extract_export_svc_data(export_svc_data: dict) -> Tuple[str, UUID, str, str,
 
 def build_headers(
     x_rh_identity: str, exportUUID: UUID, inventory_config: Config, exportFormat: str
-) -> Tuple[dict, dict]:
+) -> tuple[dict, dict]:
     rbac_request_headers = {
         IDENTITY_HEADER: x_rh_identity,
         REQUEST_ID_HEADER: str(exportUUID),
@@ -53,7 +53,7 @@ def build_headers(
     return rbac_request_headers, request_headers
 
 
-def get_host_list(identity: Identity, exportFormat: str, rbac_filter: dict, inventory_config: Config) -> List[dict]:
+def get_host_list(identity: Identity, exportFormat: str, rbac_filter: dict, inventory_config: Config) -> list[dict]:
     host_data = list(
         get_hosts_to_export(
             identity,
@@ -71,9 +71,14 @@ def create_export(
     export_svc_data: dict,
     base64_x_rh_identity: str,
     inventory_config: Config,
-    operation_args={},
-    rbac_filter: dict = {},
+    operation_args: dict | None = None,
+    rbac_filter: dict | None = None,
 ) -> bool:
+    if operation_args is None:
+        operation_args = {}
+    if rbac_filter is None:
+        rbac_filter = {}
+
     identity = from_auth_header(base64_x_rh_identity)
 
     metrics.create_export_count.inc()
@@ -150,7 +155,8 @@ def create_export(
         export_created = False
     finally:
         session.close()
-        return export_created
+
+    return export_created
 
 
 def _build_export_request_url(

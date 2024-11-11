@@ -20,7 +20,7 @@ def init_payload_tracker(config, producer=None):
     _CFG = config
 
     if producer is not None:
-        logger.info("Using injected producer object (%s) for PayloadTracker" % (producer))
+        logger.info(f"Using injected producer object ({producer}) for PayloadTracker")
         _PRODUCER = producer
     else:
         logger.info("Starting KafkaProducer() for PayloadTracker")
@@ -166,7 +166,7 @@ class KafkaPayloadTracker(PayloadTracker):
                 message["org_id"] = self._org_id
 
             if self.inventory_id:
-                message["inventory_id"] = "%s" % (self.inventory_id)
+                message["inventory_id"] = f"{self.inventory_id}"
 
             if status_message:
                 message["status_msg"] = status_message

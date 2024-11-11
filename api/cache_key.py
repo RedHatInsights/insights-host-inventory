@@ -23,5 +23,5 @@ def make_key():
 def make_system_cache_key(insights_id, org_id, owner_id):
     if not insights_id or not org_id or not owner_id:
         message = f"Invalid cache key encountered; insights_id={insights_id} org_id={org_id}, owner_id={owner_id}."
-        raise Exception(message)
+        raise Exception(message)  # TODO: Raise a more specific exception
     return f"insights_id={insights_id}_org={org_id}_user=SYSTEM-{owner_id}"

@@ -3,7 +3,6 @@ import json
 from app.logging import get_logger
 from app.queue import metrics
 
-
 logger = get_logger(__name__)
 
 

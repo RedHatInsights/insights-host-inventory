@@ -6,16 +6,16 @@ from app.models import ProviderType
 from app.serialization import _deserialize_tags_dict
 from lib.host_repository import find_hosts_by_staleness
 from lib.host_repository import find_non_culled_hosts
+from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_host_tags_url
 from tests.helpers.api_utils import build_tags_count_url
 from tests.helpers.api_utils import build_tags_url
 from tests.helpers.api_utils import create_mock_rbac_response
-from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
-from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
+from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import now
-from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
 @pytest.mark.parametrize(
@@ -73,7 +73,7 @@ def test_get_tags_of_hosts_that_does_not_exist_via_db(api_get):
     response_status, response_data = api_get(url)
 
     assert response_status == 200
-    assert {} == response_data["results"]
+    assert response_data["results"] == {}
 
 
 def test_get_list_of_tags_with_host_filters_via_db(db_create_multiple_hosts, api_get, subtests):
@@ -158,7 +158,7 @@ def test_get_tags_count_of_host_that_does_not_exist(api_get):
     response_status, response_data = api_get(url)
 
     assert response_status == 200
-    assert {} == response_data["results"]
+    assert response_data["results"] == {}
 
 
 def test_get_tags_from_host_with_no_tags(api_get, db_create_host):
@@ -184,7 +184,7 @@ def test_get_tags_count_from_host_with_no_tags(api_get, db_create_host):
     response_status, response_data = api_get(url)
 
     assert response_status == 200
-    assert {host_with_no_tags_id: 0} == response_data["results"]
+    assert response_data["results"] == {host_with_no_tags_id: 0}
 
 
 def test_get_host_tags_with_RBAC_allowed(subtests, mocker, api_get, enable_rbac):

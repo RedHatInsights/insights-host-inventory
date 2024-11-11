@@ -1,14 +1,11 @@
 from copy import deepcopy
 from functools import partial
-from typing import List
-from typing import Set
-from typing import Tuple
 from uuid import UUID
 
 from dateutil import parser
 from flask_sqlalchemy.query import Query
-from sqlalchemy import and_
 from sqlalchemy import DateTime
+from sqlalchemy import and_
 from sqlalchemy import func
 from sqlalchemy import not_
 from sqlalchemy import or_
@@ -22,10 +19,10 @@ from app.config import HOST_TYPES
 from app.culling import staleness_to_conditions
 from app.exceptions import ValidationException
 from app.logging import get_logger
+from app.models import OLD_TO_NEW_REPORTER_MAP
 from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
-from app.models import OLD_TO_NEW_REPORTER_MAP
 from app.serialization import serialize_staleness_to_dict
 from app.utils import Tag
 from lib.host_repository import ALL_STALENESS_STATES
@@ -36,17 +33,17 @@ logger = get_logger(__name__)
 DEFAULT_STALENESS_VALUES = ["not_culled"]
 
 
-def canonical_fact_filter(canonical_fact: str, value, case_insensitive: bool = False) -> List:
+def canonical_fact_filter(canonical_fact: str, value, case_insensitive: bool = False) -> list:
     if case_insensitive:
         return [func.lower(Host.canonical_facts[canonical_fact].astext) == value.lower()]
     return [Host.canonical_facts[canonical_fact].astext == value]
 
 
-def _display_name_filter(display_name: str) -> List:
+def _display_name_filter(display_name: str) -> list:
     return [Host.display_name.ilike(f"%{display_name.replace('*', '%')}%")]
 
 
-def _tags_filter(string_tags: List[str]) -> List:
+def _tags_filter(string_tags: list[str]) -> list:
     tags = []
 
     for string_tag in string_tags:
@@ -55,7 +52,7 @@ def _tags_filter(string_tags: List[str]) -> List:
     return [or_(Host.tags.contains(tag) for tag in tags)]
 
 
-def _group_names_filter(group_name_list: List) -> List:
+def _group_names_filter(group_name_list: list) -> list:
     _query_filter = []
     group_name_list_lower = [group_name.lower() for group_name in group_name_list]
     if len(group_name_list) > 0:
@@ -68,7 +65,7 @@ def _group_names_filter(group_name_list: List) -> List:
     return _query_filter
 
 
-def _group_ids_filter(group_id_list: List) -> List:
+def _group_ids_filter(group_id_list: list) -> list:
     _query_filter = []
     if len(group_id_list) > 0:
         group_filters = [HostGroupAssoc.group_id.in_(group_id_list)]
@@ -151,7 +148,7 @@ def per_reporter_staleness_filter(staleness, reporter, host_type_filter):
     return staleness_conditions
 
 
-def _staleness_filter(staleness: List[str], host_type_filter: Set[str], identity=None) -> List:
+def _staleness_filter(staleness: list[str], host_type_filter: set[str], identity=None) -> list:
     staleness_obj = serialize_staleness_to_dict(get_staleness_obj(identity))
     staleness_conditions = []
     for host_type in host_type_filter:
@@ -169,7 +166,7 @@ def _staleness_filter(staleness: List[str], host_type_filter: Set[str], identity
     return [or_(*staleness_conditions)]
 
 
-def _registered_with_filter(registered_with: List[str], host_type_filter: Set[str]) -> List:
+def _registered_with_filter(registered_with: list[str], host_type_filter: set[str]) -> list:
     _query_filter = []
     if not registered_with:
         return _query_filter
@@ -190,7 +187,7 @@ def _registered_with_filter(registered_with: List[str], host_type_filter: Set[st
     return [or_(*_query_filter)]
 
 
-def _system_profile_filter(filter: dict) -> Tuple[List, str]:
+def _system_profile_filter(filter: dict) -> tuple[list, str]:
     query_filters = []
     host_types = HOST_TYPES.copy()
 
@@ -207,7 +204,7 @@ def _system_profile_filter(filter: dict) -> Tuple[List, str]:
     return query_filters, host_types
 
 
-def _hostname_or_id_filter(hostname_or_id: str) -> List:
+def _hostname_or_id_filter(hostname_or_id: str) -> list:
     wildcard_id = f"%{hostname_or_id.replace('*', '%')}%"
     filter_list = [
         Host.display_name.ilike(wildcard_id),
@@ -226,7 +223,7 @@ def _hostname_or_id_filter(hostname_or_id: str) -> List:
     return (or_(*filter_list),)
 
 
-def _modified_on_filter(updated_start: str, updated_end: str) -> List:
+def _modified_on_filter(updated_start: str, updated_end: str) -> list:
     modified_on_filter = []
     updated_start_date = parser.isoparse(updated_start) if updated_start else None
     updated_end_date = parser.isoparse(updated_end) if updated_end else None
@@ -242,13 +239,13 @@ def _modified_on_filter(updated_start: str, updated_end: str) -> List:
     return [and_(*modified_on_filter)]
 
 
-def host_id_list_filter(host_id_list: List[str]) -> List:
+def host_id_list_filter(host_id_list: list[str]) -> list:
     all_filters = [Host.id.in_(host_id_list)]
     all_filters += _staleness_filter(ALL_STALENESS_STATES, set(HOST_TYPES))
     return all_filters
 
 
-def rbac_permissions_filter(rbac_filter: dict) -> List:
+def rbac_permissions_filter(rbac_filter: dict) -> list:
     _query_filter = []
     if rbac_filter and "groups" in rbac_filter:
         _query_filter = _group_ids_filter(rbac_filter["groups"])
@@ -266,15 +263,15 @@ def query_filters(
     updated_start: str = None,
     updated_end: str = None,
     group_name: str = None,
-    group_ids: List[str] = None,
-    tags: List[str] = None,
-    staleness: List[str] = None,
-    registered_with: List[str] = None,
+    group_ids: list[str] = None,
+    tags: list[str] = None,
+    staleness: list[str] = None,
+    registered_with: list[str] = None,
     filter: dict = None,
     rbac_filter: dict = None,
     order_by: str = None,
     identity=None,
-) -> Tuple[List, Query]:
+) -> tuple[list, Query]:
     num_ids = 0
     host_type_filter = set(HOST_TYPES)
     for id_param in [fqdn, display_name, hostname_or_id, insights_id]:

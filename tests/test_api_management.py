@@ -2,7 +2,6 @@ from tempfile import TemporaryDirectory
 
 from tests.helpers.test_utils import set_environment
 
-
 HEALTH_URL = "/health"
 METRICS_URL = "/metrics"
 VERSION_URL = "/version"
@@ -14,7 +13,7 @@ def test_health(flask_client):
     irrelevant.
     """
     response = flask_client.get(HEALTH_URL)  # No identity header.
-    assert 200 == response.status_code
+    assert response.status_code == 200
 
 
 def test_metrics(flask_client):
@@ -24,7 +23,7 @@ def test_metrics(flask_client):
     with TemporaryDirectory() as temp_dir:
         with set_environment({"prometheus_multiproc_dir": temp_dir}):
             response = flask_client.get(METRICS_URL)  # No identity header.
-            assert 200 == response.status_code
+            assert response.status_code == 200
 
 
 def test_version(api_get):

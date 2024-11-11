@@ -8,7 +8,6 @@ from re import fullmatch
 from sys import stdin
 from sys import stdout
 
-
 RESOURCE_TEMPLATES = ("insights-inventory-reaper", "insights-inventory-mq-service", "insights-inventory")
 TARGETS = {0: "prod", 1: "stage"}
 # Note: insights-host-delete resource template uses a different image. Not updated by this script.

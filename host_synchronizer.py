@@ -20,8 +20,8 @@ from app.queue.metrics import event_producer_failure
 from app.queue.metrics import event_producer_success
 from app.queue.metrics import event_serialization_time
 from lib.db import session_guard
-from lib.handlers import register_shutdown
 from lib.handlers import ShutdownHandler
+from lib.handlers import register_shutdown
 from lib.host_synchronize import synchronize_hosts
 from lib.metrics import synchronize_fail_count
 from lib.metrics import synchronize_host_count

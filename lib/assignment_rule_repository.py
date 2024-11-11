@@ -4,7 +4,6 @@ from app.models import AssignmentRule
 from app.models import db
 from lib.db import session_guard
 
-
 logger = get_logger(__name__)
 
 

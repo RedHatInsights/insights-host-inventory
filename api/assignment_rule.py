@@ -1,7 +1,7 @@
 from http import HTTPStatus
 
-from flask import abort
 from flask import Response
+from flask import abort
 from marshmallow import ValidationError
 from sqlalchemy.exc import IntegrityError
 
@@ -25,7 +25,6 @@ from lib.assignment_rule_repository import add_assignment_rule
 from lib.feature_flags import FLAG_INVENTORY_ASSIGNMENT_RULES
 from lib.feature_flags import get_flag_value
 from lib.middleware import rbac
-
 
 logger = get_logger(__name__)
 

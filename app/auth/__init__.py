@@ -17,7 +17,7 @@ def authentication_header_handler(apikey, required_scopes=None):
     except Exception as exc:
         login_failure_count.inc()
         logger.error(str(exc), exc_info=True)
-        raise connexion.exceptions.OAuthProblem("Invalid token")
+        raise connexion.exceptions.OAuthProblem("Invalid token") from exc
 
     return {"uid": identity}
 

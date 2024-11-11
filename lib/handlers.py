@@ -1,8 +1,8 @@
 from atexit import register
 from signal import SIGINT as CTRL_C_TERM
-from signal import signal
-from signal import Signals
 from signal import SIGTERM as OPENSHIFT_TERM
+from signal import Signals
+from signal import signal
 
 from app.logging import get_logger
 

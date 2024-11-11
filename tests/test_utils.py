@@ -10,8 +10,8 @@ from yaml import safe_load
 
 from api.cache_key import make_system_cache_key
 from lib.feature_flags import FLAG_FALLBACK_VALUES
-from lib.feature_flags import get_flag_value_and_fallback
 from lib.feature_flags import UNLEASH
+from lib.feature_flags import get_flag_value_and_fallback
 from utils.deploy import main as deploy
 
 RESOURCE_TEMPLATES_INDEXES = {
@@ -164,7 +164,7 @@ def test_make_system_cache_key_invalid():
     insights_id = None
     org_id = "101010191"
     owner_id = "1919388393"
-    with raises(Exception):
+    with raises(Exception):  # noqa: B017
         make_system_cache_key(insights_id, org_id, owner_id)
 
 

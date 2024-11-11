@@ -1,6 +1,7 @@
 import os
 import uuid
 from collections import namedtuple
+from contextlib import suppress
 from copy import deepcopy
 from datetime import datetime
 from datetime import timezone
@@ -11,28 +12,28 @@ from connexion.utils import coerce_type
 from dateutil.parser import isoparse
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
-from jsonschema import draft4_format_checker
 from jsonschema import RefResolver
-from jsonschema import validate as jsonschema_validate
 from jsonschema import ValidationError as JsonSchemaValidationError
+from jsonschema import draft4_format_checker
+from jsonschema import validate as jsonschema_validate
 from marshmallow import EXCLUDE
+from marshmallow import Schema as MarshmallowSchema
+from marshmallow import ValidationError as MarshmallowValidationError
 from marshmallow import fields
 from marshmallow import post_load
 from marshmallow import pre_load
-from marshmallow import Schema as MarshmallowSchema
 from marshmallow import validate as marshmallow_validate
 from marshmallow import validates
 from marshmallow import validates_schema
-from marshmallow import ValidationError as MarshmallowValidationError
+from sqlalchemy import ForeignKey
+from sqlalchemy import Index
+from sqlalchemy import String
+from sqlalchemy import UniqueConstraint
 from sqlalchemy import case
 from sqlalchemy import cast
-from sqlalchemy import ForeignKey
 from sqlalchemy import func
-from sqlalchemy import Index
 from sqlalchemy import orm
-from sqlalchemy import String
 from sqlalchemy import text
-from sqlalchemy import UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -47,7 +48,6 @@ from app.validators import verify_ip_address_format
 from app.validators import verify_mac_address_format
 from app.validators import verify_satellite_id
 from app.validators import verify_uuid_format
-
 
 logger = get_logger(__name__)
 
@@ -74,7 +74,7 @@ MAX_CANONICAL_FACTS_VERSION = 1
 
 ZERO_MAC_ADDRESS = "00:00:00:00:00:00"
 
-INVENTORY_SCHEMA = os.getenv("INVENTORY_DB_SCHEMA", "public")
+INVENTORY_SCHEMA = os.getenv("INVENTORY_DB_SCHEMA", "hbi")
 
 
 class ProviderType(str, Enum):
@@ -187,10 +187,15 @@ class LimitedHost(db.Model):
         account=None,
         org_id=None,
         facts=None,
-        tags={},
+        tags=None,
         system_profile_facts=None,
-        groups=[],
+        groups=None,
     ):
+        if tags is None:
+            tags = {}
+        if groups is None:
+            groups = []
+
         self.canonical_facts = canonical_facts
 
         if display_name:
@@ -272,13 +277,18 @@ class Host(LimitedHost):
         account=None,
         org_id=None,
         facts=None,
-        tags={},
+        tags=None,
         system_profile_facts=None,
         stale_timestamp=None,
         reporter=None,
         per_reporter_staleness=None,
-        groups=[],
+        groups=None,
     ):
+        if tags is None:
+            tags = {}
+        if groups is None:
+            groups = []
+
         if not canonical_facts:
             raise ValidationException("At least one of the canonical fact fields must be present.")
 
@@ -414,10 +424,8 @@ class Host(LimitedHost):
         orm.attributes.flag_modified(self, "tags")
 
     def _delete_tags_namespace(self, namespace):
-        try:
+        with suppress(KeyError):
             del self.tags[namespace]
-        except KeyError:
-            pass
 
         orm.attributes.flag_modified(self, "tags")
 

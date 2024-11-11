@@ -1,15 +1,14 @@
 import sys
 
-from marshmallow import fields
 from marshmallow import Schema
 from marshmallow import ValidationError
+from marshmallow import fields
 from sqlalchemy.exc import OperationalError
 
 from app.logging import get_logger
 from app.queue import metrics
 from app.queue.export_service import create_export
 from app.queue.mq_common import common_message_parser
-
 
 logger = get_logger(__name__)
 
@@ -91,8 +90,8 @@ def handle_export_message(message, inventory_config):
         logger.error(e)
         metrics.export_service_message_handler_failure.inc()
         message_handled = False
-    finally:
-        return message_handled
+
+    return message_handled
 
 
 def export_service_event_loop(consumer, flask_app, interrupt):

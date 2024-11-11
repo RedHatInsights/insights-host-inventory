@@ -5,8 +5,8 @@ Revises: 268debe6db17
 Create Date: 2022-07-05 13:23:52.361283
 
 """
-from alembic import op
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "69c96c8b47e0"

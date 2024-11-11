@@ -209,19 +209,16 @@ def get_platform_metadata(identity=SYSTEM_IDENTITY):
 
 
 def random_mac():
-    return "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}".format(
-        random.randint(0, 255),
-        random.randint(0, 255),
-        random.randint(0, 255),
-        random.randint(0, 255),
-        random.randint(0, 255),
-        random.randint(0, 255),
+    return (
+        f"{random.randint(0, 255):02x}:{random.randint(0, 255):02x}:"
+        f"{random.randint(0, 255):02x}:{random.randint(0, 255):02x}:"
+        f"{random.randint(0, 255):02x}:{random.randint(0, 255):02x}"
     )
 
 
 def generate_mac_addresses(num_mac):
     macs = []
-    for i in range(num_mac):
+    for _ in range(num_mac):
         macs.append(random_mac())
     return macs
 

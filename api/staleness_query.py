@@ -5,15 +5,11 @@ from app.common import inventory_config
 from app.logging import get_logger
 from app.models import Staleness
 
-
 logger = get_logger(__name__)
 
 
 def get_staleness_obj(identity=None):
-    if not identity:
-        org_id = get_current_identity().org_id
-    else:
-        org_id = identity.org_id
+    org_id = get_current_identity().org_id if not identity else identity.org_id
     try:
         staleness = Staleness.query.filter(Staleness.org_id == org_id).one()
         logger.info("Using custom account staleness")

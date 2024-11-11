@@ -6,15 +6,15 @@ from sqlalchemy.exc import InvalidRequestError
 
 from app.auth.identity import Identity
 from app.models import AssignmentRule
-from app.models import db
 from app.models import Group
 from app.models import Host
 from app.models import Staleness
+from app.models import db
 from lib.host_repository import find_existing_host
-from tests.helpers.test_utils import generate_uuid
-from tests.helpers.test_utils import now
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
+from tests.helpers.test_utils import generate_uuid
+from tests.helpers.test_utils import now
 
 DB_FACTS_NAMESPACE = "ns1"
 DB_FACTS = {DB_FACTS_NAMESPACE: {"key1": "value1"}}

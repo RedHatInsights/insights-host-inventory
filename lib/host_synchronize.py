@@ -5,8 +5,8 @@ from api.staleness_query import get_sys_default_staleness
 from app.culling import Timestamps
 from app.logging import get_logger
 from app.models import Host
-from app.queue.events import build_event
 from app.queue.events import EventType
+from app.queue.events import build_event
 from app.queue.events import message_headers
 from app.serialization import serialize_host
 from app.serialization import serialize_staleness_to_dict
@@ -64,8 +64,8 @@ def synchronize_hosts(
         try:
             # pace the events production speed as flush completes sending all buffered records.
             event_producer._kafka_producer.flush(300)
-        except ProduceError:
-            raise ProduceError(f"ProduceError: Kafka failure to flush {chunk_size} records within 300 seconds")
+        except ProduceError as e:
+            raise ProduceError(f"ProduceError: Kafka failure to flush {chunk_size} records within 300 seconds") from e
 
         # flush changes, and then load next chunk using keyset pagination
         query.session.flush()

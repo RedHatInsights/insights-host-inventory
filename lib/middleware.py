@@ -1,7 +1,6 @@
 from functools import partial
 from functools import wraps
 from http import HTTPStatus
-from typing import Tuple
 from uuid import UUID
 
 from app_common_python import LoadedConfig
@@ -14,9 +13,9 @@ from requests.packages.urllib3.util.retry import Retry
 
 from api.metrics import outbound_http_response_time
 from app import IDENTITY_HEADER
+from app import REQUEST_ID_HEADER
 from app import RbacPermission
 from app import RbacResourceType
-from app import REQUEST_ID_HEADER
 from app.auth import get_current_identity
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
@@ -25,7 +24,6 @@ from app.instrumentation import rbac_failure
 from app.instrumentation import rbac_group_permission_denied
 from app.instrumentation import rbac_permission_denied
 from app.logging import get_logger
-
 
 logger = get_logger(__name__)
 
@@ -124,7 +122,7 @@ def get_rbac_filter(
     identity: Identity,
     rbac_request_headers: dict,
     permission_base: str = "inventory",
-) -> Tuple[str, dict]:
+) -> tuple[str, dict]:
     # Returns a 2-item tuple:
     # 1. Whether or not the request should be allowed at all
     # 2. The filter that should be applied to the data (if allowed)

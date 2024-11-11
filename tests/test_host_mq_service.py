@@ -10,8 +10,8 @@ import pytest
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.exc import StaleDataError
 
-from app.auth.identity import create_mock_identity_with_org_id
 from app.auth.identity import Identity
+from app.auth.identity import create_mock_identity_with_org_id
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import threadctx
@@ -23,24 +23,24 @@ from app.queue.host_mq import update_system_profile
 from app.queue.host_mq import write_add_update_event_message
 from lib.host_repository import AddHostResult
 from tests.helpers.db_utils import create_reference_host_in_db
+from tests.helpers.mq_utils import FakeMessage
 from tests.helpers.mq_utils import assert_mq_host_data
 from tests.helpers.mq_utils import expected_headers
-from tests.helpers.mq_utils import FakeMessage
 from tests.helpers.mq_utils import wrap_message
 from tests.helpers.system_profile_utils import INVALID_SYSTEM_PROFILES
 from tests.helpers.system_profile_utils import mock_system_profile_specification
 from tests.helpers.system_profile_utils import system_profile_specification
+from tests.helpers.test_utils import SATELLITE_IDENTITY
+from tests.helpers.test_utils import SYSTEM_IDENTITY
+from tests.helpers.test_utils import USER_IDENTITY
+from tests.helpers.test_utils import YUM_REPO2
 from tests.helpers.test_utils import base_host
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import get_encoded_idstr
 from tests.helpers.test_utils import get_platform_metadata
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
-from tests.helpers.test_utils import SATELLITE_IDENTITY
-from tests.helpers.test_utils import SYSTEM_IDENTITY
-from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import valid_system_profile
-from tests.helpers.test_utils import YUM_REPO2
 
 OWNER_ID = SYSTEM_IDENTITY["system"]["cn"]
 
@@ -1160,7 +1160,7 @@ def test_add_host_default_empty_dict(tags, mq_create_or_update_host, db_get_host
 
     record = db_get_host_by_insights_id(insights_id)
 
-    assert {} == record.tags
+    assert record.tags == {}
 
 
 def test_delete_host_tags(mq_create_or_update_host, db_get_host_by_insights_id, subtests):

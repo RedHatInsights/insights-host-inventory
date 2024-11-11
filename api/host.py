@@ -24,9 +24,9 @@ from api.host_query_db import get_host_list_by_id_list
 from api.host_query_db import get_host_tags_list_by_id_list
 from api.host_query_db import get_sparse_system_profile
 from api.staleness_query import get_staleness_obj
-from app import db
 from app import RbacPermission
 from app import RbacResourceType
+from app import db
 from app.auth import get_current_identity
 from app.auth.identity import IdentityType
 from app.auth.identity import to_auth_header
@@ -42,11 +42,11 @@ from app.logging import threadctx
 from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import PatchHostSchema
-from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
-from app.queue.events import build_event
+from app.payload_tracker import get_payload_tracker
 from app.queue.events import EventType
+from app.queue.events import build_event
 from app.queue.events import message_headers
 from app.serialization import deserialize_canonical_facts
 from app.serialization import serialize_host
@@ -60,7 +60,6 @@ from lib.host_repository import find_non_culled_hosts
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.host_repository import update_query_for_owner_id
 from lib.middleware import rbac
-
 
 FactOperations = Enum("FactOperations", ("merge", "replace"))
 TAG_OPERATIONS = ("apply", "remove")
@@ -266,10 +265,7 @@ def _delete_host_list(host_id_list, rbac_filter):
         deleted_id_list = [str(r.host_row.id) for r in result_list]
 
         for host_id in host_id_list:
-            if host_id in deleted_id_list:
-                tracker_message = "deleted host"
-            else:
-                tracker_message = "not deleted host"
+            tracker_message = "deleted host" if host_id in deleted_id_list else "not deleted host"
 
             with PayloadTrackerProcessingContext(
                 payload_tracker, processing_status_message=tracker_message
