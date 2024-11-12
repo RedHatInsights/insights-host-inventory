@@ -1,0 +1,87 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  name: insights-app-cjis
+objects:
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdApp
+  metadata:
+    name: ${CLOWDAPP_NAME}
+  spec:
+    envName: ${ENV_NAME}
+    dependencies:
+      - ${DEPENDENT_APP_NAME}
+    jobs:
+    - name: "migration-runner"
+      restartPolicy: Never
+      podSpec:
+        image: ${INVENTORY_IMAGE}:${INVENTORY_IMAGE_TAG}
+        args: ["./inv_migration_runner.py"]
+        env:
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: INVENTORY_MIGRATION_FILE
+            value: "${INVENTORY_MIGRATION_FILE}"
+          - name: INVENTORY_MIGRATION_DRYRUN
+            value: "${INVENTORY_MIGRATION_DRYRUN}"
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_MIGRATOR}
+            memory: ${MEMORY_LIMIT_MIGRATOR}
+          requests:
+            cpu: ${CPU_REQUEST_MIGRATOR}
+            memory: ${MEMORY_REQUEST_MIGRATOR}
+    database:
+      sharedDbAppName: ${DB_NAME}
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    labels:
+      app: host-inventory
+    name: host-inventory-migrator-${MIGRATION_RUN_NUMBER}
+  spec:
+    appName: ${CLOWDAPP_NAME}
+    jobs:
+      - migration-runner
+
+parameters:
+- name: MIGRATION_RUN_NUMBER
+  value: '1'
+- name: LOG_LEVEL
+  value: INFO
+- name: CPU_REQUEST_MIGRATOR
+  value: 250m
+- name: CPU_LIMIT_MIGRATOR
+  value: 500m
+- name: MEMORY_REQUEST_MIGRATOR
+  value: 256Mi
+- name: MEMORY_LIMIT_MIGRATOR
+  value: 512Mi
+- description: Host Based Inventory Image tag
+  name: INVENTORY_IMAGE_TAG
+  required: true
+- description: Host Based InventoryImage NAME
+  name: INVENTORY_IMAGE
+  required: true
+  value: quay.io/cloudservices/insights-inventory
+- description : ClowdEnvironment name
+  name: ENV_NAME
+  value: stage
+- description: ClowdApp name
+  name: CLOWDAPP_NAME
+  value: host-inventory-migrator
+- name: DB_NAME
+  required: true
+- name: DEPENDENT_APP_NAME
+  required: true
+- description: SSL validation mode for the DB
+  name: INVENTORY_DB_SSL_MODE
+  value: prefer
+- name: INVENTORY_MIGRATION_FILE
+  value: ''
+- name: INVENTORY_MIGRATION_DRYRUN
+  value: 'false'
