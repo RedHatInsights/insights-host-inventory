@@ -14,8 +14,7 @@ RUN (microdnf module enable -y postgresql:16 || curl -o /etc/yum.repos.d/postgre
     microdnf install --setopt=tsflags=nodocs -y postgresql python39 rsync tar procps-ng make && \
     rpm -qa | sort > packages-before-devel-install.txt && \
     microdnf install --setopt=tsflags=nodocs -y libpq-devel python39-devel gcc && \
-    rpm -qa | sort > packages-after-devel-install.txt && \
-    ln -s /usr/lib64/libpq.so.private16-5.16 /usr/lib64/libpq.so.5
+    rpm -qa | sort > packages-after-devel-install.txt
 
 COPY api/ api/
 COPY app/ app/
@@ -64,6 +63,7 @@ RUN microdnf remove -y $( comm -13 packages-before-devel-install.txt packages-af
     rm packages-before-devel-install.txt packages-after-devel-install.txt && \
     microdnf clean all
 
+RUN ln -s /usr/lib64/libpq.so.private16-5.16 /usr/lib64/libpq.so.5
 USER 1001
 
 ENTRYPOINT [ "dumb-init", "./run_command.sh" ]
