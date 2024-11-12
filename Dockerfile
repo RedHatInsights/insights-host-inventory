@@ -14,7 +14,8 @@ RUN (microdnf module enable -y postgresql:16 || curl -o /etc/yum.repos.d/postgre
     microdnf install --setopt=tsflags=nodocs -y postgresql python39 rsync tar procps-ng make && \
     rpm -qa | sort > packages-before-devel-install.txt && \
     microdnf install --setopt=tsflags=nodocs -y libpq-devel python39-devel gcc && \
-    rpm -qa | sort > packages-after-devel-install.txt
+    rpm -qa | sort > packages-after-devel-install.txt && \
+    ln -s /usr/lib64/libpq.so.private16-5.16 /usr/lib64/libpq.so.5
 
 COPY api/ api/
 COPY app/ app/
