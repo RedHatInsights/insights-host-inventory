@@ -16,6 +16,9 @@ RUN (microdnf module enable -y postgresql:16 || curl -o /etc/yum.repos.d/postgre
     microdnf install --setopt=tsflags=nodocs -y libpq-devel python39-devel gcc && \
     rpm -qa | sort > packages-after-devel-install.txt
 
+# create a symlink to the library missing from postgresql:16.  This may not be needed in future.
+RUN ln -s /usr/lib64/libpq.so.private16-5.16 /usr/lib64/libpq.so.5
+
 COPY api/ api/
 COPY app/ app/
 COPY lib/ lib/
@@ -63,7 +66,6 @@ RUN microdnf remove -y $( comm -13 packages-before-devel-install.txt packages-af
     rm packages-before-devel-install.txt packages-after-devel-install.txt && \
     microdnf clean all
 
-RUN ln -s /usr/lib64/libpq.so.private16-5.16 /usr/lib64/libpq.so.5
 USER 1001
 
 ENTRYPOINT [ "dumb-init", "./run_command.sh" ]
