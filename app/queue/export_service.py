@@ -53,7 +53,9 @@ def build_headers(
     return rbac_request_headers, request_headers
 
 
-def get_host_list(identity: Identity, exportFormat: str, rbac_filter: dict, inventory_config: Config) -> list[dict]:
+def get_host_list(
+    identity: Identity, exportFormat: str, rbac_filter: dict | None, inventory_config: Config
+) -> list[dict]:
     host_data = list(
         get_hosts_to_export(
             identity,
@@ -160,7 +162,7 @@ def create_export(
 
 
 def _build_export_request_url(
-    export_service_endpoint: str, exportUUID: str, applicationName: str, resourceUUID: str, request_type: str
+    export_service_endpoint: str, exportUUID: UUID, applicationName: str, resourceUUID: str, request_type: str
 ) -> str:
     return f"{export_service_endpoint}/app/export/v1/{exportUUID}/{applicationName}/{resourceUUID}/{request_type}"
 
@@ -191,8 +193,9 @@ def _handle_export_response(response: Response, exportUUID: UUID, exportFormat: 
         logger.info(f"{response.text} for export ID {str(exportUUID)} in {exportFormat.upper()} format")
 
 
-def _format_export_data(data: dict, exportFormat: str) -> str:
+def _format_export_data(data: list[dict], exportFormat: str) -> str:
     if exportFormat == "json":
         return json.dumps(data)
     elif exportFormat == "csv":
         return json_arr_to_csv(data)
+    raise ValueError(f"Unsupported export format: {exportFormat}")

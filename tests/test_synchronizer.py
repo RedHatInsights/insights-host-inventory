@@ -3,9 +3,9 @@ from unittest import mock
 
 import pytest
 
-from app import db
-from app import threadctx
+from app.logging import threadctx
 from app.models import Host
+from app.models import db
 from host_synchronizer import run as host_synchronizer_run
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.mq_utils import assert_synchronize_event_is_valid

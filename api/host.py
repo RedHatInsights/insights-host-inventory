@@ -26,7 +26,6 @@ from api.host_query_db import get_sparse_system_profile
 from api.staleness_query import get_staleness_obj
 from app import RbacPermission
 from app import RbacResourceType
-from app import db
 from app.auth import get_current_identity
 from app.auth.identity import IdentityType
 from app.auth.identity import to_auth_header
@@ -42,6 +41,7 @@ from app.logging import threadctx
 from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import PatchHostSchema
+from app.models import db
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
 from app.payload_tracker import get_payload_tracker

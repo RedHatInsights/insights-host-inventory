@@ -28,7 +28,7 @@ Base = declarative_base()
 NULL = None
 
 
-class Host(Base):
+class Host(Base):  # type: ignore [valid-type, misc]
     __tablename__ = "hosts"
 
     id = Column(UUID, primary_key=True)

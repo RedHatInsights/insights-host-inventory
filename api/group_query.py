@@ -2,11 +2,11 @@ from sqlalchemy import asc
 from sqlalchemy import desc
 from sqlalchemy import func
 
-from app import db
 from app.auth import get_current_identity
 from app.logging import get_logger
 from app.models import Group
 from app.models import HostGroupAssoc
+from app.models import db
 from app.serialization import serialize_group
 
 logger = get_logger(__name__)
