@@ -1,8 +1,8 @@
 import time
 from unittest import mock
 
-from app import db
-from app import threadctx
+from app.logging import threadctx
+from app.models import db
 from host_reaper import run as host_reaper_run
 
 CUSTOM_STALENESS_DELETE_ONLY_IMMUTABLE = {

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from copy import deepcopy
 from functools import partial
 from uuid import UUID
@@ -14,7 +16,6 @@ from sqlalchemy.dialects.postgresql import JSON
 from api.filtering.db_custom_filters import build_system_profile_filter
 from api.filtering.db_custom_filters import get_host_types_from_filter
 from api.staleness_query import get_staleness_obj
-from app import db
 from app.config import HOST_TYPES
 from app.culling import staleness_to_conditions
 from app.exceptions import ValidationException
@@ -23,6 +24,7 @@ from app.models import OLD_TO_NEW_REPORTER_MAP
 from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
+from app.models import db
 from app.serialization import serialize_staleness_to_dict
 from app.utils import Tag
 from lib.host_repository import ALL_STALENESS_STATES
@@ -53,7 +55,7 @@ def _tags_filter(string_tags: list[str]) -> list:
 
 
 def _group_names_filter(group_name_list: list) -> list:
-    _query_filter = []
+    _query_filter: list = []
     group_name_list_lower = [group_name.lower() for group_name in group_name_list]
     if len(group_name_list) > 0:
         group_filters = [func.lower(Group.name).in_(group_name_list_lower)]
@@ -148,7 +150,9 @@ def per_reporter_staleness_filter(staleness, reporter, host_type_filter):
     return staleness_conditions
 
 
-def _staleness_filter(staleness: list[str], host_type_filter: set[str], identity=None) -> list:
+def _staleness_filter(
+    staleness: list[str] | tuple[str, ...], host_type_filter: set[str | None], identity=None
+) -> list:
     staleness_obj = serialize_staleness_to_dict(get_staleness_obj(identity))
     staleness_conditions = []
     for host_type in host_type_filter:
@@ -166,8 +170,8 @@ def _staleness_filter(staleness: list[str], host_type_filter: set[str], identity
     return [or_(*staleness_conditions)]
 
 
-def _registered_with_filter(registered_with: list[str], host_type_filter: set[str]) -> list:
-    _query_filter = []
+def _registered_with_filter(registered_with: list[str], host_type_filter: set[str | None]) -> list:
+    _query_filter: list = []
     if not registered_with:
         return _query_filter
     reg_with_copy = deepcopy(registered_with)
@@ -187,9 +191,9 @@ def _registered_with_filter(registered_with: list[str], host_type_filter: set[st
     return [or_(*_query_filter)]
 
 
-def _system_profile_filter(filter: dict) -> tuple[list, str]:
-    query_filters = []
-    host_types = HOST_TYPES.copy()
+def _system_profile_filter(filter: dict) -> tuple[list, set[str | None]]:
+    query_filters: list = []
+    host_types = set(HOST_TYPES.copy())
 
     if filter:
         for key in filter:
@@ -204,7 +208,7 @@ def _system_profile_filter(filter: dict) -> tuple[list, str]:
     return query_filters, host_types
 
 
-def _hostname_or_id_filter(hostname_or_id: str) -> list:
+def _hostname_or_id_filter(hostname_or_id: str) -> tuple:
     wildcard_id = f"%{hostname_or_id.replace('*', '%')}%"
     filter_list = [
         Host.display_name.ilike(wildcard_id),
@@ -223,7 +227,7 @@ def _hostname_or_id_filter(hostname_or_id: str) -> list:
     return (or_(*filter_list),)
 
 
-def _modified_on_filter(updated_start: str, updated_end: str) -> list:
+def _modified_on_filter(updated_start: str | None, updated_end: str | None) -> list:
     modified_on_filter = []
     updated_start_date = parser.isoparse(updated_start) if updated_start else None
     updated_end_date = parser.isoparse(updated_end) if updated_end else None
@@ -241,7 +245,7 @@ def _modified_on_filter(updated_start: str, updated_end: str) -> list:
 
 def host_id_list_filter(host_id_list: list[str]) -> list:
     all_filters = [Host.id.in_(host_id_list)]
-    all_filters += _staleness_filter(ALL_STALENESS_STATES, set(HOST_TYPES))
+    all_filters += _staleness_filter(ALL_STALENESS_STATES, set(HOST_TYPES.copy()))
     return all_filters
 
 
@@ -254,22 +258,22 @@ def rbac_permissions_filter(rbac_filter: dict) -> list:
 
 
 def query_filters(
-    fqdn: str = None,
-    display_name: str = None,
-    hostname_or_id: str = None,
-    insights_id: str = None,
-    provider_id: str = None,
-    provider_type: str = None,
-    updated_start: str = None,
-    updated_end: str = None,
-    group_name: str = None,
-    group_ids: list[str] = None,
-    tags: list[str] = None,
-    staleness: list[str] = None,
-    registered_with: list[str] = None,
-    filter: dict = None,
-    rbac_filter: dict = None,
-    order_by: str = None,
+    fqdn: str | None = None,
+    display_name: str | None = None,
+    hostname_or_id: str | None = None,
+    insights_id: str | None = None,
+    provider_id: str | None = None,
+    provider_type: str | None = None,
+    updated_start: str | None = None,
+    updated_end: str | None = None,
+    group_name: list[str] | None = None,
+    group_ids: list[str] | None = None,
+    tags: list[str] | None = None,
+    staleness: list[str] | tuple[str, ...] | None = None,
+    registered_with: list[str] | None = None,
+    filter: dict | None = None,
+    rbac_filter: dict | None = None,
+    order_by: str | None = None,
     identity=None,
 ) -> tuple[list, Query]:
     num_ids = 0

@@ -16,7 +16,7 @@ def _encode_headers(headers):
 
 
 class MessageDetails:
-    def __init__(self, topic: str, event: str, headers: list(tuple()), key: str):
+    def __init__(self, topic: str, event: str, headers: list[tuple], key: str):
         self.event = event
         self.headers = headers
         self.key = key

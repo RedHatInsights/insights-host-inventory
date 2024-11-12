@@ -41,8 +41,8 @@ def _check_field_in_spec(spec: dict, field_name: str, parent_node: str) -> None:
 #   value: The filter's value
 def _convert_dict_to_json_path_and_value(
     filter: dict,
-) -> tuple[tuple[str], str, str]:  # Tuple of keys for the json path; pg_op; leaf node
-    key = next(iter(filter.keys()))
+) -> tuple[tuple[str], str | None, str]:  # Tuple of keys for the json path; pg_op; leaf node
+    key: str = next(iter(filter.keys()))
     val = filter[key]
 
     # If the next node is not the deepest value
@@ -54,7 +54,7 @@ def _convert_dict_to_json_path_and_value(
 
         # Recurse
         next_val, pg_op, deepest_value = _convert_dict_to_json_path_and_value(val)
-        return ((key, *next_val), pg_op, deepest_value)
+        return (key, *next_val), pg_op, deepest_value  # type: ignore [return-value]
     else:
         # Get the final jsonb path node and its value; no comparator was specified
         return (key,), None, val
@@ -250,7 +250,7 @@ def _unique_paths(
     return all_filters
 
 
-def _validate_pg_op_and_value(pg_op: str, value: str, field_filter: str, field_name: str) -> None:
+def _validate_pg_op_and_value(pg_op: str | None, value: str, field_filter: str, field_name: str) -> None:
     if field_filter != "array" and pg_op == "contains":
         raise ValidationException(f"'contains' is an invalid operation for non-array field {field_name}")
 
@@ -272,6 +272,7 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
 
         logger.debug(f"generating filter: field: {field_name}, type: {field_filter}, field_input: {field_input}")
 
+        value: str | None
         jsonb_path, pg_op, value = _convert_dict_to_json_path_and_value(filter_param)
         target_field = Host.system_profile_facts[(jsonb_path)].astext
         _validate_pg_op_and_value(pg_op, value, field_filter, field_name)
@@ -290,7 +291,7 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
         elif pg_cast := FIELD_FILTER_TO_POSTGRES_CAST.get(field_filter):
             # Cast column and value, if using an applicable type
             target_field = target_field.cast(pg_cast)
-            value = FIELD_FILTER_TO_PYTHON_CAST.get(field_filter)(value)
+            value = FIELD_FILTER_TO_PYTHON_CAST[field_filter](value)
 
         # "contains" is not a column operator, so we have to do it manually
         if pg_op == "contains":
@@ -300,7 +301,7 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
 
 
 # Standardize host_type SP filter and get its value(s)
-def get_host_types_from_filter(host_type_filter: dict) -> set[str]:
+def get_host_types_from_filter(host_type_filter: dict) -> set[str | None]:
     if host_type_filter:
         host_types = set()
 
@@ -340,7 +341,7 @@ def get_host_types_from_filter(host_type_filter: dict) -> set[str]:
 
 # Takes a System Profile filter param and turns it into sql filters.
 def build_system_profile_filter(system_profile_param: dict) -> tuple:
-    system_profile_filter = tuple()
+    system_profile_filter: tuple = tuple()
 
     # Separate the filter object into a list of filters
     filter_param_list = _unique_paths(system_profile_param, ["operating_system"])

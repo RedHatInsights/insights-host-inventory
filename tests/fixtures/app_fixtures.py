@@ -2,9 +2,9 @@ import pytest
 from sqlalchemy import text as sa_text
 
 from app import create_app
-from app import db
 from app.config import Config
-from app.config import RuntimeEnvironment
+from app.environment import RuntimeEnvironment
+from app.models import db
 from tests.helpers.db_utils import clean_tables
 
 

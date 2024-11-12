@@ -5,15 +5,15 @@ from sqlalchemy_utils import create_database
 from sqlalchemy_utils import database_exists
 from sqlalchemy_utils import drop_database
 
-from app import db
 from app.auth.identity import Identity
 from app.config import Config
-from app.config import RuntimeEnvironment
+from app.environment import RuntimeEnvironment
 from app.models import AssignmentRule
 from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import Staleness
+from app.models import db
 from app.serialization import serialize_group
 from tests.helpers.db_utils import db_assignment_rule
 from tests.helpers.db_utils import db_group
