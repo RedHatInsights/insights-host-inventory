@@ -40,6 +40,7 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import column_property
 from yaml import safe_load
 
+from app.culling import days_to_seconds
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import get_logger
@@ -74,7 +75,7 @@ MAX_CANONICAL_FACTS_VERSION = 1
 
 ZERO_MAC_ADDRESS = "00:00:00:00:00:00"
 
-INVENTORY_SCHEMA = os.getenv("INVENTORY_DB_SCHEMA", "public")
+INVENTORY_SCHEMA = os.getenv("INVENTORY_DB_SCHEMA", "hbi")
 
 
 class ProviderType(str, Enum):
@@ -102,7 +103,7 @@ def _time_now():
 
 class SystemProfileNormalizer:
     class Schema(namedtuple("Schema", ("type", "properties", "items"))):
-        Types = Enum("SchemaTypes", ("array", "object"))
+        Types = Enum("Types", ("array", "object"))
 
         @classmethod
         def from_dict(cls, schema, resolver):
@@ -164,7 +165,7 @@ class SystemProfileNormalizer:
             self.filter_keys(value, schema.items)
 
 
-class LimitedHost(db.Model):
+class LimitedHost(db.Model):  # type: ignore [name-defined]
     __tablename__ = "hosts"
     # These Index entries are essentially place holders so that the
     # alembic autogenerate functionality does not try to remove the indexes
@@ -230,7 +231,7 @@ class LimitedHost(db.Model):
 
         return f"{name} {major:03}.{minor:03}"
 
-    @operating_system.expression
+    @operating_system.expression  # type: ignore [no-redef]
     def operating_system(cls):
         # Used when querying the model
         return case(
@@ -478,7 +479,7 @@ class Host(LimitedHost):
         )
 
 
-class Group(db.Model):
+class Group(db.Model):  # type: ignore [name-defined]
     __tablename__ = "groups"
     __table_args__ = (
         Index("idxgrouporgid", "org_id"),
@@ -528,7 +529,7 @@ class Group(db.Model):
     hosts = orm.relationship("Host", secondary=f"{INVENTORY_SCHEMA}.hosts_groups")
 
 
-class HostGroupAssoc(db.Model):
+class HostGroupAssoc(db.Model):  # type: ignore [name-defined]
     __tablename__ = "hosts_groups"
     __table_args__ = (
         Index("idxhostsgroups", "host_id", "group_id"),
@@ -549,7 +550,7 @@ class HostGroupAssoc(db.Model):
     group_id = db.Column(UUID(as_uuid=True), ForeignKey(f"{INVENTORY_SCHEMA}.groups.id"), primary_key=True)
 
 
-class AssignmentRule(db.Model):
+class AssignmentRule(db.Model):  # type: ignore [name-defined]
     __tablename__ = "assignment_rules"
     __table_args__ = (
         Index("idxassrulesorgid", "org_id"),
@@ -605,7 +606,7 @@ class AssignmentRule(db.Model):
     modified_on = db.Column(db.DateTime(timezone=True), default=_time_now, onupdate=_time_now)
 
 
-class Staleness(db.Model):
+class Staleness(db.Model):  # type: ignore [name-defined]
     __tablename__ = "staleness"
     __table_args__ = (
         Index("idxaccstaleorgid", "org_id"),
@@ -633,10 +634,6 @@ class Staleness(db.Model):
         self.immutable_time_to_stale = immutable_time_to_stale
         self.immutable_time_to_stale_warning = immutable_time_to_stale_warning
         self.immutable_time_to_delete = immutable_time_to_delete
-
-    def days_to_seconds(n_days):
-        factor = 86400
-        return n_days * factor
 
     def update(self, input_acc):
         if input_acc.conventional_time_to_stale:

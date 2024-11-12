@@ -12,7 +12,7 @@ except ModuleNotFoundError:
         return sql_str
 
 
-from app import db
+from app.models import db
 
 """
 Usage:

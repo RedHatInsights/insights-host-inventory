@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import base64
 import contextlib
 import json
@@ -12,6 +14,7 @@ from datetime import timedelta
 from datetime import timezone
 from random import choice
 from random import randint
+from typing import Any
 
 from app.models import ProviderType
 from app.utils import HostWrapper
@@ -20,7 +23,7 @@ from lib.host_repository import COMPOUND_CANONICAL_FACTS_MAP
 NS = "testns"
 ID = "whoabuddy"
 
-SYSTEM_IDENTITY = {
+SYSTEM_IDENTITY: dict[str, Any] = {
     "account_number": "test",
     "org_id": "test",
     "auth_type": "cert-auth",
@@ -29,7 +32,7 @@ SYSTEM_IDENTITY = {
     "type": "System",
 }
 
-USER_IDENTITY = {
+USER_IDENTITY: dict[str, Any] = {
     "account_number": "test",
     "org_id": "test",
     "type": "User",
@@ -37,7 +40,7 @@ USER_IDENTITY = {
     "user": {"email": "tuser@redhat.com", "first_name": "test", "username": "tuser@redhat.com"},
 }
 
-SERVICE_ACCOUNT_IDENTITY = {
+SERVICE_ACCOUNT_IDENTITY: dict[str, Any] = {
     "account_number": "123",
     "org_id": "456",
     "auth_type": "jwt-auth",
