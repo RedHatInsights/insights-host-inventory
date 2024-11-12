@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from app import db
+from app.models import db
 from app.queue.event_producer import EventProducer
 from app.queue.host_mq import add_host
 from app.queue.host_mq import handle_message

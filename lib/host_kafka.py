@@ -11,7 +11,7 @@ logger = get_logger(__name__)
 
 
 def _any_bootstrap_server_connects(kafka_socket, servers: list[str] | None) -> bool:
-    if not servers:
+    if servers is None:
         config = Config(RuntimeEnvironment.SERVICE)
         servers = config.bootstrap_servers.split(",")
 
@@ -21,7 +21,7 @@ def _any_bootstrap_server_connects(kafka_socket, servers: list[str] | None) -> b
             new_addr = (host, int(port))
 
             # _connect() returns zero when the socket is open and accessible.
-            # For wrong port errrcode > 0 returned.
+            # For wrong port error code > 0 returned.
             errcode = kafka_socket.connect_ex(new_addr)
             if errcode == 0:
                 return True
@@ -33,7 +33,9 @@ def _any_bootstrap_server_connects(kafka_socket, servers: list[str] | None) -> b
             # thrown when wrong server name is used.
             logger.error(f"Invalid server name: {str(sgai)}")
 
+    return False
 
-def kafka_available(servers=None):
+
+def kafka_available(servers: list[str] | None = None) -> bool:
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as kafka_socket:
         return _any_bootstrap_server_connects(kafka_socket, servers)
