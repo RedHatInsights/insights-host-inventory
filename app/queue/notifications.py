@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 from datetime import timezone
 from enum import Enum
+from typing import Any
 
 from marshmallow import Schema as MarshmallowSchema
 from marshmallow import fields
@@ -201,7 +202,7 @@ def build_notification(notification_type, host, **kwargs):
 
 
 def build_base_notification_obj(notification_type: str, host: dict):
-    base_obj = {
+    base_obj: dict[str, Any] = {
         "org_id": host.get("org_id"),
         "application": "inventory",
         "bundle": "rhel",
@@ -216,7 +217,7 @@ def build_base_notification_obj(notification_type: str, host: dict):
 
     system_profile = host.get("system_profile_facts", host.get("system_profile", {}))
 
-    complete_base_obj = {
+    complete_base_obj: dict[str, Any] = {
         "context": {
             "inventory_id": host.get("id"),
             "hostname": canonical_facts.get("fqdn", ""),

@@ -7,8 +7,8 @@ import pytest
 import pytz
 from confluent_kafka import KafkaException
 
-from app import db
-from app import threadctx
+from app.logging import threadctx
+from app.models import db
 from host_reaper import run as host_reaper_run
 from tests.helpers.api_utils import build_facts_url
 from tests.helpers.api_utils import build_host_tags_url

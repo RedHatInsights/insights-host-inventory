@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import base64
 import json
 import sys
@@ -476,7 +478,7 @@ def event_loop(consumer, flask_app, event_producer, notification_event_producer,
                     db.session.rollback()
 
 
-def initialize_thread_local_storage(request_id: str, org_id: str = None, account: str = None):
+def initialize_thread_local_storage(request_id: str, org_id: str | None = None, account: str | None = None):
     threadctx.request_id = request_id
     if org_id:
         threadctx.org_id = org_id

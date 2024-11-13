@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Callable
+
 from sqlalchemy import BigInteger
 from sqlalchemy import Boolean
 from sqlalchemy.sql.expression import ColumnOperators
@@ -35,4 +39,7 @@ POSTGRES_DEFAULT_COMPARATOR = {
 }
 
 FIELD_FILTER_TO_POSTGRES_CAST = {"integer": BigInteger, "boolean": Boolean}
-FIELD_FILTER_TO_PYTHON_CAST = {"integer": lambda v: int(v), "boolean": lambda v: str.lower(v) == "true"}
+FIELD_FILTER_TO_PYTHON_CAST: dict[str, Callable] = {
+    "integer": lambda v: int(v),
+    "boolean": lambda v: str.lower(v) == "true",
+}

@@ -5,8 +5,8 @@ from unittest import mock
 
 import pytest
 
-from app import threadctx
 from app.logging import get_logger
+from app.logging import threadctx
 from app.models import ProviderType
 from host_delete_duplicates import _init_db as _init_db
 from host_delete_duplicates import main as host_delete_duplicates_main

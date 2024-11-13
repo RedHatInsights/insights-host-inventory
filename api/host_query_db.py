@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from collections.abc import Iterator
 from itertools import islice
+from typing import Any
 
 from sqlalchemy import Boolean
 from sqlalchemy import String
@@ -19,7 +20,6 @@ from api.filtering.db_filters import query_filters
 from api.filtering.db_filters import rbac_permissions_filter
 from api.host_query import staleness_timestamps
 from api.staleness_query import get_staleness_obj
-from app import db
 from app.auth import get_current_identity
 from app.exceptions import InventoryException
 from app.instrumentation import log_get_host_list_succeeded
@@ -27,6 +27,7 @@ from app.logging import get_logger
 from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
+from app.models import db
 from app.serialization import serialize_host_for_export_svc
 from lib.host_repository import ALL_STALENESS_STATES
 from lib.host_repository import update_query_for_owner_id
@@ -75,13 +76,13 @@ def _get_host_list_using_filters(
     per_page: int,
     param_order_by: str,
     param_order_how: str,
-    fields: list[str],
+    fields: dict,
 ) -> tuple[list[Host], int, tuple[str], list[str]]:
     columns = DEFAULT_COLUMNS
     system_profile_fields = ["host_type"]
     if fields and fields.get("system_profile"):
-        additional_fields = ("system_profile",)
-        system_profile_fields += list(fields.get("system_profile").keys())
+        additional_fields: tuple = ("system_profile",)
+        system_profile_fields += list(fields.get("system_profile", {}).keys())
         columns = list(DEFAULT_COLUMNS)
         columns.append(Host.system_profile_facts)
     else:
@@ -108,7 +109,7 @@ def get_host_list(
     provider_type: str,
     updated_start: str,
     updated_end: str,
-    group_name: str,
+    group_name: list[str],
     tags: list[str],
     page: int,
     per_page: int,
@@ -117,7 +118,7 @@ def get_host_list(
     staleness: list[str],
     registered_with: list[str],
     filter: dict,
-    fields: list[str],
+    fields: dict,
     rbac_filter: dict,
 ) -> tuple[list[Host], int, tuple[str], list[str]]:
     all_filters, query_base = query_filters(
@@ -163,7 +164,7 @@ def get_host_list_by_id_list(
     return items, total, additional_fields, system_profile_fields
 
 
-def get_host_id_by_insights_id(insights_id: str, rbac_filter=None) -> str:
+def get_host_id_by_insights_id(insights_id: str, rbac_filter=None) -> str | None:
     identity = get_current_identity()
     all_filters = canonical_fact_filter("insights_id", insights_id) + rbac_permissions_filter(rbac_filter)
     query = _find_hosts_entities_query(columns=[Host.id], identity=identity).filter(*all_filters)
@@ -179,9 +180,9 @@ def get_host_id_by_insights_id(insights_id: str, rbac_filter=None) -> str:
     return str(found_id) if found_id else None
 
 
-def params_to_order_by(order_by: str = None, order_how: str = None) -> tuple:
+def params_to_order_by(order_by: str | None = None, order_how: str | None = None) -> tuple:
     modified_on_ordering = (Host.modified_on.desc(),)
-    ordering = ()
+    ordering: tuple = tuple()
 
     if order_by == "updated":
         if order_how:
@@ -195,7 +196,7 @@ def params_to_order_by(order_by: str = None, order_how: str = None) -> tuple:
         # When sorting by group_name ASC, ungrouped hosts should show first
         ordering = (base_ordering.nulls_last(),) if order_how == "DESC" else (base_ordering.nulls_first(),)
     elif order_by == "operating_system":
-        ordering = (_order_how(Host.operating_system, order_how),) if order_how else (Host.operating_system.desc(),)
+        ordering = (_order_how(Host.operating_system, order_how),) if order_how else (Host.operating_system.desc(),)  # type: ignore [attr-defined]
     elif order_by:
         raise ValueError(
             'Unsupported ordering column: use "updated", "display_name", "group_name", or "operating_system".'
@@ -218,7 +219,9 @@ def _order_how(column, order_how: str):
         raise ValueError('Unsupported ordering direction, use "ASC" or "DESC".')
 
 
-def _find_hosts_entities_query(query_base=None, columns: list[ColumnElement] = None, identity: object = None) -> Query:
+def _find_hosts_entities_query(
+    query_base=None, columns: list[ColumnElement] | None = None, identity: Any = None
+) -> Query:
     if query_base is None:
         query_base = db.session.query(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
 
@@ -231,7 +234,7 @@ def _find_hosts_entities_query(query_base=None, columns: list[ColumnElement] = N
     return update_query_for_owner_id(identity, query)
 
 
-def _find_hosts_model_query(columns: list[ColumnElement] = None, identity: object = None) -> Query:
+def _find_hosts_model_query(columns: list[ColumnElement] | None = None, identity: Any = None) -> Query:
     query_base = db.session.query(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
     query = query_base.filter(Host.org_id == identity.org_id)
 
@@ -261,7 +264,7 @@ def get_host_tags_list_by_id_list(
     return host_tags_dict, len(host_id_list)
 
 
-def _add_tag_values(host_namespace, tag_key, tag_value, host_id, host_tags, host_tags_tracker) -> tuple[dict, dict]:
+def _add_tag_values(host_namespace, tag_key, tag_value, host_id, host_tags, host_tags_tracker) -> tuple[list, dict]:
     converted_value = _convert_null_string(tag_value) if tag_value else ""
     host_tag_str = f"{_convert_null_string(host_namespace)}/{_convert_null_string(tag_key)}={converted_value}"
     host_tag_obj = {
@@ -278,10 +281,10 @@ def _add_tag_values(host_namespace, tag_key, tag_value, host_id, host_tags, host
 
 
 def _expand_host_tags(hosts: list[Host]) -> tuple[dict, dict]:
-    host_tags_tracker = {}
-    host_tags_dict = {}
+    host_tags_tracker: dict[str, dict[str, dict[str, str] | list[str]]] = {}
+    host_tags_dict: dict[str, list[dict[str, str]]] = {}
     for host in hosts:
-        host_tags = []
+        host_tags: list[dict[str, str]] = []
         host_namespace_tags_dict = host.tags
         for host_namespace, host_namespace_tags in host_namespace_tags_dict.items():
             for tag_key, tag_values in host_namespace_tags.items():
@@ -298,7 +301,7 @@ def _expand_host_tags(hosts: list[Host]) -> tuple[dict, dict]:
     return host_tags_dict, host_tags_tracker
 
 
-def _convert_null_string(input: str):
+def _convert_null_string(input: str | list):
     if input == "null" or input == []:
         return None
     return input
@@ -313,7 +316,7 @@ def get_tag_list(
     provider_type: str,
     updated_start: str,
     updated_end: str,
-    group_name: str,
+    group_name: list[str],
     tags: list[str],
     limit: int,
     offset: int,
@@ -324,7 +327,7 @@ def get_tag_list(
     registered_with: list[str],
     filter: dict,
     rbac_filter: dict,
-) -> tuple[dict, int]:
+) -> tuple[list, int]:
     if order_by not in ["tag", "count"]:
         raise ValueError('Unsupported ordering column: use "tag" or "count".')
     elif order_how and order_by not in ["tag", "count"]:
@@ -388,9 +391,9 @@ def get_tag_list(
 def get_os_info(
     limit: int,
     offset: int,
-    staleness: list[str],
+    staleness: list[str] | None,
     tags: list[str],
-    registered_with: list[str],
+    registered_with: list[str] | None,
     filter: dict,
     rbac_filter: dict,
 ):
@@ -426,7 +429,7 @@ def get_os_info(
         os_count_item = {"value": {"name": os[0], "major": int(os[1]), "minor": int(os[2])}, "count": count}
         os_count_list.append(os_count_item)
 
-    os_count_list = sorted(os_count_list, reverse=True, key=lambda item: item["count"])
+    os_count_list = sorted(os_count_list, reverse=True, key=lambda item: item["count"])  # type: ignore [arg-type, return-value]
     query_count = len(os_count_list)
     os_list = list(islice(islice(os_count_list, offset, None), limit))
     return os_list, query_count
@@ -518,9 +521,9 @@ def get_sparse_system_profile(
     per_page: int,
     param_order_by: str,
     param_order_how: str,
-    fields: list[str],
+    fields: dict[str, list[str]],
     rbac_filter: dict,
-) -> tuple[list[Host], int]:
+) -> tuple[int, list[dict[str, str | dict]]]:
     if fields and fields.get("system_profile"):
         columns = [
             Host.id,
@@ -528,7 +531,7 @@ def get_sparse_system_profile(
                 func.jsonb_build_object(
                     *[
                         kv
-                        for key in fields.get("system_profile")
+                        for key in fields["system_profile"]
                         for kv in (key, Host.system_profile_facts[key].label(key))
                     ]
                 ).label("system_profile_facts")
@@ -559,7 +562,7 @@ def get_host_ids_list(
     provider_type: str,
     updated_start: str,
     updated_end: str,
-    group_name: str,
+    group_name: list[str],
     registered_with: list[str],
     staleness: list[str],
     tags: list[str],
