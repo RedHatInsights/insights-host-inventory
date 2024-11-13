@@ -64,7 +64,7 @@ RUN microdnf remove -y $( comm -13 packages-before-devel-install.txt packages-af
     microdnf clean all
 
 # create a symlink to the library missing from postgresql:16.  This may not be needed in future.
-RUN ln -s /usr/lib64/libpq.so.private16-5.16 /usr/lib64/libpq.so.5
+# RUN ln -s /usr/lib64/libpq.so.private16-5.16 /usr/lib64/libpq.so.5
 
 USER 1001
 
