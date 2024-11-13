@@ -2,8 +2,8 @@
 from flask_migrate import Migrate
 
 from app import create_app
-from app import db
 from app.environment import RuntimeEnvironment
+from app.models import db
 
 application = create_app(RuntimeEnvironment.COMMAND)
 app = application.app

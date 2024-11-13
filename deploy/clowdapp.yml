@@ -31,7 +31,7 @@ objects:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        image: quay.io/cloudservices/ubi8-nginx-124:1-30
+        image: quay.io/cloudservices/ubi8-nginx-124:1-35
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -1195,7 +1195,7 @@ objects:
             "system_profile_facts"->'mssql' AS "mssql_workload",
             "system_profile_facts"->'sap' AS "sap_workload",
             "system_profile_facts"->'rhc_client_id' AS "rhc_client_id"
-          FROM "hosts"
+          FROM "hbi.hosts"
 - apiVersion: metrics.console.redhat.com/v1alpha1
   kind: FloorPlan
   metadata:
@@ -1216,7 +1216,7 @@ objects:
             "org_id" AS "org_id",
             "created_on" AS "created_at",
             "modified_on" AS "updated_at"
-          FROM "hosts"
+          FROM "hbi.hosts"
       - prefix: hms_analytics/inventory/groups_success_metrics
         query: >-
           SELECT
@@ -1225,7 +1225,7 @@ objects:
             "org_id" AS "org_id",
             "created_on" AS "created_at",
             "modified_on" AS "updated_at"
-          FROM "groups"
+          FROM "hbi.groups"
 
 - apiVersion: v1
   data:
@@ -1550,7 +1550,7 @@ parameters:
 - name: INVENTORY_API_READS_READINESS_PROBE_TIMEOUT_SECONDS
   value: '60'
 - name: INVENTORY_DB_SCHEMA
-  value: 'public'
+  value: 'hbi'
 
 # NGINX
 - displayName: Minimum replicas

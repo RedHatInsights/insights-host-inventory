@@ -10,16 +10,13 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
+from app.culling import days_to_seconds
+
 # revision identifiers, used by Alembic.
 revision = "f8c3af70df12"
 down_revision = "fc4921790a66"
 branch_labels = None
 depends_on = None
-
-
-def days_to_seconds(n_days):
-    factor = 86400
-    return n_days * factor
 
 
 def upgrade():

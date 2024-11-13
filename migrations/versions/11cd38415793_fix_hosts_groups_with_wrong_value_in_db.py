@@ -47,7 +47,7 @@ depends_on = None
 Base = declarative_base()
 
 
-class Host(Base):
+class Host(Base):  # type: ignore [valid-type, misc]
     __tablename__ = "hosts"
     id = Column(UUID, primary_key=True)
     groups = Column(JSONB(none_as_null=True))
