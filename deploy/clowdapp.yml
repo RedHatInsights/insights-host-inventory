@@ -1201,7 +1201,7 @@ objects:
       - topicName: ${KAFKA_HOST_INGRESS_TOPIC}
         partitions:  ${NUMBER_OF_KAFKA_HOST_INGRESS_TOPIC_PARTITIONS}
       - topicName: ${KAFKA_HOST_INGRESS_P1_TOPIC}
-        partitions: $NUMBER_OF_{KAFKA_HOST_INGRESS_P1_TOPIC_PARTITIONS}
+        partitions: ${NUMBER_OF_KAFKA_HOST_INGRESS_P1_TOPIC_PARTITIONS}
       - topicName: ${KAFKA_EXPORT_SERVICE_TOPIC}
         partitions: ${NUMBER_OF_KAFKA_EXPORT_SERVICE_TOPIC_PARTITIONS}
 # this service proxies requests for the old URL (insights-inventory:8080) to the clowderized service (host-inventory-service:8000)
@@ -1504,16 +1504,19 @@ parameters:
   description: The topic containing Host data sent by reporters
   value: platform.inventory.host-ingress
 - name: NUMBER_OF_KAFKA_HOST_INGRESS_TOPIC_PARTITIONS
+  description: Number of partitions for the Kafka host ingress topic
   value: 1
 - name: KAFKA_HOST_INGRESS_P1_TOPIC
   description: The TOP-PRIORITY topic containing Host data sent by reporters
   value: platform.inventory.host-ingress-p1
 - name: NUMBER_OF_KAFKA_HOST_INGRESS_P1_TOPIC_PARTITIONS
+  description: Number of partitions for the Kafka host ingress P1 topic
   value: 1
 - name: KAFKA_EVENT_TOPIC
   description: The topic for Host data that were processed by Inventory
   value: platform.inventory.events
 - name: NUMBER_OF_KAFKA_EVENT_TOPIC_PARTITIONS
+  description: Number of partitions for the Kafka event topic
   value: 1
 - name: KAFKA_NOTIFICATION_TOPIC
   description: The topic containing messages to be sent as notifications
