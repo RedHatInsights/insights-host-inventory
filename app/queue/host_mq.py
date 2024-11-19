@@ -28,7 +28,6 @@ from app.instrumentation import log_add_host_attempt
 from app.instrumentation import log_add_host_failure
 from app.instrumentation import log_add_update_host_succeeded
 from app.instrumentation import log_db_access_failure
-from app.instrumentation import log_message_consumed
 from app.instrumentation import log_update_system_profile_failure
 from app.instrumentation import log_update_system_profile_success
 from app.logging import get_logger
@@ -436,12 +435,6 @@ def event_loop(consumer, flask_app, event_producer, notification_event_producer,
                         metrics.ingress_message_handler_failure.inc()
                     else:
                         logger.debug("Message received")
-                        try:
-                            request_id = json.loads(msg.value())["platform_metadata"]["request_id"]
-                            initialize_thread_local_storage(request_id)
-                            log_message_consumed(logger, msg, request_id)
-                        except KeyError as ke:
-                            logger.debug("Error retrieving request_id for log", exc_info=ke)
 
                         try:
                             processed_rows.append(
