@@ -1536,7 +1536,7 @@ parameters:
   description: The topic for payload tracker
   value: platform.payload-status
 - name: NUMBER_OF_PAYLOAD_TRACKER_KAFKA_TOPIC_PARTITIONS
-  description: The number of partitions for payload trcer topcs.
+  description: The number of partitions for payload tracker topics.
   value: 1
 - name: KAFKA_EXPORT_SERVICE_TOPIC
   description: The topic used to consume Export Service data
