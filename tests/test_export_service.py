@@ -1,6 +1,6 @@
 import io
 import json
-import time
+from datetime import datetime
 from datetime import timedelta
 from unittest import mock
 
@@ -184,13 +184,11 @@ def test_do_not_export_culled_hosts(flask_app, db_create_host, db_create_stalene
             "immutable_time_to_delete": 1,
         }
 
-        db_create_staleness_culling(**CUSTOM_STALENESS_DELETE_CONVENTIONAL_IMMUTABLE)
-        db_create_host()
+        with mock.patch("app.models.datetime") as mock_datetime:
+            mock_datetime.now.return_value = datetime.now() - timedelta(minutes=1)
+            db_create_staleness_culling(**CUSTOM_STALENESS_DELETE_CONVENTIONAL_IMMUTABLE)
+            db_create_host()
 
-        # This is not ideal, but there no other way that I
-        # found to not use time.sleep
-
-        time.sleep(1)
         identity = Identity(USER_IDENTITY)
         host_list = get_host_list(
             identity=identity, exportFormat="json", rbac_filter=None, inventory_config=inventory_config
