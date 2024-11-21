@@ -124,7 +124,7 @@ want to destroy that data do the following:
 ```bash
 docker compose -f dev.yml down
 ```
-
+After running this command, delete the data directory specified in the [create host data directory](#create-database-data-directory) section to ensure the existing data removal.
 ### Create hosts data in the Database
 
 First, start the `mq` service by running the following command in a new terminal:
