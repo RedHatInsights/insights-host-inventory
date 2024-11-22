@@ -231,7 +231,15 @@ class AuthIdentityValidateTestCase(TestCase):
 
     def test_invalid_service_account_obj(self):
         test_identity = deepcopy(SERVICE_ACCOUNT_IDENTITY)
-        service_account_objects = [None, ""]
+        service_account_objects = [
+            None,
+            "",
+            {
+                "client_id": SERVICE_ACCOUNT_IDENTITY["service_account"]["client_id"],
+                "username": "",
+            },
+            {"client_id": "", "username": SERVICE_ACCOUNT_IDENTITY["service_account"]["username"]},
+        ]
         for service_account_object in service_account_objects:
             with self.subTest(service_account_object=service_account_object):
                 test_identity["service_account"] = service_account_object
