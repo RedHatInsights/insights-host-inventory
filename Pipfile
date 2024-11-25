@@ -4,7 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-flask = "==3.0.3"
+flask = "==3.1.0"
 jsonify = "==0.5"  # Not semver
 flask-restful = "~=0.3.7"
 requests = "~=2.32.3"
