@@ -12,19 +12,19 @@ Local development also requires the `pg_config` file, which is installed with th
 #### Fedora/Centos
 
 ```bash
-sudo dnf install libpq-devel
+sudo dnf install libpq-devel postgresql
 ```
 
 #### Debian/Ubuntu
 
 ```bash
-sudo apt-get install libpq-dev
+sudo apt-get install libpq-dev postgresql
 ```
 
 #### MacOS (using Homebrew)
 
 ```bash
-brew install postgresql
+brew install postgresql@16
 ```
 
 ### Configure the environment variables
@@ -349,6 +349,18 @@ Run this command to generate a new revision in `migrations/versions`
 ```bash
 make migrate_db message="Description of revision"
 ```
+
+When creating a new migration before merging your pull request make sure you have created a migration for replicated tables. If the migration affects tables that are being replicated the migration must be performed on the replicated tables first. For details on creating and performing migrations against replicated tables read the following [document](app_migrations/README.md).
+
+
+## Capturing the current HBI schema state for replicaiton subscribers
+When migrations are being made it makes sense to capture the HBI schema state for replication subscribers to simplify their procedure for onboarding or schema recreation. Run the following command to capture the updated schema state:
+
+```bash
+make gen_hbi_schema_dump
+```
+
+This will create a SQL file in the `app_migrations` directory named `hbi_schema_<YYYY-MM-dd>.sql` by default and update a symbolic link for the file named `hbi_schema_latest.sql` as a simple mechanism for consumers to easily get the latest schema. Note you can change the suffix by setting the `SCHEMA_VERSION` variable when running the command instead of utilizing the default date mechanism.
 
 ## Building a docker container image
 
