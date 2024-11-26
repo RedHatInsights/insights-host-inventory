@@ -3,6 +3,10 @@
 IDENTITY_HEADER="eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiYWNjb3VudDEyMyIsICJvcmdfaWQiOiAiNTg5NDMwMCIsICJ0eXBlIjogIlVzZXIiLCAiYXV0aF90eXBlIjogImJhc2ljLWF1dGgiLCAidXNlciI6IHsiaXNfb3JnX2FkbWluIjogdHJ1ZSwgInVzZXJuYW1lIjogImZyZWQifSwgImludGVybmFsIjogeyJvcmdfaWQiOiAib3JnMTIzIn19fQ=="
 NUM_HOSTS=1
 
+mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
+current_dir := $(dir $(mkfile_path))
+SCHEMA_VERSION ?= $(shell date '+%Y-%m-%d')
+
 init:
 	pipenv shell
 
@@ -14,6 +18,14 @@ migrate_db:
 
 upgrade_db:
 	SQLALCHEMY_ENGINE_LOG_LEVEL=INFO FLASK_APP=manage.py flask db upgrade
+
+gen_offline_sql:
+	SQLALCHEMY_ENGINE_LOG_LEVEL=INFO FLASK_APP=manage.py flask db upgrade "${down_rev}:${up_rev}" --sql > "${current_dir}app_migrations/${up_rev}.sql"
+
+gen_hbi_schema_dump:
+	PGPASSWORD=insights pg_dump -d insights -h localhost -p 5432 -n hbi -U insights --schema-only -f "${current_dir}app_migrations/hbi_schema_${SCHEMA_VERSION}.sql"
+	rm "./app_migrations/hbi_schema_latest.sql"
+	ln -s "${current_dir}app_migrations/hbi_schema_${SCHEMA_VERSION}.sql" "./app_migrations/hbi_schema_latest.sql"
 
 run_inv_web_service:
 	# Set the "KAFKA_TOPIC", "KAFKA_GROUP", "KAFKA_BOOTSTRAP_SERVERS" environment variables

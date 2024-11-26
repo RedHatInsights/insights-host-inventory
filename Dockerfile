@@ -1,21 +1,15 @@
 FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
 
+ARG pgRepo="https://copr.fedorainfracloud.org/coprs/g/insights/postgresql-16/repo/epel-8/group_insights-postgresql-16-epel-8.repo"
 ARG TEST_IMAGE=false
 
 USER root
 
-# install postgresql from centos if not building on RHSM system
-RUN FULL_RHEL=$(microdnf repolist --enabled | grep rhel-8) ; \
-    if [ -z "$FULL_RHEL" ] ; then \
-        rpm -Uvh http://mirror.centos.org/centos/8-stream/BaseOS/x86_64/os/Packages/centos-stream-repos-8-4.el8.noarch.rpm \
-                 http://mirror.centos.org/centos/8-stream/BaseOS/x86_64/os/Packages/centos-gpg-keys-8-4.el8.noarch.rpm && \
-        sed -i 's/^\(enabled.*\)/\1\npriority=200/;' /etc/yum.repos.d/CentOS*.repo ; \
-    fi
-
 ENV APP_ROOT=/opt/app-root/src
 WORKDIR $APP_ROOT
 
-RUN microdnf module enable postgresql:13 python39:3.9 && \
+RUN (microdnf module enable -y postgresql:16 || curl -o /etc/yum.repos.d/postgresql.repo $pgRepo) && \
+    microdnf module enable python39:3.9 && \
     microdnf upgrade -y && \
     microdnf install --setopt=tsflags=nodocs -y postgresql python39 rsync tar procps-ng make && \
     rpm -qa | sort > packages-before-devel-install.txt && \
@@ -46,6 +40,8 @@ COPY run_gunicorn.py run_gunicorn.py
 COPY run_command.sh run_command.sh
 COPY run.py run.py
 COPY system_profile_validator.py system_profile_validator.py
+COPY inv_migration_runner.py inv_migration_runner.py
+COPY app_migrations/ app_migrations/
 
 ENV PIP_NO_CACHE_DIR=1
 ENV PIPENV_CLEAR=1
@@ -68,6 +64,9 @@ RUN if [ "$TEST_IMAGE" = "true" ]; then \
 RUN microdnf remove -y $( comm -13 packages-before-devel-install.txt packages-after-devel-install.txt ) python39-setuptools && \
     rm packages-before-devel-install.txt packages-after-devel-install.txt && \
     microdnf clean all
+
+# create a symlink to the library missing from postgresql:16.  This may not be needed in future.
+RUN ln -s /usr/lib64/libpq.so.private16-5.16 /usr/lib64/libpq.so.5
 
 USER 1001
 

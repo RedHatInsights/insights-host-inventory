@@ -1,5 +1,7 @@
-import time
+from datetime import datetime
+from datetime import timedelta
 from unittest import mock
+from unittest.mock import patch
 
 from app.logging import threadctx
 from app.models import db
@@ -53,12 +55,14 @@ def test_delete_only_immutable_hosts(
 ):
     db_create_staleness_culling(**CUSTOM_STALENESS_DELETE_ONLY_IMMUTABLE)
 
-    immutable_hosts = db_create_multiple_hosts(how_many=2, extra_data={"system_profile_facts": {"host_type": "edge"}})
-    immutable_hosts = [host.id for host in immutable_hosts]
-    conventional_hosts = db_create_multiple_hosts(how_many=2)
-    conventional_hosts = [host.id for host in conventional_hosts]
-
-    time.sleep(1)
+    with patch("app.models.datetime") as mock_datetime:
+        mock_datetime.now.return_value = datetime.now() - timedelta(minutes=1)
+        immutable_hosts = db_create_multiple_hosts(
+            how_many=2, extra_data={"system_profile_facts": {"host_type": "edge"}}
+        )
+        immutable_hosts = [host.id for host in immutable_hosts]
+        conventional_hosts = db_create_multiple_hosts(how_many=2)
+        conventional_hosts = [host.id for host in conventional_hosts]
 
     threadctx.request_id = None
     host_reaper_run(
@@ -85,12 +89,14 @@ def test_delete_only_conventional_hosts(
 ):
     db_create_staleness_culling(**CUSTOM_STALENESS_DELETE_ONLY_CONVENTIONAL)
 
-    immutable_hosts = db_create_multiple_hosts(how_many=2, extra_data={"system_profile_facts": {"host_type": "edge"}})
-    immutable_hosts = [host.id for host in immutable_hosts]
-    conventional_hosts = db_create_multiple_hosts(how_many=2)
-    conventional_hosts = [host.id for host in conventional_hosts]
-
-    time.sleep(1)
+    with patch("app.models.datetime") as mock_datetime:
+        mock_datetime.now.return_value = datetime.now() - timedelta(minutes=1)
+        immutable_hosts = db_create_multiple_hosts(
+            how_many=2, extra_data={"system_profile_facts": {"host_type": "edge"}}
+        )
+        immutable_hosts = [host.id for host in immutable_hosts]
+        conventional_hosts = db_create_multiple_hosts(how_many=2)
+        conventional_hosts = [host.id for host in conventional_hosts]
 
     threadctx.request_id = None
     host_reaper_run(
@@ -117,12 +123,14 @@ def test_delete_conventional_immutable_hosts(
 ):
     db_create_staleness_culling(**CUSTOM_STALENESS_DELETE_CONVENTIONAL_IMMUTABLE)
 
-    immutable_hosts = db_create_multiple_hosts(how_many=2, extra_data={"system_profile_facts": {"host_type": "edge"}})
-    immutable_hosts = [host.id for host in immutable_hosts]
-    conventional_hosts = db_create_multiple_hosts(how_many=2)
-    conventional_hosts = [host.id for host in conventional_hosts]
-
-    time.sleep(1)
+    with patch("app.models.datetime") as mock_datetime:
+        mock_datetime.now.return_value = datetime.now() - timedelta(minutes=1)
+        immutable_hosts = db_create_multiple_hosts(
+            how_many=2, extra_data={"system_profile_facts": {"host_type": "edge"}}
+        )
+        immutable_hosts = [host.id for host in immutable_hosts]
+        conventional_hosts = db_create_multiple_hosts(how_many=2)
+        conventional_hosts = [host.id for host in conventional_hosts]
 
     threadctx.request_id = None
     host_reaper_run(
@@ -149,12 +157,14 @@ def test_no_hosts_to_delete(
 ):
     db_create_staleness_culling(**CUSTOM_STALENESS_NO_HOSTS_TO_DELETE)
 
-    immutable_hosts = db_create_multiple_hosts(how_many=2, extra_data={"system_profile_facts": {"host_type": "edge"}})
-    immutable_hosts = [host.id for host in immutable_hosts]
-    conventional_hosts = db_create_multiple_hosts(how_many=2)
-    conventional_hosts = [host.id for host in conventional_hosts]
-
-    time.sleep(1)
+    with patch("app.models.datetime") as mock_datetime:
+        mock_datetime.now.return_value = datetime.now() - timedelta(minutes=1)
+        immutable_hosts = db_create_multiple_hosts(
+            how_many=2, extra_data={"system_profile_facts": {"host_type": "edge"}}
+        )
+        immutable_hosts = [host.id for host in immutable_hosts]
+        conventional_hosts = db_create_multiple_hosts(how_many=2)
+        conventional_hosts = [host.id for host in conventional_hosts]
 
     threadctx.request_id = None
     host_reaper_run(

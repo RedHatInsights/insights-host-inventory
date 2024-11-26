@@ -78,7 +78,11 @@ class Config:
         self.export_service_token = os.environ.get("EXPORT_SERVICE_TOKEN", "testing-a-psk")
 
         def topic(t):
-            return app_common_python.KafkaTopics[t].name if t else None
+            if t:
+                t_topic = app_common_python.KafkaTopics.get(t)
+                if t_topic:
+                    return t_topic.name
+            return None
 
         self.host_ingress_topic = topic(os.environ.get("KAFKA_HOST_INGRESS_TOPIC"))
         self.additional_validation_topic = topic(os.environ.get("KAFKA_ADDITIONAL_VALIDATION_TOPIC"))
