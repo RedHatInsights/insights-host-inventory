@@ -122,6 +122,9 @@ class Config:
             self.unleash_url = os.getenv("UNLEASH_URL")
             self.unleash_token = os.getenv("UNLEASH_TOKEN")
 
+        # System Profile fields
+        self.sp_fields_to_log = os.getenv("SP_FIELDS_TO_LOG", "")
+
     def non_clowder_config(self):
         self.is_clowder = False
         self.metrics_port = 9126
@@ -156,6 +159,9 @@ class Config:
         self._cache_host = os.environ.get("CACHE_HOST", "localhost")
         self._cache_port = os.environ.get("CACHE_PORT", "6379")
         self.export_service_token = os.environ.get("EXPORT_SERVICE_TOKEN", "testing-a-psk")
+
+        # System Profile fields
+        self.sp_fields_to_log = os.getenv("SP_FIELDS_TO_LOG", "")
 
     def __init__(self, runtime_environment):
         self.logger = get_logger(__name__)
@@ -438,3 +444,9 @@ class Config:
         if self._runtime_environment.metrics_pushgateway_enabled:
             self.logger.info("Metrics Pushgateway: %s", self.prometheus_pushgateway)
             self.logger.info("Kubernetes Namespace: %s", self.kubernetes_namespace)
+
+    def build_sys_profile_fields(self) -> list:
+        if self.sp_fields_to_log == "":
+            return []
+        else:
+            return self.sp_fields_to_log.split(",")
