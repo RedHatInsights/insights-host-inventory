@@ -1529,7 +1529,7 @@ parameters:
 - name: KAFKA_SYSTEM_PROFILE_TOPIC
   description: The topic containing Host data for System Profile updates
   value: platform.inventory.system-profile
-- name: NUMBER_OF_SYSTEM_PROFILE_TOPIC_PARTITIONS
+- name: NUMBER_OF_KAFKA_SYSTEM_PROFILE_TOPIC_PARTITIONS
   description: Number of partitions for the topic containing Host data for System Profile updates
   value: 1
 - name: PAYLOAD_TRACKER_KAFKA_TOPIC
