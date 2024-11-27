@@ -55,6 +55,7 @@ from lib import host_repository
 from lib.db import session_guard
 from lib.feature_flags import FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM
 from lib.feature_flags import get_flag_value
+from utils.system_profile_log import extract_sp_to_log
 
 logger = get_logger(__name__)
 
@@ -220,12 +221,14 @@ def update_system_profile(host_data, platform_metadata, notification_event_produ
     if operation_args is None:
         operation_args = {}
 
+    sys_profile_fields_log = extract_sp_to_log(host_data)
+
     try:
         input_host = deserialize_host(host_data, schema=LimitedHostSchema)
         input_host.id = host_data.get("id")
         identity = create_mock_identity_with_org_id(input_host.org_id)
         output_host, update_result = host_repository.update_system_profile(input_host, identity)
-        success_logger = partial(log_update_system_profile_success, logger)
+        success_logger = partial(log_update_system_profile_success, logger, sys_profile_fields_log)
         return output_host, update_result, identity, success_logger
     except ValidationException:
         metrics.update_system_profile_failure.labels("ValidationException").inc()
@@ -245,6 +248,8 @@ def update_system_profile(host_data, platform_metadata, notification_event_produ
 def add_host(host_data, platform_metadata, notification_event_producer, operation_args=None):
     if operation_args is None:
         operation_args = {}
+
+    sys_profile_fields_log = extract_sp_to_log(host_data)
     try:
         identity = _get_identity(host_data, platform_metadata)
         # basic-auth does not need owner_id
@@ -252,9 +257,9 @@ def add_host(host_data, platform_metadata, notification_event_producer, operatio
             host_data = _set_owner(host_data, identity)
 
         input_host = deserialize_host(host_data)
-        log_add_host_attempt(logger, input_host)
+        log_add_host_attempt(logger, input_host, sys_profile_fields_log)
         host_row, add_result = host_repository.add_host(input_host, identity, operation_args=operation_args)
-        success_logger = partial(log_add_update_host_succeeded, logger, add_result)
+        success_logger = partial(log_add_update_host_succeeded, logger, add_result, sys_profile_fields_log)
 
         return host_row, add_result, identity, success_logger
     except ValidationException:

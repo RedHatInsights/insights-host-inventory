@@ -216,9 +216,10 @@ def log_get_sparse_system_profile_succeeded(logger, data):
 
 
 # add host
-def log_add_host_attempt(logger, input_host):
+def log_add_host_attempt(logger, input_host, system_profile_fields):
     logger.info(
-        "Attempting to add host",
+        "Attempting to add host\nSystem Profile: %s",
+        system_profile_fields,
         extra={
             "input_host": {
                 "account": input_host.account,
@@ -234,12 +235,13 @@ def log_add_host_attempt(logger, input_host):
     )
 
 
-def log_add_update_host_succeeded(logger, add_result, output_host):
+def log_add_update_host_succeeded(logger, add_result, system_profile_fields, output_host):
     metrics.add_host_success.labels(add_result.name, output_host.get("reporter", "null")).inc()  # created vs updated
     # log all the incoming host data except facts and system_profile b/c they can be quite large
     logger.info(
-        "Host %s",
+        "Host %s\nSystem Profile: %s",
         add_result.name,
+        system_profile_fields,
         extra={
             "host": {i: output_host[i] for i in output_host if i not in ("facts", "system_profile")},
             "access_rule": get_control_rule(),
@@ -253,9 +255,13 @@ def log_add_host_failure(logger, message, host_data):
 
 
 # update system profile
-def log_update_system_profile_success(logger, host_data):
+def log_update_system_profile_success(logger, host_data, system_profile_fields):
     metrics.update_system_profile_success.inc()
-    logger.info("System profile updated for host ID: %s", host_data.get("id"))
+    logger.info(
+        "System profile updated for host ID: %s\nSytem Profile: %s",
+        host_data.get("id"),
+        system_profile_fields,
+    )
 
 
 def log_update_system_profile_failure(logger, host_data):
