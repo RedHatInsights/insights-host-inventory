@@ -18,6 +18,7 @@ from lib.db import session_guard
 from lib.host_kafka import kafka_available
 from lib.metrics import delete_host_count
 from lib.metrics import delete_host_processing_time
+from utils.system_profile_log import extract_host_model_sp_to_log
 
 __all__ = ("delete_hosts",)
 logger = get_logger(__name__)
@@ -72,6 +73,7 @@ def delete_hosts(
 
 
 def _delete_host(session, host, identity, control_rule) -> OperationResult:
+    sp_fields_to_log = extract_host_model_sp_to_log(host)
     assoc_delete_query = session.query(HostGroupAssoc).filter(HostGroupAssoc.host_id == host.id)
     host_delete_query = session.query(Host).filter(Host.id == host.id)
     assoc_delete_query.delete(synchronize_session="fetch")
@@ -82,7 +84,7 @@ def _delete_host(session, host, identity, control_rule) -> OperationResult:
         None,
         None,
         EventType.delete,
-        partial(log_host_delete_succeeded, logger, host.id, control_rule),
+        partial(log_host_delete_succeeded, logger, host.id, control_rule, sp_fields_to_log),
     )
 
 
