@@ -40,6 +40,8 @@ COPY run_gunicorn.py run_gunicorn.py
 COPY run_command.sh run_command.sh
 COPY run.py run.py
 COPY system_profile_validator.py system_profile_validator.py
+COPY inv_migration_runner.py inv_migration_runner.py
+COPY app_migrations/ app_migrations/
 
 ENV PIP_NO_CACHE_DIR=1
 ENV PIPENV_CLEAR=1

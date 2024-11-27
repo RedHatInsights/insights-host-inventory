@@ -234,12 +234,6 @@ def log_add_host_attempt(logger, input_host):
     )
 
 
-def log_message_consumed(logger, message, request_id):
-    partition = message.partition()
-    offset = message.offset()
-    logger.info(f"Host message consumed, partition={partition}, offset={offset}, request_id={request_id}")
-
-
 def log_add_update_host_succeeded(logger, add_result, output_host):
     metrics.add_host_success.labels(add_result.name, output_host.get("reporter", "null")).inc()  # created vs updated
     # log all the incoming host data except facts and system_profile b/c they can be quite large
