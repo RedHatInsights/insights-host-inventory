@@ -1,3 +1,4 @@
+import logging
 from unittest import mock
 from unittest.mock import patch
 
@@ -585,6 +586,32 @@ def test_postgres_delete_filtered_hosts_nomatch(
         response_status, response_data = api_get(build_hosts_url(not_deleted_host_id))
         assert_response_status(response_status, expected_status=200)
         assert response_data["results"][0]["id"] == not_deleted_host_id
+
+
+def test_log_create_delete(
+    event_datetime_mock,
+    event_producer_mock,
+    notification_event_producer_mock,
+    db_create_host,
+    db_get_host,
+    api_delete_host,
+    caplog,
+):
+    caplog.at_level(logging.INFO)
+    host = db_create_host()
+
+    response_status, _ = api_delete_host(host.id)
+
+    assert_response_status(response_status, expected_status=200)
+
+    assert_delete_event_is_valid(event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock)
+    assert_delete_notification_is_valid(
+        notification_event_producer=notification_event_producer_mock,
+        host=host,
+    )
+
+    assert not db_get_host(host.id)
+    assert caplog.records[0].system_profile == "{}"
 
 
 class DeleteHostsMock:
