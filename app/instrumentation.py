@@ -85,8 +85,10 @@ def get_control_rule():
 
 
 # delete host
-def log_host_delete_succeeded(logger, host_id, control_rule):
-    logger.info("Deleted host: %s", host_id, extra={"access_rule": control_rule})
+def log_host_delete_succeeded(logger, host_id, control_rule, system_profile_fields):
+    logger.info(
+        "Deleted host: %s\nSystem Profile: %s", host_id, system_profile_fields, extra={"access_rule": control_rule}
+    )
 
 
 def log_host_delete_failed(logger, host_id, control_rule):
