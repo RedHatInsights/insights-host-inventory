@@ -20,7 +20,7 @@ SET row_security = off;
 -- Name: hbi; Type: SCHEMA; Schema: -; Owner: insights
 --
 
-CREATE SCHEMA hbi;
+CREATE SCHEMA IF NOT EXISTS hbi;
 
 
 ALTER SCHEMA hbi OWNER TO insights;
