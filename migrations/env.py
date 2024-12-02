@@ -1,7 +1,11 @@
 from alembic import context
 from flask import current_app
 from sqlalchemy import engine_from_config
+from sqlalchemy import inspect
 from sqlalchemy import pool
+from sqlalchemy.schema import CreateSchema
+from sqlalchemy_utils import create_database
+from sqlalchemy_utils import database_exists
 
 from app.logging import get_logger
 
@@ -26,6 +30,8 @@ target_metadata = current_app.extensions["migrate"].db.metadata
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
 
+schema_name = "hbi"
+
 
 def run_migrations_offline():
     """Run migrations in 'offline' mode.
@@ -40,7 +46,7 @@ def run_migrations_offline():
 
     """
     url = config.get_main_option("sqlalchemy.url")
-    context.configure(url=url)
+    context.configure(url=url, version_table_schema=schema_name)
 
     with context.begin_transaction():
         context.run_migrations()
@@ -54,28 +60,25 @@ def run_migrations_online():
 
     """
 
-    # this callback is used to prevent an auto-migration from being generated
-    # when there are no changes to the schema
-    # reference: http://alembic.zzzcomputing.com/en/latest/cookbook.html
-
-    def process_revision_directives(context, revision, directives):
-        if getattr(config.cmd_opts, "autogenerate", False):
-            script = directives[0]
-            if script.upgrade_ops.is_empty():
-                directives[:] = []
-                logger.info("No changes in schema detected.")
-
     engine = engine_from_config(
         config.get_section(config.config_ini_section), prefix="sqlalchemy.", poolclass=pool.NullPool
     )
-
     connection = engine.connect()
+    create_database_with_schema_if_not_exists(engine, connection, schema_name)
+
+    # Get current revision
     context.configure(
         connection=connection,
         target_metadata=target_metadata,
         process_revision_directives=process_revision_directives,
         **current_app.extensions["migrate"].configure_args,
+        version_table_schema=schema_name,
     )
+    curr_revision = context.get_context().get_current_revision()
+
+    # If there is no current revision, we need to migrate the version_table
+    if curr_revision is None:
+        migrate_alembic_version_table(connection)
 
     try:
         with context.begin_transaction():
@@ -86,6 +89,51 @@ def run_migrations_online():
         # Release the lock
         context.execute("select pg_advisory_unlock(1);")
         connection.close()
+
+
+# this callback is used to prevent an auto-migration from being generated
+# when there are no changes to the schema
+# reference: http://alembic.zzzcomputing.com/en/latest/cookbook.html
+def process_revision_directives(context, revision, directives):
+    if getattr(config.cmd_opts, "autogenerate", False):
+        script = directives[0]
+        if script.upgrade_ops.is_empty():
+            directives[:] = []
+            logger.info("No changes in schema detected.")
+
+
+def create_database_with_schema_if_not_exists(engine, conn, schema):
+    if not database_exists(engine.url):
+        create_database(engine.url)
+
+    inspection = inspect(engine)
+    if not inspection.has_schema(schema):
+        conn.execute(CreateSchema(schema))
+
+
+def migrate_alembic_version_table(connection):
+    # Temporarily switch to public schema to get the current revision
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        process_revision_directives=process_revision_directives,
+        **current_app.extensions["migrate"].configure_args,
+        version_table_schema="public",
+    )
+    current_revision = context.get_context().get_current_revision()
+
+    # Configure for the new schema
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        process_revision_directives=process_revision_directives,
+        **current_app.extensions["migrate"].configure_args,
+        version_table_schema=schema_name,
+    )
+
+    # Stamp revision (if available) so that we don't run the migrations from scratch
+    if current_revision is not None:
+        context.get_context().stamp(context.script, current_revision)
 
 
 if context.is_offline_mode():
