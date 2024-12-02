@@ -1447,25 +1447,25 @@ parameters:
   value: platform.inventory.host-ingress
 - name: NUMBER_OF_KAFKA_HOST_INGRESS_TOPIC_PARTITIONS
   description: Number of partitions for the Kafka host ingress topic
-  value: '1'
+  value: 1
 - name: KAFKA_HOST_INGRESS_P1_TOPIC
   description: The TOP-PRIORITY topic containing Host data sent by reporters
   value: platform.inventory.host-ingress-p1
 - name: NUMBER_OF_KAFKA_HOST_INGRESS_P1_TOPIC_PARTITIONS
   description: Number of partitions for the Kafka host ingress P1 topic
-  value: '1'
+  value: 1
 - name: KAFKA_EVENT_TOPIC
   description: The topic for Host data that were processed by Inventory
   value: platform.inventory.events
 - name: NUMBER_OF_KAFKA_EVENT_TOPIC_PARTITIONS
   description: Number of partitions for the Kafka event topic
-  value: '1'
+  value: 1
 - name: KAFKA_NOTIFICATION_TOPIC
   description: The topic containing messages to be sent as notifications
   value: platform.notifications.ingress
 - name: NUMBER_OF_KAFKA_NOTIFICATION_TOPIC_PARTITIONS
   description: Number of partitions for the Kafka notification topic
-  value: '1'
+  value: 1
 - name: KAFKA_ADDITIONAL_VALIDATION_TOPIC
   description: Used by system_profile_validator
   value: platform.inventory.host-ingress-p1
@@ -1474,19 +1474,19 @@ parameters:
   value: platform.inventory.system-profile
 - name: NUMBER_OF_KAFKA_SYSTEM_PROFILE_TOPIC_PARTITIONS
   description: Number of partitions for the Kafka system-profile topic
-  value: '1'
+  value: 1
 - name: PAYLOAD_TRACKER_KAFKA_TOPIC
   description: The topic for payload tracker
   value: platform.payload-status
 - name: NUMBER_OF_PAYLOAD_TRACKER_KAFKA_TOPIC_PARTITIONS
   description: Number of partitions for the payload tracker topics.
-  value: '1'
+  value: 1
 - name: KAFKA_EXPORT_SERVICE_TOPIC
   description: The topic used to consume Export Service data
   value: platform.export.requests
 - name: NUMBER_OF_KAFKA_EXPORT_SERVICE_TOPIC_PARTITIONS
   description: Number of partitions for the export-service topic.
-  value: '1'
+  value: 1
 - name: KAFKA_HOST_INGRESS_GROUP
   description: The Kafka consumer group name
   value: inventory-mq
