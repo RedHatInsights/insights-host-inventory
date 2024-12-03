@@ -1,3 +1,5 @@
+import os
+
 from alembic import context
 from flask import current_app
 from sqlalchemy import engine_from_config
@@ -28,7 +30,7 @@ target_metadata = current_app.extensions["migrate"].db.metadata
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
 
-schema_name = "hbi"
+schema_name = os.getenv("INVENTORY_DB_SCHEMA", "hbi")
 
 
 def run_migrations_offline():
