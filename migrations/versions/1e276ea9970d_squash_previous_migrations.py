@@ -16,7 +16,7 @@ depends_on = None
 
 
 def upgrade():
-    with open("app_migrations/hbi_schema_2024-11-15.sql") as f:
+    with open("app_migrations/hbi_schema_2024-11-15_squash.sql") as f:
         for stmt in f.read().split(";\n"):
             if not stmt or stmt.startswith("--"):
                 continue
