@@ -2,6 +2,8 @@ import os
 
 from alembic import context
 from flask import current_app
+from sqlalchemy import Connection
+from sqlalchemy import Engine
 from sqlalchemy import engine_from_config
 from sqlalchemy import inspect
 from sqlalchemy import pool
@@ -102,13 +104,13 @@ def process_revision_directives(context, revision, directives):
             logger.info("No changes in schema detected.")
 
 
-def create_schema_if_not_exists(engine, conn, schema):
+def create_schema_if_not_exists(engine: Engine, conn: Connection, schema: str):
     inspection = inspect(engine)
     if not inspection.has_schema(schema):
         conn.execute(CreateSchema(schema))
 
 
-def migrate_alembic_version_table(connection):
+def migrate_alembic_version_table(connection: Connection):
     # Temporarily switch to public schema to get the current revision
     context.configure(
         connection=connection,
