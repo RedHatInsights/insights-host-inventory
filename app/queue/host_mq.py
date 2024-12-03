@@ -234,13 +234,17 @@ def update_system_profile(host_data, platform_metadata, notification_event_produ
         metrics.update_system_profile_failure.labels("ValidationException").inc()
         raise
     except InventoryException:
-        log_update_system_profile_failure(logger, host_data)
+        log_update_system_profile_failure(logger, host_data, sys_profile_fields_log)
         raise
     except OperationalError as oe:
         log_db_access_failure(logger, f"Could not access DB {str(oe)}", host_data)
         raise oe
     except Exception:
-        logger.exception("Error while updating host system profile", extra={"host": host_data})
+        logger.exception(
+            "Error while updating host system profile\nSystem Profile: %s",
+            sys_profile_fields_log,
+            extra={"host": host_data},
+        )
         metrics.update_system_profile_failure.labels("Exception").inc()
         raise
 
@@ -261,18 +265,21 @@ def add_host(host_data, platform_metadata, notification_event_producer, operatio
         host_row, add_result = host_repository.add_host(input_host, identity, operation_args=operation_args)
         success_logger = partial(log_add_update_host_succeeded, logger, add_result, sys_profile_fields_log)
 
+        # raise InventoryException
         return host_row, add_result, identity, success_logger
     except ValidationException:
         metrics.add_host_failure.labels("ValidationException", host_data.get("reporter", "null")).inc()
         raise
     except InventoryException as ie:
-        log_add_host_failure(logger, str(ie.detail), host_data)
+        log_add_host_failure(logger, str(ie.detail), host_data, sys_profile_fields_log)
         raise
     except OperationalError as oe:
         log_db_access_failure(logger, f"Could not access DB {str(oe)}", host_data)
         raise oe
     except Exception:
-        logger.exception("Error while adding host", extra={"host": host_data})
+        logger.exception(
+            "Error while adding host\nSystem Profile: %s", sys_profile_fields_log, extra={"host": host_data}
+        )
         metrics.add_host_failure.labels("Exception", host_data.get("reporter", "null")).inc()
         raise
 

@@ -251,8 +251,10 @@ def log_add_update_host_succeeded(logger, add_result, system_profile_fields, out
     )
 
 
-def log_add_host_failure(logger, message, host_data):
-    logger.exception(f"Error adding host: {message} ", extra={"host": host_data})
+def log_add_host_failure(logger, message, host_data, system_profile_fields):
+    logger.exception(
+        f"Error adding host: {message}\nSystem Profile: {system_profile_fields}", extra={"host": host_data}
+    )
     metrics.add_host_failure.labels("InventoryException", host_data.get("reporter", "null")).inc()
 
 
@@ -266,8 +268,10 @@ def log_update_system_profile_success(logger, host_data, system_profile_fields):
     )
 
 
-def log_update_system_profile_failure(logger, host_data):
-    logger.exception("Error updating system profile for host ", extra={"host": host_data})
+def log_update_system_profile_failure(logger, host_data, system_profile_fields):
+    logger.exception(
+        "Error updating system profile for host\nSystem Profile %s", system_profile_fields, extra={"host": host_data}
+    )
     metrics.update_system_profile_failure.labels("InventoryException").inc()
 
 
@@ -308,7 +312,7 @@ def rbac_group_permission_denied(logger, group_ids, required_permission):
 
 
 def log_db_access_failure(logger, message, host_data):
-    logger.error("Failure to access database ", f"{message}")
+    logger.error("Failure to access database %s", message)
     metrics.db_communication_error.labels("OperationalError", host_data.get("insights_id", message)).inc()
 
 
