@@ -315,7 +315,7 @@ def rbac_group_permission_denied(logger, group_ids, required_permission):
 
 
 def log_db_access_failure(logger, message, host_data):
-    logger.error("Failure to access database ", f"{message}")
+    logger.error("Failure to access database %s", message)
     metrics.db_communication_error.labels("OperationalError", host_data.get("insights_id", message)).inc()
 
 

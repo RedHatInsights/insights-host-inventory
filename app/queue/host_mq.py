@@ -264,6 +264,7 @@ def add_host(host_data, platform_metadata, notification_event_producer, operatio
         host_row, add_result = host_repository.add_host(input_host, identity, operation_args=operation_args)
         success_logger = partial(log_add_update_host_succeeded, logger, add_result, sp_fields_to_log)
 
+        # raise InventoryException
         return host_row, add_result, identity, success_logger
     except ValidationException:
         metrics.add_host_failure.labels("ValidationException", host_data.get("reporter", "null")).inc()
