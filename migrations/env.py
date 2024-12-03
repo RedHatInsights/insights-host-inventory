@@ -4,8 +4,6 @@ from sqlalchemy import engine_from_config
 from sqlalchemy import inspect
 from sqlalchemy import pool
 from sqlalchemy.schema import CreateSchema
-from sqlalchemy_utils import create_database
-from sqlalchemy_utils import database_exists
 
 from app.logging import get_logger
 
@@ -64,7 +62,7 @@ def run_migrations_online():
         config.get_section(config.config_ini_section), prefix="sqlalchemy.", poolclass=pool.NullPool
     )
     connection = engine.connect()
-    create_database_with_schema_if_not_exists(engine, connection, schema_name)
+    create_schema_if_not_exists(engine, connection, schema_name)
 
     # Get current revision
     context.configure(
@@ -102,10 +100,7 @@ def process_revision_directives(context, revision, directives):
             logger.info("No changes in schema detected.")
 
 
-def create_database_with_schema_if_not_exists(engine, conn, schema):
-    if not database_exists(engine.url):
-        create_database(engine.url)
-
+def create_schema_if_not_exists(engine, conn, schema):
     inspection = inspect(engine)
     if not inspection.has_schema(schema):
         conn.execute(CreateSchema(schema))
