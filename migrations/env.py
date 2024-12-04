@@ -97,6 +97,7 @@ def run_migrations_online():
         # Stamp revision (if available) so that we don't run the migrations from scratch
         if current_revision is not None:
             context.get_context().stamp(context.script, current_revision)
+            conn.commit()
 
     engine = engine_from_config(
         config.get_section(config.config_ini_section), prefix="sqlalchemy.", poolclass=pool.NullPool
