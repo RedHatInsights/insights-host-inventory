@@ -993,11 +993,12 @@
         },
         "python-multipart": {
             "hashes": [
-                "sha256:15dc4f487e0a9476cc1201261188ee0940165cffc94429b6fc565c4d3045cb5d",
-                "sha256:41330d831cae6e2f22902704ead2826ea038d0419530eadff3ea80175aec5538"
+                "sha256:7a68db60c8bfb82e460637fa4750727b45af1d5e2ed215593f917f64694d34fe",
+                "sha256:efe91480f485f6a361427a541db4796f9e1591afc0fb8e7a4ba06bfbc6708996"
             ],
+            "index": "pypi",
             "markers": "python_version >= '3.8'",
-            "version": "==0.0.17"
+            "version": "==0.0.18"
         },
         "pytz": {
             "hashes": [
