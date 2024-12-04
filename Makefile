@@ -23,7 +23,7 @@ gen_offline_sql:
 	SQLALCHEMY_ENGINE_LOG_LEVEL=INFO FLASK_APP=manage.py flask db upgrade "${down_rev}:${up_rev}" --sql > "${current_dir}app_migrations/${up_rev}.sql"
 
 gen_hbi_schema_dump:
-	PGPASSWORD=insights pg_dump -d insights -h localhost -p 5432 -n hbi -U insights --schema-only -f "${current_dir}app_migrations/hbi_schema_${SCHEMA_VERSION}.sql"
+	PGPASSWORD=insights pg_dump -d insights -h localhost -p 5432 -n hbi -U insights --schema-only --no-owner | sed 's/CREATE SCHEMA/CREATE SCHEMA IF NOT EXISTS/' > "${current_dir}app_migrations/hbi_schema_${SCHEMA_VERSION}.sql"
 	rm "./app_migrations/hbi_schema_latest.sql"
 	ln -s "${current_dir}app_migrations/hbi_schema_${SCHEMA_VERSION}.sql" "./app_migrations/hbi_schema_latest.sql"
 

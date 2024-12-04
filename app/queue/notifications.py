@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import uuid
 from datetime import datetime
 from datetime import timezone
@@ -66,7 +68,6 @@ class BaseNotificationSchema(MarshmallowSchema):
 class HostValidationErrorContextSchema(MarshmallowSchema):
     event_name = fields.Str(required=True, validate=marshmallow_validate.Length(max=255))
     display_name = fields.Str(required=True)
-    inventory_id = fields.Str(required=True)
 
 
 class HostValidationErrorSchema(MarshmallowSchema):
@@ -78,7 +79,6 @@ class HostValidationErrorSchema(MarshmallowSchema):
 
 class HostValidationErrorPayloadSchema(MarshmallowSchema):
     request_id = fields.Str(required=True)
-    host_id = fields.UUID(required=True)
     display_name = fields.Str(required=True)
     canonical_facts = fields.Dict(required=True)
     error = fields.Nested(HostValidationErrorSchema())
@@ -127,7 +127,6 @@ def host_validation_error_notification(notification_type, host, detail, stack_tr
         "context": {
             "event_name": "Host Validation Error",
             "display_name": host.get("display_name"),
-            "inventory_id": host.get("id"),
         },
         "events": [
             {
@@ -202,7 +201,7 @@ def build_notification(notification_type, host, **kwargs):
 
 
 def build_base_notification_obj(notification_type: str, host: dict):
-    base_obj: dict[str, Any] = {
+    base_obj: dict[str, str | datetime | None] = {
         "org_id": host.get("org_id"),
         "application": "inventory",
         "bundle": "rhel",
