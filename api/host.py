@@ -243,6 +243,7 @@ def delete_hosts_by_filter(
 
 
 def _delete_host_list(host_id_list, rbac_filter):
+    request_host = flask.request.headers.get("Host", "")
     current_identity = get_current_identity()
     payload_tracker = get_payload_tracker(
         account=current_identity.account_number, org_id=current_identity.org_id, request_id=threadctx.request_id
@@ -260,6 +261,7 @@ def _delete_host_list(host_id_list, rbac_filter):
             inventory_config().host_delete_chunk_size,
             identity=current_identity,
             control_rule=get_control_rule(),
+            is_manual_delete=check_manual_deletion(request_host),
         )
 
         deleted_id_list = [str(r.host_row.id) for r in result_list]
@@ -310,6 +312,10 @@ def delete_host_by_id(host_id_list, rbac_filter=None):
         flask.abort(HTTPStatus.NOT_FOUND, "No hosts found for deletion.")
 
     return flask.Response(None, HTTPStatus.OK)
+
+
+def check_manual_deletion(origin_host: str = ""):
+    return origin_host in ["console.stage.redhat.com", "console.redhat.com"]
 
 
 @api_operation

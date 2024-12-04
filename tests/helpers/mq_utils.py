@@ -118,6 +118,8 @@ def assert_delete_event_is_valid(
         "org_id",
         "insights_id",
         "request_id",
+        "subscription_manager_id",
+        "manual_delete",
         "platform_metadata",
         "metadata",
     }

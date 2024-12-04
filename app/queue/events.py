@@ -76,6 +76,8 @@ class HostDeleteEvent(Schema):
     org_id = fields.Str()
     insights_id = fields.Str()
     request_id = fields.Str()
+    subscription_manager_id = fields.Str()
+    manual_delete = fields.Bool()
     platform_metadata = fields.Dict()
     metadata = fields.Nested(HostEventMetadataSchema())
 
@@ -113,7 +115,7 @@ def host_create_update_event(event_type, host, platform_metadata=None):
     )
 
 
-def host_delete_event(event_type, host, platform_metadata=None):
+def host_delete_event(event_type, host, is_manual_delete=False, platform_metadata=None):
     delete_event = {
         "timestamp": datetime.now(timezone.utc),
         "type": event_type.name,
@@ -121,6 +123,7 @@ def host_delete_event(event_type, host, platform_metadata=None):
         **serialize_canonical_facts(host.canonical_facts),
         "org_id": host.org_id,
         "account": host.account,
+        "manual_delete": is_manual_delete,
         "request_id": threadctx.request_id,
         "platform_metadata": platform_metadata,
         "metadata": {"request_id": threadctx.request_id},

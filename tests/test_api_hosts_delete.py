@@ -591,7 +591,13 @@ class DeleteHostsMock:
     @classmethod
     def create_mock(cls, hosts_ids_to_delete):
         def _constructor(
-            select_query, event_producer, notification_event_producer, chunk_size, identity=None, control_rule=None
+            select_query,
+            event_producer,
+            notification_event_producer,
+            chunk_size,
+            identity=None,
+            control_rule=None,
+            is_manual_delete=False,
         ):
             return cls(
                 hosts_ids_to_delete,
@@ -601,6 +607,7 @@ class DeleteHostsMock:
                 chunk_size,
                 identity=identity,
                 control_rule=control_rule,
+                is_manual_delete=is_manual_delete,
             )
 
         return _constructor
@@ -614,6 +621,7 @@ class DeleteHostsMock:
         chunk_size,
         identity=None,
         control_rule=None,
+        is_manual_delete=False,
     ):
         self.host_ids_to_delete = host_ids_to_delete
         self.original_query = delete_hosts(
@@ -623,6 +631,7 @@ class DeleteHostsMock:
             chunk_size,
             identity=identity,
             control_rule=control_rule,
+            is_manual_delete=is_manual_delete,
         )
 
     def __getattr__(self, item):
