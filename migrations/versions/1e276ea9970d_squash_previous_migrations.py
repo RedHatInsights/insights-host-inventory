@@ -17,7 +17,9 @@ depends_on = None
 
 def upgrade():
     with open("app_migrations/hbi_schema_2024-12-03.sql") as f:
-        for stmt in f.read().split(";\n"):
+        # Don't execute the last item, as it's just an empty comment
+        # (i.e. "PostgreSQL database dump complete")
+        for stmt in f.read().split(";\n")[:-1]:
             if not stmt or stmt.startswith("--"):
                 continue
             op.execute(stmt)

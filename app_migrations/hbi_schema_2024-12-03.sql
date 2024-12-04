@@ -331,3 +331,8 @@ ALTER TABLE ONLY hbi.hosts_groups
 
 ALTER TABLE ONLY hbi.hosts_groups
     ADD CONSTRAINT hosts_groups_host_id_fkey FOREIGN KEY (host_id) REFERENCES hbi.hosts(id);
+
+
+--
+-- PostgreSQL database dump complete
+--
