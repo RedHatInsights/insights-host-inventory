@@ -1,7 +1,13 @@
+import os
+
 from alembic import context
 from flask import current_app
+from sqlalchemy import Connection
+from sqlalchemy import Engine
 from sqlalchemy import engine_from_config
+from sqlalchemy import inspect
 from sqlalchemy import pool
+from sqlalchemy.schema import CreateSchema
 
 from app.logging import get_logger
 
@@ -26,6 +32,8 @@ target_metadata = current_app.extensions["migrate"].db.metadata
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
 
+schema_name = os.getenv("INVENTORY_DB_SCHEMA", "hbi")
+
 
 def run_migrations_offline():
     """Run migrations in 'offline' mode.
@@ -40,7 +48,7 @@ def run_migrations_offline():
 
     """
     url = config.get_main_option("sqlalchemy.url")
-    context.configure(url=url)
+    context.configure(url=url, version_table_schema=schema_name)
 
     with context.begin_transaction():
         context.run_migrations()
@@ -57,7 +65,6 @@ def run_migrations_online():
     # this callback is used to prevent an auto-migration from being generated
     # when there are no changes to the schema
     # reference: http://alembic.zzzcomputing.com/en/latest/cookbook.html
-
     def process_revision_directives(context, revision, directives):
         if getattr(config.cmd_opts, "autogenerate", False):
             script = directives[0]
@@ -65,17 +72,46 @@ def run_migrations_online():
                 directives[:] = []
                 logger.info("No changes in schema detected.")
 
+    def create_schema_if_not_exists(engine: Engine, conn: Connection, schema: str):
+        inspection = inspect(engine)
+        if not inspection.has_schema(schema):
+            conn.execute(CreateSchema(schema))
+
+    def configure_context(conn: Connection, schema: str):
+        context.configure(
+            connection=conn,
+            target_metadata=target_metadata,
+            process_revision_directives=process_revision_directives,
+            **current_app.extensions["migrate"].configure_args,
+            version_table_schema=schema,
+        )
+
+    def migrate_alembic_version_table(conn: Connection):
+        # Temporarily switch to public schema to get the current revision
+        configure_context(conn, "public")
+        current_revision = context.get_context().get_current_revision()
+
+        # Configure for the new schema
+        configure_context(conn, schema_name)
+
+        # Stamp revision (if available) so that we don't run the migrations from scratch
+        if current_revision is not None:
+            context.get_context().stamp(context.script, current_revision)
+            conn.commit()
+
     engine = engine_from_config(
         config.get_section(config.config_ini_section), prefix="sqlalchemy.", poolclass=pool.NullPool
     )
-
     connection = engine.connect()
-    context.configure(
-        connection=connection,
-        target_metadata=target_metadata,
-        process_revision_directives=process_revision_directives,
-        **current_app.extensions["migrate"].configure_args,
-    )
+    create_schema_if_not_exists(engine, connection, schema_name)
+
+    # Get current revision
+    configure_context(connection, schema_name)
+    curr_revision = context.get_context().get_current_revision()
+
+    # If there is no current revision, we need to migrate the version_table
+    if curr_revision is None:
+        migrate_alembic_version_table(connection)
 
     try:
         with context.begin_transaction():
