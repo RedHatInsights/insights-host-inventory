@@ -933,10 +933,10 @@ objects:
             cpu: ${CPU_REQUEST_REAPER}
             memory: ${MEMORY_REQUEST_REAPER}
     - name: syndicator
-      schedule: '@hourly'
+      schedule: "*/5 * * * *"
       concurrencyPolicy: "Forbid"
       suspend: ${{SYNDICATOR_SUSPEND}}
-      restartPolicy: OnFailure
+      restartPolicy: Never
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
         args: ["./inv_publish_hosts.py"]
@@ -947,56 +947,14 @@ objects:
             value: ${INVENTORY_DB_SSL_MODE}
           - name: INVENTORY_DB_SSL_CERT
             value: ${INVENTORY_DB_SSL_CERT}
-          - name: KAFKA_BOOTSTRAP_SERVERS
-            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
-          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
-            value: platform.payload-status
-          - name: PAYLOAD_TRACKER_SERVICE_NAME
-            value: inventory-mq-service
-          - name: PAYLOAD_TRACKER_ENABLED
-            value: 'true'
-          - name: PROMETHEUS_PUSHGATEWAY
-            value: ${PROMETHEUS_PUSHGATEWAY}
-          - name: KAFKA_EVENT_TOPIC
-            value: ${KAFKA_EVENT_TOPIC}
-          - name: KAFKA_NOTIFICATION_TOPIC
-            value: ${KAFKA_NOTIFICATION_TOPIC}
-          - name: KAFKA_PRODUCER_ACKS
-            value: ${KAFKA_PRODUCER_ACKS}
-          - name: KAFKA_PRODUCER_RETRIES
-            value: ${KAFKA_PRODUCER_RETRIES}
-          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
-            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
           - name: NAMESPACE
             valueFrom:
               fieldRef:
                 fieldPath: metadata.namespace
-          - name: KAFKA_SECURITY_PROTOCOL
-            value: ${KAFKA_SECURITY_PROTOCOL}
-          - name: KAFKA_SASL_MECHANISM
-            value: ${KAFKA_SASL_MECHANISM}
           - name: CLOWDER_ENABLED
             value: "true"
           - name: INVENTORY_DB_SCHEMA
             value: "${INVENTORY_DB_SCHEMA}"
-          - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
-            value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
-          - name: INVENTORY_API_CACHE_TYPE
-            value: "${INVENTORY_API_CACHE_TYPE}"
-          - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
-            value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
-          - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
-            value: "${INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS}"
-          - name: UNLEASH_URL
-            value: ${UNLEASH_URL}
-          - name: UNLEASH_TOKEN
-            valueFrom:
-              secretKeyRef:
-                name: ${UNLEASH_SECRET_NAME}
-                key: CLIENT_ACCESS_TOKEN
-                optional: true
-          - name: BYPASS_UNLEASH
-            value: ${BYPASS_UNLEASH}
         resources:
           limits:
             cpu: ${CPU_LIMIT_SYNDICATOR}
@@ -1572,7 +1530,7 @@ parameters:
 - name: REAPER_SUSPEND
   value: 'true'
 - name: SYNDICATOR_SUSPEND
-  value: 'true'
+  value: 'false'
 - name: KAFKA_SP_VALIDATOR_MAX_MESSAGES
   value: '10000'
 - name: TENANT_TRANSLATOR_HOST
