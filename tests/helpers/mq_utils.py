@@ -104,7 +104,13 @@ def assert_mq_host_data(actual_id, actual_event, expected_results, host_keys_to_
 
 
 def assert_delete_event_is_valid(
-    event_producer, host, timestamp, expected_request_id=None, expected_metadata=None, identity=USER_IDENTITY
+    event_producer,
+    host,
+    timestamp,
+    expected_request_id=None,
+    expected_metadata=None,
+    identity=USER_IDENTITY,
+    is_manual_delete=False,
 ):
     event = json.loads(event_producer.event)
 
@@ -130,6 +136,11 @@ def assert_delete_event_is_valid(
     assert event["type"] == "delete"
 
     assert host.canonical_facts.get("insights_id") == event["insights_id"]
+
+    assert event["manual_delete"] == is_manual_delete
+
+    if is_manual_delete:
+        assert event["subscription_manager_id"] is not None
 
     assert event_producer.key == str(host.id)
     assert event_producer.headers == expected_headers(

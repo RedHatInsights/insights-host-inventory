@@ -587,9 +587,24 @@ def test_postgres_delete_filtered_hosts_nomatch(
         assert response_data["results"][0]["id"] == not_deleted_host_id
 
 
+def test_delete_with_ui_host(
+    db_create_host, api_delete_host, event_datetime_mock, event_producer_mock, notification_event_producer_mock
+):
+    host = db_create_host(extra_data={"canonical_facts": {"subscription_manager_id": generate_uuid()}})
+    headers = {"Host": "console.redhat.com"}
+
+    response_status, _ = api_delete_host(host.id, extra_headers=headers)
+
+    assert_response_status(response_status, expected_status=200)
+
+    assert_delete_event_is_valid(
+        event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock, is_manual_delete=True
+    )
+
+
 class DeleteHostsMock:
     @classmethod
-    def create_mock(cls, hosts_ids_to_delete):
+    def create_mock(cls, hosts_ids_to_delete, is_manual_delete=False):
         def _constructor(
             select_query,
             event_producer,
@@ -597,7 +612,7 @@ class DeleteHostsMock:
             chunk_size,
             identity=None,
             control_rule=None,
-            is_manual_delete=False,
+            is_manual_delete=is_manual_delete,
         ):
             return cls(
                 hosts_ids_to_delete,
