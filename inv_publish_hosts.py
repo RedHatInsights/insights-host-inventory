@@ -22,6 +22,7 @@ PUBLICATION_NAME = "hbi_hosts_pub"
 CHECK_PUBLICATION = f"SELECT EXISTS(SELECT * FROM pg_catalog.pg_publication WHERE pubname = '{PUBLICATION_NAME}')"
 CREATE_PUBLICATION = f"CREATE PUBLICATION {PUBLICATION_NAME} FOR TABLE hbi.hosts \
 WHERE (hbi.hosts.canonical_facts->'insights_id' IS NOT NULL)"
+CHECK_REPLICATION_SLOTS = "SELECT slot_name, active FROM pg_replication_slots"
 
 
 def _init_config():
@@ -50,6 +51,17 @@ def run(logger, session, application):
             logger.info(f'Creating publication "{PUBLICATION_NAME}" using \n\t{CREATE_PUBLICATION}')
             try:
                 session.execute(sa_text(CREATE_PUBLICATION))
+
+                # check for inactive replication_slots
+                replication_slots = session.execute(sa_text(CHECK_REPLICATION_SLOTS)).all()
+                inactive = 0
+                for slot in replication_slots:
+                    slot_name, active = slot
+                    if not active:
+                        inactive += 1
+                        logger.error(f"Replication slot named {slot_name} is not active")
+                    if inactive > 0:
+                        exit(1)
             except Exception as e:
                 session.rollback()
                 logger.error(f'Error encountered when creating the publication "{PUBLICATION_NAME}" \n\t{e}')

@@ -933,7 +933,7 @@ objects:
             cpu: ${CPU_REQUEST_REAPER}
             memory: ${MEMORY_REQUEST_REAPER}
     - name: syndicator
-      schedule: "*/5 * * * *"
+      schedule: ${SYNDICATOR_CRON_SCHEDULE}
       concurrencyPolicy: "Forbid"
       suspend: ${{SYNDICATOR_SUSPEND}}
       restartPolicy: Never
@@ -1531,6 +1531,8 @@ parameters:
   value: 'true'
 - name: SYNDICATOR_SUSPEND
   value: 'false'
+- name: SYNDICATOR_CRON_SCHEDULE
+  value: '*/5 * * * *'
 - name: KAFKA_SP_VALIDATOR_MAX_MESSAGES
   value: '10000'
 - name: TENANT_TRANSLATOR_HOST
