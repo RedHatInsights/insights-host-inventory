@@ -1,3 +1,6 @@
+from datetime import datetime
+from datetime import timedelta
+from datetime import timezone
 from enum import Enum
 from uuid import UUID
 
@@ -211,11 +214,13 @@ def find_hosts_by_staleness(staleness_types, query, identity):
     return query.filter(or_(False, *staleness_conditions))
 
 
-def find_hosts_by_staleness_reaper(staleness_types, identity):
+def find_hosts_by_staleness_reaper(staleness_types, identity, stale_last_hour=False):
+    stale_timestamp_func = stale_last_hour_timestamp_filter if stale_last_hour else stale_timestamp_filter
+
     logger.debug("find_hosts_by_staleness(%s)", staleness_types)
     staleness_obj = serialize_staleness_to_dict(get_staleness_obj(identity=identity))
     staleness_conditions = [
-        or_(False, *staleness_to_conditions(staleness_obj, staleness_types, host_type, stale_timestamp_filter))
+        or_(False, *staleness_to_conditions(staleness_obj, staleness_types, host_type, stale_timestamp_func))
         for host_type in HOST_TYPES
     ]
 
@@ -268,6 +273,23 @@ def stale_timestamp_filter(gt=None, lte=None, host_type=None):
         filter_ += (Host.modified_on > gt,)
     if lte:
         filter_ += (Host.modified_on <= lte,)
+    return and_(*filter_, (Host.system_profile_facts["host_type"].as_string() == host_type))
+
+
+def stale_last_hour_timestamp_filter(gt=None, lte=None, host_type=None):
+    offset = timedelta(minutes=2)
+    now = datetime.now(timezone.utc)
+    last_hour = now - offset
+
+    filter_ = ()
+    if gt:
+        filter_ += (Host.modified_on > gt,)
+    if lte:
+        filter_ += (
+            Host.modified_on <= lte,
+            lte > last_hour,
+            lte <= now,
+        )
     return and_(*filter_, (Host.system_profile_facts["host_type"].as_string() == host_type))
 
 

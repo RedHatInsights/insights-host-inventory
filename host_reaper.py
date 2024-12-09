@@ -24,7 +24,6 @@ from app.queue.metrics import event_producer_success
 from app.queue.metrics import event_serialization_time
 from lib.handlers import ShutdownHandler
 from lib.handlers import register_shutdown
-from lib.host_delete import delete_hosts
 from lib.host_repository import find_hosts_by_staleness_reaper
 from lib.host_repository import find_hosts_sys_default_staleness
 from lib.metrics import delete_host_count
@@ -101,32 +100,63 @@ def find_hosts_to_delete(logger, session):
     return query_filters
 
 
+def find_stale_hosts_using_custom_staleness(logger, session):
+    staleness_objects = session.query(Staleness).all()
+    org_ids = []
+
+    query_filters = []
+    for staleness_obj in staleness_objects:
+        # Validate which host types for a given org_id never get deleted
+        logger.debug(f"Looking for hosts from org_id {staleness_obj.org_id} that use custom staleness")
+        org_ids.append(staleness_obj.org_id)
+        identity = create_mock_identity_with_org_id(staleness_obj.org_id)
+        query_filters.append(
+            and_(
+                (Host.org_id == staleness_obj.org_id),
+                find_hosts_by_staleness_reaper(["stale"], identity, stale_last_our=True),
+            )
+        )
+    return query_filters, org_ids
+
+
+def find_stale_hosts(logger, session):
+    query_filters, org_ids = find_stale_hosts_using_custom_staleness(logger, session)
+
+    return query_filters
+
+
 @host_reaper_fail_count.count_exceptions()
 def run(config, logger, session, event_producer, notification_event_producer, shutdown_handler, application):
     with application.app.app_context():
-        filter_hosts_to_delete = find_hosts_to_delete(logger, session)
+        # filter_hosts_to_delete = find_hosts_to_delete(logger, session)
+        #
+        # query = session.query(Host).filter(or_(False, *filter_hosts_to_delete))
+        # hosts_processed = config.host_delete_chunk_size
+        # deletions_remaining = query.count()
+        #
+        # while hosts_processed == config.host_delete_chunk_size:
+        #    logger.info(f"Reaper starting batch; {deletions_remaining} remaining.")
+        #    try:
+        #        events = delete_hosts(
+        #            query,
+        #            event_producer,
+        #            notification_event_producer,
+        #            config.host_delete_chunk_size,
+        #            shutdown_handler.shut_down,
+        #            control_rule="REAPER",
+        #        )
+        #        hosts_processed = len(list(events))
+        #    except InterruptedError:
+        #        events = []
+        #        hosts_processed = 0
+        #
+        #    deletions_remaining -= hosts_processed
 
-        query = session.query(Host).filter(or_(False, *filter_hosts_to_delete))
-        hosts_processed = config.host_delete_chunk_size
-        deletions_remaining = query.count()
+        filter_stale_hosts = find_stale_hosts(logger, session)
 
-        while hosts_processed == config.host_delete_chunk_size:
-            logger.info(f"Reaper starting batch; {deletions_remaining} remaining.")
-            try:
-                events = delete_hosts(
-                    query,
-                    event_producer,
-                    notification_event_producer,
-                    config.host_delete_chunk_size,
-                    shutdown_handler.shut_down,
-                    control_rule="REAPER",
-                )
-                hosts_processed = len(list(events))
-            except InterruptedError:
-                events = []
-                hosts_processed = 0
-
-            deletions_remaining -= hosts_processed
+        query = session.query(Host).filter(or_(False, *filter_stale_hosts))
+        res = query.all()
+        print(res)
 
 
 def main(logger):
@@ -154,6 +184,7 @@ def main(logger):
     shutdown_handler = ShutdownHandler()
     shutdown_handler.register()
     run(config, logger, session, event_producer, notification_event_producer, shutdown_handler, application)
+    # find_stale_hosts(logger, session)
 
 
 if __name__ == "__main__":
