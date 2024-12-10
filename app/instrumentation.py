@@ -85,8 +85,12 @@ def get_control_rule():
 
 
 # delete host
-def log_host_delete_succeeded(logger, host_id, control_rule):
-    logger.info("Deleted host: %s", host_id, extra={"access_rule": control_rule})
+def log_host_delete_succeeded(logger, host_id, control_rule, sp_fields_to_log):
+    logger.info(
+        "Deleted host: %s",
+        host_id,
+        extra={"access_rule": control_rule, "system_profile": json.dumps(sp_fields_to_log)},
+    )
 
 
 def log_host_delete_failed(logger, host_id, control_rule):
@@ -216,7 +220,7 @@ def log_get_sparse_system_profile_succeeded(logger, data):
 
 
 # add host
-def log_add_host_attempt(logger, input_host):
+def log_add_host_attempt(logger, input_host, sp_fields_to_log):
     logger.info(
         "Attempting to add host",
         extra={
@@ -228,13 +232,14 @@ def log_add_host_attempt(logger, input_host):
                 "reporter": input_host.reporter,
                 "stale_timestamp": input_host.stale_timestamp.isoformat(),
                 "tags": json.dumps(input_host.tags),
+                "system_profile": json.dumps(sp_fields_to_log),
             },
             "access_rule": get_control_rule(),
         },
     )
 
 
-def log_add_update_host_succeeded(logger, add_result, output_host):
+def log_add_update_host_succeeded(logger, add_result, sp_fields_to_log, output_host):
     metrics.add_host_success.labels(add_result.name, output_host.get("reporter", "null")).inc()  # created vs updated
     # log all the incoming host data except facts and system_profile b/c they can be quite large
     logger.info(
@@ -242,24 +247,34 @@ def log_add_update_host_succeeded(logger, add_result, output_host):
         add_result.name,
         extra={
             "host": {i: output_host[i] for i in output_host if i not in ("facts", "system_profile")},
+            "system_profile": json.dumps(sp_fields_to_log),
             "access_rule": get_control_rule(),
         },
     )
 
 
-def log_add_host_failure(logger, message, host_data):
-    logger.exception(f"Error adding host: {message} ", extra={"host": host_data})
+def log_add_host_failure(logger, message, host_data, sp_fields_to_log):
+    logger.exception(
+        f"Error adding host: {message}", extra={"host": host_data, "system_profile": json.dumps(sp_fields_to_log)}
+    )
     metrics.add_host_failure.labels("InventoryException", host_data.get("reporter", "null")).inc()
 
 
 # update system profile
-def log_update_system_profile_success(logger, host_data):
+def log_update_system_profile_success(logger, host_data, sp_fields_to_log):
     metrics.update_system_profile_success.inc()
-    logger.info("System profile updated for host ID: %s", host_data.get("id"))
+    logger.info(
+        "System profile updated for host ID: %s",
+        host_data.get("id"),
+        extra={"system_profile": json.dumps(sp_fields_to_log)},
+    )
 
 
-def log_update_system_profile_failure(logger, host_data):
-    logger.exception("Error updating system profile for host ", extra={"host": host_data})
+def log_update_system_profile_failure(logger, host_data, sp_fields_to_log):
+    logger.exception(
+        "Error updating system profile for host",
+        extra={"host": host_data, "system_profile": json.dumps(sp_fields_to_log)},
+    )
     metrics.update_system_profile_failure.labels("InventoryException").inc()
 
 
@@ -300,7 +315,7 @@ def rbac_group_permission_denied(logger, group_ids, required_permission):
 
 
 def log_db_access_failure(logger, message, host_data):
-    logger.error("Failure to access database ", f"{message}")
+    logger.error("Failure to access database %s", message)
     metrics.db_communication_error.labels("OperationalError", host_data.get("insights_id", message)).inc()
 
 
