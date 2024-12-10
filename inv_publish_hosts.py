@@ -10,6 +10,7 @@ from app import create_app
 from app.config import Config
 from app.environment import RuntimeEnvironment
 from app.logging import get_logger
+from lib import metrics
 from lib.handlers import ShutdownHandler
 from lib.handlers import register_shutdown
 
@@ -47,10 +48,13 @@ def run(logger, session, application):
         found = result.cursor.fetchone()[0]
         if found:
             logger.info(f'Publication "{PUBLICATION_NAME}" found!')
+            metrics.host_publication_success_count.inc()
         else:
             logger.info(f'Creating publication "{PUBLICATION_NAME}" using \n\t{CREATE_PUBLICATION}')
             try:
                 session.execute(sa_text(CREATE_PUBLICATION))
+                logger.info(f'Publication "{PUBLICATION_NAME}" created!')
+                metrics.host_publication_success_count.inc()
 
                 # check for inactive replication_slots
                 replication_slots = session.execute(sa_text(CHECK_REPLICATION_SLOTS)).all()
@@ -65,6 +69,7 @@ def run(logger, session, application):
             except Exception as e:
                 session.rollback()
                 logger.error(f'Error encountered when creating the publication "{PUBLICATION_NAME}" \n\t{e}')
+                metrics.host_publication_failure_count.inc()
                 raise e
             else:
                 session.commit()
