@@ -3956,6 +3956,26 @@
                 "example": "v1.1.3",
                 "maxLength": 16
               },
+              "amd_gpu_models": {
+                "description": "Model name of AMD GPUs",
+                "type": "array",
+                "items": {
+                  "description": "The AMD GPU model",
+                  "type": "string",
+                  "example": "Advanced Micro Devices, Inc. [AMD/ATI] Device 0c34, Advanced Micro Devices, Inc. [AMD/ATI] Radeon PRO V320",
+                  "maxLength": 128
+                }
+              },
+              "intel_gaudi_hpu_models": {
+                "description": "Model name of Intel Gaudi HPUs",
+                "type": "array",
+                "items": {
+                  "description": "The Intel Gaudi HPU model",
+                  "type": "string",
+                  "example": "Habana Labs Ltd. Device 1020, Habana Labs Ltd. HL-2000 AI Training Accelerator [Gaudi]",
+                  "maxLength": 128
+                }
+              },
               "nvidia_gpu_models": {
                 "description": "Model name of Nvidia GPUs in the GPU index order",
                 "type": "array",
@@ -3963,7 +3983,7 @@
                   "description": "The Nvidia GPU model",
                   "type": "string",
                   "example": "Tesla V100-PCIE-16GB",
-                  "maxLength": 64
+                  "maxLength": 128
                 }
               }
             }
