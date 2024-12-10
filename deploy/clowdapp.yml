@@ -932,6 +932,37 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_REAPER}
             memory: ${MEMORY_REQUEST_REAPER}
+    - name: syndicator
+      schedule: ${SYNDICATOR_CRON_SCHEDULE}
+      concurrencyPolicy: "Forbid"
+      suspend: ${{SYNDICATOR_SUSPEND}}
+      restartPolicy: Never
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: ["./inv_publish_hosts.py"]
+        env:
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_SYNDICATOR}
+            memory: ${MEMORY_LIMIT_SYNDICATOR}
+          requests:
+            cpu: ${CPU_REQUEST_SYNDICATOR}
+            memory: ${MEMORY_REQUEST_SYNDICATOR}
+
     - name: sp-validator
       schedule: '@hourly'
       suspend: ${{SP_VALIDATOR_SUSPEND}}
@@ -1373,6 +1404,15 @@ parameters:
 - name: MEMORY_LIMIT_SYNCHRONIZER
   value: 512Mi
 
+- name: CPU_REQUEST_SYNDICATOR
+  value: 250m
+- name: CPU_LIMIT_SYNDICATOR
+  value: 500m
+- name: MEMORY_REQUEST_SYNDICATOR
+  value: 256Mi
+- name: MEMORY_LIMIT_SYNDICATOR
+  value: 512Mi
+
 - name: CPU_REQUEST_EXPORT_SVC
   value: 250m
 - name: CPU_LIMIT_EXPORT_SVC
@@ -1513,6 +1553,10 @@ parameters:
   value: 'true'
 - name: REAPER_SUSPEND
   value: 'true'
+- name: SYNDICATOR_SUSPEND
+  value: 'false'
+- name: SYNDICATOR_CRON_SCHEDULE
+  value: '*/5 * * * *'
 - name: KAFKA_SP_VALIDATOR_MAX_MESSAGES
   value: '10000'
 - name: TENANT_TRANSLATOR_HOST
