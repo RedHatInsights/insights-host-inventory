@@ -1226,7 +1226,7 @@ objects:
             "system_profile_facts"->'mssql' AS "mssql_workload",
             "system_profile_facts"->'sap' AS "sap_workload",
             "system_profile_facts"->'rhc_client_id' AS "rhc_client_id"
-          FROM "hbi.hosts"
+          FROM "hbi"."hosts"
 - apiVersion: metrics.console.redhat.com/v1alpha1
   kind: FloorPlan
   metadata:
@@ -1247,7 +1247,7 @@ objects:
             "org_id" AS "org_id",
             "created_on" AS "created_at",
             "modified_on" AS "updated_at"
-          FROM "hbi.hosts"
+          FROM "hbi"."hosts"
       - prefix: hms_analytics/inventory/groups_success_metrics
         query: >-
           SELECT
@@ -1256,7 +1256,7 @@ objects:
             "org_id" AS "org_id",
             "created_on" AS "created_at",
             "modified_on" AS "updated_at"
-          FROM "hbi.groups"
+          FROM "hbi"."groups"
 
 - apiVersion: v1
   data:
