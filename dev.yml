@@ -15,6 +15,9 @@ services:
       volumes:
         - ./.unleash/create_unleashdb.sql:/docker-entrypoint-initdb.d/create_unleashdb.sql
         - ./.export-service/create_exportdb.sql:/docker-entrypoint-initdb.d/create_exportdb.sql
+        # Create .pg_data dir in your home or another destination for saving the db data between runs.
+        # It is being provided to test DB upgrades
+        - ~/.pg_data:/var/lib/postgresql/data
       healthcheck:
         test: "pg_isready -h db"
         interval: 2s
