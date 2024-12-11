@@ -1,4 +1,4 @@
-apiVersion: v1
+apiVersion: template.openshift.io/v1
 kind: Template
 metadata:
   name: insights-host-inventory
@@ -878,7 +878,7 @@ objects:
           - name: KAFKA_BOOTSTRAP_SERVERS
             value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
           - name: PAYLOAD_TRACKER_KAFKA_TOPIC
-            value: platform.payload-status
+            value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
           - name: PAYLOAD_TRACKER_SERVICE_NAME
             value: inventory-mq-service
           - name: PAYLOAD_TRACKER_ENABLED
@@ -932,6 +932,37 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_REAPER}
             memory: ${MEMORY_REQUEST_REAPER}
+    - name: syndicator
+      schedule: ${SYNDICATOR_CRON_SCHEDULE}
+      concurrencyPolicy: "Forbid"
+      suspend: ${{SYNDICATOR_SUSPEND}}
+      restartPolicy: Never
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: ["./inv_publish_hosts.py"]
+        env:
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_SYNDICATOR}
+            memory: ${MEMORY_LIMIT_SYNDICATOR}
+          requests:
+            cpu: ${CPU_REQUEST_SYNDICATOR}
+            memory: ${MEMORY_REQUEST_SYNDICATOR}
+
     - name: sp-validator
       schedule: '@hourly'
       suspend: ${{SP_VALIDATOR_SUSPEND}}
@@ -959,7 +990,7 @@ objects:
           - name: KAFKA_BOOTSTRAP_SERVERS
             value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
           - name: PAYLOAD_TRACKER_KAFKA_TOPIC
-            value: platform.payload-status
+            value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
           - name: PAYLOAD_TRACKER_SERVICE_NAME
             value: inventory-mq-service
           - name: PAYLOAD_TRACKER_ENABLED
@@ -1084,7 +1115,7 @@ objects:
           - name: KAFKA_NOTIFICATION_TOPIC
             value: ${KAFKA_NOTIFICATION_TOPIC}
           - name: PAYLOAD_TRACKER_KAFKA_TOPIC
-            value: platform.payload-status
+            value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
           - name: PAYLOAD_TRACKER_SERVICE_NAME
             value: inventory-mq-service
           - name: PAYLOAD_TRACKER_ENABLED
@@ -1131,21 +1162,21 @@ objects:
     database:
       name: ${DB_NAME}
       version: 16
-    kafkaTopics:
+    kafkaTopics: # The number of Kafka partitions variables provided are the Ephemeral environments.
       - topicName: ${KAFKA_SYSTEM_PROFILE_TOPIC}
-        partitions: 1
-      - topicName: platform.payload-status
-        partitions: 1
+        partitions: ${{NUMBER_OF_KAFKA_SYSTEM_PROFILE_TOPIC_PARTITIONS}}
+      - topicName: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
+        partitions: ${{NUMBER_OF_PAYLOAD_TRACKER_KAFKA_TOPIC_PARTITIONS}}
       - topicName: ${KAFKA_EVENT_TOPIC}
-        partitions: 1
+        partitions: ${{NUMBER_OF_KAFKA_EVENT_TOPIC_PARTITIONS}}
       - topicName: ${KAFKA_NOTIFICATION_TOPIC}
-        partitions: 1
+        partitions: ${{NUMBER_OF_KAFKA_NOTIFICATION_TOPIC_PARTITIONS}}
       - topicName: ${KAFKA_HOST_INGRESS_TOPIC}
-        partitions: 1
+        partitions: ${{NUMBER_OF_KAFKA_HOST_INGRESS_TOPIC_PARTITIONS}}
       - topicName: ${KAFKA_HOST_INGRESS_P1_TOPIC}
-        partitions: 1
+        partitions: ${{NUMBER_OF_KAFKA_HOST_INGRESS_P1_TOPIC_PARTITIONS}}
       - topicName: ${KAFKA_EXPORT_SERVICE_TOPIC}
-        partitions: 1
+        partitions: ${{NUMBER_OF_KAFKA_EXPORT_SERVICE_TOPIC_PARTITIONS}}
 # this service proxies requests for the old URL (insights-inventory:8080) to the clowderized service (host-inventory-service:8000)
 - apiVersion: v1
   kind: Service
@@ -1195,7 +1226,7 @@ objects:
             "system_profile_facts"->'mssql' AS "mssql_workload",
             "system_profile_facts"->'sap' AS "sap_workload",
             "system_profile_facts"->'rhc_client_id' AS "rhc_client_id"
-          FROM "hbi.hosts"
+          FROM "hbi"."hosts"
 - apiVersion: metrics.console.redhat.com/v1alpha1
   kind: FloorPlan
   metadata:
@@ -1216,7 +1247,7 @@ objects:
             "org_id" AS "org_id",
             "created_on" AS "created_at",
             "modified_on" AS "updated_at"
-          FROM "hbi.hosts"
+          FROM "hbi"."hosts"
       - prefix: hms_analytics/inventory/groups_success_metrics
         query: >-
           SELECT
@@ -1225,7 +1256,7 @@ objects:
             "org_id" AS "org_id",
             "created_on" AS "created_at",
             "modified_on" AS "updated_at"
-          FROM "hbi.groups"
+          FROM "hbi"."groups"
 
 - apiVersion: v1
   data:
@@ -1373,6 +1404,15 @@ parameters:
 - name: MEMORY_LIMIT_SYNCHRONIZER
   value: 512Mi
 
+- name: CPU_REQUEST_SYNDICATOR
+  value: 250m
+- name: CPU_LIMIT_SYNDICATOR
+  value: 500m
+- name: MEMORY_REQUEST_SYNDICATOR
+  value: 256Mi
+- name: MEMORY_LIMIT_SYNDICATOR
+  value: 512Mi
+
 - name: CPU_REQUEST_EXPORT_SVC
   value: 250m
 - name: CPU_LIMIT_EXPORT_SVC
@@ -1445,24 +1485,48 @@ parameters:
 - name: KAFKA_HOST_INGRESS_TOPIC
   description: The topic containing Host data sent by reporters
   value: platform.inventory.host-ingress
+- name: NUMBER_OF_KAFKA_HOST_INGRESS_TOPIC_PARTITIONS
+  description: Number of partitions for the Kafka host ingress topic
+  value: '1'
 - name: KAFKA_HOST_INGRESS_P1_TOPIC
   description: The TOP-PRIORITY topic containing Host data sent by reporters
   value: platform.inventory.host-ingress-p1
+- name: NUMBER_OF_KAFKA_HOST_INGRESS_P1_TOPIC_PARTITIONS
+  description: Number of partitions for the Kafka host ingress P1 topic
+  value: '1'
 - name: KAFKA_EVENT_TOPIC
   description: The topic for Host data that were processed by Inventory
   value: platform.inventory.events
+- name: NUMBER_OF_KAFKA_EVENT_TOPIC_PARTITIONS
+  description: Number of partitions for the Kafka event topic
+  value: '1'
 - name: KAFKA_NOTIFICATION_TOPIC
   description: The topic containing messages to be sent as notifications
   value: platform.notifications.ingress
+- name: NUMBER_OF_KAFKA_NOTIFICATION_TOPIC_PARTITIONS
+  description: Number of partitions for the Kafka notification topic
+  value: '1'
 - name: KAFKA_ADDITIONAL_VALIDATION_TOPIC
   description: Used by system_profile_validator
   value: platform.inventory.host-ingress-p1
 - name: KAFKA_SYSTEM_PROFILE_TOPIC
   description: The topic containing Host data for System Profile updates
   value: platform.inventory.system-profile
+- name: NUMBER_OF_KAFKA_SYSTEM_PROFILE_TOPIC_PARTITIONS
+  description: Number of partitions for the Kafka system-profile topic
+  value: '1'
+- name: PAYLOAD_TRACKER_KAFKA_TOPIC
+  description: The topic for payload tracker
+  value: platform.payload-status
+- name: NUMBER_OF_PAYLOAD_TRACKER_KAFKA_TOPIC_PARTITIONS
+  description: Number of partitions for the payload tracker topic.
+  value: '1'
 - name: KAFKA_EXPORT_SERVICE_TOPIC
   description: The topic used to consume Export Service data
   value: platform.export.requests
+- name: NUMBER_OF_KAFKA_EXPORT_SERVICE_TOPIC_PARTITIONS
+  description: Number of partitions for the export-service topic
+  value: '1'
 - name: KAFKA_HOST_INGRESS_GROUP
   description: The Kafka consumer group name
   value: inventory-mq
@@ -1489,6 +1553,10 @@ parameters:
   value: 'true'
 - name: REAPER_SUSPEND
   value: 'true'
+- name: SYNDICATOR_SUSPEND
+  value: 'false'
+- name: SYNDICATOR_CRON_SCHEDULE
+  value: '*/5 * * * *'
 - name: KAFKA_SP_VALIDATOR_MAX_MESSAGES
   value: '10000'
 - name: TENANT_TRANSLATOR_HOST

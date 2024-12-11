@@ -23,7 +23,7 @@ def main():
         if err:
             sys.stderr.write(f"% Message failed delivery: {err}\n")
         else:
-            sys.stderr.write("%% Message delivered to %s [%d] @ %d\n" % (msg.topic(), msg.partition(), msg.offset()))
+            sys.stderr.write(f"% Message delivered to {msg.topic()} [{msg.partition()}] @ {msg.offset()}\n")
 
     for payload in all_payloads:
         producer.produce(HOST_INGRESS_TOPIC, value=payload, callback=delivery_callback)
