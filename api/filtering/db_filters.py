@@ -21,6 +21,7 @@ from app.config import ALL_STALENESS_STATES
 from app.config import HOST_TYPES
 from app.culling import Conditions
 from app.exceptions import ValidationException
+from app.host_stale import HostStale
 from app.logging import get_logger
 from app.models import OLD_TO_NEW_REPORTER_MAP
 from app.models import Group
@@ -193,6 +194,12 @@ def staleness_to_conditions(
     condition = Conditions(staleness, host_type)
     filtered_states = (state for state in staleness_states if state != "unknown")
     return (_timestamp_and_host_type_filter(condition, state) for state in filtered_states)
+
+
+def find_stale_host_in_window(staleness, host_type, last_run_secs, timestamp_filter_func):
+    logger.debug("finding hosts that went stale in the last %s seconds", last_run_secs)
+    host_stale = HostStale(staleness, host_type, last_run_secs)
+    return (timestamp_filter_func(*host_stale.stale_in_window()),)
 
 
 def _registered_with_filter(registered_with: list[str], host_type_filter: set[str | None]) -> list:
