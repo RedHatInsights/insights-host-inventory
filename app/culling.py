@@ -38,9 +38,10 @@ class Timestamps(_WithConfig):
 
 
 class Conditions:
-    def __init__(self, staleness, host_type):
+    def __init__(self, staleness, host_type, config):
         self.now = datetime.now(timezone.utc)
         self.host_type = host_type
+        self.config = config
 
         self.staleness_host_type = {
             None: {
@@ -82,6 +83,11 @@ class Conditions:
         offset = timedelta(seconds=self.staleness_host_type[self.host_type]["culled"])
         return self.now - offset
 
+    def _stale_in_last_hour(self):
+        stale = self._stale_timestamp()
+        offset = timedelta(seconds=self.config.stale_validation_window_seconds)
+        return stale - offset
+
     @staticmethod
     def find_host_state(stale_timestamp, stale_warning_timestamp):
         now = datetime.now(timezone.utc)
@@ -102,3 +108,8 @@ def staleness_to_conditions(staleness, staleness_states, host_type, timestamp_fi
 def days_to_seconds(n_days: int) -> int:
     factor = 86400
     return n_days * factor
+
+
+def hours_to_seconds(n_hours: int) -> int:
+    factor = 3600
+    return n_hours * factor
