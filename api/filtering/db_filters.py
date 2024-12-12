@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from datetime import timedelta
 from functools import partial
 from uuid import UUID
 
@@ -193,6 +194,19 @@ def staleness_to_conditions(
     condition = Conditions(staleness, host_type)
     filtered_states = (state for state in staleness_states if state != "unknown")
     return (_timestamp_and_host_type_filter(condition, state) for state in filtered_states)
+
+
+def find_stale_host_in_window(staleness, host_type, last_run_secs, job_start_time):
+    logger.debug("finding hosts that went stale in the last %s seconds", last_run_secs)
+    end_date = job_start_time
+    prefix = "immutable" if host_type == "edge" else "conventional"
+    stale_timestamp = end_date - timedelta(seconds=staleness[f"{prefix}_time_to_stale"])
+    return (
+        stale_timestamp_filter(
+            stale_timestamp - timedelta(seconds=last_run_secs),
+            stale_timestamp,
+        ),
+    )
 
 
 def _registered_with_filter(registered_with: list[str], host_type_filter: set[str | None]) -> list:
