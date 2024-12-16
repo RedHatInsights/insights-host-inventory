@@ -932,6 +932,64 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_REAPER}
             memory: ${MEMORY_REQUEST_REAPER}
+    - name: stale-host-notification
+      schedule: ${STALE_HOST_NOTIFICATION_SCHEDULE}
+      concurrencyPolicy: "Forbid"
+      suspend: ${{STALE_HOST_NOTIFICATION_SUSPEND}}
+      restartPolicy: Never
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: ["./generate_stale_host_notifications.py"]
+        env:
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: KAFKA_BOOTSTRAP_SERVERS
+            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - name: UNLEASH_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: ${UNLEASH_SECRET_NAME}
+                key: CLIENT_ACCESS_TOKEN
+                optional: true
+          - name: BYPASS_UNLEASH
+            value: ${BYPASS_UNLEASH}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_STALE_HOST_NOTIFICAION}
+            memory: ${MEMORY_LIMIT_STALE_HOST_NOTIFICAION}
+          requests:
+            cpu: ${CPU_REQUEST_STALE_HOST_NOTIFICAION}
+            memory: ${MEMORY_REQUEST_STALE_HOST_NOTIFICAION}
     - name: syndicator
       schedule: ${SYNDICATOR_CRON_SCHEDULE}
       concurrencyPolicy: "Forbid"
@@ -1458,6 +1516,15 @@ parameters:
 - name: MEMORY_LIMIT_REAPER
   value: 512Mi
 
+- name: CPU_REQUEST_STALE_HOST_NOTIFICAION
+  value: 250m
+- name: CPU_LIMIT_STALE_HOST_NOTIFICAION
+  value: 500m
+- name: MEMORY_REQUEST_STALE_HOST_NOTIFICAION
+  value: 256Mi
+- name: MEMORY_LIMIT_STALE_HOST_NOTIFICAION
+  value: 512Mi
+
 - name: CPU_REQUEST_SP_VALIDATOR
   value: 250m
 - name: CPU_LIMIT_SP_VALIDATOR
@@ -1634,6 +1701,10 @@ parameters:
   value: 'true'
 - name: REAPER_SUSPEND
   value: 'true'
+- name: STALE_HOST_NOTIFICATION_SUSPEND
+  value: 'true'
+- name: STALE_HOST_NOTIFICATION_SCHEDULE
+  value: '*/1 * * * *'
 - name: SYNDICATOR_SUSPEND
   value: 'false'
 - name: SYNDICATOR_CRON_SCHEDULE
