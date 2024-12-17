@@ -320,6 +320,8 @@ class Config:
         self.mq_db_batch_max_messages = int(os.getenv("MQ_DB_BATCH_MAX_MESSAGES", "1"))
         self.mq_db_batch_max_seconds = float(os.getenv("MQ_DB_BATCH_MAX_SECONDS", "0.5"))
 
+        self.sp_fields_to_log = os.getenv("SP_FIELDS_TO_LOG", "").split(",")
+
         if self._runtime_environment == RuntimeEnvironment.PENDO_JOB:
             self.pendo_sync_active = os.environ.get("PENDO_SYNC_ACTIVE", "false").lower() == "true"
             self.pendo_endpoint = os.environ.get("PENDO_ENDPOINT", "https://app.pendo.io/api/v1")
