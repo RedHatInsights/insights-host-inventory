@@ -52,3 +52,14 @@ create_export_processing_time = Summary(
     "inventory_new_export_seconds", "Time spent to create a new host export report"
 )
 create_export_count = Counter("inventory_create_export", "The total amount of host exports created")
+
+# Stale Host Notification
+stale_host_notification_count = Counter(
+    "inventory_stale_host_notification_count", "The total amount of stale hosts notified"
+)
+stale_host_notification_processing_time = Summary(
+    "inventory_stale_host_notification_processing_time", "Time spent notifying stale hosts from the database"
+)
+stale_host_notification_fail_count = Counter(
+    "inventory_stale_host_notification_fail_count", "The total amount of Stale Host Notification failures."
+)
