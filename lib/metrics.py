@@ -52,3 +52,11 @@ create_export_processing_time = Summary(
     "inventory_new_export_seconds", "Time spent to create a new host export report"
 )
 create_export_count = Counter("inventory_create_export", "The total amount of host exports created")
+
+# Hosts publication checks counter
+host_publication_success_count = Counter(
+    "inventory_host_publication_success_count", "The total amount of Hosts publication successes."
+)
+host_publication_failure_count = Counter(
+    "inventory_host_publication_failure_count", "The total amount of Hosts publication failures."
+)
