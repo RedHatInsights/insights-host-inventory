@@ -2,6 +2,7 @@ import json
 from datetime import datetime
 from datetime import timedelta
 
+from confluent_kafka import Consumer
 from confluent_kafka import TopicPartition
 from marshmallow import ValidationError
 from requests import get
@@ -23,22 +24,24 @@ class TestResult:
         self.fail_count = 0
 
 
-def get_schema_from_url(url):
+def get_schema_from_url(url: str) -> dict:
     response = get(url)
     if response.status_code != 200:
         raise ValueError(f"Schema not found at URL: {url}")
     return safe_load(get(url).content.decode("utf-8"))
 
 
-def get_schema(fork, branch):
+def get_schema(fork: str, branch: str) -> dict:
     return get_schema_from_url(
         f"https://raw.githubusercontent.com/{fork}/inventory-schemas/" f"{branch}/schemas/system_profile/v1.yaml"
     )
 
 
-def validate_sp_schemas(consumer, topics, schemas, days=1, max_messages=10000):
+def validate_sp_schemas(
+    consumer: Consumer, topics: list[str], schemas: dict, days: int = 1, max_messages: int = 10000
+) -> dict[str, dict[str, TestResult]]:
     total_message_count = 0
-    test_results = {branch: {} for branch in schemas.keys()}
+    test_results: dict[str, dict[str, TestResult]] = {branch: {} for branch in schemas.keys()}
     seek_date = datetime.now() + timedelta(days=(-1 * days))
 
     logger.info("Validating messages from these topics:")
@@ -104,8 +107,13 @@ def validate_sp_schemas(consumer, topics, schemas, days=1, max_messages=10000):
 
 
 def validate_sp_for_branch(
-    consumer, topics, repo_fork="RedHatInsights", repo_branch="master", days=1, max_messages=10000
-):
+    consumer: Consumer,
+    topics: list[str],
+    repo_fork: str = "RedHatInsights",
+    repo_branch: str = "master",
+    days: int = 1,
+    max_messages: int = 10000,
+) -> dict[str, dict[str, TestResult]]:
     schemas = {"RedHatInsights/master": get_schema("RedHatInsights", "master")}
 
     schemas[f"{repo_fork}/{repo_branch}"] = get_schema(repo_fork, repo_branch)
