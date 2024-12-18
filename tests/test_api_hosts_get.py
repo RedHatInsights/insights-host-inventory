@@ -1396,14 +1396,17 @@ def test_query_all_sp_filters_operating_system(db_create_host, api_get, sp_filte
 
 
 @pytest.mark.parametrize(
-    "sp_filter_param",
+    "sp_filter_param,match",
     (
-        "[name][eq]=CentOS",
-        "[name][eq]=centos",
-        "[name][eq]=CENTOS",
+        ("[name][eq]=CentOS", True),
+        ("[name][eq]=centos", True),
+        ("[name][eq]=CENTOS", True),
+        ("[name][eq]=centos&filter[system_profile][operating_system][RHEL][version][eq][]=8", True),
+        ("[name][neq]=CENTOS", False),
+        ("[name][neq]=CentOS", False),
     ),
 )
-def test_query_sp_filters_operating_system_name(db_create_host, api_get, sp_filter_param):
+def test_query_sp_filters_operating_system_name(db_create_host, api_get, sp_filter_param, match):
     # Create host with this OS
     match_sp_data = {
         "system_profile_facts": {
@@ -1437,8 +1440,13 @@ def test_query_sp_filters_operating_system_name(db_create_host, api_get, sp_filt
 
     # Assert that only the matching host is returned
     response_ids = [result["id"] for result in response_data["results"]]
-    assert match_host_id in response_ids
-    assert nomatch_host_id not in response_ids
+
+    if match:
+        assert match_host_id in response_ids
+        assert nomatch_host_id not in response_ids
+    else:
+        assert nomatch_host_id in response_ids
+        assert match_host_id not in response_ids
 
 
 @pytest.mark.parametrize(

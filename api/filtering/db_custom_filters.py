@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from sqlalchemy import Integer
 from sqlalchemy import and_
+from sqlalchemy import func
 from sqlalchemy import or_
 from sqlalchemy.sql.expression import ColumnElement
 from sqlalchemy.sql.expression import ColumnOperators
@@ -116,8 +117,16 @@ def separate_operating_system_filters(filter_param) -> list[OsComparison]:
         return [OsComparison(comparator=filter_param)]
 
     # filter_param is a dict
-    for os_name in filter_param.keys(): # this doesn't account for "os_name" instead of os names
-        if os_name not in (os_names := _get_valid_os_names()):
+    for os_name in filter_param.keys():
+        # [operating_system][name][eq]==real_os_name
+        if os_name == "name":
+            ((comparator, real_os_name),) = filter_param["name"].items()
+            # case insensitive
+            if real_os_name.lower() not in [os_name.lower() for os_name in _get_valid_os_names()]:
+                raise ValidationException(f"operating_system filter only supports these OS names: {os_names}.")
+            return [OsComparison(real_os_name, comparator, None)]
+
+        elif os_name not in (os_names := _get_valid_os_names()):
             raise ValidationException(f"operating_system filter only supports these OS names: {os_names}.")
 
         if not isinstance(version_node := filter_param[os_name]["version"], dict):
@@ -149,16 +158,6 @@ def build_operating_system_filter(filter_param: dict) -> tuple:
     os_range_filter_list = []  # Contains the OS filters that use range operations
     os_field = Host.system_profile_facts["operating_system"]
 
-    # if isinstance(filter_param["operating_system"], dict) and "name" in filter_param["operating_system"].keys():
-    #     for os in filter_param["operating_system"]["name"].values():
-    #         print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>> found name", os_field["name"].astext == os)
-    #         # os_filter_list.append(and_([os_field["name"].astext == os]))
-
-    #     return os_filter_list
-
-    if "name" in filter_param.keys():
-        os_filter_list.append()
-
     separated_filters = separate_operating_system_filters(filter_param["operating_system"])
 
     for comparison in separated_filters:
@@ -168,12 +167,13 @@ def build_operating_system_filter(filter_param: dict) -> tuple:
             # Uses the comparator with None, resulting in either is_(None) or is_not(None)
             os_filter_list.append(os_field.astext.operate(comparator, None))
 
-        elif comparison.comparator == "eq":
-            print("~~~~~~~~~~~~~~~~~~~``", os_field["name"].astext == comparison.name)
+        elif comparison.comparator in ["eq", "neq"]:
             os_filters = [
-                os_field["name"].astext == comparison.name,
-                os_field["major"].astext.cast(Integer) == comparison.major,
+                func.lower(os_field["name"].astext).operate(comparator, comparison.name.lower()),
             ]
+
+            if comparison.major is not None:
+                os_filters.append(os_field["major"].astext.cast(Integer) == comparison.major)
 
             if comparison.minor:
                 os_filters.append(os_field["minor"].astext.cast(Integer) == comparison.minor)
