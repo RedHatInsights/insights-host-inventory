@@ -6,6 +6,7 @@ from datetime import timedelta
 
 from app.common import get_build_version
 from app.culling import days_to_seconds
+from app.culling import hours_to_seconds
 from app.environment import RuntimeEnvironment
 from app.logging import get_logger
 
@@ -311,6 +312,8 @@ class Config:
         self.immutable_time_to_delete_seconds = os.environ.get(
             "IMMUTABLE_TIME_TO_DELETE_SECONDS", days_to_seconds(730)
         )
+
+        self.stale_validation_window_seconds = int(os.getenv("STALE_VALIDATION_WINDOW_SECONDS", hours_to_seconds(1)))
 
         self.host_delete_chunk_size = int(os.getenv("HOST_DELETE_CHUNK_SIZE", "1000"))
         self.script_chunk_size = int(os.getenv("SCRIPT_CHUNK_SIZE", "500"))

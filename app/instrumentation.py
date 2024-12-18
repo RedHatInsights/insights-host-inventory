@@ -352,3 +352,8 @@ def log_patch_staleness_succeeded(logger, staleness_id):
 
 def log_create_staleness_failed(logger, org_id):
     logger.info("Failed to create staleness for account with org_id %s", org_id)
+
+
+# stale host notification
+def log_host_stale_notification_succeeded(logger, host_id, control_rule):
+    logger.info("Sent Notification for stale host: %s", host_id, extra={"access_rule": control_rule})
