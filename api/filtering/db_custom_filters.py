@@ -122,7 +122,7 @@ def separate_operating_system_filters(filter_param) -> list[OsComparison]:
         if os_name == "name":
             ((comparator, real_os_name),) = filter_param["name"].items()
             # case insensitive
-            if real_os_name.lower() not in [os_name.lower() for os_name in _get_valid_os_names()]:
+            if real_os_name.lower() not in (os_names := [name.lower() for name in _get_valid_os_names()]):
                 raise ValidationException(f"operating_system filter only supports these OS names: {os_names}.")
             return [OsComparison(real_os_name, comparator, None)]
 
