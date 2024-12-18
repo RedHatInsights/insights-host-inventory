@@ -116,7 +116,7 @@ def separate_operating_system_filters(filter_param) -> list[OsComparison]:
         return [OsComparison(comparator=filter_param)]
 
     # filter_param is a dict
-    for os_name in filter_param.keys():
+    for os_name in filter_param.keys(): # this doesn't account for "os_name" instead of os names
         if os_name not in (os_names := _get_valid_os_names()):
             raise ValidationException(f"operating_system filter only supports these OS names: {os_names}.")
 
@@ -147,8 +147,19 @@ def separate_operating_system_filters(filter_param) -> list[OsComparison]:
 def build_operating_system_filter(filter_param: dict) -> tuple:
     os_filter_list = []  # Top-level filter
     os_range_filter_list = []  # Contains the OS filters that use range operations
-    separated_filters = separate_operating_system_filters(filter_param["operating_system"])
     os_field = Host.system_profile_facts["operating_system"]
+
+    # if isinstance(filter_param["operating_system"], dict) and "name" in filter_param["operating_system"].keys():
+    #     for os in filter_param["operating_system"]["name"].values():
+    #         print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>> found name", os_field["name"].astext == os)
+    #         # os_filter_list.append(and_([os_field["name"].astext == os]))
+
+    #     return os_filter_list
+
+    if "name" in filter_param.keys():
+        os_filter_list.append()
+
+    separated_filters = separate_operating_system_filters(filter_param["operating_system"])
 
     for comparison in separated_filters:
         comparator = POSTGRES_COMPARATOR_LOOKUP.get(comparison.comparator)
@@ -158,6 +169,7 @@ def build_operating_system_filter(filter_param: dict) -> tuple:
             os_filter_list.append(os_field.astext.operate(comparator, None))
 
         elif comparison.comparator == "eq":
+            print("~~~~~~~~~~~~~~~~~~~``", os_field["name"].astext == comparison.name)
             os_filters = [
                 os_field["name"].astext == comparison.name,
                 os_field["major"].astext.cast(Integer) == comparison.major,
