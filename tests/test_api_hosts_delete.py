@@ -613,7 +613,7 @@ def test_log_create_delete(
     assert not db_get_host(host.id)
     assert caplog.records[0].system_profile == "{}"
 
-    
+
 # def test_delete_with_ui_host(
 #     db_create_host, api_delete_host, event_datetime_mock, event_producer_mock, notification_event_producer_mock
 # ):
