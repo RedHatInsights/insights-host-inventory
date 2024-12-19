@@ -137,7 +137,7 @@ def assert_delete_event_is_valid(
 
     assert host.canonical_facts.get("insights_id") == event["insights_id"]
 
-    assert event["manual_delete"] == is_manual_delete
+    assert event["manual_delete"] is is_manual_delete
 
     if is_manual_delete:
         assert event["subscription_manager_id"] is not None
