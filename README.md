@@ -478,3 +478,14 @@ Open a PR with these changes, and it will be reviewed and merged as per [the sta
 ## Running ad hoc jobs using a different image
 
 There may be a job (ClowdJobInvocation) which requires using a special image that is different from the one used by the parent application, i.e. host-inventory.  Clowder out-of-the-box does not allow it.  [Running a Special Job](docs/running_special_job.md) describes how to accomplish it.
+
+## Logging System Profile fields
+
+Use the environment variable `SP_FIELDS_TO_LOG` to log the System Profile fields of a host.
+These fields are logged when adding, updating or deleting a host from inventory. It is very helpful when debugging hosts in Kibana.
+
+Below is an example on how to use to use the environment variable:
+
+```bash
+SP_FIELDS_TO_LOG = "cpu_model,disk_devices"
+```

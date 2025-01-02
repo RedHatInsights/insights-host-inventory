@@ -55,6 +55,7 @@ from lib import host_repository
 from lib.db import session_guard
 from lib.feature_flags import FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM
 from lib.feature_flags import get_flag_value
+from utils.system_profile_log import extract_host_dict_sp_to_log
 
 logger = get_logger(__name__)
 
@@ -220,24 +221,29 @@ def update_system_profile(host_data, platform_metadata, notification_event_produ
     if operation_args is None:
         operation_args = {}
 
+    sp_fields_to_log = extract_host_dict_sp_to_log(host_data)
+
     try:
         input_host = deserialize_host(host_data, schema=LimitedHostSchema)
         input_host.id = host_data.get("id")
         identity = create_mock_identity_with_org_id(input_host.org_id)
         output_host, update_result = host_repository.update_system_profile(input_host, identity)
-        success_logger = partial(log_update_system_profile_success, logger)
+        success_logger = partial(log_update_system_profile_success, logger, sp_fields_to_log)
         return output_host, update_result, identity, success_logger
     except ValidationException:
         metrics.update_system_profile_failure.labels("ValidationException").inc()
         raise
     except InventoryException:
-        log_update_system_profile_failure(logger, host_data)
+        log_update_system_profile_failure(logger, host_data, sp_fields_to_log)
         raise
     except OperationalError as oe:
         log_db_access_failure(logger, f"Could not access DB {str(oe)}", host_data)
         raise oe
     except Exception:
-        logger.exception("Error while updating host system profile", extra={"host": host_data})
+        logger.exception(
+            "Error while updating host system profile",
+            extra={"host": host_data, "system_profile": sp_fields_to_log},
+        )
         metrics.update_system_profile_failure.labels("Exception").inc()
         raise
 
@@ -245,6 +251,8 @@ def update_system_profile(host_data, platform_metadata, notification_event_produ
 def add_host(host_data, platform_metadata, notification_event_producer, operation_args=None):
     if operation_args is None:
         operation_args = {}
+
+    sp_fields_to_log = extract_host_dict_sp_to_log(host_data)
     try:
         identity = _get_identity(host_data, platform_metadata)
         # basic-auth does not need owner_id
@@ -252,22 +260,23 @@ def add_host(host_data, platform_metadata, notification_event_producer, operatio
             host_data = _set_owner(host_data, identity)
 
         input_host = deserialize_host(host_data)
-        log_add_host_attempt(logger, input_host)
+        log_add_host_attempt(logger, input_host, sp_fields_to_log)
         host_row, add_result = host_repository.add_host(input_host, identity, operation_args=operation_args)
-        success_logger = partial(log_add_update_host_succeeded, logger, add_result)
+        success_logger = partial(log_add_update_host_succeeded, logger, add_result, sp_fields_to_log)
 
+        # raise InventoryException
         return host_row, add_result, identity, success_logger
     except ValidationException:
         metrics.add_host_failure.labels("ValidationException", host_data.get("reporter", "null")).inc()
         raise
     except InventoryException as ie:
-        log_add_host_failure(logger, str(ie.detail), host_data)
+        log_add_host_failure(logger, str(ie.detail), host_data, sp_fields_to_log)
         raise
     except OperationalError as oe:
         log_db_access_failure(logger, f"Could not access DB {str(oe)}", host_data)
         raise oe
     except Exception:
-        logger.exception("Error while adding host", extra={"host": host_data})
+        logger.exception("Error while adding host", extra={"host": host_data, "system_profile": sp_fields_to_log})
         metrics.add_host_failure.labels("Exception", host_data.get("reporter", "null")).inc()
         raise
 

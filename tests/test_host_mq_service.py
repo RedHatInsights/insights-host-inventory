@@ -1,4 +1,5 @@
 import json
+import logging
 from copy import deepcopy
 from datetime import datetime
 from datetime import timedelta
@@ -1989,3 +1990,53 @@ def test_batch_mq_graceful_rollback(mocker, flask_app):
     # Since batch size is 3 and we're sending 5 messages,the first batch (3 messages) will get dropped,
     # but the second batch (2 messages) should have events produced.
     assert write_batch_patch.call_count == 1
+
+
+@pytest.mark.parametrize("identity", (SYSTEM_IDENTITY,))
+def test_add_host_logs(identity, mocker, flask_app, caplog):
+    caplog.at_level(logging.INFO)
+
+    expected_insights_id = generate_uuid()
+    host = minimal_host(account=identity["account_number"], insights_id=expected_insights_id)
+
+    mock_notification_event_producer = mocker.Mock()
+
+    message = wrap_message(host.data(), "add_host", get_platform_metadata(identity))
+    result = handle_message(json.dumps(message), mock_notification_event_producer)
+
+    assert result.event_type == EventType.created
+    assert result.host_row.canonical_facts["insights_id"] == expected_insights_id
+    assert caplog.records[0].input_host["system_profile"] == "{}"
+    mock_notification_event_producer.write_event.assert_not_called()
+
+
+@pytest.mark.parametrize("id_type", ("id", "insights_id", "fqdn"))
+def test_log_update_system_profile(mq_create_or_update_host, db_get_host, id_type, caplog):
+    caplog.at_level(logging.INFO)
+    expected_ids = {"insights_id": generate_uuid(), "fqdn": "foo.test.redhat.com"}
+    input_host = base_host(**expected_ids, system_profile={"owner_id": OWNER_ID, "number_of_cpus": 1})
+    first_host_from_event = mq_create_or_update_host(input_host)
+    first_host_from_db = db_get_host(first_host_from_event.id)
+    expected_ids["id"] = str(first_host_from_db.id)
+
+    assert str(first_host_from_db.canonical_facts["insights_id"]) == expected_ids["insights_id"]
+    assert first_host_from_db.system_profile_facts.get("number_of_cpus") == 1
+
+    input_host = base_host(
+        **{id_type: expected_ids[id_type]}, system_profile={"number_of_cpus": 4, "number_of_sockets": 8}
+    )
+    input_host.stale_timestamp = None
+    input_host.reporter = None
+    second_host_from_event = mq_create_or_update_host(input_host, message_operation=update_system_profile)
+    second_host_from_db = db_get_host(second_host_from_event.id)
+
+    # The second host should have the same ID and insights ID,
+    # and the system profile should have updated with the new values.
+    assert str(second_host_from_db.id) == first_host_from_event.id
+    assert str(second_host_from_db.canonical_facts["insights_id"]) == expected_ids["insights_id"]
+    assert second_host_from_db.system_profile_facts == {
+        "owner_id": OWNER_ID,
+        "number_of_cpus": 4,
+        "number_of_sockets": 8,
+    }
+    assert caplog.records[0].input_host["system_profile"] == "{}"
