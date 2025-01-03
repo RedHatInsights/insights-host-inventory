@@ -45,7 +45,7 @@ repos:
     language: node
     additional_dependencies:
       - "@redocly/cli"
-    entry: redocly bundle swagger/api.spec.yaml -o swagger/openapi.dev.json
+    entry: redocly bundle swagger/api.spec.yaml -o openapi.dev.json
     pass_filenames: false
     # always_run: true
     stages: [manual]
