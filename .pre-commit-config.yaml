@@ -40,7 +40,7 @@ repos:
 
 - repo: local
   hooks:
-  - id: redocly-merge # here for reference - currently renames and breaks clien gen
+  - id: redocly-merge # here for reference - currently renames and breaks client gen
     name: redoc merge
     language: node
     additional_dependencies:
@@ -49,14 +49,14 @@ repos:
     pass_filenames: false
     # always_run: true
     stages: [manual]
-  # - id: redocly-filter
-  #   name: redoc filter
-  #   language: node
-  #   additional_dependencies:
-  #   - "@redocly/cli"
-  #   entry: redocly bundle --config=swagger/redocly.yml filter_generated -o swagger/openapi.json
-  #   pass_filenames: false
-  #   always_run: true
+  - id: redocly-filter
+    name: redoc filter
+    language: node
+    additional_dependencies:
+    - "@redocly/cli"
+    entry: redocly bundle --config=swagger/redocly.yml filter_generated -o swagger/openapi.json
+    pass_filenames: false
+    always_run: true
   - id: redocly-validate
     name: redoc validate
     language: node
