@@ -625,13 +625,13 @@ def test_delete_with_ui_host(
     assert_response_status(response_status, expected_status=200)
 
     assert_delete_event_is_valid(
-        event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock, is_manual_delete=True
+        event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock, manual_delete=True
     )
 
 
 class DeleteHostsMock:
     @classmethod
-    def create_mock(cls, hosts_ids_to_delete, is_manual_delete=False):
+    def create_mock(cls, hosts_ids_to_delete, manual_delete=False):
         def _constructor(
             select_query,
             event_producer,
@@ -639,7 +639,7 @@ class DeleteHostsMock:
             chunk_size,
             identity=None,
             control_rule=None,
-            is_manual_delete=is_manual_delete,
+            manual_delete=manual_delete,
         ):
             return cls(
                 hosts_ids_to_delete,
@@ -649,7 +649,7 @@ class DeleteHostsMock:
                 chunk_size,
                 identity=identity,
                 control_rule=control_rule,
-                is_manual_delete=is_manual_delete,
+                manual_delete=manual_delete,
             )
 
         return _constructor
@@ -663,7 +663,7 @@ class DeleteHostsMock:
         chunk_size,
         identity=None,
         control_rule=None,
-        is_manual_delete=False,
+        manual_delete=False,
     ):
         self.host_ids_to_delete = host_ids_to_delete
         self.original_query = delete_hosts(
@@ -673,7 +673,7 @@ class DeleteHostsMock:
             chunk_size,
             identity=identity,
             control_rule=control_rule,
-            is_manual_delete=is_manual_delete,
+            manual_delete=manual_delete,
         )
 
     def __getattr__(self, item):

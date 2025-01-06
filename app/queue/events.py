@@ -115,7 +115,7 @@ def host_create_update_event(event_type, host, platform_metadata=None):
     )
 
 
-def host_delete_event(event_type, host, is_manual_delete=False, platform_metadata=None):
+def host_delete_event(event_type, host, manual_delete=False, platform_metadata=None):
     delete_event = {
         "timestamp": datetime.now(timezone.utc),
         "type": event_type.name,
@@ -123,7 +123,7 @@ def host_delete_event(event_type, host, is_manual_delete=False, platform_metadat
         **serialize_canonical_facts(host.canonical_facts),
         "org_id": host.org_id,
         "account": host.account,
-        "manual_delete": is_manual_delete,
+        "manual_delete": manual_delete,
         "request_id": threadctx.request_id,
         "platform_metadata": platform_metadata,
         "metadata": {"request_id": threadctx.request_id},
