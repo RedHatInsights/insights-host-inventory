@@ -1,8 +1,8 @@
 apis:
   full: # dont use yet, it renames elements
-    root: swagger/api.spec.yaml
+    root: ./api.spec.yaml
   cleaned: #dito
-    root: swagger/api.spec.yaml
+    root: ./api.spec.yaml
     decorators: &remove-assignment-config
       filter-out:
         property: operationId
@@ -12,5 +12,5 @@ apis:
         - api.assignment_rule.get_assignment_rules_by_id
       remove-unused-components: on
   filter_generated:
-    root: swagger/openapi.dev.json
+    root: ./openapi.dev.json
     decorators: *remove-assignment-config
