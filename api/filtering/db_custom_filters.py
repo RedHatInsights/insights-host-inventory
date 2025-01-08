@@ -117,21 +117,18 @@ def separate_operating_system_filters(filter_param) -> list[OsComparison]:
         return [OsComparison(comparator=filter_param)]
 
     # filter_param is a dict
-    for os_name in filter_param.keys():
-        # [operating_system][name][eq]==real_os_name
-        if os_name == "name":
-            ((comparator, real_os_name),) = filter_param["name"].items()
-            # case insensitive
-            if real_os_name.lower() not in (os_names := [name.lower() for name in _get_valid_os_names()]):
-                raise ValidationException(f"operating_system filter only supports these OS names: {os_names}.")
-            return [OsComparison(real_os_name, comparator, None)]
+    for filter_key in filter_param.keys():
+        if filter_key == "name":
+            ((os_comparator, os_name),) = filter_param["name"].items()
+            version_node = {os_comparator: [None]}
+        else:
+            os_name = filter_key
+            if not isinstance(version_node := filter_param[os_name]["version"], dict):
+                # If there's no comparator, treat it as "eq"
+                version_node = {"eq": version_node}
 
-        elif os_name not in (os_names := _get_valid_os_names()):
+        if os_name.lower() not in (os_names := [name.lower() for name in _get_valid_os_names()]):
             raise ValidationException(f"operating_system filter only supports these OS names: {os_names}.")
-
-        if not isinstance(version_node := filter_param[os_name]["version"], dict):
-            # If there's no comparator, treat it as "eq"
-            version_node = {"eq": version_node}
 
         for os_comparator in version_node.keys():
             version_array = version_node[os_comparator]
@@ -139,13 +136,16 @@ def separate_operating_system_filters(filter_param) -> list[OsComparison]:
                 version_array = [version_array]
 
             for version in version_array:
-                version_split = version.split(".")
-                if len(version_split) > 2:
-                    raise ValidationException("operating_system filter can only have a major and minor version.")
+                if version is None:
+                    version_split = [None, None]
+                else:
+                    version_split = version.split(".")
+                    if len(version_split) > 2:
+                        raise ValidationException("operating_system filter can only have a major and minor version.")
 
-                for v in version_split:
-                    if not v.isdigit():
-                        raise ValidationException("operating_system major and minor versions must be numerical.")
+                    for v in version_split:
+                        if not v.isdigit():
+                            raise ValidationException("operating_system major and minor versions must be numerical.")
 
                 os_filter_list.append(OsComparison(os_name, os_comparator, *version_split))
 
