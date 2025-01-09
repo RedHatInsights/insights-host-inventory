@@ -129,21 +129,22 @@ def _get_identity(host, metadata):
 
 
 # When identity_type is System, set owner_id if missing from the host system_profile
-def _set_owner(host, identity):
+def _set_owner(host: Host, identity: Identity) -> Host:
     cn = identity.system.get("cn")
-    if "system_profile" not in host:
-        host["system_profile"] = {}
-        host["system_profile"]["owner_id"] = cn
-    elif not host["system_profile"].get("owner_id"):
-        host["system_profile"]["owner_id"] = cn
+    if host.system_profile_facts is None:
+        host.system_profile_facts = {}
+        host.system_profile_facts["owner_id"] = cn
+    elif not host.system_profile_facts.get("owner_id"):
+        host.system_profile_facts["owner_id"] = cn
     else:
-        reporter = host.get("reporter")
-        if (reporter == "rhsm-conduit" or reporter == "rhsm-system-profile-bridge") and host.get(
-            "subscription_manager_id"
+        reporter = host.reporter
+        if (
+            reporter in ["rhsm-conduit", "rhsm-system-profile-bridge"]
+            and "subscription_manager_id" in host.canonical_facts
         ):
-            host["system_profile"]["owner_id"] = _formatted_uuid(host.get("subscription_manager_id"))
+            host.system_profile_facts["owner_id"] = _formatted_uuid(host.canonical_facts["subscription_manager_id"])
         else:
-            if host["system_profile"]["owner_id"] != cn:
+            if host.system_profile_facts["owner_id"] != cn:
                 raise ValidationException("The owner in host does not match the owner in identity")
     return host
 
@@ -255,16 +256,16 @@ def add_host(host_data, platform_metadata, notification_event_producer, operatio
     sp_fields_to_log = extract_host_dict_sp_to_log(host_data)
     try:
         identity = _get_identity(host_data, platform_metadata)
+        input_host = deserialize_host(host_data)
+
         # basic-auth does not need owner_id
         if identity.identity_type == IdentityType.SYSTEM:
-            host_data = _set_owner(host_data, identity)
+            input_host = _set_owner(input_host, identity)
 
-        input_host = deserialize_host(host_data)
         log_add_host_attempt(logger, input_host, sp_fields_to_log)
         host_row, add_result = host_repository.add_host(input_host, identity, operation_args=operation_args)
         success_logger = partial(log_add_update_host_succeeded, logger, add_result, sp_fields_to_log)
 
-        # raise InventoryException
         return host_row, add_result, identity, success_logger
     except ValidationException:
         metrics.add_host_failure.labels("ValidationException", host_data.get("reporter", "null")).inc()
