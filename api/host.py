@@ -316,10 +316,6 @@ def delete_host_by_id(host_id_list, rbac_filter=None):
     return flask.Response(None, HTTPStatus.OK)
 
 
-# def check_manual_deletion(origin_host: str = ""):
-#     return origin_host in ["console.stage.redhat.com", "console.redhat.com"]
-
-
 @api_operation
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
