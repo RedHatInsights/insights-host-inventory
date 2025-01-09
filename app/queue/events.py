@@ -35,7 +35,7 @@ class SerializedHostSchema(Schema):
     account = fields.Str(required=False)
     org_id = fields.Str(required=True)
     insights_id = fields.Str()
-    subscription_manager_id = fields.Str()
+    subscription_manager_id = fields.UUID()
     satellite_id = fields.Str()
     fqdn = fields.Str()
     bios_uuid = fields.Str()
@@ -76,6 +76,8 @@ class HostDeleteEvent(Schema):
     org_id = fields.Str()
     insights_id = fields.Str()
     request_id = fields.Str()
+    subscription_manager_id = fields.UUID()
+    initiated_by_frontend = fields.Bool()
     platform_metadata = fields.Dict()
     metadata = fields.Nested(HostEventMetadataSchema())
 
@@ -113,7 +115,7 @@ def host_create_update_event(event_type, host, platform_metadata=None):
     )
 
 
-def host_delete_event(event_type, host, platform_metadata=None):
+def host_delete_event(event_type, host, initiated_by_frontend=False, platform_metadata=None):
     delete_event = {
         "timestamp": datetime.now(timezone.utc),
         "type": event_type.name,
@@ -121,6 +123,7 @@ def host_delete_event(event_type, host, platform_metadata=None):
         **serialize_canonical_facts(host.canonical_facts),
         "org_id": host.org_id,
         "account": host.account,
+        "initiated_by_frontend": initiated_by_frontend,
         "request_id": threadctx.request_id,
         "platform_metadata": platform_metadata,
         "metadata": {"request_id": threadctx.request_id},
