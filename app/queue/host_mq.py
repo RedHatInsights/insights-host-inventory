@@ -335,8 +335,13 @@ def handle_message(message, notification_event_producer, message_operation=add_h
             raise
 
 
-def write_delete_event_message(event_producer: EventProducer, result: OperationResult):
-    event = build_event(EventType.delete, result.host_row, platform_metadata=result.platform_metadata)
+def write_delete_event_message(event_producer: EventProducer, result: OperationResult, initiated_by_frontend: bool):
+    event = build_event(
+        EventType.delete,
+        result.host_row,
+        platform_metadata=result.platform_metadata,
+        initiated_by_frontend=initiated_by_frontend,
+    )
     headers = message_headers(
         EventType.delete,
         result.host_row.canonical_facts.get("insights_id"),
