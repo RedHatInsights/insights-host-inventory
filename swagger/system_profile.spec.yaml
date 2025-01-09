@@ -592,6 +592,17 @@ $defs:
             example: "8.1, 7.5, 9.9"
             type: string
             maxLength: 255
+          environment_ids:
+            description: Environments ("content templates") the system is subscribed to.
+            example: ["262e621d10ae4475ab5732b39a9160b2"]
+            type: array
+            items:
+              description: An environment ID.
+              type: string
+              example: "262e621d10ae4475ab5732b39a9160b2, 01fd642e02de4e6da2da6172081a971e"
+              pattern: '^.*$'
+              maxLength: 256
+
       system_purpose:
         description: Object for system purpose information
         type: object
