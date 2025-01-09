@@ -244,7 +244,7 @@ def delete_hosts_by_filter(
 
 def _delete_host_list(host_id_list, rbac_filter):
     frontend_origin = flask.request.headers.get("x-rh-frontend-origin", "")
-    manual_delete = frontend_origin == "hcc"
+    initiated_by_frontend = frontend_origin == "hcc"
 
     current_identity = get_current_identity()
     payload_tracker = get_payload_tracker(
@@ -263,7 +263,7 @@ def _delete_host_list(host_id_list, rbac_filter):
             inventory_config().host_delete_chunk_size,
             identity=current_identity,
             control_rule=get_control_rule(),
-            manual_delete=manual_delete,
+            initiated_by_frontend=initiated_by_frontend,
         )
 
         deleted_id_list = [str(r.host_row.id) for r in result_list]

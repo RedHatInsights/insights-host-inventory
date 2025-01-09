@@ -110,7 +110,7 @@ def assert_delete_event_is_valid(
     expected_request_id=None,
     expected_metadata=None,
     identity=USER_IDENTITY,
-    manual_delete=False,
+    initiated_by_frontend=False,
 ):
     event = json.loads(event_producer.event)
 
@@ -125,7 +125,7 @@ def assert_delete_event_is_valid(
         "insights_id",
         "request_id",
         "subscription_manager_id",
-        "manual_delete",
+        "initiated_by_frontend",
         "platform_metadata",
         "metadata",
     }
@@ -137,9 +137,9 @@ def assert_delete_event_is_valid(
 
     assert host.canonical_facts.get("insights_id") == event["insights_id"]
 
-    assert event["manual_delete"] is manual_delete
+    assert event["initiated_by_frontend"] is initiated_by_frontend
 
-    if manual_delete:
+    if initiated_by_frontend:
         assert event["subscription_manager_id"] is not None
 
     assert event_producer.key == str(host.id)

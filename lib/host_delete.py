@@ -43,12 +43,12 @@ def _send_delete_messages_for_batch(
     processed_rows: list[OperationResult],
     event_producer: EventProducer,
     notification_event_producer: EventProducer,
-    manual_delete: bool,
+    initiated_by_frontend: bool,
 ):
     for result in processed_rows:
         if result is not None:
             delete_host_count.inc()
-            write_delete_event_message(event_producer, result, manual_delete)
+            write_delete_event_message(event_producer, result, initiated_by_frontend)
             send_notification(notification_event_producer, NotificationType.system_deleted, vars(result.host_row))
 
 
@@ -60,14 +60,14 @@ def delete_hosts(
     interrupt=lambda: False,
     identity=None,
     control_rule=None,
-    manual_delete=False,
+    initiated_by_frontend=False,
 ):
     while select_query.count():
         if kafka_available():
             with session_guard(select_query.session):
                 batch_events = _delete_host_db_records(select_query, chunk_size, identity, interrupt, control_rule)
                 _send_delete_messages_for_batch(
-                    batch_events, event_producer, notification_event_producer, manual_delete
+                    batch_events, event_producer, notification_event_producer, initiated_by_frontend
                 )
 
                 # yield the items in batch_events
