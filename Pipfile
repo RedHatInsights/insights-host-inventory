@@ -13,7 +13,7 @@ psycopg2 = "~=2.9.10"
 flask-migrate = "~=4.0.5"
 itsdangerous = "==2.2.0"
 gunicorn = "~=23.0.0"
-connexion = {version = "~=3.1.0",extras = ["swagger-ui", "flask", "uvicorn"]}
+connexion = {version = "~=3.2.0",extras = ["swagger-ui", "flask", "uvicorn"]}
 markupsafe = "==3.0.2"
 openapi-schema-validator = "==0.6.2"
 openapi-spec-validator = "==0.7.1"
