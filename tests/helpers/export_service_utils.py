@@ -64,7 +64,7 @@ EXPORT_DATA = [
 ]
 
 
-def create_export_message_mock(format: str = "json"):
+def create_export_message_mock(format: str = "json") -> str:
     return json.dumps(
         {
             "id": "b4228e37-8ae8-4c67-81d5-d03f39bbe309",
