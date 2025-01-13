@@ -26,8 +26,10 @@ logger = get_logger(__name__)
 # The list of comparators can be seen in POSTGRES_COMPARATOR_LOOKUP
 class OsFilter:
     def __init__(self, name="", comparator="", version=None):
+        os_names = get_valid_os_names()
+
         try:
-            if name and name.lower() not in (os_names := [name.lower() for name in get_valid_os_names()]):
+            if name and name.lower() not in [name.lower() for name in os_names]:
                 raise ValidationException(f"operating_system filter only supports these OS names: {os_names}.")
 
             if version is None:
