@@ -64,7 +64,7 @@ EXPORT_DATA = [
 ]
 
 
-def create_export_message_mock():
+def create_export_message_mock(format: str = "json"):
     return json.dumps(
         {
             "id": "b4228e37-8ae8-4c67-81d5-d03f39bbe309",
@@ -85,7 +85,7 @@ def create_export_message_mock():
                         "productId": "RHEL",
                         "startDate": "2024-01-01T00:00:00Z",
                     },
-                    "format": "json",
+                    "format": format,
                     "resource": "urn:redhat:application:inventory:export:systems",
                     "uuid": "2844f3a1-e047-45b1-b0ce-fb9812ad6a6f",
                     "x-rh-identity": (

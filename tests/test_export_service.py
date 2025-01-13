@@ -11,9 +11,12 @@ from api.staleness_query import get_sys_default_staleness
 from app.auth.identity import Identity
 from app.culling import Timestamps
 from app.culling import _Config as CullingConfig
+from app.exceptions import InventoryException
 from app.queue.export_service import _format_export_data
+from app.queue.export_service import create_export
 from app.queue.export_service import get_host_list
 from app.queue.export_service_mq import handle_export_message
+from app.queue.export_service_mq import parse_export_service_message
 from app.serialization import _EXPORT_SERVICE_FIELDS
 from app.serialization import serialize_host_for_export_svc
 from tests.helpers import export_service_utils as es_utils
@@ -32,6 +35,21 @@ def test_handle_create_export_happy_path(mock_post, db_create_host, flask_app, i
         mock_post.return_value.status_code = 202
         resp = handle_export_message(message=export_message, inventory_config=inventory_config)
         assert resp is True
+
+
+@pytest.mark.parametrize("format", ("json", "csv"))
+def test_handle_create_export_unicode(db_create_host, flask_app, inventory_config, format):
+    with flask_app.app.app_context():
+        host_to_create = db_host()
+        host_to_create.display_name = "“quotetest”"
+        db_create_host(host=host_to_create)
+
+        validated_msg = parse_export_service_message(es_utils.create_export_message_mock(format=format))
+        base64_x_rh_identity = validated_msg["data"]["resource_request"]["x_rh_identity"]
+
+        # Should raise InventoryException, not UnicodeEncodeError
+        with pytest.raises(InventoryException):
+            create_export(validated_msg, base64_x_rh_identity, inventory_config)
 
 
 @mock.patch("requests.Session.post", autospec=True)
