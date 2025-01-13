@@ -1,3 +1,5 @@
+from sqlalchemy import select
+
 from api.cache import delete_cached_system_keys
 from api.host_query import staleness_timestamps
 from api.staleness_query import get_staleness_obj
@@ -190,9 +192,13 @@ def delete_group_list(group_id_list: list[str], event_producer: EventProducer) -
     deleted_host_ids = []
     staleness = get_staleness_obj(get_current_identity())
     with session_guard(db.session):
-        assocs_to_delete = HostGroupAssoc.query.filter(
-            Group.org_id == get_current_identity().org_id, HostGroupAssoc.group_id.in_(group_id_list)
-        ).all()
+        query = (
+            select(HostGroupAssoc)
+            .join(Group, HostGroupAssoc.group_id == Group.id)
+            .filter(Group.org_id == get_current_identity().org_id, HostGroupAssoc.group_id.in_(group_id_list))
+        )
+
+        assocs_to_delete = db.session.execute(query).scalars().all()
 
         deleted_host_ids = [assoc.host_id for assoc in assocs_to_delete]
 

@@ -21,7 +21,7 @@ def test_metrics(flask_client):
     The metrics endpoint simply returns 200 to any GET request.
     """
     with TemporaryDirectory() as temp_dir:
-        with set_environment({"prometheus_multiproc_dir": temp_dir}):
+        with set_environment({"PROMETHEUS_MULTIPROC_DIR": temp_dir}):
             response = flask_client.get(METRICS_URL)  # No identity header.
             assert response.status_code == 200
 

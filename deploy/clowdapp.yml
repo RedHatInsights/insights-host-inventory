@@ -107,7 +107,7 @@ objects:
           value: ${CONSOLEDOT_HOSTNAME}
         - name: INVENTORY_LEGACY_API_URL
           value: /r/insights/platform/inventory/v1
-        - name: prometheus_multiproc_dir
+        - name: PROMETHEUS_MULTIPROC_DIR
           value: /tmp/inventory/prometheus
         - name: INVENTORY_LOG_LEVEL
           value: ${LOG_LEVEL}
@@ -261,7 +261,7 @@ objects:
           value: ${CONSOLEDOT_HOSTNAME}
         - name: INVENTORY_LEGACY_API_URL
           value: /r/insights/platform/inventory/v1
-        - name: prometheus_multiproc_dir
+        - name: PROMETHEUS_MULTIPROC_DIR
           value: /tmp/inventory/prometheus
         - name: INVENTORY_LOG_LEVEL
           value: ${LOG_LEVEL}
@@ -415,7 +415,7 @@ objects:
           value: ${CONSOLEDOT_HOSTNAME}
         - name: INVENTORY_LEGACY_API_URL
           value: /r/insights/platform/inventory/v1
-        - name: prometheus_multiproc_dir
+        - name: PROMETHEUS_MULTIPROC_DIR
           value: /tmp/inventory/prometheus
         - name: INVENTORY_LOG_LEVEL
           value: ${LOG_LEVEL}
