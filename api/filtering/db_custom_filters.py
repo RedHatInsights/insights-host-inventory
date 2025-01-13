@@ -26,24 +26,27 @@ logger = get_logger(__name__)
 # The list of comparators can be seen in POSTGRES_COMPARATOR_LOOKUP
 class OsFilter:
     def __init__(self, name="", comparator="", version=None):
-        if name and name.lower() not in (os_names := [name.lower() for name in get_valid_os_names()]):
-            raise ValidationException(f"operating_system filter only supports these OS names: {os_names}.")
+        try:
+            if name and name.lower() not in (os_names := [name.lower() for name in get_valid_os_names()]):
+                raise ValidationException(f"operating_system filter only supports these OS names: {os_names}.")
 
-        if version is None:
-            major, minor = None, None
-        else:
-            version_split = version.split(".")
-
-            if len(version_split) > 2:
-                raise ValidationException("operating_system filter can only have a major and minor version.")
-            elif len(version_split) == 1:  # only major version was sent
-                major = version_split[0]
-                minor = None
+            if version is None:
+                major, minor = None, None
             else:
-                major, minor = version_split
+                version_split = version.split(".")
 
-            if not major.isdigit() or (minor and not minor.isdigit()):
-                raise ValidationException("operating_system major and minor versions must be numerical.")
+                if len(version_split) > 2:
+                    raise ValidationException("operating_system filter can only have a major and minor version.")
+                elif len(version_split) == 1:  # only major version was sent
+                    major = version_split[0]
+                    minor = None
+                else:
+                    major, minor = version_split
+
+                if not major.isdigit() or (minor and not minor.isdigit()):
+                    raise ValidationException("operating_system major and minor versions must be numerical.")
+        except ValidationException:
+            raise
 
         self.name = name
         self.comparator = comparator
