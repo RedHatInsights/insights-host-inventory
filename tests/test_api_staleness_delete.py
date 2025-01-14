@@ -28,7 +28,7 @@ def test_delete_non_existing_staleness(api_delete_staleness):
 
 
 def test_delete_staleness_rbac_allowed(
-    subtests, mocker, api_delete_staleness, db_create_staleness_culling, enable_rbac
+    subtests, mocker, api_delete_staleness, db_create_staleness_culling, _enable_rbac
 ):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
@@ -52,7 +52,7 @@ def test_delete_staleness_rbac_allowed(
             assert_response_status(response_status, 204)
 
 
-def test_delete_staleness_rbac_denied(subtests, mocker, api_delete_staleness, enable_rbac):
+def test_delete_staleness_rbac_denied(subtests, mocker, api_delete_staleness, _enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in STALENESS_WRITE_PROHIBITED_RBAC_RESPONSE_FILES:

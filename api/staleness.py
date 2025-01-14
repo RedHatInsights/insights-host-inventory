@@ -49,6 +49,7 @@ def _validate_input_data(body):
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_staleness(rbac_filter=None):
+    _ = (rbac_filter,)  # Unused: group-level RBAC does not apply to account-level staleness
     try:
         staleness = get_staleness_obj()
         staleness = serialize_staleness_response(staleness)
@@ -63,6 +64,7 @@ def get_staleness(rbac_filter=None):
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_default_staleness(rbac_filter=None):
+    _ = (rbac_filter,)  # Unused: group-level RBAC does not apply to account-level staleness
     try:
         identity = get_current_identity()
         staleness = get_sys_default_staleness_api(identity)

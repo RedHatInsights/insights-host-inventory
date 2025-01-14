@@ -67,7 +67,7 @@ def test_system_profile_valid_date_format(mq_create_or_update_host, boot_time):
     mq_create_or_update_host(host)
 
 
-def test_get_system_profile_sap_system_with_RBAC_allowed(subtests, mocker, api_get, enable_rbac):
+def test_get_system_profile_sap_system_with_RBAC_allowed(subtests, mocker, api_get, _enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     url = build_system_profile_sap_system_url()
@@ -82,7 +82,7 @@ def test_get_system_profile_sap_system_with_RBAC_allowed(subtests, mocker, api_g
             assert_response_status(response_status, 200)
 
 
-def test_get_system_profile_sap_sids_with_RBAC_allowed(subtests, mocker, api_get, enable_rbac):
+def test_get_system_profile_sap_sids_with_RBAC_allowed(subtests, mocker, api_get, _enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     url = build_system_profile_sap_sids_url()
@@ -97,7 +97,7 @@ def test_get_system_profile_sap_sids_with_RBAC_allowed(subtests, mocker, api_get
             assert_response_status(response_status, 200)
 
 
-def test_get_system_profile_with_RBAC_denied(subtests, mocker, api_get, enable_rbac):
+def test_get_system_profile_with_RBAC_denied(subtests, mocker, api_get, _enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     urls = (build_system_profile_sap_system_url(), build_system_profile_sap_sids_url())
@@ -113,7 +113,7 @@ def test_get_system_profile_with_RBAC_denied(subtests, mocker, api_get, enable_r
                 assert_response_status(response_status, 403)
 
 
-def test_get_system_profile_sap_system_with_RBAC_bypassed_as_system(api_get, enable_rbac):
+def test_get_system_profile_sap_system_with_RBAC_bypassed_as_system(api_get, _enable_rbac):
     url = build_system_profile_sap_system_url()
 
     response_status, response_data = api_get(url, SYSTEM_IDENTITY)
@@ -121,7 +121,7 @@ def test_get_system_profile_sap_system_with_RBAC_bypassed_as_system(api_get, ena
     assert_response_status(response_status, 200)
 
 
-def test_get_system_profile_sap_sids_with_RBAC_bypassed_as_system(api_get, enable_rbac):
+def test_get_system_profile_sap_sids_with_RBAC_bypassed_as_system(api_get, _enable_rbac):
     url = build_system_profile_sap_sids_url()
 
     response_status, response_data = api_get(url, SYSTEM_IDENTITY)
@@ -129,7 +129,7 @@ def test_get_system_profile_sap_sids_with_RBAC_bypassed_as_system(api_get, enabl
     assert_response_status(response_status, 200)
 
 
-def test_get_system_profile_RBAC_allowed(mocker, subtests, api_get, enable_rbac):
+def test_get_system_profile_RBAC_allowed(mocker, subtests, api_get, _enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     host_id = generate_uuid()
@@ -144,7 +144,7 @@ def test_get_system_profile_RBAC_allowed(mocker, subtests, api_get, enable_rbac)
             assert_response_status(response_status, 200)
 
 
-def test_get_system_profile_RBAC_denied(mocker, subtests, api_get, enable_rbac):
+def test_get_system_profile_RBAC_denied(mocker, subtests, api_get, _enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     find_hosts_by_staleness_mock = mocker.patch(
         "lib.host_repository.find_hosts_by_staleness", wraps=find_hosts_by_staleness

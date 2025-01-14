@@ -140,7 +140,7 @@ def test_handle_json_format(flask_app, db_create_host, mocker):
 
 
 @mock.patch("requests.Session.post", autospec=True)
-def test_handle_rbac_allowed(mock_post, subtests, flask_app, db_create_host, mocker, enable_rbac, inventory_config):
+def test_handle_rbac_allowed(mock_post, subtests, flask_app, db_create_host, mocker, _enable_rbac, inventory_config):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in HOST_READ_ALLOWED_RBAC_RESPONSE_FILES:
@@ -157,7 +157,9 @@ def test_handle_rbac_allowed(mock_post, subtests, flask_app, db_create_host, moc
 
 
 @mock.patch("requests.Session.post", autospec=True)
-def test_handle_rbac_prohibited(mock_post, subtests, flask_app, db_create_host, mocker, enable_rbac, inventory_config):
+def test_handle_rbac_prohibited(
+    mock_post, subtests, flask_app, db_create_host, mocker, _enable_rbac, inventory_config
+):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES:
@@ -190,9 +192,7 @@ def test_do_not_export_culled_hosts(flask_app, db_create_host, db_create_stalene
             db_create_host()
 
         identity = Identity(USER_IDENTITY)
-        host_list = get_host_list(
-            identity=identity, exportFormat="json", rbac_filter=None, inventory_config=inventory_config
-        )
+        host_list = get_host_list(identity=identity, rbac_filter=None, inventory_config=inventory_config)
 
         assert len(host_list) == 0
 
@@ -201,8 +201,6 @@ def test_export_one_host(flask_app, db_create_host, inventory_config):
     with flask_app.app.app_context():
         db_create_host()
         identity = Identity(USER_IDENTITY)
-        host_list = get_host_list(
-            identity=identity, exportFormat="json", rbac_filter=None, inventory_config=inventory_config
-        )
+        host_list = get_host_list(identity=identity, rbac_filter=None, inventory_config=inventory_config)
 
         assert len(host_list) == 1

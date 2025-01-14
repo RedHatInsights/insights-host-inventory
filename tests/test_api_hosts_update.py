@@ -456,7 +456,7 @@ def test_add_facts_to_multiple_culled_hosts(
         assert_response_status(response_status, expected_status=400)
 
 
-def test_patch_host_with_RBAC_allowed(subtests, mocker, api_patch, db_create_host, event_producer_mock, enable_rbac):
+def test_patch_host_with_RBAC_allowed(subtests, mocker, api_patch, db_create_host, event_producer_mock, _enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in HOST_WRITE_ALLOWED_RBAC_RESPONSE_FILES:
@@ -473,7 +473,7 @@ def test_patch_host_with_RBAC_allowed(subtests, mocker, api_patch, db_create_hos
 
 
 def test_patch_host_with_RBAC_denied(
-    subtests, mocker, api_patch, db_create_host, event_producer_mock, db_get_host, enable_rbac
+    subtests, mocker, api_patch, db_create_host, event_producer_mock, db_get_host, _enable_rbac
 ):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
@@ -494,7 +494,7 @@ def test_patch_host_with_RBAC_denied(
             assert db_get_host(host.id).display_name != new_display_name
 
 
-def test_patch_host_with_RBAC_denied_specific_groups(mocker, api_patch, db_create_host, enable_rbac):
+def test_patch_host_with_RBAC_denied_specific_groups(mocker, api_patch, db_create_host, _enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     # Grant write access to the hosts in irrelevant groups
@@ -515,7 +515,7 @@ def test_patch_host_with_RBAC_denied_specific_groups(mocker, api_patch, db_creat
     assert response_data["detail"] == "Requested host not found."
 
 
-def test_patch_host_with_RBAC_allowed_ungrouped(mocker, api_patch, db_create_host, event_producer_mock, enable_rbac):
+def test_patch_host_with_RBAC_allowed_ungrouped(mocker, api_patch, db_create_host, event_producer_mock, _enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     # Grant write access specifically to ungrouped hosts
@@ -535,7 +535,7 @@ def test_patch_host_with_RBAC_allowed_ungrouped(mocker, api_patch, db_create_hos
     assert_response_status(response_status, 200)
 
 
-def test_patch_host_with_RBAC_bypassed_as_system(api_patch, db_create_host, event_producer_mock, enable_rbac):
+def test_patch_host_with_RBAC_bypassed_as_system(api_patch, db_create_host, event_producer_mock, _enable_rbac):
     host = db_create_host(
         SYSTEM_IDENTITY, extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}}
     )

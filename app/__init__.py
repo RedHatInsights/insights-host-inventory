@@ -127,7 +127,7 @@ def flush_segmentio():
         analytics.flush()
 
 
-def initialize_segmentio(config):
+def initialize_segmentio():
     logger.info("Initializing Segmentio")
     analytics.write_key = os.getenv("SEGMENTIO_WRITE_KEY", None)
     logger.info("Registering Segmentio flush on shutdown")
@@ -356,6 +356,6 @@ def create_app(runtime_environment):
     # initialize metrics to zero
     initialize_metrics(app_config)
 
-    initialize_segmentio(app_config)
+    initialize_segmentio()
 
     return app

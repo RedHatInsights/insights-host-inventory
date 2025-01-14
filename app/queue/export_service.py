@@ -53,13 +53,10 @@ def build_headers(
     return rbac_request_headers, request_headers
 
 
-def get_host_list(
-    identity: Identity, exportFormat: str, rbac_filter: dict | None, inventory_config: Config
-) -> list[dict]:
+def get_host_list(identity: Identity, rbac_filter: dict | None, inventory_config: Config) -> list[dict]:
     host_data = list(
         get_hosts_to_export(
             identity,
-            export_format=exportFormat,
             rbac_filter=rbac_filter,
             batch_size=inventory_config.export_svc_batch_size,
         )
@@ -117,7 +114,7 @@ def create_export(
 
     try:
         # create a generator with serialized host data
-        host_data = get_host_list(identity, exportFormat, rbac_filter, inventory_config)
+        host_data = get_host_list(identity, rbac_filter, inventory_config)
 
         request_url = _build_export_request_url(
             export_service_endpoint, exportUUID, applicationName, resourceUUID, "upload"

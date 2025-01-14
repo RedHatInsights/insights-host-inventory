@@ -141,7 +141,7 @@ def test_replace_facts_on_multiple_culled_hosts(db_create_multiple_hosts, api_pu
         assert_response_status(response_status, expected_status=400)
 
 
-def test_put_facts_with_RBAC_allowed(subtests, mocker, api_put, db_create_host, enable_rbac, event_producer_mock):
+def test_put_facts_with_RBAC_allowed(subtests, mocker, api_put, db_create_host, _enable_rbac, event_producer_mock):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in HOST_WRITE_ALLOWED_RBAC_RESPONSE_FILES:
@@ -158,7 +158,7 @@ def test_put_facts_with_RBAC_allowed(subtests, mocker, api_put, db_create_host, 
 
 
 def test_put_facts_with_RBAC_allowed_specific_groups(
-    mocker, api_put, db_create_host, enable_rbac, event_producer_mock, db_create_group, db_create_host_group_assoc
+    mocker, api_put, db_create_host, _enable_rbac, event_producer_mock, db_create_group, db_create_host_group_assoc
 ):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
@@ -183,7 +183,7 @@ def test_put_facts_with_RBAC_allowed_specific_groups(
 
 
 def test_put_facts_with_RBAC_denied(
-    subtests, mocker, api_put, db_create_host, db_get_host, enable_rbac, event_producer_mock
+    subtests, mocker, api_put, db_create_host, db_get_host, _enable_rbac, event_producer_mock
 ):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
@@ -209,7 +209,7 @@ def test_put_facts_with_RBAC_denied_specific_groups(
     api_put,
     db_create_host,
     db_get_host,
-    enable_rbac,
+    _enable_rbac,
     event_producer_mock,
     db_create_group,
     db_create_host_group_assoc,
@@ -241,7 +241,7 @@ def test_put_facts_with_RBAC_denied_specific_groups(
     assert db_get_host(host.id).facts[DB_FACTS_NAMESPACE] != updated_facts
 
 
-def test_put_facts_with_RBAC_bypassed_as_system(api_put, db_create_host, enable_rbac, event_producer_mock):
+def test_put_facts_with_RBAC_bypassed_as_system(api_put, db_create_host, _enable_rbac, event_producer_mock):
     host = db_create_host(
         SYSTEM_IDENTITY,
         extra_data={"facts": DB_FACTS, "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"].get("cn")}},

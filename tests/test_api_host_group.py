@@ -30,7 +30,7 @@ def test_add_host_to_group(
 
 
 def test_add_host_to_group_RBAC_denied(
-    subtests, mocker, db_create_host, db_create_group_with_hosts, api_add_hosts_to_group, enable_rbac
+    subtests, mocker, db_create_host, db_create_group_with_hosts, api_add_hosts_to_group, _enable_rbac
 ):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     group_id = str(db_create_group_with_hosts("new_group", 3).id)
@@ -52,7 +52,7 @@ def test_add_host_to_group_RBAC_allowed_specific_groups(
     api_add_hosts_to_group,
     db_create_host,
     db_get_hosts_for_group,
-    enable_rbac,
+    _enable_rbac,
     event_producer,
 ):
     # Create a group and 3 hosts
@@ -81,7 +81,7 @@ def test_add_host_to_group_RBAC_allowed_specific_groups(
 
 
 def test_add_host_to_group_RBAC_denied_specific_groups(
-    mocker, db_create_group_with_hosts, api_add_hosts_to_group, db_create_host, enable_rbac
+    mocker, db_create_group_with_hosts, api_add_hosts_to_group, db_create_host, _enable_rbac
 ):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     group_id = str(db_create_group_with_hosts("new_group", 3).id)

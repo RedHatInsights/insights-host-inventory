@@ -28,7 +28,7 @@ def test_update_with_wrong_data(api_patch):
     assert_response_status(response_status, 400)
 
 
-def test_update_staleness_rbac_allowed(subtests, mocker, api_patch, db_create_staleness_culling, enable_rbac):
+def test_update_staleness_rbac_allowed(subtests, mocker, api_patch, db_create_staleness_culling, _enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     db_create_staleness_culling(conventional_time_to_stale=1)
 
@@ -44,7 +44,7 @@ def test_update_staleness_rbac_allowed(subtests, mocker, api_patch, db_create_st
             assert_response_status(response_status, 200)
 
 
-def test_update_staleness_rbac_denied(subtests, mocker, api_patch, db_create_staleness_culling, enable_rbac):
+def test_update_staleness_rbac_denied(subtests, mocker, api_patch, db_create_staleness_culling, _enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     db_create_staleness_culling(conventional_time_to_stale=1)
 

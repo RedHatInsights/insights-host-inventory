@@ -61,7 +61,7 @@ def test_create_staleness_with_wrong_input(api_create_staleness):
     assert_response_status(response_status, 400)
 
 
-def test_create_staleness_rbac_allowed(subtests, mocker, api_create_staleness, db_get_staleness_culling, enable_rbac):
+def test_create_staleness_rbac_allowed(subtests, mocker, api_create_staleness, db_get_staleness_culling, _enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in STALENESS_WRITE_ALLOWED_RBAC_RESPONSE_FILES:
@@ -75,7 +75,7 @@ def test_create_staleness_rbac_allowed(subtests, mocker, api_create_staleness, d
             assert_response_status(response_status, 201)
 
 
-def test_create_staleness_rbac_denied(subtests, mocker, api_create_staleness, db_get_staleness_culling, enable_rbac):
+def test_create_staleness_rbac_denied(subtests, mocker, api_create_staleness, db_get_staleness_culling, _enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in STALENESS_WRITE_PROHIBITED_RBAC_RESPONSE_FILES:

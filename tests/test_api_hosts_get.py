@@ -198,7 +198,7 @@ def test_query_variables_registered_with_using_unknown_reporter(api_get):
     assert MSG in str(response_data)
 
 
-def test_get_hosts_with_RBAC_allowed(subtests, mocker, db_create_host, api_get, enable_rbac):
+def test_get_hosts_with_RBAC_allowed(subtests, mocker, db_create_host, api_get, _enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in HOST_READ_ALLOWED_RBAC_RESPONSE_FILES:
@@ -214,7 +214,7 @@ def test_get_hosts_with_RBAC_allowed(subtests, mocker, db_create_host, api_get, 
             assert_response_status(response_status, 200)
 
 
-def test_get_hosts_with_RBAC_denied(subtests, mocker, db_create_host, api_get, enable_rbac):
+def test_get_hosts_with_RBAC_denied(subtests, mocker, db_create_host, api_get, _enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     find_hosts_by_staleness_mock = mocker.patch(
         "lib.host_repository.find_hosts_by_staleness", wraps=find_hosts_by_staleness
@@ -235,7 +235,7 @@ def test_get_hosts_with_RBAC_denied(subtests, mocker, db_create_host, api_get, e
             find_hosts_by_staleness_mock.assert_not_called()
 
 
-def test_get_hosts_with_RBAC_bypassed_as_system(db_create_host, api_get, enable_rbac):
+def test_get_hosts_with_RBAC_bypassed_as_system(db_create_host, api_get, _enable_rbac):
     host = db_create_host(SYSTEM_IDENTITY, extra_data={"system_profile_facts": {"owner_id": generate_uuid()}})
 
     url = build_hosts_url(host_list_or_id=host.id)
@@ -1910,7 +1910,7 @@ def test_get_host_exists_error_multiple_found(db_create_host, api_get):
 
 
 def test_get_host_exists_granular_rbac(
-    db_create_host, db_create_group, db_create_host_group_assoc, api_get, mocker, enable_rbac
+    db_create_host, db_create_group, db_create_host_group_assoc, api_get, mocker, _enable_rbac
 ):
     # Create 3 hosts with unique insights IDs that the user has access to
     accessible_group_id = db_create_group("accessible_group").id

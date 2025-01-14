@@ -255,7 +255,7 @@ def test_delete_host_with_RBAC_allowed(
     notification_event_producer_mock,
     db_get_host,
     db_create_host,
-    enable_rbac,
+    _enable_rbac,
 ):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
@@ -287,7 +287,7 @@ def test_delete_host_with_RBAC_denied(
     notification_event_producer_mock,
     db_create_host,
     db_get_host,
-    enable_rbac,
+    _enable_rbac,
 ):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
@@ -312,7 +312,7 @@ def test_delete_host_with_RBAC_bypassed_as_system(
     notification_event_producer_mock,
     db_get_host,
     db_create_host,
-    enable_rbac,
+    _enable_rbac,
 ):
     host = db_create_host(
         SYSTEM_IDENTITY, extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}}
@@ -494,7 +494,7 @@ def test_delete_host_RBAC_allowed_specific_groups(
     api_delete_host,
     db_create_host,
     db_get_hosts_for_group,
-    enable_rbac,
+    _enable_rbac,
     event_producer_mock,
     notification_event_producer_mock,
 ):
@@ -522,7 +522,7 @@ def test_delete_host_RBAC_allowed_specific_groups(
 
 
 def test_delete_host_RBAC_denied_specific_groups(
-    mocker, db_create_host, db_get_host, api_delete_host, enable_rbac, event_producer_mock
+    mocker, db_create_host, db_get_host, api_delete_host, _enable_rbac, event_producer_mock
 ):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     host_id = db_create_host().id
