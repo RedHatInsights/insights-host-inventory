@@ -227,7 +227,7 @@ def test_group_query_pagination(subtests, db_create_group, api_get):
                 assert response_data["count"] == per_page
                 assert len(response_data["results"]) == per_page
                 for idx in range(per_page):
-                    assert response_data["results"][idx]["name"] == f"testGroup_{((page-1)*per_page + idx):03}"
+                    assert response_data["results"][idx]["name"] == f"testGroup_{((page - 1) * per_page + idx):03}"
 
 
 @pytest.mark.parametrize(

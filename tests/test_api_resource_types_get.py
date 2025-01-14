@@ -62,7 +62,7 @@ def test_resource_types_groups_pagination(api_get, db_create_group, subtests):
                 )
 
                 for idx in range(per_page):
-                    assert response_data["data"][idx]["name"] == f"testGroup_{((page-1)*per_page + idx):03}"
+                    assert response_data["data"][idx]["name"] == f"testGroup_{((page - 1) * per_page + idx):03}"
 
 
 def test_resource_types_groups_filter(api_get, db_create_group):

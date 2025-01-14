@@ -33,7 +33,7 @@ def get_schema_from_url(url: str) -> dict:
 
 def get_schema(fork: str, branch: str) -> dict:
     return get_schema_from_url(
-        f"https://raw.githubusercontent.com/{fork}/inventory-schemas/" f"{branch}/schemas/system_profile/v1.yaml"
+        f"https://raw.githubusercontent.com/{fork}/inventory-schemas/{branch}/schemas/system_profile/v1.yaml"
     )
 
 
