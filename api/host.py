@@ -454,7 +454,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
             "not match the org_id associated with one or more the hosts.  Rejecting the fact change request."
         )
         logger.debug(error_msg)
-        return error_msg, 400
+        return error_msg, 404
 
     staleness = get_staleness_obj(current_identity)
 
