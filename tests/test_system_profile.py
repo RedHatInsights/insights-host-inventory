@@ -1,10 +1,12 @@
 import pytest
+from yaml.parser import ParserError
 
 from app.config import Config
 from app.environment import RuntimeEnvironment
 from app.exceptions import ValidationException
 from lib.host_repository import find_hosts_by_staleness
 from lib.system_profile_validate import validate_sp_for_branch
+from system_profile_validator import _validate_schema_for_pr_and_generate_comment
 from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_URL
@@ -256,8 +258,18 @@ def test_validate_sp_for_missing_branch_or_repo(mocker):
     assert "Schema not found at URL" in str(excinfo.value)
 
 
+def test_validate_unparseable_sp(mocker):
+    # Mock schema fetch
+    get_schema_from_url_mock = mocker.patch("lib.system_profile_validate.get_schema_from_url")
+    get_schema_from_url_mock.side_effect = ParserError("Error parsing yaml")
+    config = Config(RuntimeEnvironment.SERVICE)
+
+    comment_content = _validate_schema_for_pr_and_generate_comment("test", config)
+    assert "An error occurred while trying to parse the schema in this PR" in comment_content
+
+
 def test_validate_sp_for_invalid_days(api_post):
-    response_status, response_data = api_post(
+    response_status, _ = api_post(
         url=f"{SYSTEM_PROFILE_URL}/validate_schema?repo_branch=master&days=0", host_data=None
     )
 

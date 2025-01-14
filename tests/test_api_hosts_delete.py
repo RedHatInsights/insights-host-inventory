@@ -614,11 +614,32 @@ def test_log_create_delete(
     assert caplog.records[0].system_profile == "{}"
 
 
+def test_delete_with_ui_host(
+    db_create_host, api_delete_host, event_datetime_mock, event_producer_mock, notification_event_producer_mock
+):
+    host = db_create_host(extra_data={"canonical_facts": {"subscription_manager_id": generate_uuid()}})
+    headers = {"x-rh-frontend-origin": "hcc"}
+
+    response_status, _ = api_delete_host(host.id, extra_headers=headers)
+
+    assert_response_status(response_status, expected_status=200)
+
+    assert_delete_event_is_valid(
+        event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock, initiated_by_frontend=True
+    )
+
+
 class DeleteHostsMock:
     @classmethod
-    def create_mock(cls, hosts_ids_to_delete):
+    def create_mock(cls, hosts_ids_to_delete, initiated_by_frontend=False):
         def _constructor(
-            select_query, event_producer, notification_event_producer, chunk_size, identity=None, control_rule=None
+            select_query,
+            event_producer,
+            notification_event_producer,
+            chunk_size,
+            identity=None,
+            control_rule=None,
+            initiated_by_frontend=initiated_by_frontend,
         ):
             return cls(
                 hosts_ids_to_delete,
@@ -628,6 +649,7 @@ class DeleteHostsMock:
                 chunk_size,
                 identity=identity,
                 control_rule=control_rule,
+                initiated_by_frontend=initiated_by_frontend,
             )
 
         return _constructor
@@ -641,6 +663,7 @@ class DeleteHostsMock:
         chunk_size,
         identity=None,
         control_rule=None,
+        initiated_by_frontend=False,
     ):
         self.host_ids_to_delete = host_ids_to_delete
         self.original_query = delete_hosts(
@@ -650,6 +673,7 @@ class DeleteHostsMock:
             chunk_size,
             identity=identity,
             control_rule=control_rule,
+            initiated_by_frontend=initiated_by_frontend,
         )
 
     def __getattr__(self, item):
