@@ -103,7 +103,8 @@ def test_create_assignemnt_rule_same_group(api_create_assign_rule, db_create_gro
     assert group in response_data["detail"]
 
 
-def test_create_assignment_rule_RBAC_denied(subtests, mocker, api_create_assign_rule, db_create_group, _enable_rbac):
+@pytest.mark.usefixtures("enable_rbac")
+def test_create_assignment_rule_RBAC_denied(subtests, mocker, api_create_assign_rule, db_create_group):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     group = db_create_group("my_group")

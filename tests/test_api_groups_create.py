@@ -177,7 +177,8 @@ def test_create_group_with_host_from_another_org(db_create_host, api_create_grou
     assert event_producer.write_event.call_count == 0
 
 
-def test_create_group_RBAC_denied(subtests, mocker, api_create_group, db_get_group_by_name, _enable_rbac):
+@pytest.mark.usefixtures("enable_rbac")
+def test_create_group_RBAC_denied(subtests, mocker, api_create_group, db_get_group_by_name):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     group_data = {"name": "my_awesome_group", "host_ids": []}
 
@@ -194,7 +195,8 @@ def test_create_group_RBAC_denied(subtests, mocker, api_create_group, db_get_gro
             assert not db_get_group_by_name("my_awesome_group")
 
 
-def test_create_group_RBAC_denied_attribute_filter(mocker, api_create_group, _enable_rbac):
+@pytest.mark.usefixtures("enable_rbac")
+def test_create_group_RBAC_denied_attribute_filter(mocker, api_create_group):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     # Mock the RBAC response with a groups-write permission that has an attributeFilter

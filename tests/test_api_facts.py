@@ -20,15 +20,14 @@ from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import get_staleness_timestamps
 
 
-def test_replace_facts_to_multiple_hosts_with_branch_id(
-    db_create_multiple_hosts, db_get_hosts, api_put, event_producer_mock
-):
+@pytest.mark.usefixtures("event_producer_mock")
+def test_replace_facts_to_multiple_hosts_with_branch_id(db_create_multiple_hosts, db_get_hosts, api_put):
     created_hosts = db_create_multiple_hosts(how_many=2, extra_data={"facts": DB_FACTS})
 
     host_id_list = get_id_list_from_hosts(created_hosts)
     facts_url = build_facts_url(host_list_or_id=created_hosts, namespace=DB_FACTS_NAMESPACE, query="?branch_id=1234")
 
-    response_status, response_data = api_put(facts_url, DB_NEW_FACTS)
+    response_status, _ = api_put(facts_url, DB_NEW_FACTS)
     assert_response_status(response_status, expected_status=200)
 
     expected_facts = get_expected_facts_after_update("replace", DB_FACTS_NAMESPACE, DB_FACTS, DB_NEW_FACTS)
@@ -37,20 +36,19 @@ def test_replace_facts_to_multiple_hosts_with_branch_id(
         assert host.facts == expected_facts
 
 
-def test_replace_facts_to_multiple_hosts_including_nonexistent_host(db_create_multiple_hosts, db_get_hosts, api_put):
+def test_replace_facts_to_multiple_hosts_including_nonexistent_host(db_create_multiple_hosts, api_put):
     created_hosts = db_create_multiple_hosts(how_many=2, extra_data={"facts": DB_FACTS})
 
     url_host_id_list = f"{build_id_list_for_url(created_hosts)},{generate_uuid()},{generate_uuid()}"
     facts_url = build_facts_url(host_list_or_id=url_host_id_list, namespace=DB_FACTS_NAMESPACE)
 
-    response_status, response_data = api_put(facts_url, DB_NEW_FACTS)
+    response_status, _ = api_put(facts_url, DB_NEW_FACTS)
 
     assert_response_status(response_status, expected_status=400)
 
 
-def test_replace_facts_to_multiple_hosts_with_empty_key_value_pair(
-    db_create_multiple_hosts, db_get_hosts, api_put, event_producer_mock
-):
+@pytest.mark.usefixtures("event_producer_mock")
+def test_replace_facts_to_multiple_hosts_with_empty_key_value_pair(db_create_multiple_hosts, db_get_hosts, api_put):
     new_facts = {}
 
     created_hosts = db_create_multiple_hosts(how_many=2, extra_data={"facts": DB_FACTS})
@@ -59,7 +57,7 @@ def test_replace_facts_to_multiple_hosts_with_empty_key_value_pair(
     facts_url = build_facts_url(host_list_or_id=created_hosts, namespace=DB_FACTS_NAMESPACE)
 
     # Set the value in the namespace to an empty fact set
-    response_status, response_data = api_put(facts_url, new_facts)
+    response_status, _ = api_put(facts_url, new_facts)
     assert_response_status(response_status, expected_status=200)
 
     expected_facts = get_expected_facts_after_update("replace", DB_FACTS_NAMESPACE, DB_FACTS, new_facts)
@@ -74,7 +72,7 @@ def test_replace_facts_to_namespace_that_does_not_exist(db_create_multiple_hosts
 
     facts_url = build_facts_url(host_list_or_id=created_hosts, namespace="imanonexistentnamespace")
 
-    response_status, response_data = api_patch(facts_url, new_facts)
+    response_status, _ = api_patch(facts_url, new_facts)
     assert_response_status(response_status, expected_status=400)
 
 
@@ -85,13 +83,14 @@ def test_replace_facts_without_fact_dict(api_put):
     assert_error_response(response_data, expected_status=400, expected_detail="Request body must not be empty")
 
 
-def test_replace_facts_on_multiple_hosts(db_create_multiple_hosts, db_get_hosts, api_put, event_producer_mock):
+@pytest.mark.usefixtures("event_producer_mock")
+def test_replace_facts_on_multiple_hosts(db_create_multiple_hosts, db_get_hosts, api_put):
     created_hosts = db_create_multiple_hosts(how_many=2, extra_data={"facts": DB_FACTS})
 
     host_id_list = get_id_list_from_hosts(created_hosts)
     facts_url = build_facts_url(host_list_or_id=created_hosts, namespace=DB_FACTS_NAMESPACE)
 
-    response_status, response_data = api_put(facts_url, DB_NEW_FACTS)
+    response_status, _ = api_put(facts_url, DB_NEW_FACTS)
     assert_response_status(response_status, expected_status=200)
 
     expected_facts = get_expected_facts_after_update("replace", DB_FACTS_NAMESPACE, DB_FACTS, DB_NEW_FACTS)
@@ -99,7 +98,8 @@ def test_replace_facts_on_multiple_hosts(db_create_multiple_hosts, db_get_hosts,
     assert all(host.facts == expected_facts for host in db_get_hosts(host_id_list))
 
 
-def test_replace_empty_facts_on_multiple_hosts(db_create_multiple_hosts, db_get_hosts, api_put, event_producer_mock):
+@pytest.mark.usefixtures("event_producer_mock")
+def test_replace_empty_facts_on_multiple_hosts(db_create_multiple_hosts, db_get_hosts, api_put):
     new_facts = {}
 
     created_hosts = db_create_multiple_hosts(how_many=2, extra_data={"facts": DB_FACTS})
@@ -107,14 +107,14 @@ def test_replace_empty_facts_on_multiple_hosts(db_create_multiple_hosts, db_get_
     host_id_list = get_id_list_from_hosts(created_hosts)
     facts_url = build_facts_url(host_list_or_id=created_hosts, namespace=DB_FACTS_NAMESPACE)
 
-    response_status, response_data = api_put(facts_url, new_facts)
+    response_status, _ = api_put(facts_url, new_facts)
     assert_response_status(response_status, expected_status=200)
 
     expected_facts = get_expected_facts_after_update("replace", DB_FACTS_NAMESPACE, DB_FACTS, new_facts)
 
     assert all(host.facts == expected_facts for host in db_get_hosts(host_id_list))
 
-    response_status, response_data = api_put(facts_url, DB_NEW_FACTS)
+    response_status, _ = api_put(facts_url, DB_NEW_FACTS)
     assert_response_status(response_status, expected_status=200)
 
     expected_facts = get_expected_facts_after_update("replace", DB_FACTS_NAMESPACE, DB_FACTS, DB_NEW_FACTS)
@@ -141,7 +141,8 @@ def test_replace_facts_on_multiple_culled_hosts(db_create_multiple_hosts, api_pu
         assert_response_status(response_status, expected_status=400)
 
 
-def test_put_facts_with_RBAC_allowed(subtests, mocker, api_put, db_create_host, _enable_rbac, event_producer_mock):
+@pytest.mark.usefixtures("enable_rbac", "event_producer_mock")
+def test_put_facts_with_RBAC_allowed(subtests, mocker, api_put, db_create_host):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in HOST_WRITE_ALLOWED_RBAC_RESPONSE_FILES:
@@ -157,8 +158,9 @@ def test_put_facts_with_RBAC_allowed(subtests, mocker, api_put, db_create_host, 
             assert_response_status(response_status, 200)
 
 
+@pytest.mark.usefixtures("enable_rbac", "event_producer_mock")
 def test_put_facts_with_RBAC_allowed_specific_groups(
-    mocker, api_put, db_create_host, _enable_rbac, event_producer_mock, db_create_group, db_create_host_group_assoc
+    mocker, api_put, db_create_host, db_create_group, db_create_host_group_assoc
 ):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
@@ -182,9 +184,8 @@ def test_put_facts_with_RBAC_allowed_specific_groups(
     assert_response_status(response_status, 200)
 
 
-def test_put_facts_with_RBAC_denied(
-    subtests, mocker, api_put, db_create_host, db_get_host, _enable_rbac, event_producer_mock
-):
+@pytest.mark.usefixtures("enable_rbac", "event_producer_mock")
+def test_put_facts_with_RBAC_denied(subtests, mocker, api_put, db_create_host, db_get_host):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     updated_facts = {"updatedfact1": "updatedvalue1", "updatedfact2": "updatedvalue2"}
@@ -204,13 +205,12 @@ def test_put_facts_with_RBAC_denied(
             assert db_get_host(host.id).facts[DB_FACTS_NAMESPACE] != updated_facts
 
 
+@pytest.mark.usefixtures("enable_rbac", "event_producer_mock")
 def test_put_facts_with_RBAC_denied_specific_groups(
     mocker,
     api_put,
     db_create_host,
     db_get_host,
-    _enable_rbac,
-    event_producer_mock,
     db_create_group,
     db_create_host_group_assoc,
 ):
@@ -241,7 +241,8 @@ def test_put_facts_with_RBAC_denied_specific_groups(
     assert db_get_host(host.id).facts[DB_FACTS_NAMESPACE] != updated_facts
 
 
-def test_put_facts_with_RBAC_bypassed_as_system(api_put, db_create_host, _enable_rbac, event_producer_mock):
+@pytest.mark.usefixtures("enable_rbac", "event_producer_mock")
+def test_put_facts_with_RBAC_bypassed_as_system(api_put, db_create_host):
     host = db_create_host(
         SYSTEM_IDENTITY,
         extra_data={"facts": DB_FACTS, "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"].get("cn")}},
@@ -249,6 +250,6 @@ def test_put_facts_with_RBAC_bypassed_as_system(api_put, db_create_host, _enable
 
     url = build_facts_url(host_list_or_id=host.id, namespace=DB_FACTS_NAMESPACE)
 
-    response_status, response_data = api_put(url, DB_NEW_FACTS, SYSTEM_IDENTITY)
+    response_status, _ = api_put(url, DB_NEW_FACTS, SYSTEM_IDENTITY)
 
     assert_response_status(response_status, 200)

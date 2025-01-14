@@ -10,7 +10,8 @@ from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
-def test_rbac_retry_error_handling(mocker, db_create_host, api_get, _enable_rbac):
+@pytest.mark.usefixtures("enable_rbac")
+def test_rbac_retry_error_handling(mocker, db_create_host, api_get):
     request_session_get_mock = mocker.patch("lib.middleware.Session.get")
     request_session_get_mock.side_effect = exceptions.RetryError
 
@@ -27,7 +28,8 @@ def test_rbac_retry_error_handling(mocker, db_create_host, api_get, _enable_rbac
     abort_mock.assert_called_once_with(503, "Failed to reach RBAC endpoint, request cannot be fulfilled")
 
 
-def test_rbac_exception_handling(mocker, db_create_host, api_get, _enable_rbac):
+@pytest.mark.usefixtures("enable_rbac")
+def test_rbac_exception_handling(mocker, db_create_host, api_get):
     request_session_get_mock = mocker.patch("lib.middleware.Session.get")
     request_session_get_mock.side_effect = Exception()
 
@@ -44,11 +46,12 @@ def test_rbac_exception_handling(mocker, db_create_host, api_get, _enable_rbac):
     abort_mock.assert_called_once_with(503, "Failed to reach RBAC endpoint, request cannot be fulfilled")
 
 
+@pytest.mark.usefixtures("enable_rbac")
 @pytest.mark.parametrize(
     "field",
     ["key", "operation", "value"],
 )
-def test_RBAC_invalid_attribute_filter(mocker, api_get, field, _enable_rbac):
+def test_RBAC_invalid_attribute_filter(mocker, api_get, field):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     mock_rbac_response = create_mock_rbac_response(
@@ -63,7 +66,8 @@ def test_RBAC_invalid_attribute_filter(mocker, api_get, field, _enable_rbac):
     assert_response_status(response_status, 503)
 
 
-def test_RBAC_invalid_UUIDs(mocker, api_get, _enable_rbac):
+@pytest.mark.usefixtures("enable_rbac")
+def test_RBAC_invalid_UUIDs(mocker, api_get):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     mock_rbac_response = create_mock_rbac_response(
@@ -78,11 +82,12 @@ def test_RBAC_invalid_UUIDs(mocker, api_get, _enable_rbac):
     assert_response_status(response_status, 503)
 
 
+@pytest.mark.usefixtures("enable_rbac")
 @pytest.mark.parametrize(
     "url_builder",
     [build_staleness_url, build_assignment_rules_url, build_groups_url],
 )
-def test_non_host_endpoints_cannot_bypass_RBAC(api_get, _enable_rbac, url_builder):
+def test_non_host_endpoints_cannot_bypass_RBAC(api_get, url_builder):
     url = url_builder()
     response_status, _ = api_get(url, SYSTEM_IDENTITY)
 

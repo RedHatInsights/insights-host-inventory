@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 from datetime import timezone
 
+import pytest
 from dateutil.parser import parse
 
 from tests.helpers.api_utils import GROUP_URL
@@ -29,8 +30,9 @@ def test_add_host_to_group(
     assert hosts_after[1].id in host_id_list
 
 
+@pytest.mark.usefixtures("enable_rbac")
 def test_add_host_to_group_RBAC_denied(
-    subtests, mocker, db_create_host, db_create_group_with_hosts, api_add_hosts_to_group, _enable_rbac
+    subtests, mocker, db_create_host, db_create_group_with_hosts, api_add_hosts_to_group
 ):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     group_id = str(db_create_group_with_hosts("new_group", 3).id)
@@ -52,7 +54,7 @@ def test_add_host_to_group_RBAC_allowed_specific_groups(
     api_add_hosts_to_group,
     db_create_host,
     db_get_hosts_for_group,
-    _enable_rbac,
+    enable_rbac,
     event_producer,
 ):
     # Create a group and 3 hosts
@@ -80,8 +82,9 @@ def test_add_host_to_group_RBAC_allowed_specific_groups(
     assert len(hosts_after) == 5
 
 
+@pytest.mark.usefixtures("enable_rbac")
 def test_add_host_to_group_RBAC_denied_specific_groups(
-    mocker, db_create_group_with_hosts, api_add_hosts_to_group, db_create_host, _enable_rbac
+    mocker, db_create_group_with_hosts, api_add_hosts_to_group, db_create_host
 ):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     group_id = str(db_create_group_with_hosts("new_group", 3).id)

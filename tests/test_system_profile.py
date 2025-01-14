@@ -69,7 +69,8 @@ def test_system_profile_valid_date_format(mq_create_or_update_host, boot_time):
     mq_create_or_update_host(host)
 
 
-def test_get_system_profile_sap_system_with_RBAC_allowed(subtests, mocker, api_get, _enable_rbac):
+@pytest.mark.usefixtures("enable_rbac")
+def test_get_system_profile_sap_system_with_RBAC_allowed(subtests, mocker, api_get):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     url = build_system_profile_sap_system_url()
@@ -79,12 +80,13 @@ def test_get_system_profile_sap_system_with_RBAC_allowed(subtests, mocker, api_g
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
-            response_status, response_data = api_get(url)
+            response_status, _ = api_get(url)
 
             assert_response_status(response_status, 200)
 
 
-def test_get_system_profile_sap_sids_with_RBAC_allowed(subtests, mocker, api_get, _enable_rbac):
+@pytest.mark.usefixtures("enable_rbac")
+def test_get_system_profile_sap_sids_with_RBAC_allowed(subtests, mocker, api_get):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     url = build_system_profile_sap_sids_url()
@@ -94,12 +96,13 @@ def test_get_system_profile_sap_sids_with_RBAC_allowed(subtests, mocker, api_get
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
-            response_status, response_data = api_get(url)
+            response_status, _ = api_get(url)
 
             assert_response_status(response_status, 200)
 
 
-def test_get_system_profile_with_RBAC_denied(subtests, mocker, api_get, _enable_rbac):
+@pytest.mark.usefixtures("enable_rbac")
+def test_get_system_profile_with_RBAC_denied(subtests, mocker, api_get):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     urls = (build_system_profile_sap_system_url(), build_system_profile_sap_sids_url())
@@ -110,28 +113,31 @@ def test_get_system_profile_with_RBAC_denied(subtests, mocker, api_get, _enable_
             with subtests.test():
                 get_rbac_permissions_mock.return_value = mock_rbac_response
 
-                response_status, response_data = api_get(url)
+                response_status, _ = api_get(url)
 
                 assert_response_status(response_status, 403)
 
 
-def test_get_system_profile_sap_system_with_RBAC_bypassed_as_system(api_get, _enable_rbac):
+@pytest.mark.usefixtures("enable_rbac")
+def test_get_system_profile_sap_system_with_RBAC_bypassed_as_system(api_get):
     url = build_system_profile_sap_system_url()
 
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, _ = api_get(url, SYSTEM_IDENTITY)
 
     assert_response_status(response_status, 200)
 
 
-def test_get_system_profile_sap_sids_with_RBAC_bypassed_as_system(api_get, _enable_rbac):
+@pytest.mark.usefixtures("enable_rbac")
+def test_get_system_profile_sap_sids_with_RBAC_bypassed_as_system(api_get):
     url = build_system_profile_sap_sids_url()
 
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, _ = api_get(url, SYSTEM_IDENTITY)
 
     assert_response_status(response_status, 200)
 
 
-def test_get_system_profile_RBAC_allowed(mocker, subtests, api_get, _enable_rbac):
+@pytest.mark.usefixtures("enable_rbac")
+def test_get_system_profile_RBAC_allowed(mocker, subtests, api_get):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     host_id = generate_uuid()
@@ -141,12 +147,13 @@ def test_get_system_profile_RBAC_allowed(mocker, subtests, api_get, _enable_rbac
 
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
-            response_status, response_data = api_get(f"{HOST_URL}/{host_id}/system_profile")
+            response_status, _ = api_get(f"{HOST_URL}/{host_id}/system_profile")
 
             assert_response_status(response_status, 200)
 
 
-def test_get_system_profile_RBAC_denied(mocker, subtests, api_get, _enable_rbac):
+@pytest.mark.usefixtures("enable_rbac")
+def test_get_system_profile_RBAC_denied(mocker, subtests, api_get):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     find_hosts_by_staleness_mock = mocker.patch(
         "lib.host_repository.find_hosts_by_staleness", wraps=find_hosts_by_staleness
@@ -159,7 +166,7 @@ def test_get_system_profile_RBAC_denied(mocker, subtests, api_get, _enable_rbac)
 
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
-            response_status, response_data = api_get(f"{HOST_URL}/{host_id}/system_profile")
+            response_status, _ = api_get(f"{HOST_URL}/{host_id}/system_profile")
 
             assert_response_status(response_status, 403)
             find_hosts_by_staleness_mock.assert_not_called()
@@ -180,7 +187,7 @@ def test_get_system_profile_of_host_that_does_not_exist(api_get):
 
 @pytest.mark.parametrize("invalid_host_id", ["notauuid", "922680d3-4aa2-4f0e-9f39-38ab8ea318bb,notuuid"])
 def test_get_system_profile_with_invalid_host_id(api_get, invalid_host_id):
-    response_status, response_data = api_get(f"{HOST_URL}/{invalid_host_id}/system_profile")
+    _, response_data = api_get(f"{HOST_URL}/{invalid_host_id}/system_profile")
 
     assert_error_response(response_data, expected_title="Bad Request", expected_status=400)
 

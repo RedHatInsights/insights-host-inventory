@@ -189,7 +189,8 @@ def test_assignment_rule_id_list_bad_id(num_rules, db_create_assignment_rule, db
     assert len(response_data["results"]) == 0
 
 
-def test_get_assignment_rule_id_list_RBAC_denied(subtests, mocker, api_get, _enable_rbac):
+@pytest.mark.usefixtures("enable_rbac")
+def test_get_assignment_rule_id_list_RBAC_denied(subtests, mocker, api_get):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     # Assignment rules get, requires group read.
@@ -205,9 +206,8 @@ def test_get_assignment_rule_id_list_RBAC_denied(subtests, mocker, api_get, _ena
             assert_response_status(response_status, 403)
 
 
-def test_get_assignment_rules_RBAC_denied_specific_groups(
-    mocker, db_create_group, db_create_assignment_rule, api_get, _enable_rbac
-):
+@pytest.mark.usefixtures("enable_rbac")
+def test_get_assignment_rules_RBAC_denied_specific_groups(mocker, db_create_group, db_create_assignment_rule, api_get):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     group_id_list = [str(db_create_group(f"test_group{g_index}").id) for g_index in range(2)]

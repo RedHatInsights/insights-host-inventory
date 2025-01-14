@@ -139,8 +139,9 @@ def test_handle_json_format(flask_app, db_create_host, mocker):
         assert mocked_json == export_host
 
 
+@pytest.mark.usefixtures("enable_rbac")
 @mock.patch("requests.Session.post", autospec=True)
-def test_handle_rbac_allowed(mock_post, subtests, flask_app, db_create_host, mocker, _enable_rbac, inventory_config):
+def test_handle_rbac_allowed(mock_post, subtests, flask_app, db_create_host, mocker, inventory_config):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in HOST_READ_ALLOWED_RBAC_RESPONSE_FILES:
@@ -156,10 +157,9 @@ def test_handle_rbac_allowed(mock_post, subtests, flask_app, db_create_host, moc
                 assert resp is True
 
 
+@pytest.mark.usefixtures("enable_rbac")
 @mock.patch("requests.Session.post", autospec=True)
-def test_handle_rbac_prohibited(
-    mock_post, subtests, flask_app, db_create_host, mocker, _enable_rbac, inventory_config
-):
+def test_handle_rbac_prohibited(mock_post, subtests, flask_app, db_create_host, mocker, inventory_config):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES:

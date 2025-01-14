@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
 from tests.helpers.api_utils import GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
@@ -113,7 +115,8 @@ def test_remove_hosts_from_someone_elses_group(
     assert event_producer.write_event.call_count == 0
 
 
-def test_delete_groups_RBAC_denied(subtests, mocker, db_create_group, api_delete_groups, _enable_rbac):
+@pytest.mark.usefixtures("enable_rbac")
+def test_delete_groups_RBAC_denied(subtests, mocker, db_create_group, api_delete_groups):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     group_id_list = [str(db_create_group(f"test_group{g_index}").id) for g_index in range(3)]
 
@@ -128,9 +131,8 @@ def test_delete_groups_RBAC_denied(subtests, mocker, db_create_group, api_delete
             assert_response_status(response_status, 403)
 
 
-def test_delete_groups_RBAC_allowed_specific_groups(
-    mocker, db_create_group, api_delete_groups, _enable_rbac, event_producer
-):
+@pytest.mark.usefixtures("enable_rbac")
+def test_delete_groups_RBAC_allowed_specific_groups(mocker, db_create_group, api_delete_groups):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     group_id_list = [str(db_create_group(f"test_group{g_index}").id) for g_index in range(3)]
 
@@ -147,7 +149,8 @@ def test_delete_groups_RBAC_allowed_specific_groups(
     assert_response_status(response_status, 204)
 
 
-def test_delete_groups_RBAC_denied_specific_groups(mocker, db_create_group, api_delete_groups, _enable_rbac):
+@pytest.mark.usefixtures("enable_rbac")
+def test_delete_groups_RBAC_denied_specific_groups(mocker, db_create_group, api_delete_groups):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     group_id_list = [str(db_create_group(f"test_group{g_index}").id) for g_index in range(3)]
 
@@ -214,6 +217,7 @@ def test_delete_hosts_from_different_groups(
         assert len(host["groups"]) == 0
 
 
+@pytest.mark.usefixtures("enable_rbac")
 def test_delete_hosts_from_different_groups_RBAC_denied(
     db_create_group,
     db_create_host,
@@ -222,7 +226,6 @@ def test_delete_hosts_from_different_groups_RBAC_denied(
     api_remove_hosts_from_diff_groups,
     event_producer,
     mocker,
-    _enable_rbac,
 ):
     mocker.patch.object(event_producer, "write_event")
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")

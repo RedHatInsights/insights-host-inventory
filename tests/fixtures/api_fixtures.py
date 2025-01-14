@@ -162,7 +162,7 @@ def api_create_assign_rule(flask_client):
 
 
 @pytest.fixture(scope="function")
-def _enable_rbac(inventory_config):
+def enable_rbac(inventory_config):
     inventory_config.bypass_rbac = False
 
 

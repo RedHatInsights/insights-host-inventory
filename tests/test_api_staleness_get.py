@@ -1,3 +1,5 @@
+import pytest
+
 from tests.helpers.api_utils import _INPUT_DATA
 from tests.helpers.api_utils import STALENESS_READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import STALENESS_READ_PROHIBITED_RBAC_RESPONSE_FILES
@@ -59,7 +61,8 @@ def test_get_sys_default_staleness(api_get):
     assert response_data["immutable_time_to_delete"] == expected_result["immutable_time_to_delete"]
 
 
-def test_get_staleness_rbac_denied(subtests, mocker, api_get, _enable_rbac):
+@pytest.mark.usefixtures("enable_rbac")
+def test_get_staleness_rbac_denied(subtests, mocker, api_get):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     url = build_sys_default_staleness_url()
 
@@ -76,7 +79,8 @@ def test_get_staleness_rbac_denied(subtests, mocker, api_get, _enable_rbac):
             assert_response_status(response_status, 403)
 
 
-def test_get_staleness_rbac_allowed(subtests, mocker, api_get, _enable_rbac):
+@pytest.mark.usefixtures("enable_rbac")
+def test_get_staleness_rbac_allowed(subtests, mocker, api_get):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     url = build_sys_default_staleness_url()
 
