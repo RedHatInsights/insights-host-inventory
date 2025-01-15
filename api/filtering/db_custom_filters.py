@@ -26,12 +26,7 @@ logger = get_logger(__name__)
 # The list of comparators can be seen in POSTGRES_COMPARATOR_LOOKUP
 class OsFilter:
     def __init__(self, name="", comparator="", version=None):
-        os_names = get_valid_os_names()
-
         try:
-            if name and name.lower() not in [name.lower() for name in os_names]:
-                raise ValidationException(f"operating_system filter only supports these OS names: {os_names}.")
-
             if version is None:
                 major, minor = None, None
             else:
@@ -140,10 +135,12 @@ def separate_operating_system_filters(filter_url_params) -> list[OsFilter]:
     # filter_url_params is a dict
     for filter_key in filter_url_params.keys():
         if filter_key == "name":
-            ((os_comparator, os_name),) = filter_url_params["name"].items()
+            ((os_comparator, os_name),) = filter_url_params[filter_key].items()
+            check_valid_os_name(os_name)
             version_node = {os_comparator: [None]}
         else:
             os_name = filter_key
+            check_valid_os_name(os_name)
             if not isinstance(version_node := filter_url_params[os_name]["version"], dict):
                 # If there's no comparator, treat it as "eq"
                 version_node = {"eq": version_node}
@@ -380,6 +377,12 @@ def build_system_profile_filter(system_profile_param: dict) -> tuple:
         system_profile_filter += (filter,)
 
     return system_profile_filter
+
+
+def check_valid_os_name(name):
+    os_names = get_valid_os_names()
+    if name.lower() not in [name.lower() for name in os_names]:
+        raise ValidationException(f"operating_system filter only supports these OS names: {os_names}.")
 
 
 def get_major_minor_from_version(version_split: list[str]):

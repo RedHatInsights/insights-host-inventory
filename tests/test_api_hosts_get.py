@@ -1630,6 +1630,7 @@ def test_query_all_sp_filters_invalid_value(api_get, sp_filter_param):
     (
         "[operating_system][foo][version]=8.1",  # Invalid OS name
         "[operating_system][name][eq]=rhelz",  # Invalid OS name
+        "[operating_system][][version][eq][]=7",  # Invalid OS name
         "[operating_system][RHEL][version]=bar",  # Invalid OS version
     ),
 )
