@@ -139,7 +139,8 @@ def test_get_list_of_tags_with_host_filters_via_db(db_create_multiple_hosts, api
                 assert response_data["results"][0]["count"] == 1
 
 
-def test_get_tags_invalid_start_end(api_get, subtests):
+@pytest.mark.usefixtures("subtests")
+def test_get_tags_invalid_start_end(api_get):
     """
     Validate that the /tags endpoint properly handles updated_start and updated_end validation errors.
     """
