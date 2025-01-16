@@ -12,6 +12,7 @@ from app.logging import get_logger
 PRODUCER_ACKS = {"0": 0, "1": 1, "all": "all"}
 
 HOST_TYPES = ["edge", None]
+ALL_STALENESS_STATES = ("fresh", "stale", "stale_warning")
 
 
 class Config:
