@@ -16,6 +16,7 @@ from app import RbacResourceType
 from app.auth.identity import Identity
 from app.auth.identity import from_auth_header
 from app.config import Config
+from app.exceptions import InventoryException
 from app.logging import get_logger
 from lib import metrics
 from lib.middleware import get_rbac_filter
@@ -23,7 +24,7 @@ from utils.json_to_csv import json_arr_to_csv
 
 logger = get_logger(__name__)
 
-HEADER_CONTENT_TYPE = {"json": "application/json", "csv": "text/csv"}
+HEADER_CONTENT_TYPE = {"json": "application/json; charset=utf-8", "csv": "text/csv; charset=utf-8"}
 
 
 def extract_export_svc_data(export_svc_data: dict) -> tuple[str, UUID, str, str, str]:
@@ -130,7 +131,9 @@ def create_export(
                 f"{len(host_data)} hosts will be exported (format: {exportFormat}) for org_id {identity.org_id}"
             )
             response = session.post(
-                url=request_url, headers=request_headers, data=_format_export_data(host_data, exportFormat)
+                url=request_url,
+                headers=request_headers,
+                data=_format_export_data(host_data, exportFormat).encode("utf-8"),
             )
             _handle_export_response(response, exportUUID, exportFormat)
             export_created = True
@@ -146,7 +149,7 @@ def create_export(
             )
             _handle_export_response(response, exportUUID, exportFormat)
             export_created = False
-    except Exception as e:
+    except InventoryException as e:
         request_url = _build_export_request_url(
             export_service_endpoint, exportUUID, applicationName, resourceUUID, "error"
         )
@@ -185,7 +188,7 @@ def _handle_export_error(
 # This function is used by create_export, needs improvement
 def _handle_export_response(response: Response, exportUUID: UUID, exportFormat: str):
     if response.status_code != HTTPStatus.ACCEPTED:
-        raise Exception(response.text)
+        raise InventoryException(response.text)
     elif response.text != "":
         logger.info(f"{response.text} for export ID {str(exportUUID)} in {exportFormat.upper()} format")
 
