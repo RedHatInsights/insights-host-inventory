@@ -19,9 +19,11 @@ from api.filtering.db_filters import canonical_fact_filter
 from api.filtering.db_filters import host_id_list_filter
 from api.filtering.db_filters import query_filters
 from api.filtering.db_filters import rbac_permissions_filter
+from api.filtering.db_filters import update_query_for_owner_id
 from api.host_query import staleness_timestamps
 from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
+from app.config import ALL_STALENESS_STATES
 from app.exceptions import InventoryException
 from app.instrumentation import log_get_host_list_succeeded
 from app.logging import get_logger
@@ -30,8 +32,6 @@ from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import db
 from app.serialization import serialize_host_for_export_svc
-from lib.host_repository import ALL_STALENESS_STATES
-from lib.host_repository import update_query_for_owner_id
 
 __all__ = (
     "get_all_hosts",

@@ -1,6 +1,7 @@
 import base64
 import json
 import os
+import random
 import uuid
 from datetime import datetime
 from datetime import timedelta
@@ -555,7 +556,7 @@ def random_uuid():
 
 
 IS_EDGE = os.environ.get("IS_EDGE", False)
-IS_INSIGHTS_CLIENT = os.environ.get("IS_INSIGHTS_CLIENT", False)
+USE_RANDOMNESS = os.environ.get("USE_RANDOMENESS", True)
 
 
 def build_host_chunk():
@@ -567,7 +568,7 @@ def build_host_chunk():
         system_profile["host_type"] = "edge"
 
     payload = {
-        "bios_uuid": random_uuid(),
+        "insights_id": random_uuid(),
         "org_id": org_id,
         "display_name": fqdn,
         "tags": [
@@ -580,8 +581,27 @@ def build_host_chunk():
         "stale_timestamp": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         "reporter": "puptoo",
     }
-    if IS_INSIGHTS_CLIENT:
-        payload["insights_id"] = random_uuid()
+
+    # randomize the use of canonical_facts and reporters
+    if USE_RANDOMNESS:
+        add_bios = random.choice([True, False])
+        add_subsman = random.choice([True, False])
+        add_provider_id = random.choice([True, False])
+
+        if add_bios:
+            payload["bios_uuid"] = random_uuid()
+
+        if add_subsman:
+            payload["subscription_manager_id"] = random_uuid()
+
+        if add_provider_id:
+            payload["provider_id"] = random_uuid()
+            payload["provider_type"] = random.choice(["aws", "azure", "google", "ibm"])
+
+        payload["reporter"] = random.choice(
+            ["cloud-connector", "puptoo", "rhsm-conduit", "rhsm-system-profile-bridge", "yuptoo"]
+        )
+
     return payload
 
 
