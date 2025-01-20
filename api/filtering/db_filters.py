@@ -16,8 +16,10 @@ from sqlalchemy.dialects.postgresql import JSON
 from api.filtering.db_custom_filters import build_system_profile_filter
 from api.filtering.db_custom_filters import get_host_types_from_filter
 from api.staleness_query import get_staleness_obj
+from app.auth.identity import IdentityType
+from app.config import ALL_STALENESS_STATES
 from app.config import HOST_TYPES
-from app.culling import staleness_to_conditions
+from app.culling import Conditions
 from app.exceptions import ValidationException
 from app.logging import get_logger
 from app.models import OLD_TO_NEW_REPORTER_MAP
@@ -27,9 +29,16 @@ from app.models import HostGroupAssoc
 from app.models import db
 from app.serialization import serialize_staleness_to_dict
 from app.utils import Tag
-from lib.host_repository import ALL_STALENESS_STATES
 
-__all__ = ("canonical_fact_filter", "query_filters", "host_id_list_filter", "rbac_permissions_filter")
+__all__ = (
+    "canonical_fact_filter",
+    "query_filters",
+    "host_id_list_filter",
+    "rbac_permissions_filter",
+    "stale_timestamp_filter",
+    "staleness_to_conditions",
+    "update_query_for_owner_id",
+)
 
 logger = get_logger(__name__)
 DEFAULT_STALENESS_VALUES = ["not_culled"]
@@ -79,7 +88,7 @@ def _group_ids_filter(group_id_list: list) -> list:
     return _query_filter
 
 
-def _get_host_modified_on_time_filter(gt=None, lte=None):
+def stale_timestamp_filter(gt=None, lte=None):
     filters = []
     if gt:
         filters.append(Host.modified_on > gt)
@@ -89,18 +98,18 @@ def _get_host_modified_on_time_filter(gt=None, lte=None):
     return and_(*filters)
 
 
-def _stale_timestamp_filter(gt=None, lte=None, host_type=None):
-    return _get_host_modified_on_time_filter(gt=gt, lte=lte)
+def _host_type_filter(host_type: str | None):
+    return Host.system_profile_facts["host_type"].as_string() == host_type
 
 
-def _stale_timestamp_per_reporter_filter(gt=None, lte=None, reporter=None, host_type=None):
+def _stale_timestamp_per_reporter_filter(gt=None, lte=None, reporter=None):
     non_negative_reporter = reporter.replace("!", "")
     reporter_list = [non_negative_reporter]
     if non_negative_reporter in OLD_TO_NEW_REPORTER_MAP.keys():
         reporter_list.extend(OLD_TO_NEW_REPORTER_MAP[non_negative_reporter])
 
     if reporter.startswith("!"):
-        time_filter_ = _get_host_modified_on_time_filter(gt=gt, lte=lte)
+        time_filter_ = stale_timestamp_filter(gt=gt, lte=lte)
         return and_(
             and_(
                 not_(Host.per_reporter_staleness.has_key(rep)),
@@ -135,12 +144,13 @@ def per_reporter_staleness_filter(staleness, reporter, host_type_filter):
                 staleness,
                 host_type,
                 partial(_stale_timestamp_per_reporter_filter, reporter=reporter),
+                True,
             )
         )
         if len(host_type_filter) > 1:
             staleness_conditions.append(
                 and_(
-                    Host.system_profile_facts["host_type"].astext == host_type,
+                    _host_type_filter(host_type),
                     conditions,
                 )
             )
@@ -156,11 +166,11 @@ def _staleness_filter(
     staleness_obj = serialize_staleness_to_dict(get_staleness_obj(identity))
     staleness_conditions = []
     for host_type in host_type_filter:
-        conditions = or_(*staleness_to_conditions(staleness_obj, staleness, host_type, _stale_timestamp_filter))
+        conditions = or_(*staleness_to_conditions(staleness_obj, staleness, host_type, stale_timestamp_filter, True))
         if len(host_type_filter) > 1:
             staleness_conditions.append(
                 and_(
-                    Host.system_profile_facts["host_type"].astext == host_type,
+                    _host_type_filter(host_type),
                     conditions,
                 )
             )
@@ -168,6 +178,21 @@ def _staleness_filter(
             staleness_conditions.append(conditions)
 
     return [or_(*staleness_conditions)]
+
+
+def staleness_to_conditions(
+    staleness, staleness_states, host_type, timestamp_filter_func, omit_host_type_filter: bool = False
+):
+    def _timestamp_and_host_type_filter(condition, state):
+        filter_ = timestamp_filter_func(*getattr(condition, state)())
+        if omit_host_type_filter:
+            return filter_
+        else:
+            return and_(filter_, _host_type_filter(host_type))
+
+    condition = Conditions(staleness, host_type)
+    filtered_states = (state for state in staleness_states if state != "unknown")
+    return (_timestamp_and_host_type_filter(condition, state) for state in filtered_states)
 
 
 def _registered_with_filter(registered_with: list[str], host_type_filter: set[str | None]) -> list:
@@ -255,6 +280,15 @@ def rbac_permissions_filter(rbac_filter: dict) -> list:
         _query_filter = _group_ids_filter(rbac_filter["groups"])
 
     return _query_filter
+
+
+def update_query_for_owner_id(identity, query):
+    # kafka based requests have dummy identity for working around the identity requirement for CRUD operations
+    logger.debug("identity auth type: %s", identity.auth_type)
+    if identity and identity.identity_type == IdentityType.SYSTEM:
+        return query.filter(and_(Host.system_profile_facts["owner_id"].as_string() == identity.system["cn"]))
+    else:
+        return query
 
 
 def query_filters(
