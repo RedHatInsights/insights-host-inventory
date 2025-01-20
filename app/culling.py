@@ -3,7 +3,7 @@ from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
 
-__all__ = ("Conditions", "staleness_to_conditions", "Timestamps", "days_to_seconds")
+__all__ = ("Conditions", "Timestamps", "days_to_seconds")
 
 
 class _Config(namedtuple("_Config", ("stale_warning_offset_delta", "culled_offset_delta"))):
@@ -91,12 +91,6 @@ class Conditions:
             return "stale"
         else:
             return "stale warning"
-
-
-def staleness_to_conditions(staleness, staleness_states, host_type, timestamp_filter_func):
-    condition = Conditions(staleness, host_type)
-    filtered_states = (state for state in staleness_states if state != "unknown")
-    return (timestamp_filter_func(*getattr(condition, state)(), host_type=host_type) for state in filtered_states)
 
 
 def days_to_seconds(n_days: int) -> int:

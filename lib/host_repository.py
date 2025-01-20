@@ -5,12 +5,14 @@ from sqlalchemy import and_
 from sqlalchemy import not_
 from sqlalchemy import or_
 
+from api.filtering.db_filters import stale_timestamp_filter
+from api.filtering.db_filters import staleness_to_conditions
+from api.filtering.db_filters import update_query_for_owner_id
 from api.staleness_query import get_staleness_obj
 from api.staleness_query import get_sys_default_staleness
 from app.auth import get_current_identity
-from app.auth.identity import IdentityType
+from app.config import ALL_STALENESS_STATES
 from app.config import HOST_TYPES
-from app.culling import staleness_to_conditions
 from app.exceptions import InventoryException
 from app.logging import get_logger
 from app.models import Host
@@ -27,9 +29,7 @@ __all__ = (
     "find_host_by_multiple_canonical_facts",
     "find_hosts_by_staleness",
     "find_non_culled_hosts",
-    "stale_timestamp_filter",
     "update_existing_host",
-    "update_query_for_owner_id",
 )
 
 AddHostResult = Enum("AddHostResult", ("created", "updated"))
@@ -44,7 +44,6 @@ COMPOUND_CANONICAL_FACTS = tuple(COMPOUND_CANONICAL_FACTS_MAP.values())
 IMMUTABLE_CANONICAL_FACTS = ("provider_id",)
 MUTABLE_CANONICAL_FACTS = tuple(set(ELEVATED_CANONICAL_FACT_FIELDS).difference(set(IMMUTABLE_CANONICAL_FACTS)))
 
-ALL_STALENESS_STATES = ("fresh", "stale", "stale_warning")
 NULL = None
 
 logger = get_logger(__name__)
@@ -262,15 +261,6 @@ def update_existing_host(existing_host, input_host, update_system_profile):
     return existing_host, AddHostResult.updated
 
 
-def stale_timestamp_filter(gt=None, lte=None, host_type=None):
-    filter_ = ()
-    if gt:
-        filter_ += (Host.modified_on > gt,)
-    if lte:
-        filter_ += (Host.modified_on <= lte,)
-    return and_(*filter_, (Host.system_profile_facts["host_type"].as_string() == host_type))
-
-
 def contains_no_incorrect_facts_filter(canonical_facts):
     # Does not contain any incorrect CF values
     # Incorrect value = AND( key exists, NOT( contains key:value ) )
@@ -298,15 +288,6 @@ def matches_at_least_one_canonical_fact_filter(canonical_facts):
         filter_ += (Host.canonical_facts.contains({key: value}),)
 
     return or_(*filter_)
-
-
-def update_query_for_owner_id(identity, query):
-    # kafka based requests have dummy identity for working around the identity requirement for CRUD operations
-    logger.debug("identity auth type: %s", identity.auth_type)
-    if identity and identity.identity_type == IdentityType.SYSTEM:
-        return query.filter(and_(Host.system_profile_facts["owner_id"].as_string() == identity.system["cn"]))
-    else:
-        return query
 
 
 def update_system_profile(input_host, identity):

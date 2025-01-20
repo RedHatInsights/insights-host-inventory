@@ -12,14 +12,17 @@ from app.auth.identity import Identity
 from app.culling import Timestamps
 from app.culling import _Config as CullingConfig
 from app.queue.export_service import _format_export_data
+from app.queue.export_service import create_export
 from app.queue.export_service import get_host_list
 from app.queue.export_service_mq import handle_export_message
+from app.queue.export_service_mq import parse_export_service_message
 from app.serialization import _EXPORT_SERVICE_FIELDS
 from app.serialization import serialize_host_for_export_svc
 from tests.helpers import export_service_utils as es_utils
 from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import create_mock_rbac_response
+from tests.helpers.api_utils import mocked_export_post
 from tests.helpers.db_utils import db_host
 from tests.helpers.test_utils import USER_IDENTITY
 
@@ -32,6 +35,20 @@ def test_handle_create_export_happy_path(mock_post, db_create_host, flask_app, i
         mock_post.return_value.status_code = 202
         resp = handle_export_message(message=export_message, inventory_config=inventory_config)
         assert resp is True
+
+
+@pytest.mark.parametrize("format", ("json", "csv"))
+@mock.patch("requests.Session.post", new=mocked_export_post)
+def test_handle_create_export_unicode(db_create_host, flask_app, inventory_config, format):
+    with flask_app.app.app_context():
+        host_to_create = db_host()
+        host_to_create.display_name = "“quotetest”"
+        db_create_host(host=host_to_create)
+
+        validated_msg = parse_export_service_message(es_utils.create_export_message_mock(format=format))
+        base64_x_rh_identity = validated_msg["data"]["resource_request"]["x_rh_identity"]
+
+        assert create_export(validated_msg, base64_x_rh_identity, inventory_config)
 
 
 @mock.patch("requests.Session.post", autospec=True)
