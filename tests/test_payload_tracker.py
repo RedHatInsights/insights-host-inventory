@@ -15,7 +15,8 @@ from tests.helpers.tracker_utils import get_payload_tracker_methods
 from tests.helpers.tracker_utils import method_to_raise_exception
 
 
-def test_payload_tracker_is_disabled_using_env_var(mocker, payload_tracker, tracker_datetime_mock, subtests):
+@pytest.mark.usefixtures("tracker_datetime_mock")
+def test_payload_tracker_is_disabled_using_env_var(mocker, payload_tracker, subtests):
     kafka_producer_mock = mocker.patch("app.payload_tracker.KafkaProducer")
     null_producer_mock = mocker.patch("app.payload_tracker.NullProducer")
 
@@ -25,7 +26,8 @@ def test_payload_tracker_is_disabled_using_env_var(mocker, payload_tracker, trac
         assert_payload_tracker_is_disabled(tracker, kafka_producer_mock, null_producer_mock, subtests)
 
 
-def test_payload_tracker_is_disabled_by_invalid_request_id(mocker, payload_tracker, tracker_datetime_mock, subtests):
+@pytest.mark.usefixtures("tracker_datetime_mock")
+def test_payload_tracker_is_disabled_by_invalid_request_id(mocker, payload_tracker, subtests):
     kafka_producer_mock = mocker.patch("app.payload_tracker.KafkaProducer")
     null_producer_mock = mocker.patch("app.payload_tracker.NullProducer")
 
@@ -52,7 +54,8 @@ def test_payload_tracker_configure_topic(payload_tracker, tracker_datetime_mock)
         assert_mock_produce_call(producer, expected_topic, expected_msg)
 
 
-def test_payload_tracker_producer_raises_exception(payload_tracker, tracker_datetime_mock, subtests):
+@pytest.mark.usefixtures("tracker_datetime_mock")
+def test_payload_tracker_producer_raises_exception(payload_tracker, subtests):
     # Test that an exception in the producer does not get propagated
     producer_mock = Mock()
     producer_mock.send.side_effect = Exception("Producer send exception!")
@@ -68,7 +71,8 @@ def test_payload_tracker_producer_raises_exception(payload_tracker, tracker_date
             method_to_test(status_message="expected_status_msg")
 
 
-def test_payload_tracker_json_raises_exception(mocker, payload_tracker, tracker_datetime_mock, subtests):
+@pytest.mark.usefixtures("tracker_datetime_mock")
+def test_payload_tracker_json_raises_exception(mocker, payload_tracker, subtests):
     json_dumps_mock = mocker.patch("app.payload_tracker.json.dumps")
 
     # Test that an exception in the creation of the message does not get propagated

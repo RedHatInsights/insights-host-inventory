@@ -20,7 +20,8 @@ def test_basic_group_query(db_create_group, api_get):
         assert group_result["id"] in group_id_list
 
 
-def test_get_groups_RBAC_denied(subtests, mocker, api_get, enable_rbac):
+@pytest.mark.usefixtures("enable_rbac")
+def test_get_groups_RBAC_denied(subtests, mocker, api_get):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in GROUP_READ_PROHIBITED_RBAC_RESPONSE_FILES:
@@ -34,7 +35,8 @@ def test_get_groups_RBAC_denied(subtests, mocker, api_get, enable_rbac):
             assert_response_status(response_status, 403)
 
 
-def test_get_groups_RBAC_allowed_specific_groups(mocker, db_create_group, api_get, enable_rbac):
+@pytest.mark.usefixtures("enable_rbac")
+def test_get_groups_RBAC_allowed_specific_groups(mocker, db_create_group, api_get):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     group_id_list = [str(db_create_group(f"testGroup_{idx}").id) for idx in range(5)]
 
@@ -227,7 +229,7 @@ def test_group_query_pagination(subtests, db_create_group, api_get):
                 assert response_data["count"] == per_page
                 assert len(response_data["results"]) == per_page
                 for idx in range(per_page):
-                    assert response_data["results"][idx]["name"] == f"testGroup_{((page-1)*per_page + idx):03}"
+                    assert response_data["results"][idx]["name"] == f"testGroup_{((page - 1) * per_page + idx):03}"
 
 
 @pytest.mark.parametrize(

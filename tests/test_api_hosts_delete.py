@@ -22,10 +22,11 @@ from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 
 
-def test_delete_non_existent_host(event_producer_mock, notification_event_producer_mock, api_delete_host):
+@pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
+def test_delete_non_existent_host(api_delete_host):
     host_id = generate_uuid()
 
-    response_status, response_data = api_delete_host(host_id)
+    response_status, _ = api_delete_host(host_id)
 
     assert_response_status(response_status, expected_status=404)
 
@@ -33,7 +34,7 @@ def test_delete_non_existent_host(event_producer_mock, notification_event_produc
 def test_delete_with_invalid_host_id(api_delete_host):
     host_id = "notauuid"
 
-    response_status, response_data = api_delete_host(host_id)
+    response_status, _ = api_delete_host(host_id)
 
     assert_response_status(response_status, expected_status=400)
 
@@ -71,7 +72,7 @@ def test_create_then_delete_with_branch_id(
 ):
     host = db_create_host()
 
-    response_status, response_data = api_delete_host(host.id, query_parameters={"branch_id": "1234"})
+    response_status, _ = api_delete_host(host.id, query_parameters={"branch_id": "1234"})
 
     assert_response_status(response_status, expected_status=200)
 
@@ -90,7 +91,7 @@ def test_create_then_delete_with_request_id(
     request_id = generate_uuid()
     headers = {"x-rh-insights-request-id": request_id}
 
-    response_status, response_data = api_delete_host(host.id, extra_headers=headers)
+    response_status, _ = api_delete_host(host.id, extra_headers=headers)
 
     assert_response_status(response_status, expected_status=200)
 
@@ -106,7 +107,7 @@ def test_create_then_delete_without_request_id(
 ):
     host = db_create_host()
 
-    response_status, response_data = api_delete_host(host.id)
+    response_status, _ = api_delete_host(host.id)
 
     assert_response_status(response_status, expected_status=200)
 
@@ -120,24 +121,25 @@ def test_create_then_delete_without_request_id(
     assert_delete_notification_is_valid(notification_event_producer=notification_event_producer_mock, host=host)
 
 
+@pytest.mark.usefixtures("notification_event_producer_mock")
 def test_create_then_delete_without_insights_id(
-    event_datetime_mock, event_producer_mock, notification_event_producer_mock, db_create_host, api_delete_host
+    event_datetime_mock, event_producer_mock, db_create_host, api_delete_host
 ):
     host = db_host()
     del host.canonical_facts["insights_id"]
 
     db_create_host(host=host)
 
-    response_status, response_data = api_delete_host(host.id)
+    response_status, _ = api_delete_host(host.id)
 
     assert_response_status(response_status, expected_status=200)
 
     assert_delete_event_is_valid(event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock)
 
 
+@pytest.mark.usefixtures("notification_event_producer_mock")
 def test_delete_all_hosts(
     event_producer_mock,
-    notification_event_producer_mock,
     db_create_multiple_hosts,
     db_get_hosts,
     api_delete_all_hosts,
@@ -161,7 +163,7 @@ def test_delete_all_hosts(
 
 def test_delete_all_hosts_with_missing_required_params(api_delete_all_hosts, event_producer_mock):
     # delete all hosts using incomplete filter
-    response_status, response_data = api_delete_all_hosts({})
+    response_status, _ = api_delete_all_hosts({})
 
     assert_response_status(response_status, expected_status=400)
     assert event_producer_mock.event is None
@@ -177,7 +179,7 @@ def test_create_then_delete_check_metadata(
     request_id = generate_uuid()
     headers = {"x-rh-insights-request-id": request_id}
 
-    response_status, response_data = api_delete_host(host.id, extra_headers=headers)
+    response_status, _ = api_delete_host(host.id, extra_headers=headers)
 
     assert_response_status(response_status, expected_status=200)
 
@@ -203,7 +205,7 @@ def test_delete_when_one_host_is_deleted(
 
     # One host queried, but deleted by a different process. No event emitted yet returning
     # 200 OK.
-    response_status, response_data = api_delete_host(host.id)
+    response_status, _ = api_delete_host(host.id)
 
     assert_response_status(response_status, expected_status=404)
 
@@ -221,7 +223,7 @@ def test_delete_when_all_hosts_are_deleted(
 
     # Two hosts queried, but both deleted by a different process. No event emitted yet
     # returning 200 OK.
-    response_status, response_data = api_delete_host(",".join(host_id_list))
+    response_status, _ = api_delete_host(",".join(host_id_list))
 
     assert_response_status(response_status, expected_status=404)
 
@@ -239,13 +241,14 @@ def test_delete_when_some_hosts_is_deleted(
 
     # Two hosts queried, one of them deleted by a different process. Only one event emitted,
     # returning 200 OK.
-    response_status, response_data = api_delete_host(",".join(host_id_list))
+    response_status, _ = api_delete_host(",".join(host_id_list))
 
     assert_response_status(response_status, expected_status=200)
 
     assert host_id_list[1] == event_producer_mock.key
 
 
+@pytest.mark.usefixtures("enable_rbac")
 def test_delete_host_with_RBAC_allowed(
     subtests,
     mocker,
@@ -255,7 +258,6 @@ def test_delete_host_with_RBAC_allowed(
     notification_event_producer_mock,
     db_get_host,
     db_create_host,
-    enable_rbac,
 ):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
@@ -266,7 +268,7 @@ def test_delete_host_with_RBAC_allowed(
 
             host = db_create_host()
 
-            response_status, response_data = api_delete_host(host.id)
+            response_status, _ = api_delete_host(host.id)
 
             assert_response_status(response_status, 200)
 
@@ -279,15 +281,13 @@ def test_delete_host_with_RBAC_allowed(
             assert not db_get_host(host.id)
 
 
+@pytest.mark.usefixtures("enable_rbac")
 def test_delete_host_with_RBAC_denied(
     subtests,
     mocker,
     api_delete_host,
-    event_producer_mock,
-    notification_event_producer_mock,
     db_create_host,
     db_get_host,
-    enable_rbac,
 ):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
@@ -298,13 +298,14 @@ def test_delete_host_with_RBAC_denied(
 
             host = db_create_host()
 
-            response_status, response_data = api_delete_host(host.id)
+            response_status, _ = api_delete_host(host.id)
 
             assert_response_status(response_status, 403)
 
             assert db_get_host(host.id)
 
 
+@pytest.mark.usefixtures("enable_rbac")
 def test_delete_host_with_RBAC_bypassed_as_system(
     api_delete_host,
     event_datetime_mock,
@@ -312,13 +313,12 @@ def test_delete_host_with_RBAC_bypassed_as_system(
     notification_event_producer_mock,
     db_get_host,
     db_create_host,
-    enable_rbac,
 ):
     host = db_create_host(
         SYSTEM_IDENTITY, extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}}
     )
 
-    response_status, response_data = api_delete_host(host.id, SYSTEM_IDENTITY)
+    response_status, _ = api_delete_host(host.id, SYSTEM_IDENTITY)
 
     assert_response_status(response_status, 200)
 
@@ -415,9 +415,8 @@ def test_delete_with_callback_receiving_error(
     )
 
 
+@pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
 def test_delete_host_that_belongs_to_group_success(
-    event_producer_mock,
-    notification_event_producer_mock,
     db_create_group,
     db_create_host,
     db_get_hosts_for_group,
@@ -449,9 +448,8 @@ def test_delete_host_that_belongs_to_group_success(
     assert host_id_list[0] not in [host.id for host in hosts_after]
 
 
+@pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
 def test_delete_host_that_belongs_to_group_fail(
-    event_producer_mock,
-    notification_event_producer_mock,
     mocker,
     db_create_group,
     db_create_host,
@@ -487,6 +485,7 @@ def test_delete_host_that_belongs_to_group_fail(
     assert host_id_list[0] in [host.id for host in hosts_after]
 
 
+@pytest.mark.usefixtures("enable_rbac", "event_producer_mock", "notification_event_producer_mock")
 def test_delete_host_RBAC_allowed_specific_groups(
     mocker,
     db_create_group,
@@ -494,9 +493,6 @@ def test_delete_host_RBAC_allowed_specific_groups(
     api_delete_host,
     db_create_host,
     db_get_hosts_for_group,
-    enable_rbac,
-    event_producer_mock,
-    notification_event_producer_mock,
 ):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     host_id = db_create_host().id
@@ -521,9 +517,8 @@ def test_delete_host_RBAC_allowed_specific_groups(
     assert len(db_get_hosts_for_group(group_id)) == 0
 
 
-def test_delete_host_RBAC_denied_specific_groups(
-    mocker, db_create_host, db_get_host, api_delete_host, enable_rbac, event_producer_mock
-):
+@pytest.mark.usefixtures("enable_rbac", "event_producer_mock")
+def test_delete_host_RBAC_denied_specific_groups(mocker, db_create_host, db_get_host, api_delete_host):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     host_id = db_create_host().id
 
@@ -542,6 +537,7 @@ def test_delete_host_RBAC_denied_specific_groups(
     assert db_get_host(host_id)
 
 
+@pytest.mark.usefixtures("notification_event_producer_mock")
 def test_postgres_delete_filtered_hosts(
     db_create_host, api_get, api_delete_filtered_hosts, event_producer_mock, notification_event_producer_mock
 ):
@@ -570,9 +566,8 @@ def test_postgres_delete_filtered_hosts(
         assert response_data["results"][0]["id"] == not_deleted_host_id
 
 
-def test_postgres_delete_filtered_hosts_nomatch(
-    db_create_host, api_get, api_delete_filtered_hosts, event_producer_mock
-):
+@pytest.mark.usefixtures("event_producer_mock")
+def test_postgres_delete_filtered_hosts_nomatch(db_create_host, api_get, api_delete_filtered_hosts):
     # Create a host that we don't want to be deleted
     not_deleted_host_id = str(db_create_host(extra_data={"canonical_facts": {"insights_id": generate_uuid()}}).id)
 
@@ -614,9 +609,8 @@ def test_log_create_delete(
     assert caplog.records[0].system_profile == "{}"
 
 
-def test_delete_with_ui_host(
-    db_create_host, api_delete_host, event_datetime_mock, event_producer_mock, notification_event_producer_mock
-):
+@pytest.mark.usefixtures("notification_event_producer_mock")
+def test_delete_with_ui_host(db_create_host, api_delete_host, event_datetime_mock, event_producer_mock):
     host = db_create_host(extra_data={"canonical_facts": {"subscription_manager_id": generate_uuid()}})
     headers = {"x-rh-frontend-origin": "hcc"}
 

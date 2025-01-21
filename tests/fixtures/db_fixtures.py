@@ -78,7 +78,7 @@ def db_get_host_by_insights_id(flask_app):
 @pytest.fixture(scope="function")
 def db_get_group_by_id(flask_app):
     def _db_get_group_by_id(group_id):
-        return Group.query.get(group_id)
+        return db.session.get(Group, group_id)
 
     return _db_get_group_by_id
 
@@ -110,7 +110,7 @@ def db_get_groups_for_host(flask_app):
 @pytest.fixture(scope="function")
 def db_get_assignment_rule(flask_app):
     def _db_get_assignment_rule(ar_id):
-        return AssignmentRule.query.get(ar_id)
+        return db.session.get(AssignmentRule, ar_id)
 
     return _db_get_assignment_rule
 

@@ -198,7 +198,8 @@ def test_query_variables_registered_with_using_unknown_reporter(api_get):
     assert MSG in str(response_data)
 
 
-def test_get_hosts_with_RBAC_allowed(subtests, mocker, db_create_host, api_get, enable_rbac):
+@pytest.mark.usefixtures("enable_rbac")
+def test_get_hosts_with_RBAC_allowed(subtests, mocker, db_create_host, api_get):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in HOST_READ_ALLOWED_RBAC_RESPONSE_FILES:
@@ -209,12 +210,13 @@ def test_get_hosts_with_RBAC_allowed(subtests, mocker, db_create_host, api_get, 
             host = db_create_host()
 
             url = build_hosts_url(host_list_or_id=host.id)
-            response_status, response_data = api_get(url)
+            response_status, _ = api_get(url)
 
             assert_response_status(response_status, 200)
 
 
-def test_get_hosts_with_RBAC_denied(subtests, mocker, db_create_host, api_get, enable_rbac):
+@pytest.mark.usefixtures("enable_rbac")
+def test_get_hosts_with_RBAC_denied(subtests, mocker, db_create_host, api_get):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     find_hosts_by_staleness_mock = mocker.patch(
         "lib.host_repository.find_hosts_by_staleness", wraps=find_hosts_by_staleness
@@ -228,18 +230,19 @@ def test_get_hosts_with_RBAC_denied(subtests, mocker, db_create_host, api_get, e
             host = db_create_host()
 
             url = build_hosts_url(host_list_or_id=host.id)
-            response_status, response_data = api_get(url)
+            response_status, _ = api_get(url)
 
             assert_response_status(response_status, 403)
 
             find_hosts_by_staleness_mock.assert_not_called()
 
 
-def test_get_hosts_with_RBAC_bypassed_as_system(db_create_host, api_get, enable_rbac):
+@pytest.mark.usefixtures("enable_rbac")
+def test_get_hosts_with_RBAC_bypassed_as_system(db_create_host, api_get):
     host = db_create_host(SYSTEM_IDENTITY, extra_data={"system_profile_facts": {"owner_id": generate_uuid()}})
 
     url = build_hosts_url(host_list_or_id=host.id)
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, _ = api_get(url, SYSTEM_IDENTITY)
 
     assert_response_status(response_status, 200)
 
@@ -436,7 +439,7 @@ def test_query_using_id(mq_create_three_specific_hosts, api_get, subtests):
     assert len(response_data["results"]) == 1
 
 
-def test_query_using_non_existent_hostname(mq_create_three_specific_hosts, api_get, subtests):
+def test_query_using_non_existent_hostname(api_get, subtests):
     url = build_hosts_url(query="?hostname_or_id=NotGonnaFindMe")
 
     with patch("api.host.get_flag_value", return_value=True):
@@ -447,7 +450,7 @@ def test_query_using_non_existent_hostname(mq_create_three_specific_hosts, api_g
     assert len(response_data["results"]) == 0
 
 
-def test_query_using_non_existent_id(mq_create_three_specific_hosts, api_get, subtests):
+def test_query_using_non_existent_id(api_get, subtests):
     url = build_hosts_url(query=f"?hostname_or_id={generate_uuid()}")
 
     with patch("api.host.get_flag_value", return_value=True):
@@ -543,7 +546,7 @@ def test_get_host_by_subset_of_tags(mq_create_three_specific_hosts, api_get, sub
         assert result["id"] in created_host_ids
 
 
-def test_get_no_host_with_different_tags_same_namespace(mq_create_three_specific_hosts, api_get, subtests):
+def test_get_no_host_with_different_tags_same_namespace(api_get):
     """
     Don’t get a host with two tags in the same namespace, from which only one match. This is a
     regression test.
@@ -673,7 +676,7 @@ def test_get_host_by_display_name_and_tag_backwards(mq_create_three_specific_hos
 
 
 @pytest.mark.parametrize("tag_query", (";?:@&+$/-_.!~*'()'=#", " \t\n\r\f\v/ \t\n\r\f\v= \t\n\r\f\v"))
-def test_get_host_with_unescaped_special_characters(tag_query, mq_create_or_update_host, api_get, subtests):
+def test_get_host_with_unescaped_special_characters(tag_query, mq_create_or_update_host, api_get):
     tags = [
         {"namespace": ";?:@&+$", "key": "-_.!~*'()'", "value": "#"},
         {"namespace": " \t\n\r\f\v", "key": " \t\n\r\f\v", "value": " \t\n\r\f\v"},
@@ -792,9 +795,7 @@ def test_query_hosts_filter_updated_start_end(mq_create_or_update_host, api_get)
 
 
 @pytest.mark.parametrize("order_how", ("ASC", "DESC"))
-def test_get_hosts_order_by_group_name(
-    db_create_group_with_hosts, db_create_multiple_hosts, api_get, subtests, order_how
-):
+def test_get_hosts_order_by_group_name(db_create_group_with_hosts, db_create_multiple_hosts, api_get, order_how):
     hosts_per_group = 3
     num_ungrouped_hosts = 5
     names = ["ABC Group", "BCD Group", "CDE Group", "DEF Group"]
@@ -1396,6 +1397,60 @@ def test_query_all_sp_filters_operating_system(db_create_host, api_get, sp_filte
 
 
 @pytest.mark.parametrize(
+    "sp_filter_param,match",
+    (
+        ("[name][eq]=CentOS", True),
+        ("[name][eq]=centos", True),
+        ("[name][eq]=CENTOS", True),
+        ("[name][eq]=centos&filter[system_profile][operating_system][RHEL][version][eq][]=8", True),
+        ("[name][neq]=CENTOS", False),
+        ("[name][neq]=CentOS", False),
+    ),
+)
+def test_query_sp_filters_operating_system_name(db_create_host, api_get, sp_filter_param, match):
+    # Create host with this OS
+    match_sp_data = {
+        "system_profile_facts": {
+            "operating_system": {
+                "name": "CentOS",
+                "major": "8",
+                "minor": "11",
+            }
+        }
+    }
+    match_host_id = str(db_create_host(extra_data=match_sp_data).id)
+
+    # Create host with differing OS
+    nomatch_sp_data = {
+        "system_profile_facts": {
+            "operating_system": {
+                "name": "RHEL",
+                "major": "7",
+                "minor": "12",
+            }
+        }
+    }
+    nomatch_host_id = str(db_create_host(extra_data=nomatch_sp_data).id)
+
+    url = build_hosts_url(query=f"?filter[system_profile][operating_system]{sp_filter_param}")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    # Assert that only the matching host is returned
+    response_ids = [result["id"] for result in response_data["results"]]
+
+    if match:
+        assert match_host_id in response_ids
+        assert nomatch_host_id not in response_ids
+    else:
+        assert nomatch_host_id in response_ids
+        assert match_host_id not in response_ids
+
+
+@pytest.mark.parametrize(
     "os_match_data_list,os_nomatch_data_list,sp_filter_param_list",
     (
         (
@@ -1575,6 +1630,8 @@ def test_query_all_sp_filters_invalid_value(api_get, sp_filter_param):
     "sp_filter_param",
     (
         "[operating_system][foo][version]=8.1",  # Invalid OS name
+        "[operating_system][name][eq]=rhelz",  # Invalid OS name
+        "[operating_system][][version][eq][]=7",  # Invalid OS name
         "[operating_system][RHEL][version]=bar",  # Invalid OS version
     ),
 )
@@ -1759,7 +1816,7 @@ def test_query_sp_filters_query_on_object_with_is_successful_request(db_create_h
     url = build_hosts_url(query=f"?filter[system_profile]{sp_filter_param}")
 
     with patch("api.host.get_flag_value", return_value=True):
-        response_status, response_data = api_get(url)
+        response_status, _ = api_get(url)
 
     assert response_status == 200
 
@@ -1909,9 +1966,8 @@ def test_get_host_exists_error_multiple_found(db_create_host, api_get):
     assert response_status == 409
 
 
-def test_get_host_exists_granular_rbac(
-    db_create_host, db_create_group, db_create_host_group_assoc, api_get, mocker, enable_rbac
-):
+@pytest.mark.usefixtures("enable_rbac")
+def test_get_host_exists_granular_rbac(db_create_host, db_create_group, db_create_host_group_assoc, api_get, mocker):
     # Create 3 hosts with unique insights IDs that the user has access to
     accessible_group_id = db_create_group("accessible_group").id
     accessible_insights_id_list = [generate_uuid() for _ in range(3)]

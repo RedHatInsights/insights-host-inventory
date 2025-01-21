@@ -127,7 +127,7 @@ def flush_segmentio():
         analytics.flush()
 
 
-def initialize_segmentio(config):
+def initialize_segmentio():
     logger.info("Initializing Segmentio")
     analytics.write_key = os.getenv("SEGMENTIO_WRITE_KEY", None)
     logger.info("Registering Segmentio flush on shutdown")
@@ -328,8 +328,7 @@ def create_app(runtime_environment):
         register_shutdown(flask_app.notification_event_producer.close, "Closing NotificationEventProducer")
     else:
         logger.warning(
-            "WARNING: The event producer has been disabled.  "
-            "The message queue based notifications have been disabled."
+            "WARNING: The event producer has been disabled.  The message queue based notifications have been disabled."
         )
 
     payload_tracker_producer = None
@@ -356,6 +355,6 @@ def create_app(runtime_environment):
     # initialize metrics to zero
     initialize_metrics(app_config)
 
-    initialize_segmentio(app_config)
+    initialize_segmentio()
 
     return app
