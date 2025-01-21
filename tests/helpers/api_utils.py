@@ -603,12 +603,12 @@ def assert_resource_types_pagination(
     assert links["first"] == f"{expected_path_base}?per_page={expected_per_page}&page=1"
 
     if expected_page > 1:
-        assert links["previous"] == f"{expected_path_base}?per_page={expected_per_page}&page={expected_page-1}"
+        assert links["previous"] == f"{expected_path_base}?per_page={expected_per_page}&page={expected_page - 1}"
     else:
         assert links["previous"] is None
 
     if expected_page < expected_number_of_pages:
-        assert links["next"] == f"{expected_path_base}?per_page={expected_per_page}&page={expected_page+1}"
+        assert links["next"] == f"{expected_path_base}?per_page={expected_per_page}&page={expected_page + 1}"
     else:
         assert links["next"] is None
 

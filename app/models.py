@@ -792,7 +792,7 @@ class CanonicalFactsSchema(MarshmallowSchema):
         if provider_type and provider_type.lower() not in ProviderType.__members__.values():
             raise MarshmallowValidationError(
                 f'Unknown Provider Type: "{provider_type}".  '
-                f'Valid provider types are: {", ".join([p.value for p in ProviderType])}.'
+                f"Valid provider types are: {', '.join([p.value for p in ProviderType])}."
             )
 
         # check for white spaces, tabs, and newline characters only
