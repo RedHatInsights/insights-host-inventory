@@ -133,7 +133,7 @@ def test_deploy_formatting_is_not_changed():
 
 
 @patch.dict(FLAG_FALLBACK_VALUES, {TEST_FEATURE_FLAG: False})
-def test_feature_flag_no_fallback(enable_unleash):
+def test_feature_flag_no_fallback(_enable_unleash):
     unleash_mock = MagicMock()
     unleash_mock.is_enabled.return_value = True
     with patch.object(UNLEASH, "client", unleash_mock):
@@ -143,7 +143,7 @@ def test_feature_flag_no_fallback(enable_unleash):
 
 
 @patch.dict(FLAG_FALLBACK_VALUES, {TEST_FEATURE_FLAG: False})
-def test_feature_flag_error_fallback(enable_unleash):
+def test_feature_flag_error_fallback(_enable_unleash):
     unleash_mock = MagicMock()
     unleash_mock.is_enabled.side_effect = ConnectionError("something went wrong :<")
     with patch.object(UNLEASH, "client", unleash_mock):
@@ -153,7 +153,7 @@ def test_feature_flag_error_fallback(enable_unleash):
 
 
 @patch.dict(FLAG_FALLBACK_VALUES, {TEST_FEATURE_FLAG: False})
-def test_feature_uninitialized_fallback(enable_unleash):
+def test_feature_uninitialized_fallback(_enable_unleash):
     with patch.object(UNLEASH, "client", None):
         flag_value, using_fallback = get_flag_value_and_fallback(TEST_FEATURE_FLAG)
         assert not flag_value

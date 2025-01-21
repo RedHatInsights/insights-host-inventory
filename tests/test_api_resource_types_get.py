@@ -81,11 +81,12 @@ def test_resource_types_groups_filter(api_get, db_create_group):
     assert_resource_types_pagination(response_data, 1, 10, 1, "/inventory/v1/resource-types/inventory-groups")
 
 
+@pytest.mark.usefixtures("enable_rbac")
 @pytest.mark.parametrize(
     "url_builder",
     [build_resource_types_url, build_resource_types_groups_url],
 )
-def test_get_resource_types_RBAC_allowed(mocker, api_get, url_builder, enable_rbac):
+def test_get_resource_types_RBAC_allowed(mocker, api_get, url_builder):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     # RBAC admin should have permission to both resource-types endpoints
@@ -97,11 +98,12 @@ def test_get_resource_types_RBAC_allowed(mocker, api_get, url_builder, enable_rb
     assert_response_status(response_status, 200)
 
 
+@pytest.mark.usefixtures("enable_rbac")
 @pytest.mark.parametrize(
     "url_builder",
     [build_resource_types_url, build_resource_types_groups_url],
 )
-def test_get_resource_types_RBAC_denied(mocker, api_get, url_builder, subtests, enable_rbac):
+def test_get_resource_types_RBAC_denied(mocker, api_get, url_builder, subtests):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     # RBAC admin should have permission to both resource-types endpoints
