@@ -37,7 +37,6 @@ To run *HBI* locally, first you will have to create an `.env` file with the foll
 cat > ${PWD}/.env<<EOF
 # RUNNNING HBI Locally
 PROMETHEUS_MULTIPROC_DIR=/tmp
-prometheus_multiproc_dir=/tmp
 
 BYPASS_RBAC="true"
 BYPASS_UNLEASH="true"
@@ -239,7 +238,7 @@ to be done to make prometheus integrate with
 gunicorn.
 
 A temp directory for prometheus needs to be created
-before the server starts.  The prometheus_multiproc_dir
+before the server starts.  The PROMETHEUS_MULTIPROC_DIR
 environment needs to point to this directory.  The
 contents of this directory need to be removed between
 runs.
