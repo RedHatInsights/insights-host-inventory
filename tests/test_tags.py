@@ -139,7 +139,8 @@ def test_get_list_of_tags_with_host_filters_via_db(db_create_multiple_hosts, api
                 assert response_data["results"][0]["count"] == 1
 
 
-def test_get_tags_invalid_start_end(api_get, subtests):
+@pytest.mark.usefixtures("subtests")
+def test_get_tags_invalid_start_end(api_get):
     """
     Validate that the /tags endpoint properly handles updated_start and updated_end validation errors.
     """
@@ -187,7 +188,8 @@ def test_get_tags_count_from_host_with_no_tags(api_get, db_create_host):
     assert response_data["results"] == {host_with_no_tags_id: 0}
 
 
-def test_get_host_tags_with_RBAC_allowed(subtests, mocker, api_get, enable_rbac):
+@pytest.mark.usefixtures("enable_rbac")
+def test_get_host_tags_with_RBAC_allowed(subtests, mocker, api_get):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in HOST_READ_ALLOWED_RBAC_RESPONSE_FILES:
@@ -201,7 +203,8 @@ def test_get_host_tags_with_RBAC_allowed(subtests, mocker, api_get, enable_rbac)
             assert_response_status(response_status, 200)
 
 
-def test_get_host_tags_with_RBAC_denied(subtests, mocker, api_get, enable_rbac):
+@pytest.mark.usefixtures("enable_rbac")
+def test_get_host_tags_with_RBAC_denied(subtests, mocker, api_get):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     find_hosts_by_staleness_mock = mocker.patch(
         "lib.host_repository.find_hosts_by_staleness", wraps=find_hosts_by_staleness
@@ -220,7 +223,8 @@ def test_get_host_tags_with_RBAC_denied(subtests, mocker, api_get, enable_rbac):
             find_hosts_by_staleness_mock.assert_not_called()
 
 
-def test_get_host_tag_count_RBAC_allowed(mocker, api_get, subtests, mq_create_three_specific_hosts, enable_rbac):
+@pytest.mark.usefixtures("enable_rbac")
+def test_get_host_tag_count_RBAC_allowed(mocker, api_get, subtests, mq_create_three_specific_hosts):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     host_list = mq_create_three_specific_hosts
@@ -238,7 +242,8 @@ def test_get_host_tag_count_RBAC_allowed(mocker, api_get, subtests, mq_create_th
             assert len(expected_response) == len(response_data["results"])
 
 
-def test_get_host_tag_count_RBAC_denied(mq_create_four_specific_hosts, mocker, api_get, subtests, enable_rbac):
+@pytest.mark.usefixtures("enable_rbac")
+def test_get_host_tag_count_RBAC_denied(mq_create_four_specific_hosts, mocker, api_get, subtests):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     find_non_culled_hosts_mock = mocker.patch("lib.host_repository.find_non_culled_hosts", wraps=find_non_culled_hosts)
 
@@ -250,7 +255,7 @@ def test_get_host_tag_count_RBAC_denied(mq_create_four_specific_hosts, mocker, a
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
             url = build_tags_count_url(host_list_or_id=created_hosts, query="?order_by=updated&order_how=ASC")
-            response_status, response_data = api_get(url)
+            response_status, _ = api_get(url)
 
             assert response_status == 403
 
@@ -280,11 +285,12 @@ def test_get_tags_count_of_host_via_db(api_get, mq_create_three_specific_hosts):
     assert response_data["results"][created_hosts[0].id] >= 0
 
 
-def test_get_host_tags_with_RBAC_bypassed_as_system(db_create_host, api_get, enable_rbac):
+@pytest.mark.usefixtures("enable_rbac")
+def test_get_host_tags_with_RBAC_bypassed_as_system(db_create_host, api_get):
     host = db_create_host(SYSTEM_IDENTITY, extra_data={"system_profile_facts": {"owner_id": generate_uuid()}})
 
     url = build_host_tags_url(host_list_or_id=host.id)
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, _ = api_get(url, SYSTEM_IDENTITY)
 
     assert_response_status(response_status, 200)
 

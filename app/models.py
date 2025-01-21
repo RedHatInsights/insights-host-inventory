@@ -14,8 +14,8 @@ from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from jsonschema import RefResolver
 from jsonschema import ValidationError as JsonSchemaValidationError
-from jsonschema import draft4_format_checker
 from jsonschema import validate as jsonschema_validate
+from jsonschema.validators import Draft4Validator
 from marshmallow import EXCLUDE
 from marshmallow import Schema as MarshmallowSchema
 from marshmallow import ValidationError as MarshmallowValidationError
@@ -792,7 +792,7 @@ class CanonicalFactsSchema(MarshmallowSchema):
         if provider_type and provider_type.lower() not in ProviderType.__members__.values():
             raise MarshmallowValidationError(
                 f'Unknown Provider Type: "{provider_type}".  '
-                f'Valid provider types are: {", ".join([p.value for p in ProviderType])}.'
+                f"Valid provider types are: {', '.join([p.value for p in ProviderType])}."
             )
 
         # check for white spaces, tabs, and newline characters only
@@ -895,7 +895,7 @@ class LimitedHostSchema(CanonicalFactsSchema):
     def system_profile_is_valid(self, system_profile):
         try:
             jsonschema_validate(
-                system_profile, self.system_profile_normalizer.schema, format_checker=draft4_format_checker
+                system_profile, self.system_profile_normalizer.schema, format_checker=Draft4Validator.FORMAT_CHECKER
             )
         except JsonSchemaValidationError as error:
             raise MarshmallowValidationError(f"System profile does not conform to schema.\n{error}") from error

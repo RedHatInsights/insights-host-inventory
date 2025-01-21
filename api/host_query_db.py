@@ -8,6 +8,7 @@ from typing import Any
 from sqlalchemy import Boolean
 from sqlalchemy import String
 from sqlalchemy import func
+from sqlalchemy import select
 from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.orm import Query
 from sqlalchemy.orm import load_only
@@ -18,9 +19,11 @@ from api.filtering.db_filters import canonical_fact_filter
 from api.filtering.db_filters import host_id_list_filter
 from api.filtering.db_filters import query_filters
 from api.filtering.db_filters import rbac_permissions_filter
+from api.filtering.db_filters import update_query_for_owner_id
 from api.host_query import staleness_timestamps
 from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
+from app.config import ALL_STALENESS_STATES
 from app.exceptions import InventoryException
 from app.instrumentation import log_get_host_list_succeeded
 from app.logging import get_logger
@@ -29,8 +32,6 @@ from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import db
 from app.serialization import serialize_host_for_export_svc
-from lib.host_repository import ALL_STALENESS_STATES
-from lib.host_repository import update_query_for_owner_id
 
 __all__ = (
     "get_all_hosts",
@@ -203,8 +204,7 @@ def params_to_order_by(order_by: str | None = None, order_how: str | None = None
         )
     elif order_how:
         raise ValueError(
-            "Providing ordering direction without a column is not supported. "
-            "Provide order_by={updated,display_name}."
+            "Providing ordering direction without a column is not supported. Provide order_by={updated,display_name}."
         )
 
     return ordering + modified_on_ordering + (Host.id.desc(),)
@@ -235,7 +235,7 @@ def _find_hosts_entities_query(
 
 
 def _find_hosts_model_query(columns: list[ColumnElement] | None = None, identity: Any = None) -> Query:
-    query_base = db.session.query(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
+    query_base = select(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
     query = query_base.filter(Host.org_id == identity.org_id)
 
     # In this case, return a list of Hosts
@@ -594,7 +594,6 @@ def get_host_ids_list(
 def get_hosts_to_export(
     identity: object,
     filters: dict | None = None,
-    export_format: str = "json",
     rbac_filter: dict | None = None,
     batch_size: int = 0,
 ) -> Iterator[dict]:
@@ -626,7 +625,7 @@ def get_hosts_to_export(
     export_host_query = _find_hosts_model_query(identity=identity, columns=columns).filter(*q_filters)
     export_host_query = export_host_query.execution_options(yield_per=batch_size)
 
-    num_hosts = export_host_query.count()
+    num_hosts = select(func.count()).select_from(export_host_query.subquery())
     logger.debug(f"Number of hosts to be exported: {num_hosts}")
 
     for host in db.session.scalars(export_host_query):

@@ -107,7 +107,7 @@ objects:
           value: ${CONSOLEDOT_HOSTNAME}
         - name: INVENTORY_LEGACY_API_URL
           value: /r/insights/platform/inventory/v1
-        - name: prometheus_multiproc_dir
+        - name: PROMETHEUS_MULTIPROC_DIR
           value: /tmp/inventory/prometheus
         - name: INVENTORY_LOG_LEVEL
           value: ${LOG_LEVEL}
@@ -261,7 +261,7 @@ objects:
           value: ${CONSOLEDOT_HOSTNAME}
         - name: INVENTORY_LEGACY_API_URL
           value: /r/insights/platform/inventory/v1
-        - name: prometheus_multiproc_dir
+        - name: PROMETHEUS_MULTIPROC_DIR
           value: /tmp/inventory/prometheus
         - name: INVENTORY_LOG_LEVEL
           value: ${LOG_LEVEL}
@@ -415,7 +415,7 @@ objects:
           value: ${CONSOLEDOT_HOSTNAME}
         - name: INVENTORY_LEGACY_API_URL
           value: /r/insights/platform/inventory/v1
-        - name: prometheus_multiproc_dir
+        - name: PROMETHEUS_MULTIPROC_DIR
           value: /tmp/inventory/prometheus
         - name: INVENTORY_LOG_LEVEL
           value: ${LOG_LEVEL}
@@ -1239,25 +1239,32 @@ objects:
     suspend: ${{FLOORIST_SUSPEND}}
     logLevel: ${FLOORIST_LOGLEVEL}
     queries:
-      - prefix: hms_analytics/inventory/hosts
+      - prefix: hms_analytics/inventory/${ENV_NAME}/hosts
         query: >-
           SELECT
             "id",
-            COALESCE("account", '0') AS "account_number",
+            COALESCE("account", '0') AS "account",
             "org_id" AS "org_id",
             "created_on" AS "created_at",
-            "modified_on" AS "updated_at"
+            "modified_on" AS "updated_at",
+            "reporter" AS "reporter",
+            "canonical_facts"->>'insights_id' as "insights_id",
+            "canonical_facts"->>'subscription_manager_id' as "subscription_manager_id",
+            "canonical_facts"->>'bios_uuid' as "bios_uuid",
+            "canonical_facts"->>'provider_id' as "provider_id",
+            "canonical_facts"->>'provider_type' as "provider_type"
           FROM "hbi"."hosts"
-      - prefix: hms_analytics/inventory/groups_success_metrics
+          GROUP BY id, account, org_id, created_on, updated_at, canonical_facts, reporter;
+      - prefix: hms_analytics/inventory/${ENV_NAME}/groups
         query: >-
           SELECT
             "id",
-            COALESCE("account", '0') AS "account_number",
             "org_id" AS "org_id",
+            COALESCE("account", '0') AS "account",
+            "name" AS "name",
             "created_on" AS "created_at",
             "modified_on" AS "updated_at"
           FROM "hbi"."groups"
-
 - apiVersion: v1
   data:
     nginx.conf: |-

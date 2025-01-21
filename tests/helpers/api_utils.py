@@ -2,8 +2,10 @@ import json
 import math
 from base64 import b64encode
 from datetime import timedelta
+from http import HTTPStatus
 from itertools import product
 from struct import unpack
+from typing import Any
 from urllib.parse import parse_qs
 from urllib.parse import quote_plus as url_quote
 from urllib.parse import urlencode
@@ -11,6 +13,7 @@ from urllib.parse import urlsplit
 from urllib.parse import urlunsplit
 
 import dateutil.parser
+from requests import Response
 
 from app.auth.identity import IdentityType
 from tests.helpers.test_utils import now
@@ -600,13 +603,23 @@ def assert_resource_types_pagination(
     assert links["first"] == f"{expected_path_base}?per_page={expected_per_page}&page=1"
 
     if expected_page > 1:
-        assert links["previous"] == f"{expected_path_base}?per_page={expected_per_page}&page={expected_page-1}"
+        assert links["previous"] == f"{expected_path_base}?per_page={expected_per_page}&page={expected_page - 1}"
     else:
         assert links["previous"] is None
 
     if expected_page < expected_number_of_pages:
-        assert links["next"] == f"{expected_path_base}?per_page={expected_per_page}&page={expected_page+1}"
+        assert links["next"] == f"{expected_path_base}?per_page={expected_per_page}&page={expected_page + 1}"
     else:
         assert links["next"] is None
 
     assert links["last"] == f"{expected_path_base}?per_page={expected_per_page}&page={expected_number_of_pages}"
+
+
+def mocked_export_post(_self: Any, url: str, *, data: bytes, **_: Any) -> Response:
+    # This will raise UnicodeDecodeError if not correctly encoded or AttributeError if data is str
+    data.decode("utf-8")
+    response = Response()
+    response.url = url
+    response.status_code = HTTPStatus.ACCEPTED
+    response._content = b"Export successful"
+    return response

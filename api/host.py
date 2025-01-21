@@ -14,6 +14,7 @@ from api import pagination_params
 from api.cache import CACHE
 from api.cache import delete_cached_system_keys
 from api.cache_key import make_system_cache_key
+from api.filtering.db_filters import update_query_for_owner_id
 from api.host_query import build_paginated_host_list_response
 from api.host_query import staleness_timestamps
 from api.host_query_db import get_all_hosts
@@ -58,7 +59,6 @@ from lib.host_delete import delete_hosts
 from lib.host_repository import find_existing_host
 from lib.host_repository import find_non_culled_hosts
 from lib.host_repository import get_host_list_by_id_list_from_db
-from lib.host_repository import update_query_for_owner_id
 from lib.middleware import rbac
 
 FactOperations = Enum("FactOperations", ("merge", "replace"))
@@ -454,7 +454,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
             "not match the org_id associated with one or more the hosts.  Rejecting the fact change request."
         )
         logger.debug(error_msg)
-        return error_msg, 400
+        return error_msg, 404
 
     staleness = get_staleness_obj(current_identity)
 

@@ -72,7 +72,7 @@ def create_assignment_rule(body, rbac_filter=None):
         return json_error_response("Validation Error", str(e.messages), HTTPStatus.BAD_REQUEST)
 
     try:
-        created_assignment_rule = add_assignment_rule(validated_create_assignment_rule)
+        created_assignment_rule = add_assignment_rule(validated_create_assignment_rule, rbac_filter)
         created_assignment_rule = serialize_assignment_rule(created_assignment_rule)
     except IntegrityError as error:
         group_id = validated_create_assignment_rule.get("group_id")
