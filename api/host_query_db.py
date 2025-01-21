@@ -595,7 +595,6 @@ def get_host_ids_list(
 def get_hosts_to_export(
     identity: object,
     filters: dict | None = None,
-    export_format: str = "json",
     rbac_filter: dict | None = None,
     batch_size: int = 0,
 ) -> Iterator[dict]:

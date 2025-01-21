@@ -20,7 +20,8 @@ def test_basic_group_query(db_create_group, api_get):
         assert group_result["id"] in group_id_list
 
 
-def test_get_groups_RBAC_denied(subtests, mocker, api_get, enable_rbac):
+@pytest.mark.usefixtures("enable_rbac")
+def test_get_groups_RBAC_denied(subtests, mocker, api_get):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in GROUP_READ_PROHIBITED_RBAC_RESPONSE_FILES:
@@ -34,7 +35,8 @@ def test_get_groups_RBAC_denied(subtests, mocker, api_get, enable_rbac):
             assert_response_status(response_status, 403)
 
 
-def test_get_groups_RBAC_allowed_specific_groups(mocker, db_create_group, api_get, enable_rbac):
+@pytest.mark.usefixtures("enable_rbac")
+def test_get_groups_RBAC_allowed_specific_groups(mocker, db_create_group, api_get):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     group_id_list = [str(db_create_group(f"testGroup_{idx}").id) for idx in range(5)]
 

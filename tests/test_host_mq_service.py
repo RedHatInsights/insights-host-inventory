@@ -121,8 +121,9 @@ def test_handle_message_failure_invalid_message_format(mocker):
     mock_notification_event_producer.assert_not_called()
 
 
+@pytest.mark.usefixtures("flask_app")
 @pytest.mark.parametrize("identity", (SYSTEM_IDENTITY, SATELLITE_IDENTITY))
-def test_handle_message_happy_path(identity, mocker, flask_app):
+def test_handle_message_happy_path(identity, mocker):
     expected_insights_id = generate_uuid()
     host = minimal_host(account=identity["account_number"], insights_id=expected_insights_id)
 
@@ -209,7 +210,8 @@ def test_handle_message_failure_invalid_surrogates(mocker, display_name):
     add_host.assert_not_called()
 
 
-def test_handle_message_unicode_not_damaged(mocker, flask_app, db_create_host, subtests):
+@pytest.mark.usefixtures("flask_app")
+def test_handle_message_unicode_not_damaged(mocker, db_create_host, subtests):
     mocker.patch("app.queue.host_mq.build_event")
     add_host = mocker.patch(
         "app.queue.host_mq.add_host",
@@ -259,7 +261,7 @@ def test_handle_message_verify_metadata_pass_through(mq_create_or_update_host):
         "b64_identity": get_encoded_idstr(),
     }
 
-    key, event, headers = mq_create_or_update_host(host, platform_metadata=metadata, return_all_data=True)
+    _, event, _ = mq_create_or_update_host(host, platform_metadata=metadata, return_all_data=True)
 
     assert event["platform_metadata"] == metadata
 
@@ -278,7 +280,7 @@ def test_handle_message_verify_org_id(mq_create_or_update_host):
         "b64_identity": get_encoded_idstr(identity=org_identity),
     }
 
-    key, event, headers = mq_create_or_update_host(host, platform_metadata=metadata, return_all_data=True)
+    _, event, _ = mq_create_or_update_host(host, platform_metadata=metadata, return_all_data=True)
 
     assert event["platform_metadata"] == metadata
 
@@ -338,7 +340,8 @@ def test_verify_bootc_in_headers(expected_value, system_profile, mq_create_or_up
     assert headers["is_bootc"] is expected_value
 
 
-def test_add_host_simple(event_datetime_mock, mq_create_or_update_host):
+@pytest.mark.usefixtures("event_datetime_mock")
+def test_add_host_simple(mq_create_or_update_host):
     """
     Tests adding a host with some simple data
     """
@@ -354,12 +357,13 @@ def test_add_host_simple(event_datetime_mock, mq_create_or_update_host):
 
     host_keys_to_check = ["display_name", "insights_id", "account"]
 
-    key, event, headers = mq_create_or_update_host(host, return_all_data=True)
+    key, event, _ = mq_create_or_update_host(host, return_all_data=True)
 
     assert_mq_host_data(key, event, expected_results, host_keys_to_check)
 
 
-def test_add_edge_host(event_datetime_mock, mq_create_or_update_host, db_get_host):
+@pytest.mark.usefixtures("event_datetime_mock")
+def test_add_edge_host(mq_create_or_update_host, db_get_host):
     """
     Tests adding an edge host
     """
@@ -386,7 +390,8 @@ def test_add_edge_host(event_datetime_mock, mq_create_or_update_host, db_get_hos
     assert saved_host_from_db.stale_timestamp.year == 2260
 
 
-def test_add_host_with_system_profile(event_datetime_mock, mq_create_or_update_host):
+@pytest.mark.usefixtures("event_datetime_mock")
+def test_add_host_with_system_profile(mq_create_or_update_host):
     """
     Tests adding a host with message containing system profile
     """
@@ -409,7 +414,8 @@ def test_add_host_with_system_profile(event_datetime_mock, mq_create_or_update_h
     assert_mq_host_data(key, event, expected_results, host_keys_to_check)
 
 
-def test_add_host_without_defer_to(event_datetime_mock, models_datetime_mock, mq_create_or_update_host, db_get_host):
+@pytest.mark.usefixtures("event_datetime_mock")
+def test_add_host_without_defer_to(models_datetime_mock, mq_create_or_update_host, db_get_host):
     """
     Tests adding (updating) a host without "defer_to" option - system profile should be updated.
     """
@@ -439,7 +445,8 @@ def test_add_host_without_defer_to(event_datetime_mock, models_datetime_mock, mq
     assert returned_host.system_profile_facts == updated_system_profile
 
 
-def test_add_host_defer_to(event_datetime_mock, models_datetime_mock, mq_create_or_update_host, db_get_host):
+@pytest.mark.usefixtures("event_datetime_mock")
+def test_add_host_defer_to(models_datetime_mock, mq_create_or_update_host, db_get_host):
     """
     Tests adding (updating) a host with "defer_to" option - system profile should not be updated.
     """
@@ -469,9 +476,8 @@ def test_add_host_defer_to(event_datetime_mock, models_datetime_mock, mq_create_
     assert returned_host.system_profile_facts == original_system_profile
 
 
-def test_add_host_defer_to_wrong_reporter(
-    event_datetime_mock, models_datetime_mock, mq_create_or_update_host, db_get_host
-):
+@pytest.mark.usefixtures("event_datetime_mock")
+def test_add_host_defer_to_wrong_reporter(models_datetime_mock, mq_create_or_update_host, db_get_host):
     """
     Tests adding (updating) a host with "defer_to" option,
     but base host not reported by specified reporter - system profile should be updated.
@@ -502,7 +508,8 @@ def test_add_host_defer_to_wrong_reporter(
     assert returned_host.system_profile_facts == updated_system_profile
 
 
-def test_add_host_defer_to_stale(event_datetime_mock, models_datetime_mock, mq_create_or_update_host, db_get_host):
+@pytest.mark.usefixtures("event_datetime_mock")
+def test_add_host_defer_to_stale(models_datetime_mock, mq_create_or_update_host, db_get_host):
     """
     Tests adding (updating) a host with "defer_to" option, but reporter stale - system profile should be updated.
     """
@@ -529,7 +536,8 @@ def test_add_host_defer_to_stale(event_datetime_mock, models_datetime_mock, mq_c
     assert returned_host.system_profile_facts == updated_system_profile
 
 
-def test_add_host_with_wrong_owner(mocker, event_datetime_mock, mq_create_or_update_host):
+@pytest.mark.usefixtures("event_datetime_mock")
+def test_add_host_with_wrong_owner(mocker, mq_create_or_update_host):
     """
     Tests adding a host with message containing system profile
     """
@@ -551,6 +559,7 @@ def test_add_host_with_wrong_owner(mocker, event_datetime_mock, mq_create_or_upd
     mock_notification_event_producer.write_event.assert_called_once()
 
 
+@pytest.mark.usefixtures("event_datetime_mock")
 @pytest.mark.parametrize(
     "with_account, rhsm_reporter",
     [
@@ -560,7 +569,7 @@ def test_add_host_with_wrong_owner(mocker, event_datetime_mock, mq_create_or_upd
         (False, "rhsm-system-profile-bridge"),
     ],
 )
-def test_add_host_rhsm_conduit_without_cn(event_datetime_mock, mq_create_or_update_host, with_account, rhsm_reporter):
+def test_add_host_rhsm_conduit_without_cn(mq_create_or_update_host, with_account, rhsm_reporter):
     """
     Tests adding a host with reporter rhsm-conduit and no cn
     """
@@ -584,8 +593,9 @@ def test_add_host_rhsm_conduit_without_cn(event_datetime_mock, mq_create_or_upda
     assert event["host"]["system_profile"]["owner_id"] == "09152341-475c-4671-a376-df609374c349"
 
 
+@pytest.mark.usefixtures("event_datetime_mock")
 @pytest.mark.parametrize("rhsm_reporter", ("rhsm-conduit", "rhsm-system-profile-bridge"))
-def test_add_host_rhsm_conduit_owner_id(event_datetime_mock, mq_create_or_update_host, rhsm_reporter):
+def test_add_host_rhsm_conduit_owner_id(mq_create_or_update_host, rhsm_reporter):
     """
     Tests adding a host with reporter rhsm-conduit
     """
@@ -604,7 +614,8 @@ def test_add_host_rhsm_conduit_owner_id(event_datetime_mock, mq_create_or_update
     assert event["host"]["system_profile"]["owner_id"] == "09152341-475c-4671-a376-df609374c349"
 
 
-def test_add_host_with_tags(event_datetime_mock, mq_create_or_update_host):
+@pytest.mark.usefixtures("event_datetime_mock")
+def test_add_host_with_tags(mq_create_or_update_host):
     """
     Tests adding a host with message containing tags
     """
@@ -748,7 +759,8 @@ def test_add_host_externalized_system_profile(mocker, mq_create_or_update_host):
         mock_notification_event_producer.write_event.assert_called_once()
 
 
-def test_add_host_with_owner_id(event_datetime_mock, mq_create_or_update_host, db_get_host):
+@pytest.mark.usefixtures("event_datetime_mock")
+def test_add_host_with_owner_id(mq_create_or_update_host, db_get_host):
     """
     Tests that owner_id in the system profile is ingested properly
     """
@@ -758,7 +770,8 @@ def test_add_host_with_owner_id(event_datetime_mock, mq_create_or_update_host, d
     assert created_host_from_db.system_profile_facts == {"owner_id": OWNER_ID}
 
 
-def test_add_host_with_owner_incorrect_format(mocker, event_datetime_mock, mq_create_or_update_host, db_get_host):
+@pytest.mark.usefixtures("event_datetime_mock", "db_get_host")
+def test_add_host_with_owner_incorrect_format(mocker, mq_create_or_update_host):
     """
     Tests that owner_id in the system profile is rejected if it's in the wrong format
     """
@@ -770,7 +783,8 @@ def test_add_host_with_owner_incorrect_format(mocker, event_datetime_mock, mq_cr
     mock_notification_event_producer.write_event.assert_called_once()
 
 
-def test_add_host_with_operating_system(event_datetime_mock, mq_create_or_update_host, db_get_host):
+@pytest.mark.usefixtures("event_datetime_mock")
+def test_add_host_with_operating_system(mq_create_or_update_host, db_get_host):
     """
     Tests that operating_system in the system profile is ingested properly
     """
@@ -784,9 +798,8 @@ def test_add_host_with_operating_system(event_datetime_mock, mq_create_or_update
     assert created_host_from_db.system_profile_facts.get("operating_system") == operating_system
 
 
-def test_add_host_with_operating_system_incorrect_format(
-    mocker, event_datetime_mock, mq_create_or_update_host, db_get_host
-):
+@pytest.mark.usefixtures("event_datetime_mock", "db_get_host")
+def test_add_host_with_operating_system_incorrect_format(mocker, mq_create_or_update_host):
     """
     Tests that operating_system in the system profile is rejected if it's in the wrong format
     """
@@ -844,7 +857,8 @@ def test_add_host_with_invalid_stale_timestamp(stale_timestamp, mocker, mq_creat
     mock_notification_event_producer.write_event.assert_called_once()
 
 
-def test_add_host_with_sap_system(event_datetime_mock, mq_create_or_update_host):
+@pytest.mark.usefixtures("event_datetime_mock")
+def test_add_host_with_sap_system(mq_create_or_update_host):
     expected_insights_id = generate_uuid()
 
     system_profile = valid_system_profile()
@@ -859,7 +873,7 @@ def test_add_host_with_sap_system(event_datetime_mock, mq_create_or_update_host)
 
     host_keys_to_check = ["display_name", "insights_id", "account", "system_profile"]
 
-    key, event, headers = mq_create_or_update_host(host, return_all_data=True)
+    key, event, _ = mq_create_or_update_host(host, return_all_data=True)
 
     assert_mq_host_data(key, event, expected_results, host_keys_to_check)
 
@@ -1201,7 +1215,8 @@ def test_delete_host_tags(mq_create_or_update_host, db_get_host_by_insights_id, 
             assert expected_tags == record.tags
 
 
-def test_add_host_stale_timestamp(event_datetime_mock, mq_create_or_update_host):
+@pytest.mark.usefixtures("event_datetime_mock")
+def test_add_host_stale_timestamp(mq_create_or_update_host):
     """
     Tests to see if the host is successfully created with both reporter
     and stale_timestamp set.
@@ -1345,7 +1360,8 @@ def test_other_values_are_ignored(value):
     assert True
 
 
-def test_host_account_using_mq(mq_create_or_update_host, api_get, db_get_host, db_get_hosts):
+@pytest.mark.usefixtures("api_get")
+def test_host_account_using_mq(mq_create_or_update_host, db_get_host, db_get_hosts):
     host = minimal_host(account=SYSTEM_IDENTITY["account_number"], fqdn="d44533.foo.redhat.co")
     host.account = SYSTEM_IDENTITY["account_number"]
 
@@ -1393,7 +1409,8 @@ def test_update_system_profile(mq_create_or_update_host, db_get_host, id_type):
     }
 
 
-def test_update_system_profile_not_found(mocker, mq_create_or_update_host, db_get_host):
+@pytest.mark.usefixtures("db_get_host")
+def test_update_system_profile_not_found(mocker, mq_create_or_update_host):
     mock_notification_event_producer = mocker.Mock()
     expected_insights_id = generate_uuid()
     input_host = base_host(
@@ -1431,7 +1448,8 @@ def test_update_system_profile_not_provided(mocker, mq_create_or_update_host, db
     mock_notification_event_producer.write_event.assert_called_once()
 
 
-def test_handle_message_side_effect(mocker, flask_app):
+@pytest.mark.usefixtures("flask_app")
+def test_handle_message_side_effect(mocker):
     fake_add_host = mocker.patch(
         "lib.host_repository.add_host", side_effect=OperationalError("DB Problem", "fake_param", "fake_orig")
     )
@@ -1495,7 +1513,8 @@ def test_update_system_profile_host_not_found(mocker, flask_app):
 
 
 # Adding a host requires identity or rhsm-conduit reporter, which does not have identity
-def test_no_identity_and_no_rhsm_reporter(mocker, event_datetime_mock, flask_app):
+@pytest.mark.usefixtures("event_datetime_mock", "flask_app")
+def test_no_identity_and_no_rhsm_reporter(mocker):
     expected_insights_id = generate_uuid()
     mock_notification_event_producer = mocker.Mock()
 
@@ -1512,8 +1531,9 @@ def test_no_identity_and_no_rhsm_reporter(mocker, event_datetime_mock, flask_app
 
 
 # Adding a host requires identity or rhsm-conduit reporter, which does not have identity
+@pytest.mark.usefixtures("flask_app")
 @pytest.mark.parametrize("rhsm_reporter", ("rhsm-conduit", "rhsm-system-profile-bridge"))
-def test_rhsm_reporter_and_no_platform_metadata(mocker, flask_app, rhsm_reporter):
+def test_rhsm_reporter_and_no_platform_metadata(mocker, rhsm_reporter):
     host = minimal_host(
         account=SYSTEM_IDENTITY["account_number"],
         insights_id=generate_uuid(),
@@ -1527,8 +1547,9 @@ def test_rhsm_reporter_and_no_platform_metadata(mocker, flask_app, rhsm_reporter
     handle_message(json.dumps(message), mocker.Mock())
 
 
+@pytest.mark.usefixtures("event_datetime_mock", "flask_app")
 @pytest.mark.parametrize("rhsm_reporter", ("rhsm-conduit", "rhsm-system-profile-bridge"))
-def test_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_app, rhsm_reporter, db_create_host):
+def test_rhsm_reporter_and_no_identity(mocker, rhsm_reporter, db_create_host):
     expected_insights_id = generate_uuid()
 
     mock_add_host = mocker.patch(
@@ -1562,7 +1583,8 @@ def test_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_app, r
     mock_notification_event_producer.assert_not_called()
 
 
-def test_non_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_app):
+@pytest.mark.usefixtures("event_datetime_mock", "flask_app")
+def test_non_rhsm_reporter_and_no_identity(mocker):
     expected_insights_id = generate_uuid()
     mock_notification_event_producer = mocker.Mock()
 
@@ -1581,7 +1603,8 @@ def test_non_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_ap
     mock_notification_event_producer.write_event.assert_called()
 
 
-def test_owner_id_different_from_cn(mocker, flask_app):
+@pytest.mark.usefixtures("flask_app")
+def test_owner_id_different_from_cn(mocker):
     expected_insights_id = generate_uuid()
     mock_notification_event_producer = mocker.Mock()
 
@@ -1599,7 +1622,8 @@ def test_owner_id_different_from_cn(mocker, flask_app):
     mock_notification_event_producer.write_event.assert_called_once()
 
 
-def test_change_owner_id_of_existing_host(mq_create_or_update_host, db_get_host):
+@pytest.mark.usefixtures("db_get_host")
+def test_change_owner_id_of_existing_host(mq_create_or_update_host):
     expected_insights_id = generate_uuid()
     host = minimal_host(
         account=SYSTEM_IDENTITY["account_number"], insights_id=expected_insights_id, fqdn="d44533.foo.redhat.co"
@@ -1629,7 +1653,8 @@ def test_change_owner_id_of_existing_host(mq_create_or_update_host, db_get_host)
 
 
 #  tests changes to owner_id and display name
-def test_owner_id_present_in_existing_host_but_missing_from_payload(mq_create_or_update_host, db_get_host):
+@pytest.mark.usefixtures("db_get_host")
+def test_owner_id_present_in_existing_host_but_missing_from_payload(mq_create_or_update_host):
     expected_insights_id = generate_uuid()
     host = minimal_host(
         account=SYSTEM_IDENTITY["account_number"],
@@ -1736,7 +1761,8 @@ def test_add_host_with_canonical_facts_MAC_address_valid_formats(mq_create_or_up
     assert created_host.mac_addresses == host_from_db.canonical_facts["mac_addresses"]
 
 
-def test_create_invalid_host_produces_message(mocker, event_datetime_mock, mq_create_or_update_host):
+@pytest.mark.usefixtures("event_datetime_mock")
+def test_create_invalid_host_produces_message(mocker, mq_create_or_update_host):
     insights_id = generate_uuid()
     system_profile = valid_system_profile()
     mock_notification_event_producer = mocker.Mock()
@@ -1780,7 +1806,8 @@ def test_groups_not_overwritten_for_existing_hosts(
     assert created_event["host"]["groups"][0]["id"] == group_id
 
 
-def test_add_host_with_invalid_identity(mocker, event_datetime_mock, mq_create_or_update_host, db_get_host):
+@pytest.mark.usefixtures("event_datetime_mock", "db_get_host")
+def test_add_host_with_invalid_identity(mocker, mq_create_or_update_host):
     """
     Tests that using an invalid identity still results in a notification message
     """
@@ -1992,8 +2019,9 @@ def test_batch_mq_graceful_rollback(mocker, flask_app):
     assert write_batch_patch.call_count == 1
 
 
+@pytest.mark.usefixtures("flask_app")
 @pytest.mark.parametrize("identity", (SYSTEM_IDENTITY,))
-def test_add_host_logs(identity, mocker, flask_app, caplog):
+def test_add_host_logs(identity, mocker, caplog):
     caplog.at_level(logging.INFO)
 
     expected_insights_id = generate_uuid()
