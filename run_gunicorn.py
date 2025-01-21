@@ -5,7 +5,7 @@ from os import putenv
 from subprocess import run
 from tempfile import TemporaryDirectory
 
-PROMETHEUS_ENV_VAR = "prometheus_multiproc_dir"
+PROMETHEUS_ENV_VAR = "PROMETHEUS_MULTIPROC_DIR"
 LISTEN_PORT = getenv("LISTEN_PORT", 8080)
 
 

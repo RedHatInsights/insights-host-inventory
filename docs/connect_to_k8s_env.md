@@ -104,8 +104,7 @@ This section describes how to launch debugger using `VS Code` to execute the loc
                     "INVENTORY_DB_USER": "<user provided get_credentials>",
                     "INVENTORY_DB_PASS": "<password provided get_credentials>",
                     "INVENTORY_DB_NAME": "<DB name provided get_credentials>",
-                    "PROMETHEUS_MULTIPROC_DIR": "./temp/prometheus_multiproc_dir/",
-                    "prometheus_multiproc_dir": "./temp/prometheus_multiproc_dir/",
+                    "PROMETHEUS_MULTIPROC_DIR": "./temp/PROMETHEUS_MULTIPROC_DIR/",
                     "FLASK_ENV": "development"
                 },
             },
