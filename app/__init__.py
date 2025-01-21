@@ -328,8 +328,7 @@ def create_app(runtime_environment):
         register_shutdown(flask_app.notification_event_producer.close, "Closing NotificationEventProducer")
     else:
         logger.warning(
-            "WARNING: The event producer has been disabled.  "
-            "The message queue based notifications have been disabled."
+            "WARNING: The event producer has been disabled.  The message queue based notifications have been disabled."
         )
 
     payload_tracker_producer = None
