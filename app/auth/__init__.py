@@ -11,8 +11,7 @@ __all__ = ("authentication_header_handler", "bearer_token_handler")
 logger = get_logger(__name__)
 
 
-def authentication_header_handler(apikey, required_scopes=None):
-    _ = (required_scopes,)  # Unused, but needed for the security scheme (apikeyInfoFunc)
+def authentication_header_handler(apikey, required_scopes=None):  # noqa: ARG001, 'required_scopes' is needed for the security scheme (apikeyInfoFunc)
     try:
         identity = from_auth_header(apikey)
     except Exception as exc:
