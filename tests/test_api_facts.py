@@ -43,9 +43,9 @@ def test_replace_facts_to_multiple_hosts_including_nonexistent_host(db_create_mu
     url_host_id_list = f"{build_id_list_for_url(created_hosts)},{generate_uuid()},{generate_uuid()}"
     facts_url = build_facts_url(host_list_or_id=url_host_id_list, namespace=DB_FACTS_NAMESPACE)
 
-    response_status, response_data = api_put(facts_url, DB_NEW_FACTS)
+    response_status, _ = api_put(facts_url, DB_NEW_FACTS)
 
-    assert_response_status(response_status, expected_status=400)
+    assert_response_status(response_status, expected_status=404)
 
 
 def test_replace_facts_to_multiple_hosts_with_empty_key_value_pair(
@@ -137,8 +137,8 @@ def test_replace_facts_on_multiple_culled_hosts(db_create_multiple_hosts, api_pu
         facts_url = build_facts_url(host_list_or_id=created_hosts, namespace=DB_FACTS_NAMESPACE)
 
         # Try to replace the facts on a host that has been marked as culled
-        response_status, response_data = api_put(facts_url, DB_NEW_FACTS)
-        assert_response_status(response_status, expected_status=400)
+        response_status, _ = api_put(facts_url, DB_NEW_FACTS)
+        assert_response_status(response_status, expected_status=404)
 
 
 def test_put_facts_with_RBAC_allowed(subtests, mocker, api_put, db_create_host, enable_rbac, event_producer_mock):

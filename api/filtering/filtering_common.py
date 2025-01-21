@@ -6,6 +6,8 @@ from sqlalchemy import BigInteger
 from sqlalchemy import Boolean
 from sqlalchemy.sql.expression import ColumnOperators
 
+from app import system_profile_spec
+
 # Converts our filter param comparison operators into their SQL equivalents.
 POSTGRES_COMPARATOR_LOOKUP = {
     "lt": ColumnOperators.__lt__,
@@ -43,3 +45,7 @@ FIELD_FILTER_TO_PYTHON_CAST: dict[str, Callable] = {
     "integer": lambda v: int(v),
     "boolean": lambda v: str.lower(v) == "true",
 }
+
+
+def get_valid_os_names() -> list:
+    return system_profile_spec()["operating_system"]["children"]["name"]["enum"]
