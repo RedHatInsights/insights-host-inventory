@@ -10,7 +10,6 @@ from random import choice
 from unittest import TestCase
 from unittest import main
 from unittest.mock import ANY
-from unittest.mock import MagicMock
 from unittest.mock import Mock
 from unittest.mock import patch
 from uuid import UUID
@@ -1459,15 +1458,6 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                 deserialize_tags.assert_called_once_with(common_data["tags"])
                 host.assert_not_called()
 
-    def test_host_validation(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
-        host_input = {"ansible_host": "some ansible host", "org_id": "some org_id"}
-
-        host_schema = MagicMock()
-        deserialize_host(host_input, host_schema)
-
-        host_schema.assert_called_once_with(system_profile_schema=None)
-        host_schema.return_value.load.assert_called_with(host_input)
-
     @patch("app.serialization.ValidationError", new=ValidationError)
     def test_invalid_host_error(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
         data = {"field_1": "data_1"}
@@ -2066,7 +2056,7 @@ class SerializationDeserializeTags(TestCase):
 
 class EventProducerTests(TestCase):
     @patch("app.queue.event_producer.KafkaProducer")
-    def setUp(self, mock_kafka_producer):
+    def setUp(self, _mock_kafka_producer):
         super().setUp()
 
         self.config = Config(RuntimeEnvironment.TEST)

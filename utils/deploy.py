@@ -35,14 +35,23 @@ sponge is part of moreutils""",
 
 
 def _set_name(name, target, match, args):
+    _ = (
+        name,
+        args,
+    )  # unused
     return match[1], target, match[0]
 
 
 def _reset_target(name, target, match, args):
+    _ = (
+        target,
+        args,
+    )  # unused
     return name, None, match[0]
 
 
 def _increment_target(name, target, match, args):
+    _ = (args,)  # unused
     target = 0 if target is None else target + 1
     return name, target, match[0]
 
@@ -57,6 +66,7 @@ def _set_image_tag(name, target, match, args):
 
 
 def _do_nothing(name, target, match, args):
+    _ = (args,)  # unused
     return name, target, match[0]
 
 

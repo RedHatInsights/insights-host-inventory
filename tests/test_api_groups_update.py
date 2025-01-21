@@ -175,9 +175,8 @@ def test_patch_group_hosts_from_different_group(
     assert event_producer.write_event.call_count == 0
 
 
-def test_patch_groups_RBAC_allowed_specific_groups(
-    mocker, db_create_group_with_hosts, api_patch_group, enable_rbac, event_producer
-):
+@pytest.mark.usefixtures("enable_rbac", "event_producer")
+def test_patch_groups_RBAC_allowed_specific_groups(mocker, db_create_group_with_hosts, api_patch_group):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     group_id = str(db_create_group_with_hosts("new_group", 3).id)
     # Make a list of allowed group IDs (including some mock ones)
@@ -198,7 +197,8 @@ def test_patch_groups_RBAC_allowed_specific_groups(
     assert_response_status(response_status, 200)
 
 
-def test_patch_groups_RBAC_denied_specific_groups(mocker, db_create_group_with_hosts, api_patch_group, enable_rbac):
+@pytest.mark.usefixtures("enable_rbac")
+def test_patch_groups_RBAC_denied_specific_groups(mocker, db_create_group_with_hosts, api_patch_group):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     group_id = str(db_create_group_with_hosts("new_group", 3).id)
 

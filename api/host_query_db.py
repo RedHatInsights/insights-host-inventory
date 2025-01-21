@@ -204,8 +204,7 @@ def params_to_order_by(order_by: str | None = None, order_how: str | None = None
         )
     elif order_how:
         raise ValueError(
-            "Providing ordering direction without a column is not supported. "
-            "Provide order_by={updated,display_name}."
+            "Providing ordering direction without a column is not supported. Provide order_by={updated,display_name}."
         )
 
     return ordering + modified_on_ordering + (Host.id.desc(),)
@@ -595,7 +594,6 @@ def get_host_ids_list(
 def get_hosts_to_export(
     identity: object,
     filters: dict | None = None,
-    export_format: str = "json",
     rbac_filter: dict | None = None,
     batch_size: int = 0,
 ) -> Iterator[dict]:

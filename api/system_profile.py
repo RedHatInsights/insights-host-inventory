@@ -109,6 +109,7 @@ def get_operating_system(
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.schema_validation_time.time()
 def validate_schema(repo_fork="RedHatInsights", repo_branch="master", days=1, max_messages=10000, rbac_filter=None):
+    _ = (rbac_filter,)  # Unused. No RBAC needed because we check for specific users.
     # Use the identity header to make sure the user is someone from our team.
     config = Config(RuntimeEnvironment.SERVICE)
     identity = get_current_identity()

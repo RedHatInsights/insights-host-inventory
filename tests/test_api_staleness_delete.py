@@ -1,3 +1,5 @@
+import pytest
+
 from tests.helpers.api_utils import STALENESS_WRITE_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import STALENESS_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import assert_response_status
@@ -14,7 +16,7 @@ def test_delete_existing_staleness(db_create_staleness_culling, api_delete_stale
         immutable_time_to_delete=120,
     )
 
-    response_status, response_data = api_delete_staleness()
+    response_status, _ = api_delete_staleness()
     assert_response_status(response_status, 204)
 
     # checking if the record was really removed
@@ -23,13 +25,12 @@ def test_delete_existing_staleness(db_create_staleness_culling, api_delete_stale
 
 
 def test_delete_non_existing_staleness(api_delete_staleness):
-    response_status, response_data = api_delete_staleness()
+    response_status, _ = api_delete_staleness()
     assert_response_status(response_status, 404)
 
 
-def test_delete_staleness_rbac_allowed(
-    subtests, mocker, api_delete_staleness, db_create_staleness_culling, enable_rbac
-):
+@pytest.mark.usefixtures("enable_rbac")
+def test_delete_staleness_rbac_allowed(subtests, mocker, api_delete_staleness, db_create_staleness_culling):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in STALENESS_WRITE_ALLOWED_RBAC_RESPONSE_FILES:
@@ -52,7 +53,8 @@ def test_delete_staleness_rbac_allowed(
             assert_response_status(response_status, 204)
 
 
-def test_delete_staleness_rbac_denied(subtests, mocker, api_delete_staleness, enable_rbac):
+@pytest.mark.usefixtures("enable_rbac")
+def test_delete_staleness_rbac_denied(subtests, mocker, api_delete_staleness):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in STALENESS_WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
