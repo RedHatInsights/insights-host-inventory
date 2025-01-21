@@ -5,7 +5,7 @@ import io
 def _tags_to_string(tags_arr):
     tags_str = ""
     for tag in tags_arr:
-        tags_str += f'{tag["namespace"]}/{tag["key"]}:{tag["value"]};'
+        tags_str += f"{tag['namespace']}/{tag['key']}:{tag['value']};"
 
     tags_str = tags_str[:-1]
     return f"{tags_str}"
