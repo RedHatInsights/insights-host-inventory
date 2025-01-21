@@ -388,7 +388,7 @@ def test_add_facts_to_multiple_hosts_including_nonexistent_host(db_create_multip
 
     response_status, _ = api_patch(facts_url, DB_NEW_FACTS)
 
-    assert_response_status(response_status, expected_status=400)
+    assert_response_status(response_status, expected_status=404)
 
 
 @pytest.mark.usefixtures("event_producer_mock")
@@ -457,7 +457,7 @@ def test_add_facts_to_multiple_culled_hosts(db_create_multiple_hosts, api_patch,
 
         # Try to replace the facts on a host that has been marked as culled
         response_status, _ = api_patch(facts_url, DB_NEW_FACTS)
-        assert_response_status(response_status, expected_status=400)
+        assert_response_status(response_status, expected_status=404)
 
 
 @pytest.mark.usefixtures("enable_rbac", "event_producer_mock")
