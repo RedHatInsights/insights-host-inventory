@@ -1396,6 +1396,60 @@ def test_query_all_sp_filters_operating_system(db_create_host, api_get, sp_filte
 
 
 @pytest.mark.parametrize(
+    "sp_filter_param,match",
+    (
+        ("[name][eq]=CentOS", True),
+        ("[name][eq]=centos", True),
+        ("[name][eq]=CENTOS", True),
+        ("[name][eq]=centos&filter[system_profile][operating_system][RHEL][version][eq][]=8", True),
+        ("[name][neq]=CENTOS", False),
+        ("[name][neq]=CentOS", False),
+    ),
+)
+def test_query_sp_filters_operating_system_name(db_create_host, api_get, sp_filter_param, match):
+    # Create host with this OS
+    match_sp_data = {
+        "system_profile_facts": {
+            "operating_system": {
+                "name": "CentOS",
+                "major": "8",
+                "minor": "11",
+            }
+        }
+    }
+    match_host_id = str(db_create_host(extra_data=match_sp_data).id)
+
+    # Create host with differing OS
+    nomatch_sp_data = {
+        "system_profile_facts": {
+            "operating_system": {
+                "name": "RHEL",
+                "major": "7",
+                "minor": "12",
+            }
+        }
+    }
+    nomatch_host_id = str(db_create_host(extra_data=nomatch_sp_data).id)
+
+    url = build_hosts_url(query=f"?filter[system_profile][operating_system]{sp_filter_param}")
+
+    with patch("api.host.get_flag_value", return_value=True):
+        response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    # Assert that only the matching host is returned
+    response_ids = [result["id"] for result in response_data["results"]]
+
+    if match:
+        assert match_host_id in response_ids
+        assert nomatch_host_id not in response_ids
+    else:
+        assert nomatch_host_id in response_ids
+        assert match_host_id not in response_ids
+
+
+@pytest.mark.parametrize(
     "os_match_data_list,os_nomatch_data_list,sp_filter_param_list",
     (
         (
@@ -1575,6 +1629,8 @@ def test_query_all_sp_filters_invalid_value(api_get, sp_filter_param):
     "sp_filter_param",
     (
         "[operating_system][foo][version]=8.1",  # Invalid OS name
+        "[operating_system][name][eq]=rhelz",  # Invalid OS name
+        "[operating_system][][version][eq][]=7",  # Invalid OS name
         "[operating_system][RHEL][version]=bar",  # Invalid OS version
     ),
 )
