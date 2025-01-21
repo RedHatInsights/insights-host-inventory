@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "e2cfe4857914b5dceaea7df30a84a212c6fd438487f163bfb91a572436d798e5"
+            "sha256": "f9b711d8c995298120559acdf72ea6d5fc5ae9e4cae449e7a016454ed34b95aa"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -113,20 +113,20 @@
         },
         "boto3": {
             "hashes": [
-                "sha256:2446e819cf4e295833474cdcf2c92bc82718ce537e9ee1f17f7e3d237f60e69b",
-                "sha256:7de2c44c960e486f3c57e5203ea6393c6c4f0914c5f81c789ceb8b5d2ba5d1c5"
+                "sha256:76cfc9a705be46e8d22607efacc8d688c064f923d785a01c00b28e9a96425d1a",
+                "sha256:fde1c29996b77274a60b7bc9f741525afa6267bb1716eb644a764fb7c124a0d2"
             ],
             "index": "pypi",
             "markers": "python_version >= '3.8'",
-            "version": "==1.35.93"
+            "version": "==1.36.2"
         },
         "botocore": {
             "hashes": [
-                "sha256:47f7161000af6036f806449e3de12acdd3ec11aac7f5578e43e96241413a0f8f",
-                "sha256:b8d245a01e7d64c41edcf75a42be158df57b9518a83a3dbf5c7e4b8c2bc540cc"
+                "sha256:a1fe6610983f0214b0c7655fe6990b6a731746baf305b182976fc7b568fc3cb0",
+                "sha256:bc3b7e3b573a48af2bd7116b80fe24f9a335b0b67314dcb2697a327d009abf29"
             ],
             "markers": "python_version >= '3.8'",
-            "version": "==1.35.93"
+            "version": "==1.36.2"
         },
         "cachelib": {
             "hashes": [
@@ -1261,11 +1261,11 @@
         },
         "s3transfer": {
             "hashes": [
-                "sha256:244a76a24355363a68164241438de1b72f8781664920260c48465896b712a41e",
-                "sha256:29edc09801743c21eb5ecbc617a152df41d3c287f67b615f73e5f750583666a7"
+                "sha256:3f25c900a367c8b7f7d8f9c34edc87e300bde424f779dc9f0a8ae4f9df9264f6",
+                "sha256:8fa0aa48177be1f3425176dfe1ab85dcd3d962df603c3dbfc585e6bf857ef0ff"
             ],
             "markers": "python_version >= '3.8'",
-            "version": "==0.10.4"
+            "version": "==0.11.1"
         },
         "segment-analytics-python": {
             "hashes": [
