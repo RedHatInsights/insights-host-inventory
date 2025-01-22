@@ -1274,7 +1274,7 @@ objects:
           FROM "hbi"."hosts";
       - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/distinct_org_ids
         query: >-
-          SELECT COUNT(DISTINCT org_id) AS "count"
+          SELECT COUNT(DISTINCT "org_id") AS "count"
           FROM "hbi"."hosts";
       - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/created_by_reporters
         query: >-
