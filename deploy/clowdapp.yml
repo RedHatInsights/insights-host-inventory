@@ -1248,13 +1248,12 @@ objects:
             "created_on" AS "created_at",
             "modified_on" AS "updated_at",
             "reporter" AS "reporter",
-            "canonical_facts"->>'insights_id' as "insights_id",
-            "canonical_facts"->>'subscription_manager_id' as "subscription_manager_id",
-            "canonical_facts"->>'bios_uuid' as "bios_uuid",
-            "canonical_facts"->>'provider_id' as "provider_id",
-            "canonical_facts"->>'provider_type' as "provider_type"
-          FROM "hbi"."hosts"
-          GROUP BY id, account, org_id, created_on, updated_at, canonical_facts, reporter;
+            "canonical_facts"->>'insights_id' AS "insights_id",
+            "canonical_facts"->>'subscription_manager_id' AS "subscription_manager_id",
+            "canonical_facts"->>'bios_uuid' AS "bios_uuid",
+            "canonical_facts"->>'provider_id' AS "provider_id",
+            "canonical_facts"->>'provider_type' AS "provider_type"
+          FROM "hbi"."hosts";
       - prefix: hms_analytics/inventory/${ENV_NAME}/groups
         query: >-
           SELECT
@@ -1265,6 +1264,79 @@ objects:
             "created_on" AS "created_at",
             "modified_on" AS "updated_at"
           FROM "hbi"."groups"
+      - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/hosts_count
+        query: >-
+          SELECT COUNT(*) AS "hosts_count"
+          FROM "hbi"."hosts";
+      - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/distinct_accounts
+        query: >-
+          SELECT COUNT(DISTINCT "account") AS "count"
+          FROM "hbi"."hosts";
+      - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/distinct_org_ids
+        query: >-
+          SELECT COUNT(DISTINCT "org_id") AS "count"
+          FROM "hbi"."hosts";
+      - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/created_by_reporters
+        query: >-
+          SELECT
+            "reporter" AS "reporter",
+            count(*) AS "hosts_created"
+          FROM "hbi"."hosts"
+          WHERE "created_on" >= NOW() - INTERVAL '1 week'
+          GROUP BY "reporter";
+      - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/updated_by_reporters
+        query: >-
+          SELECT  "reporter" AS "reporter", count(*) AS "hosts_updated"
+          FROM "hbi"."hosts"
+          WHERE "modified_on" >= NOW() - INTERVAL '1 week'
+          GROUP BY "reporter";
+      - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/hosts_per_org_id
+        query: >-
+          SELECT
+            "org_id" AS "org_id",
+            COUNT(*) AS "host_count"
+          FROM "hbi"."hosts"
+          GROUP BY "org_id"
+          ORDER BY "host_count" DESC;
+      - prefix: hms_analytics/inventory/${ENV_NAME}/groups_metrics/groups_count
+        query: >-
+          SELECT COUNT(*) AS "group_counts"
+          FROM "hbi"."groups";
+      - prefix: hms_analytics/inventory/${ENV_NAME}/groups_metrics/groups_count_by_account
+        query: >-
+          SELECT
+            DISTINCT "account" AS "account",
+            COUNT(id) AS "count"
+          FROM "hbi"."groups"
+          GROUP BY "account"
+          ORDER BY "count" DESC;
+      - prefix: hms_analytics/inventory/${ENV_NAME}/groups_metrics/org_ids_with_null_accouns
+        query: >-
+          SELECT
+            DISTINCT "org_id" AS "org_id",
+            count("id")
+          FROM "hbi"."groups"
+          WHERE "account" IS NULL
+          GROUP BY "org_id"
+          ORDER BY count DESC;
+      - prefix: hms_analytics/inventory/${ENV_NAME}/groups_metrics/org_ids_with_group_names
+        query: >-
+          SELECT
+            DISTINCT "org_id" AS "org_id",
+            "name" AS "name"
+          FROM "hbi"."groups"
+          GROUP BY "org_id", "name"
+          ORDER BY "name" ASC;
+      - prefix: hms_analytics/inventory/${ENV_NAME}/groups_metrics/hosts_per_groups
+        query: >-
+          SELECT
+            "id" AS "group_id",
+            "name" AS "group_name",
+            COUNT(*) AS "host_count"
+          FROM "hbi"."groups"
+          JOIN "hbi"."hosts_groups" ON "groups"."id" = "hbi"."hosts_groups"."group_id"
+          GROUP BY "groups"."id"
+          ORDER BY "host_count" DESC;
 - apiVersion: v1
   data:
     nginx.conf: |-
