@@ -228,7 +228,7 @@ data:
           "tableColumn": "",
           "targets": [
             {
-              "expr": "sum(increase(kube_pod_container_status_restarts_total{container=\"host-inventory-service-writes\"}[$__range]))",
+              "expr": "sum(increase(kube_pod_container_status_restarts_total{container=~\"host-inventory-service.*\"}[$__range]))",
               "interval": "5m",
               "refId": "A"
             }
