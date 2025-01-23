@@ -315,7 +315,7 @@ data:
           ],
           "targets": [
             {
-              "expr": "sum(increase(inventory_http_request_total{service=\"host-inventory-service-writes\"}[$__range])) by (status) > 0",
+              "expr": "sum(increase(inventory_http_request_total{service=~\"host-inventory-service.*\"}[$__range])) by (status) > 0",
               "instant": true,
               "interval": "5m",
               "legendFormat": "{{status}}",
