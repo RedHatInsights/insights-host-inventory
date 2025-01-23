@@ -485,7 +485,7 @@ data:
           "tableColumn": "",
           "targets": [
             {
-              "expr": "(sum(increase(inventory_http_request_total{service=\"host-inventory-service-writes\", status=~\"5.*\"}[$__range])))",
+              "expr": "(sum(increase(inventory_http_request_total{service=~\"host-inventory-service.*\", status=~\"5.*\"}[$__range])))",
               "interval": "5m",
               "legendFormat": "",
               "refId": "A"
