@@ -8,6 +8,7 @@ repos:
   - id: end-of-file-fixer
     exclude: swagger/openapi\.json
   - id: check-yaml
+  - id: check-json
   - id: debug-statements
 - repo: https://github.com/APIDevTools/swagger-cli
   rev: v4.0.4
