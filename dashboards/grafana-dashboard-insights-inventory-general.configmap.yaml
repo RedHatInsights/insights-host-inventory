@@ -399,7 +399,7 @@ data:
           "tableColumn": "",
           "targets": [
             {
-              "expr": "sum(increase(inventory_delete_host_count_total{service=\"host-inventory-service-writes\"}[$__range]))",
+              "expr": "sum(increase(inventory_delete_host_count_total{service=~\"host-inventory-service.*\"}[$__range]))",
               "interval": "5m",
               "refId": "A"
             }
