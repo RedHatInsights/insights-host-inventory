@@ -228,7 +228,7 @@ data:
           "tableColumn": "",
           "targets": [
             {
-              "expr": "sum(increase(kube_pod_container_status_restarts_total{container=\"host-inventory-service\"}[$__range]))",
+              "expr": "sum(increase(kube_pod_container_status_restarts_total{container=~\"host-inventory-service.*\"}[$__range]))",
               "interval": "5m",
               "refId": "A"
             }
@@ -315,7 +315,7 @@ data:
           ],
           "targets": [
             {
-              "expr": "sum(increase(inventory_http_request_total{service=\"host-inventory-service\"}[$__range])) by (status) > 0",
+              "expr": "sum(increase(inventory_http_request_total{service=~\"host-inventory-service.*\"}[$__range])) by (status) > 0",
               "instant": true,
               "interval": "5m",
               "legendFormat": "{{status}}",
@@ -399,7 +399,7 @@ data:
           "tableColumn": "",
           "targets": [
             {
-              "expr": "sum(increase(inventory_delete_host_count_total{service=\"host-inventory-service-writes\"}[$__range]))",
+              "expr": "sum(increase(inventory_delete_host_count_total{service=~\"host-inventory-service.*\"}[$__range]))",
               "interval": "5m",
               "refId": "A"
             }
@@ -485,7 +485,7 @@ data:
           "tableColumn": "",
           "targets": [
             {
-              "expr": "(sum(increase(inventory_http_request_total{service=\"host-inventory-service\", status=~\"5.*\"}[$__range])))",
+              "expr": "(sum(increase(inventory_http_request_total{service=~\"host-inventory-service.*\", status=~\"5.*\"}[$__range])))",
               "interval": "5m",
               "legendFormat": "",
               "refId": "A"
@@ -808,7 +808,7 @@ data:
           "tableColumn": "",
           "targets": [
             {
-              "expr": "(sum(increase(inventory_http_request_total{service=\"host-inventory-service\", status=~\"4.*\"}[$__range])) OR vector(0)) / sum(increase(inventory_http_request_total{service=\"host-inventory-service\"}[$__range]))",
+              "expr": "(sum(increase(inventory_http_request_total{service=~\"host-inventory-service.*\", status=~\"4.*\"}[$__range])) OR vector(0)) / sum(increase(inventory_http_request_total{service=~\"host-inventory-service.*\"}[$__range]))",
               "interval": "5m",
               "refId": "A"
             }
@@ -1170,7 +1170,7 @@ data:
           "tableColumn": "",
           "targets": [
             {
-              "expr": "(sum(increase(inventory_http_request_total{service=\"host-inventory-service\", status=~\"5.*\"}[$__range])) OR vector(0)) / sum(increase(inventory_http_request_total{service=\"host-inventory-service\"}[$__range]))",
+              "expr": "(sum(increase(inventory_http_request_total{service=~\"host-inventory-service.*\", status=~\"5.*\"}[$__range])) OR vector(0)) / sum(increase(inventory_http_request_total{service=~\"host-inventory-service.*\"}[$__range]))",
               "interval": "5m",
               "refId": "A"
             }
@@ -1532,7 +1532,7 @@ data:
           "tableColumn": "",
           "targets": [
             {
-              "expr": "sum(increase(inventory_http_request_total{service=\"host-inventory-service\"}[$__range]))",
+              "expr": "sum(increase(inventory_http_request_total{service=~\"host-inventory-service.*\"}[$__range]))",
               "instant": true,
               "interval": "5m",
               "refId": "A"
