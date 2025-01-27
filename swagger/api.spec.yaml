@@ -440,9 +440,9 @@ paths:
       operationId: api.group.patch_group_by_id
       tags:
         - groups
-      summary: Update group information.
+      summary: Update group information
       description: >-
-        Add information to a group removing existing associations to the group.
+        Update group information, removing any existing host associations from the group.
         <br /><br />
         Required permissions: inventory:groups:write
       security:
@@ -450,7 +450,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/groupId'
       requestBody:
-        description: A dictionary with new information to update the original group.
+        description: A dictionary with new information with which to update the original group.
         required: true
         content:
           application/json:
