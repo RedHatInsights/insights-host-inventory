@@ -305,6 +305,15 @@ def test_delete_host_with_RBAC_denied(
             assert db_get_host(host.id)
 
 
+def test_delete_host_from_different_org(api_delete_host, db_create_host, db_get_host):
+    host = db_create_host(identity=SYSTEM_IDENTITY)
+
+    response_status, _ = api_delete_host(host.id)
+    assert_response_status(response_status, 403)
+
+    assert db_get_host(host.id)
+
+
 @pytest.mark.usefixtures("enable_rbac")
 def test_delete_host_with_RBAC_bypassed_as_system(
     api_delete_host,
