@@ -122,7 +122,7 @@ def _get_field_filter_for_deepest_param(sp_spec: dict, filter: dict, parent_node
 # ]
 # Has a similar purpose to _unique_paths, but the OS filter works a bit differently.
 def separate_operating_system_filters(filter_url_params) -> list[OsFilter]:
-    os_filter_list = []
+    os_filter_list: list[OsFilter] = []
 
     # Handle filter_url_params if a list is passed in
     if isinstance(filter_url_params, list):
@@ -136,22 +136,14 @@ def separate_operating_system_filters(filter_url_params) -> list[OsFilter]:
     for filter_key in filter_url_params.keys():
         if filter_key == "name":
             ((os_comparator, os_name),) = filter_url_params[filter_key].items()
-            check_valid_os_name(os_name)
             version_node = {os_comparator: [None]}
         else:
             os_name = filter_key
-            check_valid_os_name(os_name)
-            if not isinstance(version_node := filter_url_params[os_name]["version"], dict):
+            if not isinstance(version_node := filter_url_params[os_name].get("version"), dict):
                 # If there's no comparator, treat it as "eq"
                 version_node = {"eq": version_node}
 
-        for os_comparator in version_node.keys():
-            version_array = version_node[os_comparator]
-            if not isinstance(version_array, list):
-                version_array = [version_array]
-
-            for version in version_array:
-                os_filter_list.append(OsFilter(os_name, os_comparator, version))
+    os_filter_list = create_os_filter(os_name, version_node, os_filter_list)
 
     return os_filter_list
 
@@ -396,3 +388,22 @@ def get_major_minor_from_version(version_split: list[str]):
     minor = version_split[0] if version_split else None
 
     return major, minor
+
+
+def create_os_filter(os_name, version_node, os_filter_list):
+    if isinstance(os_name, list):
+        for name in os_name:
+            check_valid_os_name(name)
+            os_filter_list = create_os_filter(name, version_node, os_filter_list)
+    else:
+        check_valid_os_name(os_name)
+
+        for os_comparator in version_node.keys():
+            version_array = version_node[os_comparator]
+            if not isinstance(version_array, list):
+                version_array = [version_array]
+
+            for version in version_array:
+                os_filter_list.append(OsFilter(os_name, os_comparator, version))
+
+    return os_filter_list
