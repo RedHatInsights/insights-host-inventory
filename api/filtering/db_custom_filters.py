@@ -143,7 +143,11 @@ def separate_operating_system_filters(filter_url_params) -> list[OsFilter]:
                 # If there's no comparator, treat it as "eq"
                 version_node = {"eq": version_node}
 
-    os_filter_list = create_os_filter(os_name, version_node, os_filter_list)
+        if isinstance(os_name, list):
+            for name in os_name:
+                os_filter_list += create_os_filter(name, version_node, os_filter_list)
+        else:
+            os_filter_list = create_os_filter(os_name, version_node, os_filter_list)
 
     return os_filter_list
 
@@ -204,7 +208,6 @@ def build_operating_system_filter(filter_param: dict) -> tuple:
     # If there's anything in the range operations filter list, AND them and add to the main list.
     if len(os_range_filter_list) > 0:
         os_filter_list.append(and_(*os_range_filter_list))
-
     # The top-level filter list should be joined using "OR"
     return or_(*os_filter_list)
 
@@ -367,7 +370,6 @@ def build_system_profile_filter(system_profile_param: dict) -> tuple:
             filter = build_single_filter(grouped_filter_param)
 
         system_profile_filter += (filter,)
-
     return system_profile_filter
 
 
@@ -391,19 +393,14 @@ def get_major_minor_from_version(version_split: list[str]):
 
 
 def create_os_filter(os_name, version_node, os_filter_list):
-    if isinstance(os_name, list):
-        for name in os_name:
-            check_valid_os_name(name)
-            os_filter_list = create_os_filter(name, version_node, os_filter_list)
-    else:
-        check_valid_os_name(os_name)
+    check_valid_os_name(os_name)
 
-        for os_comparator in version_node.keys():
-            version_array = version_node[os_comparator]
-            if not isinstance(version_array, list):
-                version_array = [version_array]
+    for os_comparator in version_node.keys():
+        version_array = version_node[os_comparator]
+        if not isinstance(version_array, list):
+            version_array = [version_array]
 
-            for version in version_array:
-                os_filter_list.append(OsFilter(os_name, os_comparator, version))
+        for version in version_array:
+            os_filter_list.append(OsFilter(os_name, os_comparator, version))
 
     return os_filter_list

@@ -1544,6 +1544,10 @@ def test_query_all_operating_system_nil(
             "[operating_system][name][eq][]=CentOS Linux",
             "[operating_system][name][eq][]=RHEL",
         ],  # Uses OR
+        [
+            "[operating_system][CentOS Linux][version][eq][]=8.0",
+            "[operating_system][RHEL][version][eq][]=7.5",
+        ],
         ["[insights_client_version][]=3.0.1*", "[insights_client_version][]=1.2.3"],  # Uses OR
         ["[systemd][jobs_queued][lt][]=10", "[systemd][jobs_queued][gte][]=1"],  # Uses AND (different comparators)
     ),
@@ -1552,7 +1556,7 @@ def test_query_all_sp_filters_multiple_of_same_field(db_create_host, api_get, sp
     # Create two hosts that we want to show up in the results
     match_1_sp_data = {
         "system_profile_facts": {
-            "operating_system": {"name": "RHEL"},
+            "operating_system": {"name": "RHEL", "major": "7", "minor": "5"},
             "arch": "x86_64",
             "insights_client_version": "3.0.1-2.el4_2",
             "systemd": {"jobs_queued": "1"},
@@ -1562,7 +1566,7 @@ def test_query_all_sp_filters_multiple_of_same_field(db_create_host, api_get, sp
 
     match_2_sp_data = {
         "system_profile_facts": {
-            "operating_system": {"name": "CentOS Linux"},
+            "operating_system": {"name": "CentOS Linux", "major": "8", "minor": "0"},
             "arch": "ARM",
             "insights_client_version": "1.2.3",
             "systemd": {"jobs_queued": "5"},
