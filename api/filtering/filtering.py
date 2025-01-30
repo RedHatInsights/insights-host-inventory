@@ -3,15 +3,14 @@ from datetime import datetime
 from datetime import timezone
 from enum import Enum
 from functools import partial
-from typing import Tuple
 from uuid import UUID
 
 from dateutil import parser
 
 from api.filtering.custom_filters import build_operating_system_filter
+from api.filtering.filtering_common import SUPPORTED_FORMATS
 from api.filtering.filtering_common import lookup_graphql_operations
 from api.filtering.filtering_common import lookup_operations
-from api.filtering.filtering_common import SUPPORTED_FORMATS
 from app import custom_filter_fields
 from app import system_profile_spec
 from app.auth import get_current_identity
@@ -42,7 +41,7 @@ def _invalid_value_error(field_name, field_value):
 def _boolean_filter(field_name, field_value, operation, spec=None):
     # The "spec" param is defined but unused,
     # because this is called from the BUILDER_FUNCTIONS enum.
-    if not field_value.lower() in ("true", "false"):
+    if field_value.lower() not in ("true", "false"):
         _invalid_value_error(field_name, field_value)
 
     return ({field_name: {"is": (field_value.lower() == "true")}},)
@@ -326,7 +325,7 @@ def build_registered_with_filter(registered_with):
     return ({"OR": prs_list},)
 
 
-def _build_modified_on_filter(updated_start: str, updated_end: str) -> Tuple:
+def _build_modified_on_filter(updated_start: str, updated_end: str) -> tuple:
     updated_start_date = parser.isoparse(updated_start) if updated_start else None
     updated_end_date = parser.isoparse(updated_end) if updated_end else None
 
