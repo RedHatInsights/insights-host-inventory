@@ -1,6 +1,6 @@
-FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
+FROM registry.access.redhat.com/ubi9/ubi-minimal:latest
 
-ARG pgRepo="https://copr.fedorainfracloud.org/coprs/g/insights/postgresql-16/repo/epel-8/group_insights-postgresql-16-epel-8.repo"
+ARG pgRepo="https://copr.fedorainfracloud.org/coprs/g/insights/postgresql-16/repo/epel-9/group_insights-postgresql-16-epel-9.repo"
 ARG TEST_IMAGE=false
 
 USER root
@@ -9,11 +9,10 @@ ENV APP_ROOT=/opt/app-root/src
 WORKDIR $APP_ROOT
 
 RUN (microdnf module enable -y postgresql:16 || curl -o /etc/yum.repos.d/postgresql.repo $pgRepo) && \
-    microdnf module enable python39:3.9 && \
     microdnf upgrade -y && \
     microdnf install --setopt=tsflags=nodocs -y postgresql python39 rsync tar procps-ng make && \
     rpm -qa | sort > packages-before-devel-install.txt && \
-    microdnf install --setopt=tsflags=nodocs -y libpq-devel python39-devel gcc && \
+    microdnf install --setopt=tsflags=nodocs -y libpq-devel python3-devel gcc && \
     rpm -qa | sort > packages-after-devel-install.txt
 
 COPY api/ api/
@@ -55,19 +54,15 @@ RUN python3 -m pip install --upgrade pip setuptools wheel && \
 
 # allows pre-commit and unit tests to run successfully within the container if image is built in "test" environment
 RUN if [ "$TEST_IMAGE" = "true" ]; then \
-        microdnf module enable nodejs:20 && \
+        microdnf module enable -y nodejs:20 && \
         microdnf install --setopt=tsflags=nodocs -y git npm which && \
         chgrp -R 0 $APP_ROOT && \
         chmod -R g=u $APP_ROOT ; \
     fi
 
 # remove devel packages that were only necessary for psycopg2 to compile
-RUN microdnf remove -y $( comm -13 packages-before-devel-install.txt packages-after-devel-install.txt ) python39-setuptools && \
-    rm packages-before-devel-install.txt packages-after-devel-install.txt && \
+RUN microdnf remove  -y  libpq-devel python3-devel gcc && \
     microdnf clean all
-
-# create a symlink to the library missing from postgresql:16.  This may not be needed in future.
-RUN ln -s /usr/lib64/libpq.so.private16-5.16 /usr/lib64/libpq.so.5
 
 USER 1001
 
