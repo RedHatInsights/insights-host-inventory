@@ -52,3 +52,12 @@ create_export_processing_time = Summary(
     "inventory_new_export_seconds", "Time spent to create a new host export report"
 )
 create_export_count = Counter("inventory_create_export", "The total amount of host exports created")
+
+# hosts-syndication counter
+hosts_syndication_fail_count = Counter(
+    "hosts_syndication_fail_count", "The total number of syndication attempts failed."
+)
+hosts_syndication_success_count = Counter(
+    "hosts_syndication_success_count", "The total number of syndication attempts succeeded."
+)
+hosts_syndication_time = Summary("hosts_syndication_time", "The time syndication performed")
