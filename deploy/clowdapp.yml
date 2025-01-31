@@ -955,6 +955,8 @@ objects:
             value: "true"
           - name: INVENTORY_DB_SCHEMA
             value: "${INVENTORY_DB_SCHEMA}"
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
         resources:
           limits:
             cpu: ${CPU_LIMIT_SYNDICATOR}
