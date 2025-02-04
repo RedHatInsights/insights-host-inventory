@@ -625,10 +625,11 @@ def get_hosts_to_export(
     export_host_query = _find_hosts_model_query(identity=identity, columns=columns).filter(*q_filters)
     export_host_query = export_host_query.execution_options(yield_per=batch_size)
 
-    num_hosts = select(func.count()).select_from(export_host_query.subquery())
+    num_hosts_query = select(func.count()).select_from(export_host_query.subquery())
+    num_hosts = db.session.scalar(num_hosts_query)
     logger.debug(f"Number of hosts to be exported: {num_hosts}")
 
-    for host in db.session.scalars(export_host_query):
+    for host in db.session.scalars(export_host_query).all():
         yield serialize_host_for_export_svc(host, staleness_timestamps=st_timestamps, staleness=staleness)
 
     db.session.close()
