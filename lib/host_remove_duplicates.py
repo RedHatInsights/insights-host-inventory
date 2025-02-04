@@ -151,4 +151,7 @@ def delete_duplicate_hosts(
 
         total_deleted += len(duplicate_list)
 
+        if interrupt:
+            break
+
     return total_deleted

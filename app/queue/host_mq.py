@@ -218,7 +218,7 @@ def sync_event_message(message, session, event_producer):
     return
 
 
-def update_system_profile(host_data, platform_metadata, notification_event_producer=None, operation_args=None):
+def update_system_profile(host_data, platform_metadata, operation_args=None):  # noqa: ARG001, required by message_operation
     if operation_args is None:
         operation_args = {}
 
@@ -249,7 +249,7 @@ def update_system_profile(host_data, platform_metadata, notification_event_produ
         raise
 
 
-def add_host(host_data, platform_metadata, notification_event_producer, operation_args=None):
+def add_host(host_data, platform_metadata, operation_args=None):
     if operation_args is None:
         operation_args = {}
 
@@ -298,7 +298,7 @@ def handle_message(message, notification_event_producer, message_operation=add_h
         try:
             host = validated_operation_msg["data"]
             host_row, operation_result, identity, success_logger = message_operation(
-                host, platform_metadata, notification_event_producer, validated_operation_msg.get("operation_args", {})
+                host, platform_metadata, validated_operation_msg.get("operation_args", {})
             )
             staleness_timestamps = Timestamps.from_config(inventory_config())
             event_type = operation_results_to_event_type(operation_result)

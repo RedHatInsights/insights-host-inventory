@@ -54,7 +54,7 @@ def test_query_invalid_host_id(mq_create_three_specific_hosts, api_get, subtests
     for host_id_list in chain(only_bad_id, with_bad_id):
         with subtests.test(host_id_list=host_id_list):
             url = build_hosts_url(host_list_or_id=host_id_list)
-            response_status, response_data = api_get(url)
+            response_status, _ = api_get(url)
             assert response_status == 400
 
 
@@ -66,7 +66,7 @@ def test_query_host_id_with_incorrect_formats(api_get, subtests):
     for bad_host_id in bad_host_ids:
         with subtests.test():
             url = build_hosts_url(host_list_or_id=bad_host_id)
-            response_status, response_data = api_get(url)
+            response_status, _ = api_get(url)
             assert response_status == 400
 
 
@@ -77,20 +77,20 @@ def test_query_invalid_paging_parameters(mq_create_three_specific_hosts, api_get
     api_pagination_invalid_parameters_test(api_get, subtests, url)
 
 
-def test_query_with_invalid_insights_id(mq_create_three_specific_hosts, api_get, subtests):
+def test_query_with_invalid_insights_id(api_get):
     url = build_hosts_url(query="?insights_id=notauuid")
-    response_status, response_data = api_get(url)
+    response_status, _ = api_get(url)
 
     assert response_status == 400
 
 
-def test_get_host_with_invalid_tag_no_key(mq_create_three_specific_hosts, api_get):
+def test_get_host_with_invalid_tag_no_key(api_get):
     """
     Attempt to find host with an incomplete tag (no key).
     Expects 400 response.
     """
     url = build_hosts_url(query="?tags=namespace/=Value")
-    response_status, response_data = api_get(url)
+    response_status, _ = api_get(url)
 
     assert response_status == 400
 
@@ -103,14 +103,14 @@ def test_get_host_with_invalid_tag_no_key(mq_create_three_specific_hosts, api_ge
         (f"namespace/key={'a' * 256}", "value"),
     ),
 )
-def test_get_host_tag_part_too_long(tag_query, part_name, mq_create_three_specific_hosts, api_get):
+def test_get_host_tag_part_too_long(tag_query, part_name, api_get):
     """
     send a request to find hosts with a string tag where the length
     of the namespace excedes the 255 character limit
     """
 
     url = build_hosts_url(query=f"?tags={tag_query}")
-    response_status, response_data = api_get(url)
+    _, response_data = api_get(url)
 
     assert_error_response(
         response_data, expected_status=400, expected_detail=f"{part_name} is longer than 255 characters"
@@ -128,7 +128,7 @@ def test_invalid_order_by(mq_create_three_specific_hosts, api_get, subtests):
     for url in urls:
         with subtests.test(url=url):
             order_query_parameters = build_order_query_parameters(order_by="fqdn", order_how="ASC")
-            response_status, response_data = api_get(url, query_parameters=order_query_parameters)
+            response_status, _ = api_get(url, query_parameters=order_query_parameters)
             assert response_status == 400
 
 
@@ -143,7 +143,7 @@ def test_invalid_order_how(mq_create_three_specific_hosts, api_get, subtests):
     for url in urls:
         with subtests.test(url=url):
             order_query_parameters = build_order_query_parameters(order_by="display_name", order_how="asc")
-            response_status, response_data = api_get(url, query_parameters=order_query_parameters)
+            response_status, _ = api_get(url, query_parameters=order_query_parameters)
             assert response_status == 400
 
 
@@ -158,7 +158,7 @@ def test_only_order_how(mq_create_three_specific_hosts, api_get, subtests):
     for url in urls:
         with subtests.test(url=url):
             order_query_parameters = build_order_query_parameters(order_by=None, order_how="ASC")
-            response_status, response_data = api_get(url, query_parameters=order_query_parameters)
+            response_status, _ = api_get(url, query_parameters=order_query_parameters)
             assert response_status == 400
 
 
@@ -173,7 +173,7 @@ def test_invalid_fields(mq_create_three_specific_hosts, api_get, subtests):
     for url in urls:
         with subtests.test(url=url):
             fields_query_parameters = build_fields_query_parameters(fields="i_love_ketchup")
-            response_status, response_data = api_get(url, query_parameters=fields_query_parameters)
+            response_status, _ = api_get(url, query_parameters=fields_query_parameters)
             assert response_status == 400
 
 

@@ -120,7 +120,7 @@ class IdentityBaseSchema(m.Schema):
     class Meta:
         unknown = m.INCLUDE
 
-    def handle_error(self, err, data, **kwargs):
+    def handle_error(self, err, data, **kwargs):  # noqa: ARG002, overrides a function from m.Schema
         raise ValueError(err.messages)
 
 

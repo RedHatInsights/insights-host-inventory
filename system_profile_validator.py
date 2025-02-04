@@ -44,7 +44,7 @@ def _init_config():
     return config
 
 
-def _excepthook(logger, type, value, traceback):
+def _excepthook(logger, type, value, traceback):  # noqa: ARG001, needed by sys.excepthook
     logger.exception("System Profile Validator failed", exc_info=value)
 
 

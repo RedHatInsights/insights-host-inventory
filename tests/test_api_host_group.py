@@ -13,9 +13,8 @@ from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.test_utils import generate_uuid
 
 
-def test_add_host_to_group(
-    db_create_group, db_create_host, db_get_hosts_for_group, api_add_hosts_to_group, event_producer
-):
+@pytest.mark.usefixtures("event_producer")
+def test_add_host_to_group(db_create_group, db_create_host, db_get_hosts_for_group, api_add_hosts_to_group):
     # Create a group and 3 hosts
     group_id = db_create_group("test_group").id
     host_id_list = [db_create_host().id for _ in range(3)]
@@ -48,14 +47,13 @@ def test_add_host_to_group_RBAC_denied(
             assert_response_status(response_status, 403)
 
 
+@pytest.mark.usefixtures("enable_rbac", "event_producer")
 def test_add_host_to_group_RBAC_allowed_specific_groups(
     mocker,
     db_create_group_with_hosts,
     api_add_hosts_to_group,
     db_create_host,
     db_get_hosts_for_group,
-    enable_rbac,
-    event_producer,
 ):
     # Create a group and 3 hosts
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
@@ -179,13 +177,13 @@ def test_add_associated_host_to_different_group(
     assert event_producer.write_event.call_count == 0
 
 
+@pytest.mark.usefixtures("event_producer")
 def test_add_host_list_with_one_associated_host_to_group(
     db_create_group,
     db_create_host,
     db_get_hosts_for_group,
     db_create_host_group_assoc,
     api_add_hosts_to_group,
-    event_producer,
 ):
     # Create a group and 3 hosts
     group_id = db_create_group("test_group").id
@@ -204,7 +202,8 @@ def test_add_host_list_with_one_associated_host_to_group(
     assert len(hosts_after) == 3
 
 
-def test_add_host_to_missing_group(db_create_host, api_add_hosts_to_group, event_producer):
+@pytest.mark.usefixtures("event_producer")
+def test_add_host_to_missing_group(db_create_host, api_add_hosts_to_group):
     # Create a test group which not exist in database
     missing_group_id = "454dddba-9a4d-42b3-8f16-86a8c1400000"
     host_id_list = [db_create_host().id for _ in range(3)]
@@ -213,7 +212,8 @@ def test_add_host_to_missing_group(db_create_host, api_add_hosts_to_group, event
     assert response_status == 404
 
 
-def test_add_missing_host_to_existing_group(db_create_group, api_add_hosts_to_group, event_producer):
+@pytest.mark.usefixtures("event_producer")
+def test_add_missing_host_to_existing_group(db_create_group, api_add_hosts_to_group):
     group_id = db_create_group("test_group").id
     host_id_list = [str(uuid.uuid4())]
 
@@ -221,7 +221,8 @@ def test_add_missing_host_to_existing_group(db_create_group, api_add_hosts_to_gr
     assert response_status == 400
 
 
-def test_with_empty_data(api_add_hosts_to_group, event_producer):
+@pytest.mark.usefixtures("event_producer")
+def test_with_empty_data(api_add_hosts_to_group):
     response_status, _ = api_add_hosts_to_group(None, None)
     assert response_status == 400
 
@@ -240,12 +241,12 @@ def test_add_empty_array_to_group(db_create_group, api_add_hosts_to_group):
     assert response_status == 400
 
 
+@pytest.mark.usefixtures("event_producer")
 def test_group_with_culled_hosts(
     db_create_group,
     db_create_host,
     db_get_hosts_for_group,
     api_add_hosts_to_group,
-    event_producer,
     db_get_host,
     api_get,
 ):

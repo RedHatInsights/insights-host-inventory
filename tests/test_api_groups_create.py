@@ -77,11 +77,10 @@ def test_create_group_with_hosts(
     [
         "",
         "  ",
-        "  ",
     ],
 )
 def test_create_group_invalid_name(api_create_group, new_name):
-    group_data = {"name": "", "host_ids": []}
+    group_data = {"name": new_name, "host_ids": []}
 
     response_status, _ = api_create_group(group_data)
 

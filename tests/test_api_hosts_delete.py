@@ -231,9 +231,8 @@ def test_delete_when_all_hosts_are_deleted(
     assert notification_event_producer_mock.event is None
 
 
-def test_delete_when_some_hosts_is_deleted(
-    event_producer_mock, notification_event_producer_mock, db_create_multiple_hosts, api_delete_host, mocker
-):
+@pytest.mark.usefixtures("notification_event_producer_mock")
+def test_delete_when_some_hosts_is_deleted(event_producer_mock, db_create_multiple_hosts, api_delete_host, mocker):
     hosts = db_create_multiple_hosts(how_many=2)
     host_id_list = [str(hosts[0].id), str(hosts[1].id)]
 
@@ -331,9 +330,8 @@ def test_delete_host_with_RBAC_bypassed_as_system(
     assert not db_get_host(host.id)
 
 
+@pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
 def test_delete_hosts_chunk_size(
-    event_producer_mock,
-    notification_event_producer_mock,
     db_create_multiple_hosts,
     api_delete_host,
     mocker,
@@ -538,9 +536,7 @@ def test_delete_host_RBAC_denied_specific_groups(mocker, db_create_host, db_get_
 
 
 @pytest.mark.usefixtures("notification_event_producer_mock")
-def test_postgres_delete_filtered_hosts(
-    db_create_host, api_get, api_delete_filtered_hosts, event_producer_mock, notification_event_producer_mock
-):
+def test_postgres_delete_filtered_hosts(db_create_host, api_get, api_delete_filtered_hosts, event_producer_mock):
     host_1_id = db_create_host(extra_data={"display_name": "foobar"}).id
     host_2_id = db_create_host(extra_data={"display_name": "foobaz"}).id
 

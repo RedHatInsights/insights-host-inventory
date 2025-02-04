@@ -41,7 +41,7 @@ def database_name():
 
 
 @pytest.fixture(scope="session")
-def database(database_name):
+def database(database_name):  # noqa: ARG001
     config = Config(RuntimeEnvironment.TEST)
     if not database_exists(config.db_uri):
         create_database(config.db_uri)
@@ -52,7 +52,7 @@ def database(database_name):
 
 
 @pytest.fixture(scope="function")
-def db_get_host(flask_app):
+def db_get_host(flask_app):  # noqa: ARG001
     def _db_get_host(host_id):
         return Host.query.filter(Host.id == host_id).one_or_none()
 
@@ -60,7 +60,7 @@ def db_get_host(flask_app):
 
 
 @pytest.fixture(scope="function")
-def db_get_hosts(flask_app):
+def db_get_hosts(flask_app):  # noqa: ARG001
     def _db_get_hosts(host_ids):
         return Host.query.filter(Host.id.in_(host_ids))
 
@@ -68,7 +68,7 @@ def db_get_hosts(flask_app):
 
 
 @pytest.fixture(scope="function")
-def db_get_host_by_insights_id(flask_app):
+def db_get_host_by_insights_id(flask_app):  # noqa: ARG001
     def _db_get_host_by_insights_id(insights_id):
         return Host.query.filter(Host.canonical_facts["insights_id"].astext == insights_id).one()
 
@@ -76,7 +76,7 @@ def db_get_host_by_insights_id(flask_app):
 
 
 @pytest.fixture(scope="function")
-def db_get_group_by_id(flask_app):
+def db_get_group_by_id(flask_app):  # noqa: ARG001
     def _db_get_group_by_id(group_id):
         return db.session.get(Group, group_id)
 
@@ -84,7 +84,7 @@ def db_get_group_by_id(flask_app):
 
 
 @pytest.fixture(scope="function")
-def db_get_group_by_name(flask_app):
+def db_get_group_by_name(flask_app):  # noqa: ARG001
     def _db_get_group_by_name(group_name):
         return Group.query.filter(Group.name == group_name).first()
 
@@ -92,7 +92,7 @@ def db_get_group_by_name(flask_app):
 
 
 @pytest.fixture(scope="function")
-def db_get_hosts_for_group(flask_app):
+def db_get_hosts_for_group(flask_app):  # noqa: ARG001
     def _db_get_hosts_for_group(group_id):
         return Host.query.join(HostGroupAssoc).filter(HostGroupAssoc.group_id == group_id).all()
 
@@ -100,7 +100,7 @@ def db_get_hosts_for_group(flask_app):
 
 
 @pytest.fixture(scope="function")
-def db_get_groups_for_host(flask_app):
+def db_get_groups_for_host(flask_app):  # noqa: ARG001
     def _db_get_groups_for_host(host_id):
         return Group.query.join(HostGroupAssoc).filter(HostGroupAssoc.host_id == host_id).all()
 
@@ -108,7 +108,7 @@ def db_get_groups_for_host(flask_app):
 
 
 @pytest.fixture(scope="function")
-def db_get_assignment_rule(flask_app):
+def db_get_assignment_rule(flask_app):  # noqa: ARG001
     def _db_get_assignment_rule(ar_id):
         return db.session.get(AssignmentRule, ar_id)
 
@@ -116,7 +116,7 @@ def db_get_assignment_rule(flask_app):
 
 
 @pytest.fixture(scope="function")
-def db_create_host(flask_app):
+def db_create_host(flask_app):  # noqa: ARG001
     def _db_create_host(identity=SYSTEM_IDENTITY, host=None, extra_data=None):
         extra_data = extra_data or {}
         host = host or minimal_db_host(org_id=identity["org_id"], account=identity["account_number"], **extra_data)
@@ -128,7 +128,7 @@ def db_create_host(flask_app):
 
 
 @pytest.fixture(scope="function")
-def db_create_multiple_hosts(flask_app):
+def db_create_multiple_hosts(flask_app):  # noqa: ARG001
     def _db_create_multiple_hosts(identity=SYSTEM_IDENTITY, hosts=None, how_many=10, extra_data=None):
         extra_data = extra_data or {}
         created_hosts = []
@@ -150,7 +150,7 @@ def db_create_multiple_hosts(flask_app):
 
 
 @pytest.fixture(scope="function")
-def db_create_bulk_hosts(flask_app):
+def db_create_bulk_hosts(flask_app):  # noqa: ARG001
     def _db_create_bulk_hosts(identity=SYSTEM_IDENTITY, how_many=10, extra_data=None):
         extra_data = extra_data or {}
         host_dicts = []
@@ -179,7 +179,7 @@ def models_datetime_mock(mocker):
 
 
 @pytest.fixture(scope="function")
-def db_create_group(flask_app):
+def db_create_group(flask_app):  # noqa: ARG001
     def _db_create_group(name, identity=SYSTEM_IDENTITY):
         group = db_group(org_id=identity["org_id"], account=identity["account_number"], name=name)
         db.session.add(group)
@@ -190,7 +190,7 @@ def db_create_group(flask_app):
 
 
 @pytest.fixture(scope="function")
-def db_create_host_group_assoc(flask_app, db_get_group_by_id):
+def db_create_host_group_assoc(flask_app, db_get_group_by_id):  # noqa: ARG001
     def _db_create_host_group_assoc(host_id, group_id):
         host_group = HostGroupAssoc(host_id=host_id, group_id=group_id)
         db.session.add(host_group)
@@ -205,7 +205,7 @@ def db_create_host_group_assoc(flask_app, db_get_group_by_id):
 
 
 @pytest.fixture(scope="function")
-def db_remove_hosts_from_group(flask_app):
+def db_remove_hosts_from_group(flask_app):  # noqa: ARG001
     def _db_remove_hosts_from_group(host_id_list, group_id):
         db.session.query(Host).filter(Host.id.in_(host_id_list)).update({"groups": []}, synchronize_session=False)
         delete_query = db.session.query(HostGroupAssoc).filter(
@@ -218,7 +218,7 @@ def db_remove_hosts_from_group(flask_app):
 
 
 @pytest.fixture(scope="function")
-def db_delete_group(flask_app):
+def db_delete_group(flask_app):  # noqa: ARG001
     def _db_delete_group(group_id):
         delete_query = db.session.query(Group).filter(Group.id == group_id)
         delete_query.delete(synchronize_session="fetch")
@@ -241,7 +241,7 @@ def db_create_group_with_hosts(db_create_group, db_create_host, db_create_host_g
 
 
 @pytest.fixture(scope="function")
-def db_create_assignment_rule(flask_app):
+def db_create_assignment_rule(flask_app):  # noqa: ARG001
     def _db_create_assignment_rule(name, group_id, filter, enabled):
         assignment_rule = db_assignment_rule(name=name, group_id=group_id, filter=filter, enabled=enabled)
         db.session.add(assignment_rule)
@@ -252,7 +252,7 @@ def db_create_assignment_rule(flask_app):
 
 
 @pytest.fixture(scope="function")
-def db_delete_assignment_rule(flask_app):
+def db_delete_assignment_rule(flask_app):  # noqa: ARG001
     def _db_delete_assignment_rule(ar_id):
         delete_query = db.session.query(AssignmentRule).filter(AssignmentRule.id == ar_id)
         delete_query.delete(synchronize_session="fetch")
@@ -262,7 +262,7 @@ def db_delete_assignment_rule(flask_app):
 
 
 @pytest.fixture(scope="function")
-def db_create_staleness_culling(flask_app):
+def db_create_staleness_culling(flask_app):  # noqa: ARG001
     def _db_create_staleness_culling(
         conventional_time_to_stale=None,
         conventional_time_to_stale_warning=None,
@@ -287,7 +287,7 @@ def db_create_staleness_culling(flask_app):
 
 
 @pytest.fixture(scope="function")
-def db_delete_staleness_culling(flask_app):
+def db_delete_staleness_culling(flask_app):  # noqa: ARG001
     def _db_delete_staleness_culling(org_id):
         delete_query = db.session.query(Staleness).filter(Staleness.org_id == org_id)
         delete_query.delete(synchronize_session="fetch")
@@ -297,7 +297,7 @@ def db_delete_staleness_culling(flask_app):
 
 
 @pytest.fixture(scope="function")
-def db_get_staleness_culling(flask_app):
+def db_get_staleness_culling(flask_app):  # noqa: ARG001
     def _db_get_staleness_culling(org_id):
         return Staleness.query.filter(Staleness.org_id == org_id).first()
 

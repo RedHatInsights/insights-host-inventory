@@ -18,7 +18,7 @@ lint.select = [
     # isort
     "I",
     # flake8-unused-arguments
-    # "ARG",
+    "ARG",
 ]
 
 lint.ignore = [
@@ -35,7 +35,7 @@ lint.extend-safe-fixes = [
 
 lint.isort.force-single-line = true
 
-# lint.flake8-unused-arguments.ignore-variadic-names = true
+lint.flake8-unused-arguments.ignore-variadic-names = true
 
 [tool.mypy]
 python_version = "3.9"

@@ -25,7 +25,11 @@ from tests.helpers.test_utils import now
 
 
 @pytest.fixture(scope="function")
-def mq_create_or_update_host(flask_app, event_producer_mock, notification_event_producer_mock):
+def mq_create_or_update_host(
+    flask_app,  # noqa: ARG001
+    event_producer_mock,
+    notification_event_producer_mock,
+):
     def _mq_create_or_update_host(
         host_data,
         platform_metadata=None,
@@ -140,7 +144,7 @@ def notification_kafka_producer(mocker):
 
 
 @pytest.fixture(scope="function")
-def event_producer(flask_app, kafka_producer):
+def event_producer(flask_app, kafka_producer):  # noqa: ARG001
     config = flask_app.app.config["INVENTORY_CONFIG"]
     flask_app.app.event_producer = EventProducer(config, config.event_topic)
     yield flask_app.app.event_producer
@@ -148,7 +152,7 @@ def event_producer(flask_app, kafka_producer):
 
 
 @pytest.fixture(scope="function")
-def notification_event_producer(flask_app, notification_kafka_producer):
+def notification_event_producer(flask_app, notification_kafka_producer):  # noqa: ARG001
     config = flask_app.app.config["INVENTORY_CONFIG"]
     flask_app.app.notification_event_producer = EventProducer(config, config.notification_topic)
     yield flask_app.app.notification_event_producer

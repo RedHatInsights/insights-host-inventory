@@ -8,7 +8,7 @@ try:
     from sqlparse import format as sql_formatter
 except ModuleNotFoundError:
 
-    def sql_formatter(sql_str, reindent=True, keyword_case="upper"):
+    def sql_formatter(sql_str, reindent=True, keyword_case="upper"):  # noqa: ARG001
         return sql_str
 
 
@@ -43,10 +43,10 @@ class SQLDump:
     def __enter__(self):
         sqlevent.listen(db.engine, "before_execute", self.dump_method)
 
-    def __exit__(self, exc_type, exc_value, exc_traceback):
+    def __exit__(self, exc_type, exc_value, exc_traceback):  # noqa: ARG002
         sqlevent.remove(db.engine, "before_execute", self.dump_method)
 
-    def dump_sql(self, conn, clauseelement, multiparams, params, execution_options):
+    def dump_sql(self, conn, clauseelement, multiparams, params, execution_options):  # noqa: ARG002
         self.write_method("**** QUERY:\n")
         self.write_method(sql_formatter(str(clauseelement.compile()), reindent=True, keyword_case="upper"))
         self.write_method("\n**** PARAMETERS:\n")

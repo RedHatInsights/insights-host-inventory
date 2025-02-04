@@ -281,7 +281,7 @@ def test_find_host_using_subscription_manager_id_match(db_create_host):
 # The test asserts that this sequence of events no longer results
 # in the creation of such duplicates.
 #
-def test_provider_id_dup(mq_create_or_update_host, db_get_host):
+def test_provider_id_dup(mq_create_or_update_host):
     provider_id = generate_uuid()
 
     subscription_manager_id_x = generate_uuid()
