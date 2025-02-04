@@ -743,8 +743,8 @@
         "tags": [
           "groups"
         ],
-        "summary": "Merge group information",
-        "description": "Merge group information. <br /><br /> Required permissions: inventory:groups:write",
+        "summary": "Update group information",
+        "description": "Update group information, removing any existing host associations from the group. <br /><br /> Required permissions: inventory:groups:write",
         "security": [
           {
             "ApiKeyAuth": []
@@ -756,7 +756,7 @@
           }
         ],
         "requestBody": {
-          "description": "A dictionary with new information to merge with the original group.",
+          "description": "A dictionary with new information with which to update the original group.",
           "required": true,
           "content": {
             "application/json": {
@@ -768,7 +768,7 @@
         },
         "responses": {
           "200": {
-            "description": "Group information successfully or already previously merged.",
+            "description": "Group information successfully updated.",
             "content": {
               "application/json": {
                 "schema": {

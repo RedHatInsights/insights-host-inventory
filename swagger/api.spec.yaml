@@ -440,9 +440,9 @@ paths:
       operationId: api.group.patch_group_by_id
       tags:
         - groups
-      summary: Merge group information
+      summary: Update group information
       description: >-
-        Merge group information.
+        Update group information, removing any existing host associations from the group.
         <br /><br />
         Required permissions: inventory:groups:write
       security:
@@ -450,7 +450,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/groupId'
       requestBody:
-        description: A dictionary with new information to merge with the original group.
+        description: A dictionary with new information with which to update the original group.
         required: true
         content:
           application/json:
@@ -458,7 +458,7 @@ paths:
               $ref: '#/components/schemas/GroupIn'
       responses:
         '200':
-          description: Group information successfully or already previously merged.
+          description: Group information successfully updated.
           content:
             application/json:
               schema:
