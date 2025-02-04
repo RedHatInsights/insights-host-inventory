@@ -316,9 +316,7 @@ def test_patch_group_name_only(
     assert host["groups"][0]["name"] == "modified_group"
 
 
-def test_patch_group_same_hosts(
-    db_create_group_with_hosts, db_get_group_by_id, api_patch_group, event_producer, mocker
-):
+def test_patch_group_same_hosts(db_create_group_with_hosts, api_patch_group, event_producer, mocker):
     # Create a group with hosts
     mocker.patch.object(event_producer, "write_event")
     group = db_create_group_with_hosts("test_group", 5)
@@ -338,7 +336,7 @@ def test_patch_group_same_hosts(
 
 
 def test_patch_group_both_add_and_remove_hosts(
-    db_create_group_with_hosts, db_get_group_by_id, db_create_host, api_patch_group, event_producer, mocker
+    db_create_group_with_hosts, db_create_host, api_patch_group, event_producer, mocker
 ):
     # Create a group with hosts
     mocker.patch.object(event_producer, "write_event")

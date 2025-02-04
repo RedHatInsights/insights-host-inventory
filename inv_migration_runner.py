@@ -32,7 +32,7 @@ def _init_db(config):
     return sessionmaker(bind=engine)
 
 
-def _excepthook(logger, type, value, traceback):
+def _excepthook(logger, type, value, traceback):  # noqa: ARG001, needed by sys.excepthook
     logger.exception("Inventory migration failed", exc_info=value)
 
 
