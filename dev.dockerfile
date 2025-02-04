@@ -14,6 +14,7 @@ COPY migrations/ migrations/
 COPY swagger/ swagger/
 COPY tests/ tests/
 COPY utils/ utils/
+COPY jobs/ jobs/
 COPY Makefile Makefile
 COPY gunicorn.conf.py gunicorn.conf.py
 COPY host_reaper.py host_reaper.py
@@ -31,6 +32,7 @@ COPY run_gunicorn.py run_gunicorn.py
 COPY run_command.sh run_command.sh
 COPY run.py run.py
 COPY system_profile_validator.py system_profile_validator.py
+COPY generate_stale_host_notifications.py generate_stale_host_notifications.py
 RUN chown -R 1001:0 ./
 USER 1001
 

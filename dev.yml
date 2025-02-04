@@ -107,6 +107,12 @@ services:
         db:
           condition: service_healthy
 
+    prometheus-gateway:
+      container_name: prometheus_gateway
+      image: quay.io/prometheus/pushgateway
+      ports:
+        - 9091:9091
+
     minio:
       container_name: minio
       image: docker.io/minio/minio

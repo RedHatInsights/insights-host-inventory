@@ -43,6 +43,15 @@ CUSTOM_STALENESS_NO_HOSTS_TO_DELETE = {
     "immutable_time_to_delete": 15552000,
 }
 
+CUSTOM_STALENESS_HOST_BECAME_STALE = {
+    "conventional_time_to_stale": 1,
+    "conventional_time_to_stale_warning": 604800,
+    "conventional_time_to_delete": 1209600,
+    "immutable_time_to_stale": 1,
+    "immutable_time_to_stale_warning": 10368000,
+    "immutable_time_to_delete": 15552000,
+}
+
 
 def test_delete_only_immutable_hosts(
     flask_app,
