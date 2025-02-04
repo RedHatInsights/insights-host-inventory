@@ -5,7 +5,6 @@ from unittest.mock import patch
 
 import pytest
 
-from api.host import get_host_list
 from lib.host_repository import find_hosts_by_staleness
 from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
@@ -2011,7 +2010,7 @@ def test_get_host_exists_granular_rbac(db_create_host, db_create_group, db_creat
 
 
 def test_get_host_from_different_org(mocker, api_get):
-    get_host_list_mock = mocker.patch("api.host.get_host_list", wraps=get_host_list)
+    get_host_list_mock = mocker.patch("api.host.build_paginated_host_list_response")
     get_host_list_mock.return_value = {
         "total": 1,
         "count": 1,
