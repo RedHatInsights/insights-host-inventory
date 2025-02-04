@@ -2007,3 +2007,52 @@ def test_get_host_exists_granular_rbac(db_create_host, db_create_group, db_creat
         url = build_host_exists_url(insights_id)
         response_status, _ = api_get(url)
         assert_response_status(response_status, 404)
+
+
+def test_get_host_from_different_org(mocker, api_get):
+    get_host_list_mock = mocker.patch("api.host.build_paginated_host_list_response")
+    get_host_list_mock.return_value = {
+        "total": 1,
+        "count": 1,
+        "page": 1,
+        "per_page": 50,
+        "results": [
+            {
+                "insights_id": "2d052fcb-04fd-4529-8052-bb924410eb8b",
+                "subscription_manager_id": None,
+                "satellite_id": None,
+                "bios_uuid": None,
+                "ip_addresses": None,
+                "fqdn": None,
+                "mac_addresses": None,
+                "provider_id": None,
+                "provider_type": None,
+                "id": "12172925-832f-4341-b55f-557746ae2748",
+                "account": "test",
+                "org_id": "diff_test",
+                "display_name": "12172925-832f-4341-b55f-557746ae2748",
+                "ansible_host": None,
+                "facts": [],
+                "reporter": "test-reporter",
+                "per_reporter_staleness": {
+                    "test-reporter": {
+                        "last_check_in": "2025-02-04T00:11:45.902105+00:00",
+                        "stale_timestamp": "2025-02-05T05:11:45.902105+00:00",
+                        "check_in_succeeded": True,
+                        "stale_warning_timestamp": "2025-02-11T00:11:45.902105+00:00",
+                        "culled_timestamp": "2025-02-18T00:11:45.902105+00:00",
+                    }
+                },
+                "stale_timestamp": "2025-02-05T05:11:45.902627+00:00",
+                "stale_warning_timestamp": "2025-02-11T00:11:45.902627+00:00",
+                "culled_timestamp": "2025-02-18T00:11:45.902627+00:00",
+                "created": "2025-02-04T00:11:45.902625+00:00",
+                "updated": "2025-02-04T00:11:45.902627+00:00",
+                "groups": [],
+            }
+        ],
+    }
+
+    url = build_hosts_url()
+    response_status, _ = api_get(url)
+    assert_response_status(response_status, 403)
