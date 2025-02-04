@@ -143,11 +143,10 @@ def separate_operating_system_filters(filter_url_params) -> list[OsFilter]:
                 # If there's no comparator, treat it as "eq"
                 version_node = {"eq": version_node}
 
-        if isinstance(os_name, list):
-            for name in os_name:
-                os_filter_list += create_os_filter(name, version_node, os_filter_list)
-        else:
-            os_filter_list = create_os_filter(os_name, version_node, os_filter_list)
+        if not isinstance(os_name, list):
+            os_name = [os_name]
+        for name in os_name:
+            os_filter_list += create_os_filter(name, version_node)
 
     return os_filter_list
 
@@ -392,7 +391,8 @@ def get_major_minor_from_version(version_split: list[str]):
     return major, minor
 
 
-def create_os_filter(os_name, version_node, os_filter_list):
+def create_os_filter(os_name, version_node):
+    os_filter_list: list[OsFilter] = []
     check_valid_os_name(os_name)
 
     for os_comparator in version_node.keys():
