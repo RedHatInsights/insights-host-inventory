@@ -16,12 +16,12 @@ with open(OAPI) as fp:
 def make_diff(specfile, output_filename):
     parser = TranslatingParser(SPECIFICATION_DIR + specfile)
     cdiff = unified_diff(
-        oapi_data.splitlines(True), parser.yaml().splitlines(True), fromfile="oapi", tofile="output_filename"
+        oapi_data.splitlines(True), parser.yaml().splitlines(True), fromfile="oapi", tofile=output_filename
     )
     sys.stdout.writelines(cdiff)
 
 
 if __name__ == "__main__":
-    make_diff("openapi.json", "prace_reads_bundle")
-    # todo: reenable this once the prance bug about inclusion is resolved
+    make_diff("openapi.json", "prance_reads_bundle")
+    # TODO: reenable this once the prance bug about inclusion is resolved
     # make_diff("api.spec.yaml", "prace_reads_spec")
