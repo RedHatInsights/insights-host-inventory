@@ -559,7 +559,7 @@ def test_update_delete_race(event_producer, db_create_host, db_get_host, api_pat
     mocker.patch("lib.host_delete.kafka_available")
 
     # slow down the execution of update_display_name so that it's more likely we hit the race condition
-    def sleep(data):
+    def sleep(data):  # noqa: ARG001, required by patch
         time.sleep(1)
 
     mocker.patch("app.models.Host.update_display_name", wraps=sleep)
@@ -602,7 +602,7 @@ def test_patch_updated_timestamp(event_producer, db_create_host, db_get_host, ap
     host = db_create_host()
     patch_doc = {"display_name": "update_test"}
     url = build_hosts_url(host_list_or_id=host.id)
-    patch_response_status, patch_response_data = api_patch(url, patch_doc)
+    patch_response_status, _ = api_patch(url, patch_doc)
 
     assert_response_status(patch_response_status, expected_status=200)
 

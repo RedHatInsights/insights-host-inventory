@@ -509,7 +509,7 @@ def _build_paginated_host_tags_response(total, page, per_page, tags_list):
 @api_operation
 @rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def host_checkin(body, rbac_filter=None):
+def host_checkin(body, rbac_filter=None):  # noqa: ARG001, required for all API endpoints, not needed for host checkins
     current_identity = get_current_identity()
     canonical_facts = deserialize_canonical_facts(body)
     existing_host = find_existing_host(current_identity, canonical_facts)
