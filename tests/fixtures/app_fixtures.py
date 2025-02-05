@@ -9,7 +9,7 @@ from tests.helpers.db_utils import clean_tables
 
 
 @pytest.fixture(scope="session")
-def new_flask_app(database):
+def new_flask_app(database):  # noqa: ARG001
     application = create_app(RuntimeEnvironment.TEST)
     with application.app.app_context():
         db.session.execute(sa_text("CREATE SCHEMA IF NOT EXISTS hbi"))

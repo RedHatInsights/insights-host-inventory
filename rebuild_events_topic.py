@@ -31,7 +31,7 @@ __all__ = "main"
 LOGGER_NAME = "inventory_events_rebuilder"
 
 
-def _excepthook(logger, type, value, traceback):
+def _excepthook(logger, type, value, traceback):  # noqa: ARG001, needed by sys.excepthook
     logger.exception("Events topic rebuilder failed", exc_info=value)
 
 

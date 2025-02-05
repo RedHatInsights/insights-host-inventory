@@ -13,7 +13,7 @@ class ShutdownHandler:
     def __init__(self):
         self._shutdown = False
 
-    def _signal_handler(self, signum, frame):
+    def _signal_handler(self, signum, frame):  # noqa: ARG002, required by signal
         signame = Signals(signum).name
         logger.info("Gracefully Shutting Down. Received: %s", signame)
         self._shutdown = True
