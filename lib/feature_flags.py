@@ -34,7 +34,7 @@ def init_unleash_app(app):
 
 # Raise an error if the toggle is not found on the configured Unleash server.
 # Without this fallback function, is_enabled just returns False without error.
-def custom_fallback(feature_name: str, context: dict) -> bool:
+def custom_fallback(feature_name: str, context: dict) -> bool:  # noqa: ARG001, required by UnleashClient
     raise ConnectionError(f"Could not contact Unleash server, or feature toggle {feature_name} not found.")
 
 

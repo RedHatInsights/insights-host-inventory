@@ -52,12 +52,12 @@ def test_handle_create_export_unicode(db_create_host, flask_app, inventory_confi
 
 
 @mock.patch("requests.Session.post", autospec=True)
-@mock.patch("app.queue.export_service.get_hosts_to_export", return_value=iter(es_utils.EXPORT_DATA))
-@mock.patch("app.queue.export_service.create_export", return_value=True)
-def test_handle_create_export_request_with_data_to_export(
-    mock_export, mock_rbac, mock_post, flask_app, inventory_config
-):
-    with flask_app.app.app_context():
+def test_handle_create_export_request_with_data_to_export(mock_post, flask_app, inventory_config):
+    with (
+        flask_app.app.app_context(),
+        mock.patch("app.queue.export_service.get_hosts_to_export", return_value=iter(es_utils.EXPORT_DATA)),
+        mock.patch("app.queue.export_service.create_export", return_value=True),
+    ):
         export_message = es_utils.create_export_message_mock()
         mock_post.return_value.status_code = 202
         resp = handle_export_message(message=export_message, inventory_config=inventory_config)
@@ -65,12 +65,12 @@ def test_handle_create_export_request_with_data_to_export(
 
 
 @mock.patch("requests.Session.post", autospec=True)
-@mock.patch("app.queue.export_service.get_hosts_to_export", return_value=[])
-@mock.patch("app.queue.export_service.create_export", return_value=False)
-def test_handle_create_export_request_with_no_data_to_export(
-    mock_export, mock_rbac, mock_post, flask_app, inventory_config
-):
-    with flask_app.app.app_context():
+def test_handle_create_export_request_with_no_data_to_export(mock_post, flask_app, inventory_config):
+    with (
+        flask_app.app.app_context(),
+        mock.patch("app.queue.export_service.get_hosts_to_export", return_value=[]),
+        mock.patch("app.queue.export_service.create_export", return_value=False),
+    ):
         export_message = es_utils.create_export_message_mock()
         mock_post.return_value.status_code = 202
         resp = handle_export_message(message=export_message, inventory_config=inventory_config)
