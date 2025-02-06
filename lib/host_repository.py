@@ -5,6 +5,7 @@ from sqlalchemy import and_
 from sqlalchemy import not_
 from sqlalchemy import or_
 
+from api.filtering.db_filters import find_stale_host_in_window
 from api.filtering.db_filters import stale_timestamp_filter
 from api.filtering.db_filters import staleness_to_conditions
 from api.filtering.db_filters import update_query_for_owner_id
@@ -210,11 +211,42 @@ def find_hosts_by_staleness(staleness_types, query, identity):
     return query.filter(or_(False, *staleness_conditions))
 
 
-def find_hosts_by_staleness_reaper(staleness_types, identity):
+def find_hosts_by_staleness_job(staleness_types, identity):
     logger.debug("find_hosts_by_staleness(%s)", staleness_types)
     staleness_obj = serialize_staleness_to_dict(get_staleness_obj(identity=identity))
     staleness_conditions = [
-        or_(False, *staleness_to_conditions(staleness_obj, staleness_types, host_type, stale_timestamp_filter))
+        or_(
+            False,
+            *staleness_to_conditions(staleness_obj, staleness_types, host_type, stale_timestamp_filter),
+        )
+        for host_type in HOST_TYPES
+    ]
+
+    return or_(False, *staleness_conditions)
+
+
+def find_stale_hosts(identity, last_run_secs, job_start_time):
+    logger.debug("finding stale hosts with custom staleness")
+    staleness_obj = serialize_staleness_to_dict(get_staleness_obj(identity=identity))
+    staleness_conditions = [
+        or_(
+            False,
+            *find_stale_host_in_window(staleness_obj, host_type, last_run_secs, job_start_time),
+        )
+        for host_type in HOST_TYPES
+    ]
+
+    return or_(False, *staleness_conditions)
+
+
+def find_stale_host_sys_default_staleness(last_run_secs, job_start_time):
+    logger.debug("finding stale hosts with system default staleness")
+    sys_default_staleness = serialize_staleness_to_dict(get_sys_default_staleness())
+    staleness_conditions = [
+        or_(
+            False,
+            *find_stale_host_in_window(sys_default_staleness, host_type, last_run_secs, job_start_time),
+        )
         for host_type in HOST_TYPES
     ]
 
@@ -225,7 +257,10 @@ def find_hosts_sys_default_staleness(staleness_types):
     logger.debug("find hosts with system default staleness")
     sys_default_staleness = serialize_staleness_to_dict(get_sys_default_staleness())
     staleness_conditions = [
-        or_(False, *staleness_to_conditions(sys_default_staleness, staleness_types, host_type, stale_timestamp_filter))
+        or_(
+            False,
+            *staleness_to_conditions(sys_default_staleness, staleness_types, host_type, stale_timestamp_filter),
+        )
         for host_type in HOST_TYPES
     ]
 
