@@ -61,3 +61,15 @@ hosts_syndication_success_count = Counter(
     "hosts_syndication_success_count", "The total number of syndication attempts succeeded."
 )
 hosts_syndication_time = Summary("hosts_syndication_time", "The time syndication performed")
+
+# Stale Host Notification
+stale_host_notification_success_count = Counter(
+    "inventory_stale_host_notification_success_count",
+    "The total amount of stale hosts notifications produced successfully",
+)
+stale_host_notification_processing_time = Summary(
+    "inventory_stale_host_notification_processing_time", "Time spent generating stale host notifications"
+)
+stale_host_notification_fail_count = Counter(
+    "inventory_stale_host_notification_fail_count", "The total amount of Stale Host Notification failures."
+)
