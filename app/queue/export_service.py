@@ -180,7 +180,7 @@ def _handle_export_error(
     response = session.post(
         url=request_url,
         headers=request_headers,
-        data=json.dumps({"message": str(error_message), "error": status_code}),
+        data=json.dumps({"message": error_message, "error": status_code}),
     )
     _handle_export_response(response, exportUUID, exportFormat)
 
@@ -188,7 +188,7 @@ def _handle_export_error(
 # This function is used by create_export, needs improvement
 def _handle_export_response(response: Response, exportUUID: UUID, exportFormat: str):
     if response.status_code != HTTPStatus.ACCEPTED:
-        raise InventoryException(response.text)
+        raise InventoryException(detail=response.text)
     elif response.text != "":
         logger.info(f"{response.text} for export ID {str(exportUUID)} in {exportFormat.upper()} format")
 
