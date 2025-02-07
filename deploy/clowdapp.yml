@@ -1704,7 +1704,7 @@ parameters:
 - name: STALE_HOST_NOTIFICATION_SUSPEND
   value: 'true'
 - name: STALE_HOST_NOTIFICATION_SCHEDULE
-  value: '*/1 * * * *'
+  value: '0 */1 * * *'
 - name: SYNDICATOR_SUSPEND
   value: 'false'
 - name: SYNDICATOR_CRON_SCHEDULE
