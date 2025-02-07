@@ -663,6 +663,7 @@ class Staleness(db.Model):  # type: ignore [name-defined]
 
 class HostInventoryMetadata(db.Model):  # type: ignore [name-defined]
     __tablename__ = "hbi_metadata"
+    __table_args__ = ({"schema": INVENTORY_SCHEMA},)
 
     def __init__(self, name, type):
         self.name = name
