@@ -258,6 +258,12 @@ def populate_events(base_notification_obj, host_list, extra_fields=None):
 def send_notification(notification_event_producer, notification_type, host, **kwargs):
     notification = build_notification(notification_type, host, **kwargs)
     headers = notification_headers(notification_type)
+
+    # if a value in the notification header is None, don't send it
+    for key in headers.copy():
+        if headers[key] is None:
+            del headers[key]
+
     notification_event_producer.write_event(notification, None, headers, wait=True)
 
 
