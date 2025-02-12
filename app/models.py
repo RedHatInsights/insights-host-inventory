@@ -259,6 +259,7 @@ class LimitedHost(db.Model):  # type: ignore [name-defined]
     modified_on = db.Column(db.DateTime(timezone=True), default=_time_now, onupdate=_time_now)
     facts = db.Column(JSONB)
     tags = db.Column(JSONB)
+    tags_alt = db.Column(JSONB)
     canonical_facts = db.Column(JSONB)
     system_profile_facts = db.Column(JSONB)
     groups = db.Column(JSONB)
