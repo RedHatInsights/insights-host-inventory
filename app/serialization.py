@@ -14,6 +14,7 @@ from app.exceptions import ValidationException
 from app.models import CanonicalFactsSchema
 from app.models import HostSchema
 from app.utils import Tag
+from lib.staleness import get_staleness_timestamps
 
 __all__ = ("deserialize_host", "serialize_host", "serialize_host_system_profile", "serialize_canonical_facts")
 
@@ -111,109 +112,71 @@ def serialize_host(
     host,
     staleness_timestamps,
     for_mq=True,
-    additional_fields=tuple(),
+    additional_fields=None,
     staleness=None,
     system_profile_fields=None,
 ):
-    # TODO: In future, this must handle groups staleness
-    if host.host_type == "edge" or (
-        hasattr(host, "system_profile_facts")
-        and host.system_profile_facts
-        and host.system_profile_facts.get("host_type") == "edge"
-    ):
-        stale_timestamp = staleness_timestamps.stale_timestamp(host.modified_on, staleness["immutable_time_to_stale"])
-        stale_warning_timestamp = staleness_timestamps.stale_warning_timestamp(
-            host.modified_on, staleness["immutable_time_to_stale_warning"]
-        )
-        culled_timestamp = staleness_timestamps.culled_timestamp(
-            host.modified_on, staleness["immutable_time_to_delete"]
-        )
-    else:
-        stale_timestamp = staleness_timestamps.stale_timestamp(
-            host.modified_on, staleness["conventional_time_to_stale"]
-        )
-        stale_warning_timestamp = staleness_timestamps.stale_warning_timestamp(
-            host.modified_on, staleness["conventional_time_to_stale_warning"]
-        )
-        culled_timestamp = staleness_timestamps.culled_timestamp(
-            host.modified_on, staleness["conventional_time_to_delete"]
-        )
+    # Ensure additional_fields is a tuple
+    additional_fields = additional_fields or tuple()
 
-    serialized_host = {**serialize_canonical_facts(host.canonical_facts)}
+    timestamps = get_staleness_timestamps(host, staleness_timestamps, staleness)
 
     fields = DEFAULT_FIELDS + additional_fields
     if for_mq:
         fields += ADDITIONAL_HOST_MQ_FIELDS
 
-    if "id" in fields:
-        serialized_host["id"] = _serialize_uuid(host.id)
-    if "account" in fields:
-        serialized_host["account"] = host.account
-    if "org_id" in fields:
-        serialized_host["org_id"] = host.org_id
-    if "display_name" in fields:
-        serialized_host["display_name"] = host.display_name
-    if "ansible_host" in fields:
-        serialized_host["ansible_host"] = host.ansible_host
-    if "facts" in fields:
-        serialized_host["facts"] = serialize_facts(host.facts)
-    if "reporter" in fields:
-        serialized_host["reporter"] = host.reporter
-    if "per_reporter_staleness" in fields:
-        serialized_host["per_reporter_staleness"] = _serialize_per_reporter_staleness(
-            host, staleness, staleness_timestamps
-        )
-    if "stale_timestamp" in fields:
-        serialized_host["stale_timestamp"] = stale_timestamp and _serialize_staleness_to_string(stale_timestamp)
-    if "stale_warning_timestamp" in fields:
-        serialized_host["stale_warning_timestamp"] = stale_warning_timestamp and _serialize_staleness_to_string(
-            stale_warning_timestamp
-        )
-    if "culled_timestamp" in fields:
-        serialized_host["culled_timestamp"] = culled_timestamp and _serialize_staleness_to_string(culled_timestamp)
-        # without astimezone(timezone.utc) the isoformat() method does not include timezone offset even though iso-8601
-        # requires it
-    if "created" in fields:
-        serialized_host["created"] = _serialize_datetime(host.created_on)
-    if "updated" in fields:
-        serialized_host["updated"] = _serialize_datetime(host.modified_on)
-    if "tags" in fields:
-        serialized_host["tags"] = _serialize_tags(host.tags)
-    if "system_profile" in fields:
-        if host.system_profile_facts:
-            if system_profile_fields:
-                serialized_host["system_profile"] = {
-                    k: v for (k, v) in host.system_profile_facts.items() if k in system_profile_fields
-                }
-            else:
-                serialized_host["system_profile"] = host.system_profile_facts
-        else:
-            serialized_host["system_profile"] = {}
+    # Base serialization
+    serialized_host = {**serialize_canonical_facts(host.canonical_facts)}
 
+    # Define field mapping to avoid repeated "if" conditions
+    field_mapping = {
+        "id": lambda: _serialize_uuid(host.id),
+        "account": lambda: host.account,
+        "org_id": lambda: host.org_id,
+        "display_name": lambda: host.display_name,
+        "ansible_host": lambda: host.ansible_host,
+        "facts": lambda: serialize_facts(host.facts),
+        "reporter": lambda: host.reporter,
+        "per_reporter_staleness": lambda: _serialize_per_reporter_staleness(host, staleness, staleness_timestamps),
+        "stale_timestamp": lambda: _serialize_staleness_to_string(timestamps["stale_timestamp"]),
+        "stale_warning_timestamp": lambda: _serialize_staleness_to_string(timestamps["stale_warning_timestamp"]),
+        "culled_timestamp": lambda: _serialize_staleness_to_string(timestamps["culled_timestamp"]),
+        "created": lambda: _serialize_datetime(host.created_on),
+        "updated": lambda: _serialize_datetime(host.modified_on),
+        "tags": lambda: _serialize_tags(host.tags),
+        "state": lambda: Conditions.find_host_state(
+            stale_timestamp=timestamps["stale_timestamp"],
+            stale_warning_timestamp=timestamps["stale_warning_timestamp"],
+        ),
+        "host_type": lambda: host.host_type,
+        "os_release": lambda: host.system_profile_facts.get("os_release", None),
+    }
+
+    # Process each field dynamically
+    serialized_host.update({key: func() for key, func in field_mapping.items() if key in fields})
+
+    # Handle system_profile separately due to its complexity
+    if "system_profile" in fields:
+        serialized_host["system_profile"] = (
+            {k: v for k, v in host.system_profile_facts.items() if k in system_profile_fields}
+            if host.system_profile_facts and system_profile_fields
+            else host.system_profile_facts or {}
+        )
         if (
             system_profile_fields
             and system_profile_fields.count("host_type") < 2
             and serialized_host["system_profile"].get("host_type")
         ):
             del serialized_host["system_profile"]["host_type"]
-    if "groups" in fields:
-        # For MQ messages, we only include name and ID.
-        if for_mq and host.groups:
-            serialized_host["groups"] = [
-                {key: group[key] for key in group if key in ["name", "id"]} for group in host.groups
-            ]
-        else:
-            serialized_host["groups"] = host.groups or []
-    if "os_release" in fields:
-        serialized_host["os_release"] = host.system_profile_facts.get("os_release", None)
 
-    if "state" in fields:
-        serialized_host["state"] = Conditions.find_host_state(
-            stale_timestamp=stale_timestamp, stale_warning_timestamp=stale_warning_timestamp
+    # Handle groups separately
+    if "groups" in fields:
+        serialized_host["groups"] = (
+            [{key: group[key] for key in ["name", "id"]} for group in host.groups]
+            if for_mq and host.groups
+            else host.groups or []
         )
 
-    if "host_type" in fields:
-        serialized_host["host_type"] = host.host_type
     return serialized_host
 
 

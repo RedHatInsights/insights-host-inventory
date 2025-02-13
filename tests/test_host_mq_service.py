@@ -552,10 +552,10 @@ def test_add_host_with_wrong_owner(mocker, mq_create_or_update_host):
     )
 
     with pytest.raises(ValidationException) as ve:
-        key, event, headers = mq_create_or_update_host(
+        mq_create_or_update_host(
             host, return_all_data=True, notification_event_producer=mock_notification_event_producer
         )
-    assert str(ve.value) == "The owner in host does not match the owner in identity"
+    assert ve.value.detail == "The owner in host does not match the owner in identity"
     mock_notification_event_producer.write_event.assert_called_once()
 
 
@@ -1618,7 +1618,7 @@ def test_owner_id_different_from_cn(mocker):
 
     with pytest.raises(ValidationException) as ve:
         handle_message(json.dumps(message), mock_notification_event_producer)
-    assert str(ve.value) == "The owner in host does not match the owner in identity"
+    assert ve.value.detail == "The owner in host does not match the owner in identity"
     mock_notification_event_producer.write_event.assert_called_once()
 
 
