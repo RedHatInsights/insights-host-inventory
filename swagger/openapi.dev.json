@@ -3960,9 +3960,10 @@
             "enum": [
               "dnf",
               "rpm-ostree",
-              "yum"
+              "yum",
+              "bootc"
             ],
-            "example": "dnf, rpm-ostree, yum"
+            "example": "dnf, rpm-ostree, yum, bootc"
           },
           "virtual_host_uuid": {
             "description": "Hypervisor host identity (subscription manager id)",
