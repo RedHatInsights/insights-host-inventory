@@ -6,6 +6,7 @@ from unittest import mock
 
 import pytest
 from marshmallow.exceptions import ValidationError
+from sqlalchemy.orm.exc import ObjectDeletedError
 
 from api.staleness_query import get_sys_default_staleness
 from app.auth.identity import Identity
@@ -221,3 +222,15 @@ def test_export_one_host(flask_app, db_create_host, inventory_config):
         host_list = get_host_list(identity=identity, rbac_filter=None, inventory_config=inventory_config)
 
         assert len(host_list) == 1
+
+
+@mock.patch("api.host_query_db.db.session.scalars", side_effect=ObjectDeletedError(None))
+def test_export_catches_db_error(flask_app, inventory_config, mocker):
+    with flask_app.app.app_context():
+        handle_export_error_mock = mocker.patch("app.queue.export_service._handle_export_error")
+
+        validated_msg = parse_export_service_message(es_utils.create_export_message_mock())
+        base64_x_rh_identity = validated_msg["data"]["resource_request"]["x_rh_identity"]
+
+        create_export(validated_msg, base64_x_rh_identity, inventory_config)
+        handle_export_error_mock.assert_called_once()
