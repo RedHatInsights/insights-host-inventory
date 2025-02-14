@@ -63,6 +63,7 @@ def run(logger, session, application):
         found = result.cursor.fetchone()[0]
         if found:
             logger.info(f'Publication "{PUBLICATION_NAME}" found!')
+            hosts_syndication_success_count.inc()
         else:
             logger.info(f'Creating publication "{PUBLICATION_NAME}" using \n\t{CREATE_PUBLICATION}')
             try:
