@@ -10,6 +10,7 @@ from sqlalchemy import String
 from sqlalchemy import func
 from sqlalchemy import select
 from sqlalchemy.exc import MultipleResultsFound
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Query
 from sqlalchemy.orm import load_only
 from sqlalchemy.sql.expression import ColumnElement
@@ -235,7 +236,7 @@ def _find_hosts_entities_query(
 
 
 def _find_hosts_model_query(columns: list[ColumnElement] | None = None, identity: Any = None) -> Query:
-    query_base = select(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
+    query_base = db.session.query(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
     query = query_base.filter(Host.org_id == identity.org_id)
 
     # In this case, return a list of Hosts
@@ -625,10 +626,15 @@ def get_hosts_to_export(
     export_host_query = _find_hosts_model_query(identity=identity, columns=columns).filter(*q_filters)
     export_host_query = export_host_query.execution_options(yield_per=batch_size)
 
-    num_hosts = select(func.count()).select_from(export_host_query.subquery())
-    logger.debug(f"Number of hosts to be exported: {num_hosts}")
+    try:
+        num_hosts_query = select(func.count()).select_from(export_host_query.subquery())
+        num_hosts = db.session.scalar(num_hosts_query)
+        logger.debug(f"Number of hosts to be exported: {num_hosts}")
 
-    for host in db.session.scalars(export_host_query):
-        yield serialize_host_for_export_svc(host, staleness_timestamps=st_timestamps, staleness=staleness)
+        for host in db.session.scalars(export_host_query):
+            yield serialize_host_for_export_svc(host, staleness_timestamps=st_timestamps, staleness=staleness)
+
+    except SQLAlchemyError as e:  # Most likely ObjectDeletedError, but catching all DB errors
+        raise InventoryException(title="DB Error", detail=str(e)) from e
 
     db.session.close()
