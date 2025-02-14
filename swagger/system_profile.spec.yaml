@@ -602,7 +602,6 @@ $defs:
               example: "262e621d10ae4475ab5732b39a9160b2, 01fd642e02de4e6da2da6172081a971e"
               pattern: '^.*$'
               maxLength: 256
-
       system_purpose:
         description: Object for system purpose information
         type: object
@@ -682,8 +681,8 @@ $defs:
         description: System update method
         type: string
         maxLength: 10
-        enum: [dnf, rpm-ostree, yum]
-        example: "dnf, rpm-ostree, yum"
+        enum: [dnf, rpm-ostree, yum, bootc]
+        example: "dnf, rpm-ostree, yum, bootc"
       virtual_host_uuid:
         description: Hypervisor host identity (subscription manager id)
         type: string
