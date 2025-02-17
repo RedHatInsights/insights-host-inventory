@@ -78,7 +78,7 @@ objects:
       webServices:
         public:
           enabled: true
-      podSpec:
+      podSpec: &service-reads-podspec
         image: ${IMAGE}:${IMAGE_TAG}
         args: [
           "gunicorn",
@@ -221,7 +221,7 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_SERVICE}
             memory: ${MEMORY_REQUEST_SERVICE}
-        livenessProbe:
+        livenessProbe: &service-reads-liveness-probe
           failureThreshold: 3
           httpGet:
             path: /health
@@ -230,7 +230,7 @@ objects:
           periodSeconds: ${{INVENTORY_API_READS_LIVENESS_PROBE_PERIOD_SECONDS}}
           successThreshold: 1
           timeoutSeconds: ${{INVENTORY_API_READS_LIVENESS_PROBE_TIMEOUT_SECONDS}}
-        readinessProbe:
+        readinessProbe: &service-reads-readiness-probe
           failureThreshold: 3
           httpGet:
             path: /health
@@ -274,59 +274,7 @@ objects:
         public:
           enabled: true
       podSpec:
-        image: ${IMAGE}:${IMAGE_TAG}
-        args: [
-          "gunicorn",
-          "--workers=${GUNICORN_WORKERS}",
-          "--threads=${GUNICORN_THREADS}",
-          "--limit-request-field_size=${GUNICORN_REQUEST_FIELD_LIMIT}",
-          "--limit-request-line=${GUNICORN_REQUEST_LINE_LIMIT}",
-          "--worker-tmp-dir=/gunicorn",
-          "--log-file=-",
-          "--access-logfile=-",
-          "-c",
-          "gunicorn.conf.py",
-          "-b",
-          "0.0.0.0:8000",
-          "-t",
-          "60",
-          "--worker-class=uvicorn.workers.UvicornWorker",
-          "run:app"
-        ]
-        env: *default-env-vars
-        resources:
-          limits:
-            cpu: ${CPU_LIMIT_SERVICE}
-            memory: ${MEMORY_LIMIT_SERVICE}
-          requests:
-            cpu: ${CPU_REQUEST_SERVICE}
-            memory: ${MEMORY_REQUEST_SERVICE}
-        livenessProbe:
-          failureThreshold: 3
-          httpGet:
-            path: /health
-            port: 8000
-            scheme: HTTP
-          periodSeconds: ${{INVENTORY_API_READS_LIVENESS_PROBE_PERIOD_SECONDS}}
-          successThreshold: 1
-          timeoutSeconds: ${{INVENTORY_API_READS_LIVENESS_PROBE_TIMEOUT_SECONDS}}
-        readinessProbe:
-          failureThreshold: 3
-          httpGet:
-            path: /health
-            port: 8000
-            scheme: HTTP
-          periodSeconds: ${{INVENTORY_API_READS_READINESS_PROBE_PERIOD_SECONDS}}
-          successThreshold: 1
-          timeoutSeconds: ${{INVENTORY_API_READS_READINESS_PROBE_TIMEOUT_SECONDS}}
-        volumeMounts:
-        - mountPath: /tmp/inventory/prometheus
-          name: prometheus-volume
-        - mountPath: /gunicorn
-          name: gunicorn-worker-dir
-        - mountPath: /etc/db/readreplica
-          name: host-inventory-read-only-db
-          readOnly: true
+        <<: *service-reads-podspec
         volumes:
         - emptyDir: {}
           name: prometheus-volume
@@ -354,50 +302,14 @@ objects:
         public:
           enabled: true
       podSpec:
-        image: ${IMAGE}:${IMAGE_TAG}
-        args: [
-          "gunicorn",
-          "--workers=${GUNICORN_WORKERS}",
-          "--threads=${GUNICORN_THREADS}",
-          "--limit-request-field_size=${GUNICORN_REQUEST_FIELD_LIMIT}",
-          "--limit-request-line=${GUNICORN_REQUEST_LINE_LIMIT}",
-          "--worker-tmp-dir=/gunicorn",
-          "--log-file=-",
-          "--access-logfile=-",
-          "-c",
-          "gunicorn.conf.py",
-          "-b",
-          "0.0.0.0:8000",
-          "-t",
-          "60",
-          "--worker-class=uvicorn.workers.UvicornWorker",
-          "run:app"
-        ]
-        env: *default-env-vars
-        resources:
-          limits:
-            cpu: ${CPU_LIMIT_SERVICE}
-            memory: ${MEMORY_LIMIT_SERVICE}
-          requests:
-            cpu: ${CPU_REQUEST_SERVICE}
-            memory: ${MEMORY_REQUEST_SERVICE}
+        <<: *service-reads-podspec
         livenessProbe:
-          failureThreshold: 3
-          httpGet:
-            path: /health
-            port: 8000
-            scheme: HTTP
+          <<: *service-reads-liveness-probe
           periodSeconds: ${{INVENTORY_API_WRITES_LIVENESS_PROBE_PERIOD_SECONDS}}
-          successThreshold: 1
           timeoutSeconds: ${{INVENTORY_API_WRITES_LIVENESS_PROBE_TIMEOUT_SECONDS}}
         readinessProbe:
-          failureThreshold: 3
-          httpGet:
-            path: /health
-            port: 8000
-            scheme: HTTP
+          <<: *service-reads-readiness-probe
           periodSeconds: ${{INVENTORY_API_WRITES_READINESS_PROBE_PERIOD_SECONDS}}
-          successThreshold: 1
           timeoutSeconds: ${{INVENTORY_API_WRITES_READINESS_PROBE_TIMEOUT_SECONDS}}
         volumeMounts:
         - mountPath: /tmp/inventory/prometheus
@@ -412,11 +324,11 @@ objects:
           name: gunicorn-worker-dir
     - name: mq-pmin
       replicas: ${{REPLICAS_PMIN}}
-      podSpec:
+      podSpec: &mq-podspec
         args: ["./inv_mq_service.py"]
         env: *default-env-vars
         image: ${IMAGE}:${IMAGE_TAG}
-        livenessProbe:
+        livenessProbe: &mq-liveness-probe
           failureThreshold: 3
           httpGet:
             path: /
@@ -426,7 +338,7 @@ objects:
           periodSeconds: 10
           successThreshold: 1
           timeoutSeconds: 5
-        readinessProbe:
+        readinessProbe: &mq-readiness-probe
           tcpSocket:
             port: 9000
         resources:
@@ -439,10 +351,10 @@ objects:
     - name: mq-p1
       replicas: ${{REPLICAS_P1}}
       podSpec:
+        <<: *mq-podspec
         initContainers:
         - args: ["FLASK_APP=./manage.py", "flask", "db", "upgrade"]
           inheritEnv: true
-        args: ["./inv_mq_service.py"]
         env:
         - name: CONSOLEDOT_HOSTNAME
           value: ${CONSOLEDOT_HOSTNAME}
@@ -508,20 +420,6 @@ objects:
           value: ${MQ_DB_BATCH_MAX_MESSAGES}
         - name: MQ_DB_BATCH_MAX_SECONDS
           value: ${MQ_DB_BATCH_MAX_SECONDS}
-        image: ${IMAGE}:${IMAGE_TAG}
-        livenessProbe:
-          failureThreshold: 3
-          httpGet:
-            path: /
-            port: 9000
-            scheme: HTTP
-          initialDelaySeconds: 10
-          periodSeconds: 10
-          successThreshold: 1
-          timeoutSeconds: 5
-        readinessProbe:
-          tcpSocket:
-            port: 9000
         resources:
           limits:
             cpu: ${CPU_LIMIT_MQ_P1}
@@ -532,7 +430,7 @@ objects:
     - name: mq-sp
       replicas: ${{REPLICAS_SP}}
       podSpec:
-        args: ["./inv_mq_service.py"]
+        <<: *mq-podspec
         env:
         - name: CONSOLEDOT_HOSTNAME
           value: ${CONSOLEDOT_HOSTNAME}
@@ -595,19 +493,6 @@ objects:
         - name: MQ_DB_BATCH_MAX_SECONDS
           value: ${MQ_DB_BATCH_MAX_SECONDS}
         image: ${IMAGE}:${IMAGE_TAG}
-        livenessProbe:
-          failureThreshold: 3
-          httpGet:
-            path: /
-            port: 9000
-            scheme: HTTP
-          initialDelaySeconds: 10
-          periodSeconds: 10
-          successThreshold: 1
-          timeoutSeconds: 5
-        readinessProbe:
-          tcpSocket:
-            port: 9000
         resources:
           limits:
             cpu: ${CPU_LIMIT_MQ_SP}
@@ -622,18 +507,9 @@ objects:
         env: *default-env-vars
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
-          failureThreshold: 3
-          httpGet:
-            path: /
-            port: 9000
-            scheme: HTTP
-          initialDelaySeconds: 10
-          periodSeconds: 10
-          successThreshold: 1
-          timeoutSeconds: 5
+          <<: *mq-liveness-probe
         readinessProbe:
-          tcpSocket:
-            port: 9000
+          <<: *mq-readiness-probe
         resources:
           limits:
             cpu: ${CPU_LIMIT_EXPORT_SVC}
