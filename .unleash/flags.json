@@ -47,6 +47,38 @@
             ],
             "variants": [],
             "createdAt": "2024-01-10T20:18:18.842Z"
+        },
+        {
+            "name": "hbi.api.kessel-workspace-migration",
+            "description": "Gates the functionality for Phase 0 of the HBI Kessel migration (RHINENG-15827).",
+            "type": "release",
+            "project": "default",
+            "stale": false,
+            "enabled": false,
+            "strategies": [
+                {
+                    "name": "default",
+                    "parameters": {}
+                }
+            ],
+            "variants": [],
+            "createdAt": "2025-02-14T16:26:57.428Z"
+        },
+        {
+            "name": "hbi.api.read-only",
+            "description": "When turned ON, HBI's write endpoints (PUT/POST/PATCH) are disabled.",
+            "type": "release",
+            "project": "default",
+            "stale": false,
+            "enabled": false,
+            "strategies": [
+                {
+                    "name": "default",
+                    "parameters": {}
+                }
+            ],
+            "variants": [],
+            "createdAt": "2025-02-14T16:29:19.146Z"
         }
     ],
     "strategies": [
