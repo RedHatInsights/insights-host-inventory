@@ -167,11 +167,6 @@ def enable_rbac(inventory_config):
 
 
 @pytest.fixture(scope="function")
-def enable_org_id_translation(inventory_config):
-    inventory_config.bypass_tenant_translation = False
-
-
-@pytest.fixture(scope="function")
 def _enable_unleash(inventory_config):
     inventory_config.unleash_token = "mockUnleashTokenValue"
 

@@ -38,10 +38,6 @@ def get_rbac_url(app: str) -> str:
     return inventory_config().rbac_endpoint + RBAC_ROUTE + app
 
 
-def tenant_translator_url() -> str:
-    return inventory_config().tenant_translator_url
-
-
 def get_rbac_permissions(app: str, request_header: dict):
     request_session = Session()
     retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)

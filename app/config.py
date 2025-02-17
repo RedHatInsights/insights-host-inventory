@@ -198,9 +198,6 @@ class Config:
 
         self.bypass_unleash = os.environ.get("BYPASS_UNLEASH", "false").lower() == "true"
 
-        self.bypass_tenant_translation = os.environ.get("BYPASS_TENANT_TRANSLATION", "false").lower() == "true"
-        self.tenant_translator_url = os.environ.get("TENANT_TRANSLATOR_URL", "http://localhost:8892/internal/orgIds")
-
         self.host_ingress_consumer_group = os.environ.get("KAFKA_HOST_INGRESS_GROUP", "inventory-mq")
         self.inv_export_service_consumer_group = os.environ.get("KAFKA_EXPORT_SERVICE_GROUP", "inv-export-service")
         self.sp_validator_max_messages = int(os.environ.get("KAFKA_SP_VALIDATOR_MAX_MESSAGES", "10000"))
@@ -333,7 +330,6 @@ class Config:
 
         if self._runtime_environment == RuntimeEnvironment.TEST:
             self.bypass_rbac = True
-            self.bypass_tenant_translation = True
             self.bypass_unleash = True
 
     def _build_base_url_path(self):
@@ -402,10 +398,6 @@ class Config:
 
             self.logger.info("Unleash (feature flags) Bypassed by config: %s", self.bypass_unleash)
             self.logger.info("Unleash (feature flags) Bypassed by missing token: %s", self.unleash_token is None)
-
-            self.logger.info(
-                "Bypassing tenant translation for hosts missing org_id: %s", self.bypass_tenant_translation
-            )
 
         if self._runtime_environment == RuntimeEnvironment.SERVICE or self._runtime_environment.event_producer_enabled:
             self.logger.info("Kafka Bootstrap Servers: %s", self.bootstrap_servers)
