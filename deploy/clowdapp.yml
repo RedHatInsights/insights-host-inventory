@@ -293,8 +293,7 @@ objects:
           "--worker-class=uvicorn.workers.UvicornWorker",
           "run:app"
         ]
-        env:
-          <<: *default-env-vars
+        env: *default-env-vars
         resources:
           limits:
             cpu: ${CPU_LIMIT_SERVICE}
@@ -374,8 +373,7 @@ objects:
           "--worker-class=uvicorn.workers.UvicornWorker",
           "run:app"
         ]
-        env:
-          <<: *default-env-vars
+        env: *default-env-vars
         resources:
           limits:
             cpu: ${CPU_LIMIT_SERVICE}
@@ -416,8 +414,7 @@ objects:
       replicas: ${{REPLICAS_PMIN}}
       podSpec:
         args: ["./inv_mq_service.py"]
-        env:
-          <<: *default-env-vars
+        env: *default-env-vars
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -622,8 +619,7 @@ objects:
       minReplicas: ${{REPLICAS_EXPORT_SVC}}
       podSpec:
         args: ["./inv_export_service.py"]
-        env:
-          <<: *default-env-vars
+        env: *default-env-vars
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -655,8 +651,7 @@ objects:
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
         args: ["./host_reaper.py"]
-        env:
-          <<: *default-env-vars
+        env: *default-env-vars
         resources:
           limits:
             cpu: ${CPU_LIMIT_REAPER}
@@ -672,8 +667,7 @@ objects:
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
         args: ["./generate_stale_host_notifications.py"]
-        env:
-          <<: *default-env-vars
+        env: *default-env-vars
         resources:
           limits:
             cpu: ${CPU_LIMIT_STALE_HOST_NOTIFICAION}
@@ -689,8 +683,7 @@ objects:
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
         args: ["./inv_publish_hosts.py"]
-        env:
-          <<: *default-env-vars
+        env: *default-env-vars
         resources:
           limits:
             cpu: ${CPU_LIMIT_SYNDICATOR}
@@ -706,8 +699,7 @@ objects:
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
         args: ["./system_profile_validator.py"]
-        env:
-          <<: *default-env-vars
+        env: *default-env-vars
         resources:
           limits:
             cpu: ${CPU_LIMIT_SP_VALIDATOR}
@@ -722,8 +714,7 @@ objects:
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
         args: ["./pendo_syncher.py"]
-        env:
-          <<: *default-env-vars
+        env: *default-env-vars
         resources:
           limits:
             cpu: ${CPU_LIMIT_PENDO_SYNCHER}
@@ -736,8 +727,7 @@ objects:
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
         args: ["./rebuild_events_topic.py", "&&", "./host_synchronizer.py"]
-        env:
-          <<: *default-env-vars
+        env: *default-env-vars
         resources:
           limits:
             cpu: ${CPU_LIMIT_SYNCHRONIZER}
