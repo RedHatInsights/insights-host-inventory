@@ -86,7 +86,8 @@ def run(logger, session, application):
             else:
                 session.commit()
                 logger.info(f'Publication "{PUBLICATION_NAME}" created!!!')
-                hosts_syndication_success_count.inc()
+
+        hosts_syndication_success_count.inc()
 
 
 def main(logger):
