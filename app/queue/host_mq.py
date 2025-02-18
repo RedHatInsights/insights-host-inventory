@@ -16,6 +16,7 @@ from sqlalchemy.orm.exc import StaleDataError
 from api.cache import delete_cached_system_keys
 from api.cache import set_cached_system
 from api.cache_key import make_system_cache_key
+from api.host_query import staleness_timestamps
 from api.staleness_query import get_staleness_obj
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
@@ -256,7 +257,10 @@ def add_host(host_data, platform_metadata, operation_args=None):
     sp_fields_to_log = extract_host_dict_sp_to_log(host_data)
     try:
         identity = _get_identity(host_data, platform_metadata)
-        input_host = deserialize_host(host_data)
+        staleness = get_staleness_obj(identity)
+        st_timestamps = staleness_timestamps()
+
+        input_host = deserialize_host(host_data, staleness=staleness, staleness_timestamps=st_timestamps)
 
         # basic-auth does not need owner_id
         if identity.identity_type == IdentityType.SYSTEM:

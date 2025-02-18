@@ -1,15 +1,20 @@
 import logging
 from datetime import timedelta
+from functools import partial
 from random import randint
 
 from sqlalchemy.exc import InvalidRequestError
 
+from api.staleness_query import get_sys_default_staleness
 from app.auth.identity import Identity
+from app.culling import Timestamps
+from app.culling import _Config as CullingConfig
 from app.models import AssignmentRule
 from app.models import Group
 from app.models import Host
 from app.models import Staleness
 from app.models import db
+from app.serialization import get_staleness_timestamps
 from lib.host_repository import find_existing_host
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
@@ -40,6 +45,13 @@ def clean_tables():
     _clean_tables()
 
 
+def create_staleness_func():
+    config = CullingConfig(stale_warning_offset_delta=timedelta(days=7), culled_offset_delta=timedelta(days=14))
+    staleness = get_sys_default_staleness()
+    staleness_timestamps = Timestamps(config)
+    return partial(get_staleness_timestamps, staleness_timestamps=staleness_timestamps, staleness=staleness)
+
+
 def minimal_db_host(**values):
     data = minimal_db_host_dict(**values)
     return Host(**data)
@@ -50,6 +62,7 @@ def minimal_db_host_dict(**values):
         "canonical_facts": {"insights_id": generate_uuid()},
         "stale_timestamp": (now() + timedelta(days=randint(1, 7))),
         "reporter": "test-reporter",
+        "staleness_func": create_staleness_func(),
         **values,
     }
     if "org_id" in values:
@@ -79,6 +92,7 @@ def db_host(**values):
         "tags": {"ns1": {"key1": ["val1", "val2"], "key2": ["val1"]}, "SPECIAL": {"tag": ["ToFind"]}},
         "stale_timestamp": (now() + timedelta(days=randint(1, 7))),
         "reporter": "test-reporter",
+        "staleness_func": create_staleness_func(),
         **values,
     }
     return Host(**data)

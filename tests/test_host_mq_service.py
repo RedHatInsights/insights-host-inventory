@@ -26,6 +26,7 @@ from lib.host_repository import AddHostResult
 from tests.helpers.db_utils import create_reference_host_in_db
 from tests.helpers.mq_utils import FakeMessage
 from tests.helpers.mq_utils import assert_mq_host_data
+from tests.helpers.mq_utils import assert_staleness_timestamps_in_host
 from tests.helpers.mq_utils import expected_headers
 from tests.helpers.mq_utils import wrap_message
 from tests.helpers.system_profile_utils import INVALID_SYSTEM_PROFILES
@@ -2068,3 +2069,11 @@ def test_log_update_system_profile(mq_create_or_update_host, db_get_host, id_typ
         "number_of_sockets": 8,
     }
     assert caplog.records[0].input_host["system_profile"] == "{}"
+
+
+def test_host_checkin_staleness_timestamps_values(mq_create_or_update_host, db_get_host):
+    input_host = base_host(**{"insights_id": generate_uuid(), "fqdn": "foo.test.redhat.com"})
+    created_host = mq_create_or_update_host(input_host)
+    created_host_from_db = db_get_host(created_host.id)
+
+    assert assert_staleness_timestamps_in_host(created_host_from_db)

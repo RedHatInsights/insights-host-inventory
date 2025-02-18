@@ -412,3 +412,11 @@ def create_kafka_consumer_mock(
     fake_consumer.consume.side_effect = poll_result_list
     fake_consumer.offsets_for_times.return_value = mock_start_offsets
     return fake_consumer
+
+
+def assert_staleness_timestamps_in_host(host):
+    keys = ["stale_timestamp", "stale_warning_timestamp", "culled_timestamp"]
+    reporter = host.reporter
+
+    for key in keys:
+        assert key in host.per_reporter_staleness[reporter]

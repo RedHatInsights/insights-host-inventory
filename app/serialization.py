@@ -1,5 +1,6 @@
 from datetime import datetime
 from datetime import timezone
+from functools import partial
 
 from dateutil.parser import isoparse
 from marshmallow import ValidationError
@@ -75,7 +76,7 @@ ADDITIONAL_EXPORT_SERVICE_FIELDS = (
 )
 
 
-def deserialize_host(raw_data, schema=HostSchema, system_profile_spec=None):
+def deserialize_host(raw_data, schema=HostSchema, system_profile_spec=None, staleness=None, staleness_timestamps=None):
     try:
         validated_data = schema(system_profile_schema=system_profile_spec).load(raw_data)
     except ValidationError as e:
@@ -85,8 +86,23 @@ def deserialize_host(raw_data, schema=HostSchema, system_profile_spec=None):
 
     canonical_facts = _deserialize_canonical_facts(validated_data)
     facts = _deserialize_facts(validated_data.get("facts"))
-    tags = _deserialize_tags(validated_data.get("tags"))
-    return schema.build_model(validated_data, canonical_facts, facts, tags)
+    tags = _deserialize_tags(validated_data.get("tags"))    
+    if schema is HostSchema:
+        host = schema.build_model(
+            validated_data,
+            canonical_facts,
+            facts,
+            tags,
+            partial(get_staleness_timestamps, staleness_timestamps=staleness_timestamps, staleness=staleness),
+        )
+    else:
+        host = schema.build_model(
+            validated_data,
+            canonical_facts,
+            facts,
+            tags,
+        )
+    return host
 
 
 def deserialize_canonical_facts(raw_data, all=False):
@@ -107,6 +123,32 @@ def remove_null_canonical_facts(serialized_host: dict):
         del serialized_host[field_name]
 
 
+def get_staleness_timestamps(host, staleness_timestamps, staleness):
+    """Helper function to calculate staleness timestamps based on host type."""
+    staleness_type = (
+        "immutable"
+        if host.host_type == "edge"
+        or (
+            hasattr(host, "system_profile_facts")
+            and host.system_profile_facts
+            and host.system_profile_facts.get("host_type") == "edge"
+        )
+        else "conventional"
+    )
+
+    return {
+        "stale_timestamp": staleness_timestamps.stale_timestamp(
+            host.modified_on, staleness[f"{staleness_type}_time_to_stale"]
+        ),
+        "stale_warning_timestamp": staleness_timestamps.stale_warning_timestamp(
+            host.modified_on, staleness[f"{staleness_type}_time_to_stale_warning"]
+        ),
+        "culled_timestamp": staleness_timestamps.culled_timestamp(
+            host.modified_on, staleness[f"{staleness_type}_time_to_delete"]
+        ),
+    }
+
+
 def serialize_host(
     host,
     staleness_timestamps,
@@ -115,29 +157,7 @@ def serialize_host(
     staleness=None,
     system_profile_fields=None,
 ):
-    # TODO: In future, this must handle groups staleness
-    if host.host_type == "edge" or (
-        hasattr(host, "system_profile_facts")
-        and host.system_profile_facts
-        and host.system_profile_facts.get("host_type") == "edge"
-    ):
-        stale_timestamp = staleness_timestamps.stale_timestamp(host.modified_on, staleness["immutable_time_to_stale"])
-        stale_warning_timestamp = staleness_timestamps.stale_warning_timestamp(
-            host.modified_on, staleness["immutable_time_to_stale_warning"]
-        )
-        culled_timestamp = staleness_timestamps.culled_timestamp(
-            host.modified_on, staleness["immutable_time_to_delete"]
-        )
-    else:
-        stale_timestamp = staleness_timestamps.stale_timestamp(
-            host.modified_on, staleness["conventional_time_to_stale"]
-        )
-        stale_warning_timestamp = staleness_timestamps.stale_warning_timestamp(
-            host.modified_on, staleness["conventional_time_to_stale_warning"]
-        )
-        culled_timestamp = staleness_timestamps.culled_timestamp(
-            host.modified_on, staleness["conventional_time_to_delete"]
-        )
+    timestamps = get_staleness_timestamps(host, staleness_timestamps, staleness)
 
     serialized_host = {**serialize_canonical_facts(host.canonical_facts)}
 
@@ -164,13 +184,17 @@ def serialize_host(
             host, staleness, staleness_timestamps
         )
     if "stale_timestamp" in fields:
-        serialized_host["stale_timestamp"] = stale_timestamp and _serialize_staleness_to_string(stale_timestamp)
-    if "stale_warning_timestamp" in fields:
-        serialized_host["stale_warning_timestamp"] = stale_warning_timestamp and _serialize_staleness_to_string(
-            stale_warning_timestamp
+        serialized_host["stale_timestamp"] = timestamps["stale_timestamp"] and _serialize_staleness_to_string(
+            timestamps["stale_timestamp"]
         )
+    if "stale_warning_timestamp" in fields:
+        serialized_host["stale_warning_timestamp"] = timestamps[
+            "stale_warning_timestamp"
+        ] and _serialize_staleness_to_string(timestamps["stale_warning_timestamp"])
     if "culled_timestamp" in fields:
-        serialized_host["culled_timestamp"] = culled_timestamp and _serialize_staleness_to_string(culled_timestamp)
+        serialized_host["culled_timestamp"] = timestamps["culled_timestamp"] and _serialize_staleness_to_string(
+            timestamps["culled_timestamp"]
+        )
         # without astimezone(timezone.utc) the isoformat() method does not include timezone offset even though iso-8601
         # requires it
     if "created" in fields:
@@ -209,7 +233,8 @@ def serialize_host(
 
     if "state" in fields:
         serialized_host["state"] = Conditions.find_host_state(
-            stale_timestamp=stale_timestamp, stale_warning_timestamp=stale_warning_timestamp
+            stale_timestamp=timestamps["stale_timestamp"],
+            stale_warning_timestamp=timestamps["stale_warning_timestamp"],
         )
 
     if "host_type" in fields:
