@@ -23,6 +23,6 @@ jobs:
           git add .baseimagedigest
           git commit -m "chore(image): update base image" || echo "No new changes"
       - name: Create pull request
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v7
         with:
           title: 'chore(image): update base image'
