@@ -316,3 +316,10 @@ def test_delete_non_empty_group(api_delete_groups, db_create_group_with_hosts):
 
     response_status, _ = api_delete_groups([group.id])
     assert_response_status(response_status, expected_status=204)
+
+
+@pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
+def test_attempt_delete_group_read_only(api_delete_groups, mocker):
+    with mocker.patch("lib.middleware.get_flag_value", return_value=True):
+        response_status, _ = api_delete_groups([generate_uuid()])
+        assert_response_status(response_status, expected_status=503)
