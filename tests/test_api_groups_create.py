@@ -96,6 +96,13 @@ def test_create_group_null_name(api_create_group):
     assert "Group name cannot be null" in response_data["detail"]
 
 
+def test_create_group_read_only(api_create_group, mocker):
+    group_data = {"name": "test", "host_ids": []}
+    with mocker.patch("lib.middleware.get_flag_value", return_value=True):
+        response_status, _ = api_create_group(group_data)
+        assert_response_status(response_status, expected_status=503)
+
+
 @pytest.mark.parametrize(
     "new_name",
     ["test_group", " test_group", "test_group ", " test_group "],
