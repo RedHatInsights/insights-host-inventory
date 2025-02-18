@@ -687,6 +687,13 @@ class DeleteHostsMock:
         return iterator
 
 
+@pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
+def test_attempt_delete_host_read_only(api_delete_host):
+    with patch("lib.middleware.get_flag_value", return_value=True):
+        response_status, _ = api_delete_host(generate_uuid())
+        assert_response_status(response_status, expected_status=503)
+
+
 class DeleteQueryWrapper:
     def __init__(self, mocker):
         self.query = None
