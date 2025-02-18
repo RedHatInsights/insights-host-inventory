@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from enum import Enum
 from uuid import UUID
 
@@ -12,6 +14,7 @@ from api.filtering.db_filters import update_query_for_owner_id
 from api.staleness_query import get_staleness_obj
 from api.staleness_query import get_sys_default_staleness
 from app.auth import get_current_identity
+from app.auth.identity import Identity
 from app.config import ALL_STALENESS_STATES
 from app.config import HOST_TYPES
 from app.exceptions import InventoryException
@@ -20,6 +23,8 @@ from app.models import Host
 from app.models import HostGroupAssoc
 from app.serialization import serialize_staleness_to_dict
 from lib import metrics
+from lib.feature_flags import FLAG_INVENTORY_DEDUPLICATION_ELEVATE_SUBMAN_ID
+from lib.feature_flags import get_flag_value
 
 __all__ = (
     "add_host",
@@ -37,20 +42,22 @@ AddHostResult = Enum("AddHostResult", ("created", "updated"))
 
 # These are the "elevated" canonical facts that are
 # given priority in the host deduplication process.
-# NOTE: The order of this tuple is important.  The order defines
-# the priority.
+# NOTE: The order of this tuple is important. The order defines the priority.
 ELEVATED_CANONICAL_FACT_FIELDS = ("provider_id", "mac_addresses", "insights_id", "subscription_manager_id")
+# These "v2" elevated facts are used when "hbi.deduplication-elevate-subman_id" FF is turned on.
+ELEVATED_CANONICAL_FACT_FIELDS_V2 = ("provider_id", "subscription_manager_id", "insights_id")
 COMPOUND_CANONICAL_FACTS_MAP = {"provider_id": "provider_type"}
 COMPOUND_CANONICAL_FACTS = tuple(COMPOUND_CANONICAL_FACTS_MAP.values())
 IMMUTABLE_CANONICAL_FACTS = ("provider_id",)
-MUTABLE_CANONICAL_FACTS = tuple(set(ELEVATED_CANONICAL_FACT_FIELDS).difference(set(IMMUTABLE_CANONICAL_FACTS)))
 
 NULL = None
 
 logger = get_logger(__name__)
 
 
-def add_host(input_host, identity, update_system_profile=True, operation_args=None):
+def add_host(
+    input_host: Host, identity: Identity, update_system_profile: bool = True, operation_args: dict | None = None
+) -> tuple[Host, AddHostResult]:
     """
     Add or update a host
 
@@ -75,7 +82,7 @@ def add_host(input_host, identity, update_system_profile=True, operation_args=No
 
 
 @metrics.host_dedup_processing_time.time()
-def find_existing_host(identity, canonical_facts):
+def find_existing_host(identity: Identity, canonical_facts: dict) -> Host | None:
     logger.debug("find_existing_host(%s, %s)", identity, canonical_facts)
     existing_host = _find_host_by_elevated_ids(identity, canonical_facts)
 
@@ -87,18 +94,26 @@ def find_existing_host(identity, canonical_facts):
     return existing_host
 
 
-def find_existing_host_by_id(identity, host_id):
+def find_existing_host_by_id(identity: Identity, host_id: str) -> Host | None:
     query = Host.query.filter((Host.org_id == identity.org_id) & (Host.id == UUID(host_id)))
     query = update_query_for_owner_id(identity, query)
     return find_non_culled_hosts(query, identity).order_by(Host.modified_on.desc()).first()
 
 
 @metrics.find_host_using_elevated_ids.time()
-def _find_host_by_elevated_ids(identity, canonical_facts):
+def _find_host_by_elevated_ids(identity: Identity, canonical_facts: dict) -> Host | None:
     elevated_facts = {}
     elevated_keys = []
     immutable_facts = {}
-    for key in ELEVATED_CANONICAL_FACT_FIELDS:
+
+    elevated_fields = (
+        ELEVATED_CANONICAL_FACT_FIELDS_V2
+        if get_flag_value(FLAG_INVENTORY_DEDUPLICATION_ELEVATE_SUBMAN_ID, context={"orgId": identity.org_id})
+        else ELEVATED_CANONICAL_FACT_FIELDS
+    )
+    logger.info(f"Using {elevated_fields} as elevated fields for org {identity.org_id}")
+
+    for key in elevated_fields:
         if key not in canonical_facts.keys():
             continue
 
@@ -177,7 +192,7 @@ def multiple_canonical_facts_host_query(identity, canonical_facts, restrict_to_o
     return find_non_culled_hosts(query, identity)
 
 
-def find_host_by_multiple_canonical_facts(identity, canonical_facts):
+def find_host_by_multiple_canonical_facts(identity: Identity, canonical_facts: dict) -> Host | None:
     """
     Returns first match for a host containing given canonical facts
     """
@@ -272,7 +287,7 @@ def find_non_culled_hosts(query, identity=None):
 
 
 @metrics.new_host_commit_processing_time.time()
-def create_new_host(input_host):
+def create_new_host(input_host: Host) -> tuple[Host, AddHostResult]:
     logger.debug("Creating a new host")
 
     input_host.save()
@@ -284,7 +299,9 @@ def create_new_host(input_host):
 
 
 @metrics.update_host_commit_processing_time.time()
-def update_existing_host(existing_host, input_host, update_system_profile):
+def update_existing_host(
+    existing_host: Host, input_host: Host, update_system_profile: bool
+) -> tuple[Host, AddHostResult]:
     logger.debug("Updating an existing host")
     logger.debug(f"existing host = {existing_host}")
 
