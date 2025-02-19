@@ -26,6 +26,8 @@ from app.instrumentation import rbac_failure
 from app.instrumentation import rbac_group_permission_denied
 from app.instrumentation import rbac_permission_denied
 from app.logging import get_logger
+from lib.feature_flags import FLAG_INVENTORY_API_READ_ONLY
+from lib.feature_flags import get_flag_value
 
 logger = get_logger(__name__)
 
@@ -180,6 +182,10 @@ def rbac(resource_type: RbacResourceType, required_permission: RbacPermission, p
     def other_func(func):
         @wraps(func)
         def modified_func(*args, **kwargs):
+            # If the API is in read-only mode and this is a Write endpoint, abort with HTTP 503.
+            if required_permission == RbacPermission.WRITE and get_flag_value(FLAG_INVENTORY_API_READ_ONLY):
+                abort(503, "Inventory API is currently in read-only mode.")
+
             if inventory_config().bypass_rbac:
                 return func(*args, **kwargs)
 
