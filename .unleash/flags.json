@@ -79,6 +79,22 @@
             ],
             "variants": [],
             "createdAt": "2025-02-14T16:29:19.146Z"
+        },
+        {
+            "name": "hbi.deduplication-elevate-subman_id",
+            "description": "If active, subscription_manager_id will have the highest priority out of mutable elevated canonical facts, and mac_addresses will not be included in elevated canonical facts.",
+            "type": "release",
+            "project": "default",
+            "stale": false,
+            "enabled": false,
+            "strategies": [
+                {
+                    "name": "default",
+                    "parameters": {}
+                }
+            ],
+            "variants": [],
+            "createdAt": "2025-02-17T16:18:18.842Z"
         }
     ],
     "strategies": [

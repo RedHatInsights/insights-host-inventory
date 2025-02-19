@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime
 from datetime import timezone
 
@@ -12,7 +14,10 @@ from app.culling import Timestamps
 from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
 from app.models import CanonicalFactsSchema
+from app.models import Host
 from app.models import HostSchema
+from app.models import LimitedHost
+from app.models import LimitedHostSchema
 from app.utils import Tag
 from lib.staleness import get_staleness_timestamps
 
@@ -76,7 +81,9 @@ ADDITIONAL_EXPORT_SERVICE_FIELDS = (
 )
 
 
-def deserialize_host(raw_data, schema=HostSchema, system_profile_spec=None):
+def deserialize_host(
+    raw_data: dict, schema: type[HostSchema | LimitedHostSchema] = HostSchema, system_profile_spec: dict | None = None
+) -> Host | LimitedHost:
     try:
         validated_data = schema(system_profile_schema=system_profile_spec).load(raw_data)
     except ValidationError as e:
