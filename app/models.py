@@ -38,12 +38,19 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import column_property
+from sqlalchemy.orm.exc import NoResultFound
 from yaml import safe_load
 
+from app.common import inventory_config
+from app.culling import Timestamps
 from app.culling import days_to_seconds
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import get_logger
+from app.staleness_serialization import AttrDict
+from app.staleness_serialization import build_serialized_acc_staleness_obj
+from app.staleness_serialization import build_staleness_sys_default
+from app.staleness_serialization import get_staleness_timestamps_from_dict
 from app.validators import check_empty_keys
 from app.validators import verify_ip_address_format
 from app.validators import verify_mac_address_format
@@ -99,6 +106,68 @@ def _set_display_name_on_save(context):
 
 def _time_now():
     return datetime.now(timezone.utc)
+
+
+def _get_staleness_from_db(org_id):
+    try:
+        staleness = Staleness.query.filter(Staleness.org_id == org_id).one()
+        logger.info("Using custom account staleness")
+        staleness = build_serialized_acc_staleness_obj(staleness)
+    except NoResultFound:
+        logger.debug(f"No data found for user {org_id}, using system default values")
+        staleness = build_staleness_sys_default(org_id)
+        return staleness
+
+    return staleness
+
+
+def _build_staleness(host) -> dict:
+    org_id = host.org_id
+    staleness = _get_staleness_from_db(org_id)
+    staleness_ts = Timestamps.from_config(inventory_config())
+    staleness_dict = get_staleness_timestamps_from_dict(host, staleness_ts, staleness)
+    return staleness_dict
+
+
+def _update_per_reporter_staleness(host, staleness) -> dict:
+    if not host.per_reporter_staleness:
+        host.per_reporter_staleness = {}
+
+    if not host.per_reporter_staleness.get(host.reporter):
+        host.per_reporter_staleness[host.reporter] = {}
+
+    if old_reporter := NEW_TO_OLD_REPORTER_MAP.get(host.reporter):
+        host.per_reporter_staleness.pop(old_reporter, None)
+
+    host.per_reporter_staleness[host.reporter].update(
+        stale_timestamp=staleness["stale_timestamp"].isoformat(),
+        stale_warning_timestamp=staleness["stale_warning_timestamp"].isoformat(),
+        culled_timestamp=staleness["culled_timestamp"].isoformat(),
+        last_check_in=host.modified_on.isoformat(),
+        check_in_succeeded=True,
+    )
+    return host.per_reporter_staleness
+
+
+def _update_per_reporter_staleness_on_insert(context) -> dict:
+    host = AttrDict(context.get_current_parameters())
+    staleness = _build_staleness(host)
+    return _update_per_reporter_staleness(host, staleness)
+
+
+def _update_per_reporter_staleness_on_update(context) -> dict:
+    try:
+        # This search is needed, because context does not have
+        # a name pattern for the host_id field
+        for key in context.get_current_parameters():
+            if key.startswith("id") or key.endswith("id"):
+                host_id = context.get_current_parameters()[key]
+        host = Host.query.filter(Host.id == host_id).one()
+        staleness = _build_staleness(host)
+        return _update_per_reporter_staleness(host, staleness)
+    except Exception as e:
+        logger.error(e)
+        raise e
 
 
 class SystemProfileNormalizer:
@@ -272,7 +341,9 @@ class LimitedHost(db.Model):  # type: ignore [name-defined]
 class Host(LimitedHost):
     stale_timestamp = db.Column(db.DateTime(timezone=True))
     reporter = db.Column(db.String(255))
-    per_reporter_staleness = db.Column(JSONB)
+    per_reporter_staleness = db.Column(
+        JSONB, default=_update_per_reporter_staleness_on_insert, onupdate=_update_per_reporter_staleness_on_update
+    )
 
     def __init__(
         self,
@@ -286,7 +357,6 @@ class Host(LimitedHost):
         system_profile_facts=None,
         stale_timestamp=None,
         reporter=None,
-        per_reporter_staleness=None,
         groups=None,
     ):
         if tags is None:
@@ -310,10 +380,6 @@ class Host(LimitedHost):
         # without reporter and stale_timestamp host payload is invalid.
         self._update_stale_timestamp(stale_timestamp, reporter)
 
-        self.per_reporter_staleness = per_reporter_staleness or {}
-        if not per_reporter_staleness:
-            self._update_per_reporter_staleness(reporter)
-
     def save(self):
         self._cleanup_tags()
         db.session.add(self)
@@ -328,15 +394,19 @@ class Host(LimitedHost):
         self.update_facts(input_host.facts)
 
         self._update_tags(input_host.tags)
+        
+        # In order to have id avalable all the time
+        self._update_id()
 
         if input_host.org_id:
-            self.org_id = input_host.org_id
+            # This is being made in other to org_id to be available
+            # to the context parameter under _update_per_reporter_staleness_on_save function
+            self._update_org_id(input_host.org_id)
 
         if update_system_profile:
             self.update_system_profile(input_host.system_profile_facts)
 
         self._update_stale_timestamp(input_host.stale_timestamp, input_host.reporter)
-        self._update_per_reporter_staleness(input_host.reporter)
 
     def patch(self, patch_data):
         logger.debug("patching host (id=%s) with data: %s", self.id, patch_data)
@@ -404,6 +474,13 @@ class Host(LimitedHost):
             check_in_succeeded=True,
         )
         orm.attributes.flag_modified(self, "per_reporter_staleness")
+
+    def _update_org_id(self, org_id):
+        self.org_id = org_id
+        orm.attributes.flag_modified(self, "org_id")
+
+    def _update_id(self):
+        orm.attributes.flag_modified(self, "id")
 
     def _update_modified_date(self):
         self.modified_on = datetime.now(timezone.utc)

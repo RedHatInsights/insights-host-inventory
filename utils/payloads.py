@@ -596,7 +596,7 @@ def build_host_chunk():
 
         if add_provider_id:
             payload["provider_id"] = random_uuid()
-            payload["provider_type"] = random.choice(["aws", "azure", "google", "ibm"])
+            payload["provider_type"] = random.choice(["aws", "azure", "gcp", "ibm"])
 
         payload["reporter"] = random.choice(
             ["cloud-connector", "puptoo", "rhsm-conduit", "rhsm-system-profile-bridge", "yuptoo"]
