@@ -493,6 +493,7 @@ class Group(db.Model):  # type: ignore [name-defined]
         org_id,
         name,
         account=None,
+        id=None,
         ungrouped=False,
     ):
         if not org_id:
@@ -503,6 +504,7 @@ class Group(db.Model):  # type: ignore [name-defined]
         self.org_id = org_id
         self.account = account
         self.name = name
+        self.id = id
         self.ungrouped = ungrouped
 
     def update_modified_on(self):
