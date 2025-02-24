@@ -401,6 +401,16 @@ class Host(LimitedHost):
         )
         orm.attributes.flag_modified(self, "per_reporter_staleness")
 
+    def complete_update_per_reporter_staleness(self, reporter, staleness):
+        self.per_reporter_staleness[reporter].update(
+            stale_timestamp=staleness["stale_timestamp"].isoformat(),
+            stale_warning_timestamp=staleness["stale_warning_timestamp"].isoformat(),
+            culled_timestamp=staleness["culled_timestamp"].isoformat(),
+            last_check_in=self.modified_on.isoformat(),
+            check_in_succeeded=True,
+        )
+        orm.attributes.flag_modified(self, "per_reporter_staleness")
+
     def _update_modified_date(self):
         self.modified_on = datetime.now(timezone.utc)
 
