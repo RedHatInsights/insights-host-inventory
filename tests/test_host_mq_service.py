@@ -26,6 +26,7 @@ from lib.host_repository import AddHostResult
 from tests.helpers.db_utils import create_reference_host_in_db
 from tests.helpers.mq_utils import FakeMessage
 from tests.helpers.mq_utils import assert_mq_host_data
+from tests.helpers.mq_utils import assert_per_reporter_staleness
 from tests.helpers.mq_utils import expected_headers
 from tests.helpers.mq_utils import wrap_message
 from tests.helpers.system_profile_utils import INVALID_SYSTEM_PROFILES
@@ -2068,3 +2069,26 @@ def test_log_update_system_profile(mq_create_or_update_host, db_get_host, id_typ
         "number_of_sockets": 8,
     }
     assert caplog.records[0].input_host["system_profile"] == "{}"
+
+
+def test_add_host_with_per_reporter_staleness(mq_create_or_update_host, db_get_host):
+    expected_ids = {"insights_id": generate_uuid(), "fqdn": "foo.test.redhat.com"}
+    input_host = base_host(**expected_ids, system_profile={"owner_id": OWNER_ID, "number_of_cpus": 1})
+    host_from_event = mq_create_or_update_host(input_host)
+    host_from_db = db_get_host(host_from_event.id)
+    assert_per_reporter_staleness(host_from_db)
+
+
+def test_update_host_and_per_reporter_staleness(mq_create_or_update_host, db_get_host):
+    expected_ids = {"insights_id": generate_uuid(), "fqdn": "foo.test.redhat.com"}
+    first_input_host = base_host(**expected_ids, system_profile={"owner_id": OWNER_ID, "number_of_cpus": 1})
+    first_host_from_event = mq_create_or_update_host(first_input_host)
+    first_host_from_db = db_get_host(first_host_from_event.id)
+    assert_per_reporter_staleness(first_host_from_db)
+
+    expected_ids = {"insights_id": expected_ids["insights_id"], "fqdn": "foo.test.redhat.com"}
+    second_input_host = base_host(**expected_ids, system_profile={"owner_id": OWNER_ID, "number_of_cpus": 1})
+    second_host_from_event = mq_create_or_update_host(second_input_host)
+    second_host_from_db = db_get_host(second_host_from_event.id)
+    assert second_host_from_db.id == first_host_from_db.id
+    assert_per_reporter_staleness(second_host_from_db)
