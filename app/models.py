@@ -177,8 +177,6 @@ class LimitedHost(db.Model):  # type: ignore [name-defined]
         Index("idxdisplay_name", "display_name"),
         Index("idxsystem_profile_facts", "system_profile_facts", postgresql_using="gin"),
         Index("idxgroups", "groups", postgresql_using="gin"),
-        Index("idxworkspaceid", "workspace_id"),
-        Index("idxworkspacename", "workspace_name"),
         {"schema": INVENTORY_SCHEMA},
     )
 
@@ -265,8 +263,6 @@ class LimitedHost(db.Model):  # type: ignore [name-defined]
     system_profile_facts = db.Column(JSONB)
     groups = db.Column(JSONB)
     host_type = column_property(system_profile_facts["host_type"])
-    workspace_id = db.Column(UUID(as_uuid=True))
-    workspace_name = db.Column(db.String(255))
 
 
 class Host(LimitedHost):
@@ -488,6 +484,7 @@ class Group(db.Model):  # type: ignore [name-defined]
     __table_args__ = (
         Index("idxgrouporgid", "org_id"),
         Index("idx_groups_org_id_name_nocase", "org_id", text("lower(name)"), unique=True),
+        Index("idxorgidungrouped", "org_id", "ungrouped"),
         {"schema": INVENTORY_SCHEMA},
     )
 
@@ -496,6 +493,8 @@ class Group(db.Model):  # type: ignore [name-defined]
         org_id,
         name,
         account=None,
+        id=None,
+        ungrouped=False,
     ):
         if not org_id:
             raise ValidationException("Group org_id cannot be null.")
@@ -505,6 +504,8 @@ class Group(db.Model):  # type: ignore [name-defined]
         self.org_id = org_id
         self.account = account
         self.name = name
+        self.id = id
+        self.ungrouped = ungrouped
 
     def update_modified_on(self):
         self.modified_on = _time_now()
@@ -528,6 +529,7 @@ class Group(db.Model):  # type: ignore [name-defined]
     account = db.Column(db.String(10))
     org_id = db.Column(db.String(36), nullable=False)
     name = db.Column(db.String(255), nullable=False)
+    ungrouped = db.Column(db.Boolean, default=False)
     created_on = db.Column(db.DateTime(timezone=True), default=_time_now)
     modified_on = db.Column(db.DateTime(timezone=True), default=_time_now, onupdate=_time_now)
     hosts = orm.relationship("Host", secondary=f"{INVENTORY_SCHEMA}.hosts_groups")
@@ -1023,36 +1025,3 @@ class StalenessSchema(MarshmallowSchema):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-
-class UngroupedWorkspace(db.Model):  # type: ignore [name-defined]
-    __tablename__ = "ungrouped_workspaces"
-    __table_args__ = (
-        Index("idxuworgid", "org_id"),
-        Index("idxuwname", "name"),
-        {"schema": INVENTORY_SCHEMA},
-    )
-
-    def __init__(
-        self,
-        id,
-        org_id,
-        name,
-        created_on,
-        modified_on,
-    ):
-        for field in [id, org_id, name, created_on, modified_on]:
-            if not field:
-                raise ValidationException("UngroupedWorkspace fields must not be null.")
-
-        self.id = id
-        self.org_id = org_id
-        self.name = name
-        self.created_on = created_on
-        self.modified_on = modified_on
-
-    id = db.Column(UUID(as_uuid=True), primary_key=True)
-    org_id = db.Column(db.String(length=36), nullable=False)
-    name = db.Column(db.String(length=255), nullable=False)
-    created_on = db.Column(db.DateTime(timezone=True), nullable=False)
-    modified_on = db.Column(db.DateTime(timezone=True), nullable=False)
