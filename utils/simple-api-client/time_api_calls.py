@@ -23,7 +23,10 @@ def _user_agent():
     return random.choice(USER_AGENTS)
 
 
-API_METHODS = (simple_hbi_api.get_hosts,)
+API_METHODS = (
+    simple_hbi_api.get_hosts,
+    simple_hbi_api.get_marketplace_hosts,
+)
 
 
 def _api_method():
