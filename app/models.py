@@ -556,62 +556,6 @@ class HostGroupAssoc(db.Model):  # type: ignore [name-defined]
     group_id = db.Column(UUID(as_uuid=True), ForeignKey(f"{INVENTORY_SCHEMA}.groups.id"), primary_key=True)
 
 
-class AssignmentRule(db.Model):  # type: ignore [name-defined]
-    __tablename__ = "assignment_rules"
-    __table_args__ = (
-        Index("idxassrulesorgid", "org_id"),
-        {"schema": INVENTORY_SCHEMA},
-    )
-
-    def __init__(
-        self,
-        org_id,
-        name,
-        group_id,
-        filter,
-        enabled,
-        account=None,
-    ):
-        if not org_id:
-            raise ValidationException("Assignment rule org_id cannot be null.")
-        if not name:
-            raise ValidationException("Assignment rule name cannot be null.")
-        if not group_id:
-            raise ValidationException("Assignment rule group_id cannot be null.")
-        if not filter:
-            raise ValidationException("Assignment rule filter cannot be null.")
-        if enabled is None:
-            raise ValidationException("Enabled cannot be null.")
-
-        self.org_id = org_id
-        self.account = account
-        self.name = name
-        self.group_id = group_id
-        self.filter = filter
-        self.enabled = enabled
-
-    def update(self, input_ar):
-        if input_ar.name is not None:
-            self.name = input_ar.name
-        if input_ar.account is not None:
-            self.account = input_ar.account
-        if input_ar.group_id is not None:
-            self.group_id = input_ar.group_id
-        if input_ar.filter is not None:
-            self.filter = input_ar.filter
-
-    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    org_id = db.Column(db.String(36), nullable=False)
-    account = db.Column(db.String(10))
-    name = db.Column(db.String(255), nullable=False)
-    description = db.Column(db.String(255))
-    group_id = db.Column(UUID(as_uuid=True), ForeignKey(f"{INVENTORY_SCHEMA}.groups.id"))
-    filter = db.Column(JSONB, nullable=False)
-    enabled = db.Column(db.Boolean(), default=True)
-    created_on = db.Column(db.DateTime(timezone=True), default=_time_now)
-    modified_on = db.Column(db.DateTime(timezone=True), default=_time_now, onupdate=_time_now)
-
-
 class Staleness(db.Model):  # type: ignore [name-defined]
     __tablename__ = "staleness"
     __table_args__ = (
@@ -974,17 +918,6 @@ class InputGroupSchema(MarshmallowSchema):
             in_data["name"] = in_data["name"].strip()
 
         return in_data
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-
-class InputAssignmentRule(MarshmallowSchema):
-    name = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=255))
-    description = fields.Str(validate=marshmallow_validate.Length(max=255))
-    group_id = fields.Str(required=True, validate=verify_uuid_format)
-    filter = fields.Dict(required=True)
-    enabled = fields.Bool()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

@@ -22,10 +22,7 @@ def _user_agent():
     return random.choice(USER_AGENTS)
 
 
-API_METHODS = (
-    simple_hbi_api.get_hosts,
-    simple_hbi_api.get_assignment_rules,
-)
+API_METHODS = (simple_hbi_api.get_hosts,)
 
 
 def _api_method():

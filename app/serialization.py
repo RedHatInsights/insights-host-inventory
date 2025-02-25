@@ -240,21 +240,6 @@ def serialize_group(group, identity):
     }
 
 
-def serialize_assignment_rule(assign_rule):
-    return {
-        "id": _serialize_uuid(assign_rule.id),
-        "org_id": assign_rule.org_id,
-        "account": assign_rule.account,
-        "name": assign_rule.name,
-        "description": assign_rule.description,
-        "group_id": _serialize_uuid(assign_rule.group_id),
-        "filter": assign_rule.filter,
-        "enabled": assign_rule.enabled,
-        "created": _serialize_datetime(assign_rule.created_on),
-        "modified": _serialize_datetime(assign_rule.modified_on),
-    }
-
-
 def serialize_host_system_profile(host):
     return {"id": _serialize_uuid(host.id), "system_profile": host.system_profile_facts or {}}
 

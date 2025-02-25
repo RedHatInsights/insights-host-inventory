@@ -8,14 +8,12 @@ from sqlalchemy_utils import drop_database
 from app.auth.identity import Identity
 from app.config import Config
 from app.environment import RuntimeEnvironment
-from app.models import AssignmentRule
 from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import Staleness
 from app.models import db
 from app.serialization import serialize_group
-from tests.helpers.db_utils import db_assignment_rule
 from tests.helpers.db_utils import db_group
 from tests.helpers.db_utils import db_staleness_culling
 from tests.helpers.db_utils import minimal_db_host
@@ -105,14 +103,6 @@ def db_get_groups_for_host(flask_app):  # noqa: ARG001
         return Group.query.join(HostGroupAssoc).filter(HostGroupAssoc.host_id == host_id).all()
 
     return _db_get_groups_for_host
-
-
-@pytest.fixture(scope="function")
-def db_get_assignment_rule(flask_app):  # noqa: ARG001
-    def _db_get_assignment_rule(ar_id):
-        return db.session.get(AssignmentRule, ar_id)
-
-    return _db_get_assignment_rule
 
 
 @pytest.fixture(scope="function")
@@ -238,27 +228,6 @@ def db_create_group_with_hosts(db_create_group, db_create_host, db_create_host_g
         return db_get_group_by_id(group_id)
 
     return _db_create_group_with_hosts
-
-
-@pytest.fixture(scope="function")
-def db_create_assignment_rule(flask_app):  # noqa: ARG001
-    def _db_create_assignment_rule(name, group_id, filter, enabled):
-        assignment_rule = db_assignment_rule(name=name, group_id=group_id, filter=filter, enabled=enabled)
-        db.session.add(assignment_rule)
-        db.session.commit()
-        return assignment_rule
-
-    return _db_create_assignment_rule
-
-
-@pytest.fixture(scope="function")
-def db_delete_assignment_rule(flask_app):  # noqa: ARG001
-    def _db_delete_assignment_rule(ar_id):
-        delete_query = db.session.query(AssignmentRule).filter(AssignmentRule.id == ar_id)
-        delete_query.delete(synchronize_session="fetch")
-        delete_query.session.commit()
-
-    return _db_delete_assignment_rule
 
 
 @pytest.fixture(scope="function")

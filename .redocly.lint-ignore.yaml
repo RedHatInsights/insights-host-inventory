@@ -12,7 +12,6 @@ swagger/api.spec.yaml:
     - '#/paths/~1groups~1hosts~1{host_id_list}'
   no-unused-components:
     - '#/components/parameters/hostId'
-    - '#/components/parameters/assignmentRuleId'
     - '#/components/schemas/UnleashToggleOut'
 swagger/openapi.dev.json:
   no-empty-servers:
