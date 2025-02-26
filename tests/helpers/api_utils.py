@@ -20,7 +20,6 @@ from tests.helpers.test_utils import now
 
 BASE_URL = "/api/inventory/v1"
 LEGACY_BASE_URL = "/r/insights/platform/inventory/v1"
-ASSIGNMENT_RULE_URL = f"{BASE_URL}/assignment-rules"
 HOST_URL = f"{BASE_URL}/hosts"
 HOST_EXISTS_URL = f"{BASE_URL}/host_exists"
 LEGACY_HOST_URL = f"{LEGACY_BASE_URL}/hosts"
@@ -523,14 +522,6 @@ def build_id_list_for_url(id_or_id_list):
 
 def build_groups_url(group_id=None, query=None):
     return _build_url(base_url=GROUP_URL, id_list=group_id, query=query)
-
-
-def build_assignment_rules_url(assignment_rules_id_list=None, query=None):
-    id_list = []
-    if assignment_rules_id_list:
-        id_list = build_id_list_for_url(assignment_rules_id_list)
-
-    return _build_url(base_url=ASSIGNMENT_RULE_URL, id_list=id_list, query=query)
 
 
 def build_resource_types_url(query=None):

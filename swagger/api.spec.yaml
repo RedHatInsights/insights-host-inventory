@@ -930,85 +930,6 @@ paths:
         '400':
           description: "Invalid request."
 
-  /assignment-rules:
-    get:
-      operationId: api.assignment_rule.get_assignment_rules_list
-      tags:
-        - groups
-      summary: Read the entire list of assignment-rules [Not Implemented]
-      description: >-
-        Read the entire list of all assignment-rules available to the account. [Not Implemented]
-        Required permissions: inventory:groups:read
-      security:
-        - ApiKeyAuth: []
-      parameters:
-        - $ref: '#/components/parameters/assignmentRuleName'
-        - $ref: '#/components/parameters/perPageParam'
-        - $ref: '#/components/parameters/pageParam'
-        - $ref: '#/components/parameters/assignmentRuleOrderByParam'
-        - $ref: '#/components/parameters/assignmentRuleOrderHowParam'
-      responses:
-        '200':
-          description: Successfully read the assignment-rules list.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AssignmentRuleQueryOutput'
-    post:
-      operationId: api.assignment_rule.create_assignment_rule
-      tags:
-        - groups
-      summary: Create Assignment Rule object
-      description: >-
-        Create Assignment Rule object using post request
-        <br /><br />
-        Required permissions: inventory:groups:write
-      security:
-        - ApiKeyAuth: []
-        - BearerAuth: []
-      requestBody:
-        description: Data required to create Assignment Rule object
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AssignmentRuleIn'
-      responses:
-        '201':
-          description: Assignment Rule created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AssignmentRuleOut'
-  '/assignment-rules/{assignment_rule_id_list}':
-    get:
-      operationId: api.assignment_rule.get_assignment_rules_by_id
-      tags:
-        - groups
-      summary: Find assignment rules by their IDs
-      description: >-
-        Find one or more assignment rules by their IDs.
-        <br /><br />
-        Required permissions: inventory:groups:read
-      security:
-        - ApiKeyAuth: []
-      parameters:
-        - $ref: '#/components/parameters/assignmentRuleIdList'
-        - $ref: '#/components/parameters/perPageParam'
-        - $ref: '#/components/parameters/pageParam'
-        - $ref: '#/components/parameters/assignmentRuleOrderByParam'
-        - $ref: '#/components/parameters/assignmentRuleOrderHowParam'
-      responses:
-        '200':
-          description: Successfully searched for assignment rules.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AssignmentRuleQueryOutput'
-        '400':
-          description: Invalid request.
-        '404':
-          description: Assignment rules not found.
 components:
   securitySchemes:
     BearerAuth:
@@ -1171,28 +1092,6 @@ components:
       description: >-
         Direction of the ordering; defaults to ASC for name, and to DESC
         for host_count
-    assignmentRuleOrderByParam:
-      name: order_by
-      in: query
-      required: false
-      schema:
-        type: string
-        enum:
-          - name
-          - group_id
-      description: Ordering field name
-    assignmentRuleOrderHowParam:
-      name: order_how
-      in: query
-      required: false
-      schema:
-        type: string
-        enum:
-          - ASC
-          - DESC
-      description: >-
-        Direction of the ordering; defaults to ASC for name, and to DESC
-        for host_ids
     stalenessParam:
       name: staleness
       in: query
@@ -1368,33 +1267,10 @@ components:
       required: true
       schema:
         $ref: '#/components/schemas/NonStrictUUID'
-    assignmentRuleName:
-      in: query
-      name: name
-      schema:
-        type: string
-      description: Filter by assignment-rule name
-      required: false
-    assignmentRuleId:
-      in: path
-      name: assignment_rule_id
-      description: assignment-rule ID.
-      required: true
-      schema:
-        $ref: '#/components/schemas/NonStrictUUID'
     groupIdList:
       in: path
       name: group_id_list
       description: A comma-separated list of group IDs.
-      required: true
-      schema:
-        type: array
-        items:
-          $ref: '#/components/schemas/NonStrictUUID'
-    assignmentRuleIdList:
-      in: path
-      name: assignment_rule_id_list
-      description: A comma-separated list of assignment-rule IDs.
       required: true
       schema:
         type: array
@@ -1914,11 +1790,6 @@ components:
         A durable and reliable platform-wide group identifier. Applications
         should use this identifier to reference groups.
       $ref: '#/components/schemas/NonStrictUUID'
-    AssignmentRuleId:
-      description: >-
-        A durable and reliable platform-wide assignment-rule identifier. Applications
-        should use this identifier to reference assignment-rules.
-      $ref: '#/components/schemas/NonStrictUUID'
     HostId:
       description: >-
         A durable and reliable platform-wide group identifier. Applications
@@ -1959,70 +1830,6 @@ components:
           $ref: "#/components/schemas/GroupName"
         host_ids:
           $ref: "#/components/schemas/HostIds"
-    AssignmentRuleIn:
-      title: Assignment Rule In
-      description: >-
-        Data for a single Assignment Rule
-      type: object
-      properties:
-        name:
-          type: string
-          minLength: 1
-          maxLength: 255
-        description:
-          type: string
-          minLength: 1
-          maxLength: 255
-          nullable: true
-        group_id:
-          $ref: "#/components/schemas/GroupId"
-        filter:
-          type: object
-        enabled:
-          type: boolean
-      required:
-        - name
-        - group_id
-        - filter
-        - enabled
-    AssignmentRuleOut:
-      title: Assignment Rule response
-      description: >-
-        Data for a single Assignment Rule response
-      type: object
-      properties:
-        id:
-          $ref: '#/components/schemas/NonStrictUUID'
-        org_id:
-          $ref: '#/components/schemas/OrgId'
-        account:
-          $ref: '#/components/schemas/AccountNumber'
-        name:
-          type: string
-          minLength: 1
-        description:
-          type: string
-          minLength: 1
-          nullable: true
-        group_id:
-          $ref: "#/components/schemas/GroupId"
-        filter:
-          type: object
-        enabled:
-          type: boolean
-        created:
-          type: string
-          format: date-time
-        modified:
-          type: string
-          format: date-time
-      required:
-        - name
-        - group_id
-        - filter
-        - enabled
-        - created
-        - modified
     GroupOutWithHostCount:
       title: Group properties with host count
       description: >-
@@ -2072,23 +1879,6 @@ components:
             type: array
             items:
               $ref: '#/components/schemas/GroupOutWithHostCount'
-    AssignmentRuleQueryOutput:
-      title: An Inventory Assignment Rules query result
-      description: >-
-        A paginated assignment-rule search query result with assignment-rule entries and their
-        Inventory metadata.
-      type: object
-      allOf:
-      - $ref: '#/components/schemas/PaginationOut'
-      - type: object
-        required:
-          - results
-        properties:
-          results:
-            description: Actual assignment-rule search query result entries.
-            type: array
-            items:
-              $ref: '#/components/schemas/AssignmentRuleOut'
     ResourceTypesOut:
       title: A resource type query result
       description: >-

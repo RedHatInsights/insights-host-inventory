@@ -1,6 +1,5 @@
 import pytest
 
-from tests.helpers.api_utils import ASSIGNMENT_RULE_URL
 from tests.helpers.api_utils import GROUP_URL
 from tests.helpers.api_utils import HOST_URL
 from tests.helpers.api_utils import STALENESS_URL
@@ -149,16 +148,6 @@ def api_remove_hosts_from_diff_groups(flask_client):
         )
 
     return _api_remove_hosts_from_diff_groups
-
-
-@pytest.fixture(scope="function")
-def api_create_assign_rule(flask_client):
-    def _api_create_assign_rule(assign_rule_data, identity=USER_IDENTITY, query_parameters=None, extra_headers=None):
-        return do_request(
-            flask_client.post, ASSIGNMENT_RULE_URL, identity, assign_rule_data, query_parameters, extra_headers
-        )
-
-    return _api_create_assign_rule
 
 
 @pytest.fixture(scope="function")

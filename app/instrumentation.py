@@ -122,15 +122,6 @@ def log_get_group_list_failed(logger):
     logger.info("Groups not found", extra={"access_rule": get_control_rule()})
 
 
-# get asssignment-rules
-def log_get_assignment_rules_list_succeeded(logger, results_list):
-    logger.info("Found assignment-rules: %s", results_list, extra={"access_rule": get_control_rule()})
-
-
-def log_get_assignment_rules_list_failed(logger):
-    logger.info("Assignment-rules not found", extra={"access_rule": get_control_rule()})
-
-
 # create group
 def log_create_group_succeeded(logger, group_id):
     logger.info("Created group: %s", group_id, extra={"access_rule": get_control_rule()})
@@ -331,15 +322,6 @@ def log_get_resource_type_list_succeeded(logger, results_list):
 
 def log_get_resource_type_list_failed(logger):
     logger.debug("Resource types not found", extra={"access_rule": get_control_rule()})
-
-
-# asssignment-rules
-def log_post_assignment_rule_succeeded(logger, id):
-    logger.info(f"Assignment rule created: {id}", extra={"access_rule": get_control_rule()})
-
-
-def log_post_assignment_rule_failed(logger):
-    logger.info("Failed to create assignment rule", extra={"access_rule": get_control_rule()})
 
 
 def log_create_staleness_succeeded(logger, staleness_id):

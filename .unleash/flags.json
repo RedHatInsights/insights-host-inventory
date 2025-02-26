@@ -2,22 +2,6 @@
     "version": 1,
     "features": [
         {
-            "name": "hbi.group-assignment-rules",
-            "description": "If active, newly-created hosts will automatically be assigned to groups based on the account's assignment rules.",
-            "type": "release",
-            "project": "default",
-            "stale": false,
-            "enabled": true,
-            "strategies": [
-                {
-                    "name": "default",
-                    "parameters": {}
-                }
-            ],
-            "variants": [],
-            "createdAt": "2024-01-10T20:16:35.042Z"
-        },
-        {
             "name": "edgeParity.groups-migration",
             "description": "In the context of edge-parity, enables the migrate of edge management groups to insights inventory groups.",
             "type": "release",

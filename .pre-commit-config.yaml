@@ -46,18 +46,10 @@ repos:
     language: node
     additional_dependencies:
       - "@redocly/cli"
-    entry: redocly bundle swagger/api.spec.yaml -o swagger/openapi.dev.json
+    entry: redocly bundle swagger/api.spec.yaml -o swagger/openapi.json
     pass_filenames: false
     # always_run: true
     stages: [manual]
-  - id: redocly-filter
-    name: redoc filter
-    language: node
-    additional_dependencies:
-    - "@redocly/cli"
-    entry: redocly bundle --config=swagger/redocly.yml filter_generated -o swagger/openapi.json
-    pass_filenames: false
-    always_run: true
   - id: redocly-validate
     name: redoc validate
     language: node
