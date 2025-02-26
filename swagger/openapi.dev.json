@@ -1070,10 +1070,10 @@
             "$ref": "#/components/parameters/tagsParam"
           },
           {
-            "$ref": "#/components/parameters/tagsOrderBy"
+            "$ref": "#/components/parameters/tagsOrderByParam"
           },
           {
-            "$ref": "#/components/parameters/tagsOrderHow"
+            "$ref": "#/components/parameters/tagsOrderHowParam"
           },
           {
             "$ref": "#/components/parameters/perPageParam"
@@ -1745,30 +1745,21 @@
         },
         "description": "Ordering field name"
       },
-      "hostOrderHowParam": {
+      "orderHowParam": {
         "name": "order_how",
         "in": "query",
         "required": false,
         "schema": {
           "type": "string",
-          "enum": [
-            "ASC",
-            "DESC"
-          ]
-        },
+          "pattern": "^([Aa][Ss][Cc])|([Dd][Ee][Ss][Cc])$"
+        }
+      },
+      "hostOrderHowParam": {
+        "$ref": "#/components/parameters/orderHowParam",
         "description": "Direction of the ordering; defaults to ASC for display_name, and to DESC for updated and operating_system"
       },
       "groupOrderHowParam": {
-        "name": "order_how",
-        "in": "query",
-        "required": false,
-        "schema": {
-          "type": "string",
-          "enum": [
-            "ASC",
-            "DESC"
-          ]
-        },
+        "$ref": "#/components/parameters/orderHowParam",
         "description": "Direction of the ordering; defaults to ASC for name, and to DESC for host_count"
       },
       "stalenessParam": {
@@ -1825,7 +1816,7 @@
           }
         }
       },
-      "tagsOrderBy": {
+      "tagsOrderByParam": {
         "in": "query",
         "name": "order_by",
         "required": false,
@@ -1839,19 +1830,9 @@
         },
         "description": "Ordering field name"
       },
-      "tagsOrderHow": {
-        "in": "query",
-        "name": "order_how",
-        "required": false,
-        "schema": {
-          "type": "string",
-          "default": "ASC",
-          "enum": [
-            "ASC",
-            "DESC"
-          ]
-        },
-        "description": "Direction of the ordering. Default to ASC"
+      "tagsOrderHowParam": {
+        "$ref": "#/components/parameters/orderHowParam",
+        "description": "Direction of the ordering. Defaults to ASC"
       },
       "searchParam": {
         "in": "query",
