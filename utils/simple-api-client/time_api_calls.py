@@ -25,7 +25,7 @@ def _user_agent():
 
 API_METHODS = (
     simple_hbi_api.get_hosts,
-    simple_hbi_api.get_assignment_rules,
+    simple_hbi_api.get_marketplace_hosts,
 )
 
 

@@ -2,7 +2,6 @@ import pytest
 from requests import exceptions
 
 from tests.helpers.api_utils import assert_response_status
-from tests.helpers.api_utils import build_assignment_rules_url
 from tests.helpers.api_utils import build_groups_url
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import build_staleness_url
@@ -85,7 +84,7 @@ def test_RBAC_invalid_UUIDs(mocker, api_get):
 @pytest.mark.usefixtures("enable_rbac")
 @pytest.mark.parametrize(
     "url_builder",
-    [build_staleness_url, build_assignment_rules_url, build_groups_url],
+    [build_staleness_url, build_groups_url],
 )
 def test_non_host_endpoints_cannot_bypass_RBAC(api_get, url_builder):
     url = url_builder()
