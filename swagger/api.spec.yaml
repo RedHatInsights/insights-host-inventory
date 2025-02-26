@@ -1068,22 +1068,23 @@ components:
           - host_count
           - updated
       description: Ordering field name
-    orderHowParam:
-      name: order_how
+    hostOrderHowParam:
       in: query
+      name: order_how
       required: false
       schema:
-        type: string
-        pattern: '^([Aa][Ss][Cc])|([Dd][Ee][Ss][Cc])$'
-    hostOrderHowParam:
-      $ref:  '#/components/parameters/orderHowParam'
+        $ref:  '#/components/schemas/OrderHow'
       description: >-
-        Direction of the ordering; defaults to ASC for display_name, and to DESC
+        Direction of the ordering (case-insensitive); defaults to ASC for display_name, and to DESC
         for updated and operating_system
     groupOrderHowParam:
-      $ref:  '#/components/parameters/orderHowParam'
+      in: query
+      name: order_how
+      required: false
+      schema:
+        $ref:  '#/components/schemas/OrderHow'
       description: >-
-        Direction of the ordering; defaults to ASC for name, and to DESC
+        Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC
         for host_count
     stalenessParam:
       name: staleness
@@ -1139,8 +1140,12 @@ components:
           - count
       description: Ordering field name
     tagsOrderHowParam:
-      $ref:  '#/components/parameters/orderHowParam'
-      description: Direction of the ordering. Defaults to ASC
+      in: query
+      name: order_how
+      required: false
+      description: Direction of the ordering (case-insensitive). Valid values are ASC (default) and DESC.
+      schema:
+        $ref:  '#/components/schemas/OrderHow'
     searchParam:
       in: query
       name: search
@@ -1796,15 +1801,6 @@ components:
       description: The number of hosts associated with the group.
       type: integer
       example: 3
-    UnleashToggleOut:
-      title: Unleash Toggle Out
-      properties:
-        flag_value:
-          description: The value of the feature flag toggle
-          type: boolean
-        using_fallback_value:
-          description: Whether the fallback value was used, if the Unleash server could not be accessed
-          type: boolean
     GroupIn:
       title: Group In
       description: >-
@@ -1967,6 +1963,9 @@ components:
         - org_id
         - created
         - updated
+    OrderHow:
+      type: string
+      pattern: '^([Aa][Ss][Cc])|([Dd][Ee][Ss][Cc])$'
 
 
     # include renames for system_profile
