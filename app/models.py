@@ -263,6 +263,7 @@ class LimitedHost(db.Model):  # type: ignore [name-defined]
     system_profile_facts = db.Column(JSONB)
     groups = db.Column(JSONB)
     host_type = column_property(system_profile_facts["host_type"])
+    last_check_in = db.Column(db.DateTime(timezone=True))
 
 
 class Host(LimitedHost):
@@ -309,6 +310,7 @@ class Host(LimitedHost):
         self.per_reporter_staleness = per_reporter_staleness or {}
         if not per_reporter_staleness:
             self._update_per_reporter_staleness(reporter)
+            self._update_last_check_in(reporter)
 
     def save(self):
         self._cleanup_tags()
@@ -333,6 +335,7 @@ class Host(LimitedHost):
 
         self._update_stale_timestamp(input_host.stale_timestamp, input_host.reporter)
         self._update_per_reporter_staleness(input_host.reporter)
+        self._update_last_check_in(input_host.reporter)
 
     def patch(self, patch_data):
         logger.debug("patching host (id=%s) with data: %s", self.id, patch_data)
@@ -400,6 +403,10 @@ class Host(LimitedHost):
             check_in_succeeded=True,
         )
         orm.attributes.flag_modified(self, "per_reporter_staleness")
+
+    def _update_last_check_in(self, reporter):
+        self.last_check_in = self.per_reporter_staleness[reporter]["last_check_in"]
+        orm.attributes.flag_modified(self, "last_check_in")
 
     def _update_modified_date(self):
         self.modified_on = datetime.now(timezone.utc)
