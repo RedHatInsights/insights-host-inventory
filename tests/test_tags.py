@@ -9,6 +9,7 @@ from lib.host_repository import find_non_culled_hosts
 from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import assert_response_status
+from tests.helpers.api_utils import build_fields_query_parameters
 from tests.helpers.api_utils import build_host_tags_url
 from tests.helpers.api_utils import build_tags_count_url
 from tests.helpers.api_utils import build_tags_url
@@ -357,3 +358,17 @@ def test_get_tags_with_dollar_signs_via_db(api_get, db_create_host, tag, flatten
 
     assert response_status == 200
     assert flattened_tag == response_data["results"][0]["tag"]
+
+
+def test_tag_alt_is_created(api_get, db_create_host):
+    tag = {"insights-client": {"test-key": "test-value"}}
+    flattened_tag = {"namespace": "insights-client", "key": "test-key", "value": "test-value"}
+    db_create_host(extra_data={"tags": tag})
+
+    url = build_tags_url()
+    fields_query_parameters = build_fields_query_parameters(fields="tags,tags_alt")
+    response_status, response_data = api_get(url, query_parameters=fields_query_parameters)
+
+    assert response_status == 200
+    print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>", response_data)
+    assert flattened_tag == response_data["results"][0]["tags_alt"]

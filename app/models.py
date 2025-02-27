@@ -44,6 +44,7 @@ from app.culling import days_to_seconds
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import get_logger
+from app.utils import Tag
 from app.validators import check_empty_keys
 from app.validators import verify_ip_address_format
 from app.validators import verify_mac_address_format
@@ -189,11 +190,13 @@ class LimitedHost(db.Model):  # type: ignore [name-defined]
         org_id=None,
         facts=None,
         tags=None,
+        tags_alt=None,
         system_profile_facts=None,
         groups=None,
     ):
         if tags is None:
             tags = {}
+            tags_alt = []
         if groups is None:
             groups = []
 
@@ -209,6 +212,7 @@ class LimitedHost(db.Model):  # type: ignore [name-defined]
         self.org_id = org_id
         self.facts = facts or {}
         self.tags = tags
+        self.tags_alt = tags_alt
         self.system_profile_facts = system_profile_facts or {}
         self.groups = groups or []
 
@@ -259,6 +263,7 @@ class LimitedHost(db.Model):  # type: ignore [name-defined]
     modified_on = db.Column(db.DateTime(timezone=True), default=_time_now, onupdate=_time_now)
     facts = db.Column(JSONB)
     tags = db.Column(JSONB)
+    tags_alt = db.Column(JSONB)
     canonical_facts = db.Column(JSONB)
     system_profile_facts = db.Column(JSONB)
     groups = db.Column(JSONB)
@@ -287,6 +292,9 @@ class Host(LimitedHost):
     ):
         if tags is None:
             tags = {}
+            tags_alt = []
+        else:
+            tags_alt = self._populate_tags_alt_from_tags(tags)
         if groups is None:
             groups = []
 
@@ -300,7 +308,16 @@ class Host(LimitedHost):
             raise ValidationException("The tags field cannot be null.")
 
         super().__init__(
-            canonical_facts, display_name, ansible_host, account, org_id, facts, tags, system_profile_facts, groups
+            canonical_facts,
+            display_name,
+            ansible_host,
+            account,
+            org_id,
+            facts,
+            tags,
+            tags_alt,
+            system_profile_facts,
+            groups,
         )
 
         # without reporter and stale_timestamp host payload is invalid.
@@ -429,6 +446,20 @@ class Host(LimitedHost):
             del self.tags[namespace]
 
         orm.attributes.flag_modified(self, "tags")
+
+    def _populate_tags_alt_from_tags(self, tags):
+        transformed_tags = []
+
+        if type(tags) is dict:
+            transformed_tags_obj = Tag.create_tags_from_nested(tags)
+        elif type(tags) is list:
+            transformed_tags_obj = Tag.to_structured(tags)
+        else:
+            raise TypeError("Tags must be dict or list")
+
+        transformed_tags = Tag.create_flat_tags_from_structured(transformed_tags_obj)
+
+        return transformed_tags
 
     def _cleanup_tags(self):
         namespaces_to_delete = tuple(namespace for namespace, items in self.tags.items() if not items)
