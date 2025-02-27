@@ -313,9 +313,8 @@ def test_query_all(mq_create_three_specific_hosts, api_get, subtests, host_url):
     created_hosts = mq_create_three_specific_hosts
     expected_host_list = build_expected_host_list(created_hosts)
 
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, response_data = api_get(host_url)
-        api_base_pagination_test(api_get, subtests, host_url, expected_total=len(expected_host_list))
+    response_status, response_data = api_get(host_url)
+    api_base_pagination_test(api_get, subtests, host_url, expected_total=len(expected_host_list))
 
     assert response_status == 200
     assert_host_lists_equal(expected_host_list, response_data["results"])
@@ -326,8 +325,7 @@ def test_query_using_display_name(mq_create_three_specific_hosts, api_get):
     expected_host_list = build_expected_host_list([created_hosts[0]])
     url = build_hosts_url(query=f"?display_name={created_hosts[0].display_name.upper()}")
 
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(response_data["results"]) == 1
@@ -339,8 +337,7 @@ def test_query_using_fqdn_two_results(mq_create_three_specific_hosts, api_get):
     expected_host_list = build_expected_host_list([created_hosts[0], created_hosts[1]])
 
     url = build_hosts_url(query=f"?fqdn={created_hosts[0].fqdn.upper()}")
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(response_data["results"]) == 2
@@ -352,8 +349,7 @@ def test_query_using_fqdn_one_result(mq_create_three_specific_hosts, api_get):
     expected_host_list = build_expected_host_list([created_hosts[2]])
     url = build_hosts_url(query=f"?fqdn={created_hosts[2].fqdn}")
 
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(response_data["results"]) == 1
@@ -362,8 +358,7 @@ def test_query_using_fqdn_one_result(mq_create_three_specific_hosts, api_get):
 
 def test_query_using_non_existent_fqdn(api_get):
     url = build_hosts_url(query="?fqdn=NONEXISTENT.com")
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(response_data["results"]) == 0
@@ -383,8 +378,7 @@ def test_query_using_non_existent_fqdn(api_get):
 def test_query_by_conflitcting_ids(api_get, query):
     # Not allowed to query on more than one of these fields at once
     url = build_hosts_url(query=f"?{query}")
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, _ = api_get(url)
+    response_status, _ = api_get(url)
 
     assert response_status == 400
 
@@ -395,9 +389,8 @@ def test_query_using_display_name_substring(mq_create_three_specific_hosts, api_
     host_name_substr = created_hosts[0].display_name[:4]
     url = build_hosts_url(query=f"?display_name={host_name_substr}")
 
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, response_data = api_get(url)
-        api_pagination_test(api_get, subtests, url, expected_total=len(created_hosts))
+    response_status, response_data = api_get(url)
+    api_pagination_test(api_get, subtests, url, expected_total=len(created_hosts))
 
     assert response_status == 200
     assert_host_lists_equal(expected_host_list, response_data["results"])
@@ -407,9 +400,8 @@ def test_query_using_display_name_as_hostname(mq_create_three_specific_hosts, ap
     created_hosts = mq_create_three_specific_hosts
     url = build_hosts_url(query=f"?hostname_or_id={created_hosts[0].display_name}")
 
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, response_data = api_get(url)
-        api_pagination_test(api_get, subtests, url, expected_total=2)
+    response_status, response_data = api_get(url)
+    api_pagination_test(api_get, subtests, url, expected_total=2)
 
     assert response_status == 200
     assert len(response_data["results"]) == 2
@@ -419,9 +411,8 @@ def test_query_using_fqdn_as_hostname(mq_create_three_specific_hosts, api_get, s
     created_hosts = mq_create_three_specific_hosts
     url = build_hosts_url(query=f"?hostname_or_id={created_hosts[2].display_name}")
 
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, response_data = api_get(url)
-        api_pagination_test(api_get, subtests, url, expected_total=1)
+    response_status, response_data = api_get(url)
+    api_pagination_test(api_get, subtests, url, expected_total=1)
 
     assert response_status == 200
     assert len(response_data["results"]) == 1
@@ -431,9 +422,8 @@ def test_query_using_id(mq_create_three_specific_hosts, api_get, subtests):
     created_hosts = mq_create_three_specific_hosts
     url = build_hosts_url(query=f"?hostname_or_id={created_hosts[0].id}")
 
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, response_data = api_get(url)
-        api_pagination_test(api_get, subtests, url, expected_total=1)
+    response_status, response_data = api_get(url)
+    api_pagination_test(api_get, subtests, url, expected_total=1)
 
     assert response_status == 200
     assert len(response_data["results"]) == 1
@@ -442,9 +432,8 @@ def test_query_using_id(mq_create_three_specific_hosts, api_get, subtests):
 def test_query_using_non_existent_hostname(api_get, subtests):
     url = build_hosts_url(query="?hostname_or_id=NotGonnaFindMe")
 
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, response_data = api_get(url)
-        api_pagination_test(api_get, subtests, url, expected_total=0)
+    response_status, response_data = api_get(url)
+    api_pagination_test(api_get, subtests, url, expected_total=0)
 
     assert response_status == 200
     assert len(response_data["results"]) == 0
@@ -453,9 +442,8 @@ def test_query_using_non_existent_hostname(api_get, subtests):
 def test_query_using_non_existent_id(api_get, subtests):
     url = build_hosts_url(query=f"?hostname_or_id={generate_uuid()}")
 
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, response_data = api_get(url)
-        api_pagination_test(api_get, subtests, url, expected_total=0)
+    response_status, response_data = api_get(url)
+    api_pagination_test(api_get, subtests, url, expected_total=0)
 
     assert response_status == 200
     assert len(response_data["results"]) == 0
@@ -465,9 +453,8 @@ def test_query_using_insights_id(mq_create_three_specific_hosts, api_get, subtes
     created_hosts = mq_create_three_specific_hosts
     url = build_hosts_url(query=f"?insights_id={created_hosts[0].insights_id.upper()}")
 
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, response_data = api_get(url)
-        api_pagination_test(api_get, subtests, url, expected_total=1)
+    response_status, response_data = api_get(url)
+    api_pagination_test(api_get, subtests, url, expected_total=1)
 
     assert response_status == 200
     assert len(response_data["results"]) == 1
@@ -478,9 +465,8 @@ def test_get_host_by_tag(mq_create_three_specific_hosts, api_get, subtests):
     expected_response_list = [created_hosts[0]]
     url = build_hosts_url(query="?tags=SPECIAL/tag=ToFind")
 
-    with patch("api.host.get_flag_value", return_value=True):
-        api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
-        response_status, response_data = api_get(url)
+    api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(expected_response_list) == len(response_data["results"])
@@ -494,9 +480,8 @@ def test_get_multiple_hosts_by_tag(mq_create_three_specific_hosts, api_get, subt
     expected_response_list = [created_hosts[0], created_hosts[1]]
     url = build_hosts_url(query="?tags=NS1/key1=val1&order_by=updated&order_how=ASC")
 
-    with patch("api.host.get_flag_value", return_value=True):
-        api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
-        response_status, response_data = api_get(url)
+    api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(expected_response_list) == len(response_data["results"])
@@ -520,9 +505,8 @@ def test_get_host_by_multiple_tags(db_create_host, api_get, subtests):
     host_ids = [str(db_create_host(extra_data=tags_data).id) for tags_data in tags_data_list]
     url = build_hosts_url(query="?tags=ns1/key1=val1&tags=ns1/key2=val2")
 
-    with patch("api.host.get_flag_value", return_value=True):
-        api_pagination_test(api_get, subtests, url, expected_total=3)
-        _, response_data = api_get(url)
+    api_pagination_test(api_get, subtests, url, expected_total=3)
+    _, response_data = api_get(url)
 
     for result in response_data["results"]:
         assert result["id"] in host_ids[:3]
@@ -535,9 +519,8 @@ def test_get_host_by_subset_of_tags(mq_create_three_specific_hosts, api_get, sub
     created_host_ids = [str(host.id) for host in mq_create_three_specific_hosts]
     url = build_hosts_url(query="?tags=NS1/key1=val1&tags=NS3/key3=val3")
 
-    with patch("api.host.get_flag_value", return_value=True):
-        api_pagination_test(api_get, subtests, url, expected_total=len(created_host_ids))
-        response_status, response_data = api_get(url)
+    api_pagination_test(api_get, subtests, url, expected_total=len(created_host_ids))
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(created_host_ids) == len(response_data["results"])
@@ -553,8 +536,7 @@ def test_get_no_host_with_different_tags_same_namespace(api_get):
     """
     url = build_hosts_url(query="?tags=NS4/key1=val2&tags=NS1/key8=val1")
 
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(response_data["results"]) == 0
@@ -568,9 +550,8 @@ def test_get_host_with_tag_no_value_at_all(mq_create_three_specific_hosts, api_g
     expected_response_list = [created_hosts[0]]
     url = build_hosts_url(query="?tags=no/key")
 
-    with patch("api.host.get_flag_value", return_value=True):
-        api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
-        response_status, response_data = api_get(url)
+    api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(expected_response_list) == len(response_data["results"])
@@ -587,9 +568,8 @@ def test_get_host_with_tag_no_value_in_query(mq_create_three_specific_hosts, api
     expected_response_list = [created_hosts[0]]
     url = build_hosts_url(query="?tags=NS1/key2")
 
-    with patch("api.host.get_flag_value", return_value=True):
-        api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
-        response_status, response_data = api_get(url)
+    api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(expected_response_list) == len(response_data["results"])
@@ -606,11 +586,10 @@ def test_get_host_with_tag_no_namespace(mq_create_three_specific_hosts, api_get,
     expected_response_list = [created_hosts[2]]
     url = build_hosts_url(query="?tags=key4=val4")
 
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, response_data = api_get(url)
-        assert response_status == 200
-        assert len(expected_response_list) == len(response_data["results"])
-        api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    assert len(expected_response_list) == len(response_data["results"])
+    api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
 
     for host, result in zip(expected_response_list, response_data["results"]):
         assert host.id == result["id"]
@@ -624,9 +603,8 @@ def test_get_host_with_tag_only_key(mq_create_three_specific_hosts, api_get, sub
     expected_response_list = [created_hosts[2]]
     url = build_hosts_url(query="?tags=key5")
 
-    with patch("api.host.get_flag_value", return_value=True):
-        api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
-        response_status, response_data = api_get(url)
+    api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(expected_response_list) == len(response_data["results"])
@@ -644,9 +622,8 @@ def test_get_host_by_display_name_and_tag(mq_create_three_specific_hosts, api_ge
     expected_response_list = [created_hosts[0]]
     url = build_hosts_url(query="?tags=NS1/key1=val1&display_name=host1")
 
-    with patch("api.host.get_flag_value", return_value=True):
-        api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
-        response_status, response_data = api_get(url)
+    api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(expected_response_list) == len(response_data["results"])
@@ -664,9 +641,8 @@ def test_get_host_by_display_name_and_tag_backwards(mq_create_three_specific_hos
     expected_response_list = [created_hosts[0]]
     url = build_hosts_url(query="?display_name=host1&tags=NS1/key1=val1")
 
-    with patch("api.host.get_flag_value", return_value=True):
-        api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
-        response_status, response_data = api_get(url)
+    api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(expected_response_list) == len(response_data["results"])
@@ -686,8 +662,7 @@ def test_get_host_with_unescaped_special_characters(tag_query, mq_create_or_upda
     created_host = mq_create_or_update_host(host)
     url = build_hosts_url(query=f"?tags={quote(tag_query)}")
 
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert response_data["count"]
@@ -708,8 +683,7 @@ def test_get_host_with_escaped_special_characters(namespace, key, value, mq_crea
     tags_query = quote(f"{quote_everything(namespace)}/{quote_everything(key)}={quote_everything(value)}")
     url = build_hosts_url(query=f"?tags={tags_query}")
 
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert response_data["count"]
@@ -728,8 +702,7 @@ def test_query_using_group_name(db_create_group_with_hosts, api_get, num_groups)
     group_name_params = "&".join([f"group_name=EXISTING_GROUP_{i}" for i in range(num_groups)])
     url = build_hosts_url(query=f"?{group_name_params}")
 
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(response_data["results"]) == num_groups * hosts_per_group
@@ -743,8 +716,7 @@ def test_query_ungrouped_hosts(db_create_group_with_hosts, mq_create_three_speci
     db_create_group_with_hosts("group_with_hosts", 5)
     url = build_hosts_url(query="?group_name=")
 
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert_host_lists_equal(build_expected_host_list(ungrouped_hosts), response_data["results"])
@@ -753,45 +725,44 @@ def test_query_ungrouped_hosts(db_create_group_with_hosts, mq_create_three_speci
 def test_query_hosts_filter_updated_start_end(mq_create_or_update_host, api_get):
     host_list = [mq_create_or_update_host(minimal_host(insights_id=generate_uuid())) for _ in range(3)]
 
-    with patch("api.host.get_flag_value", return_value=True):
-        url = build_hosts_url(query=f"?updated_start={host_list[0].updated.replace('+00:00', 'Z')}")
-        response_status, response_data = api_get(url)
-        assert response_status == 200
+    url = build_hosts_url(query=f"?updated_start={host_list[0].updated.replace('+00:00', 'Z')}")
+    response_status, response_data = api_get(url)
+    assert response_status == 200
 
-        # This query should return all 3 hosts
-        assert len(response_data["results"]) == 3
+    # This query should return all 3 hosts
+    assert len(response_data["results"]) == 3
 
-        url = build_hosts_url(query=f"?updated_end={host_list[0].updated.replace('+00:00', 'Z')}")
-        response_status, response_data = api_get(url)
-        assert response_status == 200
+    url = build_hosts_url(query=f"?updated_end={host_list[0].updated.replace('+00:00', 'Z')}")
+    response_status, response_data = api_get(url)
+    assert response_status == 200
 
-        # This query should return only the first host
-        assert len(response_data["results"]) == 1
-        assert response_data["results"][0]["insights_id"] == host_list[0].insights_id
+    # This query should return only the first host
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["insights_id"] == host_list[0].insights_id
 
-        url = build_hosts_url(
-            query=(
-                f"?updated_start={host_list[0].updated.replace('+00:00', 'Z')}"
-                f"&updated_end={host_list[1].updated.replace('+00:00', 'Z')}"
-            )
+    url = build_hosts_url(
+        query=(
+            f"?updated_start={host_list[0].updated.replace('+00:00', 'Z')}"
+            f"&updated_end={host_list[1].updated.replace('+00:00', 'Z')}"
         )
-        response_status, response_data = api_get(url)
-        assert response_status == 200
-        # This query should return 2 hosts
-        assert len(response_data["results"]) == 2
+    )
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    # This query should return 2 hosts
+    assert len(response_data["results"]) == 2
 
-        url = build_hosts_url(query=f"?updated_start={host_list[2].updated.replace('+00:00', 'Z')}")
-        response_status, response_data = api_get(url)
-        assert response_status == 200
-        # This query should return only the last host
-        assert len(response_data["results"]) == 1
-        assert response_data["results"][0]["insights_id"] == host_list[2].insights_id
+    url = build_hosts_url(query=f"?updated_start={host_list[2].updated.replace('+00:00', 'Z')}")
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    # This query should return only the last host
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["insights_id"] == host_list[2].insights_id
 
-        url = build_hosts_url(query=f"?updated_end={host_list[2].updated.replace('+00:00', 'Z')}")
-        response_status, response_data = api_get(url)
-        assert response_status == 200
-        # This query should return all 3 hosts
-        assert len(response_data["results"]) == 3
+    url = build_hosts_url(query=f"?updated_end={host_list[2].updated.replace('+00:00', 'Z')}")
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    # This query should return all 3 hosts
+    assert len(response_data["results"]) == 3
 
 
 @pytest.mark.parametrize("order_how", ("ASC", "DESC"))
@@ -811,8 +782,7 @@ def test_get_hosts_order_by_group_name(db_create_group_with_hosts, db_create_mul
 
     url = build_hosts_url(query=f"?order_by=group_name&order_how={order_how}")
 
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(names) * hosts_per_group + num_ungrouped_hosts == len(response_data["results"])
@@ -872,11 +842,10 @@ def test_get_hosts_order_by_operating_system(mq_create_or_update_host, api_get, 
 
     url = build_hosts_url(query=query)
 
-    with patch("api.host.get_flag_value", return_value=True):
-        # Validate the basics, i.e. response code and results size
-        response_status, response_data = api_get(url)
-        assert response_status == 200
-        assert len(created_hosts) == len(response_data["results"])
+    # Validate the basics, i.e. response code and results size
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    assert len(created_hosts) == len(response_data["results"])
 
     # If descending order is requested, reverse the expected order of hosts
     if order_how != "ASC":
@@ -891,17 +860,15 @@ def test_query_using_id_list(mq_create_three_specific_hosts, api_get, subtests, 
     created_hosts = mq_create_three_specific_hosts
     url = build_hosts_url(host_list_or_id=[host.id for host in created_hosts[:num_hosts_to_query]])
 
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, response_data = api_get(url)
-        api_pagination_test(api_get, subtests, url, expected_total=num_hosts_to_query)
+    response_status, response_data = api_get(url)
+    api_pagination_test(api_get, subtests, url, expected_total=num_hosts_to_query)
 
     assert response_status == 200
     assert len(response_data["results"]) == num_hosts_to_query
 
 
 def test_query_using_id_list_nonexistent_host(api_get):
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, response_data = api_get(build_hosts_url(generate_uuid()))
+    response_status, response_data = api_get(build_hosts_url(generate_uuid()))
 
     assert response_status == 200
     assert len(response_data["results"]) == 0
@@ -925,8 +892,7 @@ def test_query_sp_by_id_list_sparse(db_create_multiple_hosts, api_get, num_hosts
     if sparse_request:
         url += "?fields[system_profile]=arch,os_kernel_version,installed_packages,host_type"
 
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(response_data["results"]) == num_hosts_to_query
@@ -952,8 +918,7 @@ def test_query_all_sparse_fields(db_create_multiple_hosts, api_get):
     db_create_multiple_hosts(how_many=3, extra_data=sp_data)
     url = build_hosts_url(query="?fields[system_profile]=arch,host_type")
 
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -979,8 +944,7 @@ def test_query_sys_profile_with_sql_characters(db_create_multiple_hosts, api_get
     db_create_multiple_hosts(how_many=3, extra_data=sp_data)
     url = build_hosts_url(query="?filter[system_profile][bios_vendor]=%3E/%3AX%26x5wVZCj%25mC")
 
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -1008,8 +972,7 @@ def test_query_by_id_sparse_fields(db_create_multiple_hosts, api_get):
         host_list_or_id=created_hosts[0].id, query="?fields[system_profile]=os_kernel_version,owner_id"
     )
 
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -1028,11 +991,10 @@ def test_query_by_id_culled_hosts(db_create_host, api_get):
         created_host_id = str(db_create_host().id)
 
     url = build_hosts_url(host_list_or_id=created_host_id)
-    with patch("api.host.get_flag_value", return_value=True):
-        # The host should not be returned as it is in the "culled" state
-        response_status, response_data = api_get(url)
-        assert response_status == 200
-        assert len(response_data["results"]) == 0
+    # The host should not be returned as it is in the "culled" state
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    assert len(response_data["results"]) == 0
 
 
 def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
@@ -1109,11 +1071,10 @@ def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
     for reporter, count in expected_reporter_results_map.items():
         with subtests.test():
             url = build_hosts_url(query=f"?registered_with={reporter}")
-            with patch("api.host.get_flag_value", return_value=True):
-                # Validate the basics, i.e. response code and results size
-                response_status, response_data = api_get(url)
-                assert response_status == 200
-                assert count == len(response_data["results"])
+            # Validate the basics, i.e. response code and results size
+            response_status, response_data = api_get(url)
+            assert response_status == 200
+            assert count == len(response_data["results"])
 
 
 def test_query_by_staleness(db_create_multiple_hosts, api_get, subtests):
@@ -1138,11 +1099,10 @@ def test_query_by_staleness(db_create_multiple_hosts, api_get, subtests):
     for staleness, count in expected_staleness_results_map.items():
         with subtests.test():
             url = build_hosts_url(query=f"?staleness={staleness}")
-            with patch("api.host.get_flag_value", return_value=True):
-                # Validate the basics, i.e. response code and results size
-                response_status, response_data = api_get(url)
-                assert response_status == 200
-                assert count == len(response_data["results"])
+            # Validate the basics, i.e. response code and results size
+            response_status, response_data = api_get(url)
+            assert response_status == 200
+            assert count == len(response_data["results"])
 
 
 @pytest.mark.parametrize(
@@ -1222,8 +1182,7 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
 
     url = build_hosts_url(query=f"?filter[system_profile]{sp_filter_param}")
 
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -1259,8 +1218,7 @@ def test_query_host_fuzzy_match(db_create_host, api_get, query_filter_param, mat
 
     url = build_hosts_url(query=query_filter_param)
 
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url)
 
     # Assert that only the matching host is returned
     response_ids = [result["id"] for result in response_data["results"]]
@@ -1306,12 +1264,11 @@ def test_query_all_sp_filters_not_found(db_create_host, api_get, sp_filter_param
 
     url = build_hosts_url(query=f"?filter[system_profile]{sp_filter_param}")
 
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url)
 
-        # Assert that the request succeeds but no hosts are returned
-        assert response_status == 200
-        assert len(response_data["results"]) == 0
+    # Assert that the request succeeds but no hosts are returned
+    assert response_status == 200
+    assert len(response_data["results"]) == 0
 
 
 @pytest.mark.parametrize(
@@ -1383,8 +1340,7 @@ def test_query_all_sp_filters_operating_system(db_create_host, api_get, sp_filte
 
     url = build_hosts_url(query=f"?filter[system_profile][operating_system]{sp_filter_param}")
 
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -1434,8 +1390,7 @@ def test_query_sp_filters_operating_system_name(db_create_host, api_get, sp_filt
 
     url = build_hosts_url(query=f"?filter[system_profile][operating_system]{sp_filter_param}")
 
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -1521,8 +1476,7 @@ def test_query_all_operating_system_nil(
         with subtests.test(query_param=sp_filter_param):
             url = build_hosts_url(query=f"?filter[system_profile]{sp_filter_param}")
 
-            with patch("api.host.get_flag_value", return_value=True):
-                response_status, response_data = api_get(url)
+            response_status, response_data = api_get(url)
 
             assert response_status == 200
 
@@ -1588,8 +1542,7 @@ def test_query_all_sp_filters_multiple_of_same_field(db_create_host, api_get, sp
     sp_query_filter = "&".join([f"filter[system_profile]{param}" for param in sp_filter_param_list])
     url = build_hosts_url(query=f"?{sp_query_filter}")
 
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -1630,8 +1583,7 @@ def test_query_all_sp_filters_invalid_field(api_get, sp_filter_param, parent, ch
 def test_query_all_sp_filters_invalid_value(api_get, sp_filter_param):
     url = build_hosts_url(query=f"?filter[system_profile]{sp_filter_param}")
 
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url)
 
     assert response_status == 400
     assert "is an invalid value for field" in response_data.get("detail")
@@ -1649,8 +1601,7 @@ def test_query_all_sp_filters_invalid_value(api_get, sp_filter_param):
 def test_query_all_sp_filters_invalid_operating_system(api_get, sp_filter_param):
     url = build_hosts_url(query=f"?filter[system_profile]{sp_filter_param}")
 
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, _ = api_get(url)
+    response_status, _ = api_get(url)
 
     assert response_status == 400
 
@@ -1667,8 +1618,7 @@ def test_query_all_sp_filters_invalid_operating_system(api_get, sp_filter_param)
 def test_query_all_sp_filters_sql_character_issues(api_get, sp_filter_param):
     url = build_hosts_url(query=f"?filter[system_profile]{sp_filter_param}")
 
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, _ = api_get(url)
+    response_status, _ = api_get(url)
 
     assert response_status == 200
 
@@ -1743,12 +1693,11 @@ def test_query_all_sp_filters_sql_char_contents(db_create_host, api_get, sp_filt
 
     url = build_hosts_url(query=f"?filter[system_profile]{sp_filter_param}")
 
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url)
 
-        # Assert that the request succeeds but no hosts are returned
-        assert response_status == 200
-        assert len(response_data["results"]) == 1
+    # Assert that the request succeeds but no hosts are returned
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
 
 
 def test_query_sp_filters_os_and_rhc_client_id(db_create_host, api_get):
@@ -1786,8 +1735,7 @@ def test_query_sp_filters_os_and_rhc_client_id(db_create_host, api_get):
         query="?filter[system_profile][operating_system][RHEL][version][eq][]=8.6&filter[system_profile][rhc_client_id][]=not_nil"  # noqa: E501
     )
 
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -1826,8 +1774,7 @@ def test_query_sp_filters_query_on_object_with_is_successful_request(db_create_h
 
     url = build_hosts_url(query=f"?filter[system_profile]{sp_filter_param}")
 
-    with patch("api.host.get_flag_value", return_value=True):
-        response_status, _ = api_get(url)
+    response_status, _ = api_get(url)
 
     assert response_status == 200
 
@@ -1937,8 +1884,7 @@ def test_query_hosts_multiple_os(api_get, db_create_host, subtests):
         with subtests.test(query_param=sp_filter_param):
             url = build_hosts_url(query=f"?filter[system_profile]{sp_filter_param}")
 
-            with patch("api.host.get_flag_value", return_value=True):
-                response_status, response_data = api_get(url)
+            response_status, response_data = api_get(url)
 
             assert response_status == 200
             assert response_data["count"] == expected_host_count
