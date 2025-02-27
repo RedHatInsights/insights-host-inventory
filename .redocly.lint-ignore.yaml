@@ -13,16 +13,6 @@ swagger/api.spec.yaml:
   no-unused-components:
     - '#/components/parameters/hostId'
     - '#/components/schemas/UnleashToggleOut'
-swagger/openapi.dev.json:
-  no-empty-servers:
-    - '#/openapi'
-  info-license:
-    - '#/info'
-  no-identical-paths:
-    - '#/paths/~1groups~1{group_id_list}'
-  no-ambiguous-paths:
-    - '#/paths/~1groups~1{group_id_list}'
-    - '#/paths/~1groups~1hosts~1{host_id_list}'
 swagger/openapi.json:
   no-empty-servers:
     - '#/openapi'
