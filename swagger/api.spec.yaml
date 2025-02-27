@@ -652,8 +652,8 @@ paths:
         - ApiKeyAuth: []
       parameters:
         - $ref: '#/components/parameters/tagsParam'
-        - $ref: '#/components/parameters/tagsOrderBy'
-        - $ref: '#/components/parameters/tagsOrderHow'
+        - $ref: '#/components/parameters/tagsOrderByParam'
+        - $ref: '#/components/parameters/tagsOrderHowParam'
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/stalenessParam'
@@ -1069,28 +1069,22 @@ components:
           - updated
       description: Ordering field name
     hostOrderHowParam:
-      name: order_how
       in: query
+      name: order_how
       required: false
       schema:
-        type: string
-        enum:
-          - ASC
-          - DESC
+        $ref:  '#/components/schemas/OrderHow'
       description: >-
-        Direction of the ordering; defaults to ASC for display_name, and to DESC
+        Direction of the ordering (case-insensitive); defaults to ASC for display_name, and to DESC
         for updated and operating_system
     groupOrderHowParam:
-      name: order_how
       in: query
+      name: order_how
       required: false
       schema:
-        type: string
-        enum:
-          - ASC
-          - DESC
+        $ref:  '#/components/schemas/OrderHow'
       description: >-
-        Direction of the ordering; defaults to ASC for name, and to DESC
+        Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC
         for host_count
     stalenessParam:
       name: staleness
@@ -1134,7 +1128,7 @@ components:
         items:
           type: string
           pattern: '^([^=/]+/)?[^=/]+(=[^=/]+)?$'
-    tagsOrderBy:
+    tagsOrderByParam:
       in: query
       name: order_by
       required: false
@@ -1145,17 +1139,13 @@ components:
           - tag
           - count
       description: Ordering field name
-    tagsOrderHow:
+    tagsOrderHowParam:
       in: query
       name: order_how
       required: false
+      description: Direction of the ordering (case-insensitive). Valid values are ASC (default) and DESC.
       schema:
-        type: string
-        default: ASC
-        enum:
-          - ASC
-          - DESC
-      description: Direction of the ordering. Default to ASC
+        $ref:  '#/components/schemas/OrderHow'
     searchParam:
       in: query
       name: search
@@ -1811,15 +1801,6 @@ components:
       description: The number of hosts associated with the group.
       type: integer
       example: 3
-    UnleashToggleOut:
-      title: Unleash Toggle Out
-      properties:
-        flag_value:
-          description: The value of the feature flag toggle
-          type: boolean
-        using_fallback_value:
-          description: Whether the fallback value was used, if the Unleash server could not be accessed
-          type: boolean
     GroupIn:
       title: Group In
       description: >-
@@ -1982,6 +1963,9 @@ components:
         - org_id
         - created
         - updated
+    OrderHow:
+      type: string
+      pattern: '^([Aa][Ss][Cc])|([Dd][Ee][Ss][Cc])$'
 
 
     # include renames for system_profile
