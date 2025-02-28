@@ -211,6 +211,7 @@ class LimitedHost(db.Model):  # type: ignore [name-defined]
         self.tags = tags
         self.system_profile_facts = system_profile_facts or {}
         self.groups = groups or []
+        self.modified_on = _time_now()
 
     def _update_ansible_host(self, ansible_host):
         if ansible_host is not None:
@@ -256,7 +257,7 @@ class LimitedHost(db.Model):  # type: ignore [name-defined]
     display_name = db.Column(db.String(200), default=_set_display_name_on_save)
     ansible_host = db.Column(db.String(255))
     created_on = db.Column(db.DateTime(timezone=True), default=_time_now)
-    modified_on = db.Column(db.DateTime(timezone=True), default=_time_now, onupdate=_time_now)
+    modified_on = db.Column(db.DateTime(timezone=True))
     facts = db.Column(JSONB)
     tags = db.Column(JSONB)
     canonical_facts = db.Column(JSONB)
@@ -305,6 +306,8 @@ class Host(LimitedHost):
 
         # without reporter and stale_timestamp host payload is invalid.
         self._update_stale_timestamp(stale_timestamp, reporter)
+
+        self._update_modified_date()
 
         self.per_reporter_staleness = per_reporter_staleness or {}
         if not per_reporter_staleness:
@@ -385,6 +388,18 @@ class Host(LimitedHost):
         self.reporter = reporter
 
     def _update_per_reporter_staleness(self, reporter):
+        # importing here to avoid cirular import issue
+        from api.host_query import staleness_timestamps
+        from api.staleness_query import get_staleness_obj
+        from app.auth.identity import create_mock_identity_with_org_id
+        from lib.staleness import get_staleness_timestamps
+
+        identity = create_mock_identity_with_org_id(self.org_id)
+        staleness = get_staleness_obj(identity)
+        staleness_ts = staleness_timestamps()
+
+        st = get_staleness_timestamps(self, staleness_ts, staleness)
+
         if not self.per_reporter_staleness:
             self.per_reporter_staleness = {}
 
@@ -395,14 +410,17 @@ class Host(LimitedHost):
             self.per_reporter_staleness.pop(old_reporter, None)
 
         self.per_reporter_staleness[reporter].update(
-            stale_timestamp=self.stale_timestamp.isoformat(),
-            last_check_in=datetime.now(timezone.utc).isoformat(),
+            stale_timestamp=st["stale_timestamp"].isoformat(),
+            culled_timestamp=st["culled_timestamp"].isoformat(),
+            stale_warning_timestamp=st["stale_warning_timestamp"].isoformat(),
+            last_check_in=self.modified_on.isoformat(),
             check_in_succeeded=True,
         )
         orm.attributes.flag_modified(self, "per_reporter_staleness")
 
     def _update_modified_date(self):
         self.modified_on = datetime.now(timezone.utc)
+        orm.attributes.flag_modified(self, "modified_on")
 
     def replace_facts_in_namespace(self, namespace, facts_dict):
         self.facts[namespace] = facts_dict
