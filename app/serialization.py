@@ -321,6 +321,15 @@ def _deserialize_tags(tags):
         raise ValueError("Tags must be dict, list or None.")
 
 
+def _deserialize_tags_alt(tags):
+    tags_alt = []
+    if isinstance(tags, list):
+        tags_alt = _deserialize_tags_list(tags)
+    elif isinstance(tags, dict):
+        tags_alt = _deserialize_tags_list(Tag.create_tags_from_nested(tags))
+    return tags_alt
+
+
 def _deserialize_tags_list(tags):
     deserialized = {}
 
