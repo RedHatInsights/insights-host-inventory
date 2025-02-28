@@ -16,6 +16,7 @@ from sqlalchemy.orm.exc import StaleDataError
 from api.cache import delete_cached_system_keys
 from api.cache import set_cached_system
 from api.cache_key import make_system_cache_key
+from api.host_query import staleness_timestamps
 from api.staleness_query import get_staleness_obj
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
@@ -55,6 +56,7 @@ from lib import host_repository
 from lib.db import session_guard
 from lib.feature_flags import FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM
 from lib.feature_flags import get_flag_value
+from lib.staleness import get_staleness_timestamps
 from utils.system_profile_log import extract_host_dict_sp_to_log
 
 logger = get_logger(__name__)
@@ -476,14 +478,37 @@ def event_loop(consumer, flask_app, event_producer, notification_event_producer,
                         db.session.commit()
                         # The above session is automatically committed or rolled back.
                         # Now we need to send out messages for the batch of hosts we just processed.
+
+                        # Update the per_reporter_staleness at host-checkin
+                        # It was needed to be done after the host was commited
+                        # so we can use the `host.modified_on` field from it
+                        # and have consistent dates.
+                        _update_per_reporter_staleness(processed_rows)
                         write_message_batch(event_producer, notification_event_producer, processed_rows)
 
+                        db.session.commit()
                 except StaleDataError as exc:
                     metrics.ingress_message_handler_failure.inc(amount=len(messages))
                     logger.error(
                         f"Session data is stale; failed to commit data from {len(messages)} payloads.", exc_info=exc
                     )
                     db.session.rollback()
+
+
+def _update_per_reporter_staleness(processed_rows):
+    for row in processed_rows:
+        if (
+            row
+            and row.host_row.modified_on
+            and (row.event_type == EventType.created or row.event_type == EventType.updated)
+        ):
+            host = row.host_row
+            org_id = host.org_id
+            identity = create_mock_identity_with_org_id(org_id)
+            staleness = get_staleness_obj(identity)
+            staleness_ts = staleness_timestamps()
+            staleness_dict = get_staleness_timestamps(host, staleness_ts, staleness)
+            host.complete_update_per_reporter_staleness(host.reporter, staleness_dict)
 
 
 def initialize_thread_local_storage(request_id: str, org_id: str | None = None, account: str | None = None):

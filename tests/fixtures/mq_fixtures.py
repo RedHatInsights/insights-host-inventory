@@ -7,6 +7,7 @@ import pytest
 
 from app.models import db
 from app.queue.event_producer import EventProducer
+from app.queue.host_mq import _update_per_reporter_staleness
 from app.queue.host_mq import add_host
 from app.queue.host_mq import handle_message
 from app.queue.host_mq import write_add_update_event_message
@@ -44,6 +45,8 @@ def mq_create_or_update_host(
 
         message = wrap_message(host_data.data(), platform_metadata=platform_metadata, operation_args=operation_args)
         result = handle_message(json.dumps(message), notification_event_producer, message_operation)
+        db.session.commit()
+        _update_per_reporter_staleness([result])
         db.session.commit()
         write_add_update_event_message(event_producer, notification_event_producer_mock, result)
         event = json.loads(event_producer.event)

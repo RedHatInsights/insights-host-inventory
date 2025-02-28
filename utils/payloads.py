@@ -556,7 +556,7 @@ def random_uuid():
 
 
 IS_EDGE = os.environ.get("IS_EDGE", False)
-USE_RANDOMNESS = os.environ.get("USE_RANDOMENESS", True)
+USE_RANDOMNESS = os.environ.get("USE_RANDOMNESS", True)
 
 
 def build_host_chunk():
@@ -596,7 +596,7 @@ def build_host_chunk():
 
         if add_provider_id:
             payload["provider_id"] = random_uuid()
-            payload["provider_type"] = random.choice(["aws", "azure", "google", "ibm"])
+            payload["provider_type"] = random.choice(["aws", "azure", "gcp", "ibm"])
 
         payload["reporter"] = random.choice(
             ["cloud-connector", "puptoo", "rhsm-conduit", "rhsm-system-profile-bridge", "yuptoo"]
