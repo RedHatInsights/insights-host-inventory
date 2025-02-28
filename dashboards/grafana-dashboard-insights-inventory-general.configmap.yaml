@@ -1046,7 +1046,7 @@ data:
             "links": [
               {
                 "targetBlank": true,
-                "url": "[[kibana]],query:(language:lucene,query:'@log_stream:+%22host-inventory-syndicator-*%22+AND+message:+%22DB+Name\:+insights%22'),sort:!('@timestamp',desc))"
+                "url": "[[kibana]],query:(language:lucene,query:'@log_stream:+%22host-inventory-syndicator-*%22'),sort:!('@timestamp',desc))"
               }
             ],
             "mappingType": 1,
