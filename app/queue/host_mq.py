@@ -94,7 +94,7 @@ def _formatted_uuid(uuid_string):
     return str(UUID(uuid_string))
 
 
-def _get_identity(host, metadata):
+def _get_identity(host, metadata) -> Identity:
     # rhsm reporter does not provide identity.  Set identity type to system for access the host in future.
     if metadata and "b64_identity" in metadata:
         identity = _decode_id(metadata["b64_identity"])
@@ -262,7 +262,7 @@ def add_host(host_data, platform_metadata, operation_args=None):
         if identity.identity_type == IdentityType.SYSTEM:
             input_host = _set_owner(input_host, identity)
 
-        log_add_host_attempt(logger, input_host, sp_fields_to_log)
+        log_add_host_attempt(logger, input_host, sp_fields_to_log, identity)
         host_row, add_result = host_repository.add_host(input_host, identity, operation_args=operation_args)
         success_logger = partial(log_add_update_host_succeeded, logger, add_result, sp_fields_to_log)
 

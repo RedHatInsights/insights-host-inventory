@@ -27,6 +27,7 @@ from app.instrumentation import rbac_group_permission_denied
 from app.instrumentation import rbac_permission_denied
 from app.logging import get_logger
 from lib.feature_flags import FLAG_INVENTORY_API_READ_ONLY
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.feature_flags import get_flag_value
 
 logger = get_logger(__name__)
@@ -108,10 +109,13 @@ def _get_group_list_from_resource_definition(resource_definition: dict) -> list[
             # Validate that all values in the filter are UUIDs.
             group_list = resource_definition["attributeFilter"]["value"]
             try:
+                kessel_migration = get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION)
                 for gid in group_list:
-                    if gid is not None:
+                    # Special handling for "None" rbac attributeFilter, no longer needed after Kessel migration
+                    # We need to handle None before the migration, but not after
+                    if kessel_migration or gid is not None:
                         UUID(gid)
-            except ValueError:
+            except (ValueError, TypeError):
                 abort(
                     HTTPStatus.SERVICE_UNAVAILABLE,
                     "Received invalid UUIDs for attributeFilter.value in RBAC response.",

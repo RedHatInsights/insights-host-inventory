@@ -14,7 +14,7 @@ repos:
   rev: v4.0.4
   hooks:
   - id: swagger-validation
-    args: ["bundle", "swagger/api.spec.yaml", "-o", "swagger/openapi.dev.json"]
+    args: ["bundle", "swagger/api.spec.yaml", "-o", "swagger/openapi.json"]
 - repo: https://github.com/APIDevTools/swagger-cli
   rev: v4.0.4
   hooks:
@@ -22,7 +22,7 @@ repos:
     files: swagger/openapi.json$
     exclude: swagger/inventory-schemas/
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.9.7
+  rev: v0.9.8
   hooks:
   - id: ruff
     args: [--fix, --exit-non-zero-on-fix]
@@ -48,7 +48,7 @@ repos:
       - "@redocly/cli"
     entry: redocly bundle swagger/api.spec.yaml -o swagger/openapi.json
     pass_filenames: false
-    # always_run: true
+    always_run: true
     stages: [manual]
   - id: redocly-validate
     name: redoc validate

@@ -46,9 +46,7 @@ logger = get_logger(__name__)
 IDENTITY_HEADER = "x-rh-identity"
 REQUEST_ID_HEADER = "x-rh-insights-request-id"
 
-# temporary replaced for ESSNTL-746 - correct normalization of the bundled spec
-# SPECIFICATION_FILE = join(SPECIFICATION_DIR, "api.spec.yaml")
-SPECIFICATION_FILE = join(SPECIFICATION_DIR, "openapi.dev.json")
+SPECIFICATION_FILE = join(SPECIFICATION_DIR, "openapi.json")
 SYSTEM_PROFILE_SPECIFICATION_FILE = join(SPECIFICATION_DIR, "system_profile.spec.yaml")
 SYSTEM_PROFILE_BLOCK_LIST_FILE = join(SPECIFICATION_DIR, "system_profile_block_list.yaml")
 
