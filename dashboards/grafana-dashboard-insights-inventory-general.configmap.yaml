@@ -1011,6 +1011,97 @@ data:
           "valueName": "current"
         },
         {
+            "cacheTimeout": null,
+            "colorBackground": true,
+            "colorPostfix": false,
+            "colorValue": false,
+            "colors": [
+              "#d44a3a",
+              "rgba(237, 129, 40, 0.89)",
+              "#299c46"
+            ],
+            "datasource": "$datasource",
+            "fieldConfig": {
+              "defaults": {
+                "custom": {}
+              },
+              "overrides": []
+            },
+            "format": "none",
+            "gauge": {
+              "maxValue": 100,
+              "minValue": 0,
+              "show": false,
+              "thresholdLabels": false,
+              "thresholdMarkers": true
+            },
+            "gridPos": {
+              "h": 2,
+              "w": 3,
+              "x": 9,
+              "y": 8
+            },
+            "id": 77,
+            "interval": null,
+            "links": [
+              {
+                "targetBlank": true,
+                "url": "[[kibana]],query:(language:lucene,query:'@log_stream:+%22host-inventory-syndicator-*%22'),sort:!('@timestamp',desc))"
+              }
+            ],
+            "mappingType": 1,
+            "mappingTypes": [
+              {
+                "name": "value to text",
+                "value": 1
+              },
+              {
+                "name": "range to text",
+                "value": 2
+              }
+            ],
+            "maxDataPoints": 100,
+            "nullPointMode": "connected",
+            "nullText": null,
+            "postfix": "",
+            "postfixFontSize": "50%",
+            "prefix": "",
+            "prefixFontSize": "50%",
+            "rangeMaps": [
+              {
+                "from": "null",
+                "text": "N/A",
+                "to": "null"
+              }
+            ],
+            "sparkline": {
+              "fillColor": "#052b51",
+              "full": true,
+              "lineColor": "#e5ac0e",
+              "show": false
+            },
+            "tableColumn": "",
+            "targets": [
+              {
+                "expr": "sum(increase(hosts_syndication_fail_count_total{namespace=~\"host-inventory-.*\"}[$_range]))",
+                "interval": "5m",
+                "refId": "A"
+              }
+            ],
+            "thresholds": "0,1",
+            "title": "Syndication Failures",
+            "type": "singlestat",
+            "valueFontSize": "80%",
+            "valueMaps": [
+              {
+                "op": "=",
+                "text": "N/A",
+                "value": "null"
+              }
+            ],
+            "valueName": "current"
+        },
+        {
           "cacheTimeout": null,
           "colorBackground": true,
           "colorValue": false,
