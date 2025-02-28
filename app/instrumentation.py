@@ -2,6 +2,7 @@ import json
 
 from flask import g
 
+from app.auth.identity import Identity
 from app.queue import metrics
 from app.queue.metrics import event_producer_failure
 from app.queue.metrics import event_producer_success
@@ -211,7 +212,7 @@ def log_get_sparse_system_profile_succeeded(logger, data):
 
 
 # add host
-def log_add_host_attempt(logger, input_host, sp_fields_to_log):
+def log_add_host_attempt(logger, input_host, sp_fields_to_log, identity: Identity):
     logger.info(
         "Attempting to add host",
         extra={
@@ -226,6 +227,7 @@ def log_add_host_attempt(logger, input_host, sp_fields_to_log):
                 "system_profile": json.dumps(sp_fields_to_log),
             },
             "access_rule": get_control_rule(),
+            "auth_type": identity.auth_type,
         },
     )
 
