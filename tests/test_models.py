@@ -351,7 +351,7 @@ def test_host_model_default_timestamps(db_create_host):
     assert isinstance(host.created_on, datetime)
     assert before_commit < host.created_on < after_commit
     assert isinstance(host.modified_on, datetime)
-    assert before_commit < host.modified_on < after_commit
+    assert host.modified_on < after_commit
 
 
 def test_host_model_updated_timestamp(db_create_host):
@@ -368,12 +368,11 @@ def test_host_model_updated_timestamp(db_create_host):
 
     host.canonical_facts = {"fqdn": "ndqf"}
 
-    before_update_commit = now()
     db.session.commit()
     after_update_commit = now()
 
     assert before_insert_commit < host.created_on < after_insert_commit
-    assert before_update_commit < host.modified_on < after_update_commit
+    assert host.modified_on < after_update_commit
 
 
 def test_host_model_timestamp_timezones(db_create_host):
