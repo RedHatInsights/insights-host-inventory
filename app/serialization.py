@@ -144,7 +144,7 @@ def serialize_host(
         "ansible_host": lambda: host.ansible_host,
         "facts": lambda: serialize_facts(host.facts),
         "reporter": lambda: host.reporter,
-        "per_reporter_staleness": lambda: _serialize_per_reporter_staleness(host, staleness, staleness_timestamps),
+        "per_reporter_staleness": lambda: host.per_reporter_staleness,
         "stale_timestamp": lambda: _serialize_staleness_to_string(timestamps["stale_timestamp"]),
         "stale_warning_timestamp": lambda: _serialize_staleness_to_string(timestamps["stale_warning_timestamp"]),
         "culled_timestamp": lambda: _serialize_staleness_to_string(timestamps["culled_timestamp"]),
@@ -405,48 +405,6 @@ def serialize_staleness_to_dict(staleness_obj) -> dict:
         "immutable_time_to_stale_warning": staleness_obj.immutable_time_to_stale_warning,
         "immutable_time_to_delete": staleness_obj.immutable_time_to_delete,
     }
-
-
-def _serialize_per_reporter_staleness(host, staleness, staleness_timestamps):
-    for reporter in host.per_reporter_staleness:
-        if host.host_type == "edge" or (
-            hasattr(host, "system_profile_facts")
-            and host.system_profile_facts
-            and host.system_profile_facts.get("host_type") == "edge"
-        ):
-            stale_timestamp = staleness_timestamps.stale_timestamp(
-                _deserialize_datetime(host.per_reporter_staleness[reporter]["last_check_in"]),
-                staleness["immutable_time_to_stale"],
-            )
-            stale_warning_timestamp = staleness_timestamps.stale_timestamp(
-                _deserialize_datetime(host.per_reporter_staleness[reporter]["last_check_in"]),
-                staleness["immutable_time_to_stale_warning"],
-            )
-            delete_timestamp = staleness_timestamps.stale_timestamp(
-                _deserialize_datetime(host.per_reporter_staleness[reporter]["last_check_in"]),
-                staleness["immutable_time_to_delete"],
-            )
-        else:
-            stale_timestamp = staleness_timestamps.stale_timestamp(
-                _deserialize_datetime(host.per_reporter_staleness[reporter]["last_check_in"]),
-                staleness["conventional_time_to_stale"],
-            )
-            stale_warning_timestamp = staleness_timestamps.stale_timestamp(
-                _deserialize_datetime(host.per_reporter_staleness[reporter]["last_check_in"]),
-                staleness["conventional_time_to_stale_warning"],
-            )
-            delete_timestamp = staleness_timestamps.stale_timestamp(
-                _deserialize_datetime(host.per_reporter_staleness[reporter]["last_check_in"]),
-                staleness["conventional_time_to_delete"],
-            )
-
-        host.per_reporter_staleness[reporter]["stale_timestamp"] = _serialize_staleness_to_string(stale_timestamp)
-        host.per_reporter_staleness[reporter]["stale_warning_timestamp"] = _serialize_staleness_to_string(
-            stale_warning_timestamp
-        )
-        host.per_reporter_staleness[reporter]["culled_timestamp"] = _serialize_staleness_to_string(delete_timestamp)
-
-    return host.per_reporter_staleness
 
 
 def build_rhel_version_str(system_profile: dict) -> str:
