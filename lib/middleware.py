@@ -291,3 +291,4 @@ def post_rbac_workspace(name, parent_id, description):
     resp_data = rbac_response.json()
 
     logger.debug("POSTED RBAC Data", extra=resp_data)
+    return resp_data["id"]
