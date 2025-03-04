@@ -82,9 +82,7 @@ def create_group(body, rbac_filter=None):
     except IndexError as e:
         message = "Error while retrieving default workspace: No default found in RBAC"
         logger.exception(message)
-        return json_error_response("Default Workspace not found",
-                                   message,
-                                   HTTPStatus.SERVICE_UNAVAILABLE)
+        return json_error_response("Default Workspace not found", message, HTTPStatus.SERVICE_UNAVAILABLE)
 
     # Validate group input data
     try:
