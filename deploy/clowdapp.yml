@@ -574,6 +574,8 @@ objects:
           value: "${KAFKA_CONSUMER_SESSION_TIMEOUT_MS}"
         - name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
           value: "${KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS}"
+        - name: KAFKA_CONSUMER_MAX_POLL_RECORDS
+          value: "${KAFKA_CONSUMER_MAX_POLL_RECORDS}"
         - name: UNLEASH_URL
           value: ${UNLEASH_URL}
         - name: UNLEASH_TOKEN
@@ -671,6 +673,8 @@ objects:
           value: "${KAFKA_CONSUMER_SESSION_TIMEOUT_MS}"
         - name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
           value: "${KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS}"
+        - name: KAFKA_CONSUMER_MAX_POLL_RECORDS
+          value: "${KAFKA_CONSUMER_MAX_POLL_RECORDS}"
         - name: UNLEASH_URL
           value: ${UNLEASH_URL}
         - name: UNLEASH_TOKEN
@@ -1753,6 +1757,8 @@ parameters:
   value: '10000'
 - name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
   value: '3000'
+- name: KAFKA_CONSUMER_MAX_POLL_RECORDS
+  value: '500'
 - name: INVENTORY_API_WRITES_LIVENESS_PROBE_PERIOD_SECONDS
   value: '30'
 - name: INVENTORY_API_WRITES_LIVENESS_PROBE_TIMEOUT_SECONDS
