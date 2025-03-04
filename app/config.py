@@ -228,7 +228,7 @@ class Config:
             "auto.offset.reset": os.environ.get("KAFKA_CONSUMER_AUTO_OFFSET_RESET", "latest"),
             "auto.commit.interval.ms": int(os.environ.get("KAFKA_CONSUMER_AUTO_COMMIT_INTERVAL_MS", "5000")),
             "max.poll.interval.ms": int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS", "300000")),
-            "max.poll.records": int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_RECORDS", "10000")),
+            "max.poll.records": int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_RECORDS", "500")),
             "session.timeout.ms": int(os.environ.get("KAFKA_CONSUMER_SESSION_TIMEOUT_MS", "10000")),
             "heartbeat.interval.ms": int(os.environ.get("KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS", "3000")),
             "partition.assignment.strategy": "cooperative-sticky",
