@@ -95,7 +95,7 @@ def create_group(body, rbac_filter=None):
         # Create group with validated data
         group_name = validated_create_group_data.get("name")
 
-        workspace_id = post_rbac_workspace(group_name, default_parent_id, group_name)
+        workspace_id = post_rbac_workspace(group_name, default_parent_id, f"{group_name} group")
         if not workspace_id:
             message = f"Error while creating workspace for {group_name}"
             logger.exception(message)
