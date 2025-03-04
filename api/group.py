@@ -36,6 +36,7 @@ from lib.group_repository import remove_hosts_from_group
 from lib.metrics import create_group_count
 from lib.middleware import rbac
 from lib.middleware import rbac_group_id_check
+from lib.middleware import get_rbac_default_workspace, post_rbac_workspace
 
 logger = get_logger(__name__)
 
@@ -52,6 +53,7 @@ def get_group_list(
     rbac_filter=None,
 ):
     try:
+        logger.info(get_rbac_default_workspace())
         group_list, total = get_filtered_group_list_db(name, page, per_page, order_by, order_how, rbac_filter)
     except ValueError as e:
         log_get_group_list_failed(logger)
@@ -75,6 +77,8 @@ def create_group(body, rbac_filter=None):
             "Unfiltered inventory:groups:write RBAC permission is required in order to create new groups.",
         )
 
+    default_parent_id = get_rbac_default_workspace()[0]["id"]
+
     # Validate group input data
     try:
         validated_create_group_data = InputGroupSchema().load(body)
@@ -84,6 +88,11 @@ def create_group(body, rbac_filter=None):
 
     try:
         # Create group with validated data
+        group_name = validated_create_group_data.get("name")
+
+        workspace_id = post_rbac_workspace(group_name, default_parent_id, group_name)
+        body["workspace_id"] = workspace_id
+
         created_group = add_group(validated_create_group_data, current_app.event_producer)
         create_group_count.inc()
 
