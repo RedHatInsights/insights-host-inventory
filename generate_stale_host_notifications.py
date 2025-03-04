@@ -143,26 +143,31 @@ def run(
         filter_stale_hosts = _find_stale_hosts(logger, session, stale_host_timestamp, job_start_time)
 
         query = session.query(Host).filter(or_(False, *filter_stale_hosts))
-        stale_hosts = query.all()
-        if len(stale_hosts) > 0:
-            logger.info("%s hosts found as stale", len(stale_hosts))
-            try:
-                for host in stale_hosts:
-                    identity = create_mock_identity_with_org_id(host.org_id)
-                    result = _create_host_operation_result(host, identity, logger)
-                    send_notification(
-                        notification_event_producer, NotificationType.system_became_stale, vars(result.host_row)
-                    )
 
-                    stale_host_notification_success_count.inc()
-                    result.success_logger()
-
-                stale_host_timestamp._update_last_succeeded(job_start_time)
-                session.commit()
-            except Exception:
-                logger.error("Error when sending notification")
-        else:
+        stale_host_count = query.count()
+        if stale_host_count == 0:
             logger.info("No hosts found as stale")
+            return
+
+        logger.info("%s hosts found as stale", stale_host_count)
+
+        try:
+            # Only load in 500 host records at a time
+            for host in query.yield_per(500):
+                identity = create_mock_identity_with_org_id(host.org_id)
+                result = _create_host_operation_result(host, identity, logger)
+                send_notification(
+                    notification_event_producer, NotificationType.system_became_stale, vars(result.host_row)
+                )
+
+                stale_host_notification_success_count.inc()
+                result.success_logger()
+
+            stale_host_timestamp._update_last_succeeded(job_start_time)
+            session.commit()
+        except Exception:
+            logger.error("Error while generating stale-host notifications")
+            raise
 
 
 if __name__ == "__main__":
