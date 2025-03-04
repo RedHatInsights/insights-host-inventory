@@ -255,7 +255,12 @@ def get_rbac_default_workspace():
     resp_data = rbac_response.json()
     logger.debug("Fetched RBAC Data", extra=resp_data)
 
-    return resp_data["data"]
+    if len(resp_data["data"]) == 0:
+        message = "Error while retrieving default workspace: No default workspace    in RBAC"
+        logger.exception(message)
+        abort(400, message)
+    else:
+        return resp_data["data"][0]["id"]
 
 
 def post_rbac_workspace(name, parent_id, description):

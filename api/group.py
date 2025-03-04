@@ -53,7 +53,6 @@ def get_group_list(
     rbac_filter=None,
 ):
     try:
-        logger.info(get_rbac_default_workspace())
         group_list, total = get_filtered_group_list_db(name, page, per_page, order_by, order_how, rbac_filter)
     except ValueError as e:
         log_get_group_list_failed(logger)
@@ -77,13 +76,8 @@ def create_group(body, rbac_filter=None):
             "Unfiltered inventory:groups:write RBAC permission is required in order to create new groups.",
         )
 
-    try:
-        default_parent_id = get_rbac_default_workspace()[0]["id"]
-    except IndexError as e:
-        message = "Error while retrieving default workspace: No default found in RBAC"
-        logger.exception(message)
-        return json_error_response("Default Workspace not found", message, HTTPStatus.SERVICE_UNAVAILABLE)
-
+    default_parent_id = get_rbac_default_workspace()
+        
     # Validate group input data
     try:
         validated_create_group_data = InputGroupSchema().load(body)
