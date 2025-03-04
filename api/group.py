@@ -96,6 +96,11 @@ def create_group(body, rbac_filter=None):
         group_name = validated_create_group_data.get("name")
 
         workspace_id = post_rbac_workspace(group_name, default_parent_id, group_name)
+        if not workspace_id:
+            message = f"Error while creating workspace for {group_name}"
+            logger.exception(message)
+            return json_error_response("Workspace creation failure", message, HTTPStatus.BAD_REQUEST)
+
         body["workspace_id"] = workspace_id
 
         created_group = add_group(validated_create_group_data, current_app.event_producer)
