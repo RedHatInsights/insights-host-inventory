@@ -33,12 +33,17 @@ from lib.feature_flags import get_flag_value
 logger = get_logger(__name__)
 
 RBAC_ROUTE = "/api/rbac/v1/access/?application="
+RBAC_V2_ROUTE = "/api/rbac/v2/"
 CHECKED_TYPES = [IdentityType.USER, IdentityType.SERVICE_ACCOUNT]
 RETRY_STATUSES = [500, 502, 503, 504]
 
 
 def get_rbac_url(app: str) -> str:
     return inventory_config().rbac_endpoint + RBAC_ROUTE + app
+
+
+def get_rbac_v2_url(endpoint: str) -> str:
+    return inventory_config().rbac_endpoint + RBAC_V2_ROUTE + endpoint
 
 
 def tenant_translator_url() -> str:
@@ -226,3 +231,15 @@ def rbac_group_id_check(rbac_filter: dict, requested_ids: set) -> None:
             joined_ids = ", ".join(disallowed_ids)
             rbac_group_permission_denied(logger, joined_ids, required_permission)
             abort(HTTPStatus.FORBIDDEN, f"You do not have access to the the following groups: {joined_ids}")
+
+
+def rbac_create_ungrouped_hosts_workspace(identity: Identity) -> UUID | None:  # noqa: ARG001, used later
+    # Creates a new "ungrouped" workspace via the RBAC API, and returns its ID.
+    # If not using RBAC, returns None, so the DB will automatically generate the group ID.
+    if inventory_config().bypass_rbac:
+        return None
+    else:
+        # TODO
+        # POST /api/rbac/v2/workspaces/
+        # https://github.com/RedHatInsights/insights-rbac/blob/master/docs/source/specs/v2/openapi.yaml#L96
+        return None

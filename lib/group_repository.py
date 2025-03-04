@@ -1,9 +1,14 @@
+from typing import Optional
+from uuid import UUID
+
 from sqlalchemy import select
 
 from api.cache import delete_cached_system_keys
 from api.host_query import staleness_timestamps
+from api.staleness_query import AttrDict
 from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
+from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
 from app.exceptions import InventoryException
 from app.instrumentation import get_control_rule
@@ -19,6 +24,7 @@ from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import db
+from app.models import deleted_by_this_query
 from app.queue.event_producer import EventProducer
 from app.queue.events import EventType
 from app.queue.events import build_event
@@ -26,12 +32,12 @@ from app.queue.events import message_headers
 from app.serialization import serialize_group
 from app.serialization import serialize_host
 from lib.db import session_guard
-from lib.host_delete import _deleted_by_this_query
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.metrics import delete_group_count
 from lib.metrics import delete_group_processing_time
 from lib.metrics import delete_host_group_count
 from lib.metrics import delete_host_group_processing_time
+from lib.middleware import rbac_create_ungrouped_hosts_workspace
 
 logger = get_logger(__name__)
 
@@ -132,23 +138,38 @@ def add_hosts_to_group(group_id: str, host_id_list: list[str], event_producer: E
     _invalidate_system_cache(host_list)
 
 
-def add_group(group_data, event_producer) -> Group:
-    logger.debug("Creating a new group: %s", group_data)
-    group_name = group_data.get("name")
-    org_id = get_current_identity().org_id
-    account = get_current_identity().account_number
-    staleness = get_staleness_obj(get_current_identity())
-    with session_guard(db.session):
-        new_group = Group(name=group_name, org_id=org_id, account=account)
-        db.session.add(new_group)
-        db.session.flush()
+def add_group(
+    group_name: str,
+    org_id: str,
+    account: str,
+    group_id: Optional[UUID],
+    ungrouped: bool,
+) -> Group:
+    new_group = Group(org_id=org_id, name=group_name, account=account, id=group_id, ungrouped=ungrouped)
+    db.session.add(new_group)
+    db.session.flush()
 
-        host_id_list = group_data.get("host_ids", [])
+    # gets the ID of the group after it has been committed
+    created_group = Group.query.filter((Group.name == group_name) & (Group.org_id == org_id)).one_or_none()
+    return created_group
+
+
+def add_group_with_hosts(
+    group_name: str,
+    host_id_list: list[str],
+    org_id: str,
+    account: str,
+    group_id: Optional[UUID],
+    ungrouped: bool,
+    staleness: AttrDict,
+    event_producer: EventProducer,
+) -> Group:
+    with session_guard(db.session):
+        # Create group
+        created_group = add_group(group_name, org_id, account, group_id, ungrouped)
 
         # Add hosts to group
         if host_id_list:
-            # gets the ID of the group inside the session
-            created_group = Group.query.filter((Group.name == group_name) & (Group.org_id == org_id)).one_or_none()
             _add_hosts_to_group(created_group.id, host_id_list)
 
     # gets the ID of the group after it has been committed
@@ -162,6 +183,20 @@ def add_group(group_data, event_producer) -> Group:
     return created_group
 
 
+def create_group_from_payload(group_data: dict, event_producer: EventProducer) -> Group:
+    logger.debug("Creating a new group: %s", group_data)
+    return add_group_with_hosts(
+        str(group_data.get("name")),
+        group_data.get("host_ids", []),
+        org_id=get_current_identity().org_id,
+        account=get_current_identity().account_number,
+        group_id=None,
+        ungrouped=False,
+        staleness=get_staleness_obj(get_current_identity()),
+        event_producer=event_producer,
+    )
+
+
 def _remove_all_hosts_from_group(group: Group):
     host_group_assocs_to_delete = HostGroupAssoc.query.filter(HostGroupAssoc.group_id == group.id).all()
     _remove_hosts_from_group(group.id, [assoc.host_id for assoc in host_group_assocs_to_delete])
@@ -172,7 +207,7 @@ def _delete_host_group_assoc(session, assoc):
         HostGroupAssoc.group_id == assoc.group_id, HostGroupAssoc.host_id == assoc.host_id
     )
     delete_query.delete(synchronize_session="fetch")
-    assoc_deleted = _deleted_by_this_query(assoc)
+    assoc_deleted = deleted_by_this_query(assoc)
 
     return assoc_deleted
 
@@ -184,7 +219,7 @@ def _delete_group(group: Group) -> bool:
 
     delete_query = db.session.query(Group).filter(Group.id == group_id)
     delete_query.delete(synchronize_session="fetch")
-    return _deleted_by_this_query(group)
+    return deleted_by_this_query(group)
 
 
 def delete_group_list(group_id_list: list[str], event_producer: EventProducer) -> int:
@@ -325,3 +360,23 @@ def get_group_using_host_id(host_id: str):
         return get_group_by_id_from_db(str(assoc.group_id))
     else:
         return None
+
+
+def get_or_create_ungrouped_hosts_group_for_identity(identity: Identity) -> Group:
+    group = Group.query.filter(Group.org_id == identity.org_id, Group.ungrouped is True).one_or_none()
+
+    # If the "ungrouped" Group exists, return it.
+    if group is not None:
+        return group
+
+    # Otherwise, create the workspace
+    workspace_id = rbac_create_ungrouped_hosts_workspace(identity)
+
+    # Create "ungrouped" group for this org using group ID == workspace ID
+    return add_group(
+        group_name="ungrouped",
+        org_id=identity.org_id,
+        account=identity.account_number,
+        group_id=workspace_id,
+        ungrouped=True,
+    )

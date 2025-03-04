@@ -33,6 +33,7 @@ from app.instrumentation import log_update_system_profile_success
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
+from app.models import HostGroupAssoc
 from app.models import LimitedHostSchema
 from app.models import db
 from app.payload_tracker import PayloadTrackerContext
@@ -50,11 +51,14 @@ from app.queue.notifications import NotificationType
 from app.queue.notifications import send_notification
 from app.serialization import deserialize_host
 from app.serialization import remove_null_canonical_facts
+from app.serialization import serialize_group
 from app.serialization import serialize_host
 from lib import host_repository
 from lib.db import session_guard
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.feature_flags import FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM
 from lib.feature_flags import get_flag_value
+from lib.group_repository import get_or_create_ungrouped_hosts_group_for_identity
 from utils.system_profile_log import extract_host_dict_sp_to_log
 
 logger = get_logger(__name__)
@@ -264,6 +268,18 @@ def add_host(host_data, platform_metadata, operation_args=None):
 
         log_add_host_attempt(logger, input_host, sp_fields_to_log, identity)
         host_row, add_result = host_repository.add_host(input_host, identity, operation_args=operation_args)
+
+        # If this is a new host, assign it to the "ungrouped hosts" group/workspace
+        if add_result == host_repository.AddHostResult.created and get_flag_value(
+            FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
+        ):
+            # Get org's "ungrouped hosts" group (create if not exists) and assign host to it
+            group = get_or_create_ungrouped_hosts_group_for_identity(identity)
+            assoc = HostGroupAssoc(host_row.id, group.id)
+            db.session.add(assoc)
+            host_row.groups = [serialize_group(group, identity)]
+            db.session.flush()
+
         success_logger = partial(log_add_update_host_succeeded, logger, add_result, sp_fields_to_log)
 
         return host_row, add_result, identity, success_logger
@@ -431,7 +447,7 @@ def write_message_batch(
 def event_loop(consumer, flask_app, event_producer, notification_event_producer, handler, interrupt):
     with flask_app.app_context():
         while not interrupt():
-            processed_rows = []
+            processed_rows: list[OperationResult] = []
             with session_guard(db.session), db.session.no_autoflush:
                 messages = consumer.consume(
                     num_messages=inventory_config().mq_db_batch_max_messages,
