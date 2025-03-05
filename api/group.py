@@ -27,7 +27,7 @@ from app.instrumentation import log_patch_group_failed
 from app.instrumentation import log_patch_group_success
 from app.logging import get_logger
 from app.models import InputGroupSchema
-from lib.group_repository import add_group
+from lib.group_repository import create_group_from_payload
 from lib.group_repository import delete_group_list
 from lib.group_repository import get_group_by_id_from_db
 from lib.group_repository import get_group_using_host_id
@@ -98,7 +98,7 @@ def create_group(body, rbac_filter=None):
 
         body["workspace_id"] = workspace_id
 
-        created_group = add_group(validated_create_group_data, current_app.event_producer)
+        created_group = create_group_from_payload(validated_create_group_data, current_app.event_producer)
         create_group_count.inc()
 
         log_create_group_succeeded(logger, created_group.id)

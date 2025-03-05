@@ -38,6 +38,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import column_property
+from sqlalchemy.orm.base import instance_state
 from yaml import safe_load
 
 from app.culling import days_to_seconds
@@ -500,11 +501,12 @@ class Group(db.Model):  # type: ignore [name-defined]
             raise ValidationException("Group org_id cannot be null.")
         if not name:
             raise ValidationException("Group name cannot be null.")
+        if id is not None:
+            self.id = id
 
         self.org_id = org_id
         self.account = account
         self.name = name
-        self.id = id
         self.ungrouped = ungrouped
 
     def update_modified_on(self):
@@ -959,3 +961,12 @@ class StalenessSchema(MarshmallowSchema):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+
+def deleted_by_this_query(model):
+    # This process of checking for an already-deleted object relies
+    # on checking the session after it has been updated by the commit()
+    # function and marked the deleted objects as expired. It is after this
+    # change that the host is called by a new query and, if deleted by a
+    # different process, triggers the ObjectDeletedError and is not emitted.
+    return not instance_state(model).expired
