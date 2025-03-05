@@ -249,13 +249,19 @@ def test_host_schema_timezone_enforced():
 
 
 @pytest.mark.parametrize(
-    "tags",
+    "tags,tags_alt",
     [
-        [{"namespace": "Sat", "key": "env", "value": "prod"}, {"namespace": "AWS", "key": "env", "value": "ci"}],
-        [{"namespace": "Sat", "key": "env"}, {"namespace": "AWS", "key": "env"}],
+        (
+            [{"namespace": "Sat", "key": "env", "value": "prod"}, {"namespace": "AWS", "key": "env", "value": "ci"}],
+            [{"namespace": "Sat", "key": "env", "value": "prod"}, {"namespace": "AWS", "key": "env", "value": "ci"}],
+        ),
+        (
+            [{"namespace": "Sat", "key": "env"}, {"namespace": "AWS", "key": "env"}],
+            [{"namespace": "Sat", "key": "env", "value": None}, {"namespace": "AWS", "key": "env", "value": None}],
+        ),
     ],
 )
-def test_create_host_with_tags(tags, db_create_host):
+def test_create_host_with_tags(tags, tags_alt, db_create_host):
     created_host = db_create_host(
         SYSTEM_IDENTITY,
         extra_data={
@@ -267,6 +273,7 @@ def test_create_host_with_tags(tags, db_create_host):
     )
 
     assert created_host.tags == tags
+    assert created_host.tags_alt == tags_alt
 
 
 def test_update_host_with_tags(db_create_host):
