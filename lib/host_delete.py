@@ -1,13 +1,13 @@
 from functools import partial
 
 from confluent_kafka import KafkaException
-from sqlalchemy.orm.base import instance_state
 
 from app.auth.identity import to_auth_header
 from app.instrumentation import log_host_delete_succeeded
 from app.logging import get_logger
 from app.models import Host
 from app.models import HostGroupAssoc
+from app.models import deleted_by_this_query
 from app.queue.event_producer import EventProducer
 from app.queue.events import EventType
 from app.queue.host_mq import OperationResult
@@ -30,7 +30,7 @@ def _delete_host_db_records(select_query, chunk_size, identity, interrupt, contr
     for host in select_query.limit(chunk_size):
         with delete_host_processing_time.time():
             result = _delete_host(select_query.session, host, identity, control_rule)
-        if _deleted_by_this_query(result.host_row):
+        if deleted_by_this_query(result.host_row):
             results_list.append(result)
 
         if interrupt():
@@ -92,12 +92,3 @@ def _delete_host(session, host, identity, control_rule) -> OperationResult:
         EventType.delete,
         partial(log_host_delete_succeeded, logger, host.id, control_rule, sp_fields_to_log),
     )
-
-
-def _deleted_by_this_query(model):
-    # This process of checking for an already-deleted object relies
-    # on checking the session after it has been updated by the commit()
-    # function and marked the deleted objects as expired. It is after this
-    # change that the host is called by a new query and, if deleted by a
-    # different process, triggers the ObjectDeletedError and is not emitted.
-    return not instance_state(model).expired

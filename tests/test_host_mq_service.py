@@ -123,19 +123,44 @@ def test_handle_message_failure_invalid_message_format(mocker):
 
 @pytest.mark.usefixtures("flask_app")
 @pytest.mark.parametrize("identity", (SYSTEM_IDENTITY, SATELLITE_IDENTITY))
-def test_handle_message_happy_path(identity, mocker):
-    expected_insights_id = generate_uuid()
-    host = minimal_host(account=identity["account_number"], insights_id=expected_insights_id)
+@pytest.mark.parametrize("kessel_migration", (True, False))
+def test_handle_message_happy_path(identity, kessel_migration, mocker):
+    with mocker.patch("app.queue.host_mq.get_flag_value", return_value=kessel_migration):
+        expected_insights_id = generate_uuid()
+        host = minimal_host(account=identity["account_number"], insights_id=expected_insights_id)
 
-    mock_notification_event_producer = mocker.Mock()
+        mock_notification_event_producer = mocker.Mock()
 
-    message = wrap_message(host.data(), "add_host", get_platform_metadata(identity))
-    result = handle_message(json.dumps(message), mock_notification_event_producer)
+        message = wrap_message(host.data(), "add_host", get_platform_metadata(identity))
+        result = handle_message(json.dumps(message), mock_notification_event_producer)
 
-    assert result.event_type == EventType.created
-    assert result.host_row.canonical_facts["insights_id"] == expected_insights_id
+        assert result.event_type == EventType.created
+        assert result.host_row.canonical_facts["insights_id"] == expected_insights_id
+        if kessel_migration:
+            assert len(result.host_row.groups) == 1
+        else:
+            assert result.host_row.groups == []
 
-    mock_notification_event_producer.write_event.assert_not_called()
+        mock_notification_event_producer.write_event.assert_not_called()
+
+
+@pytest.mark.usefixtures("flask_app")
+def test_handle_message_existing_ungrouped_workspace(mocker, db_create_group):
+    with mocker.patch("app.queue.host_mq.get_flag_value", return_value=True):
+        expected_insights_id = generate_uuid()
+        host = minimal_host(account=SYSTEM_IDENTITY["account_number"], insights_id=expected_insights_id)
+        group_id = db_create_group("kessel-test", ungrouped=True).id
+        mock_notification_event_producer = mocker.Mock()
+
+        message = wrap_message(host.data(), "add_host", get_platform_metadata(SYSTEM_IDENTITY))
+        result = handle_message(json.dumps(message), mock_notification_event_producer)
+
+        assert result.event_type == EventType.created
+        assert result.host_row.canonical_facts["insights_id"] == expected_insights_id
+        assert result.host_row.groups[0]["name"] == "kessel-test"
+        assert result.host_row.groups[0]["id"] == str(group_id)
+
+        mock_notification_event_producer.write_event.assert_not_called()
 
 
 def test_request_id_is_reset(mocker, flask_app, db_create_host):
