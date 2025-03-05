@@ -139,7 +139,7 @@ def add_hosts_to_group(group_id: str, host_id_list: list[str], event_producer: E
 
 
 def add_group(
-    group_name: str,
+    group_name: Optional[str],
     org_id: str,
     account: str,
     group_id: Optional[UUID],
@@ -155,7 +155,7 @@ def add_group(
 
 
 def add_group_with_hosts(
-    group_name: str,
+    group_name: Optional[str],
     host_id_list: list[str],
     org_id: str,
     account: str,
@@ -186,7 +186,7 @@ def add_group_with_hosts(
 def create_group_from_payload(group_data: dict, event_producer: EventProducer) -> Group:
     logger.debug("Creating a new group: %s", group_data)
     return add_group_with_hosts(
-        str(group_data.get("name")),
+        group_data.get("name"),
         group_data.get("host_ids", []),
         org_id=get_current_identity().org_id,
         account=get_current_identity().account_number,
@@ -363,7 +363,7 @@ def get_group_using_host_id(host_id: str):
 
 
 def get_or_create_ungrouped_hosts_group_for_identity(identity: Identity) -> Group:
-    group = Group.query.filter(Group.org_id == identity.org_id, Group.ungrouped is True).one_or_none()
+    group = Group.query.filter(Group.org_id == identity.org_id, Group.ungrouped.is_(True)).one_or_none()
 
     # If the "ungrouped" Group exists, return it.
     if group is not None:
