@@ -113,20 +113,20 @@
         },
         "boto3": {
             "hashes": [
-                "sha256:024c37c2f85f4b907f5fc817d0db6fda7fd6ab3c6148ee4ed35fe7cecdf7db0c",
-                "sha256:1bbf8bbacb3932956b7020d9a2c49d72c64e21bae9397ba6d3aadffab5e192eb"
+                "sha256:12166353519aca0cc8d9dcfbbb0d38f8915955a5912b8cb241b2b2314f0dbc14",
+                "sha256:ae6e7048beeaa4478368e554a4b290e3928beb0ae8d8767d108d72381a81af30"
             ],
             "index": "pypi",
             "markers": "python_version >= '3.8'",
-            "version": "==1.37.4"
+            "version": "==1.37.5"
         },
         "botocore": {
             "hashes": [
-                "sha256:7e15cd487617440e9eac3144044b6a2bd833d7f3e2bed6a2865693cc11489cc3",
-                "sha256:89130998c82d53f875a42646b692da507c9871b580fd1aea0f861bf9da36e41a"
+                "sha256:e5cfbb8026d5b4fadd9b3a18b61d238a41a8b8f620ab75873dc1467d456150d6",
+                "sha256:f8f526d33ae74d242c577e0440b57b9ec7d53edd41db211155ec8087fe7a5a21"
             ],
             "markers": "python_version >= '3.8'",
-            "version": "==1.37.4"
+            "version": "==1.37.5"
         },
         "cachelib": {
             "hashes": [
@@ -970,7 +970,7 @@
                 "sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427"
             ],
             "index": "pypi",
-            "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'",
+            "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2'",
             "version": "==2.9.0.post0"
         },
         "python-dotenv": {
@@ -1299,7 +1299,7 @@
                 "sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274",
                 "sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81"
             ],
-            "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'",
+            "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2'",
             "version": "==1.17.0"
         },
         "sniffio": {
