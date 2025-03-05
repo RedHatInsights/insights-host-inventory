@@ -16,6 +16,7 @@ from api.group_query import get_filtered_group_list_db
 from api.group_query import get_group_list_by_id_list_db
 from app import RbacPermission
 from app import RbacResourceType
+from app.common import inventory_config
 from app.exceptions import InventoryException
 from app.instrumentation import log_create_group_failed
 from app.instrumentation import log_create_group_not_allowed
@@ -34,6 +35,8 @@ from lib.group_repository import get_group_using_host_id
 from lib.group_repository import patch_group
 from lib.group_repository import remove_hosts_from_group
 from lib.metrics import create_group_count
+from lib.middleware import get_rbac_default_workspace
+from lib.middleware import post_rbac_workspace
 from lib.middleware import rbac
 from lib.middleware import rbac_group_id_check
 
@@ -75,6 +78,8 @@ def create_group(body, rbac_filter=None):
             "Unfiltered inventory:groups:write RBAC permission is required in order to create new groups.",
         )
 
+    default_parent_id = get_rbac_default_workspace()
+
     # Validate group input data
     try:
         validated_create_group_data = InputGroupSchema().load(body)
@@ -84,7 +89,17 @@ def create_group(body, rbac_filter=None):
 
     try:
         # Create group with validated data
-        created_group = create_group_from_payload(validated_create_group_data, current_app.event_producer)
+        group_name = validated_create_group_data.get("name")
+
+        workspace_id = post_rbac_workspace(group_name, default_parent_id, f"{group_name} group")
+        if not workspace_id and not inventory_config().bypass_rbac:
+            message = f"Error while creating workspace for {group_name}"
+            logger.exception(message)
+            return json_error_response("Workspace creation failure", message, HTTPStatus.BAD_REQUEST)
+
+        created_group = create_group_from_payload(
+            validated_create_group_data, current_app.event_producer, workspace_id
+        )
         create_group_count.inc()
 
         log_create_group_succeeded(logger, created_group.id)

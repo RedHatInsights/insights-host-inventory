@@ -38,8 +38,8 @@ CHECKED_TYPES = [IdentityType.USER, IdentityType.SERVICE_ACCOUNT]
 RETRY_STATUSES = [500, 502, 503, 504]
 
 
-def get_rbac_url(app: str) -> str:
-    return inventory_config().rbac_endpoint + RBAC_ROUTE + app
+def get_rbac_url(app: str = "", route: str = RBAC_ROUTE) -> str:
+    return inventory_config().rbac_endpoint + route + app
 
 
 def get_rbac_v2_url(endpoint: str) -> str:
@@ -231,6 +231,79 @@ def rbac_group_id_check(rbac_filter: dict, requested_ids: set) -> None:
             joined_ids = ", ".join(disallowed_ids)
             rbac_group_permission_denied(logger, joined_ids, required_permission)
             abort(HTTPStatus.FORBIDDEN, f"You do not have access to the the following groups: {joined_ids}")
+
+
+def get_rbac_default_workspace() -> UUID | None:
+    if inventory_config().bypass_rbac:
+        return None
+
+    workspace_route = "/api/rbac/v2/workspaces/?type=default"
+    request_session = Session()
+    retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
+    request_session.mount(get_rbac_url(route=workspace_route), HTTPAdapter(max_retries=retry_config))
+    request_header = {
+        IDENTITY_HEADER: request.headers[IDENTITY_HEADER],
+        REQUEST_ID_HEADER: request.headers.get(REQUEST_ID_HEADER),
+    }
+
+    try:
+        with outbound_http_response_time.labels("rbac").time():
+            rbac_response = request_session.get(
+                url=get_rbac_url(route=workspace_route),
+                headers=request_header,
+                timeout=inventory_config().rbac_timeout,
+                verify=LoadedConfig.tlsCAPath,
+            )
+    except Exception as e:
+        rbac_failure(logger, e)
+        abort(503, "Failed to reach RBAC endpoint, request cannot be fulfilled")
+    finally:
+        request_session.close()
+
+    resp_data = rbac_response.json()
+    logger.debug("Fetched RBAC Data", extra=resp_data)
+
+    if len(resp_data["data"]) == 0:
+        message = "Error while retrieving default workspace: No default workspace in RBAC"
+        logger.exception(message)
+        return None
+    else:
+        return UUID(resp_data["data"][0]["id"])
+
+
+def post_rbac_workspace(name, parent_id, description) -> UUID | None:
+    if inventory_config().bypass_rbac:
+        return None
+
+    workspace_route = "/api/rbac/v2/workspaces/"
+    request_session = Session()
+    retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
+    request_session.mount(get_rbac_url(route=workspace_route), HTTPAdapter(max_retries=retry_config))
+    request_header = {
+        IDENTITY_HEADER: request.headers[IDENTITY_HEADER],
+        REQUEST_ID_HEADER: request.headers.get(REQUEST_ID_HEADER),
+    }
+    request_data = {"name": name, "description": description, "parent_id": parent_id}
+
+    try:
+        with outbound_http_response_time.labels("rbac").time():
+            rbac_response = request_session.post(
+                url=get_rbac_url(route=workspace_route),
+                headers=request_header,
+                json=request_data,
+                timeout=inventory_config().rbac_timeout,
+                verify=LoadedConfig.tlsCAPath,
+            )
+    except Exception as e:
+        rbac_failure(logger, e)
+        abort(503, "Failed to reach RBAC endpoint, request cannot be fulfilled")
+    finally:
+        request_session.close()
+
+    resp_data = rbac_response.json()
+
+    logger.debug("POSTED RBAC Data", extra=resp_data)
+    return UUID(resp_data["id"])
 
 
 def rbac_create_ungrouped_hosts_workspace(identity: Identity) -> UUID | None:  # noqa: ARG001, used later
