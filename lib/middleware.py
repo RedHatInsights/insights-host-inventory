@@ -232,7 +232,11 @@ def rbac_group_id_check(rbac_filter: dict, requested_ids: set) -> None:
             rbac_group_permission_denied(logger, joined_ids, required_permission)
             abort(HTTPStatus.FORBIDDEN, f"You do not have access to the the following groups: {joined_ids}")
 
-def get_rbac_default_workspace():
+
+def get_rbac_default_workspace() -> UUID | None:
+    if inventory_config().bypass_rbac:
+        return None
+
     workspace_route = "/api/rbac/v2/workspaces/?type=default"
     request_session = Session()
     retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
@@ -260,14 +264,17 @@ def get_rbac_default_workspace():
     logger.debug("Fetched RBAC Data", extra=resp_data)
 
     if len(resp_data["data"]) == 0:
-        message = "Error while retrieving default workspace: No default workspace    in RBAC"
+        message = "Error while retrieving default workspace: No default workspace in RBAC"
         logger.exception(message)
-        abort(400, message)
+        return None
     else:
-        return resp_data["data"][0]["id"]
+        return UUID(resp_data["data"][0]["id"])
 
 
-def post_rbac_workspace(name, parent_id, description):
+def post_rbac_workspace(name, parent_id, description) -> UUID | None:
+    if inventory_config().bypass_rbac:
+        return None
+
     workspace_route = "/api/rbac/v2/workspaces/"
     request_session = Session()
     retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
@@ -296,7 +303,8 @@ def post_rbac_workspace(name, parent_id, description):
     resp_data = rbac_response.json()
 
     logger.debug("POSTED RBAC Data", extra=resp_data)
-    return resp_data["id"]
+    return UUID(resp_data["id"])
+
 
 def rbac_create_ungrouped_hosts_workspace(identity: Identity) -> UUID | None:  # noqa: ARG001, used later
     # Creates a new "ungrouped" workspace via the RBAC API, and returns its ID.

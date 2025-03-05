@@ -96,9 +96,9 @@ def create_group(body, rbac_filter=None):
             logger.exception(message)
             return json_error_response("Workspace creation failure", message, HTTPStatus.BAD_REQUEST)
 
-        body["workspace_id"] = workspace_id
-
-        created_group = create_group_from_payload(validated_create_group_data, current_app.event_producer)
+        created_group = create_group_from_payload(
+            validated_create_group_data, current_app.event_producer, workspace_id
+        )
         create_group_count.inc()
 
         log_create_group_succeeded(logger, created_group.id)
