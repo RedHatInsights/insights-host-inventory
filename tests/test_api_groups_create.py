@@ -14,9 +14,10 @@ from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 
+
 def test_create_group_with_empty_host_list(api_create_group, db_get_group_by_name, event_producer, mocker):
     mocker.patch.object(event_producer, "write_event")
-    
+
     get_rbac_default_group_mock = mocker.patch("api.group.get_rbac_default_workspace")
     get_rbac_default_group_mock.return_value = generate_uuid()
     create_rbac_group_mock = mocker.patch("api.group.post_rbac_workspace")
