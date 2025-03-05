@@ -34,9 +34,10 @@ from lib.group_repository import get_group_using_host_id
 from lib.group_repository import patch_group
 from lib.group_repository import remove_hosts_from_group
 from lib.metrics import create_group_count
+from lib.middleware import get_rbac_default_workspace
+from lib.middleware import post_rbac_workspace
 from lib.middleware import rbac
 from lib.middleware import rbac_group_id_check
-from lib.middleware import get_rbac_default_workspace, post_rbac_workspace
 
 logger = get_logger(__name__)
 
@@ -77,7 +78,7 @@ def create_group(body, rbac_filter=None):
         )
 
     default_parent_id = get_rbac_default_workspace()
-        
+
     # Validate group input data
     try:
         validated_create_group_data = InputGroupSchema().load(body)
