@@ -481,16 +481,13 @@ class Host(LimitedHost):
             orm.attributes.flag_modified(self, "tags")
 
     def _populate_tags_alt_from_tags(self, tags):
-        transformed_tags = []
-
         if isinstance(tags, dict):
             transformed_tags_obj = Tag.create_tags_from_nested(tags)
+            transformed_tags = [tag.data() for tag in transformed_tags_obj]
         elif isinstance(tags, list):
-            transformed_tags_obj = Tag.to_structured(tags)
+            transformed_tags = tags
         else:
             raise TypeError("Tags must be dict or list")
-
-        transformed_tags = [tag.data() for tag in transformed_tags_obj]
 
         return transformed_tags
 
