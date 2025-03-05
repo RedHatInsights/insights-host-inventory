@@ -1083,7 +1083,7 @@ data:
             "tableColumn": "",
             "targets": [
               {
-                "expr": "sum(increase(hosts_syndication_fail_count_total{namespace=~\"host-inventory-.*\"}[$_range]))",
+                "expr": "sum(increase(hosts_syndication_fail_count_total{exported_job=~\"host-inventory-.*\"}[$_range]))",
                 "interval": "5m",
                 "refId": "A"
               }
