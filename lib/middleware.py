@@ -234,9 +234,9 @@ def get_rbac_default_workspace():
     retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
     request_session.mount(get_rbac_url(route=workspace_route), HTTPAdapter(max_retries=retry_config))
     request_header = {
-                IDENTITY_HEADER: request.headers[IDENTITY_HEADER],
-                REQUEST_ID_HEADER: request.headers.get(REQUEST_ID_HEADER),
-            }
+        IDENTITY_HEADER: request.headers[IDENTITY_HEADER],
+        REQUEST_ID_HEADER: request.headers.get(REQUEST_ID_HEADER),
+    }
 
     try:
         with outbound_http_response_time.labels("rbac").time():
@@ -269,14 +269,10 @@ def post_rbac_workspace(name, parent_id, description):
     retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
     request_session.mount(get_rbac_url(route=workspace_route), HTTPAdapter(max_retries=retry_config))
     request_header = {
-                IDENTITY_HEADER: request.headers[IDENTITY_HEADER],
-                REQUEST_ID_HEADER: request.headers.get(REQUEST_ID_HEADER),
-            }
-    request_data = {
-        "name": name,
-        "description": description,
-        "parent_id": parent_id
+        IDENTITY_HEADER: request.headers[IDENTITY_HEADER],
+        REQUEST_ID_HEADER: request.headers.get(REQUEST_ID_HEADER),
     }
+    request_data = {"name": name, "description": description, "parent_id": parent_id}
 
     try:
         with outbound_http_response_time.labels("rbac").time():
