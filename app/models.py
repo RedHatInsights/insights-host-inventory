@@ -198,6 +198,8 @@ class LimitedHost(db.Model):  # type: ignore [name-defined]
         if tags is None:
             tags = {}
             tags_alt = []
+        else:
+            tags_alt = self._populate_tags_alt_from_tags(tags)
         if groups is None:
             groups = []
 
@@ -221,6 +223,17 @@ class LimitedHost(db.Model):  # type: ignore [name-defined]
         if ansible_host is not None:
             # Allow a user to clear out the ansible host with an empty string
             self.ansible_host = ansible_host
+
+    def _populate_tags_alt_from_tags(self, tags):
+        if isinstance(tags, dict):
+            transformed_tags_obj = Tag.create_tags_from_nested(tags)
+            transformed_tags = [tag.data() for tag in transformed_tags_obj]
+        elif isinstance(tags, list):
+            transformed_tags = tags
+        else:
+            raise TypeError("Tags must be dict or list")
+
+        return transformed_tags
 
     @hybrid_property
     def operating_system(self):
@@ -294,10 +307,9 @@ class Host(LimitedHost):
     ):
         if tags is None:
             tags = {}
-            if tags_alt is None:
-                tags_alt = []
-        elif tags_alt is None:
-            tags_alt = self._populate_tags_alt_from_tags(tags)
+            tags_alt = []
+        else:
+            tags_alt = super()._populate_tags_alt_from_tags(tags)
 
         if groups is None:
             groups = []
@@ -456,15 +468,18 @@ class Host(LimitedHost):
         orm.attributes.flag_modified(self, "tags")
 
     def _replace_tags_alt_in_namespace(self, namespace, tags_alt):
-        # this only replaces the first namespace in the list, I'm not sure about the expected behavior here
-
+        namespace_found = False
         for tag in self.tags_alt:
             if tag.get("namespace") == namespace:
+                namespace_found = True
                 ((key, value),) = tags_alt.items()
                 tag["key"] = key
                 tag["value"] = value[0]
+        if not namespace_found:
+            ((key, value),) = tags_alt.items()
+            self.tags_alt.append({"namespace": namespace, "key": key, "value": value[0]})
 
-                orm.attributes.flag_modified(self, "tags_alt")
+        orm.attributes.flag_modified(self, "tags_alt")
 
     def _delete_tags_namespace(self, namespace):
         with suppress(KeyError):
@@ -473,23 +488,12 @@ class Host(LimitedHost):
         orm.attributes.flag_modified(self, "tags")
 
     def _delete_tags_alt_namespace(self, namespace):
-        for i, tag in self.tags_alt:
+        for i, tag in enumerate(self.tags_alt):
             if tag.get("namespace") == namespace:
                 with suppress(KeyError):
                     del self.tags_alt[i]
 
-            orm.attributes.flag_modified(self, "tags")
-
-    def _populate_tags_alt_from_tags(self, tags):
-        if isinstance(tags, dict):
-            transformed_tags_obj = Tag.create_tags_from_nested(tags)
-            transformed_tags = [tag.data() for tag in transformed_tags_obj]
-        elif isinstance(tags, list):
-            transformed_tags = tags
-        else:
-            raise TypeError("Tags must be dict or list")
-
-        return transformed_tags
+            orm.attributes.flag_modified(self, "tags_alt")
 
     def _cleanup_tags(self):
         namespaces_to_delete = tuple(namespace for namespace, items in self.tags.items() if not items)
