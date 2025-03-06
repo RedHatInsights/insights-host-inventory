@@ -27,7 +27,7 @@ from datetime import timezone
 
 # complete user identity
 IDENTITY = {
-    "org_id": "5894300",
+    "org_id": "test",
     "type": "User",
     "auth_type": "basic-auth",
     "user": {"email": "jramos@redhat.com", "first_name": "test"},

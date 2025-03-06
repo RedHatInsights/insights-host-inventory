@@ -34,7 +34,7 @@ def _validate_input_data(body):
     # Validate account staleness input data
     try:
         identity = get_current_identity()
-        staleness_obj = serialize_staleness_to_dict(get_staleness_obj(identity))
+        staleness_obj = serialize_staleness_to_dict(get_staleness_obj(identity.org_id))
         validated_data = StalenessSchema().load({**staleness_obj, **body})
 
         return validated_data
@@ -50,7 +50,7 @@ def _validate_input_data(body):
 @metrics.api_request_time.time()
 def get_staleness(rbac_filter=None):  # noqa: ARG001, 'rbac_filter' is required for all API endpoints
     try:
-        staleness = get_staleness_obj()
+        staleness = get_staleness_obj(get_current_identity().org_id)
         staleness = serialize_staleness_response(staleness)
 
         return flask_json_response(staleness, HTTPStatus.OK)
