@@ -237,10 +237,10 @@ def get_rbac_default_workspace() -> UUID | None:
     if inventory_config().bypass_rbac:
         return None
 
-    workspace_route = "/api/rbac/v2/workspaces/?type=default"
+    workspace_endpoint = "workspaces/?type=default"
     request_session = Session()
     retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
-    request_session.mount(get_rbac_url(route=workspace_route), HTTPAdapter(max_retries=retry_config))
+    request_session.mount(get_rbac_v2_url(endpoint=workspace_endpoint), HTTPAdapter(max_retries=retry_config))
     request_header = {
         IDENTITY_HEADER: request.headers[IDENTITY_HEADER],
         REQUEST_ID_HEADER: request.headers.get(REQUEST_ID_HEADER),
@@ -249,7 +249,7 @@ def get_rbac_default_workspace() -> UUID | None:
     try:
         with outbound_http_response_time.labels("rbac").time():
             rbac_response = request_session.get(
-                url=get_rbac_url(route=workspace_route),
+                url=get_rbac_v2_url(endpoint=workspace_endpoint),
                 headers=request_header,
                 timeout=inventory_config().rbac_timeout,
                 verify=LoadedConfig.tlsCAPath,
@@ -275,10 +275,10 @@ def post_rbac_workspace(name, parent_id, description) -> UUID | None:
     if inventory_config().bypass_rbac:
         return None
 
-    workspace_route = "/api/rbac/v2/workspaces/"
+    workspace_endpoint = "workspaces/"
     request_session = Session()
     retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
-    request_session.mount(get_rbac_url(route=workspace_route), HTTPAdapter(max_retries=retry_config))
+    request_session.mount(get_rbac_v2_url(endpoint=workspace_endpoint), HTTPAdapter(max_retries=retry_config))
     request_header = {
         IDENTITY_HEADER: request.headers[IDENTITY_HEADER],
         REQUEST_ID_HEADER: request.headers.get(REQUEST_ID_HEADER),
@@ -288,7 +288,7 @@ def post_rbac_workspace(name, parent_id, description) -> UUID | None:
     try:
         with outbound_http_response_time.labels("rbac").time():
             rbac_response = request_session.post(
-                url=get_rbac_url(route=workspace_route),
+                url=get_rbac_v2_url(endpoint=workspace_endpoint),
                 headers=request_header,
                 json=request_data,
                 timeout=inventory_config().rbac_timeout,
