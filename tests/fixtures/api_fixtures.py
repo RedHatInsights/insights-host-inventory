@@ -5,6 +5,7 @@ from tests.helpers.api_utils import HOST_URL
 from tests.helpers.api_utils import STALENESS_URL
 from tests.helpers.api_utils import do_request
 from tests.helpers.test_utils import USER_IDENTITY
+from tests.helpers.test_utils import generate_uuid
 
 
 @pytest.fixture(scope="function")
@@ -79,8 +80,12 @@ def api_delete_all_hosts(flask_client):
 
 
 @pytest.fixture(scope="function")
-def api_create_group(flask_client):
+def api_create_group(flask_client, mocker):
     def _api_create_group(group_data, identity=USER_IDENTITY, query_parameters=None, extra_headers=None):
+        get_rbac_default_group_mock = mocker.patch("api.group.get_rbac_default_workspace")
+        get_rbac_default_group_mock.return_value = generate_uuid()
+        create_rbac_group_mock = mocker.patch("api.group.post_rbac_workspace")
+        create_rbac_group_mock.return_value = generate_uuid()
         return do_request(flask_client.post, GROUP_URL, identity, group_data, query_parameters, extra_headers)
 
     return _api_create_group
