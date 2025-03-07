@@ -1,6 +1,5 @@
 from sqlalchemy.orm.exc import NoResultFound
 
-from app.auth import get_current_identity
 from app.common import inventory_config
 from app.logging import get_logger
 from app.models import Staleness
@@ -8,8 +7,7 @@ from app.models import Staleness
 logger = get_logger(__name__)
 
 
-def get_staleness_obj(identity=None):
-    org_id = get_current_identity().org_id if not identity else identity.org_id
+def get_staleness_obj(org_id):
     try:
         staleness = Staleness.query.filter(Staleness.org_id == org_id).one()
         logger.info("Using custom account staleness")
