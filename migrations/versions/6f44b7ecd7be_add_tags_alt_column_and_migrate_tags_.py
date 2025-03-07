@@ -37,7 +37,8 @@ def upgrade():
                         JSONB_ARRAY_ELEMENTS_TEXT(k.value) AS v(value)),
                 '[]'::jsonb
             ) AS tags_alt
-            FROM hbi.hosts
+            FROM hbi.hosts h
+            WHERE (h.system_profile_facts->>'host_type' = 'edge') AND h.tags <> '{}'
         ) AS sub
         WHERE h.id = sub.id;
     """)
