@@ -135,8 +135,8 @@ def _stale_timestamp_per_reporter_filter(gt=None, lte=None, reporter=None):
         return or_(*or_filter)
 
 
-def per_reporter_staleness_filter(staleness, reporter, host_type_filter):
-    staleness_obj = serialize_staleness_to_dict(get_staleness_obj())
+def per_reporter_staleness_filter(staleness, reporter, host_type_filter, org_id):
+    staleness_obj = serialize_staleness_to_dict(get_staleness_obj(org_id))
     staleness_conditions = []
     for host_type in host_type_filter:
         conditions = or_(
@@ -161,10 +161,8 @@ def per_reporter_staleness_filter(staleness, reporter, host_type_filter):
     return staleness_conditions
 
 
-def _staleness_filter(
-    staleness: list[str] | tuple[str, ...], host_type_filter: set[str | None], identity=None
-) -> list:
-    staleness_obj = serialize_staleness_to_dict(get_staleness_obj(identity))
+def _staleness_filter(staleness: list[str] | tuple[str, ...], host_type_filter: set[str | None], org_id) -> list:
+    staleness_obj = serialize_staleness_to_dict(get_staleness_obj(org_id))
     staleness_conditions = []
     for host_type in host_type_filter:
         conditions = or_(*staleness_to_conditions(staleness_obj, staleness, host_type, stale_timestamp_filter, True))
@@ -209,7 +207,7 @@ def find_stale_host_in_window(staleness, host_type, last_run_secs, job_start_tim
     )
 
 
-def _registered_with_filter(registered_with: list[str], host_type_filter: set[str | None]) -> list:
+def _registered_with_filter(registered_with: list[str], host_type_filter: set[str | None], org_id: str) -> list:
     _query_filter: list = []
     if not registered_with:
         return _query_filter
@@ -223,7 +221,7 @@ def _registered_with_filter(registered_with: list[str], host_type_filter: set[st
     # Get the per_report_staleness check_in value for the reporter
     # and build the filter based on it
     for reporter in reg_with_copy:
-        prs_item = per_reporter_staleness_filter(DEFAULT_STALENESS_VALUES, reporter, host_type_filter)
+        prs_item = per_reporter_staleness_filter(DEFAULT_STALENESS_VALUES, reporter, host_type_filter, org_id)
 
         for n_items in prs_item:
             _query_filter.append(n_items)
@@ -282,9 +280,9 @@ def _modified_on_filter(updated_start: str | None, updated_end: str | None) -> l
     return [and_(*modified_on_filter)]
 
 
-def host_id_list_filter(host_id_list: list[str]) -> list:
+def host_id_list_filter(host_id_list: list[str], org_id: str) -> list:
     all_filters = [Host.id.in_(host_id_list)]
-    all_filters += _staleness_filter(ALL_STALENESS_STATES, set(HOST_TYPES.copy()))
+    all_filters += _staleness_filter(ALL_STALENESS_STATES, set(HOST_TYPES.copy()), org_id)
     return all_filters
 
 
@@ -361,9 +359,9 @@ def query_filters(
         sp_filter, host_type_filter = _system_profile_filter(filter)
         filters += sp_filter
     if staleness:
-        filters += _staleness_filter(staleness, host_type_filter, identity)
+        filters += _staleness_filter(staleness, host_type_filter, identity.org_id)
     if registered_with:
-        filters += _registered_with_filter(registered_with, host_type_filter)
+        filters += _registered_with_filter(registered_with, host_type_filter, identity.org_id)
     if rbac_filter:
         filters += rbac_permissions_filter(rbac_filter)
 

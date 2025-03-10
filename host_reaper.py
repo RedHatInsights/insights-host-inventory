@@ -6,7 +6,6 @@ from sqlalchemy import ColumnElement
 from sqlalchemy import and_
 from sqlalchemy import or_
 
-from app.auth.identity import create_mock_identity_with_org_id
 from app.environment import RuntimeEnvironment
 from app.logging import get_logger
 from app.logging import threadctx
@@ -46,11 +45,10 @@ def filter_hosts_in_state_using_custom_staleness(logger, session, state: list):
         # Validate which host types for a given org_id never get deleted
         logger.debug(f"Looking for hosts from org_id {staleness_obj.org_id} that use custom staleness")
         org_ids.append(staleness_obj.org_id)
-        identity = create_mock_identity_with_org_id(staleness_obj.org_id)
         query_filters.append(
             and_(
                 (Host.org_id == staleness_obj.org_id),
-                find_hosts_by_staleness_job(state, identity),
+                find_hosts_by_staleness_job(state, staleness_obj.org_id),
             )
         )
     return query_filters, org_ids
