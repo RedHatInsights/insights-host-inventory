@@ -386,7 +386,7 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
         return flask.abort(HTTPStatus.NOT_FOUND, "Requested host not found.")
 
     current_identity = get_current_identity()
-    staleness = get_staleness_obj(current_identity)
+    staleness = get_staleness_obj(current_identity.org_id)
 
     for host in hosts_to_update:
         host.patch(validated_patch_host_data)
@@ -434,16 +434,18 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
     query = Host.query.join(HostGroupAssoc, isouter=True).filter(*filters).group_by(Host.id)
 
     if rbac_filter and "groups" in rbac_filter:
-        count_before_rbac_filter = find_non_culled_hosts(update_query_for_owner_id(current_identity, query)).count()
+        count_before_rbac_filter = find_non_culled_hosts(
+            update_query_for_owner_id(current_identity, query), current_identity
+        ).count()
         filters += (HostGroupAssoc.group_id.in_(rbac_filter["groups"]),)
         query = Host.query.join(HostGroupAssoc, isouter=True).filter(*filters).group_by(Host.id)
         if (
             count_before_rbac_filter
-            != find_non_culled_hosts(update_query_for_owner_id(current_identity, query)).count()
+            != find_non_culled_hosts(update_query_for_owner_id(current_identity, query), current_identity).count()
         ):
             flask.abort(HTTPStatus.FORBIDDEN, "You do not have access to all of the requested hosts.")
 
-    hosts_to_update = find_non_culled_hosts(update_query_for_owner_id(current_identity, query)).all()
+    hosts_to_update = find_non_culled_hosts(update_query_for_owner_id(current_identity, query), current_identity).all()
 
     logger.debug("hosts_to_update:%s", hosts_to_update)
 
@@ -456,7 +458,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
         logger.debug(error_msg)
         return error_msg, 404
 
-    staleness = get_staleness_obj(current_identity)
+    staleness = get_staleness_obj(current_identity.org_id)
 
     for host in hosts_to_update:
         if operation is FactOperations.replace:
@@ -513,7 +515,7 @@ def host_checkin(body, rbac_filter=None):  # noqa: ARG001, required for all API 
     current_identity = get_current_identity()
     canonical_facts = deserialize_canonical_facts(body)
     existing_host = find_existing_host(current_identity, canonical_facts)
-    staleness = get_staleness_obj(current_identity)
+    staleness = get_staleness_obj(current_identity.org_id)
     if existing_host:
         existing_host._update_modified_date()
         db.session.commit()

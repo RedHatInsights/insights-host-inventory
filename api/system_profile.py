@@ -41,6 +41,7 @@ def get_sap_system(
         registered_with=registered_with,
         filter=filter,
         rbac_filter=rbac_filter,
+        identity=get_current_identity(),
     )
     log_get_sap_system_succeeded(logger, results)
     return flask_json_response(build_collection_response(results, page, per_page, total))
@@ -74,6 +75,7 @@ def get_sap_sids(
         filter=filter,
         rbac_filter=rbac_filter,
         search=escaped_search,
+        identity=get_current_identity(),
     )
     log_get_sap_sids_succeeded(logger, results)
     return flask_json_response(build_collection_response(results, page, per_page, total))
@@ -100,6 +102,7 @@ def get_operating_system(
         registered_with=registered_with,
         filter=filter,
         rbac_filter=rbac_filter,
+        identity=get_current_identity(),
     )
     log_get_operating_system_succeeded(logger, results)
     return flask_json_response(build_collection_response(results, page, per_page, total))

@@ -8,13 +8,13 @@ from datetime import timedelta
 from datetime import timezone
 
 # complete system identity
-# IDENTITY = {
-#    "org_id": "test",
-#    "type": "System",
-#    "auth_type": "cert-auth",
-#    "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
-#    "internal": {"auth_time": 6300},
-# }
+IDENTITY = {
+    "org_id": "test",
+    "type": "System",
+    "auth_type": "cert-auth",
+    "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
+    "internal": {"auth_time": 6300},
+}
 
 # system identity: invalid or incomplete for testing
 # IDENTITY = {
@@ -26,12 +26,12 @@ from datetime import timezone
 # }
 
 # complete user identity
-IDENTITY = {
-    "org_id": "5894300",
-    "type": "User",
-    "auth_type": "basic-auth",
-    "user": {"email": "jramos@redhat.com", "first_name": "test"},
-}
+# IDENTITY = {
+#     "org_id": "test",
+#     "type": "User",
+#     "auth_type": "basic-auth",
+#     "user": {"email": "jramos@redhat.com", "first_name": "test"},
+# }
 
 # incomplete or invalid user identity for testing
 # IDENTITY = {

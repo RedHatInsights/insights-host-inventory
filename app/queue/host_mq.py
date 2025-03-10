@@ -323,7 +323,7 @@ def handle_message(message, notification_event_producer, message_operation=add_h
                 host_row,
                 platform_metadata,
                 staleness_timestamps,
-                get_staleness_obj(identity),
+                get_staleness_obj(identity.org_id),
                 event_type,
                 success_logger,
             )
