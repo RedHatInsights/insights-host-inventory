@@ -128,7 +128,7 @@ def _add_hosts_to_group(group_id: str, host_id_list: list[str]):
 
 
 def add_hosts_to_group(group_id: str, host_id_list: list[str], event_producer: EventProducer):
-    staleness = get_staleness_obj(get_current_identity())
+    staleness = get_staleness_obj(get_current_identity().org_id)
     with session_guard(db.session):
         _add_hosts_to_group(group_id, host_id_list)
 
@@ -192,7 +192,7 @@ def create_group_from_payload(group_data: dict, event_producer: EventProducer, g
         account=get_current_identity().account_number,
         group_id=group_id,
         ungrouped=False,
-        staleness=get_staleness_obj(get_current_identity()),
+        staleness=get_staleness_obj(get_current_identity().org_id),
         event_producer=event_producer,
     )
 
@@ -225,7 +225,7 @@ def _delete_group(group: Group) -> bool:
 def delete_group_list(group_id_list: list[str], event_producer: EventProducer) -> int:
     deletion_count = 0
     deleted_host_ids = []
-    staleness = get_staleness_obj(get_current_identity())
+    staleness = get_staleness_obj(get_current_identity().org_id)
     with session_guard(db.session):
         query = (
             select(HostGroupAssoc)
@@ -260,7 +260,7 @@ def delete_group_list(group_id_list: list[str], event_producer: EventProducer) -
 
 def remove_hosts_from_group(group_id, host_id_list, event_producer):
     removed_host_ids = []
-    staleness = get_staleness_obj(get_current_identity())
+    staleness = get_staleness_obj(get_current_identity().org_id)
     with session_guard(db.session):
         removed_host_ids = _remove_hosts_from_group(group_id, host_id_list)
 
@@ -310,7 +310,7 @@ def patch_group(group: Group, patch_data: dict, event_producer: EventProducer):
 
     existing_host_uuids = db.session.query(HostGroupAssoc.host_id).filter(HostGroupAssoc.group_id == group_id).all()
     existing_host_ids = {str(host_id[0]) for host_id in existing_host_uuids}
-    staleness = get_staleness_obj(get_current_identity())
+    staleness = get_staleness_obj(get_current_identity().org_id)
 
     with session_guard(db.session):
         # Patch Group data, if provided

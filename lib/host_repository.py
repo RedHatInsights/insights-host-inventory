@@ -218,7 +218,7 @@ def find_host_by_multiple_canonical_facts(identity: Identity, canonical_facts: d
 
 def find_hosts_by_staleness(staleness_types, query, identity):
     logger.debug("find_hosts_by_staleness(%s)", staleness_types)
-    staleness_obj = serialize_staleness_to_dict(get_staleness_obj(identity=identity))
+    staleness_obj = serialize_staleness_to_dict(get_staleness_obj(identity.org_id))
     staleness_conditions = [
         or_(False, *staleness_to_conditions(staleness_obj, staleness_types, host_type, stale_timestamp_filter))
         for host_type in HOST_TYPES
@@ -227,9 +227,9 @@ def find_hosts_by_staleness(staleness_types, query, identity):
     return query.filter(or_(False, *staleness_conditions))
 
 
-def find_hosts_by_staleness_job(staleness_types, identity):
+def find_hosts_by_staleness_job(staleness_types, org_id):
     logger.debug("find_hosts_by_staleness(%s)", staleness_types)
-    staleness_obj = serialize_staleness_to_dict(get_staleness_obj(identity=identity))
+    staleness_obj = serialize_staleness_to_dict(get_staleness_obj(org_id))
     staleness_conditions = [
         or_(
             False,
@@ -241,9 +241,9 @@ def find_hosts_by_staleness_job(staleness_types, identity):
     return or_(False, *staleness_conditions)
 
 
-def find_stale_hosts(identity, last_run_secs, job_start_time):
+def find_stale_hosts(org_id, last_run_secs, job_start_time):
     logger.debug("finding stale hosts with custom staleness")
-    staleness_obj = serialize_staleness_to_dict(get_staleness_obj(identity=identity))
+    staleness_obj = serialize_staleness_to_dict(get_staleness_obj(org_id))
     staleness_conditions = [
         or_(
             False,
@@ -283,7 +283,7 @@ def find_hosts_sys_default_staleness(staleness_types):
     return or_(False, *staleness_conditions)
 
 
-def find_non_culled_hosts(query, identity=None):
+def find_non_culled_hosts(query, identity):
     return find_hosts_by_staleness(ALL_STALENESS_STATES, query, identity)
 
 

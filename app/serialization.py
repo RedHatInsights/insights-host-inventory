@@ -218,7 +218,7 @@ def serialize_host_for_export_svc(
 def _get_unculled_hosts(group, identity):
     hosts = []
     staleness_timestamps = Timestamps.from_config(inventory_config())
-    staleness = get_staleness_obj(identity)
+    staleness = get_staleness_obj(identity.org_id)
     for host in group.hosts:
         serialized_host = serialize_host(host, staleness_timestamps=staleness_timestamps, staleness=staleness)
         if _deserialize_datetime(serialized_host["culled_timestamp"]) > datetime.now(tz=timezone.utc):
@@ -461,5 +461,5 @@ def build_rhel_version_str(system_profile: dict) -> str:
 def serialize_host_with_params(host, additional_fields=tuple(), system_profile_fields=None):
     timestamps = Timestamps.from_config(inventory_config())
     identity = get_current_identity()
-    staleness = get_staleness_obj(identity)
+    staleness = get_staleness_obj(identity.org_id)
     return serialize_host(host, timestamps, False, additional_fields, staleness, system_profile_fields)

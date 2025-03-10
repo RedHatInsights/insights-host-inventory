@@ -24,6 +24,7 @@ from api.filtering.db_filters import update_query_for_owner_id
 from api.host_query import staleness_timestamps
 from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
+from app.auth.identity import Identity
 from app.config import ALL_STALENESS_STATES
 from app.exceptions import InventoryException
 from app.instrumentation import log_get_host_list_succeeded
@@ -140,6 +141,7 @@ def get_host_list(
         filter,
         rbac_filter,
         param_order_by,
+        get_current_identity(),
     )
 
     return _get_host_list_using_filters(
@@ -156,7 +158,7 @@ def get_host_list_by_id_list(
     fields=None,
     rbac_filter=None,
 ) -> tuple[list[Host], int, tuple[str], list[str]]:
-    all_filters = host_id_list_filter(host_id_list)
+    all_filters = host_id_list_filter(host_id_list, get_current_identity().org_id)
     all_filters += rbac_permissions_filter(rbac_filter)
 
     items, total, additional_fields, system_profile_fields = _get_host_list_using_filters(
@@ -256,7 +258,7 @@ def get_host_tags_list_by_id_list(
 ) -> tuple[dict, int]:
     columns = [Host.id, Host.tags]
     query = _find_hosts_entities_query(columns=columns)
-    all_filters = host_id_list_filter(host_id_list=host_id_list)
+    all_filters = host_id_list_filter(host_id_list, get_current_identity().org_id)
     all_filters += rbac_permissions_filter(rbac_filter)
     order = params_to_order_by(order_by, order_how)
     query_results = query.filter(*all_filters).order_by(*order).offset(offset).limit(limit).all()
@@ -354,6 +356,7 @@ def get_tag_list(
         filter,
         rbac_filter,
         order_by,
+        get_current_identity(),
     )
     query = _find_hosts_entities_query(query_base=query_base, columns=columns)
 
@@ -397,6 +400,7 @@ def get_os_info(
     registered_with: list[str] | None,
     filter: dict,
     rbac_filter: dict,
+    identity: Identity,
 ):
     columns = [
         Host.system_profile_facts["operating_system"]["name"].label("name"),
@@ -405,7 +409,12 @@ def get_os_info(
     ]
 
     filters, query_base = query_filters(
-        tags=tags, staleness=staleness, registered_with=registered_with, filter=filter, rbac_filter=rbac_filter
+        tags=tags,
+        staleness=staleness,
+        registered_with=registered_with,
+        filter=filter,
+        rbac_filter=rbac_filter,
+        identity=identity,
     )
     os_query = _find_hosts_entities_query(query_base=query_base, columns=columns)
 
@@ -444,13 +453,19 @@ def get_sap_system_info(
     registered_with: list[str],
     filter: dict,
     rbac_filter: dict,
+    identity: Identity,
 ):
     columns = [
         Host.system_profile_facts["sap_system"].label("value"),
     ]
 
     filters, query_base = query_filters(
-        tags=tags, staleness=staleness, registered_with=registered_with, filter=filter, rbac_filter=rbac_filter
+        tags=tags,
+        staleness=staleness,
+        registered_with=registered_with,
+        filter=filter,
+        rbac_filter=rbac_filter,
+        identity=identity,
     )
     sap_query = _find_hosts_entities_query(query_base=query_base, columns=columns)
     sap_filter = [
@@ -476,13 +491,19 @@ def get_sap_sids_info(
     filter: dict,
     rbac_filter: dict,
     search: str,
+    identity: Identity,
 ):
     columns = [
         Host.id,
         func.jsonb_array_elements_text(Host.system_profile_facts["sap_sids"]).label("sap_sids"),
     ]
     filters, query_base = query_filters(
-        tags=tags, staleness=staleness, registered_with=registered_with, filter=filter, rbac_filter=rbac_filter
+        tags=tags,
+        staleness=staleness,
+        registered_with=registered_with,
+        filter=filter,
+        rbac_filter=rbac_filter,
+        identity=identity,
     )
     sap_sids_query = _find_hosts_entities_query(query_base=query_base, columns=columns)
     query_results = sap_sids_query.filter(*filters).all()
@@ -541,7 +562,9 @@ def get_sparse_system_profile(
     else:
         columns = [Host.id, Host.system_profile_facts]
 
-    all_filters = host_id_list_filter(host_id_list) + rbac_permissions_filter(rbac_filter)
+    all_filters = host_id_list_filter(host_id_list, get_current_identity().org_id) + rbac_permissions_filter(
+        rbac_filter
+    )
     sp_query = (
         _find_hosts_entities_query(columns=columns)
         .filter(*all_filters)
@@ -569,6 +592,7 @@ def get_host_ids_list(
     tags: list[str],
     filter: dict,
     rbac_filter: dict,
+    identity: Identity,
 ) -> list[str]:
     all_filters, base_query = query_filters(
         fqdn,
@@ -586,6 +610,7 @@ def get_host_ids_list(
         registered_with,
         filter,
         rbac_filter,
+        identity=identity,
     )
     host_list = [str(res[0]) for res in _find_hosts_entities_query(base_query, [Host.id]).filter(*all_filters).all()]
     db.session.close()
@@ -593,7 +618,7 @@ def get_host_ids_list(
 
 
 def get_hosts_to_export(
-    identity: object,
+    identity: Identity,
     filters: dict | None = None,
     rbac_filter: dict | None = None,
     batch_size: int = 0,
@@ -604,7 +629,7 @@ def get_hosts_to_export(
         rbac_filter = {}
 
     st_timestamps = staleness_timestamps()
-    staleness = get_staleness_obj(identity)
+    staleness = get_staleness_obj(identity.org_id)
 
     q_filters, _ = query_filters(
         filter=filters, rbac_filter=rbac_filter, staleness=ALL_STALENESS_STATES, identity=identity

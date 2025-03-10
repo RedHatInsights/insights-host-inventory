@@ -97,11 +97,10 @@ def _find_stale_hosts_using_custom_staleness(
         # Validate which host types for a given org_id never get deleted
         logger.debug(f"Looking for hosts from org_id {staleness_obj.org_id} that use custom staleness")
         org_ids.append(staleness_obj.org_id)
-        identity = create_mock_identity_with_org_id(staleness_obj.org_id)
         query_filters.append(
             and_(
                 (Host.org_id == staleness_obj.org_id),
-                find_stale_hosts(identity, last_run_secs, job_start_time),
+                find_stale_hosts(staleness_obj.org_id, last_run_secs, job_start_time),
             )
         )
     return query_filters, org_ids
