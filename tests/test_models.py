@@ -267,23 +267,19 @@ def test_create_host_with_tags(tags, db_create_host):
     )
 
     assert created_host.tags == tags
-    assert created_host.tags_alt == tags
 
 
 def test_update_host_with_tags(db_create_host):
     insights_id = str(uuid.uuid4())
     old_tags = Tag("Sat", "env", "prod").to_nested()
-    old_tags_alt = Tag.create_flat_tags_from_structured([Tag("Sat", "env", "prod")])
     existing_host = db_create_host(
         extra_data={"canonical_facts": {"insights_id": insights_id}, "display_name": "tagged", "tags": old_tags}
     )
 
     assert existing_host.tags == old_tags
-    assert existing_host.tags_alt == old_tags_alt
 
     # On update each namespace in the input host's tags should be updated.
     new_tags = Tag.create_nested_from_tags([Tag("Sat", "env", "ci"), Tag("AWS", "env", "prod")])
-    new_tags_alt = Tag.create_flat_tags_from_structured([Tag("Sat", "env", "ci"), Tag("AWS", "env", "prod")])
     input_host = db_create_host(
         extra_data={"canonical_facts": {"insights_id": insights_id}, "display_name": "tagged", "tags": new_tags}
     )
@@ -291,7 +287,6 @@ def test_update_host_with_tags(db_create_host):
     existing_host.update(input_host)
 
     assert existing_host.tags == new_tags
-    assert existing_host.tags_alt == new_tags_alt
 
 
 def test_update_host_with_no_tags(db_create_host):

@@ -22,7 +22,6 @@ from app.queue.host_mq import event_loop
 from app.queue.host_mq import handle_message
 from app.queue.host_mq import update_system_profile
 from app.queue.host_mq import write_add_update_event_message
-from app.utils import Tag
 from lib.host_repository import AddHostResult
 from tests.helpers.db_utils import create_reference_host_in_db
 from tests.helpers.mq_utils import FakeMessage
@@ -1125,12 +1124,8 @@ def test_replace_tags_of_host_by_list(mq_create_or_update_host, db_get_host_by_i
             mq_create_or_update_host(host)
 
             record = db_get_host_by_insights_id(insights_id)
-            structured_tags = structured_tags = [
-                Tag.from_nested({ns: ns_item}) for ns, ns_item in expected_tags.items()
-            ]
 
             assert expected_tags == record.tags
-            assert Tag.create_flat_tags_from_structured(structured_tags) == record.tags_alt
 
 
 def test_replace_host_tags_by_dict(mq_create_or_update_host, db_get_host_by_insights_id, subtests):
@@ -1173,10 +1168,8 @@ def test_replace_host_tags_by_dict(mq_create_or_update_host, db_get_host_by_insi
             mq_create_or_update_host(host)
 
             record = db_get_host_by_insights_id(insights_id)
-            structured_tags = [Tag.from_nested({ns: ns_item}) for ns, ns_item in expected_tags.items()]
 
             assert expected_tags == record.tags
-            assert Tag.create_flat_tags_from_structured(structured_tags) == record.tags_alt
 
 
 def test_keep_host_tags_by_empty(mq_create_or_update_host, db_get_host_by_insights_id, subtests):
@@ -1208,7 +1201,6 @@ def test_add_host_default_empty_dict(tags, mq_create_or_update_host, db_get_host
     record = db_get_host_by_insights_id(insights_id)
 
     assert record.tags == {}
-    assert record.tags_alt == []
 
 
 def test_delete_host_tags(mq_create_or_update_host, db_get_host_by_insights_id, subtests):
@@ -1244,10 +1236,8 @@ def test_delete_host_tags(mq_create_or_update_host, db_get_host_by_insights_id, 
             mq_create_or_update_host(host)
 
             record = db_get_host_by_insights_id(insights_id)
-            structured_tags = [Tag.from_nested({ns: ns_item}) for ns, ns_item in expected_tags.items()]
 
             assert expected_tags == record.tags
-            assert Tag.create_flat_tags_from_structured(structured_tags) == record.tags_alt
 
 
 @pytest.mark.usefixtures("event_datetime_mock")
