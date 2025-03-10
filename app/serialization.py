@@ -94,8 +94,7 @@ def deserialize_host(
     canonical_facts = _deserialize_canonical_facts(validated_data)
     facts = _deserialize_facts(validated_data.get("facts"))
     tags = _deserialize_tags(validated_data.get("tags"))
-    tags_alt = validated_data.get("tags_alt", [])
-    return schema.build_model(validated_data, canonical_facts, facts, tags, tags_alt)
+    return schema.build_model(validated_data, canonical_facts, facts, tags)
 
 
 def deserialize_canonical_facts(raw_data, all=False):
@@ -152,7 +151,6 @@ def serialize_host(
         "created": lambda: _serialize_datetime(host.created_on),
         "updated": lambda: _serialize_datetime(host.modified_on),
         "tags": lambda: _serialize_tags(host.tags),
-        "tags_alt": lambda: host.tags_alt,
         "state": lambda: Conditions.find_host_state(
             stale_timestamp=timestamps["stale_timestamp"],
             stale_warning_timestamp=timestamps["stale_warning_timestamp"],
