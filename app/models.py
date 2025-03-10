@@ -307,9 +307,6 @@ class Host(LimitedHost):
     ):
         if tags is None:
             tags = {}
-            tags_alt = []
-        else:
-            tags_alt = super()._populate_tags_alt_from_tags(tags)
 
         if groups is None:
             groups = []
