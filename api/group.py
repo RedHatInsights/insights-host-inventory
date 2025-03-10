@@ -28,6 +28,8 @@ from app.instrumentation import log_patch_group_failed
 from app.instrumentation import log_patch_group_success
 from app.logging import get_logger
 from app.models import InputGroupSchema
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
+from lib.feature_flags import get_flag_value
 from lib.group_repository import create_group_from_payload
 from lib.group_repository import delete_group_list
 from lib.group_repository import get_group_by_id_from_db
@@ -78,8 +80,6 @@ def create_group(body, rbac_filter=None):
             "Unfiltered inventory:groups:write RBAC permission is required in order to create new groups.",
         )
 
-    default_parent_id = get_rbac_default_workspace()
-
     # Validate group input data
     try:
         validated_create_group_data = InputGroupSchema().load(body)
@@ -89,17 +89,22 @@ def create_group(body, rbac_filter=None):
 
     try:
         # Create group with validated data
-        group_name = validated_create_group_data.get("name")
+        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
+            default_parent_id = get_rbac_default_workspace()
+            group_name = validated_create_group_data.get("name")
 
-        workspace_id = post_rbac_workspace(group_name, default_parent_id, f"{group_name} group")
-        if not workspace_id and not inventory_config().bypass_rbac:
-            message = f"Error while creating workspace for {group_name}"
-            logger.exception(message)
-            return json_error_response("Workspace creation failure", message, HTTPStatus.BAD_REQUEST)
+            workspace_id = post_rbac_workspace(group_name, default_parent_id, f"{group_name} group")
+            if not workspace_id and not inventory_config().bypass_rbac:
+                message = f"Error while creating workspace for {group_name}"
+                logger.exception(message)
+                return json_error_response("Workspace creation failure", message, HTTPStatus.BAD_REQUEST)
 
-        created_group = create_group_from_payload(
-            validated_create_group_data, current_app.event_producer, workspace_id
-        )
+            created_group = create_group_from_payload(
+                validated_create_group_data, current_app.event_producer, workspace_id
+            )
+        else:
+            created_group = create_group_from_payload(validated_create_group_data, current_app.event_producer, None)
+
         create_group_count.inc()
 
         log_create_group_succeeded(logger, created_group.id)
