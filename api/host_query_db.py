@@ -592,6 +592,7 @@ def get_host_ids_list(
     tags: list[str],
     filter: dict,
     rbac_filter: dict,
+    identity: Identity,
 ) -> list[str]:
     all_filters, base_query = query_filters(
         fqdn,
@@ -609,6 +610,7 @@ def get_host_ids_list(
         registered_with,
         filter,
         rbac_filter,
+        identity=identity,
     )
     host_list = [str(res[0]) for res in _find_hosts_entities_query(base_query, [Host.id]).filter(*all_filters).all()]
     db.session.close()
