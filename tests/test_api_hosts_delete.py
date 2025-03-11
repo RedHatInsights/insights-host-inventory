@@ -536,15 +536,25 @@ def test_delete_host_RBAC_denied_specific_groups(mocker, db_create_host, db_get_
 
 
 @pytest.mark.usefixtures("notification_event_producer_mock")
-def test_postgres_delete_filtered_hosts(db_create_host, api_get, api_delete_filtered_hosts, event_producer_mock):
-    host_1_id = db_create_host(extra_data={"display_name": "foobar"}).id
-    host_2_id = db_create_host(extra_data={"display_name": "foobaz"}).id
+@pytest.mark.parametrize(
+    "request_body",
+    (
+        {"hostname_or_id": "foo"},
+        {"registered_with": "satellite"},
+    ),
+)
+def test_postgres_delete_filtered_hosts(
+    db_create_host, api_get, request_body, api_delete_filtered_hosts, event_producer_mock
+):
+    host_1_id = db_create_host(extra_data={"display_name": "foobar", "reporter": "satellite"}).id
+    host_2_id = db_create_host(extra_data={"display_name": "foobaz", "reporter": "satellite"}).id
+    host_3_id = db_create_host(extra_data={"display_name": "asdf", "reporter": "puptoo"}).id
 
     # Create another host that we don't want to be deleted
     not_deleted_host_id = str(db_create_host(extra_data={"canonical_facts": {"insights_id": generate_uuid()}}).id)
 
     # Delete the first two hosts using the bulk deletion endpoint
-    response_status, response_data = api_delete_filtered_hosts({"hostname_or_id": "foo"})
+    response_status, response_data = api_delete_filtered_hosts(request_body)
     assert_response_status(response_status, expected_status=202)
     assert response_data["hosts_deleted"] == 2
 
@@ -554,6 +564,8 @@ def test_postgres_delete_filtered_hosts(db_create_host, api_get, api_delete_filt
     assert len(response_data["results"]) == 0
     _, response_data = api_get(build_hosts_url(host_2_id))
     assert len(response_data["results"]) == 0
+    _, response_data = api_get(build_hosts_url(host_3_id))
+    assert len(response_data["results"]) == 1
 
     # Make sure the other host wasn't deleted
     response_status, response_data = api_get(build_hosts_url(not_deleted_host_id))

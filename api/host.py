@@ -226,6 +226,7 @@ def delete_hosts_by_filter(
             tags,
             filter,
             rbac_filter,
+            get_current_identity(),
         )
     except ValueError as err:
         log_get_host_list_failed(logger)
