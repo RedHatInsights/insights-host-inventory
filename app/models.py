@@ -45,6 +45,7 @@ from app.culling import days_to_seconds
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import get_logger
+from app.utils import Tag
 from app.validators import check_empty_keys
 from app.validators import verify_ip_address_format
 from app.validators import verify_mac_address_format
@@ -190,11 +191,15 @@ class LimitedHost(db.Model):  # type: ignore [name-defined]
         org_id=None,
         facts=None,
         tags=None,
+        tags_alt=None,
         system_profile_facts=None,
         groups=None,
     ):
         if tags is None:
             tags = {}
+            tags_alt = []
+        else:
+            tags_alt = self._populate_tags_alt_from_tags(tags)
         if groups is None:
             groups = []
 
@@ -210,6 +215,7 @@ class LimitedHost(db.Model):  # type: ignore [name-defined]
         self.org_id = org_id
         self.facts = facts or {}
         self.tags = tags
+        self.tags_alt = tags_alt
         self.system_profile_facts = system_profile_facts or {}
         self.groups = groups or []
 
@@ -217,6 +223,17 @@ class LimitedHost(db.Model):  # type: ignore [name-defined]
         if ansible_host is not None:
             # Allow a user to clear out the ansible host with an empty string
             self.ansible_host = ansible_host
+
+    def _populate_tags_alt_from_tags(self, tags):
+        if isinstance(tags, dict):
+            transformed_tags_obj = Tag.create_tags_from_nested(tags)
+            transformed_tags = [tag.data() for tag in transformed_tags_obj]
+        elif isinstance(tags, list):
+            transformed_tags = tags
+        else:
+            raise TypeError("Tags must be dict or list")
+
+        return transformed_tags
 
     @hybrid_property
     def operating_system(self):
@@ -260,6 +277,7 @@ class LimitedHost(db.Model):  # type: ignore [name-defined]
     modified_on = db.Column(db.DateTime(timezone=True), default=_time_now, onupdate=_time_now)
     facts = db.Column(JSONB)
     tags = db.Column(JSONB)
+    tags_alt = db.Column(JSONB)
     canonical_facts = db.Column(JSONB)
     system_profile_facts = db.Column(JSONB)
     groups = db.Column(JSONB)
@@ -280,6 +298,7 @@ class Host(LimitedHost):
         org_id=None,
         facts=None,
         tags=None,
+        tags_alt=None,
         system_profile_facts=None,
         stale_timestamp=None,
         reporter=None,
@@ -288,6 +307,7 @@ class Host(LimitedHost):
     ):
         if tags is None:
             tags = {}
+
         if groups is None:
             groups = []
 
@@ -301,7 +321,16 @@ class Host(LimitedHost):
             raise ValidationException("The tags field cannot be null.")
 
         super().__init__(
-            canonical_facts, display_name, ansible_host, account, org_id, facts, tags, system_profile_facts, groups
+            canonical_facts,
+            display_name,
+            ansible_host,
+            account,
+            org_id,
+            facts,
+            tags,
+            tags_alt,
+            system_profile_facts,
+            groups,
         )
 
         # without reporter and stale_timestamp host payload is invalid.
@@ -421,15 +450,47 @@ class Host(LimitedHost):
             else:
                 self._delete_tags_namespace(namespace)
 
+        self._update_tags_alt(tags_dict)
+
+    # these duplicated methods are going to be removed in a following task
+    def _update_tags_alt(self, tags_dict):
+        for namespace, ns_tags in tags_dict.items():
+            if ns_tags:
+                self._replace_tags_alt_in_namespace(namespace, ns_tags)
+            else:
+                self._delete_tags_alt_namespace(namespace)
+
     def _replace_tags_in_namespace(self, namespace, tags):
         self.tags[namespace] = tags
         orm.attributes.flag_modified(self, "tags")
+
+    def _replace_tags_alt_in_namespace(self, namespace, tags_alt):
+        namespace_found = False
+        for tag in self.tags_alt:
+            if tag.get("namespace") == namespace:
+                namespace_found = True
+                ((key, value),) = tags_alt.items()
+                tag["key"] = key
+                tag["value"] = value[0]
+        if not namespace_found:
+            ((key, value),) = tags_alt.items()
+            self.tags_alt.append({"namespace": namespace, "key": key, "value": value[0]})
+
+        orm.attributes.flag_modified(self, "tags_alt")
 
     def _delete_tags_namespace(self, namespace):
         with suppress(KeyError):
             del self.tags[namespace]
 
         orm.attributes.flag_modified(self, "tags")
+
+    def _delete_tags_alt_namespace(self, namespace):
+        for i, tag in enumerate(self.tags_alt):
+            if tag.get("namespace") == namespace:
+                with suppress(KeyError):
+                    del self.tags_alt[i]
+
+            orm.attributes.flag_modified(self, "tags_alt")
 
     def _cleanup_tags(self):
         namespaces_to_delete = tuple(namespace for namespace, items in self.tags.items() if not items)
@@ -779,6 +840,7 @@ class LimitedHostSchema(CanonicalFactsSchema):
     facts = fields.List(fields.Nested(FactsSchema))
     system_profile = fields.Dict()
     tags = fields.Raw()
+    tags_alt = fields.Raw()
     groups = fields.List(fields.Dict())
 
     def __init__(self, system_profile_schema=None, *args, **kwargs):
@@ -838,7 +900,7 @@ class LimitedHostSchema(CanonicalFactsSchema):
         return {**data, "system_profile": system_profile}
 
     @staticmethod
-    def build_model(data, canonical_facts, facts, tags):
+    def build_model(data, canonical_facts, facts, tags, tags_alt=None):
         return LimitedHost(
             canonical_facts=canonical_facts,
             display_name=data.get("display_name"),
@@ -847,6 +909,7 @@ class LimitedHostSchema(CanonicalFactsSchema):
             org_id=data.get("org_id"),
             facts=facts,
             tags=tags,
+            tags_alt=tags_alt if tags_alt else [],
             system_profile_facts=data.get("system_profile", {}),
             groups=data.get("groups", []),
         )
@@ -881,7 +944,9 @@ class HostSchema(LimitedHostSchema):
     reporter = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=255))
 
     @staticmethod
-    def build_model(data, canonical_facts, facts, tags):
+    def build_model(data, canonical_facts, facts, tags, tags_alt=None):
+        if tags_alt is None:
+            tags_alt = []
         return Host(
             canonical_facts,
             data.get("display_name"),
@@ -890,6 +955,7 @@ class HostSchema(LimitedHostSchema):
             data.get("org_id"),
             facts,
             tags,
+            tags_alt,
             data.get("system_profile", {}),
             data["stale_timestamp"],
             data["reporter"],
