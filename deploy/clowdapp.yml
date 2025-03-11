@@ -31,7 +31,7 @@ objects:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        image: quay.io/cloudservices/ubi8-nginx-124:1-38
+        image: quay.io/cloudservices/ubi8-nginx-124:1-38.1740654124
         livenessProbe:
           failureThreshold: 5
           httpGet:
