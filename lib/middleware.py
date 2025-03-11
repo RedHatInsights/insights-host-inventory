@@ -38,8 +38,8 @@ CHECKED_TYPES = [IdentityType.USER, IdentityType.SERVICE_ACCOUNT]
 RETRY_STATUSES = [500, 502, 503, 504]
 
 
-def get_rbac_url(app: str = "", route: str = RBAC_ROUTE) -> str:
-    return inventory_config().rbac_endpoint + route + app
+def get_rbac_url(app: str) -> str:
+    return inventory_config().rbac_endpoint + RBAC_ROUTE + app
 
 
 def get_rbac_v2_url(endpoint: str) -> str:
