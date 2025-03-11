@@ -13,7 +13,6 @@ from api.filtering.db_filters import staleness_to_conditions
 from api.filtering.db_filters import update_query_for_owner_id
 from api.staleness_query import get_staleness_obj
 from api.staleness_query import get_sys_default_staleness
-from app.auth import get_current_identity
 from app.auth.identity import Identity
 from app.config import ALL_STALENESS_STATES
 from app.config import HOST_TYPES
@@ -370,10 +369,9 @@ def update_system_profile(input_host, identity):
         )
 
 
-def get_host_list_by_id_list_from_db(host_id_list, rbac_filter=None, columns=None):
-    current_identity = get_current_identity()
+def get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter=None, columns=None):
     filters = (
-        Host.org_id == current_identity.org_id,
+        Host.org_id == identity.org_id,
         Host.id.in_(host_id_list),
     )
     if rbac_filter and "groups" in rbac_filter:
@@ -387,4 +385,4 @@ def get_host_list_by_id_list_from_db(host_id_list, rbac_filter=None, columns=Non
     query = Host.query.join(HostGroupAssoc, isouter=True).filter(*filters).group_by(Host.id)
     if columns:
         query = query.with_entities(*columns)
-    return find_non_culled_hosts(update_query_for_owner_id(current_identity, query), current_identity)
+    return find_non_culled_hosts(update_query_for_owner_id(identity, query), identity)

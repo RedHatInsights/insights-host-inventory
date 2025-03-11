@@ -60,6 +60,6 @@ def get_resource_type_groups_list(
     identity = get_current_identity()
     return flask_json_response(
         build_paginated_resource_list_response(
-            total, page, per_page, [serialize_group(group, identity) for group in group_list]
+            total, page, per_page, [serialize_group(group, identity.org_id) for group in group_list]
         )
     )
