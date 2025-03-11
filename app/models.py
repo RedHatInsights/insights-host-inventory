@@ -485,12 +485,13 @@ class Host(LimitedHost):
         orm.attributes.flag_modified(self, "tags")
 
     def _delete_tags_alt_namespace(self, namespace):
-        for i, tag in enumerate(self.tags_alt):
-            if tag.get("namespace") == namespace:
-                with suppress(KeyError):
-                    del self.tags_alt[i]
+        if self.tags_alt:
+            for i, tag in enumerate(self.tags_alt):
+                if tag.get("namespace") == namespace:
+                    with suppress(KeyError):
+                        del self.tags_alt[i]
 
-            orm.attributes.flag_modified(self, "tags_alt")
+                orm.attributes.flag_modified(self, "tags_alt")
 
     def _cleanup_tags(self):
         namespaces_to_delete = tuple(namespace for namespace, items in self.tags.items() if not items)
