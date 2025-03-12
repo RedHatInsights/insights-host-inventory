@@ -983,6 +983,8 @@ objects:
                 optional: true
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
+          - name: CONSOLEDOT_HOSTNAME
+            value: ${CONSOLEDOT_HOSTNAME}
         resources:
           limits:
             cpu: ${CPU_LIMIT_STALE_HOST_NOTIFICAION}
