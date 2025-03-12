@@ -186,7 +186,7 @@ def add_group_with_hosts(
     return created_group
 
 
-def create_group_from_payload(group_data: dict, event_producer: EventProducer) -> Group:
+def create_group_from_payload(group_data: dict, event_producer: EventProducer, group_id: UUID) -> Group:
     logger.debug("Creating a new group: %s", group_data)
     identity = get_current_identity()
     return add_group_with_hosts(
@@ -194,7 +194,7 @@ def create_group_from_payload(group_data: dict, event_producer: EventProducer) -
         group_data.get("host_ids", []),
         identity=identity,
         account=identity.account_number,
-        group_id=None,
+        group_id=group_id,
         ungrouped=False,
         staleness=get_staleness_obj(identity.org_id),
         event_producer=event_producer,
