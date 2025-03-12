@@ -16,6 +16,7 @@ from api.group_query import get_filtered_group_list_db
 from api.group_query import get_group_list_by_id_list_db
 from app import RbacPermission
 from app import RbacResourceType
+from app.common import inventory_config
 from app.exceptions import InventoryException
 from app.instrumentation import log_create_group_failed
 from app.instrumentation import log_create_group_not_allowed
@@ -27,6 +28,8 @@ from app.instrumentation import log_patch_group_failed
 from app.instrumentation import log_patch_group_success
 from app.logging import get_logger
 from app.models import InputGroupSchema
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
+from lib.feature_flags import get_flag_value
 from lib.group_repository import create_group_from_payload
 from lib.group_repository import delete_group_list
 from lib.group_repository import get_group_by_id_from_db
@@ -34,6 +37,8 @@ from lib.group_repository import get_group_using_host_id
 from lib.group_repository import patch_group
 from lib.group_repository import remove_hosts_from_group
 from lib.metrics import create_group_count
+from lib.middleware import get_rbac_default_workspace
+from lib.middleware import post_rbac_workspace
 from lib.middleware import rbac
 from lib.middleware import rbac_group_id_check
 
@@ -84,8 +89,19 @@ def create_group(body, rbac_filter=None):
 
     try:
         # Create group with validated data
-        created_group = create_group_from_payload(validated_create_group_data, current_app.event_producer)
-        create_group_count.inc()
+        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
+            default_parent_id = get_rbac_default_workspace()
+            group_name = validated_create_group_data.get("name")
+
+            workspace_id = post_rbac_workspace(group_name, default_parent_id, f"{group_name} group")
+            if not workspace_id and not inventory_config().bypass_rbac:
+                message = f"Error while creating workspace for {group_name}"
+                logger.exception(message)
+                return json_error_response("Workspace creation failure", message, HTTPStatus.BAD_REQUEST)
+
+        else:
+            created_group = create_group_from_payload(validated_create_group_data, current_app.event_producer, None)
+            create_group_count.inc()
 
         log_create_group_succeeded(logger, created_group.id)
     except IntegrityError as inte:
