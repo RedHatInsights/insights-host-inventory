@@ -10,6 +10,7 @@ from api import metrics
 from api.group_query import build_group_response
 from app import RbacPermission
 from app import RbacResourceType
+from app.auth import get_current_identity
 from app.instrumentation import log_host_group_add_succeeded
 from app.instrumentation import log_patch_group_failed
 from app.logging import get_logger
@@ -34,22 +35,23 @@ def add_host_list_to_group(group_id, body, rbac_filter=None):
         return abort(HTTPStatus.BAD_REQUEST, "Body content must be an array with system UUIDs, not an empty array")
 
     rbac_group_id_check(rbac_filter, {group_id})
+    identity = get_current_identity()
 
-    group_to_update = get_group_by_id_from_db(group_id)
+    group_to_update = get_group_by_id_from_db(group_id, identity.org_id)
 
     if not group_to_update:
         log_patch_group_failed(logger, group_id)
         return abort(HTTPStatus.NOT_FOUND)
 
     host_id_list = body
-    if not get_host_list_by_id_list_from_db(host_id_list):
+    if not get_host_list_by_id_list_from_db(host_id_list, identity):
         return abort(HTTPStatus.NOT_FOUND)
 
     # Next, add the host-group associations
     if host_id_list is not None:
-        add_hosts_to_group(group_id, body, current_app.event_producer)
+        add_hosts_to_group(group_id, body, identity, current_app.event_producer)
 
-    updated_group = get_group_by_id_from_db(group_id)
+    updated_group = get_group_by_id_from_db(group_id, identity.org_id)
     log_host_group_add_succeeded(logger, host_id_list, group_id)
     return flask_json_response(build_group_response(updated_group), HTTPStatus.OK)
 
@@ -59,8 +61,9 @@ def add_host_list_to_group(group_id, body, rbac_filter=None):
 @metrics.api_request_time.time()
 def delete_hosts_from_group(group_id, host_id_list, rbac_filter=None):
     rbac_group_id_check(rbac_filter, {group_id})
+    identity = get_current_identity()
 
-    delete_count = remove_hosts_from_group(group_id, host_id_list, current_app.event_producer)
+    delete_count = remove_hosts_from_group(group_id, host_id_list, identity, current_app.event_producer)
 
     if delete_count == 0:
         abort(HTTPStatus.NOT_FOUND, "Group or hosts not found.")

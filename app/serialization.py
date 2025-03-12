@@ -217,10 +217,10 @@ def serialize_host_for_export_svc(
 
 
 # get hosts not marked for deletion
-def _get_unculled_hosts(group, identity):
+def _get_unculled_hosts(group, org_id):
     hosts = []
     staleness_timestamps = Timestamps.from_config(inventory_config())
-    staleness = get_staleness_obj(identity.org_id)
+    staleness = get_staleness_obj(org_id)
     for host in group.hosts:
         serialized_host = serialize_host(host, staleness_timestamps=staleness_timestamps, staleness=staleness)
         if _deserialize_datetime(serialized_host["culled_timestamp"]) > datetime.now(tz=timezone.utc):
@@ -229,8 +229,8 @@ def _get_unculled_hosts(group, identity):
     return hosts
 
 
-def serialize_group(group, identity):
-    unculled_hosts = _get_unculled_hosts(group, identity)
+def serialize_group(group, org_id):
+    unculled_hosts = _get_unculled_hosts(group, org_id)
     return {
         "id": _serialize_uuid(group.id),
         "org_id": group.org_id,

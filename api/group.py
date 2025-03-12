@@ -16,6 +16,7 @@ from api.group_query import get_filtered_group_list_db
 from api.group_query import get_group_list_by_id_list_db
 from app import RbacPermission
 from app import RbacResourceType
+from app.auth import get_current_identity
 from app.common import inventory_config
 from app.exceptions import InventoryException
 from app.instrumentation import log_create_group_failed
@@ -136,8 +137,10 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
         logger.exception(f"Input validation error while patching group: {group_id} - {body}")
         return ({"status": 400, "title": "Bad Request", "detail": str(e.messages), "type": "unknown"}, 400)
 
+    identity = get_current_identity()
+
     # First, get the group and update it
-    group_to_update = get_group_by_id_from_db(group_id)
+    group_to_update = get_group_by_id_from_db(group_id, identity.org_id)
 
     if not group_to_update:
         log_patch_group_failed(logger, group_id)
@@ -157,7 +160,7 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
             f"Group with name '{validated_patch_group_data.get('name')}' already exists.",
         )
 
-    updated_group = get_group_by_id_from_db(group_id)
+    updated_group = get_group_by_id_from_db(group_id, identity.org_id)
     log_patch_group_success(logger, group_id)
     return flask_json_response(build_group_response(updated_group), HTTPStatus.OK)
 
@@ -168,7 +171,7 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
 def delete_groups(group_id_list, rbac_filter=None):
     rbac_group_id_check(rbac_filter, set(group_id_list))
 
-    delete_count = delete_group_list(group_id_list, current_app.event_producer)
+    delete_count = delete_group_list(group_id_list, get_current_identity(), current_app.event_producer)
 
     if delete_count == 0:
         log_get_group_list_failed(logger)
@@ -207,8 +210,9 @@ def get_groups_by_id(
 @metrics.api_request_time.time()
 def delete_hosts_from_group(group_id, host_id_list, rbac_filter=None):
     rbac_group_id_check(rbac_filter, {group_id})
+    identity = get_current_identity()
 
-    delete_count = remove_hosts_from_group(group_id, host_id_list, current_app.event_producer)
+    delete_count = remove_hosts_from_group(group_id, host_id_list, identity, current_app.event_producer)
 
     if delete_count == 0:
         log_delete_hosts_from_group_failed(logger)
@@ -220,11 +224,12 @@ def delete_hosts_from_group(group_id, host_id_list, rbac_filter=None):
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def delete_hosts_from_different_groups(host_id_list, rbac_filter=None):
+    identity = get_current_identity()
     hosts_per_group = {}
 
     # Separate hosts per group
     for host_id in host_id_list:
-        group = get_group_using_host_id(host_id)
+        group = get_group_using_host_id(host_id, identity.org_id)
 
         if group:
             hosts_per_group.setdefault(str(group.id), []).append(host_id)
@@ -237,7 +242,7 @@ def delete_hosts_from_different_groups(host_id_list, rbac_filter=None):
 
     for group_id in requested_group_ids:
         deleted_from_group = remove_hosts_from_group(
-            group_id, hosts_per_group.get(group_id), current_app.event_producer
+            group_id, hosts_per_group.get(group_id), identity, current_app.event_producer
         )
         delete_count += deleted_from_group
 

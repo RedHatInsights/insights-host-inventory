@@ -255,7 +255,7 @@ def _delete_host_list(host_id_list, rbac_filter):
     with PayloadTrackerContext(
         payload_tracker, received_status_message="delete operation", current_operation="delete"
     ):
-        query = get_host_list_by_id_list_from_db(host_id_list, rbac_filter)
+        query = get_host_list_by_id_list_from_db(host_id_list, current_identity, rbac_filter)
 
         result_list = delete_hosts(
             query,
@@ -379,14 +379,14 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
         logger.exception(f"Input validation error while patching host: {host_id_list} - {body}")
         return ({"status": 400, "title": "Bad Request", "detail": str(e.messages), "type": "unknown"}, 400)
 
-    query = get_host_list_by_id_list_from_db(host_id_list, rbac_filter)
+    current_identity = get_current_identity()
+    query = get_host_list_by_id_list_from_db(host_id_list, current_identity, rbac_filter)
     hosts_to_update = query.all()
 
     if not hosts_to_update:
         log_patch_host_failed(logger, host_id_list)
         return flask.abort(HTTPStatus.NOT_FOUND, "Requested host not found.")
 
-    current_identity = get_current_identity()
     staleness = get_staleness_obj(current_identity.org_id)
 
     for host in hosts_to_update:

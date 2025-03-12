@@ -277,7 +277,7 @@ def add_host(host_data, platform_metadata, operation_args=None):
             group = get_or_create_ungrouped_hosts_group_for_identity(identity)
             assoc = HostGroupAssoc(host_row.id, group.id)
             db.session.add(assoc)
-            host_row.groups = [serialize_group(group, identity)]
+            host_row.groups = [serialize_group(group, identity.org_id)]
             db.session.flush()
 
         success_logger = partial(log_add_update_host_succeeded, logger, add_result, sp_fields_to_log)
