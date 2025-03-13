@@ -66,6 +66,7 @@ DEFAULT_FIELDS = (
     "created",
     "updated",
     "groups",
+    "last_check_in",
 )
 
 ADDITIONAL_HOST_MQ_FIELDS = (
@@ -163,6 +164,11 @@ def serialize_host(
 
     # Process each field dynamically
     serialized_host.update({key: func() for key, func in field_mapping.items() if key in fields})
+
+    # last_check_in needs the per_reporter_staleness to be already built
+    serialized_host.update(
+        {"last_check_in": serialized_host["per_reporter_staleness"][serialized_host["reporter"]]["last_check_in"]}
+    )
 
     # Handle system_profile separately due to its complexity
     if "system_profile" in fields:

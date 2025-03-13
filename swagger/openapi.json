@@ -1726,7 +1726,8 @@
             "display_name",
             "group_name",
             "updated",
-            "operating_system"
+            "operating_system",
+            "last_check_in"
           ]
         },
         "description": "Ordering field name"
@@ -2460,6 +2461,10 @@
               },
               "system_profile": {
                 "$ref": "#/components/schemas/SystemProfile"
+              },
+              "last_check_in": {
+                "type": "string",
+                "format": "date-time"
               }
             },
             "required": [
