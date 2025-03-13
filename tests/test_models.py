@@ -291,7 +291,9 @@ def test_update_host_with_tags(db_create_host):
     existing_host.update(input_host)
 
     assert existing_host.tags == new_tags
-    assert existing_host.tags_alt == new_tags_alt
+    assert sorted(existing_host.tags_alt, key=lambda t: t["namespace"]) == sorted(
+        new_tags_alt, key=lambda t: t["namespace"]
+    )
 
 
 def test_update_host_with_no_tags(db_create_host):
