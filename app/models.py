@@ -39,12 +39,18 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import column_property
 from sqlalchemy.orm.base import instance_state
+from sqlalchemy.orm.exc import NoResultFound
 from yaml import safe_load
 
+from app.common import inventory_config
+from app.culling import Timestamps
 from app.culling import days_to_seconds
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import get_logger
+from app.staleness_serialization import build_serialized_acc_staleness_obj
+from app.staleness_serialization import build_staleness_sys_default
+from app.staleness_serialization import get_staleness_timestamps
 from app.utils import Tag
 from app.validators import check_empty_keys
 from app.validators import verify_ip_address_format
@@ -88,6 +94,19 @@ class ProviderType(str, Enum):
     AZURE = "azure"
     GCP = "gcp"
     IBM = "ibm"
+
+
+def _get_staleness_obj(org_id):
+    try:
+        staleness = Staleness.query.filter(Staleness.org_id == org_id).one()
+        logger.info("Using custom account staleness")
+        staleness = build_serialized_acc_staleness_obj(staleness)
+    except NoResultFound:
+        logger.debug(f"No data found for user {org_id}, using system default values")
+        staleness = build_staleness_sys_default(org_id)
+        return staleness
+
+    return staleness
 
 
 def _set_display_name_on_save(context):
@@ -431,13 +450,8 @@ class Host(LimitedHost):
             self.per_reporter_staleness.pop(old_reporter, None)
 
         if get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS):
-            # importing here to avoid cirular import issue
-            from api.host_query import staleness_timestamps
-            from api.staleness_query import get_staleness_obj
-            from lib.staleness import get_staleness_timestamps
-
-            staleness = get_staleness_obj(self.org_id)
-            staleness_ts = staleness_timestamps()
+            staleness = _get_staleness_obj(self.org_id)
+            staleness_ts = Timestamps.from_config(inventory_config())
 
             st = get_staleness_timestamps(self, staleness_ts, staleness)
 
