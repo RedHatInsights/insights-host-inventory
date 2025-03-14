@@ -3,6 +3,8 @@ from app.logging import get_logger
 from app.models import Staleness
 from app.models import db
 from lib.db import session_guard
+from lib.feature_flags import FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS
+from lib.feature_flags import get_flag_value
 
 logger = get_logger(__name__)
 
@@ -73,14 +75,27 @@ def get_staleness_timestamps(host, staleness_timestamps, staleness) -> dict:
         else "conventional"
     )
 
-    return {
-        "stale_timestamp": staleness_timestamps.stale_timestamp(
-            host.modified_on, staleness[f"{staleness_type}_time_to_stale"]
-        ),
-        "stale_warning_timestamp": staleness_timestamps.stale_warning_timestamp(
-            host.modified_on, staleness[f"{staleness_type}_time_to_stale_warning"]
-        ),
-        "culled_timestamp": staleness_timestamps.culled_timestamp(
-            host.modified_on, staleness[f"{staleness_type}_time_to_delete"]
-        ),
-    }
+    if get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS):
+        return {
+            "stale_timestamp": staleness_timestamps.stale_timestamp(
+                host.last_check_in, staleness[f"{staleness_type}_time_to_stale"]
+            ),
+            "stale_warning_timestamp": staleness_timestamps.stale_warning_timestamp(
+                host.last_check_in, staleness[f"{staleness_type}_time_to_stale_warning"]
+            ),
+            "culled_timestamp": staleness_timestamps.culled_timestamp(
+                host.last_check_in, staleness[f"{staleness_type}_time_to_delete"]
+            ),
+        }
+    else:
+        return {
+            "stale_timestamp": staleness_timestamps.stale_timestamp(
+                host.modified_on, staleness[f"{staleness_type}_time_to_stale"]
+            ),
+            "stale_warning_timestamp": staleness_timestamps.stale_warning_timestamp(
+                host.modified_on, staleness[f"{staleness_type}_time_to_stale_warning"]
+            ),
+            "culled_timestamp": staleness_timestamps.culled_timestamp(
+                host.modified_on, staleness[f"{staleness_type}_time_to_delete"]
+            ),
+        }
