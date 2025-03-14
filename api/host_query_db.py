@@ -34,6 +34,8 @@ from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import db
 from app.serialization import serialize_host_for_export_svc
+from lib.feature_flags import FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS
+from lib.feature_flags import get_flag_value
 
 __all__ = (
     "get_all_hosts",
@@ -61,6 +63,7 @@ DEFAULT_COLUMNS = [
     Host.modified_on,
     Host.groups,
     Host.system_profile_facts["host_type"].label("host_type"),
+    Host.last_check_in,
 ]
 
 
@@ -81,12 +84,15 @@ def _get_host_list_using_filters(
     param_order_how: str,
     fields: dict,
 ) -> tuple[list[Host], int, tuple[str], list[str]]:
-    columns = DEFAULT_COLUMNS
+    columns = DEFAULT_COLUMNS.copy()
+    if not get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS):
+        columns.pop()
+
     system_profile_fields = ["host_type"]
     if fields and fields.get("system_profile"):
         additional_fields: tuple = ("system_profile",)
         system_profile_fields += list(fields.get("system_profile", {}).keys())
-        columns = list(DEFAULT_COLUMNS)
+        columns = list(columns)
         columns.append(Host.system_profile_facts)
     else:
         additional_fields = tuple()

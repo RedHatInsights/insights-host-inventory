@@ -197,6 +197,14 @@ class HostWrapper:
     def groups(self, groups):
         self.__data["groups"] = groups
 
+    @property
+    def last_check_in(self):
+        return self.__data.get("last_check_in")
+
+    @last_check_in.setter
+    def last_check_in(self, last_check_in):
+        self.__data["last_check_in"] = last_check_in
+
     def to_json(self):
         return json.dumps(self.__data)
 
