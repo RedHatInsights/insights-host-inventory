@@ -51,6 +51,8 @@ from app.validators import verify_ip_address_format
 from app.validators import verify_mac_address_format
 from app.validators import verify_satellite_id
 from app.validators import verify_uuid_format
+from lib.feature_flags import FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS
+from lib.feature_flags import get_flag_value
 
 logger = get_logger(__name__)
 
@@ -218,6 +220,7 @@ class LimitedHost(db.Model):  # type: ignore [name-defined]
         self.tags_alt = tags_alt
         self.system_profile_facts = system_profile_facts or {}
         self.groups = groups or []
+        self.last_check_in = _time_now()
 
     def _update_ansible_host(self, ansible_host):
         if ansible_host is not None:
@@ -282,6 +285,7 @@ class LimitedHost(db.Model):  # type: ignore [name-defined]
     system_profile_facts = db.Column(JSONB)
     groups = db.Column(JSONB)
     host_type = column_property(system_profile_facts["host_type"])
+    last_check_in = db.Column(db.DateTime(timezone=True))
 
 
 class Host(LimitedHost):
@@ -333,6 +337,7 @@ class Host(LimitedHost):
             groups,
         )
 
+        self._update_last_check_in_date()
         # without reporter and stale_timestamp host payload is invalid.
         self._update_stale_timestamp(stale_timestamp, reporter)
 
@@ -362,6 +367,7 @@ class Host(LimitedHost):
             self.update_system_profile(input_host.system_profile_facts)
 
         self._update_stale_timestamp(input_host.stale_timestamp, input_host.reporter)
+        self._update_last_check_in_date()
         self._update_per_reporter_staleness(input_host.reporter)
 
     def patch(self, patch_data):
@@ -424,12 +430,35 @@ class Host(LimitedHost):
         if old_reporter := NEW_TO_OLD_REPORTER_MAP.get(reporter):
             self.per_reporter_staleness.pop(old_reporter, None)
 
-        self.per_reporter_staleness[reporter].update(
-            stale_timestamp=self.stale_timestamp.isoformat(),
-            last_check_in=datetime.now(timezone.utc).isoformat(),
-            check_in_succeeded=True,
-        )
+        if get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS):
+            # importing here to avoid cirular import issue
+            from api.host_query import staleness_timestamps
+            from api.staleness_query import get_staleness_obj
+            from lib.staleness import get_staleness_timestamps
+
+            staleness = get_staleness_obj(self.org_id)
+            staleness_ts = staleness_timestamps()
+
+            st = get_staleness_timestamps(self, staleness_ts, staleness)
+
+            self.per_reporter_staleness[reporter].update(
+                stale_timestamp=st["stale_timestamp"].isoformat(),
+                culled_timestamp=st["culled_timestamp"].isoformat(),
+                stale_warning_timestamp=st["stale_warning_timestamp"].isoformat(),
+                last_check_in=self.last_check_in.isoformat(),
+                check_in_succeeded=True,
+            )
+        else:
+            self.per_reporter_staleness[reporter].update(
+                stale_timestamp=self.stale_timestamp.isoformat(),
+                last_check_in=datetime.now(timezone.utc).isoformat(),
+                check_in_succeeded=True,
+            )
         orm.attributes.flag_modified(self, "per_reporter_staleness")
+
+    def _update_last_check_in_date(self):
+        self.last_check_in = datetime.now(timezone.utc)
+        orm.attributes.flag_modified(self, "last_check_in")
 
     def _update_modified_date(self):
         self.modified_on = datetime.now(timezone.utc)
