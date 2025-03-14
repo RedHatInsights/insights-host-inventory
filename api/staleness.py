@@ -11,7 +11,6 @@ from api import json_error_response
 from api import metrics
 from api.cache import delete_cached_system_keys
 from api.staleness_query import get_staleness_obj
-from api.staleness_query import get_sys_default_staleness_api
 from app import RbacPermission
 from app import RbacResourceType
 from app.auth import get_current_identity
@@ -22,6 +21,7 @@ from app.logging import get_logger
 from app.models import StalenessSchema
 from app.serialization import serialize_staleness_response
 from app.serialization import serialize_staleness_to_dict
+from app.staleness_serialization import get_sys_default_staleness_api
 from lib.middleware import rbac
 from lib.staleness import add_staleness
 from lib.staleness import patch_staleness
