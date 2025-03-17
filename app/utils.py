@@ -313,15 +313,6 @@ class Tag:
         return {self.namespace: {self.key: []}}
 
     @staticmethod
-    def to_structured(tags_dict_list):
-        structured_tags = []
-        for tag_dict in tags_dict_list:
-            tag = Tag(namespace=tag_dict.get("namespace"), key=tag_dict.get("key"), value=tag_dict.get("value"))
-
-            structured_tags.append(tag)
-        return structured_tags
-
-    @staticmethod
     def create_nested_from_tags(tags):
         """
         accepts an array of structured tags and makes a combined nested version

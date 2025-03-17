@@ -1130,7 +1130,10 @@ def test_replace_tags_of_host_by_list(mq_create_or_update_host, db_get_host_by_i
             ]
 
             assert expected_tags == record.tags
-            assert Tag.create_flat_tags_from_structured(structured_tags) == record.tags_alt
+            # The more concise way of replacing tags changes the list order
+            assert sorted(
+                Tag.create_flat_tags_from_structured(structured_tags), key=lambda t: t["namespace"]
+            ) == sorted(record.tags_alt, key=lambda t: t["namespace"])
 
 
 def test_replace_host_tags_by_dict(mq_create_or_update_host, db_get_host_by_insights_id, subtests):
@@ -1176,7 +1179,10 @@ def test_replace_host_tags_by_dict(mq_create_or_update_host, db_get_host_by_insi
             structured_tags = [Tag.from_nested({ns: ns_item}) for ns, ns_item in expected_tags.items()]
 
             assert expected_tags == record.tags
-            assert Tag.create_flat_tags_from_structured(structured_tags) == record.tags_alt
+            # The more concise way of replacing tags changes the list order
+            assert sorted(
+                Tag.create_flat_tags_from_structured(structured_tags), key=lambda t: t["namespace"]
+            ) == sorted(record.tags_alt, key=lambda t: t["namespace"])
 
 
 def test_keep_host_tags_by_empty(mq_create_or_update_host, db_get_host_by_insights_id, subtests):
