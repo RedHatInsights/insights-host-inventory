@@ -456,7 +456,7 @@ class Host(LimitedHost):
     def _update_tags_alt(self, tags_dict):
         for namespace, ns_tags in tags_dict.items():
             if ns_tags:
-                self._replace_tags_alt_in_namespace(namespace, ns_tags)
+                self._replace_tags_alt_in_namespace(tags_dict)
             else:
                 self._delete_tags_alt_namespace(namespace)
 
@@ -464,17 +464,16 @@ class Host(LimitedHost):
         self.tags[namespace] = tags
         orm.attributes.flag_modified(self, "tags")
 
-    def _replace_tags_alt_in_namespace(self, namespace, tags_alt):
-        namespace_found = False
-        for tag in self.tags_alt:
-            if tag.get("namespace") == namespace:
-                namespace_found = True
-                ((key, value),) = tags_alt.items()
-                tag["key"] = key
-                tag["value"] = value[0]
-        if not namespace_found:
-            ((key, value),) = tags_alt.items()
-            self.tags_alt.append({"namespace": namespace, "key": key, "value": value[0]})
+    def _replace_tags_alt_in_namespace(self, tags_dict):
+        # Remove namespaces that are going to be updated from the list
+        final_tags_alt = [t for t in self.tags_alt if t["namespace"] not in tags_dict]
+
+        for ns, ns_items in tags_dict.items():
+            for key, values in ns_items.items():
+                for value in values:
+                    final_tags_alt.append({"namespace": ns, "key": key, "value": value})
+
+        self.tags_alt = final_tags_alt
 
         orm.attributes.flag_modified(self, "tags_alt")
 
