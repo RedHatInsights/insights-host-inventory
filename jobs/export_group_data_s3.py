@@ -38,7 +38,7 @@ def run(config: Config, logger: Logger, session: Session, application: FlaskApp)
             logger.info(f"Running Groups data export with batch size {GROUPS_BATCH_SIZE}")
             s3_client = get_s3_client(config)
             csv_buffer = StringIO()
-            writer = csv.writer(csv_buffer, quoting=csv.QUOTE_NONNUMERIC)
+            writer = csv.writer(csv_buffer)
             writer.writerow([column.name for column in Group.__mapper__.columns])
 
             for group in session.query(Group).yield_per(GROUPS_BATCH_SIZE):
