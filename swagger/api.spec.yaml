@@ -1056,6 +1056,7 @@ components:
           - group_name
           - updated
           - operating_system
+          - last_check_in
       description: Ordering field name
     groupOrderByParam:
       name: order_by
@@ -1629,6 +1630,9 @@ components:
                 $ref: '#/components/schemas/GroupOut'
             system_profile:
               $ref: '#/components/schemas/SystemProfile'
+            last_check_in:
+              type: string
+              format: date-time
           required:
             - org_id
     HostIdOut:
