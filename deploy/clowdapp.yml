@@ -1275,8 +1275,82 @@ objects:
                 optional: true
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
-          - name: REBUILD_EVENTS_TIME_LIMIT
-            value: ${REBUILD_EVENTS_TIME_LIMIT}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_SYNCHRONIZER}
+            memory: ${MEMORY_LIMIT_SYNCHRONIZER}
+          requests:
+            cpu: ${CPU_REQUEST_SYNCHRONIZER}
+            memory: ${MEMORY_REQUEST_SYNCHRONIZER}
+    - name: export-group-data-s3
+      restartPolicy: OnFailure
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: ["./jobs/export_group_data_s3.py"]
+        env:
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: KAFKA_BOOTSTRAP_SERVERS
+            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
+            value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory-mq-service
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'true'
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - name: UNLEASH_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: ${UNLEASH_SECRET_NAME}
+                key: CLIENT_ACCESS_TOKEN
+                optional: true
+          - name: BYPASS_UNLEASH
+            value: ${BYPASS_UNLEASH}
+          - name: S3_AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${S3_AWS_SECRET}
+                key: aws_access_key_id
+          - name: S3_AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${S3_AWS_SECRET}
+                key: aws_secret_access_key
+          - name: S3_AWS_BUCKET
+            valueFrom:
+              secretKeyRef:
+                name: ${S3_AWS_SECRET}
+                key: bucket
         resources:
           limits:
             cpu: ${CPU_LIMIT_SYNCHRONIZER}
@@ -1836,6 +1910,9 @@ parameters:
   value: '60'
 - name: INVENTORY_DB_SCHEMA
   value: 'hbi'
+- name: S3_AWS_SECRET
+  description: The AWS secret for S3
+  value: 'hbi-kessel-s3'
 
 # NGINX
 - displayName: Minimum replicas
