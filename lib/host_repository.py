@@ -376,7 +376,6 @@ def get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter=None, c
     )
     if rbac_filter and "groups" in rbac_filter:
         rbac_group_filters = (HostGroupAssoc.group_id.in_(rbac_filter["groups"]),)
-        # Special handling for "None" rbac attributeFilter, no longer needed after Kessel migration
         if None in rbac_filter["groups"]:
             rbac_group_filters += (
                 HostGroupAssoc.group_id.is_(None),
