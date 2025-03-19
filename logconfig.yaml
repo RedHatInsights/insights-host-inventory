@@ -4,43 +4,26 @@ root:
   level: INFO
   handlers:
   - logstash
+  - cloudwatch
 loggers:
   alembic:
     level: DEBUG
-    handlers:
-    - logstash
-    - cloudwatch
-    propagate: false
+    propagate: true
   gunicorn.error:
     level: INFO
-    handlers:
-    - logstash
-    - cloudwatch
     propagate: true
   gunicorn.access:
     level: INFO
-    handlers:
-    - logstash
-    - cloudwatch
     propagate: true
   sqlalchemy.engine:
     level: WARNING
-    handlers:
-    - logstash
-    - cloudwatch
-    propagate: false
+    propagate: true
   inventory:
     level: INFO
-    handlers:
-    - logstash
-    - cloudwatch
     propagate: true
   urllib3:
     level: WARNING
-    handlers:
-    - logstash
-    - cloudwatch
-    propagate: false
+    propagate: true
 
 handlers:
   logstash:
