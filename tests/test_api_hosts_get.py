@@ -1966,6 +1966,48 @@ def test_get_host_exists_granular_rbac(db_create_host, db_create_group, db_creat
         assert_response_status(response_status, 404)
 
 
+@pytest.mark.usefixtures("enable_rbac")
+def test_get_ungrouped_hosts_granular_rbac(
+    db_create_host, db_create_group, db_create_host_group_assoc, api_get, mocker
+):
+    # Create the groups
+    ungrouped_group_id = db_create_group("ungrouped", ungrouped=True).id
+    grouped_group_id = db_create_group("grouped", ungrouped=False).id
+
+    # Create hosts
+    ungrouped_host_ids = [str(db_create_host().id) for _ in range(3)]
+    ungrouped_group_host_ids = [str(db_create_host().id) for _ in range(4)]
+    grouped_host_ids = [str(db_create_host().id) for _ in range(5)]
+
+    # Assign assign hosts to the "ungrouped" group
+    for host_id in ungrouped_group_host_ids:
+        db_create_host_group_assoc(host_id, ungrouped_group_id)
+
+    # Assign hosts to the regular group
+    for host_id in grouped_host_ids:
+        db_create_host_group_assoc(host_id, grouped_group_id)
+
+    # Mock RBAC perms; only grant access to ungrouped hosts
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-hosts-read-resource-defs-template.json"
+    )
+    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = [None]
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    response_status, response_data = api_get(build_hosts_url())
+    assert_response_status(response_status, 200)
+
+    actual_host_ids = [host["id"] for host in response_data["results"]]
+
+    # Make sure it returned only ungrouped hosts and hosts in the "ungrouped" group
+    for host_id in ungrouped_host_ids + ungrouped_group_host_ids:
+        assert host_id in actual_host_ids
+
+    for host_id in grouped_host_ids:
+        assert host_id not in actual_host_ids
+
+
 def test_get_host_from_different_org(mocker, api_get):
     get_host_list_mock = mocker.patch("api.host.build_paginated_host_list_response")
     get_host_list_mock.return_value = {
