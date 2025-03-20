@@ -19,7 +19,7 @@ from jobs.common import job_setup
 PROMETHEUS_JOB = "inventory-export-groups-s3"
 LOGGER_NAME = "export_groups_s3"
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
-S3_KEY = "groups_data.csv"
+S3_OBJECT_KEY = "groups_data.csv"
 GROUPS_BATCH_SIZE = 500
 
 
@@ -47,8 +47,8 @@ def run(config: Config, logger: Logger, session: Session, application: FlaskApp)
                 logger.debug(f"Successfully wrote CSV for group {str(group.id)}")
 
             # Put CSV in s3 bucket
-            s3_client.put_object(Body=csv_buffer.getvalue(), Bucket=config.s3_bucket, Key=S3_KEY)
-            logger.info(f"Successfully exported group data into bucket {config.s3_bucket} with key {S3_KEY}!")
+            s3_client.put_object(Body=csv_buffer.getvalue(), Bucket=config.s3_bucket, Key=S3_OBJECT_KEY)
+            logger.info(f"Successfully exported group data into bucket {config.s3_bucket} with key {S3_OBJECT_KEY}!")
 
         except Exception as e:
             logger.exception(e)
