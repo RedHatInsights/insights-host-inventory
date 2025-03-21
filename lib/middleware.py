@@ -368,7 +368,7 @@ def delete_rbac_workspace(workspace_id):
 
     try:
         with outbound_http_response_time.labels("rbac").time():
-            request_session.delete(
+            request_session.put(
                 url=get_rbac_v2_url(endpoint=workspace_endpoint),
                 headers=request_header,
                 timeout=inventory_config().rbac_timeout,
