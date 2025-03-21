@@ -361,3 +361,40 @@ def test_patch_group_both_add_and_remove_hosts(
             assert host["groups"][0]["id"] == str(group_id)
         else:
             assert host["groups"] == []
+
+
+@pytest.mark.usefixtures("enable_rbac")
+def test_patch_group_RBAC_post_kessel_migration(
+    mocker,
+    api_patch_group,
+    db_create_group_with_hosts,
+    db_create_group,
+    db_create_host,
+    event_producer,
+    db_get_hosts_for_group,
+):
+    mocker.patch.object(event_producer, "write_event")
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-groups-write-resource-defs-template.json"
+    )
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    group = db_create_group_with_hosts("test_group", 2)
+    group_id = str(group.id)
+    original_host_id_list = [str(host.id) for host in group.hosts]
+    new_host_id_list = [str(db_create_host().id)]
+    ungrouped_group_id = str(db_create_group("ungrouped_group", ungrouped=True).id)
+
+    with mocker.patch("lib.host_repository.get_flag_value", return_value=True):
+        response_status, _ = api_patch_group(group_id, {"host_ids": new_host_id_list})
+
+        assert_response_status(response_status, 200)
+        # 1 for each host (2 originals + 1 new)
+        assert event_producer.write_event.call_count == 3
+
+        # Check that the removed hosts were assigned to the ungrouped group
+        for host in db_get_hosts_for_group(ungrouped_group_id):
+            assert str(host.id) in original_host_id_list
+
+        assert str(db_get_hosts_for_group(group_id)[0].id) == new_host_id_list[0]
