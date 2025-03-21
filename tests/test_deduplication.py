@@ -110,8 +110,7 @@ def test_no_merge_when_no_match(mq_create_or_update_host):
     (
         ("provider_id", "insights_id"),
         ("provider_id", "subscription_manager_id"),
-        ("mac_addresses", "insights_id"),
-        ("mac_addresses", "subscription_manager_id"),
+        ("subscription_manager_id", "insights_id"),
     ),
 )
 def test_high_prio_match_low_prio_change(mq_create_or_update_host, high_prio_match, low_prio_change):
