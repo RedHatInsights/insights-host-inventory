@@ -351,3 +351,31 @@ def put_rbac_workspace(workspace_id, name=None, description=None) -> None:
         abort(503, "Failed to reach RBAC endpoint, request cannot be fulfilled")
     finally:
         request_session.close()
+
+
+def delete_rbac_workspace(workspace_id):
+    if inventory_config().bypass_rbac:
+        return None
+
+    workspace_endpoint = f"workspaces/{workspace_id}/"
+    request_session = Session()
+    retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
+    request_session.mount(get_rbac_v2_url(endpoint=workspace_endpoint), HTTPAdapter(max_retries=retry_config))
+    request_header = {
+        IDENTITY_HEADER: request.headers[IDENTITY_HEADER],
+        REQUEST_ID_HEADER: request.headers.get(REQUEST_ID_HEADER),
+    }
+
+    try:
+        with outbound_http_response_time.labels("rbac").time():
+            request_session.delete(
+                url=get_rbac_v2_url(endpoint=workspace_endpoint),
+                headers=request_header,
+                timeout=inventory_config().rbac_timeout,
+                verify=LoadedConfig.tlsCAPath,
+            )
+    except Exception as e:
+        rbac_failure(logger, e)
+        abort(503, "Failed to reach RBAC endpoint, request cannot be fulfilled")
+    finally:
+        request_session.close()
