@@ -17,14 +17,12 @@ from jobs.common import excepthook
 from jobs.common import job_setup
 from lib.group_repository import add_group
 from lib.group_repository import add_hosts_to_group
-from lib.metrics import host_reaper_fail_count
 
 PROMETHEUS_JOB = "inventory-create-ungrouped-groups"
 LOGGER_NAME = "create_ungrouped_groups"
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
 
 
-@host_reaper_fail_count.count_exceptions()
 def run(logger: Logger, session: Session, event_producer: EventProducer, application: FlaskApp):
     with application.app.app_context():
         threadctx.request_id = None
