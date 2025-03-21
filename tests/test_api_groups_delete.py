@@ -323,3 +323,21 @@ def test_attempt_delete_group_read_only(api_delete_groups, mocker):
     with mocker.patch("lib.middleware.get_flag_value", return_value=True):
         response_status, _ = api_delete_groups([generate_uuid()])
         assert_response_status(response_status, expected_status=503)
+
+
+@pytest.mark.usefixtures("event_producer")
+def test_delete_non_empty_group_workspace_enabled(api_delete_groups, db_create_group_with_hosts, mocker):
+    with mocker.patch("api.group.get_flag_value", return_value=True):
+        group = db_create_group_with_hosts("non_empty_group", 3)
+
+        response_status, _ = api_delete_groups([group.id])
+        assert_response_status(response_status, expected_status=400)
+
+
+@pytest.mark.usefixtures("event_producer")
+def test_delete_empty_group_workspace_enabled(api_delete_groups, db_create_group, mocker):
+    with mocker.patch("api.group.get_flag_value", return_value=True):
+        group_id = str(db_create_group("test_group").id)
+
+        response_status, _ = api_delete_groups([group_id])
+        assert_response_status(response_status, expected_status=204)
