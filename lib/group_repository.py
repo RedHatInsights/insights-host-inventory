@@ -32,6 +32,8 @@ from app.queue.events import message_headers
 from app.serialization import serialize_group
 from app.serialization import serialize_host
 from lib.db import session_guard
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
+from lib.feature_flags import get_flag_value
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.metrics import delete_group_count
 from lib.metrics import delete_group_processing_time
@@ -323,6 +325,10 @@ def patch_group(group: Group, patch_data: dict, event_producer: EventProducer):
         if new_host_ids is not None:
             _remove_hosts_from_group(group_id, list(existing_host_ids - new_host_ids))
             _add_hosts_to_group(group_id, list(new_host_ids - existing_host_ids), identity.org_id)
+            if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
+                # Add hosts to the "ungrouped" group
+                ungrouped_group = get_or_create_ungrouped_hosts_group_for_identity(identity)
+                _add_hosts_to_group(str(ungrouped_group.id), list(existing_host_ids - new_host_ids), identity.org_id)
 
     # Send MQ messages
     if group_patched and host_id_data is None:
