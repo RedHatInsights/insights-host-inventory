@@ -18,10 +18,17 @@ from app.models import Host
 from app.models import HostSchema
 from app.models import LimitedHost
 from app.models import LimitedHostSchema
+from app.staleness_serialization import get_staleness_timestamps
 from app.utils import Tag
-from lib.staleness import get_staleness_timestamps
+from lib.feature_flags import FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS
+from lib.feature_flags import get_flag_value
 
-__all__ = ("deserialize_host", "serialize_host", "serialize_host_system_profile", "serialize_canonical_facts")
+__all__ = (
+    "deserialize_host",
+    "serialize_host",
+    "serialize_host_system_profile",
+    "serialize_canonical_facts",
+)
 
 
 _EXPORT_SERVICE_FIELDS = [
@@ -129,7 +136,11 @@ def serialize_host(
 
     timestamps = get_staleness_timestamps(host, staleness_timestamps, staleness)
 
-    fields = DEFAULT_FIELDS + additional_fields
+    if get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS):
+        fields = DEFAULT_FIELDS + ("last_check_in",) + additional_fields
+    else:
+        fields = DEFAULT_FIELDS + additional_fields
+
     if for_mq:
         fields += ADDITIONAL_HOST_MQ_FIELDS
 
@@ -151,6 +162,7 @@ def serialize_host(
         "culled_timestamp": lambda: _serialize_staleness_to_string(timestamps["culled_timestamp"]),
         "created": lambda: _serialize_datetime(host.created_on),
         "updated": lambda: _serialize_datetime(host.modified_on),
+        "last_check_in": lambda: _serialize_datetime(host.last_check_in),
         "tags": lambda: _serialize_tags(host.tags),
         "tags_alt": lambda: host.tags_alt,
         "state": lambda: Conditions.find_host_state(
