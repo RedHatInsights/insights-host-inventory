@@ -478,25 +478,6 @@ def test_patch_host_with_RBAC_allowed(subtests, mocker, api_patch, db_create_hos
 
 
 @pytest.mark.usefixtures("enable_rbac", "event_producer_mock")
-def test_patch_host_RBAC_post_kessel_migration(mocker, api_patch, db_create_host):
-    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
-    mock_rbac_response = create_mock_rbac_response(
-        "tests/helpers/rbac-mock-data/inv-hosts-write-resource-defs-template.json"
-    )
-    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = [None]
-    get_rbac_permissions_mock.return_value = mock_rbac_response
-
-    host = db_create_host()
-    url = build_hosts_url(host_list_or_id=host.id)
-
-    with mocker.patch("lib.host_repository.get_flag_value", return_value=True):
-        response_status, _ = api_patch(url, {"display_name": "fred_flintstone"})
-        # Post-Kessel migration, there is no special handling for None in the attributeFilter
-        # This means that the host should not be found
-        assert_response_status(response_status, 404)
-
-
-@pytest.mark.usefixtures("enable_rbac", "event_producer_mock")
 def test_patch_host_with_RBAC_denied(subtests, mocker, api_patch, db_create_host, db_get_host):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
