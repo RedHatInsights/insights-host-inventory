@@ -18,12 +18,12 @@ from app.config import ALL_STALENESS_STATES
 from app.config import HOST_TYPES
 from app.exceptions import InventoryException
 from app.logging import get_logger
+from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
 from app.serialization import serialize_staleness_to_dict
 from lib import metrics
 from lib.feature_flags import FLAG_INVENTORY_DEDUPLICATION_ELEVATE_SUBMAN_ID
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.feature_flags import get_flag_value
 
 __all__ = (
@@ -376,13 +376,15 @@ def get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter=None, c
     )
     if rbac_filter and "groups" in rbac_filter:
         rbac_group_filters = (HostGroupAssoc.group_id.in_(rbac_filter["groups"]),)
-        # Special handling for "None" rbac attributeFilter, no longer needed after Kessel migration
-        if None in rbac_filter["groups"] and not get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
-            rbac_group_filters += (HostGroupAssoc.group_id.is_(None),)
+        if None in rbac_filter["groups"]:
+            rbac_group_filters += (
+                HostGroupAssoc.group_id.is_(None),
+                Group.ungrouped.is_(True),
+            )
 
         filters += (or_(*rbac_group_filters),)
 
-    query = Host.query.join(HostGroupAssoc, isouter=True).filter(*filters).group_by(Host.id)
+    query = Host.query.join(HostGroupAssoc, isouter=True).join(Group, isouter=True).filter(*filters).group_by(Host.id)
     if columns:
         query = query.with_entities(*columns)
     return find_non_culled_hosts(update_query_for_owner_id(identity, query), identity)
