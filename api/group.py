@@ -28,6 +28,7 @@ from app.instrumentation import log_get_group_list_succeeded
 from app.instrumentation import log_patch_group_failed
 from app.instrumentation import log_patch_group_success
 from app.logging import get_logger
+from app.models import HostGroupAssoc
 from app.models import InputGroupSchema
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.feature_flags import get_flag_value
@@ -40,6 +41,7 @@ from lib.group_repository import get_or_create_ungrouped_hosts_group_for_identit
 from lib.group_repository import patch_group
 from lib.group_repository import remove_hosts_from_group
 from lib.metrics import create_group_count
+from lib.middleware import delete_rbac_workspace
 from lib.middleware import get_rbac_default_workspace
 from lib.middleware import post_rbac_workspace
 from lib.middleware import rbac
@@ -96,7 +98,7 @@ def create_group(body, rbac_filter=None):
             default_parent_id = get_rbac_default_workspace()
             group_name = validated_create_group_data.get("name")
 
-            workspace_id = post_rbac_workspace(group_name, default_parent_id, f"{group_name} group")
+            workspace_id = post_rbac_workspace(group_name, str(default_parent_id), f"{group_name} group")
             if not workspace_id and not inventory_config().bypass_rbac:
                 message = f"Error while creating workspace for {group_name}"
                 logger.exception(message)
@@ -173,7 +175,22 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
 def delete_groups(group_id_list, rbac_filter=None):
     rbac_group_id_check(rbac_filter, set(group_id_list))
 
-    delete_count = delete_group_list(group_id_list, get_current_identity(), current_app.event_producer)
+    if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
+        invalid_groups = []
+        for group_id in group_id_list:
+            host_list = HostGroupAssoc.query.filter(HostGroupAssoc.group_id == group_id).all()
+            if host_list:
+                invalid_groups.append(group_id)
+
+        if invalid_groups:
+            abort(HTTPStatus.BAD_REQUEST, f"Group(s) {invalid_groups} contain hosts. Aborting deletion.")
+        else:
+            for group_id in group_id_list:
+                delete_rbac_workspace(group_id)
+
+        return Response(None, HTTPStatus.NO_CONTENT)
+    else:
+        delete_count = delete_group_list(group_id_list, get_current_identity(), current_app.event_producer)
 
     if delete_count == 0:
         log_get_group_list_failed(logger)

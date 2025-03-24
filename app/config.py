@@ -321,6 +321,10 @@ class Config:
         self.mq_db_batch_max_messages = int(os.getenv("MQ_DB_BATCH_MAX_MESSAGES", "1"))
         self.mq_db_batch_max_seconds = float(os.getenv("MQ_DB_BATCH_MAX_SECONDS", "0.5"))
 
+        self.s3_access_key_id = os.getenv("S3_AWS_ACCESS_KEY_ID")
+        self.s3_secret_access_key = os.getenv("S3_AWS_SECRET_ACCESS_KEY")
+        self.s3_bucket = os.getenv("S3_AWS_BUCKET")
+
         self.sp_fields_to_log = os.getenv("SP_FIELDS_TO_LOG", "").split(",")
 
         if self._runtime_environment == RuntimeEnvironment.PENDO_JOB:
