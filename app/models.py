@@ -10,6 +10,7 @@ from os.path import join
 
 from connexion.utils import coerce_type
 from dateutil.parser import isoparse
+from flask import current_app
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from jsonschema import RefResolver
@@ -215,7 +216,10 @@ class LimitedHost(db.Model):  # type: ignore [name-defined]
         tags_alt=None,
         system_profile_facts=None,
         groups=None,
+        id=None,
     ):
+        if id:
+            self.id = id
         if tags is None:
             tags = {}
             tags_alt = []
@@ -328,6 +332,7 @@ class Host(LimitedHost):
         per_reporter_staleness=None,
         groups=None,
     ):
+        id = None
         if tags is None:
             tags = {}
 
@@ -336,6 +341,9 @@ class Host(LimitedHost):
 
         if not canonical_facts:
             raise ValidationException("At least one of the canonical fact fields must be present.")
+
+        if current_app.config["USE_SUBMAN_ID"] and canonical_facts and "subscription_manager_id" in canonical_facts:
+            id = canonical_facts["subscription_manager_id"]
 
         if not stale_timestamp or not reporter:
             raise ValidationException("Both stale_timestamp and reporter fields must be present.")
@@ -354,6 +362,7 @@ class Host(LimitedHost):
             tags_alt,
             system_profile_facts,
             groups,
+            id,
         )
 
         self._update_last_check_in_date()
