@@ -57,30 +57,3 @@ def remove_staleness() -> None:
     staleness = Staleness.query.filter(Staleness.org_id == org_id).one()
     db.session.delete(staleness)
     db.session.commit()
-
-
-# Determine staleness timestamps
-def get_staleness_timestamps(host, staleness_timestamps, staleness) -> dict:
-    """Helper function to calculate staleness timestamps based on host type."""
-    staleness_type = (
-        "immutable"
-        if host.host_type == "edge"
-        or (
-            hasattr(host, "system_profile_facts")
-            and host.system_profile_facts
-            and host.system_profile_facts.get("host_type") == "edge"
-        )
-        else "conventional"
-    )
-
-    return {
-        "stale_timestamp": staleness_timestamps.stale_timestamp(
-            host.modified_on, staleness[f"{staleness_type}_time_to_stale"]
-        ),
-        "stale_warning_timestamp": staleness_timestamps.stale_warning_timestamp(
-            host.modified_on, staleness[f"{staleness_type}_time_to_stale_warning"]
-        ),
-        "culled_timestamp": staleness_timestamps.culled_timestamp(
-            host.modified_on, staleness[f"{staleness_type}_time_to_delete"]
-        ),
-    }
