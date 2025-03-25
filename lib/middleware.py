@@ -302,7 +302,7 @@ def post_rbac_workspace(name, parent_id, description) -> UUID | None:
     return UUID(resp_data["id"])
 
 
-def rbac_create_ungrouped_hosts_workspace() -> UUID | None:  # noqa: ARG001, used later
+def rbac_create_ungrouped_hosts_workspace() -> UUID | None:
     # Creates a new "ungrouped" workspace via the RBAC API, and returns its ID.
     # If not using RBAC, returns None, so the DB will automatically generate the group ID.
     if inventory_config().bypass_rbac:
