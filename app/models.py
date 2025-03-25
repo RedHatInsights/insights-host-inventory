@@ -474,8 +474,10 @@ class Host(LimitedHost):
         orm.attributes.flag_modified(self, "tags")
 
     def _replace_tags_alt_in_namespace(self, tags_dict):
+        final_tags_alt = []
         # Remove namespaces that are going to be updated from the list
-        final_tags_alt = [t for t in self.tags_alt if t["namespace"] not in tags_dict]
+        if self.tags_alt:
+            final_tags_alt = [t for t in self.tags_alt if t["namespace"] not in tags_dict]
 
         for ns, ns_items in tags_dict.items():
             for key, values in ns_items.items():
