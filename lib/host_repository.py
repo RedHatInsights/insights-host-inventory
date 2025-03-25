@@ -3,6 +3,7 @@ from __future__ import annotations
 from enum import Enum
 from uuid import UUID
 
+from flask import current_app
 from sqlalchemy import and_
 from sqlalchemy import not_
 from sqlalchemy import or_
@@ -12,7 +13,6 @@ from api.filtering.db_filters import stale_timestamp_filter
 from api.filtering.db_filters import staleness_to_conditions
 from api.filtering.db_filters import update_query_for_owner_id
 from api.staleness_query import get_staleness_obj
-from api.staleness_query import get_sys_default_staleness
 from app.auth.identity import Identity
 from app.config import ALL_STALENESS_STATES
 from app.config import HOST_TYPES
@@ -22,6 +22,7 @@ from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
 from app.serialization import serialize_staleness_to_dict
+from app.staleness_serialization import get_sys_default_staleness
 from lib import metrics
 from lib.feature_flags import FLAG_INVENTORY_DEDUPLICATION_ELEVATE_SUBMAN_ID
 from lib.feature_flags import get_flag_value
@@ -46,6 +47,8 @@ AddHostResult = Enum("AddHostResult", ("created", "updated"))
 ELEVATED_CANONICAL_FACT_FIELDS = ("provider_id", "mac_addresses", "insights_id", "subscription_manager_id")
 # These "v2" elevated facts are used when "hbi.deduplication-elevate-subman_id" FF is turned on.
 ELEVATED_CANONICAL_FACT_FIELDS_V2 = ("provider_id", "subscription_manager_id", "insights_id")
+# This elevated fact is to be used when the USE_SUBMAN_ID env is True
+ELEVATED_CANONICAL_FACT_FIELDS_USE_SUBMAN_ID = ("subscription_manager_id",)
 COMPOUND_CANONICAL_FACTS_MAP = {"provider_id": "provider_type"}
 COMPOUND_CANONICAL_FACTS = tuple(COMPOUND_CANONICAL_FACTS_MAP.values())
 IMMUTABLE_CANONICAL_FACTS = ("provider_id",)
@@ -86,7 +89,7 @@ def find_existing_host(identity: Identity, canonical_facts: dict) -> Host | None
     logger.debug("find_existing_host(%s, %s)", identity, canonical_facts)
     existing_host = _find_host_by_elevated_ids(identity, canonical_facts)
 
-    if existing_host:
+    if existing_host or current_app.config["USE_SUBMAN_ID"]:
         return existing_host
 
     existing_host = find_host_by_multiple_canonical_facts(identity, canonical_facts)
@@ -111,6 +114,8 @@ def _find_host_by_elevated_ids(identity: Identity, canonical_facts: dict) -> Hos
         if get_flag_value(FLAG_INVENTORY_DEDUPLICATION_ELEVATE_SUBMAN_ID, context={"orgId": identity.org_id})
         else ELEVATED_CANONICAL_FACT_FIELDS
     )
+    if current_app.config["USE_SUBMAN_ID"]:
+        elevated_fields = ELEVATED_CANONICAL_FACT_FIELDS_USE_SUBMAN_ID  # type: ignore
     logger.info(f"Using {elevated_fields} as elevated fields for org {identity.org_id}")
 
     for key in elevated_fields:
