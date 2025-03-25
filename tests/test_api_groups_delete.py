@@ -381,9 +381,20 @@ def test_remove_hosts_from_existing_group_kessel(
         assert len(ungrouped_hosts) == 2
 
         assert event_producer.write_event.call_count == 4
-        for call_arg in event_producer.write_event.call_args_list:
+
+        # First make sure the events to remove a host exist
+        for call_arg in event_producer.write_event.call_args_list[0:2]:
+            event = json.loads(call_arg[0][0])
+            host = event["host"]
+            assert host["id"] in host_id_list[0:2]
+            assert len(host["groups"]) == 0
+            assert event["platform_metadata"] == {"b64_identity": to_auth_header(Identity(obj=USER_IDENTITY))}
+
+        # Second make sure the events to add hosts to the "ungrouped" group exist
+        for call_arg in event_producer.write_event.call_args_list[2:]:
             event = json.loads(call_arg[0][0])
             host = event["host"]
             assert host["id"] in host_id_list[0:2]
             assert len(host["groups"]) == 1
+            assert host["groups"][0]["name"] == "ungrouped"
             assert event["platform_metadata"] == {"b64_identity": to_auth_header(Identity(obj=USER_IDENTITY))}
