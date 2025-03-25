@@ -5,6 +5,7 @@ from sqlalchemy import select
 
 from api.cache import delete_cached_system_keys
 from api.host_query import staleness_timestamps
+from api.staleness_query import AttrDict
 from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
 from app.auth.identity import Identity
@@ -30,7 +31,6 @@ from app.queue.events import build_event
 from app.queue.events import message_headers
 from app.serialization import serialize_group
 from app.serialization import serialize_host
-from app.staleness_serialization import AttrDict
 from lib.db import session_guard
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.metrics import delete_group_count
