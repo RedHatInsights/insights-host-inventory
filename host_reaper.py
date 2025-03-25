@@ -76,7 +76,22 @@ def run(config, logger, session, event_producer, notification_event_producer, sh
     with application.app.app_context():
         filter_hosts_to_delete = find_hosts_in_state(logger, session, ["culled"])
 
-        query = session.query(Host).filter(or_(False, *filter_hosts_to_delete))
+        # Adhoc fix for RHINENG-16901
+        # hosts reporter by rhsm-system-profile-bridge are not being deleted
+        # when marked as culled, and are also prevented to stay culled as w
+        # we are forcing its modified_on and last_check_in to be updated.
+
+        rhsm_bridge_hosts_query = session.query(Host).filter(
+            and_(or_(False, *filter_hosts_to_delete), Host.reporter == "rhsm-system-profile-bridge")
+        )
+
+        for host in rhsm_bridge_hosts_query.yield_per(config.host_delete_chunk_size):
+            host._update_modified_date()
+            host._update_last_check_in_date()
+
+        query = session.query(Host).filter(
+            and_(or_(False, *filter_hosts_to_delete), Host.reporter != "rhsm-system-profile-bridge")
+        )
         hosts_processed = config.host_delete_chunk_size
         deletions_remaining = query.count()
 
