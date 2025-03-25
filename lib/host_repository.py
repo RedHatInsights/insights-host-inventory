@@ -13,7 +13,6 @@ from api.filtering.db_filters import stale_timestamp_filter
 from api.filtering.db_filters import staleness_to_conditions
 from api.filtering.db_filters import update_query_for_owner_id
 from api.staleness_query import get_staleness_obj
-from api.staleness_query import get_sys_default_staleness
 from app.auth.identity import Identity
 from app.config import ALL_STALENESS_STATES
 from app.config import HOST_TYPES
@@ -23,6 +22,7 @@ from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
 from app.serialization import serialize_staleness_to_dict
+from app.staleness_serialization import get_sys_default_staleness
 from lib import metrics
 from lib.feature_flags import FLAG_INVENTORY_DEDUPLICATION_ELEVATE_SUBMAN_ID
 from lib.feature_flags import get_flag_value

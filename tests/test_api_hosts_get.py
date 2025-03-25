@@ -804,6 +804,30 @@ def test_get_hosts_order_by_group_name(db_create_group_with_hosts, db_create_mul
             )
 
 
+@pytest.mark.parametrize("order_how", ("ASC", "DESC"))
+def test_get_hosts_order_by_last_check_in(mocker, db_create_host, api_get, order_how):
+    host0 = str(db_create_host().id)
+    host1 = str(db_create_host().id)
+
+    with (
+        mocker.patch("app.serialization.get_flag_value", return_value=True),
+        mocker.patch("api.host_query_db.get_flag_value", return_value=True),
+    ):
+        url = build_hosts_url(query=f"?order_by=last_check_in&order_how={order_how}")
+
+        response_status, response_data = api_get(url)
+
+        assert response_status == 200
+        assert len(response_data["results"]) == 2
+        hosts = response_data["results"]
+        if order_how == "DESC":
+            assert host1 == hosts[0]["id"]
+            assert host0 == hosts[1]["id"]
+        else:
+            assert host0 == hosts[0]["id"]
+            assert host1 == hosts[1]["id"]
+
+
 @pytest.mark.parametrize("order_how", ("", "ASC", "DESC"))
 def test_get_hosts_order_by_operating_system(mq_create_or_update_host, api_get, order_how):
     # Create some operating systems in ASC sort order
