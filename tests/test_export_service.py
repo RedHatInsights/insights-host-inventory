@@ -8,6 +8,7 @@ import pytest
 from marshmallow.exceptions import ValidationError
 from sqlalchemy.orm.exc import ObjectDeletedError
 
+from api.staleness_query import get_sys_default_staleness
 from app.auth.identity import Identity
 from app.culling import Timestamps
 from app.culling import _Config as CullingConfig
@@ -18,7 +19,6 @@ from app.queue.export_service_mq import handle_export_message
 from app.queue.export_service_mq import parse_export_service_message
 from app.serialization import _EXPORT_SERVICE_FIELDS
 from app.serialization import serialize_host_for_export_svc
-from app.staleness_serialization import get_sys_default_staleness
 from tests.helpers import export_service_utils as es_utils
 from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES

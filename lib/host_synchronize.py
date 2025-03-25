@@ -1,6 +1,7 @@
 from confluent_kafka.error import KafkaException
 from confluent_kafka.error import ProduceError
 
+from api.staleness_query import get_sys_default_staleness
 from app.culling import Timestamps
 from app.logging import get_logger
 from app.models import Host
@@ -9,7 +10,6 @@ from app.queue.events import build_event
 from app.queue.events import message_headers
 from app.serialization import serialize_host
 from app.serialization import serialize_staleness_to_dict
-from app.staleness_serialization import get_sys_default_staleness
 from lib.metrics import synchronize_host_count
 
 logger = get_logger(__name__)
