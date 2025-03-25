@@ -205,7 +205,6 @@ def assert_stale_notification_is_valid(notification_event_producer, host):
 
 
 def assert_patch_event_is_valid(
-    with_last_check_in,
     host,
     event_producer,
     expected_request_id,
@@ -215,11 +214,9 @@ def assert_patch_event_is_valid(
     reporter=None,
     identity=USER_IDENTITY,
 ):
-    date_to_use = host.last_check_in if with_last_check_in else host.modified_on
-    stale_timestamp = (date_to_use.astimezone(timezone.utc) + timedelta(seconds=104400)).isoformat()
-    stale_warning_timestamp = (date_to_use.astimezone(timezone.utc) + timedelta(seconds=604800)).isoformat()
-    culled_timestamp = (date_to_use.astimezone(timezone.utc) + timedelta(seconds=1209600)).isoformat()
-
+    stale_timestamp = (host.modified_on.astimezone(timezone.utc) + timedelta(seconds=104400)).isoformat()
+    stale_warning_timestamp = (host.modified_on.astimezone(timezone.utc) + timedelta(seconds=604800)).isoformat()
+    culled_timestamp = (host.modified_on.astimezone(timezone.utc) + timedelta(seconds=1209600)).isoformat()
     reporter = reporter or host.reporter
 
     event = json.loads(event_producer.event)
@@ -251,7 +248,6 @@ def assert_patch_event_is_valid(
             "stale_warning_timestamp": stale_warning_timestamp,
             "culled_timestamp": culled_timestamp,
             "created": host.created_on.astimezone(timezone.utc).isoformat(),
-            "last_check_in": host.last_check_in.isoformat(),
             "provider_id": host.canonical_facts.get("provider_id"),
             "provider_type": host.canonical_facts.get("provider_type"),
         },
@@ -259,9 +255,6 @@ def assert_patch_event_is_valid(
         "metadata": {"request_id": expected_request_id},
         "timestamp": expected_timestamp.isoformat(),
     }
-
-    if not with_last_check_in:
-        del expected_event["host"]["last_check_in"]
 
     # We don't have this information without retrieving the host after the patch request
     del event["host"]["updated"]

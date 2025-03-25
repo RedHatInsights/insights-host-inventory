@@ -62,45 +62,28 @@ def test_update_fields(patch_doc, db_create_host, db_get_host, api_patch):
 @pytest.mark.parametrize(
     "canonical_facts", [{"insights_id": generate_uuid()}, {"insights_id": generate_uuid(), "fqdn": generate_uuid()}]
 )
-@pytest.mark.parametrize("with_last_check_in", (True, False))
 def test_checkin_canonical_facts(
-    event_datetime_mock,
-    event_producer_mock,
-    db_create_host,
-    db_get_host,
-    api_post,
-    canonical_facts,
-    with_last_check_in,
-    mocker,
+    event_datetime_mock, event_producer_mock, db_create_host, db_get_host, api_post, canonical_facts
 ):
-    with (
-        mocker.patch("app.staleness_serialization.get_flag_value", return_value=with_last_check_in),
-        mocker.patch("app.serialization.get_flag_value", return_value=with_last_check_in),
-    ):
-        created_host = db_create_host(extra_data={"canonical_facts": canonical_facts})
+    created_host = db_create_host(extra_data={"canonical_facts": canonical_facts})
 
-        post_doc = created_host.canonical_facts
-        updated_time = created_host.modified_on
+    post_doc = created_host.canonical_facts
+    updated_time = created_host.modified_on
 
-        response_status, _ = api_post(
-            build_host_checkin_url(), post_doc, extra_headers={"x-rh-insights-request-id": "123456"}
-        )
+    response_status, _ = api_post(
+        build_host_checkin_url(), post_doc, extra_headers={"x-rh-insights-request-id": "123456"}
+    )
 
-        assert_response_status(response_status, expected_status=201)
-        record = db_get_host(created_host.id)
+    assert_response_status(response_status, expected_status=201)
+    record = db_get_host(created_host.id)
 
-        assert record.modified_on > updated_time
-        assert record.stale_timestamp == created_host.stale_timestamp
-        assert record.reporter == created_host.reporter
+    assert record.modified_on > updated_time
+    assert record.stale_timestamp == created_host.stale_timestamp
+    assert record.reporter == created_host.reporter
 
-        assert_patch_event_is_valid(
-            with_last_check_in,
-            created_host,
-            event_producer_mock,
-            "123456",
-            event_datetime_mock,
-            created_host.display_name,
-        )
+    assert_patch_event_is_valid(
+        created_host, event_producer_mock, "123456", event_datetime_mock, created_host.display_name
+    )
 
 
 @pytest.mark.usefixtures("event_producer_mock")
@@ -239,110 +222,84 @@ def test_invalid_host_id(db_create_host, api_patch, subtests):
             assert_response_status(response_status, expected_status=400)
 
 
-@pytest.mark.parametrize("with_last_check_in", (True, False))
 def test_patch_produces_update_event_no_request_id(
-    event_datetime_mock, event_producer_mock, db_create_host, api_patch, with_last_check_in, mocker
+    event_datetime_mock, event_producer_mock, db_create_host, api_patch
 ):
-    with (
-        mocker.patch("app.staleness_serialization.get_flag_value", return_value=with_last_check_in),
-        mocker.patch("app.serialization.get_flag_value", return_value=with_last_check_in),
-    ):
-        host = db_host()
-        created_host = db_create_host(host=host)
+    host = db_host()
+    created_host = db_create_host(host=host)
 
-        patch_doc = {"display_name": "patch_event_test"}
+    patch_doc = {"display_name": "patch_event_test"}
 
-        url = build_hosts_url(host_list_or_id=created_host.id)
-        response_status, _ = api_patch(url, patch_doc)
-        assert_response_status(response_status, expected_status=200)
+    url = build_hosts_url(host_list_or_id=created_host.id)
+    response_status, _ = api_patch(url, patch_doc)
+    assert_response_status(response_status, expected_status=200)
 
-        assert_patch_event_is_valid(
-            with_last_check_in=with_last_check_in,
-            host=created_host,
-            event_producer=event_producer_mock,
-            expected_request_id=None,
-            expected_timestamp=event_datetime_mock,
-        )
+    assert_patch_event_is_valid(
+        host=created_host,
+        event_producer=event_producer_mock,
+        expected_request_id=None,
+        expected_timestamp=event_datetime_mock,
+    )
 
 
-@pytest.mark.parametrize("with_last_check_in", (True, False))
 def test_patch_produces_update_event_with_request_id(
-    event_datetime_mock, event_producer_mock, db_create_host, api_patch, with_last_check_in, mocker
+    event_datetime_mock, event_producer_mock, db_create_host, api_patch
 ):
-    with (
-        mocker.patch("app.staleness_serialization.get_flag_value", return_value=with_last_check_in),
-        mocker.patch("app.serialization.get_flag_value", return_value=with_last_check_in),
-    ):
-        patch_doc = {"display_name": "patch_event_test"}
-        request_id = generate_uuid()
-        headers = {"x-rh-insights-request-id": request_id}
+    patch_doc = {"display_name": "patch_event_test"}
+    request_id = generate_uuid()
+    headers = {"x-rh-insights-request-id": request_id}
 
-        host = db_host()
-        created_host = db_create_host(host=host)
+    host = db_host()
+    created_host = db_create_host(host=host)
 
-        url = build_hosts_url(host_list_or_id=created_host.id)
-        response_status, _ = api_patch(url, patch_doc, extra_headers=headers)
-        assert_response_status(response_status, expected_status=200)
+    url = build_hosts_url(host_list_or_id=created_host.id)
+    response_status, _ = api_patch(url, patch_doc, extra_headers=headers)
+    assert_response_status(response_status, expected_status=200)
 
-        assert_patch_event_is_valid(
-            with_last_check_in=with_last_check_in,
-            host=created_host,
-            event_producer=event_producer_mock,
-            expected_request_id=request_id,
-            expected_timestamp=event_datetime_mock,
-        )
+    assert_patch_event_is_valid(
+        host=created_host,
+        event_producer=event_producer_mock,
+        expected_request_id=request_id,
+        expected_timestamp=event_datetime_mock,
+    )
 
 
-@pytest.mark.parametrize("with_last_check_in", (True, False))
 def test_patch_produces_update_event_no_insights_id(
-    event_datetime_mock, event_producer_mock, db_create_host, api_patch, with_last_check_in, mocker
+    event_datetime_mock, event_producer_mock, db_create_host, api_patch
 ):
-    with (
-        mocker.patch("app.staleness_serialization.get_flag_value", return_value=with_last_check_in),
-        mocker.patch("app.serialization.get_flag_value", return_value=with_last_check_in),
-    ):
-        host = db_host()
-        del host.canonical_facts["insights_id"]
+    host = db_host()
+    del host.canonical_facts["insights_id"]
 
-        created_host = db_create_host(host=host)
+    created_host = db_create_host(host=host)
 
-        patch_doc = {"display_name": "patch_event_test"}
+    patch_doc = {"display_name": "patch_event_test"}
 
-        url = build_hosts_url(host_list_or_id=created_host.id)
-        response_status, _ = api_patch(url, patch_doc)
-        assert_response_status(response_status, expected_status=200)
+    url = build_hosts_url(host_list_or_id=created_host.id)
+    response_status, _ = api_patch(url, patch_doc)
+    assert_response_status(response_status, expected_status=200)
 
-        assert_patch_event_is_valid(
-            with_last_check_in=with_last_check_in,
-            host=created_host,
-            event_producer=event_producer_mock,
-            expected_request_id=None,
-            expected_timestamp=event_datetime_mock,
-        )
+    assert_patch_event_is_valid(
+        host=created_host,
+        event_producer=event_producer_mock,
+        expected_request_id=None,
+        expected_timestamp=event_datetime_mock,
+    )
 
 
-@pytest.mark.parametrize("with_last_check_in", (True, False))
-def test_patch_by_namespace_produces_update_event(
-    event_producer_mock, event_datetime_mock, db_create_host, api_patch, with_last_check_in, mocker
-):
-    with (
-        mocker.patch("app.staleness_serialization.get_flag_value", return_value=with_last_check_in),
-        mocker.patch("app.serialization.get_flag_value", return_value=with_last_check_in),
-    ):
-        created_host = db_create_host(host=db_host(), extra_data={"facts": DB_FACTS})
+def test_patch_by_namespace_produces_update_event(event_producer_mock, event_datetime_mock, db_create_host, api_patch):
+    created_host = db_create_host(host=db_host(), extra_data={"facts": DB_FACTS})
 
-        facts_url = build_facts_url(host_list_or_id=created_host.id, namespace=DB_FACTS_NAMESPACE)
-        response_status, _ = api_patch(facts_url, DB_NEW_FACTS)
-        assert_response_status(response_status, expected_status=200)
+    facts_url = build_facts_url(host_list_or_id=created_host.id, namespace=DB_FACTS_NAMESPACE)
+    response_status, _ = api_patch(facts_url, DB_NEW_FACTS)
+    assert_response_status(response_status, expected_status=200)
 
-        assert_patch_event_is_valid(
-            with_last_check_in=with_last_check_in,
-            host=created_host,
-            event_producer=event_producer_mock,
-            expected_request_id=None,
-            expected_timestamp=event_datetime_mock,
-            display_name="test-display-name",
-        )
+    assert_patch_event_is_valid(
+        host=created_host,
+        event_producer=event_producer_mock,
+        expected_request_id=None,
+        expected_timestamp=event_datetime_mock,
+        display_name="test-display-name",
+    )
 
 
 def test_patch_by_namespace_on_multiple_hosts_produces_multiple_update_events(
