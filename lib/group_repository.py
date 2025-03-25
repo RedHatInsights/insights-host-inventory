@@ -373,7 +373,7 @@ def get_or_create_ungrouped_hosts_group_for_identity(identity: Identity) -> Grou
         return group
 
     # Otherwise, create the workspace
-    workspace_id = rbac_create_ungrouped_hosts_workspace(identity)
+    workspace_id = rbac_create_ungrouped_hosts_workspace()
 
     # Create "ungrouped" group for this org using group ID == workspace ID
     return add_group(

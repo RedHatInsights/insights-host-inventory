@@ -32,12 +32,10 @@ from app.models import HostGroupAssoc
 from app.models import InputGroupSchema
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.feature_flags import get_flag_value
-from lib.group_repository import add_hosts_to_group
 from lib.group_repository import create_group_from_payload
 from lib.group_repository import delete_group_list
 from lib.group_repository import get_group_by_id_from_db
 from lib.group_repository import get_group_using_host_id
-from lib.group_repository import get_or_create_ungrouped_hosts_group_for_identity
 from lib.group_repository import patch_group
 from lib.group_repository import remove_hosts_from_group
 from lib.metrics import create_group_count
@@ -236,10 +234,6 @@ def delete_hosts_from_group(group_id, host_id_list, rbac_filter=None):
     if delete_count == 0:
         log_delete_hosts_from_group_failed(logger)
         abort(HTTPStatus.NOT_FOUND, "Group or hosts not found.")
-
-    if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
-        ungrouped_group = get_or_create_ungrouped_hosts_group_for_identity(identity)
-        add_hosts_to_group(ungrouped_group.id, host_id_list, identity, current_app.event_producer)
 
     return Response(None, HTTPStatus.NO_CONTENT)
 
