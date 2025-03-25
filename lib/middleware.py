@@ -279,7 +279,7 @@ def post_rbac_workspace(name, parent_id, description) -> UUID | None:
         IDENTITY_HEADER: request.headers[IDENTITY_HEADER],
         REQUEST_ID_HEADER: request.headers.get(REQUEST_ID_HEADER),
     }
-    request_data = {"name": name, "description": description, "parent_id": parent_id}
+    request_data = {"name": name, "description": description, "parent_id": str(parent_id)}
 
     try:
         with outbound_http_response_time.labels("rbac").time():
