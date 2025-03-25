@@ -8,7 +8,7 @@ updates:
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
     # Allow up to 3 open pull requests for pip dependencies
     open-pull-requests-limit: 3
     reviewers:
