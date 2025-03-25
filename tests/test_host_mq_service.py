@@ -5,7 +5,6 @@ from datetime import datetime
 from datetime import timedelta
 from functools import partial
 from types import SimpleNamespace
-from unittest.mock import patch
 
 import marshmallow
 import pytest
@@ -536,14 +535,14 @@ def test_add_host_defer_to_wrong_reporter(models_datetime_mock, mq_create_or_upd
 
 
 @pytest.mark.usefixtures("event_datetime_mock")
-def test_add_host_defer_to_stale(mq_create_or_update_host, db_get_host):
+def test_add_host_defer_to_stale(models_datetime_mock, mq_create_or_update_host, db_get_host):
     """
     Tests adding (updating) a host with "defer_to" option, but reporter stale - system profile should be updated.
     """
     expected_insights_id = generate_uuid()
     original_system_profile = valid_system_profile(owner_id=OWNER_ID)
     updated_system_profile = valid_system_profile(owner_id=OWNER_ID, additional_yum_repo=YUM_REPO2)
-    puptoo_stale_timestamp = now() - timedelta(days=1)
+    puptoo_stale_timestamp = models_datetime_mock - timedelta(days=1)
 
     existing_host = create_reference_host_in_db(
         expected_insights_id, "puptoo", original_system_profile, puptoo_stale_timestamp
@@ -556,13 +555,11 @@ def test_add_host_defer_to_stale(mq_create_or_update_host, db_get_host):
         system_profile=updated_system_profile,
     )
 
-    # Make host stale here
-    with patch("app.models.datetime") as models_datetime:
-        models_datetime.now.return_value = now() + timedelta(days=2)
-        updated_host = mq_create_or_update_host(host, operation_args={"defer_to_reporter": "puptoo"})
-        assert str(updated_host.id) == str(existing_host_id)
-        returned_host = db_get_host(existing_host_id)
-        assert returned_host.system_profile_facts == updated_system_profile
+    updated_host = mq_create_or_update_host(host, operation_args={"defer_to_reporter": "puptoo"})
+    assert str(updated_host.id) == str(existing_host_id)
+
+    returned_host = db_get_host(existing_host_id)
+    assert returned_host.system_profile_facts == updated_system_profile
 
 
 @pytest.mark.usefixtures("event_datetime_mock")
@@ -1260,42 +1257,34 @@ def test_delete_host_tags(mq_create_or_update_host, db_get_host_by_insights_id, 
 
 
 @pytest.mark.usefixtures("event_datetime_mock")
-@pytest.mark.parametrize("with_last_check_in", [True, False])
-def test_add_host_stale_timestamp(mq_create_or_update_host, with_last_check_in):
+def test_add_host_stale_timestamp(mq_create_or_update_host):
     """
     Tests to see if the host is successfully created with both reporter
     and stale_timestamp set.
     """
-    with (
-        patch("app.serialization.get_flag_value", return_value=with_last_check_in),
-        patch("app.staleness_serialization.get_flag_value", return_value=with_last_check_in),
-    ):
-        expected_insights_id = generate_uuid()
-        stale_timestamp = now()
+    expected_insights_id = generate_uuid()
+    stale_timestamp = now()
 
-        host = minimal_host(
-            account=SYSTEM_IDENTITY["account_number"],
-            insights_id=expected_insights_id,
-            stale_timestamp=stale_timestamp.isoformat(),
-        )
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"],
+        insights_id=expected_insights_id,
+        stale_timestamp=stale_timestamp.isoformat(),
+    )
 
-        host_keys_to_check = ["reporter", "stale_timestamp", "culled_timestamp"]
+    host_keys_to_check = ["reporter", "stale_timestamp", "culled_timestamp"]
 
-        key, event, _ = mq_create_or_update_host(host, return_all_data=True)
-        if with_last_check_in:
-            updated_timestamp = datetime.fromisoformat(event["host"]["last_check_in"])
-        else:
-            updated_timestamp = datetime.fromisoformat(event["host"]["updated"])
-        host.stale_timestamp = (updated_timestamp + timedelta(seconds=104400)).isoformat()
-        expected_results = {
-            "host": {
-                **host.data(),
-                "stale_warning_timestamp": (updated_timestamp + timedelta(seconds=604800)).isoformat(),
-                "culled_timestamp": (updated_timestamp + timedelta(seconds=1209600)).isoformat(),
-            }
+    key, event, _ = mq_create_or_update_host(host, return_all_data=True)
+    updated_timestamp = datetime.fromisoformat(event["host"]["updated"])
+    host.stale_timestamp = (updated_timestamp + timedelta(seconds=104400)).isoformat()
+    expected_results = {
+        "host": {
+            **host.data(),
+            "stale_warning_timestamp": (updated_timestamp + timedelta(seconds=604800)).isoformat(),
+            "culled_timestamp": (updated_timestamp + timedelta(seconds=1209600)).isoformat(),
         }
+    }
 
-        assert_mq_host_data(key, event, expected_results, host_keys_to_check)
+    assert_mq_host_data(key, event, expected_results, host_keys_to_check)
 
 
 @pytest.mark.parametrize("field_to_remove", ["stale_timestamp", "reporter"])
