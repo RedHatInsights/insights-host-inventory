@@ -70,7 +70,7 @@ def _group_names_filter(group_name_list: list) -> list:
     if len(group_name_list) > 0:
         group_filters = [func.lower(Group.name).in_(group_name_list_lower)]
         if "" in group_name_list:
-            group_filters += [HostGroupAssoc.group_id.is_(None)]
+            group_filters += [or_(HostGroupAssoc.group_id.is_(None), Group.ungrouped.is_(True))]
 
         _query_filter += (or_(*group_filters),)
 
@@ -82,7 +82,7 @@ def _group_ids_filter(group_id_list: list) -> list:
     if len(group_id_list) > 0:
         group_filters = [HostGroupAssoc.group_id.in_(group_id_list)]
         if None in group_id_list:
-            group_filters += [HostGroupAssoc.group_id.is_(None)]
+            group_filters += [or_(HostGroupAssoc.group_id.is_(None), Group.ungrouped.is_(True))]
 
         _query_filter += [or_(*group_filters)]
 
@@ -366,9 +366,9 @@ def query_filters(
         filters += rbac_permissions_filter(rbac_filter)
 
     # Determine query_base
-    if group_name or order_by == "group_name":
+    if group_name or group_ids or rbac_filter or order_by == "group_name":
         query_base = db.session.query(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
-    elif group_ids or rbac_filter:
+    elif group_ids:
         query_base = db.session.query(Host).join(HostGroupAssoc, isouter=True)
     else:
         query_base = db.session.query(Host)

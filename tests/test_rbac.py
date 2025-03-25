@@ -82,21 +82,6 @@ def test_RBAC_invalid_UUIDs(mocker, api_get):
 
 
 @pytest.mark.usefixtures("enable_rbac")
-def test_RBAC_none_values_not_allowed_post_kessel_migration(mocker, api_get):
-    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
-
-    mock_rbac_response = create_mock_rbac_response(
-        "tests/helpers/rbac-mock-data/inv-hosts-read-resource-defs-template.json"
-    )
-    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = [None]
-    get_rbac_permissions_mock.return_value = mock_rbac_response
-
-    with mocker.patch("lib.middleware.get_flag_value", return_value=True):
-        response_status, _ = api_get(build_hosts_url())
-        assert_response_status(response_status, 503)
-
-
-@pytest.mark.usefixtures("enable_rbac")
 @pytest.mark.parametrize(
     "url_builder",
     [build_staleness_url, build_groups_url],

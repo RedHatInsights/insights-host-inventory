@@ -2109,3 +2109,14 @@ def test_log_update_system_profile(mq_create_or_update_host, db_get_host, id_typ
         "number_of_sockets": 8,
     }
     assert caplog.records[0].input_host["system_profile"] == "{}"
+
+
+def test_add_host_subman_id(mq_create_or_update_host_subman_id, db_get_host):
+    subscription_manager_id = generate_uuid()
+    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], subscription_manager_id=subscription_manager_id)
+
+    mq_create_or_update_host_subman_id(host)
+
+    record = db_get_host(subscription_manager_id)
+
+    assert str(record.id) == str(subscription_manager_id)
