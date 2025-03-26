@@ -51,7 +51,7 @@ def main():
     shutdown_handler.register()
 
     hbi_consumer_class = topic_to_hbi_consumer[config.kafka_consumer_topic]
-    hbi_consumer = hbi_consumer_class(consumer, application.app, event_producer, notification_event_producer)
+    hbi_consumer = hbi_consumer_class(consumer, application, event_producer, notification_event_producer)
     hbi_consumer.event_loop(shutdown_handler.shut_down)
 
 

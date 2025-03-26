@@ -35,7 +35,7 @@ def main():
     shutdown_handler.register()
 
     logger.info(f"Using consumer topic: {config.export_service_topic}")
-    export_consumer = ExportServiceConsumer(consumer, application.app, None, None)
+    export_consumer = ExportServiceConsumer(consumer, application, None, None)
     export_consumer.event_loop(shutdown_handler.shut_down)
 
 
