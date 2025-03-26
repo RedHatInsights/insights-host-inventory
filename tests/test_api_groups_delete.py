@@ -341,3 +341,37 @@ def test_delete_empty_group_workspace_enabled(api_delete_groups, db_create_group
 
         response_status, _ = api_delete_groups([group_id])
         assert_response_status(response_status, expected_status=204)
+
+
+@pytest.mark.usefixtures("enable_rbac")
+def test_delete_hosts_from_diff_groups_post_kessel_migration(
+    mocker,
+    api_remove_hosts_from_diff_groups,
+    db_create_group_with_hosts,
+    db_create_group,
+    event_producer,
+    db_get_hosts_for_group,
+):
+    mocker.patch.object(event_producer, "write_event")
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-groups-write-resource-defs-template.json"
+    )
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    group1 = db_create_group_with_hosts("test_group1", 2)
+    group2 = db_create_group_with_hosts("test_group2", 3)
+    group3 = db_create_group_with_hosts("test_group3", 3)
+
+    ungrouped_group_id = str(db_create_group("ungrouped_group", ungrouped=True).id)
+
+    with mocker.patch("lib.host_repository.get_flag_value", return_value=True):
+        hosts_to_delete = [str(group1.hosts[0].id), str(group2.hosts[0].id), str(group3.hosts[0].id)]
+        response_status, _ = api_remove_hosts_from_diff_groups(hosts_to_delete)
+
+        assert_response_status(response_status, 204)
+        assert event_producer.write_event.call_count == 3
+
+        # Check that the removed hosts were assigned to the ungrouped group
+        for host in db_get_hosts_for_group(ungrouped_group_id):
+            assert str(host.id) in hosts_to_delete
