@@ -329,6 +329,10 @@ def patch_group(group: Group, patch_data: dict, event_producer: EventProducer):
         if new_host_ids is not None:
             _remove_hosts_from_group(group_id, list(existing_host_ids - new_host_ids))
             _add_hosts_to_group(group_id, list(new_host_ids - existing_host_ids), identity.org_id)
+            if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
+                # Add hosts to the "ungrouped" group
+                ungrouped_group = get_or_create_ungrouped_hosts_group_for_identity(identity)
+                _add_hosts_to_group(str(ungrouped_group.id), list(existing_host_ids - new_host_ids), identity.org_id)
 
     # Send MQ messages
     if group_patched and host_id_data is None:
