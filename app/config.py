@@ -313,6 +313,7 @@ class Config:
             "IMMUTABLE_TIME_TO_DELETE_SECONDS", days_to_seconds(730)
         )
 
+        self.use_sub_man_id_for_host_id = os.environ.get("USE_SUBMAN_ID", "false").lower() == "true"
         self.host_delete_chunk_size = int(os.getenv("HOST_DELETE_CHUNK_SIZE", "1000"))
         self.script_chunk_size = int(os.getenv("SCRIPT_CHUNK_SIZE", "500"))
         self.export_svc_batch_size = int(os.getenv("EXPORT_SVC_BATCH_SIZE", "500"))
@@ -320,6 +321,10 @@ class Config:
         self.sp_authorized_users = os.getenv("SP_AUTHORIZED_USERS", "tuser@redhat.com").split()
         self.mq_db_batch_max_messages = int(os.getenv("MQ_DB_BATCH_MAX_MESSAGES", "1"))
         self.mq_db_batch_max_seconds = float(os.getenv("MQ_DB_BATCH_MAX_SECONDS", "0.5"))
+
+        self.s3_access_key_id = os.getenv("S3_AWS_ACCESS_KEY_ID")
+        self.s3_secret_access_key = os.getenv("S3_AWS_SECRET_ACCESS_KEY")
+        self.s3_bucket = os.getenv("S3_AWS_BUCKET")
 
         self.sp_fields_to_log = os.getenv("SP_FIELDS_TO_LOG", "").split(",")
 

@@ -274,6 +274,7 @@ def create_app(runtime_environment):
 
     flask_app.config["INVENTORY_CONFIG"] = app_config
     flask_app.config["SYSTEM_PROFILE_SPEC"] = sp_spec
+    flask_app.config["USE_SUBMAN_ID"] = app_config.use_sub_man_id_for_host_id
 
     init_cache(app_config, app)
 

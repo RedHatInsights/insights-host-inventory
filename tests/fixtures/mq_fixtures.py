@@ -195,3 +195,41 @@ def future_mock():
 def event_datetime_mock(mocker):
     mock = mocker.patch("app.queue.events.datetime", **{"now.return_value": now()})
     return mock.now.return_value
+
+
+@pytest.fixture(scope="function")
+def mq_create_or_update_host_subman_id(
+    flask_app,
+    event_producer_mock,
+    notification_event_producer_mock,
+):
+    config = flask_app.app.config["INVENTORY_CONFIG"]
+    config.use_sub_man_id_for_host_id = True
+    flask_app.app.config["USE_SUBMAN_ID"] = config.use_sub_man_id_for_host_id
+
+    def _mq_create_or_update_host_subman_id(
+        host_data,
+        platform_metadata=None,
+        return_all_data=False,
+        event_producer=event_producer_mock,
+        operation_args=None,
+        consumer_class=IngressMessageConsumer,
+        notification_event_producer=notification_event_producer_mock,
+    ):
+        if not platform_metadata:
+            platform_metadata = get_platform_metadata()
+
+        message = wrap_message(host_data.data(), platform_metadata=platform_metadata, operation_args=operation_args)
+        consumer = consumer_class(None, flask_app, event_producer_mock, notification_event_producer)
+        result = consumer.handle_message(json.dumps(message))
+        db.session.commit()
+        write_add_update_event_message(event_producer, notification_event_producer_mock, result)
+        event = json.loads(event_producer.event)
+
+        if return_all_data:
+            return event_producer_mock.key, event, event_producer.headers
+
+        # add facts object since it's not returned by event message
+        return HostWrapper({**event["host"], **{"facts": host_data.facts}})
+
+    return _mq_create_or_update_host_subman_id

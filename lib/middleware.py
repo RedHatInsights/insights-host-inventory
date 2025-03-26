@@ -27,7 +27,6 @@ from app.instrumentation import rbac_group_permission_denied
 from app.instrumentation import rbac_permission_denied
 from app.logging import get_logger
 from lib.feature_flags import FLAG_INVENTORY_API_READ_ONLY
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.feature_flags import get_flag_value
 
 logger = get_logger(__name__)
@@ -114,11 +113,8 @@ def _get_group_list_from_resource_definition(resource_definition: dict) -> list[
             # Validate that all values in the filter are UUIDs.
             group_list = resource_definition["attributeFilter"]["value"]
             try:
-                kessel_migration = get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION)
                 for gid in group_list:
-                    # Special handling for "None" rbac attributeFilter, no longer needed after Kessel migration
-                    # We need to handle None before the migration, but not after
-                    if kessel_migration or gid is not None:
+                    if gid is not None:
                         UUID(gid)
             except (ValueError, TypeError):
                 abort(
@@ -316,3 +312,66 @@ def rbac_create_ungrouped_hosts_workspace(identity: Identity) -> UUID | None:  #
         # POST /api/rbac/v2/workspaces/
         # https://github.com/RedHatInsights/insights-rbac/blob/master/docs/source/specs/v2/openapi.yaml#L96
         return None
+
+
+def delete_rbac_workspace(workspace_id):
+    if inventory_config().bypass_rbac:
+        return None
+
+    workspace_endpoint = f"workspaces/{workspace_id}/"
+    request_session = Session()
+    retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
+    request_session.mount(get_rbac_v2_url(endpoint=workspace_endpoint), HTTPAdapter(max_retries=retry_config))
+    request_header = {
+        IDENTITY_HEADER: request.headers[IDENTITY_HEADER],
+        REQUEST_ID_HEADER: request.headers.get(REQUEST_ID_HEADER),
+    }
+
+    try:
+        with outbound_http_response_time.labels("rbac").time():
+            request_session.delete(
+                url=get_rbac_v2_url(endpoint=workspace_endpoint),
+                headers=request_header,
+                timeout=inventory_config().rbac_timeout,
+                verify=LoadedConfig.tlsCAPath,
+            )
+    except Exception as e:
+        rbac_failure(logger, e)
+        abort(503, "Failed to reach RBAC endpoint, request cannot be fulfilled")
+    finally:
+        request_session.close()
+
+
+def put_rbac_workspace(workspace_id, name=None, description=None) -> None:
+    if inventory_config().bypass_rbac:
+        return None
+
+    workspace_endpoint = f"workspaces/{workspace_id}/"
+    request_session = Session()
+    retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
+    request_session.mount(get_rbac_v2_url(endpoint=workspace_endpoint), HTTPAdapter(max_retries=retry_config))
+    request_header = {
+        IDENTITY_HEADER: request.headers[IDENTITY_HEADER],
+        REQUEST_ID_HEADER: request.headers.get(REQUEST_ID_HEADER),
+    }
+
+    request_data = {}
+    if name is not None:
+        request_data.update({"name": name})
+    if description is not None:
+        request_data.update({"description": description})
+
+    try:
+        with outbound_http_response_time.labels("rbac").time():
+            request_session.put(
+                url=get_rbac_v2_url(endpoint=workspace_endpoint),
+                headers=request_header,
+                json=request_data,
+                timeout=inventory_config().rbac_timeout,
+                verify=LoadedConfig.tlsCAPath,
+            )
+    except Exception as e:
+        rbac_failure(logger, e)
+        abort(503, "Failed to reach RBAC endpoint, request cannot be fulfilled")
+    finally:
+        request_session.close()

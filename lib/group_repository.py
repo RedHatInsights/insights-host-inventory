@@ -5,7 +5,6 @@ from sqlalchemy import select
 
 from api.cache import delete_cached_system_keys
 from api.host_query import staleness_timestamps
-from api.staleness_query import AttrDict
 from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
 from app.auth.identity import Identity
@@ -31,7 +30,10 @@ from app.queue.events import build_event
 from app.queue.events import message_headers
 from app.serialization import serialize_group
 from app.serialization import serialize_host
+from app.staleness_serialization import AttrDict
 from lib.db import session_guard
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
+from lib.feature_flags import get_flag_value
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.metrics import delete_group_count
 from lib.metrics import delete_group_processing_time
@@ -265,6 +267,10 @@ def remove_hosts_from_group(group_id, host_id_list, identity, event_producer):
     staleness = get_staleness_obj(identity.org_id)
     with session_guard(db.session):
         removed_host_ids = _remove_hosts_from_group(group_id, host_id_list)
+        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
+            # Add hosts to the "ungrouped" group
+            ungrouped_group = get_or_create_ungrouped_hosts_group_for_identity(identity)
+            _add_hosts_to_group(str(ungrouped_group.id), removed_host_ids, identity.org_id)
 
     serialized_groups, host_list = _update_hosts_for_group_changes(removed_host_ids, [], identity)
     _produce_host_update_events(event_producer, serialized_groups, host_list, identity, staleness=staleness)
@@ -323,6 +329,10 @@ def patch_group(group: Group, patch_data: dict, event_producer: EventProducer):
         if new_host_ids is not None:
             _remove_hosts_from_group(group_id, list(existing_host_ids - new_host_ids))
             _add_hosts_to_group(group_id, list(new_host_ids - existing_host_ids), identity.org_id)
+            if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
+                # Add hosts to the "ungrouped" group
+                ungrouped_group = get_or_create_ungrouped_hosts_group_for_identity(identity)
+                _add_hosts_to_group(str(ungrouped_group.id), list(existing_host_ids - new_host_ids), identity.org_id)
 
     # Send MQ messages
     if group_patched and host_id_data is None:

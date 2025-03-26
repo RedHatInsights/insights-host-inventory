@@ -34,6 +34,8 @@ from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import db
 from app.serialization import serialize_host_for_export_svc
+from lib.feature_flags import FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS
+from lib.feature_flags import get_flag_value
 
 __all__ = (
     "get_all_hosts",
@@ -61,6 +63,7 @@ DEFAULT_COLUMNS = [
     Host.modified_on,
     Host.groups,
     Host.system_profile_facts["host_type"].label("host_type"),
+    Host.last_check_in,
 ]
 
 
@@ -81,12 +84,15 @@ def _get_host_list_using_filters(
     param_order_how: str,
     fields: dict,
 ) -> tuple[list[Host], int, tuple[str], list[str]]:
-    columns = DEFAULT_COLUMNS
+    columns = DEFAULT_COLUMNS.copy()
+    if not get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS):
+        columns.pop()
+
     system_profile_fields = ["host_type"]
     if fields and fields.get("system_profile"):
         additional_fields: tuple = ("system_profile",)
         system_profile_fields += list(fields.get("system_profile", {}).keys())
-        columns = list(DEFAULT_COLUMNS)
+        columns = list(columns)
         columns.append(Host.system_profile_facts)
     else:
         additional_fields = tuple()
@@ -201,15 +207,32 @@ def params_to_order_by(order_by: str | None = None, order_how: str | None = None
         ordering = (base_ordering.nulls_last(),) if order_how == "DESC" else (base_ordering.nulls_first(),)
     elif order_by == "operating_system":
         ordering = (_order_how(Host.operating_system, order_how),) if order_how else (Host.operating_system.desc(),)  # type: ignore [attr-defined]
-    elif order_by:
-        raise ValueError(
-            'Unsupported ordering column: use "updated", "display_name", "group_name", or "operating_system".'
-        )
-    elif order_how:
-        raise ValueError(
-            "Providing ordering direction without a column is not supported. Provide order_by={updated,display_name}."
-        )
 
+    elif get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS):
+        if order_by == "last_check_in":
+            ordering = (_order_how(Host.last_check_in, order_how),) if order_how else (Host.last_check_in.desc(),)
+
+    elif order_by:
+        if get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS):
+            raise ValueError(
+                'Unsupported ordering column: use "updated", "display_name",'
+                ' "group_name", "operating_system" or "last_check_in"'
+            )
+        else:
+            raise ValueError(
+                'Unsupported ordering column: use "updated", "display_name", "group_name", "operating_system"'
+            )
+    elif order_how:
+        if get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS):
+            raise ValueError(
+                "Providing ordering direction without a column is not supported."
+                " Provide order_by={updated,display_name,group_name,operating_system,last_check_in}."
+            )
+        else:
+            raise ValueError(
+                "Providing ordering direction without a column is not supported."
+                " Provide order_by={updated,display_name,group_name,operating_system}."
+            )
     return ordering + modified_on_ordering + (Host.id.desc(),)
 
 

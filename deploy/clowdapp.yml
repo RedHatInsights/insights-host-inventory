@@ -1275,15 +1275,57 @@ objects:
                 optional: true
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
-          - name: REBUILD_EVENTS_TIME_LIMIT
-            value: ${REBUILD_EVENTS_TIME_LIMIT}
         resources:
           limits:
-            cpu: ${CPU_LIMIT_SYNCHRONIZER}
-            memory: ${MEMORY_LIMIT_SYNCHRONIZER}
+            cpu: ${CPU_LIMIT_UNGROUPED_HOSTS_JOB}
+            memory: ${MEMORY_LIMIT_UNGROUPED_HOSTS_JOB}
           requests:
-            cpu: ${CPU_REQUEST_SYNCHRONIZER}
-            memory: ${MEMORY_REQUEST_SYNCHRONIZER}
+            cpu: ${CPU_REQUEST_UNGROUPED_HOSTS_JOB}
+            memory: ${MEMORY_REQUEST_UNGROUPED_HOSTS_JOB}
+    - name: export-group-data-s3
+      restartPolicy: OnFailure
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: ["./jobs/export_group_data_s3.py"]
+        env:
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: S3_AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${S3_AWS_SECRET}
+                key: aws_access_key_id
+          - name: S3_AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${S3_AWS_SECRET}
+                key: aws_secret_access_key
+          - name: S3_AWS_BUCKET
+            valueFrom:
+              secretKeyRef:
+                name: ${S3_AWS_SECRET}
+                key: bucket
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_GROUPS_S3_EXPORT}
+            memory: ${MEMORY_LIMIT_GROUPS_S3_EXPORT}
+          requests:
+            cpu: ${CPU_REQUEST_GROUPS_S3_EXPORT}
+            memory: ${MEMORY_REQUEST_GROUPS_S3_EXPORT}
     database:
       name: ${DB_NAME}
       version: 16
@@ -1617,6 +1659,24 @@ parameters:
 - name: MEMORY_LIMIT_SYNCHRONIZER
   value: 512Mi
 
+- name: CPU_REQUEST_UNGROUPED_HOSTS_JOB
+  value: 250m
+- name: CPU_LIMIT_UNGROUPED_HOSTS_JOB
+  value: 500m
+- name: MEMORY_REQUEST_UNGROUPED_HOSTS_JOB
+  value: 256Mi
+- name: MEMORY_LIMIT_UNGROUPED_HOSTS_JOB
+  value: 512Mi
+
+- name: CPU_REQUEST_GROUPS_S3_EXPORT
+  value: 250m
+- name: CPU_LIMIT_GROUPS_S3_EXPORT
+  value: 500m
+- name: MEMORY_REQUEST_GROUPS_S3_EXPORT
+  value: 256Mi
+- name: MEMORY_LIMIT_GROUPS_S3_EXPORT
+  value: 512Mi
+
 - name: CPU_REQUEST_SYNDICATOR
   value: 250m
 - name: CPU_LIMIT_SYNDICATOR
@@ -1836,6 +1896,9 @@ parameters:
   value: '60'
 - name: INVENTORY_DB_SCHEMA
   value: 'hbi'
+- name: S3_AWS_SECRET
+  description: The AWS secret for S3
+  value: 'hbi-kessel-s3'
 
 # NGINX
 - displayName: Minimum replicas

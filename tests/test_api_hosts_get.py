@@ -804,6 +804,30 @@ def test_get_hosts_order_by_group_name(db_create_group_with_hosts, db_create_mul
             )
 
 
+@pytest.mark.parametrize("order_how", ("ASC", "DESC"))
+def test_get_hosts_order_by_last_check_in(mocker, db_create_host, api_get, order_how):
+    host0 = str(db_create_host().id)
+    host1 = str(db_create_host().id)
+
+    with (
+        mocker.patch("app.serialization.get_flag_value", return_value=True),
+        mocker.patch("api.host_query_db.get_flag_value", return_value=True),
+    ):
+        url = build_hosts_url(query=f"?order_by=last_check_in&order_how={order_how}")
+
+        response_status, response_data = api_get(url)
+
+        assert response_status == 200
+        assert len(response_data["results"]) == 2
+        hosts = response_data["results"]
+        if order_how == "DESC":
+            assert host1 == hosts[0]["id"]
+            assert host0 == hosts[1]["id"]
+        else:
+            assert host0 == hosts[0]["id"]
+            assert host1 == hosts[1]["id"]
+
+
 @pytest.mark.parametrize("order_how", ("", "ASC", "DESC"))
 def test_get_hosts_order_by_operating_system(mq_create_or_update_host, api_get, order_how):
     # Create some operating systems in ASC sort order
@@ -1964,6 +1988,48 @@ def test_get_host_exists_granular_rbac(db_create_host, db_create_group, db_creat
         url = build_host_exists_url(insights_id)
         response_status, _ = api_get(url)
         assert_response_status(response_status, 404)
+
+
+@pytest.mark.usefixtures("enable_rbac")
+def test_get_ungrouped_hosts_granular_rbac(
+    db_create_host, db_create_group, db_create_host_group_assoc, api_get, mocker
+):
+    # Create the groups
+    ungrouped_group_id = db_create_group("ungrouped", ungrouped=True).id
+    grouped_group_id = db_create_group("grouped", ungrouped=False).id
+
+    # Create hosts
+    ungrouped_host_ids = [str(db_create_host().id) for _ in range(3)]
+    ungrouped_group_host_ids = [str(db_create_host().id) for _ in range(4)]
+    grouped_host_ids = [str(db_create_host().id) for _ in range(5)]
+
+    # Assign assign hosts to the "ungrouped" group
+    for host_id in ungrouped_group_host_ids:
+        db_create_host_group_assoc(host_id, ungrouped_group_id)
+
+    # Assign hosts to the regular group
+    for host_id in grouped_host_ids:
+        db_create_host_group_assoc(host_id, grouped_group_id)
+
+    # Mock RBAC perms; only grant access to ungrouped hosts
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-hosts-read-resource-defs-template.json"
+    )
+    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = [None]
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    response_status, response_data = api_get(build_hosts_url())
+    assert_response_status(response_status, 200)
+
+    actual_host_ids = [host["id"] for host in response_data["results"]]
+
+    # Make sure it returned only ungrouped hosts and hosts in the "ungrouped" group
+    for host_id in ungrouped_host_ids + ungrouped_group_host_ids:
+        assert host_id in actual_host_ids
+
+    for host_id in grouped_host_ids:
+        assert host_id not in actual_host_ids
 
 
 def test_get_host_from_different_org(mocker, api_get):

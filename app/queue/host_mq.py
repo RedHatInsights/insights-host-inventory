@@ -259,8 +259,6 @@ class SystemProfileMessageConsumer(HBIMessageConsumerBase):
             input_host.id = host_data.get("id")
             identity = create_mock_identity_with_org_id(input_host.org_id)
             output_host, update_result = host_repository.update_system_profile(input_host, identity)
-            print(">>> Host SP updated:")
-            print(output_host.system_profile_facts)
             success_logger = partial(log_update_system_profile_success, logger, sp_fields_to_log)
             return output_host, update_result, identity, success_logger
         except ValidationException:
