@@ -7,6 +7,8 @@ from copy import deepcopy
 from functools import partial
 from uuid import UUID
 
+from confluent_kafka import Consumer
+from flask.app import Flask
 from marshmallow import Schema
 from marshmallow import ValidationError
 from marshmallow import fields
@@ -86,7 +88,13 @@ class OperationResult:
 
 
 class HBIMessageConsumerBase:
-    def __init__(self, consumer, flask_app, event_producer, notification_event_producer):
+    def __init__(
+        self,
+        consumer: Consumer,
+        flask_app: Flask,
+        event_producer: EventProducer,
+        notification_event_producer: EventProducer,
+    ) -> None:
         self.consumer = consumer
         self.flask_app = flask_app
         self.event_producer = event_producer
@@ -96,7 +104,56 @@ class HBIMessageConsumerBase:
         raise NotImplementedError("Not implemented in the HBIMessageConsumerBase class")
 
     @metrics.ingress_message_handler_time.time()
-    def handle_message(self, message):
+    def handle_message(self, *args, **kwargs) -> OperationResult | None:
+        raise NotImplementedError("Not implemented in the HBIMessageConsumerBase class")
+
+    def post_process_rows(self, processed_rows: list[OperationResult]):
+        pass  # No action is taken by default
+
+    def event_loop(self, interrupt):
+        with self.flask_app.app.app_context():
+            while not interrupt():
+                processed_rows: list[OperationResult] = []
+                with session_guard(db.session), db.session.no_autoflush:
+                    messages = self.consumer.consume(
+                        num_messages=inventory_config().mq_db_batch_max_messages,
+                        timeout=inventory_config().mq_db_batch_max_seconds,
+                    )
+
+                    for msg in messages:
+                        if msg is None:
+                            continue
+                        elif msg.error():
+                            # This error is raised by the first consumer.consume() on a newly started Kafka.
+                            # msg.error() produces:
+                            # KafkaError{code=UNKNOWN_TOPIC_OR_PART,val=3,str="Subscribed topic not available:
+                            #   platform.inventory.host-ingress: Broker: Unknown topic or partition"}
+                            logger.error(f"Message received but has an error, which is {str(msg.error())}")
+                            metrics.ingress_message_handler_failure.inc()
+                        else:
+                            logger.debug("Message received")
+
+                            try:
+                                processed_rows.append(self.handle_message(msg.value()))
+                                metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
+                                metrics.ingress_message_handler_success.inc()
+                            except OperationalError as oe:
+                                """sqlalchemy.exc.OperationalError: This error occurs when an
+                                authentication failure occurs or the DB is not accessible.
+                                Exit the process to restart the pod
+                                """
+                                logger.error(f"Could not access DB {str(oe)}")
+                                sys.exit(3)
+                            except Exception:
+                                metrics.ingress_message_handler_failure.inc()
+                                logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
+
+                    self.post_process_rows(processed_rows)
+
+
+class HostMessageConsumer(HBIMessageConsumerBase):
+    @metrics.ingress_message_handler_time.time()
+    def handle_message(self, message) -> OperationResult:
         validated_operation_msg = parse_operation_message(message)
         platform_metadata = validated_operation_msg.get("platform_metadata", {})
 
@@ -147,61 +204,24 @@ class HBIMessageConsumerBase:
                 )
                 raise
 
-    def event_loop(self, interrupt):
-        with self.flask_app.app.app_context():
-            while not interrupt():
-                processed_rows: list[OperationResult] = []
-                with session_guard(db.session), db.session.no_autoflush:
-                    messages = self.consumer.consume(
-                        num_messages=inventory_config().mq_db_batch_max_messages,
-                        timeout=inventory_config().mq_db_batch_max_seconds,
-                    )
+    def post_process_rows(self, processed_rows: list[OperationResult]) -> None:
+        try:
+            if len(processed_rows) > 0:
+                db.session.commit()
+                # The above session is automatically committed or rolled back.
+                # Now we need to send out messages for the batch of hosts we just processed.
+                write_message_batch(self.event_producer, self.notification_event_producer, processed_rows)
 
-                    for msg in messages:
-                        if msg is None:
-                            continue
-                        elif msg.error():
-                            # This error is raised by the first consumer.consume() on a newly started Kafka.
-                            # msg.error() produces:
-                            # KafkaError{code=UNKNOWN_TOPIC_OR_PART,val=3,str="Subscribed topic not available:
-                            #   platform.inventory.host-ingress: Broker: Unknown topic or partition"}
-                            logger.error(f"Message received but has an error, which is {str(msg.error())}")
-                            metrics.ingress_message_handler_failure.inc()
-                        else:
-                            logger.debug("Message received")
-
-                            try:
-                                processed_rows.append(self.handle_message(msg.value()))
-                                metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
-                                metrics.ingress_message_handler_success.inc()
-                            except OperationalError as oe:
-                                """sqlalchemy.exc.OperationalError: This error occurs when an
-                                authentication failure occurs or the DB is not accessible.
-                                Exit the process to restart the pod
-                                """
-                                logger.error(f"Could not access DB {str(oe)}")
-                                sys.exit(3)
-                            except Exception:
-                                metrics.ingress_message_handler_failure.inc()
-                                logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
-
-                    try:
-                        if len(processed_rows) > 0:
-                            db.session.commit()
-                            # The above session is automatically committed or rolled back.
-                            # Now we need to send out messages for the batch of hosts we just processed.
-                            write_message_batch(self.event_producer, self.notification_event_producer, processed_rows)
-
-                    except StaleDataError as exc:
-                        metrics.ingress_message_handler_failure.inc(amount=len(messages))
-                        logger.error(
-                            f"Session data is stale; failed to commit data from {len(messages)} payloads.",
-                            exc_info=exc,
-                        )
-                        db.session.rollback()
+        except StaleDataError as exc:
+            metrics.ingress_message_handler_failure.inc(amount=len(processed_rows))
+            logger.error(
+                f"Session data is stale; failed to commit data from {len(processed_rows)} payloads.",
+                exc_info=exc,
+            )
+            db.session.rollback()
 
 
-class IngressMessageConsumer(HBIMessageConsumerBase):
+class IngressMessageConsumer(HostMessageConsumer):
     def process_message(self, host_data, platform_metadata, operation_args=None):
         if operation_args is None:
             operation_args = {}
@@ -247,8 +267,8 @@ class IngressMessageConsumer(HBIMessageConsumerBase):
             raise
 
 
-class SystemProfileMessageConsumer(HBIMessageConsumerBase):
-    def process_message(self, host_data, platform_metadata, operation_args=None):  # noqa: ARG002, required by message_operation
+class SystemProfileMessageConsumer(HostMessageConsumer):
+    def process_message(self, host_data, platform_metadata, operation_args=None):  # noqa: ARG002, required by process_message
         if operation_args is None:
             operation_args = {}
 

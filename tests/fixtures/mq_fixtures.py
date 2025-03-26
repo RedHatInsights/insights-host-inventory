@@ -7,6 +7,7 @@ import pytest
 
 from app.models import db
 from app.queue.event_producer import EventProducer
+from app.queue.export_service_mq import ExportServiceConsumer
 from app.queue.host_mq import IngressMessageConsumer
 from app.queue.host_mq import SystemProfileMessageConsumer
 from app.queue.host_mq import write_add_update_event_message
@@ -184,6 +185,11 @@ def ingress_message_consumer_mock(mocker):
 @pytest.fixture(scope="function")
 def system_profile_consumer_mock(mocker):
     yield SystemProfileMessageConsumer(mocker.Mock(), mocker.Mock(), mocker.Mock(), mocker.Mock())
+
+
+@pytest.fixture(scope="function")
+def export_service_consumer_mock(mocker):
+    yield ExportServiceConsumer(mocker.Mock(), mocker.Mock(), mocker.Mock(), mocker.Mock())
 
 
 @pytest.fixture(scope="function")

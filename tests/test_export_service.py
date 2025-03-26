@@ -14,7 +14,6 @@ from app.culling import _Config as CullingConfig
 from app.queue.export_service import _format_export_data
 from app.queue.export_service import create_export
 from app.queue.export_service import get_host_list
-from app.queue.export_service_mq import handle_export_message
 from app.queue.export_service_mq import parse_export_service_message
 from app.serialization import _EXPORT_SERVICE_FIELDS
 from app.serialization import serialize_host_for_export_svc
@@ -29,12 +28,12 @@ from tests.helpers.test_utils import USER_IDENTITY
 
 
 @mock.patch("requests.Session.post", autospec=True)
-def test_handle_create_export_happy_path(mock_post, db_create_host, flask_app, inventory_config):
+def test_handle_create_export_happy_path(mock_post, db_create_host, flask_app, export_service_consumer_mock):
     with flask_app.app.app_context():
         db_create_host()
         export_message = es_utils.create_export_message_mock()
         mock_post.return_value.status_code = 202
-        resp = handle_export_message(message=export_message, inventory_config=inventory_config)
+        resp = export_service_consumer_mock.handle_message(export_message)
         assert resp is True
 
 
@@ -53,7 +52,7 @@ def test_handle_create_export_unicode(db_create_host, flask_app, inventory_confi
 
 
 @mock.patch("requests.Session.post", autospec=True)
-def test_handle_create_export_request_with_data_to_export(mock_post, flask_app, inventory_config):
+def test_handle_create_export_request_with_data_to_export(mock_post, flask_app, export_service_consumer_mock):
     with (
         flask_app.app.app_context(),
         mock.patch("app.queue.export_service.get_hosts_to_export", return_value=iter(es_utils.EXPORT_DATA)),
@@ -61,12 +60,12 @@ def test_handle_create_export_request_with_data_to_export(mock_post, flask_app, 
     ):
         export_message = es_utils.create_export_message_mock()
         mock_post.return_value.status_code = 202
-        resp = handle_export_message(message=export_message, inventory_config=inventory_config)
+        resp = export_service_consumer_mock.handle_message(export_message)
         assert resp is True
 
 
 @mock.patch("requests.Session.post", autospec=True)
-def test_handle_create_export_request_with_no_data_to_export(mock_post, flask_app, inventory_config):
+def test_handle_create_export_request_with_no_data_to_export(mock_post, flask_app, export_service_consumer_mock):
     with (
         flask_app.app.app_context(),
         mock.patch("app.queue.export_service.get_hosts_to_export", return_value=[]),
@@ -74,39 +73,39 @@ def test_handle_create_export_request_with_no_data_to_export(mock_post, flask_ap
     ):
         export_message = es_utils.create_export_message_mock()
         mock_post.return_value.status_code = 202
-        resp = handle_export_message(message=export_message, inventory_config=inventory_config)
+        resp = export_service_consumer_mock.handle_message(export_message)
         assert resp is False
 
 
 @pytest.mark.parametrize(
     "field_to_remove", ["id", "source", "subject", "specversion", "type", "time", "redhatorgid", "dataschema", "data"]
 )
-def test_handle_create_export_missing_field(field_to_remove, flask_app, inventory_config):
+def test_handle_create_export_missing_field(field_to_remove, flask_app, export_service_consumer_mock):
     with flask_app.app.app_context():
         with pytest.raises(ValidationError):
             export_message = es_utils.create_export_message_missing_field_mock(field_to_remove)
-            handle_export_message(message=export_message, inventory_config=inventory_config)
+            export_service_consumer_mock.handle_message(export_message)
 
 
-def test_handle_create_export_wrong_application(flask_app, inventory_config):
+def test_handle_create_export_wrong_application(flask_app, export_service_consumer_mock):
     with flask_app.app.app_context():
         export_message = es_utils.create_export_message_mock()
         export_message = json.loads(export_message)
         export_message["data"]["resource_request"]["application"] = "foo"
         export_message = json.dumps(export_message)
 
-        resp = handle_export_message(message=export_message, inventory_config=inventory_config)
+        resp = export_service_consumer_mock.handle_message(export_message)
 
         assert resp is False
 
 
-def test_handle_create_export_empty_message(flask_app, inventory_config):
+def test_handle_create_export_empty_message(flask_app, export_service_consumer_mock):
     with flask_app.app.app_context():
         with pytest.raises(ValidationError):
             export_message = ""
             export_message = json.dumps(export_message)
 
-            handle_export_message(message=export_message, inventory_config=inventory_config)
+            export_service_consumer_mock.handle_message(export_message)
 
 
 def test_host_serialization(flask_app, db_create_host):
@@ -159,7 +158,7 @@ def test_handle_json_format(flask_app, db_create_host, mocker):
 
 @pytest.mark.usefixtures("enable_rbac")
 @mock.patch("requests.Session.post", autospec=True)
-def test_handle_rbac_allowed(mock_post, subtests, flask_app, db_create_host, mocker, inventory_config):
+def test_handle_rbac_allowed(mock_post, subtests, flask_app, db_create_host, mocker, export_service_consumer_mock):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in HOST_READ_ALLOWED_RBAC_RESPONSE_FILES:
@@ -171,13 +170,13 @@ def test_handle_rbac_allowed(mock_post, subtests, flask_app, db_create_host, moc
                 db_create_host()
                 export_message = es_utils.create_export_message_mock()
                 mock_post.return_value.status_code = 202
-                resp = handle_export_message(message=export_message, inventory_config=inventory_config)
+                resp = export_service_consumer_mock.handle_message(export_message)
                 assert resp is True
 
 
 @pytest.mark.usefixtures("enable_rbac")
 @mock.patch("requests.Session.post", autospec=True)
-def test_handle_rbac_prohibited(mock_post, subtests, flask_app, db_create_host, mocker, inventory_config):
+def test_handle_rbac_prohibited(mock_post, subtests, flask_app, db_create_host, mocker, export_service_consumer_mock):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES:
@@ -189,7 +188,7 @@ def test_handle_rbac_prohibited(mock_post, subtests, flask_app, db_create_host, 
                 db_create_host()
                 export_message = es_utils.create_export_message_mock()
                 mock_post.return_value.status_code = 202
-                resp = handle_export_message(message=export_message, inventory_config=inventory_config)
+                resp = export_service_consumer_mock.handle_message(export_message)
                 assert resp is False
 
 
