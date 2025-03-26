@@ -111,7 +111,7 @@ class HBIMessageConsumerBase:
         pass  # No action is taken by default
 
     def event_loop(self, interrupt):
-        with self.flask_app.app.app_context():
+        with self.flask_app.app_context():
             while not interrupt():
                 processed_rows: list[OperationResult] = []
                 with session_guard(db.session), db.session.no_autoflush:
