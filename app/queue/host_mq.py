@@ -85,6 +85,202 @@ class OperationResult:
         self.success_logger = sl
 
 
+class HBIMessageConsumerBase:
+    def __init__(self, consumer, flask_app, event_producer, notification_event_producer):
+        self.consumer = consumer
+        self.flask_app = flask_app
+        self.event_producer = event_producer
+        self.notification_event_producer = notification_event_producer
+
+    def process_message(self, *args, **kwargs):
+        raise NotImplementedError("Not implemented in the HBIMessageConsumerBase class")
+
+    @metrics.ingress_message_handler_time.time()
+    def handle_message(self, message):
+        validated_operation_msg = parse_operation_message(message)
+        platform_metadata = validated_operation_msg.get("platform_metadata", {})
+
+        request_id = platform_metadata.get("request_id")
+        initialize_thread_local_storage(request_id)
+
+        payload_tracker = get_payload_tracker(request_id=request_id)
+
+        with PayloadTrackerContext(
+            payload_tracker, received_status_message="message received", current_operation="handle_message"
+        ):
+            try:
+                host = validated_operation_msg["data"]
+                host_row, operation_result, identity, success_logger = self.process_message(
+                    host, platform_metadata, validated_operation_msg.get("operation_args", {})
+                )
+                staleness_timestamps = Timestamps.from_config(inventory_config())
+                event_type = operation_results_to_event_type(operation_result)
+
+                return OperationResult(
+                    host_row,
+                    platform_metadata,
+                    staleness_timestamps,
+                    get_staleness_obj(identity.org_id),
+                    event_type,
+                    success_logger,
+                )
+
+            except ValidationException as ve:
+                logger.error(
+                    "Validation error while adding or updating host: %s",
+                    ve,
+                    extra={"host": {"reporter": host.get("reporter")}},
+                )
+                send_notification(
+                    self.notification_event_producer,
+                    notification_type=NotificationType.validation_error,
+                    host=host,
+                    detail=str(ve.detail),
+                )
+                raise
+            except InventoryException as ie:
+                send_notification(
+                    self.notification_event_producer,
+                    notification_type=NotificationType.validation_error,
+                    host=host,
+                    detail=str(ie.detail),
+                )
+                raise
+
+    def event_loop(self, interrupt):
+        with self.flask_app.app.app_context():
+            while not interrupt():
+                processed_rows: list[OperationResult] = []
+                with session_guard(db.session), db.session.no_autoflush:
+                    messages = self.consumer.consume(
+                        num_messages=inventory_config().mq_db_batch_max_messages,
+                        timeout=inventory_config().mq_db_batch_max_seconds,
+                    )
+
+                    for msg in messages:
+                        if msg is None:
+                            continue
+                        elif msg.error():
+                            # This error is raised by the first consumer.consume() on a newly started Kafka.
+                            # msg.error() produces:
+                            # KafkaError{code=UNKNOWN_TOPIC_OR_PART,val=3,str="Subscribed topic not available:
+                            #   platform.inventory.host-ingress: Broker: Unknown topic or partition"}
+                            logger.error(f"Message received but has an error, which is {str(msg.error())}")
+                            metrics.ingress_message_handler_failure.inc()
+                        else:
+                            logger.debug("Message received")
+
+                            try:
+                                processed_rows.append(self.handle_message(msg.value()))
+                                metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
+                                metrics.ingress_message_handler_success.inc()
+                            except OperationalError as oe:
+                                """sqlalchemy.exc.OperationalError: This error occurs when an
+                                authentication failure occurs or the DB is not accessible.
+                                Exit the process to restart the pod
+                                """
+                                logger.error(f"Could not access DB {str(oe)}")
+                                sys.exit(3)
+                            except Exception:
+                                metrics.ingress_message_handler_failure.inc()
+                                logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
+
+                    try:
+                        if len(processed_rows) > 0:
+                            db.session.commit()
+                            # The above session is automatically committed or rolled back.
+                            # Now we need to send out messages for the batch of hosts we just processed.
+                            write_message_batch(self.event_producer, self.notification_event_producer, processed_rows)
+
+                    except StaleDataError as exc:
+                        metrics.ingress_message_handler_failure.inc(amount=len(messages))
+                        logger.error(
+                            f"Session data is stale; failed to commit data from {len(messages)} payloads.",
+                            exc_info=exc,
+                        )
+                        db.session.rollback()
+
+
+class IngressMessageConsumer(HBIMessageConsumerBase):
+    def process_message(self, host_data, platform_metadata, operation_args=None):
+        if operation_args is None:
+            operation_args = {}
+
+        sp_fields_to_log = extract_host_dict_sp_to_log(host_data)
+        try:
+            identity = _get_identity(host_data, platform_metadata)
+            input_host = deserialize_host(host_data)
+
+            # basic-auth does not need owner_id
+            if identity.identity_type == IdentityType.SYSTEM:
+                input_host = _set_owner(input_host, identity)
+
+            log_add_host_attempt(logger, input_host, sp_fields_to_log, identity)
+            host_row, add_result = host_repository.add_host(input_host, identity, operation_args=operation_args)
+
+            # If this is a new host, assign it to the "ungrouped hosts" group/workspace
+            if add_result == host_repository.AddHostResult.created and get_flag_value(
+                FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
+            ):
+                # Get org's "ungrouped hosts" group (create if not exists) and assign host to it
+                group = get_or_create_ungrouped_hosts_group_for_identity(identity)
+                assoc = HostGroupAssoc(host_row.id, group.id)
+                db.session.add(assoc)
+                host_row.groups = [serialize_group(group, identity.org_id)]
+                db.session.flush()
+
+            success_logger = partial(log_add_update_host_succeeded, logger, add_result, sp_fields_to_log)
+
+            return host_row, add_result, identity, success_logger
+        except ValidationException:
+            metrics.add_host_failure.labels("ValidationException", host_data.get("reporter", "null")).inc()
+            raise
+        except InventoryException as ie:
+            log_add_host_failure(logger, str(ie.detail), host_data, sp_fields_to_log)
+            raise
+        except OperationalError as oe:
+            log_db_access_failure(logger, f"Could not access DB {str(oe)}", host_data)
+            raise oe
+        except Exception:
+            logger.exception("Error while adding host", extra={"host": host_data, "system_profile": sp_fields_to_log})
+            metrics.add_host_failure.labels("Exception", host_data.get("reporter", "null")).inc()
+            raise
+
+
+class SystemProfileMessageConsumer(HBIMessageConsumerBase):
+    def process_message(self, host_data, platform_metadata, operation_args=None):  # noqa: ARG002, required by message_operation
+        if operation_args is None:
+            operation_args = {}
+
+        sp_fields_to_log = extract_host_dict_sp_to_log(host_data)
+
+        try:
+            input_host = deserialize_host(host_data, schema=LimitedHostSchema)
+            input_host.id = host_data.get("id")
+            identity = create_mock_identity_with_org_id(input_host.org_id)
+            output_host, update_result = host_repository.update_system_profile(input_host, identity)
+            print(">>> Host SP updated:")
+            print(output_host.system_profile_facts)
+            success_logger = partial(log_update_system_profile_success, logger, sp_fields_to_log)
+            return output_host, update_result, identity, success_logger
+        except ValidationException:
+            metrics.update_system_profile_failure.labels("ValidationException").inc()
+            raise
+        except InventoryException:
+            log_update_system_profile_failure(logger, host_data, sp_fields_to_log)
+            raise
+        except OperationalError as oe:
+            log_db_access_failure(logger, f"Could not access DB {str(oe)}", host_data)
+            raise oe
+        except Exception:
+            logger.exception(
+                "Error while updating host system profile",
+                extra={"host": host_data, "system_profile": sp_fields_to_log},
+            )
+            metrics.update_system_profile_failure.labels("Exception").inc()
+            raise
+
+
 # input is a base64 encoded utf-8 string. b64decode returns bytes, which
 # again needs decoding using ascii to get human readable dictionary
 def _decode_id(encoded_id):
@@ -222,135 +418,6 @@ def sync_event_message(message, session, event_producer):
     return
 
 
-def update_system_profile(host_data, platform_metadata, operation_args=None):  # noqa: ARG001, required by message_operation
-    if operation_args is None:
-        operation_args = {}
-
-    sp_fields_to_log = extract_host_dict_sp_to_log(host_data)
-
-    try:
-        input_host = deserialize_host(host_data, schema=LimitedHostSchema)
-        input_host.id = host_data.get("id")
-        identity = create_mock_identity_with_org_id(input_host.org_id)
-        output_host, update_result = host_repository.update_system_profile(input_host, identity)
-        success_logger = partial(log_update_system_profile_success, logger, sp_fields_to_log)
-        return output_host, update_result, identity, success_logger
-    except ValidationException:
-        metrics.update_system_profile_failure.labels("ValidationException").inc()
-        raise
-    except InventoryException:
-        log_update_system_profile_failure(logger, host_data, sp_fields_to_log)
-        raise
-    except OperationalError as oe:
-        log_db_access_failure(logger, f"Could not access DB {str(oe)}", host_data)
-        raise oe
-    except Exception:
-        logger.exception(
-            "Error while updating host system profile",
-            extra={"host": host_data, "system_profile": sp_fields_to_log},
-        )
-        metrics.update_system_profile_failure.labels("Exception").inc()
-        raise
-
-
-def add_host(host_data, platform_metadata, operation_args=None):
-    if operation_args is None:
-        operation_args = {}
-
-    sp_fields_to_log = extract_host_dict_sp_to_log(host_data)
-    try:
-        identity = _get_identity(host_data, platform_metadata)
-        input_host = deserialize_host(host_data)
-
-        # basic-auth does not need owner_id
-        if identity.identity_type == IdentityType.SYSTEM:
-            input_host = _set_owner(input_host, identity)
-
-        log_add_host_attempt(logger, input_host, sp_fields_to_log, identity)
-        host_row, add_result = host_repository.add_host(input_host, identity, operation_args=operation_args)
-
-        # If this is a new host, assign it to the "ungrouped hosts" group/workspace
-        if add_result == host_repository.AddHostResult.created and get_flag_value(
-            FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
-        ):
-            # Get org's "ungrouped hosts" group (create if not exists) and assign host to it
-            group = get_or_create_ungrouped_hosts_group_for_identity(identity)
-            assoc = HostGroupAssoc(host_row.id, group.id)
-            db.session.add(assoc)
-            host_row.groups = [serialize_group(group, identity.org_id)]
-            db.session.flush()
-
-        success_logger = partial(log_add_update_host_succeeded, logger, add_result, sp_fields_to_log)
-
-        return host_row, add_result, identity, success_logger
-    except ValidationException:
-        metrics.add_host_failure.labels("ValidationException", host_data.get("reporter", "null")).inc()
-        raise
-    except InventoryException as ie:
-        log_add_host_failure(logger, str(ie.detail), host_data, sp_fields_to_log)
-        raise
-    except OperationalError as oe:
-        log_db_access_failure(logger, f"Could not access DB {str(oe)}", host_data)
-        raise oe
-    except Exception:
-        logger.exception("Error while adding host", extra={"host": host_data, "system_profile": sp_fields_to_log})
-        metrics.add_host_failure.labels("Exception", host_data.get("reporter", "null")).inc()
-        raise
-
-
-@metrics.ingress_message_handler_time.time()
-def handle_message(message, notification_event_producer, message_operation=add_host):
-    validated_operation_msg = parse_operation_message(message)
-    platform_metadata = validated_operation_msg.get("platform_metadata", {})
-
-    request_id = platform_metadata.get("request_id")
-    initialize_thread_local_storage(request_id)
-
-    payload_tracker = get_payload_tracker(request_id=request_id)
-
-    with PayloadTrackerContext(
-        payload_tracker, received_status_message="message received", current_operation="handle_message"
-    ):
-        try:
-            host = validated_operation_msg["data"]
-            host_row, operation_result, identity, success_logger = message_operation(
-                host, platform_metadata, validated_operation_msg.get("operation_args", {})
-            )
-            staleness_timestamps = Timestamps.from_config(inventory_config())
-            event_type = operation_results_to_event_type(operation_result)
-
-            return OperationResult(
-                host_row,
-                platform_metadata,
-                staleness_timestamps,
-                get_staleness_obj(identity.org_id),
-                event_type,
-                success_logger,
-            )
-
-        except ValidationException as ve:
-            logger.error(
-                "Validation error while adding or updating host: %s",
-                ve,
-                extra={"host": {"reporter": host.get("reporter")}},
-            )
-            send_notification(
-                notification_event_producer,
-                notification_type=NotificationType.validation_error,
-                host=host,
-                detail=str(ve.detail),
-            )
-            raise
-        except InventoryException as ie:
-            send_notification(
-                notification_event_producer,
-                notification_type=NotificationType.validation_error,
-                host=host,
-                detail=str(ie.detail),
-            )
-            raise
-
-
 def write_delete_event_message(event_producer: EventProducer, result: OperationResult, initiated_by_frontend: bool):
     event = build_event(
         EventType.delete,
@@ -442,64 +509,6 @@ def write_message_batch(
             except Exception as exc:
                 metrics.ingress_message_handler_failure.inc()
                 logger.exception("Error while producing message", exc_info=exc)
-
-
-def event_loop(consumer, flask_app, event_producer, notification_event_producer, handler, interrupt):
-    with flask_app.app_context():
-        while not interrupt():
-            processed_rows: list[OperationResult] = []
-            with session_guard(db.session), db.session.no_autoflush:
-                messages = consumer.consume(
-                    num_messages=inventory_config().mq_db_batch_max_messages,
-                    timeout=inventory_config().mq_db_batch_max_seconds,
-                )
-
-                for msg in messages:
-                    if msg is None:
-                        continue
-                    elif msg.error():
-                        # This error is raised by the first consumer.consume() on a newly started Kafka.
-                        # msg.error() produces:
-                        # KafkaError{code=UNKNOWN_TOPIC_OR_PART,val=3,str="Subscribed topic not available:
-                        #   platform.inventory.host-ingress: Broker: Unknown topic or partition"}
-                        logger.error(f"Message received but has an error, which is {str(msg.error())}")
-                        metrics.ingress_message_handler_failure.inc()
-                    else:
-                        logger.debug("Message received")
-
-                        try:
-                            processed_rows.append(
-                                handler(
-                                    msg.value(),
-                                    notification_event_producer=notification_event_producer,
-                                )
-                            )
-                            metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
-                            metrics.ingress_message_handler_success.inc()
-                        except OperationalError as oe:
-                            """sqlalchemy.exc.OperationalError: This error occurs when an
-                            authentication failure occurs or the DB is not accessible.
-                            Exit the process to restart the pod
-                            """
-                            logger.error(f"Could not access DB {str(oe)}")
-                            sys.exit(3)
-                        except Exception:
-                            metrics.ingress_message_handler_failure.inc()
-                            logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
-
-                try:
-                    if len(processed_rows) > 0:
-                        db.session.commit()
-                        # The above session is automatically committed or rolled back.
-                        # Now we need to send out messages for the batch of hosts we just processed.
-                        write_message_batch(event_producer, notification_event_producer, processed_rows)
-
-                except StaleDataError as exc:
-                    metrics.ingress_message_handler_failure.inc(amount=len(messages))
-                    logger.error(
-                        f"Session data is stale; failed to commit data from {len(messages)} payloads.", exc_info=exc
-                    )
-                    db.session.rollback()
 
 
 def initialize_thread_local_storage(request_id: str, org_id: str | None = None, account: str | None = None):
