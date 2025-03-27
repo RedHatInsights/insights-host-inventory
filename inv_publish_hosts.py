@@ -30,11 +30,9 @@ COLLECTED_METRICS = (
 
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
 
-PUBLICATION_NAME = "hbi_hosts_pub_v1"
-PUBLICATION_COLUMNS = "id,account,display_name,created_on,modified_on,facts,canonical_facts, \
-system_profile_facts,ansible_host,stale_timestamp,reporter,per_reporter_staleness,org_id,groups,tags_alt,last_check_in"
+PUBLICATION_NAME = "hbi_hosts_pub"
 CHECK_PUBLICATION = f"SELECT EXISTS(SELECT * FROM pg_catalog.pg_publication WHERE pubname = '{PUBLICATION_NAME}')"
-CREATE_PUBLICATION = f"CREATE PUBLICATION {PUBLICATION_NAME} FOR TABLE hbi.hosts ({PUBLICATION_COLUMNS}) \
+CREATE_PUBLICATION = f"CREATE PUBLICATION {PUBLICATION_NAME} FOR TABLE hbi.hosts \
 WHERE (hbi.hosts.canonical_facts->'insights_id' IS NOT NULL)"
 CHECK_REPLICATION_SLOTS = "SELECT slot_name, active FROM pg_replication_slots"
 
