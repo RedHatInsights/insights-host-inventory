@@ -1372,6 +1372,7 @@ objects:
     logLevel: ${FLOORIST_LOGLEVEL}
     queries:
       - prefix: insights/inventory/hosts
+        chunksize: 200000
         query: >-
           SELECT
             "id",
@@ -1458,6 +1459,7 @@ objects:
           WHERE "modified_on" >= NOW() - INTERVAL '1 week'
           GROUP BY "reporter";
       - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/hosts_per_org_id
+        chunksize: 10000
         query: >-
           SELECT
             "org_id" AS "org_id",
