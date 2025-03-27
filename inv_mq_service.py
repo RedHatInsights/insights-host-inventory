@@ -9,10 +9,9 @@ from app import create_app
 from app.environment import RuntimeEnvironment
 from app.logging import get_logger
 from app.queue.event_producer import EventProducer
-from app.queue.host_mq import add_host
-from app.queue.host_mq import event_loop
-from app.queue.host_mq import handle_message
-from app.queue.host_mq import update_system_profile
+from app.queue.host_mq import HBIMessageConsumerBase
+from app.queue.host_mq import IngressMessageConsumer
+from app.queue.host_mq import SystemProfileMessageConsumer
 from lib.handlers import ShutdownHandler
 from lib.handlers import register_shutdown
 
@@ -25,7 +24,10 @@ def main():
     init_cache(config, application)
     start_http_server(config.metrics_port)
 
-    topic_to_handler = {config.host_ingress_topic: add_host, config.system_profile_topic: update_system_profile}
+    topic_to_hbi_consumer: dict[str, HBIMessageConsumerBase] = {
+        config.host_ingress_topic: IngressMessageConsumer,
+        config.system_profile_topic: SystemProfileMessageConsumer,
+    }
 
     consumer = KafkaConsumer(
         {
@@ -48,20 +50,9 @@ def main():
     shutdown_handler = ShutdownHandler()
     shutdown_handler.register()
 
-    message_handler = partial(
-        handle_message,
-        message_operation=topic_to_handler[config.kafka_consumer_topic],
-        notification_event_producer=notification_event_producer,
-    )
-
-    event_loop(
-        consumer,
-        application.app,
-        event_producer,
-        notification_event_producer,
-        message_handler,
-        shutdown_handler.shut_down,
-    )
+    hbi_consumer_class = topic_to_hbi_consumer[config.kafka_consumer_topic]
+    hbi_consumer = hbi_consumer_class(consumer, application, event_producer, notification_event_producer)
+    hbi_consumer.event_loop(shutdown_handler.shut_down)
 
 
 if __name__ == "__main__":
