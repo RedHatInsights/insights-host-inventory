@@ -197,6 +197,7 @@ class Config:
         self.rbac_timeout = os.environ.get("RBAC_TIMEOUT", 10)
 
         self.bypass_unleash = os.environ.get("BYPASS_UNLEASH", "false").lower() == "true"
+        self.unleash_refresh_interval = int(os.environ.get("UNLEASH_REFRESH_INTERVAL", "15"))
 
         self.bypass_tenant_translation = os.environ.get("BYPASS_TENANT_TRANSLATION", "false").lower() == "true"
         self.tenant_translator_url = os.environ.get("TENANT_TRANSLATOR_URL", "http://localhost:8892/internal/orgIds")
