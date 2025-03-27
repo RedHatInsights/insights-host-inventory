@@ -7,7 +7,7 @@ from prometheus_client import start_http_server
 from app import create_app
 from app.environment import RuntimeEnvironment
 from app.logging import get_logger
-from app.queue.export_service_mq import export_service_event_loop
+from app.queue.export_service_mq import ExportServiceConsumer
 from lib.handlers import ShutdownHandler
 from lib.handlers import register_shutdown
 
@@ -35,12 +35,8 @@ def main():
     shutdown_handler.register()
 
     logger.info(f"Using consumer topic: {config.export_service_topic}")
-
-    export_service_event_loop(
-        consumer,
-        application.app,
-        shutdown_handler.shut_down,
-    )
+    export_consumer = ExportServiceConsumer(consumer, application, None, None)
+    export_consumer.event_loop(shutdown_handler.shut_down)
 
 
 if __name__ == "__main__":
