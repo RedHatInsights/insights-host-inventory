@@ -1,13 +1,12 @@
-import sys
-
 from marshmallow import Schema
 from marshmallow import ValidationError
 from marshmallow import fields
-from sqlalchemy.exc import OperationalError
 
+from app.common import inventory_config
 from app.logging import get_logger
 from app.queue import metrics
 from app.queue.export_service import create_export
+from app.queue.host_mq import HBIMessageConsumerBase
 from app.queue.mq_common import common_message_parser
 
 logger = get_logger(__name__)
@@ -44,6 +43,37 @@ class ExportEventSchema(Schema):
     data = fields.Nested(ExportDataSchema, required=True)
 
 
+class ExportServiceConsumer(HBIMessageConsumerBase):
+    @metrics.export_service_message_handler_time.time()
+    def handle_message(self, message):
+        validated_msg = parse_export_service_message(message)
+        message_handled = False
+        try:
+            if (
+                validated_msg["source"] == EXPORT_EVENT_SOURCE
+                and validated_msg["data"]["resource_request"]["application"] == EXPORT_SERVICE_APPLICATION
+            ):
+                logger.info("Found host-inventory application export message")
+                logger.debug("parsed_message: %s", validated_msg)
+                base64_x_rh_identity = validated_msg["data"]["resource_request"]["x_rh_identity"]
+
+                if create_export(validated_msg, base64_x_rh_identity, inventory_config()):
+                    metrics.export_service_message_handler_success.inc()
+                    message_handled = True
+                else:
+                    metrics.export_service_message_handler_failure.inc()
+                    message_handled = False
+            else:
+                logger.debug("Found export message not related to host-inventory")
+                message_handled = False
+        except Exception as e:
+            logger.error(e)
+            metrics.export_service_message_handler_failure.inc()
+            message_handled = False
+
+        return message_handled
+
+
 @metrics.export_service_message_parsing_time.time()
 def parse_export_service_message(message):
     parsed_message = common_message_parser(message)
@@ -62,59 +92,3 @@ def parse_export_service_message(message):
 
         metrics.export_service_message_parsing_failure.labels("error").inc()
         raise
-
-
-@metrics.export_service_message_handler_time.time()
-def handle_export_message(message, inventory_config):
-    validated_msg = parse_export_service_message(message)
-    message_handled = False
-    try:
-        if (
-            validated_msg["source"] == EXPORT_EVENT_SOURCE
-            and validated_msg["data"]["resource_request"]["application"] == EXPORT_SERVICE_APPLICATION
-        ):
-            logger.info("Found host-inventory application export message")
-            logger.debug("parsed_message: %s", validated_msg)
-            base64_x_rh_identity = validated_msg["data"]["resource_request"]["x_rh_identity"]
-
-            if create_export(validated_msg, base64_x_rh_identity, inventory_config):
-                metrics.export_service_message_handler_success.inc()
-                message_handled = True
-            else:
-                metrics.export_service_message_handler_failure.inc()
-                message_handled = False
-        else:
-            logger.debug("Found export message not related to host-inventory")
-            message_handled = False
-    except Exception as e:
-        logger.error(e)
-        metrics.export_service_message_handler_failure.inc()
-        message_handled = False
-
-    return message_handled
-
-
-def export_service_event_loop(consumer, flask_app, interrupt):
-    with flask_app.app_context():
-        inventory_config = flask_app.config.get("INVENTORY_CONFIG")
-        while not interrupt():
-            messages = consumer.consume(timeout=CONSUMER_POLL_TIMEOUT_SECONDS)
-            for msg in messages:
-                if msg is None:
-                    continue
-                elif msg.error():
-                    logger.error(f"Message received but has an error, which is {str(msg.error())}")
-                    metrics.ingress_message_handler_failure.inc()
-                else:
-                    logger.debug("Export Service message received")
-                    try:
-                        handle_export_message(msg.value(), inventory_config)
-                    except OperationalError as oe:
-                        """sqlalchemy.exc.OperationalError: This error occurs when an
-                        authentication failure occurs or the DB is not accessible.
-                        Exit the process to restart the pod
-                        """
-                        logger.error(f"Could not access DB {str(oe)}")
-                        sys.exit(3)
-                    except Exception:
-                        logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
