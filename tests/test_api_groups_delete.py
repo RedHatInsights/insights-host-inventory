@@ -432,4 +432,3 @@ def test_delete_hosts_from_diff_groups_post_kessel_migration(
         # Check that the removed hosts were assigned to the ungrouped group
         for host in db_get_hosts_for_group(ungrouped_group_id):
             assert str(host.id) in hosts_to_delete
-
