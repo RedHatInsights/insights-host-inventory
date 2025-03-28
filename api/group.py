@@ -243,6 +243,7 @@ def delete_hosts_from_group(group_id, host_id_list, rbac_filter=None):
     if delete_count == 0:
         log_delete_hosts_from_group_failed(logger)
         abort(HTTPStatus.NOT_FOUND, "Group or hosts not found.")
+
     return Response(None, HTTPStatus.NO_CONTENT)
 
 

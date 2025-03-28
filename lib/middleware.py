@@ -279,7 +279,7 @@ def post_rbac_workspace(name, parent_id, description) -> UUID | None:
         IDENTITY_HEADER: request.headers[IDENTITY_HEADER],
         REQUEST_ID_HEADER: request.headers.get(REQUEST_ID_HEADER),
     }
-    request_data = {"name": name, "description": description, "parent_id": parent_id}
+    request_data = {"name": name, "description": description, "parent_id": str(parent_id)}
 
     try:
         with outbound_http_response_time.labels("rbac").time():
@@ -302,16 +302,16 @@ def post_rbac_workspace(name, parent_id, description) -> UUID | None:
     return UUID(resp_data["id"])
 
 
-def rbac_create_ungrouped_hosts_workspace(identity: Identity) -> UUID | None:  # noqa: ARG001, used later
+def rbac_create_ungrouped_hosts_workspace() -> UUID | None:
     # Creates a new "ungrouped" workspace via the RBAC API, and returns its ID.
     # If not using RBAC, returns None, so the DB will automatically generate the group ID.
     if inventory_config().bypass_rbac:
         return None
     else:
-        # TODO
-        # POST /api/rbac/v2/workspaces/
-        # https://github.com/RedHatInsights/insights-rbac/blob/master/docs/source/specs/v2/openapi.yaml#L96
-        return None
+        parent_id = get_rbac_default_workspace()
+        ungrouped_id = post_rbac_workspace("ungrouped", parent_id, "ungrouped workspace")
+
+        return ungrouped_id
 
 
 def delete_rbac_workspace(workspace_id):
