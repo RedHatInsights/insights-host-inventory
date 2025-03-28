@@ -508,9 +508,9 @@ spec:
       taskRef:
         params:
         - name: name
-          value: sast-shell-check-oci-ta
+          value: sast-unicode-check-oci-ta
         - name: bundle
-          value: quay.io/konflux-ci/tekton-catalog/task-sast-shell-check-oci-ta:0.1@sha256:a591675c72f06fb9c5b1a3d60e6e4c58e4df5f7da180c7a4691a692a6e7e6496
+          value: quay.io/konflux-ci/tekton-catalog/task-sast-unicode-check-oci-ta:0.1@sha256:424f2f659c02998dc3a43e1ce869e3148982c59adb74f953f8fa91ff1c9ab86e
         - name: kind
           value: task
         resolver: bundles
@@ -519,6 +519,7 @@ spec:
         operator: in
         values:
         - "false"
+      workspaces: []
     - name: apply-tags
       params:
       - name: IMAGE
