@@ -7,8 +7,9 @@ import pytest
 
 from app.models import db
 from app.queue.event_producer import EventProducer
-from app.queue.host_mq import add_host
-from app.queue.host_mq import handle_message
+from app.queue.export_service_mq import ExportServiceConsumer
+from app.queue.host_mq import IngressMessageConsumer
+from app.queue.host_mq import SystemProfileMessageConsumer
 from app.queue.host_mq import write_add_update_event_message
 from app.utils import HostWrapper
 from tests.helpers.api_utils import FACTS
@@ -26,7 +27,7 @@ from tests.helpers.test_utils import now
 
 @pytest.fixture(scope="function")
 def mq_create_or_update_host(
-    flask_app,  # noqa: ARG001
+    flask_app,
     event_producer_mock,
     notification_event_producer_mock,
 ):
@@ -35,7 +36,7 @@ def mq_create_or_update_host(
         platform_metadata=None,
         return_all_data=False,
         event_producer=event_producer_mock,
-        message_operation=add_host,
+        consumer_class=IngressMessageConsumer,
         operation_args=None,
         notification_event_producer=notification_event_producer_mock,
     ):
@@ -43,9 +44,10 @@ def mq_create_or_update_host(
             platform_metadata = get_platform_metadata()
 
         message = wrap_message(host_data.data(), platform_metadata=platform_metadata, operation_args=operation_args)
-        result = handle_message(json.dumps(message), notification_event_producer, message_operation)
+        consumer = consumer_class(None, flask_app, event_producer_mock, notification_event_producer)
+        result = consumer.handle_message(json.dumps(message))
         db.session.commit()
-        write_add_update_event_message(event_producer, notification_event_producer_mock, result)
+        write_add_update_event_message(event_producer, notification_event_producer, result)
         event = json.loads(event_producer.event)
 
         if return_all_data:
@@ -176,6 +178,21 @@ def notification_event_producer_mock(flask_app, mocker):
 
 
 @pytest.fixture(scope="function")
+def ingress_message_consumer_mock(mocker):
+    yield IngressMessageConsumer(mocker.Mock(), mocker.Mock(), mocker.Mock(), mocker.Mock())
+
+
+@pytest.fixture(scope="function")
+def system_profile_consumer_mock(mocker):
+    yield SystemProfileMessageConsumer(mocker.Mock(), mocker.Mock(), mocker.Mock(), mocker.Mock())
+
+
+@pytest.fixture(scope="function")
+def export_service_consumer_mock(mocker):
+    yield ExportServiceConsumer(mocker.Mock(), mocker.Mock(), mocker.Mock(), mocker.Mock())
+
+
+@pytest.fixture(scope="function")
 def future_mock():
     yield MockFuture()
 
@@ -188,7 +205,7 @@ def event_datetime_mock(mocker):
 
 @pytest.fixture(scope="function")
 def mq_create_or_update_host_subman_id(
-    flask_app,  # noqa: ARG001
+    flask_app,
     event_producer_mock,
     notification_event_producer_mock,
 ):
@@ -201,15 +218,16 @@ def mq_create_or_update_host_subman_id(
         platform_metadata=None,
         return_all_data=False,
         event_producer=event_producer_mock,
-        message_operation=add_host,
         operation_args=None,
+        consumer_class=IngressMessageConsumer,
         notification_event_producer=notification_event_producer_mock,
     ):
         if not platform_metadata:
             platform_metadata = get_platform_metadata()
 
         message = wrap_message(host_data.data(), platform_metadata=platform_metadata, operation_args=operation_args)
-        result = handle_message(json.dumps(message), notification_event_producer, message_operation)
+        consumer = consumer_class(None, flask_app, event_producer_mock, notification_event_producer)
+        result = consumer.handle_message(json.dumps(message))
         db.session.commit()
         write_add_update_event_message(event_producer, notification_event_producer_mock, result)
         event = json.loads(event_producer.event)

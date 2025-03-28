@@ -167,6 +167,8 @@ objects:
               optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
+        - name: UNLEASH_REFRESH_INTERVAL
+          value: ${UNLEASH_REFRESH_INTERVAL}
         - name: SEGMENTIO_WRITE_KEY
           valueFrom:
             secretKeyRef:
@@ -321,6 +323,8 @@ objects:
               optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
+        - name: UNLEASH_REFRESH_INTERVAL
+          value: ${UNLEASH_REFRESH_INTERVAL}
         - name: SEGMENTIO_WRITE_KEY
           valueFrom:
             secretKeyRef:
@@ -473,6 +477,8 @@ objects:
               optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
+        - name: UNLEASH_REFRESH_INTERVAL
+          value: ${UNLEASH_REFRESH_INTERVAL}
         - name: SEGMENTIO_WRITE_KEY
           valueFrom:
             secretKeyRef:
@@ -584,6 +590,8 @@ objects:
               optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
+        - name: UNLEASH_REFRESH_INTERVAL
+          value: ${UNLEASH_REFRESH_INTERVAL}
         - name: MQ_DB_BATCH_MAX_MESSAGES
           value: ${MQ_DB_BATCH_MAX_MESSAGES}
         - name: MQ_DB_BATCH_MAX_SECONDS
@@ -681,6 +689,8 @@ objects:
               optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
+        - name: UNLEASH_REFRESH_INTERVAL
+          value: ${UNLEASH_REFRESH_INTERVAL}
         - name: MQ_DB_BATCH_MAX_MESSAGES
           value: ${MQ_DB_BATCH_MAX_MESSAGES}
         - name: MQ_DB_BATCH_MAX_SECONDS
@@ -771,6 +781,8 @@ objects:
               optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
+        - name: UNLEASH_REFRESH_INTERVAL
+          value: ${UNLEASH_REFRESH_INTERVAL}
         - name: MQ_DB_BATCH_MAX_MESSAGES
           value: ${MQ_DB_BATCH_MAX_MESSAGES}
         - name: MQ_DB_BATCH_MAX_SECONDS
@@ -837,6 +849,8 @@ objects:
               optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
+        - name: UNLEASH_REFRESH_INTERVAL
+          value: ${UNLEASH_REFRESH_INTERVAL}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -925,6 +939,8 @@ objects:
                 optional: true
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
+          - name: UNLEASH_REFRESH_INTERVAL
+            value: ${UNLEASH_REFRESH_INTERVAL}
         resources:
           limits:
             cpu: ${CPU_LIMIT_REAPER}
@@ -983,6 +999,8 @@ objects:
                 optional: true
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
+          - name: UNLEASH_REFRESH_INTERVAL
+            value: ${UNLEASH_REFRESH_INTERVAL}
           - name: CONSOLEDOT_HOSTNAME
             value: ${CONSOLEDOT_HOSTNAME}
         resources:
@@ -1101,6 +1119,8 @@ objects:
                 optional: true
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
+          - name: UNLEASH_REFRESH_INTERVAL
+            value: ${UNLEASH_REFRESH_INTERVAL}
         resources:
           limits:
             cpu: ${CPU_LIMIT_SP_VALIDATOR}
@@ -1149,6 +1169,8 @@ objects:
                 optional: true
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
+          - name: UNLEASH_REFRESH_INTERVAL
+            value: ${UNLEASH_REFRESH_INTERVAL}
         resources:
           limits:
             cpu: ${CPU_LIMIT_PENDO_SYNCHER}
@@ -1212,6 +1234,8 @@ objects:
                 optional: true
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
+          - name: UNLEASH_REFRESH_INTERVAL
+            value: ${UNLEASH_REFRESH_INTERVAL}
           - name: REBUILD_EVENTS_TIME_LIMIT
             value: ${REBUILD_EVENTS_TIME_LIMIT}
         resources:
@@ -1275,6 +1299,8 @@ objects:
                 optional: true
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
+          - name: UNLEASH_REFRESH_INTERVAL
+            value: ${UNLEASH_REFRESH_INTERVAL}
         resources:
           limits:
             cpu: ${CPU_LIMIT_UNGROUPED_HOSTS_JOB}
@@ -1945,6 +1971,9 @@ parameters:
 - description: disable Unleash (feature flags), defaulting to fallback values
   name: BYPASS_UNLEASH
   value: 'false'
+- description: How frequently the Unleash client refreshes data from the server (in seconds)
+  name: UNLEASH_REFRESH_INTERVAL
+  value: "15"
 
 #floorist
 - name: FLOORIST_SUSPEND
