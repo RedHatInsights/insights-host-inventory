@@ -16,44 +16,43 @@ depends_on = None
 
 
 def upgrade():
-    op.execute("ALTER TABLE hbi.hosts REPLICA IDENTITY USING INDEX hosts_pkey")
-    # migration_context = op.get_context()
-    # in_transaction = None
-    # try:
-    #     in_transaction = migration_context.connection.in_transaction
-    # except AttributeError:
-    #     in_transaction = False
+    migration_context = op.get_context()
+    in_transaction = None
+    try:
+        in_transaction = migration_context.connection.in_transaction
+    except AttributeError:
+        in_transaction = False
 
-    #     if not in_transaction:
-    #         op.create_index(
-    #             "idx_pk_canonical_facts",
-    #             "hosts",
-    #             ["id", "canonical_facts"],
-    #             unique=True,
-    #             postgresql_concurrently=True,
-    #             if_not_exists=True,
-    #             schema="hbi",
-    #         )
-    #         op.execute("ALTER TABLE hbi.hosts REPLICA IDENTITY USING INDEX idx_pk_canonical_facts")
-    #     else:
-    #         with migration_context.autocommit_block():
-    #             op.create_index(
-    #                 "idx_pk_canonical_facts",
-    #                 "hosts",
-    #                 ["id", "canonical_facts"],
-    #                 unique=True,
-    #                 postgresql_concurrently=True,
-    #                 if_not_exists=True,
-    #                 schema="hbi",
-    #             )
-    #             op.execute("ALTER TABLE hbi.hosts REPLICA IDENTITY USING INDEX idx_pk_canonical_facts")
+        if not in_transaction:
+            op.create_index(
+                "idx_pk_canonical_facts",
+                "hosts",
+                ["id", "canonical_facts"],
+                unique=True,
+                postgresql_concurrently=True,
+                if_not_exists=True,
+                schema="hbi",
+            )
+            op.execute("ALTER TABLE hbi.hosts REPLICA IDENTITY USING INDEX idx_pk_canonical_facts")
+        else:
+            with migration_context.autocommit_block():
+                op.create_index(
+                    "idx_pk_canonical_facts",
+                    "hosts",
+                    ["id", "canonical_facts"],
+                    unique=True,
+                    postgresql_concurrently=True,
+                    if_not_exists=True,
+                    schema="hbi",
+                )
+                op.execute("ALTER TABLE hbi.hosts REPLICA IDENTITY USING INDEX idx_pk_canonical_facts")
 
 
 def downgrade():
-    # op.drop_index(
-    #     "idx_pk_canonical_facts",
-    #     table_name="hosts",
-    #     schema="hbi",
-    #     if_exists=True,
-    # )
+    op.drop_index(
+        "idx_pk_canonical_facts",
+        table_name="hosts",
+        schema="hbi",
+        if_exists=True,
+    )
     op.execute("ALTER TABLE hbi.hosts REPLICA IDENTITY FULL")
