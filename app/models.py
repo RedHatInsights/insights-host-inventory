@@ -125,6 +125,14 @@ def _time_now():
     return datetime.now(timezone.utc)
 
 
+def _create_staleness_timestamps_values(host, org_id):
+    staleness = _get_staleness_obj(org_id)
+    staleness_ts = Timestamps.from_config(inventory_config())
+    st = get_staleness_timestamps(host, staleness_ts, staleness)
+
+    return st
+
+
 class SystemProfileNormalizer:
     class Schema(namedtuple("Schema", ("type", "properties", "items"))):
         Types = Enum("Types", ("array", "object"))
@@ -448,6 +456,19 @@ class Host(LimitedHost):
             self.stale_timestamp = stale_timestamp
         self.reporter = reporter
 
+    def _update_all_per_reporter_staleness(self):
+        st = _create_staleness_timestamps_values(self, self.org_id)
+
+        for reporter in self.per_reporter_staleness:
+            self.per_reporter_staleness[reporter].update(
+                stale_timestamp=st["stale_timestamp"].isoformat(),
+                culled_timestamp=st["culled_timestamp"].isoformat(),
+                stale_warning_timestamp=st["stale_warning_timestamp"].isoformat(),
+                last_check_in=self.last_check_in.isoformat(),
+                check_in_succeeded=True,
+            )
+        orm.attributes.flag_modified(self, "per_reporter_staleness")
+
     def _update_per_reporter_staleness(self, reporter):
         if not self.per_reporter_staleness:
             self.per_reporter_staleness = {}
@@ -459,10 +480,7 @@ class Host(LimitedHost):
             self.per_reporter_staleness.pop(old_reporter, None)
 
         if get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS):
-            staleness = _get_staleness_obj(self.org_id)
-            staleness_ts = Timestamps.from_config(inventory_config())
-
-            st = get_staleness_timestamps(self, staleness_ts, staleness)
+            st = _create_staleness_timestamps_values(self, self.org_id)
 
             self.per_reporter_staleness[reporter].update(
                 stale_timestamp=st["stale_timestamp"].isoformat(),
