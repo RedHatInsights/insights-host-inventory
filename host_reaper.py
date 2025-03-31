@@ -5,6 +5,7 @@ from functools import partial
 from sqlalchemy import ColumnElement
 from sqlalchemy import and_
 from sqlalchemy import or_
+from sqlalchemy.dialects.postgresql import array
 
 from app.environment import RuntimeEnvironment
 from app.logging import get_logger
@@ -82,16 +83,20 @@ def run(config, logger, session, event_producer, notification_event_producer, sh
         # we are forcing its modified_on and last_check_in to be updated.
 
         rhsm_bridge_hosts_query = session.query(Host).filter(
-            and_(or_(False, *filter_hosts_to_delete), Host.reporter == "rhsm-system-profile-bridge")
+            and_(
+                or_(False, *filter_hosts_to_delete),
+                Host.reporter == "rhsm-system-profile-bridge",
+                ~Host.per_reporter_staleness.has_any(
+                    array(["cloud-connector", "puptoo", "rhsm-conduit", "yuptoo", "discovery", "satellite"])
+                ),
+            )
         )
 
         for host in rhsm_bridge_hosts_query.yield_per(config.host_delete_chunk_size):
             host._update_modified_date()
             host._update_last_check_in_date()
 
-        query = session.query(Host).filter(
-            and_(or_(False, *filter_hosts_to_delete), Host.reporter != "rhsm-system-profile-bridge")
-        )
+        query = session.query(Host).filter(and_(or_(False, *filter_hosts_to_delete)))
         hosts_processed = config.host_delete_chunk_size
         deletions_remaining = query.count()
 
