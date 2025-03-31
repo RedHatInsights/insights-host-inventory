@@ -3,8 +3,8 @@ import logging
 from copy import deepcopy
 from datetime import datetime
 from datetime import timedelta
-from functools import partial
 from types import SimpleNamespace
+from unittest import mock
 from unittest.mock import patch
 
 import marshmallow
@@ -18,10 +18,9 @@ from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import threadctx
 from app.queue.events import EventType
+from app.queue.host_mq import IngressMessageConsumer
+from app.queue.host_mq import SystemProfileMessageConsumer
 from app.queue.host_mq import _validate_json_object_for_utf8
-from app.queue.host_mq import event_loop
-from app.queue.host_mq import handle_message
-from app.queue.host_mq import update_system_profile
 from app.queue.host_mq import write_add_update_event_message
 from app.utils import Tag
 from lib.host_repository import AddHostResult
@@ -48,7 +47,17 @@ from tests.helpers.test_utils import valid_system_profile
 OWNER_ID = SYSTEM_IDENTITY["system"]["cn"]
 
 
-def test_event_loop_exception_handling(mocker, event_producer, flask_app):
+@mock.patch.object(
+    IngressMessageConsumer,
+    "handle_message",
+    return_value=None,
+    side_effect=(
+        None,
+        KeyError("blah"),
+        None,
+    ),
+)
+def test_event_loop_exception_handling(handle_message_mock, mocker, event_producer, flask_app):
     """
     Test to ensure that an exception in message handler method does not cause the
     event loop to stop processing messages
@@ -57,26 +66,14 @@ def test_event_loop_exception_handling(mocker, event_producer, flask_app):
     fake_consumer.consume.return_value = [FakeMessage()]
 
     fake_notification_event_producer = None
-    handle_message_mock = mocker.Mock(
-        return_value=None,
-        side_effect=(
-            None,
-            KeyError("blah"),
-            None,
-        ),
-    )
-    event_loop(
-        fake_consumer,
-        flask_app.app,
-        event_producer,
-        fake_notification_event_producer,
-        handler=handle_message_mock,
-        interrupt=mocker.Mock(side_effect=(False, False, False, True)),
-    )
+    consumer = IngressMessageConsumer(fake_consumer, flask_app, event_producer, fake_notification_event_producer)
+    consumer.event_loop(mocker.Mock(side_effect=(False, False, False, True)))
+
     assert handle_message_mock.call_count == 3
 
 
-def test_event_loop_with_error_message_handling(mocker, event_producer, flask_app):
+@mock.patch.object(IngressMessageConsumer, "handle_message", return_value=None, side_effect=None)
+def test_event_loop_with_error_message_handling(handle_message_mock, mocker, event_producer, flask_app):
     """
     Test to ensure that event loop does not stop processing messages when
     consumer.poll() gets an error in message handler method.
@@ -84,40 +81,33 @@ def test_event_loop_with_error_message_handling(mocker, event_producer, flask_ap
     fake_consumer = mocker.Mock(**{"consume.side_effect": [[FakeMessage()], [FakeMessage("oops")], [FakeMessage()]]})
     fake_notification_event_producer = None
 
-    handle_message_mock = mocker.Mock(return_value=None, side_effect=None)
-    event_loop(
-        fake_consumer,
-        flask_app.app,
-        event_producer,
-        fake_notification_event_producer,
-        handler=handle_message_mock,
-        interrupt=mocker.Mock(side_effect=(False, False, False, True)),
-    )
+    consumer = IngressMessageConsumer(fake_consumer, flask_app, event_producer, fake_notification_event_producer)
+    consumer.event_loop(mocker.Mock(side_effect=(False, False, False, True)))
 
     assert handle_message_mock.call_count == 2
 
 
-def test_handle_message_failure_invalid_json_message(mocker):
+def test_handle_message_failure_invalid_json_message(mocker, ingress_message_consumer_mock):
     invalid_message = "failure {} "
 
     mock_event_producer = mocker.Mock()
     mock_notification_event_producer = mocker.Mock()
 
     with pytest.raises(json.decoder.JSONDecodeError):
-        handle_message(invalid_message, mock_event_producer, mock_notification_event_producer)
+        ingress_message_consumer_mock.handle_message(invalid_message)
 
     mock_event_producer.assert_not_called()
     mock_notification_event_producer.assert_not_called()
 
 
-def test_handle_message_failure_invalid_message_format(mocker):
+def test_handle_message_failure_invalid_message_format(mocker, ingress_message_consumer_mock):
     invalid_message = json.dumps({"operation": "add_host", "NOTdata": {}})  # Missing data field
 
     mock_event_producer = mocker.Mock()
     mock_notification_event_producer = mocker.Mock()
 
     with pytest.raises(marshmallow.exceptions.ValidationError):
-        handle_message(invalid_message, mock_event_producer, mock_notification_event_producer)
+        ingress_message_consumer_mock.handle_message(invalid_message)
 
     mock_event_producer.assert_not_called()
     mock_notification_event_producer.assert_not_called()
@@ -126,7 +116,7 @@ def test_handle_message_failure_invalid_message_format(mocker):
 @pytest.mark.usefixtures("flask_app")
 @pytest.mark.parametrize("identity", (SYSTEM_IDENTITY, SATELLITE_IDENTITY))
 @pytest.mark.parametrize("kessel_migration", (True, False))
-def test_handle_message_happy_path(identity, kessel_migration, mocker):
+def test_handle_message_happy_path(identity, kessel_migration, mocker, ingress_message_consumer_mock):
     with mocker.patch("app.queue.host_mq.get_flag_value", return_value=kessel_migration):
         expected_insights_id = generate_uuid()
         host = minimal_host(account=identity["account_number"], insights_id=expected_insights_id)
@@ -134,7 +124,7 @@ def test_handle_message_happy_path(identity, kessel_migration, mocker):
         mock_notification_event_producer = mocker.Mock()
 
         message = wrap_message(host.data(), "add_host", get_platform_metadata(identity))
-        result = handle_message(json.dumps(message), mock_notification_event_producer)
+        result = ingress_message_consumer_mock.handle_message(json.dumps(message))
 
         assert result.event_type == EventType.created
         assert result.host_row.canonical_facts["insights_id"] == expected_insights_id
@@ -153,9 +143,12 @@ def test_handle_message_existing_ungrouped_workspace(mocker, db_create_group):
         host = minimal_host(account=SYSTEM_IDENTITY["account_number"], insights_id=expected_insights_id)
         group_id = db_create_group("kessel-test", ungrouped=True).id
         mock_notification_event_producer = mocker.Mock()
+        consumer = IngressMessageConsumer(
+            mocker.Mock(), mocker.Mock(), mocker.Mock(), mock_notification_event_producer
+        )
 
         message = wrap_message(host.data(), "add_host", get_platform_metadata(SYSTEM_IDENTITY))
-        result = handle_message(json.dumps(message), mock_notification_event_producer)
+        result = consumer.handle_message(json.dumps(message))
 
         assert result.event_type == EventType.created
         assert result.host_row.canonical_facts["insights_id"] == expected_insights_id
@@ -165,23 +158,14 @@ def test_handle_message_existing_ungrouped_workspace(mocker, db_create_group):
         mock_notification_event_producer.write_event.assert_not_called()
 
 
-def test_request_id_is_reset(mocker, flask_app, db_create_host):
+def test_request_id_is_reset(mocker, flask_app, ingress_message_consumer_mock):
     with flask_app.app.app_context():
         mock_event_producer = mocker.Mock()
         mock_notification_event_producer = mocker.Mock()
         metadata = get_platform_metadata()
-        add_host_mock = mocker.patch(
-            "app.queue.host_mq.add_host",
-            return_value=(
-                db_create_host(),
-                AddHostResult.created,
-                Identity(SYSTEM_IDENTITY),
-                mocker.MagicMock(),
-            ),
-        )
 
         message = wrap_message(minimal_host().data(), "add_host", metadata)
-        result = handle_message(json.dumps(message), mock_notification_event_producer, add_host_mock)
+        result = ingress_message_consumer_mock.handle_message(json.dumps(message))
         write_add_update_event_message(mock_event_producer, mock_notification_event_producer, result)
         assert json.loads(mock_event_producer.write_event.call_args[0][0])["metadata"]["request_id"] == metadata.get(
             "request_id"
@@ -190,26 +174,20 @@ def test_request_id_is_reset(mocker, flask_app, db_create_host):
 
         metadata["request_id"] = None
         message = wrap_message(minimal_host().data(), "add_host", metadata)
-        result = handle_message(json.dumps(message), mock_notification_event_producer, add_host_mock)
+        result = ingress_message_consumer_mock.handle_message(json.dumps(message))
 
         assert threadctx.request_id is None
 
 
-def test_shutdown_handler(mocker, flask_app):
+@mock.patch.object(IngressMessageConsumer, "handle_message", return_value=None, side_effect=[None, None])
+def test_shutdown_handler(handle_message_mock, mocker, flask_app):
     fake_consumer = mocker.Mock()
     fake_consumer.consume.return_value = [FakeMessage(), FakeMessage()]
 
     fake_event_producer = None
     fake_notification_event_producer = None
-    handle_message_mock = mocker.Mock(return_value=None, side_effect=[None, None])
-    event_loop(
-        fake_consumer,
-        flask_app.app,
-        fake_event_producer,
-        fake_notification_event_producer,
-        handler=handle_message_mock,
-        interrupt=mocker.Mock(side_effect=(False, True)),
-    )
+    consumer = IngressMessageConsumer(fake_consumer, flask_app, fake_event_producer, fake_notification_event_producer)
+    consumer.event_loop(interrupt=mocker.Mock(side_effect=(False, True)))
     fake_consumer.consume.assert_called_once()
 
     assert handle_message_mock.call_count == 2
@@ -225,25 +203,28 @@ def test_shutdown_handler(mocker, flask_app):
 
 
 @pytest.mark.parametrize("display_name", ("\udce2\udce2", "\\udce2\\udce2", "\udce2\udce2\\udce2\\udce2"))
-def test_handle_message_failure_invalid_surrogates(mocker, display_name):
+def test_handle_message_failure_invalid_surrogates(mocker, display_name, ingress_message_consumer_mock):
     mocker.patch("app.queue.host_mq.build_event")
-    add_host = mocker.patch("app.queue.host_mq.add_host", return_value=(mocker.MagicMock(), None, mocker.MagicMock()))
+    add_host = mocker.patch("lib.host_repository.add_host", return_value=(mocker.MagicMock(), mocker.MagicMock()))
 
     invalid_message = f'{{"operation": "", "data": {{"display_name": "hello{display_name}"}}}}'
 
     with pytest.raises(UnicodeError):
-        handle_message(invalid_message, mocker.Mock(), add_host)
+        ingress_message_consumer_mock.handle_message(invalid_message)
 
     add_host.assert_not_called()
 
 
 @pytest.mark.usefixtures("flask_app")
-def test_handle_message_unicode_not_damaged(mocker, db_create_host, subtests):
+@mock.patch.object(
+    IngressMessageConsumer,
+    "process_message",
+    return_value=(mock.MagicMock(), None, Identity(SYSTEM_IDENTITY), mock.MagicMock()),
+)
+def test_handle_message_unicode_not_damaged(
+    process_message_mock, mocker, db_create_host, ingress_message_consumer_mock, subtests
+):
     mocker.patch("app.queue.host_mq.build_event")
-    add_host = mocker.patch(
-        "app.queue.host_mq.add_host",
-        return_value=(mocker.MagicMock(), None, Identity(SYSTEM_IDENTITY), mocker.MagicMock()),
-    )
 
     operation_raw = "🧜🏿‍♂️"
     operation_escaped = json.dumps(operation_raw)[1:-1]
@@ -266,15 +247,15 @@ def test_handle_message_unicode_not_damaged(mocker, db_create_host, subtests):
 
     for message in messages_tuple:
         with subtests.test(message=message):
-            add_host.reset_mock()
-            add_host.return_value = (
+            process_message_mock.reset_mock()
+            process_message_mock.return_value = (
                 db_create_host(),
                 AddHostResult.updated,
                 create_mock_identity_with_org_id(SYSTEM_IDENTITY["org_id"]),
                 mocker.MagicMock(),
             )
-            handle_message(message, mocker.Mock(), add_host)
-            add_host.assert_called_once_with(json.loads(message)["data"], mocker.ANY, {})
+            ingress_message_consumer_mock.handle_message(message)
+            process_message_mock.assert_called_once_with(json.loads(message)["data"], mocker.ANY, {})
 
 
 def test_handle_message_verify_metadata_pass_through(mq_create_or_update_host):
@@ -334,14 +315,12 @@ def test_handle_message_verify_message_headers(mocker, add_host_result, mq_creat
         subscription_manager_id=subscription_manager_id,
     )
 
-    mock_add_host = mocker.patch(
-        "app.queue.host_mq.add_host",
-        return_value=(db_host, add_host_result, Identity(SYSTEM_IDENTITY), mocker.MagicMock()),
+    mocker.patch(
+        "lib.host_repository.add_host",
+        return_value=(db_host, add_host_result),
     )
 
-    _, _, headers = mq_create_or_update_host(
-        host, platform_metadata={"request_id": request_id}, return_all_data=True, message_operation=mock_add_host
-    )
+    _, _, headers = mq_create_or_update_host(host, platform_metadata={"request_id": request_id}, return_all_data=True)
 
     assert headers == expected_headers(add_host_result.name, request_id, insights_id, "rhsm-conduit")
 
@@ -1447,7 +1426,7 @@ def test_update_system_profile(mq_create_or_update_host, db_get_host, id_type):
     )
     input_host.stale_timestamp = None
     input_host.reporter = None
-    second_host_from_event = mq_create_or_update_host(input_host, message_operation=update_system_profile)
+    second_host_from_event = mq_create_or_update_host(input_host, consumer_class=SystemProfileMessageConsumer)
     second_host_from_db = db_get_host(second_host_from_event.id)
 
     # The second host should have the same ID and insights ID,
@@ -1477,7 +1456,7 @@ def test_update_system_profile_not_found(mocker, mq_create_or_update_host):
         mq_create_or_update_host(
             input_host,
             notification_event_producer=mock_notification_event_producer,
-            message_operation=update_system_profile,
+            consumer_class=SystemProfileMessageConsumer,
         )
     mock_notification_event_producer.write_event.assert_called_once()
 
@@ -1495,13 +1474,13 @@ def test_update_system_profile_not_provided(mocker, mq_create_or_update_host, db
         mq_create_or_update_host(
             input_host,
             notification_event_producer=mock_notification_event_producer,
-            message_operation=update_system_profile,
+            consumer_class=SystemProfileMessageConsumer,
         )
     mock_notification_event_producer.write_event.assert_called_once()
 
 
 @pytest.mark.usefixtures("flask_app")
-def test_handle_message_side_effect(mocker):
+def test_handle_message_side_effect(mocker, ingress_message_consumer_mock):
     fake_add_host = mocker.patch(
         "lib.host_repository.add_host", side_effect=OperationalError("DB Problem", "fake_param", "fake_orig")
     )
@@ -1513,11 +1492,11 @@ def test_handle_message_side_effect(mocker):
     message = json.dumps(wrap_message(host.data(), "add_host", get_platform_metadata()))
 
     with pytest.raises(expected_exception=OperationalError):
-        handle_message(message, mocker.MagicMock())
+        ingress_message_consumer_mock.handle_message(message)
 
 
 @pytest.mark.parametrize("platform_metadata", (None, {}, {"request_id": "12345"}))
-def test_update_system_profile_no_identity(mocker, platform_metadata, db_create_host):
+def test_update_system_profile_no_identity(mocker, platform_metadata, db_create_host, system_profile_consumer_mock):
     message = wrap_message(
         minimal_host(account="foobar", system_profile={"number_of_cpus": 4}).data(), "add_host", platform_metadata
     )
@@ -1532,7 +1511,7 @@ def test_update_system_profile_no_identity(mocker, platform_metadata, db_create_
     )
 
     # Just make sure it doesn't complain about missing Identity/metadata
-    handle_message(json.dumps(message), mocker.Mock(), update_system_profile)
+    system_profile_consumer_mock.handle_message(json.dumps(message))
 
 
 def test_update_system_profile_host_not_found(mocker, flask_app):
@@ -1547,21 +1526,10 @@ def test_update_system_profile_host_not_found(mocker, flask_app):
     fake_consumer = mocker.Mock()
     fake_consumer.consume.return_value = [FakeMessage(message=message)]
 
-    message_handler = partial(
-        handle_message,
-        message_operation=update_system_profile,
-        notification_event_producer=mocker.Mock(),
-    )
+    consumer = SystemProfileMessageConsumer(fake_consumer, flask_app, mocker.Mock(), mocker.Mock())
 
     # Make sure the "not found" exception is properly handled
-    event_loop(
-        fake_consumer,
-        flask_app.app,
-        mocker.Mock(),
-        mocker.Mock(),
-        handler=message_handler,
-        interrupt=mocker.Mock(side_effect=(False, True)),
-    )
+    consumer.event_loop(interrupt=mocker.Mock(side_effect=(False, True)))
 
 
 # Adding a host requires identity or rhsm-conduit reporter, which does not have identity
@@ -1576,16 +1544,17 @@ def test_no_identity_and_no_rhsm_reporter(mocker):
     platform_metadata.pop("b64_identity")
 
     message = wrap_message(host.data(), "add_host", platform_metadata)
+    consumer = IngressMessageConsumer(mocker.Mock(), mocker.Mock(), mocker.Mock(), mock_notification_event_producer)
 
     with pytest.raises(ValidationException):
-        handle_message(json.dumps(message), mock_notification_event_producer)
+        consumer.handle_message(json.dumps(message))
     mock_notification_event_producer.write_event.assert_called()
 
 
 # Adding a host requires identity or rhsm-conduit reporter, which does not have identity
 @pytest.mark.usefixtures("flask_app")
 @pytest.mark.parametrize("rhsm_reporter", ("rhsm-conduit", "rhsm-system-profile-bridge"))
-def test_rhsm_reporter_and_no_platform_metadata(mocker, rhsm_reporter):
+def test_rhsm_reporter_and_no_platform_metadata(rhsm_reporter, ingress_message_consumer_mock):
     host = minimal_host(
         account=SYSTEM_IDENTITY["account_number"],
         insights_id=generate_uuid(),
@@ -1596,24 +1565,13 @@ def test_rhsm_reporter_and_no_platform_metadata(mocker, rhsm_reporter):
     message = wrap_message(host.data(), "add_host")
 
     # We just want to verify that no error gets thrown here.
-    handle_message(json.dumps(message), mocker.Mock())
+    ingress_message_consumer_mock.handle_message(json.dumps(message))
 
 
 @pytest.mark.usefixtures("event_datetime_mock", "flask_app")
 @pytest.mark.parametrize("rhsm_reporter", ("rhsm-conduit", "rhsm-system-profile-bridge"))
-def test_rhsm_reporter_and_no_identity(mocker, rhsm_reporter, db_create_host):
+def test_rhsm_reporter_and_no_identity(mocker, rhsm_reporter):
     expected_insights_id = generate_uuid()
-
-    mock_add_host = mocker.patch(
-        "app.queue.host_mq.add_host",
-        return_value=(
-            db_create_host(),
-            AddHostResult.created,
-            Identity(SYSTEM_IDENTITY),
-            mocker.MagicMock(),
-        ),
-    )
-
     mock_event_producer = mocker.Mock()
     mock_notification_event_producer = mocker.Mock()
 
@@ -1628,7 +1586,11 @@ def test_rhsm_reporter_and_no_identity(mocker, rhsm_reporter, db_create_host):
     platform_metadata.pop("b64_identity")
     message = wrap_message(host.data(), "add_host", platform_metadata)
 
-    result = handle_message(json.dumps(message), mock_notification_event_producer, mock_add_host)
+    consumer = IngressMessageConsumer(
+        mocker.Mock(), mocker.Mock(), mock_event_producer, mock_notification_event_producer
+    )
+
+    result = consumer.handle_message(json.dumps(message))
     write_add_update_event_message(mock_event_producer, mock_notification_event_producer, result)
 
     mock_event_producer.write_event.assert_called_once()
@@ -1650,8 +1612,9 @@ def test_non_rhsm_reporter_and_no_identity(mocker):
     platform_metadata = get_platform_metadata()
     platform_metadata.pop("b64_identity")
     message = wrap_message(host.data(), "add_host", platform_metadata)
+    consumer = IngressMessageConsumer(mocker.Mock(), mocker.Mock(), mocker.Mock(), mock_notification_event_producer)
     with pytest.raises(ValidationException):
-        handle_message(json.dumps(message), mock_notification_event_producer)
+        consumer.handle_message(json.dumps(message))
     mock_notification_event_producer.write_event.assert_called()
 
 
@@ -1667,9 +1630,11 @@ def test_owner_id_different_from_cn(mocker):
     )
 
     message = wrap_message(host.data(), "add_host", get_platform_metadata())
+    consumer = IngressMessageConsumer(mocker.Mock(), mocker.Mock(), mocker.Mock(), mock_notification_event_producer)
 
     with pytest.raises(ValidationException) as ve:
-        handle_message(json.dumps(message), mock_notification_event_producer)
+        consumer.handle_message(json.dumps(message))
+
     assert ve.value.detail == "The owner in host does not match the owner in identity"
     mock_notification_event_producer.write_event.assert_called_once()
 
@@ -1925,17 +1890,8 @@ def test_batch_mq_add_host_operations(mocker, event_producer, flask_app):
         }
     )
 
-    mock_notification_event_producer = mocker.Mock()
-    message_handler = partial(handle_message, notification_event_producer=mock_notification_event_producer)
-
-    event_loop(
-        fake_consumer,
-        flask_app.app,
-        event_producer,
-        mock_notification_event_producer,
-        handler=message_handler,
-        interrupt=mocker.Mock(side_effect=(False, False, False, True)),
-    )
+    consumer = IngressMessageConsumer(fake_consumer, flask_app, event_producer, mocker.Mock())
+    consumer.event_loop(mocker.Mock(side_effect=(False, False, False, True)))
 
     # 12 messages were sent, but it should have only committed three times:
     # - Once after 7 messages (the batch size)
@@ -1996,14 +1952,8 @@ def test_batch_mq_header_request_id_updates(mocker, flask_app):
     event_producer_mock = mocker.Mock()
     send_notification_patch = mocker.patch("app.queue.host_mq.send_notification")
 
-    event_loop(
-        fake_consumer,
-        flask_app.app,
-        event_producer_mock,
-        mocker.Mock(),
-        handler=handle_message,
-        interrupt=mocker.Mock(side_effect=([False for _ in range(2)] + [True])),
-    )
+    consumer = IngressMessageConsumer(fake_consumer, flask_app, event_producer_mock, mocker.Mock())
+    consumer.event_loop(mocker.Mock(side_effect=([False for _ in range(2)] + [True])))
 
     # Should have been called once per host
     assert send_notification_patch.call_count == 5
@@ -2054,16 +2004,8 @@ def test_batch_mq_graceful_rollback(mocker, flask_app):
             ]
         }
     )
-    event_producer_mock = mocker.Mock()
-
-    event_loop(
-        fake_consumer,
-        flask_app.app,
-        event_producer_mock,
-        mocker.Mock(),
-        handler=handle_message,
-        interrupt=mocker.Mock(side_effect=([False for _ in range(2)] + [True])),
-    )
+    consumer = IngressMessageConsumer(fake_consumer, flask_app, mocker.Mock(), mocker.Mock())
+    consumer.event_loop(interrupt=mocker.Mock(side_effect=([False for _ in range(2)] + [True])))
 
     # Assert that the hosts that came in after the error were still processed
     # Since batch size is 3 and we're sending 5 messages,the first batch (3 messages) will get dropped,
@@ -2082,7 +2024,8 @@ def test_add_host_logs(identity, mocker, caplog):
     mock_notification_event_producer = mocker.Mock()
 
     message = wrap_message(host.data(), "add_host", get_platform_metadata(identity))
-    result = handle_message(json.dumps(message), mock_notification_event_producer)
+    consumer = IngressMessageConsumer(mocker.Mock(), mocker.Mock(), mocker.Mock(), mock_notification_event_producer)
+    result = consumer.handle_message(json.dumps(message))
 
     assert result.event_type == EventType.created
     assert result.host_row.canonical_facts["insights_id"] == expected_insights_id
@@ -2107,7 +2050,7 @@ def test_log_update_system_profile(mq_create_or_update_host, db_get_host, id_typ
     )
     input_host.stale_timestamp = None
     input_host.reporter = None
-    second_host_from_event = mq_create_or_update_host(input_host, message_operation=update_system_profile)
+    second_host_from_event = mq_create_or_update_host(input_host, consumer_class=SystemProfileMessageConsumer)
     second_host_from_db = db_get_host(second_host_from_event.id)
 
     # The second host should have the same ID and insights ID,
@@ -2120,3 +2063,14 @@ def test_log_update_system_profile(mq_create_or_update_host, db_get_host, id_typ
         "number_of_sockets": 8,
     }
     assert caplog.records[0].input_host["system_profile"] == "{}"
+
+
+def test_add_host_subman_id(mq_create_or_update_host_subman_id, db_get_host):
+    subscription_manager_id = generate_uuid()
+    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], subscription_manager_id=subscription_manager_id)
+
+    mq_create_or_update_host_subman_id(host)
+
+    record = db_get_host(subscription_manager_id)
+
+    assert str(record.id) == str(subscription_manager_id)

@@ -279,7 +279,7 @@ def post_rbac_workspace(name, parent_id, description) -> UUID | None:
         IDENTITY_HEADER: request.headers[IDENTITY_HEADER],
         REQUEST_ID_HEADER: request.headers.get(REQUEST_ID_HEADER),
     }
-    request_data = {"name": name, "description": description, "parent_id": parent_id}
+    request_data = {"name": name, "description": description, "parent_id": str(parent_id)}
 
     try:
         with outbound_http_response_time.labels("rbac").time():
@@ -302,16 +302,16 @@ def post_rbac_workspace(name, parent_id, description) -> UUID | None:
     return UUID(resp_data["id"])
 
 
-def rbac_create_ungrouped_hosts_workspace(identity: Identity) -> UUID | None:  # noqa: ARG001, used later
+def rbac_create_ungrouped_hosts_workspace() -> UUID | None:
     # Creates a new "ungrouped" workspace via the RBAC API, and returns its ID.
     # If not using RBAC, returns None, so the DB will automatically generate the group ID.
     if inventory_config().bypass_rbac:
         return None
     else:
-        # TODO
-        # POST /api/rbac/v2/workspaces/
-        # https://github.com/RedHatInsights/insights-rbac/blob/master/docs/source/specs/v2/openapi.yaml#L96
-        return None
+        parent_id = get_rbac_default_workspace()
+        ungrouped_id = post_rbac_workspace("ungrouped", parent_id, "ungrouped workspace")
+
+        return ungrouped_id
 
 
 def delete_rbac_workspace(workspace_id):
@@ -332,6 +332,41 @@ def delete_rbac_workspace(workspace_id):
             request_session.delete(
                 url=get_rbac_v2_url(endpoint=workspace_endpoint),
                 headers=request_header,
+                timeout=inventory_config().rbac_timeout,
+                verify=LoadedConfig.tlsCAPath,
+            )
+    except Exception as e:
+        rbac_failure(logger, e)
+        abort(503, "Failed to reach RBAC endpoint, request cannot be fulfilled")
+    finally:
+        request_session.close()
+
+
+def put_rbac_workspace(workspace_id, name=None, description=None) -> None:
+    if inventory_config().bypass_rbac:
+        return None
+
+    workspace_endpoint = f"workspaces/{workspace_id}/"
+    request_session = Session()
+    retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
+    request_session.mount(get_rbac_v2_url(endpoint=workspace_endpoint), HTTPAdapter(max_retries=retry_config))
+    request_header = {
+        IDENTITY_HEADER: request.headers[IDENTITY_HEADER],
+        REQUEST_ID_HEADER: request.headers.get(REQUEST_ID_HEADER),
+    }
+
+    request_data = {}
+    if name is not None:
+        request_data.update({"name": name})
+    if description is not None:
+        request_data.update({"description": description})
+
+    try:
+        with outbound_http_response_time.labels("rbac").time():
+            request_session.put(
+                url=get_rbac_v2_url(endpoint=workspace_endpoint),
+                headers=request_header,
+                json=request_data,
                 timeout=inventory_config().rbac_timeout,
                 verify=LoadedConfig.tlsCAPath,
             )

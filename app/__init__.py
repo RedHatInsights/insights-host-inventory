@@ -274,6 +274,7 @@ def create_app(runtime_environment):
 
     flask_app.config["INVENTORY_CONFIG"] = app_config
     flask_app.config["SYSTEM_PROFILE_SPEC"] = sp_spec
+    flask_app.config["USE_SUBMAN_ID"] = app_config.use_sub_man_id_for_host_id
 
     init_cache(app_config, app)
 
@@ -284,6 +285,7 @@ def create_app(runtime_environment):
         flask_app.config["UNLEASH_URL"] = app_config.unleash_url
         flask_app.config["UNLEASH_CUSTOM_HEADERS"] = {"Authorization": app_config.unleash_token}
         flask_app.config["UNLEASH_CUSTOM_STRATEGIES"] = {"schema-strategy": SchemaStrategy}
+        flask_app.config["UNLEASH_REFRESH_INTERVAL"] = app_config.unleash_refresh_interval
         if hasattr(app_config, "unleash_cache_directory"):
             flask_app.config["UNLEASH_CACHE_DIRECTORY"] = app_config.unleash_cache_directory
         init_unleash_app(flask_app)
