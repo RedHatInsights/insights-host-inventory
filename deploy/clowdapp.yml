@@ -808,6 +808,94 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_MQ_SP}
             memory: ${MEMORY_REQUEST_MQ_SP}
+    - name: mq-workspaces
+      replicas: ${{REPLICAS_P1}}
+      podSpec:
+        args: ["./inv_mq_service.py"]
+        env:
+        - name: CONSOLEDOT_HOSTNAME
+          value: ${CONSOLEDOT_HOSTNAME}
+        - name: INVENTORY_LOG_LEVEL
+          value: ${LOG_LEVEL}
+        - name: INVENTORY_DB_SSL_MODE
+          value: ${INVENTORY_DB_SSL_MODE}
+        - name: INVENTORY_DB_SSL_CERT
+          value: ${INVENTORY_DB_SSL_CERT}
+        - name: KAFKA_CONSUMER_TOPIC
+          value: ${KAFKA_KESSEL_WORKSPACES_TOPIC}
+        - name: KAFKA_WORKSPACES_TOPIC
+          value: ${KAFKA_KESSEL_WORKSPACES_TOPIC}
+        - name: KAFKA_EVENT_TOPIC
+          value: ${KAFKA_EVENT_TOPIC}
+        - name: KAFKA_NOTIFICATION_TOPIC
+          value: ${KAFKA_NOTIFICATION_TOPIC}
+        - name: KAFKA_SYSTEM_PROFILE_TOPIC
+          value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
+        - name: KAFKA_HOST_INGRESS_GROUP
+          value: ${KAFKA_HOST_INGRESS_GROUP}
+        - name: KAFKA_PRODUCER_ACKS
+          value: ${KAFKA_PRODUCER_ACKS}
+        - name: KAFKA_PRODUCER_RETRIES
+          value: ${KAFKA_PRODUCER_RETRIES}
+        - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+          value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+        - name: KAFKA_SECURITY_PROTOCOL
+          value: ${KAFKA_SECURITY_PROTOCOL}
+        - name: KAFKA_SASL_MECHANISM
+          value: ${KAFKA_SASL_MECHANISM}
+        - name: CLOWDER_ENABLED
+          value: "true"
+        - name: INVENTORY_DB_SCHEMA
+          value: "${INVENTORY_DB_SCHEMA}"
+        - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
+          value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
+        - name: INVENTORY_API_CACHE_TYPE
+          value: "${INVENTORY_API_CACHE_TYPE}"
+        - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
+          value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
+        - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
+          value: "${INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS}"
+        - name: KAFKA_CONSUMER_SESSION_TIMEOUT_MS
+          value: "${KAFKA_CONSUMER_SESSION_TIMEOUT_MS}"
+        - name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
+          value: "${KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS}"
+        - name: UNLEASH_URL
+          value: ${UNLEASH_URL}
+        - name: UNLEASH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: ${UNLEASH_SECRET_NAME}
+              key: CLIENT_ACCESS_TOKEN
+              optional: true
+        - name: BYPASS_UNLEASH
+          value: ${BYPASS_UNLEASH}
+        - name: UNLEASH_REFRESH_INTERVAL
+          value: ${UNLEASH_REFRESH_INTERVAL}
+        - name: MQ_DB_BATCH_MAX_MESSAGES
+          value: ${MQ_DB_BATCH_MAX_MESSAGES}
+        - name: MQ_DB_BATCH_MAX_SECONDS
+          value: ${MQ_DB_BATCH_MAX_SECONDS}
+        image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /
+            port: 9000
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+        readinessProbe:
+          tcpSocket:
+            port: 9000
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_WORKSPACES_MQ}
+            memory: ${MEMORY_LIMIT_WORKSPACES_MQ}
+          requests:
+            cpu: ${CPU_REQUEST_WORKSPACES_MQ}
+            memory: ${MEMORY_REQUEST_WORKSPACES_MQ}
     - name: export-service
       minReplicas: ${{REPLICAS_EXPORT_SVC}}
       podSpec:
@@ -1370,6 +1458,8 @@ objects:
         partitions: ${{NUMBER_OF_KAFKA_HOST_INGRESS_P1_TOPIC_PARTITIONS}}
       - topicName: ${KAFKA_EXPORT_SERVICE_TOPIC}
         partitions: ${{NUMBER_OF_KAFKA_EXPORT_SERVICE_TOPIC_PARTITIONS}}
+      - topicName: ${KAFKA_KESSEL_WORKSPACES_TOPIC}
+        partitions: ${{NUMBER_OF_KAFKA_KESSEL_WORKSPACES_TOPIC_PARTITIONS}}
 # this service proxies requests for the old URL (insights-inventory:8080) to the clowderized service (host-inventory-service:8000)
 - apiVersion: v1
   kind: Service
@@ -1654,6 +1744,15 @@ parameters:
 - name: MEMORY_LIMIT_MQ_SP
   value: 512Mi
 
+- name: CPU_REQUEST_WORKSPACES_MQ
+  value: 250m
+- name: CPU_LIMIT_WORKSPACES_MQ
+  value: 500m
+- name: MEMORY_REQUEST_WORKSPACES_MQ
+  value: 256Mi
+- name: MEMORY_LIMIT_WORKSPACES_MQ
+  value: 512Mi
+
 - name: CPU_REQUEST_REAPER
   value: 250m
 - name: CPU_LIMIT_REAPER
@@ -1806,6 +1905,12 @@ parameters:
   value: platform.inventory.host-ingress-p1
 - name: NUMBER_OF_KAFKA_HOST_INGRESS_P1_TOPIC_PARTITIONS
   description: Number of partitions for the Kafka host ingress P1 topic
+  value: '1'
+- name: KAFKA_KESSEL_WORKSPACES_TOPIC
+  description: The Kafka topic for Kessel Workspace data
+  value: outbox.event.workspace
+- name: NUMBER_OF_KAFKA_KESSEL_WORKSPACES_TOPIC_PARTITIONS
+  description: Number of partitions for the Kafka kessel workspaces topic
   value: '1'
 - name: KAFKA_EVENT_TOPIC
   description: The topic for Host data that were processed by Inventory

@@ -55,6 +55,7 @@ from app.serialization import deserialize_host
 from app.serialization import remove_null_canonical_facts
 from app.serialization import serialize_group
 from app.serialization import serialize_host
+from lib import group_repository
 from lib import host_repository
 from lib.db import session_guard
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
@@ -69,11 +70,25 @@ CONSUMER_POLL_TIMEOUT_SECONDS = 0.5
 SYSTEM_IDENTITY = {"auth_type": "cert-auth", "system": {"cert_type": "system"}, "type": "System"}
 
 
-class OperationSchema(Schema):
+class HostOperationSchema(Schema):
     operation = fields.Str(required=True)
     operation_args = fields.Dict()
     platform_metadata = fields.Dict()
     data = fields.Dict(required=True)
+
+
+class WorkspaceSchema(Schema):
+    id = fields.UUID(required=True)
+    name = fields.Str(required=True)
+    type = fields.Str()
+    created_at = fields.DateTime()
+    updated_at = fields.DateTime()
+
+
+class WorkspaceOperationSchema(Schema):
+    operation = fields.Str(required=True)
+    org_id = fields.Str(required=True)
+    workspace = fields.Nested(WorkspaceSchema)
 
 
 # Helper class to facilitate batch operations
@@ -151,10 +166,45 @@ class HBIMessageConsumerBase:
                     self.post_process_rows(processed_rows)
 
 
+class WorkspaceMessageConsumer(HBIMessageConsumerBase):
+    @metrics.ingress_message_handler_time.time()
+    def handle_message(self, message):
+        validated_operation_msg = parse_operation_message(message, WorkspaceOperationSchema)
+        initialize_thread_local_storage(None)  # No request_id for workspace MQ
+        operation = validated_operation_msg["operation"]
+        org_id = validated_operation_msg["org_id"]
+        workspace = validated_operation_msg["workspace"]
+        identity = create_mock_identity_with_org_id(org_id)
+
+        if operation == "create":
+            group_repository.add_group(
+                group_name=workspace["name"],
+                org_id=org_id,
+                group_id=workspace["id"],
+                ungrouped=(validated_operation_msg["workspace"]["type"] == "ungrouped-hosts"),
+            )
+        elif operation == "update":
+            group_to_update = group_repository.get_group_by_id_from_db(str(workspace["id"]), org_id)
+            group_repository.patch_group(
+                group=group_to_update,
+                patch_data=workspace,
+                identity=identity,
+                event_producer=self.event_producer,
+            )
+        elif operation == "delete":
+            group_repository.delete_group_list(
+                group_id_list=[str(workspace["id"])],
+                identity=identity,
+                event_producer=self.event_producer,
+            )
+        else:
+            raise ValidationError("Operation must be 'create', 'update', or 'delete'.")
+
+
 class HostMessageConsumer(HBIMessageConsumerBase):
     @metrics.ingress_message_handler_time.time()
     def handle_message(self, message) -> OperationResult:
-        validated_operation_msg = parse_operation_message(message)
+        validated_operation_msg = parse_operation_message(message, HostOperationSchema)
         platform_metadata = validated_operation_msg.get("platform_metadata", {})
 
         request_id = platform_metadata.get("request_id")
@@ -386,7 +436,7 @@ def _validate_json_object_for_utf8(json_object):
 
 
 @metrics.ingress_message_parsing_time.time()
-def parse_operation_message(message):
+def parse_operation_message(message, schema: Schema):
     parsed_message = common_message_parser(message)
 
     try:
@@ -397,7 +447,7 @@ def parse_operation_message(message):
         raise
 
     try:
-        parsed_operation = OperationSchema().load(parsed_message)
+        parsed_operation = schema().load(parsed_message)
     except ValidationError as e:
         logger.error(
             "Input validation error while parsing operation message:%s", e, extra={"operation": parsed_message}

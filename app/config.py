@@ -93,6 +93,7 @@ class Config:
         self.event_topic = topic(os.environ.get("KAFKA_EVENT_TOPIC"))
         self.payload_tracker_kafka_topic = topic("platform.payload-status")
         self.export_service_topic = topic(os.environ.get("KAFKA_EXPORT_SERVICE_TOPIC", "platform.export.requests"))
+        self.workspaces_topic = topic(os.environ.get("KAFKA_WORKSPACES_TOPIC"))
 
         self.bootstrap_servers = ",".join(app_common_python.KafkaServers)
         broker_cfg = cfg.kafka.brokers[0]
@@ -142,6 +143,7 @@ class Config:
         self.kafka_consumer_topic = os.environ.get("KAFKA_CONSUMER_TOPIC", "platform.inventory.host-ingress")
         self.notification_topic = os.environ.get("KAFKA_NOTIFICATION_TOPIC", "platform.notifications.ingress")
         self.export_service_topic = os.environ.get("KAFKA_EXPORT_SERVICE_TOPIC", "platform.export.requests")
+        self.workspaces_topic = os.environ.get("KAFKA_WORKSPACES_TOPIC", "outbox.event.workspace")
         self.bootstrap_servers = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")
         self.event_topic = os.environ.get("KAFKA_EVENT_TOPIC", "platform.inventory.events")
         self.payload_tracker_kafka_topic = os.environ.get("PAYLOAD_TRACKER_KAFKA_TOPIC", "platform.payload-status")

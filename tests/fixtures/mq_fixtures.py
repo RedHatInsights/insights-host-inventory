@@ -10,6 +10,7 @@ from app.queue.event_producer import EventProducer
 from app.queue.export_service_mq import ExportServiceConsumer
 from app.queue.host_mq import IngressMessageConsumer
 from app.queue.host_mq import SystemProfileMessageConsumer
+from app.queue.host_mq import WorkspaceMessageConsumer
 from app.queue.host_mq import write_add_update_event_message
 from app.utils import HostWrapper
 from tests.helpers.api_utils import FACTS
@@ -190,6 +191,11 @@ def system_profile_consumer_mock(mocker):
 @pytest.fixture(scope="function")
 def export_service_consumer_mock(mocker):
     yield ExportServiceConsumer(mocker.Mock(), mocker.Mock(), mocker.Mock(), mocker.Mock())
+
+
+@pytest.fixture(scope="function")
+def workspace_message_consumer_mock(mocker):
+    yield WorkspaceMessageConsumer(mocker.Mock(), mocker.Mock(), mocker.Mock(), mocker.Mock())
 
 
 @pytest.fixture(scope="function")

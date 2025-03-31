@@ -12,6 +12,7 @@ from app.queue.event_producer import EventProducer
 from app.queue.host_mq import HBIMessageConsumerBase
 from app.queue.host_mq import IngressMessageConsumer
 from app.queue.host_mq import SystemProfileMessageConsumer
+from app.queue.host_mq import WorkspaceMessageConsumer
 from lib.handlers import ShutdownHandler
 from lib.handlers import register_shutdown
 
@@ -27,6 +28,7 @@ def main():
     topic_to_hbi_consumer: dict[str, HBIMessageConsumerBase] = {
         config.host_ingress_topic: IngressMessageConsumer,
         config.system_profile_topic: SystemProfileMessageConsumer,
+        config.workspaces_topic: WorkspaceMessageConsumer,
     }
 
     consumer = KafkaConsumer(
