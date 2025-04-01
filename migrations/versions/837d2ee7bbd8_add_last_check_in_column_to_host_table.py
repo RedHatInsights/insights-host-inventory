@@ -21,10 +21,6 @@ def upgrade():
     # This is going to be kept up to date in the code
     op.add_column("hosts", sa.Column("last_check_in", sa.DateTime(timezone=True), nullable=True), schema="hbi")
 
-    op.execute("""
-               UPDATE hbi.hosts h SET last_check_in  = sub.modified_on
-               FROM (SELECT id, modified_on FROM hbi.hosts) AS sub WHERE h.id = sub.id;""")
-
 
 def downgrade():
     op.drop_column("hosts", "last_check_in", schema="hbi")
