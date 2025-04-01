@@ -11,6 +11,7 @@ from api import flask_json_response
 from api import json_error_response
 from api import metrics
 from api.group_query import build_group_response
+from api.group_query import build_incomplete_response
 from api.group_query import build_paginated_group_list_response
 from api.group_query import get_filtered_group_list_db
 from api.group_query import get_group_list_by_id_list_db
@@ -103,6 +104,7 @@ def create_group(body, rbac_filter=None):
                 logger.exception(message)
                 return json_error_response("Workspace creation failure", message, HTTPStatus.BAD_REQUEST)
 
+            return flask_json_response(build_incomplete_response(workspace_id), HTTPStatus.ACCEPTED)
         else:
             created_group = create_group_from_payload(validated_create_group_data, current_app.event_producer, None)
             create_group_count.inc()

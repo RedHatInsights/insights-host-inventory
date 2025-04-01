@@ -8,6 +8,7 @@ from app.models import Group
 from app.models import HostGroupAssoc
 from app.models import db
 from app.serialization import serialize_group
+from app.serialization import serialize_incomplete_group
 
 logger = get_logger(__name__)
 
@@ -122,3 +123,8 @@ def build_paginated_group_list_response(total, page, per_page, group_list):
 def build_group_response(group):
     identity = get_current_identity()
     return serialize_group(group, identity.org_id)
+
+
+def build_incomplete_response(group_id):
+    identity = get_current_identity()
+    return serialize_incomplete_group(group_id, identity.org_id)
