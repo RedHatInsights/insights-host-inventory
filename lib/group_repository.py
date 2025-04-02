@@ -204,8 +204,10 @@ def create_group_from_payload(group_data: dict, event_producer: EventProducer, g
 
 
 def _remove_all_hosts_from_group(group: Group, org_id: str):
-    host_group_assocs_to_delete = HostGroupAssoc.query.filter(HostGroupAssoc.group_id == group.id).all()
-    _remove_hosts_from_group(group.id, [assoc.host_id for assoc in host_group_assocs_to_delete], org_id)
+    host_ids = [
+        row[0] for row in db.session.query(HostGroupAssoc.host_id).filter(HostGroupAssoc.group_id == group.id).all()
+    ]
+    _remove_hosts_from_group(group.id, host_ids, org_id)
 
 
 def _delete_host_group_assoc(session, assoc):
