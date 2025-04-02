@@ -242,7 +242,7 @@ def _get_unculled_hosts(group, org_id):
 
 
 def serialize_incomplete_group(group_id, org_id):
-    return {"id": _serialize_uuid(group_id), "org_id": org_id, "status": "creation_in_progress"}
+    return {"id": _serialize_uuid(group_id), "org_id": org_id, "status": "accepted", "message": "The requested group is being created asynchronously."}
 
 
 def serialize_group(group, org_id):
