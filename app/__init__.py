@@ -213,7 +213,13 @@ def process_spec(spec):
             system_profile_spec_processed[field]["enum"] = props.get("enum")
 
         if field_filter in ["object", "operating_system"]:
-            system_profile_spec_processed[field]["children"] = process_spec(props["properties"])
+            # Handle nested object or array of objects in the schema
+            item_props = props.get("items", {}).get("properties")
+            base_props = props.get("properties", {})
+
+            children_props = item_props or base_props
+            if children_props:
+                system_profile_spec_processed[field]["children"] = process_spec(children_props)
 
     return system_profile_spec_processed
 
