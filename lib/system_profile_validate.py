@@ -10,7 +10,7 @@ from yaml import safe_load
 
 from app.exceptions import InventoryException
 from app.logging import get_logger
-from app.queue.host_mq import OperationSchema
+from app.queue.host_mq import HostOperationSchema
 from app.serialization import deserialize_host
 
 __all__ = ("validate_sp_for_branch",)
@@ -73,7 +73,7 @@ def validate_sp_schemas(
 
         for message in new_messages:
             try:
-                host = OperationSchema().load(json.loads(message.value()))["data"]
+                host = HostOperationSchema().load(json.loads(message.value()))["data"]
                 if not host.get("reporter"):
                     host["reporter"] = "unknown_reporter"
                 for branch, sp_spec in schemas.items():

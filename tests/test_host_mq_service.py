@@ -20,6 +20,7 @@ from app.logging import threadctx
 from app.queue.events import EventType
 from app.queue.host_mq import IngressMessageConsumer
 from app.queue.host_mq import SystemProfileMessageConsumer
+from app.queue.host_mq import WorkspaceMessageConsumer
 from app.queue.host_mq import _validate_json_object_for_utf8
 from app.queue.host_mq import write_add_update_event_message
 from app.utils import Tag
@@ -28,6 +29,7 @@ from tests.helpers.db_utils import create_reference_host_in_db
 from tests.helpers.mq_utils import FakeMessage
 from tests.helpers.mq_utils import assert_mq_host_data
 from tests.helpers.mq_utils import expected_headers
+from tests.helpers.mq_utils import generate_kessel_workspace_message
 from tests.helpers.mq_utils import wrap_message
 from tests.helpers.system_profile_utils import INVALID_SYSTEM_PROFILES
 from tests.helpers.system_profile_utils import mock_system_profile_specification
@@ -2074,3 +2076,80 @@ def test_add_host_subman_id(mq_create_or_update_host_subman_id, db_get_host):
     record = db_get_host(subscription_manager_id)
 
     assert str(record.id) == str(subscription_manager_id)
+
+
+@mock.patch.object(WorkspaceMessageConsumer, "handle_message")
+def test_workspace_mq_event_loop(handle_message_mock, flask_app, mocker):
+    message = {
+        "operation": "create",
+        "org_id": SYSTEM_IDENTITY["org_id"],
+        "workspace": {
+            "id": str(generate_uuid()),
+            "name": "test",
+            "type": "standard",
+            "created_at": datetime.now().isoformat(),
+            "updated_at": datetime.now().isoformat(),
+        },
+    }
+
+    fake_consumer = mocker.Mock()
+    fake_consumer.consume.return_value = [FakeMessage(message=json.dumps(message))]
+
+    consumer = WorkspaceMessageConsumer(fake_consumer, flask_app, mocker.Mock(), mocker.Mock())
+
+    # Make sure it properly calls handle_message, and does not error out
+    consumer.event_loop(interrupt=mocker.Mock(side_effect=(False, True)))
+    handle_message_mock.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "workspace_type",
+    (
+        "standard",
+        "ungrouped-hosts",
+    ),
+)
+def test_workspace_mq_create(workspace_message_consumer_mock, workspace_type, db_get_group_by_id):
+    workspace_id = generate_uuid()
+    workspace_name = "test-kessel-workspace"
+    message = generate_kessel_workspace_message("create", str(workspace_id), workspace_name, workspace_type)
+
+    workspace_message_consumer_mock.handle_message(json.dumps(message))
+    found_group = db_get_group_by_id(workspace_id)
+
+    assert found_group.name == workspace_name
+    assert found_group.ungrouped == (workspace_type == "ungrouped-hosts")
+
+
+def test_workspace_mq_update(mocker, flask_app, db_create_group_with_hosts, db_get_group_by_id):
+    group = db_create_group_with_hosts("original_group_name", 3)
+    workspace_id = str(group.id)
+    host_id_list = [str(host.id) for host in group.hosts]
+
+    new_name = "test-kessel-workspace"
+    message = generate_kessel_workspace_message("update", str(workspace_id), new_name)
+    mock_event_producer = mocker.Mock()
+    consumer = WorkspaceMessageConsumer(mocker.Mock(), flask_app, mock_event_producer, mocker.Mock())
+
+    consumer.handle_message(json.dumps(message))
+    found_group = db_get_group_by_id(workspace_id)
+
+    assert found_group.name == new_name
+
+    # Assert that hosts in group were updated and events were produced
+    assert len(mock_event_producer.write_event.call_args_list) == 3
+    for call_arg in [json.loads(arg[0][0]) for arg in mock_event_producer.write_event.call_args_list]:
+        # Make sure the group name and ID were updated on each host
+        assert call_arg["type"] == "updated"
+        assert call_arg["host"]["id"] in host_id_list
+        assert call_arg["host"]["groups"][0]["name"] == new_name
+        assert call_arg["host"]["groups"][0]["id"] == workspace_id
+
+
+def test_workspace_mq_delete(workspace_message_consumer_mock, db_create_group, db_get_group_by_id):
+    workspace_name = "kessel-deletable-workspace"
+    workspace_id = db_create_group(workspace_name).id
+    message = generate_kessel_workspace_message("delete", str(workspace_id), workspace_name)
+
+    workspace_message_consumer_mock.handle_message(json.dumps(message))
+    assert not db_get_group_by_id(workspace_id)

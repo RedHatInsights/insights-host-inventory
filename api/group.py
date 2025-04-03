@@ -159,7 +159,7 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
                 put_rbac_workspace(new_group_name, new_group_description)
 
         # Separate out the host IDs because they're not stored on the Group
-        patch_group(group_to_update, validated_patch_group_data, current_app.event_producer)
+        patch_group(group_to_update, validated_patch_group_data, identity, current_app.event_producer)
 
     except InventoryException as ie:
         log_patch_group_failed(logger, group_id)

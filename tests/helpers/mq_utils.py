@@ -13,6 +13,7 @@ from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
 from app.serialization import serialize_facts
 from app.utils import Tag
+from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
@@ -82,6 +83,20 @@ class MockFuture:
 
     def failure(self):
         self._fire(self.errbacks)
+
+
+def generate_kessel_workspace_message(operation: str, id: str, name: str, type: str = "standard"):
+    return {
+        "operation": operation,
+        "org_id": SYSTEM_IDENTITY["org_id"],
+        "workspace": {
+            "id": id,
+            "name": name,
+            "type": type,
+            "created_at": datetime.now().isoformat(),
+            "updated_at": datetime.now().isoformat(),
+        },
+    }
 
 
 def wrap_message(host_data, operation="add_host", platform_metadata=None, operation_args=None):
