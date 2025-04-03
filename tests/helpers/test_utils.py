@@ -185,6 +185,34 @@ def valid_system_profile(owner_id=None, additional_yum_repo=None):
         "selinux_current_mode": "enforcing",
         "selinux_config_file": "enforcing",
         "system_update_method": "yum",
+        "workloads": {
+            "ansible": {
+                "controller_version": "1.2.3",
+                "hub_version": "1.2.3",
+                "catalog_worker_version": "1.2.3",
+                "sso_version": "1.2.3",
+            },
+            "rhel_ai": {
+                "variant": "RHEL AI",
+                "rhel_ai_version_id": "v1.1.3",
+                "gpu_models": [
+                    {
+                        "name": "NVIDIA L4",
+                        "vendor": "Nvidia",
+                        "memory": "24GB",
+                        "count": 2,
+                    },
+                    {
+                        "name": "NVIDIA L4",
+                        "vendor": "Nvidia",
+                        "memory": "16GB",
+                        "count": 4,
+                    },
+                ],
+                "ai_models": ["granite-7b-redhat-lab", "granite-7b-starter"],
+                "free_disk_storage": "698GB",
+            },
+        },
     }
 
     if additional_yum_repo:

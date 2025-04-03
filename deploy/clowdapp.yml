@@ -1488,6 +1488,7 @@ objects:
     logLevel: ${FLOORIST_LOGLEVEL}
     queries:
       - prefix: insights/inventory/hosts
+        chunksize: 50000
         query: >-
           SELECT
             "id",
@@ -1522,22 +1523,23 @@ objects:
     suspend: ${{FLOORIST_SUSPEND}}
     logLevel: ${FLOORIST_LOGLEVEL}
     queries:
-      - prefix: hms_analytics/inventory/${ENV_NAME}/hosts
-        query: >-
-          SELECT
-            "id",
-            COALESCE("account", '0') AS "account",
-            "org_id" AS "org_id",
-            "created_on" AS "created_at",
-            "modified_on" AS "updated_at",
-            "reporter" AS "reporter",
-            "canonical_facts"->>'insights_id' AS "insights_id",
-            "canonical_facts"->>'subscription_manager_id' AS "subscription_manager_id",
-            "canonical_facts"->>'bios_uuid' AS "bios_uuid",
-            "canonical_facts"->>'provider_id' AS "provider_id",
-            "canonical_facts"->>'provider_type' AS "provider_type"
-          FROM "hbi"."hosts";
+#      - prefix: hms_analytics/inventory/${ENV_NAME}/hosts
+#        query: >-
+#          SELECT
+#            "id",
+#            COALESCE("account", '0') AS "account",
+#            "org_id" AS "org_id",
+#            "created_on" AS "created_at",
+#            "modified_on" AS "updated_at",
+#            "reporter" AS "reporter",
+#            "canonical_facts"->>'insights_id' AS "insights_id",
+#            "canonical_facts"->>'subscription_manager_id' AS "subscription_manager_id",
+#            "canonical_facts"->>'bios_uuid' AS "bios_uuid",
+#            "canonical_facts"->>'provider_id' AS "provider_id",
+#            "canonical_facts"->>'provider_type' AS "provider_type"
+#          FROM "hbi"."hosts";
       - prefix: hms_analytics/inventory/${ENV_NAME}/groups
+        chunksize: 10000
         query: >-
           SELECT
             "id",
@@ -1588,6 +1590,7 @@ objects:
           WHERE "modified_on" >= NOW() - INTERVAL '1 week'
           GROUP BY "reporter";
       - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/hosts_per_org_id
+        chunksize: 10000
         query: >-
           SELECT
             "org_id" AS "org_id",
@@ -1596,10 +1599,12 @@ objects:
           GROUP BY "org_id"
           ORDER BY "host_count" DESC;
       - prefix: hms_analytics/inventory/${ENV_NAME}/groups_metrics/groups_count
+        chunksize: 10000
         query: >-
           SELECT COUNT(*) AS "group_counts"
           FROM "hbi"."groups";
       - prefix: hms_analytics/inventory/${ENV_NAME}/groups_metrics/groups_count_by_account
+        chunksize: 10000
         query: >-
           SELECT
             DISTINCT "account" AS "account",
@@ -1608,6 +1613,7 @@ objects:
           GROUP BY "account"
           ORDER BY "count" DESC;
       - prefix: hms_analytics/inventory/${ENV_NAME}/groups_metrics/org_ids_with_null_accouns
+        chunksize: 10000
         query: >-
           SELECT
             DISTINCT "org_id" AS "org_id",
@@ -1617,6 +1623,7 @@ objects:
           GROUP BY "org_id"
           ORDER BY count DESC;
       - prefix: hms_analytics/inventory/${ENV_NAME}/groups_metrics/org_ids_with_group_names
+        chunksize: 10000
         query: >-
           SELECT
             DISTINCT "org_id" AS "org_id",
@@ -1625,6 +1632,7 @@ objects:
           GROUP BY "org_id", "name"
           ORDER BY "name" ASC;
       - prefix: hms_analytics/inventory/${ENV_NAME}/groups_metrics/hosts_per_groups
+        chunksize: 10000
         query: >-
           SELECT
             "id" AS "group_id",
