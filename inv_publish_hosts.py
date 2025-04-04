@@ -30,11 +30,14 @@ COLLECTED_METRICS = (
 
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
 
-PUBLICATION_NAME = "hbi_hosts_pub"
+PUBLICATION_NAME = "hbi_hosts_pub_v1_0_0"
+PUBLICATION_COLUMNS = "id,account,display_name,created_on,modified_on,facts,canonical_facts, \
+system_profile_facts,ansible_host,stale_timestamp,reporter,per_reporter_staleness,org_id,groups,tags_alt,last_check_in"
 CHECK_PUBLICATION = f"SELECT EXISTS(SELECT * FROM pg_catalog.pg_publication WHERE pubname = '{PUBLICATION_NAME}')"
-CREATE_PUBLICATION = f"CREATE PUBLICATION {PUBLICATION_NAME} FOR TABLE hbi.hosts \
-WHERE (hbi.hosts.canonical_facts->'insights_id' IS NOT NULL)"
+CREATE_PUBLICATION = f"CREATE PUBLICATION {PUBLICATION_NAME} FOR TABLE hbi.hosts ({PUBLICATION_COLUMNS})"
 CHECK_REPLICATION_SLOTS = "SELECT slot_name, active FROM pg_replication_slots"
+DROP_PUBLICATIONS = ["hbi_hosts_pub"]
+DROP_PUBLICATION = "DROP PUBLICATION IF EXISTS "
 
 
 def _init_config():
@@ -58,6 +61,11 @@ def _excepthook(logger, type, value, traceback):  # noqa: ARG001, needed by sys.
 
 def run(logger, session, application):
     with application.app.app_context():
+        # Drop publications by name
+        for pub in DROP_PUBLICATIONS:
+            logger.info(f"Dropping publication using the following SQL statement:\n\t{DROP_PUBLICATION + pub}")
+            session.execute(sa_text(DROP_PUBLICATION + pub))
+
         logger.info(f"Checking for publication using the following SQL statement:\n\t{CHECK_PUBLICATION}")
         result = session.execute(sa_text(CHECK_PUBLICATION))
         found = result.cursor.fetchone()[0]
