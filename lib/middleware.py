@@ -21,11 +21,13 @@ from app import RbacResourceType
 from app.auth import get_current_identity
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
+from app.auth.identity import to_auth_header
 from app.common import inventory_config
 from app.instrumentation import rbac_failure
 from app.instrumentation import rbac_group_permission_denied
 from app.instrumentation import rbac_permission_denied
 from app.logging import get_logger
+from app.logging import threadctx
 from lib.feature_flags import FLAG_INVENTORY_API_READ_ONLY
 from lib.feature_flags import get_flag_value
 
@@ -229,7 +231,7 @@ def rbac_group_id_check(rbac_filter: dict, requested_ids: set) -> None:
             abort(HTTPStatus.FORBIDDEN, f"You do not have access to the the following groups: {joined_ids}")
 
 
-def get_rbac_default_workspace() -> UUID | None:
+def get_rbac_default_workspace_using_headers(identity_header: str) -> UUID | None:
     if inventory_config().bypass_rbac:
         return None
 
@@ -238,8 +240,8 @@ def get_rbac_default_workspace() -> UUID | None:
     retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
     request_session.mount(get_rbac_v2_url(endpoint=workspace_endpoint), HTTPAdapter(max_retries=retry_config))
     request_header = {
-        IDENTITY_HEADER: request.headers[IDENTITY_HEADER],
-        REQUEST_ID_HEADER: request.headers.get(REQUEST_ID_HEADER),
+        IDENTITY_HEADER: identity_header,
+        REQUEST_ID_HEADER: threadctx.request_id,
     }
 
     try:
@@ -265,6 +267,14 @@ def get_rbac_default_workspace() -> UUID | None:
         return None
     else:
         return UUID(resp_data["data"][0]["id"])
+
+
+# Only works within an API context. Passes the headers from the current request
+# to the RBAC v2 request.
+def get_rbac_default_workspace() -> UUID | None:
+    return get_rbac_default_workspace_using_headers(
+        request.headers[IDENTITY_HEADER],
+    )
 
 
 def post_rbac_workspace(name, parent_id, description) -> UUID | None:
@@ -302,13 +312,13 @@ def post_rbac_workspace(name, parent_id, description) -> UUID | None:
     return UUID(resp_data["id"])
 
 
-def rbac_create_ungrouped_hosts_workspace() -> UUID | None:
+def rbac_create_ungrouped_hosts_workspace(identity: Identity) -> UUID | None:
     # Creates a new "ungrouped" workspace via the RBAC API, and returns its ID.
     # If not using RBAC, returns None, so the DB will automatically generate the group ID.
     if inventory_config().bypass_rbac:
         return None
     else:
-        parent_id = get_rbac_default_workspace()
+        parent_id = get_rbac_default_workspace_using_headers(to_auth_header(identity))
         ungrouped_id = post_rbac_workspace("ungrouped", parent_id, "ungrouped workspace")
 
         return ungrouped_id
