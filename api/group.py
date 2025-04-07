@@ -32,12 +32,14 @@ from app.models import HostGroupAssoc
 from app.models import InputGroupSchema
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.feature_flags import get_flag_value
+from lib.group_repository import add_hosts_to_group
 from lib.group_repository import create_group_from_payload
 from lib.group_repository import delete_group_list
 from lib.group_repository import get_group_by_id_from_db
 from lib.group_repository import get_group_using_host_id
 from lib.group_repository import patch_group
 from lib.group_repository import remove_hosts_from_group
+from lib.group_repository import wait_for_workspace_creation
 from lib.metrics import create_group_count
 from lib.middleware import delete_rbac_workspace
 from lib.middleware import get_rbac_default_workspace
@@ -103,6 +105,15 @@ def create_group(body, rbac_filter=None):
                 logger.exception(message)
                 return json_error_response("Workspace creation failure", message, HTTPStatus.BAD_REQUEST)
 
+            # Wait for the MQ to notify us of the workspace creation
+            wait_for_workspace_creation(workspace_id)
+            add_hosts_to_group(
+                workspace_id,
+                validated_create_group_data.get("host_ids"),
+                get_current_identity(),
+                current_app.event_producer,
+            )
+            created_group = get_group_by_id_from_db(workspace_id, get_current_identity().org_id)
         else:
             created_group = create_group_from_payload(validated_create_group_data, current_app.event_producer, None)
             create_group_count.inc()

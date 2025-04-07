@@ -12,6 +12,7 @@ from flask.app import Flask
 from marshmallow import Schema
 from marshmallow import ValidationError
 from marshmallow import fields
+from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.exc import StaleDataError
 
@@ -177,12 +178,14 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
         identity = create_mock_identity_with_org_id(org_id)
 
         if operation == "create":
-            group_repository.add_group(
+            group = group_repository.add_group(
                 group_name=workspace["name"],
                 org_id=org_id,
                 group_id=workspace["id"],
                 ungrouped=(validated_operation_msg["workspace"]["type"] == "ungrouped-hosts"),
             )
+            db.session.commit()
+            _pg_notify_workspace(operation, str(group.id))
         elif operation == "update":
             group_to_update = group_repository.get_group_by_id_from_db(str(workspace["id"]), org_id)
             group_repository.patch_group(
@@ -191,12 +194,14 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                 identity=identity,
                 event_producer=self.event_producer,
             )
+            db.session.commit()
         elif operation == "delete":
             group_repository.delete_group_list(
                 group_id_list=[str(workspace["id"])],
                 identity=identity,
                 event_producer=self.event_producer,
             )
+            db.session.commit()
         else:
             raise ValidationError("Operation must be 'create', 'update', or 'delete'.")
 
@@ -347,6 +352,13 @@ class SystemProfileMessageConsumer(HostMessageConsumer):
             )
             metrics.update_system_profile_failure.labels("Exception").inc()
             raise
+
+
+def _pg_notify_workspace(operation: str, id: str):
+    conn = db.session.connection().connection
+    conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+    cursor = conn.cursor()
+    cursor.execute(f"NOTIFY workspace_{operation}, '{id}';")
 
 
 # input is a base64 encoded utf-8 string. b64decode returns bytes, which
