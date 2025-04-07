@@ -106,7 +106,7 @@ def create_group(body, rbac_filter=None):
                 return json_error_response("Workspace creation failure", message, HTTPStatus.BAD_REQUEST)
 
             # Wait for the MQ to notify us of the workspace creation
-            wait_for_workspace_creation(workspace_id)
+            wait_for_workspace_creation(workspace_id, inventory_config().rbac_timeout)
             add_hosts_to_group(
                 workspace_id,
                 validated_create_group_data.get("host_ids"),

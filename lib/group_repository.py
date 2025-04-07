@@ -130,13 +130,13 @@ def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str):
     log_host_group_add_succeeded(logger, host_id_list, group_id)
 
 
-def wait_for_workspace_creation(workspace_id: str):
+def wait_for_workspace_creation(workspace_id: str, timeout: int = 5):
     conn = db.session.connection().connection
     conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
     cursor = conn.cursor()
     cursor.execute("LISTEN workspace_create;")
     timeout_start = time.time()
-    while time.time() < timeout_start + 5:
+    while time.time() < timeout_start + timeout:
         conn.poll()
         for notify in conn.notifies:
             if notify.payload == workspace_id:
