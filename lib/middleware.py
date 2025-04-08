@@ -21,6 +21,7 @@ from app import RbacResourceType
 from app.auth import get_current_identity
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
+from app.auth.identity import from_auth_header
 from app.auth.identity import to_auth_header
 from app.common import inventory_config
 from app.instrumentation import rbac_failure
@@ -231,9 +232,22 @@ def rbac_group_id_check(rbac_filter: dict, requested_ids: set) -> None:
             abort(HTTPStatus.FORBIDDEN, f"You do not have access to the the following groups: {joined_ids}")
 
 
+# TODO: Remove this once no longer testing
+def _temp_add_org_admin_user_identity(identity_header: str) -> str:
+    identity = from_auth_header(identity_header)
+    if identity.identity_type != IdentityType.USER:
+        return identity_header
+    else:
+        identity.user["is_org_id"] = True
+        return to_auth_header(identity)
+
+
 def get_rbac_default_workspace_using_headers(identity_header: str) -> UUID | None:
     if inventory_config().bypass_rbac:
         return None
+
+    # Temporarily set is_org_admin to True if using a user-type identity
+    identity_header = _temp_add_org_admin_user_identity(identity_header)
 
     workspace_endpoint = "workspaces/?type=default"
     request_session = Session()
