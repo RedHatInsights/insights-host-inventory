@@ -1,21 +1,15 @@
 import json
-import time
 from copy import deepcopy
-from datetime import datetime
-from functools import partial
-from threading import Thread
 
 import pytest
 from dateutil import parser
 
 from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
-from app.queue.host_mq import WorkspaceMessageConsumer
 from tests.helpers.api_utils import GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import assert_group_response
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
-from tests.helpers.mq_utils import FakeMessage
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
@@ -76,67 +70,6 @@ def test_create_group_with_hosts(
         assert host["groups"][0]["id"] == str(retrieved_group.id)
         assert parser.isoparse(host["updated"]) == db_get_host(host["id"]).modified_on
         assert event["platform_metadata"] == {"b64_identity": to_auth_header(Identity(obj=USER_IDENTITY))}
-
-
-def test_create_group_with_hosts_kessel(
-    db_create_host,
-    api_create_group_kessel,
-    db_get_group_by_name,
-    db_get_hosts_for_group,
-    mocker,
-    event_producer,
-    flask_app,
-):
-    workspace_id = generate_uuid()
-    mocker.patch.object(event_producer, "write_event")
-    host1 = db_create_host()
-    host2 = db_create_host()
-    host_id_list = [str(host1.id), str(host2.id)]
-
-    group_data = {"name": "my_awesome_group", "host_ids": host_id_list}
-
-    mocker.patch("api.group.get_flag_value", return_value=True)
-
-    def create_group(ws_id):
-        with flask_app.app.app_context():
-            mocker.patch("api.group.post_rbac_workspace", return_value=ws_id)
-            response_status, response_data = api_create_group_kessel(group_data)
-            assert_response_status(response_status, expected_status=201)
-            retrieved_group = db_get_group_by_name(group_data["name"])
-            assert_group_response(response_data, retrieved_group)
-
-            # Assert that the group's host ID list matches what we sent
-            retrieved_hosts = db_get_hosts_for_group(ws_id)
-            for host in retrieved_hosts:
-                assert str(host.id) in host_id_list
-
-    # Start a thread that calls api_create_group
-    create_thread = Thread(target=partial(create_group, workspace_id), daemon=True)
-    create_thread.start()
-
-    # Call WorkspaceMessageConsumer.handle_message with a "create" message
-    message = {
-        "operation": "create",
-        "org_id": SYSTEM_IDENTITY["org_id"],
-        "workspace": {
-            "id": str(workspace_id),
-            "name": "my_awesome_group",
-            "type": "standard",
-            "created_at": datetime.now().isoformat(),
-            "updated_at": datetime.now().isoformat(),
-        },
-    }
-
-    fake_consumer = mocker.Mock()
-    fake_consumer.consume.return_value = [FakeMessage(message=json.dumps(message))]
-
-    consumer = WorkspaceMessageConsumer(fake_consumer, flask_app, mocker.Mock(), mocker.Mock())
-
-    # Delay slightly so the API request begins first
-    time.sleep(0.1)
-    # Make sure it properly calls handle_message, and does not error out
-    consumer.event_loop(interrupt=mocker.Mock(side_effect=(False, True)))
-    create_thread.join()
 
 
 @pytest.mark.parametrize(

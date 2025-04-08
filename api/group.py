@@ -39,6 +39,7 @@ from lib.group_repository import get_group_by_id_from_db
 from lib.group_repository import get_group_using_host_id
 from lib.group_repository import patch_group
 from lib.group_repository import remove_hosts_from_group
+from lib.group_repository import validate_add_host_list_to_group
 from lib.group_repository import wait_for_workspace_creation
 from lib.metrics import create_group_count
 from lib.middleware import delete_rbac_workspace
@@ -105,11 +106,18 @@ def create_group(body, rbac_filter=None):
                 logger.exception(message)
                 return json_error_response("Workspace creation failure", message, HTTPStatus.BAD_REQUEST)
 
+            # Before waiting, validate whether the hosts can be added to the group
+            validate_add_host_list_to_group(
+                host_id_list := validated_create_group_data.get("host_ids"),
+                workspace_id,
+                get_current_identity().org_id,
+            )
+
             # Wait for the MQ to notify us of the workspace creation
             wait_for_workspace_creation(workspace_id, inventory_config().rbac_timeout)
             add_hosts_to_group(
                 workspace_id,
-                validated_create_group_data.get("host_ids"),
+                host_id_list,
                 get_current_identity(),
                 current_app.event_producer,
             )

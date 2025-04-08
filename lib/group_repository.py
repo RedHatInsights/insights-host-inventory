@@ -89,7 +89,7 @@ def _invalidate_system_cache(host_list: list[Host], identity: Identity):
             delete_cached_system_keys(insights_id=insights_id, org_id=identity.org_id, owner_id=owner_id)
 
 
-def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str):
+def validate_add_host_list_to_group(host_id_list: list[str], group_id: str, org_id: str):
     # Check if the hosts exist in Inventory and have correct org_id
     host_query = Host.query.filter((Host.org_id == org_id) & Host.id.in_(host_id_list)).all()
     found_ids_set = {str(host.id) for host in host_query}
@@ -112,7 +112,12 @@ def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str):
             detail=f"The following subset of hosts are already associated with another group: {taken_hosts}.",
         )
 
-    # Fitler out hosts that are already in the group
+
+def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str):
+    # First, validate that the hosts can even be added to the group
+    validate_add_host_list_to_group(host_id_list, group_id, org_id)
+
+    # Filter out hosts that are already in the group
     assoc_query = HostGroupAssoc.query.filter(
         HostGroupAssoc.host_id.in_(host_id_list), HostGroupAssoc.group_id == group_id
     ).all()
@@ -136,13 +141,18 @@ def wait_for_workspace_creation(workspace_id: str, timeout: int = 5):
     cursor = conn.cursor()
     cursor.execute("LISTEN workspace_create;")
     timeout_start = time.time()
-    while time.time() < timeout_start + timeout:
-        conn.poll()
-        for notify in conn.notifies:
-            if notify.payload == workspace_id:
-                return
+    try:
+        while time.time() < timeout_start + timeout:
+            conn.poll()
+            for notify in conn.notifies:
+                if notify.payload == workspace_id:
+                    return
 
-        conn.notifies.clear()
+            conn.notifies.clear()
+            time.sleep(0.1)
+    finally:
+        cursor.execute("UNLISTEN workspace_create;")
+        cursor.close()
 
     raise TimeoutError("No workspace creation message consumed in time.")
 
