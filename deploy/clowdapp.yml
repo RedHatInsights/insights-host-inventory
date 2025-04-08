@@ -1448,6 +1448,8 @@ objects:
         image: ${IMAGE}:${IMAGE_TAG}
         args: ["./jobs/update_hosts_last_check_in.py"]
         env:
+          - name: PYTHONPATH
+            value: "${PWD}"
           - name: HOST_UPDATE_LIMIT
             value: ${HOST_UPDATE_LIMIT}
           - name: INVENTORY_LOG_LEVEL
