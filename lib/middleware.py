@@ -235,7 +235,7 @@ def rbac_group_id_check(rbac_filter: dict, requested_ids: set) -> None:
 # TODO: Remove this once no longer testing
 def _temp_add_org_admin_user_identity(identity_header: str) -> str:
     identity = from_auth_header(identity_header)
-    if identity.identity_type != IdentityType.USER:
+    if not hasattr(identity, "user"):
         return identity_header
     else:
         identity.user["is_org_id"] = True
