@@ -24,6 +24,12 @@ loggers:
   urllib3:
     level: WARNING
     propagate: true
+  UnleashClient:
+    level: WARNING
+    propagate: true
+  apscheduler.executors.default:
+    level: WARNING
+    propagate: true
 
 handlers:
   logstash:
