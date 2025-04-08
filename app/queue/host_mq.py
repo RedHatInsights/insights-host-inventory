@@ -197,7 +197,7 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                 event_producer=self.event_producer,
             )
             db.session.commit()
-            logger.info(f"Updated group with ID {str(group_to_update.id)}")
+            logger.info(f"Updated group with ID {workspace['id']}")
         elif operation == "delete":
             num_deleted = group_repository.delete_group_list(
                 group_id_list=[str(workspace["id"])],
