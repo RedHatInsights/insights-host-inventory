@@ -27,9 +27,9 @@ loggers:
   UnleashClient:
     level: WARNING
     propagate: true
-  apscheduler.executors.default:
+  apscheduler:
     level: WARNING
-    propagate: true
+    propagate: false
 
 handlers:
   logstash:
