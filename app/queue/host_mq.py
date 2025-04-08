@@ -185,6 +185,7 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                 group_id=workspace["id"],
                 ungrouped=(validated_operation_msg["workspace"]["type"] == "ungrouped-hosts"),
             )
+            db.session.commit()
             logger.info(f"Created group with ID {str(group.id)}")
             _pg_notify_workspace(operation, str(group.id))
         elif operation == "update":
@@ -195,14 +196,16 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                 identity=identity,
                 event_producer=self.event_producer,
             )
-            logger.info(f"Updated group with ID {str(group.id)}")
+            db.session.commit()
+            logger.info(f"Updated group with ID {str(group_to_update.id)}")
         elif operation == "delete":
             num_deleted = group_repository.delete_group_list(
                 group_id_list=[str(workspace["id"])],
                 identity=identity,
                 event_producer=self.event_producer,
             )
-            logger.info(f"Deleted {num_deleted} group(s) with ID {str(group.id)}")
+            db.session.commit()
+            logger.info(f"Deleted {num_deleted} group(s) with ID {workspace['id']}")
         else:
             raise ValidationError("Operation must be 'create', 'update', or 'delete'.")
 
