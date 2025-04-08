@@ -1339,6 +1339,8 @@ objects:
         image: ${IMAGE}:${IMAGE_TAG}
         args: ["./jobs/create_ungrouped_host_groups.py"]
         env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
           - name: INVENTORY_DB_SSL_MODE
@@ -1402,6 +1404,8 @@ objects:
         image: ${IMAGE}:${IMAGE_TAG}
         args: ["./jobs/export_group_data_s3.py"]
         env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
           - name: INVENTORY_DB_SSL_MODE
@@ -1448,6 +1452,8 @@ objects:
         image: ${IMAGE}:${IMAGE_TAG}
         args: ["./jobs/update_hosts_last_check_in.py"]
         env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
           - name: HOST_UPDATE_LIMIT
             value: ${HOST_UPDATE_LIMIT}
           - name: INVENTORY_LOG_LEVEL
