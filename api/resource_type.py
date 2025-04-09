@@ -1,10 +1,9 @@
 import flask
-from sqlalchemy import func
 
 from api import api_operation
 from api import flask_json_response
 from api import metrics
-from api.group_query import get_group_list_from_db
+from api.group_query import get_filtered_group_list_db
 from api.resource_query import build_paginated_resource_list_response
 from api.resource_query import get_resources_types
 from app import RbacPermission
@@ -15,7 +14,6 @@ from app.instrumentation import log_get_group_list_succeeded
 from app.instrumentation import log_get_resource_type_list_failed
 from app.instrumentation import log_get_resource_type_list_succeeded
 from app.logging import get_logger
-from app.models import Group
 from app.serialization import serialize_group
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.feature_flags import get_flag_value
@@ -54,14 +52,16 @@ def get_resource_type_groups_list(
     order_how=None,
     rbac_filter=None,
 ):
-    filters = (Group.org_id == get_current_identity().org_id,)
-    if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
-        filters += (Group.ungrouped.is_(False),)
-    if name:
-        filters += (func.lower(Group.name).contains(func.lower(name)),)
-
     try:
-        group_list, total = get_group_list_from_db(filters, page, per_page, order_by, order_how, rbac_filter)
+        group_list, total = get_filtered_group_list_db(
+            name,
+            page,
+            per_page,
+            order_by,
+            order_how,
+            rbac_filter,
+            get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION),
+        )
     except ValueError as e:
         log_get_group_list_failed(logger)
         flask.abort(400, str(e))
