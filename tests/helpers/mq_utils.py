@@ -101,13 +101,8 @@ def generate_kessel_workspace_message(operation: str, id: str, name: str, type: 
     }
 
     return {
-        "schema": {
-            "type": "string",
-            "optional": False,
-            "name": "io.debezium.data.Json",
-            "version": 1
-        },
-        "payload": json.dumps(payload_dict)
+        "schema": {"type": "string", "optional": False, "name": "io.debezium.data.Json", "version": 1},
+        "payload": json.dumps(payload_dict),
     }
 
 
