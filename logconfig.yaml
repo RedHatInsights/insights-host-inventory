@@ -29,7 +29,7 @@ loggers:
     propagate: true
   apscheduler:
     level: WARNING
-    propagate: false
+    propagate: true
 
 handlers:
   logstash:

@@ -2106,6 +2106,9 @@ parameters:
 - name: S3_AWS_SECRET
   description: The AWS secret for S3
   value: 'hbi-kessel-s3'
+- name: RBAC_V2_FORCE_ORG_ADMIN
+  description: Whether to force User Identities to use is_org_admin=True for RBAC v2 calls
+  value: 'false'
 
 # NGINX
 - displayName: Minimum replicas
