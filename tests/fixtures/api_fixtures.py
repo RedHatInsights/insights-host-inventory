@@ -94,6 +94,18 @@ def api_create_group(flask_client, mocker):
 
 
 @pytest.fixture(scope="function")
+def api_create_group_kessel(flask_client, mocker):
+    def _api_create_group_kessel(group_data, identity=USER_IDENTITY, query_parameters=None, extra_headers=None):
+        get_rbac_default_group_mock = mocker.patch("api.group.get_rbac_default_workspace")
+        get_rbac_default_group_mock.return_value = generate_uuid()
+        get_rbac_ungrouped_group_mock = mocker.patch("lib.group_repository.rbac_create_ungrouped_hosts_workspace")
+        get_rbac_ungrouped_group_mock.return_value = generate_uuid()
+        return do_request(flask_client.post, GROUP_URL, identity, group_data, query_parameters, extra_headers)
+
+    return _api_create_group_kessel
+
+
+@pytest.fixture(scope="function")
 def api_delete_groups(flask_client, mocker):
     def _api_delete_group(group_id_list, identity=USER_IDENTITY, query_parameters=None, extra_headers=None):
         delete_rbac_group_mock = mocker.patch("api.group.delete_rbac_workspace")
