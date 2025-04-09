@@ -1,3 +1,4 @@
+import time
 from datetime import datetime
 from datetime import timedelta
 from unittest import mock
@@ -6,9 +7,12 @@ from unittest.mock import patch
 from app.logging import threadctx
 from app.models import db
 from host_reaper import run as host_reaper_run
+from tests.helpers.api_utils import build_hosts_url
+from tests.helpers.api_utils import build_staleness_url
+from tests.helpers.test_utils import now
 
 CUSTOM_STALENESS_DELETE_ONLY_IMMUTABLE = {
-    "conventional_time_to_stale": 86400,
+    "conventional_time_to_stale": 104400,
     "conventional_time_to_stale_warning": 604800,
     "conventional_time_to_delete": 1209600,
     "immutable_time_to_stale": 172800,
@@ -17,7 +21,7 @@ CUSTOM_STALENESS_DELETE_ONLY_IMMUTABLE = {
 }
 
 CUSTOM_STALENESS_DELETE_ONLY_CONVENTIONAL = {
-    "conventional_time_to_stale": 86400,
+    "conventional_time_to_stale": 104400,
     "conventional_time_to_stale_warning": 604800,
     "conventional_time_to_delete": 1,
     "immutable_time_to_stale": 172800,
@@ -26,7 +30,7 @@ CUSTOM_STALENESS_DELETE_ONLY_CONVENTIONAL = {
 }
 
 CUSTOM_STALENESS_DELETE_CONVENTIONAL_IMMUTABLE = {
-    "conventional_time_to_stale": 86400,
+    "conventional_time_to_stale": 104400,
     "conventional_time_to_stale_warning": 604800,
     "conventional_time_to_delete": 1,
     "immutable_time_to_stale": 172800,
@@ -35,7 +39,7 @@ CUSTOM_STALENESS_DELETE_CONVENTIONAL_IMMUTABLE = {
 }
 
 CUSTOM_STALENESS_NO_HOSTS_TO_DELETE = {
-    "conventional_time_to_stale": 86400,
+    "conventional_time_to_stale": 104400,
     "conventional_time_to_stale_warning": 604800,
     "conventional_time_to_delete": 1209600,
     "immutable_time_to_stale": 172800,
@@ -187,3 +191,149 @@ def test_no_hosts_to_delete(
     )
     assert len(db_get_hosts(immutable_hosts).all()) == 2
     assert len(db_get_hosts(conventional_hosts).all()) == 2
+
+
+def test_async_update_host_create_custom_staleness(
+    db_get_hosts, db_create_multiple_hosts, api_get, api_post, flask_app
+):
+    with (
+        patch("app.models.get_flag_value", return_value=True),
+        patch("app.serialization.get_flag_value", return_value=True),
+        patch("app.staleness_serialization.get_flag_value", return_value=True),
+        patch("api.host_query_db.get_flag_value", return_value=True),
+        patch("api.staleness.get_flag_value", return_value=True),
+        patch("app.models.datetime") as mock_datetime,
+    ):
+        with flask_app.app.app_context():
+            _now = now()
+            mock_datetime.now.return_value = _now
+            created_hosts = db_create_multiple_hosts(how_many=1)
+            host_url = build_hosts_url()
+            response_status, response_data = api_get(host_url)
+            assert response_status == 200
+            assert len(response_data["results"]) == len(created_hosts)
+
+            host_ids = [host["id"] for host in response_data["results"]]
+            hosts_before_update = db_get_hosts(host_ids).all()
+            for reporter in hosts_before_update[0].per_reporter_staleness:
+                stale_timestamp = _now + timedelta(
+                    seconds=CUSTOM_STALENESS_NO_HOSTS_TO_DELETE["conventional_time_to_stale"]
+                )
+                stale_timestamp = stale_timestamp.isoformat()
+                assert hosts_before_update[0].per_reporter_staleness[reporter]["stale_timestamp"] == stale_timestamp
+
+            staleness_url = build_staleness_url()
+            status, _ = api_post(staleness_url, CUSTOM_STALENESS_HOST_BECAME_STALE)
+            assert status == 201
+
+            # Wait for thread to finish
+            time.sleep(0.1)
+
+            hosts_after_update = db_get_hosts(host_ids).all()
+            for reporter in hosts_after_update[0].per_reporter_staleness:
+                stale_timestamp = _now + timedelta(
+                    seconds=CUSTOM_STALENESS_HOST_BECAME_STALE["conventional_time_to_stale"]
+                )
+                stale_timestamp = stale_timestamp.isoformat()
+                assert hosts_after_update[0].per_reporter_staleness[reporter]["stale_timestamp"] == stale_timestamp
+
+
+def test_async_update_host_delete_custom_staleness(
+    db_create_staleness_culling,
+    db_get_hosts,
+    db_create_multiple_hosts,
+    api_get,
+    api_delete_staleness,
+    flask_app,
+):
+    db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
+    with (
+        patch("app.models.get_flag_value", return_value=True),
+        patch("app.serialization.get_flag_value", return_value=True),
+        patch("app.staleness_serialization.get_flag_value", return_value=True),
+        patch("api.host_query_db.get_flag_value", return_value=True),
+        patch("api.staleness.get_flag_value", return_value=True),
+        patch("app.models.datetime") as mock_datetime,
+    ):
+        with flask_app.app.app_context():
+            _now = now()
+            mock_datetime.now.return_value = _now
+            created_hosts = db_create_multiple_hosts(how_many=1)
+            host_url = build_hosts_url()
+            response_status, response_data = api_get(host_url)
+            assert response_status == 200
+            assert len(response_data["results"]) == len(created_hosts)
+
+            host_ids = [host["id"] for host in response_data["results"]]
+            hosts_before_update = db_get_hosts(host_ids).all()
+            for reporter in hosts_before_update[0].per_reporter_staleness:
+                stale_timestamp = _now + timedelta(
+                    seconds=CUSTOM_STALENESS_HOST_BECAME_STALE["conventional_time_to_stale"]
+                )
+                stale_timestamp = stale_timestamp.isoformat()
+                assert hosts_before_update[0].per_reporter_staleness[reporter]["stale_timestamp"] == stale_timestamp
+
+            status, _ = api_delete_staleness()
+            assert status == 204
+
+            # Wait for thread to finish
+            time.sleep(0.1)
+
+            hosts_after_update = db_get_hosts(host_ids).all()
+            for reporter in hosts_after_update[0].per_reporter_staleness:
+                stale_timestamp = _now + timedelta(
+                    seconds=CUSTOM_STALENESS_NO_HOSTS_TO_DELETE["conventional_time_to_stale"]
+                )
+                stale_timestamp = stale_timestamp.isoformat()
+                assert hosts_after_update[0].per_reporter_staleness[reporter]["stale_timestamp"] == stale_timestamp
+
+
+def test_async_update_host_update_custom_staleness(
+    db_create_staleness_culling,
+    db_get_hosts,
+    db_create_multiple_hosts,
+    api_get,
+    api_patch,
+    flask_app,
+):
+    db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
+    with (
+        patch("app.models.get_flag_value", return_value=True),
+        patch("app.serialization.get_flag_value", return_value=True),
+        patch("app.staleness_serialization.get_flag_value", return_value=True),
+        patch("api.host_query_db.get_flag_value", return_value=True),
+        patch("api.staleness.get_flag_value", return_value=True),
+        patch("app.models.datetime") as mock_datetime,
+    ):
+        with flask_app.app.app_context():
+            _now = now()
+            mock_datetime.now.return_value = _now
+            created_hosts = db_create_multiple_hosts(how_many=1)
+            host_url = build_hosts_url()
+            response_status, response_data = api_get(host_url)
+            assert response_status == 200
+            assert len(response_data["results"]) == len(created_hosts)
+
+            host_ids = [host["id"] for host in response_data["results"]]
+            hosts_before_update = db_get_hosts(host_ids).all()
+            for reporter in hosts_before_update[0].per_reporter_staleness:
+                stale_timestamp = _now + timedelta(
+                    seconds=CUSTOM_STALENESS_HOST_BECAME_STALE["conventional_time_to_stale"]
+                )
+                stale_timestamp = stale_timestamp.isoformat()
+                assert hosts_before_update[0].per_reporter_staleness[reporter]["stale_timestamp"] == stale_timestamp
+
+            staleness_url = build_staleness_url()
+            status, _ = api_patch(staleness_url, CUSTOM_STALENESS_NO_HOSTS_TO_DELETE)
+            assert status == 200
+
+            # Wait for thread to finish
+            time.sleep(0.1)
+
+            hosts_after_update = db_get_hosts(host_ids).all()
+            for reporter in hosts_after_update[0].per_reporter_staleness:
+                stale_timestamp = _now + timedelta(
+                    seconds=CUSTOM_STALENESS_NO_HOSTS_TO_DELETE["conventional_time_to_stale"]
+                )
+                stale_timestamp = stale_timestamp.isoformat()
+                assert hosts_after_update[0].per_reporter_staleness[reporter]["stale_timestamp"] == stale_timestamp
