@@ -24,15 +24,15 @@ LIMIT = int(os.getenv("HOST_UPDATE_LIMIT", 50000))
 def run(logger: Logger, session: Session, application: FlaskApp):
     with application.app.app_context():
         logger.info("Starting update host last_check_in field job")
-        num_hosts_null_last_check_in = session.query(Host).filter(Host.last_check_in is None).count()
+        num_hosts_null_last_check_in = session.query(Host).filter(Host.last_check_in.is_(None)).count()
 
         if num_hosts_null_last_check_in > 0:
             logger.info(f"There are still {num_hosts_null_last_check_in} to be updated")
             logger.info(f"Updating {LIMIT} hosts' last_check_in field")
             session.execute(
                 text(
-                    "UPDATE hbi.hosts h SET last_check_in  = modified_on ",
-                    f"WHERE h.id IN (SELECT id FROM hbi.hosts sub WHERE sub.last_check_in is NULL LIMIT {LIMIT});",
+                    "UPDATE hbi.hosts h SET last_check_in  = modified_on "
+                    f"WHERE h.id IN (SELECT id FROM hbi.hosts sub WHERE sub.last_check_in is NULL LIMIT {LIMIT});"
                 )
             )
             session.commit()
