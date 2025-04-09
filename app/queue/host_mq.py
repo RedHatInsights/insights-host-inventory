@@ -82,14 +82,19 @@ class WorkspaceSchema(Schema):
     id = fields.UUID(required=True)
     name = fields.Str(required=True)
     type = fields.Str()
-    created_at = fields.DateTime()
-    updated_at = fields.DateTime()
+    created = fields.DateTime()
+    modified = fields.DateTime()
 
 
 class WorkspaceOperationSchema(Schema):
     operation = fields.Str(required=True)
     org_id = fields.Str(required=True)
     workspace = fields.Nested(WorkspaceSchema)
+
+
+class DebeziumEnvelopeSchema(Schema):
+    schema = fields.Dict(required=True)
+    payload = fields.Str(required=True)
 
 
 # Helper class to facilitate batch operations
@@ -170,7 +175,8 @@ class HBIMessageConsumerBase:
 class WorkspaceMessageConsumer(HBIMessageConsumerBase):
     @metrics.ingress_message_handler_time.time()
     def handle_message(self, message):
-        validated_operation_msg = parse_operation_message(message, WorkspaceOperationSchema)
+        payload_schema = parse_operation_message(message, DebeziumEnvelopeSchema)
+        validated_operation_msg = parse_operation_message(payload_schema["payload"], WorkspaceOperationSchema)
         initialize_thread_local_storage(None)  # No request_id for workspace MQ
         operation = validated_operation_msg["operation"]
         org_id = validated_operation_msg["org_id"]

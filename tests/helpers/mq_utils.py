@@ -86,16 +86,23 @@ class MockFuture:
 
 
 def generate_kessel_workspace_message(operation: str, id: str, name: str, type: str = "standard"):
-    return {
+    now = datetime.now().isoformat()
+
+    payload_dict = {
         "operation": operation,
         "org_id": SYSTEM_IDENTITY["org_id"],
         "workspace": {
             "id": id,
             "name": name,
             "type": type,
-            "created_at": datetime.now().isoformat(),
-            "updated_at": datetime.now().isoformat(),
+            "created": now,
+            "modified": now,
         },
+    }
+
+    return {
+        "schema": {"type": "string", "optional": False, "name": "io.debezium.data.Json", "version": 1},
+        "payload": json.dumps(payload_dict),
     }
 
 
