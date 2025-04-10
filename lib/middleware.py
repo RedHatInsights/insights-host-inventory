@@ -256,15 +256,13 @@ def post_rbac_workspace_using_header(name: str, description: str, identity_heade
     request_session = Session()
     retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
     request_session.mount(get_rbac_v2_url(endpoint=workspace_endpoint), HTTPAdapter(max_retries=retry_config))
-    identity_header = _temp_add_org_admin_user_identity(request.headers[IDENTITY_HEADER])
+    identity_header = _temp_add_org_admin_user_identity(identity_header)
     request_header = {
         IDENTITY_HEADER: identity_header,
-        REQUEST_ID_HEADER: request.headers.get(REQUEST_ID_HEADER),
+        REQUEST_ID_HEADER: threadctx.request_id,
     }
     request_data = {"name": name, "description": description}
-    logger.info(
-        f"Identity header (post rbac workspace): {request.headers[IDENTITY_HEADER]}"
-    )  # TODO: remove after testing
+    logger.info(f"Identity header (post rbac workspace): {identity_header}")  # TODO: remove after testing
 
     try:
         with outbound_http_response_time.labels("rbac").time():
@@ -306,7 +304,7 @@ def delete_rbac_workspace(workspace_id):
     request_session.mount(get_rbac_v2_url(endpoint=workspace_endpoint), HTTPAdapter(max_retries=retry_config))
     request_header = {
         IDENTITY_HEADER: request.headers[IDENTITY_HEADER],
-        REQUEST_ID_HEADER: threadctx.request_id,
+        REQUEST_ID_HEADER: request.headers.get(REQUEST_ID_HEADER),
     }
 
     try:
