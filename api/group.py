@@ -43,7 +43,6 @@ from lib.group_repository import validate_add_host_list_to_group
 from lib.group_repository import wait_for_workspace_creation
 from lib.metrics import create_group_count
 from lib.middleware import delete_rbac_workspace
-from lib.middleware import get_rbac_default_workspace
 from lib.middleware import post_rbac_workspace
 from lib.middleware import put_rbac_workspace
 from lib.middleware import rbac
@@ -97,10 +96,9 @@ def create_group(body, rbac_filter=None):
     try:
         # Create group with validated data
         if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
-            default_parent_id = get_rbac_default_workspace()
             group_name = validated_create_group_data.get("name")
 
-            workspace_id = post_rbac_workspace(group_name, str(default_parent_id), f"{group_name} group")
+            workspace_id = post_rbac_workspace(group_name, f"{group_name} group")
             if not workspace_id and not inventory_config().bypass_rbac:
                 message = f"Error while creating workspace for {group_name}"
                 logger.exception(message)

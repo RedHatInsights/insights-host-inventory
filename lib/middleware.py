@@ -28,7 +28,6 @@ from app.instrumentation import rbac_failure
 from app.instrumentation import rbac_group_permission_denied
 from app.instrumentation import rbac_permission_denied
 from app.logging import get_logger
-from app.logging import threadctx
 from lib.feature_flags import FLAG_INVENTORY_API_READ_ONLY
 from lib.feature_flags import get_flag_value
 
@@ -244,58 +243,7 @@ def _temp_add_org_admin_user_identity(identity_header: str) -> str:
     return identity_header
 
 
-def get_rbac_default_workspace_using_headers(identity_header: str) -> UUID | None:
-    if inventory_config().bypass_rbac:
-        return None
-
-    # Temporarily set is_org_admin to True if using a user-type identity
-    identity_header = _temp_add_org_admin_user_identity(identity_header)
-
-    workspace_endpoint = "workspaces/?type=default"
-    request_session = Session()
-    retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
-    request_session.mount(get_rbac_v2_url(endpoint=workspace_endpoint), HTTPAdapter(max_retries=retry_config))
-    request_header = {
-        IDENTITY_HEADER: identity_header,
-        REQUEST_ID_HEADER: threadctx.request_id,
-    }
-
-    logger.info(f"Identity header (get default workspace): {identity_header}")  # TODO: remove after testing
-
-    try:
-        with outbound_http_response_time.labels("rbac").time():
-            rbac_response = request_session.get(
-                url=get_rbac_v2_url(endpoint=workspace_endpoint),
-                headers=request_header,
-                timeout=inventory_config().rbac_timeout,
-                verify=LoadedConfig.tlsCAPath,
-            )
-    except Exception as e:
-        rbac_failure(logger, e)
-        abort(503, "Failed to reach RBAC endpoint, request cannot be fulfilled")
-    finally:
-        request_session.close()
-
-    resp_data = rbac_response.json()
-    logger.debug("Fetched RBAC Data", extra=resp_data)
-
-    if len(resp_data["data"]) == 0:
-        message = "Error while retrieving default workspace: No default workspace in RBAC"
-        logger.exception(message)
-        return None
-    else:
-        return UUID(resp_data["data"][0]["id"])
-
-
-# Only works within an API context. Passes the headers from the current request
-# to the RBAC v2 request.
-def get_rbac_default_workspace() -> UUID | None:
-    return get_rbac_default_workspace_using_headers(
-        request.headers[IDENTITY_HEADER],
-    )
-
-
-def post_rbac_workspace(name, parent_id, description) -> UUID | None:
+def post_rbac_workspace(name, description) -> UUID | None:
     if inventory_config().bypass_rbac:
         return None
 
@@ -303,11 +251,12 @@ def post_rbac_workspace(name, parent_id, description) -> UUID | None:
     request_session = Session()
     retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
     request_session.mount(get_rbac_v2_url(endpoint=workspace_endpoint), HTTPAdapter(max_retries=retry_config))
+    identity_header = _temp_add_org_admin_user_identity(request.headers[IDENTITY_HEADER])
     request_header = {
-        IDENTITY_HEADER: request.headers[IDENTITY_HEADER],
+        IDENTITY_HEADER: identity_header,
         REQUEST_ID_HEADER: request.headers.get(REQUEST_ID_HEADER),
     }
-    request_data = {"name": name, "description": description, "parent_id": str(parent_id)}
+    request_data = {"name": name, "description": description}
     logger.info(
         f"Identity header (post rbac workspace): {request.headers[IDENTITY_HEADER]}"
     )  # TODO: remove after testing
@@ -333,14 +282,13 @@ def post_rbac_workspace(name, parent_id, description) -> UUID | None:
     return UUID(resp_data["id"])
 
 
-def rbac_create_ungrouped_hosts_workspace(identity: Identity) -> UUID | None:
+def rbac_create_ungrouped_hosts_workspace() -> UUID | None:
     # Creates a new "ungrouped" workspace via the RBAC API, and returns its ID.
     # If not using RBAC, returns None, so the DB will automatically generate the group ID.
     if inventory_config().bypass_rbac:
         return None
     else:
-        parent_id = get_rbac_default_workspace_using_headers(to_auth_header(identity))
-        ungrouped_id = post_rbac_workspace("ungrouped", parent_id, "ungrouped workspace")
+        ungrouped_id = post_rbac_workspace("ungrouped", "ungrouped workspace")
 
         return ungrouped_id
 
