@@ -28,6 +28,7 @@ from app.instrumentation import rbac_failure
 from app.instrumentation import rbac_group_permission_denied
 from app.instrumentation import rbac_permission_denied
 from app.logging import get_logger
+from app.logging import threadctx
 from lib.feature_flags import FLAG_INVENTORY_API_READ_ONLY
 from lib.feature_flags import get_flag_value
 
@@ -244,6 +245,10 @@ def _temp_add_org_admin_user_identity(identity_header: str) -> str:
 
 
 def post_rbac_workspace(name, description) -> UUID | None:
+    return post_rbac_workspace_using_header(name, description, request.headers[IDENTITY_HEADER])
+
+
+def post_rbac_workspace_using_header(name: str, description: str, identity_header: str) -> UUID | None:
     if inventory_config().bypass_rbac:
         return None
 
@@ -282,15 +287,13 @@ def post_rbac_workspace(name, description) -> UUID | None:
     return UUID(resp_data["id"])
 
 
-def rbac_create_ungrouped_hosts_workspace() -> UUID | None:
+def rbac_create_ungrouped_hosts_workspace(identity: Identity) -> UUID | None:
     # Creates a new "ungrouped" workspace via the RBAC API, and returns its ID.
     # If not using RBAC, returns None, so the DB will automatically generate the group ID.
     if inventory_config().bypass_rbac:
         return None
     else:
-        ungrouped_id = post_rbac_workspace("ungrouped", "ungrouped workspace")
-
-        return ungrouped_id
+        return post_rbac_workspace_using_header("ungrouped", "ungrouped workspace", to_auth_header(identity))
 
 
 def delete_rbac_workspace(workspace_id):
@@ -303,7 +306,7 @@ def delete_rbac_workspace(workspace_id):
     request_session.mount(get_rbac_v2_url(endpoint=workspace_endpoint), HTTPAdapter(max_retries=retry_config))
     request_header = {
         IDENTITY_HEADER: request.headers[IDENTITY_HEADER],
-        REQUEST_ID_HEADER: request.headers.get(REQUEST_ID_HEADER),
+        REQUEST_ID_HEADER: threadctx.request_id,
     }
 
     try:
