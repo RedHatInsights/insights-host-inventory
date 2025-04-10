@@ -234,8 +234,11 @@ def rbac_group_id_check(rbac_filter: dict, requested_ids: set) -> None:
 
 def _temp_add_org_admin_user_identity(identity_header: str) -> str:
     identity = from_auth_header(identity_header)
-    if inventory_config().rbac_v2_force_org_admin and hasattr(identity, "user"):
-        identity.user["is_org_admin"] = True
+    if inventory_config().rbac_v2_force_org_admin and identity.identity_type == IdentityType.USER:
+        if hasattr(identity, "user"):
+            identity.user["is_org_admin"] = True
+        else:
+            identity.user = {"is_org_admin": True}
         return to_auth_header(identity)
 
     return identity_header
