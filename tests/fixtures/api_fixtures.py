@@ -1,4 +1,5 @@
 import pytest
+from flask import abort
 
 from tests.helpers.api_utils import GROUP_URL
 from tests.helpers.api_utils import HOST_URL
@@ -81,11 +82,25 @@ def api_delete_all_hosts(flask_client):
 
 @pytest.fixture(scope="function")
 def api_create_group(flask_client, mocker):
-    def _api_create_group(group_data, identity=USER_IDENTITY, query_parameters=None, extra_headers=None):
+    def _api_create_group(
+        group_data,
+        identity=USER_IDENTITY,
+        query_parameters=None,
+        extra_headers=None,
+        abort_status=None,
+        abort_detail=None,
+    ):
         create_rbac_group_mock = mocker.patch("api.group.post_rbac_workspace")
-        create_rbac_group_mock.return_value = generate_uuid()
+        if abort_status:
+            create_rbac_group_mock.side_effect = lambda *args, **kwargs: abort(
+                abort_status, description=abort_detail or "Unexpected error"
+            )
+        else:
+            create_rbac_group_mock.return_value = generate_uuid()
+
         get_rbac_ungrouped_group_mock = mocker.patch("lib.group_repository.rbac_create_ungrouped_hosts_workspace")
         get_rbac_ungrouped_group_mock.return_value = generate_uuid()
+
         return do_request(flask_client.post, GROUP_URL, identity, group_data, query_parameters, extra_headers)
 
     return _api_create_group

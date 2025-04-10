@@ -135,6 +135,18 @@ def test_create_group_taken_name_kessel(api_create_group, new_name, mocker):
     assert group_data["name"] in response_data["detail"]
 
 
+@pytest.mark.usefixtures("event_producer")
+def test_create_group_taken_name_in_kessel_rbac(api_create_group, mocker):
+    group_data = {"name": "test_group", "host_ids": []}
+
+    error_message = "RBAC client error: Can't create workspace with same name within same parent workspace"
+    with mocker.patch("api.group.get_flag_value", return_value=True):
+        response_status, response_data = api_create_group(group_data, abort_status=400, abort_detail=error_message)
+
+    assert_response_status(response_status, expected_status=400)
+    assert_response_status(response_data["detail"], error_message)
+
+
 @pytest.mark.parametrize(
     "host_ids",
     [["", "3578"], ["notauuid"]],
