@@ -145,7 +145,7 @@ def wait_for_workspace_creation(workspace_id: str, timeout: int = 5):
         while time.time() < timeout_start + timeout:
             conn.poll()
             for notify in conn.notifies:
-                if notify.payload == workspace_id:
+                if str(notify.payload) == str(workspace_id):
                     return
 
             conn.notifies.clear()
