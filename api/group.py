@@ -39,7 +39,7 @@ from lib.group_repository import get_group_by_id_from_db
 from lib.group_repository import get_group_using_host_id
 from lib.group_repository import patch_group
 from lib.group_repository import remove_hosts_from_group
-from lib.group_repository import validate_add_host_list_to_group
+from lib.group_repository import validate_add_host_list_to_group_for_group_create
 from lib.group_repository import wait_for_workspace_creation
 from lib.metrics import create_group_count
 from lib.middleware import delete_rbac_workspace
@@ -98,19 +98,19 @@ def create_group(body, rbac_filter=None):
         if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
             group_name = validated_create_group_data.get("name")
 
+            # Before waiting and workspace creation in RBAC validate whether the hosts can be added to the group
+            if len(host_id_list := validated_create_group_data.get("host_ids", [])) > 0:
+                validate_add_host_list_to_group_for_group_create(
+                    host_id_list,
+                    group_name,
+                    get_current_identity().org_id,
+                )
+
             workspace_id = post_rbac_workspace(group_name, f"{group_name} group")
             if not workspace_id and not inventory_config().bypass_rbac:
                 message = f"Error while creating workspace for {group_name}"
                 logger.exception(message)
                 return json_error_response("Workspace creation failure", message, HTTPStatus.BAD_REQUEST)
-
-            # Before waiting, validate whether the hosts can be added to the group
-            if len(host_id_list := validated_create_group_data.get("host_ids", [])) > 0:
-                validate_add_host_list_to_group(
-                    host_id_list,
-                    workspace_id,
-                    get_current_identity().org_id,
-                )
 
             # Wait for the MQ to notify us of the workspace creation
             try:
