@@ -257,6 +257,8 @@ def get_rbac_default_workspace_using_headers(identity_header: str) -> UUID | Non
         REQUEST_ID_HEADER: threadctx.request_id,
     }
 
+    logger.info(f"Identity header (get default workspace): {identity_header}")  # TODO: remove after testing
+
     try:
         with outbound_http_response_time.labels("rbac").time():
             rbac_response = request_session.get(
@@ -303,6 +305,9 @@ def post_rbac_workspace(name, parent_id, description) -> UUID | None:
         REQUEST_ID_HEADER: request.headers.get(REQUEST_ID_HEADER),
     }
     request_data = {"name": name, "description": description, "parent_id": str(parent_id)}
+    logger.info(
+        f"Identity header (post rbac workspace): {request.headers[IDENTITY_HEADER]}"
+    )  # TODO: remove after testing
 
     try:
         with outbound_http_response_time.labels("rbac").time():
