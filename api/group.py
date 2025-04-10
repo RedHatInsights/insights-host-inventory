@@ -115,7 +115,11 @@ def create_group(body, rbac_filter=None):
                 )
 
             # Wait for the MQ to notify us of the workspace creation
-            wait_for_workspace_creation(workspace_id, inventory_config().rbac_timeout)
+            try:
+                wait_for_workspace_creation(workspace_id, inventory_config().rbac_timeout)
+            except TimeoutError:
+                abort(HTTPStatus.SERVICE_UNAVAILABLE, "Timed out waiting for a message from RBAC v2.")
+
             add_hosts_to_group(
                 workspace_id,
                 host_id_list,

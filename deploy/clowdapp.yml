@@ -883,6 +883,8 @@ objects:
           value: ${MQ_DB_BATCH_MAX_MESSAGES}
         - name: MQ_DB_BATCH_MAX_SECONDS
           value: ${MQ_DB_BATCH_MAX_SECONDS}
+        - name: CONSUMER_MQ_BROKER
+          value: ${CONSUMER_MQ_BROKER}
         - name: RBAC_V2_FORCE_ORG_ADMIN
           value: ${RBAC_V2_FORCE_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
@@ -2021,6 +2023,8 @@ parameters:
   value: PLAINTEXT
 - name: KAFKA_SASL_MECHANISM
   value: 'PLAIN'
+- name: CONSUMER_MQ_BROKER
+  value: ''
 - name: PROMETHEUS_PUSHGATEWAY
   value: 'localhost:9091'
 - name: KAFKA_BOOTSTRAP_HOST

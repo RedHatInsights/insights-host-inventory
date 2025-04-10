@@ -96,6 +96,9 @@ class Config:
         self.workspaces_topic = topic(os.environ.get("KAFKA_WORKSPACES_TOPIC"))
 
         self.bootstrap_servers = ",".join(app_common_python.KafkaServers)
+        if custom_broker := os.getenv("CONSUMER_MQ_BROKER"):
+            self.bootstrap_servers += f",{custom_broker}"
+
         broker_cfg = cfg.kafka.brokers[0]
 
         # certificates are required in fedramp, but not in managed kafka
