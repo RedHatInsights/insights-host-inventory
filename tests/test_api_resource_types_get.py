@@ -48,9 +48,7 @@ def test_resource_types_groups_pagination(api_get, db_create_group, subtests):
         for page in [1, 2, 3]:
             with subtests.test():
                 query = f"?page={page}&per_page={per_page}"
-                response_status, response_data = response_status, response_data = api_get(
-                    build_resource_types_groups_url(query=query)
-                )
+                response_status, response_data = api_get(build_resource_types_groups_url(query=query))
 
                 assert_response_status(response_status, 200)
                 assert_resource_types_pagination(
@@ -117,3 +115,25 @@ def test_get_resource_types_RBAC_denied(mocker, api_get, url_builder, subtests):
             response_status, _ = api_get(url_builder())
 
             assert_response_status(response_status, 403)
+
+
+@pytest.mark.usefixtures("enable_rbac")
+def test_get_resource_types_ungrouped_is_not_returned(
+    mocker,
+    api_get,
+    db_create_group,
+):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    mock_rbac_response = create_mock_rbac_response("tests/helpers/rbac-mock-data/rbac-admin.json")
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    group = db_create_group("test_group")
+    db_create_group("ungrouped_group", ungrouped=True)  # should not be returned
+    group_id = str(group.id)
+
+    with mocker.patch("api.resource_type.get_flag_value", return_value=True):
+        response_status, response_data = api_get(build_resource_types_groups_url())
+
+        assert_response_status(response_status, 200)
+        assert response_data["meta"]["count"] == 1
+        assert response_data["data"][0]["id"] == group_id

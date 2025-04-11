@@ -100,8 +100,10 @@ def get_group_list_by_id_list_db(group_id_list, page, per_page, order_by, order_
     return get_group_list_from_db(filters, page, per_page, order_by, order_how, rbac_filter)
 
 
-def get_filtered_group_list_db(group_name, page, per_page, order_by, order_how, rbac_filter):
+def get_filtered_group_list_db(group_name, page, per_page, order_by, order_how, rbac_filter, exclude_ungrouped=False):
     filters = (Group.org_id == get_current_identity().org_id,)
+    if exclude_ungrouped:
+        filters += (Group.ungrouped.is_(False),)
     if group_name:
         filters += (func.lower(Group.name).contains(func.lower(group_name)),)
     return get_group_list_from_db(filters, page, per_page, order_by, order_how, rbac_filter)

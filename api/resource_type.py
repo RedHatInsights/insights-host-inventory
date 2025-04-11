@@ -15,6 +15,8 @@ from app.instrumentation import log_get_resource_type_list_failed
 from app.instrumentation import log_get_resource_type_list_succeeded
 from app.logging import get_logger
 from app.serialization import serialize_group
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
+from lib.feature_flags import get_flag_value
 from lib.middleware import rbac
 
 logger = get_logger(__name__)
@@ -51,7 +53,15 @@ def get_resource_type_groups_list(
     rbac_filter=None,
 ):
     try:
-        group_list, total = get_filtered_group_list_db(name, page, per_page, order_by, order_how, rbac_filter)
+        group_list, total = get_filtered_group_list_db(
+            name,
+            page,
+            per_page,
+            order_by,
+            order_how,
+            rbac_filter,
+            get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION),
+        )
     except ValueError as e:
         log_get_group_list_failed(logger)
         flask.abort(400, str(e))
