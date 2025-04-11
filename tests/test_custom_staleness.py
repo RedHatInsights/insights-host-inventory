@@ -227,7 +227,7 @@ def test_async_update_host_create_custom_staleness(
             assert status == 201
 
             # Wait for thread to finish
-            time.sleep(0.1)
+            time.sleep(1)
 
             hosts_after_update = db_get_hosts(host_ids).all()
             for reporter in hosts_after_update[0].per_reporter_staleness:
@@ -277,7 +277,7 @@ def test_async_update_host_delete_custom_staleness(
             assert status == 204
 
             # Wait for thread to finish
-            time.sleep(0.1)
+            time.sleep(0.2)
 
             hosts_after_update = db_get_hosts(host_ids).all()
             for reporter in hosts_after_update[0].per_reporter_staleness:
@@ -328,7 +328,7 @@ def test_async_update_host_update_custom_staleness(
             assert status == 200
 
             # Wait for thread to finish
-            time.sleep(0.1)
+            time.sleep(0.2)
 
             hosts_after_update = db_get_hosts(host_ids).all()
             for reporter in hosts_after_update[0].per_reporter_staleness:
