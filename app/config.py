@@ -96,6 +96,9 @@ class Config:
         self.workspaces_topic = topic(os.environ.get("KAFKA_WORKSPACES_TOPIC"))
 
         self.bootstrap_servers = ",".join(app_common_python.KafkaServers)
+        if custom_broker := os.getenv("CONSUMER_MQ_BROKER"):
+            self.bootstrap_servers = custom_broker
+
         broker_cfg = cfg.kafka.brokers[0]
 
         # certificates are required in fedramp, but not in managed kafka
@@ -316,6 +319,7 @@ class Config:
             "IMMUTABLE_TIME_TO_DELETE_SECONDS", days_to_seconds(730)
         )
 
+        self.rbac_v2_force_org_admin = os.getenv("RBAC_V2_FORCE_ORG_ADMIN", "false").lower() == "true"
         self.use_sub_man_id_for_host_id = os.environ.get("USE_SUBMAN_ID", "false").lower() == "true"
         self.host_delete_chunk_size = int(os.getenv("HOST_DELETE_CHUNK_SIZE", "1000"))
         self.script_chunk_size = int(os.getenv("SCRIPT_CHUNK_SIZE", "500"))
