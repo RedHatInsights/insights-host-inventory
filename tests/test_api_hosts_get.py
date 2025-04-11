@@ -95,6 +95,17 @@ def test_get_host_with_invalid_tag_no_key(api_get):
     assert response_status == 400
 
 
+def test_get_host_with_slash_in_key_name(api_get):
+    """
+    Attempt to find host with an incomplete tag (no key).
+    Expects 400 response.
+    """
+    url = build_hosts_url(query="?tags=namespace/key/key_value=Value")
+    response_status, _ = api_get(url)
+
+    assert response_status == 200
+
+
 @pytest.mark.parametrize(
     "tag_query,part_name",
     (
