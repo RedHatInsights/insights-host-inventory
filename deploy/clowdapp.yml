@@ -169,6 +169,8 @@ objects:
           value: ${BYPASS_UNLEASH}
         - name: UNLEASH_REFRESH_INTERVAL
           value: ${UNLEASH_REFRESH_INTERVAL}
+        - name: RBAC_V2_FORCE_ORG_ADMIN
+          value: ${RBAC_V2_FORCE_ORG_ADMIN}
         - name: SEGMENTIO_WRITE_KEY
           valueFrom:
             secretKeyRef:
@@ -479,6 +481,8 @@ objects:
           value: ${BYPASS_UNLEASH}
         - name: UNLEASH_REFRESH_INTERVAL
           value: ${UNLEASH_REFRESH_INTERVAL}
+        - name: RBAC_V2_FORCE_ORG_ADMIN
+          value: ${RBAC_V2_FORCE_ORG_ADMIN}
         - name: SEGMENTIO_WRITE_KEY
           valueFrom:
             secretKeyRef:
@@ -596,6 +600,8 @@ objects:
           value: ${MQ_DB_BATCH_MAX_MESSAGES}
         - name: MQ_DB_BATCH_MAX_SECONDS
           value: ${MQ_DB_BATCH_MAX_SECONDS}
+        - name: RBAC_V2_FORCE_ORG_ADMIN
+          value: ${RBAC_V2_FORCE_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -695,6 +701,8 @@ objects:
           value: ${MQ_DB_BATCH_MAX_MESSAGES}
         - name: MQ_DB_BATCH_MAX_SECONDS
           value: ${MQ_DB_BATCH_MAX_SECONDS}
+        - name: RBAC_V2_FORCE_ORG_ADMIN
+          value: ${RBAC_V2_FORCE_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -875,6 +883,10 @@ objects:
           value: ${MQ_DB_BATCH_MAX_MESSAGES}
         - name: MQ_DB_BATCH_MAX_SECONDS
           value: ${MQ_DB_BATCH_MAX_SECONDS}
+        - name: CONSUMER_MQ_BROKER
+          value: ${CONSUMER_MQ_BROKER}
+        - name: RBAC_V2_FORCE_ORG_ADMIN
+          value: ${RBAC_V2_FORCE_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -2011,6 +2023,8 @@ parameters:
   value: PLAINTEXT
 - name: KAFKA_SASL_MECHANISM
   value: 'PLAIN'
+- name: CONSUMER_MQ_BROKER
+  value: ''
 - name: PROMETHEUS_PUSHGATEWAY
   value: 'localhost:9091'
 - name: KAFKA_BOOTSTRAP_HOST
@@ -2106,6 +2120,9 @@ parameters:
 - name: S3_AWS_SECRET
   description: The AWS secret for S3
   value: 'hbi-kessel-s3'
+- name: RBAC_V2_FORCE_ORG_ADMIN
+  description: Whether to force User Identities to use is_org_admin=True for RBAC v2 calls
+  value: 'false'
 
 # NGINX
 - displayName: Minimum replicas

@@ -132,6 +132,7 @@ def test_handle_message_happy_path(identity, kessel_migration, mocker, ingress_m
         assert result.host_row.canonical_facts["insights_id"] == expected_insights_id
         if kessel_migration:
             assert len(result.host_row.groups) == 1
+            assert result.host_row.groups[0]["name"] == "ungrouped"
         else:
             assert result.host_row.groups == []
 

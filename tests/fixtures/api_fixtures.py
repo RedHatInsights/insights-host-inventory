@@ -82,8 +82,6 @@ def api_delete_all_hosts(flask_client):
 @pytest.fixture(scope="function")
 def api_create_group(flask_client, mocker):
     def _api_create_group(group_data, identity=USER_IDENTITY, query_parameters=None, extra_headers=None):
-        get_rbac_default_group_mock = mocker.patch("api.group.get_rbac_default_workspace")
-        get_rbac_default_group_mock.return_value = generate_uuid()
         create_rbac_group_mock = mocker.patch("api.group.post_rbac_workspace")
         create_rbac_group_mock.return_value = generate_uuid()
         get_rbac_ungrouped_group_mock = mocker.patch("lib.group_repository.rbac_create_ungrouped_hosts_workspace")
@@ -96,8 +94,6 @@ def api_create_group(flask_client, mocker):
 @pytest.fixture(scope="function")
 def api_create_group_kessel(flask_client, mocker):
     def _api_create_group_kessel(group_data, identity=USER_IDENTITY, query_parameters=None, extra_headers=None):
-        get_rbac_default_group_mock = mocker.patch("api.group.get_rbac_default_workspace")
-        get_rbac_default_group_mock.return_value = generate_uuid()
         get_rbac_ungrouped_group_mock = mocker.patch("lib.group_repository.rbac_create_ungrouped_hosts_workspace")
         get_rbac_ungrouped_group_mock.return_value = generate_uuid()
         return do_request(flask_client.post, GROUP_URL, identity, group_data, query_parameters, extra_headers)
