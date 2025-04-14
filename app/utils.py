@@ -265,7 +265,7 @@ class Tag:
 
     @staticmethod
     def from_string(string_tag):
-        match = re.match(r"((?P<namespace>[^=/]+)/)?(?P<key>[^=/]+)(=(?P<value>[^=/]+))?$", string_tag)
+        match = re.match(r"^((?P<namespace>[^=/]+)/)?(?P<key>(?!.*/=)[^=]+)(=(?P<value>[^=/]+))?$", string_tag)
         encoded_tag_data = match.groupdict()
         decoded_tag_data = {}
         for k, v in encoded_tag_data.items():
