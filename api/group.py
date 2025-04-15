@@ -28,7 +28,6 @@ from app.instrumentation import log_get_group_list_succeeded
 from app.instrumentation import log_patch_group_failed
 from app.instrumentation import log_patch_group_success
 from app.logging import get_logger
-from app.models import HostGroupAssoc
 from app.models import InputGroupSchema
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.feature_flags import get_flag_value
@@ -205,17 +204,8 @@ def delete_groups(group_id_list, rbac_filter=None):
     rbac_group_id_check(rbac_filter, set(group_id_list))
 
     if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
-        invalid_groups = []
         for group_id in group_id_list:
-            host_list = HostGroupAssoc.query.filter(HostGroupAssoc.group_id == group_id).all()
-            if host_list:
-                invalid_groups.append(group_id)
-
-        if invalid_groups:
-            abort(HTTPStatus.BAD_REQUEST, f"Group(s) {invalid_groups} contain hosts. Aborting deletion.")
-        else:
-            for group_id in group_id_list:
-                delete_rbac_workspace(group_id)
+            delete_rbac_workspace(group_id)
 
         return Response(None, HTTPStatus.NO_CONTENT)
     else:

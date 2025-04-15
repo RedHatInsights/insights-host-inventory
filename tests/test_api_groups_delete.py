@@ -331,7 +331,7 @@ def test_delete_non_empty_group_workspace_enabled(api_delete_groups, db_create_g
         group = db_create_group_with_hosts("non_empty_group", 3)
 
         response_status, _ = api_delete_groups([group.id])
-        assert_response_status(response_status, expected_status=400)
+        assert_response_status(response_status, expected_status=204)
 
 
 @pytest.mark.usefixtures("event_producer")
