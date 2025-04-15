@@ -153,6 +153,11 @@ def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str):
     ).all()
     ids_already_in_this_group = [str(assoc.host_id) for assoc in assoc_query]
 
+    # Delete any prior host-group associations, which should now just be to "ungrouped" group
+    HostGroupAssoc.query.filter(HostGroupAssoc.host_id.in_(host_id_list), HostGroupAssoc.group_id != group_id).delete(
+        synchronize_session="fetch"
+    )
+
     host_group_assoc = [
         HostGroupAssoc(host_id=host_id, group_id=group_id)
         for host_id in host_id_list
