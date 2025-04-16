@@ -432,3 +432,12 @@ def test_delete_hosts_from_diff_groups_post_kessel_migration(
         # Check that the removed hosts were assigned to the ungrouped group
         for host in db_get_hosts_for_group(ungrouped_group_id):
             assert str(host.id) in hosts_to_delete
+
+
+@pytest.mark.usefixtures("event_producer")
+def test_delete_multiple_groups(db_create_group, db_create_group_with_hosts, api_delete_groups, mocker):
+    non_empty_group = db_create_group_with_hosts("non_empty_group", 3)
+    empty_group = db_create_group("empty_group")
+    with mocker.patch("api.group.get_flag_value", return_value=True):
+        response_status, _ = api_delete_groups([non_empty_group.id, empty_group.id])
+        assert_response_status(response_status, expected_status=204)

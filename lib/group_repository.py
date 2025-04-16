@@ -101,12 +101,11 @@ def validate_add_host_list_to_group_for_group_create(host_id_list: list[str], gr
         )
 
     # Check if the hosts are already associated with another (ungrouped) group
-    assoc_query = (
+    if assoc_query := (
         HostGroupAssoc.query.join(Group)
         .filter(HostGroupAssoc.host_id.in_(host_id_list), Group.ungrouped.is_(False))
         .all()
-    )
-    if assoc_query:
+    ):
         taken_hosts = [str(assoc.host_id) for assoc in assoc_query]
         log_host_group_add_failed(logger, host_id_list, group_name)
         raise InventoryException(
@@ -127,14 +126,13 @@ def validate_add_host_list_to_group(host_id_list: list[str], group_id: str, org_
         )
 
     # Check if the hosts are already associated with another (ungrouped) group
-    assoc_query = (
+    if assoc_query := (
         HostGroupAssoc.query.join(Group)
         .filter(
             HostGroupAssoc.host_id.in_(host_id_list), HostGroupAssoc.group_id != group_id, Group.ungrouped.is_(False)
         )
         .all()
-    )
-    if assoc_query:
+    ):
         taken_hosts = [str(assoc.host_id) for assoc in assoc_query]
         log_host_group_add_failed(logger, host_id_list, group_id)
         raise InventoryException(

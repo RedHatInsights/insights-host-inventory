@@ -2165,13 +2165,13 @@ def test_workspace_mq_delete_non_empty(
         workspace_id = str(group.id)
         host_id_list = [host.id for host in group.hosts]
 
-        message = generate_kessel_workspace_message("delete", str(workspace_id), workspace_name)
+        message = generate_kessel_workspace_message("delete", workspace_id, workspace_name)
         workspace_message_consumer_mock.handle_message(json.dumps(message))
 
         # The group should no longer exist
         assert not db_get_group_by_id(workspace_id)
 
         # The hosts should now be in the "ungrouped" group
-        for host_id in host_id_list:
-            new_group = db_get_groups_for_host(host_id)[0]
-            assert new_group.ungrouped is True
+        assert db_get_groups_for_host(host_id_list[0])[0].ungrouped
+        assert db_get_groups_for_host(host_id_list[1])[0].ungrouped
+        assert db_get_groups_for_host(host_id_list[2])[0].ungrouped
