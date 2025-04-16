@@ -238,7 +238,7 @@ def _temp_add_org_admin_user_identity(identity_header: str) -> str:
         if hasattr(identity, "user"):
             identity.user["is_org_admin"] = True
         else:
-            identity.user = {"is_org_admin": True}
+            identity.user = {"username": "hbi-override", "is_org_admin": True}
         return to_auth_header(identity)
 
     return identity_header
