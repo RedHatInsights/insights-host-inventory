@@ -93,3 +93,9 @@ sample-request-get-exports:
 
 sample-request-export-download:
 	curl -X GET http://localhost:8001/api/export/v1/exports/$(EXPORT_ID) -H "x-rh-identity: ${IDENTITY_HEADER}" -f --output ./export_download.zip
+
+
+serve-docs:
+	@echo "Serving docs at http://localhost:8080"
+	@podman start kroki || podman run -d --name kroki -p 8000:8000 yuzutech/kroki
+	@mkdocs serve -a localhost:8080
