@@ -83,6 +83,7 @@ def _last_run_time_diff_in_sec(stale_host_timestamp: HostInventoryMetadata, job_
     now = job_start_time
     last_update = stale_host_timestamp.last_succeeded
     last_run_diff = now - last_update
+
     return int(last_run_diff.total_seconds())
 
 

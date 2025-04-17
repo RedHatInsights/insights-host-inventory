@@ -4,6 +4,7 @@ from collections import namedtuple
 from contextlib import suppress
 from copy import deepcopy
 from datetime import datetime
+from datetime import timedelta
 from datetime import timezone
 from enum import Enum
 from os.path import join
@@ -759,7 +760,9 @@ class HostInventoryMetadata(db.Model):  # type: ignore [name-defined]
 
     name = db.Column(db.String(32), primary_key=True)
     type = db.Column(db.String(32), primary_key=True)
-    last_succeeded = db.Column(db.DateTime(timezone=True), default=_time_now, onupdate=_time_now)
+    last_succeeded = db.Column(
+        db.DateTime(timezone=True), default=_time_now() - timedelta(hours=1), onupdate=_time_now
+    )
 
 
 class DiskDeviceSchema(MarshmallowSchema):
