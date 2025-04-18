@@ -56,6 +56,9 @@ run_reaper:
 run_pendo_syncher:
 	python3 pendo_syncher.py
 
+run_host_view_create:
+	PYTHONPATH=${PWD} python3 jobs/create_inventory_view.py
+
 style:
 	pre-commit run --all-files
 
