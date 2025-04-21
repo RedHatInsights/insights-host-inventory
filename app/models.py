@@ -664,7 +664,7 @@ class Group(db.Model):  # type: ignore [name-defined]
     account = db.Column(db.String(10))
     org_id = db.Column(db.String(36), nullable=False)
     name = db.Column(db.String(255), nullable=False)
-    ungrouped = db.Column(db.Boolean, default=False)
+    ungrouped = db.Column(db.Boolean, default=False, nullable=False)
     created_on = db.Column(db.DateTime(timezone=True), default=_time_now)
     modified_on = db.Column(db.DateTime(timezone=True), default=_time_now, onupdate=_time_now)
     hosts = orm.relationship("Host", secondary=f"{INVENTORY_SCHEMA}.hosts_groups")
