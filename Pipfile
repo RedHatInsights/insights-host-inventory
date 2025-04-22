@@ -41,6 +41,7 @@ redis = "*"
 setuptools = "~=80.3.1"
 certifi = "~=2025.4.26"
 ratelimit = "*"
+inventory-grpc-clients-python-kessel-project = "*"
 
 [dev-packages]
 pytest = "~=8.3.5"
