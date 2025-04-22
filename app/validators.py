@@ -33,8 +33,7 @@ def verify_ip_address_format(ip_address):
         raise ValidationError("IP address may not be null.")
 
     try:
-        if ipaddress.ip_address(ip_address) is None:
-            raise ValidationError("Invalid IP address format.")
+        ipaddress.ip_address(ip_address)
     except ValueError as ve:
         raise ValidationError("Invalid IP address format.") from ve
 
@@ -71,13 +70,12 @@ def is_custom_date(val):
 def check_empty_keys(data):
     if isinstance(data, dict):
         for key, value in data.items():
-            if key == "" or not check_empty_keys(value):
+            if key == "":
                 raise ValidationError("Key may not be empty.")
+            check_empty_keys(value)
     elif isinstance(data, list):
-        for value in data:
-            if not check_empty_keys(value):
-                raise ValidationError("Key may not be empty.")
-
+        for item in data:
+            check_empty_keys(item)
     return True
 
 
