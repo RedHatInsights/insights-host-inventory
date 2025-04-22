@@ -22,7 +22,7 @@ def verify_uuid_format_draft4(uuid_str):
 
 def verify_uuid_format(uuid_str):
     if not verify_uuid_format_draft4(uuid_str):
-        raise ValidationError("Invalid UUID format.")
+        raise ValidationError("Invalid value.")
 
     return True
 
@@ -30,12 +30,12 @@ def verify_uuid_format(uuid_str):
 @draft4_format_checker.checks("ip_address")
 def verify_ip_address_format(ip_address):
     if not ip_address:
-        raise ValidationError("IP address may not be null.")
+        raise ValidationError("Invalid value.")
 
     try:
         ipaddress.ip_address(ip_address)
     except ValueError as ve:
-        raise ValidationError("Invalid IP address format.") from ve
+        raise ValidationError("Invalid value.") from ve
 
     return True
 
@@ -51,7 +51,7 @@ def verify_mac_address_format(mac_address):
     )
 
     if not mac_address or not bool(pattern.match(mac_address)):
-        raise ValidationError("Invalid MAC address format.")
+        raise ValidationError("Invalid value.")
 
     return True
 
@@ -86,6 +86,6 @@ def verify_satellite_id(id_str):
         verify_uuid_format(id_str)
     except ValidationError as ve:
         if not (id_str and re.match(r"^\d{10}$", id_str)):
-            raise ValidationError("Invalid Satellite ID format.") from ve
+            raise ValidationError("Invalid value.") from ve
 
     return True
