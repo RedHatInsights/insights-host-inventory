@@ -924,7 +924,7 @@ class LimitedHostSchema(CanonicalFactsSchema):
             self.system_profile_normalizer = SystemProfileNormalizer(system_profile_schema=system_profile_schema)
 
     @validates("tags")
-    def validate_tags(self, tags):
+    def validate_tags(self, tags, data_key):  # noqa: ARG002, required for marshmallow validator functions
         if isinstance(tags, list):
             return self._validate_tags_list(tags)
         elif isinstance(tags, dict):
@@ -995,7 +995,7 @@ class LimitedHostSchema(CanonicalFactsSchema):
         return self._normalize_system_profile(self.system_profile_normalizer.filter_keys, data)
 
     @validates("system_profile")
-    def system_profile_is_valid(self, system_profile):
+    def system_profile_is_valid(self, system_profile, data_key):  # noqa: ARG002, required for marshmallow validator functions
         try:
             jsonschema_validate(
                 system_profile, self.system_profile_normalizer.schema, format_checker=Draft4Validator.FORMAT_CHECKER
@@ -1012,7 +1012,7 @@ class HostSchema(LimitedHostSchema):
     class Meta:
         unknown = EXCLUDE
 
-    stale_timestamp = fields.DateTime(required=True, timezone=True)
+    stale_timestamp = fields.AwareDateTime(required=True)
     reporter = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=255))
 
     @staticmethod
@@ -1033,11 +1033,6 @@ class HostSchema(LimitedHostSchema):
             data["reporter"],
             data.get("groups", []),
         )
-
-    @validates("stale_timestamp")
-    def has_timezone_info(self, timestamp):
-        if timestamp.tzinfo is None:
-            raise MarshmallowValidationError("Timestamp must contain timezone info")
 
 
 class PatchHostSchema(MarshmallowSchema):

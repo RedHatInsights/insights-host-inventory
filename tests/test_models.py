@@ -275,7 +275,7 @@ def test_host_schema_timezone_enforced():
     with pytest.raises(MarshmallowValidationError) as exception:
         HostSchema().load(host)
 
-    assert "Timestamp must contain timezone info" in str(exception.value)
+    assert "Not a valid aware datetime" in str(exception.value)
 
 
 @pytest.mark.parametrize(
