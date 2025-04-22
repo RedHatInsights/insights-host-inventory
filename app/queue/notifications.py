@@ -61,7 +61,7 @@ class BaseNotificationSchema(MarshmallowSchema):
     context = fields.Nested(BaseContextSchema)
     events = fields.List(fields.Nested(BaseEventListSchema()))
     event_type = fields.Str(required=True, validate=marshmallow_validate.OneOf(NotificationType))
-    timestamp = fields.DateTime(required=True, format="iso8601")
+    timestamp = fields.DateTime(required=True, format="iso")
 
 
 # Host Validation Error Notification
