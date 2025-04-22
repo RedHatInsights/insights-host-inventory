@@ -3,7 +3,7 @@ from unittest import mock
 import pytest
 
 from app.models import db
-from jobs.create_ungrouped_host_groups import run as run_script
+from create_ungrouped_host_groups import run as run_script
 
 
 @pytest.mark.parametrize("existing_ungrouped", (True, False))
