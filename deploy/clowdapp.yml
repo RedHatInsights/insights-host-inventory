@@ -1349,10 +1349,8 @@ objects:
       restartPolicy: OnFailure
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        args: ["./jobs/create_ungrouped_host_groups.py"]
+        args: ["./create_ungrouped_host_groups.py"]
         env:
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
           - name: INVENTORY_DB_SSL_MODE
@@ -1414,10 +1412,8 @@ objects:
       restartPolicy: OnFailure
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        args: ["./jobs/export_group_data_s3.py"]
+        args: ["./export_group_data_s3.py"]
         env:
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
           - name: INVENTORY_DB_SSL_MODE
@@ -1462,7 +1458,7 @@ objects:
       suspend: ${{HOSTS_LAST_CHECK_IN_SUSPEND}}
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        args: ["./jobs/update_hosts_last_check_in.py"]
+        args: ["./update_hosts_last_check_in.py"]
         env:
           - name: PYTHONPATH
             value: '/opt/app-root/src'
