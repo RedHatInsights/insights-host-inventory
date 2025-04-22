@@ -184,19 +184,21 @@ def test_only_order_how(mq_create_three_specific_hosts, api_get, subtests):
             assert response_status == 400
 
 
-def test_invalid_fields(mq_create_three_specific_hosts, api_get, subtests):
-    created_hosts = mq_create_three_specific_hosts
+@pytest.mark.parametrize("feature_flag", (True, False))
+def test_invalid_fields(mq_create_three_specific_hosts, api_get, subtests, feature_flag):
+    with patch("api.host_query_db.get_flag_value", return_value=feature_flag):
+        created_hosts = mq_create_three_specific_hosts
 
-    urls = (
-        HOST_URL,
-        build_hosts_url(host_list_or_id=created_hosts),
-        build_system_profile_url(host_list_or_id=created_hosts),
-    )
-    for url in urls:
-        with subtests.test(url=url):
-            fields_query_parameters = build_fields_query_parameters(fields="i_love_ketchup")
-            response_status, _ = api_get(url, query_parameters=fields_query_parameters)
-            assert response_status == 400
+        urls = (
+            HOST_URL,
+            build_hosts_url(host_list_or_id=created_hosts),
+            build_system_profile_url(host_list_or_id=created_hosts),
+        )
+        for url in urls:
+            with subtests.test(url=url):
+                fields_query_parameters = build_fields_query_parameters(fields="i_love_ketchup")
+                response_status, _ = api_get(url, query_parameters=fields_query_parameters)
+                assert response_status == 400
 
 
 @pytest.mark.parametrize(
