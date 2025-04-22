@@ -1012,7 +1012,7 @@ class HostSchema(LimitedHostSchema):
     class Meta:
         unknown = EXCLUDE
 
-    stale_timestamp = fields.DateTime(required=True, timezone=True)
+    stale_timestamp = fields.AwareDateTime(required=True)
     reporter = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=255))
 
     @staticmethod

@@ -64,14 +64,14 @@ class HostEventMetadataSchema(Schema):
 class HostCreateUpdateEvent(Schema):
     type = fields.Str()
     host = fields.Nested(SerializedHostSchema())
-    timestamp = fields.DateTime(format="iso8601")
+    timestamp = fields.DateTime(format="iso")
     platform_metadata = fields.Dict()
     metadata = fields.Nested(HostEventMetadataSchema())
 
 
 class HostDeleteEvent(Schema):
     id = fields.UUID()
-    timestamp = fields.DateTime(format="iso8601")
+    timestamp = fields.DateTime(format="iso")
     type = fields.Str()
     account = fields.Str()
     org_id = fields.Str()
