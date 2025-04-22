@@ -208,9 +208,10 @@ def params_to_order_by(order_by: str | None = None, order_how: str | None = None
     elif order_by == "operating_system":
         ordering = (_order_how(Host.operating_system, order_how),) if order_how else (Host.operating_system.desc(),)  # type: ignore [attr-defined]
 
-    elif get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS):
-        if order_by == "last_check_in":
-            ordering = (_order_how(Host.last_check_in, order_how),) if order_how else (Host.last_check_in.desc(),)
+    elif order_by == "last_check_in" and get_flag_value(
+        FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS
+    ):
+        ordering = (_order_how(Host.last_check_in, order_how),) if order_how else (Host.last_check_in.desc(),)
 
     elif order_by:
         if get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS):

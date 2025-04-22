@@ -42,6 +42,9 @@ COPY run.py run.py
 COPY system_profile_validator.py system_profile_validator.py
 COPY inv_migration_runner.py inv_migration_runner.py
 COPY generate_stale_host_notifications.py generate_stale_host_notifications.py
+COPY create_ungrouped_host_groups.py create_ungrouped_host_groups.py
+COPY export_group_data_s3.py export_group_data_s3.py
+COPY update_hosts_last_check_in.py update_hosts_last_check_in.py
 COPY app_migrations/ app_migrations/
 COPY jobs/ jobs/
 
