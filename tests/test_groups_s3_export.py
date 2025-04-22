@@ -3,11 +3,11 @@ from unittest import mock
 import pytest
 
 from app.models import db
-from jobs.export_group_data_s3 import run as run_script
+from export_group_data_s3 import run as run_script
 
 
-@mock.patch("jobs.export_group_data_s3.get_s3_client")
-@mock.patch("jobs.export_group_data_s3.GROUPS_BATCH_SIZE", 10)
+@mock.patch("export_group_data_s3.get_s3_client")
+@mock.patch("export_group_data_s3.GROUPS_BATCH_SIZE", 10)
 @pytest.mark.parametrize("num_groups", (0, 1, 5, 21))
 def test_happy_path(
     mock_get_s3_client,
