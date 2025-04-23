@@ -279,9 +279,15 @@ def post_rbac_workspace_using_header(name: str, description: str, identity_heade
     finally:
         request_session.close()
 
-    resp_data = rbac_response.json()
+    try:
+        resp_data = rbac_response.json()
+        logger.debug("POSTED RBAC Data", extra=resp_data)
+    except Exception as e:
+        rbac_failure(logger, e)
+        abort(503, "Failed to parse RBAC response, request cannot be fulfilled")
+    finally:
+        request_session.close()
 
-    logger.debug("POSTED RBAC Data", extra=resp_data)
     return UUID(resp_data["id"])
 
 
