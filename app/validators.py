@@ -4,31 +4,40 @@ import uuid
 
 from dateutil import parser
 from jsonschema import draft4_format_checker
+from marshmallow.exceptions import ValidationError
 
 
 @draft4_format_checker.checks("uuid")
-def verify_uuid_format(uuid_str):
+def verify_uuid_format_draft4(uuid_str):
     if not uuid_str:
         return False
 
     try:
-        # uuid must have '-' for consistency and better dedup control.
-        return uuid.UUID(uuid_str) and "-" in uuid_str is not None
+        uuid.UUID(uuid_str)
     except Exception:
-        pass
-    return False
+        return False
+
+    return "-" in uuid_str
+
+
+def verify_uuid_format(uuid_str):
+    if not verify_uuid_format_draft4(uuid_str):
+        raise ValidationError("Invalid value.")
+
+    return True
 
 
 @draft4_format_checker.checks("ip_address")
 def verify_ip_address_format(ip_address):
     if not ip_address:
-        return False
+        raise ValidationError("Invalid value.")
 
     try:
-        return ipaddress.ip_address(ip_address) is not None
-    except Exception:
-        pass
-    return False
+        ipaddress.ip_address(ip_address)
+    except ValueError as ve:
+        raise ValidationError("Invalid value.") from ve
+
+    return True
 
 
 @draft4_format_checker.checks("mac_address")
@@ -41,10 +50,10 @@ def verify_mac_address_format(mac_address):
         r"^[A-Fa-f0-9]{40}$"
     )
 
-    if not mac_address:
-        return False
+    if not mac_address or not bool(pattern.match(mac_address)):
+        raise ValidationError("Invalid value.")
 
-    return bool(pattern.match(mac_address))
+    return True
 
 
 @draft4_format_checker.checks("date-time")
@@ -62,17 +71,21 @@ def check_empty_keys(data):
     if isinstance(data, dict):
         for key, value in data.items():
             if key == "":
-                return False
-            if not check_empty_keys(value):
-                return False
+                raise ValidationError("Key may not be empty.")
+            check_empty_keys(value)
     elif isinstance(data, list):
-        for value in data:
-            if not check_empty_keys(value):
-                return False
-
+        for item in data:
+            check_empty_keys(item)
     return True
 
 
 def verify_satellite_id(id_str):
     # satellite_id can either be a UUID or a 10 digit number depending on Sat version
-    return bool(verify_uuid_format(id_str) or id_str and re.match(r"^\d{10}$", id_str))
+
+    try:
+        verify_uuid_format(id_str)
+    except ValidationError as ve:
+        if not (id_str and re.match(r"^\d{10}$", id_str)):
+            raise ValidationError("Invalid value.") from ve
+
+    return True

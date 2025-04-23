@@ -195,6 +195,7 @@ def export_service_consumer_mock(mocker):
 
 @pytest.fixture(scope="function")
 def workspace_message_consumer_mock(mocker):
+    mocker.patch("app.queue.host_mq._pg_notify_workspace")
     yield WorkspaceMessageConsumer(mocker.Mock(), mocker.Mock(), mocker.Mock(), mocker.Mock())
 
 

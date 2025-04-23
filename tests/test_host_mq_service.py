@@ -116,15 +116,20 @@ def test_handle_message_failure_invalid_message_format(mocker, ingress_message_c
 
 
 @pytest.mark.usefixtures("flask_app")
-@pytest.mark.parametrize("identity", (SYSTEM_IDENTITY, SATELLITE_IDENTITY))
+@pytest.mark.parametrize("identity", (SYSTEM_IDENTITY, SATELLITE_IDENTITY, USER_IDENTITY))
 @pytest.mark.parametrize("kessel_migration", (True, False))
-def test_handle_message_happy_path(identity, kessel_migration, mocker, ingress_message_consumer_mock):
+@pytest.mark.parametrize("existing_ungrouped", (True, False))
+def test_handle_message_happy_path(
+    identity, kessel_migration, existing_ungrouped, mocker, ingress_message_consumer_mock, db_create_group
+):
     with mocker.patch("app.queue.host_mq.get_flag_value", return_value=kessel_migration):
         expected_insights_id = generate_uuid()
-        host = minimal_host(account=identity["account_number"], insights_id=expected_insights_id)
+        host = minimal_host(org_id=identity["org_id"], insights_id=expected_insights_id)
+        existing_group_name = "test group"
+        if existing_ungrouped:
+            db_create_group(existing_group_name, identity=identity, ungrouped=existing_ungrouped)
 
         mock_notification_event_producer = mocker.Mock()
-
         message = wrap_message(host.data(), "add_host", get_platform_metadata(identity))
         result = ingress_message_consumer_mock.handle_message(json.dumps(message))
 
@@ -132,7 +137,7 @@ def test_handle_message_happy_path(identity, kessel_migration, mocker, ingress_m
         assert result.host_row.canonical_facts["insights_id"] == expected_insights_id
         if kessel_migration:
             assert len(result.host_row.groups) == 1
-            assert result.host_row.groups[0]["name"] == "ungrouped"
+            assert result.host_row.groups[0]["name"] == existing_group_name if existing_ungrouped else "ungrouped"
         else:
             assert result.host_row.groups == []
 
@@ -2154,3 +2159,24 @@ def test_workspace_mq_delete(workspace_message_consumer_mock, db_create_group, d
 
     workspace_message_consumer_mock.handle_message(json.dumps(message))
     assert not db_get_group_by_id(workspace_id)
+
+
+def test_workspace_mq_delete_non_empty(
+    workspace_message_consumer_mock, db_create_group_with_hosts, db_get_group_by_id, db_get_groups_for_host, mocker
+):
+    with mocker.patch("lib.group_repository.get_flag_value", return_value=True):
+        workspace_name = "kessel-deletable-workspace"
+        group = db_create_group_with_hosts(workspace_name, 3)
+        workspace_id = str(group.id)
+        host_id_list = [host.id for host in group.hosts]
+
+        message = generate_kessel_workspace_message("delete", workspace_id, workspace_name)
+        workspace_message_consumer_mock.handle_message(json.dumps(message))
+
+        # The group should no longer exist
+        assert not db_get_group_by_id(workspace_id)
+
+        # The hosts should now be in the "ungrouped" group
+        assert db_get_groups_for_host(host_id_list[0])[0].ungrouped
+        assert db_get_groups_for_host(host_id_list[1])[0].ungrouped
+        assert db_get_groups_for_host(host_id_list[2])[0].ungrouped
