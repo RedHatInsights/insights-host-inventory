@@ -100,9 +100,12 @@ def validate_add_host_list_to_group_for_group_create(host_id_list: list[str], gr
             title="Invalid request", detail=f"Could not find existing host(s) with ID {nonexistent_hosts}."
         )
 
-    # Check if the hosts are already associated with another group
-    assoc_query = HostGroupAssoc.query.filter(HostGroupAssoc.host_id.in_(host_id_list)).all()
-    if assoc_query:
+    # Check if the hosts are already associated with another (ungrouped) group
+    if assoc_query := (
+        HostGroupAssoc.query.join(Group)
+        .filter(HostGroupAssoc.host_id.in_(host_id_list), Group.ungrouped.is_(False))
+        .all()
+    ):
         taken_hosts = [str(assoc.host_id) for assoc in assoc_query]
         log_host_group_add_failed(logger, host_id_list, group_name)
         raise InventoryException(
@@ -122,11 +125,14 @@ def validate_add_host_list_to_group(host_id_list: list[str], group_id: str, org_
             title="Invalid request", detail=f"Could not find existing host(s) with ID {nonexistent_hosts}."
         )
 
-    # Check if the hosts are already associated with another group
-    assoc_query = HostGroupAssoc.query.filter(
-        HostGroupAssoc.host_id.in_(host_id_list), HostGroupAssoc.group_id != group_id
-    ).all()
-    if assoc_query:
+    # Check if the hosts are already associated with another (ungrouped) group
+    if assoc_query := (
+        HostGroupAssoc.query.join(Group)
+        .filter(
+            HostGroupAssoc.host_id.in_(host_id_list), HostGroupAssoc.group_id != group_id, Group.ungrouped.is_(False)
+        )
+        .all()
+    ):
         taken_hosts = [str(assoc.host_id) for assoc in assoc_query]
         log_host_group_add_failed(logger, host_id_list, group_id)
         raise InventoryException(
@@ -144,6 +150,11 @@ def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str):
         HostGroupAssoc.host_id.in_(host_id_list), HostGroupAssoc.group_id == group_id
     ).all()
     ids_already_in_this_group = [str(assoc.host_id) for assoc in assoc_query]
+
+    # Delete any prior host-group associations, which should now just be to "ungrouped" group
+    HostGroupAssoc.query.filter(HostGroupAssoc.host_id.in_(host_id_list), HostGroupAssoc.group_id != group_id).delete(
+        synchronize_session="fetch"
+    )
 
     host_group_assoc = [
         HostGroupAssoc(host_id=host_id, group_id=group_id)
@@ -254,11 +265,15 @@ def create_group_from_payload(group_data: dict, event_producer: EventProducer, g
     )
 
 
-def _remove_all_hosts_from_group(group: Group, org_id: str):
+def _remove_all_hosts_from_group(group: Group, identity: Identity):
     host_ids = [
         row[0] for row in db.session.query(HostGroupAssoc.host_id).filter(HostGroupAssoc.group_id == group.id).all()
     ]
-    _remove_hosts_from_group(group.id, host_ids, org_id)
+    _remove_hosts_from_group(group.id, host_ids, identity.org_id)
+    # If Kessel flag is on, assign hosts to "ungrouped" group
+    if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
+        ungrouped_id = get_or_create_ungrouped_hosts_group_for_identity(identity).id
+        _add_hosts_to_group(ungrouped_id, [str(host_id) for host_id in host_ids], identity.org_id)
 
 
 def _delete_host_group_assoc(session, assoc):
@@ -271,10 +286,10 @@ def _delete_host_group_assoc(session, assoc):
     return assoc_deleted
 
 
-def _delete_group(group: Group, org_id: str) -> bool:
+def _delete_group(group: Group, identity: Identity) -> bool:
     # First, remove all hosts from the requested group.
     group_id = group.id
-    _remove_all_hosts_from_group(group, org_id)
+    _remove_all_hosts_from_group(group, identity)
 
     delete_query = db.session.query(Group).filter(Group.id == group_id)
     delete_query.delete(synchronize_session="fetch")
@@ -302,7 +317,7 @@ def delete_group_list(group_id_list: list[str], identity: Identity, event_produc
             group_id = group.id
 
             with delete_group_processing_time.time():
-                if _delete_group(group, identity.org_id):
+                if _delete_group(group, identity):
                     deletion_count += 1
                     delete_group_count.inc()
                     log_group_delete_succeeded(logger, group_id, get_control_rule())

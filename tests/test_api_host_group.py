@@ -177,6 +177,41 @@ def test_add_associated_host_to_different_group(
     assert event_producer.write_event.call_count == 0
 
 
+def test_add_host_in_ungrouped_group_to_new_group(
+    db_create_group,
+    db_create_host,
+    db_get_hosts_for_group,
+    db_create_host_group_assoc,
+    api_add_hosts_to_group,
+    event_producer,
+    mocker,
+):
+    mocker.patch.object(event_producer, "write_event")
+
+    # Create a group and 3 hosts
+    ungrouped_group_id = db_create_group("ungrouped_group", ungrouped=True).id
+    new_group_id = db_create_group("new_group").id
+    host_id_list = [str(db_create_host().id) for _ in range(3)]
+
+    # Add the second 2 hosts to a group
+    db_create_host_group_assoc(host_id_list[1], ungrouped_group_id)
+    db_create_host_group_assoc(host_id_list[2], new_group_id)
+
+    # Confirm that the association exists
+    hosts_before = db_get_hosts_for_group(ungrouped_group_id)
+    assert len(hosts_before) == 1
+    hosts_before = db_get_hosts_for_group(new_group_id)
+    assert len(hosts_before) == 1
+
+    # Confirm that the API allows these hosts to be added to the group
+    response_status, _ = api_add_hosts_to_group(new_group_id, host_id_list)
+    assert response_status == 200
+
+    # Make sure that all 3 hosts are now in the new group
+    assert len(db_get_hosts_for_group(new_group_id)) == 3
+    assert event_producer.write_event.call_count == 3
+
+
 @pytest.mark.usefixtures("event_producer")
 def test_add_host_list_with_one_associated_host_to_group(
     db_create_group,

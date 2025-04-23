@@ -2159,3 +2159,24 @@ def test_workspace_mq_delete(workspace_message_consumer_mock, db_create_group, d
 
     workspace_message_consumer_mock.handle_message(json.dumps(message))
     assert not db_get_group_by_id(workspace_id)
+
+
+def test_workspace_mq_delete_non_empty(
+    workspace_message_consumer_mock, db_create_group_with_hosts, db_get_group_by_id, db_get_groups_for_host, mocker
+):
+    with mocker.patch("lib.group_repository.get_flag_value", return_value=True):
+        workspace_name = "kessel-deletable-workspace"
+        group = db_create_group_with_hosts(workspace_name, 3)
+        workspace_id = str(group.id)
+        host_id_list = [host.id for host in group.hosts]
+
+        message = generate_kessel_workspace_message("delete", workspace_id, workspace_name)
+        workspace_message_consumer_mock.handle_message(json.dumps(message))
+
+        # The group should no longer exist
+        assert not db_get_group_by_id(workspace_id)
+
+        # The hosts should now be in the "ungrouped" group
+        assert db_get_groups_for_host(host_id_list[0])[0].ungrouped
+        assert db_get_groups_for_host(host_id_list[1])[0].ungrouped
+        assert db_get_groups_for_host(host_id_list[2])[0].ungrouped
