@@ -37,6 +37,7 @@ from lib.group_repository import create_group_from_payload
 from lib.group_repository import delete_group_list
 from lib.group_repository import get_group_by_id_from_db
 from lib.group_repository import get_group_using_host_id
+from lib.group_repository import get_ungrouped_group
 from lib.group_repository import patch_group
 from lib.group_repository import remove_hosts_from_group
 from lib.group_repository import validate_add_host_list_to_group_for_group_create
@@ -210,8 +211,11 @@ def delete_groups(group_id_list, rbac_filter=None):
     rbac_group_id_check(rbac_filter, set(group_id_list))
 
     if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
+        # Write is not allowed for the ungrouped through API requests
+        ungrouped_group = get_ungrouped_group(get_current_identity())
         for group_id in group_id_list:
-            delete_rbac_workspace(group_id)
+            if not getattr(ungrouped_group, "id", None) or ungrouped_group.id is not group_id:
+                delete_rbac_workspace(group_id)
 
         return Response(None, HTTPStatus.NO_CONTENT)
     else:

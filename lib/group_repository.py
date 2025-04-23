@@ -444,7 +444,7 @@ def get_group_using_host_id(host_id: str, org_id: str):
 
 
 def get_or_create_ungrouped_hosts_group_for_identity(identity: Identity) -> Group:
-    group = Group.query.filter(Group.org_id == identity.org_id, Group.ungrouped.is_(True)).one_or_none()
+    group = get_ungrouped_group(identity)
 
     # If the "ungrouped" Group exists, return it.
     if group is not None:
@@ -461,3 +461,8 @@ def get_or_create_ungrouped_hosts_group_for_identity(identity: Identity) -> Grou
         group_id=workspace_id,
         ungrouped=True,
     )
+
+
+def get_ungrouped_group(identity: Identity) -> Group:
+    group = Group.query.filter(Group.org_id == identity.org_id, Group.ungrouped.is_(True)).one_or_none()
+    return group
