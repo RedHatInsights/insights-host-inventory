@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "fbc60e9ab2d97d835e0f425900f0a4c31bfa2c80279dbbe42b4825fa23d188dd"
+            "sha256": "3bfaec54e4a5b97712d4d69bed37d52ebf910966d44dc7285b1d3504640bcdd7"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -166,20 +166,20 @@
         },
         "boto3": {
             "hashes": [
-                "sha256:752d31105a45e3e01c8c68471db14ae439990b75a35e72b591ca528e2575b28f",
-                "sha256:d125cb11e22817f7a2581bade4bf7b75247b401888890239ceb5d3e902ccaf38"
+                "sha256:8b6544eca17e31d1bfd538e5d152b96a68d6c92950352a0cd9679f89d217d53a",
+                "sha256:96898facb164b47859d40a4271007824a0a791c3811a7079ce52459d753d4474"
             ],
             "index": "pypi",
-            "markers": "python_version >= '3.8'",
-            "version": "==1.37.37"
+            "markers": "python_version >= '3.9'",
+            "version": "==1.38.0"
         },
         "botocore": {
             "hashes": [
-                "sha256:3eadde6fed95c4cb469cc39d1c3558528b7fa76d23e7e16d4bddc77250431a64",
-                "sha256:eb730ff978f47c02f0c8ed07bccdc0db6d8fa098ed32ac31bee1da0e9be480d1"
+                "sha256:ac8997291bcfd28d329a779ceda429fbe9f8950ba051429a37ba93cbda025e94",
+                "sha256:f9d58404796a44746d54c4a9318a8970fb4dbcbdc45aa0e75bf528af4213b6b5"
             ],
-            "markers": "python_version >= '3.8'",
-            "version": "==1.37.37"
+            "markers": "python_version >= '3.9'",
+            "version": "==1.38.0"
         },
         "cachelib": {
             "hashes": [
@@ -1315,11 +1315,11 @@
         },
         "s3transfer": {
             "hashes": [
-                "sha256:757af0f2ac150d3c75bc4177a32355c3862a98d20447b69a0161812992fe0bd4",
-                "sha256:8c8aad92784779ab8688a61aefff3e28e9ebdce43142808eaa3f0b0f402f68b7"
+                "sha256:35b314d7d82865756edab59f7baebc6b477189e6ab4c53050e28c1de4d9cce18",
+                "sha256:8ac58bc1989a3fdb7c7f3ee0918a66b160d038a147c7b5db1500930a607e9a1c"
             ],
-            "markers": "python_version >= '3.8'",
-            "version": "==0.11.5"
+            "markers": "python_version >= '3.9'",
+            "version": "==0.12.0"
         },
         "segment-analytics-python": {
             "hashes": [
