@@ -111,7 +111,9 @@ def does_group_with_name_exist(group_name: str, org_id: str):
     Returns:
     bool: True if a group with the given name exists, False otherwise.
     """
-    return Group.query.filter(func.lower(Group.name) == func.lower(group_name), Group.org_id == org_id).count() > 0
+    return db.session.query(
+        db.exists().where(func.lower(Group.name) == func.lower(group_name), Group.org_id == org_id)
+    ).scalar()
 
 
 def get_filtered_group_list_db(group_name, page, per_page, order_by, order_how, rbac_filter, exclude_ungrouped=False):

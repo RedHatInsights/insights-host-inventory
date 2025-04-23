@@ -3,6 +3,7 @@ from __future__ import annotations
 from functools import partial
 from functools import wraps
 from http import HTTPStatus
+from json import JSONDecodeError
 from uuid import UUID
 
 from app_common_python import LoadedConfig
@@ -279,16 +280,18 @@ def post_rbac_workspace_using_header(name: str, description: str, identity_heade
     finally:
         request_session.close()
 
+    workspace_id = None
     try:
         resp_data = rbac_response.json()
+        workspace_id = resp_data["id"]
         logger.debug("POSTED RBAC Data", extra=resp_data)
-    except Exception as e:
+    except (JSONDecodeError, KeyError) as e:
         rbac_failure(logger, e)
         abort(503, "Failed to parse RBAC response, request cannot be fulfilled")
     finally:
         request_session.close()
 
-    return UUID(resp_data["id"])
+    return workspace_id
 
 
 def rbac_create_ungrouped_hosts_workspace(identity: Identity) -> UUID | None:
