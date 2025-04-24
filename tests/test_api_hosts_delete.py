@@ -138,6 +138,24 @@ def test_create_then_delete_without_insights_id(
 
 
 @pytest.mark.usefixtures("notification_event_producer_mock")
+def test_delete_hosts_filtered_by_subscription_manager_id(
+    db_create_host,
+    api_delete_filtered_hosts,
+    event_datetime_mock,
+    event_producer_mock,
+):
+    db_create_host(host=db_host())
+    host = db_create_host(host=db_host())
+    response_status, response_data = api_delete_filtered_hosts(
+        query_parameters={"subscription_manager_id": host.canonical_facts["subscription_manager_id"]}
+    )
+    assert response_data["hosts_found"] == 1
+    assert response_data["hosts_deleted"] == 1
+    assert_response_status(response_status, expected_status=202)
+    assert_delete_event_is_valid(event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock)
+
+
+@pytest.mark.usefixtures("notification_event_producer_mock")
 def test_delete_all_hosts(
     event_producer_mock,
     db_create_multiple_hosts,

@@ -22,6 +22,7 @@ paths:
         - $ref: '#/components/parameters/fqdn'
         - $ref: '#/components/parameters/hostnameOrId'
         - $ref: '#/components/parameters/insightsId'
+        - $ref: '#/components/parameters/subscriptionManagerId'
         - $ref: '#/components/parameters/providerId'
         - $ref: '#/components/parameters/providerType'
         - $ref: '#/components/parameters/updatedStart'
@@ -69,6 +70,7 @@ paths:
         - $ref: '#/components/parameters/stalenessNoDefaultsParam'
         - $ref: '#/components/parameters/tagsParam'
         - $ref: '#/components/parameters/filter_param'
+        - $ref: '#/components/parameters/subscriptionManagerId'
       responses:
         '202':
           description: Request for deletion of filtered hosts has been accepted.
@@ -1003,6 +1005,14 @@ components:
         type: string
         format: uuid
       description: Filter by insights_id
+      required: false
+    subscriptionManagerId:
+      in: query
+      name: subscription_manager_id
+      schema:
+        type: string
+        format: uuid
+      description: Filter by subscription_manager_id
       required: false
     providerId:
       in: query
