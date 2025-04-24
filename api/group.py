@@ -185,7 +185,7 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
             new_group_description = validated_patch_group_data.get("description")
 
             if new_group_name or new_group_description:
-                put_rbac_workspace(new_group_name, new_group_description)
+                put_rbac_workspace(group_id, name=new_group_name, description=new_group_description)
 
         # Separate out the host IDs because they're not stored on the Group
         patch_group(group_to_update, validated_patch_group_data, identity, current_app.event_producer)
