@@ -105,7 +105,7 @@ def test_create_group_read_only(api_create_group, mocker):
 
 @pytest.mark.parametrize(
     "new_name",
-    ["test_group", " test_group", "test_group ", " test_group "],
+    ["test_Group", " Test_Group", "test_group ", " test_group "],
 )
 def test_create_group_taken_name(api_create_group, new_name):
     group_data = {"name": "test_group", "host_ids": []}
@@ -113,6 +113,23 @@ def test_create_group_taken_name(api_create_group, new_name):
     api_create_group(group_data)
     group_data["name"] = new_name
     response_status, response_data = api_create_group(group_data)
+
+    assert_response_status(response_status, expected_status=400)
+    assert group_data["name"] in response_data["detail"]
+
+
+@pytest.mark.usefixtures("event_producer")
+@pytest.mark.parametrize(
+    "new_name",
+    ["test_Group", " Test_Group", "test_group ", " test_group "],
+)
+def test_create_group_taken_name_kessel(api_create_group, new_name, mocker):
+    group_data = {"name": "test_group", "host_ids": []}
+
+    api_create_group(group_data)
+    group_data["name"] = new_name
+    with mocker.patch("api.group.get_flag_value", return_value=True):
+        response_status, response_data = api_create_group(group_data)
 
     assert_response_status(response_status, expected_status=400)
     assert group_data["name"] in response_data["detail"]

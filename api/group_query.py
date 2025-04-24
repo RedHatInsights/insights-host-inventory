@@ -100,6 +100,22 @@ def get_group_list_by_id_list_db(group_id_list, page, per_page, order_by, order_
     return get_group_list_from_db(filters, page, per_page, order_by, order_how, rbac_filter)
 
 
+def does_group_with_name_exist(group_name: str, org_id: str):
+    """
+    Check if a group with the given name exists in the database.
+
+    Parameters:
+    - group_name (str): The name of the group to check.
+    - org_id (str): The ID of the organization to filter by.
+
+    Returns:
+    bool: True if a group with the given name exists, False otherwise.
+    """
+    return db.session.query(
+        db.exists().where(func.lower(Group.name) == func.lower(group_name), Group.org_id == org_id)
+    ).scalar()
+
+
 def get_filtered_group_list_db(group_name, page, per_page, order_by, order_how, rbac_filter, exclude_ungrouped=False):
     filters = (Group.org_id == get_current_identity().org_id,)
     if exclude_ungrouped:

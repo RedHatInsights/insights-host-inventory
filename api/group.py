@@ -12,6 +12,7 @@ from api import json_error_response
 from api import metrics
 from api.group_query import build_group_response
 from api.group_query import build_paginated_group_list_response
+from api.group_query import does_group_with_name_exist
 from api.group_query import get_filtered_group_list_db
 from api.group_query import get_group_list_by_id_list_db
 from app import RbacPermission
@@ -97,7 +98,14 @@ def create_group(body, rbac_filter=None):
         if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
             group_name = validated_create_group_data.get("name")
 
-            # Before waiting and workspace creation in RBAC validate whether the hosts can be added to the group
+            # Before waiting for workspace creation in RBAC, check that the name isn't already in use
+            if does_group_with_name_exist(group_name, get_current_identity().org_id):
+                log_create_group_failed(logger, group_name)
+                return json_error_response(
+                    "Integrity error", f"A group with name {group_name} already exists.", HTTPStatus.BAD_REQUEST
+                )
+
+            # Also, validate whether the hosts can be added to the group
             if len(host_id_list := validated_create_group_data.get("host_ids", [])) > 0:
                 validate_add_host_list_to_group_for_group_create(
                     host_id_list,
