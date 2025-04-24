@@ -390,13 +390,14 @@ def test_patch_group_RBAC_post_kessel_migration(
     new_host_id_list = [str(db_create_host().id)]
     ungrouped_group_id = str(db_create_group("ungrouped_group", ungrouped=True).id)
 
+    new_group_data = {"host_ids": new_host_id_list}
+    if update_name:
+        new_group_data["name"] = "new_name"
+
     with mocker.patch("api.group.get_flag_value", return_value=True):
-        new_group_data = {"host_ids": new_host_id_list}
-        if update_name:
-            new_group_data["name"] = "new_name"
         response_status, _ = api_patch_group(group_id, new_group_data)
 
-        # If new_name != old group name, it should have made a request to RBAC
+        # If group name was updated, it should have made a request to RBAC
         if update_name:
             assert put_rbac_workspace_mock.call_args_list[0][0][0] == group_id
             assert put_rbac_workspace_mock.call_args_list[0][1]["name"] == "new_name"

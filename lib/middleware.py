@@ -331,7 +331,7 @@ def delete_rbac_workspace(workspace_id):
         request_session.close()
 
 
-def put_rbac_workspace(workspace_id, name=None, description=None) -> None:
+def put_rbac_workspace(workspace_id: str, name: str | None = None) -> None:
     if inventory_config().bypass_rbac:
         return None
 
@@ -347,8 +347,6 @@ def put_rbac_workspace(workspace_id, name=None, description=None) -> None:
     request_data = {}
     if name is not None:
         request_data.update({"name": name})
-    if description is not None:
-        request_data.update({"description": description})
 
     try:
         with outbound_http_response_time.labels("rbac").time():
