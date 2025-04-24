@@ -331,6 +331,7 @@ def query_filters(
     display_name: str | None = None,
     hostname_or_id: str | None = None,
     insights_id: str | None = None,
+    subscription_manager_id: str | None = None,
     provider_id: str | None = None,
     provider_type: str | None = None,
     updated_start: str | None = None,
@@ -365,6 +366,8 @@ def query_filters(
         filters += _hostname_or_id_filter(hostname_or_id)
     elif insights_id:
         filters += canonical_fact_filter("insights_id", insights_id.lower())
+    elif subscription_manager_id:
+        filters += canonical_fact_filter("subscription_manager_id", subscription_manager_id.lower())
 
     if provider_id:
         filters += canonical_fact_filter("provider_id", provider_id, case_insensitive=True)

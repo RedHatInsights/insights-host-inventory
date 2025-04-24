@@ -33,6 +33,9 @@
             "$ref": "#/components/parameters/insightsId"
           },
           {
+            "$ref": "#/components/parameters/subscriptionManagerId"
+          },
+          {
             "$ref": "#/components/parameters/providerId"
           },
           {
@@ -142,6 +145,9 @@
           },
           {
             "$ref": "#/components/parameters/filter_param"
+          },
+          {
+            "$ref": "#/components/parameters/subscriptionManagerId"
           }
         ],
         "responses": {
@@ -1662,6 +1668,16 @@
           "format": "uuid"
         },
         "description": "Filter by insights_id",
+        "required": false
+      },
+      "subscriptionManagerId": {
+        "in": "query",
+        "name": "subscription_manager_id",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "description": "Filter by subscription_manager_id",
         "required": false
       },
       "providerId": {
