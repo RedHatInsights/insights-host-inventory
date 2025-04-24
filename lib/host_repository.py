@@ -35,6 +35,9 @@ from app.models import LimitedHost
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness
 from lib import metrics
+from lib.kessel import kessel_client
+from lib.feature_flags import FLAG_INVENTORY_DEDUPLICATION_ELEVATE_SUBMAN_ID
+from lib.feature_flags import get_flag_value
 
 __all__ = (
     "AddHostResult",
@@ -291,6 +294,8 @@ def find_non_culled_hosts(query: Query, identity: Identity) -> Query:
 def create_new_host(input_host: Host) -> tuple[Host, AddHostResult]:
     logger.debug("Creating a new host")
 
+    #report host to inventory, as this is where it would go to outbox
+    kessel_client.ReportHost(input_host)
     input_host.save()
 
     metrics.create_host_count.inc()

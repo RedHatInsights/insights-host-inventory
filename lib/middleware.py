@@ -231,6 +231,7 @@ def rbac(resource_type: RbacResourceType, required_permission: RbacPermission, p
 
             request_headers = _build_rbac_request_headers()
 
+            # Use feature flag here - do either rbac or Kessel to populate allowed and rbac_filter. Maybe also create get_kessel_filter
             allowed, rbac_filter = get_rbac_filter(
                 resource_type, required_permission, current_identity, request_headers, permission_base
             )
