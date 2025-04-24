@@ -41,6 +41,7 @@ from lib.metrics import delete_group_count
 from lib.metrics import delete_group_processing_time
 from lib.metrics import delete_host_group_count
 from lib.metrics import delete_host_group_processing_time
+from lib.kessel import kessel_client
 from lib.middleware import rbac_create_ungrouped_hosts_workspace
 
 logger = get_logger(__name__)
@@ -55,8 +56,12 @@ def _update_hosts_for_group_changes(host_id_list: list[str], group_id_list: list
         for group_id in group_id_list
     ]
 
-    # Update groups data on each host record
+    group_id = group_id_list[0] if len(group_id_list) > 0 else None
+
+    
     Host.query.filter(Host.id.in_(host_id_list)).update({"groups": serialized_groups}, synchronize_session="fetch")
+    for hostId in host_id_list:
+        kessel_client.ReportHostMoved(hostId, group_id) # Update groups data on each host record, current a network call to Kessel but will be writing to an outbox table (can probably be batched with the other SQL command rather than a loop)
     db.session.commit()
     host_list = get_host_list_by_id_list_from_db(host_id_list, identity)
     return serialized_groups, host_list
