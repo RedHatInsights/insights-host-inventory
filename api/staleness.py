@@ -1,11 +1,15 @@
 from http import HTTPStatus
 from threading import Thread
 
+import sqlalchemy as sa
 from flask import Flask
 from flask import abort
 from flask import current_app
 from marshmallow import ValidationError
+from sqlalchemy import orm
+from sqlalchemy.engine.base import Connection
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Mapper
 from sqlalchemy.orm.exc import NoResultFound
 
 from api import api_operation
@@ -59,6 +63,29 @@ def _validate_input_data(body):
         abort(HTTPStatus.BAD_REQUEST, f"Validation Error: {str(e.messages)}")
 
 
+@sa.event.listens_for(Host, "before_update")
+def receive_before_host_update(mapper: Mapper, connection: Connection, host: Host):  # noqa: ARG001
+    """Prevent host modified_on update during staleness updates.
+
+    This SQLAlchemy event listener, triggered before any host update,
+    prevents the ``modified_on`` timestamp from being updated when only
+    the ``per_reporter_staleness`` field is changed.  This avoids
+    unnecessary updates as ``modified_on`` is automatically updated for
+    every change to a Host object, which can lead to confusion to the user.
+
+    For more details on SQLAlchemy event listeners, see:
+    https://docs.sqlalchemy.org/en/20/orm/events.html#sqlalchemy.orm.MapperEvents.before_update
+
+    :param mapper: The SQLAlchemy mapper.
+    :param connection: The database connection.
+    :param host: The Host object being updated.
+    """
+    host_details = sa.inspect(host)
+    flag_changed, _, _ = host_details.attrs.per_reporter_staleness.history
+    if flag_changed:
+        orm.attributes.flag_modified(host, "modified_on")
+
+
 def _update_hosts_staleness_async(identity: Identity, app: Flask, staleness: Staleness, request_id):
     with app.app_context():
         threadctx.request_id = request_id
@@ -71,7 +98,7 @@ def _update_hosts_staleness_async(identity: Identity, app: Flask, staleness: Sta
             staleness_dict = serialize_staleness_to_dict(staleness)
             list_of_events_params = []
             if num_hosts > 0:
-                logger.info(f"Found {num_hosts} hosts for org_id: {identity.org_id}")
+                logger.debug(f"Found {num_hosts} hosts for org_id: {identity.org_id}")
                 for host in hosts_query.yield_per(500):
                     host._update_all_per_reporter_staleness()
                     serialized_host = serialize_host(
