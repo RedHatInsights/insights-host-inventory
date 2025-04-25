@@ -59,9 +59,9 @@ def _validate_input_data(body):
         abort(HTTPStatus.BAD_REQUEST, f"Validation Error: {str(e.messages)}")
 
 
-def _update_hosts_staleness_async(identity: Identity, app: Flask, staleness: Staleness):
+def _update_hosts_staleness_async(identity: Identity, app: Flask, staleness: Staleness, request_id):
     with app.app_context():
-        threadctx.request_id = None
+        threadctx.request_id = request_id
         logger.debug("Starting host staleness update thread")
         try:
             logger.debug(f"Querying hosts for org_id: {identity.org_id}")
@@ -108,7 +108,7 @@ def _build_host_updated_event_params(serialized_host: dict, host: Host, identity
     return event, headers
 
 
-def _validate_flag_and_async_update_host(identity: Identity, created_staleness: Staleness):
+def _validate_flag_and_async_update_host(identity: Identity, created_staleness: Staleness, request_id):
     """
     This method validates if feature flag is enabled,
     is it is, call the async host staleness update,
@@ -122,6 +122,7 @@ def _validate_flag_and_async_update_host(identity: Identity, created_staleness: 
                 identity,
                 current_app._get_current_object(),
                 created_staleness,
+                request_id,
             ),
         )
         update_hosts_thread.start()
@@ -166,6 +167,7 @@ def create_staleness(body):
     # Validate account staleness input data
     identity = get_current_identity()
     org_id = identity.org_id
+    request_id = threadctx.request_id
     try:
         validated_data = _validate_input_data(body)
     except ValidationError as e:
@@ -175,7 +177,7 @@ def create_staleness(body):
     try:
         # Create account staleness with validated data
         created_staleness = add_staleness(validated_data)
-        _validate_flag_and_async_update_host(identity, created_staleness)
+        _validate_flag_and_async_update_host(identity, created_staleness, request_id)
         log_create_staleness_succeeded(logger, created_staleness.id)
     except IntegrityError:
         error_message = f"Staleness record for org_id {org_id} already exists."
@@ -194,10 +196,11 @@ def create_staleness(body):
 def delete_staleness():
     identity = get_current_identity()
     org_id = identity.org_id
+    request_id = threadctx.request_id
     try:
         remove_staleness()
         staleness = get_sys_default_staleness_api(identity)
-        _validate_flag_and_async_update_host(identity, staleness)
+        _validate_flag_and_async_update_host(identity, staleness, request_id)
         return flask_json_response(None, HTTPStatus.NO_CONTENT)
     except NoResultFound:
         abort(
@@ -214,6 +217,7 @@ def update_staleness(body):
     # Validate account staleness input data
     try:
         validated_data = _validate_input_data(body)
+        request_id = threadctx.request_id
     except ValidationError as e:
         logger.exception(f'Input validation error, "{str(e.messages)}", while creating account staleness: {body}')
         return json_error_response("Validation Error", str(e.messages), HTTPStatus.BAD_REQUEST)
@@ -226,7 +230,7 @@ def update_staleness(body):
             # since update only return None with no record instead of exception.
             raise NoResultFound
 
-        _validate_flag_and_async_update_host(identity, updated_staleness)
+        _validate_flag_and_async_update_host(identity, updated_staleness, request_id)
 
         log_patch_staleness_succeeded(logger, updated_staleness.id)
 
