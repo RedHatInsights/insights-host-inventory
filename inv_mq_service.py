@@ -14,6 +14,7 @@ from app.queue.host_mq import SystemProfileMessageConsumer
 from app.queue.host_mq import WorkspaceMessageConsumer
 from lib.handlers import ShutdownHandler
 from lib.handlers import register_shutdown
+from lib.kessel import init_kessel
 
 logger = get_logger("host_mq_service")
 
@@ -22,6 +23,8 @@ def main():
     application = create_app(RuntimeEnvironment.SERVICE)
     config = application.app.config["INVENTORY_CONFIG"]
     init_cache(config, application)
+    init_kessel(config)
+    
     start_http_server(config.metrics_port)
 
     topic_to_hbi_consumer: dict[str, HBIMessageConsumerBase] = {
