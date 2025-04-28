@@ -7,6 +7,8 @@ fi
 
 COMMIT_SHORT=$(git rev-parse --short=7 HEAD)
 
+sudo chown -R 1000:1000 .
+
 docker run \
   -v "$(pwd)":/usr/src \
   -e SONAR_HOST_URL=https://sonarqube.corp.redhat.com/ \
