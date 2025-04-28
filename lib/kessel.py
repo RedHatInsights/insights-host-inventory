@@ -1,6 +1,7 @@
 from typing import Optional
 from app.models import Host
 from app import Config
+from flask import Flask
 
 import grpc
 from kessel.inventory.v1beta2 import (
@@ -77,9 +78,9 @@ class Kessel:
 
         self.resource_svc.DeleteResource(request)
 
-kessel_client: Optional[Kessel] = None
-
-def init_kessel(config: Config):
-    global kessel_client
+def init_kessel(config: Config, app):
     kessel_client = Kessel(config)
-    print("Made a kessel!")
+    app.extensions["Kessel"] = kessel_client
+
+def get_kessel_client(app) -> Kessel:
+    return app.extensions["Kessel"]
