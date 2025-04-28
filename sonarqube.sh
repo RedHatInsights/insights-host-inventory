@@ -8,7 +8,7 @@ fi
 COMMIT_SHORT=$(git rev-parse --short=7 HEAD)
 
 docker run \
-  -v ${PWD}:/usr/src \
+  -v "$(pwd)":/usr/src \
   -e SONAR_HOST_URL=https://sonarqube.corp.redhat.com/ \
   -e SONAR_SCANNER_HOME=/opt/sonar-scanner \
   -e SONAR_USER_HOME=/opt/sonar-scanner/.sonar \
