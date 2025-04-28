@@ -7,7 +7,9 @@ fi
 
 COMMIT_SHORT=$(git rev-parse --short=7 HEAD)
 
-sudo chown -R 1000:1000 .
+id
+
+chmod -R 755 .
 
 docker run \
   -v "$(pwd)":/usr/src \
