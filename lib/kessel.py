@@ -1,3 +1,4 @@
+from typing import Optional
 from app.models import Host
 from app import Config
 
@@ -9,7 +10,6 @@ from kessel.inventory.v1beta2 import (
     resource_service_pb2
 )
 from google.protobuf import struct_pb2
-from app.common import inventory_config
 
 class Kessel:
     def __init__(self, config: Config):
@@ -77,4 +77,9 @@ class Kessel:
 
         self.resource_svc.DeleteResource(request)
 
-kessel_client = Kessel(inventory_config())
+kessel_client: Optional[Kessel] = None
+
+def init_kessel(config: Config):
+    global kessel_client
+    kessel_client = Kessel(config)
+    print("Made a kessel!")

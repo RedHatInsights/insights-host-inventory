@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "fd2160850775e97156856e91f90876de7c28aced16ba0c849e21f44f01ba0756"
+            "sha256": "4915ea99d634b3cfcb26f2d6e9edc9bb8952e0eae37d1790cee66cd05c9a41c5"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -438,6 +438,15 @@
             ],
             "index": "pypi",
             "version": "==2.1.0"
+        },
+        "googleapis-common-protos": {
+            "hashes": [
+                "sha256:0e1b44e0ea153e6594f9f394fef15193a68aaaea2d843f83e2742717ca753257",
+                "sha256:b8bfcca8c25a2bb253e0e0b0adaf8c00773e5e6af6fd92397576680b807e0fd8"
+            ],
+            "index": "pypi",
+            "markers": "python_version >= '3.7'",
+            "version": "==1.70.0"
         },
         "greenlet": {
             "hashes": [
