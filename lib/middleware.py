@@ -37,7 +37,7 @@ logger = get_logger(__name__)
 
 RBAC_ROUTE = "/api/rbac/v1/access/?application="
 RBAC_V2_ROUTE = "/api/rbac/v2/"
-RBAC_POST_UNGROUPED_ROUTE = "/_private/_s2s/workspaces/ungrouped/"
+RBAC_PRIVATE_UNGROUPED_ROUTE = "/_private/_s2s/workspaces/ungrouped/"
 CHECKED_TYPES = [IdentityType.USER, IdentityType.SERVICE_ACCOUNT]
 RETRY_STATUSES = [500, 502, 503, 504]
 
@@ -51,7 +51,7 @@ def get_rbac_v2_url(endpoint: str) -> str:
 
 
 def get_rbac_private_url() -> str:
-    return inventory_config().rbac_endpoint + RBAC_POST_UNGROUPED_ROUTE
+    return inventory_config().rbac_endpoint + RBAC_PRIVATE_UNGROUPED_ROUTE
 
 
 def tenant_translator_url() -> str:

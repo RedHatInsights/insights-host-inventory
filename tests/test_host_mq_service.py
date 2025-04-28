@@ -148,9 +148,18 @@ def test_handle_message_happy_path(
 @pytest.mark.usefixtures("enable_rbac")
 @pytest.mark.parametrize("identity", (SYSTEM_IDENTITY, SATELLITE_IDENTITY, USER_IDENTITY))
 def test_handle_message_kessel_private_endpoint(identity, mocker, ingress_message_consumer_mock):
+    mock_psk = "1234567890"
     mocker.patch("app.queue.host_mq.get_flag_value", return_value=True)
     post_rbac_mock = mocker.patch(
         "lib.middleware.post_rbac_workspace_using_endpoint_and_headers", return_value=generate_uuid()
+    )
+    mocker.patch(
+        "lib.middleware.inventory_config",
+        return_value=SimpleNamespace(
+            rbac_psk=mock_psk,
+            bypass_rbac=False,
+            rbac_endpoint="fake-rbac-endpoint:8080",
+        ),
     )
     host = minimal_host(org_id=identity["org_id"])
 
@@ -163,7 +172,7 @@ def test_handle_message_kessel_private_endpoint(identity, mocker, ingress_messag
     assert post_rbac_mock.call_args_list[0][0][2] == {
         "X-RH-RBAC-CLIENT-ID": "hbi",
         "X-RH-RBAC-ORG-ID": "test",
-        "X-RH-RBAC-PSK": None,  # No PSK when running locally
+        "X-RH-RBAC-PSK": mock_psk,
     }
 
 
