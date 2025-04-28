@@ -1,6 +1,7 @@
 from functools import partial
 
 from confluent_kafka import KafkaException
+from flask import current_app
 
 from app.auth.identity import to_auth_header
 from app.instrumentation import log_host_delete_succeeded
@@ -16,7 +17,7 @@ from app.queue.notifications import NotificationType
 from app.queue.notifications import send_notification
 from lib.db import session_guard
 from lib.host_kafka import kafka_available
-from lib.kessel import kessel_client
+from lib.kessel import get_kessel_client
 from lib.metrics import delete_host_count
 from lib.metrics import delete_host_processing_time
 from utils.system_profile_log import extract_host_model_sp_to_log
@@ -86,7 +87,8 @@ def _delete_host(session, host, identity, control_rule) -> OperationResult:
     assoc_delete_query.delete(synchronize_session="fetch")
     host_delete_query.delete(synchronize_session="fetch")
     #report deleted host to Kessel, similar to going to outbox
-    kessel_client.DeleteHost(host.id)
+    client = get_kessel_client(current_app)
+    client.DeleteHost(host.id)
     return OperationResult(
         host,
         {"b64_identity": to_auth_header(identity)} if identity else None,

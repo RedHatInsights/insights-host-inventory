@@ -40,6 +40,7 @@ from app.tags_blueprint import tags_bp
 from lib.check_org import check_org_id
 from lib.feature_flags import SchemaStrategy
 from lib.feature_flags import init_unleash_app
+from lib.kessel import init_kessel
 from lib.handlers import register_shutdown
 
 logger = get_logger(__name__)
@@ -283,6 +284,7 @@ def create_app(runtime_environment):
     flask_app.config["SYSTEM_PROFILE_SPEC"] = sp_spec
     flask_app.config["USE_SUBMAN_ID"] = app_config.use_sub_man_id_for_host_id
 
+    init_kessel(app_config, flask_app)
     init_cache(app_config, app)
 
     # Configure Unleash (feature flags)
