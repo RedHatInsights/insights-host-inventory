@@ -113,7 +113,7 @@ def create_group(body, rbac_filter=None):
                     get_current_identity().org_id,
                 )
 
-            workspace_id = post_rbac_workspace(group_name, f"{group_name} group")
+            workspace_id = post_rbac_workspace(group_name)
             if not workspace_id and not inventory_config().bypass_rbac:
                 message = f"Error while creating workspace for {group_name}"
                 logger.exception(message)

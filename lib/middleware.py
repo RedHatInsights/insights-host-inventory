@@ -37,6 +37,7 @@ logger = get_logger(__name__)
 
 RBAC_ROUTE = "/api/rbac/v1/access/?application="
 RBAC_V2_ROUTE = "/api/rbac/v2/"
+RBAC_POST_UNGROUPED_ROUTE = "/_private/_s2s/workspaces/ungrouped/"
 CHECKED_TYPES = [IdentityType.USER, IdentityType.SERVICE_ACCOUNT]
 RETRY_STATUSES = [500, 502, 503, 504]
 
@@ -47,6 +48,10 @@ def get_rbac_url(app: str) -> str:
 
 def get_rbac_v2_url(endpoint: str) -> str:
     return inventory_config().rbac_endpoint + RBAC_V2_ROUTE + endpoint
+
+
+def get_rbac_private_url() -> str:
+    return inventory_config().rbac_endpoint + RBAC_POST_UNGROUPED_ROUTE
 
 
 def tenant_translator_url() -> str:
@@ -245,31 +250,25 @@ def _temp_add_org_admin_user_identity(identity_header: str) -> str:
     return identity_header
 
 
-def post_rbac_workspace(name, description) -> UUID | None:
-    return post_rbac_workspace_using_header(name, description, request.headers[IDENTITY_HEADER])
+def post_rbac_workspace(name) -> UUID | None:
+    return post_rbac_workspace_using_identity_header(name, request.headers[IDENTITY_HEADER])
 
 
-def post_rbac_workspace_using_header(name: str, description: str, identity_header: str) -> UUID | None:
+def post_rbac_workspace_using_endpoint_and_headers(
+    request_data: dict | None, rbac_endpoint: str, request_headers: dict
+) -> UUID | None:
     if inventory_config().bypass_rbac:
         return None
 
-    workspace_endpoint = "workspaces/"
     request_session = Session()
     retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
-    request_session.mount(get_rbac_v2_url(endpoint=workspace_endpoint), HTTPAdapter(max_retries=retry_config))
-    identity_header = _temp_add_org_admin_user_identity(identity_header)
-    request_header = {
-        IDENTITY_HEADER: identity_header,
-        REQUEST_ID_HEADER: threadctx.request_id,
-    }
-    request_data = {"name": name, "description": description}
-    logger.info(f"Identity header (post rbac workspace): {identity_header}")  # TODO: remove after testing
+    request_session.mount(rbac_endpoint, HTTPAdapter(max_retries=retry_config))
 
     try:
         with outbound_http_response_time.labels("rbac").time():
             rbac_response = request_session.post(
-                url=get_rbac_v2_url(endpoint=workspace_endpoint),
-                headers=request_header,
+                url=rbac_endpoint,
+                headers=request_headers,
                 json=request_data,
                 timeout=inventory_config().rbac_timeout,
                 verify=LoadedConfig.tlsCAPath,
@@ -294,13 +293,36 @@ def post_rbac_workspace_using_header(name: str, description: str, identity_heade
     return workspace_id
 
 
+def post_rbac_workspace_using_identity_header(name: str, identity_header: str) -> UUID | None:
+    if inventory_config().bypass_rbac:
+        return None
+
+    rbac_endpoint = get_rbac_v2_url(endpoint="workspaces/")
+    identity_header = _temp_add_org_admin_user_identity(identity_header)
+    request_headers = {
+        IDENTITY_HEADER: identity_header,
+        REQUEST_ID_HEADER: threadctx.request_id,
+    }
+    request_data = {"name": name}
+
+    return post_rbac_workspace_using_endpoint_and_headers(request_data, rbac_endpoint, request_headers)
+
+
 def rbac_create_ungrouped_hosts_workspace(identity: Identity) -> UUID | None:
     # Creates a new "ungrouped" workspace via the RBAC API, and returns its ID.
     # If not using RBAC, returns None, so the DB will automatically generate the group ID.
     if inventory_config().bypass_rbac:
         return None
-    else:
-        return post_rbac_workspace_using_header("ungrouped", "ungrouped workspace", to_auth_header(identity))
+
+    # Get HBI's RBAC PSK from the config
+    psk = inventory_config().rbac_psk
+    request_headers = {
+        "X-RH-RBAC-PSK": psk,
+        "X-RH-RBAC-ORG-ID": identity.org_id,
+        "X-RH-RBAC-CLIENT-ID": "hbi",
+    }
+
+    return post_rbac_workspace_using_endpoint_and_headers(None, get_rbac_private_url(), request_headers)
 
 
 def delete_rbac_workspace(workspace_id):

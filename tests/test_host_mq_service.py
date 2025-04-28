@@ -122,26 +122,49 @@ def test_handle_message_failure_invalid_message_format(mocker, ingress_message_c
 def test_handle_message_happy_path(
     identity, kessel_migration, existing_ungrouped, mocker, ingress_message_consumer_mock, db_create_group
 ):
-    with mocker.patch("app.queue.host_mq.get_flag_value", return_value=kessel_migration):
-        expected_insights_id = generate_uuid()
-        host = minimal_host(org_id=identity["org_id"], insights_id=expected_insights_id)
-        existing_group_name = "test group"
-        if existing_ungrouped:
-            db_create_group(existing_group_name, identity=identity, ungrouped=existing_ungrouped)
+    mocker.patch("app.queue.host_mq.get_flag_value", return_value=kessel_migration)
+    expected_insights_id = generate_uuid()
+    host = minimal_host(org_id=identity["org_id"], insights_id=expected_insights_id)
+    existing_group_name = "test group"
+    if existing_ungrouped:
+        db_create_group(existing_group_name, identity=identity, ungrouped=existing_ungrouped)
 
-        mock_notification_event_producer = mocker.Mock()
-        message = wrap_message(host.data(), "add_host", get_platform_metadata(identity))
-        result = ingress_message_consumer_mock.handle_message(json.dumps(message))
+    mock_notification_event_producer = mocker.Mock()
+    message = wrap_message(host.data(), "add_host", get_platform_metadata(identity))
+    result = ingress_message_consumer_mock.handle_message(json.dumps(message))
 
-        assert result.event_type == EventType.created
-        assert result.host_row.canonical_facts["insights_id"] == expected_insights_id
-        if kessel_migration:
-            assert len(result.host_row.groups) == 1
-            assert result.host_row.groups[0]["name"] == existing_group_name if existing_ungrouped else "ungrouped"
-        else:
-            assert result.host_row.groups == []
+    assert result.event_type == EventType.created
+    assert result.host_row.canonical_facts["insights_id"] == expected_insights_id
+    if kessel_migration:
+        assert len(result.host_row.groups) == 1
+        assert result.host_row.groups[0]["name"] == existing_group_name if existing_ungrouped else "ungrouped"
+    else:
+        assert result.host_row.groups == []
 
-        mock_notification_event_producer.write_event.assert_not_called()
+    mock_notification_event_producer.write_event.assert_not_called()
+
+
+@pytest.mark.usefixtures("flask_app")
+@pytest.mark.usefixtures("enable_rbac")
+@pytest.mark.parametrize("identity", (SYSTEM_IDENTITY, SATELLITE_IDENTITY, USER_IDENTITY))
+def test_handle_message_kessel_private_endpoint(identity, mocker, ingress_message_consumer_mock):
+    mocker.patch("app.queue.host_mq.get_flag_value", return_value=True)
+    post_rbac_mock = mocker.patch(
+        "lib.middleware.post_rbac_workspace_using_endpoint_and_headers", return_value=generate_uuid()
+    )
+    host = minimal_host(org_id=identity["org_id"])
+
+    message = wrap_message(host.data(), "add_host", get_platform_metadata(identity))
+    result = ingress_message_consumer_mock.handle_message(json.dumps(message))
+
+    assert result.event_type == EventType.created
+    assert post_rbac_mock.call_args_list[0][0][0] is None
+    assert "/_private/_s2s/workspaces/ungrouped/" in post_rbac_mock.call_args_list[0][0][1]
+    assert post_rbac_mock.call_args_list[0][0][2] == {
+        "X-RH-RBAC-CLIENT-ID": "hbi",
+        "X-RH-RBAC-ORG-ID": "test",
+        "X-RH-RBAC-PSK": None,  # No PSK when running locally
+    }
 
 
 @pytest.mark.usefixtures("flask_app")
