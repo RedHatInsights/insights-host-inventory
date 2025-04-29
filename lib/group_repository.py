@@ -300,6 +300,7 @@ def delete_group_list(group_id_list: list[str], identity: Identity, event_produc
     deletion_count = 0
     deleted_host_ids = []
     staleness = get_staleness_obj(identity.org_id)
+
     with session_guard(db.session):
         query = (
             select(HostGroupAssoc)

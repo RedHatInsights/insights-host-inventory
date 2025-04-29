@@ -213,9 +213,14 @@ def delete_groups(group_id_list, rbac_filter=None):
     if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
         # Write is not allowed for the ungrouped through API requests
         ungrouped_group = get_ungrouped_group(get_current_identity())
+        ungrouped_group_id = str(ungrouped_group.id) if ungrouped_group else None
+
         for group_id in group_id_list:
-            if not getattr(ungrouped_group, "id", None) or ungrouped_group.id is not group_id:
+            if not ungrouped_group_id or ungrouped_group_id != group_id:
                 delete_rbac_workspace(group_id)
+
+        if ungrouped_group_id in group_id_list:
+            abort(HTTPStatus.BAD_REQUEST, "Ungrouped workspace can not be deleted.")
 
         return Response(None, HTTPStatus.NO_CONTENT)
     else:

@@ -330,7 +330,8 @@ def test_delete_non_empty_group_workspace_enabled(api_delete_groups, db_create_g
     with mocker.patch("api.group.get_flag_value", return_value=True):
         group = db_create_group_with_hosts("non_empty_group", 3)
 
-        response_status, _ = api_delete_groups([group.id])
+        response_status, rd = api_delete_groups([group.id])
+        print(">>>>>>>>>>>>>>>>>>>>>", rd)
         assert_response_status(response_status, expected_status=204)
 
 
@@ -451,7 +452,7 @@ def test_delete_ungrouped_group_post_kessel_migration(
         response_status, _ = api_delete_groups([group_id])
 
         # No group should be deleted
-        assert_response_status(response_status, 204)
+        assert_response_status(response_status, 400)
 
         # Confirm that ungrouped group was not deleted
         retrieved_group = db_get_group_by_id(group_id)
