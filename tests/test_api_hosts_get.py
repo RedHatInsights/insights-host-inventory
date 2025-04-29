@@ -730,6 +730,9 @@ def test_query_using_group_name(db_create_group_with_hosts, api_get, num_groups)
 
     assert response_status == 200
     assert len(response_data["results"]) == num_groups * hosts_per_group
+    for result in response_data["results"]:
+        assert "existing_group_" in result["groups"][0]["name"]
+        assert result["groups"][0]["ungrouped"] is False
 
 
 def test_query_ungrouped_hosts(db_create_group_with_hosts, mq_create_three_specific_hosts, api_get):
@@ -744,6 +747,20 @@ def test_query_ungrouped_hosts(db_create_group_with_hosts, mq_create_three_speci
 
     assert response_status == 200
     assert_host_lists_equal(build_expected_host_list(ungrouped_hosts), response_data["results"])
+
+
+def test_query_ungrouped_hosts_kessel(db_create_group_with_hosts, api_get):
+    # Create 3 hosts that are in a group
+    ungrouped_group_id = db_create_group_with_hosts("ungrouped", 3, True).id
+    url = build_hosts_url(query="?group_name=ungrouped")
+
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    for result in response_data["results"]:
+        assert (group_result := result["groups"][0])["name"] == "ungrouped"
+        assert group_result["id"] == str(ungrouped_group_id)
+        assert group_result["ungrouped"] is True
 
 
 def test_query_hosts_filter_updated_start_end(mq_create_or_update_host, api_get):
