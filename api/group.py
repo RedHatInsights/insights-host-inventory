@@ -182,10 +182,9 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
         if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
             # Update group on Kessel
             new_group_name = validated_patch_group_data.get("name")
-            new_group_description = validated_patch_group_data.get("description")
 
-            if new_group_name or new_group_description:
-                put_rbac_workspace(new_group_name, new_group_description)
+            if new_group_name:
+                put_rbac_workspace(group_id, name=new_group_name)
 
         # Separate out the host IDs because they're not stored on the Group
         patch_group(group_to_update, validated_patch_group_data, identity, current_app.event_producer)
