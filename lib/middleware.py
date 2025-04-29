@@ -306,21 +306,6 @@ def post_rbac_workspace_using_endpoint_and_headers(
     return workspace_id
 
 
-def post_rbac_workspace_using_identity_header(name: str, identity_header: str) -> UUID | None:
-    if inventory_config().bypass_rbac:
-        return None
-
-    rbac_endpoint = get_rbac_v2_url(endpoint="workspaces/")
-    identity_header = _temp_add_org_admin_user_identity(identity_header)
-    request_headers = {
-        IDENTITY_HEADER: identity_header,
-        REQUEST_ID_HEADER: threadctx.request_id,
-    }
-    request_data = {"name": name}
-
-    return post_rbac_workspace_using_endpoint_and_headers(request_data, rbac_endpoint, request_headers)
-
-
 def rbac_create_ungrouped_hosts_workspace(identity: Identity) -> UUID | None:
     # Creates a new "ungrouped" workspace via the RBAC API, and returns its ID.
     # If not using RBAC, returns None, so the DB will automatically generate the group ID.
