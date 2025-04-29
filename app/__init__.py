@@ -36,6 +36,7 @@ from app.queue.metrics import notification_event_producer_failure
 from app.queue.metrics import notification_event_producer_success
 from app.queue.metrics import rbac_access_denied
 from app.queue.notifications import NotificationType
+from app.tags_blueprint import tags_bp
 from lib.check_org import check_org_id
 from lib.feature_flags import SchemaStrategy
 from lib.feature_flags import init_unleash_app
@@ -309,6 +310,8 @@ def create_app(runtime_environment):
     flask_app.register_blueprint(monitoring_blueprint, url_prefix=app_config.mgmt_url_path_prefix)
     for api_url in app_config.api_urls:
         flask_app.register_blueprint(spec_blueprint, url_prefix=api_url, name=f"{api_url}{spec_blueprint.name}")
+
+    flask_app.register_blueprint(tags_bp)
 
     @flask_app.before_request
     def set_request_id():
