@@ -750,17 +750,16 @@ def test_query_ungrouped_hosts(db_create_group_with_hosts, mq_create_three_speci
 
 
 def test_query_ungrouped_hosts_kessel(db_create_group_with_hosts, api_get):
-    # Create 3 hosts that are in a group
-    ungrouped_group_id = db_create_group_with_hosts("ungrouped", 3, True).id
+    # Create a host in the "ungrouped" group
+    ungrouped_group_id = db_create_group_with_hosts("ungrouped", 1, True).id
     url = build_hosts_url(query="?group_name=ungrouped")
 
     response_status, response_data = api_get(url)
 
     assert response_status == 200
-    for result in response_data["results"]:
-        assert (group_result := result["groups"][0])["name"] == "ungrouped"
-        assert group_result["id"] == str(ungrouped_group_id)
-        assert group_result["ungrouped"] is True
+    assert (group_result := response_data["results"][0]["groups"][0])["name"] == "ungrouped"
+    assert group_result["id"] == str(ungrouped_group_id)
+    assert group_result["ungrouped"] is True
 
 
 def test_query_hosts_filter_updated_start_end(mq_create_or_update_host, api_get):
