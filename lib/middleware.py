@@ -66,16 +66,19 @@ def _build_rbac_request_headers(identity_header: str | None = None, request_id_h
     return request_headers
 
 
-def get_rbac_permissions(app: str, request_header: dict):
+def rbac_get_request_using_endpoint_and_headers(rbac_endpoint: str, request_headers: dict):
+    if inventory_config().bypass_rbac:
+        return None
+
     request_session = Session()
     retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
-    request_session.mount(get_rbac_url(app), HTTPAdapter(max_retries=retry_config))
+    request_session.mount(rbac_endpoint, HTTPAdapter(max_retries=retry_config))
 
     try:
         with outbound_http_response_time.labels("rbac").time():
             rbac_response = request_session.get(
-                url=get_rbac_url(app),
-                headers=request_header,
+                url=rbac_endpoint,
+                headers=request_headers,
                 timeout=inventory_config().rbac_timeout,
                 verify=LoadedConfig.tlsCAPath,
             )
@@ -85,9 +88,20 @@ def get_rbac_permissions(app: str, request_header: dict):
     finally:
         request_session.close()
 
-    resp_data = rbac_response.json()
-    logger.debug("Fetched RBAC Data", extra=resp_data)
+    try:
+        resp_data = rbac_response.json()
+    except JSONDecodeError as e:
+        rbac_failure(logger, e)
+        abort(503, "Failed to parse RBAC response, request cannot be fulfilled")
+    finally:
+        request_session.close()
 
+    return resp_data
+
+
+def get_rbac_permissions(app: str, request_header: dict):
+    resp_data = rbac_get_request_using_endpoint_and_headers(get_rbac_url(app), request_header)
+    logger.debug("Fetched RBAC Data", extra=resp_data)
     return resp_data["data"]
 
 
@@ -317,10 +331,18 @@ def rbac_create_ungrouped_hosts_workspace(identity: Identity) -> UUID | None:
     request_headers = {
         "X-RH-RBAC-PSK": psk,
         "X-RH-RBAC-ORG-ID": identity.org_id,
-        "X-RH-RBAC-CLIENT-ID": "hbi",
+        "X-RH-RBAC-CLIENT-ID": "inventory",
     }
 
-    return post_rbac_workspace_using_endpoint_and_headers(None, get_rbac_private_url(), request_headers)
+    resp_data = rbac_get_request_using_endpoint_and_headers(get_rbac_private_url(), request_headers)
+
+    try:
+        workspace_id = resp_data["id"]
+    except KeyError as e:
+        rbac_failure(logger, e)
+        abort(503, "Failed to parse RBAC response, request cannot be fulfilled")
+
+    return workspace_id
 
 
 def delete_rbac_workspace(workspace_id):

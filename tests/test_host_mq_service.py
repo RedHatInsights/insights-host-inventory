@@ -150,8 +150,8 @@ def test_handle_message_happy_path(
 def test_handle_message_kessel_private_endpoint(identity, mocker, ingress_message_consumer_mock):
     mock_psk = "1234567890"
     mocker.patch("app.queue.host_mq.get_flag_value", return_value=True)
-    post_rbac_mock = mocker.patch(
-        "lib.middleware.post_rbac_workspace_using_endpoint_and_headers", return_value=generate_uuid()
+    get_rbac_mock = mocker.patch(
+        "lib.middleware.rbac_get_request_using_endpoint_and_headers", return_value={"id": str(generate_uuid())}
     )
     mocker.patch(
         "lib.middleware.inventory_config",
@@ -167,10 +167,9 @@ def test_handle_message_kessel_private_endpoint(identity, mocker, ingress_messag
     result = ingress_message_consumer_mock.handle_message(json.dumps(message))
 
     assert result.event_type == EventType.created
-    assert post_rbac_mock.call_args_list[0][0][0] is None
-    assert "/_private/_s2s/workspaces/ungrouped/" in post_rbac_mock.call_args_list[0][0][1]
-    assert post_rbac_mock.call_args_list[0][0][2] == {
-        "X-RH-RBAC-CLIENT-ID": "hbi",
+    assert "/_private/_s2s/workspaces/ungrouped/" in get_rbac_mock.call_args_list[0][0][0]
+    assert get_rbac_mock.call_args_list[0][0][1] == {
+        "X-RH-RBAC-CLIENT-ID": "inventory",
         "X-RH-RBAC-ORG-ID": "test",
         "X-RH-RBAC-PSK": mock_psk,
     }
