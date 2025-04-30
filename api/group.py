@@ -43,8 +43,8 @@ from lib.group_repository import validate_add_host_list_to_group_for_group_creat
 from lib.group_repository import wait_for_workspace_creation
 from lib.metrics import create_group_count
 from lib.middleware import delete_rbac_workspace
+from lib.middleware import patch_rbac_workspace
 from lib.middleware import post_rbac_workspace
-from lib.middleware import put_rbac_workspace
 from lib.middleware import rbac
 from lib.middleware import rbac_group_id_check
 
@@ -113,7 +113,7 @@ def create_group(body, rbac_filter=None):
                     get_current_identity().org_id,
                 )
 
-            workspace_id = post_rbac_workspace(group_name, f"{group_name} group")
+            workspace_id = post_rbac_workspace(group_name)
             if not workspace_id and not inventory_config().bypass_rbac:
                 message = f"Error while creating workspace for {group_name}"
                 logger.exception(message)
@@ -184,7 +184,7 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
             new_group_name = validated_patch_group_data.get("name")
 
             if new_group_name:
-                put_rbac_workspace(group_id, name=new_group_name)
+                patch_rbac_workspace(group_id, name=new_group_name)
 
         # Separate out the host IDs because they're not stored on the Group
         patch_group(group_to_update, validated_patch_group_data, identity, current_app.event_producer)

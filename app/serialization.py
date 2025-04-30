@@ -14,6 +14,7 @@ from app.culling import Timestamps
 from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
 from app.models import CanonicalFactsSchema
+from app.models import Group
 from app.models import Host
 from app.models import HostSchema
 from app.models import LimitedHost
@@ -241,7 +242,7 @@ def _get_unculled_hosts(group, org_id):
     return hosts
 
 
-def serialize_group(group, org_id):
+def serialize_group(group: Group, org_id: str):
     unculled_hosts = _get_unculled_hosts(group, org_id)
     return {
         "id": _serialize_uuid(group.id),
@@ -249,6 +250,7 @@ def serialize_group(group, org_id):
         "account": group.account,
         "name": group.name,
         "host_count": len(unculled_hosts),
+        "ungrouped": group.ungrouped,
         "created": _serialize_datetime(group.created_on),
         "updated": _serialize_datetime(group.modified_on),
     }

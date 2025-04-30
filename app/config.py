@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import tempfile
 from datetime import timedelta
@@ -343,6 +344,16 @@ class Config:
             self.api_bulk_tag_host_batch_size = int(os.getenv("API_BULK_TAG_HOST_BATCH_SIZE", 100))
         except ValueError:
             self.api_bulk_tag_host_batch_size = 100
+
+        # Load the RBAC PSKs into a dict, and then store the HBI one.
+        # The structure looks like this:
+        # {"inventory": {"secret": "psk-goes-here"}}
+        try:
+            _psk_dict = json.loads(os.environ.get("RBAC_PSKS", "{}"))
+            self.rbac_psk = _psk_dict.get("inventory", {}).get("secret")
+        except json.JSONDecodeError:
+            self.logger.error("Failed to load RBAC PSKs from environment variable RBAC_PSKS")
+            self.rbac_psk = None
 
         if self._runtime_environment == RuntimeEnvironment.PENDO_JOB:
             self.pendo_sync_active = os.environ.get("PENDO_SYNC_ACTIVE", "false").lower() == "true"

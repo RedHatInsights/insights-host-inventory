@@ -376,7 +376,7 @@ def test_remove_hosts_from_existing_group_kessel(
         assert len(hosts_after) == 1
         assert str(hosts_after[0].id) == host_id_list[2]
 
-        ungrouped_id = db_get_group_by_name("ungrouped").id
+        ungrouped_id = db_get_group_by_name("Ungrouped Hosts").id
         ungrouped_hosts = db_get_hosts_for_group(ungrouped_id)
         assert len(ungrouped_hosts) == 2
 
@@ -396,7 +396,7 @@ def test_remove_hosts_from_existing_group_kessel(
             host = event["host"]
             assert host["id"] in host_id_list[0:2]
             assert len(host["groups"]) == 1
-            assert host["groups"][0]["name"] == "ungrouped"
+            assert host["groups"][0]["name"] == "Ungrouped Hosts"
             assert event["platform_metadata"] == {"b64_identity": to_auth_header(Identity(obj=USER_IDENTITY))}
 
 
