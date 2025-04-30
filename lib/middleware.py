@@ -37,6 +37,7 @@ logger = get_logger(__name__)
 
 RBAC_ROUTE = "/api/rbac/v1/access/?application="
 RBAC_V2_ROUTE = "/api/rbac/v2/"
+RBAC_PRIVATE_UNGROUPED_ROUTE = "/_private/_s2s/workspaces/ungrouped/"
 CHECKED_TYPES = [IdentityType.USER, IdentityType.SERVICE_ACCOUNT]
 RETRY_STATUSES = [500, 502, 503, 504]
 
@@ -49,20 +50,35 @@ def get_rbac_v2_url(endpoint: str) -> str:
     return inventory_config().rbac_endpoint + RBAC_V2_ROUTE + endpoint
 
 
+def get_rbac_private_url() -> str:
+    return inventory_config().rbac_endpoint + RBAC_PRIVATE_UNGROUPED_ROUTE
+
+
 def tenant_translator_url() -> str:
     return inventory_config().tenant_translator_url
 
 
-def get_rbac_permissions(app: str, request_header: dict):
+def _build_rbac_request_headers(identity_header: str | None = None, request_id_header: str | None = None) -> dict:
+    request_headers = {
+        IDENTITY_HEADER: identity_header or request.headers[IDENTITY_HEADER],
+        REQUEST_ID_HEADER: request_id_header or request.headers.get(REQUEST_ID_HEADER),
+    }
+    return request_headers
+
+
+def rbac_get_request_using_endpoint_and_headers(rbac_endpoint: str, request_headers: dict):
+    if inventory_config().bypass_rbac:
+        return None
+
     request_session = Session()
     retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
-    request_session.mount(get_rbac_url(app), HTTPAdapter(max_retries=retry_config))
+    request_session.mount(rbac_endpoint, HTTPAdapter(max_retries=retry_config))
 
     try:
         with outbound_http_response_time.labels("rbac").time():
             rbac_response = request_session.get(
-                url=get_rbac_url(app),
-                headers=request_header,
+                url=rbac_endpoint,
+                headers=request_headers,
                 timeout=inventory_config().rbac_timeout,
                 verify=LoadedConfig.tlsCAPath,
             )
@@ -72,9 +88,20 @@ def get_rbac_permissions(app: str, request_header: dict):
     finally:
         request_session.close()
 
-    resp_data = rbac_response.json()
-    logger.debug("Fetched RBAC Data", extra=resp_data)
+    try:
+        resp_data = rbac_response.json()
+    except JSONDecodeError as e:
+        rbac_failure(logger, e)
+        abort(503, "Failed to parse RBAC response, request cannot be fulfilled")
+    finally:
+        request_session.close()
 
+    return resp_data
+
+
+def get_rbac_permissions(app: str, request_header: dict):
+    resp_data = rbac_get_request_using_endpoint_and_headers(get_rbac_url(app), request_header)
+    logger.debug("Fetched RBAC Data", extra=resp_data)
     return resp_data["data"]
 
 
@@ -200,10 +227,7 @@ def rbac(resource_type: RbacResourceType, required_permission: RbacPermission, p
 
             current_identity = get_current_identity()
 
-            request_headers = {
-                IDENTITY_HEADER: request.headers[IDENTITY_HEADER],
-                REQUEST_ID_HEADER: request.headers.get(REQUEST_ID_HEADER),
-            }
+            request_headers = _build_rbac_request_headers()
 
             allowed, rbac_filter = get_rbac_filter(
                 resource_type, required_permission, current_identity, request_headers, permission_base
@@ -245,31 +269,33 @@ def _temp_add_org_admin_user_identity(identity_header: str) -> str:
     return identity_header
 
 
-def post_rbac_workspace(name, description) -> UUID | None:
-    return post_rbac_workspace_using_header(name, description, request.headers[IDENTITY_HEADER])
-
-
-def post_rbac_workspace_using_header(name: str, description: str, identity_header: str) -> UUID | None:
+def post_rbac_workspace(name) -> UUID | None:
     if inventory_config().bypass_rbac:
         return None
 
-    workspace_endpoint = "workspaces/"
+    rbac_endpoint = get_rbac_v2_url(endpoint="workspaces/")
+    identity_header = _temp_add_org_admin_user_identity(request.headers[IDENTITY_HEADER])
+    request_headers = _build_rbac_request_headers(identity_header, threadctx.request_id)
+    request_data = {"name": name}
+
+    return post_rbac_workspace_using_endpoint_and_headers(request_data, rbac_endpoint, request_headers)
+
+
+def post_rbac_workspace_using_endpoint_and_headers(
+    request_data: dict | None, rbac_endpoint: str, request_headers: dict
+) -> UUID | None:
+    if inventory_config().bypass_rbac:
+        return None
+
     request_session = Session()
     retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
-    request_session.mount(get_rbac_v2_url(endpoint=workspace_endpoint), HTTPAdapter(max_retries=retry_config))
-    identity_header = _temp_add_org_admin_user_identity(identity_header)
-    request_header = {
-        IDENTITY_HEADER: identity_header,
-        REQUEST_ID_HEADER: threadctx.request_id,
-    }
-    request_data = {"name": name, "description": description}
-    logger.info(f"Identity header (post rbac workspace): {identity_header}")  # TODO: remove after testing
+    request_session.mount(rbac_endpoint, HTTPAdapter(max_retries=retry_config))
 
     try:
         with outbound_http_response_time.labels("rbac").time():
             rbac_response = request_session.post(
-                url=get_rbac_v2_url(endpoint=workspace_endpoint),
-                headers=request_header,
+                url=rbac_endpoint,
+                headers=request_headers,
                 json=request_data,
                 timeout=inventory_config().rbac_timeout,
                 verify=LoadedConfig.tlsCAPath,
@@ -299,8 +325,24 @@ def rbac_create_ungrouped_hosts_workspace(identity: Identity) -> UUID | None:
     # If not using RBAC, returns None, so the DB will automatically generate the group ID.
     if inventory_config().bypass_rbac:
         return None
-    else:
-        return post_rbac_workspace_using_header("ungrouped", "ungrouped workspace", to_auth_header(identity))
+
+    # Get HBI's RBAC PSK from the config
+    psk = inventory_config().rbac_psk
+    request_headers = {
+        "X-RH-RBAC-PSK": psk,
+        "X-RH-RBAC-ORG-ID": identity.org_id,
+        "X-RH-RBAC-CLIENT-ID": "inventory",
+    }
+
+    resp_data = rbac_get_request_using_endpoint_and_headers(get_rbac_private_url(), request_headers)
+
+    try:
+        workspace_id = resp_data["id"]
+    except KeyError as e:
+        rbac_failure(logger, e)
+        abort(503, "Failed to parse RBAC response, request cannot be fulfilled")
+
+    return workspace_id
 
 
 def delete_rbac_workspace(workspace_id):
@@ -311,16 +353,13 @@ def delete_rbac_workspace(workspace_id):
     request_session = Session()
     retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
     request_session.mount(get_rbac_v2_url(endpoint=workspace_endpoint), HTTPAdapter(max_retries=retry_config))
-    request_header = {
-        IDENTITY_HEADER: request.headers[IDENTITY_HEADER],
-        REQUEST_ID_HEADER: request.headers.get(REQUEST_ID_HEADER),
-    }
+    request_headers = _build_rbac_request_headers()
 
     try:
         with outbound_http_response_time.labels("rbac").time():
             request_session.delete(
                 url=get_rbac_v2_url(endpoint=workspace_endpoint),
-                headers=request_header,
+                headers=request_headers,
                 timeout=inventory_config().rbac_timeout,
                 verify=LoadedConfig.tlsCAPath,
             )
@@ -331,7 +370,7 @@ def delete_rbac_workspace(workspace_id):
         request_session.close()
 
 
-def put_rbac_workspace(workspace_id: str, name: str | None = None) -> None:
+def patch_rbac_workspace(workspace_id: str, name: str | None = None) -> None:
     if inventory_config().bypass_rbac:
         return None
 
@@ -339,10 +378,7 @@ def put_rbac_workspace(workspace_id: str, name: str | None = None) -> None:
     request_session = Session()
     retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
     request_session.mount(get_rbac_v2_url(endpoint=workspace_endpoint), HTTPAdapter(max_retries=retry_config))
-    request_header = {
-        IDENTITY_HEADER: request.headers[IDENTITY_HEADER],
-        REQUEST_ID_HEADER: request.headers.get(REQUEST_ID_HEADER),
-    }
+    request_headers = _build_rbac_request_headers()
 
     request_data = {}
     if name is not None:
@@ -350,9 +386,9 @@ def put_rbac_workspace(workspace_id: str, name: str | None = None) -> None:
 
     try:
         with outbound_http_response_time.labels("rbac").time():
-            request_session.put(
+            request_session.patch(
                 url=get_rbac_v2_url(endpoint=workspace_endpoint),
-                headers=request_header,
+                headers=request_headers,
                 json=request_data,
                 timeout=inventory_config().rbac_timeout,
                 verify=LoadedConfig.tlsCAPath,
