@@ -370,7 +370,7 @@ def delete_rbac_workspace(workspace_id):
         request_session.close()
 
 
-def put_rbac_workspace(workspace_id: str, name: str | None = None) -> None:
+def patch_rbac_workspace(workspace_id: str, name: str | None = None) -> None:
     if inventory_config().bypass_rbac:
         return None
 
@@ -386,7 +386,7 @@ def put_rbac_workspace(workspace_id: str, name: str | None = None) -> None:
 
     try:
         with outbound_http_response_time.labels("rbac").time():
-            request_session.put(
+            request_session.patch(
                 url=get_rbac_v2_url(endpoint=workspace_endpoint),
                 headers=request_headers,
                 json=request_data,
