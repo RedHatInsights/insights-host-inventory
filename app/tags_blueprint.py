@@ -52,6 +52,30 @@ def combine_tags(input_list, existing_dict=None):
     return result
 
 
+def update_host_tags(session, host, tags):
+    try:
+        current_tags = host.tags
+        combine_tags(tags, current_tags)
+        host._update_tags(current_tags)
+        session.add(host)
+        return True
+    except Exception as e:
+        current_app.logger.error(f"Error updating host {host.id}: {str(e)}")
+        return False
+
+
+def process_host_batch(session, identity, batch_ids, tags):
+    hosts = session.query(Host).filter(and_(Host.org_id == identity.org_id, Host.id.in_(batch_ids))).all()
+    found_host_ids = {str(host.id) for host in hosts}
+    not_found = [hid for hid in batch_ids if str(hid) not in found_host_ids]
+
+    processed = 0
+    for host in hosts:
+        if update_host_tags(session, host, tags):
+            processed += 1
+    return processed, not_found
+
+
 @tags_bp.route("/tags", methods=["POST"])
 def bulk_tag_hosts():
     """
@@ -76,47 +100,23 @@ def bulk_tag_hosts():
         if not host_id_list:
             return jsonify({"error": "Missing required field: host_id_list"}), 400
 
-        # Get configuration limits
         config = current_app.config["INVENTORY_CONFIG"]
-        max_tags = config.api_bulk_tag_count_allowed
-        batch_size = config.api_bulk_tag_host_batch_size
+        if len(tags) > config.api_bulk_tag_count_allowed:
+            return jsonify(
+                {"error": f"Too many tags provided. Maximum allowed is {config.api_bulk_tag_count_allowed}"}
+            ), 400
 
-        # Validate tag count
-        if len(tags) > max_tags:
-            return jsonify({"error": f"Too many tags provided. Maximum allowed is {max_tags}"}), 400
-
-        # Process hosts in batches
-        not_found_hosts = []
         processed_hosts = 0
+        not_found_hosts = []
         total_hosts = len(host_id_list)
+        batch_size = config.api_bulk_tag_host_batch_size
 
         for i in range(0, total_hosts, batch_size):
             batch_ids = host_id_list[i : i + batch_size]
-
             with session_guard(db.session) as session:
-                # Fetch hosts in batch
-                hosts = session.query(Host).filter(and_(Host.org_id == identity.org_id, Host.id.in_(batch_ids))).all()
-                found_host_ids = {str(host.id) for host in hosts}
-
-                # Track not found hosts
-                batch_not_found = [hid for hid in batch_ids if str(hid) not in found_host_ids]
-                not_found_hosts.extend(batch_not_found)
-
-                # Update tags for found hosts
-                for host in hosts:
-                    try:
-                        current_tags = host.tags
-                        combine_tags(tags, current_tags)
-                        # Update host tags
-                        host._update_tags(current_tags)
-                        session.add(host)
-
-                        processed_hosts += 1
-                    except Exception as e:
-                        current_app.logger.error(f"Error updating host {host.id}: {str(e)}")
-                        continue
-
-                # Commit is handled by session_guard
+                processed, missing = process_host_batch(session, identity, batch_ids, tags)
+                processed_hosts += processed
+                not_found_hosts.extend(missing)
                 try:
                     session.flush()
                 except IntegrityError as e:
@@ -125,12 +125,9 @@ def bulk_tag_hosts():
                     continue
 
         response = {"processed_hosts": processed_hosts, "total_hosts": total_hosts, "not_found_hosts": not_found_hosts}
-
-        status_code = 200
         if not_found_hosts:
             response["warning"] = f"Some hosts were not found: {', '.join(not_found_hosts)}"
-
-        return jsonify(response), status_code
+        return jsonify(response), 200
 
     except Exception as e:
         current_app.logger.error(f"Error in bulk_tag_hosts: {str(e)}")
