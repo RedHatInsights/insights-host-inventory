@@ -489,6 +489,12 @@ objects:
               name: segmentio
               key: WRITE_KEY
               optional: true
+        - name: RBAC_PSKS
+          valueFrom:
+            secretKeyRef:
+              key: psks.json
+              name: rbac-psks
+              optional: false
         resources:
           limits:
             cpu: ${CPU_LIMIT_SERVICE}
@@ -602,6 +608,12 @@ objects:
           value: ${MQ_DB_BATCH_MAX_SECONDS}
         - name: RBAC_V2_FORCE_ORG_ADMIN
           value: ${RBAC_V2_FORCE_ORG_ADMIN}
+        - name: RBAC_PSKS
+          valueFrom:
+            secretKeyRef:
+              key: psks.json
+              name: rbac-psks
+              optional: false
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -703,6 +715,12 @@ objects:
           value: ${MQ_DB_BATCH_MAX_SECONDS}
         - name: RBAC_V2_FORCE_ORG_ADMIN
           value: ${RBAC_V2_FORCE_ORG_ADMIN}
+        - name: RBAC_PSKS
+          valueFrom:
+            secretKeyRef:
+              key: psks.json
+              name: rbac-psks
+              optional: false
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -887,6 +905,12 @@ objects:
           value: ${CONSUMER_MQ_BROKER}
         - name: RBAC_V2_FORCE_ORG_ADMIN
           value: ${RBAC_V2_FORCE_ORG_ADMIN}
+        - name: RBAC_PSKS
+          valueFrom:
+            secretKeyRef:
+              key: psks.json
+              name: rbac-psks
+              optional: false
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -1041,6 +1065,12 @@ objects:
             value: ${BYPASS_UNLEASH}
           - name: UNLEASH_REFRESH_INTERVAL
             value: ${UNLEASH_REFRESH_INTERVAL}
+          - name: RBAC_PSKS
+            valueFrom:
+              secretKeyRef:
+                key: psks.json
+                name: rbac-psks
+                optional: false
         resources:
           limits:
             cpu: ${CPU_LIMIT_REAPER}
@@ -1758,6 +1788,15 @@ objects:
   kind: ConfigMap
   metadata:
     name: inventory-nginx-conf
+
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    name: rbac-psks
+  data:
+    psks.json: >-
+      ewogICJhZHZpc29yIjogewogICAgImFsdC1zZWNyZXQiOiAiMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTEiCiAgfSwKICAiYXBwcm92YWwiOiB7CiAgICAiYWx0LXNlY3JldCI6ICIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMiIKICB9LAogICJub3RpZmljYXRpb25zIjogewogICAgImFsdC1zZWNyZXQiOiAiMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMiCiAgfSwKICAiaW52ZW50b3J5IjogewogICAgInNlY3JldCI6ICI0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQiCiAgfQp9
+  type: Opaque
 
 parameters:
 - name: LOG_LEVEL

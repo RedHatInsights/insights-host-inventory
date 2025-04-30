@@ -382,7 +382,7 @@ def test_patch_group_RBAC_post_kessel_migration(
     )
     get_rbac_permissions_mock.return_value = mock_rbac_response
 
-    put_rbac_workspace_mock = mocker.patch("api.group.put_rbac_workspace")
+    patch_rbac_workspace_mock = mocker.patch("api.group.patch_rbac_workspace")
 
     group = db_create_group_with_hosts("old_name", 2)
     group_id = str(group.id)
@@ -399,10 +399,10 @@ def test_patch_group_RBAC_post_kessel_migration(
 
         # If group name was updated, it should have made a request to RBAC
         if update_name:
-            assert put_rbac_workspace_mock.call_args_list[0][0][0] == group_id
-            assert put_rbac_workspace_mock.call_args_list[0][1]["name"] == "new_name"
+            assert patch_rbac_workspace_mock.call_args_list[0][0][0] == group_id
+            assert patch_rbac_workspace_mock.call_args_list[0][1]["name"] == "new_name"
         else:
-            assert len(put_rbac_workspace_mock.call_args_list) == 0
+            assert len(patch_rbac_workspace_mock.call_args_list) == 0
 
         assert_response_status(response_status, 200)
         # 1 for each host (2 originals + 1 new)
