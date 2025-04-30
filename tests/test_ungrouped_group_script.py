@@ -4,6 +4,7 @@ import pytest
 
 from app.models import db
 from create_ungrouped_host_groups import run as run_script
+from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
 @pytest.mark.parametrize("existing_ungrouped", (True, False))
@@ -43,6 +44,8 @@ def test_happy_path(
     ungrouped_group_name = EXISTING_GROUP_NAME if existing_ungrouped else "ungrouped"
     for host_id in ungrouped_host_ids:
         assert db_get_groups_for_host(host_id)[0].name == ungrouped_group_name
+        assert db_get_groups_for_host(host_id)[0].ungrouped is True
+        assert db_get_groups_for_host(host_id)[0].account == SYSTEM_IDENTITY["account_number"]
 
     # All hosts that were already in a group should still be in that group
     for host_id in grouped_host_ids:

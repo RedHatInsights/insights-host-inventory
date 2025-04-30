@@ -28,7 +28,7 @@ def run(logger: Logger, session: Session, event_producer: EventProducer, applica
         threadctx.request_id = None
         # For each org_id in the Hosts table
         # Using "org_id," (with comma) because the query returns tuples
-        for (org_id,) in session.query(Host.org_id).distinct():
+        for org_id, account in session.query(Host.org_id, Host.account).distinct():
             logger.info(f"Processing org_id: {org_id}")
 
             # Check to see if this org already has an "ungrouped hosts" group
@@ -38,7 +38,7 @@ def run(logger: Logger, session: Session, event_producer: EventProducer, applica
 
             # If not, create the "ungrouped hosts" Group
             if ungrouped_group is None:
-                ungrouped_group = add_group(group_name="ungrouped", org_id=org_id, ungrouped=True)
+                ungrouped_group = add_group(group_name="ungrouped", org_id=org_id, account=account, ungrouped=True)
 
             # Assign all ungrouped hosts to this new Group
             host_id_list = [
