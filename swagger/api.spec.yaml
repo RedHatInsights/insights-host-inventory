@@ -1839,6 +1839,9 @@ components:
           $ref: "#/components/schemas/AccountNumber"
         org_id:
           $ref: "#/components/schemas/OrgId"
+        ungrouped:
+          description: Whether the group is the "ungrouped hosts" group
+          type: boolean
         created:
           description: A timestamp when the entry was created.
           type: string
