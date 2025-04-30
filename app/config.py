@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import tempfile
 from datetime import timedelta
@@ -334,6 +335,16 @@ class Config:
         self.s3_bucket = os.getenv("S3_AWS_BUCKET")
 
         self.sp_fields_to_log = os.getenv("SP_FIELDS_TO_LOG", "").split(",")
+
+        # Load the RBAC PSKs into a dict, and then store the HBI one.
+        # The structure looks like this:
+        # {"inventory": {"secret": "psk-goes-here"}}
+        try:
+            _psk_dict = json.loads(os.environ.get("RBAC_PSKS", "{}"))
+            self.rbac_psk = _psk_dict.get("inventory", {}).get("secret")
+        except json.JSONDecodeError:
+            self.logger.error("Failed to load RBAC PSKs from environment variable RBAC_PSKS")
+            self.rbac_psk = None
 
         if self._runtime_environment == RuntimeEnvironment.PENDO_JOB:
             self.pendo_sync_active = os.environ.get("PENDO_SYNC_ACTIVE", "false").lower() == "true"
