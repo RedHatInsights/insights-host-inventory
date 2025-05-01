@@ -353,51 +353,44 @@ def test_remove_hosts_from_existing_group_kessel(
     event_producer,
     mocker,
 ):
-    with mocker.patch("api.host_group.get_flag_value", return_value=True):
-        mocker.patch.object(event_producer, "write_event")
-        # Create a group and 3 hosts
-        group_id = db_create_group("test_group").id
-        host_id_list = [str(db_create_host().id) for _ in range(3)]
+    mocker.patch("api.host_group.get_flag_value", return_value=True)
+    mocker.patch("lib.group_repository.get_flag_value", return_value=True)
+    mocker.patch.object(event_producer, "write_event")
+    # Create a group and 3 hosts
+    group_id = db_create_group("test_group").id
+    host_id_list = [str(db_create_host().id) for _ in range(3)]
 
-        # Add all 3 hosts to the group
-        for host_id in host_id_list:
-            db_create_host_group_assoc(host_id, group_id)
+    # Add all 3 hosts to the group
+    for host_id in host_id_list:
+        db_create_host_group_assoc(host_id, group_id)
 
-        # Confirm that the association exists
-        hosts_before = db_get_hosts_for_group(group_id)
-        assert len(hosts_before) == 3
+    # Confirm that the association exists
+    hosts_before = db_get_hosts_for_group(group_id)
+    assert len(hosts_before) == 3
 
-        # Remove the first two hosts from the group
-        response_status, _ = api_remove_hosts_from_group(group_id, [host for host in host_id_list[0:2]])
-        assert response_status == 204
+    # Remove the first two hosts from the group
+    response_status, _ = api_remove_hosts_from_group(group_id, [host for host in host_id_list[0:2]])
+    assert response_status == 204
 
-        # Confirm that the group now only contains the last host
-        hosts_after = db_get_hosts_for_group(group_id)
-        assert len(hosts_after) == 1
-        assert str(hosts_after[0].id) == host_id_list[2]
+    # Confirm that the group now only contains the last host
+    hosts_after = db_get_hosts_for_group(group_id)
+    assert len(hosts_after) == 1
+    assert str(hosts_after[0].id) == host_id_list[2]
 
-        ungrouped_id = db_get_group_by_name("Ungrouped Hosts").id
-        ungrouped_hosts = db_get_hosts_for_group(ungrouped_id)
-        assert len(ungrouped_hosts) == 2
+    # Confirm that Ungrouped Hosts only contains 2 hosts
+    ungrouped_id = db_get_group_by_name("Ungrouped Hosts").id
+    ungrouped_hosts = db_get_hosts_for_group(ungrouped_id)
+    assert len(ungrouped_hosts) == 2
 
-        assert event_producer.write_event.call_count == 4
-
-        # First make sure the events to remove a host exist
-        for call_arg in event_producer.write_event.call_args_list[0:2]:
-            event = json.loads(call_arg[0][0])
-            host = event["host"]
-            assert host["id"] in host_id_list[0:2]
-            assert len(host["groups"]) == 0
-            assert event["platform_metadata"] == {"b64_identity": to_auth_header(Identity(obj=USER_IDENTITY))}
-
-        # Second make sure the events to add hosts to the "ungrouped" group exist
-        for call_arg in event_producer.write_event.call_args_list[2:]:
-            event = json.loads(call_arg[0][0])
-            host = event["host"]
-            assert host["id"] in host_id_list[0:2]
-            assert len(host["groups"]) == 1
-            assert host["groups"][0]["name"] == "Ungrouped Hosts"
-            assert event["platform_metadata"] == {"b64_identity": to_auth_header(Identity(obj=USER_IDENTITY))}
+    # Make sure the events associating hosts to "Ungrouped Hosts" exist
+    assert event_producer.write_event.call_count == 2
+    for call_arg in event_producer.write_event.call_args_list:
+        event = json.loads(call_arg[0][0])
+        host = event["host"]
+        assert host["id"] in host_id_list[0:2]
+        assert len(host["groups"]) == 1
+        assert host["groups"][0]["name"] == "Ungrouped Hosts"
+        assert event["platform_metadata"] == {"b64_identity": to_auth_header(Identity(obj=USER_IDENTITY))}
 
 
 @pytest.mark.usefixtures("enable_rbac")
