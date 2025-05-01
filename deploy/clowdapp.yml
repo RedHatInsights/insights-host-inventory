@@ -1517,6 +1517,37 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_HOSTS_LAST_CHECK_IN}
             memory: ${MEMORY_REQUEST_HOSTS_LAST_CHECK_IN}
+    - name: update-edge-hosts-prs
+      schedule: ${{EDGE_HOSTS_PRS_SCHEDULE}}
+      restartPolicy: Never
+      suspend: ${{EDGE_HOSTS_PRS_SUSPEND}}
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: ["./update_edge_hosts_prs.py"]
+        env:
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: CLOWDER_ENABLED
+            value: "true"
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_EDGE_HOSTS_PRS}
+            memory: ${MEMORY_LIMIT_EDGE_HOSTS_PRS}
+          requests:
+            cpu: ${CPU_REQUEST_EDGE_HOSTS_PRS}
+            memory: ${MEMORY_REQUEST_EDGE_HOSTS_PRS}
     database:
       name: ${DB_NAME}
       version: 16
@@ -1939,6 +1970,15 @@ parameters:
 - name: HOST_UPDATE_LIMIT
   value: "50000"
 
+- name: CPU_REQUEST_EDGE_HOSTS_PRS
+  value: 250m
+- name: CPU_LIMIT_EDGE_HOSTS_PRS
+  value: 500m
+- name: MEMORY_REQUEST_EDGE_HOSTS_PRS
+  value: 256Mi
+- name: MEMORY_LIMIT_EDGE_HOSTS_PRS
+  value: 512Mi
+
 - description: Replica count for p1 consumer
   name: REPLICAS_P1
   value: "5"
@@ -2089,6 +2129,10 @@ parameters:
 - name: HOSTS_LAST_CHECK_IN_SCHEDULE
   value: '@hourly'
 - name: HOSTS_LAST_CHECK_IN_SUSPEND
+  value: 'false'
+- name: EDGE_HOSTS_PRS_SCHEDULE
+  value: '@hourly'
+- name: EDGE_HOSTS_PRS_SUSPEND
   value: 'false'
 - name: KAFKA_SP_VALIDATOR_MAX_MESSAGES
   value: '10000'
