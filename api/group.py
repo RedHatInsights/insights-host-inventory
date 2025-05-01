@@ -97,7 +97,6 @@ def create_group(body, rbac_filter=None):
         # Create group with validated data
         if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
             group_name = validated_create_group_data.get("name")
-
             # Before waiting for workspace creation in RBAC, check that the name isn't already in use
             if does_group_with_name_exist(group_name, get_current_identity().org_id):
                 log_create_group_failed(logger, group_name)

@@ -12,6 +12,7 @@ from flask import g
 from flask import request
 from requests import Session
 from requests.adapters import HTTPAdapter
+from requests.exceptions import HTTPError
 from requests.packages.urllib3.util.retry import Retry
 
 from api.metrics import outbound_http_response_time
@@ -300,9 +301,23 @@ def post_rbac_workspace_using_endpoint_and_headers(
                 timeout=inventory_config().rbac_timeout,
                 verify=LoadedConfig.tlsCAPath,
             )
+            rbac_response.raise_for_status()
+    except HTTPError as e:
+        status_code = e.response.status_code
+        if 400 <= status_code < 500:
+            try:
+                detail = e.response.json().get("detail", e.response.text)
+            except Exception:
+                detail = e.response.text  # fallback if JSON can't be parsed
+            logger.warning(f"RBAC client error: {status_code} - {detail}")
+            abort(status_code, f"RBAC client error: {detail}")
+        else:
+            logger.error(f"RBAC server error: {status_code} - {e.response.text}")
+            abort(503, "RBAC server error, request cannot be fulfilled")
     except Exception as e:
-        rbac_failure(logger, e)
-        abort(503, "Failed to reach RBAC endpoint, request cannot be fulfilled")
+        error_message = f"Unexpected error: {e.__class__.__name__}: {str(e)}"
+        logger.error(error_message)
+        abort(500, error_message)
     finally:
         request_session.close()
 
