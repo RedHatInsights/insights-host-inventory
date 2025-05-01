@@ -129,9 +129,7 @@ def _time_now():
 def _create_staleness_timestamps_values(host, org_id):
     staleness = _get_staleness_obj(org_id)
     staleness_ts = Timestamps.from_config(inventory_config())
-    st = get_staleness_timestamps(host, staleness_ts, staleness)
-
-    return st
+    return get_staleness_timestamps(host, staleness_ts, staleness)
 
 
 class SystemProfileNormalizer:
@@ -322,6 +320,8 @@ class LimitedHost(db.Model):  # type: ignore [name-defined]
 
 class Host(LimitedHost):
     stale_timestamp = db.Column(db.DateTime(timezone=True))
+    deletion_timestamp = db.Column(db.DateTime(timezone=True))
+    stale_warning_timestamp = db.Column(db.DateTime(timezone=True))
     reporter = db.Column(db.String(255))
     per_reporter_staleness = db.Column(JSONB)
 
@@ -351,7 +351,7 @@ class Host(LimitedHost):
         if not canonical_facts:
             raise ValidationException("At least one of the canonical fact fields must be present.")
 
-        if current_app.config["USE_SUBMAN_ID"] and canonical_facts and "subscription_manager_id" in canonical_facts:
+        if current_app.config["USE_SUBMAN_ID"] and "subscription_manager_id" in canonical_facts:
             id = canonical_facts["subscription_manager_id"]
 
         if not stale_timestamp or not reporter:
@@ -377,6 +377,8 @@ class Host(LimitedHost):
         self._update_last_check_in_date()
         # without reporter and stale_timestamp host payload is invalid.
         self._update_stale_timestamp(stale_timestamp, reporter)
+
+        self._update_staleness_timestamps()
 
         self.per_reporter_staleness = per_reporter_staleness or {}
         if not per_reporter_staleness:
@@ -406,6 +408,7 @@ class Host(LimitedHost):
         self._update_stale_timestamp(input_host.stale_timestamp, input_host.reporter)
         self._update_last_check_in_date()
         self._update_per_reporter_staleness(input_host.reporter)
+        self._update_staleness_timestamps()
 
     def patch(self, patch_data):
         logger.debug("patching host (id=%s) with data: %s", self.id, patch_data)
@@ -589,6 +592,17 @@ class Host(LimitedHost):
             # Update the fields that were passed in
             self.system_profile_facts = {**self.system_profile_facts, **input_system_profile}
         orm.attributes.flag_modified(self, "system_profile_facts")
+
+    def _update_staleness_timestamps(self):
+        if get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS):
+            staleness_timestamps = _create_staleness_timestamps_values(self, self.org_id)
+            self.stale_timestamp = staleness_timestamps["stale_timestamp"]
+            self.stale_warning_timestamp = staleness_timestamps["stale_warning_timestamp"]
+            self.deletion_timestamp = staleness_timestamps["culled_timestamp"]
+
+            orm.attributes.flag_modified(self, "stale_timestamp")
+            orm.attributes.flag_modified(self, "stale_warning_timestamp")
+            orm.attributes.flag_modified(self, "deletion_timestamp")
 
     def reporter_stale(self, reporter):
         prs = self.per_reporter_staleness.get(reporter, None)

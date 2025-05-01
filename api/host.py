@@ -518,7 +518,11 @@ def host_checkin(body, rbac_filter=None):  # noqa: ARG001, required for all API 
     existing_host = find_existing_host(current_identity, canonical_facts)
     staleness = get_staleness_obj(current_identity.org_id)
     if existing_host:
-        existing_host._update_modified_date()
+        if get_flag_value(FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM):
+            existing_host._update_last_check_in_date()
+            existing_host._update_staleness_timestamps()
+        else:
+            existing_host._update_modified_date()
         db.session.commit()
         serialized_host = serialize_host(existing_host, staleness_timestamps(), staleness=staleness)
         _emit_patch_event(serialized_host, existing_host)
