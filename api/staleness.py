@@ -1,11 +1,15 @@
 from http import HTTPStatus
 from threading import Thread
 
+import sqlalchemy as sa
 from flask import Flask
 from flask import abort
 from flask import current_app
 from marshmallow import ValidationError
+from sqlalchemy import orm
+from sqlalchemy.engine.base import Connection
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Mapper
 from sqlalchemy.orm.exc import NoResultFound
 
 from api import api_operation
@@ -59,24 +63,46 @@ def _validate_input_data(body):
         abort(HTTPStatus.BAD_REQUEST, f"Validation Error: {str(e.messages)}")
 
 
-def _update_hosts_staleness_async(identity: Identity, app: Flask, staleness: Staleness):
+@sa.event.listens_for(Host, "before_update")
+def receive_before_host_update(mapper: Mapper, connection: Connection, host: Host):  # noqa: ARG001
+    """Prevent host modified_on update during staleness updates.
+
+    This SQLAlchemy event listener, triggered before any host update,
+    prevents the ``modified_on`` timestamp from being updated when only
+    the ``per_reporter_staleness`` field is changed.  This avoids
+    unnecessary updates as ``modified_on`` is automatically updated for
+    every change to a Host object, which can lead to confusion to the user.
+
+    For more details on SQLAlchemy event listeners, see:
+    https://docs.sqlalchemy.org/en/20/orm/events.html#sqlalchemy.orm.MapperEvents.before_update
+
+    :param mapper: The SQLAlchemy mapper.
+    :param connection: The database connection.
+    :param host: The Host object being updated.
+    """
+    host_details = sa.inspect(host)
+    flag_changed, _, _ = host_details.attrs.per_reporter_staleness.history
+    if flag_changed:
+        orm.attributes.flag_modified(host, "modified_on")
+
+
+def _update_hosts_staleness_async(identity: Identity, app: Flask, staleness: Staleness, request_id):
     with app.app_context():
-        threadctx.request_id = None
+        threadctx.request_id = request_id
         logger.debug("Starting host staleness update thread")
         try:
-            logger.info(f"Querying hosts for org_id: {identity.org_id}")
+            logger.debug(f"Querying hosts for org_id: {identity.org_id}")
             hosts_query = Host.query.filter(Host.org_id == identity.org_id)
             num_hosts = hosts_query.count()
             st = staleness_timestamps()
             staleness_dict = serialize_staleness_to_dict(staleness)
             list_of_events_params = []
             if num_hosts > 0:
-                logger.info(f"Found {num_hosts} hosts for org_id: {identity.org_id}")
+                logger.debug(f"Found {num_hosts} hosts for org_id: {identity.org_id}")
                 for host in hosts_query.yield_per(500):
                     host._update_all_per_reporter_staleness()
-                    host._update_staleness_timestamps()
                     serialized_host = serialize_host(
-                        host, for_mq=False, staleness_timestamps=st, staleness=staleness_dict
+                        host, for_mq=True, staleness_timestamps=st, staleness=staleness_dict
                     )
 
                     # Create host update event and append it to an array
@@ -109,7 +135,7 @@ def _build_host_updated_event_params(serialized_host: dict, host: Host, identity
     return event, headers
 
 
-def _validate_flag_and_async_update_host(identity: Identity, created_staleness: Staleness):
+def _validate_flag_and_async_update_host(identity: Identity, created_staleness: Staleness, request_id):
     """
     This method validates if feature flag is enabled,
     is it is, call the async host staleness update,
@@ -123,6 +149,7 @@ def _validate_flag_and_async_update_host(identity: Identity, created_staleness: 
                 identity,
                 current_app._get_current_object(),
                 created_staleness,
+                request_id,
             ),
         )
         update_hosts_thread.start()
@@ -167,6 +194,7 @@ def create_staleness(body):
     # Validate account staleness input data
     identity = get_current_identity()
     org_id = identity.org_id
+    request_id = threadctx.request_id
     try:
         validated_data = _validate_input_data(body)
     except ValidationError as e:
@@ -176,7 +204,7 @@ def create_staleness(body):
     try:
         # Create account staleness with validated data
         created_staleness = add_staleness(validated_data)
-        _validate_flag_and_async_update_host(identity, created_staleness)
+        _validate_flag_and_async_update_host(identity, created_staleness, request_id)
         log_create_staleness_succeeded(logger, created_staleness.id)
     except IntegrityError:
         error_message = f"Staleness record for org_id {org_id} already exists."
@@ -195,10 +223,11 @@ def create_staleness(body):
 def delete_staleness():
     identity = get_current_identity()
     org_id = identity.org_id
+    request_id = threadctx.request_id
     try:
         remove_staleness()
         staleness = get_sys_default_staleness_api(identity)
-        _validate_flag_and_async_update_host(identity, staleness)
+        _validate_flag_and_async_update_host(identity, staleness, request_id)
         return flask_json_response(None, HTTPStatus.NO_CONTENT)
     except NoResultFound:
         abort(
@@ -215,6 +244,7 @@ def update_staleness(body):
     # Validate account staleness input data
     try:
         validated_data = _validate_input_data(body)
+        request_id = threadctx.request_id
     except ValidationError as e:
         logger.exception(f'Input validation error, "{str(e.messages)}", while creating account staleness: {body}')
         return json_error_response("Validation Error", str(e.messages), HTTPStatus.BAD_REQUEST)
@@ -227,7 +257,7 @@ def update_staleness(body):
             # since update only return None with no record instead of exception.
             raise NoResultFound
 
-        _validate_flag_and_async_update_host(identity, updated_staleness)
+        _validate_flag_and_async_update_host(identity, updated_staleness, request_id)
 
         log_patch_staleness_succeeded(logger, updated_staleness.id)
 
