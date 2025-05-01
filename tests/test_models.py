@@ -3,6 +3,7 @@ from contextlib import suppress
 from copy import deepcopy
 from datetime import datetime
 from datetime import timedelta
+from unittest.mock import patch
 
 import pytest
 from marshmallow import ValidationError as MarshmallowValidationError
@@ -19,6 +20,7 @@ from app.models import Host
 from app.models import HostSchema
 from app.models import InputGroupSchema
 from app.models import LimitedHost
+from app.models import _create_staleness_timestamps_values
 from app.models import db
 from app.staleness_serialization import get_staleness_timestamps
 from app.staleness_serialization import get_sys_default_staleness
@@ -1327,3 +1329,24 @@ def test_delete_staleness_culling(db_create_staleness_culling, db_delete_stalene
     assert created_acc_st_cull
     db_delete_staleness_culling(created_acc_st_cull.org_id)
     assert not db_get_staleness_culling(acc_st_cull.org_id)
+
+
+def test_create_host_validate_staleness(db_create_host, db_get_host):
+    with (
+        patch("app.staleness_serialization.get_flag_value", return_value=True),
+        patch("app.models.get_flag_value", return_value=True),
+    ):
+        host_data = {
+            "canonical_facts": {"fqdn": "test.example.com"},
+            "stale_timestamp": now(),
+            "reporter": "test_reporter",
+        }
+
+        created_host = db_create_host(SYSTEM_IDENTITY, extra_data=host_data)
+        staleness_timestamps = _create_staleness_timestamps_values(created_host, created_host.org_id)
+        retrieved_host = db_get_host(created_host.id)
+
+        assert retrieved_host.stale_timestamp == staleness_timestamps["stale_timestamp"]
+        assert retrieved_host.stale_warning_timestamp == staleness_timestamps["stale_warning_timestamp"]
+        assert retrieved_host.deletion_timestamp == staleness_timestamps["culled_timestamp"]
+        assert retrieved_host.reporter == host_data["reporter"]

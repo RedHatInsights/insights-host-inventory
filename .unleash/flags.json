@@ -65,6 +65,22 @@
             "createdAt": "2025-02-14T16:29:19.146Z"
         },
         {
+            "name": "hbi.api.kessel-phase-1",
+            "description": "Enable feature flag for hbi+kessel integration Phase 1",
+            "type": "release",
+            "project": "default",
+            "stale": false,
+            "enabled": false,
+            "strategies": [
+                {
+                    "name": "default",
+                    "parameters": {}
+                }
+            ],
+            "variants": [],
+            "createdAt": "2025-04-25T16:32:16.409Z"
+        },
+        {
             "name": "hbi.deduplication-elevate-subman_id",
             "description": "If active, subscription_manager_id will have the highest priority out of mutable elevated canonical facts, and mac_addresses will not be included in elevated canonical facts.",
             "type": "release",

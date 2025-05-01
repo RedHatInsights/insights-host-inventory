@@ -7,7 +7,10 @@ __all__ = ("get_staleness_timestamps",)
 
 # Determine staleness timestamps
 def get_staleness_timestamps(host, staleness_timestamps, staleness) -> dict:
-    """Helper function to calculate staleness timestamps based on host type."""
+    """
+    Helper function to calculate staleness timestamps based on host type.
+    Useful for host creation and update.
+    """
     staleness_type = (
         "immutable"
         if host.host_type == "edge"
