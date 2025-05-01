@@ -29,7 +29,10 @@ from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import db
 from app.serialization import serialize_staleness_to_dict
+from app.staleness_states import HostStalenessStatesDbFilters
 from app.utils import Tag
+from lib.feature_flags import FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS
+from lib.feature_flags import get_flag_value
 
 __all__ = (
     "canonical_fact_filter",
@@ -90,12 +93,19 @@ def _group_ids_filter(group_id_list: list) -> list:
 
 
 def stale_timestamp_filter(gt=None, lte=None):
-    filters = []
-    if gt:
-        filters.append(Host.modified_on > gt)
-    if lte:
-        filters.append(Host.modified_on <= lte)
+    def _get_date_field():
+        return (
+            Host.last_check_in
+            if get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS)
+            else Host.modified_on
+        )
 
+    filters = []
+    date_field = _get_date_field()
+    if gt:
+        filters.append(date_field > gt)
+    if lte:
+        filters.append(date_field <= lte)
     return and_(*filters)
 
 
@@ -159,6 +169,12 @@ def per_reporter_staleness_filter(staleness, reporter, host_type_filter, org_id)
             staleness_conditions.append(conditions)
 
     return staleness_conditions
+
+
+def _staleness_filter_using_columns(staleness: list[str]) -> list:
+    host_staleness_states_filters = HostStalenessStatesDbFilters()
+    filters = [getattr(host_staleness_states_filters, state)() for state in staleness if state != "unknown"]
+    return [or_(*filters)]
 
 
 def _staleness_filter(staleness: list[str] | tuple[str, ...], host_type_filter: set[str | None], org_id) -> list:
@@ -280,9 +296,15 @@ def _modified_on_filter(updated_start: str | None, updated_end: str | None) -> l
     return [and_(*modified_on_filter)]
 
 
+def _get_staleness_filter(all_staleness_states: list[str], host_type_filter: set[str | None], org_id: str) -> list:
+    if get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS):
+        return _staleness_filter_using_columns(all_staleness_states)
+    return _staleness_filter(all_staleness_states, host_type_filter, org_id)
+
+
 def host_id_list_filter(host_id_list: list[str], org_id: str) -> list:
     all_filters = [Host.id.in_(host_id_list)]
-    all_filters += _staleness_filter(ALL_STALENESS_STATES, set(HOST_TYPES.copy()), org_id)
+    all_filters += _get_staleness_filter(ALL_STALENESS_STATES, set(HOST_TYPES.copy()), org_id)
     return all_filters
 
 
@@ -315,7 +337,7 @@ def query_filters(
     group_name: list[str] | None = None,
     group_ids: list[str] | None = None,
     tags: list[str] | None = None,
-    staleness: list[str] | tuple[str, ...] | None = None,
+    staleness: list[str] | None = None,
     registered_with: list[str] | None = None,
     filter: dict | None = None,
     rbac_filter: dict | None = None,
@@ -359,7 +381,7 @@ def query_filters(
         sp_filter, host_type_filter = _system_profile_filter(filter)
         filters += sp_filter
     if staleness:
-        filters += _staleness_filter(staleness, host_type_filter, identity.org_id)
+        filters += _get_staleness_filter(staleness, host_type_filter, identity.org_id)
     if registered_with:
         filters += _registered_with_filter(registered_with, host_type_filter, identity.org_id)
     if rbac_filter:
