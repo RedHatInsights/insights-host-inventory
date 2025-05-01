@@ -353,7 +353,6 @@ def test_remove_hosts_from_existing_group_kessel(
     event_producer,
     mocker,
 ):
-    mocker.patch("api.host_group.get_flag_value", return_value=True)
     mocker.patch("lib.group_repository.get_flag_value", return_value=True)
     mocker.patch.object(event_producer, "write_event")
     # Create a group and 3 hosts
