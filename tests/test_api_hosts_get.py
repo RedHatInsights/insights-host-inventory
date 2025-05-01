@@ -2119,3 +2119,36 @@ def test_get_host_from_different_org(mocker, api_get):
     url = build_hosts_url()
     response_status, _ = api_get(url)
     assert_response_status(response_status, 403)
+
+
+def test_query_by_staleness_using_columns(db_create_multiple_hosts, api_get, subtests):
+    patch("app.staleness_serialization.get_flag_value", return_value=True)
+    patch("app.models.get_flag_value", return_value=True)
+    patch("app.serialization.get_flag_value", return_value=True)
+    patch("api.host_query_db.get_flag_value", return_value=True)
+
+    expected_staleness_results_map = {
+        "fresh": 3,
+        "stale": 4,
+        "stale_warning": 2,
+    }
+    staleness_timestamp_map = {
+        "fresh": now(),
+        "stale": now() - timedelta(days=3),
+        "stale_warning": now() - timedelta(days=10),
+    }
+    staleness_to_host_ids_map = dict()
+
+    # Create the hosts in each state
+    for staleness, num_hosts in expected_staleness_results_map.items():
+        # Patch the "now" function so the hosts are created in the desired state
+        with patch("app.models.datetime", **{"now.return_value": staleness_timestamp_map[staleness]}):
+            staleness_to_host_ids_map[staleness] = [str(h.id) for h in db_create_multiple_hosts(how_many=num_hosts)]
+
+    for staleness, count in expected_staleness_results_map.items():
+        with subtests.test():
+            url = build_hosts_url(query=f"?staleness={staleness}")
+            # Validate the basics, i.e. response code and results size
+            response_status, response_data = api_get(url)
+            assert response_status == 200
+            assert count == len(response_data["results"])
