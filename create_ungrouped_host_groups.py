@@ -38,7 +38,9 @@ def run(logger: Logger, session: Session, event_producer: EventProducer, applica
 
             # If not, create the "ungrouped hosts" Group
             if ungrouped_group is None:
-                ungrouped_group = add_group(group_name="ungrouped", org_id=org_id, account=account, ungrouped=True)
+                ungrouped_group = add_group(
+                    group_name="Ungrouped Hosts", org_id=org_id, account=account, ungrouped=True
+                )
 
             # Assign all ungrouped hosts to this new Group
             host_id_list = [
