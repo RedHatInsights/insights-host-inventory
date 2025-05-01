@@ -4,6 +4,8 @@ from datetime import timedelta
 from unittest import mock
 from unittest.mock import patch
 
+import pytest
+
 from app.logging import threadctx
 from app.models import db
 from host_reaper import run as host_reaper_run
@@ -193,8 +195,9 @@ def test_no_hosts_to_delete(
     assert len(db_get_hosts(conventional_hosts).all()) == 2
 
 
+@pytest.mark.parametrize("num_hosts", [1, 2, 3])
 def test_async_update_host_create_custom_staleness(
-    db_get_hosts, db_create_multiple_hosts, api_get, api_post, flask_app
+    db_get_hosts, db_create_multiple_hosts, api_get, api_post, flask_app, event_producer, mocker, num_hosts
 ):
     with (
         patch("app.models.get_flag_value", return_value=True),
@@ -205,9 +208,10 @@ def test_async_update_host_create_custom_staleness(
         patch("app.models.datetime") as mock_datetime,
     ):
         with flask_app.app.app_context():
+            mocker.patch.object(event_producer, "write_event")
             _now = now()
             mock_datetime.now.return_value = _now
-            created_hosts = db_create_multiple_hosts(how_many=1)
+            created_hosts = db_create_multiple_hosts(how_many=num_hosts)
             host_url = build_hosts_url()
             response_status, response_data = api_get(host_url)
             assert response_status == 200
@@ -237,7 +241,11 @@ def test_async_update_host_create_custom_staleness(
                 stale_timestamp = stale_timestamp.isoformat()
                 assert hosts_after_update[0].per_reporter_staleness[reporter]["stale_timestamp"] == stale_timestamp
 
+            # Call event_producer
+            assert event_producer.write_event.call_count == num_hosts
 
+
+@pytest.mark.parametrize("num_hosts", [1, 2, 3])
 def test_async_update_host_delete_custom_staleness(
     db_create_staleness_culling,
     db_get_hosts,
@@ -245,6 +253,9 @@ def test_async_update_host_delete_custom_staleness(
     api_get,
     api_delete_staleness,
     flask_app,
+    event_producer,
+    mocker,
+    num_hosts,
 ):
     db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
     with (
@@ -256,9 +267,10 @@ def test_async_update_host_delete_custom_staleness(
         patch("app.models.datetime") as mock_datetime,
     ):
         with flask_app.app.app_context():
+            mocker.patch.object(event_producer, "write_event")
             _now = now()
             mock_datetime.now.return_value = _now
-            created_hosts = db_create_multiple_hosts(how_many=1)
+            created_hosts = db_create_multiple_hosts(how_many=num_hosts)
             host_url = build_hosts_url()
             response_status, response_data = api_get(host_url)
             assert response_status == 200
@@ -287,7 +299,11 @@ def test_async_update_host_delete_custom_staleness(
                 stale_timestamp = stale_timestamp.isoformat()
                 assert hosts_after_update[0].per_reporter_staleness[reporter]["stale_timestamp"] == stale_timestamp
 
+            # Call event_producer
+            assert event_producer.write_event.call_count == num_hosts
 
+
+@pytest.mark.parametrize("num_hosts", [1, 2, 3])
 def test_async_update_host_update_custom_staleness(
     db_create_staleness_culling,
     db_get_hosts,
@@ -295,6 +311,9 @@ def test_async_update_host_update_custom_staleness(
     api_get,
     api_patch,
     flask_app,
+    event_producer,
+    mocker,
+    num_hosts,
 ):
     db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
     with (
@@ -306,9 +325,10 @@ def test_async_update_host_update_custom_staleness(
         patch("app.models.datetime") as mock_datetime,
     ):
         with flask_app.app.app_context():
+            mocker.patch.object(event_producer, "write_event")
             _now = now()
             mock_datetime.now.return_value = _now
-            created_hosts = db_create_multiple_hosts(how_many=1)
+            created_hosts = db_create_multiple_hosts(how_many=num_hosts)
             host_url = build_hosts_url()
             response_status, response_data = api_get(host_url)
             assert response_status == 200
@@ -337,3 +357,6 @@ def test_async_update_host_update_custom_staleness(
                 )
                 stale_timestamp = stale_timestamp.isoformat()
                 assert hosts_after_update[0].per_reporter_staleness[reporter]["stale_timestamp"] == stale_timestamp
+
+            # Call event_producer
+            assert event_producer.write_event.call_count == num_hosts

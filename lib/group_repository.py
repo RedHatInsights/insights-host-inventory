@@ -453,7 +453,7 @@ def get_or_create_ungrouped_hosts_group_for_identity(identity: Identity) -> Grou
 
     # Create "ungrouped" group for this org using group ID == workspace ID
     return add_group(
-        group_name="ungrouped",
+        group_name="Ungrouped Hosts",
         org_id=identity.org_id,
         account=identity.account_number,
         group_id=workspace_id,

@@ -730,6 +730,9 @@ def test_query_using_group_name(db_create_group_with_hosts, api_get, num_groups)
 
     assert response_status == 200
     assert len(response_data["results"]) == num_groups * hosts_per_group
+    for result in response_data["results"]:
+        assert "existing_group_" in result["groups"][0]["name"]
+        assert result["groups"][0]["ungrouped"] is False
 
 
 def test_query_ungrouped_hosts(db_create_group_with_hosts, mq_create_three_specific_hosts, api_get):
@@ -744,6 +747,19 @@ def test_query_ungrouped_hosts(db_create_group_with_hosts, mq_create_three_speci
 
     assert response_status == 200
     assert_host_lists_equal(build_expected_host_list(ungrouped_hosts), response_data["results"])
+
+
+def test_query_ungrouped_hosts_kessel(db_create_group_with_hosts, api_get):
+    # Create a host in the "ungrouped" group
+    ungrouped_group_id = db_create_group_with_hosts("ungrouped", 1, True).id
+    url = build_hosts_url(query="?group_name=ungrouped")
+
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert (group_result := response_data["results"][0]["groups"][0])["name"] == "ungrouped"
+    assert group_result["id"] == str(ungrouped_group_id)
+    assert group_result["ungrouped"] is True
 
 
 def test_query_hosts_filter_updated_start_end(mq_create_or_update_host, api_get):
@@ -2103,3 +2119,36 @@ def test_get_host_from_different_org(mocker, api_get):
     url = build_hosts_url()
     response_status, _ = api_get(url)
     assert_response_status(response_status, 403)
+
+
+def test_query_by_staleness_using_columns(db_create_multiple_hosts, api_get, subtests):
+    patch("app.staleness_serialization.get_flag_value", return_value=True)
+    patch("app.models.get_flag_value", return_value=True)
+    patch("app.serialization.get_flag_value", return_value=True)
+    patch("api.host_query_db.get_flag_value", return_value=True)
+
+    expected_staleness_results_map = {
+        "fresh": 3,
+        "stale": 4,
+        "stale_warning": 2,
+    }
+    staleness_timestamp_map = {
+        "fresh": now(),
+        "stale": now() - timedelta(days=3),
+        "stale_warning": now() - timedelta(days=10),
+    }
+    staleness_to_host_ids_map = dict()
+
+    # Create the hosts in each state
+    for staleness, num_hosts in expected_staleness_results_map.items():
+        # Patch the "now" function so the hosts are created in the desired state
+        with patch("app.models.datetime", **{"now.return_value": staleness_timestamp_map[staleness]}):
+            staleness_to_host_ids_map[staleness] = [str(h.id) for h in db_create_multiple_hosts(how_many=num_hosts)]
+
+    for staleness, count in expected_staleness_results_map.items():
+        with subtests.test():
+            url = build_hosts_url(query=f"?staleness={staleness}")
+            # Validate the basics, i.e. response code and results size
+            response_status, response_data = api_get(url)
+            assert response_status == 200
+            assert count == len(response_data["results"])
