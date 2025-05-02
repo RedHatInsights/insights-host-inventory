@@ -333,14 +333,16 @@ def delete_group_list(group_id_list: list[str], identity: Identity, event_produc
 def remove_hosts_from_group(group_id, host_id_list, identity, event_producer):
     removed_host_ids = []
     staleness = get_staleness_obj(identity.org_id)
+    group_id_list = []
     with session_guard(db.session):
         removed_host_ids = _remove_hosts_from_group(group_id, host_id_list, identity.org_id)
         if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
             # Add hosts to the "ungrouped" group
-            ungrouped_group = get_or_create_ungrouped_hosts_group_for_identity(identity)
-            _add_hosts_to_group(str(ungrouped_group.id), removed_host_ids, identity.org_id)
+            ungrouped_group_id = str(get_or_create_ungrouped_hosts_group_for_identity(identity).id)
+            _add_hosts_to_group(ungrouped_group_id, [str(host_id) for host_id in removed_host_ids], identity.org_id)
+            group_id_list = [ungrouped_group_id]
 
-    serialized_groups, host_list = _update_hosts_for_group_changes(removed_host_ids, [], identity)
+    serialized_groups, host_list = _update_hosts_for_group_changes(removed_host_ids, group_id_list, identity)
     _produce_host_update_events(event_producer, serialized_groups, host_list, identity, staleness=staleness)
     _invalidate_system_cache(host_list, identity)
     return len(removed_host_ids)
