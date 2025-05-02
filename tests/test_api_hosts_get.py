@@ -749,17 +749,18 @@ def test_query_ungrouped_hosts(db_create_group_with_hosts, mq_create_three_speci
     assert_host_lists_equal(build_expected_host_list(ungrouped_hosts), response_data["results"])
 
 
-def test_query_ungrouped_hosts_kessel(db_create_group_with_hosts, api_get):
+@pytest.mark.parametrize("ungrouped", (True, False))
+def test_query_hosts_with_group_data_kessel(ungrouped, db_create_group_with_hosts, api_get):
     # Create a host in the "ungrouped" group
-    ungrouped_group_id = db_create_group_with_hosts("ungrouped", 1, True).id
-    url = build_hosts_url(query="?group_name=ungrouped")
+    ungrouped_group_id = db_create_group_with_hosts("test_group", 1, ungrouped).id
+    url = build_hosts_url(query="?group_name=test_group")
 
     response_status, response_data = api_get(url)
 
     assert response_status == 200
-    assert (group_result := response_data["results"][0]["groups"][0])["name"] == "ungrouped"
+    assert (group_result := response_data["results"][0]["groups"][0])["name"] == "test_group"
     assert group_result["id"] == str(ungrouped_group_id)
-    assert group_result["ungrouped"] is True
+    assert group_result["ungrouped"] is ungrouped
 
 
 def test_query_hosts_filter_updated_start_end(mq_create_or_update_host, api_get):

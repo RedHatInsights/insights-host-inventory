@@ -252,22 +252,6 @@ def get_groups_by_id(
 @api_operation
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def delete_hosts_from_group(group_id, host_id_list, rbac_filter=None):
-    rbac_group_id_check(rbac_filter, {group_id})
-    identity = get_current_identity()
-
-    delete_count = remove_hosts_from_group(group_id, host_id_list, identity, current_app.event_producer)
-
-    if delete_count == 0:
-        log_delete_hosts_from_group_failed(logger)
-        abort(HTTPStatus.NOT_FOUND, "Group or hosts not found.")
-
-    return Response(None, HTTPStatus.NO_CONTENT)
-
-
-@api_operation
-@rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
-@metrics.api_request_time.time()
 def delete_hosts_from_different_groups(host_id_list, rbac_filter=None):
     identity = get_current_identity()
     hosts_per_group = {}
