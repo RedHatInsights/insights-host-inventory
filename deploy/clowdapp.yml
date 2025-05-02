@@ -1661,14 +1661,10 @@ objects:
         query: >-
           SELECT COUNT(*) AS "hosts_count"
           FROM "hbi"."hosts";
-      - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/distinct_accounts
+      - prefix: hms_analytics/inventory/${ENV_NAME}/groups_metrics/groups_count
         query: >-
-          SELECT COUNT(DISTINCT "account") AS "count"
-          FROM "hbi"."hosts";
-      - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/distinct_org_ids
-        query: >-
-          SELECT COUNT(DISTINCT "org_id") AS "count"
-          FROM "hbi"."hosts";
+          SELECT COUNT(*) AS "group_counts"
+          FROM "hbi"."groups";
       - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/daily_created_by_reporters
         query: >-
           SELECT
@@ -1706,38 +1702,12 @@ objects:
           FROM "hbi"."hosts"
           GROUP BY "org_id"
           ORDER BY "host_count" DESC;
-      - prefix: hms_analytics/inventory/${ENV_NAME}/groups_metrics/groups_count
-        chunksize: 10000
-        query: >-
-          SELECT COUNT(*) AS "group_counts"
-          FROM "hbi"."groups";
-      - prefix: hms_analytics/inventory/${ENV_NAME}/groups_metrics/groups_count_by_account
-        chunksize: 10000
-        query: >-
-          SELECT
-            DISTINCT "account" AS "account",
-            COUNT(id) AS "count"
-          FROM "hbi"."groups"
-          GROUP BY "account"
-          ORDER BY "count" DESC;
-      - prefix: hms_analytics/inventory/${ENV_NAME}/groups_metrics/org_ids_with_null_accouns
-        chunksize: 10000
-        query: >-
-          SELECT
-            DISTINCT "org_id" AS "org_id",
-            count("id")
-          FROM "hbi"."groups"
-          WHERE "account" IS NULL
-          GROUP BY "org_id"
-          ORDER BY count DESC;
       - prefix: hms_analytics/inventory/${ENV_NAME}/groups_metrics/org_ids_with_group_names
         chunksize: 10000
         query: >-
           SELECT
-            DISTINCT "org_id" AS "org_id",
-            "name" AS "name"
+            DISTINCT "org_id" AS "org_id", "name" AS "name"
           FROM "hbi"."groups"
-          GROUP BY "org_id", "name"
           ORDER BY "name" ASC;
       - prefix: hms_analytics/inventory/${ENV_NAME}/groups_metrics/hosts_per_groups
         chunksize: 10000
