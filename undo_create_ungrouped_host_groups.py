@@ -20,7 +20,7 @@ from lib.group_repository import delete_group_list
 PROMETHEUS_JOB = "inventory-delete-ungrouped-groups"
 LOGGER_NAME = "delete_ungrouped_groups"
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
-BATCH_SIZE = int(os.getenv("CREATE_UNGROUPED_GROUPS_BATCH_SIZE", 50))
+BATCH_SIZE = int(os.getenv("DELETE_UNGROUPED_GROUPS_BATCH_SIZE", 50))
 
 
 def run(logger: Logger, session: Session, event_producer: EventProducer, application: FlaskApp):
