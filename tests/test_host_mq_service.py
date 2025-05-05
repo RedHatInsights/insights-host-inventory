@@ -137,7 +137,8 @@ def test_handle_message_happy_path(
     assert result.host_row.canonical_facts["insights_id"] == expected_insights_id
     if kessel_migration:
         assert len(result.host_row.groups) == 1
-        assert result.host_row.groups[0]["name"] == existing_group_name if existing_ungrouped else "ungrouped"
+        assert result.host_row.groups[0]["name"] == existing_group_name if existing_ungrouped else "Ungrouped Hosts"
+        assert result.host_row.groups[0]["ungrouped"] is True
     else:
         assert result.host_row.groups == []
 
@@ -1430,7 +1431,6 @@ def test_other_values_are_ignored(value):
     assert True
 
 
-@pytest.mark.usefixtures("api_get")
 def test_host_account_using_mq(mq_create_or_update_host, db_get_host, db_get_hosts):
     host = minimal_host(account=SYSTEM_IDENTITY["account_number"], fqdn="d44533.foo.redhat.co")
     host.account = SYSTEM_IDENTITY["account_number"]
@@ -1860,6 +1860,9 @@ def test_groups_not_overwritten_for_existing_hosts(
     assert created_key == host_id
     assert created_event["host"]["ansible_host"] == "updated.ansible.host"
     assert created_event["host"]["groups"][0]["id"] == group_id
+
+    retrieved_host = db_get_hosts_for_group(group.id)[0]
+    assert retrieved_host.groups[0]["ungrouped"] is False
 
 
 @pytest.mark.usefixtures("event_datetime_mock", "db_get_host")

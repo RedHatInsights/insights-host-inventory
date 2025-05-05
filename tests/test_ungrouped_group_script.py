@@ -41,7 +41,7 @@ def test_happy_path(
     # All hosts that used to be ungrouped should now be in the "ungrouped" workspace
     # If there was already an existing "ungrouped" group, they should be in that group.
     # Otherwise, they should be in a new "ungrouped" group named "ungrouped".
-    ungrouped_group_name = EXISTING_GROUP_NAME if existing_ungrouped else "ungrouped"
+    ungrouped_group_name = EXISTING_GROUP_NAME if existing_ungrouped else "Ungrouped Hosts"
     for host_id in ungrouped_host_ids:
         assert db_get_groups_for_host(host_id)[0].name == ungrouped_group_name
         assert db_get_groups_for_host(host_id)[0].ungrouped is True
