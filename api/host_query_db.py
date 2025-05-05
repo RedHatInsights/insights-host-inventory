@@ -7,12 +7,14 @@ from typing import Any
 
 from sqlalchemy import Boolean
 from sqlalchemy import String
+from sqlalchemy import case
 from sqlalchemy import func
 from sqlalchemy import select
 from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Query
 from sqlalchemy.orm import load_only
+from sqlalchemy.sql import expression
 from sqlalchemy.sql.expression import ColumnElement
 from sqlalchemy.sql.expression import cast
 
@@ -35,6 +37,7 @@ from app.models import HostGroupAssoc
 from app.models import db
 from app.serialization import serialize_host_for_export_svc
 from lib.feature_flags import FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.feature_flags import get_flag_value
 
 __all__ = (
@@ -200,11 +203,29 @@ def params_to_order_by(order_by: str | None = None, order_how: str | None = None
     elif order_by == "display_name":
         ordering = (_order_how(Host.display_name, order_how),) if order_how else (Host.display_name.asc(),)
     elif order_by == "group_name":
-        base_ordering = _order_how(Group.name, order_how) if order_how else Group.name.asc()
+        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
+            host_group = Host.groups[0]  # groups is a list with one dict at this point
+            high_prio, low_prio = 0, 1
 
-        # Override default sorting
-        # When sorting by group_name ASC, ungrouped hosts should show first
-        ordering = (base_ordering.nulls_last(),) if order_how == "DESC" else (base_ordering.nulls_first(),)
+            # Order by group_name
+            base_ordering = host_group["name"].asc() if order_how in ("ASC", None) else host_group["name"].desc()
+
+            # Override default sorting
+            # When sorting by group_name ASC, ungrouped hosts should show first
+            ungrouped_expr = host_group["ungrouped"].as_boolean()
+            ungrouped_order = (
+                case((ungrouped_expr == expression.true(), high_prio), else_=low_prio)
+                if order_how in ("ASC", None)
+                else case((ungrouped_expr == expression.true(), low_prio), else_=high_prio)
+            )
+
+            ordering = ungrouped_order, base_ordering
+        else:
+            base_ordering = _order_how(Group.name, order_how) if order_how else Group.name.asc()
+
+            # Override default sorting
+            # When sorting by group_name ASC, ungrouped hosts should show first
+            ordering = (base_ordering.nulls_last(),) if order_how == "DESC" else (base_ordering.nulls_first(),)
     elif order_by == "operating_system":
         ordering = (_order_how(Host.operating_system, order_how),) if order_how else (Host.operating_system.desc(),)  # type: ignore [attr-defined]
 
