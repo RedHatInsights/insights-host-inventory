@@ -632,7 +632,6 @@ class Group(db.Model):  # type: ignore [name-defined]
     __tablename__ = "groups"
     __table_args__ = (
         Index("idxgrouporgid", "org_id"),
-        Index("idx_groups_org_id_name_nocase", "org_id", text("lower(name)"), unique=True),
         Index("idxorgidungrouped", "org_id", "ungrouped"),
         {"schema": INVENTORY_SCHEMA},
     )

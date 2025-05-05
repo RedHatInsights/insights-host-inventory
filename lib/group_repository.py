@@ -210,12 +210,19 @@ def add_group(
     group_id: Optional[UUID] = None,
     ungrouped: bool = False,
 ) -> Group:
+    old_groups = Group.query.filter((Group.name == group_name) & (Group.org_id == org_id)).all()
     new_group = Group(org_id=org_id, name=group_name, account=account, id=group_id, ungrouped=ungrouped)
     db.session.add(new_group)
     db.session.flush()
 
-    # gets the ID of the group after it has been committed
-    created_group = Group.query.filter((Group.name == group_name) & (Group.org_id == org_id)).one_or_none()
+    # gets all groups matching the query
+    new_groups = Group.query.filter((Group.name == group_name) & (Group.org_id == org_id)).all()
+
+    # find the new group
+    old_set = set(old_groups)
+    new_set = set(new_groups)
+    created_group = list(new_set - old_set)[0]  # only one new group is expected
+
     return created_group
 
 
@@ -229,6 +236,7 @@ def add_group_with_hosts(
     staleness: AttrDict,
     event_producer: EventProducer,
 ) -> Group:
+    old_groups = Group.query.filter((Group.name == group_name) & (Group.org_id == identity.org_id)).all()
     with session_guard(db.session):
         # Create group
         created_group = add_group(group_name, identity.org_id, account, group_id, ungrouped)
@@ -237,8 +245,13 @@ def add_group_with_hosts(
         if host_id_list:
             _add_hosts_to_group(created_group.id, host_id_list, identity.org_id)
 
-    # gets the ID of the group after it has been committed
-    created_group = Group.query.filter((Group.name == group_name) & (Group.org_id == identity.org_id)).one_or_none()
+    # gets all groups matching the query
+    new_groups = Group.query.filter((Group.name == group_name) & (Group.org_id == identity.org_id)).all()
+
+    # find the new group
+    old_set = set(old_groups)
+    new_set = set(new_groups)
+    created_group = list(new_set - old_set)[0]  # only one new group is expected
 
     # Produce update messages once the DB session has been closed
     serialized_groups, host_list = _update_hosts_for_group_changes(
