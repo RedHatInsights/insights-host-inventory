@@ -669,7 +669,7 @@ class Group(db.Model):  # type: ignore [name-defined]
     def patch(self, patch_data):
         logger.debug("patching group (id=%s) with data: %s", self.id, patch_data)
         if self.ungrouped is True:
-            raise InventoryException(title="Bad Request", detail="Group information can not be edited.")
+            raise InventoryException(title="Bad Request", detail="The 'ungrouped' group can not be modified.")
         if not patch_data:
             raise InventoryException(title="Bad Request", detail="Patch json document cannot be empty.")
 

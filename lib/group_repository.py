@@ -465,5 +465,5 @@ def get_or_create_ungrouped_hosts_group_for_identity(identity: Identity) -> Grou
 
 
 def get_ungrouped_group(identity: Identity) -> Group:
-    group = Group.query.filter(Group.org_id == identity.org_id, Group.ungrouped.is_(True)).one_or_none()
-    return group
+    ungrouped_group = Group.query.filter(Group.org_id == identity.org_id, Group.ungrouped.is_(True)).one_or_none()
+    return ungrouped_group
