@@ -1,4 +1,5 @@
 #!/usr/bin/python
+import os
 import sys
 from functools import partial
 from logging import Logger
@@ -21,6 +22,7 @@ from lib.group_repository import add_hosts_to_group
 PROMETHEUS_JOB = "inventory-create-ungrouped-groups"
 LOGGER_NAME = "create_ungrouped_groups"
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
+BATCH_SIZE = int(os.getenv("CREATE_UNGROUPED_GROUPS_BATCH_SIZE", 50))
 
 
 def run(logger: Logger, session: Session, event_producer: EventProducer, application: FlaskApp):
@@ -42,13 +44,23 @@ def run(logger: Logger, session: Session, event_producer: EventProducer, applica
                     group_name="Ungrouped Hosts", org_id=org_id, account=account, ungrouped=True
                 )
 
-            # Assign all ungrouped hosts to this new Group
-            host_id_list = [
-                str(row[0]) for row in session.query(Host.id).filter(Host.org_id == org_id, Host.groups == []).all()
-            ]
-            add_hosts_to_group(
-                ungrouped_group.id, host_id_list, create_mock_identity_with_org_id(org_id), event_producer
-            )
+            # Store the ID so it persists after commit
+            ungrouped_group_id = ungrouped_group.id
+
+            # Assign all ungrouped hosts to this new Group in batches of 50
+            while True:
+                # Grab the first 50 ungrouped hosts in the org.
+                # We don't need offset() because Host.groups is populated during add_hosts_to_group().
+                host_ids = (
+                    session.query(Host.id).filter(Host.org_id == org_id, Host.groups == []).limit(BATCH_SIZE).all()
+                )
+                if not host_ids:
+                    break
+                # host_ids is a list of tuples, so extract the ids
+                host_id_list = [str(host_id) for (host_id,) in host_ids]
+                add_hosts_to_group(
+                    ungrouped_group_id, host_id_list, create_mock_identity_with_org_id(org_id), event_producer
+                )
 
 
 if __name__ == "__main__":
@@ -56,5 +68,5 @@ if __name__ == "__main__":
     job_type = "Create ungrouped host groups"
     sys.excepthook = partial(excepthook, logger, job_type)
 
-    _, session, event_producer, _, _, application = job_setup(tuple(), PROMETHEUS_JOB)
+    _, session, event_producer, _, _, application = job_setup((), PROMETHEUS_JOB)
     run(logger, session, event_producer, application)
