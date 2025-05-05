@@ -20,4 +20,4 @@ def upgrade():
 
 
 def downgrade():
-    pass
+    op.create_index("idx_groups_org_id_name_nocase", "groups", ["name", "org_id"], if_not_exists=True, schema="hbi")
