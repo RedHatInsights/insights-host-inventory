@@ -204,28 +204,13 @@ def params_to_order_by(order_by: str | None = None, order_how: str | None = None
         ordering = (_order_how(Host.display_name, order_how),) if order_how else (Host.display_name.asc(),)
     elif order_by == "group_name":
         if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
-            host_group = Host.groups[0]  # groups is a list with one dict at this point
-            high_prio, low_prio = 0, 1
-
-            # Order by group_name
-            base_ordering = host_group["name"].asc() if order_how in ("ASC", None) else host_group["name"].desc()
-
-            # Override default sorting
-            # When sorting by group_name ASC, ungrouped hosts should show first
-            ungrouped_expr = host_group["ungrouped"].as_boolean()
-            ungrouped_order = (
-                case((ungrouped_expr == expression.true(), high_prio), else_=low_prio)
-                if order_how in ("ASC", None)
-                else case((ungrouped_expr == expression.true(), low_prio), else_=high_prio)
-            )
-
-            ordering = ungrouped_order, base_ordering
+            ordering = _get_group_name_order_post_kessel(order_how)
         else:
             base_ordering = _order_how(Group.name, order_how) if order_how else Group.name.asc()
-
             # Override default sorting
             # When sorting by group_name ASC, ungrouped hosts should show first
             ordering = (base_ordering.nulls_last(),) if order_how == "DESC" else (base_ordering.nulls_first(),)
+        return ordering
     elif order_by == "operating_system":
         ordering = (_order_how(Host.operating_system, order_how),) if order_how else (Host.operating_system.desc(),)  # type: ignore [attr-defined]
 
@@ -708,3 +693,22 @@ def get_hosts_to_export(
         raise InventoryException(title="DB Error", detail=str(e)) from e
 
     db.session.close()
+
+
+def _get_group_name_order_post_kessel(order_how):
+    host_group = Host.groups[0]  # groups is a list with one dict at this point
+    high_prio, low_prio = 0, 1
+
+    # Order by group_name
+    base_ordering = host_group["name"].asc() if order_how in ("ASC", None) else host_group["name"].desc()
+
+    # Override default sorting
+    # When sorting by group_name ASC, ungrouped hosts should show first
+    ungrouped_expr = host_group["ungrouped"].as_boolean()
+    ungrouped_order = (
+        case((ungrouped_expr == expression.true(), high_prio), else_=low_prio)
+        if order_how in ("ASC", None)
+        else case((ungrouped_expr == expression.true(), low_prio), else_=high_prio)
+    )
+
+    return ungrouped_order, base_ordering
