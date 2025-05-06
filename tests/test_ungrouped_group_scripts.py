@@ -1,11 +1,11 @@
 from unittest import mock
 
 import pytest
+from undo_create_ungrouped_host_groups import run as run_undo_script
 
 from app.models import db
 from create_ungrouped_host_groups import run as run_script
 from tests.helpers.test_utils import SYSTEM_IDENTITY
-from undo_create_ungrouped_host_groups import run as run_undo_script
 
 
 @pytest.mark.parametrize("existing_ungrouped", (True, False))
