@@ -336,6 +336,15 @@ class Config:
 
         self.sp_fields_to_log = os.getenv("SP_FIELDS_TO_LOG", "").split(",")
 
+        try:
+            self.api_bulk_tag_count_allowed = int(os.getenv("API_BULK_TAG_COUNT_ALLOWED", 10))
+        except ValueError:
+            self.api_bulk_tag_count_allowed = 10
+        try:
+            self.api_bulk_tag_host_batch_size = int(os.getenv("API_BULK_TAG_HOST_BATCH_SIZE", 100))
+        except ValueError:
+            self.api_bulk_tag_host_batch_size = 100
+
         # Load the RBAC PSKs into a dict, and then store the HBI one.
         # The structure looks like this:
         # {"inventory": {"secret": "psk-goes-here"}}
