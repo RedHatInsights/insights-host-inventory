@@ -1,4 +1,5 @@
 import time
+from copy import deepcopy
 from typing import Optional
 from uuid import UUID
 
@@ -219,15 +220,11 @@ def add_group(
     group_id: Optional[UUID] = None,
     ungrouped: bool = False,
 ) -> Group:
-    old_groups = _get_groups(group_name, org_id)
     new_group = Group(org_id=org_id, name=group_name, account=account, id=group_id, ungrouped=ungrouped)
     db.session.add(new_group)
     db.session.flush()
 
-    # gets all groups matching the query
-    new_groups = _get_groups(group_name, org_id)
-
-    return _get_newest_group(old_groups, new_groups)
+    return new_group
 
 
 def add_group_with_hosts(
@@ -240,7 +237,7 @@ def add_group_with_hosts(
     staleness: AttrDict,
     event_producer: EventProducer,
 ) -> Group:
-    old_groups = _get_groups(group_name, identity.org_id)
+    new_group = None
     with session_guard(db.session):
         # Create group
         created_group = add_group(group_name, identity.org_id, account, group_id, ungrouped)
@@ -249,18 +246,16 @@ def add_group_with_hosts(
         if host_id_list:
             _add_hosts_to_group(created_group.id, host_id_list, identity.org_id)
 
-    # gets all groups matching the query
-    new_groups = _get_groups(group_name, identity.org_id)
-    created_group = _get_newest_group(old_groups, new_groups)
+        new_group = deepcopy(created_group)
 
     # Produce update messages once the DB session has been closed
     serialized_groups, host_list = _update_hosts_for_group_changes(
-        host_id_list, group_id_list=[created_group.id], identity=identity
+        host_id_list, group_id_list=[new_group.id], identity=identity
     )
     _produce_host_update_events(event_producer, serialized_groups, host_list, identity, staleness=staleness)
     _invalidate_system_cache(host_list, identity)
 
-    return created_group
+    return new_group
 
 
 def create_group_from_payload(group_data: dict, event_producer: EventProducer, group_id: UUID) -> Group:
