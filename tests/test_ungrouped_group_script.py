@@ -8,19 +8,22 @@ from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
 @pytest.mark.parametrize("existing_ungrouped", (True, False))
+@pytest.mark.parametrize("num_ungrouped_hosts", (0, 1, 5, 6))
 def test_happy_path(
     flask_app,
+    mocker,
     db_create_host,
     db_create_group_with_hosts,
     db_get_hosts_for_group,
     db_get_groups_for_host,
     event_producer_mock,
     existing_ungrouped,
+    num_ungrouped_hosts,
 ):
     EXISTING_GROUP_NAME = "existing group"
 
-    # Create 3 ungrouped hosts & 2 grouped hosts
-    ungrouped_host_ids = [db_create_host().id for _ in range(3)]
+    # Create some ungrouped hosts & 2 grouped hosts
+    ungrouped_host_ids = [db_create_host().id for _ in range(num_ungrouped_hosts)]
     grouped_group_id = db_create_group_with_hosts(EXISTING_GROUP_NAME, 2, ungrouped=existing_ungrouped).id
     grouped_host_ids = [host.id for host in db_get_hosts_for_group(grouped_group_id)]
     db.session.commit()
@@ -30,6 +33,9 @@ def test_happy_path(
 
     for host_id in grouped_host_ids:
         assert db_get_groups_for_host(host_id)[0].name == EXISTING_GROUP_NAME
+
+    # Force a smaller batch size so the test doesn't take ages
+    mocker.patch("create_ungrouped_host_groups.BATCH_SIZE", 5)
 
     run_script(
         logger=mock.MagicMock(),
