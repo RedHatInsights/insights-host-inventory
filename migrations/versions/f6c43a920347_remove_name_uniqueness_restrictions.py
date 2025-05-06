@@ -16,10 +16,22 @@ depends_on = None
 
 
 def upgrade():
-    op.drop_index("idx_groups_org_id_name_nocase", table_name="groups", if_exists=True, schema="hbi")
+    # op.drop_index("idx_groups_org_id_name_nocase", table_name="groups", if_exists=True, schema="hbi")
+    op.drop_index(
+        "idx_groups_org_id_name_nocase",
+        table_name="groups",
+        postgresql_concurrently=True,
+        if_exists=True,
+        schema="hbi",
+    )
 
 
 def downgrade():
     op.create_index(
-        "idx_groups_org_id_name_nocase", "groups", ["name".lower(), "org_id"], if_not_exists=True, schema="hbi"
+        "idx_groups_org_id_name_nocase",
+        "groups",
+        ["name".lower(), "org_id"],
+        postgresql_concurrently=True,
+        if_not_exists=True,
+        schema="hbi",
     )
