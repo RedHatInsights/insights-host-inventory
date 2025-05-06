@@ -1438,11 +1438,11 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_UNGROUPED_HOSTS_JOB}
             memory: ${MEMORY_REQUEST_UNGROUPED_HOSTS_JOB}
-    - name: undo-create-ungrouped-host-groups
+    - name: delete-ungrouped-host-groups
       restartPolicy: OnFailure
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        args: ["./undo_create_ungrouped_host_groups.py"]
+        args: ["./delete_ungrouped_host_groups.py"]
         env:
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
