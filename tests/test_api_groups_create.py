@@ -103,6 +103,7 @@ def test_create_group_read_only(api_create_group, mocker):
         assert_response_status(response_status, expected_status=503)
 
 
+@pytest.mark.usefixtures("event_producer")
 @pytest.mark.parametrize(
     "new_name",
     ["test_Group", "Test_Group", "test_group", "test_group"],

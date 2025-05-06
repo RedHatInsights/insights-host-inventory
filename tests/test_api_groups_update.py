@@ -139,6 +139,7 @@ def test_patch_group_existing_name_different_org(
     assert_response_status(response_status, 404)
 
 
+@pytest.mark.usefixtures("event_producer")
 @pytest.mark.parametrize("patch_name", ["existing_group", "EXISTING_GROUP"])
 def test_patch_group_existing_name_same_org(db_create_group, api_patch_group, patch_name):
     # Create 2 groups
