@@ -16,7 +16,6 @@ depends_on = None
 
 
 def upgrade():
-    # op.drop_index("idx_groups_org_id_name_nocase", table_name="groups", if_exists=True, schema="hbi")
     op.drop_index(
         "idx_groups_org_id_name_nocase",
         table_name="groups",
