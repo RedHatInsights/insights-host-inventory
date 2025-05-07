@@ -259,12 +259,10 @@ def get_kessel_filter(
     relation = f"{kessel_application(application)}_{kessel_type(resource_type)}_{kessel_verb(verb)}"
 
     workspaces = kessel_client.ListAllowedWorkspaces(current_identity, relation)
-    defaultWorkspace: str = current_identity.org_id #How to determine default workspace? We have a means to get ungrouped, but this is different.
 
+    # TODO: this won't work for org-level permissions OR permissions like add group (which we may not need to handle) that require a permission to be unfiltered
     if len(workspaces) == 0:
         return False, None
-    elif defaultWorkspace in workspaces:
-        return True, None #
     else:
         return True, {"groups": workspaces}
 
