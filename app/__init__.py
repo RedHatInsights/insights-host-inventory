@@ -39,7 +39,7 @@ from app.queue.notifications import NotificationType
 from app.tags_blueprint import tags_bp
 from lib.check_org import check_org_id
 from lib.feature_flags import SchemaStrategy
-from lib.feature_flags import init_unleash_app
+from lib.feature_flags import init_unleash_app, get_flag_value, FLAG_INVENTORY_KESSEL_HOST_MIGRATION
 from lib.kessel import init_kessel
 from lib.handlers import register_shutdown
 
@@ -284,7 +284,6 @@ def create_app(runtime_environment):
     flask_app.config["SYSTEM_PROFILE_SPEC"] = sp_spec
     flask_app.config["USE_SUBMAN_ID"] = app_config.use_sub_man_id_for_host_id
 
-    init_kessel(app_config, flask_app)
     init_cache(app_config, app)
 
     # Configure Unleash (feature flags)
@@ -308,6 +307,9 @@ def create_app(runtime_environment):
         logger.warning(unleash_fallback_msg)
 
     db.init_app(flask_app)
+
+    if get_flag_value(FLAG_INVENTORY_KESSEL_HOST_MIGRATION): #Note: this won't work if we want to enable the flag while running or otherwise selectively, but it does allow us to completely disable the feature
+        init_kessel(app_config, flask_app)
 
     flask_app.register_blueprint(monitoring_blueprint, url_prefix=app_config.mgmt_url_path_prefix)
     for api_url in app_config.api_urls:
