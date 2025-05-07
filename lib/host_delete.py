@@ -100,9 +100,6 @@ def _delete_host(session: Session, host: Host, identity: Identity | None, contro
     host_delete_query = session.query(Host).filter(Host.id == host.id)
     assoc_delete_query.delete(synchronize_session="fetch")
     host_delete_query.delete(synchronize_session="fetch")
-    #report deleted host to Kessel, similar to going to outbox
-    client = get_kessel_client(current_app)
-    client.DeleteHost(host.id)
     return OperationResult(
         host,
         {"b64_identity": to_auth_header(identity)} if identity else None,
