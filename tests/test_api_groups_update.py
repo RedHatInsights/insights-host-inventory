@@ -394,22 +394,50 @@ def test_patch_group_RBAC_post_kessel_migration(
     if update_name:
         new_group_data["name"] = "new_name"
 
-    with mocker.patch("api.group.get_flag_value", return_value=True):
-        response_status, _ = api_patch_group(group_id, new_group_data)
+    mocker.patch("api.group.get_flag_value", return_value=True)
+    response_status, _ = api_patch_group(group_id, new_group_data)
 
-        # If group name was updated, it should have made a request to RBAC
-        if update_name:
-            assert patch_rbac_workspace_mock.call_args_list[0][0][0] == group_id
-            assert patch_rbac_workspace_mock.call_args_list[0][1]["name"] == "new_name"
-        else:
-            assert len(patch_rbac_workspace_mock.call_args_list) == 0
+    # If group name was updated, it should have made a request to RBAC
+    if update_name:
+        assert patch_rbac_workspace_mock.call_args_list[0][0][0] == group_id
+        assert patch_rbac_workspace_mock.call_args_list[0][1]["name"] == "new_name"
+    else:
+        assert len(patch_rbac_workspace_mock.call_args_list) == 0
 
-        assert_response_status(response_status, 200)
-        # 1 for each host (2 originals + 1 new)
-        assert event_producer.write_event.call_count == 3
+    assert_response_status(response_status, 200)
+    # 1 for each host (2 originals + 1 new)
+    assert event_producer.write_event.call_count == 3
 
-        # Check that the removed hosts were assigned to the ungrouped group
-        for host in db_get_hosts_for_group(ungrouped_group_id):
-            assert str(host.id) in original_host_id_list
+    # Check that the removed hosts were assigned to the ungrouped group
+    for host in db_get_hosts_for_group(ungrouped_group_id):
+        assert str(host.id) in original_host_id_list
 
-        assert str(db_get_hosts_for_group(group_id)[0].id) == new_host_id_list[0]
+    assert str(db_get_hosts_for_group(group_id)[0].id) == new_host_id_list[0]
+
+
+@pytest.mark.usefixtures("enable_rbac")
+def test_patch_ungrouped_name_is_denied(db_create_group, db_get_group_by_id, api_patch_group, event_producer, mocker):
+    mocker.patch.object(event_producer, "write_event")
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-groups-write-resource-defs-template.json"
+    )
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    # Create ungrouped group
+    group = db_create_group("ungrouped", ungrouped=True)
+    group_id = str(group.id)
+    orig_modified_on = group.modified_on
+    patch_doc = {"name": "modified_group"}
+
+    mocker.patch("lib.host_repository.get_flag_value", return_value=True)
+
+    # Try to edit name of ungrouped group
+    response_status, _ = api_patch_group(group_id, patch_doc)
+    assert_response_status(response_status, 400)
+    retrieved_group = db_get_group_by_id(group_id)
+
+    assert retrieved_group.name == "ungrouped"
+    assert retrieved_group.modified_on == orig_modified_on
+
+    assert event_producer.write_event.call_count == 0
