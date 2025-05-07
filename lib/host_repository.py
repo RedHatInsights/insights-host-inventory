@@ -24,7 +24,6 @@ from app.models import HostGroupAssoc
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness
 from lib import metrics
-from lib.kessel import get_kessel_client
 from lib.feature_flags import FLAG_INVENTORY_DEDUPLICATION_ELEVATE_SUBMAN_ID
 from lib.feature_flags import get_flag_value
 
