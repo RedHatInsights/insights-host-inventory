@@ -95,7 +95,39 @@
             ],
             "variants": [],
             "createdAt": "2025-02-17T16:18:18.842Z"
-        }
+        },
+        {
+            "name": "hbi.create_last_check_in_update_per_reporter_staleness",
+            "description": "Use last_check_in field to create host staleness, and update the per_reporter_staleness field with stale_warning and culled_timestamps.",
+            "type": "release",
+            "project": "default",
+            "stale": false,
+            "enabled": false,
+            "createdAt": "2025-03-17T18:49:22.205Z",
+            "strategies": [
+                {
+                    "name": "default",
+                    "parameters": {}
+                }
+            ],
+            "variants": []
+          },
+          {
+            "name": "hbi.filter_staleness_using_columns",
+            "description": "Enable GET /hosts to use table columns to filter hosts.",
+            "type": "release",
+            "project": "default",
+            "stale": false,
+            "enabled": false,
+            "createdAt": "2025-05-05T22:31:19.466Z",
+            "strategies": [
+                {
+                    "name": "default",
+                    "parameters": {}
+                }
+            ],
+            "variants": []
+          }
     ],
     "strategies": [
         {
