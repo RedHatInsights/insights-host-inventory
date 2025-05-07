@@ -294,9 +294,6 @@ def find_non_culled_hosts(query: Query, identity: Identity) -> Query:
 def create_new_host(input_host: Host) -> tuple[Host, AddHostResult]:
     logger.debug("Creating a new host")
 
-    #report host to inventory, as this is where it would go to outbox
-    client = get_kessel_client(current_app)
-    client.ReportHost(input_host)
     input_host.save()
 
     metrics.create_host_count.inc()
