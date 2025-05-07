@@ -45,6 +45,7 @@ from lib.handlers import register_shutdown
 logger = get_logger(__name__)
 
 IDENTITY_HEADER = "x-rh-identity"
+EDGE_REQUEST_ID_HEADER = "x-rh-edge-request-id"
 REQUEST_ID_HEADER = "x-rh-insights-request-id"
 
 SPECIFICATION_FILE = join(SPECIFICATION_DIR, "openapi.json")
@@ -316,6 +317,7 @@ def create_app(runtime_environment):
     @flask_app.before_request
     def set_request_id():
         threadctx.request_id = request.headers.get(REQUEST_ID_HEADER)
+        threadctx.edge_request_id = request.headers.get(EDGE_REQUEST_ID_HEADER)
 
     @flask_app.after_request
     def after_request_org_check(response):

@@ -98,17 +98,12 @@ class ContextualFilter(logging.Filter):
     def filter(self, log_record):
         try:
             log_record.request_id = threadctx.request_id
+            log_record.edge_request_id = threadctx.edge_request_id
         except Exception:
             # TODO: need to decide what to do when you log outside the context
             # of a request
             log_record.request_id = None
-
-        try:
-            log_record.account_number = threadctx.account_number
-        except Exception:
-            # TODO: need to decide what to do when you log outside the context
-            # of a request
-            log_record.account_number = None
+            log_record.edge_request_id = None
 
         try:
             log_record.org_id = threadctx.org_id
