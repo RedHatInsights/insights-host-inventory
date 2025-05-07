@@ -1,4 +1,5 @@
 #!/usr/bin/python
+import os
 import sys
 from functools import partial
 from logging import Logger
@@ -21,6 +22,8 @@ from jobs.common import job_setup
 PROMETHEUS_JOB = "inventory-update-edge-hosts-prs"
 LOGGER_NAME = "update-edge-hosts-prs"
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
+
+UPDATE_EDGE_HOSTS_STALENESS = int(os.getenv("UPDATE_EDGE_HOSTS_STALENESS", 100))
 
 
 @sa.event.listens_for(Host, "before_update")
@@ -70,8 +73,9 @@ def run(logger: Logger, session: Session, application: FlaskApp):
 
         if num_edge_hosts > 0:
             logger.info(f"There are still {num_edge_hosts} to be updated")
-            for host in query.order_by(Host.org_id).yield_per(500):
+            for host in query.order_by(Host.org_id).yield_per(UPDATE_EDGE_HOSTS_STALENESS):
                 host._update_all_per_reporter_staleness()
+                host._update_staleness_timestamps()
             session.commit()
 
 
