@@ -55,7 +55,7 @@ def _update_hosts_for_group_changes(host_id_list: list[str], group_id_list: list
         for group_id in group_id_list
     ]
 
-    
+    # Update groups data on each host record
     Host.query.filter(Host.id.in_(host_id_list)).update({"groups": serialized_groups}, synchronize_session="fetch")
     db.session.commit()
     host_list = get_host_list_by_id_list_from_db(host_id_list, identity)
