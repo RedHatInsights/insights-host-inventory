@@ -32,6 +32,7 @@ from app.serialization import serialize_staleness_to_dict
 from app.staleness_states import HostStalenessStatesDbFilters
 from app.utils import Tag
 from lib.feature_flags import FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS
+from lib.feature_flags import FLAG_INVENTORY_FILTER_STALENESS_USING_COLUMNS
 from lib.feature_flags import get_flag_value
 
 __all__ = (
@@ -297,7 +298,7 @@ def _modified_on_filter(updated_start: str | None, updated_end: str | None) -> l
 
 
 def _get_staleness_filter(all_staleness_states: list[str], host_type_filter: set[str | None], org_id: str) -> list:
-    if get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS):
+    if get_flag_value(FLAG_INVENTORY_FILTER_STALENESS_USING_COLUMNS):
         return _staleness_filter_using_columns(all_staleness_states)
     return _staleness_filter(all_staleness_states, host_type_filter, org_id)
 
