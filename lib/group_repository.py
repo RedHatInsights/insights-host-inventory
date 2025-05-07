@@ -236,22 +236,20 @@ def add_group_with_hosts(
     staleness: AttrDict,
     event_producer: EventProducer,
 ) -> Group:
-    old_groups = _get_groups(group_name, identity.org_id)
     with session_guard(db.session):
         # Create group
         created_group = add_group(group_name, identity.org_id, account, group_id, ungrouped)
-
-        # Add hosts to the just created group
+        created_group_id = created_group.id
+        # Add hosts to group
         if host_id_list:
             _add_hosts_to_group(created_group.id, host_id_list, identity.org_id)
 
-    # get all groups including the newly created group
-    new_groups = _get_groups(group_name, identity.org_id)
-    created_group = _get_newest_group(old_groups, new_groups)
+    # gets the ID of the group after it has been committed
+    created_group = get_group_by_id_from_db(created_group_id, identity.org_id)
 
     # Produce update messages once the DB session has been closed
     serialized_groups, host_list = _update_hosts_for_group_changes(
-        host_id_list, group_id_list=[created_group.id], identity=identity
+        host_id_list, group_id_list=[created_group_id], identity=identity
     )
     _produce_host_update_events(event_producer, serialized_groups, host_list, identity, staleness=staleness)
     _invalidate_system_cache(host_list, identity)
