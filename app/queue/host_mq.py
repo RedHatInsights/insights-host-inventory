@@ -12,6 +12,7 @@ from flask.app import Flask
 from marshmallow import Schema
 from marshmallow import ValidationError
 from marshmallow import fields
+from psycopg2.errors import UniqueViolation
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.exc import OperationalError
@@ -196,7 +197,7 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                 db.session.commit()
                 logger.info(f"Created group with ID {str(group.id)}")
                 _pg_notify_workspace(operation, str(group.id))
-            except IntegrityError:
+            except (IntegrityError, UniqueViolation):
                 db.session.rollback()
                 logger.warning(f"Group with ID {workspace['id']} already exists; skipping creation.")
 
