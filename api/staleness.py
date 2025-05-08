@@ -81,8 +81,9 @@ def receive_before_host_update(mapper: Mapper, connection: Connection, host: Hos
     :param host: The Host object being updated.
     """
     host_details = sa.inspect(host)
-    flag_changed, _, _ = host_details.attrs.per_reporter_staleness.history
-    if flag_changed:
+    prs_changed, _, _ = host_details.attrs.per_reporter_staleness.history
+    staleness_changed, _, _ = host_details.attrs.deletion_timestamp.history
+    if prs_changed or staleness_changed:
         orm.attributes.flag_modified(host, "modified_on")
 
 
