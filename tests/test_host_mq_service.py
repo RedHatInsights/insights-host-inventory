@@ -2161,6 +2161,32 @@ def test_workspace_mq_create(workspace_message_consumer_mock, workspace_type, db
     assert found_group.ungrouped == (workspace_type == "ungrouped-hosts")
 
 
+@pytest.mark.parametrize(
+    "workspace_type",
+    (
+        "standard",
+        "ungrouped-hosts",
+    ),
+)
+@pytest.mark.parametrize("ungrouped", (True, False))
+def test_workspace_mq_create_already_exists(
+    db_create_group, workspace_message_consumer_mock, db_get_group_by_id, workspace_type, ungrouped
+):
+    original_workspace_name = "Existing Group"
+
+    # Create a group
+    workspace_id = db_create_group("Existing Group", ungrouped=ungrouped).id
+
+    # Generate a workspace message with the same ID
+    message = generate_kessel_workspace_message("create", str(workspace_id), "test-kessel-workspace", workspace_type)
+
+    workspace_message_consumer_mock.handle_message(json.dumps(message))
+    found_group = db_get_group_by_id(workspace_id)
+
+    assert found_group.name == original_workspace_name
+    assert found_group.ungrouped == ungrouped
+
+
 def test_workspace_mq_update(mocker, flask_app, db_create_group_with_hosts, db_get_group_by_id):
     group = db_create_group_with_hosts("original_group_name", 3)
     workspace_id = str(group.id)
