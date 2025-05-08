@@ -33,9 +33,13 @@ def run(logger: Logger, session: Session, event_producer: EventProducer, applica
             logger.info(f"Processing org_id: {org_id}")
 
             # Find the org's "ungrouped" group and store its ID
-            ungrouped_group_id = (
+            ungrouped_group = (
                 session.query(Group).filter(Group.org_id == org_id, Group.ungrouped.is_(True)).one_or_none()
-            ).id
+            )
+            if not ungrouped_group:
+                logger.warning(f"No ungrouped group found for org_id: {org_id}")
+                continue
+            ungrouped_group_id = ungrouped_group.id
 
             # Assign all ungrouped hosts to this new Group in batches
             while True:
@@ -55,7 +59,7 @@ def run(logger: Logger, session: Session, event_producer: EventProducer, applica
 
 if __name__ == "__main__":
     logger = get_logger(LOGGER_NAME)
-    job_type = "Create ungrouped host groups"
+    job_type = "Assign ungrouped hosts to ungrouped groups"
     sys.excepthook = partial(excepthook, logger, job_type)
 
     _, session, event_producer, _, _, application = job_setup((), PROMETHEUS_JOB)
