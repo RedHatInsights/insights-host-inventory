@@ -845,6 +845,48 @@ def test_get_hosts_order_by_group_name(db_create_group_with_hosts, db_create_mul
             )
 
 
+@pytest.mark.usefixtures("enable_rbac")
+@pytest.mark.parametrize("order_how", ("ASC", "DESC"))
+def test_get_hosts_order_by_group_name_post_kessel(mocker, db_create_group_with_hosts, api_get, order_how):
+    hosts_per_group = 3
+    num_ungrouped_hosts = 5
+    names = ["ABC Group", "BCD Group", "CDE Group", "DEF Group"]
+    num_grouped_hosts = hosts_per_group * len(names)
+
+    # Shuffle the list so the groups aren't created in alphabetical order
+    # Just to make sure it's actually ordering by name and not date
+    shuffled_group_names = names.copy()
+    random.shuffle(shuffled_group_names)
+    [db_create_group_with_hosts(group_name, hosts_per_group) for group_name in shuffled_group_names]
+
+    mocker.patch("api.host_query_db.get_flag_value", return_value=True)
+
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-hosts-read-resource-defs-template.json"
+    )
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    # Create some ungrouped hosts
+    db_create_group_with_hosts("ungrouped", num_ungrouped_hosts, True)
+
+    url = build_hosts_url(query=f"?order_by=group_name&order_how={order_how}")
+
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert num_grouped_hosts + num_ungrouped_hosts == len(response_data["results"])
+
+    if order_how == "DESC":
+        num_grouped_hosts = hosts_per_group * len(names)
+        for group_index in range(num_grouped_hosts, num_grouped_hosts + num_ungrouped_hosts):
+            assert response_data["results"][group_index]["groups"][0]["name"] == "ungrouped"
+    else:
+        # Ungrouped hosts whould be at the top of the list
+        for group_index in range(0, num_ungrouped_hosts):
+            assert response_data["results"][group_index]["groups"][0]["name"] == "ungrouped"
+
+
 @pytest.mark.parametrize("order_how", ("ASC", "DESC"))
 def test_get_hosts_order_by_last_check_in(mocker, db_create_host, api_get, order_how):
     host0 = str(db_create_host().id)
