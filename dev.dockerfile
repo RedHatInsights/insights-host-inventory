@@ -35,6 +35,7 @@ COPY system_profile_validator.py system_profile_validator.py
 COPY generate_stale_host_notifications.py generate_stale_host_notifications.py
 COPY create_ungrouped_host_groups.py create_ungrouped_host_groups.py
 COPY delete_ungrouped_host_groups.py delete_ungrouped_host_groups.py
+COPY assign_ungrouped_hosts_to_groups.py assign_ungrouped_hosts_to_groups.py
 COPY export_group_data_s3.py export_group_data_s3.py
 COPY update_hosts_last_check_in.py update_hosts_last_check_in.py
 COPY update_edge_hosts_prs.py update_edge_hosts_prs.py
