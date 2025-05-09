@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 import marshmallow
 import pytest
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.exc import StaleDataError
 
@@ -2185,6 +2186,25 @@ def test_workspace_mq_create_already_exists(
 
     assert found_group.name == original_workspace_name
     assert found_group.ungrouped == ungrouped
+
+
+def test_workspace_mq_create_foreign_key_violation(monkeypatch, workspace_message_consumer_mock):
+    # Generate a workspace message that would trigger a foreign key violation
+    message = generate_kessel_workspace_message(
+        "create", "nonexistent_foreign_key", "test-kessel-workspace", "standard"
+    )
+    # Monkeypatch the consumer to raise an IntegrityError simulating a foreign key violation
+    monkeypatch.setattr(
+        workspace_message_consumer_mock,
+        "handle_message",
+        lambda _: (_ for _ in ()).throw(IntegrityError("Foreign key violation", None, None)),
+    )
+    # Verify that the IntegrityError propagates (or, optionally, that logging is used appropriately)
+    import pytest
+
+    with pytest.raises(IntegrityError) as exc_info:
+        workspace_message_consumer_mock.handle_message(json.dumps(message))
+    assert "Foreign key violation" in str(exc_info.value)
 
 
 def test_workspace_mq_update(mocker, flask_app, db_create_group_with_hosts, db_get_group_by_id):

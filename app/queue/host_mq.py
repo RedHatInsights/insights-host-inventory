@@ -197,9 +197,9 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                 db.session.commit()
                 logger.info(f"Created group with ID {str(group.id)}")
                 _pg_notify_workspace(operation, str(group.id))
-            except (IntegrityError, UniqueViolation):
+            except (IntegrityError, UniqueViolation) as err:
                 db.session.rollback()
-                logger.warning(f"Group with ID {workspace['id']} already exists; skipping creation.")
+                logger.warning(f"Group with ID {workspace['id']} already exists; skipping creation", exc_info=err)
 
         elif operation == "update":
             group_to_update = group_repository.get_group_by_id_from_db(str(workspace["id"]), org_id)
