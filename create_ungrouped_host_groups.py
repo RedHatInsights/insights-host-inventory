@@ -44,6 +44,8 @@ def run(logger: Logger, session: Session, application: FlaskApp):
                 else:
                     logger.debug(f"org_id {org_id} already has an ungrouped Group: {ungrouped_group.id}")
 
+        logger.info("Finished creating 'Ungrouped Hosts' Groups. Exiting.")
+
 
 if __name__ == "__main__":
     logger = get_logger(LOGGER_NAME)

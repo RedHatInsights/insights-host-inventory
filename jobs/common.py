@@ -46,8 +46,10 @@ def job_setup(collected_metrics: tuple, prometheus_job_name: str):
     for metric in collected_metrics:
         registry.register(metric)
     job = prometheus_job(config.kubernetes_namespace, prometheus_job_name)
-    prometheus_shutdown = partial(push_to_gateway, config.prometheus_pushgateway, job, registry)
-    register_shutdown(prometheus_shutdown, "Pushing metrics")
+
+    if collected_metrics:
+        prometheus_shutdown = partial(push_to_gateway, config.prometheus_pushgateway, job, registry)
+        register_shutdown(prometheus_shutdown, "Pushing metrics")
 
     Session = init_db(config)
     session = Session()
