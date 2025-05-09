@@ -82,6 +82,14 @@ def db_get_group_by_id(flask_app):  # noqa: ARG001
 
 
 @pytest.fixture(scope="function")
+def db_get_ungrouped_group(flask_app):  # noqa: ARG001
+    def _db_get_ungrouped_group(org_id):
+        return Group.query.filter(Group.ungrouped.is_(True), Group.org_id == org_id).one_or_none()
+
+    return _db_get_ungrouped_group
+
+
+@pytest.fixture(scope="function")
 def db_get_group_by_name(flask_app):  # noqa: ARG001
     def _db_get_group_by_name(group_name):
         return Group.query.filter(Group.name == group_name).first()
