@@ -203,6 +203,15 @@ def add_hosts_to_group(group_id: str, host_id_list: list[str], identity: Identit
     _invalidate_system_cache(host_list, identity)
 
 
+def _get_groups(group_name, org_id) -> list:
+    return Group.query.filter((Group.name == group_name) & (Group.org_id == org_id)).all()
+
+
+def _get_newest_group(old_groups, new_groups) -> Group:
+    newest_group = list(set(new_groups) - set(old_groups))
+    return newest_group[0]  # only one new group is expected
+
+
 def add_group(
     group_name: Optional[str],
     org_id: str,
@@ -214,9 +223,7 @@ def add_group(
     db.session.add(new_group)
     db.session.flush()
 
-    # gets the ID of the group after it has been committed
-    created_group = Group.query.filter((Group.name == group_name) & (Group.org_id == org_id)).one_or_none()
-    return created_group
+    return new_group
 
 
 def add_group_with_hosts(
@@ -232,17 +239,17 @@ def add_group_with_hosts(
     with session_guard(db.session):
         # Create group
         created_group = add_group(group_name, identity.org_id, account, group_id, ungrouped)
-
+        created_group_id = created_group.id
         # Add hosts to group
         if host_id_list:
             _add_hosts_to_group(created_group.id, host_id_list, identity.org_id)
 
     # gets the ID of the group after it has been committed
-    created_group = Group.query.filter((Group.name == group_name) & (Group.org_id == identity.org_id)).one_or_none()
+    created_group = get_group_by_id_from_db(created_group_id, identity.org_id)
 
     # Produce update messages once the DB session has been closed
     serialized_groups, host_list = _update_hosts_for_group_changes(
-        host_id_list, group_id_list=[created_group.id], identity=identity
+        host_id_list, group_id_list=[created_group_id], identity=identity
     )
     _produce_host_update_events(event_producer, serialized_groups, host_list, identity, staleness=staleness)
     _invalidate_system_cache(host_list, identity)
