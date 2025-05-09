@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 import marshmallow
 import pytest
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.exc import StaleDataError
 
@@ -2159,6 +2160,51 @@ def test_workspace_mq_create(workspace_message_consumer_mock, workspace_type, db
 
     assert found_group.name == workspace_name
     assert found_group.ungrouped == (workspace_type == "ungrouped-hosts")
+
+
+@pytest.mark.parametrize(
+    "workspace_type",
+    (
+        "standard",
+        "ungrouped-hosts",
+    ),
+)
+@pytest.mark.parametrize("ungrouped", (True, False))
+def test_workspace_mq_create_already_exists(
+    db_create_group, workspace_message_consumer_mock, db_get_group_by_id, workspace_type, ungrouped
+):
+    original_workspace_name = "Existing Group"
+
+    # Create a group
+    workspace_id = db_create_group("Existing Group", ungrouped=ungrouped).id
+
+    # Generate a workspace message with the same ID
+    message = generate_kessel_workspace_message("create", str(workspace_id), "test-kessel-workspace", workspace_type)
+
+    workspace_message_consumer_mock.handle_message(json.dumps(message))
+    found_group = db_get_group_by_id(workspace_id)
+
+    assert found_group.name == original_workspace_name
+    assert found_group.ungrouped == ungrouped
+
+
+def test_workspace_mq_create_foreign_key_violation(monkeypatch, workspace_message_consumer_mock):
+    # Generate a workspace message that would trigger a foreign key violation
+    message = generate_kessel_workspace_message(
+        "create", "nonexistent_foreign_key", "test-kessel-workspace", "standard"
+    )
+    # Monkeypatch the consumer to raise an IntegrityError simulating a foreign key violation
+    monkeypatch.setattr(
+        workspace_message_consumer_mock,
+        "handle_message",
+        lambda _: (_ for _ in ()).throw(IntegrityError("Foreign key violation", None, None)),
+    )
+    # Verify that the IntegrityError propagates (or, optionally, that logging is used appropriately)
+    import pytest
+
+    with pytest.raises(IntegrityError) as exc_info:
+        workspace_message_consumer_mock.handle_message(json.dumps(message))
+    assert "Foreign key violation" in str(exc_info.value)
 
 
 def test_workspace_mq_update(mocker, flask_app, db_create_group_with_hosts, db_get_group_by_id):
