@@ -7,7 +7,7 @@ from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
 
-# kessel user identity know to rbac deployed by bonfire in Ephemeral cluster
+# kessel user identity known to rbac deployed by bonfire in Ephemeral cluster
 IDENTITY = {
     "account_number": "123",
     "auth_type": "jwt-auth",
