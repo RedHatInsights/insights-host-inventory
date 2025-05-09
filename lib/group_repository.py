@@ -215,8 +215,7 @@ def add_group(
     db.session.flush()
 
     # gets the ID of the group after it has been committed
-    created_group = Group.query.filter((Group.name == group_name) & (Group.org_id == org_id)).one_or_none()
-    return created_group
+    return Group.query.filter((Group.name == group_name) & (Group.org_id == org_id)).one_or_none()
 
 
 def add_group_with_hosts(
