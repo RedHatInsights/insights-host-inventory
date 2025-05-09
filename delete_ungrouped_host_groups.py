@@ -15,6 +15,7 @@ from app.models import Group
 from app.queue.event_producer import EventProducer
 from jobs.common import excepthook
 from jobs.common import job_setup
+from lib.db import session_guard
 from lib.group_repository import delete_group_list
 
 PROMETHEUS_JOB = "inventory-delete-ungrouped-groups"
@@ -24,7 +25,7 @@ BATCH_SIZE = int(os.getenv("DELETE_UNGROUPED_GROUPS_BATCH_SIZE", 50))
 
 
 def run(logger: Logger, session: Session, event_producer: EventProducer, application: FlaskApp):
-    with application.app.app_context():
+    with application.app.app_context(), session_guard(session):
         threadctx.request_id = None
 
         # Grab the first 50 ungrouped groups.
