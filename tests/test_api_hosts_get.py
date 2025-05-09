@@ -484,6 +484,17 @@ def test_query_using_insights_id(mq_create_three_specific_hosts, api_get, subtes
     assert len(response_data["results"]) == 1
 
 
+def test_query_using_subscription_manager_id(mq_create_three_specific_hosts, api_get, subtests):
+    created_hosts = mq_create_three_specific_hosts
+    url = build_hosts_url(query=f"?subscription_manager_id={created_hosts[0].subscription_manager_id}")
+
+    response_status, response_data = api_get(url)
+    api_pagination_test(api_get, subtests, url, expected_total=1)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
+
+
 def test_get_host_by_tag(mq_create_three_specific_hosts, api_get, subtests):
     created_hosts = mq_create_three_specific_hosts
     expected_response_list = [created_hosts[0]]
