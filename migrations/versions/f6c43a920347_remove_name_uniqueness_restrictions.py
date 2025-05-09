@@ -16,6 +16,7 @@ depends_on = None
 
 
 def upgrade():
+<<<<<<< HEAD
     op.drop_index(
         "idx_groups_org_id_name_nocase",
         table_name="groups",
@@ -34,3 +35,10 @@ def downgrade():
         if_not_exists=True,
         schema="hbi",
     )
+=======
+    op.drop_index("idx_groups_org_id_name_nocase", table_name="groups", if_exists=True, schema="hbi")
+
+
+def downgrade():
+    pass
+>>>>>>> 1b3cd9b3 (fix code conflicts)

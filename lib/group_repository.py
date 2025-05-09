@@ -219,6 +219,7 @@ def add_group(
     group_id: Optional[UUID] = None,
     ungrouped: bool = False,
 ) -> Group:
+    old_groups = Group.query.filter((Group.name == group_name) & (Group.org_id == org_id)).all()
     new_group = Group(org_id=org_id, name=group_name, account=account, id=group_id, ungrouped=ungrouped)
     db.session.add(new_group)
     db.session.flush()
@@ -236,6 +237,7 @@ def add_group_with_hosts(
     staleness: AttrDict,
     event_producer: EventProducer,
 ) -> Group:
+    old_groups = Group.query.filter((Group.name == group_name) & (Group.org_id == identity.org_id)).all()
     with session_guard(db.session):
         # Create group
         created_group = add_group(group_name, identity.org_id, account, group_id, ungrouped)

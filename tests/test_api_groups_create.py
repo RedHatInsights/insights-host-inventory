@@ -106,8 +106,12 @@ def test_create_group_read_only(api_create_group, mocker):
 @pytest.mark.usefixtures("event_producer")
 @pytest.mark.parametrize(
     "new_name",
+<<<<<<< HEAD
     # ["test_Group", "Test_Group", "test_group", "test_group"],
     ["test_Group"],
+=======
+    ["test_Group", "Test_Group", "test_group", "test_group"],
+>>>>>>> 1b3cd9b3 (fix code conflicts)
 )
 def test_create_group_reuse_name(api_create_group, new_name):
     group_data = {"name": "test_group", "host_ids": []}
