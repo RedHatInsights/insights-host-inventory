@@ -12,7 +12,9 @@ from flask.app import Flask
 from marshmallow import Schema
 from marshmallow import ValidationError
 from marshmallow import fields
+from psycopg2.errors import UniqueViolation
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.exc import StaleDataError
 
@@ -185,15 +187,20 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
         logger.info(f"Received {operation} message for workspace ID {workspace['id']}")
 
         if operation == "create":
-            group = group_repository.add_group(
-                group_name=workspace["name"],
-                org_id=org_id,
-                group_id=workspace["id"],
-                ungrouped=(validated_operation_msg["workspace"]["type"] == "ungrouped-hosts"),
-            )
-            db.session.commit()
-            logger.info(f"Created group with ID {str(group.id)}")
-            _pg_notify_workspace(operation, str(group.id))
+            try:
+                group = group_repository.add_group(
+                    group_name=workspace["name"],
+                    org_id=org_id,
+                    group_id=workspace["id"],
+                    ungrouped=(validated_operation_msg["workspace"]["type"] == "ungrouped-hosts"),
+                )
+                db.session.commit()
+                logger.info(f"Created group with ID {str(group.id)}")
+                _pg_notify_workspace(operation, str(group.id))
+            except (IntegrityError, UniqueViolation) as err:
+                db.session.rollback()
+                logger.warning(f"Group with ID {workspace['id']} already exists; skipping creation", exc_info=err)
+
         elif operation == "update":
             group_to_update = group_repository.get_group_by_id_from_db(str(workspace["id"]), org_id)
             group_repository.patch_group(
@@ -204,6 +211,7 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
             )
             db.session.commit()
             logger.info(f"Updated group with ID {workspace['id']}")
+
         elif operation == "delete":
             num_deleted = group_repository.delete_group_list(
                 group_id_list=[str(workspace["id"])],
