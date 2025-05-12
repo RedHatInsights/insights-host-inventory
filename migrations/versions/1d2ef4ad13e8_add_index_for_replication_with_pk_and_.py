@@ -18,10 +18,16 @@ depends_on = None
 
 
 def upgrade():
-    # Add the insights_id column as UUID
-    op.add_column("hosts", sa.Column("insights_id", UUID(as_uuid=False), nullable=True), schema="hbi")
+    # Add the insights_id column as UUID, non-nullable, with default
+    op.add_column(
+        "hosts",
+        sa.Column(
+            "insights_id", UUID(as_uuid=False), nullable=False, server_default="00000000-0000-0000-0000-000000000000"
+        ),
+        schema="hbi",
+    )
 
-    # Populate insights_id for records where system_profile_facts->>'host_type' = 'edge'
+    # Update insights_id for records where system_profile_facts->>'host_type' = 'edge'
     op.execute("""
         UPDATE hbi.hosts
         SET insights_id = (canonical_facts->>'insights_id')::uuid
@@ -34,7 +40,10 @@ def upgrade():
         CREATE OR REPLACE FUNCTION hbi.sync_insights_id()
         RETURNS TRIGGER AS $$
         BEGIN
-            NEW.insights_id = (NEW.canonical_facts->>'insights_id')::uuid;
+            NEW.insights_id = COALESCE(
+                (NEW.canonical_facts->>'insights_id')::uuid,
+                '00000000-0000-0000-0000-000000000000'
+            );
             RETURN NEW;
         END;
         $$ LANGUAGE plpgsql
@@ -47,7 +56,7 @@ def upgrade():
         FOR EACH ROW EXECUTE FUNCTION hbi.sync_insights_id()
     """)
 
-    # Create a unique index on (id, insights_id) for non-NULL insights_id
+    # Create a unique index on (id, insights_id)
     op.execute("""
         CREATE UNIQUE INDEX CONCURRENTLY idx_pk_insights_id
         ON hbi.hosts (id, insights_id)
@@ -64,7 +73,7 @@ def downgrade():
     # Drop the trigger function
     op.execute("DROP FUNCTION IF EXISTS hbi.sync_insights_id")
 
-    # Revert the replica identity to the default (primary key)
+    # Revert the replica identity to the default
     op.execute("ALTER TABLE hbi.hosts REPLICA IDENTITY DEFAULT")
 
     # Drop the unique index
