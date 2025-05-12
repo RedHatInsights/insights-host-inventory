@@ -4,6 +4,9 @@ info:
   description: REST interface for the Insights Platform Host Inventory application.
   version: 1.0.0
   title: Insights Host Inventory REST Interface
+externalDocs:
+  description: API Product documentation for developers.
+  url: https://developers.redhat.com/api-catalog/api/inventory
 paths:
   /hosts:
     get:
