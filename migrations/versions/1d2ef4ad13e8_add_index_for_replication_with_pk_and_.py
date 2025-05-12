@@ -6,7 +6,9 @@ Create Date: 2025-05-12 10:38:12.056799
 
 """
 
+import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.dialects.postgresql import UUID
 
 # revision identifiers, used by Alembic.
 revision = "1d2ef4ad13e8"
@@ -16,11 +18,40 @@ depends_on = None
 
 
 def upgrade():
-    # Create replication identity index concurrently
+    # Add the insights_id column as UUID
+    op.add_column("hosts", sa.Column("insights_id", UUID(as_uuid=False), nullable=True), schema="hbi")
+
+    # Populate insights_id for records where system_profile_facts->>'host_type' = 'edge'
+    op.execute("""
+        UPDATE hbi.hosts
+        SET insights_id = (canonical_facts->>'insights_id')::uuid
+        WHERE canonical_facts->>'insights_id' IS NOT NULL
+          AND system_profile_facts->>'host_type' = 'edge'
+    """)
+
+    # Create the trigger function to sync insights_id
+    op.execute("""
+        CREATE OR REPLACE FUNCTION hbi.sync_insights_id()
+        RETURNS TRIGGER AS $$
+        BEGIN
+            NEW.insights_id = (NEW.canonical_facts->>'insights_id')::uuid;
+            RETURN NEW;
+        END;
+        $$ LANGUAGE plpgsql
+    """)
+
+    # Create the trigger
+    op.execute("""
+        CREATE TRIGGER trigger_sync_insights_id
+        BEFORE INSERT OR UPDATE ON hbi.hosts
+        FOR EACH ROW EXECUTE FUNCTION hbi.sync_insights_id()
+    """)
+
+    # Create a unique index on (id, insights_id) for non-NULL insights_id
     op.execute("""
         CREATE UNIQUE INDEX CONCURRENTLY idx_pk_insights_id
-        ON hbi.hosts (id, (canonical_facts->>'insights_id'))
-        WHERE (canonical_facts->>'insights_id' IS NOT NULL)
+        ON hbi.hosts (id, insights_id)
+        WHERE insights_id IS NOT NULL
     """)
 
     # Set the replica identity to the new index
@@ -28,8 +59,17 @@ def upgrade():
 
 
 def downgrade():
+    # Drop the trigger
+    op.execute("DROP TRIGGER IF EXISTS trigger_sync_insights_id ON hbi.hosts")
+
+    # Drop the trigger function
+    op.execute("DROP FUNCTION IF EXISTS hbi.sync_insights_id")
+
     # Revert the replica identity to the default (primary key)
     op.execute("ALTER TABLE hbi.hosts REPLICA IDENTITY DEFAULT")
 
-    # Drop the hosts_insights_id_idx index concurrently
+    # Drop the unique index
     op.execute("DROP INDEX CONCURRENTLY IF EXISTS hbi.idx_pk_insights_id")
+
+    # Drop the insights_id column
+    op.drop_column("hosts", "insights_id", schema="hbi")
