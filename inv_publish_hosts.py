@@ -33,10 +33,10 @@ RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
 PUBLICATION_NAME = "hbi_hosts_pub_v1_0_2"
 PUBLICATION_COLUMNS = "id,account,display_name,created_on,modified_on,facts,canonical_facts, \
 system_profile_facts,ansible_host,stale_timestamp,reporter,per_reporter_staleness,org_id, \
-groups,tags_alt,last_check_in,stale_warning_timestamp,deletion_timestamp"
+groups,tags_alt,last_check_in,stale_warning_timestamp,deletion_timestamp,insights_id"
 CHECK_PUBLICATION = f"SELECT EXISTS(SELECT * FROM pg_catalog.pg_publication WHERE pubname = '{PUBLICATION_NAME}')"
 CREATE_PUBLICATION = f"CREATE PUBLICATION {PUBLICATION_NAME} FOR TABLE hbi.hosts ({PUBLICATION_COLUMNS}) \
-WHERE (canonical_facts->>'insights_id' IS NOT NULL)"
+WHERE (insights_id != '00000000-0000-0000-0000-000000000000')"
 CHECK_REPLICATION_SLOTS = "SELECT slot_name, active FROM pg_replication_slots"
 DROP_PUBLICATIONS = ["hbi_hosts_pub_v1_0_0"]
 DROP_PUBLICATION = "DROP PUBLICATION IF EXISTS "
