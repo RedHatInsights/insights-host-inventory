@@ -13,6 +13,18 @@ objects:
     appName: host-inventory
     jobs:
       - synchronizer
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    labels:
+      app: host-inventory
+    name: create-ungrouped-${UNGROUPED_RUN_NUMBER}
+  spec:
+    appName: host-inventory
+    jobs:
+      - create-ungrouped-host-groups
 parameters:
 - name: SYNCHRONIZER_RUN_NUMBER
+  value: '1'
+- name: UNGROUPED_RUN_NUMBER
   value: '1'
