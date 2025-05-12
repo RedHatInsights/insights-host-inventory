@@ -56,14 +56,14 @@ def upgrade():
         FOR EACH ROW EXECUTE FUNCTION hbi.sync_insights_id()
     """)
 
-    # Create a unique index on (id, insights_id)
+    # Create a unique index on (id, insights_id, org_id)
     op.execute("""
-        CREATE UNIQUE INDEX CONCURRENTLY idx_pk_insights_id
-        ON hbi.hosts (id, insights_id)
+        CREATE UNIQUE INDEX CONCURRENTLY idx_pk_insights_id_org_id
+        ON hbi.hosts (id, insights_id, org_id)
     """)
 
     # Set the replica identity to the new index
-    op.execute("ALTER TABLE hbi.hosts REPLICA IDENTITY USING INDEX idx_pk_insights_id")
+    op.execute("ALTER TABLE hbi.hosts REPLICA IDENTITY USING INDEX idx_pk_insights_id_org_id")
 
 
 def downgrade():
@@ -77,7 +77,7 @@ def downgrade():
     op.execute("ALTER TABLE hbi.hosts REPLICA IDENTITY DEFAULT")
 
     # Drop the unique index
-    op.execute("DROP INDEX CONCURRENTLY IF EXISTS hbi.idx_pk_insights_id")
+    op.execute("DROP INDEX CONCURRENTLY IF EXISTS hbi.idx_pk_insights_id_org_id")
 
     # Drop the insights_id column
     op.drop_column("hosts", "insights_id", schema="hbi")
