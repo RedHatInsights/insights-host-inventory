@@ -66,7 +66,12 @@ def mq_create_three_specific_hosts(mq_create_or_update_host):
     for i in range(1, 4):
         fqdn = f"host{i}.domain.test"
         host = base_host(
-            insights_id=generate_uuid(), display_name=f"host{i}", fqdn=fqdn, facts=FACTS, tags=TAGS[i - 1]
+            insights_id=generate_uuid(),
+            subscription_manager_id=generate_uuid(),
+            display_name=f"host{i}",
+            fqdn=fqdn,
+            facts=FACTS,
+            tags=TAGS[i - 1],
         )
         created_host = mq_create_or_update_host(host)
 
@@ -76,6 +81,7 @@ def mq_create_three_specific_hosts(mq_create_or_update_host):
             host = minimal_host(
                 insights_id=created_host.insights_id,
                 display_name=created_host.display_name,
+                subscription_manager_id=created_host.subscription_manager_id,
                 fqdn=created_hosts[0].fqdn,
                 facts=FACTS,
                 tags=created_host.tags,
