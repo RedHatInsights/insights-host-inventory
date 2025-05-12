@@ -31,6 +31,7 @@ from app.auth import get_current_identity
 from app.auth.identity import IdentityType
 from app.auth.identity import to_auth_header
 from app.common import inventory_config
+from app.exceptions import InventoryException
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_get_host_exists_succeeded
 from app.instrumentation import log_get_host_list_failed
@@ -53,6 +54,7 @@ from app.serialization import deserialize_canonical_facts
 from app.serialization import serialize_host
 from app.serialization import serialize_host_with_params
 from app.utils import Tag
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.feature_flags import FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM
 from lib.feature_flags import get_flag_value
 from lib.host_delete import delete_hosts
@@ -242,6 +244,9 @@ def delete_hosts_by_filter(
     except KafkaError:
         logger.error("Kafka server not available")
         flask.abort(503)
+    except InventoryException as ie:
+        logger.exception(ie.detail)
+        flask.abort(HTTPStatus.BAD_REQUEST, ie.detail)
 
     json_data = {"hosts_found": len(ids_list), "hosts_deleted": delete_count}
 
@@ -261,6 +266,11 @@ def _delete_host_list(host_id_list, rbac_filter):
         payload_tracker, received_status_message="delete operation", current_operation="delete"
     ):
         query = get_host_list_by_id_list_from_db(host_id_list, current_identity, rbac_filter)
+
+        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
+            for host in query:
+                if host.groups != [] and host.groups[0].ungrouped:
+                    raise InventoryException(f"Can not delete hosts from workspace {host.groups[0].id}")
 
         result_list = delete_hosts(
             query,
@@ -304,6 +314,9 @@ def delete_all_hosts(confirm_delete_all=None, rbac_filter=None):
     except KafkaError:
         logger.error("Kafka server not available")
         flask.abort(503)
+    except InventoryException as ie:
+        logger.exception(ie.detail)
+        flask.abort(HTTPStatus.BAD_REQUEST, ie.detail)
 
     json_data = {"hosts_found": len(ids_list), "hosts_deleted": delete_count}
 
@@ -314,7 +327,11 @@ def delete_all_hosts(confirm_delete_all=None, rbac_filter=None):
 @rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def delete_host_by_id(host_id_list, rbac_filter=None):
-    delete_count = _delete_host_list(host_id_list, rbac_filter)
+    try:
+        delete_count = _delete_host_list(host_id_list, rbac_filter)
+    except InventoryException as ie:
+        logger.exception(ie.detail)
+        flask.abort(HTTPStatus.BAD_REQUEST, ie.detail)
 
     if not delete_count:
         flask.abort(HTTPStatus.NOT_FOUND, "No hosts found for deletion.")
