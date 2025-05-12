@@ -51,7 +51,6 @@ def upgrade():
     op.execute("""
         CREATE UNIQUE INDEX CONCURRENTLY idx_pk_insights_id
         ON hbi.hosts (id, insights_id)
-        WHERE insights_id IS NOT NULL
     """)
 
     # Set the replica identity to the new index
