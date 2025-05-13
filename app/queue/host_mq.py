@@ -91,7 +91,7 @@ class WorkspaceSchema(Schema):
 class WorkspaceOperationSchema(Schema):
     operation = fields.Str(required=True)
     org_id = fields.Str(required=True)
-    account_number = fields.Str(required=False)
+    account_number = fields.Str(required=False, load_default=None)
     workspace = fields.Nested(WorkspaceSchema)
 
 
