@@ -1,6 +1,12 @@
+from __future__ import annotations
+
 import os
+from collections.abc import Generator
+from typing import Any
+from typing import Callable
 
 import pytest
+from connexion import FlaskApp
 from sqlalchemy_utils import create_database
 from sqlalchemy_utils import database_exists
 from sqlalchemy_utils import drop_database
@@ -25,7 +31,7 @@ from tests.helpers.test_utils import set_environment
 
 
 @pytest.fixture(scope="session")
-def database_name():
+def database_name() -> Generator[None]:
     db_data = {
         "INVENTORY_DB_NAME": os.getenv("INVENTORY_DB_NAME", "insights"),
         "INVENTORY_DB_PASS": os.getenv("INVENTORY_DB_PASS", "insights"),
@@ -39,7 +45,7 @@ def database_name():
 
 
 @pytest.fixture(scope="session")
-def database(database_name):  # noqa: ARG001
+def database(database_name: None) -> Generator[str]:  # noqa: ARG001
     config = Config(RuntimeEnvironment.TEST)
     if not database_exists(config.db_uri):
         create_database(config.db_uri)
@@ -71,6 +77,22 @@ def db_get_host_by_insights_id(flask_app):  # noqa: ARG001
         return Host.query.filter(Host.canonical_facts["insights_id"].astext == insights_id).one()
 
     return _db_get_host_by_insights_id
+
+
+@pytest.fixture()
+def db_get_hosts_by_subman_id(flask_app: FlaskApp) -> Callable[[str], list[Host]]:  # noqa: ARG001
+    def _db_get_hosts_by_insights_id(subman_id: str) -> list[Host]:
+        return Host.query.filter(Host.canonical_facts["subscription_manager_id"].astext == subman_id).all()
+
+    return _db_get_hosts_by_insights_id
+
+
+@pytest.fixture()
+def db_get_hosts_by_display_name(flask_app: FlaskApp) -> Callable[[str], list[Host]]:  # noqa: ARG001
+    def _db_get_hosts_by_display_name(display_name: str) -> list[Host]:
+        return Host.query.filter(Host.display_name == display_name).all()
+
+    return _db_get_hosts_by_display_name
 
 
 @pytest.fixture(scope="function")
@@ -114,8 +136,10 @@ def db_get_groups_for_host(flask_app):  # noqa: ARG001
 
 
 @pytest.fixture(scope="function")
-def db_create_host(flask_app):  # noqa: ARG001
-    def _db_create_host(identity=SYSTEM_IDENTITY, host=None, extra_data=None):
+def db_create_host(flask_app: FlaskApp) -> Callable[..., Host]:  # noqa: ARG001
+    def _db_create_host(
+        identity: dict[str, Any] = SYSTEM_IDENTITY, host: Host | None = None, extra_data: dict[str, Any] | None = None
+    ) -> Host:
         extra_data = extra_data or {}
         host = host or minimal_db_host(org_id=identity["org_id"], account=identity["account_number"], **extra_data)
         db.session.add(host)
