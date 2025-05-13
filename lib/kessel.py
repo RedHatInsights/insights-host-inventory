@@ -12,12 +12,16 @@ from app.auth.identity import Identity
 
 import grpc
 from kessel.inventory.v1beta2 import (
-    resource_pb2,
     representation_metadata_pb2,
     resource_representations_pb2,
     inventory_service_pb2_grpc,
     report_resource_request_pb2,
+    delete_resource_request_pb2,
+    resource_reference_pb2,
+    reporter_reference_pb2,
     streamed_list_objects_request_pb2,
+    representation_type_pb2,
+    subject_reference_pb2
 )
 from google.protobuf import struct_pb2
 
@@ -43,7 +47,36 @@ class Kessel:
         self.inventory_svc = inventory_service_pb2_grpc.KesselInventoryServiceStub(channel)
 
     def ListAllowedWorkspaces(self, current_identity: Identity, relation) -> list[str]:
-        pass
+            object_type = representation_type_pb2.RepresentationType(
+                resource_type="workspace",
+                reporter_type="rbac",
+            )
+
+            resource_ref = resource_reference_pb2.ResourceReference(
+                resource_type="principal",
+                resource_id=current_identity.user, #Need to get to a principal reference - will likely get zero matches for now
+                reporter=reporter_reference_pb2.ReporterReference(
+                    type="rbac"
+                ),
+            )
+
+            subject = subject_reference_pb2.SubjectReference(
+                resource=resource_ref,
+            )
+
+            request = streamed_list_objects_request_pb2.StreamedListObjectsRequest(
+                object_type=object_type,
+                relation=relation,
+                subject=subject,
+            )
+
+            workspaces = list()
+            stream = self.inventory_svc.StreamedListObjects(request)
+            for workspace in stream:
+                workspaces.append(workspace)
+
+            return workspaces
+
 
     def ReportHost(self, host: Host):
         common_struct = struct_pb2.Struct()
@@ -70,15 +103,11 @@ class Kessel:
             reporter=reporter_struct
         )
 
-        resource = resource_pb2.Resource(
+        request = report_resource_request_pb2.ReportResourceRequest(
             type="host",
             reporter_type="HBI",
             reporter_instance_id="3c4e2382-26c1-11f0-8e5c-ce0194e9e144",
             representations=representations
-        )
-
-        request = report_resource_request_pb2.ReportResourceRequest(
-            resource=resource
         )
 
         self.inventory_svc.ReportResource(request)
@@ -86,39 +115,37 @@ class Kessel:
     def ReportHostMoved(self, hostId, workspaceId):
         common_struct = struct_pb2.Struct()
         common_struct.update({
-            "workspace_id": workspaceId
+            "workspace_id": str(workspaceId)
         })
 
 
         metadata = representation_metadata_pb2.RepresentationMetadata(
-            local_resource_id=hostId,
-            api_href="https://apiHref.com/",
-            console_href="https://www.consoleHref.com/",
-            reporter_version="0.1"
+            local_resource_id=str(hostId),
         )
 
         representations = resource_representations_pb2.ResourceRepresentations(
             metadata=metadata,
-            common=common_struct
+            common=common_struct,
         )
 
-        resource = resource_pb2.Resource(
+        request = report_resource_request_pb2.ReportResourceRequest(
             type="host",
             reporter_type="HBI",
             reporter_instance_id="3c4e2382-26c1-11f0-8e5c-ce0194e9e144",
             representations=representations
         )
 
-        request = resource_service_pb2.ReportResourceRequest(
-            resource=resource
-        )
-
-        self.resource_svc.ReportResource(request)
+        self.inventory_svc.ReportResource(request)
 
     def DeleteHost(self, id: str):
-        request = resource_service_pb2.DeleteResourceRequest(
-            reporter_type="HBI",
-            local_resource_id=id,
+        request = delete_resource_request_pb2.DeleteResourceRequest(
+            reference=resource_reference_pb2.ResourceReference(
+                resource_type="host",
+                resource_id=id,
+                reporter=reporter_reference_pb2.ReporterReference(
+                    type="HBI"
+                )
+            )
         )
 
         self.resource_svc.DeleteResource(request)
