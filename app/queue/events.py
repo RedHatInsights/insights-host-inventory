@@ -148,5 +148,5 @@ def build_event(event_type, host, **kwargs):
         return result
 
 
-def operation_results_to_event_type(results):
+def operation_results_to_event_type(results) -> EventType:
     return EventType[results.name]
