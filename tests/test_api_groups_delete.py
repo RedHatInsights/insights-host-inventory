@@ -469,3 +469,22 @@ def test_delete_multiple_groups(db_create_group, db_create_group_with_hosts, api
     with mocker.patch("api.group.get_flag_value", return_value=True):
         response_status, _ = api_delete_groups([non_empty_group.id, empty_group.id])
         assert_response_status(response_status, expected_status=204)
+
+
+@pytest.mark.usefixtures("enable_rbac")
+@pytest.mark.usefixtures("event_producer")
+def test_delete_host_from_ungrouped_group(mocker, db_create_group_with_hosts, api_remove_hosts_from_group):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-groups-write-resource-defs-template.json"
+    )
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+    mocker.patch("api.host_group.get_flag_value", return_value=True)
+
+    ungrouped_group = db_create_group_with_hosts("ungrouped", 1, ungrouped=True)
+    host_id_to_delete = str(ungrouped_group.hosts[0].id)
+
+    response_status, response_data = api_remove_hosts_from_group(ungrouped_group.id, [host_id_to_delete])
+
+    assert_response_status(response_status, 400)
+    assert str(ungrouped_group.id) in response_data["detail"]
