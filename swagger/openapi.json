@@ -683,6 +683,9 @@
           },
           {
             "$ref": "#/components/parameters/groupOrderHowParam"
+          },
+          {
+            "$ref": "#/components/parameters/workspaceTypeParam"
           }
         ],
         "responses": {
@@ -1783,6 +1786,21 @@
           "$ref": "#/components/schemas/OrderHow"
         },
         "description": "Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count"
+      },
+      "workspaceTypeParam": {
+        "in": "query",
+        "name": "workspace_type",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "default": "all",
+          "enum": [
+            "standard",
+            "ungrouped",
+            "all"
+          ]
+        },
+        "description": "The type of workspaces that should be returned."
       },
       "stalenessParam": {
         "name": "staleness",

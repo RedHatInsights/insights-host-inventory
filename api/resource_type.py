@@ -15,8 +15,6 @@ from app.instrumentation import log_get_resource_type_list_failed
 from app.instrumentation import log_get_resource_type_list_succeeded
 from app.logging import get_logger
 from app.serialization import serialize_group
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
-from lib.feature_flags import get_flag_value
 from lib.middleware import rbac
 
 logger = get_logger(__name__)
@@ -60,7 +58,7 @@ def get_resource_type_groups_list(
             order_by,
             order_how,
             rbac_filter,
-            get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION),
+            "standard",
         )
     except ValueError as e:
         log_get_group_list_failed(logger)
