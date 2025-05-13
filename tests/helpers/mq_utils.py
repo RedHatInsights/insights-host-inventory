@@ -91,6 +91,7 @@ def generate_kessel_workspace_message(operation: str, id: str, name: str, type: 
     payload_dict = {
         "operation": operation,
         "org_id": SYSTEM_IDENTITY["org_id"],
+        "account_number": SYSTEM_IDENTITY["account_number"],
         "workspace": {
             "id": id,
             "name": name,
