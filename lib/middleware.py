@@ -11,6 +11,7 @@ from app_common_python import LoadedConfig
 from flask import abort
 from flask import g
 from flask import request
+from flask import current_app
 from requests import Session
 from requests.adapters import HTTPAdapter
 from requests.exceptions import HTTPError
@@ -267,10 +268,10 @@ def get_kessel_filter(
         return True, {"groups": workspaces}
 
 def rbac(resource_type: RbacResourceType, required_permission: RbacPermission, permission_base: str = "inventory"):
-    kessel_client = get_kessel_client()
     def other_func(func):
         @wraps(func)
         def modified_func(*args, **kwargs):
+            kessel_client = get_kessel_client(current_app)
             # If the API is in read-only mode and this is a Write endpoint, abort with HTTP 503.
             if required_permission == RbacPermission.WRITE and get_flag_value(FLAG_INVENTORY_API_READ_ONLY):
                 abort(503, "Inventory API is currently in read-only mode.")
