@@ -1376,6 +1376,7 @@ objects:
             cpu: ${CPU_REQUEST_SYNCHRONIZER}
             memory: ${MEMORY_REQUEST_SYNCHRONIZER}
     - name: create-ungrouped-host-groups
+      schedule: '*/5 * * * *'
       restartPolicy: OnFailure
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
