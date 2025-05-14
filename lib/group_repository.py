@@ -4,6 +4,7 @@ from uuid import UUID
 
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from api.cache import delete_cached_system_keys
 from api.host_query import staleness_timestamps
@@ -209,13 +210,14 @@ def add_group(
     account: Optional[str] = None,
     group_id: Optional[UUID] = None,
     ungrouped: bool = False,
+    session: Session = db.session,
 ) -> Group:
     new_group = Group(org_id=org_id, name=group_name, account=account, id=group_id, ungrouped=ungrouped)
-    db.session.add(new_group)
-    db.session.flush()
+    session.add(new_group)
+    session.flush()
 
     # gets the ID of the group after it has been committed
-    return Group.query.filter((Group.name == group_name) & (Group.org_id == org_id)).one_or_none()
+    return session.query(Group).filter((Group.name == group_name) & (Group.org_id == org_id)).one_or_none()
 
 
 def add_group_with_hosts(
