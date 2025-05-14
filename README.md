@@ -491,4 +491,4 @@ SP_FIELDS_TO_LOG = "cpu_model,disk_devices"
 
 ### Debugging Local Code with Services Deployed into Kubernetes Namespaces
 
-To make local code work with the services running in Kubernetes requires some actions provided [here](docs/debug_local_code_targeting_ephemeral_namespace.md)
+Making local code work with the services running in Kubernetes requires some actions provided [here](docs/debug_local_code_targeting_ephemeral_namespace.md)

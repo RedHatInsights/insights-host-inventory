@@ -1,17 +1,16 @@
-# Deploying Host Inventory and Xjoin-search to Kubernetes Namespaces.
-Debugging Host Inventory code requires a database, kakfa broker, Kafka Zookeeper, Debezium Connector, and RBAC.  These required services are deployed to Ephemeral cluster using [bonfire](https://github.com/RedHatInsights/bonfire).
+# Deploying Host Inventory to Kubernetes Namespaces.
+Debugging Host Inventory code requires a database, Kakfa broker, Kafka Zookeeper, Debezium Connector, and RBAC.  These required services are deployed to Ephemeral cluster using [bonfire](https://github.com/RedHatInsights/bonfire).
 
 ## Kubernetes Setup
 ### Option 1: Ephemeral Cluster
 1. Login to Ephemeral cluster.
 2. Reserve a namespace:
     ```bash
-        bonfire namespace reserve -d xxh    # the default reservation time is one hour
+        bonfire namespace reserve -d xxh    # where xx is the number of hours, e.g 8h. The default reservation time is one hour
    ```
 3. Deploy host-inventory and RBAC using the following command.  The `RBAC V2` options may be omitted to use `RBAC V1`.
     ```bash
-        bonfire deploy host-inventory
-            --frontends=true \
+        bonfire deploy host-inventory \
             --set-parameter host-inventory/RBAC_V2_FORCE_ORG_ADMIN=true \
             --set-parameter host-inventory/CONSUMER_MQ_BROKER=rbac-kafka-kafka-bootstrap:9092 \
             --ref-env insights-stage \
@@ -22,9 +21,9 @@ Debugging Host Inventory code requires a database, kakfa broker, Kafka Zookeeper
             -p rbac/V2_READ_ONLY_API_MODE=False \
             -p rbac/V2_BOOTSTRAP_TENANT=True \
             -p rbac/REPLICATION_TO_RELATION_ENABLED=True \
-            -n $NAMESPACE
+            -n $(oc project --short)
     ```
-4. Exposed service ports by downloading the [set_hbi_rbac_ports.sh](set_hbi_rbac_ports.sh) script and running:
+4. Expose service ports by downloading the [set_hbi_rbac_ports.sh](set_hbi_rbac_ports.sh) script and running:
     ```bash
         set_hbi_rbac_ports.sh <namespace>
 5. To connect to database, get credentials by downloading the [get_hbi_rbac_db_creds](./get_hbi_rbac_db_creds.sh) script and running:
@@ -42,7 +41,7 @@ Debugging Host Inventory code requires a database, kakfa broker, Kafka Zookeeper
    ```
 2. Connect to image repository for generating authentication token, which is used by bonfire for pulling images from image repository:
     ```bash
-        docker/podmin login -u <usrename> quay.io
+        docker/podman login -u <username> quay.io
     ```
 3. Use bonfire to install host-inventory.  May require installing the CRDs needed.
 
@@ -56,7 +55,7 @@ Debugging Host Inventory code requires a database, kakfa broker, Kafka Zookeeper
     ```bash
         make run_inv_mq_service_test_producer
     ```
-    The `make` command complains that the kafka broker is not available and should provide the address, which should look like `env-ephemeral-spxayh-509fc239-kafka-0.env-ephemeral-spxayh-509fc239-kafka-brokers.ephemeral-spxayh.svc`
+    The `make` command complains that the Kafka broker is not available and should provide the address, which should look like `env-ephemeral-spxayh-509fc239-kafka-0.env-ephemeral-spxayh-509fc239-kafka-brokers.ephemeral-spxayh.svc`
 3. Add the Kafka broker address to your local `/etc/hosts` file
     ```bash
         127.0.0.1 env-ephemeral-spxayh-509fc239-kafka-0.env-ephemeral-spxayh-509fc239-kafka-brokers.ephemeral-spxayh.svc
@@ -68,10 +67,9 @@ Debugging Host Inventory code requires a database, kakfa broker, Kafka Zookeeper
 5. Verify the newly created host is available:
     ```bash
         curl --location 'http://localhost:8000/api/inventory/v1/hosts' \
-             --header 'x-rh-identity: <base64-encoded idenity>' \
+             --header 'x-rh-identity: <base64-encoded identity>' \
              --header 'Content-Type: application/json'
     ```
-    Though API GET is used, the host has been provided by `xjoin-search` which gets it from `elasticsearch` index.
 
 # Setup Development environment for Debugging API Code
 This section describes how to launch debugger using `VS Code` to execute the local API server which in turn uses resources deployed in the ephemeral namespace.
