@@ -584,13 +584,18 @@ class Host(LimitedHost):
             self.facts[namespace] = facts_dict
         orm.attributes.flag_modified(self, "facts")
 
-    def update_system_profile(self, input_system_profile):
+    def update_system_profile(self, input_system_profile: dict):
         logger.debug("Updating host's (id=%s) system profile", self.id)
         if not self.system_profile_facts:
             self.system_profile_facts = input_system_profile
         else:
             # Update the fields that were passed in
-            self.system_profile_facts = {**self.system_profile_facts, **input_system_profile}
+            for key, value in input_system_profile.items():
+                if key in ["rhsm", "workloads"]:
+                    # Special case to deep merge these.
+                    self.system_profile_facts[key] = {**self.system_profile_facts.get(key, {}), **value}
+                else:
+                    self.system_profile_facts[key] = value
         orm.attributes.flag_modified(self, "system_profile_facts")
 
     def _update_staleness_timestamps(self):
