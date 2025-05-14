@@ -35,7 +35,6 @@ def test_creation_happy_path(
 
 @pytest.mark.parametrize("num_ungrouped_hosts", (0, 1, 5, 6))
 def test_assignment_happy_path(
-    flask_app,
     mocker,
     db_create_host,
     db_create_group_with_hosts,
@@ -65,7 +64,6 @@ def test_assignment_happy_path(
         logger=mock.MagicMock(),
         session=db.session,
         event_producer=event_producer_mock,
-        application=flask_app,
     )
 
     # All hosts that used to be ungrouped should now be in the "ungrouped" workspace
