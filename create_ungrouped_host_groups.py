@@ -38,7 +38,7 @@ def run(logger: Logger, session: Session, application: FlaskApp):
                 # If not, create the "ungrouped hosts" Group
                 if ungrouped_group is None:
                     ungrouped_group = add_group(
-                        group_name="Ungrouped Hosts", org_id=org_id, account=account, ungrouped=True
+                        group_name="Ungrouped Hosts", org_id=org_id, account=account, ungrouped=True, session=session
                     )
                     logger.info(f"Created group {ungrouped_group.id} for org_id {org_id}")
                 else:
