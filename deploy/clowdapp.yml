@@ -835,7 +835,7 @@ objects:
             cpu: ${CPU_REQUEST_MQ_SP}
             memory: ${MEMORY_REQUEST_MQ_SP}
     - name: mq-workspaces
-      replicas: ${{REPLICAS_P1}}
+      replicas: ${{REPLICAS_WORKSPACES}}
       podSpec:
         args: ["./inv_mq_service.py"]
         env:
@@ -2074,6 +2074,9 @@ parameters:
 - description: Replica count for export-service
   name: REPLICAS_EXPORT_SVC
   value: "2"
+- description: Replica count for mq-workspaces consumer
+  name: REPLICAS_WORKSPACES
+  value: "1"
 - description: Image tag
   name: IMAGE_TAG
   required: true

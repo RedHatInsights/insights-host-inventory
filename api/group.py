@@ -61,10 +61,13 @@ def get_group_list(
     per_page=100,
     order_by=None,
     order_how=None,
+    workspace_type=None,
     rbac_filter=None,
 ):
     try:
-        group_list, total = get_filtered_group_list_db(name, page, per_page, order_by, order_how, rbac_filter)
+        group_list, total = get_filtered_group_list_db(
+            name, page, per_page, order_by, order_how, rbac_filter, workspace_type
+        )
     except ValueError as e:
         log_get_group_list_failed(logger)
         abort(400, str(e))

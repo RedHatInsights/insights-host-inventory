@@ -131,9 +131,8 @@ def test_get_resource_types_ungrouped_is_not_returned(
     db_create_group("ungrouped_group", ungrouped=True)  # should not be returned
     group_id = str(group.id)
 
-    with mocker.patch("api.resource_type.get_flag_value", return_value=True):
-        response_status, response_data = api_get(build_resource_types_groups_url())
+    response_status, response_data = api_get(build_resource_types_groups_url())
 
-        assert_response_status(response_status, 200)
-        assert response_data["meta"]["count"] == 1
-        assert response_data["data"][0]["id"] == group_id
+    assert_response_status(response_status, 200)
+    assert response_data["meta"]["count"] == 1
+    assert response_data["data"][0]["id"] == group_id
