@@ -48,7 +48,7 @@ GROUPS_ORDER_BY_MAPPING = {
 
 GROUPS_ORDER_HOW_MAPPING = {"asc": asc, "desc": desc, "name": asc, "host_count": desc, "updated": desc}
 
-WORKSPACE_TYPE_MAPPING = {
+GROUP_TYPE_MAPPING = {
     "standard": Group.ungrouped.is_(False),
     "ungrouped-hosts": Group.ungrouped.is_(True),
 }
@@ -121,9 +121,9 @@ def does_group_with_name_exist(group_name: str, org_id: str):
     ).scalar()
 
 
-def get_filtered_group_list_db(group_name, page, per_page, order_by, order_how, rbac_filter, workspace_type=None):
+def get_filtered_group_list_db(group_name, page, per_page, order_by, order_how, rbac_filter, group_type=None):
     filters = (Group.org_id == get_current_identity().org_id,)
-    if (type_filter := WORKSPACE_TYPE_MAPPING.get(workspace_type)) is not None:
+    if (type_filter := GROUP_TYPE_MAPPING.get(group_type)) is not None:
         filters += (type_filter,)
     if group_name:
         filters += (func.lower(Group.name).contains(func.lower(group_name)),)

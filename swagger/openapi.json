@@ -1789,7 +1789,7 @@
       },
       "workspaceTypeParam": {
         "in": "query",
-        "name": "workspace_type",
+        "name": "type",
         "required": false,
         "schema": {
           "type": "string",
