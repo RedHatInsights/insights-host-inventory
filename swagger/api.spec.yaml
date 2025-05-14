@@ -1110,7 +1110,7 @@ components:
         default: all
         enum:
           - standard
-          - ungrouped
+          - ungrouped-hosts
           - all
       description: >-
         The type of workspaces that should be returned.

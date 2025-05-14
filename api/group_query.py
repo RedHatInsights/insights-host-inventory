@@ -50,7 +50,7 @@ GROUPS_ORDER_HOW_MAPPING = {"asc": asc, "desc": desc, "name": asc, "host_count":
 
 WORKSPACE_TYPE_MAPPING = {
     "standard": Group.ungrouped.is_(False),
-    "ungrouped": Group.ungrouped.is_(True),
+    "ungrouped-hosts": Group.ungrouped.is_(True),
 }
 
 __all__ = (
