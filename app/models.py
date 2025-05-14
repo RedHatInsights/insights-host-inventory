@@ -586,11 +586,25 @@ class Host(LimitedHost):
 
     def update_system_profile(self, input_system_profile):
         logger.debug("Updating host's (id=%s) system profile", self.id)
+
+        def deep_merge_dicts(existing, updates):
+            """
+            Recursively merges two dictionaries. Values in `updates` overwrite or
+            merge with values in `existing`.
+            """
+            for key, value in updates.items():
+                if isinstance(value, dict) and isinstance(existing.get(key), dict):
+                    # Recursively merge nested dictionaries
+                    deep_merge_dicts(existing[key], value)
+                else:
+                    # Overwrite with the new value
+                    existing[key] = value
+
         if not self.system_profile_facts:
             self.system_profile_facts = input_system_profile
         else:
             # Update the fields that were passed in
-            self.system_profile_facts = {**self.system_profile_facts, **input_system_profile}
+            deep_merge_dicts(self.system_profile_facts, input_system_profile)
         orm.attributes.flag_modified(self, "system_profile_facts")
 
     def _update_staleness_timestamps(self):
