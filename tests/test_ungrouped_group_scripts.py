@@ -10,7 +10,6 @@ from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
 def test_creation_happy_path(
-    flask_app,
     db_create_host,
     db_get_ungrouped_group,
     db_get_groups_for_host,
@@ -23,7 +22,6 @@ def test_creation_happy_path(
     run_creation_script(
         logger=mock.MagicMock(),
         session=db.session,
-        application=flask_app,
     )
 
     # The ungrouped group should exist
