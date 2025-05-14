@@ -1103,14 +1103,14 @@ components:
         for host_count
     workspaceTypeParam:
       in: query
-      name: workspace_type
+      name: type
       required: false
       schema:
         type: string
-        default: all
+        default: standard
         enum:
           - standard
-          - ungrouped
+          - ungrouped-hosts
           - all
       description: >-
         The type of workspaces that should be returned.
