@@ -1107,7 +1107,7 @@ components:
       required: false
       schema:
         type: string
-        default: all
+        default: standard
         enum:
           - standard
           - ungrouped-hosts
