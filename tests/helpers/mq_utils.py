@@ -85,12 +85,15 @@ class MockFuture:
         self._fire(self.errbacks)
 
 
-def generate_kessel_workspace_message(operation: str, id: str, name: str, type: str = "standard"):
+def generate_kessel_workspace_message(
+    operation: str, id: str, name: str, type: str = "standard", identity: dict = SYSTEM_IDENTITY
+):
     now = datetime.now().isoformat()
 
     payload_dict = {
         "operation": operation,
-        "org_id": SYSTEM_IDENTITY["org_id"],
+        "org_id": identity["org_id"],
+        "account_number": identity["account_number"],
         "workspace": {
             "id": id,
             "name": name,

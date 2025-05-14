@@ -5,6 +5,10 @@
     "version": "1.0.0",
     "title": "Insights Host Inventory REST Interface"
   },
+  "externalDocs": {
+    "description": "API Product documentation for developers.",
+    "url": "https://developers.redhat.com/api-catalog/api/inventory"
+  },
   "paths": {
     "/hosts": {
       "get": {
@@ -679,6 +683,9 @@
           },
           {
             "$ref": "#/components/parameters/groupOrderHowParam"
+          },
+          {
+            "$ref": "#/components/parameters/workspaceTypeParam"
           }
         ],
         "responses": {
@@ -1779,6 +1786,21 @@
           "$ref": "#/components/schemas/OrderHow"
         },
         "description": "Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count"
+      },
+      "workspaceTypeParam": {
+        "in": "query",
+        "name": "type",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "default": "standard",
+          "enum": [
+            "standard",
+            "ungrouped-hosts",
+            "all"
+          ]
+        },
+        "description": "The type of workspaces that should be returned."
       },
       "stalenessParam": {
         "name": "staleness",
