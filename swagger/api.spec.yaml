@@ -400,6 +400,7 @@ paths:
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/groupOrderByParam'
         - $ref: '#/components/parameters/groupOrderHowParam'
+        - $ref: '#/components/parameters/workspaceTypeParam'
       responses:
         '200':
           description: Successfully read the groups list.
@@ -1100,6 +1101,19 @@ components:
       description: >-
         Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC
         for host_count
+    workspaceTypeParam:
+      in: query
+      name: workspace_type
+      required: false
+      schema:
+        type: string
+        default: all
+        enum:
+          - standard
+          - ungrouped
+          - all
+      description: >-
+        The type of workspaces that should be returned.
     stalenessParam:
       name: staleness
       in: query
