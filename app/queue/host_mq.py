@@ -91,6 +91,7 @@ class WorkspaceSchema(Schema):
 class WorkspaceOperationSchema(Schema):
     operation = fields.Str(required=True)
     org_id = fields.Str(required=True)
+    account_number = fields.Str(required=False, load_default=None)
     workspace = fields.Nested(WorkspaceSchema)
 
 
@@ -184,6 +185,7 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
         org_id = validated_operation_msg["org_id"]
         workspace = validated_operation_msg["workspace"]
         identity = create_mock_identity_with_org_id(org_id)
+        identity.account_number = validated_operation_msg["account_number"]
         logger.info(f"Received {operation} message for workspace ID {workspace['id']}")
 
         if operation == "create":
@@ -191,6 +193,7 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                 group = group_repository.add_group(
                     group_name=workspace["name"],
                     org_id=org_id,
+                    account=identity.account_number,
                     group_id=workspace["id"],
                     ungrouped=(validated_operation_msg["workspace"]["type"] == "ungrouped-hosts"),
                 )
