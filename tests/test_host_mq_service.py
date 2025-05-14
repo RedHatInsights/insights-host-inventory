@@ -2119,8 +2119,15 @@ def test_add_host_subman_id(mq_create_or_update_host_subman_id, db_get_host):
     assert str(record.id) == str(subscription_manager_id)
 
 
+@pytest.mark.parametrize(
+    "additional_fields",
+    (
+        {"account_number": SYSTEM_IDENTITY["account_number"]},
+        {},
+    ),
+)
 @mock.patch.object(WorkspaceMessageConsumer, "handle_message")
-def test_workspace_mq_event_loop(handle_message_mock, flask_app, mocker):
+def test_workspace_mq_event_loop(handle_message_mock, flask_app, mocker, additional_fields):
     message = {
         "operation": "create",
         "org_id": SYSTEM_IDENTITY["org_id"],
@@ -2131,6 +2138,7 @@ def test_workspace_mq_event_loop(handle_message_mock, flask_app, mocker):
             "created_at": datetime.now().isoformat(),
             "updated_at": datetime.now().isoformat(),
         },
+        **additional_fields,
     }
 
     fake_consumer = mocker.Mock()
@@ -2213,7 +2221,7 @@ def test_workspace_mq_update(mocker, flask_app, db_create_group_with_hosts, db_g
     host_id_list = [str(host.id) for host in group.hosts]
 
     new_name = "test-kessel-workspace"
-    message = generate_kessel_workspace_message("update", str(workspace_id), new_name)
+    message = generate_kessel_workspace_message("update", workspace_id, new_name)
     mock_event_producer = mocker.Mock()
     consumer = WorkspaceMessageConsumer(mocker.Mock(), flask_app, mock_event_producer, mocker.Mock())
 

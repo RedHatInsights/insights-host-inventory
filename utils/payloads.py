@@ -7,14 +7,34 @@ from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
 
-# complete system identity
+# kessel user identity known to rbac deployed by bonfire in Ephemeral cluster
 IDENTITY = {
-    "org_id": "test",
-    "type": "System",
-    "auth_type": "cert-auth",
-    "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
-    "internal": {"auth_time": 6300},
+    "account_number": "123",
+    "auth_type": "jwt-auth",
+    "internal": {"auth_time": 0, "cross_access": "false", "org_id": "321"},
+    "org_id": "321",
+    "type": "User",
+    "user": {
+        "email": "Jane.Doe@example.com",
+        "first_name": "Jane",
+        "is_active": "true",
+        "is_internal": "true",
+        "is_org_admin": "false",
+        "last_name": "Doe",
+        "locale": "en_US",
+        "user_id": "1212",
+        "username": "Jane.Doe@example.com",
+    },
 }
+
+# complete system identity
+# IDENTITY = {
+#     "org_id": "test",
+#     "type": "System",
+#     "auth_type": "cert-auth",
+#     "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
+#     "internal": {"auth_time": 6300},
+# }
 
 # system identity: invalid or incomplete for testing
 # IDENTITY = {
