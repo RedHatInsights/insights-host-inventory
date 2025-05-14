@@ -31,7 +31,6 @@ kubectl port-forward "$ENV_EPHEM_CONNECT_SVC" 8083:8083 -n "$PROJECT_NAME" >/dev
 kubectl port-forward "$ENV_EPHEM_KAFKA_SVC" 9092:9092 -n "$PROJECT_NAME" >/dev/null 2>&1 &
 kubectl port-forward "$ENV_EPHEM_KAFKA_SVC" 29092:9092 -n "$PROJECT_NAME" >/dev/null 2>&1 &
 kubectl port-forward "$ENV_EPHEM_CONNECT_SVC" 8083:8083 -n "$PROJECT_NAME" >/dev/null 2>&1 &
-kubectl port-forward "$ENV_EPHEM_KAFKA_SVC" 9092:9092 -n "$PROJECT_NAME" >/dev/null 2>&1 &
 
 kubectl port-forward "$RBAC_DB_SVC" 5433:5432 -n "$PROJECT_NAME" >/dev/null 2>&1 &
 kubectl port-forward "$RBAC_SVC" 8111:8000 -n "$PROJECT_NAME" >/dev/null 2>&1 &
