@@ -23,7 +23,7 @@ PROMETHEUS_JOB = "inventory-update-edge-hosts-prs"
 LOGGER_NAME = "update-edge-hosts-prs"
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
 
-UPDATE_EDGE_HOSTS_STALENESS = int(os.getenv("UPDATE_EDGE_HOSTS_STALENESS", 100))
+NUM_EDGE_HOSTS_STALENESS = int(os.getenv("NUM_EDGE_HOSTS_STALENESS", 500))
 
 
 @sa.event.listens_for(Host, "before_update")
@@ -44,8 +44,9 @@ def receive_before_host_update(mapper: Mapper, connection: Connection, host: Hos
     :param host: The Host object being updated.
     """
     host_details = sa.inspect(host)
-    flag_changed, _, _ = host_details.attrs.per_reporter_staleness.history
-    if flag_changed:
+    prs_changed, _, _ = host_details.attrs.per_reporter_staleness.history
+    staleness_changed, _, _ = host_details.attrs.deletion_timestamp.history
+    if prs_changed or staleness_changed:
         orm.attributes.flag_modified(host, "modified_on")
 
 
@@ -64,19 +65,47 @@ def run(logger: Logger, session: Session, application: FlaskApp):
             "discovery",
             "satellite",
         ]
-        query_filter = and_(
-            Host.system_profile_facts.has_key("host_type"),
-            or_(~Host.per_reporter_staleness[reporter].has_key("culled_timestamp") for reporter in reporters_list),
+        query_filter = or_(
+            and_(
+                Host.system_profile_facts.has_key("host_type"),
+                or_(~Host.per_reporter_staleness[reporter].has_key("culled_timestamp") for reporter in reporters_list),
+            ),
+            and_(Host.system_profile_facts.has_key("host_type"), Host.stale_warning_timestamp == None),  # noqa: E711
         )
-        query = session.query(Host).filter(query_filter)
-        num_edge_hosts = query.count()
 
-        if num_edge_hosts > 0:
-            logger.info(f"There are still {num_edge_hosts} to be updated")
-            for host in query.order_by(Host.org_id).yield_per(UPDATE_EDGE_HOSTS_STALENESS):
+        hosts_query = session.query(Host).filter(query_filter).order_by(Host.org_id)
+        hosts_count = hosts_query.count()
+
+        logger.info(f"Found {hosts_count} to be updated")
+        processed_in_current_batch = 0
+        total_hosts_updated = 0
+
+        for host in hosts_query.yield_per(NUM_EDGE_HOSTS_STALENESS):
+            try:
                 host._update_all_per_reporter_staleness()
                 host._update_staleness_timestamps()
-            session.commit()
+
+                processed_in_current_batch += 1
+                total_hosts_updated += 1
+                if processed_in_current_batch >= NUM_EDGE_HOSTS_STALENESS:
+                    logger.info(f"Updating batch of {processed_in_current_batch} hosts...")
+                    session.flush()  # Flush current session so we free memory
+                    logger.info(f"Flushed. Total updated so far: {total_hosts_updated}")
+                    processed_in_current_batch = 0  # Reset counter for the next batch
+
+            except Exception as e:
+                logger.error(f"Error committing batch: {e}", exc_info=True)
+                session.rollback()
+
+        if total_hosts_updated > 0:
+            try:
+                logger.info(f"Committing {total_hosts_updated} hosts.")
+                session.commit()
+                logger.info(f"Job finished. Successfully updated staleness for {total_hosts_updated} hosts.")
+            except Exception:
+                session.rollback()
+        else:
+            logger.info("No hosts to be updated. Finishing job")
 
 
 if __name__ == "__main__":
