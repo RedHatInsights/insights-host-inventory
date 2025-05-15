@@ -1,5 +1,5 @@
 # Deploying Host Inventory to Kubernetes Namespaces.
-Debugging Host Inventory code requires a database, Kakfa broker, Kafka Zookeeper, Debezium Connector, and RBAC.  These required services are deployed to Ephemeral cluster using [bonfire](https://github.com/RedHatInsights/bonfire).
+Debugging Host Inventory code requires a database, Kafka broker, Kafka Zookeeper, Debezium Connector, and RBAC.  These required services are deployed to Ephemeral cluster using [bonfire](https://github.com/RedHatInsights/bonfire).
 
 ## Kubernetes Setup
 ### Option 1: Ephemeral Cluster
