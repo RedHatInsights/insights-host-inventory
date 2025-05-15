@@ -270,7 +270,6 @@ def rbac(resource_type: RbacResourceType, required_permission: RbacPermission, p
     def other_func(func):
         @wraps(func)
         def modified_func(*args, **kwargs):
-            kessel_client = get_kessel_client(current_app)
             # If the API is in read-only mode and this is a Write endpoint, abort with HTTP 503.
             if required_permission == RbacPermission.WRITE and get_flag_value(FLAG_INVENTORY_API_READ_ONLY):
                 abort(503, "Inventory API is currently in read-only mode.")
@@ -284,6 +283,7 @@ def rbac(resource_type: RbacResourceType, required_permission: RbacPermission, p
             allowed = None
             rbac_filter = None
             if get_flag_value(FLAG_INVENTORY_KESSEL_HOST_MIGRATION):
+                kessel_client = get_kessel_client(current_app)
                 allowed, rbac_filter = get_kessel_filter(kessel_client, current_identity, permission_base, resource_type, required_permission)
             else:
                 allowed, rbac_filter = get_rbac_filter(
