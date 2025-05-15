@@ -1,0 +1,10 @@
+docs_dir: docs/
+site_name: Insights Inventory Documentation
+
+markdown_extensions:
+  - plantuml_markdown:
+      kroki_server: http://kroki:8000/
+      insecure: true
+      format: svg
+  - toc:
+      permalink: "#"
