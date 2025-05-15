@@ -488,3 +488,7 @@ Below is an example on how to use to use the environment variable:
 ```bash
 SP_FIELDS_TO_LOG = "cpu_model,disk_devices"
 ```
+
+### Debugging Local Code with Services Deployed into Kubernetes Namespaces
+
+Making local code work with the services running in Kubernetes requires some actions provided [here](docs/debug_local_code_targeting_ephemeral_namespace.md)
