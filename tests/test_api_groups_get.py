@@ -20,6 +20,23 @@ def test_basic_group_query(db_create_group, api_get):
         assert group_result["id"] in group_id_list
 
 
+@pytest.mark.parametrize("group_type, expected_groups", (("standard", 2), ("ungrouped-hosts", 1), ("all", 3)))
+def test_group_query_type_filter(db_create_group, api_get, group_type, expected_groups):
+    group_id_list_dict = {
+        "standard": [str(db_create_group(f"testGroup_{idx}").id) for idx in range(2)],
+        "ungrouped-hosts": [str(db_create_group("ungroupedTest", ungrouped=True).id)],
+    }
+
+    response_status, response_data = api_get(build_groups_url(query=f"?type={group_type}"))
+
+    assert_response_status(response_status, 200)
+    assert response_data["total"] == expected_groups
+    assert response_data["count"] == expected_groups
+    if group_type != "all":
+        for group_result in response_data["results"]:
+            assert group_result["id"] in group_id_list_dict[group_type]
+
+
 @pytest.mark.usefixtures("enable_rbac")
 def test_get_groups_RBAC_denied(subtests, mocker, api_get):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")

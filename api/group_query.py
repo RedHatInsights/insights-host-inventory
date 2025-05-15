@@ -48,6 +48,11 @@ GROUPS_ORDER_BY_MAPPING = {
 
 GROUPS_ORDER_HOW_MAPPING = {"asc": asc, "desc": desc, "name": asc, "host_count": desc, "updated": desc}
 
+GROUP_TYPE_MAPPING = {
+    "standard": Group.ungrouped.is_(False),
+    "ungrouped-hosts": Group.ungrouped.is_(True),
+}
+
 __all__ = (
     "build_paginated_group_list_response",
     "build_group_response",
@@ -116,10 +121,10 @@ def does_group_with_name_exist(group_name: str, org_id: str):
     ).scalar()
 
 
-def get_filtered_group_list_db(group_name, page, per_page, order_by, order_how, rbac_filter, exclude_ungrouped=False):
+def get_filtered_group_list_db(group_name, page, per_page, order_by, order_how, rbac_filter, group_type=None):
     filters = (Group.org_id == get_current_identity().org_id,)
-    if exclude_ungrouped:
-        filters += (Group.ungrouped.is_(False),)
+    if (type_filter := GROUP_TYPE_MAPPING.get(group_type)) is not None:
+        filters += (type_filter,)
     if group_name:
         filters += (func.lower(Group.name).contains(func.lower(group_name)),)
     return get_group_list_from_db(filters, page, per_page, order_by, order_how, rbac_filter)
