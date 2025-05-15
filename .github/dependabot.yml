@@ -11,8 +11,6 @@ updates:
       interval: "daily"
     # Allow up to 3 open pull requests for pip dependencies
     open-pull-requests-limit: 3
-    reviewers:
-      - "host-based-inventory-committers"
     labels:
       - "dependencies"
   - package-ecosystem: "github-actions"
@@ -20,7 +18,5 @@ updates:
     schedule:
       # Check for update to GitHub Actions every weekday
       interval: "weekly"
-    reviewers:
-      - "host-based-inventory-committers"
     labels:
       - "GitHub-Actions-Updates"
