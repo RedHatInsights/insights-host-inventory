@@ -579,7 +579,7 @@ data:
           ],
           "targets": [
             {
-              "expr": "sum(increase(kafka_consumergroup_group_offset{topic=~'(platform-mq-stage.|platform-mq-prod)?platform.inventory.host-ingress.*'}[5m])) by (topic)",
+              "expr": "sum(increase(aws_kafka_sum_offset_lag_average{topic=~'(platform-mq-stage.|platform-mq-prod)?platform.inventory.host-ingress.*'}[5m])) by (topic)",
               "instant": true,
               "interval": "1s",
               "legendFormat": "{{topic}}",
@@ -1419,7 +1419,7 @@ data:
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(kafka_consumergroup_group_lag{topic=~'(platform-mq-stage.|platform-mq-prod)?platform.inventory.host-ingress.*'}) by (topic)",
+              "expr": "sum(aws_kafka_sum_offset_lag_average{topic=~'(platform-mq-stage.|platform-mq-prod)?platform.inventory.host-ingress.*'}) by (topic)",
               "interval": "1m",
               "legendFormat": "{{topic}}",
               "refId": "A"
@@ -2776,7 +2776,7 @@ data:
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(kafka_consumergroup_group_lag{topic=~'(platform-mq-stage.|platform-mq-prod)?platform.inventory.host-ingress.*'}) by (topic)",
+              "expr": "sum(aws_kafka_sum_offset_lag_average{topic=~'(platform-mq-stage.|platform-mq-prod)?platform.inventory.host-ingress.*'}) by (topic)",
               "interval": "1m",
               "legendFormat": "{{topic}}",
               "refId": "A"
@@ -2873,7 +2873,7 @@ data:
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(increase(kafka_consumergroup_group_offset{topic=~'(platform-mq-stage.|platform-mq-prod)?platform.inventory.host-ingress.*'}[1m])) by (topic)",
+              "expr": "sum(increase(aws_kafka_sum_offset_lag_average{topic=~'(platform-mq-stage.|platform-mq-prod)?platform.inventory.host-ingress.*'}[1m])) by (topic)",
               "interval": "1m",
               "legendFormat": "{{topic}}",
               "refId": "A"
