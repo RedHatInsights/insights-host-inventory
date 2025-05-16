@@ -5,8 +5,8 @@ info:
   version: 1.0.0
   title: Insights Host Inventory REST Interface
 externalDocs:
-  description: API Product documentation for developers.
-  url: https://developers.redhat.com/api-catalog/api/inventory
+  description: How to use the Red Hat Insights API
+  url: https://docs.redhat.com/en/documentation/red_hat_insights/1-latest/html/using_the_red_hat_insights_api/index
 paths:
   /hosts:
     get:
