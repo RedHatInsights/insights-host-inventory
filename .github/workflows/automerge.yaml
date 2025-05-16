@@ -17,6 +17,13 @@ jobs:
         uses: dependabot/fetch-metadata@v2
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Generate token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app_id: ${{ secrets.AUTOMERGE_APP_ID }}
+          private_key: ${{ secrets.AUTOMERGE_APP_PRIVATE_KEY }}
       - name: Enable auto-merge for Dependabot PRs
         if: ${{ contains(github.event.pull_request.labels.*.name, 'dependencies') && (
                 steps.metadata.outputs.update-type == 'version-update:semver-minor' ||
@@ -27,4 +34,4 @@ jobs:
           gh pr merge --auto --merge "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
