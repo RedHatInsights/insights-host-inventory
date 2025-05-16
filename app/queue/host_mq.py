@@ -10,7 +10,7 @@ from typing import Callable
 from uuid import UUID
 
 from confluent_kafka import Consumer
-from flask.app import Flask
+from connexion import FlaskApp
 from marshmallow import Schema
 from marshmallow import ValidationError
 from marshmallow import fields
@@ -126,7 +126,7 @@ class HBIMessageConsumerBase:
     def __init__(
         self,
         consumer: Consumer,
-        flask_app: Flask,
+        flask_app: FlaskApp,
         event_producer: EventProducer,
         notification_event_producer: EventProducer,
     ) -> None:

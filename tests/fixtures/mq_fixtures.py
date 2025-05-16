@@ -1,9 +1,11 @@
 import json
+from collections.abc import Generator
 from datetime import datetime
 from datetime import timezone
 from unittest.mock import patch
 
 import pytest
+from connexion import FlaskApp
 
 from app.models import db
 from app.queue.event_producer import EventProducer
@@ -153,7 +155,7 @@ def notification_kafka_producer(mocker):
 
 
 @pytest.fixture(scope="function")
-def event_producer(flask_app, kafka_producer):  # noqa: ARG001
+def event_producer(flask_app: FlaskApp, kafka_producer) -> Generator[EventProducer]:  # noqa: ARG001
     config = flask_app.app.config["INVENTORY_CONFIG"]
     flask_app.app.event_producer = EventProducer(config, config.event_topic)
     yield flask_app.app.event_producer
