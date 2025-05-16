@@ -230,7 +230,7 @@ def process_system_profile_spec():
         return process_spec(yaml.safe_load(fp)["$defs"]["SystemProfile"]["properties"])
 
 
-def create_app(runtime_environment):
+def create_app(runtime_environment) -> connexion.FlaskApp:
     # This feels like a hack but it is needed.  The logging configuration
     # needs to be setup before the flask app is initialized.
     configure_logging()

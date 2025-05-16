@@ -17,6 +17,7 @@ from sqlalchemy.dialects.postgresql import JSON
 from api.filtering.db_custom_filters import build_system_profile_filter
 from api.filtering.db_custom_filters import get_host_types_from_filter
 from api.staleness_query import get_staleness_obj
+from app.auth.identity import Identity
 from app.auth.identity import IdentityType
 from app.config import ALL_STALENESS_STATES
 from app.config import HOST_TYPES
@@ -317,13 +318,13 @@ def rbac_permissions_filter(rbac_filter: dict) -> list:
     return _query_filter
 
 
-def update_query_for_owner_id(identity, query):
+def update_query_for_owner_id(identity: Identity, query: Query) -> Query:
     # kafka based requests have dummy identity for working around the identity requirement for CRUD operations
-    logger.debug("identity auth type: %s", identity.auth_type)
-    if identity and identity.identity_type == IdentityType.SYSTEM:
-        return query.filter(and_(Host.system_profile_facts["owner_id"].as_string() == identity.system["cn"]))
-    else:
-        return query
+    if identity:
+        logger.debug("identity auth type: %s", identity.auth_type)
+        if identity.identity_type == IdentityType.SYSTEM:
+            return query.filter(and_(Host.system_profile_facts["owner_id"].as_string() == identity.system["cn"]))
+    return query
 
 
 def query_filters(

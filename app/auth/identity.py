@@ -177,7 +177,7 @@ class ServiceAccountIdentitySchema(IdentityBaseSchema):
 
 # Messages from the system_profile topic don't need to provide a real Identity,
 # So this helper function creates a basic User-type identity from the host data.
-def create_mock_identity_with_org_id(org_id):
+def create_mock_identity_with_org_id(org_id: str) -> Identity:
     return Identity(
         {
             "org_id": org_id,

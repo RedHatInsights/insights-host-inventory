@@ -95,7 +95,7 @@ def set_environment(new_env=None):
     patched_dict.stop()
 
 
-def _base_host_data(**values):
+def _base_host_data(**values) -> dict[str, Any]:
     return {
         "org_id": USER_IDENTITY["org_id"],
         "display_name": "test" + generate_random_string(),
@@ -115,7 +115,7 @@ def base_host(**values):
 # This method returns a host wrapper that contains a single canonical fact, making it
 # a minimal host that's valid for use with mq_create_or_update_host().
 # It should be used in test cases where specific canonical facts are not needed.
-def minimal_host(**values):
+def minimal_host(**values) -> HostWrapper:
     host_wrapper = HostWrapper(_base_host_data(**values))
     host_wrapper.bios_uuid = generate_uuid()
     return host_wrapper

@@ -1,6 +1,7 @@
 import logging
 from datetime import timedelta
 from random import randint
+from typing import Any
 
 from sqlalchemy.exc import InvalidRequestError
 
@@ -39,12 +40,12 @@ def clean_tables():
     _clean_tables()
 
 
-def minimal_db_host(**values):
+def minimal_db_host(**values) -> Host:
     data = minimal_db_host_dict(**values)
     return Host(**data)
 
 
-def minimal_db_host_dict(**values):
+def minimal_db_host_dict(**values) -> dict[str, Any]:
     data = {
         "canonical_facts": {"insights_id": generate_uuid()},
         "stale_timestamp": (now() + timedelta(days=randint(1, 7))),
