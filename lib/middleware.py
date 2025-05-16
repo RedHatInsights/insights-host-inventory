@@ -360,29 +360,53 @@ def rbac_create_ungrouped_hosts_workspace(identity: Identity) -> UUID | None:
     return workspace_id
 
 
-def delete_rbac_workspace(workspace_id):
+def delete_rbac_workspace(workspace_id: str) -> bool:
     if inventory_config().bypass_rbac:
-        return None
+        return True
 
     workspace_endpoint = f"workspaces/{workspace_id}/"
     request_session = Session()
     retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
     request_session.mount(get_rbac_v2_url(endpoint=workspace_endpoint), HTTPAdapter(max_retries=retry_config))
     request_headers = _build_rbac_request_headers()
+    delete_successful = False
 
     try:
         with outbound_http_response_time.labels("rbac").time():
-            request_session.delete(
+            rbac_response = request_session.delete(
                 url=get_rbac_v2_url(endpoint=workspace_endpoint),
                 headers=request_headers,
                 timeout=inventory_config().rbac_timeout,
                 verify=LoadedConfig.tlsCAPath,
             )
+            rbac_response.raise_for_status()
+            delete_successful = True
+    except HTTPError as e:
+        status_code = e.response.status_code
+        if 400 <= status_code < 500:
+            try:
+                detail = e.response.json().get("detail", e.response.text)
+            except Exception:
+                detail = e.response.text  # fallback if JSON can't be parsed
+
+            if status_code == 404:
+                # If RBAC gives us a 404, we log it and skip it.
+                logger.info(f"Received 404 from RBAC while attempting to delete workspace {workspace_id}: {detail}")
+            else:
+                logger.warning(
+                    f"RBAC client error while attempting to delete workspace {workspace_id}: {status_code} - {detail}"
+                )
+                abort(status_code, f"RBAC client error: {detail}")
+        else:
+            logger.error(f"RBAC server error: {status_code} - {e.response.text}")
+            abort(503, "RBAC server error, request cannot be fulfilled")
     except Exception as e:
         rbac_failure(logger, e)
         abort(503, "Failed to reach RBAC endpoint, request cannot be fulfilled")
     finally:
         request_session.close()
+
+    return delete_successful
 
 
 def patch_rbac_workspace(workspace_id: str, name: str | None = None) -> None:

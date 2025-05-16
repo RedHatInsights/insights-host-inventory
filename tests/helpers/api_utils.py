@@ -614,3 +614,11 @@ def mocked_export_post(_self: Any, url: str, *, data: bytes, **_: Any) -> Respon
     response.status_code = HTTPStatus.ACCEPTED
     response._content = b"Export successful"
     return response
+
+
+def mocked_post_workspace_not_found(_self: Any, url: str, **_: Any) -> Response:
+    response = Response()
+    response.url = url
+    response.status_code = HTTPStatus.NOT_FOUND
+    response._content = b"Workspace not found"
+    return response
