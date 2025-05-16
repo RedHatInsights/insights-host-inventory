@@ -1,6 +1,10 @@
 name: Dependabot Auto-merge
 on: pull_request
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   dependabot-automerge:
     runs-on: ubuntu-latest
@@ -22,5 +26,5 @@ jobs:
           gh pr review --approve "$PR_URL"
           gh pr merge --auto --merge "$PR_URL"
         env:
-          PR_URL: ${{github.event.pull_request.html_url}}
-          GH_TOKEN: ${{secrets.AUTOMERGE_PAT}}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
