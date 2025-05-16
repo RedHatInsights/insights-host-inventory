@@ -360,9 +360,29 @@ def rbac_create_ungrouped_hosts_workspace(identity: Identity) -> UUID | None:
     return workspace_id
 
 
-def delete_rbac_workspace(workspace_id):
+def _handle_delete_error(e: HTTPError, workspace_id: str) -> bool:
+    status = e.response.status_code
+    try:
+        detail = e.response.json().get("detail", e.response.text)
+    except Exception:
+        detail = e.response.text
+
+    if status == 404:
+        logger.info(f"404 deleting RBAC workspace {workspace_id}: {detail}")
+        return False
+
+    if 400 <= status < 500:
+        logger.warning(f"RBAC client error {status} deleting {workspace_id}: {detail}")
+        abort(status, f"RBAC client error: {detail}")
+
+    logger.error(f"RBAC server error {status} deleting {workspace_id}: {detail}")
+    abort(503, "RBAC server error, request cannot be fulfilled")
+    return False
+
+
+def delete_rbac_workspace(workspace_id: str) -> bool:
     if inventory_config().bypass_rbac:
-        return None
+        return True
 
     workspace_endpoint = f"workspaces/{workspace_id}/"
     request_session = Session()
@@ -372,15 +392,20 @@ def delete_rbac_workspace(workspace_id):
 
     try:
         with outbound_http_response_time.labels("rbac").time():
-            request_session.delete(
+            rbac_response = request_session.delete(
                 url=get_rbac_v2_url(endpoint=workspace_endpoint),
                 headers=request_headers,
                 timeout=inventory_config().rbac_timeout,
                 verify=LoadedConfig.tlsCAPath,
             )
+            rbac_response.raise_for_status()
+            return True
+    except HTTPError as e:
+        return _handle_delete_error(e, workspace_id)
     except Exception as e:
         rbac_failure(logger, e)
         abort(503, "Failed to reach RBAC endpoint, request cannot be fulfilled")
+        return False
     finally:
         request_session.close()
 

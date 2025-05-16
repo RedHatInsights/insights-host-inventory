@@ -1,4 +1,6 @@
+import contextlib
 import json
+from unittest import mock
 
 import pytest
 
@@ -7,6 +9,7 @@ from app.auth.identity import to_auth_header
 from tests.helpers.api_utils import GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
+from tests.helpers.api_utils import mocked_post_workspace_not_found
 from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 
@@ -437,6 +440,7 @@ def test_delete_ungrouped_group_post_kessel_migration(
     db_create_group,
     event_producer,
     db_get_group_by_id,
+    subtests,
 ):
     mocker.patch.object(event_producer, "write_event")
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
@@ -445,21 +449,22 @@ def test_delete_ungrouped_group_post_kessel_migration(
     )
     get_rbac_permissions_mock.return_value = mock_rbac_response
 
-    group = db_create_group("ungrouped", ungrouped=True)
-    group_id = str(group.id)
-    group_name = group.name
+    # Create an ungrouped group and a standard group
+    ungrouped_group_id = str(db_create_group("ungrouped group", ungrouped=True).id)
+    grouped_group_id = str(db_create_group("standard group", ungrouped=False).id)
 
     mocker.patch("api.group.get_flag_value", return_value=True)
-    response_status, _ = api_delete_groups([group_id])
 
-    # No group should be deleted
-    assert_response_status(response_status, 400)
+    for ids_to_delete in [[ungrouped_group_id], [ungrouped_group_id, grouped_group_id]]:
+        with subtests.test():
+            response_status, _ = api_delete_groups(ids_to_delete)
 
-    # Confirm that ungrouped group was not deleted
-    retrieved_group = db_get_group_by_id(group_id)
+            # Should return 400, since we can't delete the "ungrouped" group
+            assert_response_status(response_status, 400)
 
-    assert retrieved_group.name == group_name
-    assert retrieved_group.ungrouped is True
+            # Confirm that neither group was deleted
+            assert db_get_group_by_id(ungrouped_group_id)
+            assert db_get_group_by_id(grouped_group_id)
 
 
 @pytest.mark.usefixtures("event_producer")
@@ -469,6 +474,27 @@ def test_delete_multiple_groups(db_create_group, db_create_group_with_hosts, api
     with mocker.patch("api.group.get_flag_value", return_value=True):
         response_status, _ = api_delete_groups([non_empty_group.id, empty_group.id])
         assert_response_status(response_status, expected_status=204)
+
+
+@pytest.mark.usefixtures("enable_rbac")
+@mock.patch("requests.Session.delete", new=mocked_post_workspace_not_found)
+def test_delete_nonexistent_group_kessel(api_delete_groups_kessel, mocker):
+    # Mock RBAC permissions to allow request
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-groups-write-resource-defs-template.json"
+    )
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    # Turn on the Kessel flag
+    mocker.patch("api.group.get_flag_value", return_value=True)
+
+    # Mock the metrics context manager bc we don't care about it here
+    with mock.patch("lib.middleware.outbound_http_response_time") as mock_metric:
+        mock_metric.labels.return_value.time.return_value = contextlib.nullcontext()
+
+        response_status, _ = api_delete_groups_kessel([generate_uuid()])
+        assert_response_status(response_status, expected_status=404)
 
 
 def test_delete_host_from_ungrouped_group(mocker, db_create_group_with_hosts, api_remove_hosts_from_group):
