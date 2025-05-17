@@ -1453,7 +1453,14 @@ def test_host_account_using_mq(mq_create_or_update_host, db_get_host, db_get_hos
 @pytest.mark.parametrize("id_type", ("id", "insights_id", "fqdn"))
 def test_update_system_profile(mq_create_or_update_host, db_get_host, id_type):
     expected_ids = {"insights_id": generate_uuid(), "fqdn": "foo.test.redhat.com"}
-    input_host = base_host(**expected_ids, system_profile={"owner_id": OWNER_ID, "number_of_cpus": 1})
+    input_host = base_host(
+        **expected_ids,
+        system_profile={
+            "owner_id": OWNER_ID,
+            "number_of_cpus": 1,
+            "rhsm": {"version": "9.1", "environment_ids": ["01fd642e02de4e6da2da6172081a971e"]},
+        },
+    )
     first_host_from_event = mq_create_or_update_host(input_host)
     first_host_from_db = db_get_host(first_host_from_event.id)
     expected_ids["id"] = str(first_host_from_db.id)
@@ -1462,7 +1469,8 @@ def test_update_system_profile(mq_create_or_update_host, db_get_host, id_type):
     assert first_host_from_db.system_profile_facts.get("number_of_cpus") == 1
 
     input_host = base_host(
-        **{id_type: expected_ids[id_type]}, system_profile={"number_of_cpus": 4, "number_of_sockets": 8}
+        **{id_type: expected_ids[id_type]},
+        system_profile={"number_of_cpus": 4, "number_of_sockets": 8, "rhsm": {"version": "8.7"}},
     )
     input_host.stale_timestamp = None
     input_host.reporter = None
@@ -1477,6 +1485,7 @@ def test_update_system_profile(mq_create_or_update_host, db_get_host, id_type):
         "owner_id": OWNER_ID,
         "number_of_cpus": 4,
         "number_of_sockets": 8,
+        "rhsm": {"version": "8.7", "environment_ids": ["01fd642e02de4e6da2da6172081a971e"]},
     }
 
 
