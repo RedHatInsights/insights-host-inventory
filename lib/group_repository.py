@@ -326,7 +326,11 @@ def delete_group_list(group_id_list: list[str], identity: Identity, event_produc
                 else:
                     log_group_delete_failed(logger, group_id, get_control_rule())
 
-    serialized_groups, host_list = _update_hosts_for_group_changes(deleted_host_ids, [], identity)
+    new_group_list = []
+    if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
+        new_group_list = [str(get_or_create_ungrouped_hosts_group_for_identity(identity).id)]
+
+    serialized_groups, host_list = _update_hosts_for_group_changes(deleted_host_ids, new_group_list, identity)
     _produce_host_update_events(event_producer, serialized_groups, host_list, identity, staleness=staleness)
     _invalidate_system_cache(host_list, identity)
     return deletion_count
