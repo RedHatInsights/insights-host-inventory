@@ -197,12 +197,11 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                     group_id=workspace["id"],
                     ungrouped=(validated_operation_msg["workspace"]["type"] == "ungrouped-hosts"),
                 )
-                db.session.commit()
                 logger.info(f"Created group with ID {str(group.id)}")
                 _pg_notify_workspace(operation, str(group.id))
-            except (IntegrityError, UniqueViolation) as err:
+            except (IntegrityError, UniqueViolation):
+                logger.warning(f"Group with ID {workspace['id']} already exists; skipping creation")
                 db.session.rollback()
-                logger.warning(f"Group with ID {workspace['id']} already exists; skipping creation", exc_info=err)
 
         elif operation == "update":
             group_to_update = group_repository.get_group_by_id_from_db(str(workspace["id"]), org_id)
@@ -212,7 +211,6 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                 identity=identity,
                 event_producer=self.event_producer,
             )
-            db.session.commit()
             logger.info(f"Updated group with ID {workspace['id']}")
 
         elif operation == "delete":
@@ -221,7 +219,6 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                 identity=identity,
                 event_producer=self.event_producer,
             )
-            db.session.commit()
             logger.info(f"Deleted {num_deleted} group(s) with ID {workspace['id']}")
         else:
             raise ValidationError("Operation must be 'create', 'update', or 'delete'.")
