@@ -25,21 +25,46 @@ from kessel.inventory.v1beta2 import (
 )
 from google.protobuf import struct_pb2
 
-def after_flush(session, flush_context):
-    # Add feature flag here- skip if not set
-    client: Kessel = get_kessel_client(current_app)
+def before_flush(session: Session, flush_context):
+    if "kessel_items" not in session.info:
+        session.info["kessel_items"] = {
+            "upsert": {},
+            "remove": {}
+        }
+    
+    items = session.info["kessel_items"]
+    upsert = items["upsert"]
+    remove = items["remove"]
+
     for obj in session.new:
         if isinstance(obj, Host):
             host: Host = obj
-            client.ReportHost(host)
-        elif isinstance(obj, HostGroupAssoc):
-            assoc: HostGroupAssoc = obj
-            client.ReportHostMoved(assoc.host_id, assoc.group_id)
+            upsert[host.id] = host
+
+    for obj in session.dirty:
+        if isinstance(obj, Host):
+            host: Host = obj
+            upsert[host.id] = host
 
     for obj in session.deleted:
         if isinstance(obj, Host):
             host: Host = obj
-            client.DeleteHost(host.id)
+            remove[host.id] = host
+
+def before_commit(session: Session):
+    if "kessel_items" in session.info:
+        client = get_kessel_client(current_app)
+        items = session.info["kessel_items"]
+
+        upsert = items["upsert"]
+        for to_upsert in upsert.values():
+            client.ReportHost(to_upsert)
+        upsert.clear()
+
+        remove = items["remove"]
+        for to_remove in remove.values():
+            client.DeleteHost(to_remove)
+        remove.clear()
 
 class Kessel:
     def __init__(self, config: Config):
@@ -54,7 +79,7 @@ class Kessel:
 
             resource_ref = resource_reference_pb2.ResourceReference(
                 resource_type="principal",
-                resource_id=current_identity.user, #Need to get to a principal reference - will likely get zero matches for now
+                resource_id=current_identity.user, #Need to get to a principal reference - also, there's no id in the test authorization header provided
                 reporter=reporter_reference_pb2.ReporterReference(
                     type="rbac"
                 ),
@@ -81,8 +106,9 @@ class Kessel:
     def ReportHost(self, host: Host):
         common_struct = struct_pb2.Struct()
         if host.groups:
+            group = host.groups[0]
             common_struct.update({
-                "workspace_id": str(host.groups[0])
+                "workspace_id": str(group["id"])
             })
 
         reporter_struct = struct_pb2.Struct()
@@ -105,32 +131,7 @@ class Kessel:
 
         request = report_resource_request_pb2.ReportResourceRequest(
             type="host",
-            reporter_type="HBI",
-            reporter_instance_id="3c4e2382-26c1-11f0-8e5c-ce0194e9e144",
-            representations=representations
-        )
-
-        self.inventory_svc.ReportResource(request)
-
-    def ReportHostMoved(self, hostId, workspaceId):
-        common_struct = struct_pb2.Struct()
-        common_struct.update({
-            "workspace_id": str(workspaceId)
-        })
-
-
-        metadata = representation_metadata_pb2.RepresentationMetadata(
-            local_resource_id=str(hostId),
-        )
-
-        representations = resource_representations_pb2.ResourceRepresentations(
-            metadata=metadata,
-            common=common_struct,
-        )
-
-        request = report_resource_request_pb2.ReportResourceRequest(
-            type="host",
-            reporter_type="HBI",
+            reporter_type="hbi",
             reporter_instance_id="3c4e2382-26c1-11f0-8e5c-ce0194e9e144",
             representations=representations
         )
@@ -143,7 +144,7 @@ class Kessel:
                 resource_type="host",
                 resource_id=id,
                 reporter=reporter_reference_pb2.ReporterReference(
-                    type="HBI"
+                    type="hbi"
                 )
             )
         )
@@ -154,7 +155,8 @@ def init_kessel(config: Config, app):
     kessel_client = Kessel(config)
     app.extensions["Kessel"] = kessel_client
 
-    event.listen(Session, "after_flush", after_flush)
+    event.listen(Session, "after_flush", before_flush)
+    event.listen(Session, "before_commit", before_commit)
 
 def get_kessel_client(app) -> Kessel:
     return app.extensions["Kessel"]

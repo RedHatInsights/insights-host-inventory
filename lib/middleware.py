@@ -238,12 +238,6 @@ def kessel_verb(perm) -> str:
     else:
         return perm
 
-def kessel_application(app) -> str:
-    if app == "inventory":
-        return "hbi"
-    else:
-        return app
-
 def get_kessel_filter(
     kessel_client: Kessel,
     current_identity: Identity,
@@ -257,7 +251,7 @@ def get_kessel_filter(
         else:
             return False, None
         
-    relation = f"{kessel_application(application)}_{kessel_type(resource_type)}_{kessel_verb(verb)}"
+    relation = f"{application}_{kessel_type(resource_type)}_{kessel_verb(verb)}"
 
     workspaces = kessel_client.ListAllowedWorkspaces(current_identity, relation)
 
