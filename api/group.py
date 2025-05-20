@@ -218,8 +218,8 @@ def delete_groups(group_id_list, rbac_filter=None):
         ungrouped_group_id = str(ungrouped_group.id) if ungrouped_group else None
 
         for group_id in group_id_list:
-            if ungrouped_group_id and ungrouped_group_id == group_id:
-                abort(HTTPStatus.BAD_REQUEST, f"Workspace {group_id} can not be deleted.")
+            if ungrouped_group_id == group_id:
+                abort(HTTPStatus.BAD_REQUEST, f"Ungrouped workspace {group_id} can not be deleted.")
 
         delete_count = sum((delete_rbac_workspace(group_id)) is True for group_id in group_id_list)
     else:
