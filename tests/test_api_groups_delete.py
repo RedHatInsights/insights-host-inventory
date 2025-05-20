@@ -497,6 +497,18 @@ def test_delete_nonexistent_group_kessel(api_delete_groups_kessel, mocker):
         assert_response_status(response_status, expected_status=404)
 
 
+def test_delete_ungrouped_host_from_group(mocker, db_create_group_with_hosts, api_remove_hosts_from_diff_groups):
+    mocker.patch("api.host_group.get_flag_value", return_value=True)
+
+    ungrouped_group = db_create_group_with_hosts("ungrouped", 1, ungrouped=True)
+    host_id_to_delete = str(ungrouped_group.hosts[0].id)
+
+    response_status, response_data = api_remove_hosts_from_diff_groups([host_id_to_delete])
+
+    assert_response_status(response_status, 400)
+    assert str(ungrouped_group.id) in response_data["detail"]
+
+
 def test_delete_host_from_ungrouped_group(mocker, db_create_group_with_hosts, api_remove_hosts_from_group):
     mocker.patch("api.host_group.get_flag_value", return_value=True)
 
