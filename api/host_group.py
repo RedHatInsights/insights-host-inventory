@@ -69,7 +69,7 @@ def delete_hosts_from_group(group_id, host_id_list, rbac_filter=None):
         get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION)
         and get_group_by_id_from_db(group_id, identity.org_id).ungrouped is True
     ):
-        abort(HTTPStatus.BAD_REQUEST, f"Can not remove hosts from ungrouped workspace {group_id}")
+        abort(HTTPStatus.BAD_REQUEST, f"Cannot remove hosts from ungrouped workspace {group_id}")
 
     delete_count = remove_hosts_from_group(group_id, host_id_list, identity, current_app.event_producer)
 
