@@ -268,7 +268,7 @@ def delete_hosts_from_different_groups(host_id_list, rbac_filter=None):
     for host_id in host_id_list:
         if group := get_group_using_host_id(host_id, identity.org_id):
             if group.ungrouped:
-                abort(HTTPStatus.BAD_REQUEST, f"Ungrouped workspace {str(group.id)} can not be deleted.")
+                abort(HTTPStatus.BAD_REQUEST, "The provided hosts cannot be removed from the ungrouped-hosts group.")
 
             hosts_per_group.setdefault(str(group.id), []).append(host_id)
 
