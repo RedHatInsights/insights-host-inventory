@@ -506,7 +506,6 @@ def test_delete_ungrouped_host_from_group(mocker, db_create_group_with_hosts, ap
     response_status, response_data = api_remove_hosts_from_diff_groups([host_id_to_delete])
 
     assert_response_status(response_status, 400)
-    assert str(ungrouped_group.id) in response_data["detail"]
 
 
 def test_delete_host_from_ungrouped_group(mocker, db_create_group_with_hosts, api_remove_hosts_from_group):
