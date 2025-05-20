@@ -194,7 +194,10 @@ def serialize_host(
     # Handle groups separately
     if "groups" in fields:
         serialized_host["groups"] = (
-            [{key: group[key] for key in ["name", "id"]} for group in host.groups]
+            [
+                {"name": group["name"], "id": group["id"], "ungrouped": group.get("ungrouped", False)}
+                for group in host.groups
+            ]
             if for_mq and host.groups
             else host.groups or []
         )

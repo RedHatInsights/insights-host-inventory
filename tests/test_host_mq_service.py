@@ -2240,13 +2240,32 @@ def test_workspace_mq_update(mocker, flask_app, db_create_group_with_hosts, db_g
         assert call_arg["host"]["groups"][0]["id"] == workspace_id
 
 
-def test_workspace_mq_delete(workspace_message_consumer_mock, db_create_group, db_get_group_by_id):
+@pytest.mark.parametrize("num_hosts", (0, 3))
+def test_workspace_mq_delete(
+    db_create_group_with_hosts, db_get_group_by_id, db_get_hosts_for_group, num_hosts, flask_app, mocker
+):
+    mocker.patch("lib.group_repository.get_flag_value", return_value=True)
+    mock_event_producer = mocker.Mock()
+    consumer = WorkspaceMessageConsumer(mocker.Mock(), flask_app, mock_event_producer, mocker.Mock())
+
     workspace_name = "kessel-deletable-workspace"
-    workspace_id = db_create_group(workspace_name).id
+    workspace_id = db_create_group_with_hosts(workspace_name, num_hosts).id
+    host_id_list = [str(host.id) for host in db_get_hosts_for_group(workspace_id)]
     message = generate_kessel_workspace_message("delete", str(workspace_id), workspace_name)
 
-    workspace_message_consumer_mock.handle_message(json.dumps(message))
+    consumer.handle_message(json.dumps(message))
+
+    # Make sure the group was deleted
     assert not db_get_group_by_id(workspace_id)
+
+    # Assert MQ messages were produced for hosts putting them in the ungrouped group
+    assert mock_event_producer.write_event.call_count == num_hosts
+    for call_arg in mock_event_producer.write_event.call_args_list:
+        event = json.loads(call_arg[0][0])
+        host = event["host"]
+        assert host["id"] in host_id_list
+        assert len(host["groups"]) == 1
+        assert host["groups"][0]["ungrouped"] is True
 
 
 def test_workspace_mq_delete_non_empty(
