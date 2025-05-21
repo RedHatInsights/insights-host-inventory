@@ -16,9 +16,9 @@ from random import choice
 from random import randint
 from typing import Any
 
+from app.config import COMPOUND_ID_FACTS_MAP
 from app.models import ProviderType
 from app.utils import HostWrapper
-from lib.host_repository import COMPOUND_CANONICAL_FACTS_MAP
 
 NS = "testns"
 ID = "whoabuddy"
@@ -263,7 +263,7 @@ def generate_fact(fact_name, num=1):
 
 def generate_fact_dict(fact_name, num=1):
     fact_dict = {fact_name: generate_fact(fact_name, num)}
-    if compound_fact := COMPOUND_CANONICAL_FACTS_MAP.get(fact_name):
+    if compound_fact := COMPOUND_ID_FACTS_MAP.get(fact_name):
         fact_dict[compound_fact] = COMPOUND_FACT_VALUES[compound_fact]
 
     return fact_dict
