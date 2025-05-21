@@ -1,3 +1,5 @@
+from typing import Callable
+
 import pytest
 from pytest import mark
 
@@ -5,74 +7,81 @@ from app.auth.identity import Identity
 from app.config import IMMUTABLE_ID_FACTS
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
+from app.models import Host
 from app.models import ProviderType
+from app.utils import HostWrapper
 from lib.host_repository import find_existing_host
 from tests.helpers.db_utils import assert_host_exists_in_db
 from tests.helpers.db_utils import assert_host_missing_from_db
+from tests.helpers.db_utils import db_host
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import base_host
+from tests.helpers.test_utils import generate_all_canonical_facts
 from tests.helpers.test_utils import generate_fact
 from tests.helpers.test_utils import generate_fact_dict
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
-from tests.helpers.test_utils import random_mac
+
+ID_FACTS = ("provider_id", "subscription_manager_id", "insights_id")
 
 
-def test_find_host_using_subset_canonical_fact_match(db_create_host):
-    fqdn = "fred.flintstone.com"
-    canonical_facts = {"fqdn": fqdn, "bios_uuid": generate_uuid()}
+def test_match_host_without_id_facts_not_allowed(
+    db_create_host: Callable[..., Host], mq_create_or_update_host: Callable[..., HostWrapper]
+):
+    canonical_facts = generate_all_canonical_facts()
+    host = db_host(canonical_facts=canonical_facts)
+    db_create_host(host=host)
 
-    host = minimal_db_host(canonical_facts=canonical_facts)
-    created_host = db_create_host(host=host)
+    for id_fact in ID_FACTS:
+        canonical_facts.pop(id_fact)
+    canonical_facts.pop("provider_type")
 
-    # Create the subset of canonical facts to search by
-    subset_canonical_facts = {"fqdn": fqdn}
-
-    assert_host_exists_in_db(created_host.id, subset_canonical_facts)
-
-
-def test_find_host_using_superset_canonical_fact_match(db_create_host):
-    canonical_facts = {"fqdn": "fred", "bios_uuid": generate_uuid()}
-
-    # Create the superset of canonical facts to search by
-    superset_canonical_facts = canonical_facts.copy()
-    superset_canonical_facts["satellite_id"] = generate_uuid()
-
-    host = minimal_db_host(canonical_facts=canonical_facts)
-    created_host = db_create_host(host=host)
-    assert_host_exists_in_db(created_host.id, superset_canonical_facts)
+    with pytest.raises(ValidationException):
+        mq_create_or_update_host(base_host(**canonical_facts))
 
 
-def test_find_host_canonical_fact_subset_match_different_elevated_ids(db_create_host):
-    base_canonical_facts = {"fqdn": "fred", "bios_uuid": generate_uuid()}
+@pytest.mark.parametrize("id_fact", ("provider_id", "subscription_manager_id", "insights_id"))
+def test_id_facts_dont_match(
+    db_create_host: Callable[..., Host], mq_create_or_update_host: Callable[..., HostWrapper], id_fact
+):
+    """When none of the ID facts matches and all other canonical facts match, don't update the host."""
+    canonical_facts = generate_all_canonical_facts()
+    host = db_host(canonical_facts=canonical_facts)
+    db_create_host(host=host)
 
-    created_host_canonical_facts = base_canonical_facts.copy()
-    created_host_canonical_facts["insights_id"] = generate_uuid()
+    for fact in ID_FACTS:
+        canonical_facts.pop(fact)
+    if id_fact != "provider_id":
+        canonical_facts.pop("provider_type")
 
-    # Create the subset of canonical facts to search by
-    search_canonical_facts = {"fqdn": "fred"}
-    search_canonical_facts["subscription_manager_id"] = generate_uuid()
+    canonical_facts[id_fact] = generate_fact(id_fact)
 
-    created_host = db_create_host(host=minimal_db_host(canonical_facts=created_host_canonical_facts))
-
-    assert_host_exists_in_db(created_host.id, search_canonical_facts)
+    updated_host = mq_create_or_update_host(base_host(**canonical_facts))
+    assert updated_host.id != str(host.id)
 
 
-def test_find_host_canonical_fact_superset_match_different_elevated_ids(db_create_host):
-    base_canonical_facts = {"fqdn": "fred", "bios_uuid": generate_uuid()}
+@pytest.mark.parametrize("id_fact", ("provider_id", "subscription_manager_id", "insights_id"))
+def test_id_facts_match(
+    db_create_host: Callable[..., Host], mq_create_or_update_host: Callable[..., HostWrapper], id_fact
+):
+    """When an ID fact matches and all other canonical facts don't match, update the host."""
+    canonical_facts = generate_all_canonical_facts()
+    host = db_host(canonical_facts=canonical_facts)
+    db_create_host(host=host)
 
-    created_host_canonical_facts = base_canonical_facts.copy()
-    created_host_canonical_facts["insights_id"] = generate_uuid()
+    search_canonical_facts = generate_all_canonical_facts()
 
-    # Create the superset of canonical facts to search by
-    search_canonical_facts = base_canonical_facts.copy()
-    search_canonical_facts["subscription_manager_id"] = generate_uuid()
-    search_canonical_facts["satellite_id"] = generate_uuid()
+    for id_fact in ID_FACTS:
+        search_canonical_facts.pop(id_fact)
+    search_canonical_facts.pop("provider_type")
 
-    created_host = db_create_host(host=minimal_db_host(canonical_facts=created_host_canonical_facts))
+    search_canonical_facts[id_fact] = canonical_facts[id_fact]
+    if id_fact == "provider_id":
+        search_canonical_facts["provider_type"] = canonical_facts["provider_type"]
 
-    assert_host_exists_in_db(created_host.id, search_canonical_facts)
+    updated_host = mq_create_or_update_host(base_host(**canonical_facts))
+    assert updated_host.id == str(host.id)
 
 
 def test_find_correct_host_when_similar_canonical_facts(db_create_host):
@@ -137,8 +146,7 @@ def test_high_prio_match_low_prio_change(mq_create_or_update_host, high_prio_mat
     (
         ("provider_id", "insights_id"),
         ("provider_id", "subscription_manager_id"),
-        ("mac_addresses", "insights_id"),
-        ("mac_addresses", "subscription_manager_id"),
+        ("subscription_manager_id", "insights_id"),
     ),
 )
 def test_high_prio_change_low_prio_match(mq_create_or_update_host, high_prio_change, low_prio_match):
@@ -169,8 +177,7 @@ def test_high_prio_change_low_prio_match(mq_create_or_update_host, high_prio_cha
     (
         ("provider_id", "insights_id"),
         ("provider_id", "subscription_manager_id"),
-        ("mac_addresses", "insights_id"),
-        ("mac_addresses", "subscription_manager_id"),
+        ("subscription_manager_id", "insights_id"),
     ),
 )
 def test_lowlevel_change_highlevel_notset_provided_nomatch(mq_create_or_update_host, high_prio_fact, low_prio_fact):
@@ -189,8 +196,8 @@ def test_lowlevel_change_highlevel_notset_provided_nomatch(mq_create_or_update_h
     assert first_host.id != second_host.id
 
 
-@mark.parametrize("changing_id", ("provider_id", "insights_id"))
-def test_elevated_id_priority_order_nomatch(db_create_host, changing_id):
+@mark.parametrize("changing_id", ("provider_id", "subscription_manager_id"))
+def test_priority_order_nomatch(db_create_host, changing_id):
     base_canonical_facts = {
         "insights_id": generate_uuid(),
         "subscription_manager_id": generate_uuid(),
@@ -211,14 +218,14 @@ def test_elevated_id_priority_order_nomatch(db_create_host, changing_id):
     else:
         # When a mutable fact is different, we should still try to match
         # on lower-priority facts, assuming the mutable fact may have changed.
-        # In this case, we failed to match on insights_id, but we did match
-        # on subscription_manager_id. Here, it's reasonably safe to conclude
-        # the insights_id has changed, and this is the host that needs to be updated.
+        # In this case, we failed to match on subscription_manager_id, but we did match
+        # on insights_id. Here, it's reasonably safe to conclude
+        # the subscription_manager_id has changed, and this is the host that needs to be updated.
         assert_host_exists_in_db(created_host.id, search_canonical_facts)
 
 
 @mark.parametrize("changing_id", ("insights_id", "subscription_manager_id"))
-def test_elevated_id_priority_order_match(db_create_host, changing_id):
+def test_priority_order_match(db_create_host, changing_id):
     base_canonical_facts = {
         "provider_id": generate_uuid(),
         "provider_type": ProviderType.AWS.value,
@@ -330,7 +337,7 @@ def test_provider_id_dup(mq_create_or_update_host):
 
 
 @mark.parametrize("changing_id", ("insights_id", "subscription_manager_id"))
-def test_rhsm_conduit_elevated_id_priority_no_identity(mq_create_or_update_host, changing_id):
+def test_rhsm_conduit_priority_no_identity(mq_create_or_update_host, changing_id):
     base_canonical_facts = {
         "account": SYSTEM_IDENTITY["account_number"],
         "provider_type": ProviderType.AWS.value,
@@ -371,87 +378,6 @@ def test_mac_address_empty_list_error(mq_create_or_update_host):
 
     with pytest.raises(ValidationException):
         mq_create_or_update_host(base_host(**canonical_facts))
-
-
-#
-# Identical mac_address lists should match.
-#
-def test_mac_address_exact_list_match(mq_create_or_update_host):
-    canonical_facts = generate_fact_dict("mac_addresses", 3)
-    first_host = mq_create_or_update_host(base_host(**canonical_facts))
-    second_host = mq_create_or_update_host(base_host(**canonical_facts))
-    assert first_host.id == second_host.id
-
-
-#
-# Input mac_addresses subset of existing, should match.
-#
-def test_mac_address_subset_list_match(mq_create_or_update_host):
-    canonical_facts = generate_fact_dict("mac_addresses", 3)
-    first_host = mq_create_or_update_host(base_host(**canonical_facts))
-
-    del canonical_facts["mac_addresses"][-1]
-    second_host = mq_create_or_update_host(base_host(**canonical_facts))
-    assert first_host.id == second_host.id
-
-
-#
-# Input mac_addresses superset of existing, should not match.
-#
-def test_mac_address_superset_list_nomatch(mq_create_or_update_host):
-    canonical_facts = generate_fact_dict("mac_addresses", 3)
-    first_host = mq_create_or_update_host(base_host(**canonical_facts))
-
-    canonical_facts["mac_addresses"].append(random_mac())
-    second_host = mq_create_or_update_host(base_host(**canonical_facts))
-    assert first_host.id != second_host.id
-
-
-#
-# Some mac_addresses match, some don't, should not match.
-#
-def test_mac_address_partial_list_nomatch(mq_create_or_update_host):
-    canonical_facts = generate_fact_dict("mac_addresses", 3)
-    first_host = mq_create_or_update_host(base_host(**canonical_facts))
-
-    canonical_facts["mac_addresses"][0] = random_mac()
-    second_host = mq_create_or_update_host(base_host(**canonical_facts))
-    assert first_host.id != second_host.id
-
-
-#
-# Existing mac_addresses have duplicate, input doesn't, should match.
-#
-def test_mac_address_duplicate_item_match(mq_create_or_update_host):
-    canonical_facts = generate_fact_dict("mac_addresses", 3)
-    canonical_facts["mac_addresses"].append(canonical_facts["mac_addresses"][0])
-    first_host = mq_create_or_update_host(base_host(**canonical_facts))
-
-    del canonical_facts["mac_addresses"][-1]
-    second_host = mq_create_or_update_host(base_host(**canonical_facts))
-    assert first_host.id == second_host.id
-
-
-#
-# Input mac_addresses have duplicate, existing doesn't, should match.
-#
-def test_mac_address_duplicate_input_item_match(mq_create_or_update_host):
-    canonical_facts = generate_fact_dict("mac_addresses", 3)
-    first_host = mq_create_or_update_host(base_host(**canonical_facts))
-
-    canonical_facts["mac_addresses"].append(canonical_facts["mac_addresses"][0])
-    second_host = mq_create_or_update_host(base_host(**canonical_facts))
-    assert first_host.id == second_host.id
-
-
-def test_mac_addresses_case_insensitive(mq_create_or_update_host):
-    first_host = mq_create_or_update_host(
-        base_host(fqdn="foo.bar.com", mac_addresses=["C2:00:D0:C8:61:01", "aa:bb:cc:dd:ee:ff"])
-    )
-    second_host = mq_create_or_update_host(
-        base_host(fqdn="foo.bar.com", mac_addresses=["c2:00:d0:c8:61:01", "AA:BB:CC:DD:EE:FF"])
-    )
-    assert first_host.id == second_host.id
 
 
 def test_find_host_using_provider_id_and_type_match(db_create_host):

@@ -1,4 +1,5 @@
 import json
+from logging import Logger
 
 from flask import g
 
@@ -254,7 +255,7 @@ def log_add_host_failure(logger, message, host_data, sp_fields_to_log):
 
 
 # update system profile
-def log_update_system_profile_success(logger, host_data, sp_fields_to_log):
+def log_update_system_profile_success(logger: Logger, sp_fields_to_log: dict, host_data: dict):
     metrics.update_system_profile_success.inc()
     logger.info(
         "System profile updated for host ID: %s",
