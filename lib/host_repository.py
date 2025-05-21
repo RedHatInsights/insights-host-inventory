@@ -114,8 +114,9 @@ def _extract_immutable_and_id_facts(canonical_facts: dict[str, Any]) -> tuple[di
         if key in IMMUTABLE_ID_FACTS:
             immutable_facts[key] = canonical_facts[key]
             # Add compound facts (for example, add provider_type if provider_id is present)
-            if compound_fact := COMPOUND_ID_FACTS_MAP.get(key):
-                immutable_facts[compound_fact] = canonical_facts[compound_fact]
+            if compound_fact := COMPOUND_ID_FACTS_MAP.get(key):  # noqa: SIM102
+                if compound_fact_value := canonical_facts.get(compound_fact):
+                    immutable_facts[compound_fact] = compound_fact_value
         else:
             id_facts[key] = canonical_facts[key]
 
@@ -145,8 +146,9 @@ def find_existing_host(
         target_facts = dict(immutable_facts, **{target_key: target_value})
 
         # Ensure both components of compound facts are collected.
-        if compound_fact := COMPOUND_ID_FACTS_MAP.get(target_key):
-            target_facts[compound_fact] = canonical_facts[compound_fact]
+        if compound_fact := COMPOUND_ID_FACTS_MAP.get(target_key):  # noqa: SIM102
+            if compound_fact_value := canonical_facts.get(compound_fact):
+                immutable_facts[compound_fact] = compound_fact_value
 
         existing_host = _find_host_by_multiple_facts_in_db_or_in_memory(identity, target_facts, from_hosts)
         if existing_host:

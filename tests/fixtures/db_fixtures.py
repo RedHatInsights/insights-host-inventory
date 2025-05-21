@@ -150,8 +150,13 @@ def db_create_host(flask_app: FlaskApp) -> Callable[..., Host]:  # noqa: ARG001
 
 
 @pytest.fixture(scope="function")
-def db_create_multiple_hosts(flask_app):  # noqa: ARG001
-    def _db_create_multiple_hosts(identity=SYSTEM_IDENTITY, hosts=None, how_many=10, extra_data=None):
+def db_create_multiple_hosts(flask_app: FlaskApp) -> Callable[..., list[Host]]:  # noqa: ARG001
+    def _db_create_multiple_hosts(
+        identity: dict[str, Any] = SYSTEM_IDENTITY,
+        hosts: list[Host] | None = None,
+        how_many: int = 10,
+        extra_data: dict[str, Any] | None = None,
+    ) -> list[Host]:
         extra_data = extra_data or {}
         created_hosts = []
         if isinstance(hosts, list):

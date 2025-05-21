@@ -430,8 +430,6 @@ def test_patch_ungrouped_name_is_denied(db_create_group, db_get_group_by_id, api
     orig_modified_on = group.modified_on
     patch_doc = {"name": "modified_group"}
 
-    mocker.patch("lib.host_repository.get_flag_value", return_value=True)
-
     # Try to edit name of ungrouped group
     response_status, _ = api_patch_group(group_id, patch_doc)
     assert_response_status(response_status, 400)
