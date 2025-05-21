@@ -25,7 +25,7 @@ from kessel.inventory.v1beta2 import (
 )
 from google.protobuf import struct_pb2
 
-def before_flush(session: Session, flush_context):
+def after_flush(session: Session, flush_context):
     if "kessel_items" not in session.info:
         session.info["kessel_items"] = {
             "upsert": {},
@@ -79,7 +79,7 @@ class Kessel:
 
             resource_ref = resource_reference_pb2.ResourceReference(
                 resource_type="principal",
-                resource_id=current_identity.user, #Need to get to a principal reference - also, there's no id in the test authorization header provided
+                resource_id=f"redhat/{current_identity.user['user_id']}", #Platform/IdP/whatever 'redhat' is, probably needs to be parameterized
                 reporter=reporter_reference_pb2.ReporterReference(
                     type="rbac"
                 ),
@@ -98,7 +98,7 @@ class Kessel:
             workspaces = list()
             stream = self.inventory_svc.StreamedListObjects(request)
             for workspace in stream:
-                workspaces.append(workspace)
+                workspaces.append(workspace.object.resource_id)
 
             return workspaces
 
@@ -155,7 +155,7 @@ def init_kessel(config: Config, app):
     kessel_client = Kessel(config)
     app.extensions["Kessel"] = kessel_client
 
-    event.listen(Session, "after_flush", before_flush)
+    event.listen(Session, "after_flush", after_flush)
     event.listen(Session, "before_commit", before_commit)
 
 def get_kessel_client(app) -> Kessel:
