@@ -104,6 +104,26 @@ def mq_create_four_specific_hosts(mq_create_three_specific_hosts, mq_create_or_u
 
 
 @pytest.fixture(scope="function")
+def mq_create_edge_host(mq_create_or_update_host):
+    host = base_host(
+        insights_id=generate_uuid(),
+        subscription_manager_id=generate_uuid(),
+        display_name="host-edge",
+        fqdn="host-edge.domain.test",
+        facts=FACTS,
+        tags=TAGS[0],
+        system_profile={
+            "arch": "x86_64",
+            "insights_client_version": "3.0.1-2.el4_2",
+            "host_type": "edge",
+            "sap": {"sap_system": True, "sids": ["ABC", "DEF"]},
+        },
+    )
+
+    return mq_create_or_update_host(host)
+
+
+@pytest.fixture(scope="function")
 def mq_create_hosts_in_all_states(mq_create_or_update_host):
     staleness_timestamps = get_staleness_timestamps()
     created_hosts = {}
