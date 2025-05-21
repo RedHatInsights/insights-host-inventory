@@ -15,6 +15,15 @@ PRODUCER_ACKS = {"0": 0, "1": 1, "all": "all"}
 HOST_TYPES = ["edge", None]
 ALL_STALENESS_STATES = ["fresh", "stale", "stale_warning"]
 
+# NOTE: The order of this tuple is important. The order defines the priority.
+ID_FACTS = ("provider_id", "subscription_manager_id", "insights_id")
+# This elevated fact is to be used when the USE_SUBMAN_ID env is True
+ID_FACTS_USE_SUBMAN_ID = ("subscription_manager_id",)
+
+COMPOUND_ID_FACTS_MAP = {"provider_id": "provider_type"}
+COMPOUND_ID_FACTS = tuple(COMPOUND_ID_FACTS_MAP.values())
+IMMUTABLE_ID_FACTS = ("provider_id",)
+
 
 class Config:
     SSL_VERIFY_FULL = "verify-full"

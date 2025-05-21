@@ -2,10 +2,10 @@ import pytest
 from pytest import mark
 
 from app.auth.identity import Identity
+from app.config import IMMUTABLE_ID_FACTS
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.models import ProviderType
-from lib.host_repository import IMMUTABLE_CANONICAL_FACTS
 from lib.host_repository import find_existing_host
 from tests.helpers.db_utils import assert_host_exists_in_db
 from tests.helpers.db_utils import assert_host_missing_from_db
@@ -153,7 +153,7 @@ def test_high_prio_change_low_prio_match(mq_create_or_update_host, high_prio_cha
     wrapper = base_host(**base_canonical_facts)
     second_host = mq_create_or_update_host(wrapper)
 
-    if high_prio_change in IMMUTABLE_CANONICAL_FACTS:
+    if high_prio_change in IMMUTABLE_ID_FACTS:
         # When an immutable fact is different, then it should never match.
         assert first_host.id != second_host.id
     else:
@@ -205,7 +205,7 @@ def test_elevated_id_priority_order_nomatch(db_create_host, changing_id):
     created_host = db_create_host(host=minimal_db_host(canonical_facts=created_host_canonical_facts))
 
     assert_host_exists_in_db(created_host.id, created_host_canonical_facts)
-    if changing_id in IMMUTABLE_CANONICAL_FACTS:
+    if changing_id in IMMUTABLE_ID_FACTS:
         # When an immutable fact is different, then it should never match.
         assert_host_missing_from_db(search_canonical_facts)
     else:
