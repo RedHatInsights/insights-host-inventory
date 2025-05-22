@@ -13,10 +13,10 @@ from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Group
 from app.models import Host
+from app.models import HostGroupAssoc
 from app.queue.event_producer import EventProducer
 from jobs.common import excepthook
 from jobs.common import job_setup
-from lib.db import session_guard
 from lib.group_repository import add_hosts_to_group
 
 PROMETHEUS_JOB = "inventory-assign-ungrouped-groups"
@@ -32,7 +32,6 @@ def run(logger: Logger, session: Session, event_producer: EventProducer, applica
         # Using "org_id," (with comma) because the query returns tuples
         org_id_list = [org_id for (org_id,) in session.query(Host.org_id).distinct()]
         for org_id in org_id_list:
-            org_id = org_id_list.pop(0)
             logger.info(f"Processing org_id: {org_id}")
 
             # Find the org's "ungrouped" group and store its ID
@@ -47,15 +46,15 @@ def run(logger: Logger, session: Session, event_producer: EventProducer, applica
             # Assign all ungrouped hosts to this new Group in batches
             while True:
                 # Grab the first batch of ungrouped hosts in the org.
-                # We don't need offset() because Host.groups is populated during add_hosts_to_group().
-                with session_guard(session):
-                    host_ids = (
-                        session.query(Host.id).filter(Host.org_id == org_id, Host.groups == []).limit(BATCH_SIZE).all()
-                    )
-                    if not host_ids:
-                        break
-                    # host_ids is a list of tuples, so extract the ids
-                    host_id_list = [str(host_id) for (host_id,) in host_ids]
+                # We don't need offset() because Host are assigned to Groups in add_hosts_to_group().
+                host_ids = (
+                    session.query(Host.id)
+                    .outerjoin(HostGroupAssoc, Host.id == HostGroupAssoc.host_id)
+                    .filter(Host.org_id == org_id, HostGroupAssoc.host_id.is_(None))
+                    .limit(BATCH_SIZE)
+                    .all()
+                )
+                if host_id_list := [str(host_id) for (host_id,) in host_ids]:
                     add_hosts_to_group(
                         ungrouped_group_id,
                         host_id_list,
@@ -63,6 +62,8 @@ def run(logger: Logger, session: Session, event_producer: EventProducer, applica
                         event_producer,
                         session,
                     )
+                else:
+                    break
 
 
 if __name__ == "__main__":
