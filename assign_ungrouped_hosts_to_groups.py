@@ -21,7 +21,7 @@ from lib.group_repository import add_hosts_to_group
 PROMETHEUS_JOB = "inventory-assign-ungrouped-groups"
 LOGGER_NAME = "assign_ungrouped_groups"
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
-BATCH_SIZE = int(os.getenv("ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE", 50))
+BATCH_SIZE = int(os.getenv("ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE", 10))
 
 
 def run(logger: Logger, session: Session, event_producer: EventProducer, application: FlaskApp):
