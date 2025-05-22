@@ -30,7 +30,9 @@ def run(logger: Logger, session: Session, event_producer: EventProducer, applica
         threadctx.request_id = None
         # For each org_id in the Hosts table
         # Using "org_id," (with comma) because the query returns tuples
-        for (org_id,) in session.query(Host.org_id).distinct():
+        org_id_list = [org_id for (org_id,) in session.query(Host.org_id).distinct()]
+        while org_id_list:
+            org_id = org_id_list.pop(0)
             logger.info(f"Processing org_id: {org_id}")
 
             # Find the org's "ungrouped" group and store its ID

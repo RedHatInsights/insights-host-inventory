@@ -47,7 +47,9 @@ from lib.middleware import rbac_create_ungrouped_hosts_workspace
 logger = get_logger(__name__)
 
 
-def _update_hosts_for_group_changes(host_id_list: list[str], group_id_list: list[str], identity: Identity):
+def _update_hosts_for_group_changes(
+    host_id_list: list[str], group_id_list: list[str], identity: Identity, session: Session = db.session
+):
     if group_id_list is None:
         group_id_list = []
 
@@ -58,7 +60,7 @@ def _update_hosts_for_group_changes(host_id_list: list[str], group_id_list: list
 
     # Update groups data on each host record
     Host.query.filter(Host.id.in_(host_id_list)).update({"groups": serialized_groups}, synchronize_session="fetch")
-    db.session.commit()
+    session.commit()
     host_list = get_host_list_by_id_list_from_db(host_id_list, identity)
     return serialized_groups, host_list
 
@@ -142,7 +144,7 @@ def validate_add_host_list_to_group(host_id_list: list[str], group_id: str, org_
         )
 
 
-def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str):
+def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str, session: Session = db.session):
     # First, validate that the hosts can even be added to the group
     validate_add_host_list_to_group(host_id_list, group_id, org_id)
 
@@ -162,7 +164,7 @@ def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str):
         for host_id in host_id_list
         if host_id not in ids_already_in_this_group
     ]
-    db.session.add_all(host_group_assoc)
+    session.add_all(host_group_assoc)
 
     _update_group_update_time(group_id, org_id)
 
@@ -200,11 +202,11 @@ def add_hosts_to_group(
 ):
     staleness = get_staleness_obj(identity.org_id)
     with session_guard(session):
-        _add_hosts_to_group(group_id, host_id_list, identity.org_id)
+        _add_hosts_to_group(group_id, host_id_list, identity.org_id, session)
 
     # Produce update messages once the DB session has been closed
     serialized_groups, host_list = _update_hosts_for_group_changes(
-        host_id_list, group_id_list=[group_id], identity=identity
+        host_id_list, group_id_list=[group_id], identity=identity, session=session
     )
     _produce_host_update_events(event_producer, serialized_groups, host_list, identity, staleness=staleness)
     _invalidate_system_cache(host_list, identity)
