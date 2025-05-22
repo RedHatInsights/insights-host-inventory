@@ -392,8 +392,8 @@ def _remove_hosts_from_group(group_id, host_id_list, org_id):
     return removed_host_ids
 
 
-def get_group_by_id_from_db(group_id: str, org_id: str, session: Session = db.session) -> Group:
-    query = session.query(Group).filter(Group.org_id == org_id, Group.id == group_id)
+def get_group_by_id_from_db(group_id: str, org_id: str) -> Group:
+    query = Group.query.filter(Group.org_id == org_id, Group.id == group_id)
     return query.one_or_none()
 
 
@@ -445,7 +445,7 @@ def patch_group(group: Group, patch_data: dict, identity: Identity, event_produc
 
 
 def _update_group_update_time(group_id: str, org_id: str, session: Session = db.session):
-    group = get_group_by_id_from_db(group_id, org_id, session)
+    group = get_group_by_id_from_db(group_id, org_id)
     group.update_modified_on()
     session.add(group)
     session.flush()
