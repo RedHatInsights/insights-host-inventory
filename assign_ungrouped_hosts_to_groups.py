@@ -31,7 +31,7 @@ def run(logger: Logger, session: Session, event_producer: EventProducer, applica
         # For each org_id in the Hosts table
         # Using "org_id," (with comma) because the query returns tuples
         org_id_list = [org_id for (org_id,) in session.query(Host.org_id).distinct()]
-        while org_id_list:
+        for org_id in org_id_list:
             org_id = org_id_list.pop(0)
             logger.info(f"Processing org_id: {org_id}")
 

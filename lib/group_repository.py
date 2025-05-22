@@ -117,9 +117,11 @@ def validate_add_host_list_to_group_for_group_create(host_id_list: list[str], gr
         )
 
 
-def validate_add_host_list_to_group(host_id_list: list[str], group_id: str, org_id: str):
+def validate_add_host_list_to_group(
+    host_id_list: list[str], group_id: str, org_id: str, session: Session = db.session
+):
     # Check if the hosts exist in Inventory and have correct org_id
-    host_query = Host.query.filter((Host.org_id == org_id) & Host.id.in_(host_id_list)).all()
+    host_query = session.query(Host).filter((Host.org_id == org_id) & Host.id.in_(host_id_list)).all()
     found_ids_set = {str(host.id) for host in host_query}
     if found_ids_set != set(host_id_list):
         nonexistent_hosts = set(host_id_list) - found_ids_set
@@ -130,7 +132,8 @@ def validate_add_host_list_to_group(host_id_list: list[str], group_id: str, org_
 
     # Check if the hosts are already associated with another (ungrouped) group
     if assoc_query := (
-        HostGroupAssoc.query.join(Group)
+        session.query(HostGroupAssoc)
+        .join(Group)
         .filter(
             HostGroupAssoc.host_id.in_(host_id_list), HostGroupAssoc.group_id != group_id, Group.ungrouped.is_(False)
         )
@@ -146,7 +149,7 @@ def validate_add_host_list_to_group(host_id_list: list[str], group_id: str, org_
 
 def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str, session: Session = db.session):
     # First, validate that the hosts can even be added to the group
-    validate_add_host_list_to_group(host_id_list, group_id, org_id)
+    validate_add_host_list_to_group(host_id_list, group_id, org_id, session)
 
     # Filter out hosts that are already in the group
     assoc_query = HostGroupAssoc.query.filter(
@@ -441,11 +444,11 @@ def patch_group(group: Group, patch_data: dict, identity: Identity, event_produc
         _invalidate_system_cache(host_list, identity)
 
 
-def _update_group_update_time(group_id: str, org_id: str):
+def _update_group_update_time(group_id: str, org_id: str, session: Session = db.session):
     group = get_group_by_id_from_db(group_id, org_id)
     group.update_modified_on()
-    db.session.add(group)
-    db.session.flush()
+    session.add(group)
+    session.flush()
 
 
 def get_group_using_host_id(host_id: str, org_id: str):
