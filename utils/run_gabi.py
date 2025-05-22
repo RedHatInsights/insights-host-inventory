@@ -31,6 +31,7 @@ Arguments:
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 
@@ -51,7 +52,8 @@ def get_oc_token():
 def get_oc_server():
     """Retrieve the OpenShift server URL using `oc whoami --show-server`."""
     try:
-        return subprocess.check_output(["oc", "whoami", "--show-server"], text=True).strip()
+        regex = r":[^:]*$"
+        return re.sub(regex, "", subprocess.check_output(["oc", "whoami", "--show-server"], text=True).strip())
     except subprocess.CalledProcessError:
         print("Failed to retrieve server URL using `oc whoami --show-server`. Please provide the --url argument.")
         sys.exit(1)
