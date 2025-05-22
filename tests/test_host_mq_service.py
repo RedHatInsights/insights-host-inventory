@@ -1,14 +1,19 @@
+from __future__ import annotations
+
 import json
 import logging
 from copy import deepcopy
 from datetime import datetime
 from datetime import timedelta
 from types import SimpleNamespace
+from typing import Callable
 from unittest import mock
 from unittest.mock import patch
 
 import marshmallow
 import pytest
+from connexion import FlaskApp
+from pytest_mock import MockerFixture
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.exc import StaleDataError
@@ -18,6 +23,8 @@ from app.auth.identity import create_mock_identity_with_org_id
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import threadctx
+from app.models import Host
+from app.queue.event_producer import EventProducer
 from app.queue.events import EventType
 from app.queue.host_mq import IngressMessageConsumer
 from app.queue.host_mq import SystemProfileMessageConsumer
@@ -27,6 +34,7 @@ from app.queue.host_mq import write_add_update_event_message
 from app.utils import Tag
 from lib.host_repository import AddHostResult
 from tests.helpers.db_utils import create_reference_host_in_db
+from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.mq_utils import FakeMessage
 from tests.helpers.mq_utils import assert_mq_host_data
 from tests.helpers.mq_utils import expected_headers
@@ -40,6 +48,7 @@ from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import YUM_REPO2
 from tests.helpers.test_utils import base_host
+from tests.helpers.test_utils import generate_random_string
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import get_encoded_idstr
 from tests.helpers.test_utils import get_platform_metadata
@@ -1957,6 +1966,151 @@ def test_batch_mq_add_host_operations(mocker, event_producer, flask_app):
     # - Once after all messages have been produced
     # - Once after it tries to consume more messages but gets an empty array
     assert write_batch_patch.call_count == 3
+
+
+def test_batch_mq_do_dedup_within_batch(
+    mocker: MockerFixture,
+    event_producer: EventProducer,
+    flask_app: FlaskApp,
+    db_get_hosts_by_subman_id: Callable[[str], list[Host]],
+):
+    """This test sends 2 kafka payloads for the same host in the same MQ batch and checks that
+    HBI applies dedup logic for messages within the same batch and doesn't create duplicates.
+    """
+    subman_id = generate_uuid()
+    host1 = minimal_host(
+        subscription_manager_id=subman_id,
+        fqdn=generate_random_string(),
+    ).data()
+    host2 = minimal_host(
+        subscription_manager_id=subman_id,
+        satellite_id=generate_uuid(),
+    ).data()
+
+    msgs = [json.dumps(wrap_message(host, "add_host", get_platform_metadata())) for host in (host1, host2)]
+
+    # Patch batch settings in inventory_config()
+    mocker.patch(
+        "app.queue.host_mq.inventory_config",
+        return_value=SimpleNamespace(
+            mq_db_batch_max_messages=2,
+            mq_db_batch_max_seconds=1,
+            culling_stale_warning_offset_delta=1,
+            culling_culled_offset_delta=1,
+        ),
+    )
+
+    fake_consumer = mocker.Mock(**{"consume.side_effect": [[FakeMessage(message=msg) for msg in msgs]]})
+
+    consumer = IngressMessageConsumer(fake_consumer, flask_app, event_producer, mocker.Mock())
+    consumer.event_loop(mocker.Mock(side_effect=(False, True)))
+
+    # Check that only 1 host was created and it contains data from both messages
+    db_hosts = db_get_hosts_by_subman_id(subman_id)
+    assert len(db_hosts) == 1
+    assert db_hosts[0].canonical_facts["fqdn"] == host1["fqdn"]
+    assert db_hosts[0].canonical_facts["satellite_id"] == host2["satellite_id"]
+
+
+def test_batch_mq_two_different_hosts(
+    mocker: MockerFixture,
+    event_producer: EventProducer,
+    flask_app: FlaskApp,
+    db_get_hosts_by_display_name: Callable[[str], list[Host]],
+):
+    """This test sends 2 kafka payloads for different hosts in one MQ batch and checks that
+    2 different hosts are created.
+    """
+    display_name = generate_random_string()
+    host1 = minimal_host(
+        subscription_manager_id=generate_uuid(),
+        display_name=display_name,
+    ).data()
+    host2 = minimal_host(
+        subscription_manager_id=generate_uuid(),
+        display_name=display_name,
+    ).data()
+
+    msgs = [json.dumps(wrap_message(host, "add_host", get_platform_metadata())) for host in (host1, host2)]
+
+    # Patch batch settings in inventory_config()
+    mocker.patch(
+        "app.queue.host_mq.inventory_config",
+        return_value=SimpleNamespace(
+            mq_db_batch_max_messages=2,
+            mq_db_batch_max_seconds=1,
+            culling_stale_warning_offset_delta=1,
+            culling_culled_offset_delta=1,
+        ),
+    )
+
+    fake_consumer = mocker.Mock(**{"consume.side_effect": [[FakeMessage(message=msg) for msg in msgs]]})
+
+    consumer = IngressMessageConsumer(fake_consumer, flask_app, event_producer, mocker.Mock())
+    consumer.event_loop(mocker.Mock(side_effect=(False, True)))
+
+    # Check that 2 different hosts have the same display_name
+    db_hosts = db_get_hosts_by_display_name(display_name)
+    assert len(db_hosts) == 2
+    assert db_hosts[0].id != db_hosts[1].id
+    assert (
+        db_hosts[0].canonical_facts["subscription_manager_id"]
+        != db_hosts[1].canonical_facts["subscription_manager_id"]
+    )
+
+
+def test_batch_mq_do_dedup_in_db(
+    mocker: MockerFixture,
+    event_producer: EventProducer,
+    flask_app: FlaskApp,
+    db_get_hosts_by_subman_id: Callable[[str], list[Host]],
+    db_get_hosts_by_display_name: Callable[[str], list[Host]],
+    db_create_host: Callable[..., Host],
+):
+    """This test sends 2 kafka payloads for different hosts in one MQ batch and checks that
+    HBI falls back to do dedup on hosts in the DB if it can't find the host in already processed
+    messages within the same batch.
+    """
+    subman_id = generate_uuid()
+    display_name = generate_random_string()
+    existing_host_data = minimal_db_host(
+        canonical_facts={"subscription_manager_id": subman_id, "fqdn": generate_random_string()},
+        display_name=display_name,
+    )
+    existing_host = db_create_host(host=existing_host_data)
+
+    msg_host1 = minimal_host(subscription_manager_id=generate_uuid(), display_name=display_name).data()
+    msg_host2 = minimal_host(
+        subscription_manager_id=subman_id, satellite_id=generate_uuid(), display_name=display_name
+    ).data()
+
+    msgs = [json.dumps(wrap_message(host, "add_host", get_platform_metadata())) for host in (msg_host1, msg_host2)]
+
+    # Patch batch settings in inventory_config()
+    mocker.patch(
+        "app.queue.host_mq.inventory_config",
+        return_value=SimpleNamespace(
+            mq_db_batch_max_messages=2,
+            mq_db_batch_max_seconds=1,
+            culling_stale_warning_offset_delta=1,
+            culling_culled_offset_delta=1,
+        ),
+    )
+
+    fake_consumer = mocker.Mock(**{"consume.side_effect": [[FakeMessage(message=msg) for msg in msgs]]})
+
+    consumer = IngressMessageConsumer(fake_consumer, flask_app, event_producer, mocker.Mock())
+    consumer.event_loop(mocker.Mock(side_effect=(False, True)))
+
+    # Check that 2 different hosts have the same display_name
+    db_hosts = db_get_hosts_by_display_name(display_name)
+    assert len(db_hosts) == 2
+
+    # Check that there is still only 1 host in DB with the same subman_id and it was properly updated
+    db_hosts = db_get_hosts_by_subman_id(subman_id)
+    assert len(db_hosts) == 1
+    assert db_hosts[0].canonical_facts["fqdn"] == existing_host.canonical_facts["fqdn"]
+    assert db_hosts[0].canonical_facts["satellite_id"] == msg_host2["satellite_id"]
 
 
 def test_batch_mq_header_request_id_updates(mocker, flask_app):
