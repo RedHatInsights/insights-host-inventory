@@ -16,12 +16,13 @@ from app.models import Host
 from app.queue.event_producer import EventProducer
 from jobs.common import excepthook
 from jobs.common import job_setup
+from lib.db import session_guard
 from lib.group_repository import add_hosts_to_group
 
 PROMETHEUS_JOB = "inventory-assign-ungrouped-groups"
 LOGGER_NAME = "assign_ungrouped_groups"
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
-BATCH_SIZE = int(os.getenv("ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE", 10))
+BATCH_SIZE = int(os.getenv("ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE", 25))
 
 
 def run(logger: Logger, session: Session, event_producer: EventProducer, application: FlaskApp):
@@ -29,7 +30,9 @@ def run(logger: Logger, session: Session, event_producer: EventProducer, applica
         threadctx.request_id = None
         # For each org_id in the Hosts table
         # Using "org_id," (with comma) because the query returns tuples
-        for (org_id,) in session.query(Host.org_id).distinct():
+        org_id_list = [org_id for (org_id,) in session.query(Host.org_id).distinct()]
+        for org_id in org_id_list:
+            org_id = org_id_list.pop(0)
             logger.info(f"Processing org_id: {org_id}")
 
             # Find the org's "ungrouped" group and store its ID
@@ -45,16 +48,21 @@ def run(logger: Logger, session: Session, event_producer: EventProducer, applica
             while True:
                 # Grab the first batch of ungrouped hosts in the org.
                 # We don't need offset() because Host.groups is populated during add_hosts_to_group().
-                host_ids = (
-                    session.query(Host.id).filter(Host.org_id == org_id, Host.groups == []).limit(BATCH_SIZE).all()
-                )
-                if not host_ids:
-                    break
-                # host_ids is a list of tuples, so extract the ids
-                host_id_list = [str(host_id) for (host_id,) in host_ids]
-                add_hosts_to_group(
-                    ungrouped_group_id, host_id_list, create_mock_identity_with_org_id(org_id), event_producer
-                )
+                with session_guard(session):
+                    host_ids = (
+                        session.query(Host.id).filter(Host.org_id == org_id, Host.groups == []).limit(BATCH_SIZE).all()
+                    )
+                    if not host_ids:
+                        break
+                    # host_ids is a list of tuples, so extract the ids
+                    host_id_list = [str(host_id) for (host_id,) in host_ids]
+                    add_hosts_to_group(
+                        ungrouped_group_id,
+                        host_id_list,
+                        create_mock_identity_with_org_id(org_id),
+                        event_producer,
+                        session,
+                    )
 
 
 if __name__ == "__main__":
