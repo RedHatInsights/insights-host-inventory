@@ -191,9 +191,15 @@ def wait_for_workspace_creation(workspace_id: str, timeout: int = 5):
     raise TimeoutError("No workspace creation message consumed in time.")
 
 
-def add_hosts_to_group(group_id: str, host_id_list: list[str], identity: Identity, event_producer: EventProducer):
+def add_hosts_to_group(
+    group_id: str,
+    host_id_list: list[str],
+    identity: Identity,
+    event_producer: EventProducer,
+    session: Session = db.session,
+):
     staleness = get_staleness_obj(identity.org_id)
-    with session_guard(db.session):
+    with session_guard(session):
         _add_hosts_to_group(group_id, host_id_list, identity.org_id)
 
     # Produce update messages once the DB session has been closed

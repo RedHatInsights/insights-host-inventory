@@ -16,6 +16,7 @@ from app.models import Host
 from app.queue.event_producer import EventProducer
 from jobs.common import excepthook
 from jobs.common import job_setup
+from lib.db import session_guard
 from lib.group_repository import add_hosts_to_group
 
 PROMETHEUS_JOB = "inventory-assign-ungrouped-groups"
@@ -45,16 +46,21 @@ def run(logger: Logger, session: Session, event_producer: EventProducer, applica
             while True:
                 # Grab the first batch of ungrouped hosts in the org.
                 # We don't need offset() because Host.groups is populated during add_hosts_to_group().
-                host_ids = (
-                    session.query(Host.id).filter(Host.org_id == org_id, Host.groups == []).limit(BATCH_SIZE).all()
-                )
-                if not host_ids:
-                    break
-                # host_ids is a list of tuples, so extract the ids
-                host_id_list = [str(host_id) for (host_id,) in host_ids]
-                add_hosts_to_group(
-                    ungrouped_group_id, host_id_list, create_mock_identity_with_org_id(org_id), event_producer
-                )
+                with session_guard(session):
+                    host_ids = (
+                        session.query(Host.id).filter(Host.org_id == org_id, Host.groups == []).limit(BATCH_SIZE).all()
+                    )
+                    if not host_ids:
+                        break
+                    # host_ids is a list of tuples, so extract the ids
+                    host_id_list = [str(host_id) for (host_id,) in host_ids]
+                    add_hosts_to_group(
+                        ungrouped_group_id,
+                        host_id_list,
+                        create_mock_identity_with_org_id(org_id),
+                        event_producer,
+                        session,
+                    )
 
 
 if __name__ == "__main__":
