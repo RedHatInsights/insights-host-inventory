@@ -37,24 +37,24 @@ services:
         - OPEN_API_FILE_PATH=/var/tmp/openapi.json
         - OPEN_API_PRIVATE_PATH=/var/tmp/private.json
         - KAFKA_BROKERS=kafka:29092
-        - PSKS=testing-a-psk
         - AWS_ACCESS_KEY=minio
         - AWS_SECRET_ACCESS_KEY=minioadmin
-        - FAFKA_ANNOUNCE_TOPIC=platform.export.requests
         - PUBLIC_PORT=8001
         - METRICS_PORT=9090
         - MINIO_PORT=9099
         - MINIO_HOST=minio
         - PRIVATE_PORT=10010
+        - EXPORT_PSKS=testing-a-psk
+        - EXPORT_ENABLE_APPS={"urn:redhat:application:inventory":["urn:redhat:application:inventory:export:systems"]}
       depends_on:
         db:
           condition: service_healthy
       volumes:
         - './.export-service:/.export-service'
       ports:
-        - 8001:8001
-        - 9090:9090
-        - 10010:10010
+        - "8001:8001"
+        - "9090:9090"
+        - "10010:10010"
       command: >
         /bin/sh -c "export-service migrate_db upgrade;
         export-service api_server;
@@ -70,9 +70,10 @@ services:
     kafka:
       container_name: kafka
       image: docker.io/confluentinc/cp-kafka
+      restart: always
       ports:
-        - 29092:29092
-        - 9092:9092
+        - "29092:29092"
+        - "9092:9092"
       depends_on:
         - zookeeper
       environment:
@@ -100,7 +101,7 @@ services:
         - IMPORT_DROP_BEFORE_IMPORT=true
         - LOG_LEVEL=INFO
       ports:
-        - 4242:4242
+        - "4242:4242"
       volumes:
         - './.unleash:/.unleash'
       depends_on:
@@ -111,14 +112,14 @@ services:
       container_name: prometheus_gateway
       image: quay.io/prometheus/pushgateway
       ports:
-        - 9091:9091
+        - "9091:9091"
 
     minio:
       container_name: minio
       image: docker.io/minio/minio
       ports:
-        - 9099:9099
-        - 9991:9991
+        - "9099:9099"
+        - "9991:9991"
       volumes:
         - ./tmp/minio:/data:Z
       environment:
