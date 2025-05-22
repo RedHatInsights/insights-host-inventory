@@ -28,6 +28,16 @@ objects:
   metadata:
     labels:
       app: host-inventory
+    name: assign-ungrouped-hosts-${ASSIGN_UNGROUPED_HOSTS_RUN_NUMBER}
+  spec:
+    appName: host-inventory
+    jobs:
+      - assign-ungrouped-host-groups
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    labels:
+      app: host-inventory
     name: export-group-data-s3-${GROUP_S3_EXPORT_RUN_NUMBER}
   spec:
     appName: host-inventory
@@ -37,6 +47,8 @@ parameters:
 - name: SYNCHRONIZER_RUN_NUMBER
   value: '1'
 - name: CREATE_UNGROUPED_GROUPS_RUN_NUMBER
+  value: '1'
+- name: ASSIGN_UNGROUPED_HOSTS_RUN_NUMBER
   value: '1'
 - name: GROUP_S3_EXPORT_RUN_NUMBER
   value: '1'
