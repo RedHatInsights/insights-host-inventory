@@ -169,7 +169,7 @@ def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str, ses
     ]
     session.add_all(host_group_assoc)
 
-    _update_group_update_time(group_id, org_id)
+    _update_group_update_time(group_id, org_id, session)
 
     log_host_group_add_succeeded(logger, host_id_list, group_id)
 
