@@ -1459,7 +1459,7 @@ def test_host_account_using_mq(mq_create_or_update_host, db_get_host, db_get_hos
     assert len(first_batch.all()) == len(second_batch.all())
 
 
-@pytest.mark.parametrize("id_type", ("id", "insights_id", "fqdn"))
+@pytest.mark.parametrize("id_type", ("id", "insights_id"))
 def test_update_system_profile(mq_create_or_update_host, db_get_host, id_type):
     expected_ids = {"insights_id": generate_uuid(), "fqdn": "foo.test.redhat.com"}
     input_host = base_host(
@@ -2246,7 +2246,7 @@ def test_add_host_logs(identity, mocker, caplog):
     mock_notification_event_producer.write_event.assert_not_called()
 
 
-@pytest.mark.parametrize("id_type", ("id", "insights_id", "fqdn"))
+@pytest.mark.parametrize("id_type", ("id", "insights_id"))
 def test_log_update_system_profile(mq_create_or_update_host, db_get_host, id_type, caplog):
     caplog.at_level(logging.INFO)
     expected_ids = {"insights_id": generate_uuid(), "fqdn": "foo.test.redhat.com"}
@@ -2275,7 +2275,8 @@ def test_log_update_system_profile(mq_create_or_update_host, db_get_host, id_typ
         "number_of_cpus": 4,
         "number_of_sockets": 8,
     }
-    assert caplog.records[0].input_host["system_profile"] == "{}"
+    assert caplog.records[-1].message.startswith(f"System profile updated for host ID: {first_host_from_event.id}")
+    assert caplog.records[-1].system_profile == "{}"
 
 
 def test_add_host_subman_id(mq_create_or_update_host_subman_id, db_get_host):

@@ -420,8 +420,6 @@ def test_delete_hosts_from_diff_groups_post_kessel_migration(
 
     ungrouped_group_id = str(db_create_group("ungrouped", ungrouped=True).id)
 
-    mocker.patch("lib.host_repository.get_flag_value", return_value=True)
-
     hosts_to_delete = [str(group1.hosts[0].id), str(group2.hosts[0].id), str(group3.hosts[0].id)]
     response_status, _ = api_remove_hosts_from_diff_groups(hosts_to_delete)
 
