@@ -14,10 +14,10 @@ logger = get_logger(__name__)
 def get_staleness_obj(org_id: str, session: Session = db.session) -> AttrDict:
     try:
         staleness = session.query(Staleness).filter(Staleness.org_id == org_id).one()
-        logger.info("Using custom account staleness")
+        logger.info(f"Using custom staleness for org {org_id}.")
         staleness = build_serialized_acc_staleness_obj(staleness)
     except NoResultFound:
-        logger.debug(f"No staleness data found for org {org_id}, using system default values")
+        logger.debug(f"No custom staleness data found for org {org_id}, using system default values instead.")
         staleness = build_staleness_sys_default(org_id)
         return staleness
 
