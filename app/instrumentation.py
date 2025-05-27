@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 from logging import Logger
 
@@ -79,7 +81,7 @@ def message_not_produced(logger, error, topic, event, key, headers, message=None
         event_producer_failure.labels(event_type=dict(headers)["event_type"].decode("utf-8"), topic=topic).inc()
 
 
-def get_control_rule():
+def get_control_rule() -> str:
     if hasattr(g, "access_control_rule"):
         return g.access_control_rule
     else:
@@ -87,7 +89,7 @@ def get_control_rule():
 
 
 # delete host
-def log_host_delete_succeeded(logger, host_id, control_rule, sp_fields_to_log):
+def log_host_delete_succeeded(logger: Logger, host_id: str, control_rule: str | None, sp_fields_to_log: dict) -> None:
     logger.info(
         "Deleted host: %s",
         host_id,
