@@ -1036,6 +1036,8 @@ objects:
             value: ${INVENTORY_DB_SSL_CERT}
           - name: KAFKA_BOOTSTRAP_SERVERS
             value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: KESSEL_TARGET_URL
+            value: ${KESSEL_TARGET_URL}
           - name: PAYLOAD_TRACKER_KAFKA_TOPIC
             value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
           - name: PAYLOAD_TRACKER_SERVICE_NAME
@@ -1120,6 +1122,8 @@ objects:
             value: ${INVENTORY_DB_SSL_CERT}
           - name: KAFKA_BOOTSTRAP_SERVERS
             value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: KESSEL_TARGET_URL
+            value: ${KESSEL_TARGET_URL}
           - name: PROMETHEUS_PUSHGATEWAY
             value: ${PROMETHEUS_PUSHGATEWAY}
           - name: KAFKA_EVENT_TOPIC
@@ -1226,6 +1230,8 @@ objects:
             value: ${INVENTORY_DB_SSL_CERT}
           - name: KAFKA_BOOTSTRAP_SERVERS
             value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: KESSEL_TARGET_URL
+            value: ${KESSEL_TARGET_URL}
           - name: PAYLOAD_TRACKER_KAFKA_TOPIC
             value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
           - name: PAYLOAD_TRACKER_SERVICE_NAME
@@ -1359,6 +1365,8 @@ objects:
             value: ${KAFKA_EVENT_TOPIC}
           - name: KAFKA_NOTIFICATION_TOPIC
             value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: KESSEL_TARGET_URL
+            value: ${KESSEL_TARGET_URL}
           - name: PAYLOAD_TRACKER_KAFKA_TOPIC
             value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
           - name: PAYLOAD_TRACKER_SERVICE_NAME
@@ -1538,6 +1546,8 @@ objects:
             value: "${INVENTORY_DB_SCHEMA}"
           - name: KAFKA_BOOTSTRAP_SERVERS
             value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: KESSEL_TARGET_URL
+            value: ${KESSEL_TARGET_URL}
           - name: KAFKA_EVENT_TOPIC
             value: ${KAFKA_EVENT_TOPIC}
           - name: KAFKA_NOTIFICATION_TOPIC
@@ -1655,6 +1665,8 @@ objects:
             value: ${KAFKA_EVENT_TOPIC}
           - name: KAFKA_NOTIFICATION_TOPIC
             value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: KESSEL_TARGET_URL
+            value: ${KESSEL_TARGET_URL}
           - name: PAYLOAD_TRACKER_KAFKA_TOPIC
             value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
           - name: PAYLOAD_TRACKER_SERVICE_NAME
@@ -2386,6 +2398,8 @@ parameters:
   value: 'localhost'
 - name: KAFKA_BOOTSTRAP_PORT
   value: '29092'
+- name: KESSEL_TARGET_URL
+  value: 'localhost:20000'
 - name: INVENTORY_DB_SSL_CERT
   value: ''
 - name: PENDO_SYNCHER_SUSPEND
