@@ -2298,7 +2298,7 @@ parameters:
   value: 'false'
 - name: BYPASS_KESSEL_JOBS
   description: Whether to bypass Kessel-related jobs, even when triggered via CJI
-  value: 'true'
+  value: 'false'
 - name: ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE
   description: The batch size to use for the assign-ungrouped-hosts script.
   value: '10'
