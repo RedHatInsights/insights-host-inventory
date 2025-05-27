@@ -203,7 +203,7 @@ def add_hosts_to_group(
     event_producer: EventProducer,
     session: Session = db.session,
 ):
-    staleness = get_staleness_obj(identity.org_id)
+    staleness = get_staleness_obj(identity.org_id, session)
     with session_guard(session):
         _add_hosts_to_group(group_id, host_id_list, identity.org_id, session)
 
