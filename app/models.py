@@ -104,7 +104,7 @@ def _get_staleness_obj(org_id):
         logger.info("Using custom account staleness")
         staleness = build_serialized_acc_staleness_obj(staleness)
     except NoResultFound:
-        logger.debug(f"No data found for user {org_id}, using system default values")
+        logger.debug(f"No staleness data found for org {org_id}, using system default values for model")
         staleness = build_staleness_sys_default(org_id)
         return staleness
 
