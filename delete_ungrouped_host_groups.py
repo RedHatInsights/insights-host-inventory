@@ -42,5 +42,9 @@ if __name__ == "__main__":
     job_type = "Delete ungrouped host groups"
     sys.excepthook = partial(excepthook, logger, job_type)
 
-    _, session, event_producer, _, _, application = job_setup((), PROMETHEUS_JOB)
-    run(logger, session, event_producer, application)
+    config, session, event_producer, _, _, application = job_setup((), PROMETHEUS_JOB)
+    if config.bypass_kessel_jobs:
+        logger.info("bypass_kessel_jobs was set to True; exiting.")
+        sys.exit(0)
+    else:
+        run(logger, session, event_producer, application)
