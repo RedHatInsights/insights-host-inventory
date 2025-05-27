@@ -65,6 +65,8 @@ def run(logger: Logger, session: Session, event_producer: EventProducer, applica
                 else:
                     break
 
+            session.expunge_all()
+
 
 if __name__ == "__main__":
     logger = get_logger(LOGGER_NAME)
