@@ -1409,6 +1409,8 @@ objects:
             value: ${BYPASS_UNLEASH}
           - name: UNLEASH_REFRESH_INTERVAL
             value: ${UNLEASH_REFRESH_INTERVAL}
+          - name: BYPASS_KESSEL_JOBS
+            value: ${BYPASS_KESSEL_JOBS}
         resources:
           limits:
             cpu: ${CPU_LIMIT_UNGROUPED_HOSTS_JOB}
@@ -1472,6 +1474,8 @@ objects:
             value: ${BYPASS_UNLEASH}
           - name: UNLEASH_REFRESH_INTERVAL
             value: ${UNLEASH_REFRESH_INTERVAL}
+          - name: BYPASS_KESSEL_JOBS
+            value: ${BYPASS_KESSEL_JOBS}
         resources:
           limits:
             cpu: ${CPU_LIMIT_UNGROUPED_HOSTS_JOB}
@@ -1516,6 +1520,8 @@ objects:
               secretKeyRef:
                 name: ${S3_AWS_SECRET}
                 key: bucket
+          - name: BYPASS_KESSEL_JOBS
+            value: ${BYPASS_KESSEL_JOBS}
         resources:
           limits:
             cpu: ${CPU_LIMIT_GROUPS_S3_EXPORT}
@@ -1579,6 +1585,10 @@ objects:
             value: ${BYPASS_UNLEASH}
           - name: UNLEASH_REFRESH_INTERVAL
             value: ${UNLEASH_REFRESH_INTERVAL}
+          - name: BYPASS_KESSEL_JOBS
+            value: ${BYPASS_KESSEL_JOBS}
+          - name: ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE
+            value: ${ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_UNGROUPED_HOSTS_JOB}
@@ -2286,6 +2296,12 @@ parameters:
 - name: RBAC_V2_FORCE_ORG_ADMIN
   description: Whether to force User Identities to use is_org_admin=True for RBAC v2 calls
   value: 'false'
+- name: BYPASS_KESSEL_JOBS
+  description: Whether to bypass Kessel-related jobs, even when triggered via CJI
+  value: 'false'
+- name: ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE
+  description: The batch size to use for the assign-ungrouped-hosts script.
+  value: '10'
 
 # NGINX
 - displayName: Minimum replicas
