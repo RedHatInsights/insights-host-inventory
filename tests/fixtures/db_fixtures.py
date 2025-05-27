@@ -7,6 +7,7 @@ from typing import Callable
 
 import pytest
 from connexion import FlaskApp
+from sqlalchemy.orm import Query
 from sqlalchemy_utils import create_database
 from sqlalchemy_utils import database_exists
 from sqlalchemy_utils import drop_database
@@ -64,8 +65,8 @@ def db_get_host(flask_app):  # noqa: ARG001
 
 
 @pytest.fixture(scope="function")
-def db_get_hosts(flask_app):  # noqa: ARG001
-    def _db_get_hosts(host_ids):
+def db_get_hosts(flask_app: FlaskApp) -> Callable[[list[str]], Query]:  # noqa: ARG001
+    def _db_get_hosts(host_ids: list[str]) -> Query:
         return Host.query.filter(Host.id.in_(host_ids))
 
     return _db_get_hosts
