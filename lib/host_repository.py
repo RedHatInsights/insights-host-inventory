@@ -131,9 +131,8 @@ def find_existing_host(
     immutable_facts, id_facts = _extract_immutable_and_id_facts(canonical_facts)
 
     # First search based on immutable id facts.
-    if immutable_facts:
-        existing_host = _find_host_by_multiple_facts_in_db_or_in_memory(identity, immutable_facts, from_hosts)
-        if existing_host:
+    if immutable_facts:  # noqa: SIM102
+        if existing_host := _find_host_by_multiple_facts_in_db_or_in_memory(identity, immutable_facts, from_hosts):
             return existing_host
 
     if not id_facts:
@@ -148,10 +147,9 @@ def find_existing_host(
         # Ensure both components of compound facts are collected.
         if compound_fact := COMPOUND_ID_FACTS_MAP.get(target_key):  # noqa: SIM102
             if compound_fact_value := canonical_facts.get(compound_fact):
-                immutable_facts[compound_fact] = compound_fact_value
+                target_facts[compound_fact] = compound_fact_value
 
-        existing_host = _find_host_by_multiple_facts_in_db_or_in_memory(identity, target_facts, from_hosts)
-        if existing_host:
+        if existing_host := _find_host_by_multiple_facts_in_db_or_in_memory(identity, target_facts, from_hosts):
             return existing_host
 
     return None

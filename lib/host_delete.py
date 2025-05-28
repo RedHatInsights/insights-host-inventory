@@ -75,6 +75,7 @@ def delete_hosts(
     control_rule: str | None = None,
     initiated_by_frontend: bool = False,
 ) -> Generator[OperationResult]:
+    """This function will yield nothing if no hosts are found."""
     while select_query.count():
         if kafka_available():
             with session_guard(select_query.session):

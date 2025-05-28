@@ -130,7 +130,7 @@ def base_host(**values):
 # It should be used in test cases where specific canonical facts are not needed.
 def minimal_host(**values) -> HostWrapper:
     host_wrapper = HostWrapper(_base_host_data(**values))
-    if not any(id_fact in values for id_fact in ID_FACTS):
+    if all(id_fact not in values for id_fact in ID_FACTS):
         host_wrapper.subscription_manager_id = generate_uuid()
     return host_wrapper
 

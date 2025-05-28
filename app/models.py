@@ -352,7 +352,7 @@ class Host(LimitedHost):
         if not canonical_facts:
             raise ValidationException("At least one of the canonical fact fields must be present.")
 
-        if not any(id_fact in canonical_facts for id_fact in ID_FACTS):
+        if all(id_fact not in canonical_facts for id_fact in ID_FACTS):
             raise ValidationException(f"At least one of the ID fact fields must be present: {ID_FACTS}")
 
         if current_app.config["USE_SUBMAN_ID"] and "subscription_manager_id" in canonical_facts:

@@ -9,6 +9,7 @@ from app.models import db
 from delete_hosts_without_id_facts import run
 from jobs.common import init_config
 from lib.handlers import ShutdownHandler
+from tests.helpers.mq_utils import MockEventProducer
 from tests.helpers.test_utils import generate_uuid
 
 
@@ -17,6 +18,7 @@ def test_delete_hosts_without_id_facts_happy_path(
     db_create_host: Callable[..., Host],
     db_get_hosts: Callable[[list[str]], Query],
     mocker: MockerFixture,
+    event_producer_mock: MockEventProducer,
 ):
     host_with_provider_id = db_create_host(
         extra_data={"canonical_facts": {"provider_id": generate_uuid(), "provider_type": "aws"}}
@@ -55,12 +57,12 @@ def test_delete_hosts_without_id_facts_happy_path(
         config=init_config(),
         logger=mocker.Mock(),
         session=db.session,
-        event_producer=mocker.Mock(),
-        notifications_event_producer=mocker.Mock(),
+        event_producer=event_producer_mock,  # type: ignore[arg-type]
+        notifications_event_producer=event_producer_mock,  # type: ignore[arg-type]
         shutdown_handler=ShutdownHandler(),
         application=flask_app,
     )
 
     existing_hosts = db_get_hosts(list(all_host_ids)).all()
     assert len(existing_hosts) == 4
-    assert set(host.id for host in existing_hosts) == expected_host_ids
+    assert {host.id for host in existing_hosts} == expected_host_ids
