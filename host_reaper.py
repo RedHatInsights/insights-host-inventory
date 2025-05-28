@@ -95,6 +95,8 @@ def run(config, logger, session, event_producer, notification_event_producer, sh
         for host in rhsm_bridge_hosts_query.yield_per(config.host_delete_chunk_size):
             host._update_modified_date()
             host._update_last_check_in_date()
+            host._update_staleness_timestamps()
+            host._update_all_per_reporter_staleness()
 
         query = session.query(Host).filter(and_(or_(False, *filter_hosts_to_delete)))
         hosts_processed = config.host_delete_chunk_size
