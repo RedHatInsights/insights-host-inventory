@@ -121,6 +121,8 @@ objects:
           value: 'true'
         - name: BYPASS_RBAC
           value: ${BYPASS_RBAC}
+        - name: KESSEL_TARGET_URL
+          value: ${KESSEL_TARGET_URL}
         - name: KAFKA_PRODUCER_ACKS
           value: ${KAFKA_PRODUCER_ACKS}
         - name: KAFKA_PRODUCER_RETRIES
@@ -279,6 +281,8 @@ objects:
           value: 'true'
         - name: BYPASS_RBAC
           value: ${BYPASS_RBAC}
+        - name: KESSEL_TARGET_URL
+          value: ${KESSEL_TARGET_URL}
         - name: KAFKA_PRODUCER_ACKS
           value: ${KAFKA_PRODUCER_ACKS}
         - name: KAFKA_PRODUCER_RETRIES
@@ -435,6 +439,8 @@ objects:
           value: 'true'
         - name: BYPASS_RBAC
           value: ${BYPASS_RBAC}
+        - name: KESSEL_TARGET_URL
+          value: ${KESSEL_TARGET_URL}
         - name: KAFKA_PRODUCER_ACKS
           value: ${KAFKA_PRODUCER_ACKS}
         - name: KAFKA_PRODUCER_RETRIES
@@ -560,6 +566,8 @@ objects:
           value: inventory-mq-service
         - name: PAYLOAD_TRACKER_ENABLED
           value: 'true'
+        - name: KESSEL_TARGET_URL
+          value: ${KESSEL_TARGET_URL}
         - name: KAFKA_PRODUCER_ACKS
           value: ${KAFKA_PRODUCER_ACKS}
         - name: KAFKA_PRODUCER_RETRIES
@@ -667,6 +675,8 @@ objects:
           value: inventory-mq-service
         - name: PAYLOAD_TRACKER_ENABLED
           value: 'true'
+        - name: KESSEL_TARGET_URL
+          value: ${KESSEL_TARGET_URL}
         - name: KAFKA_PRODUCER_ACKS
           value: ${KAFKA_PRODUCER_ACKS}
         - name: KAFKA_PRODUCER_RETRIES
@@ -755,6 +765,8 @@ objects:
           value: ${INVENTORY_DB_SSL_MODE}
         - name: INVENTORY_DB_SSL_CERT
           value: ${INVENTORY_DB_SSL_CERT}
+        - name: KESSEL_TARGET_URL
+          value: ${KESSEL_TARGET_URL}
         - name: KAFKA_CONSUMER_TOPIC
           value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
         - name: KAFKA_HOST_INGRESS_TOPIC
