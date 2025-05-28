@@ -7,6 +7,7 @@ Create Date: 2025-05-28 16:45:43.718142
 """
 
 from alembic import op
+from sqlalchemy import text
 
 # revision identifiers, used by Alembic.
 revision = "a359eca4a491"
@@ -29,7 +30,7 @@ def downgrade():
     op.create_index(
         "idx_groups_org_id_name_nocase",
         "groups",
-        ["name".lower(), "org_id"],
+        [text("lower(name)"), "org_id"],
         postgresql_concurrently=True,
         if_not_exists=True,
         schema="hbi",

@@ -248,6 +248,7 @@ def add_group_with_hosts(
     with session_guard(db.session):
         # Create group
         created_group = add_group(group_name, identity.org_id, account, group_id, ungrouped)
+
         created_group_id = created_group.id
         # Add hosts to group
         if host_id_list:
