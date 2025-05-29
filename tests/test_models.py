@@ -8,7 +8,6 @@ from unittest.mock import patch
 import pytest
 from marshmallow import ValidationError as MarshmallowValidationError
 from sqlalchemy.exc import DataError
-from sqlalchemy.exc import IntegrityError
 
 from api.host_query import staleness_timestamps
 from app.exceptions import ValidationException
@@ -1223,11 +1222,11 @@ def test_create_group_existing_name_diff_org(db_create_group, db_get_group_by_id
 
 
 def test_create_group_existing_name_same_org(db_create_group):
-    # Make sure we can't create two groups with the same name in the same org
+    # Now group name uniquess is enforced by RBAC and NOT by the DB
     group_name = "TestGroup"
     db_create_group(group_name)
-    with pytest.raises(IntegrityError):
-        db_create_group(group_name)
+
+    assert db_create_group(group_name)
 
 
 def test_add_delete_host_group_happy(

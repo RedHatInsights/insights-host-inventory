@@ -30,7 +30,7 @@ from app.instrumentation import log_patch_group_failed
 from app.instrumentation import log_patch_group_success
 from app.logging import get_logger
 from app.models import InputGroupSchema
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
 from lib.feature_flags import get_flag_value
 from lib.group_repository import add_hosts_to_group
 from lib.group_repository import create_group_from_payload
@@ -98,7 +98,7 @@ def create_group(body, rbac_filter=None):
 
     try:
         # Create group with validated data
-        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
+        if get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1):
             group_name = validated_create_group_data.get("name")
             # Before waiting for workspace creation in RBAC, check that the name isn't already in use
             if does_group_with_name_exist(group_name, get_current_identity().org_id):
@@ -181,7 +181,7 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
         abort(HTTPStatus.NOT_FOUND)
 
     try:
-        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
+        if get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1):
             # Update group on Kessel
             new_group_name = validated_patch_group_data.get("name")
 
@@ -212,7 +212,7 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
 def delete_groups(group_id_list, rbac_filter=None):
     rbac_group_id_check(rbac_filter, set(group_id_list))
 
-    if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
+    if get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1):
         # Write is not allowed for the ungrouped through API requests
         ungrouped_group = get_ungrouped_group(get_current_identity())
         ungrouped_group_id = str(ungrouped_group.id) if ungrouped_group else None
