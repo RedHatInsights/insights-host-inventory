@@ -277,7 +277,7 @@ def rbac(resource_type: RbacResourceType, required_permission: RbacPermission, p
             request_headers = _build_rbac_request_headers()
             allowed = None
             rbac_filter = None
-            if get_flag_value(FLAG_INVENTORY_KESSEL_HOST_MIGRATION):
+            if get_flag_value(FLAG_INVENTORY_KESSEL_HOST_MIGRATION) and resource_type not in [RbacResourceType.GROUPS]: # Workspace permissions aren't part of HBI in V2, fallback to rbac for now
                 kessel_client = get_kessel_client(current_app)
                 allowed, rbac_filter = get_kessel_filter(kessel_client, current_identity, permission_base, resource_type, required_permission)
             else:
