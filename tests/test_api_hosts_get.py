@@ -1318,7 +1318,7 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
             "?hostname_or_id=1*m",
             [
                 {"display_name": "HkqL12lmIW"},
-                {"canonical_facts": {"fqdn": "HkqL1m2lIW"}},
+                {"canonical_facts": {"fqdn": "HkqL1m2lIW", "subscription_manager_id": generate_uuid()}},
             ],
         ),
     ),
@@ -1330,7 +1330,7 @@ def test_query_host_fuzzy_match(db_create_host, api_get, query_filter_param, mat
     # Create host with differing SP
     nomatch_host_facts = [
         {"display_name": "masdf1"},
-        {"canonical_facts": {"fqdn": "masdf1"}},
+        {"canonical_facts": {"fqdn": "masdf1", "subscription_manager_id": generate_uuid()}},
     ]
     nomatch_host_id_list = [str(db_create_host(extra_data=host_fact).id) for host_fact in nomatch_host_facts]
 

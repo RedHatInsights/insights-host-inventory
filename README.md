@@ -1,49 +1,96 @@
-# Host Based Inventory
+# Host Based Inventory (HBI)
 
 You've arrived at the repo for the backend of the Host Based Inventory (HBI).
-If you're looking for API, integration or user documentation for HBI please see the [Inventory section in our Platform Docs site](https://consoledot.pages.redhat.com/docs/dev/services/inventory.html).
+If you're looking for API, integration or user documentation for HBI
+please see
+the [Inventory section in our Platform Docs site](https://consoledot.pages.redhat.com/docs/dev/services/inventory.html).
 
-## Getting Started
+## Table of contents
 
-### pg_config
+- [Getting started](#getting-started)
+    - [Prerequisites](#prerequisites)
+    - [Environment setup](#environment-setup)
+        - [PostgreSQL configuration](#postgresql-configuration)
+        - [Environment variables](#environment-variables)
+        - [Create virtual environment](#create-virtual-environment)
+        - [Create database data directory](#create-database-data-directory)
+        - [Start dependent services](#start-dependent-services)
+    - [Run database migrations](#run-database-migrations)
+    - [Run the service](#run-the-service)
+    - [Testing](#testing)
+- [Running the webserver locally](#running-the-webserver-locally)
+- [Running all services locally](#running-all-services-locally)
+- [Legacy Support](#legacy-support)
+- [Identity](#identity)
+    - [API requests](#api-requests)
+    - [Kafka messages](#kafka-messages)
+    - [Identity enforcement](#identity-enforcement)
+- [Payload Tracker integration](#payload-tracker-integration)
+- [Database migrations](#database-migrations)
+- [Schema dumps (for replication subscribers)](#schema-dumps-for-replication-subscribers)
+- [Docker builds](#docker-builds)
+- [Metrics](#metrics)
+- [Release process](#release-process)
+    - [Pull request](#1-pull-request)
+    - [Latest image and smoke tests](#2-latest-image-and-smoke-tests)
+    - [QE Testing in stage environment](#3-qe-testing-in-the-stage-environment)
+    - [Promoting to production](#4-promoting-the-image-to-the-production-environment)
+    - [Monitoring of deployment](#5-monitoring-of-deployment)
+- [Rollback process](#rollback-process)
+- [Updating the System Profile](#updating-the-system-profile)
+- [Logging System Profile fields](#logging-system-profile-fields)
+- [Running ad hoc jobs using a different image](#running-ad-hoc-jobs-using-a-different-image)
+- [Debugging local code with services deployed into Kubernetes namespaces](#debugging-local-code-with-services-deployed-into-kubernetes-namespaces)
+- [Contributing](#contributing)
 
-Local development also requires the `pg_config` file, which is installed with the postgres developer library. To install this, use the command appropriate to your system:
+## Getting started
 
-#### Fedora/Centos
+### Prerequisites
+
+Before starting, ensure you have the following installed on your system:
+
+- **Docker**: For running containers and services.
+- **Python 3.9.x**: The recommended version for this project.
+- **pipenv**: For managing Python dependencies.
+
+### Environment setup
+
+#### PostgreSQL configuration
+
+Local development also requires the `pg_config` file, which is installed with the postgres developer library.
+To install this, use the command appropriate for your system:
+
+##### Fedora/Centos
 
 ```bash
 sudo dnf install libpq-devel postgresql
 ```
 
-#### Debian/Ubuntu
+##### Debian/Ubuntu
 
 ```bash
 sudo apt-get install libpq-dev postgresql
 ```
 
-#### MacOS (using Homebrew)
+##### MacOS (using Homebrew)
 
 ```bash
 brew install postgresql@16
 ```
 
-### Configure the environment variables
+#### Environment variables
 
-To run *HBI* locally, first you will have to create an `.env` file with the following content.
-
-*Warning*: This will overwrite an existing `.env` file if there is one at the root directory of your `git` repository.
+Create a `.env` file in your project root with the following content. Replace placeholders with
+appropriate values for your environment.
 
 ```bash
 cat > ${PWD}/.env<<EOF
-# RUNNNING HBI Locally
+# RUNNING HBI Locally
 PROMETHEUS_MULTIPROC_DIR=/tmp
-
 BYPASS_RBAC="true"
 BYPASS_UNLEASH="true"
-
-# If you want to use the legacy prefix, otherwise don't set PATH_PREFIX
+# Optional legacy prefix configuration
 # PATH_PREFIX="/r/insights/platform"
-
 APP_NAME="inventory"
 INVENTORY_DB_USER="insights"
 INVENTORY_DB_PASS="insights"
@@ -56,128 +103,106 @@ INVENTORY_DB_SSL_CERT=""
 UNLEASH_TOKEN='*:*.dbffffc83b1f92eeaf133a7eb878d4c58231acc159b5e1478ce53cfc'
 UNLEASH_CACHE_DIR=./.unleash
 UNLEASH_URL="http://localhost:4242/api"
-
-# for export service
+# Kafka Export Service Configuration
 KAFKA_EXPORT_SERVICE_TOPIC="platform.export.requests"
 EOF
 ```
 
-Make all the appropriate changes as needed, and source it.
+After creating the file, source it to set the environment variables:
 
 ```bash
 source .env
 ```
 
-To force an ssl connection to the db set `INVENTORY_DB_SSL_MODE` to `"verify-full"`
-and provide the path to the certificate you'd like to use.
+### Create virtual environment
 
-### Create database data directory
-Provide a local directory for holding the database data for persistence. e.g.
-```bash
-mkdir ~/.pg_data
-```
-If using a different directory, then update the directory path in `volumes` under `db` in dev.yml > services > db > volumes.
-
-### Install dependencies
-
-This project uses `pipenv` to manage the development and deployment environments.
-To set the project up for development, we recommend using [pyenv](https://github.com/pyenv/pyenv) to
-install/manage the appropriate `Python` (currently `3.9.x`), `pip` and `pipenv` version.
-Once you have `pipenv`, do the following:
+1. **Install dependencies**:
 
 ```bash
 pipenv install --dev
 ```
 
-Afterwards you can activate the virtual environment by running:
+2. **Activate virtual environment**:
 
 ```bash
 pipenv shell
 ```
 
-Included is a docker-compose file `dev.yml` that will start a postgres database that is
-useful for development.
+### Create database data directory
+
+Provide a local directory for database persistence:
 
 ```bash
-docker compose -f dev.yml up
+mkdir ~/.pg_data
 ```
 
-### Initialize the database
+If using a different directory, update the `volumes` section in [dev.yml](dev.yml).
 
-Run the following commands to run the db migration scripts which will
-maintain the db tables.
+### Start dependent services
 
-The database migration scripts determine the DB location, username,
-password and db name from the `INVENTORY_DB_HOST`, `INVENTORY_DB_USER`,
-`INVENTORY_DB_PASS` and `INVENTORY_DB_NAME` environment variables present in
-the `.env` file.
+All dependent services are managed by Docker Compose and are listed in the [dev.yml](dev.yml) file.
+Start them with the following command:
+
+```bash
+docker compose -f dev.yml up -d
+```
+
+By default, the database container will use a bit of local storage so that data you enter will persist across multiple
+starts of the container.
+If you want to destroy that data do the following:
+
+```bash
+docker compose -f dev.yml down
+```
+
+### Run database migrations
 
 ```bash
 make upgrade_db
 ```
 
-By default the database container will use a bit of local storage so that data
-you enter will persist across multiple starts of the container. If you
-want to destroy that data do the following:
+### Run the service
+
+1. **Run the MQ Service**:
 
 ```bash
-docker compose -f dev.yml down
-```
-After running this command, delete the data directory specified in the [create host data directory](#create-database-data-directory) section to ensure the existing data removal.
-### Create hosts data in the Database
-
-First, start the `mq` service by running the following command in a new terminal:
-
-```bash
-pipenv shell
-# You will probably need to add a new host line in the /etc/hosts file for kafka service
-sudo echo "127.0.0.1   kafka" >> /etc/hosts
-# Run the MQ service for the Inventory
 make run_inv_mq_service
 ```
 
-Open a new terminal, and run the following commands to create some hosts:
+- Note: You may need to add a host entry for Kafka:
 
 ```bash
-pipenv shell
+echo "127.0.0.1   kafka" | sudo tee -a /etc/hosts
+```
+
+2. **Create Hosts Data**:
+
+```bash
 make run_inv_mq_service_test_producer NUM_HOSTS=800
 ```
 
-By default, if you don't pass `NUM_HOSTS` as parameter, it will create only one host in the database.
+- By default, it creates one host if `NUM_HOSTS` is not specified.
 
-In the terminal running the `mq` service, you should see all the events passing and the hosts creation logs.
-
-## Creating Export Service Events
-
-To be able to play with the export service, you have to follow the previous steps above:
-
-1. Running the containers (See *Initiate the database* section above)
-2. And creating some hosts (See *Create hosts data in the Database* section above)
-
-### Run the export service event loop
-
-In one terminal, run the following command:
+3. **Run the Export Service**:
 
 ```bash
 pipenv shell
 make run_inv_export_service
 ```
 
-In one other terminal, generate event towards the export service with the following command:
+In another terminal, generate events for the export service with:
 
 ```bash
 make sample-request-create-export
 ```
 
-By default, it will send a json format request. However, you can choose the format you want, as below:
+By default, it will send a json format request. To modify the data format, use:
 
 ```bash
 make sample-request-create-export format=[json|csv]
 ```
 
-To modify the data sent to the export service, take a look at the `example_[json|csv]_export_request.json`
-
-## Running the Tests
+### Testing
 
 You can run the tests using pytest:
 
@@ -185,61 +210,28 @@ You can run the tests using pytest:
 pytest --cov=.
 ```
 
-Or you can run the tests individually:
+Or run individual tests:
 
 ```bash
-./test_api.py
-pytest test_db_model.py
-./test_unit.py
-pytest test_json_validators.py
+# To run all tests in a specific file:
+pytest tests/test_api_auth.py
+# To run a specific test
+pytest tests/test_api_auth.py::test_validate_valid_identity
 ```
 
-Depending on the environment, it might be necessary to set the DB related environment
-variables (`INVENTORY_DB_NAME`, `INVENTORY_DB_HOST`, etc).
+- Note: Ensure DB-related environment variables are set before running tests.
 
-## Sonar Integration
+## Running the webserver locally
 
-This project uses SonarQube to perform static code analysis, monitor test coverage, and find potential issues in the Host Inventory codebase.
-The analysis is run automatically for each PR by the ["host-inventory pr security scan" Jenkins job](https://ci.int.devshift.net/job/RedHatInsights-insights-host-inventory-pr-check/).
-The results are uploaded to RedHat's SonarQube server, on the [console.redhat.com:insights-host-inventory project](https://sonarqube.corp.redhat.com/dashboard?id=console.redhat.com%3Ainsights-host-inventory).
-
-## Contributing
-
-This repository uses [pre-commit](https://pre-commit.com) to check and enforce code style.
-Look at `.pre-commit-config.yaml` to check which linters are used.
-
-Install pre-commit hooks to your local repository by running:
-
-```bash
-pre-commit install
-```
-
-After that, all your commited files will be linted. If the checks don’t succeed, the commit will be
-rejected, but the altered files from the linting will be ready for you to commit again if the issue
-was automatically correctable.
-
-If you're inside the Red Hat network, please also make sure you have rh-pre-commit installed;
-instructions on installation can be found [here](https://url.corp.redhat.com/rh-pre-commit#quickstart-install).
-Then, verify the installation by following the
-[Testing the Installation](https://url.corp.redhat.com/rh-pre-commit#testing-the-installation) section.
-If you follow the instructions for Quickstart Install, and then re-enable running hooks in
-the repo's `.pre-commit-config.yaml`
-(instructions in the [Manual Install section](https://url.corp.redhat.com/rh-pre-commit#manual-install)),
-both hooks should run upon making a commit.
-
-Please make sure all checks pass before submitting a pull request. Thanks!
-
-## Running the server locally
-
-Prometheus was designed to run in a multi-threaded
-environment whereas gunicorn uses a multi-process
-architecture.  As a result, there is some work
+Prometheus was designed to run in a multithreaded
+environment whereas gunicorn uses a multiprocess
+architecture. As a result, there is some work
 to be done to make prometheus integrate with
 gunicorn.
 
 A temp directory for prometheus needs to be created
-before the server starts.  The PROMETHEUS_MULTIPROC_DIR
-environment needs to point to this directory.  The
+before the server starts. The PROMETHEUS_MULTIPROC_DIR
+environment needs to point to this directory. The
 contents of this directory need to be removed between
 runs.
 
@@ -258,27 +250,51 @@ python3 run_gunicorn.py
 
 ## Running all services locally
 
-Honcho provides a command to run MQ and web services at once:
+Use Honcho to run MQ and web services at once:
 
 ```bash
 honcho start
 ```
 
+## Legacy support
+
+Some apps still need to use the legacy API path, which by default is `/r/insights/platform/inventory/v1/`.
+In case legacy apps require this prefix to be changed, it can be modified using this environment variable:
+
+```bash
+export INVENTORY_LEGACY_API_URL="/r/insights/platform/inventory/api/v1"
+```
+
 ## Identity
 
-It is necessary to provide a valid Identity both when testing the API, and when producing messages via Kafka.
-For Kafka messages, the Identity must be set in the `platform_metadata.b64_identity` field of the message.
-When testing the API, it must be provided in the authentication header `x-rh-identity` on each call to the service.
-For testing purposes, this required identity header can be set to the following:
+### API Requests
+
+When testing the API, set the identity header in curl:
 
 ```curl
 x-rh-identity: eyJpZGVudGl0eSI6eyJvcmdfaWQiOiJ0ZXN0IiwidHlwZSI6IlVzZXIiLCJhdXRoX3R5cGUiOiJiYXNpYy1hdXRoIiwidXNlciI6eyJ1c2VybmFtZSI6InR1c2VyQHJlZGhhdC5jb20iLCJlbWFpbCI6InR1c2VyQHJlZGhhdC5jb20iLCJmaXJzdF9uYW1lIjoidGVzdCIsImxhc3RfbmFtZSI6InVzZXIiLCJpc19hY3RpdmUiOnRydWUsImlzX29yZ19hZG1pbiI6ZmFsc2UsImlzX2ludGVybmFsIjp0cnVlLCJsb2NhbGUiOiJlbl9VUyJ9fX0=
 ```
 
-This is the Base64 encoding of the following JSON document:
+This is the Base64 encoding of:
 
 ```json
-{"identity":{"org_id":"test","type":"User","auth_type":"basic-auth","user":{"username":"tuser@redhat.com","email":"tuser@redhat.com","first_name":"test","last_name":"user","is_active":true,"is_org_admin":false,"is_internal":true,"locale":"en_US"}}}
+{
+  "identity": {
+    "org_id": "test",
+    "type": "User",
+    "auth_type": "basic-auth",
+    "user": {
+      "username": "tuser@redhat.com",
+      "email": "tuser@redhat.com",
+      "first_name": "test",
+      "last_name": "user",
+      "is_active": true,
+      "is_org_admin": false,
+      "is_internal": true,
+      "locale": "en_US"
+    }
+  }
+}
 ```
 
 The above header has the "User" identity type, but it's possible to use a "System" type header as well.
@@ -287,38 +303,42 @@ The above header has the "User" identity type, but it's possible to use a "Syste
 x-rh-identity: eyJpZGVudGl0eSI6eyJvcmdfaWQiOiAidGVzdCIsICJhdXRoX3R5cGUiOiAiY2VydC1hdXRoIiwgInN5c3RlbSI6IHsiY2VydF90eXBlIjogInN5c3RlbSIsICJjbiI6ICJwbHhpMTN5MS05OXV0LTNyZGYtYmMxMC04NG9wZjkwNGxmYWQifSwidHlwZSI6ICJTeXN0ZW0ifX0=
 ```
 
-This is the Base64 encoding of the following JSON document:
+This is the Base64 encoding of:
 
 ```json
-{"identity":{"org_id": "test", "auth_type": "cert-auth", "system": {"cert_type": "system", "cn": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"},"type": "System"}}
+{
+  "identity": {
+    "org_id": "test",
+    "auth_type": "cert-auth",
+    "system": {
+      "cert_type": "system",
+      "cn": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"
+    },
+    "type": "System"
+  }
+}
 ```
 
 If you want to encode other JSON documents, you can use the following command:
 
-```shell
+```bash
 echo -n '{"identity": {"org_id": "0000001", "type": "System"}}' | base64 -w0
 ```
 
+### Kafka Messages
+
+For Kafka messages, the Identity must be set in the `platform_metadata.b64_identity` field.
+
 ### Identity Enforcement
 
-The Identity provided limits access to specific hosts. For API requests, the user can only access
-Hosts which have the same Org ID as the provided Identity. For Host updates via Kafka messages,
-A Host can only be updated if not only the Org ID matches, but also the `Host.system_profile.owner_id`
-matches the provided `identity.system.cn` value.
+The Identity provided limits access to specific hosts.
+For API requests, the user can only access Hosts which have the same Org ID as the provided Identity.
+For Host updates via Kafka messages, A Host can only be updated if not only the Org ID matches,
+but also the `Host.system_profile.owner_id` matches the provided `identity.system.cn` value.
 
-## Using the legacy api
+## Payload Tracker integration
 
-Some apps still need to use the legacy API path, which by default is `/r/insights/platform/inventory/v1/`.
-In case legacy apps require this prefix to be changed, it can be modified using this environment variable:
-
-```bash
- export INVENTORY_LEGACY_API_URL="/r/insights/platform/inventory/api/v1"
-```
-
-## Payload Tracker Integration
-
-The inventory service has been integrated with the Payload Tracker service.  The payload
-tracker integration can be configured using the following environment variables:
+The inventory service integrates with the Payload Tracker service. Configure it using these environment variables:
 
 ```bash
 KAFKA_BOOTSTRAP_SERVERS=localhost:29092
@@ -327,76 +347,55 @@ PAYLOAD_TRACKER_SERVICE_NAME=inventory
 PAYLOAD_TRACKER_ENABLED=true
 ```
 
-The payload tracker can be disabled by setting the PAYLOAD_TRACKER_ENABLED environment
-variable to _false_. The payload tracker will also be disabled for add/delete operations
-that do not include a request_id.  When the payload tracker is disabled, a NullObject
-implementation (NullPayloadTracker) of the PayloadTracker interface is used.
-The NullPayloadTracker implements the PayloadTracker interface but the methods are _no-op_ methods.
+* **Enabled**: Set `PAYLOAD_TRACKER_ENABLED=false` to disable the tracker.
+* **Usage**: The tracker logs success or errors for each payload operation. For example, if a payload contains multiple
+  hosts and one fails, it's logged as a "processing_error" but doesn't mark the entire payload as failed.
 
-The PayloadTracker purposefully eats all exceptions that it generates. The exceptions are logged.
-A failure/exception within the PayloadTracker should not cause a request to fail.
+## Database Migrations
 
-The payload status is a bit "different" due to each "payload" potentially containing
-multiple hosts. For example, the add_host operation will only log an error for the
-payload if the entire payload fails (catastrophic failure during processing...db down, etc).
-One or more of the hosts could fail during the add_host method. These will get logged
-as a "processing_error". If a host is successfully added/updated, then it will be logged
-as a "processing_success". Having one or more hosts get logged as "processing_error"
-will not cause the payload to be flagged as "error" overall.
-
-The payload tracker status logging for the delete operation is similar. The overall status
-of the payload will only be logged as an "error" if the entire delete operation fails
-(a 404 due to the hosts not existing, db down, etc).
-
-## Generating a database migration script
-
-Run this command to generate a new revision in `migrations/versions`
+Generate new migration scripts with:
 
 ```bash
-make migrate_db message="Description of revision"
+make migrate_db message="Description of your changes"
 ```
 
-When creating a new migration before merging your pull request make sure you have created a migration for replicated tables. If the migration affects tables that are being replicated the migration must be performed on the replicated tables first. For details on creating and performing migrations against replicated tables read the following [document](app_migrations/README.md).
+* **Replicated Tables**: If your migration affects replicated tables, ensure you create and apply migrations for them
+  first. See [app_migrations/README.md](app_migrations/README.md) for details.
 
+## Schema Dumps (for replication subscribers)
 
-## Capturing the current HBI schema state for replicaiton subscribers
-When migrations are being made it makes sense to capture the HBI schema state for replication subscribers to simplify their procedure for onboarding or schema recreation. Run the following command to capture the updated schema state:
+Capture the current HBI schema state with:
 
 ```bash
 make gen_hbi_schema_dump
 ```
 
-This will create a SQL file in the `app_migrations` directory named `hbi_schema_<YYYY-MM-dd>.sql` by default and update a symbolic link for the file named `hbi_schema_latest.sql` as a simple mechanism for consumers to easily get the latest schema. Note you can change the suffix by setting the `SCHEMA_VERSION` variable when running the command instead of utilizing the default date mechanism.
+* Generates a SQL file in `app_migrations` named `hbi_schema_<YYYY-MM-dd>.sql`.
+* Creates a symbolic link `hbi_schema_latest.sql` pointing to the latest dump.
 
-## Building a docker container image
+_Note_: Use the optional `SCHEMA_VERSION` variable to customize the filename.
 
-A [Dockerfile](./dev.dockerfile) is provided for building local Docker containers.
-The container image built this way is only intended for development purposes (e.g. orchestrating the container using docker-compose) and must not be used for production deployment.
+## Docker Builds
 
-**Note** some of the packages require a subscription. Make sure the host building the image is attached to a valid subscription providing RHEL.
+Build local development containers with:
 
 ```bash
 docker build . -f dev.dockerfile -t inventory:dev
 ```
 
-By default, the container runs the database migrations and then starts the inventory-mq service.
+* **Note**: Some packages require a subscription. Ensure your host has access to valid RHEL content.
 
 ## Metrics
 
-The application provides some management information about itself. These
-endpoints are exposed at the root path _/_ and thus are accessible only
-from inside of the cluster.
+Prometheus integration provides monitoring endpoints:
 
-* _/health_ responds with _200_ to any GET requests; point your liveness
-  or readiness probe here.
-* _/metrics_ offers metrics and monitoring intended to be pulled by
-  [Prometheus](https://prometheus.io).
-* _/version_ responds with a json doc that contains the build version info
-  (the value of the OPENSHIFT_BUILD_COMMIT environment variable)
+- `/health`: Liveness probe endpoint.
+- `/metrics`: Prometheus metrics endpoint.
+- `/version`: Returns build version info.
 
-Cron jobs such as `reaper` and `sp-validator` push their metrics to a
-[Prometheus Pushgateway](https://github.com/prometheus/pushgateway/) instance
-running at _PROMETHEUS_PUSHGATEWAY_. Defaults to _localhost:9091_.
+Cron jobs (`reaper`, `sp-validator`) push metrics to
+a [Prometheus Pushgateway](https://github.com/prometheus/pushgateway/) at `PROMETHEUS_PUSHGATEWAY` (default:
+`localhost:9091`).
 
 ## Release process
 
@@ -406,64 +405,96 @@ This section describes the process of getting a code change from a pull request 
 
 It all starts with a [pull request](https://github.com/RedHatInsights/insights-host-inventory/pulls).
 When a new pull request is opened, some jobs are run automatically.
-These jobs are defined in app-interface [here](https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/data/services/insights/host-inventory/build.yml).
+These jobs are defined in
+app-interface [here](https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/data/services/insights/host-inventory/build.yml).
 
-* [host-inventory pr-checker](https://ci.ext.devshift.net/job/RedHatInsights-insights-host-inventory-pr-check) runs the following:
-  * [database migrations](#initialize-the-database)
-  * [code style checks](#contributing)
-  * unit tests
-* `ci.ext.devshift.net PR build - All tests` runs _all_ of the IQE tests on the PR's code.
-* [host-inventory build-master](https://ci.ext.devshift.net/job/RedHatInsights-insights-host-inventory-gh-build-master/) builds the container image, and pushes it to Quay, where it is scanned for vulnerabilities.
+* [host-inventory pr-checker](https://ci.ext.devshift.net/job/RedHatInsights-insights-host-inventory-pr-check) runs the
+  following:
+    * [database migrations](#database-migrations)
+    * [code style checks](#contributing)
+    * unit tests
+* `ci.ext.devshift.net PR build - All tests` runs _all_ the IQE tests on the PR's code.
+* [host-inventory build-master](https://ci.ext.devshift.net/job/RedHatInsights-insights-host-inventory-gh-build-master/)
+  builds the container image, and pushes it to Quay, where it is scanned for vulnerabilities.
 
 Should any of these fail this is indicated directly on the pull request.
 
-When all of these checks pass and a reviewer approves the changes the pull request can be merged by someone from the [@RedHatInsights/host-based-inventory-committers](https://github.com/orgs/RedHatInsights/teams/host-based-inventory-committers) team.
+When all of these checks pass and a reviewer approves the changes the pull request can be merged by someone from
+the [@RedHatInsights/host-based-inventory-committers](https://github.com/orgs/RedHatInsights/teams/host-based-inventory-committers)
+team.
 
 ### 2. Latest image and smoke tests
 
-When a pull request is merged to master, a new container image is built and tagged as [insights-inventory:latest](https://quay.io/repository/cloudservices/insights-inventory?tab=tags).
-This image is then automatically deployed to the [Stage environment](https://console-openshift-console.apps.crcs02ue1.urby.p1.openshiftapps.com/k8s/cluster/projects/host-inventory-stage).
+When a pull request is merged to master, a new container image is built and tagged
+as [insights-inventory:latest](https://quay.io/repository/cloudservices/insights-inventory?tab=tags).
+This image is then automatically deployed to
+the [Stage environment](https://console-openshift-console.apps.crcs02ue1.urby.p1.openshiftapps.com/k8s/cluster/projects/host-inventory-stage).
 
-### 3. QE testing in the Stage environment
+### 3. QE testing in the stage environment
 
 Once the image lands in the Stage environment, the QE testing can begin.
-People in [@platform-inventory-qe](https://app.slack.com/client/T026NJJ6Z/browse-user-groups/user_groups/S011SJB6S5R) run the full IQE test suite against Stage, and then report the results in the [#platform-inventory-standup channel](https://app.slack.com/client/T026NJJ6Z/CQFKM031T).
+People in [@team-inventory-dev](https://redhat.enterprise.slack.com/admin/user_groups/S04F8720GKG) run
+the full IQE test suite against Stage, and then report the results in
+the [#team-insights-inventory channel](https://app.slack.com/client/T026NJJ6Z/CQFKM031T).
 
 ### 4. Promoting the image to the production environment
 
-In order to promote a new image to the production environment, it is necessary to update the [deploy-clowder.yml](https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/data/services/insights/host-inventory/deploy-clowder.yml) file.
+In order to promote a new image to the production environment, it is necessary to update
+the [deploy-clowder.yml](https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/data/services/insights/host-inventory/deploy-clowder.yml)
+file.
 The `ref` parameter on the `prod-host-inventory-prod` namespace needs to be updated to the SHA of the validated image.
 
-Once the change has been made, submit a merge request to [app-interface](https://gitlab.cee.redhat.com/service/app-interface).
-For the CI pipeline to run tests on your fork, you'll need to add [@devtools-bot](https://gitlab.cee.redhat.com/devtools-bot) as a Maintainer.
-See this [guide](https://docs.gitlab.com/ee/user/project/members/share_project_with_groups.html#sharing-a-project-with-a-group-of-users) on how to do that.
+Once the change has been made, submit a merge request
+to [app-interface](https://gitlab.cee.redhat.com/service/app-interface).
+For the CI pipeline to run tests on your fork, you'll need to
+add [@devtools-bot](https://gitlab.cee.redhat.com/devtools-bot) as a Maintainer.
+See
+this [guide](https://docs.gitlab.com/ee/user/project/members/share_project_with_groups.html#sharing-a-project-with-a-group-of-users)
+on how to do that.
 
-After the MR has been opened, somebody from [AppSRE/insights-host-inventory](https://github.com/orgs/app-sre/teams/insights-host-inventory) will review and approve the MR by adding a `/lgtm` comment.
-Afterwards, the MR will be merged automatically and the changes will be deployed to the production environment.
+After the MR has been opened, somebody
+from `AppSRE/insights-host-inventory` will review and
+approve the MR by adding a `/lgtm` comment.
+Afterward, the MR will be merged automatically and the changes will be deployed to the production environment.
 The engineer who approved the MR is then **responsible for monitoring of the rollout of the new image**.
 
-Once that happens, contact [@platform-inventory-qe](https://app.slack.com/client/T026NJJ6Z/browse-user-groups/user_groups/S011SJB6S5R) and request the image to be re-tested in the production environment.
-The new image will also be tested automatically when the [Full Prod Check pipeline](https://main-jenkins-csb-insights-qe.apps.ocp-c1.prod.psi.redhat.com/job/inventory/job/prod-basic/) is run (twice daily).
+Once that happens,
+contact [@team-inventory-dev](https://redhat.enterprise.slack.com/admin/user_groups/S04F8720GKG) and
+request the image to be re-tested in the production environment.
+The new image will also be tested automatically when
+the [Full Prod Check pipeline](https://jenkins-csb-insights-qe-main.dno.corp.redhat.com/job/inventory/job/backend/job/-prod-basic/)
+is run (twice daily).
 
-### Monitoring of deployment
+### 5. Monitoring of deployment
 
 It is essential to monitor the health of the service during and after the production deployment.
 A non-exhaustive list of things to watch includes:
 
-* Deployments in the [host-inventory-prod OSD namespace](https://console-openshift-console.apps.crcp01ue1.o9m8.p1.openshiftapps.com/k8s/cluster/projects/host-inventory-prod)
-  * primarily ensure that the new pods are spun up properly
-* [#team-consoledot-inventory Slack channel](https://app.slack.com/client/T027F3GAJ/C01A49ZGQ05) for any inventory-related Prometheus alerts
-* [Inventory Dashboard](https://grafana.app-sre.devshift.net/d/EiIhtC0Wa/inventory?orgId=1&refresh=5m) for any anomalies such as error rate or consumer lag
-* [Kibana](https://kibana.apps.crcp01ue1.o9m8.p1.openshiftapps.com/app/kibana#/discover?_g=(filters:!(),refreshInterval:(pause:!t,value:0),time:(from:now-24h,to:now))&_a=(columns:!(_source),filters:!(),index:'43c5fed0-d5ce-11ea-b58c-a7c95afd7a5d',interval:auto,query:(language:lucene,query:'@log_group:%20%22host-inventory-prod%22%20AND%20levelname:%20ERROR'),sort:!(!('@timestamp',desc)))) for any error-level log entries
+- Monitor deployment in:
+    - OpenShift
+      namespace: [host-inventory-prod](https://console-openshift-console.apps.crcp01ue1.o9m8.p1.openshiftapps.com/k8s/cluster/projects/host-inventory-prod)
+        - primarily ensure that the new pods are spun up properly
+    - Slack channel: [Inventory Slack Channel](https://app.slack.com/client/T027F3GAJ/C01A49ZGQ05)
+        - for any inventory-related Prometheus alerts
+    - Grafana
+      dashboard: [Inventory Dashboard](https://grafana.app-sre.devshift.net/d/EiIhtC0Wa/inventory?orgId=1&refresh=5m)
+        - for any anomalies such as error rate or consumer lag
+    - Kibana
+      logs <a href="https://kibana.apps.crcp01ue1.o9m8.p1.openshiftapps.com/app/kibana#/discover?_g=(filters:!(),refreshInterval:(pause:!t,value:0),time:(from:now-24h,to:now))&a=(columns:!(_source),filters:!(),index:'43c5fed0-d5ce-11ea-b58c-a7c95afd7a5d',interval:auto,query:(language:lucene,query:'@log_group:%20%22host-inventory-prod%22%20AND%20levelname:%20ERROR'),sort:!(!('@timestamp',desc)))">
+      here</a>
+        - for any error-level log entries
 
-### Deployment rollback
+## Rollback process
 
-Should unexpected problems occur during the deployment, it is possible to do a rollback.
-This is done by updating the `ref` parameter in deploy-clowder.yml to point to the previous commit SHA, or by reverting the MR that triggered the production deployment.
+Should unexpected problems occur during the deployment,
+it is possible to do a rollback.
+This is done by updating the ref parameter in `deploy-clowder.yml` to point to the previous commit SHA,
+or by reverting the MR that triggered the production deployment.
 
 ## Updating the System Profile
 
-In order to add or update a field on the System Profile, first follow the instructions in the [inventory-schemas repo](https://github.com/RedHatInsights/inventory-schemas#contributing).
+In order to add or update a field on the System Profile, first follow the instructions in
+the [inventory-schemas repo](https://github.com/RedHatInsights/inventory-schemas#contributing).
 After an inventory-schemas PR has been accepted and merged, HBI must be updated to keep its own schema in sync.
 To do this, simply run this command:
 
@@ -474,21 +505,38 @@ make update-schema
 This will pull the latest version of the System Profile schema from inventory-schemas and update files as necessary.
 Open a PR with these changes, and it will be reviewed and merged as per [the standard process](#release-process).
 
-## Running ad hoc jobs using a different image
+## Logging System Profile Fields
 
-There may be a job (ClowdJobInvocation) which requires using a special image that is different from the one used by the parent application, i.e. host-inventory.  Clowder out-of-the-box does not allow it.  [Running a Special Job](docs/running_special_job.md) describes how to accomplish it.
-
-## Logging System Profile fields
-
-Use the environment variable `SP_FIELDS_TO_LOG` to log the System Profile fields of a host.
-These fields are logged when adding, updating or deleting a host from inventory. It is very helpful when debugging hosts in Kibana.
-
-Below is an example on how to use to use the environment variable:
+Use the environment variable SP_FIELDS_TO_LOG to log the System Profile fields of a host.
+These fields are logged when adding, updating or deleting a host from inventory.
 
 ```bash
-SP_FIELDS_TO_LOG = "cpu_model,disk_devices"
+SP_FIELDS_TO_LOG="cpu_model,disk_devices"
 ```
 
-### Debugging Local Code with Services Deployed into Kubernetes Namespaces
+This logging helps with debugging hosts in Kibana.
 
-Making local code work with the services running in Kubernetes requires some actions provided [here](docs/debug_local_code_targeting_ephemeral_namespace.md)
+## Running ad hoc jobs using a different image
+
+There may be a job `ClowdJobInvocation` which requires using a special image that is different
+from the one used by the parent application, i.e. host-inventory.
+Clowder out-of-the-box does not allow it.
+[Running a Special Job](docs/running_special_job.md) describes how to accomplish it.
+
+### Debugging local code with services deployed into Kubernetes namespaces
+
+Making local code work with the services running in Kubernetes requires some actions
+provided [here](docs/debug_local_code_targeting_ephemeral_namespace.md).
+
+## Contributing
+
+### Pre-commit Hooks
+
+The repository uses [pre-commit](https://pre-commit.com) to enforce code style. Install pre-commit hooks:
+
+```bash
+pre-commit install
+```
+
+If inside the Red Hat network, also ensure `rh-pre-commit` is installed as per
+instructions [here](https://url.corp.redhat.com/rh-pre-commit#quickstart-install).

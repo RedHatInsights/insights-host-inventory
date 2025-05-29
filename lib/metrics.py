@@ -4,10 +4,6 @@ from prometheus_client import Summary
 host_dedup_processing_time = Summary(
     "inventory_dedup_processing_seconds", "Time spent looking for existing host (dedup logic)"
 )
-find_host_using_elevated_ids = Summary(
-    "inventory_find_host_using_elevated_ids_processing_seconds",
-    "Time spent looking for existing host using the elevated ids",
-)
 find_host_by_facts_in_db = Summary(
     "inventory_find_host_by_facts_in_db_processing_seconds",
     "Time spent looking for existing host by canonical facts in db",

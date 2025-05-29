@@ -68,6 +68,7 @@ from tests.helpers.system_profile_utils import system_profile_specification
 from tests.helpers.test_utils import SERVICE_ACCOUNT_IDENTITY
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
+from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import now
 from tests.helpers.test_utils import set_environment
 
@@ -869,7 +870,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
         org_id = "some org_id"
         stale_timestamp = now()
         reporter = "puptoo"
-        canonical_facts = {"fqdn": "some fqdn"}
+        canonical_facts = {"subscription_manager_id": generate_uuid()}
 
         with self.subTest(schema=HostSchema):
             host = deserialize_host(
@@ -1037,7 +1038,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
                 "org_id": "3340851",
                 "stale_timestamp": now().isoformat(),
                 "reporter": "puptoo",
-                "fqdn": "some fqdn",
+                "subscription_manager_id": generate_uuid(),
                 "tags": tags,
             }
         )
@@ -1615,7 +1616,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                     }
                     host_init_data = {
                         "stale_timestamp": now(),
-                        "canonical_facts": {"fqdn": "some fqdn"},
+                        "canonical_facts": {"subscription_manager_id": generate_uuid()},
                         **unchanged_data,
                         "facts": {},
                     }
@@ -1638,7 +1639,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                     expected = {
                         **host_init_data["canonical_facts"],
                         "insights_id": None,
-                        "subscription_manager_id": None,
+                        "fqdn": None,
                         "satellite_id": None,
                         "bios_uuid": None,
                         "ip_addresses": None,
@@ -1693,7 +1694,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                 ):
                     stale_timestamp = now() + timedelta(days=1)
                     host = Host(
-                        {"fqdn": "some fqdn"},
+                        {"subscription_manager_id": generate_uuid()},
                         facts={},
                         stale_timestamp=stale_timestamp,
                         reporter="some reporter",
@@ -1839,7 +1840,7 @@ class SerializationSerializeHostSystemProfileTestCase(TestCase):
             "system_memory_bytes": 4,
         }
         host = Host(
-            canonical_facts={"fqdn": "some fqdn"},
+            canonical_facts={"subscription_manager_id": generate_uuid()},
             display_name="some display name",
             system_profile_facts=system_profile_facts,
             stale_timestamp=now(),
@@ -1854,7 +1855,7 @@ class SerializationSerializeHostSystemProfileTestCase(TestCase):
 
     def test_empty_profile_is_empty_dict(self):
         host = Host(
-            canonical_facts={"fqdn": "some fqdn"},
+            canonical_facts={"subscription_manager_id": generate_uuid()},
             display_name="some display name",
             stale_timestamp=now(),
             reporter="yupana",
@@ -2054,7 +2055,7 @@ class SerializationSerializeUuid(TestCase):
 
 class HostUpdateStaleTimestamp(TestCase):
     def _make_host(self, **values):
-        return Host(**{"canonical_facts": {"fqdn": "some fqdn"}, **values})
+        return Host(**{"canonical_facts": {"subscription_manager_id": generate_uuid()}, **values})
 
     def test_always_updated(self):
         old_stale_timestamp = now() + timedelta(days=2)
@@ -2177,7 +2178,7 @@ class EventProducerTests(TestCase):
             "reporter": "test_reporter",
             "account": "test",
             "org_id": "test",
-            "fqdn": "fqdn",
+            "subscription_manager_id": generate_uuid(),
         }
 
     def test_happy_path(self):
