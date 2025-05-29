@@ -1,3 +1,5 @@
+from typing import Optional
+
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -11,7 +13,8 @@ from app.staleness_serialization import build_staleness_sys_default
 logger = get_logger(__name__)
 
 
-def get_staleness_obj(org_id: str, session: Session = db.session) -> AttrDict:
+def get_staleness_obj(org_id: str, session: Optional[Session] = None) -> AttrDict:
+    session = session or db.session
     try:
         staleness = session.query(Staleness).filter(Staleness.org_id == org_id).one()
         logger.info(f"Using custom staleness for org {org_id}.")
