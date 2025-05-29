@@ -247,7 +247,8 @@ def _get_unculled_hosts(group, org_id, session=db.session):
     return hosts
 
 
-def serialize_group(group: Group, org_id: str, session: Session = db.session):
+def serialize_group(group: Group, org_id: str, session: Session | None = None):
+    session = session or db.session
     unculled_hosts = _get_unculled_hosts(group, org_id, session)
     return {
         "id": _serialize_uuid(group.id),
