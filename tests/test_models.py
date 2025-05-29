@@ -41,7 +41,7 @@ def test_create_host_with_fqdn_and_display_name_as_empty_str(db_create_host):
     created_host = db_create_host(
         SYSTEM_IDENTITY,
         extra_data={
-            "canonical_facts": {"fqdn": fqdn},
+            "canonical_facts": {"fqdn": fqdn, "subscription_manager_id": generate_uuid()},
             "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]},
         },
     )
@@ -51,7 +51,7 @@ def test_create_host_with_fqdn_and_display_name_as_empty_str(db_create_host):
 
 def test_create_host_with_display_name_and_fqdn_as_empty_str(db_create_host):
     # Verify that the display_name is populated from the id
-    created_host = db_create_host(extra_data={"canonical_facts": {"fqdn": ""}, "display_name": ""})
+    created_host = db_create_host()
 
     assert created_host.display_name == str(created_host.id)
 
@@ -133,8 +133,11 @@ def test_update_existing_host_update_display_name_from_id_using_existing_fqdn(db
 def test_update_existing_host_fix_display_name_using_input_fqdn(db_create_host):
     # Create an "existing" host
     fqdn = "host1.domain1.com"
+    subman_id = generate_uuid()
 
-    existing_host = db_create_host(extra_data={"canonical_facts": {"fqdn": fqdn}, "display_name": None})
+    existing_host = db_create_host(
+        extra_data={"canonical_facts": {"fqdn": fqdn, "subscription_manager_id": subman_id}}
+    )
 
     # Clear the display_name
     existing_host.display_name = None
@@ -144,7 +147,7 @@ def test_update_existing_host_fix_display_name_using_input_fqdn(db_create_host):
     # Update the host
     expected_fqdn = "different.domain1.com"
     input_host = Host(
-        {"fqdn": expected_fqdn},
+        {"fqdn": expected_fqdn, "subscription_manager_id": subman_id},
         display_name="",
         reporter="puptoo",
         stale_timestamp=now(),
@@ -189,9 +192,7 @@ def test_update_existing_host_fix_display_name_using_id(db_create_host):
 def test_create_host_without_system_profile(db_create_host):
     # Test the situation where the db/sqlalchemy sets the
     # system_profile_facts to None
-    created_host = db_create_host(
-        extra_data={"canonical_facts": {"fqdn": "fred.flintstone.com"}, "display_name": "fred"}
-    )
+    created_host = db_create_host()
     assert created_host.system_profile_facts == {}
 
 
@@ -290,7 +291,6 @@ def test_create_host_with_tags(tags, db_create_host):
     created_host = db_create_host(
         SYSTEM_IDENTITY,
         extra_data={
-            "canonical_facts": {"fqdn": "fred.flintstone.com"},
             "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]},
             "display_name": "display_name",
             "tags": tags,
@@ -349,7 +349,7 @@ def test_host_model_assigned_values(db_create_host, db_get_host):
         "ansible_host": "ansible_host",
         "facts": [{"namespace": "namespace", "facts": {"key": "value"}}],
         "tags": {"namespace": {"key": ["value"]}},
-        "canonical_facts": {"fqdn": "fqdn"},
+        "canonical_facts": {"subscription_manager_id": generate_uuid()},
         "system_profile_facts": {"number_of_cpus": 1},
         "stale_timestamp": now(),
         "reporter": "reporter",
@@ -366,7 +366,7 @@ def test_host_model_assigned_values(db_create_host, db_get_host):
 def test_host_model_default_id(db_create_host):
     host = Host(
         account=USER_IDENTITY["account_number"],
-        canonical_facts={"fqdn": "fqdn"},
+        canonical_facts={"subscription_manager_id": generate_uuid()},
         reporter="yupana",
         stale_timestamp=now(),
         org_id=USER_IDENTITY["org_id"],
@@ -379,7 +379,7 @@ def test_host_model_default_id(db_create_host):
 def test_host_model_default_timestamps(db_create_host):
     host = Host(
         account=USER_IDENTITY["account_number"],
-        canonical_facts={"fqdn": "fqdn"},
+        canonical_facts={"subscription_manager_id": generate_uuid()},
         reporter="yupana",
         stale_timestamp=now(),
         org_id=USER_IDENTITY["org_id"],
@@ -398,7 +398,7 @@ def test_host_model_default_timestamps(db_create_host):
 def test_host_model_updated_timestamp(db_create_host):
     host = Host(
         account=USER_IDENTITY["account_number"],
-        canonical_facts={"fqdn": "fqdn"},
+        canonical_facts={"subscription_manager_id": generate_uuid()},
         reporter="yupana",
         stale_timestamp=now(),
         org_id=USER_IDENTITY["org_id"],
@@ -420,7 +420,7 @@ def test_host_model_updated_timestamp(db_create_host):
 def test_host_model_timestamp_timezones(db_create_host):
     host = Host(
         account=USER_IDENTITY["account_number"],
-        canonical_facts={"fqdn": "fqdn"},
+        canonical_facts={"subscription_manager_id": generate_uuid()},
         stale_timestamp=now(),
         reporter="ingress",
         org_id=USER_IDENTITY["org_id"],
@@ -440,7 +440,7 @@ def test_host_model_timestamp_timezones(db_create_host):
 def test_host_model_constraints(field, value, db_create_host):
     values = {
         "account": USER_IDENTITY["account_number"],
-        "canonical_facts": {"fqdn": "fqdn"},
+        "canonical_facts": {"subscription_manager_id": generate_uuid()},
         "stale_timestamp": now(),
         "org_id": USER_IDENTITY["org_id"],
         **{field: value},
@@ -465,7 +465,7 @@ def test_create_host_sets_per_reporter_staleness(mocker, db_create_host, models_
         stale_timestamp = models_datetime_mock + timedelta(days=1)
 
         input_host = Host(
-            {"fqdn": "fqdn"},
+            {"subscription_manager_id": generate_uuid()},
             display_name="display_name",
             reporter="puptoo",
             stale_timestamp=stale_timestamp,
@@ -505,8 +505,9 @@ def test_update_per_reporter_staleness(mocker, db_create_host, models_datetime_m
     ):
         puptoo_stale_timestamp = models_datetime_mock + timedelta(days=1)
 
+        subman_id = generate_uuid()
         input_host = Host(
-            {"fqdn": "fqdn"},
+            {"subscription_manager_id": subman_id},
             display_name="display_name",
             reporter="puptoo",
             stale_timestamp=puptoo_stale_timestamp,
@@ -540,7 +541,7 @@ def test_update_per_reporter_staleness(mocker, db_create_host, models_datetime_m
         puptoo_stale_timestamp += timedelta(days=1)
 
         update_host = Host(
-            {"fqdn": "fqdn"},
+            {"subscription_manager_id": subman_id},
             display_name="display_name",
             reporter="puptoo",
             stale_timestamp=puptoo_stale_timestamp,
@@ -571,7 +572,7 @@ def test_update_per_reporter_staleness(mocker, db_create_host, models_datetime_m
         yupana_stale_timestamp = puptoo_stale_timestamp + timedelta(days=1)
 
         update_host = Host(
-            {"fqdn": "fqdn"},
+            {"subscription_manager_id": subman_id},
             display_name="display_name",
             reporter="yupana",
             stale_timestamp=yupana_stale_timestamp,
@@ -626,8 +627,9 @@ def test_update_per_reporter_staleness_yupana_replacement(
         mocker.patch("app.staleness_serialization.get_flag_value", return_value=with_last_check_in),
     ):
         yupana_stale_timestamp = models_datetime_mock + timedelta(days=1)
+        subman_id = generate_uuid()
         input_host = Host(
-            {"fqdn": "fqdn"},
+            {"subscription_manager_id": subman_id},
             display_name="display_name",
             reporter="yupana",
             stale_timestamp=yupana_stale_timestamp,
@@ -660,7 +662,7 @@ def test_update_per_reporter_staleness_yupana_replacement(
         yupana_stale_timestamp += timedelta(days=1)
 
         update_host = Host(
-            {"fqdn": "fqdn"},
+            {"subscription_manager_id": subman_id},
             display_name="display_name",
             reporter=new_reporter,
             stale_timestamp=yupana_stale_timestamp,
@@ -1336,7 +1338,7 @@ def test_create_host_validate_staleness(db_create_host, db_get_host):
         patch("app.models.get_flag_value", return_value=True),
     ):
         host_data = {
-            "canonical_facts": {"fqdn": "test.example.com"},
+            "canonical_facts": {"subscription_manager_id": generate_uuid()},
             "stale_timestamp": now(),
             "reporter": "test_reporter",
         }

@@ -81,22 +81,6 @@
             "createdAt": "2025-04-25T16:32:16.409Z"
         },
         {
-            "name": "hbi.deduplication-elevate-subman_id",
-            "description": "If active, subscription_manager_id will have the highest priority out of mutable elevated canonical facts, and mac_addresses will not be included in elevated canonical facts.",
-            "type": "release",
-            "project": "default",
-            "stale": false,
-            "enabled": false,
-            "strategies": [
-                {
-                    "name": "default",
-                    "parameters": {}
-                }
-            ],
-            "variants": [],
-            "createdAt": "2025-02-17T16:18:18.842Z"
-        },
-        {
             "name": "hbi.create_last_check_in_update_per_reporter_staleness",
             "description": "Use last_check_in field to create host staleness, and update the per_reporter_staleness field with stale_warning and culled_timestamps.",
             "type": "release",

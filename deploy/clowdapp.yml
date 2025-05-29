@@ -1053,6 +1053,8 @@ objects:
             value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
           - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
             value: "${INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS}"
+          - name: HOST_DELETE_CHUNK_SIZE
+            value: ${HOST_DELETE_CHUNK_SIZE}
           - name: UNLEASH_URL
             value: ${UNLEASH_URL}
           - name: UNLEASH_TOKEN
@@ -1662,6 +1664,71 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_EDGE_HOSTS_PRS}
             memory: ${MEMORY_REQUEST_EDGE_HOSTS_PRS}
+    - name: delete-hosts-without-id-facts
+      restartPolicy: OnFailure
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: [ "./delete_hosts_without_id_facts.py" ]
+        env:
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: KAFKA_BOOTSTRAP_SERVERS
+            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
+            value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory-mq-service
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'true'
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - name: UNLEASH_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: ${UNLEASH_SECRET_NAME}
+                key: CLIENT_ACCESS_TOKEN
+                optional: true
+          - name: BYPASS_UNLEASH
+            value: ${BYPASS_UNLEASH}
+          - name: UNLEASH_REFRESH_INTERVAL
+            value: ${UNLEASH_REFRESH_INTERVAL}
+          - name: HOST_DELETE_CHUNK_SIZE
+            value: ${HOST_DELETE_CHUNK_SIZE}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_HOSTS_WITHOUT_ID_FACTS_JOB}
+            memory: ${MEMORY_LIMIT_HOSTS_WITHOUT_ID_FACTS_JOB}
+          requests:
+            cpu: ${CPU_REQUEST_HOSTS_WITHOUT_ID_FACTS_JOB}
+            memory: ${MEMORY_REQUEST_HOSTS_WITHOUT_ID_FACTS_JOB}
     database:
       name: ${DB_NAME}
       version: 16
@@ -1977,6 +2044,8 @@ parameters:
   value: 256Mi
 - name: MEMORY_LIMIT_REAPER
   value: 512Mi
+- name: HOST_DELETE_CHUNK_SIZE
+  value: "1000"
 
 - name: CPU_REQUEST_STALE_HOST_NOTIFICAION
   value: 250m
@@ -2068,6 +2137,15 @@ parameters:
 - name: MEMORY_REQUEST_EDGE_HOSTS_PRS
   value: 256Mi
 - name: MEMORY_LIMIT_EDGE_HOSTS_PRS
+  value: 512Mi
+
+- name: CPU_REQUEST_HOSTS_WITHOUT_ID_FACTS_JOB
+  value: 250m
+- name: CPU_LIMIT_HOSTS_WITHOUT_ID_FACTS_JOB
+  value: 500m
+- name: MEMORY_REQUEST_HOSTS_WITHOUT_ID_FACTS_JOB
+  value: 256Mi
+- name: MEMORY_LIMIT_HOSTS_WITHOUT_ID_FACTS_JOB
   value: 512Mi
 
 - description: Replica count for p1 consumer
