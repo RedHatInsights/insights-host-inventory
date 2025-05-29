@@ -45,6 +45,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from yaml import safe_load
 
 from app.common import inventory_config
+from app.config import ID_FACTS
 from app.culling import Timestamps
 from app.culling import days_to_seconds
 from app.exceptions import InventoryException
@@ -350,6 +351,9 @@ class Host(LimitedHost):
 
         if not canonical_facts:
             raise ValidationException("At least one of the canonical fact fields must be present.")
+
+        if all(id_fact not in canonical_facts for id_fact in ID_FACTS):
+            raise ValidationException(f"At least one of the ID fact fields must be present: {ID_FACTS}")
 
         if current_app.config["USE_SUBMAN_ID"] and "subscription_manager_id" in canonical_facts:
             id = canonical_facts["subscription_manager_id"]

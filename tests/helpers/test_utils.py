@@ -16,9 +16,10 @@ from random import choice
 from random import randint
 from typing import Any
 
+from app.config import COMPOUND_ID_FACTS_MAP
+from app.config import ID_FACTS
 from app.models import ProviderType
 from app.utils import HostWrapper
-from lib.host_repository import COMPOUND_CANONICAL_FACTS_MAP
 
 NS = "testns"
 ID = "whoabuddy"
@@ -60,6 +61,18 @@ SATELLITE_IDENTITY = deepcopy(SYSTEM_IDENTITY)
 SATELLITE_IDENTITY["system"]["cert_type"] = "satellite"
 
 COMPOUND_FACT_VALUES = {"provider_type": ProviderType.AWS.value}
+
+CANONICAL_FACTS_LIST = (
+    "provider_id",
+    "provider_type",
+    "subscription_manager_id",
+    "insights_id",
+    "satellite_id",
+    "fqdn",
+    "bios_uuid",
+    "ip_addresses",
+    "mac_addresses",
+)
 
 
 def generate_uuid():
@@ -117,7 +130,8 @@ def base_host(**values):
 # It should be used in test cases where specific canonical facts are not needed.
 def minimal_host(**values) -> HostWrapper:
     host_wrapper = HostWrapper(_base_host_data(**values))
-    host_wrapper.bios_uuid = generate_uuid()
+    if all(id_fact not in values for id_fact in ID_FACTS):
+        host_wrapper.subscription_manager_id = generate_uuid()
     return host_wrapper
 
 
@@ -239,7 +253,7 @@ def get_platform_metadata(identity=SYSTEM_IDENTITY):
     }
 
 
-def random_mac():
+def random_mac() -> str:
     return (
         f"{random.randint(0, 255):02x}:{random.randint(0, 255):02x}:"
         f"{random.randint(0, 255):02x}:{random.randint(0, 255):02x}:"
@@ -247,26 +261,39 @@ def random_mac():
     )
 
 
-def generate_mac_addresses(num_mac):
-    macs = []
-    for _ in range(num_mac):
-        macs.append(random_mac())
-    return macs
+def random_ip() -> str:
+    return ".".join(str(random.randint(0, 255)) for _ in range(4))
+
+
+def generate_mac_addresses(num_macs: int) -> list[str]:
+    return [random_mac() for _ in range(num_macs)]
+
+
+def generate_ip_addresses(num_ips: int) -> list[str]:
+    return [random_ip() for _ in range(num_ips)]
 
 
 # Extend this method as new types are required.
-def generate_fact(fact_name, num=1):
+def generate_fact(fact_name: str, num: int = 1) -> str | list[str]:
     if fact_name == "mac_addresses":
         return generate_mac_addresses(num)
+    if fact_name == "ip_addresses":
+        return generate_ip_addresses(num)
+    if fact_name == "provider_type":
+        return choice(list(ProviderType))
     return generate_uuid()
 
 
 def generate_fact_dict(fact_name, num=1):
     fact_dict = {fact_name: generate_fact(fact_name, num)}
-    if compound_fact := COMPOUND_CANONICAL_FACTS_MAP.get(fact_name):
+    if compound_fact := COMPOUND_ID_FACTS_MAP.get(fact_name):
         fact_dict[compound_fact] = COMPOUND_FACT_VALUES[compound_fact]
 
     return fact_dict
+
+
+def generate_all_canonical_facts() -> dict[str, str | list[str]]:
+    return {canonical_fact: generate_fact(canonical_fact) for canonical_fact in CANONICAL_FACTS_LIST}
 
 
 class MockResponseObject:
