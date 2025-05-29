@@ -48,8 +48,9 @@ logger = get_logger(__name__)
 
 
 def _update_hosts_for_group_changes(
-    host_id_list: list[str], group_id_list: list[str], identity: Identity, session: Session = db.session
+    host_id_list: list[str], group_id_list: list[str], identity: Identity, session: Optional[Session] = None
 ):
+    session = session or db.session
     if group_id_list is None:
         group_id_list = []
 
@@ -118,8 +119,9 @@ def validate_add_host_list_to_group_for_group_create(host_id_list: list[str], gr
 
 
 def validate_add_host_list_to_group(
-    host_id_list: list[str], group_id: str, org_id: str, session: Session = db.session
+    host_id_list: list[str], group_id: str, org_id: str, session: Optional[Session] = None
 ):
+    session = session or db.session
     # Check if the hosts exist in Inventory and have correct org_id
     host_query = session.query(Host).filter((Host.org_id == org_id) & Host.id.in_(host_id_list)).all()
     found_ids_set = {str(host.id) for host in host_query}
@@ -147,7 +149,8 @@ def validate_add_host_list_to_group(
         )
 
 
-def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str, session: Session = db.session):
+def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str, session: Optional[Session] = None):
+    session = session or db.session
     # First, validate that the hosts can even be added to the group
     validate_add_host_list_to_group(host_id_list, group_id, org_id, session)
 
@@ -201,8 +204,9 @@ def add_hosts_to_group(
     host_id_list: list[str],
     identity: Identity,
     event_producer: EventProducer,
-    session: Session = db.session,
+    session: Optional[Session] = None,
 ):
+    session = session or db.session
     staleness = get_staleness_obj(identity.org_id, session)
     with session_guard(session):
         _add_hosts_to_group(group_id, host_id_list, identity.org_id, session)
@@ -221,8 +225,9 @@ def add_group(
     account: Optional[str] = None,
     group_id: Optional[UUID] = None,
     ungrouped: bool = False,
-    session: Session = db.session,
+    session: Optional[Session] = None,
 ) -> Group:
+    session = session or db.session
     new_group = Group(org_id=org_id, name=group_name, account=account, id=group_id, ungrouped=ungrouped)
     session.add(new_group)
     session.flush()
@@ -393,7 +398,8 @@ def _remove_hosts_from_group(group_id, host_id_list, org_id):
     return removed_host_ids
 
 
-def get_group_by_id_from_db(group_id: str, org_id: str, session: Session = db.session) -> Group:
+def get_group_by_id_from_db(group_id: str, org_id: str, session: Optional[Session] = None) -> Group:
+    session = session or db.session
     query = session.query(Group).filter(Group.org_id == org_id, Group.id == group_id)
     return query.one_or_none()
 
@@ -445,7 +451,8 @@ def patch_group(group: Group, patch_data: dict, identity: Identity, event_produc
         _invalidate_system_cache(host_list, identity)
 
 
-def _update_group_update_time(group_id: str, org_id: str, session: Session = db.session):
+def _update_group_update_time(group_id: str, org_id: str, session: Optional[Session] = None):
+    session = session or db.session
     group = get_group_by_id_from_db(group_id, org_id, session)
     group.update_modified_on()
     session.add(group)
