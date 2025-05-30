@@ -483,6 +483,18 @@ class Host(LimitedHost):
             )
         orm.attributes.flag_modified(self, "per_reporter_staleness")
 
+    def _update_all_per_reporter_staleness_for_rhsm_hosts(self):
+        st = _create_staleness_timestamps_values(self, self.org_id)
+        for reporter in self.per_reporter_staleness:
+            self.per_reporter_staleness[reporter].update(
+                stale_timestamp=st["stale_timestamp"].isoformat(),
+                culled_timestamp=st["culled_timestamp"].isoformat(),
+                stale_warning_timestamp=st["stale_warning_timestamp"].isoformat(),
+                last_check_in=self.last_check_in.isoformat(),
+                check_in_succeeded=True,
+            )
+        orm.attributes.flag_modified(self, "per_reporter_staleness")
+
     def _update_per_reporter_staleness(self, reporter):
         if not self.per_reporter_staleness:
             self.per_reporter_staleness = {}
