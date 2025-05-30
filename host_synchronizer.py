@@ -94,7 +94,7 @@ def main(logger):
     shutdown_handler = ShutdownHandler()
     shutdown_handler.register()
 
-    with session_guard(session):
+    with session_guard(session), app.app_context():
         run(config, logger, session, event_producer, shutdown_handler)
 
 
