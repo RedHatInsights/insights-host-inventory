@@ -102,7 +102,7 @@ def rbac_get_request_using_endpoint_and_headers(rbac_endpoint: str, request_head
 
 def get_rbac_permissions(app: str, request_header: dict):
     resp_data = rbac_get_request_using_endpoint_and_headers(get_rbac_url(app), request_header)
-    logger.debug("Fetched RBAC Data", extra=resp_data)
+    logger.debug("Fetched RBAC Data", extra={"resp_data": resp_data})
     return resp_data["data"]
 
 
@@ -325,7 +325,7 @@ def post_rbac_workspace_using_endpoint_and_headers(
     try:
         resp_data = rbac_response.json()
         workspace_id = resp_data["id"]
-        logger.debug("POSTED RBAC Data", extra=resp_data)
+        logger.debug("POSTED RBAC Data", extra={"resp_data": resp_data})
     except (JSONDecodeError, KeyError) as e:
         rbac_failure(logger, e)
         abort(503, "Failed to parse RBAC response, request cannot be fulfilled")
