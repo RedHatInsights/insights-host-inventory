@@ -53,6 +53,7 @@ from app.exceptions import ValidationException
 from app.logging import get_logger
 from app.staleness_serialization import build_serialized_acc_staleness_obj
 from app.staleness_serialization import build_staleness_sys_default
+from app.staleness_serialization import get_reporter_staleness_timestamps
 from app.staleness_serialization import get_staleness_timestamps
 from app.utils import Tag
 from app.validators import check_empty_keys
@@ -131,6 +132,12 @@ def _create_staleness_timestamps_values(host, org_id):
     staleness = _get_staleness_obj(org_id)
     staleness_ts = Timestamps.from_config(inventory_config())
     return get_staleness_timestamps(host, staleness_ts, staleness)
+
+
+def _create_reporter_staleness_timestamps_values(host, org_id, reporter):
+    staleness = _get_staleness_obj(org_id)
+    staleness_ts = Timestamps.from_config(inventory_config())
+    return get_reporter_staleness_timestamps(host, staleness_ts, staleness, reporter)
 
 
 class SystemProfileNormalizer:
@@ -465,14 +472,13 @@ class Host(LimitedHost):
         self.reporter = reporter
 
     def _update_all_per_reporter_staleness(self):
-        st = _create_staleness_timestamps_values(self, self.org_id)
-
         for reporter in self.per_reporter_staleness:
+            st = _create_reporter_staleness_timestamps_values(self, self.org_id, reporter)
             self.per_reporter_staleness[reporter].update(
                 stale_timestamp=st["stale_timestamp"].isoformat(),
                 culled_timestamp=st["culled_timestamp"].isoformat(),
                 stale_warning_timestamp=st["stale_warning_timestamp"].isoformat(),
-                last_check_in=self.last_check_in.isoformat(),
+                last_check_in=self.per_reporter_staleness[reporter]["last_check_in"],
                 check_in_succeeded=True,
             )
         orm.attributes.flag_modified(self, "per_reporter_staleness")
