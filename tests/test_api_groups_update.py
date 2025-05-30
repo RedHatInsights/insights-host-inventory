@@ -147,10 +147,9 @@ def test_patch_group_existing_name_same_org(db_create_group, api_patch_group, pa
 
     response_status, response_body = api_patch_group(new_id, {"name": patch_name})
 
-    # There's already a group with that name (case-insensitive), so we should get an HTTP 400.
-    # Make sure the group name is mentioned in the response.
-    assert_response_status(response_status, 400)
-    assert patch_name in response_body["detail"]
+    # Now that group uniqueness restriction is handled by the API, it is okay to update the host.
+    assert_response_status(response_status, 200)
+    assert patch_name in response_body["name"]
 
 
 def test_patch_group_hosts_from_different_group(
