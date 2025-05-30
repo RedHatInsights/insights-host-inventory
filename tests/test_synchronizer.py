@@ -12,14 +12,25 @@ from tests.helpers.mq_utils import assert_synchronize_event_is_valid
 from tests.helpers.test_utils import get_staleness_timestamps
 
 
+@pytest.mark.parametrize("ungrouped", [True, False])
 @pytest.mark.host_synchronizer
 def test_synchronize_host_event(
-    event_producer_mock, event_datetime_mock, db_create_host, db_get_host, inventory_config
+    event_producer_mock,
+    event_datetime_mock,
+    db_create_host,
+    db_create_group,
+    db_create_host_group_assoc,
+    db_get_host,
+    inventory_config,
+    ungrouped,
 ):
     staleness_timestamps = get_staleness_timestamps()
 
     host = minimal_db_host(stale_timestamp=staleness_timestamps["culled"], reporter="some reporter")
     created_host = db_create_host(host=host)
+
+    created_group = db_create_group("sync-test-group", ungrouped=ungrouped)
+    db_create_host_group_assoc(created_host.id, created_group.id)
 
     assert db_get_host(created_host.id)
 
@@ -36,7 +47,11 @@ def test_synchronize_host_event(
     assert db_get_host(created_host.id)
 
     assert_synchronize_event_is_valid(
-        event_producer=event_producer_mock, key=str(created_host.id), host=created_host, timestamp=event_datetime_mock
+        event_producer=event_producer_mock,
+        key=str(created_host.id),
+        host=created_host,
+        groups=[created_group],
+        timestamp=event_datetime_mock,
     )
 
 

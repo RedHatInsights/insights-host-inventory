@@ -376,7 +376,7 @@ def expected_encoded_headers(event_type, request_id, insights_id=None, reporter=
 
 
 def assert_synchronize_event_is_valid(
-    event_producer, key, host, timestamp, expected_request_id=None, expected_metadata=None
+    event_producer, key, host, groups, timestamp, expected_request_id=None, expected_metadata=None
 ):
     event = json.loads(event_producer.event)
 
@@ -389,6 +389,15 @@ def assert_synchronize_event_is_valid(
     assert event["type"] == "updated"
     assert host.canonical_facts.get("insights_id") == event["host"]["insights_id"]
     assert str(host.id) in event_producer.key
+
+    # Assert groups data
+    if groups == []:
+        assert event["host"]["groups"] == []
+    else:
+        assert event["host"]["groups"][0]["id"] == groups[0].id
+        assert event["host"]["groups"][0]["name"] == groups[0].name
+        assert event["host"]["groups"][0]["ungrouped"] is groups[0].ungrouped
+
     assert event_producer.headers == expected_headers(
         "updated",
         event["metadata"]["request_id"],
