@@ -18,7 +18,7 @@ objects:
   metadata:
     labels:
       app: host-inventory
-    name: host-synch-only-${SYNCHRONIZER_ONLY_RUN_NUMBER}
+    name: host-synchronizer-only-${SYNCHRONIZER_ONLY_RUN_NUMBER}
   spec:
     appName: host-inventory
     jobs:
