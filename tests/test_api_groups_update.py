@@ -139,7 +139,6 @@ def test_patch_group_existing_name_different_org(
     assert_response_status(response_status, 404)
 
 
-@pytest.mark.usefixtures("event_producer")
 @pytest.mark.parametrize("patch_name", ["existing_group", "EXISTING_GROUP"])
 def test_patch_group_existing_name_same_org(db_create_group, api_patch_group, patch_name):
     # Create 2 groups
@@ -148,10 +147,10 @@ def test_patch_group_existing_name_same_org(db_create_group, api_patch_group, pa
 
     response_status, response_body = api_patch_group(new_id, {"name": patch_name})
 
-    # group_name uniqueness restriction removed, so we should get an HTTP 200.
+    # There's already a group with that name (case-insensitive), so we should get an HTTP 400.
     # Make sure the group name is mentioned in the response.
-    assert_response_status(response_status, 200)
-    assert patch_name in response_body["name"]
+    assert_response_status(response_status, 400)
+    assert patch_name in response_body["detail"]
 
 
 def test_patch_group_hosts_from_different_group(

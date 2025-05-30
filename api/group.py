@@ -135,6 +135,14 @@ def create_group(body, rbac_filter=None):
             )
             created_group = get_group_by_id_from_db(workspace_id, get_current_identity().org_id)
         else:
+            group_name = validated_create_group_data.get("name")
+            # check if group exists
+            if does_group_with_name_exist(group_name, get_current_identity().org_id):
+                log_create_group_failed(logger, group_name)
+                return json_error_response(
+                    "Integrity error", f"A group with name {group_name} already exists.", HTTPStatus.BAD_REQUEST
+                )
+
             created_group = create_group_from_payload(validated_create_group_data, current_app.event_producer, None)
             create_group_count.inc()
 
@@ -187,6 +195,14 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
 
             if new_group_name:
                 patch_rbac_workspace(group_id, name=new_group_name)
+        else:
+            new_group_name = validated_patch_group_data.get("name")
+            # check if group exists with the same name
+            if does_group_with_name_exist(new_group_name, get_current_identity().org_id):
+                log_create_group_failed(logger, new_group_name)
+                return json_error_response(
+                    "Integrity error", f"A group with name {new_group_name} already exists.", HTTPStatus.BAD_REQUEST
+                )
 
         # Separate out the host IDs because they're not stored on the Group
         patch_group(group_to_update, validated_patch_group_data, identity, current_app.event_producer)
