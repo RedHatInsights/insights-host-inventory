@@ -394,9 +394,9 @@ def assert_synchronize_event_is_valid(
     if groups == []:
         assert event["host"]["groups"] == []
     else:
-        assert event["host"]["groups"][0]["id"] == groups[0].id
+        assert event["host"]["groups"][0]["id"] == str(groups[0].id)
         assert event["host"]["groups"][0]["name"] == groups[0].name
-        assert event["host"]["groups"][0]["ungrouped"] is groups[0].ungrouped
+        assert event["host"]["groups"][0]["ungrouped"] == groups[0].ungrouped
 
     assert event_producer.headers == expected_headers(
         "updated",
