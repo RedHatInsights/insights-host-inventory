@@ -35,6 +35,7 @@ def synchronize_hosts(
             if host.groups is None:
                 host.groups = []
 
+            # This is a temporary fix that we can remove later.
             # If host.groups says it's empty,
             # Get the host's associated Group (if any) and store it in the "groups" field
             if host.groups == [] and (group := get_group_using_host_id(str(host.id), host.org_id)):
