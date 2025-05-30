@@ -7,6 +7,8 @@ from sqlalchemy import and_
 from sqlalchemy import or_
 from sqlalchemy.dialects.postgresql import array
 
+from api.host_query import staleness_timestamps
+from api.staleness_query import get_staleness_obj
 from app.environment import RuntimeEnvironment
 from app.logging import get_logger
 from app.logging import threadctx
@@ -82,21 +84,32 @@ def run(config, logger, session, event_producer, notification_event_producer, sh
         # when marked as culled, and are also prevented to stay culled as w
         # we are forcing its modified_on and last_check_in to be updated.
 
-        rhsm_bridge_hosts_query = session.query(Host).filter(
-            and_(
-                or_(False, *filter_hosts_to_delete),
-                Host.reporter == "rhsm-system-profile-bridge",
-                ~Host.per_reporter_staleness.has_any(
-                    array(["cloud-connector", "puptoo", "rhsm-conduit", "yuptoo", "discovery", "satellite"])
-                ),
+        rhsm_bridge_hosts_query = (
+            session.query(Host)
+            .filter(
+                and_(
+                    or_(False, *filter_hosts_to_delete),
+                    Host.reporter == "rhsm-system-profile-bridge",
+                    ~Host.per_reporter_staleness.has_any(
+                        array(["cloud-connector", "puptoo", "rhsm-conduit", "yuptoo", "discovery", "satellite"])
+                    ),
+                )
             )
+            .order_by(Host.org_id)
         )
 
+        org_id = None
         for host in rhsm_bridge_hosts_query.yield_per(config.host_delete_chunk_size):
+            if org_id is None or org_id != host.org_id:
+                org_id = host.org_id
+                staleness = get_staleness_obj(org_id)
+                staleness_ts = staleness_timestamps()
+
+            host: Host
             host._update_modified_date()
             host._update_last_check_in_date()
-            host._update_staleness_timestamps()
-            host._update_all_per_reporter_staleness()
+            host._update_staleness_timestamps_in_reaper(staleness_ts, staleness)
+            host._update_all_per_reporter_staleness_for_rhsm_hosts(staleness_ts, staleness)
 
         query = session.query(Host).filter(and_(or_(False, *filter_hosts_to_delete)))
         hosts_processed = config.host_delete_chunk_size
