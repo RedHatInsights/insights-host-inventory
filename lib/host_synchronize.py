@@ -7,7 +7,6 @@ from app.models import Host
 from app.queue.events import EventType
 from app.queue.events import build_event
 from app.queue.events import message_headers
-from app.serialization import serialize_group
 from app.serialization import serialize_host
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness
@@ -39,7 +38,7 @@ def synchronize_hosts(
             # If host.groups says it's empty,
             # Get the host's associated Group (if any) and store it in the "groups" field
             if host.groups == [] and (group := get_group_using_host_id(str(host.id), host.org_id)):
-                host.groups = [serialize_group(group, host.org_id)]
+                host.groups = [{"id": str(group.id), "name": group.name, "ungrouped": group.ungrouped}]
 
             staleness = None
             try:
