@@ -369,7 +369,7 @@ def _handle_delete_error(e: HTTPError, workspace_id: str) -> bool:
 
     if status == 404:
         logger.info(f"404 deleting RBAC workspace {workspace_id}: {detail}")
-        return False
+        raise FileNotFoundError()
 
     if 400 <= status < 500:
         logger.warning(f"RBAC client error {status} deleting {workspace_id}: {detail}")

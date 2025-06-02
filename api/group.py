@@ -221,7 +221,21 @@ def delete_groups(group_id_list, rbac_filter=None):
             if ungrouped_group_id == group_id:
                 abort(HTTPStatus.BAD_REQUEST, f"Ungrouped workspace {group_id} can not be deleted.")
 
-        delete_count = sum((delete_rbac_workspace(group_id)) is True for group_id in group_id_list)
+        group_ids_to_delete = []
+        delete_count = 0
+
+        # Attempt to delete the RBAC workspaces
+        for group_id in group_id_list:
+            try:
+                if delete_rbac_workspace(group_id):
+                    delete_count += 1
+            except FileNotFoundError:
+                # For workspaces that are missing from RBAC,
+                # we'll attempt to delete the groups on our side
+                group_ids_to_delete.append(group_id)
+
+        # Attempt to delete the "not found" groups on our side
+        delete_count += delete_group_list(group_ids_to_delete, get_current_identity(), current_app.event_producer)
     else:
         delete_count = delete_group_list(group_id_list, get_current_identity(), current_app.event_producer)
 

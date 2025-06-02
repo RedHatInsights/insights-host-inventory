@@ -495,6 +495,30 @@ def test_delete_nonexistent_group_kessel(api_delete_groups_kessel, mocker):
         assert_response_status(response_status, expected_status=404)
 
 
+@pytest.mark.usefixtures("event_producer")
+@pytest.mark.usefixtures("enable_rbac")
+@mock.patch("requests.Session.delete", new=mocked_post_workspace_not_found)
+def test_delete_existing_group_missing_workspace(api_delete_groups_kessel, db_create_group, mocker):
+    group_id = db_create_group("test group").id
+
+    # Mock RBAC permissions to allow request
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-groups-write-resource-defs-template.json"
+    )
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    # Turn on the Kessel flag
+    mocker.patch("api.group.get_flag_value", return_value=True)
+
+    # Mock the metrics context manager bc we don't care about it here
+    with mock.patch("lib.middleware.outbound_http_response_time") as mock_metric:
+        mock_metric.labels.return_value.time.return_value = contextlib.nullcontext()
+
+        response_status, _ = api_delete_groups_kessel([group_id])
+        assert_response_status(response_status, expected_status=204)
+
+
 def test_delete_ungrouped_host_from_group(mocker, db_create_group_with_hosts, api_remove_hosts_from_diff_groups):
     mocker.patch("api.host_group.get_flag_value", return_value=True)
 
