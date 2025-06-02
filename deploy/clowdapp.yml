@@ -2452,6 +2452,9 @@ parameters:
 - name: ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE
   description: The batch size to use for the assign-ungrouped-hosts script.
   value: '10'
+- name: FF_LAST_CHECKIN
+  description: Env var used to enable last checkin feature flag
+  value: 'false'
 
 # NGINX
 - displayName: Minimum replicas
