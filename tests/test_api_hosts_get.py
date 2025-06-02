@@ -10,6 +10,7 @@ from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_URL
 from tests.helpers.api_utils import LEGACY_HOST_URL
+from tests.helpers.api_utils import RBACFilterOperation
 from tests.helpers.api_utils import api_base_pagination_test
 from tests.helpers.api_utils import api_pagination_invalid_parameters_test
 from tests.helpers.api_utils import api_pagination_test
@@ -26,6 +27,7 @@ from tests.helpers.api_utils import build_system_profile_sap_sids_url
 from tests.helpers.api_utils import build_system_profile_sap_system_url
 from tests.helpers.api_utils import build_system_profile_url
 from tests.helpers.api_utils import build_tags_url
+from tests.helpers.api_utils import create_custom_rbac_response
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import quote
 from tests.helpers.api_utils import quote_everything
@@ -2042,7 +2044,10 @@ def test_get_host_exists_error_multiple_found(db_create_host, api_get):
 
 
 @pytest.mark.usefixtures("enable_rbac")
-def test_get_host_exists_granular_rbac(db_create_host, db_create_group, db_create_host_group_assoc, api_get, mocker):
+@pytest.mark.parametrize("rbac_operation", [RBACFilterOperation.EQUAL, RBACFilterOperation.IN])
+def test_get_host_exists_granular_rbac(
+    db_create_host, db_create_group, db_create_host_group_assoc, api_get, mocker, rbac_operation
+):
     # Create 3 hosts with unique insights IDs that the user has access to
     accessible_group_id = db_create_group("accessible_group").id
     accessible_insights_id_list = [generate_uuid() for _ in range(3)]
@@ -2065,11 +2070,7 @@ def test_get_host_exists_granular_rbac(db_create_host, db_create_group, db_creat
 
     # Grant access to first group
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
-    mock_rbac_response = create_mock_rbac_response(
-        "tests/helpers/rbac-mock-data/inv-hosts-read-resource-defs-template.json"
-    )
-    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = [str(accessible_group_id)]
-    get_rbac_permissions_mock.return_value = mock_rbac_response
+    get_rbac_permissions_mock.return_value = create_custom_rbac_response([str(accessible_group_id)], rbac_operation)
 
     # Verify that the user can see each of the hosts in the "accessible" group
     for insights_id in accessible_insights_id_list:
@@ -2085,8 +2086,9 @@ def test_get_host_exists_granular_rbac(db_create_host, db_create_group, db_creat
 
 
 @pytest.mark.usefixtures("enable_rbac")
+@pytest.mark.parametrize("rbac_operation", [RBACFilterOperation.EQUAL, RBACFilterOperation.IN])
 def test_get_ungrouped_hosts_granular_rbac(
-    db_create_host, db_create_group, db_create_host_group_assoc, api_get, mocker
+    db_create_host, db_create_group, db_create_host_group_assoc, api_get, mocker, rbac_operation
 ):
     # Create the groups
     ungrouped_group_id = db_create_group("ungrouped", ungrouped=True).id
@@ -2107,11 +2109,7 @@ def test_get_ungrouped_hosts_granular_rbac(
 
     # Mock RBAC perms; only grant access to ungrouped hosts
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
-    mock_rbac_response = create_mock_rbac_response(
-        "tests/helpers/rbac-mock-data/inv-hosts-read-resource-defs-template.json"
-    )
-    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = [None]
-    get_rbac_permissions_mock.return_value = mock_rbac_response
+    get_rbac_permissions_mock.return_value = create_custom_rbac_response([None], rbac_operation)
 
     response_status, response_data = api_get(build_hosts_url())
     assert_response_status(response_status, 200)

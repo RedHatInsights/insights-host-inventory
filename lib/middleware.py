@@ -126,18 +126,24 @@ def _is_request_allowed_by_permission(
 
 # Validate RBAC response, and fetch
 def _get_group_list_from_resource_definition(resource_definition: dict) -> list[str]:
+    allowed_ops = ("in", "equal")
+
     if "attributeFilter" in resource_definition:
+        operation = resource_definition["attributeFilter"].get("operation")
         if resource_definition["attributeFilter"].get("key") != "group.id":
             abort(
                 HTTPStatus.SERVICE_UNAVAILABLE,
                 "Invalid value for attributeFilter.key in RBAC response.",
             )
-        elif resource_definition["attributeFilter"].get("operation") != "in":
+        elif operation not in allowed_ops:
             abort(
                 HTTPStatus.SERVICE_UNAVAILABLE,
-                "Invalid value for attributeFilter.operation in RBAC response.",
+                (
+                    "Invalid value for attributeFilter.operation in RBAC response: "
+                    f"'{operation}'. Allowed values are {allowed_ops}."
+                ),
             )
-        elif not isinstance(resource_definition["attributeFilter"]["value"], list):
+        elif operation == "in" and not isinstance(resource_definition["attributeFilter"]["value"], list):
             abort(
                 HTTPStatus.SERVICE_UNAVAILABLE,
                 "Did not receive a list for attributeFilter.value in RBAC response.",
@@ -145,6 +151,9 @@ def _get_group_list_from_resource_definition(resource_definition: dict) -> list[
         else:
             # Validate that all values in the filter are UUIDs.
             group_list = resource_definition["attributeFilter"]["value"]
+            if operation == "equal":
+                group_list = [group_list]
+
             try:
                 for gid in group_list:
                     if gid is not None:

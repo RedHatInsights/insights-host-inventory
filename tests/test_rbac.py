@@ -1,10 +1,12 @@
 import pytest
 from requests import exceptions
 
+from tests.helpers.api_utils import RBACFilterOperation
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_groups_url
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import build_staleness_url
+from tests.helpers.api_utils import create_custom_rbac_response
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 
@@ -66,15 +68,10 @@ def test_RBAC_invalid_attribute_filter(mocker, api_get, field):
 
 
 @pytest.mark.usefixtures("enable_rbac")
-def test_RBAC_invalid_UUIDs(mocker, api_get):
+@pytest.mark.parametrize("rbac_operation", [RBACFilterOperation.IN, RBACFilterOperation.EQUAL])
+def test_RBAC_invalid_UUIDs(mocker, api_get, rbac_operation):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
-
-    mock_rbac_response = create_mock_rbac_response(
-        "tests/helpers/rbac-mock-data/inv-hosts-read-resource-defs-template.json"
-    )
-    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = ["not a UUID"]
-
-    get_rbac_permissions_mock.return_value = mock_rbac_response
+    get_rbac_permissions_mock.return_value = create_custom_rbac_response(["not a UUID"], rbac_operation)
 
     response_status, _ = api_get(build_hosts_url())
 
