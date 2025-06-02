@@ -19,6 +19,13 @@
             "value": [],
             "operation": "in"
           }
+        },
+        {
+          "attributeFilter": {
+            "key": "group.id",
+            "value": null,
+            "operation": "equal"
+          }
         }
       ],
       "permission": "inventory:hosts:read"
