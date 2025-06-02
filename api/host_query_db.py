@@ -37,7 +37,7 @@ from app.models import HostGroupAssoc
 from app.models import db
 from app.serialization import serialize_host_for_export_svc
 from lib.feature_flags import FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.feature_flags import get_flag_value
 
 __all__ = (
@@ -205,7 +205,7 @@ def params_to_order_by(order_by: str | None = None, order_how: str | None = None
     elif order_by == "display_name":
         ordering = (_order_how(Host.display_name, order_how),) if order_how else (Host.display_name.asc(),)
     elif order_by == "group_name":
-        if get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1):
+        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
             ordering = _get_group_name_order_post_kessel(order_how)
         else:
             base_ordering = _order_how(Group.name, order_how) if order_how else Group.name.asc()

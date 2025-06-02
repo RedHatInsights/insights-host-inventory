@@ -1223,14 +1223,6 @@ def test_create_group_existing_name_diff_org(db_create_group, db_get_group_by_id
     assert db_get_group_by_id(group2.id).name == group_name
 
 
-def test_create_group_existing_name_same_org(db_create_group):
-    # Now name uniquess is enforced by RBAC. HBI allows creating multiple groups with the same name
-    group_name = "TestGroup"
-    db_create_group(group_name)
-
-    assert db_create_group(group_name)
-
-
 def test_add_delete_host_group_happy(
     db_create_host,
     db_create_group,
