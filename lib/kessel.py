@@ -10,6 +10,9 @@ from sqlalchemy.orm import Session
 
 from app.auth.identity import Identity
 
+from app.logging import get_logger
+logger = get_logger(__name__)
+
 import grpc
 from kessel.inventory.v1beta2 import (
     representation_metadata_pb2,
@@ -77,9 +80,12 @@ class Kessel:
                 reporter_type="rbac",
             )
 
+            #logger.info(f"user identity that reached the kessel lib: {current_identity.user}")
+            user_id = current_identity.user['user_id'] if current_identity.user['user_id'] else current_identity.user['username'] #HACK: this is ONLY to continue testing while waiting for the user_id bits to start working
+            #logger.info(f"user_id resolved from the identity: {user_id}")
             resource_ref = resource_reference_pb2.ResourceReference(
                 resource_type="principal",
-                resource_id=f"redhat/{current_identity.user['user_id']}", #Platform/IdP/whatever 'redhat' is, probably needs to be parameterized
+                resource_id=f"redhat/{user_id}", #Platform/IdP/whatever 'redhat' is, probably needs to be parameterized
                 reporter=reporter_reference_pb2.ReporterReference(
                     type="rbac"
                 ),
