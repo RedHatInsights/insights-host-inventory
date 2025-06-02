@@ -918,8 +918,8 @@ objects:
             path: /
             port: 9000
             scheme: HTTP
-          initialDelaySeconds: 10
-          periodSeconds: 10
+          initialDelaySeconds: 20
+          periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 5
         readinessProbe:
