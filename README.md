@@ -153,6 +153,7 @@ If you want to destroy that data do the following:
 
 ```bash
 docker compose -f dev.yml down
+rm -r ~/.pg_data # or a another directory you defined in volumes
 ```
 
 ### Run database migrations
