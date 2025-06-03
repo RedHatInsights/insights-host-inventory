@@ -26,6 +26,7 @@ from app.auth.identity import IdentityType
 from app.auth.identity import from_auth_header
 from app.auth.identity import to_auth_header
 from app.common import inventory_config
+from app.exceptions import ResourceNotFoundException
 from app.instrumentation import rbac_failure
 from app.instrumentation import rbac_group_permission_denied
 from app.instrumentation import rbac_permission_denied
@@ -369,7 +370,7 @@ def _handle_delete_error(e: HTTPError, workspace_id: str) -> bool:
 
     if status == 404:
         logger.info(f"404 deleting RBAC workspace {workspace_id}: {detail}")
-        return False
+        raise ResourceNotFoundException(f"Workspace {workspace_id} not found in RBAC; skipping deletion")
 
     if 400 <= status < 500:
         logger.warning(f"RBAC client error {status} deleting {workspace_id}: {detail}")
