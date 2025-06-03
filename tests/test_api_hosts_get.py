@@ -344,6 +344,17 @@ def test_query_all(mq_create_three_specific_hosts, api_get, subtests, host_url):
     assert_host_lists_equal(expected_host_list, response_data["results"])
 
 
+def test_query_all_with_edge(mq_create_three_specific_hosts, mq_create_edge_host, api_get, subtests):
+    created_hosts = mq_create_three_specific_hosts + [mq_create_edge_host]
+    expected_host_list = build_expected_host_list(created_hosts)
+
+    response_status, response_data = api_get(HOST_URL)
+    api_base_pagination_test(api_get, subtests, HOST_URL, expected_total=len(expected_host_list))
+
+    assert response_status == 200
+    assert_host_lists_equal(expected_host_list, response_data["results"])
+
+
 def test_query_using_display_name(mq_create_three_specific_hosts, api_get):
     created_hosts = mq_create_three_specific_hosts
     expected_host_list = build_expected_host_list([created_hosts[0]])
