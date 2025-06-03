@@ -1103,7 +1103,7 @@ components:
         for host_count
     workspaceTypeParam:
       in: query
-      name: type
+      name: group_type
       required: false
       schema:
         type: string
