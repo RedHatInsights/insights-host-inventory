@@ -4,6 +4,7 @@ import json
 import os
 import tempfile
 from datetime import timedelta
+from urllib.parse import urlencode
 
 from app.common import get_build_version
 from app.culling import days_to_seconds
@@ -393,14 +394,39 @@ class Config:
     def _build_db_uri(self, ssl_mode, hide_password=False):
         db_user = self._db_user
         db_password = self._db_password
+        query_params = {}
+        socket_path = None
 
         if hide_password:
             db_user = "xxxx"
             db_password = "XXXX"
 
-        db_uri = f"postgresql://{db_user}:{db_password}@{self._db_host}:{self._db_port}/{self._db_name}"
+        # Check if the host is a Unix socket (e.g., starts with '/')
+        if self._db_host.startswith("/"):
+            # Unix socket: no host/port, use query param for socket path
+            netloc = ""
+            path = f"/{self._db_name}"
+            socket_path = self._db_host  # Keep socket path unencoded
+        else:
+            # TCP connection: include host and port
+            netloc = f"{self._db_host}:{self._db_port}"
+            path = f"/{self._db_name}"
+
+        # Add SSL parameters if needed
         if ssl_mode == self.SSL_VERIFY_FULL:
-            db_uri += f"?sslmode={self._db_ssl_mode}&sslrootcert={self._db_ssl_cert}"
+            query_params.update({"sslmode": self._db_ssl_mode, "sslrootcert": self._db_ssl_cert})
+
+        # Construct the query string
+        query_string = urlencode(query_params) if query_params else ""
+        if socket_path:
+            # For Unix socket, manually append the unencoded host parameter
+            query_string = f"host={socket_path}" + (f"&{query_string}" if query_string else "")
+
+        # Construct the URI
+        db_uri = f"postgresql://{db_user}:{db_password}@{netloc}{path}"
+        if query_string:
+            db_uri += f"?{query_string}"
+
         return db_uri
 
     def _from_dict(self, dict, name, default):
