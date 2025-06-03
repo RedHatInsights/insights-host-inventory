@@ -5,7 +5,6 @@ from datetime import timezone
 
 from dateutil.parser import isoparse
 from marshmallow import ValidationError
-from sqlalchemy.orm import Session
 
 from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
@@ -20,7 +19,6 @@ from app.models import Host
 from app.models import HostSchema
 from app.models import LimitedHost
 from app.models import LimitedHostSchema
-from app.models import db
 from app.staleness_serialization import get_staleness_timestamps
 from app.utils import Tag
 from lib.feature_flags import FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS
@@ -235,10 +233,10 @@ def serialize_host_for_export_svc(
 
 
 # get hosts not marked for deletion
-def _get_unculled_hosts(group, org_id, session=db.session):
+def _get_unculled_hosts(group, org_id):
     hosts = []
     staleness_timestamps = Timestamps.from_config(inventory_config())
-    staleness = get_staleness_obj(org_id, session)
+    staleness = get_staleness_obj(org_id)
     for host in group.hosts:
         serialized_host = serialize_host(host, staleness_timestamps=staleness_timestamps, staleness=staleness)
         if _deserialize_datetime(serialized_host["culled_timestamp"]) > datetime.now(tz=timezone.utc):
@@ -247,9 +245,8 @@ def _get_unculled_hosts(group, org_id, session=db.session):
     return hosts
 
 
-def serialize_group(group: Group, org_id: str, session: Session | None = None):
-    session = session or db.session
-    unculled_hosts = _get_unculled_hosts(group, org_id, session)
+def serialize_group(group: Group, org_id: str):
+    unculled_hosts = _get_unculled_hosts(group, org_id)
     return {
         "id": _serialize_uuid(group.id),
         "org_id": group.org_id,
