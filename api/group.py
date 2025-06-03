@@ -20,7 +20,7 @@ from app import RbacResourceType
 from app.auth import get_current_identity
 from app.common import inventory_config
 from app.exceptions import InventoryException
-from app.exceptions import RBACResourceNotFoundException
+from app.exceptions import ResourceNotFoundException
 from app.instrumentation import log_create_group_failed
 from app.instrumentation import log_create_group_not_allowed
 from app.instrumentation import log_create_group_succeeded
@@ -230,7 +230,7 @@ def delete_groups(group_id_list, rbac_filter=None):
             try:
                 if delete_rbac_workspace(group_id):
                     delete_count += 1
-            except RBACResourceNotFoundException:
+            except ResourceNotFoundException:
                 # For workspaces that are missing from RBAC,
                 # we'll attempt to delete the groups on our side
                 group_ids_to_delete.append(group_id)
