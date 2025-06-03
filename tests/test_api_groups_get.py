@@ -27,7 +27,7 @@ def test_group_query_type_filter(db_create_group, api_get, group_type, expected_
         "ungrouped-hosts": [str(db_create_group("ungroupedTest", ungrouped=True).id)],
     }
 
-    response_status, response_data = api_get(build_groups_url(query=f"?type={group_type}"))
+    response_status, response_data = api_get(build_groups_url(query=f"?group_type={group_type}"))
 
     assert_response_status(response_status, 200)
     assert response_data["total"] == expected_groups
