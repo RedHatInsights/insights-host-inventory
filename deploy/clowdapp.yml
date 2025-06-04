@@ -31,7 +31,7 @@ objects:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        image: quay.io/cloudservices/ubi8-nginx-124:1-39.1741813445
+        image: registry.access.redhat.com/ubi9/nginx-124:latest
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -2286,7 +2286,7 @@ parameters:
 - description: Image NAME
   name: IMAGE
   required: true
-  value: quay.io/cloudservices/insights-inventory
+  value: quay.io/redhat-services-prod/insights-management-tenant/insights-host-inventory/insights-host-inventory
 - description : ClowdEnvironment name
   name: ENV_NAME
   value: stage

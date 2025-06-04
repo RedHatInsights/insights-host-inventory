@@ -32,3 +32,8 @@ class InputFormatException(InventoryException):
 class ValidationException(InventoryException):
     def __init__(self, detail: str):
         InventoryException.__init__(self, title="Validation Error", detail=detail)
+
+
+class ResourceNotFoundException(InventoryException):
+    def __init__(self, detail: str):
+        InventoryException.__init__(self, title="RBAC Resource Not Found", detail=detail)
