@@ -393,14 +393,38 @@ class Config:
     def _build_db_uri(self, ssl_mode, hide_password=False):
         db_user = self._db_user
         db_password = self._db_password
+        query_parts = []
+        socket_path = None
+        netloc = ""
+        path = f"/{self._db_name}"
 
         if hide_password:
             db_user = "xxxx"
             db_password = "XXXX"
 
-        db_uri = f"postgresql://{db_user}:{db_password}@{self._db_host}:{self._db_port}/{self._db_name}"
+        # Check if the host is a Unix socket (e.g., starts with '/')
+        if self._db_host.startswith("/"):
+            # Unix socket: no host/port, use query param for socket path
+            socket_path = self._db_host  # Keep socket path unencoded
+        else:
+            # TCP connection: include host and port
+            netloc = f"{self._db_host}:{self._db_port}"
+
+        # Add query parameters
+        if socket_path:
+            query_parts.append(f"host={socket_path}")
         if ssl_mode == self.SSL_VERIFY_FULL:
-            db_uri += f"?sslmode={self._db_ssl_mode}&sslrootcert={self._db_ssl_cert}"
+            query_parts.append(f"sslmode={self._db_ssl_mode}")
+            query_parts.append(f"sslrootcert={self._db_ssl_cert}")
+
+        # Construct the query string
+        query_string = "&".join(query_parts) if query_parts else ""
+
+        # Construct the URI
+        db_uri = f"postgresql://{db_user}:{db_password}@{netloc}{path}"
+        if query_string:
+            db_uri += f"?{query_string}"
+
         return db_uri
 
     def _from_dict(self, dict, name, default):
