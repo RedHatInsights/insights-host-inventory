@@ -177,23 +177,23 @@ def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str, ses
     log_host_group_add_succeeded(logger, host_id_list, group_id)
 
 
-def wait_for_workspace_creation(workspace_id: str, timeout: int = 5):
+def wait_for_workspace_event(workspace_id: str, event_type: EventType, timeout: int = 5):
     conn = db.session.connection().connection
     conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
     cursor = conn.cursor()
-    cursor.execute("LISTEN workspace_create;")
+    cursor.execute(f"LISTEN workspace_{event_type.name};")
     timeout_start = time.time()
     try:
         while time.time() < timeout_start + timeout:
             conn.poll()
             for notify in conn.notifies:
-                if str(notify.payload) == str(workspace_id):
+                if str(notify.payload) == workspace_id:
                     return
 
             conn.notifies.clear()
             time.sleep(0.1)
     finally:
-        cursor.execute("UNLISTEN workspace_create;")
+        cursor.execute(f"UNLISTEN workspace_{event_type.name};")
         cursor.close()
 
     raise TimeoutError("No workspace creation message consumed in time.")

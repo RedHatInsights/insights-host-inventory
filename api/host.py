@@ -272,7 +272,7 @@ def _delete_host_list(host_id_list, rbac_filter):
             initiated_by_frontend=initiated_by_frontend,
         )
 
-        deleted_id_list = [str(r.host_row.id) for r in result_list]
+        deleted_id_list = [str(r.row.id) for r in result_list]
 
         for host_id in host_id_list:
             tracker_message = "deleted host" if host_id in deleted_id_list else "not deleted host"
