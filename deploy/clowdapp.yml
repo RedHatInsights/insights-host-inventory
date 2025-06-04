@@ -2142,7 +2142,7 @@ parameters:
 - name: MEMORY_REQUEST_WORKSPACES_MQ
   value: 256Mi
 - name: MEMORY_LIMIT_WORKSPACES_MQ
-  value: 512Mi
+  value: 768Mi
 
 - name: CPU_REQUEST_REAPER
   value: 250m
