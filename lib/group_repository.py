@@ -181,19 +181,19 @@ def wait_for_workspace_creation(workspace_id: str, timeout: int = 5):
     conn = db.session.connection().connection
     conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
     cursor = conn.cursor()
-    cursor.execute("LISTEN workspace_create;")
+    cursor.execute("LISTEN workspace_created;")
     timeout_start = time.time()
     try:
         while time.time() < timeout_start + timeout:
             conn.poll()
             for notify in conn.notifies:
-                if str(notify.payload) == str(workspace_id):
+                if str(notify.payload) == workspace_id:
                     return
 
             conn.notifies.clear()
             time.sleep(0.1)
     finally:
-        cursor.execute("UNLISTEN workspace_create;")
+        cursor.execute("UNLISTEN workspace_created;")
         cursor.close()
 
     raise TimeoutError("No workspace creation message consumed in time.")
