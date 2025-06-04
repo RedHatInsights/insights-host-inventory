@@ -2460,3 +2460,54 @@ def test_workspace_mq_delete_non_empty(
         assert db_get_groups_for_host(host_id_list[0])[0].ungrouped
         assert db_get_groups_for_host(host_id_list[1])[0].ungrouped
         assert db_get_groups_for_host(host_id_list[2])[0].ungrouped
+
+
+@pytest.mark.parametrize(
+    "processed_rows,event_type,should_notify",
+    [
+        ([], EventType.created, False),
+        ([mock.Mock()], EventType.created, True),
+        ([mock.Mock()], None, False),
+    ],
+)
+def test_post_process_rows_commit_and_notify(
+    processed_rows, event_type, should_notify, flask_app, event_producer, mocker
+):
+    consumer = WorkspaceMessageConsumer(mocker.Mock(), flask_app, event_producer, mocker.Mock())
+    db_session_mock = mock.Mock()
+    notify_mock = mock.Mock()
+    # Patch db.session and _pg_notify_workspace
+    with (
+        mock.patch("app.queue.host_mq.db.session", db_session_mock),
+        mock.patch("app.queue.host_mq._pg_notify_workspace", notify_mock),
+        mock.patch.object(consumer, "processed_rows", processed_rows),
+    ):
+        # Patch processed_rows to have .event_type attribute
+        for row in processed_rows:
+            row.event_type = event_type
+        consumer.post_process_rows()
+        if processed_rows:
+            db_session_mock.commit.assert_called_once()
+        else:
+            db_session_mock.commit.assert_not_called()
+        if should_notify:
+            notify_mock.assert_called_once()
+        else:
+            notify_mock.assert_not_called()
+
+
+def test_post_process_rows_stale_data_error(mocker, flask_app, event_producer):
+    consumer = WorkspaceMessageConsumer(mocker.Mock(), flask_app, event_producer, mocker.Mock())
+    db_session_mock = mock.Mock()
+    notify_mock = mock.Mock()
+    db_session_mock.commit.side_effect = StaleDataError("stale")
+    processed_rows = [mock.Mock()]
+    processed_rows[0].event_type = "created"
+    with (
+        mock.patch("app.queue.host_mq.db.session", db_session_mock),
+        mock.patch("app.queue.host_mq._pg_notify_workspace", notify_mock),
+        mock.patch.object(consumer, "processed_rows", processed_rows),
+    ):
+        consumer.post_process_rows()
+        db_session_mock.commit.assert_called_once()
+        notify_mock.assert_not_called()  # Should not notify if commit fails
