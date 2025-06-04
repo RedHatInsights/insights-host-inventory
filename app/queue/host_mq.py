@@ -256,10 +256,12 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
         try:
             if len(self.processed_rows) > 0:
                 db.session.commit()
-                # The above session is automatically committed or rolled back.
-                # Now we need to send out messages for the batch of hosts we just processed.
 
             for processed_row in self.processed_rows:
+                # Invoke OperationResult success logger for each processed row
+                if hasattr(processed_row, "success_logger") and callable(processed_row.success_logger):
+                    processed_row.success_logger()
+
                 # PG Notify for each processed workspace
                 if processed_row.event_type:
                     _pg_notify_workspace(processed_row.event_type.name, str(processed_row.row.id))
