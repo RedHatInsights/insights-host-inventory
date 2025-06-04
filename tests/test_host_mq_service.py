@@ -144,13 +144,13 @@ def test_handle_message_happy_path(
     result = ingress_message_consumer_mock.handle_message(json.dumps(message))
 
     assert result.event_type == EventType.created
-    assert result.row.canonical_facts["insights_id"] == expected_insights_id
+    assert result.host_row.canonical_facts["insights_id"] == expected_insights_id
     if kessel_migration:
-        assert len(result.row.groups) == 1
-        assert result.row.groups[0]["name"] == existing_group_name if existing_ungrouped else "Ungrouped Hosts"
-        assert result.row.groups[0]["ungrouped"] is True
+        assert len(result.host_row.groups) == 1
+        assert result.host_row.groups[0]["name"] == existing_group_name if existing_ungrouped else "Ungrouped Hosts"
+        assert result.host_row.groups[0]["ungrouped"] is True
     else:
-        assert result.row.groups == []
+        assert result.host_row.groups == []
 
     mock_notification_event_producer.write_event.assert_not_called()
 
@@ -201,9 +201,9 @@ def test_handle_message_existing_ungrouped_workspace(mocker, db_create_group):
         result = consumer.handle_message(json.dumps(message))
 
         assert result.event_type == EventType.created
-        assert result.row.canonical_facts["insights_id"] == expected_insights_id
-        assert result.row.groups[0]["name"] == "kessel-test"
-        assert result.row.groups[0]["id"] == str(group_id)
+        assert result.host_row.canonical_facts["insights_id"] == expected_insights_id
+        assert result.host_row.groups[0]["name"] == "kessel-test"
+        assert result.host_row.groups[0]["id"] == str(group_id)
 
         mock_notification_event_producer.write_event.assert_not_called()
 
@@ -2241,7 +2241,7 @@ def test_add_host_logs(identity, mocker, caplog):
     result = consumer.handle_message(json.dumps(message))
 
     assert result.event_type == EventType.created
-    assert result.row.canonical_facts["insights_id"] == expected_insights_id
+    assert result.host_row.canonical_facts["insights_id"] == expected_insights_id
     assert caplog.records[0].input_host["system_profile"] == "{}"
     mock_notification_event_producer.write_event.assert_not_called()
 
@@ -2298,8 +2298,7 @@ def test_add_host_subman_id(mq_create_or_update_host_subman_id, db_get_host):
     ),
 )
 @mock.patch.object(WorkspaceMessageConsumer, "handle_message")
-@mock.patch.object(WorkspaceMessageConsumer, "post_process_rows")
-def test_workspace_mq_event_loop(handle_message_mock, post_process_rows_mock, flask_app, mocker, additional_fields):
+def test_workspace_mq_event_loop(handle_message_mock, flask_app, mocker, additional_fields):
     message = {
         "operation": "create",
         "org_id": SYSTEM_IDENTITY["org_id"],
@@ -2321,7 +2320,6 @@ def test_workspace_mq_event_loop(handle_message_mock, post_process_rows_mock, fl
     # Make sure it properly calls handle_message, and does not error out
     consumer.event_loop(interrupt=mocker.Mock(side_effect=(False, True)))
     handle_message_mock.assert_called_once()
-    post_process_rows_mock.assert_called_once()
 
 
 @pytest.mark.parametrize(

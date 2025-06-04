@@ -11,7 +11,6 @@ from uuid import UUID
 
 from confluent_kafka import Consumer
 from connexion import FlaskApp
-from flask_sqlalchemy.model import Model
 from marshmallow import Schema
 from marshmallow import ValidationError
 from marshmallow import fields
@@ -35,11 +34,9 @@ from app.exceptions import ValidationException
 from app.instrumentation import log_add_host_attempt
 from app.instrumentation import log_add_host_failure
 from app.instrumentation import log_add_update_host_succeeded
-from app.instrumentation import log_create_workspace_via_mq
 from app.instrumentation import log_db_access_failure
 from app.instrumentation import log_update_system_profile_failure
 from app.instrumentation import log_update_system_profile_success
-from app.instrumentation import log_update_workspace_via_mq
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
@@ -110,14 +107,14 @@ class DebeziumEnvelopeSchema(Schema):
 class OperationResult:
     def __init__(
         self,
-        row: Model,
+        hr: Host,
         pm: dict[str, Any] | None,
         st: Timestamps | None,
         so: AttrDict | None,
         et: EventType | None,
         sl: Callable,
     ):
-        self.row = row
+        self.host_row = hr
         self.platform_metadata = pm
         self.staleness_timestamps = st
         self.staleness_object = so
@@ -212,15 +209,8 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                     group_id=workspace["id"],
                     ungrouped=(validated_operation_msg["workspace"]["type"] == "ungrouped-hosts"),
                 )
-                return OperationResult(
-                    group,
-                    None,
-                    None,
-                    None,
-                    EventType.created,
-                    partial(log_create_workspace_via_mq, logger, workspace["id"]),
-                )
-
+                logger.info(f"Created group with ID {str(group.id)}")
+                _pg_notify_workspace(operation, str(group.id))
             except (IntegrityError, UniqueViolation):
                 logger.warning(f"Group with ID {workspace['id']} already exists; skipping creation")
                 db.session.rollback()
@@ -233,14 +223,7 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                 identity=identity,
                 event_producer=self.event_producer,
             )
-            return OperationResult(
-                group_to_update,
-                None,
-                None,
-                None,
-                EventType.updated,
-                partial(log_update_workspace_via_mq, logger, workspace["id"]),
-            )
+            logger.info(f"Updated group with ID {workspace['id']}")
 
         elif operation == "delete":
             num_deleted = group_repository.delete_group_list(
@@ -251,26 +234,6 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
             logger.info(f"Deleted {num_deleted} group(s) with ID {workspace['id']}")
         else:
             raise ValidationError("Operation must be 'create', 'update', or 'delete'.")
-
-    def post_process_rows(self) -> None:
-        try:
-            if len(self.processed_rows) > 0:
-                db.session.commit()
-                # The above session is automatically committed or rolled back.
-                # Now we need to send out messages for the batch of hosts we just processed.
-
-            for processed_row in self.processed_rows:
-                # PG Notify for each processed workspace
-                if processed_row.event_type:
-                    _pg_notify_workspace(processed_row.event_type.name, str(processed_row.row.id))
-
-        except StaleDataError as exc:
-            metrics.ingress_message_handler_failure.inc(amount=len(self.processed_rows))
-            logger.error(
-                f"Session data is stale; failed to commit data from {len(self.processed_rows)} payloads.",
-                exc_info=exc,
-            )
-            db.session.rollback()
 
 
 class HostMessageConsumer(HBIMessageConsumerBase):
@@ -370,7 +333,7 @@ class IngressMessageConsumer(HostMessageConsumer):
                 input_host = _set_owner(input_host, identity)
 
             log_add_host_attempt(logger, input_host, sp_fields_to_log, identity)
-            processed_hosts = [result.row for result in self.processed_rows]
+            processed_hosts = [result.host_row for result in self.processed_rows]
             host_row, add_result = host_repository.add_host(
                 input_host, identity, operation_args=operation_args, existing_hosts=processed_hosts
             )
@@ -596,23 +559,25 @@ def sync_event_message(message, session, event_producer):
 def write_delete_event_message(event_producer: EventProducer, result: OperationResult, initiated_by_frontend: bool):
     event = build_event(
         EventType.delete,
-        result.row,
+        result.host_row,
         platform_metadata=result.platform_metadata,
         initiated_by_frontend=initiated_by_frontend,
     )
     headers = message_headers(
         EventType.delete,
-        result.row.canonical_facts.get("insights_id"),
-        result.row.reporter,
-        result.row.system_profile_facts.get("host_type"),
-        result.row.system_profile_facts.get("operating_system", {}).get("name"),
-        str(result.row.system_profile_facts.get("bootc_status", {}).get("booted") is not None),
+        result.host_row.canonical_facts.get("insights_id"),
+        result.host_row.reporter,
+        result.host_row.system_profile_facts.get("host_type"),
+        result.host_row.system_profile_facts.get("operating_system", {}).get("name"),
+        str(result.host_row.system_profile_facts.get("bootc_status", {}).get("booted") is not None),
     )
-    event_producer.write_event(event, str(result.row.id), headers, wait=True)
-    insights_id = result.row.canonical_facts.get("insights_id")
-    owner_id = result.row.system_profile_facts.get("owner_id")
+    event_producer.write_event(event, str(result.host_row.id), headers, wait=True)
+    insights_id = result.host_row.canonical_facts.get("insights_id")
+    owner_id = result.host_row.system_profile_facts.get("owner_id")
     if insights_id and owner_id:
-        delete_cached_system_keys(insights_id=insights_id, org_id=result.row.org_id, owner_id=owner_id, spawn=True)
+        delete_cached_system_keys(
+            insights_id=insights_id, org_id=result.host_row.org_id, owner_id=owner_id, spawn=True
+        )
     result.success_logger()
 
 
@@ -626,17 +591,17 @@ def write_add_update_event_message(
 
     # The request ID in the headers is fetched from threadctx.request_id
     request_id = result.platform_metadata.get("request_id")
-    initialize_thread_local_storage(request_id, result.row.org_id, result.row.account)
+    initialize_thread_local_storage(request_id, result.host_row.org_id, result.host_row.account)
     payload_tracker = get_payload_tracker(request_id=request_id)
 
     with PayloadTrackerProcessingContext(
         payload_tracker,
         processing_status_message="host operation complete",
         current_operation="write_message_batch",
-        inventory_id=result.row.id,
+        inventory_id=result.host_row.id,
     ):
-        output_host = serialize_host(result.row, result.staleness_timestamps, staleness=result.staleness_object)
-        insights_id = result.row.canonical_facts.get("insights_id")
+        output_host = serialize_host(result.host_row, result.staleness_timestamps, staleness=result.staleness_object)
+        insights_id = result.host_row.canonical_facts.get("insights_id")
         event = build_event(result.event_type, output_host, platform_metadata=result.platform_metadata)
 
         headers = message_headers(
@@ -648,7 +613,7 @@ def write_add_update_event_message(
             str(output_host.get("system_profile", {}).get("bootc_status", {}).get("booted") is not None),
         )
 
-    event_producer.write_event(event, str(result.row.id), headers, wait=True)
+    event_producer.write_event(event, str(result.host_row.id), headers, wait=True)
 
     if result.event_type.name == HOST_EVENT_TYPE_CREATED:
         # Notifications are expected to omit null canonical facts

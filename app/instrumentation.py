@@ -344,11 +344,3 @@ def log_create_staleness_failed(logger, org_id):
 # stale host notification
 def log_host_stale_notification_succeeded(logger, host_id, control_rule):
     logger.info("Sent Notification for stale host: %s", host_id, extra={"access_rule": control_rule})
-
-
-def log_create_workspace_via_mq(logger, group_id, control_rule):
-    logger.info("Workspace created via MQ: %s", group_id, extra={"access_rule": control_rule})
-
-
-def log_update_workspace_via_mq(logger, group_id, control_rule):
-    logger.info("Workspace updated via MQ: %s", group_id, extra={"access_rule": control_rule})

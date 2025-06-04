@@ -43,7 +43,7 @@ def _delete_host_db_records(
     for host in select_query.limit(chunk_size):
         with delete_host_processing_time.time():
             result = _delete_host(select_query.session, host, identity, control_rule)
-        if deleted_by_this_query(result.row):
+        if deleted_by_this_query(result.host_row):
             results_list.append(result)
 
         if interrupt():
@@ -62,7 +62,7 @@ def _send_delete_messages_for_batch(
         if result is not None:
             delete_host_count.inc()
             write_delete_event_message(event_producer, result, initiated_by_frontend)
-            send_notification(notification_event_producer, NotificationType.system_deleted, vars(result.row))
+            send_notification(notification_event_producer, NotificationType.system_deleted, vars(result.host_row))
 
 
 def delete_hosts(
