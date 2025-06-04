@@ -395,6 +395,8 @@ class Config:
         db_password = self._db_password
         query_parts = []
         socket_path = None
+        netloc = ""
+        path = f"/{self._db_name}"
 
         if hide_password:
             db_user = "xxxx"
@@ -403,13 +405,10 @@ class Config:
         # Check if the host is a Unix socket (e.g., starts with '/')
         if self._db_host.startswith("/"):
             # Unix socket: no host/port, use query param for socket path
-            netloc = ""
-            path = f"/{self._db_name}"
             socket_path = self._db_host  # Keep socket path unencoded
         else:
             # TCP connection: include host and port
             netloc = f"{self._db_host}:{self._db_port}"
-            path = f"/{self._db_name}"
 
         # Add query parameters
         if socket_path:
