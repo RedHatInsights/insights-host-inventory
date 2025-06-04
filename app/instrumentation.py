@@ -346,9 +346,13 @@ def log_host_stale_notification_succeeded(logger, host_id, control_rule):
     logger.info("Sent Notification for stale host: %s", host_id, extra={"access_rule": control_rule})
 
 
-def log_create_workspace_via_mq(logger, group_id):
-    logger.info("Workspace created via MQ: %s", group_id)
+def log_create_group_via_mq(logger, group_id):
+    logger.info(f"Group created via MQ: {group_id}")
 
 
-def log_update_workspace_via_mq(logger, group_id):
-    logger.info("Workspace updated via MQ: %s", group_id)
+def log_update_group_via_mq(logger, group_id):
+    logger.info(f"Group updated via MQ: {group_id}")
+
+
+def log_delete_groups_via_mq(logger, num_deleted, group_id):
+    logger.info(f"{num_deleted} groups deleted via MQ with ID: {group_id}", num_deleted)

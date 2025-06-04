@@ -35,11 +35,12 @@ from app.exceptions import ValidationException
 from app.instrumentation import log_add_host_attempt
 from app.instrumentation import log_add_host_failure
 from app.instrumentation import log_add_update_host_succeeded
-from app.instrumentation import log_create_workspace_via_mq
+from app.instrumentation import log_create_group_via_mq
 from app.instrumentation import log_db_access_failure
+from app.instrumentation import log_delete_groups_via_mq
+from app.instrumentation import log_update_group_via_mq
 from app.instrumentation import log_update_system_profile_failure
 from app.instrumentation import log_update_system_profile_success
-from app.instrumentation import log_update_workspace_via_mq
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
@@ -218,7 +219,7 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                     None,
                     None,
                     EventType.created,
-                    partial(log_create_workspace_via_mq, logger, workspace["id"]),
+                    partial(log_create_group_via_mq, logger, workspace["id"]),
                 )
 
             except (IntegrityError, UniqueViolation):
@@ -239,7 +240,7 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                 None,
                 None,
                 EventType.updated,
-                partial(log_update_workspace_via_mq, logger, workspace["id"]),
+                partial(log_update_group_via_mq, logger, workspace["id"]),
             )
 
         elif operation == "delete":
@@ -248,7 +249,14 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                 identity=identity,
                 event_producer=self.event_producer,
             )
-            logger.info(f"Deleted {num_deleted} group(s) with ID {workspace['id']}")
+            return OperationResult(
+                None,
+                None,
+                None,
+                None,
+                EventType.updated,
+                partial(log_delete_groups_via_mq, logger, num_deleted, str(workspace["id"])),
+            )
         else:
             raise ValidationError("Operation must be 'create', 'update', or 'delete'.")
 
@@ -263,7 +271,7 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                     processed_row.success_logger()
 
                 # PG Notify for each processed workspace
-                if processed_row.event_type:
+                if processed_row.event_type and processed_row.row:
                     _pg_notify_workspace(processed_row.event_type.name, str(processed_row.row.id))
 
         except StaleDataError as exc:
