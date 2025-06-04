@@ -2140,7 +2140,7 @@ parameters:
 - name: CPU_LIMIT_WORKSPACES_MQ
   value: 500m
 - name: MEMORY_REQUEST_WORKSPACES_MQ
-  value: 500Mi
+  value: 512Mi
 - name: MEMORY_LIMIT_WORKSPACES_MQ
   value: 1Gi
 
