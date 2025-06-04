@@ -2140,9 +2140,9 @@ parameters:
 - name: CPU_LIMIT_WORKSPACES_MQ
   value: 500m
 - name: MEMORY_REQUEST_WORKSPACES_MQ
-  value: 256Mi
+  value: 512Mi
 - name: MEMORY_LIMIT_WORKSPACES_MQ
-  value: 768Mi
+  value: 1Gi
 
 - name: CPU_REQUEST_REAPER
   value: 250m
@@ -2286,7 +2286,7 @@ parameters:
 - description: Image NAME
   name: IMAGE
   required: true
-  value: quay.io/redhat-services-prod/insights-management-tenant/insights-host-inventory/insights-host-inventory
+  value: quay.io/cloudservices/insights-inventory
 - description : ClowdEnvironment name
   name: ENV_NAME
   value: stage
