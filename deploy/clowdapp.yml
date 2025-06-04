@@ -912,7 +912,7 @@ objects:
         - name: UNLEASH_REFRESH_INTERVAL
           value: ${UNLEASH_REFRESH_INTERVAL}
         - name: MQ_DB_BATCH_MAX_MESSAGES
-          value: ${MQ_DB_BATCH_MAX_MESSAGES}
+          value: ${MQ_WORKSPACES_DB_BATCH_MAX_MESSAGES}
         - name: MQ_DB_BATCH_MAX_SECONDS
           value: ${MQ_DB_BATCH_MAX_SECONDS}
         - name: CONSUMER_MQ_BROKER
@@ -2441,6 +2441,8 @@ parameters:
 - name: INVENTORY_API_CACHE_TYPE
   value: 'NullCache'
 - name: MQ_DB_BATCH_MAX_MESSAGES
+  value: '1'
+- name: MQ_WORKSPACES_DB_BATCH_MAX_MESSAGES
   value: '1'
 - name: MQ_DB_BATCH_MAX_SECONDS
   value: '0.5'
