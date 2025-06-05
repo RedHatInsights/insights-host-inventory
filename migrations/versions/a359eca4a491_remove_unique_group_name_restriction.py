@@ -32,6 +32,7 @@ def upgrade():
         schema="hbi",
     )
 
+
 def downgrade():
     op.drop_index(
         "idx_groups_org_id_name_ignorecase",
