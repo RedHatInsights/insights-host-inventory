@@ -31,7 +31,9 @@ from app.instrumentation import log_patch_group_failed
 from app.instrumentation import log_patch_group_success
 from app.logging import get_logger
 from app.models import InputGroupSchema
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1, FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
+from app.queue.events import EventType
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.feature_flags import get_flag_value
 from lib.group_repository import add_hosts_to_group
 from lib.group_repository import create_group_from_payload
@@ -42,7 +44,7 @@ from lib.group_repository import get_ungrouped_group
 from lib.group_repository import patch_group
 from lib.group_repository import remove_hosts_from_group
 from lib.group_repository import validate_add_host_list_to_group_for_group_create
-from lib.group_repository import wait_for_workspace_creation
+from lib.group_repository import wait_for_workspace_event
 from lib.metrics import create_group_count
 from lib.middleware import delete_rbac_workspace
 from lib.middleware import patch_rbac_workspace
@@ -125,7 +127,7 @@ def create_group(body, rbac_filter=None):
 
             # Wait for the MQ to notify us of the workspace creation
             try:
-                wait_for_workspace_creation(workspace_id, inventory_config().rbac_timeout)
+                wait_for_workspace_event(workspace_id, EventType.created, inventory_config().rbac_timeout)
             except TimeoutError:
                 abort(HTTPStatus.SERVICE_UNAVAILABLE, "Timed out waiting for a message from RBAC v2.")
 

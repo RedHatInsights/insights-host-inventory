@@ -144,13 +144,13 @@ def test_handle_message_happy_path(
     result = ingress_message_consumer_mock.handle_message(json.dumps(message))
 
     assert result.event_type == EventType.created
-    assert result.host_row.canonical_facts["insights_id"] == expected_insights_id
+    assert result.row.canonical_facts["insights_id"] == expected_insights_id
     if kessel_migration:
-        assert len(result.host_row.groups) == 1
-        assert result.host_row.groups[0]["name"] == existing_group_name if existing_ungrouped else "Ungrouped Hosts"
-        assert result.host_row.groups[0]["ungrouped"] is True
+        assert len(result.row.groups) == 1
+        assert result.row.groups[0]["name"] == existing_group_name if existing_ungrouped else "Ungrouped Hosts"
+        assert result.row.groups[0]["ungrouped"] is True
     else:
-        assert result.host_row.groups == []
+        assert result.row.groups == []
 
     mock_notification_event_producer.write_event.assert_not_called()
 
@@ -201,9 +201,9 @@ def test_handle_message_existing_ungrouped_workspace(mocker, db_create_group):
         result = consumer.handle_message(json.dumps(message))
 
         assert result.event_type == EventType.created
-        assert result.host_row.canonical_facts["insights_id"] == expected_insights_id
-        assert result.host_row.groups[0]["name"] == "kessel-test"
-        assert result.host_row.groups[0]["id"] == str(group_id)
+        assert result.row.canonical_facts["insights_id"] == expected_insights_id
+        assert result.row.groups[0]["name"] == "kessel-test"
+        assert result.row.groups[0]["id"] == str(group_id)
 
         mock_notification_event_producer.write_event.assert_not_called()
 
@@ -2241,7 +2241,7 @@ def test_add_host_logs(identity, mocker, caplog):
     result = consumer.handle_message(json.dumps(message))
 
     assert result.event_type == EventType.created
-    assert result.host_row.canonical_facts["insights_id"] == expected_insights_id
+    assert result.row.canonical_facts["insights_id"] == expected_insights_id
     assert caplog.records[0].input_host["system_profile"] == "{}"
     mock_notification_event_producer.write_event.assert_not_called()
 
@@ -2298,7 +2298,8 @@ def test_add_host_subman_id(mq_create_or_update_host_subman_id, db_get_host):
     ),
 )
 @mock.patch.object(WorkspaceMessageConsumer, "handle_message")
-def test_workspace_mq_event_loop(handle_message_mock, flask_app, mocker, additional_fields):
+@mock.patch.object(WorkspaceMessageConsumer, "post_process_rows")
+def test_workspace_mq_event_loop(handle_message_mock, post_process_rows_mock, flask_app, mocker, additional_fields):
     message = {
         "operation": "create",
         "org_id": SYSTEM_IDENTITY["org_id"],
@@ -2320,6 +2321,7 @@ def test_workspace_mq_event_loop(handle_message_mock, flask_app, mocker, additio
     # Make sure it properly calls handle_message, and does not error out
     consumer.event_loop(interrupt=mocker.Mock(side_effect=(False, True)))
     handle_message_mock.assert_called_once()
+    post_process_rows_mock.assert_called_once()
 
 
 @pytest.mark.parametrize(
@@ -2458,3 +2460,54 @@ def test_workspace_mq_delete_non_empty(
         assert db_get_groups_for_host(host_id_list[0])[0].ungrouped
         assert db_get_groups_for_host(host_id_list[1])[0].ungrouped
         assert db_get_groups_for_host(host_id_list[2])[0].ungrouped
+
+
+@pytest.mark.parametrize(
+    "processed_rows,event_type,should_notify",
+    [
+        ([], EventType.created, False),
+        ([mock.Mock()], EventType.created, True),
+        ([mock.Mock()], None, False),
+    ],
+)
+def test_post_process_rows_commit_and_notify(
+    processed_rows, event_type, should_notify, flask_app, event_producer, mocker
+):
+    consumer = WorkspaceMessageConsumer(mocker.Mock(), flask_app, event_producer, mocker.Mock())
+    db_session_mock = mock.Mock()
+    notify_mock = mock.Mock()
+    # Patch db.session and _pg_notify_workspace
+    with (
+        mock.patch("app.queue.host_mq.db.session", db_session_mock),
+        mock.patch("app.queue.host_mq._pg_notify_workspace", notify_mock),
+        mock.patch.object(consumer, "processed_rows", processed_rows),
+    ):
+        # Patch processed_rows to have .event_type attribute
+        for row in processed_rows:
+            row.event_type = event_type
+        consumer.post_process_rows()
+        if processed_rows:
+            db_session_mock.commit.assert_called_once()
+        else:
+            db_session_mock.commit.assert_not_called()
+        if should_notify:
+            notify_mock.assert_called_once()
+        else:
+            notify_mock.assert_not_called()
+
+
+def test_post_process_rows_stale_data_error(mocker, flask_app, event_producer):
+    consumer = WorkspaceMessageConsumer(mocker.Mock(), flask_app, event_producer, mocker.Mock())
+    db_session_mock = mock.Mock()
+    notify_mock = mock.Mock()
+    db_session_mock.commit.side_effect = StaleDataError("stale")
+    processed_rows = [mock.Mock()]
+    processed_rows[0].event_type = "created"
+    with (
+        mock.patch("app.queue.host_mq.db.session", db_session_mock),
+        mock.patch("app.queue.host_mq._pg_notify_workspace", notify_mock),
+        mock.patch.object(consumer, "processed_rows", processed_rows),
+    ):
+        consumer.post_process_rows()
+        db_session_mock.commit.assert_called_once()
+        notify_mock.assert_not_called()  # Should not notify if commit fails
