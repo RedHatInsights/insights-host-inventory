@@ -234,9 +234,9 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                 identity=identity,
                 event_producer=self.event_producer,
             )
-            updated_group = group_repository.get_group_by_id_from_db(str(workspace["id"]), org_id)
+            db.session.refresh(group_to_update)
             return OperationResult(
-                updated_group,
+                group_to_update,
                 None,
                 None,
                 None,
