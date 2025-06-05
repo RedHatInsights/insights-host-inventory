@@ -234,6 +234,7 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                 identity=identity,
                 event_producer=self.event_producer,
             )
+            db.session.merge(group_to_update)
             return OperationResult(
                 group_to_update,
                 None,
