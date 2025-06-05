@@ -71,7 +71,6 @@ from lib.db import session_guard
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.feature_flags import FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM
 from lib.feature_flags import get_flag_value
-from lib.group_repository import get_group_by_id_from_db
 from lib.group_repository import get_or_create_ungrouped_hosts_group_for_identity
 from utils.system_profile_log import extract_host_dict_sp_to_log
 
@@ -235,7 +234,7 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                 identity=identity,
                 event_producer=self.event_producer,
             )
-            updated_group = get_group_by_id_from_db(str(workspace["id"]), org_id)
+            updated_group = group_repository.get_group_by_id_from_db(str(workspace["id"]), org_id)
             return OperationResult(
                 updated_group,
                 None,
