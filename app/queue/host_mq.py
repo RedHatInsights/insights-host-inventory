@@ -235,7 +235,7 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                 event_producer=self.event_producer,
             )
             return OperationResult(
-                group_to_update,
+                None,
                 None,
                 None,
                 None,
@@ -254,7 +254,7 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                 None,
                 None,
                 None,
-                EventType.updated,
+                EventType.delete,
                 partial(log_delete_groups_via_mq, logger, num_deleted, str(workspace["id"])),
             )
         else:
@@ -271,7 +271,7 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                     processed_row.success_logger()
 
                 # PG Notify for each processed workspace
-                if processed_row.event_type and processed_row.row:
+                if processed_row and processed_row.event_type and processed_row.row:
                     _pg_notify_workspace(processed_row.event_type.name, str(processed_row.row.id))
 
         except StaleDataError as exc:
