@@ -271,7 +271,7 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                     processed_row.success_logger()
 
                 # PG Notify for each processed workspace
-                if processed_row.event_type and processed_row.row:
+                if processed_row and processed_row.event_type and processed_row.row:
                     _pg_notify_workspace(processed_row.event_type.name, str(processed_row.row.id))
 
         except StaleDataError as exc:
