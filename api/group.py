@@ -31,7 +31,7 @@ from app.instrumentation import log_patch_group_failed
 from app.instrumentation import log_patch_group_success
 from app.logging import get_logger
 from app.models import InputGroupSchema
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1, FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.feature_flags import get_flag_value
 from lib.group_repository import add_hosts_to_group
 from lib.group_repository import create_group_from_payload
@@ -138,13 +138,15 @@ def create_group(body, rbac_filter=None):
             created_group = get_group_by_id_from_db(workspace_id, get_current_identity().org_id)
         else:
             group_name = validated_create_group_data.get("name")
-            # check if group exists
-            if does_group_with_name_exist(group_name, get_current_identity().org_id):
-                log_create_group_failed(logger, group_name)
-                return json_error_response(
-                    "Integrity error", f"A group with name {group_name} already exists.", HTTPStatus.BAD_REQUEST
-                )
 
+            # check for Kessel Phase 1
+            if not get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1):
+                # check if the group exists
+               if does_group_with_name_exist(group_name, get_current_identity().org_id):
+                    log_create_group_failed(logger, group_name)
+                    return json_error_response(
+                        "Integrity error", f"A group with name {group_name} already exists.", HTTPStatus.BAD_REQUEST
+                    )
             created_group = create_group_from_payload(validated_create_group_data, current_app.event_producer, None)
             create_group_count.inc()
 

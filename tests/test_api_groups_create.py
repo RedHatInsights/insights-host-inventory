@@ -103,11 +103,13 @@ def test_create_group_read_only(api_create_group, mocker):
         assert_response_status(response_status, expected_status=503)
 
 
+@pytest.mark.usefixtures("event_producer")
 @pytest.mark.parametrize(
     "new_name",
     ["test_Group", " Test_Group", "test_group ", " test_group "],
 )
-def test_create_group_taken_name(api_create_group, new_name):
+def test_create_group_taken_name(api_create_group, new_name, mocker):
+    mocker.patch("lib.middleware.get_flag_value", return_value=False)
     group_data = {"name": "test_group", "host_ids": []}
 
     api_create_group(group_data)
