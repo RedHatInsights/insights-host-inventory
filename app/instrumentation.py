@@ -355,4 +355,4 @@ def log_update_group_via_mq(logger, group_id):
 
 
 def log_delete_groups_via_mq(logger, num_deleted, group_id):
-    logger.info(f"{num_deleted} groups deleted via MQ with ID: {group_id}", num_deleted)
+    logger.info(f"{num_deleted} groups deleted via MQ with ID: {group_id}")

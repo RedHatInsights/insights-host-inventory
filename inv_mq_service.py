@@ -1,5 +1,4 @@
 #!/usr/bin/python
-from functools import partial
 
 from confluent_kafka import Consumer as KafkaConsumer
 from prometheus_client import start_http_server
@@ -40,8 +39,7 @@ def main():
         }
     )
     consumer.subscribe([config.kafka_consumer_topic])
-    consumer_shutdown = partial(consumer.close, autocommit=True)
-    register_shutdown(consumer_shutdown, "Closing consumer")
+    register_shutdown(consumer.close, "Closing consumer")
 
     event_producer = EventProducer(config, config.event_topic)
     register_shutdown(event_producer.close, "Closing producer")
