@@ -234,9 +234,8 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                 identity=identity,
                 event_producer=self.event_producer,
             )
-            db.session.merge(group_to_update)
             return OperationResult(
-                group_to_update,
+                None,
                 None,
                 None,
                 None,
@@ -255,7 +254,7 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                 None,
                 None,
                 None,
-                EventType.updated,
+                EventType.delete,
                 partial(log_delete_groups_via_mq, logger, num_deleted, str(workspace["id"])),
             )
         else:
