@@ -7,12 +7,13 @@ from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
 
+org_id = os.environ.get("INVENTORY_HOST_ACCOUNT", "321")
 # kessel user identity known to rbac deployed by bonfire in Ephemeral cluster
 IDENTITY = {
     "account_number": "123",
     "auth_type": "jwt-auth",
-    "internal": {"auth_time": 0, "cross_access": "false", "org_id": "321"},
-    "org_id": "321",
+    "internal": {"auth_time": 0, "cross_access": "false", "org_id": org_id},
+    "org_id": org_id,
     "type": "User",
     "user": {
         "email": "Jane.Doe@example.com",
@@ -580,7 +581,6 @@ USE_RANDOMNESS = os.environ.get("USE_RANDOMNESS", "True").lower() == "true"
 
 
 def build_host_chunk():
-    org_id = os.environ.get("INVENTORY_HOST_ACCOUNT", IDENTITY["org_id"])
     fqdn = random_uuid()[:6] + ".foo.redhat.com"
     system_profile = create_system_profile()
 
