@@ -41,6 +41,7 @@ def test_assignment_happy_path(
     db_create_group_with_hosts,
     db_get_hosts_for_group,
     db_get_groups_for_host,
+    event_producer_mock,
     num_ungrouped_hosts,
 ):
     EXISTING_GROUP_NAME = "existing group"
@@ -63,6 +64,7 @@ def test_assignment_happy_path(
     run_assignment_script(
         logger=mock.MagicMock(),
         session=db.session,
+        event_producer=event_producer_mock,
         application=flask_app,
     )
 
