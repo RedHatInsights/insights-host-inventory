@@ -30,6 +30,11 @@ def test_patch_group_happy_path(
     event_producer,
     mocker,
 ):
+    mocker.patch(
+        "lib.feature_flags.get_flag_value",
+        side_effect=lambda name: name == "FLAG_INVENTORY_KESSEL_PHASE_1",
+    )
+
     # Create a group with no hosts
     mocker.patch.object(event_producer, "write_event")
     group = db_create_group("test_group")
@@ -140,7 +145,11 @@ def test_patch_group_existing_name_different_org(
 
 
 @pytest.mark.parametrize("patch_name", ["existing_group", "EXISTING_GROUP"])
-def test_patch_group_existing_name_same_org(db_create_group, api_patch_group, patch_name):
+def test_patch_group_existing_name_same_org(db_create_group, api_patch_group, patch_name, mocker):
+    mocker.patch(
+        "lib.feature_flags.get_flag_value",
+        side_effect=lambda name: name == "FLAG_INVENTORY_KESSEL_PHASE_1",
+    )
     # Create 2 groups
     db_create_group("existing_group")
     new_id = db_create_group("another_group").id
@@ -148,8 +157,8 @@ def test_patch_group_existing_name_same_org(db_create_group, api_patch_group, pa
     response_status, response_body = api_patch_group(new_id, {"name": patch_name})
 
     # Now that group uniqueness restriction is handled by the API, it is okay to update the host.
-    assert_response_status(response_status, 200)
-    assert patch_name in response_body["name"]
+    assert_response_status(response_status, 400)
+    assert patch_name in response_body["detail"]
 
 
 def test_patch_group_hosts_from_different_group(
