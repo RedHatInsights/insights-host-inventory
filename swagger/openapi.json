@@ -3637,29 +3637,7 @@
               "running_instances": {
                 "type": "array",
                 "items": {
-                  "description": "The info for an InterSystems instance running on the system",
-                  "type": "object",
-                  "properties": {
-                    "instance_name": {
-                      "description": "The name of the instance",
-                      "type": "string",
-                      "example": "IRIS3, PROD",
-                      "maxLength": 255
-                    },
-                    "product": {
-                      "description": "The product of the instance",
-                      "type": "string",
-                      "example": "IRIS",
-                      "maxLength": 64
-                    },
-                    "version": {
-                      "description": "The version of the instance",
-                      "type": "string",
-                      "example": "2023.1, 2023.2",
-                      "maxLength": 7,
-                      "pattern": "^\\d+(\\.\\d+)+$"
-                    }
-                  }
+                  "$ref": "#/components/schemas/SystemProfileInterSystemsRunningInstance"
                 }
               }
             }
@@ -3996,7 +3974,7 @@
                   "running_instances": {
                     "type": "array",
                     "items": {
-                      "$ref": "#/components/schemas/SystemProfile/properties/intersystems/properties/running_instances/items"
+                      "$ref": "#/components/schemas/SystemProfileInterSystemsRunningInstance"
                     }
                   }
                 }
@@ -4317,6 +4295,31 @@
             "type": "string",
             "example": "ether, infiniband, loopback",
             "maxLength": 18
+          }
+        }
+      },
+      "SystemProfileInterSystemsRunningInstance": {
+        "description": "The info for an InterSystems instance running on the system",
+        "type": "object",
+        "properties": {
+          "instance_name": {
+            "description": "The name of the instance",
+            "type": "string",
+            "example": "IRIS3, PROD",
+            "maxLength": 255
+          },
+          "product": {
+            "description": "The product of the instance",
+            "type": "string",
+            "example": "IRIS",
+            "maxLength": 64
+          },
+          "version": {
+            "description": "The version of the instance",
+            "type": "string",
+            "example": "2023.1, 2023.2",
+            "maxLength": 7,
+            "pattern": "^\\d+(\\.\\d+)+$"
           }
         }
       },
