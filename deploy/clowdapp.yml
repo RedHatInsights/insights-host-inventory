@@ -1991,6 +1991,13 @@ objects:
           FROM "hbi"."hosts"
           GROUP BY "org_id"
           ORDER BY "host_count" DESC;
+      - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/hosts_per_public_cloud
+        query: >-
+          SELECT
+            "canonical_facts"->>'provider_type' AS "provider_type",
+            COUNT(*) AS "host_count"
+          FROM "hbi"."hosts"
+          GROUP BY "provider_type";
       - prefix: hms_analytics/inventory/${ENV_NAME}/groups_metrics/org_ids_with_group_names
         chunksize: 10000
         query: >-
@@ -2009,13 +2016,6 @@ objects:
           JOIN "hbi"."hosts_groups" ON "groups"."id" = "hbi"."hosts_groups"."group_id"
           GROUP BY "groups"."id"
           ORDER BY "host_count" DESC;
-      - prefix: hms_analytics/inventory/${ENV_NAME}/groups_metrics/hosts_per_public_cloud
-        query: >-
-          SELECT
-            "canonical_facts"->>'provider_type' AS "provider_type",
-            COUNT(*) AS "host_count"
-          FROM "hbi"."hosts"
-          GROUP BY "provider_type";
 - apiVersion: v1
   data:
     nginx.conf: |-
