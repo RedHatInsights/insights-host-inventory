@@ -35,10 +35,11 @@ from app.queue.events import EventType
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.feature_flags import get_flag_value
-from lib.group_repository import add_hosts_to_group, get_group_by_name_from_db
+from lib.group_repository import add_hosts_to_group
 from lib.group_repository import create_group_from_payload
 from lib.group_repository import delete_group_list
 from lib.group_repository import get_group_by_id_from_db
+from lib.group_repository import get_group_by_name_from_db
 from lib.group_repository import get_group_using_host_id
 from lib.group_repository import get_ungrouped_group
 from lib.group_repository import patch_group
@@ -197,19 +198,35 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
     try:
         if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
             new_group_name = validated_patch_group_data.get("name")
-            if new_group_name:
+            if new_group_name:  # noqa: SIM102, using two feature flags requires 2 separate if statements
                 if not get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1):
                     existing_groups = get_group_by_name_from_db(new_group_name, identity.org_id)
                     if len(existing_groups) > 0:
-                        return ({"status": 400, "title": "Bad Request", "detail": f"A group with name {new_group_name} already exists.", "type": "unknown"}, 400)
+                        return (
+                            {
+                                "status": 400,
+                                "title": "Bad Request",
+                                "detail": f"A group with name {new_group_name} already exists.",
+                                "type": "unknown",
+                            },
+                            400,
+                        )
                     patch_rbac_workspace(group_id, name=new_group_name)
         if not get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1):
             new_group_name = validated_patch_group_data.get("name")
             if new_group_name:
                 existing_groups = get_group_by_name_from_db(new_group_name, identity.org_id)
                 if len(existing_groups) > 0:
-                    return ({"status": 400, "title": "Bad Request", "detail": f"A group with name {new_group_name} already exists.", "type": "unknown"}, 400)
-        
+                    return (
+                        {
+                            "status": 400,
+                            "title": "Bad Request",
+                            "detail": f"A group with name {new_group_name} already exists.",
+                            "type": "unknown",
+                        },
+                        400,
+                    )
+
         # Separate out the host IDs because they're not stored on the Group
         patch_group(group_to_update, validated_patch_group_data, identity, current_app.event_producer)
 
