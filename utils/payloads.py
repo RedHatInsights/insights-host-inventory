@@ -579,6 +579,7 @@ def random_uuid():
 IS_EDGE = os.environ.get("IS_EDGE", False)
 USE_RANDOMNESS = os.environ.get("USE_RANDOMNESS", "True").lower() == "true"
 
+
 def build_host_chunk():
     fqdn = random_uuid()[:6] + ".foo.redhat.com"
     system_profile = create_system_profile()
