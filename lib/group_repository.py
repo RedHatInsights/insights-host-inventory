@@ -48,21 +48,18 @@ from lib.middleware import rbac_create_ungrouped_hosts_workspace
 logger = get_logger(__name__)
 
 
-def _update_hosts_for_group_changes(
-    host_id_list: list[str], group_id_list: list[str], identity: Identity, session: Optional[Session] = None
-):
-    session = session or db.session
+def _update_hosts_for_group_changes(host_id_list: list[str], group_id_list: list[str], identity: Identity):
     if group_id_list is None:
         group_id_list = []
 
     serialized_groups = [
-        serialize_group(get_group_by_id_from_db(group_id, identity.org_id), identity.org_id, session)
+        serialize_group(get_group_by_id_from_db(group_id, identity.org_id), identity.org_id)
         for group_id in group_id_list
     ]
 
     # Update groups data on each host record
     Host.query.filter(Host.id.in_(host_id_list)).update({"groups": serialized_groups}, synchronize_session="fetch")
-    session.commit()
+    db.session.commit()
 
     return serialized_groups, host_id_list
 
@@ -119,12 +116,9 @@ def validate_add_host_list_to_group_for_group_create(host_id_list: list[str], gr
         )
 
 
-def validate_add_host_list_to_group(
-    host_id_list: list[str], group_id: str, org_id: str, session: Optional[Session] = None
-):
-    session = session or db.session
+def validate_add_host_list_to_group(host_id_list: list[str], group_id: str, org_id: str):
     # Check if the hosts exist in Inventory and have correct org_id
-    host_query = session.query(Host).filter((Host.org_id == org_id) & Host.id.in_(host_id_list)).all()
+    host_query = db.session.query(Host).filter((Host.org_id == org_id) & Host.id.in_(host_id_list)).all()
     found_ids_set = {str(host.id) for host in host_query}
     if found_ids_set != set(host_id_list):
         nonexistent_hosts = set(host_id_list) - found_ids_set
@@ -135,7 +129,7 @@ def validate_add_host_list_to_group(
 
     # Check if the hosts are already associated with another (ungrouped) group
     if assoc_query := (
-        session.query(HostGroupAssoc)
+        db.session.query(HostGroupAssoc)
         .join(Group)
         .filter(
             HostGroupAssoc.host_id.in_(host_id_list), HostGroupAssoc.group_id != group_id, Group.ungrouped.is_(False)
@@ -150,10 +144,9 @@ def validate_add_host_list_to_group(
         )
 
 
-def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str, session: Optional[Session] = None):
-    session = session or db.session
+def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str):
     # First, validate that the hosts can even be added to the group
-    validate_add_host_list_to_group(host_id_list, group_id, org_id, session)
+    validate_add_host_list_to_group(host_id_list, group_id, org_id)
 
     # Filter out hosts that are already in the group
     assoc_query = HostGroupAssoc.query.filter(
@@ -171,9 +164,9 @@ def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str, ses
         for host_id in host_id_list
         if host_id not in ids_already_in_this_group
     ]
-    session.add_all(host_group_assoc)
+    db.session.add_all(host_group_assoc)
 
-    _update_group_update_time(group_id, org_id, session)
+    _update_group_update_time(group_id, org_id)
 
     log_host_group_add_succeeded(logger, host_id_list, group_id)
 
@@ -223,16 +216,14 @@ def add_hosts_to_group(
     host_id_list: list[str],
     identity: Identity,
     event_producer: EventProducer,
-    session: Optional[Session] = None,
 ):
-    session = session or db.session
-    staleness = get_staleness_obj(identity.org_id, session)
-    with session_guard(session):
-        _add_hosts_to_group(group_id, host_id_list, identity.org_id, session)
+    staleness = get_staleness_obj(identity.org_id)
+    with session_guard(db.session):
+        _add_hosts_to_group(group_id, host_id_list, identity.org_id)
 
     # Produce update messages once the DB session has been closed
     serialized_groups, host_id_list = _update_hosts_for_group_changes(
-        host_id_list, group_id_list=[group_id], identity=identity, session=session
+        host_id_list, group_id_list=[group_id], identity=identity
     )
     _process_host_changes(host_id_list, serialized_groups, staleness, identity, event_producer)
 
@@ -470,12 +461,11 @@ def patch_group(group: Group, patch_data: dict, identity: Identity, event_produc
         _process_host_changes(host_id_list, serialized_groups, staleness, identity, event_producer)
 
 
-def _update_group_update_time(group_id: str, org_id: str, session: Optional[Session] = None):
-    session = session or db.session
-    group = get_group_by_id_from_db(group_id, org_id, session)
+def _update_group_update_time(group_id: str, org_id: str):
+    group = get_group_by_id_from_db(group_id, org_id)
     group.update_modified_on()
-    session.add(group)
-    session.flush()
+    db.session.add(group)
+    db.session.flush()
 
 
 def get_group_using_host_id(host_id: str, org_id: str):

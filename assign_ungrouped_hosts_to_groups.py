@@ -7,17 +7,15 @@ from logging import Logger
 from connexion import FlaskApp
 from sqlalchemy.orm import Session
 
-from app.auth.identity import create_mock_identity_with_org_id
 from app.environment import RuntimeEnvironment
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
-from app.queue.event_producer import EventProducer
 from jobs.common import excepthook
 from jobs.common import job_setup
-from lib.group_repository import add_hosts_to_group
+from lib.db import session_guard
 
 PROMETHEUS_JOB = "inventory-assign-ungrouped-groups"
 LOGGER_NAME = "assign_ungrouped_groups"
@@ -25,7 +23,7 @@ RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
 BATCH_SIZE = int(os.getenv("ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE", 25))
 
 
-def run(logger: Logger, session: Session, event_producer: EventProducer, application: FlaskApp):
+def run(logger: Logger, session: Session, application: FlaskApp):
     with application.app.app_context():
         threadctx.request_id = None
         # For each org_id in the Hosts table
@@ -44,28 +42,23 @@ def run(logger: Logger, session: Session, event_producer: EventProducer, applica
             ungrouped_group_id = ungrouped_group.id
 
             # Assign all ungrouped hosts to this new Group in batches
-            while True:
+            hosts_to_process = 1
+            while hosts_to_process > 0:
                 # Grab the first batch of ungrouped hosts in the org.
                 # We don't need offset() because Host are assigned to Groups in add_hosts_to_group().
-                host_ids = (
-                    session.query(Host.id)
-                    .outerjoin(HostGroupAssoc, Host.id == HostGroupAssoc.host_id)
-                    .filter(Host.org_id == org_id, HostGroupAssoc.host_id.is_(None))
-                    .limit(BATCH_SIZE)
-                    .all()
-                )
-                if host_id_list := [str(host_id) for (host_id,) in host_ids]:
-                    add_hosts_to_group(
-                        ungrouped_group_id,
-                        host_id_list,
-                        create_mock_identity_with_org_id(org_id),
-                        event_producer,
-                        session,
+                with session_guard(session):
+                    host_ids = (
+                        session.query(Host.id)
+                        .outerjoin(HostGroupAssoc, Host.id == HostGroupAssoc.host_id)
+                        .filter(Host.org_id == org_id, HostGroupAssoc.host_id.is_(None))
+                        .limit(BATCH_SIZE)
+                        .all()
                     )
-                else:
-                    break
-
-            session.expunge_all()
+                    hosts_to_process = len(host_ids)
+                    for (host_id,) in host_ids:
+                        assoc = HostGroupAssoc(host_id, ungrouped_group_id)
+                        session.add(assoc)
+                    logger.info(f"Created {len(host_ids)} host-group associations for org {org_id}.")
 
 
 if __name__ == "__main__":
@@ -73,9 +66,9 @@ if __name__ == "__main__":
     job_type = "Assign ungrouped hosts to ungrouped groups"
     sys.excepthook = partial(excepthook, logger, job_type)
 
-    config, session, event_producer, _, _, application = job_setup((), PROMETHEUS_JOB)
+    config, session, _, _, _, application = job_setup((), PROMETHEUS_JOB)
     if config.bypass_kessel_jobs:
         logger.info("bypass_kessel_jobs was set to True; exiting.")
         sys.exit(0)
     else:
-        run(logger, session, event_producer, application)
+        run(logger, session, application)
