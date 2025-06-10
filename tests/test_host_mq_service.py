@@ -2544,7 +2544,7 @@ def test_write_add_update_event_message(mocker):
         "updated": datetime.now().isoformat(),
     }
 
-    class FakeRow:
+    class FakeHostRow: 
         id = "host-id"
         org_id = "org-id"
         account = "acct"
