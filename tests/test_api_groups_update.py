@@ -6,6 +6,7 @@ from dateutil import parser
 
 from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
 from tests.helpers.api_utils import assert_group_response
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
@@ -32,7 +33,7 @@ def test_patch_group_happy_path(
 ):
     mocker.patch(
         "lib.feature_flags.get_flag_value",
-        side_effect=lambda name: name == "FLAG_INVENTORY_KESSEL_PHASE_1",
+        side_effect=lambda name: name == FLAG_INVENTORY_KESSEL_PHASE_1,
     )
 
     # Create a group with no hosts
@@ -148,7 +149,7 @@ def test_patch_group_existing_name_different_org(
 def test_patch_group_existing_name_same_org(db_create_group, api_patch_group, patch_name, mocker):
     mocker.patch(
         "lib.feature_flags.get_flag_value",
-        side_effect=lambda name: name == "FLAG_INVENTORY_KESSEL_PHASE_1",
+        side_effect=lambda name: name == FLAG_INVENTORY_KESSEL_PHASE_1,
     )
     # Create 2 groups
     db_create_group("existing_group")

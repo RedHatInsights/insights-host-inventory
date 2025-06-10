@@ -103,6 +103,17 @@ def create_group(body, rbac_filter=None):
 
     try:
         # Create group with validated data
+        group_name = validated_create_group_data.get("name")
+
+        # check the group's existence and for Kessel Phase 1
+        if not get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1) and does_group_with_name_exist(
+            group_name, get_current_identity().org_id
+        ):
+            log_create_group_failed(logger, group_name)
+            return json_error_response(
+                "Integrity error", f"A group with name {group_name} already exists.", HTTPStatus.BAD_REQUEST
+            )
+
         if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
             group_name = validated_create_group_data.get("name")
             # Before waiting for workspace creation in RBAC, check that the name isn't already in use
@@ -140,16 +151,6 @@ def create_group(body, rbac_filter=None):
             )
             created_group = get_group_by_id_from_db(workspace_id, get_current_identity().org_id)
         else:
-            group_name = validated_create_group_data.get("name")
-
-            # check the group's existence and for Kessel Phase 1
-            if not get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1) and does_group_with_name_exist(
-                group_name, get_current_identity().org_id
-            ):
-                log_create_group_failed(logger, group_name)
-                return json_error_response(
-                    "Integrity error", f"A group with name {group_name} already exists.", HTTPStatus.BAD_REQUEST
-                )
             created_group = create_group_from_payload(validated_create_group_data, current_app.event_producer, None)
             create_group_count.inc()
 
