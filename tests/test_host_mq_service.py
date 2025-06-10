@@ -27,6 +27,7 @@ from app.models import Host
 from app.queue.event_producer import EventProducer
 from app.queue.events import EventType
 from app.queue.host_mq import IngressMessageConsumer
+from app.queue.host_mq import OperationResult
 from app.queue.host_mq import SystemProfileMessageConsumer
 from app.queue.host_mq import WorkspaceMessageConsumer
 from app.queue.host_mq import _validate_json_object_for_utf8
@@ -2511,3 +2512,72 @@ def test_post_process_rows_stale_data_error(mocker, flask_app, event_producer):
         consumer.post_process_rows()
         db_session_mock.commit.assert_called_once()
         notify_mock.assert_not_called()  # Should not notify if commit fails
+
+
+@pytest.mark.usefixtures("flask_app")
+def test_write_add_update_event_message(mocker):
+    # Setup
+    mock_event_producer = mocker.Mock()
+    mock_notification_event_producer = mocker.Mock()
+    mock_success_logger = mocker.Mock()
+    mocker.patch("app.queue.host_mq.PayloadTrackerProcessingContext")
+    mocker.patch("app.queue.host_mq.get_payload_tracker", return_value=mocker.Mock())
+    mocker.patch("app.queue.host_mq.get_flag_value", return_value=True)
+    mocker.patch(
+        "app.serialization.get_staleness_timestamps",
+        return_value={
+            "stale_timestamp": datetime.now(),
+            "stale_warning_timestamp": datetime.now(),
+            "culled_timestamp": datetime.now(),
+        },
+    )
+    mock_set_cached_system = mocker.patch("app.queue.host_mq.set_cached_system")
+
+    serialized_group = {
+        "id": str(generate_uuid()),
+        "name": "group-name",
+        "ungrouped": True,
+        "org_id": "org-id",
+        "account": "account",
+        "host_count": 1,
+        "created": datetime.now().isoformat(),
+        "updated": datetime.now().isoformat(),
+    }
+
+    class FakeRow:
+        id = "host-id"
+        org_id = "org-id"
+        account = "acct"
+        canonical_facts = {"insights_id": str(generate_uuid())}
+        reporter = "puptoo"
+        system_profile_facts = {"owner_id": "owner-id"}
+        groups = [serialized_group]
+        host_type = None
+        display_name = "test-display-name"
+        ansible_host = "test-ansible-host"
+        facts = {"namespace": []}
+        tags = []
+        per_reporter_staleness = {}
+        created_on = datetime.now()
+        modified_on = datetime.now()
+
+    result = OperationResult(
+        row=FakeRow(),
+        pm={"request_id": "abc"},
+        st=None,
+        so=None,
+        et=EventType.created,
+        sl=mock_success_logger,
+    )
+
+    # Act
+    write_add_update_event_message(mock_event_producer, mock_notification_event_producer, result)
+
+    # Assert that the event message contains only the limited group fields
+
+    event_groups = json.loads(mock_event_producer.write_event.call_args[0][0])["host"]["groups"]
+    assert event_groups == [{"name": "group-name", "id": serialized_group["id"], "ungrouped": True}]
+
+    # Assert that all group fields were present when calling mock_set_cached_system
+    cached_group = mock_set_cached_system.call_args[0][1]["groups"][0]
+    assert cached_group == serialized_group

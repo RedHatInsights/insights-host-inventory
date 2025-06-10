@@ -680,6 +680,8 @@ def write_add_update_event_message(
                     del output_host["tags"]
                 if "system_profile" in output_host:
                     del output_host["system_profile"]
+                # Set full group details before caching
+                output_host["groups"] = result.row.groups or []
                 set_cached_system(system_key, output_host, inventory_config())
         except Exception as ex:
             logger.error("Error during set cache", ex)
