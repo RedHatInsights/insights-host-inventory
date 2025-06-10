@@ -2562,7 +2562,7 @@ def test_write_add_update_event_message(mocker):
         modified_on = datetime.now()
 
     result = OperationResult(
-        row=FakeRow(),
+        row=FakeHostRow(),
         pm={"request_id": "abc"},
         st=None,
         so=None,
