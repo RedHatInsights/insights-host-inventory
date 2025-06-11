@@ -1,3 +1,4 @@
+import resource
 import time
 from typing import Optional
 from uuid import UUID
@@ -325,6 +326,7 @@ def delete_group_list(group_id_list: list[str], identity: Identity, event_produc
     deletion_count = 0
     deleted_host_ids = []
     staleness = get_staleness_obj(identity.org_id)
+    logger.debug(f">>> Memory usage 4a: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
 
     with session_guard(db.session):
         query = (
@@ -335,7 +337,11 @@ def delete_group_list(group_id_list: list[str], identity: Identity, event_produc
 
         assocs_to_delete = db.session.execute(query).scalars().all()
 
+        logger.debug(f">>> Memory usage 4b: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
+
         deleted_host_ids = [assoc.host_id for assoc in assocs_to_delete]
+
+        logger.debug(f">>> Memory usage 4c: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
 
         for group in (
             db.session.query(Group).filter(Group.org_id == identity.org_id, Group.id.in_(group_id_list)).all()
@@ -344,6 +350,7 @@ def delete_group_list(group_id_list: list[str], identity: Identity, event_produc
 
             with delete_group_processing_time.time():
                 if _delete_group(group, identity):
+                    logger.debug(f">>> Memory usage 4d: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
                     deletion_count += 1
                     delete_group_count.inc()
                     log_group_delete_succeeded(logger, group_id, get_control_rule())
@@ -353,9 +360,12 @@ def delete_group_list(group_id_list: list[str], identity: Identity, event_produc
     new_group_list = []
     if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
         new_group_list = [str(get_or_create_ungrouped_hosts_group_for_identity(identity).id)]
+        logger.debug(f">>> Memory usage 4e: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
 
     serialized_groups, host_id_list = _update_hosts_for_group_changes(deleted_host_ids, new_group_list, identity)
+    logger.debug(f">>> Memory usage 4f: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
     _process_host_changes(host_id_list, serialized_groups, staleness, identity, event_producer)
+    logger.debug(f">>> Memory usage 4g: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
     return deletion_count
 
 
