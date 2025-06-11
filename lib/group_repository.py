@@ -58,8 +58,9 @@ def _update_hosts_for_group_changes(host_id_list: list[str], group_id_list: list
     ]
 
     # Update groups data on each host record
-    Host.query.filter(Host.id.in_(host_id_list)).update({"groups": serialized_groups}, synchronize_session="fetch")
-    db.session.commit()
+    db.session.query(Host).filter(Host.id.in_(host_id_list)).update(
+        {"groups": serialized_groups}, synchronize_session="fetch"
+    )
 
     return serialized_groups, host_id_list
 
@@ -350,11 +351,13 @@ def delete_group_list(group_id_list: list[str], identity: Identity, event_produc
                 else:
                     log_group_delete_failed(logger, group_id, get_control_rule())
 
-    new_group_list = []
-    if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
-        new_group_list = [str(get_or_create_ungrouped_hosts_group_for_identity(identity).id)]
+        new_group_list = []
+        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
+            new_group_list = [str(get_or_create_ungrouped_hosts_group_for_identity(identity).id)]
 
-    serialized_groups, host_id_list = _update_hosts_for_group_changes(deleted_host_ids, new_group_list, identity)
+        serialized_groups, host_id_list = _update_hosts_for_group_changes(deleted_host_ids, new_group_list, identity)
+        db.session.commit()
+
     _process_host_changes(host_id_list, serialized_groups, staleness, identity, event_producer)
     return deletion_count
 
