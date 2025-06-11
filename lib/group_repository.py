@@ -422,7 +422,9 @@ def get_group_by_id_from_db(group_id: str, org_id: str, session: Optional[Sessio
     session = session or db.session
     logger.debug(f">>> Memory usage 4e1a: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
     query = session.query(Group).filter(Group.org_id == org_id, Group.id == group_id)
-    return query.one_or_none()
+    group = query.one_or_none()
+    logger.debug(f">>> Memory usage 4e1b: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
+    return group
 
 
 def patch_group(group: Group, patch_data: dict, identity: Identity, event_producer: EventProducer):

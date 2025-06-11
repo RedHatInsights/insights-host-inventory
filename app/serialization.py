@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import resource
 from datetime import datetime
 from datetime import timezone
 
@@ -13,6 +14,7 @@ from app.culling import Conditions
 from app.culling import Timestamps
 from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
+from app.logging import get_logger
 from app.models import CanonicalFactsSchema
 from app.models import Group
 from app.models import Host
@@ -23,6 +25,8 @@ from app.staleness_serialization import get_staleness_timestamps
 from app.utils import Tag
 from lib.feature_flags import FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS
 from lib.feature_flags import get_flag_value
+
+logger = get_logger(__name__)
 
 __all__ = (
     "deserialize_host",
@@ -235,18 +239,28 @@ def serialize_host_for_export_svc(
 # get hosts not marked for deletion
 def _get_unculled_hosts(group, org_id):
     hosts = []
+    logger.debug(f">>> Memory usage guh1: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
     staleness_timestamps = Timestamps.from_config(inventory_config())
+    logger.debug(f">>> Memory usage guh2: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
     staleness = get_staleness_obj(org_id)
+    logger.debug(f">>> Memory usage guh3: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
     for host in group.hosts:
+        logger.debug(f">>> Memory usage guh4: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
         serialized_host = serialize_host(host, staleness_timestamps=staleness_timestamps, staleness=staleness)
+        logger.debug(f">>> Memory usage guh5: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
         if _deserialize_datetime(serialized_host["culled_timestamp"]) > datetime.now(tz=timezone.utc):
             hosts.append(host)
 
+        logger.debug(f">>> Memory usage guh6: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
+
+    logger.debug(f">>> Memory usage guh7: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
     return hosts
 
 
 def serialize_group(group: Group, org_id: str):
+    logger.debug(f">>> Memory usage ser1: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
     unculled_hosts = _get_unculled_hosts(group, org_id)
+    logger.debug(f">>> Memory usage gso2: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
     return {
         "id": _serialize_uuid(group.id),
         "org_id": group.org_id,
