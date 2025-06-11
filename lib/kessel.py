@@ -120,7 +120,7 @@ class Kessel:
         reporter_struct = struct_pb2.Struct()
         reporter_struct.update({
             "satellite_id": host.canonical_facts.get("satellite_id",""),
-            "sub_manager_id": host.canonical_facts.get("subscription_manager_id",""),
+            "subscription_manager_id": host.canonical_facts.get("subscription_manager_id",""),
             "ansible_host": host.ansible_host,
             "insights_inventory_id": str(host.id), #Actually, should probably come from canonical_facts
         })
