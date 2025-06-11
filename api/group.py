@@ -1,5 +1,6 @@
 from http import HTTPStatus
 
+import memray
 from flask import Response
 from flask import abort
 from flask import current_app
@@ -213,39 +214,40 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def delete_groups(group_id_list, rbac_filter=None):
-    rbac_group_id_check(rbac_filter, set(group_id_list))
+    with memray.Tracker("output_file.bin"):
+        rbac_group_id_check(rbac_filter, set(group_id_list))
 
-    if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
-        # Write is not allowed for the ungrouped through API requests
-        ungrouped_group = get_ungrouped_group(get_current_identity())
-        ungrouped_group_id = str(ungrouped_group.id) if ungrouped_group else None
+        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
+            # Write is not allowed for the ungrouped through API requests
+            ungrouped_group = get_ungrouped_group(get_current_identity())
+            ungrouped_group_id = str(ungrouped_group.id) if ungrouped_group else None
 
-        for group_id in group_id_list:
-            if ungrouped_group_id == group_id:
-                abort(HTTPStatus.BAD_REQUEST, f"Ungrouped workspace {group_id} can not be deleted.")
+            for group_id in group_id_list:
+                if ungrouped_group_id == group_id:
+                    abort(HTTPStatus.BAD_REQUEST, f"Ungrouped workspace {group_id} can not be deleted.")
 
-        group_ids_to_delete = []
-        delete_count = 0
+            group_ids_to_delete = []
+            delete_count = 0
 
-        # Attempt to delete the RBAC workspaces
-        for group_id in group_id_list:
-            try:
-                if delete_rbac_workspace(group_id):
-                    delete_count += 1
-            except ResourceNotFoundException:
-                # For workspaces that are missing from RBAC,
-                # we'll attempt to delete the groups on our side
-                group_ids_to_delete.append(group_id)
+            # Attempt to delete the RBAC workspaces
+            for group_id in group_id_list:
+                try:
+                    if delete_rbac_workspace(group_id):
+                        delete_count += 1
+                except ResourceNotFoundException:
+                    # For workspaces that are missing from RBAC,
+                    # we'll attempt to delete the groups on our side
+                    group_ids_to_delete.append(group_id)
 
-        # Attempt to delete the "not found" groups on our side
-        delete_count += delete_group_list(group_ids_to_delete, get_current_identity(), current_app.event_producer)
-    else:
-        delete_count = delete_group_list(group_id_list, get_current_identity(), current_app.event_producer)
+            # Attempt to delete the "not found" groups on our side
+            delete_count += delete_group_list(group_ids_to_delete, get_current_identity(), current_app.event_producer)
+        else:
+            delete_count = delete_group_list(group_id_list, get_current_identity(), current_app.event_producer)
 
-    if delete_count == 0:
-        log_get_group_list_failed(logger)
-        abort(HTTPStatus.NOT_FOUND, "No groups found for deletion.")
-    return Response(None, HTTPStatus.NO_CONTENT)
+        if delete_count == 0:
+            log_get_group_list_failed(logger)
+            abort(HTTPStatus.NOT_FOUND, "No groups found for deletion.")
+        return Response(None, HTTPStatus.NO_CONTENT)
 
 
 @api_operation
