@@ -1,4 +1,3 @@
-import resource
 import time
 from typing import Optional
 from uuid import UUID
@@ -57,15 +56,12 @@ def _update_hosts_for_group_changes(host_id_list: list[str], group_id_list: list
         serialize_group(get_group_by_id_from_db(group_id, identity.org_id), identity.org_id)
         for group_id in group_id_list
     ]
-    logger.debug(f">>> Memory usage 4e1: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
 
     # Update groups data on each host record
     db.session.query(Host).filter(Host.id.in_(host_id_list)).update(
         {"groups": serialized_groups}, synchronize_session="fetch"
     )
-    logger.debug(f">>> Memory usage 4e2: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
     db.session.commit()
-    logger.debug(f">>> Memory usage 4e3: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
 
     return serialized_groups, host_id_list
 
@@ -330,10 +326,9 @@ def _delete_group(group: Group, identity: Identity) -> bool:
 def delete_group_list(group_id_list: list[str], identity: Identity, event_producer: EventProducer) -> int:
     deletion_count = 0
     deleted_host_ids = []
-    staleness = get_staleness_obj(identity.org_id)
-    logger.debug(f">>> Memory usage 4a: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
 
     with session_guard(db.session):
+        staleness = get_staleness_obj(identity.org_id)
         query = (
             select(HostGroupAssoc)
             .join(Group, HostGroupAssoc.group_id == Group.id)
@@ -341,12 +336,7 @@ def delete_group_list(group_id_list: list[str], identity: Identity, event_produc
         )
 
         assocs_to_delete = db.session.execute(query).scalars().all()
-
-        logger.debug(f">>> Memory usage 4b: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
-
         deleted_host_ids = [assoc.host_id for assoc in assocs_to_delete]
-
-        logger.debug(f">>> Memory usage 4c: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
 
         for group in (
             db.session.query(Group).filter(Group.org_id == identity.org_id, Group.id.in_(group_id_list)).all()
@@ -355,22 +345,22 @@ def delete_group_list(group_id_list: list[str], identity: Identity, event_produc
 
             with delete_group_processing_time.time():
                 if _delete_group(group, identity):
-                    logger.debug(f">>> Memory usage 4d: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
                     deletion_count += 1
                     delete_group_count.inc()
                     log_group_delete_succeeded(logger, group_id, get_control_rule())
                 else:
                     log_group_delete_failed(logger, group_id, get_control_rule())
 
-    new_group_list = []
-    if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
-        new_group_list = [str(get_or_create_ungrouped_hosts_group_for_identity(identity).id)]
-        logger.debug(f">>> Memory usage 4e: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
+        new_group_list = []
+        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
+            new_group_list = [str(get_or_create_ungrouped_hosts_group_for_identity(identity).id)]
 
-    serialized_groups, host_id_list = _update_hosts_for_group_changes(deleted_host_ids, new_group_list, identity)
-    logger.debug(f">>> Memory usage 4f: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
-    _process_host_changes(host_id_list, serialized_groups, staleness, identity, event_producer)
-    logger.debug(f">>> Memory usage 4g: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
+        serialized_groups, host_id_list = _update_hosts_for_group_changes(deleted_host_ids, new_group_list, identity)
+        _process_host_changes(host_id_list, serialized_groups, staleness, identity, event_producer)
+
+        db.session.commit()
+        db.session.expunge_all()
+
     return deletion_count
 
 
@@ -420,10 +410,8 @@ def _remove_hosts_from_group(group_id, host_id_list, org_id):
 
 def get_group_by_id_from_db(group_id: str, org_id: str, session: Optional[Session] = None) -> Group:
     session = session or db.session
-    logger.debug(f">>> Memory usage 4e1a: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
     query = session.query(Group).filter(Group.org_id == org_id, Group.id == group_id)
     group = query.one_or_none()
-    logger.debug(f">>> Memory usage 4e1b: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
     return group
 
 
