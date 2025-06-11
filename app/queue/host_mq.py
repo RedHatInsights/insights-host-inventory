@@ -418,6 +418,20 @@ class IngressMessageConsumer(HostMessageConsumer):
                 input_host, identity, operation_args=operation_args, existing_hosts=processed_hosts
             )
 
+            # If this is a new host, assign it to the "ungrouped hosts" group/workspace
+            if add_result == host_repository.AddHostResult.created and get_flag_value(
+                FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
+            ):
+                group = get_or_create_ungrouped_hosts_group_for_identity(identity)
+                host_row.groups = [serialize_group(group, identity.org_id)]
+                db.session.flush()  # Flush so that we can retrieve the created host's ID
+                # Get org's "ungrouped hosts" group (create if not exists) and assign host to it
+                group = get_or_create_ungrouped_hosts_group_for_identity(identity)
+                assoc = HostGroupAssoc(host_row.id, group.id, identity.org_id)
+                db.session.add(assoc)
+                host_row.groups = [serialize_group(group)]
+                db.session.flush()
+
             success_logger = partial(log_add_update_host_succeeded, logger, add_result, sp_fields_to_log)
 
             return host_row, add_result, identity, success_logger
@@ -433,7 +447,7 @@ class IngressMessageConsumer(HostMessageConsumer):
         except OperationalError as oe:
             log_db_access_failure(logger, f"Could not access DB {str(oe)}", host_data)
             raise oe
-        except Exception:
+        except Exception as e:
             logger.exception("Error while adding host", extra={"host": host_data, "system_profile": sp_fields_to_log})
             metrics.add_host_failure.labels("Exception", host_data.get("reporter", "null")).inc()
             raise
