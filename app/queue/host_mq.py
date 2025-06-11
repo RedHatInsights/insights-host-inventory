@@ -433,7 +433,7 @@ class IngressMessageConsumer(HostMessageConsumer):
         except OperationalError as oe:
             log_db_access_failure(logger, f"Could not access DB {str(oe)}", host_data)
             raise oe
-        except Exception:
+        except Exception as e:
             logger.exception("Error while adding host", extra={"host": host_data, "system_profile": sp_fields_to_log})
             metrics.add_host_failure.labels("Exception", host_data.get("reporter", "null")).inc()
             raise

@@ -123,6 +123,8 @@ objects:
           value: 'true'
         - name: BYPASS_RBAC
           value: ${BYPASS_RBAC}
+        - name: KESSEL_TARGET_URL
+          value: ${KESSEL_TARGET_URL}          
         - name: KAFKA_PRODUCER_ACKS
           value: ${KAFKA_PRODUCER_ACKS}
         - name: KAFKA_PRODUCER_RETRIES
@@ -283,6 +285,8 @@ objects:
           value: 'true'
         - name: BYPASS_RBAC
           value: ${BYPASS_RBAC}
+        - name: KESSEL_TARGET_URL
+          value: ${KESSEL_TARGET_URL}          
         - name: KAFKA_PRODUCER_ACKS
           value: ${KAFKA_PRODUCER_ACKS}
         - name: KAFKA_PRODUCER_RETRIES
@@ -441,6 +445,8 @@ objects:
           value: inventory
         - name: PAYLOAD_TRACKER_ENABLED
           value: 'true'
+        - name: KESSEL_TARGET_URL
+          value: ${KESSEL_TARGET_URL}          
         - name: BYPASS_RBAC
           value: ${BYPASS_RBAC}
         - name: KAFKA_PRODUCER_ACKS
@@ -570,6 +576,8 @@ objects:
           value: inventory-mq-service
         - name: PAYLOAD_TRACKER_ENABLED
           value: 'true'
+        - name: KESSEL_TARGET_URL
+          value: ${KESSEL_TARGET_URL}          
         - name: KAFKA_PRODUCER_ACKS
           value: ${KAFKA_PRODUCER_ACKS}
         - name: KAFKA_PRODUCER_RETRIES
@@ -681,6 +689,8 @@ objects:
           value: inventory-mq-service
         - name: PAYLOAD_TRACKER_ENABLED
           value: 'true'
+        - name: KESSEL_TARGET_URL
+          value: ${KESSEL_TARGET_URL}          
         - name: KAFKA_PRODUCER_ACKS
           value: ${KAFKA_PRODUCER_ACKS}
         - name: KAFKA_PRODUCER_RETRIES
@@ -789,6 +799,8 @@ objects:
           value: inventory-mq-service
         - name: PAYLOAD_TRACKER_ENABLED
           value: 'true'
+        - name: KESSEL_TARGET_URL
+          value: ${KESSEL_TARGET_URL}          
         - name: KAFKA_PRODUCER_ACKS
           value: ${KAFKA_PRODUCER_ACKS}
         - name: KAFKA_PRODUCER_RETRIES
@@ -1044,6 +1056,8 @@ objects:
             value: ${INVENTORY_DB_SSL_CERT}
           - name: KAFKA_BOOTSTRAP_SERVERS
             value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: KESSEL_TARGET_URL
+            value: ${KESSEL_TARGET_URL}            
           - name: PAYLOAD_TRACKER_KAFKA_TOPIC
             value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
           - name: PAYLOAD_TRACKER_SERVICE_NAME
@@ -1132,6 +1146,8 @@ objects:
             value: ${INVENTORY_DB_SSL_CERT}
           - name: KAFKA_BOOTSTRAP_SERVERS
             value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: KESSEL_TARGET_URL
+            value: ${KESSEL_TARGET_URL}            
           - name: PROMETHEUS_PUSHGATEWAY
             value: ${PROMETHEUS_PUSHGATEWAY}
           - name: KAFKA_EVENT_TOPIC
@@ -1254,6 +1270,8 @@ objects:
             value: ${INVENTORY_DB_SSL_CERT}
           - name: KAFKA_BOOTSTRAP_SERVERS
             value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: KESSEL_TARGET_URL
+            value: ${KESSEL_TARGET_URL}            
           - name: PAYLOAD_TRACKER_KAFKA_TOPIC
             value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
           - name: PAYLOAD_TRACKER_SERVICE_NAME
@@ -1387,6 +1405,8 @@ objects:
             value: "${INVENTORY_DB_SCHEMA}"
           - name: KAFKA_BOOTSTRAP_SERVERS
             value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: KESSEL_TARGET_URL
+            value: ${KESSEL_TARGET_URL}            
           - name: KAFKA_EVENT_TOPIC
             value: ${KAFKA_EVENT_TOPIC}
           - name: KAFKA_NOTIFICATION_TOPIC
@@ -1582,6 +1602,180 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_SYNCHRONIZER}
             memory: ${MEMORY_REQUEST_SYNCHRONIZER}
+    - name: create-ungrouped-host-groups
+      restartPolicy: OnFailure
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: ["./create_ungrouped_host_groups.py"]
+        env:
+          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
+            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - name: UNLEASH_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: ${UNLEASH_SECRET_NAME}
+                key: CLIENT_ACCESS_TOKEN
+                optional: true
+          - name: BYPASS_UNLEASH
+            value: ${BYPASS_UNLEASH}
+          - name: FF_LAST_CHECKIN
+            value: ${FF_LAST_CHECKIN}
+          - name: UNLEASH_REFRESH_INTERVAL
+            value: ${UNLEASH_REFRESH_INTERVAL}
+          - name: BYPASS_KESSEL_JOBS
+            value: ${BYPASS_KESSEL_JOBS}
+          - name: CREATE_UNGROUPED_GROUPS_BATCH_SIZE
+            value: ${CREATE_UNGROUPED_GROUPS_BATCH_SIZE}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_UNGROUPED_HOSTS_JOB}
+            memory: ${MEMORY_LIMIT_UNGROUPED_HOSTS_JOB}
+          requests:
+            cpu: ${CPU_REQUEST_UNGROUPED_HOSTS_JOB}
+            memory: ${MEMORY_REQUEST_UNGROUPED_HOSTS_JOB}
+    - name: delete-ungrouped-host-groups
+      restartPolicy: OnFailure
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: ["./delete_ungrouped_host_groups.py"]
+        env:
+          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
+            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: KAFKA_BOOTSTRAP_SERVERS
+            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: KESSEL_TARGET_URL
+            value: ${KESSEL_TARGET_URL}            
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
+            value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory-mq-service
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'true'
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - name: UNLEASH_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: ${UNLEASH_SECRET_NAME}
+                key: CLIENT_ACCESS_TOKEN
+                optional: true
+          - name: BYPASS_UNLEASH
+            value: ${BYPASS_UNLEASH}
+          - name: FF_LAST_CHECKIN
+            value: ${FF_LAST_CHECKIN}
+          - name: UNLEASH_REFRESH_INTERVAL
+            value: ${UNLEASH_REFRESH_INTERVAL}
+          - name: BYPASS_KESSEL_JOBS
+            value: ${BYPASS_KESSEL_JOBS}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_UNGROUPED_HOSTS_JOB}
+            memory: ${MEMORY_LIMIT_UNGROUPED_HOSTS_JOB}
+          requests:
+            cpu: ${CPU_REQUEST_UNGROUPED_HOSTS_JOB}
+            memory: ${MEMORY_REQUEST_UNGROUPED_HOSTS_JOB}
+    - name: export-group-data-s3
+      restartPolicy: OnFailure
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: ["./export_group_data_s3.py"]
+        env:
+          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
+            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: S3_AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${KESSEL_S3_AWS_SECRET}
+                key: aws_access_key_id
+          - name: S3_AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${KESSEL_S3_AWS_SECRET}
+                key: aws_secret_access_key
+          - name: S3_AWS_BUCKET
+            valueFrom:
+              secretKeyRef:
+                name: ${KESSEL_S3_AWS_SECRET}
+                key: bucket
+          - name: BYPASS_KESSEL_JOBS
+            value: ${BYPASS_KESSEL_JOBS}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_GROUPS_S3_EXPORT}
+            memory: ${MEMORY_LIMIT_GROUPS_S3_EXPORT}
+          requests:
+            cpu: ${CPU_REQUEST_GROUPS_S3_EXPORT}
+            memory: ${MEMORY_REQUEST_GROUPS_S3_EXPORT}
     - name: delete-hosts-s3
       restartPolicy: OnFailure
       podSpec:
@@ -1652,7 +1846,83 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_DELETE_HOSTS_S3}
             memory: ${MEMORY_REQUEST_DELETE_HOSTS_S3}
-    - name: duplicate-hosts-remover
+    - name: assign-ungrouped-host-groups
+      restartPolicy: OnFailure
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: ["./assign_ungrouped_hosts_to_groups.py"]
+        env:
+          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
+            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: KAFKA_BOOTSTRAP_SERVERS
+            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: KESSEL_TARGET_URL
+            value: ${KESSEL_TARGET_URL}            
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
+            value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory-mq-service
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'true'
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - name: UNLEASH_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: ${UNLEASH_SECRET_NAME}
+                key: CLIENT_ACCESS_TOKEN
+                optional: true
+          - name: BYPASS_UNLEASH
+            value: ${BYPASS_UNLEASH}
+          - name: FF_LAST_CHECKIN
+            value: ${FF_LAST_CHECKIN}
+          - name: UNLEASH_REFRESH_INTERVAL
+            value: ${UNLEASH_REFRESH_INTERVAL}
+          - name: BYPASS_KESSEL_JOBS
+            value: ${BYPASS_KESSEL_JOBS}
+          - name: ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE
+            value: ${ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_UNGROUPED_HOSTS_JOB}
+            memory: ${MEMORY_LIMIT_UNGROUPED_HOSTS_JOB}
+          requests:
+            cpu: ${CPU_REQUEST_UNGROUPED_HOSTS_JOB}
+            memory: ${MEMORY_REQUEST_UNGROUPED_HOSTS_JOB}
+    - name: update-hosts-last-check-in
+      schedule: ${{HOSTS_LAST_CHECK_IN_SCHEDULE}}
       restartPolicy: Never
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
@@ -2611,6 +2881,8 @@ parameters:
   value: 'localhost'
 - name: KAFKA_BOOTSTRAP_PORT
   value: '29092'
+- name: KESSEL_TARGET_URL
+  value: 'localhost:20000'  
 - name: INVENTORY_DB_SSL_CERT
   value: ''
 - name: PENDO_SYNCHER_SUSPEND

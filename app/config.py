@@ -312,6 +312,7 @@ class Config:
         self.sp_authorized_users = os.getenv("SP_AUTHORIZED_USERS", "tuser@redhat.com").split()
         self.mq_db_batch_max_messages = int(os.getenv("MQ_DB_BATCH_MAX_MESSAGES", "1"))
         self.mq_db_batch_max_seconds = float(os.getenv("MQ_DB_BATCH_MAX_SECONDS", "0.5"))
+        self.kessel_target_url = os.getenv("KESSEL_TARGET_URL", "localhost:9000")        
 
         self.s3_access_key_id = os.getenv("S3_AWS_ACCESS_KEY_ID")
         self.s3_secret_access_key = os.getenv("S3_AWS_SECRET_ACCESS_KEY")
