@@ -235,10 +235,9 @@ def serialize_host_for_export_svc(
 
 
 def serialize_group(group: Group):
-    from app.auth.identity import create_mock_identity_with_org_id
     from lib.host_repository import get_non_culled_hosts_count_in_group
 
-    host_count = get_non_culled_hosts_count_in_group(group, create_mock_identity_with_org_id(group.org_id))
+    host_count = get_non_culled_hosts_count_in_group(group, group.org_id)
 
     return {
         "id": _serialize_uuid(group.id),

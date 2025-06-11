@@ -159,7 +159,7 @@ def find_existing_host(
 def find_existing_host_by_id(identity: Identity, host_id: str) -> Host | None:
     query = Host.query.filter((Host.org_id == identity.org_id) & (Host.id == UUID(host_id)))
     query = update_query_for_owner_id(identity, query)
-    return find_non_culled_hosts(query, identity).order_by(Host.modified_on.desc()).first()
+    return find_non_culled_hosts(query, identity.org_id).order_by(Host.modified_on.desc()).first()
 
 
 def _find_host_by_multiple_facts_in_db_or_in_memory(
@@ -201,7 +201,7 @@ def multiple_canonical_facts_host_query(
     )
     if restrict_to_owner_id:
         query = update_query_for_owner_id(identity, query)
-    return find_non_culled_hosts(query, identity)
+    return find_non_culled_hosts(query, identity.org_id)
 
 
 def multiple_canonical_facts_host_query_in_memory(
@@ -217,9 +217,9 @@ def multiple_canonical_facts_host_query_in_memory(
     return _query
 
 
-def find_hosts_by_staleness(staleness_types: list[str], query: Query, identity: Identity) -> Query:
+def find_hosts_by_staleness(staleness_types: list[str], query: Query, org_id: str) -> Query:
     logger.debug("find_hosts_by_staleness(%s)", staleness_types)
-    staleness_obj = serialize_staleness_to_dict(get_staleness_obj(identity.org_id))
+    staleness_obj = serialize_staleness_to_dict(get_staleness_obj(org_id))
     staleness_conditions = [
         or_(False, *staleness_to_conditions(staleness_obj, staleness_types, host_type, stale_timestamp_filter))
         for host_type in HOST_TYPES
@@ -284,8 +284,8 @@ def find_hosts_sys_default_staleness(staleness_types):
     return or_(False, *staleness_conditions)
 
 
-def find_non_culled_hosts(query: Query, identity: Identity) -> Query:
-    return find_hosts_by_staleness(ALL_STALENESS_STATES, query, identity)
+def find_non_culled_hosts(query: Query, org_id: str) -> Query:
+    return find_hosts_by_staleness(ALL_STALENESS_STATES, query, org_id)
 
 
 @metrics.new_host_commit_processing_time.time()
@@ -399,11 +399,11 @@ def get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter=None, c
     query = Host.query.join(HostGroupAssoc, isouter=True).join(Group, isouter=True).filter(*filters).group_by(Host.id)
     if columns:
         query = query.with_entities(*columns)
-    return find_non_culled_hosts(update_query_for_owner_id(identity, query), identity)
+    return find_non_culled_hosts(update_query_for_owner_id(identity, query), identity.org_id)
 
 
-def get_non_culled_hosts_count_in_group(group: Group, identity: Identity) -> int:
+def get_non_culled_hosts_count_in_group(group: Group, org_id: str) -> int:
     return find_non_culled_hosts(
         db.session.query(Host).join(HostGroupAssoc).filter(HostGroupAssoc.group_id == group.id).group_by(Host.id),
-        identity,
+        org_id,
     ).count()
