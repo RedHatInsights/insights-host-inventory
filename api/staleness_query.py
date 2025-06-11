@@ -1,3 +1,5 @@
+import resource
+
 from sqlalchemy.orm.exc import NoResultFound
 
 from app.logging import get_logger
@@ -12,12 +14,15 @@ logger = get_logger(__name__)
 
 def get_staleness_obj(org_id: str) -> AttrDict:
     try:
+        logger.debug(f">>> Memory usage gso1: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
         staleness = db.session.query(Staleness).filter(Staleness.org_id == org_id).one()
         logger.info(f"Using custom staleness for org {org_id}.")
         staleness = build_serialized_acc_staleness_obj(staleness)
     except NoResultFound:
         logger.debug(f"No custom staleness data found for org {org_id}, using system default values instead.")
+        logger.debug(f">>> Memory usage gso2: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
         staleness = build_staleness_sys_default(org_id)
+        logger.debug(f">>> Memory usage gso3: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
         return staleness
 
     return staleness

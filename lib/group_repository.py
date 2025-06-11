@@ -420,6 +420,7 @@ def _remove_hosts_from_group(group_id, host_id_list, org_id):
 
 def get_group_by_id_from_db(group_id: str, org_id: str, session: Optional[Session] = None) -> Group:
     session = session or db.session
+    logger.debug(f">>> Memory usage 4e1a: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
     query = session.query(Group).filter(Group.org_id == org_id, Group.id == group_id)
     return query.one_or_none()
 
