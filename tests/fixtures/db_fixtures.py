@@ -12,7 +12,6 @@ from sqlalchemy_utils import create_database
 from sqlalchemy_utils import database_exists
 from sqlalchemy_utils import drop_database
 
-from app.auth.identity import Identity
 from app.config import Config
 from app.environment import RuntimeEnvironment
 from app.models import Group
@@ -26,7 +25,6 @@ from tests.helpers.db_utils import db_staleness_culling
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.db_utils import minimal_db_host_dict
 from tests.helpers.test_utils import SYSTEM_IDENTITY
-from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import now
 from tests.helpers.test_utils import set_environment
 
@@ -222,8 +220,7 @@ def db_create_host_group_assoc(flask_app, db_get_group_by_id):  # noqa: ARG001
     def _db_create_host_group_assoc(host_id, group_id):
         host_group = HostGroupAssoc(host_id=host_id, group_id=group_id)
         db.session.add(host_group)
-        identity = Identity(USER_IDENTITY)
-        serialized_groups = [serialize_group(db_get_group_by_id(group_id), identity.org_id)]
+        serialized_groups = [serialize_group(db_get_group_by_id(group_id))]
         db.session.query(Host).filter(Host.id == host_id).update({"groups": serialized_groups})
 
         db.session.commit()

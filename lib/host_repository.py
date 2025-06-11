@@ -32,6 +32,7 @@ from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import LimitedHost
+from app.models import db
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness
 from lib import metrics
@@ -399,3 +400,10 @@ def get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter=None, c
     if columns:
         query = query.with_entities(*columns)
     return find_non_culled_hosts(update_query_for_owner_id(identity, query), identity)
+
+
+def get_non_culled_hosts_count_in_group(group: Group, identity: Identity) -> int:
+    return find_non_culled_hosts(
+        db.session.query(Host).join(HostGroupAssoc).filter(HostGroupAssoc.group_id == group.id).group_by(Host.id),
+        identity,
+    ).count()

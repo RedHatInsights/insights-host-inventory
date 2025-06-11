@@ -53,8 +53,7 @@ def _update_hosts_for_group_changes(host_id_list: list[str], group_id_list: list
         group_id_list = []
 
     serialized_groups = [
-        serialize_group(get_group_by_id_from_db(group_id, identity.org_id), identity.org_id)
-        for group_id in group_id_list
+        serialize_group(get_group_by_id_from_db(group_id, identity.org_id)) for group_id in group_id_list
     ]
 
     # Update groups data on each host record
