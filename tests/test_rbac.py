@@ -82,6 +82,22 @@ def test_RBAC_invalid_UUIDs(mocker, api_get):
 
 
 @pytest.mark.usefixtures("enable_rbac")
+def test_RBAC_invalid_UUID_in_equal_op(mocker, api_get):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-hosts-read-resource-defs-template.json"
+    )
+    mock_rbac_response[0]["resourceDefinitions"][1]["attributeFilter"]["value"] = "not a UUID"
+
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    response_status, _ = api_get(build_hosts_url())
+
+    assert_response_status(response_status, 503)
+
+
+@pytest.mark.usefixtures("enable_rbac")
 @pytest.mark.parametrize(
     "url_builder",
     [build_staleness_url, build_groups_url],
