@@ -40,6 +40,8 @@ from app.tags_blueprint import tags_bp
 from lib.check_org import check_org_id
 from lib.feature_flags import SchemaStrategy
 from lib.feature_flags import init_unleash_app
+from lib.feature_flags import init_unleash_app, get_flag_value, FLAG_INVENTORY_KESSEL_HOST_MIGRATION
+from lib.kessel import init_kessel
 from lib.handlers import register_shutdown
 
 logger = get_logger(__name__)
@@ -306,6 +308,9 @@ def create_app(runtime_environment) -> connexion.FlaskApp:
         logger.warning(unleash_fallback_msg)
 
     db.init_app(flask_app)
+
+    if get_flag_value(FLAG_INVENTORY_KESSEL_HOST_MIGRATION): #Note: this won't work if we want to enable the flag while running or otherwise selectively, but it does allow us to completely disable the feature
+        init_kessel(app_config, flask_app)
 
     flask_app.register_blueprint(monitoring_blueprint, url_prefix=app_config.mgmt_url_path_prefix)
     for api_url in app_config.api_urls:

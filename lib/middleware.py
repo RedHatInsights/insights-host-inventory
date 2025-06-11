@@ -5,11 +5,13 @@ from functools import wraps
 from http import HTTPStatus
 from json import JSONDecodeError
 from uuid import UUID
+from typing import Dict, Tuple
 
 from app_common_python import LoadedConfig
 from flask import abort
 from flask import g
 from flask import request
+from flask import current_app
 from requests import Session
 from requests.adapters import HTTPAdapter
 from requests.exceptions import HTTPError
@@ -32,8 +34,10 @@ from app.instrumentation import rbac_group_permission_denied
 from app.instrumentation import rbac_permission_denied
 from app.logging import get_logger
 from app.logging import threadctx
+from lib.feature_flags import FLAG_INVENTORY_API_READ_ONLY, FLAG_INVENTORY_KESSEL_HOST_MIGRATION
 from lib.feature_flags import FLAG_INVENTORY_API_READ_ONLY
 from lib.feature_flags import get_flag_value
+from lib.kessel import get_kessel_client, Kessel
 
 logger = get_logger(__name__)
 
@@ -215,7 +219,49 @@ def get_rbac_filter(
         rbac_permission_denied(logger, required_permission.value, rbac_data)
         return False, None
 
+def kessel_type(type) -> str:
+    if type == RbacResourceType.HOSTS:
+        return "host"
+    elif type == RbacResourceType.STALENESS:
+        return "staleness"
+    elif type == RbacResourceType.ALL:
+        return "all"
+    else:
+        return type
 
+def kessel_verb(perm) -> str:
+    if perm == RbacPermission.READ:
+        return "view"
+    elif perm == RbacPermission.WRITE:
+        return "update"
+    elif perm == RbacPermission.ADMIN:
+        return "all"
+    else:
+        return perm
+
+def get_kessel_filter(
+    kessel_client: Kessel,
+    current_identity: Identity,
+    application: str,
+    resource_type: RbacResourceType,
+    verb: RbacPermission,
+) -> Tuple[bool, Dict[str, Any]]:
+    if current_identity.identity_type not in CHECKED_TYPES:
+        if resource_type == RbacResourceType.HOSTS:
+            return True, None
+        else:
+            return False, None
+
+    relation = f"{application}_{kessel_type(resource_type)}_{kessel_verb(verb)}"
+
+    workspaces = kessel_client.ListAllowedWorkspaces(current_identity, relation)
+
+    # TODO: this won't work for org-level permissions OR permissions like add group (which we may not need to handle) that require a permission to be unfiltered
+    if len(workspaces) == 0:
+        return False, None
+    else:
+        return True, {"groups": workspaces}
+    
 def rbac(resource_type: RbacResourceType, required_permission: RbacPermission, permission_base: str = "inventory"):
     def other_func(func):
         @wraps(func)
@@ -230,6 +276,16 @@ def rbac(resource_type: RbacResourceType, required_permission: RbacPermission, p
             current_identity = get_current_identity()
 
             request_headers = _build_rbac_request_headers()
+
+            allowed = None
+            rbac_filter = None
+            if get_flag_value(FLAG_INVENTORY_KESSEL_HOST_MIGRATION) and resource_type not in [RbacResourceType.GROUPS]: # Workspace permissions aren't part of HBI in V2, fallback to rbac for now
+                kessel_client = get_kessel_client(current_app)
+                allowed, rbac_filter = get_kessel_filter(kessel_client, current_identity, permission_base, resource_type, required_permission)
+            else:
+                allowed, rbac_filter = get_rbac_filter(
+                    resource_type, required_permission, current_identity, request_headers, permission_base
+                )            
 
             allowed, rbac_filter = get_rbac_filter(
                 resource_type, required_permission, current_identity, request_headers, permission_base

@@ -41,6 +41,8 @@ redis = "*"
 setuptools = "~=80.9.0"
 certifi = "~=2025.4.26"
 ratelimit = "*"
+googleapis-common-protos = "*"
+inventory-grpc-clients-python-kessel-project = "*"
 
 [dev-packages]
 pytest = "~=8.3.5"
