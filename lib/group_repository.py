@@ -57,10 +57,15 @@ def _update_hosts_for_group_changes(host_id_list: list[str], group_id_list: list
         serialize_group(get_group_by_id_from_db(group_id, identity.org_id), identity.org_id)
         for group_id in group_id_list
     ]
+    logger.debug(f">>> Memory usage 4e1: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
 
     # Update groups data on each host record
-    Host.query.filter(Host.id.in_(host_id_list)).update({"groups": serialized_groups}, synchronize_session="fetch")
+    db.session.query(Host).filter(Host.id.in_(host_id_list)).update(
+        {"groups": serialized_groups}, synchronize_session="fetch"
+    )
+    logger.debug(f">>> Memory usage 4e2: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
     db.session.commit()
+    logger.debug(f">>> Memory usage 4e3: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
 
     return serialized_groups, host_id_list
 
