@@ -19,7 +19,7 @@ from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import Staleness
 from app.models import db
-from app.serialization import serialize_group
+from lib.group_repository import serialize_group
 from tests.helpers.db_utils import db_group
 from tests.helpers.db_utils import db_staleness_culling
 from tests.helpers.db_utils import minimal_db_host

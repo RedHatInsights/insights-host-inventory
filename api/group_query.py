@@ -7,7 +7,7 @@ from app.logging import get_logger
 from app.models import Group
 from app.models import HostGroupAssoc
 from app.models import db
-from app.serialization import serialize_group
+from lib.group_repository import serialize_group
 
 logger = get_logger(__name__)
 

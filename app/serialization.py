@@ -234,11 +234,7 @@ def serialize_host_for_export_svc(
     return serialized_host
 
 
-def serialize_group(group: Group):
-    from lib.host_repository import get_non_culled_hosts_count_in_group
-
-    host_count = get_non_culled_hosts_count_in_group(group, group.org_id)
-
+def serialize_group_with_host_count(group: Group, host_count: int) -> dict:
     return {
         "id": _serialize_uuid(group.id),
         "org_id": group.org_id,

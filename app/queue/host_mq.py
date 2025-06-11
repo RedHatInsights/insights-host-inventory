@@ -62,7 +62,6 @@ from app.queue.notifications import NotificationType
 from app.queue.notifications import send_notification
 from app.serialization import deserialize_host
 from app.serialization import remove_null_canonical_facts
-from app.serialization import serialize_group
 from app.serialization import serialize_host
 from app.staleness_serialization import AttrDict
 from lib import group_repository
@@ -72,6 +71,7 @@ from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.feature_flags import FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM
 from lib.feature_flags import get_flag_value
 from lib.group_repository import get_or_create_ungrouped_hosts_group_for_identity
+from lib.group_repository import serialize_group
 from utils.system_profile_log import extract_host_dict_sp_to_log
 
 logger = get_logger(__name__)
