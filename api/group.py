@@ -1,3 +1,4 @@
+import resource
 from http import HTTPStatus
 
 from flask import Response
@@ -213,7 +214,9 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def delete_groups(group_id_list, rbac_filter=None):
+    logger.debug(f">>> Memory usage 1: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
     rbac_group_id_check(rbac_filter, set(group_id_list))
+    logger.debug(f">>> Memory usage 2: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
 
     if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
         # Write is not allowed for the ungrouped through API requests
@@ -227,24 +230,30 @@ def delete_groups(group_id_list, rbac_filter=None):
         group_ids_to_delete = []
         delete_count = 0
 
+        logger.debug(f">>> Memory usage 3: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
+
         # Attempt to delete the RBAC workspaces
         for group_id in group_id_list:
             try:
                 if delete_rbac_workspace(group_id):
+                    logger.debug(f">>> Memory usage 4: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
                     delete_count += 1
             except ResourceNotFoundException:
+                logger.debug(f">>> Memory usage 5: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
                 # For workspaces that are missing from RBAC,
                 # we'll attempt to delete the groups on our side
                 group_ids_to_delete.append(group_id)
 
         # Attempt to delete the "not found" groups on our side
         delete_count += delete_group_list(group_ids_to_delete, get_current_identity(), current_app.event_producer)
+        logger.debug(f">>> Memory usage 6: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
     else:
         delete_count = delete_group_list(group_id_list, get_current_identity(), current_app.event_producer)
 
     if delete_count == 0:
         log_get_group_list_failed(logger)
         abort(HTTPStatus.NOT_FOUND, "No groups found for deletion.")
+    logger.debug(f">>> Memory usage 7: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
     return Response(None, HTTPStatus.NO_CONTENT)
 
 
