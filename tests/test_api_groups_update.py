@@ -65,7 +65,7 @@ def test_patch_group_happy_path(
 
     response_status, response_data = api_patch_group(group_id, patch_doc)
     assert_response_status(response_status, 200)
-    assert_group_response(response_data, db_get_group_by_id(group_id))
+    assert_group_response(response_data, db_get_group_by_id(group_id), num_hosts)
     retrieved_group = db_get_group_by_id(group_id)
 
     if patch_name:
@@ -316,12 +316,14 @@ def test_patch_group_name_only(
     assert host["groups"][0]["name"] == "modified_group"
 
 
-def test_patch_group_same_hosts(db_create_group_with_hosts, api_patch_group, event_producer, mocker):
+def test_patch_group_same_hosts(
+    db_create_group_with_hosts, db_get_hosts_for_group, api_patch_group, event_producer, mocker
+):
     # Create a group with hosts
     mocker.patch.object(event_producer, "write_event")
     group = db_create_group_with_hosts("test_group", 5)
     group_id = group.id
-    host_id_list = [str(host.id) for host in group.hosts]
+    host_id_list = [str(host.id) for host in db_get_hosts_for_group(group_id)]
 
     patch_doc = {"name": "modified_group", "host_ids": host_id_list}
     response_status, _ = api_patch_group(group_id, patch_doc)
@@ -336,13 +338,13 @@ def test_patch_group_same_hosts(db_create_group_with_hosts, api_patch_group, eve
 
 
 def test_patch_group_both_add_and_remove_hosts(
-    db_create_group_with_hosts, db_create_host, api_patch_group, event_producer, mocker
+    db_create_group_with_hosts, db_get_hosts_for_group, db_create_host, api_patch_group, event_producer, mocker
 ):
     # Create a group with hosts
     mocker.patch.object(event_producer, "write_event")
     group = db_create_group_with_hosts("test_group", 3)
     group_id = group.id
-    original_host_id_list = [str(host.id) for host in group.hosts]
+    original_host_id_list = [str(host.id) for host in db_get_hosts_for_group(group_id)]
 
     # Two hosts dropped, one host persists, two hosts added
     new_host_id_list = [original_host_id_list[0], str(db_create_host().id), str(db_create_host().id)]
@@ -386,7 +388,7 @@ def test_patch_group_RBAC_post_kessel_migration(
 
     group = db_create_group_with_hosts("old_name", 2)
     group_id = str(group.id)
-    original_host_id_list = [str(host.id) for host in group.hosts]
+    original_host_id_list = [str(host.id) for host in db_get_hosts_for_group(group_id)]
     new_host_id_list = [str(db_create_host().id)]
     ungrouped_group_id = str(db_create_group("ungrouped_group", ungrouped=True).id)
 

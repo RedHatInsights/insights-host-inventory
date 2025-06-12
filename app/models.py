@@ -693,7 +693,6 @@ class Group(db.Model):  # type: ignore [name-defined]
     ungrouped = db.Column(db.Boolean, default=False, nullable=False)
     created_on = db.Column(db.DateTime(timezone=True), default=_time_now)
     modified_on = db.Column(db.DateTime(timezone=True), default=_time_now, onupdate=_time_now)
-    hosts = orm.relationship("Host", secondary=f"{INVENTORY_SCHEMA}.hosts_groups")
 
 
 class HostGroupAssoc(db.Model):  # type: ignore [name-defined]
