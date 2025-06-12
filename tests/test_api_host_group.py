@@ -288,7 +288,10 @@ def test_group_with_culled_hosts(
     with_last_check_in,
     mocker,
 ):
-    with mocker.patch("app.staleness_serialization.get_flag_value", return_value=with_last_check_in):
+    with (
+        mocker.patch("app.staleness_serialization.get_flag_value", return_value=with_last_check_in),
+        mocker.patch("api.filtering.db_filters.get_flag_value", return_value=with_last_check_in),
+    ):
         # Create a group and 3 hosts
         group_id = db_create_group("test_group").id
         current_time = datetime.now(tz=timezone.utc)

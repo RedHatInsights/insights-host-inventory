@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime
 from datetime import timezone
 
 from dateutil.parser import isoparse
@@ -235,27 +234,13 @@ def serialize_host_for_export_svc(
     return serialized_host
 
 
-# get hosts not marked for deletion
-def _get_unculled_hosts(group, org_id):
-    hosts = []
-    staleness_timestamps = Timestamps.from_config(inventory_config())
-    staleness = get_staleness_obj(org_id)
-    for host in group.hosts:
-        serialized_host = serialize_host(host, staleness_timestamps=staleness_timestamps, staleness=staleness)
-        if _deserialize_datetime(serialized_host["culled_timestamp"]) > datetime.now(tz=timezone.utc):
-            hosts.append(host)
-
-    return hosts
-
-
-def serialize_group(group: Group, org_id: str):
-    unculled_hosts = _get_unculled_hosts(group, org_id)
+def serialize_group_with_host_count(group: Group, host_count: int) -> dict:
     return {
         "id": _serialize_uuid(group.id),
         "org_id": group.org_id,
         "account": group.account,
         "name": group.name,
-        "host_count": len(unculled_hosts),
+        "host_count": host_count,
         "ungrouped": group.ungrouped,
         "created": _serialize_datetime(group.created_on),
         "updated": _serialize_datetime(group.modified_on),

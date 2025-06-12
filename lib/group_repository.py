@@ -32,13 +32,14 @@ from app.queue.event_producer import EventProducer
 from app.queue.events import EventType
 from app.queue.events import build_event
 from app.queue.events import message_headers
-from app.serialization import serialize_group
+from app.serialization import serialize_group_with_host_count
 from app.serialization import serialize_host
 from app.staleness_serialization import AttrDict
 from lib.db import session_guard
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.feature_flags import get_flag_value
 from lib.host_repository import get_host_list_by_id_list_from_db
+from lib.host_repository import get_non_culled_hosts_count_in_group
 from lib.metrics import delete_group_count
 from lib.metrics import delete_group_processing_time
 from lib.metrics import delete_host_group_count
@@ -53,8 +54,7 @@ def _update_hosts_for_group_changes(host_id_list: list[str], group_id_list: list
         group_id_list = []
 
     serialized_groups = [
-        serialize_group(get_group_by_id_from_db(group_id, identity.org_id), identity.org_id)
-        for group_id in group_id_list
+        serialize_group(get_group_by_id_from_db(group_id, identity.org_id)) for group_id in group_id_list
     ]
 
     # Update groups data on each host record
@@ -500,3 +500,8 @@ def get_or_create_ungrouped_hosts_group_for_identity(identity: Identity) -> Grou
 def get_ungrouped_group(identity: Identity) -> Group:
     ungrouped_group = Group.query.filter(Group.org_id == identity.org_id, Group.ungrouped.is_(True)).one_or_none()
     return ungrouped_group
+
+
+def serialize_group(group: Group) -> dict:
+    host_count = get_non_culled_hosts_count_in_group(group, group.org_id)
+    return serialize_group_with_host_count(group, host_count)
