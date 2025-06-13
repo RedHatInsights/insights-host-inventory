@@ -13,6 +13,9 @@ from sqlalchemy.engine.base import Connection
 from sqlalchemy.orm import Mapper
 from sqlalchemy.orm import Session
 
+from api.staleness_query import get_staleness_obj
+from app.common import inventory_config
+from app.culling import Timestamps
 from app.environment import RuntimeEnvironment
 from app.logging import get_logger
 from app.models import Host
@@ -80,9 +83,15 @@ def run(logger: Logger, session: Session, application: FlaskApp):
         processed_in_current_batch = 0
         total_hosts_updated = 0
 
+        org_id = None
         for host in hosts_query.yield_per(NUM_EDGE_HOSTS_STALENESS):
             try:
-                host._update_all_per_reporter_staleness()
+                if org_id is None or org_id != host.org_id:
+                    org_id = host.org_id
+                    staleness = get_staleness_obj(org_id)
+                    staleness_ts = Timestamps.from_config(inventory_config())
+
+                host._update_all_per_reporter_staleness(staleness, staleness_ts)
                 host._update_staleness_timestamps()
 
                 processed_in_current_batch += 1
