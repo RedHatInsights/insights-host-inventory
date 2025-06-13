@@ -1515,6 +1515,8 @@ objects:
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: BYPASS_KESSEL_JOBS
             value: ${BYPASS_KESSEL_JOBS}
+          - name: CREATE_UNGROUPED_GROUPS_BATCH_SIZE
+            value: ${CREATE_UNGROUPED_GROUPS_BATCH_SIZE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_UNGROUPED_HOSTS_JOB}
@@ -2487,6 +2489,9 @@ parameters:
 - name: BYPASS_KESSEL_JOBS
   description: Whether to bypass Kessel-related jobs, even when triggered via CJI
   value: 'false'
+- name: CREATE_UNGROUPED_GROUPS_BATCH_SIZE
+  description: The batch size to use for the create-ungrouped-groups script.
+  value: '100'
 - name: ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE
   description: The batch size to use for the assign-ungrouped-hosts script.
   value: '10'
