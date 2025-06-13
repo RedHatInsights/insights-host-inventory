@@ -28,9 +28,10 @@ def run(logger: Logger, session: Session, application: FlaskApp):
         threadctx.request_id = None
         # For each org_id in the Hosts table
         # Using "org_id," (with comma) because the query returns tuples
-        with session_guard(session):
-            offset = 0
-            while True:
+
+        offset = 0
+        while True:
+            with session_guard(session):
                 org_account_batch = (
                     session.query(Host.org_id, Host.account).distinct().offset(offset).limit(BATCH_SIZE).all()
                 )
@@ -58,7 +59,7 @@ def run(logger: Logger, session: Session, application: FlaskApp):
                     else:
                         logger.debug(f"org_id {org_id} already has an ungrouped Group: {ungrouped_group.id}")
 
-                offset += BATCH_SIZE
+            offset += BATCH_SIZE
 
         logger.info("Finished creating 'Ungrouped Hosts' Groups. Exiting.")
 
