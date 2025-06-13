@@ -162,7 +162,9 @@ def test_sort_by_updated_time(db_create_group, api_get, order_how):
         ),
     ],
 )
-def test_sort_by_host_count(db_create_group_with_hosts, api_get, db_get_group_by_id, order_how_query, reverse_list):
+def test_sort_by_host_count(
+    db_create_group_with_hosts, api_get, db_get_hosts_for_group, order_how_query, reverse_list
+):
     num_groups = 5
 
     # Create a list of groups. The names are randomized, but each group has one more host than the previous.
@@ -181,7 +183,7 @@ def test_sort_by_host_count(db_create_group_with_hosts, api_get, db_get_group_by
     for idx in range(num_groups):
         group_data = response_data["results"][idx]
         assert group_data["id"] == group_id_list[idx]
-        assert group_data["host_count"] == len(db_get_group_by_id(group_id_list[idx]).hosts)
+        assert group_data["host_count"] == len(db_get_hosts_for_group(group_id_list[idx]))
 
 
 def test_query_variables_group_name_not_found(db_create_group, api_get):
