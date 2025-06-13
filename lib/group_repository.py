@@ -32,13 +32,14 @@ from app.queue.event_producer import EventProducer
 from app.queue.events import EventType
 from app.queue.events import build_event
 from app.queue.events import message_headers
-from app.serialization import serialize_group
+from app.serialization import serialize_group_with_host_count
 from app.serialization import serialize_host
 from app.staleness_serialization import AttrDict
 from lib.db import session_guard
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.feature_flags import get_flag_value
 from lib.host_repository import get_host_list_by_id_list_from_db
+from lib.host_repository import get_non_culled_hosts_count_in_group
 from lib.metrics import delete_group_count
 from lib.metrics import delete_group_processing_time
 from lib.metrics import delete_host_group_count
@@ -53,12 +54,13 @@ def _update_hosts_for_group_changes(host_id_list: list[str], group_id_list: list
         group_id_list = []
 
     serialized_groups = [
-        serialize_group(get_group_by_id_from_db(group_id, identity.org_id), identity.org_id)
-        for group_id in group_id_list
+        serialize_group(get_group_by_id_from_db(group_id, identity.org_id)) for group_id in group_id_list
     ]
 
     # Update groups data on each host record
-    Host.query.filter(Host.id.in_(host_id_list)).update({"groups": serialized_groups}, synchronize_session="fetch")
+    db.session.query(Host).filter(Host.id.in_(host_id_list)).update(
+        {"groups": serialized_groups}, synchronize_session="fetch"
+    )
     db.session.commit()
 
     return serialized_groups, host_id_list
@@ -324,9 +326,9 @@ def _delete_group(group: Group, identity: Identity) -> bool:
 def delete_group_list(group_id_list: list[str], identity: Identity, event_producer: EventProducer) -> int:
     deletion_count = 0
     deleted_host_ids = []
-    staleness = get_staleness_obj(identity.org_id)
 
     with session_guard(db.session):
+        staleness = get_staleness_obj(identity.org_id)
         query = (
             select(HostGroupAssoc)
             .join(Group, HostGroupAssoc.group_id == Group.id)
@@ -334,7 +336,6 @@ def delete_group_list(group_id_list: list[str], identity: Identity, event_produc
         )
 
         assocs_to_delete = db.session.execute(query).scalars().all()
-
         deleted_host_ids = [assoc.host_id for assoc in assocs_to_delete]
 
         for group in (
@@ -350,12 +351,16 @@ def delete_group_list(group_id_list: list[str], identity: Identity, event_produc
                 else:
                     log_group_delete_failed(logger, group_id, get_control_rule())
 
-    new_group_list = []
-    if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
-        new_group_list = [str(get_or_create_ungrouped_hosts_group_for_identity(identity).id)]
+        new_group_list = []
+        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
+            new_group_list = [str(get_or_create_ungrouped_hosts_group_for_identity(identity).id)]
 
-    serialized_groups, host_id_list = _update_hosts_for_group_changes(deleted_host_ids, new_group_list, identity)
-    _process_host_changes(host_id_list, serialized_groups, staleness, identity, event_producer)
+        serialized_groups, host_id_list = _update_hosts_for_group_changes(deleted_host_ids, new_group_list, identity)
+        _process_host_changes(host_id_list, serialized_groups, staleness, identity, event_producer)
+
+        db.session.commit()
+        db.session.expunge_all()
+
     return deletion_count
 
 
@@ -406,7 +411,8 @@ def _remove_hosts_from_group(group_id, host_id_list, org_id):
 def get_group_by_id_from_db(group_id: str, org_id: str, session: Optional[Session] = None) -> Group:
     session = session or db.session
     query = session.query(Group).filter(Group.org_id == org_id, Group.id == group_id)
-    return query.one_or_none()
+    group = query.one_or_none()
+    return group
 
 
 def get_group_by_name_from_db(group_name: str, org_id: str, session: Optional[Session] = None) -> Group:
@@ -500,3 +506,8 @@ def get_or_create_ungrouped_hosts_group_for_identity(identity: Identity) -> Grou
 def get_ungrouped_group(identity: Identity) -> Group:
     ungrouped_group = Group.query.filter(Group.org_id == identity.org_id, Group.ungrouped.is_(True)).one_or_none()
     return ungrouped_group
+
+
+def serialize_group(group: Group) -> dict:
+    host_count = get_non_culled_hosts_count_in_group(group, group.org_id)
+    return serialize_group_with_host_count(group, host_count)
