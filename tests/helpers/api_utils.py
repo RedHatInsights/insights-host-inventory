@@ -568,14 +568,14 @@ def create_mock_rbac_response(permissions_response_file):
         return resp_data["data"]
 
 
-def assert_group_response(response, expected_group):
+def assert_group_response(response, expected_group, expected_host_count):
     assert response["id"] == str(expected_group.id)
     assert response["org_id"] == expected_group.org_id
     assert response["account"] == expected_group.account
     assert response["name"] == expected_group.name
     assert response["created"] == expected_group.created_on.isoformat()
     assert response["updated"] == expected_group.modified_on.isoformat()
-    assert response["host_count"] == len(expected_group.hosts)
+    assert response["host_count"] == expected_host_count
 
 
 def assert_resource_types_pagination(
