@@ -564,14 +564,15 @@ def test_delete_host_from_group_no_ungrouped(
     assert_response_status(response_status, 204)
 
 
+@pytest.mark.parametrize("ungrouped", [True, False])
 @pytest.mark.usefixtures("event_producer")
 def test_delete_host_from_nonexistent_group(
-    mocker, db_create_group_with_hosts, db_get_hosts_for_group, api_remove_hosts_from_group
+    ungrouped, mocker, db_create_group_with_hosts, db_get_hosts_for_group, api_remove_hosts_from_group
 ):
     mocker.patch("api.host_group.get_flag_value", return_value=True)
 
-    ungrouped_group = db_create_group_with_hosts("test group", 1, ungrouped=False)
-    host_id = str(db_get_hosts_for_group(ungrouped_group.id)[0].id)
+    group = db_create_group_with_hosts("test group", 1, ungrouped=ungrouped)
+    host_id = str(db_get_hosts_for_group(group.id)[0].id)
 
     response_status, response_data = api_remove_hosts_from_group(str(generate_uuid()), [host_id])
 
