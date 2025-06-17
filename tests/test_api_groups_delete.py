@@ -420,7 +420,11 @@ def test_delete_hosts_from_diff_groups_post_kessel_migration(
 
     ungrouped_group_id = str(db_create_group("ungrouped", ungrouped=True).id)
 
-    hosts_to_delete = [str(group1.hosts[0].id), str(group2.hosts[0].id), str(group3.hosts[0].id)]
+    hosts_to_delete = [
+        str(db_get_hosts_for_group(group1.id)[0].id),
+        str(db_get_hosts_for_group(group2.id)[0].id),
+        str(db_get_hosts_for_group(group3.id)[0].id),
+    ]
     response_status, _ = api_remove_hosts_from_diff_groups(hosts_to_delete)
 
     assert_response_status(response_status, 204)
@@ -519,22 +523,26 @@ def test_delete_existing_group_missing_workspace(api_delete_groups_kessel, db_cr
         assert_response_status(response_status, expected_status=204)
 
 
-def test_delete_ungrouped_host_from_group(mocker, db_create_group_with_hosts, api_remove_hosts_from_diff_groups):
+def test_delete_ungrouped_host_from_group(
+    mocker, db_create_group_with_hosts, db_get_hosts_for_group, api_remove_hosts_from_diff_groups
+):
     mocker.patch("api.host_group.get_flag_value", return_value=True)
 
     ungrouped_group = db_create_group_with_hosts("ungrouped", 1, ungrouped=True)
-    host_id_to_delete = str(ungrouped_group.hosts[0].id)
+    host_id_to_delete = str(db_get_hosts_for_group(ungrouped_group.id)[0].id)
 
     response_status, response_data = api_remove_hosts_from_diff_groups([host_id_to_delete])
 
     assert_response_status(response_status, 400)
 
 
-def test_delete_host_from_ungrouped_group(mocker, db_create_group_with_hosts, api_remove_hosts_from_group):
+def test_delete_host_from_ungrouped_group(
+    mocker, db_create_group_with_hosts, db_get_hosts_for_group, api_remove_hosts_from_group
+):
     mocker.patch("api.host_group.get_flag_value", return_value=True)
 
     ungrouped_group = db_create_group_with_hosts("ungrouped", 1, ungrouped=True)
-    host_id_to_delete = str(ungrouped_group.hosts[0].id)
+    host_id_to_delete = str(db_get_hosts_for_group(ungrouped_group.id)[0].id)
 
     response_status, response_data = api_remove_hosts_from_group(ungrouped_group.id, [host_id_to_delete])
 
@@ -543,11 +551,13 @@ def test_delete_host_from_ungrouped_group(mocker, db_create_group_with_hosts, ap
 
 
 @pytest.mark.usefixtures("event_producer")
-def test_delete_host_from_group_no_ungrouped(mocker, db_create_group_with_hosts, api_remove_hosts_from_group):
+def test_delete_host_from_group_no_ungrouped(
+    mocker, db_create_group_with_hosts, db_get_hosts_for_group, api_remove_hosts_from_group
+):
     mocker.patch("api.host_group.get_flag_value", return_value=True)
 
     ungrouped_group = db_create_group_with_hosts("ungrouped", 1, ungrouped=False)
-    host_id_to_delete = str(ungrouped_group.hosts[0].id)
+    host_id_to_delete = str(db_get_hosts_for_group(ungrouped_group.id)[0].id)
 
     response_status, response_data = api_remove_hosts_from_group(ungrouped_group.id, [host_id_to_delete])
 
