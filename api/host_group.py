@@ -64,16 +64,13 @@ def add_host_list_to_group(group_id, body, rbac_filter=None):
 def delete_hosts_from_group(group_id, host_id_list, rbac_filter=None):
     rbac_group_id_check(rbac_filter, {group_id})
     identity = get_current_identity()
+    if (group := get_group_by_id_from_db(group_id, identity.org_id)) is None:
+        abort(HTTPStatus.NOT_FOUND, "Group not found.")
 
-    if (
-        get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION)
-        and get_group_by_id_from_db(group_id, identity.org_id).ungrouped is True
-    ):
+    if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION) and group.ungrouped is True:
         abort(HTTPStatus.BAD_REQUEST, f"Cannot remove hosts from ungrouped workspace {group_id}")
 
-    delete_count = remove_hosts_from_group(group_id, host_id_list, identity, current_app.event_producer)
-
-    if delete_count == 0:
-        abort(HTTPStatus.NOT_FOUND, "Group or hosts not found.")
+    if remove_hosts_from_group(group_id, host_id_list, identity, current_app.event_producer) == 0:
+        abort(HTTPStatus.NOT_FOUND, "Hosts not found.")
 
     return Response(None, HTTPStatus.NO_CONTENT)
