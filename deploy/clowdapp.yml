@@ -2000,6 +2000,52 @@ objects:
             COUNT(*) AS "host_count"
           FROM "hbi"."hosts"
           GROUP BY "provider_type";
+      - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/duplicated_hosts_by_org
+        chunksize: 10000
+        query: >-
+          SELECT
+            "aa.org_id", "aa.id_value" AS "id_value", "aa.count", "aa.reporter", "aa.type"
+          FROM (
+            SELECT
+              "org_id",
+              "canonical_facts"->>'insights_id' AS "id_value",
+              COUNT(*) AS "count",
+              "reporter",
+              'insights_id' AS "type"
+            FROM
+              "hbi"."hosts"
+            WHERE
+              "canonical_facts"->'provider_id' IS NULL
+              AND "canonical_facts"->>'insights_id' IS NOT NULL
+            GROUP BY
+              "org_id",
+              "canonical_facts"->>'insights_id',
+              "reporter"
+
+            UNION ALL
+
+            SELECT
+              "org_id",
+              "canonical_facts"->>'subscription_manager_id' AS "id_value"m
+              COUNT(*) AS "count",
+              "reporter",
+              'subscription_manager_id' AS "type"
+            FROM
+              "hbi"."hosts"
+            WHERE
+              "canonical_facts"->'provider_id' IS NULL
+              AND "canonical_facts"->>'insights_id' IS NULL
+              AND "canonical_facts"->>'subscription_manager_id' IS NOT NULL
+            GROUP BY
+              "org_id",
+              "canonical_facts"->>'subscription_manager_id',
+              "reporter"
+          ) AS "aa"
+          WHERE
+            "aa.count" > 1
+          ORDER BY
+            "aa.org_id" ASC,
+            "aa.type" ASC;
       - prefix: hms_analytics/inventory/${ENV_NAME}/groups_metrics/org_ids_with_group_names
         chunksize: 10000
         query: >-
