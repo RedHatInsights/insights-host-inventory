@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import math
 from base64 import b64encode
@@ -6,6 +8,7 @@ from http import HTTPStatus
 from itertools import product
 from struct import unpack
 from typing import Any
+from typing import Callable
 from urllib.parse import parse_qs
 from urllib.parse import quote_plus as url_quote
 from urllib.parse import urlencode
@@ -178,7 +181,14 @@ _INPUT_DATA = {
 }
 
 
-def do_request(func, url, identity, data=None, query_parameters=None, extra_headers=None):
+def do_request(
+    func: Callable[..., Response],
+    url: str,
+    identity: dict[str, Any],
+    data: dict[str, Any] | None = None,
+    query_parameters: dict[str, Any] | None = None,
+    extra_headers: dict[str, Any] | None = None,
+) -> tuple[int, dict]:
     url = inject_qs(url, **query_parameters) if query_parameters else url
     headers = get_required_headers(identity)
 
@@ -200,21 +210,21 @@ def do_request(func, url, identity, data=None, query_parameters=None, extra_head
     return response.status_code, response_data
 
 
-def get_valid_auth_header(identity):
+def get_valid_auth_header(identity: dict[str, Any]) -> dict[str, Any]:
     if identity["type"] in IdentityType.__members__.values():
         return build_account_auth_header(identity)
 
     return build_token_auth_header()
 
 
-def get_required_headers(identity):
+def get_required_headers(identity: dict[str, Any]) -> dict[str, Any]:
     headers = get_valid_auth_header(identity)
     headers["content-type"] = "application/json"
 
     return headers
 
 
-def build_account_auth_header(identity):
+def build_account_auth_header(identity: dict[str, Any]) -> dict[str, bytes]:
     dict_ = {"identity": identity}
 
     json_doc = json.dumps(dict_)
@@ -222,7 +232,7 @@ def build_account_auth_header(identity):
     return auth_header
 
 
-def build_token_auth_header(token=SHARED_SECRET):
+def build_token_auth_header(token: str = SHARED_SECRET) -> dict[str, str]:
     auth_header = {"Authorization": f"Bearer {token}"}
     return auth_header
 

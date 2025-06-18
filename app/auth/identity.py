@@ -26,7 +26,7 @@ class AuthType(str, Enum):
     JWT = "jwt-auth"
     UHC = "uhc-auth"
     SAML = "saml-auth"
-    X509 = "X509"
+    X509 = "x509"
 
 
 class CertType(str, Enum):
@@ -221,8 +221,8 @@ def comes_from_rhsm(identity_dict: dict[str, Any]) -> bool:
     'x-inventory-org-id' header instead.
     """
     return (
-        identity_dict["type"] == IdentityType.X509
-        and identity_dict["auth_type"] == AuthType.X509
+        identity_dict["type"] == IdentityType.X509.value
+        and identity_dict["auth_type"].lower() == AuthType.X509.value.lower()
         and identity_dict.get("x509", {}).get("subject_dn") == "<TODO>"
         and identity_dict.get("x509", {}).get("issuer_dn") == "<TODO>"
     )
@@ -233,7 +233,7 @@ def from_auth_header(base64: str, org_id: str | None = None) -> Identity:
     identity_dict = loads(json)
 
     if comes_from_rhsm(identity_dict["identity"]) and org_id:
-        identity_dict["org_id"] = org_id
+        identity_dict["identity"]["org_id"] = org_id
 
     return Identity(identity_dict["identity"])
 

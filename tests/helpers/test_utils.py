@@ -53,6 +53,19 @@ SERVICE_ACCOUNT_IDENTITY: dict[str, Any] = {
     "type": "ServiceAccount",
 }
 
+X509_IDENTITY: dict[str, Any] = {
+    "type": "X509",
+    "auth_type": "X509",
+    "x509": {
+        "subject_dn": "/CN=some-host.example.com",
+        "issuer_dn": "/CN=certificate-authority.example.com",
+    },
+}
+
+RHSM_ERRATA_IDENTITY = deepcopy(X509_IDENTITY)
+RHSM_ERRATA_IDENTITY["x509"]["subject_dn"] = "<TODO>"
+RHSM_ERRATA_IDENTITY["x509"]["issuer_dn"] = "<TODO>"
+
 YUM_REPO1 = {"id": "repo1", "name": "repo1", "gpgcheck": True, "enabled": True, "base_url": "http://rpms.redhat.com"}
 
 YUM_REPO2 = {"id": "repo2", "name": "repo2", "gpgcheck": True, "enabled": True, "base_url": "http://rpms.redhat.com"}
