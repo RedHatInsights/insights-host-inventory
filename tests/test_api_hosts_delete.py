@@ -1,4 +1,8 @@
+from __future__ import annotations
+
 import logging
+from copy import deepcopy
+from typing import Callable
 from unittest import mock
 from unittest.mock import patch
 
@@ -16,9 +20,12 @@ from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.db_utils import db_host
+from tests.helpers.mq_utils import MockEventProducer
 from tests.helpers.mq_utils import assert_delete_event_is_valid
 from tests.helpers.mq_utils import assert_delete_notification_is_valid
+from tests.helpers.test_utils import RHSM_ERRATA_IDENTITY
 from tests.helpers.test_utils import SYSTEM_IDENTITY
+from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 
 
@@ -589,6 +596,50 @@ def test_postgres_delete_filtered_hosts(
     response_status, response_data = api_get(build_hosts_url(not_deleted_host_id))
     assert_response_status(response_status, expected_status=200)
     assert response_data["results"][0]["id"] == not_deleted_host_id
+
+
+@pytest.mark.usefixtures("notification_event_producer_mock")
+def test_delete_hosts_by_subman_id_internal_rhsm_request(
+    db_create_host: Callable[..., Host],
+    api_get: Callable[..., tuple[int, dict]],
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict]],
+    event_producer_mock: MockEventProducer,
+):
+    searched_subman_id = generate_uuid()
+    matching_host_id = str(
+        db_create_host(extra_data={"canonical_facts": {"subscription_manager_id": searched_subman_id}}).id
+    )
+    not_matching_host_id = str(
+        db_create_host(extra_data={"canonical_facts": {"subscription_manager_id": generate_uuid()}}).id
+    )
+    different_org_host_id = str(
+        db_create_host(
+            extra_data={"canonical_facts": {"subscription_manager_id": searched_subman_id}, "org_id": "12345"}
+        ).id
+    )
+
+    # Delete the host using the bulk deletion endpoint
+    response_status, response_data = api_delete_filtered_hosts(
+        {"subscription_manager_id": searched_subman_id},
+        identity=RHSM_ERRATA_IDENTITY,
+        extra_headers={"x-inventory-org-id": "test"},
+    )
+    assert_response_status(response_status, expected_status=202)
+    assert response_data["hosts_deleted"] == 1
+    assert response_data["hosts_found"] == 1
+
+    # Make sure it was deleted and produced a deletion event
+    assert '"type": "delete"' in event_producer_mock.event
+
+    _, response_data = api_get(build_hosts_url([matching_host_id, not_matching_host_id, different_org_host_id]))
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["id"] == not_matching_host_id
+
+    different_org_identity = deepcopy(USER_IDENTITY)
+    different_org_identity["org_id"] = "12345"
+    _, response_data = api_get(build_hosts_url(different_org_host_id), identity=different_org_identity)
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["id"] == different_org_host_id
 
 
 @pytest.mark.usefixtures("event_producer_mock")
