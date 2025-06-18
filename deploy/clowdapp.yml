@@ -1990,14 +1990,18 @@ objects:
         chunksize: 10000
         query: >-
           SELECT
-            "aa.org_id", "aa.id_value" AS "id_value", "aa.count", "aa.reporter", "aa.type"
+            "aa"."org_id",
+            "aa"."id_value",
+            "aa"."hosts_count",
+            "aa"."reporter",
+            "aa"."id_type"
           FROM (
             SELECT
               "org_id",
               "canonical_facts"->>'insights_id' AS "id_value",
-              COUNT(*) AS "count",
+              COUNT(*) AS "hosts_count",
               "reporter",
-              'insights_id' AS "type"
+              'insights_id' AS "id_type"
             FROM
               "hbi"."hosts"
             WHERE
@@ -2012,10 +2016,10 @@ objects:
 
             SELECT
               "org_id",
-              "canonical_facts"->>'subscription_manager_id' AS "id_value"m
-              COUNT(*) AS "count",
+              "canonical_facts"->>'subscription_manager_id' AS "id_value",
+              COUNT(*) AS "hosts_count",
               "reporter",
-              'subscription_manager_id' AS "type"
+              'subscription_manager_id' AS "id_type"
             FROM
               "hbi"."hosts"
             WHERE
@@ -2028,10 +2032,10 @@ objects:
               "reporter"
           ) AS "aa"
           WHERE
-            "aa.count" > 1
+            "aa"."hosts_count" > 1
           ORDER BY
-            "aa.org_id" ASC,
-            "aa.type" ASC;
+            "aa"."org_id" ASC,
+            "aa"."id_type" ASC;
       - prefix: hms_analytics/inventory/${ENV_NAME}/groups_metrics/org_ids_with_group_names
         chunksize: 10000
         query: >-
