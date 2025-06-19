@@ -219,12 +219,20 @@ def comes_from_rhsm(identity_dict: dict[str, Any]) -> bool:
     This function determines if the API request comes from RHSM Errata service.
     If it does, the org_id can be missing from the identity header, and it is set by the
     'x-inventory-org-id' header instead.
+
+    Here is how Prod subject_dn and issuer_dn look like for RHSM at the time of writing this function:
+    subject_dn: "/O=mpaas/OU=serviceaccounts/UID=mpp:rhsm:prod-errata-notifications"
+    issuer_dn: "/O=Red Hat/OU=prod/CN=2023 Certificate Authority RHCSv2"
+
+    And here is Preprod:
+    subject_dn: "/O=mpaas/OU=serviceaccounts/UID=mpp:rhsm:nonprod-errata-notifications"
+    issuer_dn: "/O=Red Hat/OU=prod/CN=2023 Certificate Authority RHCSv2"
     """
     return (
         identity_dict["type"] == IdentityType.X509.value
         and identity_dict["auth_type"].lower() == AuthType.X509.value.lower()
-        and identity_dict.get("x509", {}).get("subject_dn") == "<TODO>"
-        and identity_dict.get("x509", {}).get("issuer_dn") == "<TODO>"
+        and "errata-notifications" in identity_dict.get("x509", {}).get("subject_dn", "")
+        and "O=Red Hat" in identity_dict.get("x509", {}).get("issuer_dn", "")
     )
 
 

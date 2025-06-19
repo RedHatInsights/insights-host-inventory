@@ -62,9 +62,14 @@ X509_IDENTITY: dict[str, Any] = {
     },
 }
 
-RHSM_ERRATA_IDENTITY = deepcopy(X509_IDENTITY)
-RHSM_ERRATA_IDENTITY["x509"]["subject_dn"] = "<TODO>"
-RHSM_ERRATA_IDENTITY["x509"]["issuer_dn"] = "<TODO>"
+RHSM_ERRATA_IDENTITY_PROD = deepcopy(X509_IDENTITY)
+RHSM_ERRATA_IDENTITY_PROD["x509"]["subject_dn"] = "/O=mpaas/OU=serviceaccounts/UID=mpp:rhsm:prod-errata-notifications"
+RHSM_ERRATA_IDENTITY_PROD["x509"]["issuer_dn"] = "/O=Red Hat/OU=prod/CN=2023 Certificate Authority RHCSv2"
+
+RHSM_ERRATA_IDENTITY_STAGE = deepcopy(RHSM_ERRATA_IDENTITY_PROD)
+RHSM_ERRATA_IDENTITY_STAGE["x509"]["subject_dn"] = (
+    "/O=mpaas/OU=serviceaccounts/UID=mpp:rhsm:nonprod-errata-notifications"
+)
 
 YUM_REPO1 = {"id": "repo1", "name": "repo1", "gpgcheck": True, "enabled": True, "base_url": "http://rpms.redhat.com"}
 
