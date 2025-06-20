@@ -1,5 +1,12 @@
+from __future__ import annotations
+
+from collections.abc import Callable
+from typing import Any
+
 import pytest
+from connexion import FlaskApp
 from flask import abort
+from starlette.testclient import TestClient
 
 from tests.helpers.api_utils import GROUP_URL
 from tests.helpers.api_utils import HOST_URL
@@ -10,7 +17,7 @@ from tests.helpers.test_utils import generate_uuid
 
 
 @pytest.fixture(scope="function")
-def flask_client(flask_app):
+def flask_client(flask_app: FlaskApp) -> TestClient:
     return flask_app.test_client()
 
 
@@ -39,8 +46,13 @@ def api_put(flask_client):
 
 
 @pytest.fixture(scope="function")
-def api_get(flask_client):
-    def _api_get(url, identity=USER_IDENTITY, query_parameters=None, extra_headers=None):
+def api_get(flask_client: TestClient) -> Callable[..., tuple[int, dict]]:
+    def _api_get(
+        url: str,
+        identity: dict[str, Any] = USER_IDENTITY,
+        query_parameters: dict[str, Any] | None = None,
+        extra_headers: dict[str, Any] | None = None,
+    ) -> tuple[int, dict]:
         return do_request(
             flask_client.get, url, identity, query_parameters=query_parameters, extra_headers=extra_headers
         )
@@ -60,8 +72,12 @@ def api_delete_host(flask_client):
 
 
 @pytest.fixture(scope="function")
-def api_delete_filtered_hosts(flask_client):
-    def _api_delete_filtered_hosts(query_parameters, identity=USER_IDENTITY, extra_headers=None):
+def api_delete_filtered_hosts(flask_client: TestClient) -> Callable[..., tuple[int, dict]]:
+    def _api_delete_filtered_hosts(
+        query_parameters: dict[str, Any],
+        identity: dict[str, Any] = USER_IDENTITY,
+        extra_headers: dict[str, Any] | None = None,
+    ) -> tuple[int, dict]:
         return do_request(
             flask_client.delete, HOST_URL, identity, query_parameters=query_parameters, extra_headers=extra_headers
         )
