@@ -39,7 +39,7 @@ segment-analytics-python = "*"
 flask-caching = "*"
 redis = "*"
 setuptools = "~=80.9.0"
-certifi = "~=2025.4.26"
+certifi = "~=2025.6.15"
 ratelimit = "*"
 
 [dev-packages]
