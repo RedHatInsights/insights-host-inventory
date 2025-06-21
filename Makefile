@@ -2,6 +2,7 @@
 
 IDENTITY_HEADER="eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiYWNjb3VudDEyMyIsICJvcmdfaWQiOiAiNTg5NDMwMCIsICJ0eXBlIjogIlVzZXIiLCAiYXV0aF90eXBlIjogImJhc2ljLWF1dGgiLCAidXNlciI6IHsiaXNfb3JnX2FkbWluIjogdHJ1ZSwgInVzZXJuYW1lIjogImZyZWQifSwgImludGVybmFsIjogeyJvcmdfaWQiOiAib3JnMTIzIn19fQ=="
 NUM_HOSTS=1
+USE_EXISTING_HOSTS=false
 
 mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
 current_dir := $(dir $(mkfile_path))
@@ -36,13 +37,16 @@ run_inv_web_service:
 	INVENTORY_LOG_LEVEL=DEBUG BYPASS_RBAC=true BYPASS_TENANT_TRANSLATION=true gunicorn -b :8080 run:app ${reload}
 
 run_inv_mq_service:
-	KAFKA_EVENT_TOPIC=platform.inventory.events PAYLOAD_TRACKER_SERVICE_NAME=inventory-mq-service INVENTORY_LOG_LEVEL=DEBUG BYPASS_TENANT_TRANSLATION=true python3 inv_mq_service.py
+	KAFKA_EVENT_TOPIC=platform.inventory.events PAYLOAD_TRACKER_SERVICE_NAME=inventory-mq-service INVENTORY_LOG_LEVEL=INFO BYPASS_TENANT_TRANSLATION=true python3 inv_mq_service.py
 
 run_inv_export_service:
 	KAFKA_EXPORT_SERVICE_TOPIC=platform.export.requests EXPORT_SERVICE_TOKEN=testing-a-psk python3 inv_export_service.py
 
 run_inv_mq_service_test_producer:
-	NUM_HOSTS=${NUM_HOSTS} python3 utils/kafka_producer.py
+	NUM_HOSTS=${NUM_HOSTS} USE_EXISTING_HOSTS=${USE_EXISTING_HOSTS} PYTHONPATH=$$(pwd) python3 utils/kafka_producer.py
+
+run_fast_seed_hosts:
+	PGPASSWORD=insights psql -v ON_ERROR_STOP=on -v num_org_ids=100 -v num_rows=${NUM_HOSTS} -U insights -h localhost insights -f utils/fast-seed.sql
 
 run_inv_mq_service_test_consumer:
 	python3 utils/kafka_consumer.py
