@@ -107,7 +107,11 @@ def test_create_group_read_only(api_create_group, mocker):
     "new_name",
     ["test_Group", " Test_Group", "test_group ", " test_group "],
 )
-def test_create_group_taken_name(api_create_group, new_name):
+def test_create_group_taken_name(api_create_group, new_name, mocker):
+    mocker.patch(
+        "lib.feature_flags.get_flag_value",
+        side_effect=lambda name: name == "FLAG_INVENTORY_KESSEL_PHASE_1",
+    )
     group_data = {"name": "test_group", "host_ids": []}
 
     api_create_group(group_data)
