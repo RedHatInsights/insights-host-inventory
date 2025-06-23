@@ -51,6 +51,7 @@ def run(logger: Logger, session: Session, application: FlaskApp):
                         session.query(Host.id)
                         .outerjoin(HostGroupAssoc, Host.id == HostGroupAssoc.host_id)
                         .filter(Host.org_id == org_id, HostGroupAssoc.host_id.is_(None))
+                        .order_by(Host.id)
                         .limit(BATCH_SIZE)
                         .all()
                     )
