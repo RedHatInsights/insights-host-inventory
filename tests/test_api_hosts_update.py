@@ -12,12 +12,14 @@ from app.queue.event_producer import MessageDetails
 from app.serialization import deserialize_canonical_facts
 from tests.helpers.api_utils import HOST_WRITE_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import RBACFilterOperation
 from tests.helpers.api_utils import assert_error_response
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_facts_url
 from tests.helpers.api_utils import build_host_checkin_url
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import build_id_list_for_url
+from tests.helpers.api_utils import create_custom_rbac_response
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import get_id_list_from_hosts
 from tests.helpers.db_utils import DB_FACTS
@@ -546,11 +548,9 @@ def test_patch_host_with_RBAC_denied_specific_groups(mocker, api_patch, db_creat
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     # Grant write access to the hosts in irrelevant groups
-    mock_rbac_response = create_mock_rbac_response(
-        "tests/helpers/rbac-mock-data/inv-hosts-write-resource-defs-template.json"
+    get_rbac_permissions_mock.return_value = create_custom_rbac_response(
+        [generate_uuid(), generate_uuid()], RBACFilterOperation.IN, "write"
     )
-    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = [generate_uuid(), generate_uuid()]
-    get_rbac_permissions_mock.return_value = mock_rbac_response
 
     # Create host that user doesn't have access to
     host = db_create_host()
@@ -568,11 +568,7 @@ def test_patch_host_with_RBAC_allowed_ungrouped(mocker, api_patch, db_create_hos
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     # Grant write access specifically to ungrouped hosts
-    mock_rbac_response = create_mock_rbac_response(
-        "tests/helpers/rbac-mock-data/inv-hosts-write-resource-defs-template.json"
-    )
-    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = [None]
-    get_rbac_permissions_mock.return_value = mock_rbac_response
+    get_rbac_permissions_mock.return_value = create_custom_rbac_response([None], RBACFilterOperation.IN, "write")
 
     # Create an ungrouped host
     host = db_create_host()
