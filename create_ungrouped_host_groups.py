@@ -33,7 +33,12 @@ def run(logger: Logger, session: Session, application: FlaskApp):
         while True:
             with session_guard(session):
                 org_account_batch = (
-                    session.query(Host.org_id, Host.account).distinct().offset(offset).limit(BATCH_SIZE).all()
+                    session.query(Host.org_id, Host.account)
+                    .distinct()
+                    .order_by(Host.org_id)
+                    .offset(offset)
+                    .limit(BATCH_SIZE)
+                    .all()
                 )
                 if not org_account_batch:
                     break
