@@ -1105,7 +1105,7 @@ def test_query_by_id_sparse_fields(db_create_multiple_hosts, api_get):
 
 def test_query_by_id_culled_hosts(db_create_host, api_get):
     # Create a culled host
-    with patch("app.models.datetime", **{"now.return_value": now() - timedelta(days=365)}):
+    with patch("app.models.utils.datetime", **{"now.return_value": now() - timedelta(days=365)}):
         created_host_id = str(db_create_host().id)
 
     url = build_hosts_url(host_list_or_id=created_host_id)
@@ -1211,7 +1211,7 @@ def test_query_by_staleness(db_create_multiple_hosts, api_get, subtests):
     # Create the hosts in each state
     for staleness, num_hosts in expected_staleness_results_map.items():
         # Patch the "now" function so the hosts are created in the desired state
-        with patch("app.models.datetime", **{"now.return_value": staleness_timestamp_map[staleness]}):
+        with patch("app.models.utils.datetime", **{"now.return_value": staleness_timestamp_map[staleness]}):
             staleness_to_host_ids_map[staleness] = [str(h.id) for h in db_create_multiple_hosts(how_many=num_hosts)]
 
     for staleness, count in expected_staleness_results_map.items():
@@ -2196,7 +2196,7 @@ def test_query_by_staleness_using_columns(db_create_multiple_hosts, api_get, sub
     # Create the hosts in each state
     for staleness, num_hosts in expected_staleness_results_map.items():
         # Patch the "now" function so the hosts are created in the desired state
-        with patch("app.models.datetime", **{"now.return_value": staleness_timestamp_map[staleness]}):
+        with patch("app.models.utils.datetime", **{"now.return_value": staleness_timestamp_map[staleness]}):
             staleness_to_host_ids_map[staleness] = [str(h.id) for h in db_create_multiple_hosts(how_many=num_hosts)]
 
     for staleness, count in expected_staleness_results_map.items():

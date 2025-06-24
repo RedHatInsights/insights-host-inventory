@@ -1047,7 +1047,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
         self.assertEqual(tags, host.tags)
 
 
-@patch("app.models.Host")
+@patch("app.models.schemas.Host")
 @patch("app.serialization._deserialize_tags")
 @patch("app.serialization._deserialize_facts")
 @patch("app.serialization._deserialize_canonical_facts")
@@ -1504,7 +1504,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             with (
                 self.subTest(with_last_check_in=with_last_check_in),
                 patch("app.serialization.get_flag_value", return_value=with_last_check_in),
-                patch("app.models.get_flag_value", return_value=with_last_check_in),
+                patch("app.models.host.get_flag_value", return_value=with_last_check_in),
                 patch("app.staleness_serialization.get_flag_value", return_value=with_last_check_in),
             ):
                 canonical_facts = {
@@ -1605,7 +1605,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                 with (
                     self.subTest(group_data=group_data, with_last_check_in=with_last_check_in),
                     patch("app.serialization.get_flag_value", return_value=with_last_check_in),
-                    patch("app.models.get_flag_value", return_value=with_last_check_in),
+                    patch("app.models.host.get_flag_value", return_value=with_last_check_in),
                     patch("app.staleness_serialization.get_flag_value", return_value=with_last_check_in),
                 ):
                     unchanged_data = {
@@ -1689,7 +1689,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                         culled_offset_seconds=culled_offset_seconds,
                     ),
                     patch("app.serialization.get_flag_value", return_value=with_last_check_in),
-                    patch("app.models.get_flag_value", return_value=with_last_check_in),
+                    patch("app.models.host.get_flag_value", return_value=with_last_check_in),
                     patch("app.staleness_serialization.get_flag_value", return_value=with_last_check_in),
                 ):
                     stale_timestamp = now() + timedelta(days=1)
@@ -1741,7 +1741,7 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
             with (
                 self.subTest(with_last_check_in=with_last_check_in),
                 patch("app.serialization.get_flag_value", return_value=with_last_check_in),
-                patch("app.models.get_flag_value", return_value=with_last_check_in),
+                patch("app.models.host.get_flag_value", return_value=with_last_check_in),
                 patch("app.staleness_serialization.get_flag_value", return_value=with_last_check_in),
             ):
                 canonical_facts = {"insights_id": str(uuid4()), "fqdn": "some fqdn"}
@@ -2458,7 +2458,7 @@ class ModelsSystemProfileTestCase(TestCase):
         expected = {"number_of_cpus": 1, "network_interfaces": [{"ipv4_addresses": ["10.10.10.1"]}]}
         self.assertEqual(expected, result["system_profile"])
 
-    @patch("app.models.jsonschema_validate")
+    @patch("app.models.schemas.jsonschema_validate")
     def test_type_coercion_happens_before_loading(self, jsonschema_validate):
         schema = HostSchema()
         payload = self._payload({"number_of_cpus": "1"})
@@ -2467,7 +2467,7 @@ class ModelsSystemProfileTestCase(TestCase):
             {"number_of_cpus": 1}, HostSchema.system_profile_normalizer.schema, format_checker=ANY
         )
 
-    @patch("app.models.jsonschema_validate")
+    @patch("app.models.schemas.jsonschema_validate")
     def test_type_filtering_happens_after_loading(self, jsonschema_validate):
         schema = HostSchema()
         payload = self._payload({"number_of_gpus": 1})

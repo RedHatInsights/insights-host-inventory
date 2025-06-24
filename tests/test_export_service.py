@@ -203,7 +203,7 @@ def test_do_not_export_culled_hosts(flask_app, db_create_host, db_create_stalene
             "immutable_time_to_delete": 1,
         }
 
-        with mock.patch("app.models.datetime") as mock_datetime:
+        with mock.patch("app.models.utils.datetime") as mock_datetime:
             mock_datetime.now.return_value = datetime.now() - timedelta(minutes=1)
             db_create_staleness_culling(**CUSTOM_STALENESS_DELETE_CONVENTIONAL_IMMUTABLE)
             db_create_host()

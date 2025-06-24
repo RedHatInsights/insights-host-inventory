@@ -89,7 +89,7 @@ def test_host_became_stale(
 ):
     db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
 
-    with patch("app.models.datetime") as models_datetime:
+    with patch("app.models.utils.datetime") as models_datetime:
         job_start_time = datetime.now(timezone.utc)
         models_datetime.now.return_value = job_start_time - timedelta(minutes=5)
 
@@ -120,7 +120,7 @@ def test_host_did_not_became_stale(
 ):
     db_create_staleness_culling(**CUSTOM_STALENESS_NO_HOSTS_TO_DELETE)
 
-    with patch("app.models.datetime") as models_datetime:
+    with patch("app.models.utils.datetime") as models_datetime:
         job_start_time = datetime.now(timezone.utc)
         models_datetime.now.return_value = job_start_time - timedelta(minutes=5)
 
