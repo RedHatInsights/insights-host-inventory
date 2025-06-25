@@ -200,7 +200,7 @@ def db_create_host_in_unknown_state(db_create_host):
 
 @pytest.fixture(scope="function")
 def models_datetime_mock(mocker):
-    mock = mocker.patch("app.models.datetime", **{"now.return_value": now()})
+    mock = mocker.patch("app.models.utils.datetime", **{"now.return_value": now()})
     return mock.now.return_value
 
 
