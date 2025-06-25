@@ -1839,6 +1839,43 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_HOSTS_WITHOUT_ID_FACTS_JOB}
             memory: ${MEMORY_REQUEST_HOSTS_WITHOUT_ID_FACTS_JOB}
+
+    - name: create-hosts-table-partitions
+      restartPolicy: Never
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: [ "./hosts_table_partitioning.py" ]
+        env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
+          - name: HOSTS_TABLE_NUM_PARTITIONS
+            value: ${HOSTS_TABLE_NUM_PARTITIONS}
+          - name: BYPASS_DB_REFACTORING_JOBS
+            value: ${BYPASS_DB_REFACTORING_JOBS}
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: CLOWDER_ENABLED
+            value: "true"
+        resources:
+          limits:
+            cpu: ${CPU_REQUEST_HOSTS_TABLE_PARTITIONING}
+            memory: ${MEMORY_LIMIT_HOSTS_TABLE_PARTITIONING}
+          requests:
+            cpu: ${CPU_REQUEST_HOSTS_TABLE_PARTITIONING}
+            memory: ${MEMORY_REQUEST_HOSTS_TABLE_PARTITIONING}
+
     database:
       name: ${DB_NAME}
       version: 16
@@ -2294,6 +2331,15 @@ parameters:
 - name: MEMORY_LIMIT_HOSTS_WITHOUT_ID_FACTS_JOB
   value: 512Mi
 
+- name: CPU_REQUEST_HOSTS_TABLE_PARTITIONING
+  value: 250m
+- name: CPU_LIMIT_HOSTS_TABLE_PARTITIONING
+  value: 500m
+- name: MEMORY_REQUEST_HOSTS_TABLE_PARTITIONING
+  value: 256Mi
+- name: MEMORY_LIMIT_HOSTS_TABLE_PARTITIONING
+  value: 512Mi
+
 - description: Replica count for p1 consumer
   name: REPLICAS_P1
   value: "5"
@@ -2531,6 +2577,12 @@ parameters:
 - name: ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE
   description: The batch size to use for the assign-ungrouped-hosts script.
   value: '10'
+- name: HOSTS_TABLE_NUM_PARTITIONS
+  description: The number of partitions for the hosts table
+  value: '32'
+- name: BYPASS_DB_REFACTORING_JOBS
+  description: Whether to bypass Database refactoring related jobs
+  value: 'true'
 
 # NGINX
 - displayName: Minimum replicas
