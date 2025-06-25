@@ -18,7 +18,6 @@ RBAC_KAFKA_NAME=$(kubectl get kafka -o custom-columns=:metadata.name -n "$PROJEC
 RBAC_EPHEM_KAFKA_SVC="svc/$ENV_EPHEM_KAFKA_NAME-kafka-bootstrap"
 ENV_EPHEM_CONNECT_NAME=$(kubectl get kafkaconnect -o custom-columns=:metadata.name -n "$PROJECT_NAME" | grep env-ephem | xargs)
 ENV_EPHEM_CONNECT_SVC="svc/$ENV_EPHEM_CONNECT_NAME-connect-api"
-ENV_EPHEM_FEATURE_FLAG_SVC="svc/$ENV_EPHEM_CONNECT_NAME-connect-api"
 
 # host-inventory
 HBI_DB_SVC="svc/host-inventory-db"
