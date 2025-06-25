@@ -1,0 +1,7 @@
+---
+metadata:
+  version: "1.0"
+artifacts:
+  - download_url: "https://github.com/confluentinc/librdkafka/archive/refs/tags/v2.10.1.zip"
+    checksum: "sha256:7cb72c4f3d162f50d30d81fd7f7ba0f3d9e8ecd09d9b4c5af7933314e24dd0ba"
+    filename: "v2.10.1.zip"
