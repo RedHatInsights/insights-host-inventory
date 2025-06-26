@@ -132,7 +132,7 @@ class LimitedHost(db.Model):
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     account = db.Column(db.String(10))
-    org_id = db.Column(db.String(36))
+    org_id = db.Column(db.String(36), primary_key=True)
     display_name = db.Column(db.String(200), default=_set_display_name_on_save)
     ansible_host = db.Column(db.String(255))
     created_on = db.Column(db.DateTime(timezone=True), default=_time_now)
