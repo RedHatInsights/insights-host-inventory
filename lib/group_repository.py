@@ -162,7 +162,7 @@ def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str):
     )
 
     host_group_assoc = [
-        HostGroupAssoc(host_id=host_id, group_id=group_id)
+        HostGroupAssoc(host_id=host_id, group_id=group_id, org_id=org_id)
         for host_id in host_id_list
         if host_id not in ids_already_in_this_group
     ]
