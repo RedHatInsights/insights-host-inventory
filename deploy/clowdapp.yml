@@ -1844,14 +1844,13 @@ objects:
 
     - name: hosts-partitioned-table-data-sync
       restartPolicy: Never
+      suspend: ${{HOSTS_PARTITIONED_TABLE_SYNC_SUSPEND}}
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
         args: [ "./hosts_partitioned_table_data_sync.py" ]
         env:
           - name: PYTHONPATH
             value: '/opt/app-root/src'
-          - name: BYPASS_DB_REFACTORING_JOBS
-            value: ${BYPASS_DB_REFACTORING_JOBS}
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
           - name: INVENTORY_DB_SSL_MODE
@@ -2580,8 +2579,7 @@ parameters:
 - name: HOSTS_TABLE_NUM_PARTITIONS
   description: The number of partitions for the hosts table
   value: '1'
-- name: BYPASS_DB_REFACTORING_JOBS
-  description: Whether to bypass Database refactoring related jobs
+- name: HOSTS_PARTITIONED_TABLE_SYNC_SUSPEND
   value: 'true'
 
 # NGINX
