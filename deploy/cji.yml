@@ -63,6 +63,16 @@ objects:
     appName: host-inventory
     jobs:
       - export-group-data-s3
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    labels:
+      app: host-inventory
+    name: hosts-partitioned-table-data-sync-1
+  spec:
+    appName: host-inventory
+    jobs:
+      - hosts-partitioned-table-data-sync
 parameters:
 - name: SYNCHRONIZER_RUN_NUMBER
   value: '1'
