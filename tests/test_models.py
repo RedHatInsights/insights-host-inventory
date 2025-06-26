@@ -460,7 +460,7 @@ def test_host_model_constraints(field, value, db_create_host):
 def test_create_host_sets_per_reporter_staleness(mocker, db_create_host, models_datetime_mock, with_last_check_in):
     with (
         mocker.patch("app.serialization.get_flag_value", return_value=with_last_check_in),
-        mocker.patch("app.models.get_flag_value", return_value=with_last_check_in),
+        mocker.patch("app.models.host.get_flag_value", return_value=with_last_check_in),
         mocker.patch("app.staleness_serialization.get_flag_value", return_value=with_last_check_in),
     ):
         stale_timestamp = models_datetime_mock + timedelta(days=1)
@@ -501,7 +501,7 @@ def test_create_host_sets_per_reporter_staleness(mocker, db_create_host, models_
 def test_update_per_reporter_staleness(mocker, db_create_host, models_datetime_mock, with_last_check_in):
     with (
         mocker.patch("app.serialization.get_flag_value", return_value=with_last_check_in),
-        mocker.patch("app.models.get_flag_value", return_value=with_last_check_in),
+        mocker.patch("app.models.host.get_flag_value", return_value=with_last_check_in),
         mocker.patch("app.staleness_serialization.get_flag_value", return_value=with_last_check_in),
     ):
         puptoo_stale_timestamp = models_datetime_mock + timedelta(days=1)
@@ -624,7 +624,7 @@ def test_update_per_reporter_staleness_yupana_replacement(
 ):
     with (
         mocker.patch("app.serialization.get_flag_value", return_value=with_last_check_in),
-        mocker.patch("app.models.get_flag_value", return_value=with_last_check_in),
+        mocker.patch("app.models.host.get_flag_value", return_value=with_last_check_in),
         mocker.patch("app.staleness_serialization.get_flag_value", return_value=with_last_check_in),
     ):
         yupana_stale_timestamp = models_datetime_mock + timedelta(days=1)
@@ -1336,7 +1336,7 @@ def test_delete_staleness_culling(db_create_staleness_culling, db_delete_stalene
 def test_create_host_validate_staleness(db_create_host, db_get_host):
     with (
         patch("app.staleness_serialization.get_flag_value", return_value=True),
-        patch("app.models.get_flag_value", return_value=True),
+        patch("app.models.host.get_flag_value", return_value=True),
     ):
         host_data = {
             "canonical_facts": {"subscription_manager_id": generate_uuid()},

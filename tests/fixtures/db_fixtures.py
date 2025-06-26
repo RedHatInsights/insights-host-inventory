@@ -137,10 +137,12 @@ def db_get_groups_for_host(flask_app):  # noqa: ARG001
 @pytest.fixture(scope="function")
 def db_create_host(flask_app: FlaskApp) -> Callable[..., Host]:  # noqa: ARG001
     def _db_create_host(
-        identity: dict[str, Any] = SYSTEM_IDENTITY, host: Host | None = None, extra_data: dict[str, Any] | None = None
+        identity: dict[str, Any] | None = None, host: Host | None = None, extra_data: dict[str, Any] | None = None
     ) -> Host:
+        identity = identity or SYSTEM_IDENTITY
         extra_data = extra_data or {}
-        host = host or minimal_db_host(org_id=identity["org_id"], account=identity["account_number"], **extra_data)
+        org_id = extra_data.pop("org_id", None) or identity["org_id"]
+        host = host or minimal_db_host(org_id=org_id, account=identity["account_number"], **extra_data)
         db.session.add(host)
         db.session.commit()
         return host
@@ -151,11 +153,12 @@ def db_create_host(flask_app: FlaskApp) -> Callable[..., Host]:  # noqa: ARG001
 @pytest.fixture(scope="function")
 def db_create_multiple_hosts(flask_app: FlaskApp) -> Callable[..., list[Host]]:  # noqa: ARG001
     def _db_create_multiple_hosts(
-        identity: dict[str, Any] = SYSTEM_IDENTITY,
+        identity: dict[str, Any] | None = None,
         hosts: list[Host] | None = None,
         how_many: int = 10,
         extra_data: dict[str, Any] | None = None,
     ) -> list[Host]:
+        identity = identity or SYSTEM_IDENTITY
         extra_data = extra_data or {}
         created_hosts = []
         if isinstance(hosts, list):
@@ -177,7 +180,8 @@ def db_create_multiple_hosts(flask_app: FlaskApp) -> Callable[..., list[Host]]: 
 
 @pytest.fixture(scope="function")
 def db_create_bulk_hosts(flask_app):  # noqa: ARG001
-    def _db_create_bulk_hosts(identity=SYSTEM_IDENTITY, how_many=10, extra_data=None):
+    def _db_create_bulk_hosts(identity=None, how_many=10, extra_data=None):
+        identity = identity or SYSTEM_IDENTITY
         extra_data = extra_data or {}
         host_dicts = []
 
@@ -200,13 +204,14 @@ def db_create_host_in_unknown_state(db_create_host):
 
 @pytest.fixture(scope="function")
 def models_datetime_mock(mocker):
-    mock = mocker.patch("app.models.datetime", **{"now.return_value": now()})
+    mock = mocker.patch("app.models.utils.datetime", **{"now.return_value": now()})
     return mock.now.return_value
 
 
 @pytest.fixture(scope="function")
 def db_create_group(flask_app):  # noqa: ARG001
-    def _db_create_group(name, identity=SYSTEM_IDENTITY, ungrouped=False):
+    def _db_create_group(name, identity=None, ungrouped=False):
+        identity = identity or SYSTEM_IDENTITY
         group = db_group(org_id=identity["org_id"], account=identity["account_number"], name=name, ungrouped=ungrouped)
         db.session.add(group)
         db.session.commit()

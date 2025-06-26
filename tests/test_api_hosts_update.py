@@ -478,7 +478,7 @@ def test_add_facts_to_namespace_that_does_not_exist(db_create_multiple_hosts, ap
 @pytest.mark.usefixtures("event_producer_mock")
 @pytest.mark.system_culling
 def test_add_facts_to_multiple_culled_hosts(db_create_multiple_hosts, api_patch, db_create_staleness_culling):
-    with patch("app.models.datetime") as mock_datetime:
+    with patch("app.models.utils.datetime") as mock_datetime:
         mock_datetime.now.return_value = datetime(2023, 4, 2)
         mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
 
