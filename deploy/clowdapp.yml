@@ -731,6 +731,8 @@ objects:
               key: psks.json
               name: rbac-psks
               optional: false
+        - name: HOSTS_TABLE_NUM_PARTITIONS
+          value: ${HOSTS_TABLE_NUM_PARTITIONS}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -1840,16 +1842,14 @@ objects:
             cpu: ${CPU_REQUEST_HOSTS_WITHOUT_ID_FACTS_JOB}
             memory: ${MEMORY_REQUEST_HOSTS_WITHOUT_ID_FACTS_JOB}
 
-    - name: create-hosts-table-partitions
+    - name: hosts-partitioned-table-data-sync
       restartPolicy: Never
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        args: [ "./hosts_table_partitioning.py" ]
+        args: [ "./hosts_partitioned_table_data_sync.py" ]
         env:
           - name: PYTHONPATH
             value: '/opt/app-root/src'
-          - name: HOSTS_TABLE_NUM_PARTITIONS
-            value: ${HOSTS_TABLE_NUM_PARTITIONS}
           - name: BYPASS_DB_REFACTORING_JOBS
             value: ${BYPASS_DB_REFACTORING_JOBS}
           - name: INVENTORY_LOG_LEVEL
@@ -2579,7 +2579,7 @@ parameters:
   value: '10'
 - name: HOSTS_TABLE_NUM_PARTITIONS
   description: The number of partitions for the hosts table
-  value: '32'
+  value: '1'
 - name: BYPASS_DB_REFACTORING_JOBS
   description: Whether to bypass Database refactoring related jobs
   value: 'true'
