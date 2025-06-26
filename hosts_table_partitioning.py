@@ -363,7 +363,7 @@ if __name__ == "__main__":
     job_type = "Hosts Table Partitioning"
     sys.excepthook = partial(excepthook, logger, job_type)
 
-    config, session, _, _, _, application = job_setup(tuple(), PROMETHEUS_JOB)
+    config, session, _, _, _, application = job_setup((), PROMETHEUS_JOB)
     if config.bypass_db_refactoring_jobs:
         logger.info("bypass_db_refactoring_jobs was set to True; exiting.")
         sys.exit(0)
