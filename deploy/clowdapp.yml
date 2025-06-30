@@ -2281,6 +2281,24 @@ objects:
             COUNT(*) AS "host_count"
           FROM "hbi"."hosts"
           GROUP BY "canonical_facts"->>'provider_type';
+      - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/org_id_by_system_update_method
+        chunksize: 10000
+        query: >-
+          SELECT
+            "org_id",
+            COUNT(*) FILTER (WHERE
+              "system_profile_facts"->'bootc_status'->>'image_digest' IS NOT NULL
+              AND "system_profile_facts"->'bootc_status'->>'image_digest' <> ''
+            ) AS "image_mode_count",
+            COUNT(*) FILTER (WHERE
+              "system_profile_facts"->'bootc_status'->>'image_digest' IS NULL
+              AND "system_profile_facts"->>'host_type' IS NULL
+            ) AS "package_mode_count",
+            COUNT(*) FILTER (WHERE
+              "system_profile_facts"->>'host_type' = 'edge'
+            ) AS "edge_count",
+          FROM "hbi"."hosts"
+          GROUP BY "org_id";
       - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/duplicated_hosts_by_org
         chunksize: 10000
         query: >-
