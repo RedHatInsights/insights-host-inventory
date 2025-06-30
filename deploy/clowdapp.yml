@@ -2355,6 +2355,53 @@ objects:
             COUNT(*) AS "host_count"
           FROM "hbi"."hosts"
           GROUP BY "canonical_facts"->>'provider_type';
+      - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/org_id_by_system_update_method
+        chunksize: 10000
+        query: >-
+          SELECT
+            "org_id",
+            COUNT(*) FILTER (WHERE "update_method" = 'image_mode') AS "image_mode_count",
+            COUNT(*) FILTER (WHERE "update_method" = 'package_mode') AS "package_mode_count",
+            COUNT(*) FILTER (WHERE "update_method" = 'edge') AS "edge_count"
+          FROM (
+            SELECT
+              "org_id",
+              'image_mode' AS "update_method"
+            FROM
+              "hbi"."hosts"
+            WHERE
+              "system_profile_facts"->'bootc_status'->'booted'->>'image_digest' IS NOT NULL
+              AND "system_profile_facts"->'bootc_status'->'booted'->>'image_digest' <> ''
+
+            UNION ALL
+
+            SELECT
+              "org_id",
+              'package_mode' AS "update_method"
+            FROM
+              "hbi"."hosts"
+            WHERE
+              "system_profile_facts"->'bootc_status'->'booted'->>'image_digest' IS NULL
+              AND "system_profile_facts"->>'host_type' IS NULL
+
+            UNION ALL
+
+            SELECT
+              "org_id",
+              'edge' AS "update_method"
+            FROM
+              "hbi"."hosts"
+            WHERE
+              "system_profile_facts"->>'host_type' = 'edge'
+          ) AS "combined"
+          GROUP BY
+            "org_id"
+          HAVING
+            (COUNT(*) FILTER (WHERE "update_method" = 'image_mode')
+            + COUNT(*) FILTER (WHERE "update_method" = 'package_mode')
+            + COUNT(*) FILTER (WHERE "update_method" = 'edge')) > 1
+          ORDER BY
+            "org_id";
       - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/duplicated_hosts_by_org
         chunksize: 10000
         query: >-
