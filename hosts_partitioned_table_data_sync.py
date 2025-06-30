@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.environment import RuntimeEnvironment
 from app.logging import get_logger
+from app.models.constants import INVENTORY_SCHEMA
 from jobs.common import excepthook
 from jobs.common import job_setup
 from lib.db import session_guard
@@ -18,10 +19,9 @@ PROMETHEUS_JOB = "hosts-partitioned-table-data-sync"
 LOGGER_NAME = "hosts_partitioned_table_data_sync"
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
 
-INVENTORY_SCHEMA = "hbi"
-
 """
-This job creates a trigger to synchronize data from the hosts table to the hosts_new table.
+This job creates a trigger to synchronize data from the hosts table to the hosts_new partitioned table
+and the hosts_groups_new partitioned table
 """
 
 
@@ -34,7 +34,7 @@ def execute_sql(session: Session, sql_template: str, operation_name: str = ""):
 
 
 def create_sync_trigger_function(session: Session, logger: Logger):
-    """Create the trigger function to sync data between hosts and hosts_new."""
+    """Create the trigger function to sync data between hosts, hosts_new and hosts_groups_new tables"""
     logger.info("Creating sync trigger function")
 
     trigger_function_sql = f"""
@@ -42,6 +42,7 @@ def create_sync_trigger_function(session: Session, logger: Logger):
         RETURNS TRIGGER AS $$
         BEGIN
             IF (TG_OP = 'INSERT') THEN
+                -- For INSERT, create the parent record in `hosts_new` FIRST.
                 INSERT INTO {INVENTORY_SCHEMA}.hosts_new (
                     org_id, id, account, display_name, ansible_host, created_on, modified_on, facts, tags,
                     tags_alt, system_profile_facts, groups, last_check_in, stale_timestamp, deletion_timestamp,
@@ -67,7 +68,16 @@ def create_sync_trigger_function(session: Session, logger: Logger):
                     NEW.canonical_facts ->> 'provider_id',
                     NEW.canonical_facts ->> 'provider_type'
                 );
-                RETURN NEW;
+
+                -- Now that the parent exists, create the child records in `hosts_groups_new`.
+                IF NEW.groups IS NOT NULL AND jsonb_typeof(NEW.groups) = 'array' AND jsonb_array_length(NEW.groups) > 0 THEN
+                    INSERT INTO hbi.hosts_groups_new (org_id, host_id, group_id)
+                    SELECT
+                        NEW.org_id,
+                        NEW.id,
+                        (value ->> 'id')::uuid
+                    FROM jsonb_array_elements(NEW.groups);
+                END IF;
 
             ELSIF (TG_OP = 'UPDATE') THEN
                 UPDATE {INVENTORY_SCHEMA}.hosts_new SET
@@ -100,11 +110,24 @@ def create_sync_trigger_function(session: Session, logger: Logger):
                     provider_id = NEW.canonical_facts ->> 'provider_id',
                     provider_type = NEW.canonical_facts ->> 'provider_type'
                 WHERE org_id = NEW.org_id AND id = NEW.id;
-                RETURN NEW;
+
+                -- Then, sync the child records using the safe "delete-then-insert" method.
+                DELETE FROM hbi.hosts_groups_new WHERE org_id = NEW.org_id AND host_id = NEW.id;
+                IF NEW.groups IS NOT NULL AND jsonb_typeof(NEW.groups) = 'array' AND jsonb_array_length(NEW.groups) > 0 THEN
+                    INSERT INTO hbi.hosts_groups_new (org_id, host_id, group_id)
+                    SELECT
+                        NEW.org_id,
+                        NEW.id,
+                        (value ->> 'id')::uuid
+                    FROM jsonb_array_elements(NEW.groups);
+                END IF;
 
             ELSIF (TG_OP = 'DELETE') THEN
-                DELETE FROM {INVENTORY_SCHEMA}.hosts_new WHERE org_id = OLD.org_id AND id = OLD.id;
-                RETURN OLD;
+                -- For DELETE, delete the child records from `hosts_groups_new` FIRST.
+                DELETE FROM hbi.hosts_groups_new WHERE host_id = OLD.id AND org_id = OLD.org_id;
+
+                -- Now that the child records are gone, DELETE the parent.
+                DELETE FROM hbi.hosts_new WHERE org_id = OLD.org_id AND id = OLD.id;
             END IF;
 
             RETURN NULL;
@@ -140,7 +163,7 @@ def run(logger: Logger, session: Session, application: FlaskApp):
 
 if __name__ == "__main__":
     logger = get_logger(LOGGER_NAME)
-    job_type = "Hosts partitioned table synchronizer"
+    job_type = "Hosts partitioned tables synchronizer"
     sys.excepthook = partial(excepthook, logger, job_type)
 
     config, session, _, _, _, application = job_setup((), PROMETHEUS_JOB)
