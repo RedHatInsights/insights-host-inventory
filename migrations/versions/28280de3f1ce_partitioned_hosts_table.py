@@ -20,22 +20,23 @@ branch_labels = None
 depends_on = None
 
 INVENTORY_SCHEMA = "hbi"
-NUM_PARTITIONS = int(os.getenv("HOSTS_TABLE_NUM_PARTITIONS", 1))
 TABLE_NAME = "hosts_new"
 
 
-def validate_inputs():
+def validate_inputs(num_partitions: int):
     """Validate input parameters"""
-    if not 1 <= NUM_PARTITIONS <= 32:
-        raise ValueError(f"Invalid number of partitions: {NUM_PARTITIONS}. Must be between 1 and 32.")
+    if not 1 <= num_partitions <= 32:
+        raise ValueError(f"Invalid number of partitions: {num_partitions}. Must be between 1 and 32.")
 
 
 def upgrade():
-    validate_inputs()
-
     """
     Creates a new hash-partitioned 'hosts_new' table.
     """
+
+    num_partitions = int(os.getenv("HOSTS_TABLE_NUM_PARTITIONS", 1))
+    validate_inputs(num_partitions)
+
     op.create_table(
         TABLE_NAME,
         # --- Columns ---
@@ -84,7 +85,7 @@ def upgrade():
     # Manually create the child partitions.
     # Raw SQL is necessary here as Alembic doesn't have a high-level
     # abstraction for creating partitions of an existing table.
-    for i in range(NUM_PARTITIONS):
+    for i in range(num_partitions):
         partition_name = (
             f"hosts_p{i}"  # Keep the hosts_p{number} pattern to avoid having to rename it after the table switch
         )
@@ -92,7 +93,7 @@ def upgrade():
             text(f"""
                 CREATE TABLE {INVENTORY_SCHEMA}.{partition_name}
                 PARTITION OF {INVENTORY_SCHEMA}.{TABLE_NAME}
-                FOR VALUES WITH (MODULUS {NUM_PARTITIONS}, REMAINDER {i});
+                FOR VALUES WITH (MODULUS {num_partitions}, REMAINDER {i});
             """)
         )
 
