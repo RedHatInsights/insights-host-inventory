@@ -1,4 +1,4 @@
-"""Partitioned Hosts table
+"""Partitioned Hosts and Host Groups tables
 
 Revision ID: 28280de3f1ce
 Revises: 002843d515cb
@@ -13,14 +13,16 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.sql import text
 
+from app.models.constants import INVENTORY_SCHEMA
+
 # revision identifiers, used by Alembic.
 revision = "28280de3f1ce"
 down_revision = "002843d515cb"
 branch_labels = None
 depends_on = None
 
-INVENTORY_SCHEMA = "hbi"
-TABLE_NAME = "hosts_new"
+HOSTS_TABLE_NAME = "hosts_new"
+HOSTS_GROUPS_TABLE_NAME = "hosts_groups_new"
 
 
 def validate_inputs(num_partitions: int):
@@ -31,14 +33,17 @@ def validate_inputs(num_partitions: int):
 
 def upgrade():
     """
-    Creates a new hash-partitioned 'hosts_new' table.
+    Creates new hash-partitioned 'hosts_new' and 'hosts_groups_new' tables.
     """
 
     num_partitions = int(os.getenv("HOSTS_TABLE_NUM_PARTITIONS", 1))
     validate_inputs(num_partitions)
 
+    # ====================================================================
+    #  Create hosts_new table
+    # ====================================================================
     op.create_table(
-        TABLE_NAME,
+        HOSTS_TABLE_NAME,
         # --- Columns ---
         sa.Column("org_id", sa.String(length=36), nullable=False),
         sa.Column("id", sa.UUID(), nullable=False),
@@ -75,101 +80,137 @@ def upgrade():
         sa.Column("mac_addresses", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column("provider_id", sa.String(length=500), nullable=True),
         sa.Column("provider_type", sa.String(length=50), nullable=True),
-        # --- Constraints and Indexes ---
-        sa.PrimaryKeyConstraint("org_id", "id", name=f"{TABLE_NAME}_pkey"),
-        # Table-level Keyword Arguments
+        # --- Constraints ---
+        sa.PrimaryKeyConstraint("org_id", "id", name=f"{HOSTS_TABLE_NAME}_pkey"),
+        # --- Table Arguments ---
         schema=INVENTORY_SCHEMA,
         postgresql_partition_by="HASH (org_id)",
     )
 
-    # Manually create the child partitions.
-    # Raw SQL is necessary here as Alembic doesn't have a high-level
-    # abstraction for creating partitions of an existing table.
+    # ====================================================================
+    #  Create hosts_groups_new table
+    # ====================================================================
+    op.create_table(
+        HOSTS_GROUPS_TABLE_NAME,
+        # --- Columns ---
+        sa.Column("org_id", sa.String(length=36), nullable=False),
+        sa.Column("host_id", sa.UUID(), nullable=False),
+        sa.Column("group_id", sa.UUID(), nullable=False),
+        # --- Constraints ---
+        sa.PrimaryKeyConstraint("org_id", "host_id", "group_id", name=f"{HOSTS_GROUPS_TABLE_NAME}_pkey"),
+        sa.ForeignKeyConstraint(
+            ["org_id", "host_id"],
+            [f"{INVENTORY_SCHEMA}.{HOSTS_TABLE_NAME}.org_id", f"{INVENTORY_SCHEMA}.{HOSTS_TABLE_NAME}.id"],
+            name="fk_hosts_groups_on_hosts",
+        ),
+        sa.ForeignKeyConstraint(["group_id"], [f"{INVENTORY_SCHEMA}.groups.id"], name="fk_hosts_groups_on_groups"),
+        # --- Table Arguments ---
+        schema=INVENTORY_SCHEMA,
+        postgresql_partition_by="HASH (org_id)",
+    )
+
+    # ====================================================================
+    #  Create child partitions for BOTH tables
+    # ====================================================================
     for i in range(num_partitions):
-        partition_name = (
-            f"hosts_p{i}"  # Keep the hosts_p{number} pattern to avoid having to rename it after the table switch
-        )
+        # Create partition for hosts_new
+        hosts_partition_name = f"hosts_p{i}"
         op.execute(
             text(f"""
-                CREATE TABLE {INVENTORY_SCHEMA}.{partition_name}
-                PARTITION OF {INVENTORY_SCHEMA}.{TABLE_NAME}
+                CREATE TABLE {INVENTORY_SCHEMA}.{hosts_partition_name}
+                PARTITION OF {INVENTORY_SCHEMA}.{HOSTS_TABLE_NAME}
+                FOR VALUES WITH (MODULUS {num_partitions}, REMAINDER {i});
+            """)
+        )
+        # Create partition for hosts_groups_new
+        groups_partition_name = f"hosts_groups_p{i}"
+        op.execute(
+            text(f"""
+                CREATE TABLE {INVENTORY_SCHEMA}.{groups_partition_name}
+                PARTITION OF {INVENTORY_SCHEMA}.{HOSTS_GROUPS_TABLE_NAME}
                 FOR VALUES WITH (MODULUS {num_partitions}, REMAINDER {i});
             """)
         )
 
-    # Basic column indexes
+    # ====================================================================
+    #  Create Indexes for hosts_new
+    # ====================================================================
     op.create_index(
         "idx_hosts_modified_on_id",
-        TABLE_NAME,
+        HOSTS_TABLE_NAME,
         ["modified_on", "id"],
         schema=INVENTORY_SCHEMA,
         postgresql_ops={"modified_on": "DESC", "id": "DESC"},
     )
-    op.create_index("idx_hosts_insights_id", TABLE_NAME, ["insights_id"], unique=False, schema=INVENTORY_SCHEMA)
+    op.create_index("idx_hosts_insights_id", HOSTS_TABLE_NAME, ["insights_id"], unique=False, schema=INVENTORY_SCHEMA)
     op.create_index(
         "idx_hosts_subscription_manager_id",
-        TABLE_NAME,
+        HOSTS_TABLE_NAME,
         ["subscription_manager_id"],
         unique=False,
         schema=INVENTORY_SCHEMA,
     )
 
-    # GIN indexes for JSONB columns
     op.create_index(
         "idx_hosts_canonical_facts_gin",
-        TABLE_NAME,
+        HOSTS_TABLE_NAME,
         ["canonical_facts"],
         schema=INVENTORY_SCHEMA,
         postgresql_using="gin",
         postgresql_ops={"canonical_facts": "jsonb_path_ops"},
     )
-    op.create_index("idx_hosts_groups_gin", TABLE_NAME, ["groups"], schema=INVENTORY_SCHEMA, postgresql_using="gin")
-
-    # Functional indexes
     op.create_index(
-        "idx_hosts_host_type", TABLE_NAME, [text("(system_profile_facts ->> 'host_type')")], schema=INVENTORY_SCHEMA
+        "idx_hosts_groups_gin", HOSTS_TABLE_NAME, ["groups"], schema=INVENTORY_SCHEMA, postgresql_using="gin"
+    )
+
+    op.create_index(
+        "idx_hosts_host_type",
+        HOSTS_TABLE_NAME,
+        [text("(system_profile_facts ->> 'host_type')")],
+        schema=INVENTORY_SCHEMA,
     )
     op.create_index(
-        "idx_hosts_cf_insights_id", TABLE_NAME, [text("(canonical_facts ->> 'insights_id')")], schema=INVENTORY_SCHEMA
+        "idx_hosts_cf_insights_id",
+        HOSTS_TABLE_NAME,
+        [text("(canonical_facts ->> 'insights_id')")],
+        schema=INVENTORY_SCHEMA,
     )
     op.create_index(
         "idx_hosts_cf_subscription_manager_id",
-        TABLE_NAME,
+        HOSTS_TABLE_NAME,
         [text("(canonical_facts ->> 'subscription_manager_id')")],
         schema=INVENTORY_SCHEMA,
     )
     op.create_index(
-        "idx_hosts_mssql", TABLE_NAME, [text("(system_profile_facts ->> 'mssql')")], schema=INVENTORY_SCHEMA
+        "idx_hosts_mssql", HOSTS_TABLE_NAME, [text("(system_profile_facts ->> 'mssql')")], schema=INVENTORY_SCHEMA
     )
     op.create_index(
-        "idx_hosts_ansible", TABLE_NAME, [text("(system_profile_facts ->> 'ansible')")], schema=INVENTORY_SCHEMA
+        "idx_hosts_ansible", HOSTS_TABLE_NAME, [text("(system_profile_facts ->> 'ansible')")], schema=INVENTORY_SCHEMA
     )
     op.create_index(
         "idx_hosts_sap_system",
-        TABLE_NAME,
+        HOSTS_TABLE_NAME,
         [text("((system_profile_facts ->> 'sap_system')::boolean)")],
         schema=INVENTORY_SCHEMA,
     )
 
-    # Composite index for common query pattern
     op.create_index(
         "idx_hosts_host_type_modified_on_org_id",
-        TABLE_NAME,
+        HOSTS_TABLE_NAME,
         ["org_id", "modified_on", text("(system_profile_facts ->> 'host_type')")],
         schema=INVENTORY_SCHEMA,
     )
 
-    # Indexes with a WHERE clause
     op.create_index(
         "idx_hosts_bootc_status",
-        TABLE_NAME,
+        HOSTS_TABLE_NAME,
         ["org_id"],
         schema=INVENTORY_SCHEMA,
         postgresql_where=text("((system_profile_facts -> 'bootc_status' -> 'booted' ->> 'image_digest') IS NOT NULL)"),
     )
     op.create_index(
         "idx_hosts_operating_system_multi",
-        TABLE_NAME,
+        HOSTS_TABLE_NAME,
         [
             text("((system_profile_facts -> 'operating_system' ->> 'name'))"),
             text("((system_profile_facts -> 'operating_system' ->> 'major')::integer)"),
@@ -182,10 +223,28 @@ def upgrade():
         postgresql_where=text("(system_profile_facts -> 'operating_system') IS NOT NULL"),
     )
 
+    # ====================================================================
+    #  Create Indexes for hosts_groups_new
+    # ====================================================================
+    op.create_index(
+        "idx_hosts_groups_forward",
+        HOSTS_GROUPS_TABLE_NAME,
+        ["org_id", "host_id", "group_id"],
+        unique=False,
+        schema=INVENTORY_SCHEMA,
+    )
+    op.create_index(
+        "idx_hosts_groups_reverse",
+        HOSTS_GROUPS_TABLE_NAME,
+        ["org_id", "group_id", "host_id"],
+        unique=False,
+        schema=INVENTORY_SCHEMA,
+    )
+
 
 def downgrade():
     """
-    PostgreSQL automatically drops child partitions when the parent table is dropped,
-    so there is no need to drop them individually.
+    Drops the new tables. The child partitions are dropped automatically with the parent.
     """
-    op.drop_table(TABLE_NAME, schema=INVENTORY_SCHEMA)
+    op.drop_table(HOSTS_GROUPS_TABLE_NAME, schema=INVENTORY_SCHEMA)
+    op.drop_table(HOSTS_TABLE_NAME, schema=INVENTORY_SCHEMA)
