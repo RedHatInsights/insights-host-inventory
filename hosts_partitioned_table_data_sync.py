@@ -103,7 +103,7 @@ def create_sync_trigger_function(session: Session, logger: Logger):
                 RETURN NEW;
 
             ELSIF (TG_OP = 'DELETE') THEN
-                DELETE FROM {INVENTORY_SCHEMA}.hosts_new WHERE id = OLD.id AND org_id = OLD.org_id;
+                DELETE FROM {INVENTORY_SCHEMA}.hosts_new WHERE org_id = OLD.org_id AND id = OLD.id;
                 RETURN OLD;
             END IF;
 
