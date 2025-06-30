@@ -1989,6 +1989,21 @@ objects:
             COUNT(*) AS "host_count"
           FROM "hbi"."hosts"
           GROUP BY "provider_type";
+      - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/org_id_by_system_update_method
+        query: >-
+          SELECT
+            "org_id",
+            "system_profile_facts"->>'system_update_method' AS "update_method",
+            COUNT(*) AS "hosts_count"
+          FROM "hbi"."hosts"
+          WHERE
+            "system_profile_facts" ? 'system_update_method'
+          GROUP BY
+            "org_id",
+            "update_method"
+          ORDER BY
+            "org_id",
+            "update_method";
       - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/duplicated_hosts_by_org
         chunksize: 10000
         query: >-
