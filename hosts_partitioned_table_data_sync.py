@@ -99,7 +99,7 @@ def create_sync_trigger_function(session: Session, logger: Logger):
                     mac_addresses = NEW.canonical_facts -> 'mac_addresses',
                     provider_id = NEW.canonical_facts ->> 'provider_id',
                     provider_type = NEW.canonical_facts ->> 'provider_type'
-                WHERE id = NEW.id AND org_id = NEW.org_id;
+                WHERE org_id = NEW.org_id AND id = NEW.id;
                 RETURN NEW;
 
             ELSIF (TG_OP = 'DELETE') THEN
