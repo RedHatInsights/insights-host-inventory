@@ -1,3 +1,5 @@
+import os
+
 from confluent_kafka import KafkaError
 from confluent_kafka import KafkaException
 from confluent_kafka import Producer as KafkaProducer
@@ -41,6 +43,11 @@ class EventProducer:
         self.mq_topic = topic
 
     def write_event(self, event, key, headers, *, wait=False):
+        # This is an adhoc for us to test kessel migration on the new OCP replica namespace
+        REPLICA_NAMESPACE = os.environ.get("REPLICA_NAMESPACE", "false").lower() == "true"
+        if REPLICA_NAMESPACE:
+            return
+
         logger.debug("Topic: %s, key: %s, event: %s, headers: %s", self.mq_topic, key, event, headers)
 
         k = key.encode("utf-8") if key else None
