@@ -37,12 +37,20 @@ def create_sync_trigger_function(session: Session, logger: Logger):
     """Create the trigger function to sync data between hosts, hosts_new and hosts_groups_new tables"""
     logger.info("Creating sync trigger function")
 
+    # This trigger function that uses an UPSERT pattern
+    # to guarantee data consistency and handle race conditions.
     trigger_function_sql = f"""
         CREATE OR REPLACE FUNCTION {INVENTORY_SCHEMA}.sync_hosts_to_new()
         RETURNS TRIGGER AS $$
         BEGIN
-            IF (TG_OP = 'INSERT') THEN
-                -- For INSERT, create the parent record in `hosts_new` FIRST.
+            IF (TG_OP = 'DELETE') THEN
+                -- For DELETE, must delete from child table first to respect foreign keys.
+                DELETE FROM {INVENTORY_SCHEMA}.hosts_groups_new WHERE host_id = OLD.id AND org_id = OLD.org_id;
+                -- Then delete from parent table.
+                DELETE FROM {INVENTORY_SCHEMA}.hosts_new WHERE id = OLD.id AND org_id = OLD.org_id;
+            ELSE
+                -- For INSERT or UPDATE, perform a single, atomic UPSERT on the parent table.
+                -- This handles both cases correctly and prevents the race condition.
                 INSERT INTO {INVENTORY_SCHEMA}.hosts_new (
                     org_id, id, account, display_name, ansible_host, created_on, modified_on, facts, tags,
                     tags_alt, system_profile_facts, groups, last_check_in, stale_timestamp, deletion_timestamp,
@@ -67,69 +75,52 @@ def create_sync_trigger_function(session: Session, logger: Logger):
                     NEW.canonical_facts -> 'mac_addresses',
                     NEW.canonical_facts ->> 'provider_id',
                     NEW.canonical_facts ->> 'provider_type'
-                );
+                )
+                ON CONFLICT (org_id, id) DO UPDATE SET
+                    account = EXCLUDED.account,
+                    display_name = EXCLUDED.display_name,
+                    ansible_host = EXCLUDED.ansible_host,
+                    created_on = EXCLUDED.created_on,
+                    modified_on = EXCLUDED.modified_on,
+                    facts = EXCLUDED.facts,
+                    tags = EXCLUDED.tags,
+                    tags_alt = EXCLUDED.tags_alt,
+                    system_profile_facts = EXCLUDED.system_profile_facts,
+                    groups = EXCLUDED.groups,
+                    last_check_in = EXCLUDED.last_check_in,
+                    stale_timestamp = EXCLUDED.stale_timestamp,
+                    deletion_timestamp = EXCLUDED.deletion_timestamp,
+                    stale_warning_timestamp = EXCLUDED.stale_warning_timestamp,
+                    reporter = EXCLUDED.reporter,
+                    per_reporter_staleness = EXCLUDED.per_reporter_staleness,
+                    canonical_facts = EXCLUDED.canonical_facts,
+                    canonical_facts_version = EXCLUDED.canonical_facts_version,
+                    is_virtual = EXCLUDED.is_virtual,
+                    insights_id = EXCLUDED.insights_id,
+                    subscription_manager_id = EXCLUDED.subscription_manager_id,
+                    satellite_id = EXCLUDED.satellite_id,
+                    fqdn = EXCLUDED.fqdn,
+                    bios_uuid = EXCLUDED.bios_uuid,
+                    ip_addresses = EXCLUDED.ip_addresses,
+                    mac_addresses = EXCLUDED.mac_addresses,
+                    provider_id = EXCLUDED.provider_id,
+                    provider_type = EXCLUDED.provider_type;
 
-                -- Now that the parent exists, create the child records in `hosts_groups_new`.
+                -- After the parent row is guaranteed to exist, sync the child table.
+                -- The "delete-then-insert" strategy is still correct here.
+                DELETE FROM {INVENTORY_SCHEMA}.hosts_groups_new WHERE host_id = NEW.id AND org_id = NEW.org_id;
+
                 IF NEW.groups IS NOT NULL AND jsonb_typeof(NEW.groups) = 'array' AND jsonb_array_length(NEW.groups) > 0 THEN
-                    INSERT INTO hbi.hosts_groups_new (org_id, host_id, group_id)
+                    INSERT INTO {INVENTORY_SCHEMA}.hosts_groups_new (org_id, host_id, group_id)
                     SELECT
                         NEW.org_id,
                         NEW.id,
                         (value ->> 'id')::uuid
                     FROM jsonb_array_elements(NEW.groups);
                 END IF;
-
-            ELSIF (TG_OP = 'UPDATE') THEN
-                UPDATE {INVENTORY_SCHEMA}.hosts_new SET
-                    account = NEW.account,
-                    display_name = NEW.display_name,
-                    ansible_host = NEW.ansible_host,
-                    created_on = NEW.created_on,
-                    modified_on = NEW.modified_on,
-                    facts = NEW.facts,
-                    tags = NEW.tags,
-                    tags_alt = NEW.tags_alt,
-                    system_profile_facts = NEW.system_profile_facts,
-                    groups = NEW.groups,
-                    last_check_in = NEW.last_check_in,
-                    stale_timestamp = NEW.stale_timestamp,
-                    deletion_timestamp = NEW.deletion_timestamp,
-                    stale_warning_timestamp = NEW.stale_warning_timestamp,
-                    reporter = NEW.reporter,
-                    per_reporter_staleness = NEW.per_reporter_staleness,
-                    canonical_facts = NEW.canonical_facts,
-                    canonical_facts_version = (NEW.canonical_facts ->> 'canonical_facts_version')::integer,
-                    is_virtual = (NEW.canonical_facts ->> 'is_virtual')::boolean,
-                    insights_id = COALESCE((NEW.canonical_facts->>'insights_id')::uuid, '00000000-0000-0000-0000-000000000000'),
-                    subscription_manager_id = NEW.canonical_facts ->> 'subscription_manager_id',
-                    satellite_id = NEW.canonical_facts ->> 'satellite_id',
-                    fqdn = NEW.canonical_facts ->> 'fqdn',
-                    bios_uuid = NEW.canonical_facts ->> 'bios_uuid',
-                    ip_addresses = NEW.canonical_facts -> 'ip_addresses',
-                    mac_addresses = NEW.canonical_facts -> 'mac_addresses',
-                    provider_id = NEW.canonical_facts ->> 'provider_id',
-                    provider_type = NEW.canonical_facts ->> 'provider_type'
-                WHERE org_id = NEW.org_id AND id = NEW.id;
-
-                -- Then, sync the child records using the safe "delete-then-insert" method.
-                DELETE FROM hbi.hosts_groups_new WHERE org_id = NEW.org_id AND host_id = NEW.id;
-                IF NEW.groups IS NOT NULL AND jsonb_typeof(NEW.groups) = 'array' AND jsonb_array_length(NEW.groups) > 0 THEN
-                    INSERT INTO hbi.hosts_groups_new (org_id, host_id, group_id)
-                    SELECT
-                        NEW.org_id,
-                        NEW.id,
-                        (value ->> 'id')::uuid
-                    FROM jsonb_array_elements(NEW.groups);
-                END IF;
-
-            ELSIF (TG_OP = 'DELETE') THEN
-                -- For DELETE, delete the child records from `hosts_groups_new` FIRST.
-                DELETE FROM hbi.hosts_groups_new WHERE host_id = OLD.id AND org_id = OLD.org_id;
-
-                -- Now that the child records are gone, DELETE the parent.
-                DELETE FROM hbi.hosts_new WHERE org_id = OLD.org_id AND id = OLD.id;
             END IF;
 
+            -- The return value for an AFTER trigger is ignored.
             RETURN NULL;
         END;
         $$ LANGUAGE plpgsql;

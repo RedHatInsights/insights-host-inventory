@@ -102,6 +102,7 @@ def upgrade():
             ["org_id", "host_id"],
             [f"{INVENTORY_SCHEMA}.{HOSTS_TABLE_NAME}.org_id", f"{INVENTORY_SCHEMA}.{HOSTS_TABLE_NAME}.id"],
             name="fk_hosts_groups_on_hosts",
+            ondelete="CASCADE",
         ),
         sa.ForeignKeyConstraint(["group_id"], [f"{INVENTORY_SCHEMA}.groups.id"], name="fk_hosts_groups_on_groups"),
         # --- Table Arguments ---
