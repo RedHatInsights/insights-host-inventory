@@ -425,7 +425,7 @@ class IngressMessageConsumer(HostMessageConsumer):
                 db.session.flush()  # Flush so that we can retrieve the created host's ID
                 # Get org's "ungrouped hosts" group (create if not exists) and assign host to it
                 group = get_or_create_ungrouped_hosts_group_for_identity(identity)
-                assoc = HostGroupAssoc(host_row.id, group.id)
+                assoc = HostGroupAssoc(host_row.id, group.id, identity.org_id)
                 db.session.add(assoc)
                 host_row.groups = [serialize_group(group)]
                 db.session.flush()
