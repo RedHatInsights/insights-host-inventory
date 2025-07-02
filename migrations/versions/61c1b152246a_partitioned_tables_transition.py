@@ -35,7 +35,7 @@ performed via controlled, external scripts.
 
 
 def upgrade():
-    migration_mode = os.environ.get("MIGRATION_MODE", "managed").lower()
+    migration_mode = os.environ.get("MIGRATION_MODE", "automated").lower()
 
     # For 'automated' mode (local, ephemeral, on-premise), this script performs the full data copy and swap.
     # For 'managed' mode, this logic is handled by external Python scripts running as Openshift jobs,
@@ -47,8 +47,8 @@ def upgrade():
                     org_id, id, account, display_name, ansible_host, created_on, modified_on, facts, tags,
                     tags_alt, system_profile_facts, groups, last_check_in, stale_timestamp, deletion_timestamp,
                     stale_warning_timestamp, reporter, per_reporter_staleness, canonical_facts,
-                    canonical_facts_version, is_virtual, insights_id, subscription_manager_id,
-                    satellite_id, fqdn, bios_uuid, ip_addresses, mac_addresses, provider_id, provider_type
+                    insights_id, subscription_manager_id, satellite_id, fqdn, bios_uuid, ip_addresses,
+                    mac_addresses, provider_id, provider_type
                 )
                 SELECT
                     h.org_id, h.id, h.account, h.display_name, h.ansible_host, h.created_on,
@@ -56,8 +56,6 @@ def upgrade():
                     h.groups, h.last_check_in, h.stale_timestamp, h.deletion_timestamp,
                     h.stale_warning_timestamp, h.reporter, h.per_reporter_staleness,
                     h.canonical_facts,
-                    (h.canonical_facts ->> 'canonical_facts_version')::integer,
-                    (h.canonical_facts ->> 'is_virtual')::boolean,
                     COALESCE((h.canonical_facts->>'insights_id')::uuid, '00000000-0000-0000-0000-000000000000'),
                     h.canonical_facts ->> 'subscription_manager_id',
                     h.canonical_facts ->> 'satellite_id',
@@ -85,31 +83,35 @@ def upgrade():
         """)
 
         # Step 2: Perform the atomic rename swap for all tables and constraints.
-        op.execute(f"LOCK TABLE {INVENTORY_SCHEMA}.hosts IN ACCESS EXCLUSIVE MODE;")
-        op.execute(f"LOCK TABLE {INVENTORY_SCHEMA}.hosts_new IN ACCESS EXCLUSIVE MODE;")
+        op.execute(f"""
+            DO $$
+            BEGIN
+                -- Lock all tables involved in the swap
+                LOCK TABLE {INVENTORY_SCHEMA}.hosts IN ACCESS EXCLUSIVE MODE;
+                LOCK TABLE {INVENTORY_SCHEMA}.hosts_new IN ACCESS EXCLUSIVE MODE;
+                LOCK TABLE {INVENTORY_SCHEMA}.hosts_groups IN ACCESS EXCLUSIVE MODE;
+                LOCK TABLE {INVENTORY_SCHEMA}.hosts_groups_new IN ACCESS EXCLUSIVE MODE;
 
-        op.execute(f"LOCK TABLE {INVENTORY_SCHEMA}.hosts_groups IN ACCESS EXCLUSIVE MODE;")
-        op.execute(f"LOCK TABLE {INVENTORY_SCHEMA}.hosts_groups_new IN ACCESS EXCLUSIVE MODE;")
+                -- Rename old tables' constraints FIRST
+                ALTER TABLE {INVENTORY_SCHEMA}.hosts RENAME CONSTRAINT hosts_pkey TO hosts_old_pkey;
+                ALTER TABLE {INVENTORY_SCHEMA}.hosts_groups
+                RENAME CONSTRAINT hosts_groups_pkey TO hosts_groups_old_pkey;
 
-        # Rename old tables and their constraints
-        op.execute(f"ALTER TABLE {INVENTORY_SCHEMA}.hosts RENAME CONSTRAINT hosts_pkey TO hosts_old_pkey;")
-        op.execute(
-            f"ALTER TABLE {INVENTORY_SCHEMA}.hosts_groups "
-            "RENAME CONSTRAINT hosts_groups_pkey TO hosts_groups_old_pkey;"
-        )
+                -- Then rename the old tables
+                ALTER TABLE {INVENTORY_SCHEMA}.hosts RENAME TO hosts_old;
+                ALTER TABLE {INVENTORY_SCHEMA}.hosts_groups RENAME TO hosts_groups_old;
 
-        op.execute(f"ALTER TABLE {INVENTORY_SCHEMA}.hosts RENAME TO hosts_old;")
-        op.execute(f"ALTER TABLE {INVENTORY_SCHEMA}.hosts_groups RENAME TO hosts_groups_old;")
+                -- Then rename the new tables
+                ALTER TABLE {INVENTORY_SCHEMA}.hosts_new RENAME TO hosts;
+                ALTER TABLE {INVENTORY_SCHEMA}.hosts_groups_new RENAME TO hosts_groups;
 
-        # Rename new tables and their constraints to their final production names
-        op.execute(f"ALTER TABLE {INVENTORY_SCHEMA}.hosts_new RENAME TO hosts;")
-        op.execute(f"ALTER TABLE {INVENTORY_SCHEMA}.hosts_groups_new RENAME TO hosts_groups;")
-
-        op.execute(f"ALTER INDEX {INVENTORY_SCHEMA}.hosts_new_pkey RENAME TO hosts_pkey;")
-        op.execute(
-            f"ALTER TABLE {INVENTORY_SCHEMA}.hosts_groups "
-            "RENAME CONSTRAINT hosts_groups_new_pkey TO hosts_groups_pkey;"
-        )
+                -- Finally, rename the new tables' constraints to their final production names
+                ALTER TABLE {INVENTORY_SCHEMA}.hosts RENAME CONSTRAINT hosts_new_pkey TO hosts_pkey;
+                ALTER TABLE {INVENTORY_SCHEMA}.hosts_groups RENAME
+                CONSTRAINT hosts_groups_new_pkey TO hosts_groups_pkey;
+            END;
+            $$;
+        """)
 
     # This safety check verifies that the table migration was successful before stamping.
     # It runs for ALL modes to ensure consistency.
@@ -169,38 +171,40 @@ def upgrade():
 
 
 def downgrade():
-    migration_mode = os.environ.get("MIGRATION_MODE", "managed").lower()
+    migration_mode = os.environ.get("MIGRATION_MODE", "automated").lower()
 
     if migration_mode == "automated":
         # This reverses the table swap and clears the copied data from the _new tables.
-        op.execute(f"LOCK TABLE {INVENTORY_SCHEMA}.hosts IN ACCESS EXCLUSIVE MODE;")
-        op.execute(f"LOCK TABLE {INVENTORY_SCHEMA}.hosts_old IN ACCESS EXCLUSIVE MODE;")
+        op.execute(f"""
+            DO $$
+            BEGIN
+                -- Lock all tables involved in the swap
+                LOCK TABLE {INVENTORY_SCHEMA}.hosts IN ACCESS EXCLUSIVE MODE;
+                LOCK TABLE {INVENTORY_SCHEMA}.hosts_old IN ACCESS EXCLUSIVE MODE;
+                LOCK TABLE {INVENTORY_SCHEMA}.hosts_groups IN ACCESS EXCLUSIVE MODE;
+                LOCK TABLE {INVENTORY_SCHEMA}.hosts_groups_old IN ACCESS EXCLUSIVE MODE;
 
-        op.execute(f"LOCK TABLE {INVENTORY_SCHEMA}.hosts_groups IN ACCESS EXCLUSIVE MODE;")
-        op.execute(f"LOCK TABLE {INVENTORY_SCHEMA}.hosts_groups_old IN ACCESS EXCLUSIVE MODE;")
+                -- Rename tables and constraints back to their pre-upgrade state
+                ALTER TABLE {INVENTORY_SCHEMA}.hosts_groups
+                RENAME CONSTRAINT hosts_groups_pkey TO hosts_groups_new_pkey;
+                ALTER TABLE {INVENTORY_SCHEMA}.hosts RENAME CONSTRAINT hosts_pkey TO hosts_new_pkey;
 
-        # Rename tables and constraints back to their pre-upgrade state
-        op.execute(
-            f"ALTER TABLE {INVENTORY_SCHEMA}.hosts_groups "
-            "RENAME CONSTRAINT hosts_groups_pkey TO hosts_groups_new_pkey;"
-        )
-        op.execute(f"ALTER TABLE {INVENTORY_SCHEMA}.hosts RENAME CONSTRAINT hosts_pkey TO hosts_new_pkey;")
+                ALTER TABLE {INVENTORY_SCHEMA}.hosts_groups RENAME TO hosts_groups_new;
+                ALTER TABLE {INVENTORY_SCHEMA}.hosts RENAME TO hosts_new;
 
-        op.execute(f"ALTER TABLE {INVENTORY_SCHEMA}.hosts_groups RENAME TO hosts_groups_new;")
-        op.execute(f"ALTER TABLE {INVENTORY_SCHEMA}.hosts RENAME TO hosts_new;")
+                ALTER TABLE {INVENTORY_SCHEMA}.hosts_groups_old RENAME TO hosts_groups;
+                ALTER TABLE {INVENTORY_SCHEMA}.hosts_old RENAME TO hosts;
 
-        op.execute(f"ALTER TABLE {INVENTORY_SCHEMA}.hosts_groups_old RENAME TO hosts_groups;")
-        op.execute(f"ALTER TABLE {INVENTORY_SCHEMA}.hosts_old RENAME TO hosts;")
-
-        op.execute(
-            f"ALTER TABLE {INVENTORY_SCHEMA}.hosts_groups "
-            "RENAME CONSTRAINT hosts_groups_old_pkey TO hosts_groups_pkey;"
-        )
-        op.execute(f"ALTER TABLE {INVENTORY_SCHEMA}.hosts RENAME CONSTRAINT hosts_old_pkey TO hosts_pkey;")
+                ALTER TABLE {INVENTORY_SCHEMA}.hosts_groups
+                RENAME CONSTRAINT hosts_groups_old_pkey TO hosts_groups_pkey;
+                ALTER TABLE {INVENTORY_SCHEMA}.hosts RENAME CONSTRAINT hosts_old_pkey TO hosts_pkey;
+            END;
+            $$;
+        """)
 
         # Truncate the _new tables to remove the data copied during the upgrade.
-        op.execute(f"TRUNCATE TABLE {INVENTORY_SCHEMA}.hosts_new;")
-        op.execute(f"TRUNCATE TABLE {INVENTORY_SCHEMA}.hosts_groups_new;")
+        op.execute(f"TRUNCATE TABLE {INVENTORY_SCHEMA}.hosts_new CASCADE;")
+        op.execute(f"TRUNCATE TABLE {INVENTORY_SCHEMA}.hosts_groups_new")
     else:
         # For 'managed' environments, a downgrade is a manual operational task.
         pass
