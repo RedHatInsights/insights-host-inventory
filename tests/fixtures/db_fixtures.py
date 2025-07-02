@@ -223,9 +223,13 @@ def db_create_group(flask_app):  # noqa: ARG001
 @pytest.fixture(scope="function")
 def db_create_host_group_assoc(flask_app, db_get_group_by_id):  # noqa: ARG001
     def _db_create_host_group_assoc(host_id, group_id):
-        host_group = HostGroupAssoc(host_id=host_id, group_id=group_id)
+        # Get the group to obtain the org_id (same as host's org_id in test fixtures)
+        group = db_get_group_by_id(group_id)
+        if group is None:
+            raise ValueError(f"Group with id {group_id} not found")
+        host_group = HostGroupAssoc(host_id=host_id, group_id=group_id, org_id=group.org_id)
         db.session.add(host_group)
-        serialized_groups = [serialize_group(db_get_group_by_id(group_id))]
+        serialized_groups = [serialize_group(group)]
         db.session.query(Host).filter(Host.id == host_id).update({"groups": serialized_groups})
 
         db.session.commit()
