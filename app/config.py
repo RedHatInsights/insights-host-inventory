@@ -88,8 +88,8 @@ class Config:
 
         self.export_service_token = os.environ.get("EXPORT_SERVICE_TOKEN", "testing-a-psk")
 
-        REPLICA_NAMESPACE = os.environ.get("REPLICA_NAMESPACE", "false").lower() == "true"
-        if not REPLICA_NAMESPACE:
+        self.replica_namespace = os.environ.get("REPLICA_NAMESPACE", "false").lower() == "true"
+        if not self.replica_namespace:
 
             def topic(t):
                 if t:

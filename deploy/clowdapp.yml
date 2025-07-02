@@ -1414,8 +1414,6 @@ objects:
         image: ${IMAGE}:${IMAGE_TAG}
         args: ["./host_synchronizer.py"]
         env:
-          - name: REPLICA_NAMESPACE
-            value: ${REPLICA_NAMESPACE}
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
           - name: INVENTORY_DB_SSL_MODE
@@ -2591,8 +2589,3 @@ parameters:
 - name: FLOORIST_DB_SECRET_NAME
   description: database secret name
   value: host-inventory-db
-
-
-# new namespace
-- name: REPLICA_NAMESPACE
-  value: 'false'

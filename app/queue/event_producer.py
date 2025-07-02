@@ -1,5 +1,3 @@
-import os
-
 from confluent_kafka import KafkaError
 from confluent_kafka import KafkaException
 from confluent_kafka import Producer as KafkaProducer
@@ -41,11 +39,11 @@ class EventProducer:
         logger.info("Starting EventProducer()")
         self._kafka_producer = KafkaProducer({"bootstrap.servers": config.bootstrap_servers, **config.kafka_producer})
         self.mq_topic = topic
+        self.bypass_write_event = config.replica_namespace
 
     def write_event(self, event, key, headers, *, wait=False):
         # This is an adhoc for us to test kessel migration on the new OCP replica namespace
-        REPLICA_NAMESPACE = os.environ.get("REPLICA_NAMESPACE", "false").lower() == "true"
-        if REPLICA_NAMESPACE:
+        if self.bypass_write_event:
             return
 
         logger.debug("Topic: %s, key: %s, event: %s, headers: %s", self.mq_topic, key, event, headers)

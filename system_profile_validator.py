@@ -206,4 +206,4 @@ if __name__ == "__main__":
     sys.excepthook = partial(_excepthook, logger)
 
     threadctx.request_id = None
-    main(logger)
+    # main(logger)
