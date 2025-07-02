@@ -1842,39 +1842,6 @@ objects:
             cpu: ${CPU_REQUEST_HOSTS_WITHOUT_ID_FACTS_JOB}
             memory: ${MEMORY_REQUEST_HOSTS_WITHOUT_ID_FACTS_JOB}
 
-    - name: hosts-partitioned-table-data-sync
-      restartPolicy: Never
-      suspend: ${{HOSTS_PARTITIONED_TABLE_SYNC_SUSPEND}}
-      podSpec:
-        image: ${IMAGE}:${IMAGE_TAG}
-        args: [ "./hosts_partitioned_table_data_sync.py" ]
-        env:
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
-          - name: INVENTORY_LOG_LEVEL
-            value: ${LOG_LEVEL}
-          - name: INVENTORY_DB_SSL_MODE
-            value: ${INVENTORY_DB_SSL_MODE}
-          - name: INVENTORY_DB_SSL_CERT
-            value: ${INVENTORY_DB_SSL_CERT}
-          - name: INVENTORY_DB_SCHEMA
-            value: "${INVENTORY_DB_SCHEMA}"
-          - name: PROMETHEUS_PUSHGATEWAY
-            value: ${PROMETHEUS_PUSHGATEWAY}
-          - name: NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
-          - name: CLOWDER_ENABLED
-            value: "true"
-        resources:
-          limits:
-            cpu: ${CPU_REQUEST_HOSTS_TABLE_PARTITIONING}
-            memory: ${MEMORY_LIMIT_HOSTS_TABLE_PARTITIONING}
-          requests:
-            cpu: ${CPU_REQUEST_HOSTS_TABLE_PARTITIONING}
-            memory: ${MEMORY_REQUEST_HOSTS_TABLE_PARTITIONING}
-
     database:
       name: ${DB_NAME}
       version: 16
@@ -2579,8 +2546,6 @@ parameters:
 - name: HOSTS_TABLE_NUM_PARTITIONS
   description: The number of partitions for the hosts table
   value: '1'
-- name: HOSTS_PARTITIONED_TABLE_SYNC_SUSPEND
-  value: 'true'
 
 # NGINX
 - displayName: Minimum replicas
