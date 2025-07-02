@@ -31,7 +31,7 @@ objects:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        image: quay.io/cloudservices/ubi8-nginx-124:1-39.1741813445
+        image: registry.access.redhat.com/ubi9/nginx-124:latest
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -167,6 +167,8 @@ objects:
               optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
+        - name: FF_LAST_CHECKIN
+          value: ${FF_LAST_CHECKIN}
         - name: UNLEASH_REFRESH_INTERVAL
           value: ${UNLEASH_REFRESH_INTERVAL}
         - name: RBAC_V2_FORCE_ORG_ADMIN
@@ -325,6 +327,8 @@ objects:
               optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
+        - name: FF_LAST_CHECKIN
+          value: ${FF_LAST_CHECKIN}
         - name: UNLEASH_REFRESH_INTERVAL
           value: ${UNLEASH_REFRESH_INTERVAL}
         - name: SEGMENTIO_WRITE_KEY
@@ -479,6 +483,8 @@ objects:
               optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
+        - name: FF_LAST_CHECKIN
+          value: ${FF_LAST_CHECKIN}
         - name: UNLEASH_REFRESH_INTERVAL
           value: ${UNLEASH_REFRESH_INTERVAL}
         - name: RBAC_V2_FORCE_ORG_ADMIN
@@ -600,6 +606,8 @@ objects:
               optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
+        - name: FF_LAST_CHECKIN
+          value: ${FF_LAST_CHECKIN}
         - name: UNLEASH_REFRESH_INTERVAL
           value: ${UNLEASH_REFRESH_INTERVAL}
         - name: MQ_DB_BATCH_MAX_MESSAGES
@@ -707,6 +715,8 @@ objects:
               optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
+        - name: FF_LAST_CHECKIN
+          value: ${FF_LAST_CHECKIN}
         - name: UNLEASH_REFRESH_INTERVAL
           value: ${UNLEASH_REFRESH_INTERVAL}
         - name: MQ_DB_BATCH_MAX_MESSAGES
@@ -807,6 +817,8 @@ objects:
               optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
+        - name: FF_LAST_CHECKIN
+          value: ${FF_LAST_CHECKIN}
         - name: UNLEASH_REFRESH_INTERVAL
           value: ${UNLEASH_REFRESH_INTERVAL}
         - name: MQ_DB_BATCH_MAX_MESSAGES
@@ -895,10 +907,12 @@ objects:
               optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
+        - name: FF_LAST_CHECKIN
+          value: ${FF_LAST_CHECKIN}
         - name: UNLEASH_REFRESH_INTERVAL
           value: ${UNLEASH_REFRESH_INTERVAL}
         - name: MQ_DB_BATCH_MAX_MESSAGES
-          value: ${MQ_DB_BATCH_MAX_MESSAGES}
+          value: ${MQ_WORKSPACES_DB_BATCH_MAX_MESSAGES}
         - name: MQ_DB_BATCH_MAX_SECONDS
           value: ${MQ_DB_BATCH_MAX_SECONDS}
         - name: CONSUMER_MQ_BROKER
@@ -918,11 +932,16 @@ objects:
             path: /
             port: 9000
             scheme: HTTP
+          initialDelaySeconds: 20
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 5
+        readinessProbe:
+          failureThreshold: 3
           initialDelaySeconds: 10
           periodSeconds: 10
           successThreshold: 1
           timeoutSeconds: 5
-        readinessProbe:
           tcpSocket:
             port: 9000
         resources:
@@ -973,6 +992,8 @@ objects:
               optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
+        - name: FF_LAST_CHECKIN
+          value: ${FF_LAST_CHECKIN}
         - name: UNLEASH_REFRESH_INTERVAL
           value: ${UNLEASH_REFRESH_INTERVAL}
         image: ${IMAGE}:${IMAGE_TAG}
@@ -1053,6 +1074,8 @@ objects:
             value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
           - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
             value: "${INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS}"
+          - name: HOST_DELETE_CHUNK_SIZE
+            value: ${HOST_DELETE_CHUNK_SIZE}
           - name: UNLEASH_URL
             value: ${UNLEASH_URL}
           - name: UNLEASH_TOKEN
@@ -1063,6 +1086,8 @@ objects:
                 optional: true
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
+          - name: FF_LAST_CHECKIN
+            value: ${FF_LAST_CHECKIN}
           - name: UNLEASH_REFRESH_INTERVAL
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: RBAC_PSKS
@@ -1129,6 +1154,8 @@ objects:
                 optional: true
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
+          - name: FF_LAST_CHECKIN
+            value: ${FF_LAST_CHECKIN}
           - name: UNLEASH_REFRESH_INTERVAL
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: CONSOLEDOT_HOSTNAME
@@ -1249,6 +1276,8 @@ objects:
                 optional: true
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
+          - name: FF_LAST_CHECKIN
+            value: ${FF_LAST_CHECKIN}
           - name: UNLEASH_REFRESH_INTERVAL
             value: ${UNLEASH_REFRESH_INTERVAL}
         resources:
@@ -1299,6 +1328,8 @@ objects:
                 optional: true
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
+          - name: FF_LAST_CHECKIN
+            value: ${FF_LAST_CHECKIN}
           - name: UNLEASH_REFRESH_INTERVAL
             value: ${UNLEASH_REFRESH_INTERVAL}
         resources:
@@ -1364,6 +1395,77 @@ objects:
                 optional: true
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
+          - name: FF_LAST_CHECKIN
+            value: ${FF_LAST_CHECKIN}
+          - name: UNLEASH_REFRESH_INTERVAL
+            value: ${UNLEASH_REFRESH_INTERVAL}
+          - name: REBUILD_EVENTS_TIME_LIMIT
+            value: ${REBUILD_EVENTS_TIME_LIMIT}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_SYNCHRONIZER}
+            memory: ${MEMORY_LIMIT_SYNCHRONIZER}
+          requests:
+            cpu: ${CPU_REQUEST_SYNCHRONIZER}
+            memory: ${MEMORY_REQUEST_SYNCHRONIZER}
+    - name: synchronizer-only
+      restartPolicy: OnFailure
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: ["./host_synchronizer.py"]
+        env:
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: KAFKA_BOOTSTRAP_SERVERS
+            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
+            value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory-mq-service
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'true'
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: SCRIPT_CHUNK_SIZE
+            value: ${SCRIPT_CHUNK_SIZE}
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - name: UNLEASH_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: ${UNLEASH_SECRET_NAME}
+                key: CLIENT_ACCESS_TOKEN
+                optional: true
+          - name: BYPASS_UNLEASH
+            value: ${BYPASS_UNLEASH}
+          - name: FF_LAST_CHECKIN
+            value: ${FF_LAST_CHECKIN}
           - name: UNLEASH_REFRESH_INTERVAL
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: REBUILD_EVENTS_TIME_LIMIT
@@ -1407,10 +1509,14 @@ objects:
                 optional: true
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
+          - name: FF_LAST_CHECKIN
+            value: ${FF_LAST_CHECKIN}
           - name: UNLEASH_REFRESH_INTERVAL
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: BYPASS_KESSEL_JOBS
             value: ${BYPASS_KESSEL_JOBS}
+          - name: CREATE_UNGROUPED_GROUPS_BATCH_SIZE
+            value: ${CREATE_UNGROUPED_GROUPS_BATCH_SIZE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_UNGROUPED_HOSTS_JOB}
@@ -1472,6 +1578,8 @@ objects:
                 optional: true
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
+          - name: FF_LAST_CHECKIN
+            value: ${FF_LAST_CHECKIN}
           - name: UNLEASH_REFRESH_INTERVAL
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: BYPASS_KESSEL_JOBS
@@ -1583,6 +1691,8 @@ objects:
                 optional: true
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
+          - name: FF_LAST_CHECKIN
+            value: ${FF_LAST_CHECKIN}
           - name: UNLEASH_REFRESH_INTERVAL
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: BYPASS_KESSEL_JOBS
@@ -1662,6 +1772,73 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_EDGE_HOSTS_PRS}
             memory: ${MEMORY_REQUEST_EDGE_HOSTS_PRS}
+    - name: delete-hosts-without-id-facts
+      restartPolicy: OnFailure
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: [ "./delete_hosts_without_id_facts.py" ]
+        env:
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: KAFKA_BOOTSTRAP_SERVERS
+            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
+            value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory-mq-service
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'true'
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - name: UNLEASH_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: ${UNLEASH_SECRET_NAME}
+                key: CLIENT_ACCESS_TOKEN
+                optional: true
+          - name: BYPASS_UNLEASH
+            value: ${BYPASS_UNLEASH}
+          - name: FF_LAST_CHECKIN
+            value: ${FF_LAST_CHECKIN}
+          - name: UNLEASH_REFRESH_INTERVAL
+            value: ${UNLEASH_REFRESH_INTERVAL}
+          - name: HOST_DELETE_CHUNK_SIZE
+            value: ${HOST_DELETE_CHUNK_SIZE}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_HOSTS_WITHOUT_ID_FACTS_JOB}
+            memory: ${MEMORY_LIMIT_HOSTS_WITHOUT_ID_FACTS_JOB}
+          requests:
+            cpu: ${CPU_REQUEST_HOSTS_WITHOUT_ID_FACTS_JOB}
+            memory: ${MEMORY_REQUEST_HOSTS_WITHOUT_ID_FACTS_JOB}
     database:
       name: ${DB_NAME}
       version: 16
@@ -1816,6 +1993,13 @@ objects:
           FROM "hbi"."hosts"
           GROUP BY "org_id"
           ORDER BY "host_count" DESC;
+      - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/hosts_per_public_cloud
+        query: >-
+          SELECT
+            "canonical_facts"->>'provider_type' AS "provider_type",
+            COUNT(*) AS "host_count"
+          FROM "hbi"."hosts"
+          GROUP BY "provider_type";
       - prefix: hms_analytics/inventory/${ENV_NAME}/groups_metrics/org_ids_with_group_names
         chunksize: 10000
         query: >-
@@ -1834,13 +2018,6 @@ objects:
           JOIN "hbi"."hosts_groups" ON "groups"."id" = "hbi"."hosts_groups"."group_id"
           GROUP BY "groups"."id"
           ORDER BY "host_count" DESC;
-      - prefix: hms_analytics/inventory/${ENV_NAME}/groups_metrics/hosts_per_public_cloud
-        query: >-
-          SELECT
-            "canonical_facts"->>'provider_type' AS "provider_type",
-            COUNT(*) AS "host_count"
-          FROM "hbi"."hosts"
-          GROUP BY "provider_type";
 - apiVersion: v1
   data:
     nginx.conf: |-
@@ -1965,9 +2142,9 @@ parameters:
 - name: CPU_LIMIT_WORKSPACES_MQ
   value: 500m
 - name: MEMORY_REQUEST_WORKSPACES_MQ
-  value: 256Mi
-- name: MEMORY_LIMIT_WORKSPACES_MQ
   value: 512Mi
+- name: MEMORY_LIMIT_WORKSPACES_MQ
+  value: 1Gi
 
 - name: CPU_REQUEST_REAPER
   value: 250m
@@ -1977,6 +2154,8 @@ parameters:
   value: 256Mi
 - name: MEMORY_LIMIT_REAPER
   value: 512Mi
+- name: HOST_DELETE_CHUNK_SIZE
+  value: "1000"
 
 - name: CPU_REQUEST_STALE_HOST_NOTIFICAION
   value: 250m
@@ -2068,6 +2247,15 @@ parameters:
 - name: MEMORY_REQUEST_EDGE_HOSTS_PRS
   value: 256Mi
 - name: MEMORY_LIMIT_EDGE_HOSTS_PRS
+  value: 512Mi
+
+- name: CPU_REQUEST_HOSTS_WITHOUT_ID_FACTS_JOB
+  value: 250m
+- name: CPU_LIMIT_HOSTS_WITHOUT_ID_FACTS_JOB
+  value: 500m
+- name: MEMORY_REQUEST_HOSTS_WITHOUT_ID_FACTS_JOB
+  value: 256Mi
+- name: MEMORY_LIMIT_HOSTS_WITHOUT_ID_FACTS_JOB
   value: 512Mi
 
 - description: Replica count for p1 consumer
@@ -2256,6 +2444,8 @@ parameters:
   value: 'NullCache'
 - name: MQ_DB_BATCH_MAX_MESSAGES
   value: '1'
+- name: MQ_WORKSPACES_DB_BATCH_MAX_MESSAGES
+  value: '1'
 - name: MQ_DB_BATCH_MAX_SECONDS
   value: '0.5'
 - name: INVENTORY_API_USE_READREPLICA
@@ -2299,6 +2489,9 @@ parameters:
 - name: BYPASS_KESSEL_JOBS
   description: Whether to bypass Kessel-related jobs, even when triggered via CJI
   value: 'false'
+- name: CREATE_UNGROUPED_GROUPS_BATCH_SIZE
+  description: The batch size to use for the create-ungrouped-groups script.
+  value: '100'
 - name: ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE
   description: The batch size to use for the assign-ungrouped-hosts script.
   value: '10'
@@ -2337,6 +2530,9 @@ parameters:
 - description: How frequently the Unleash client refreshes data from the server (in seconds)
   name: UNLEASH_REFRESH_INTERVAL
   value: "15"
+- name: FF_LAST_CHECKIN
+  description: Env var used to enable last checkin feature flag
+  value: 'false'
 
 #floorist
 - name: FLOORIST_SUSPEND

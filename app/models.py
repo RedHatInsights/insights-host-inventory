@@ -45,6 +45,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from yaml import safe_load
 
 from app.common import inventory_config
+from app.config import ID_FACTS
 from app.culling import Timestamps
 from app.culling import days_to_seconds
 from app.exceptions import InventoryException
@@ -52,6 +53,7 @@ from app.exceptions import ValidationException
 from app.logging import get_logger
 from app.staleness_serialization import build_serialized_acc_staleness_obj
 from app.staleness_serialization import build_staleness_sys_default
+from app.staleness_serialization import get_reporter_staleness_timestamps
 from app.staleness_serialization import get_staleness_timestamps
 from app.utils import Tag
 from app.validators import check_empty_keys
@@ -351,6 +353,9 @@ class Host(LimitedHost):
         if not canonical_facts:
             raise ValidationException("At least one of the canonical fact fields must be present.")
 
+        if all(id_fact not in canonical_facts for id_fact in ID_FACTS):
+            raise ValidationException(f"At least one of the ID fact fields must be present: {ID_FACTS}")
+
         if current_app.config["USE_SUBMAN_ID"] and "subscription_manager_id" in canonical_facts:
             id = canonical_facts["subscription_manager_id"]
 
@@ -460,9 +465,21 @@ class Host(LimitedHost):
             self.stale_timestamp = stale_timestamp
         self.reporter = reporter
 
-    def _update_all_per_reporter_staleness(self):
-        st = _create_staleness_timestamps_values(self, self.org_id)
+    # This method is only used by update_edge_hosts_prs
+    def _update_all_per_reporter_staleness(self, staleness, staleness_ts):
+        for reporter in self.per_reporter_staleness:
+            st = get_reporter_staleness_timestamps(self, staleness_ts, staleness, reporter)
+            self.per_reporter_staleness[reporter].update(
+                stale_timestamp=st["stale_timestamp"].isoformat(),
+                culled_timestamp=st["culled_timestamp"].isoformat(),
+                stale_warning_timestamp=st["stale_warning_timestamp"].isoformat(),
+                last_check_in=self.per_reporter_staleness[reporter]["last_check_in"],
+                check_in_succeeded=True,
+            )
+        orm.attributes.flag_modified(self, "per_reporter_staleness")
 
+    def _update_all_per_reporter_staleness_for_rhsm_hosts(self, staleness_ts, staleness):
+        st = get_staleness_timestamps(self, staleness_ts, staleness)
         for reporter in self.per_reporter_staleness:
             self.per_reporter_staleness[reporter].update(
                 stale_timestamp=st["stale_timestamp"].isoformat(),
@@ -609,6 +626,17 @@ class Host(LimitedHost):
             orm.attributes.flag_modified(self, "stale_warning_timestamp")
             orm.attributes.flag_modified(self, "deletion_timestamp")
 
+    def _update_staleness_timestamps_in_reaper(self, staleness_ts, staleness):
+        if get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS):
+            staleness_timestamps = get_staleness_timestamps(self, staleness_ts, staleness)
+            self.stale_timestamp = staleness_timestamps["stale_timestamp"]
+            self.stale_warning_timestamp = staleness_timestamps["stale_warning_timestamp"]
+            self.deletion_timestamp = staleness_timestamps["culled_timestamp"]
+
+            orm.attributes.flag_modified(self, "stale_timestamp")
+            orm.attributes.flag_modified(self, "stale_warning_timestamp")
+            orm.attributes.flag_modified(self, "deletion_timestamp")
+
     def reporter_stale(self, reporter):
         prs = self.per_reporter_staleness.get(reporter, None)
         if not prs:
@@ -689,7 +717,6 @@ class Group(db.Model):  # type: ignore [name-defined]
     ungrouped = db.Column(db.Boolean, default=False, nullable=False)
     created_on = db.Column(db.DateTime(timezone=True), default=_time_now)
     modified_on = db.Column(db.DateTime(timezone=True), default=_time_now, onupdate=_time_now)
-    hosts = orm.relationship("Host", secondary=f"{INVENTORY_SCHEMA}.hosts_groups")
 
 
 class HostGroupAssoc(db.Model):  # type: ignore [name-defined]

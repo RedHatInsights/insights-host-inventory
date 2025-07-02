@@ -101,7 +101,7 @@ def _update_hosts_staleness_async(identity: Identity, app: Flask, staleness: Sta
             if num_hosts > 0:
                 logger.debug(f"Found {num_hosts} hosts for org_id: {identity.org_id}")
                 for host in hosts_query.yield_per(500):
-                    host._update_all_per_reporter_staleness()
+                    host._update_all_per_reporter_staleness(staleness_dict, st)
                     host._update_staleness_timestamps()
                     serialized_host = serialize_host(
                         host, for_mq=True, staleness_timestamps=st, staleness=staleness_dict

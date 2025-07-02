@@ -1,7 +1,14 @@
+from __future__ import annotations
+
+from collections.abc import Generator
 from functools import partial
+from typing import Callable
 
 from confluent_kafka import KafkaException
+from flask_sqlalchemy.query import Query
+from sqlalchemy.orm import Session
 
+from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
 from app.instrumentation import log_host_delete_succeeded
 from app.logging import get_logger
@@ -24,13 +31,19 @@ __all__ = ("delete_hosts",)
 logger = get_logger(__name__)
 
 
-def _delete_host_db_records(select_query, chunk_size, identity, interrupt, control_rule) -> list[OperationResult]:
+def _delete_host_db_records(
+    select_query: Query,
+    chunk_size: int,
+    identity: Identity | None,
+    interrupt: Callable[[], bool],
+    control_rule: str | None,
+) -> list[OperationResult]:
     results_list = []
 
     for host in select_query.limit(chunk_size):
         with delete_host_processing_time.time():
             result = _delete_host(select_query.session, host, identity, control_rule)
-        if deleted_by_this_query(result.host_row):
+        if deleted_by_this_query(result.row):
             results_list.append(result)
 
         if interrupt():
@@ -44,24 +57,25 @@ def _send_delete_messages_for_batch(
     event_producer: EventProducer,
     notification_event_producer: EventProducer,
     initiated_by_frontend: bool,
-):
+) -> None:
     for result in processed_rows:
         if result is not None:
             delete_host_count.inc()
             write_delete_event_message(event_producer, result, initiated_by_frontend)
-            send_notification(notification_event_producer, NotificationType.system_deleted, vars(result.host_row))
+            send_notification(notification_event_producer, NotificationType.system_deleted, vars(result.row))
 
 
 def delete_hosts(
-    select_query,
-    event_producer,
-    notification_event_producer,
-    chunk_size,
-    interrupt=lambda: False,
-    identity=None,
-    control_rule=None,
-    initiated_by_frontend=False,
-):
+    select_query: Query,
+    event_producer: EventProducer,
+    notification_event_producer: EventProducer,
+    chunk_size: int,
+    interrupt: Callable[[], bool] = lambda: False,
+    identity: Identity | None = None,
+    control_rule: str | None = None,
+    initiated_by_frontend: bool = False,
+) -> Generator[OperationResult]:
+    """This function will yield nothing if no hosts are found."""
     while select_query.count():
         if kafka_available():
             with session_guard(select_query.session):
@@ -78,7 +92,7 @@ def delete_hosts(
             raise KafkaException("Kafka server not available. Stopping host deletions.")
 
 
-def _delete_host(session, host, identity, control_rule) -> OperationResult:
+def _delete_host(session: Session, host: Host, identity: Identity | None, control_rule: str | None) -> OperationResult:
     sp_fields_to_log = extract_host_model_sp_to_log(host)
     assoc_delete_query = session.query(HostGroupAssoc).filter(HostGroupAssoc.host_id == host.id)
     host_delete_query = session.query(Host).filter(Host.id == host.id)

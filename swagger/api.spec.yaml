@@ -1103,7 +1103,7 @@ components:
         for host_count
     workspaceTypeParam:
       in: query
-      name: type
+      name: group_type
       required: false
       schema:
         type: string
@@ -2017,6 +2017,8 @@ components:
       $ref: 'system_profile.spec.yaml#/$defs/InstalledProduct'
     SystemProfileNetworkInterface:
       $ref: 'system_profile.spec.yaml#/$defs/NetworkInterface'
+    SystemProfileInterSystemsRunningInstance:
+      $ref: 'system_profile.spec.yaml#/$defs/InterSystemsRunningInstance'
 
 
     # include renames for pagination

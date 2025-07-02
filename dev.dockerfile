@@ -39,6 +39,7 @@ COPY assign_ungrouped_hosts_to_groups.py assign_ungrouped_hosts_to_groups.py
 COPY export_group_data_s3.py export_group_data_s3.py
 COPY update_hosts_last_check_in.py update_hosts_last_check_in.py
 COPY update_edge_hosts_prs.py update_edge_hosts_prs.py
+COPY delete_hosts_without_id_facts.py delete_hosts_without_id_facts.py
 RUN chown -R 1001:0 ./
 USER 1001
 

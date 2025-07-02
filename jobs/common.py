@@ -18,7 +18,7 @@ __all__ = "job_setup"
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
 
 
-def init_config():
+def init_config() -> Config:
     config = Config(RUNTIME_ENVIRONMENT)
     config.log_configuration()
     return config

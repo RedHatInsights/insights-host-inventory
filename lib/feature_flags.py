@@ -13,7 +13,6 @@ logger = get_logger(__name__)
 FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM = "hbi.api.use-cached-insights-client-system"
 FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION = "hbi.api.kessel-workspace-migration"
 FLAG_INVENTORY_API_READ_ONLY = "hbi.api.read-only"
-FLAG_INVENTORY_DEDUPLICATION_ELEVATE_SUBMAN_ID = "hbi.deduplication-elevate-subman_id"
 FLAG_INVENTORY_KESSEL_PHASE_1 = "hbi.api.kessel-phase-1"
 FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS = (
     "hbi.create_last_check_in_update_per_reporter_staleness"
@@ -27,7 +26,6 @@ FLAG_FALLBACK_VALUES = {
     FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION: False,
     FLAG_INVENTORY_API_READ_ONLY: False,
     FLAG_INVENTORY_KESSEL_PHASE_1: False,
-    FLAG_INVENTORY_DEDUPLICATION_ELEVATE_SUBMAN_ID: True,
     FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS: ENV_FLAG_LAST_CHECKIN_PER_REPORTER_STALENESS,
     # Use when all hosts are populated with stale_warning/deletion_timestamps
     FLAG_INVENTORY_FILTER_STALENESS_USING_COLUMNS: False,

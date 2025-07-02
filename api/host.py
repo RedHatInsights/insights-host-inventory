@@ -272,7 +272,7 @@ def _delete_host_list(host_id_list, rbac_filter):
             initiated_by_frontend=initiated_by_frontend,
         )
 
-        deleted_id_list = [str(r.host_row.id) for r in result_list]
+        deleted_id_list = [str(r.row.id) for r in result_list]
 
         for host_id in host_id_list:
             tracker_message = "deleted host" if host_id in deleted_id_list else "not deleted host"
@@ -441,17 +441,21 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
 
     if rbac_filter and "groups" in rbac_filter:
         count_before_rbac_filter = find_non_culled_hosts(
-            update_query_for_owner_id(current_identity, query), current_identity
+            update_query_for_owner_id(current_identity, query), current_identity.org_id
         ).count()
         filters += (HostGroupAssoc.group_id.in_(rbac_filter["groups"]),)
         query = Host.query.join(HostGroupAssoc, isouter=True).filter(*filters).group_by(Host.id)
         if (
             count_before_rbac_filter
-            != find_non_culled_hosts(update_query_for_owner_id(current_identity, query), current_identity).count()
+            != find_non_culled_hosts(
+                update_query_for_owner_id(current_identity, query), current_identity.org_id
+            ).count()
         ):
             flask.abort(HTTPStatus.FORBIDDEN, "You do not have access to all of the requested hosts.")
 
-    hosts_to_update = find_non_culled_hosts(update_query_for_owner_id(current_identity, query), current_identity).all()
+    hosts_to_update = find_non_culled_hosts(
+        update_query_for_owner_id(current_identity, query), current_identity.org_id
+    ).all()
 
     logger.debug("hosts_to_update:%s", hosts_to_update)
 

@@ -20,18 +20,22 @@ from api.filtering.db_filters import update_query_for_owner_id
 from api.staleness_query import get_staleness_obj
 from app.auth.identity import Identity
 from app.config import ALL_STALENESS_STATES
+from app.config import COMPOUND_ID_FACTS
+from app.config import COMPOUND_ID_FACTS_MAP
 from app.config import HOST_TYPES
+from app.config import ID_FACTS
+from app.config import ID_FACTS_USE_SUBMAN_ID
+from app.config import IMMUTABLE_ID_FACTS
 from app.exceptions import InventoryException
 from app.logging import get_logger
 from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import LimitedHost
+from app.models import db
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness
 from lib import metrics
-from lib.feature_flags import FLAG_INVENTORY_DEDUPLICATION_ELEVATE_SUBMAN_ID
-from lib.feature_flags import get_flag_value
 
 __all__ = (
     "AddHostResult",
@@ -39,27 +43,12 @@ __all__ = (
     "multiple_canonical_facts_host_query",
     "create_new_host",
     "find_existing_host",
-    "find_host_by_multiple_canonical_facts",
     "find_hosts_by_staleness",
     "find_non_culled_hosts",
     "update_existing_host",
 )
 
 AddHostResult = Enum("AddHostResult", ("created", "updated"))
-
-# These are the "elevated" canonical facts that are
-# given priority in the host deduplication process.
-# NOTE: The order of this tuple is important. The order defines the priority.
-ELEVATED_CANONICAL_FACT_FIELDS = ("provider_id", "mac_addresses", "insights_id", "subscription_manager_id")
-# These "v2" elevated facts are used when "hbi.deduplication-elevate-subman_id" FF is turned on.
-ELEVATED_CANONICAL_FACT_FIELDS_V2 = ("provider_id", "subscription_manager_id", "insights_id")
-# This elevated fact is to be used when the USE_SUBMAN_ID env is True
-ELEVATED_CANONICAL_FACT_FIELDS_USE_SUBMAN_ID = ("subscription_manager_id",)
-COMPOUND_CANONICAL_FACTS_MAP = {"provider_id": "provider_type"}
-COMPOUND_CANONICAL_FACTS = tuple(COMPOUND_CANONICAL_FACTS_MAP.values())
-IMMUTABLE_CANONICAL_FACTS = ("provider_id",)
-
-NULL = None
 
 logger = get_logger(__name__)
 
@@ -106,27 +95,75 @@ def add_host(
         return create_new_host(input_host)
 
 
+def _extract_immutable_and_id_facts(canonical_facts: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+    """
+    Returns two dictionaries:
+    - immutable_facts: All immutable facts present in the canonical facts, together with their compound facts
+    - id_facts: All id facts present in the canonical facts, except for the immutable facts
+    """
+    id_fields = ID_FACTS_USE_SUBMAN_ID if current_app.config["USE_SUBMAN_ID"] else ID_FACTS
+    logger.debug(f"Using {id_fields} for deduplication")
+
+    immutable_facts = {}
+    id_facts = {}
+
+    # Iterate through the ID fields in the priority order
+    for key in id_fields:
+        if key not in canonical_facts.keys():
+            continue
+
+        if key in IMMUTABLE_ID_FACTS:
+            immutable_facts[key] = canonical_facts[key]
+            # Add compound facts (for example, add provider_type if provider_id is present)
+            if compound_fact := COMPOUND_ID_FACTS_MAP.get(key):  # noqa: SIM102
+                if compound_fact_value := canonical_facts.get(compound_fact):
+                    immutable_facts[compound_fact] = compound_fact_value
+        else:
+            id_facts[key] = canonical_facts[key]
+
+    return immutable_facts, id_facts
+
+
 @metrics.host_dedup_processing_time.time()
-def find_existing_host(identity: Identity, canonical_facts: dict, from_hosts: list[Host] | None = None) -> Host | None:
+def find_existing_host(
+    identity: Identity, canonical_facts: dict[str, Any], from_hosts: list[Host] | None = None
+) -> Host | None:
     logger.debug(f"find_existing_host({identity}, {canonical_facts}, {from_hosts})")
-    existing_host = _find_host_by_elevated_ids(identity, canonical_facts, from_hosts)
+    immutable_facts, id_facts = _extract_immutable_and_id_facts(canonical_facts)
 
-    if existing_host or current_app.config["USE_SUBMAN_ID"]:
-        return existing_host
+    # First search based on immutable id facts.
+    if immutable_facts:  # noqa: SIM102
+        if existing_host := _find_host_by_multiple_facts_in_db_or_in_memory(identity, immutable_facts, from_hosts):
+            return existing_host
 
-    existing_host = find_host_by_multiple_canonical_facts(identity, canonical_facts, from_hosts)
+    if not id_facts:
+        return None
 
-    return existing_host
+    # Now search based on other ID facts
+    # Dicts have been ordered since Python 3.7, so the priority ordering will be respected
+    for target_key, target_value in id_facts.items():
+        # Keep immutable facts in the search to prevent matching if they are different.
+        target_facts = dict(immutable_facts, **{target_key: target_value})
+
+        # Ensure both components of compound facts are collected.
+        if compound_fact := COMPOUND_ID_FACTS_MAP.get(target_key):  # noqa: SIM102
+            if compound_fact_value := canonical_facts.get(compound_fact):
+                target_facts[compound_fact] = compound_fact_value
+
+        if existing_host := _find_host_by_multiple_facts_in_db_or_in_memory(identity, target_facts, from_hosts):
+            return existing_host
+
+    return None
 
 
 def find_existing_host_by_id(identity: Identity, host_id: str) -> Host | None:
     query = Host.query.filter((Host.org_id == identity.org_id) & (Host.id == UUID(host_id)))
     query = update_query_for_owner_id(identity, query)
-    return find_non_culled_hosts(query, identity).order_by(Host.modified_on.desc()).first()
+    return find_non_culled_hosts(query, identity.org_id).order_by(Host.modified_on.desc()).first()
 
 
 def _find_host_by_multiple_facts_in_db_or_in_memory(
-    identity: Identity, canonical_facts: dict, from_hosts: list[Host] | None = None
+    identity: Identity, canonical_facts: dict[str, str], from_hosts: list[Host] | None = None
 ) -> Host | None:
     if from_hosts:
         with metrics.find_host_by_facts_in_memory.time():
@@ -143,69 +180,11 @@ def _find_host_by_multiple_facts_in_db_or_in_memory(
         )
 
 
-@metrics.find_host_using_elevated_ids.time()
-def _find_host_by_elevated_ids(
-    identity: Identity, canonical_facts: dict, from_hosts: list[Host] | None = None
-) -> Host | None:
-    elevated_facts = {}
-    elevated_keys = []
-    immutable_facts = {}
-
-    elevated_fields = (
-        ELEVATED_CANONICAL_FACT_FIELDS_V2
-        if get_flag_value(FLAG_INVENTORY_DEDUPLICATION_ELEVATE_SUBMAN_ID, context={"orgId": identity.org_id})
-        else ELEVATED_CANONICAL_FACT_FIELDS
-    )
-    if current_app.config["USE_SUBMAN_ID"]:
-        elevated_fields = ELEVATED_CANONICAL_FACT_FIELDS_USE_SUBMAN_ID  # type: ignore
-    logger.info(f"Using {elevated_fields} as elevated fields for org {identity.org_id}")
-
-    for key in elevated_fields:
-        if key not in canonical_facts.keys():
-            continue
-
-        if key in IMMUTABLE_CANONICAL_FACTS:
-            immutable_facts[key] = canonical_facts[key]
-            if compound_fact := COMPOUND_CANONICAL_FACTS_MAP.get(key):  # noqa: SIM102
-                if compound_fact_val := canonical_facts.get(compound_fact):
-                    immutable_facts[compound_fact] = compound_fact_val
-        else:
-            elevated_facts[key] = canonical_facts[key]
-            elevated_keys.append(key)
-
-    # First search based on immutable elevated canonical facts.
-    if immutable_facts:
-        existing_host = _find_host_by_multiple_facts_in_db_or_in_memory(identity, immutable_facts, from_hosts)
-        if existing_host:
-            return existing_host
-
-    if not elevated_facts:
-        return None
-
-    for target_key in elevated_keys:
-        #
-        # Keep immutable facts in the search, to prevent matching if
-        # they are different.
-        #
-        target_facts = dict(immutable_facts, **{target_key: elevated_facts[target_key]})
-
-        # Ensure both components of compound facts are collected.
-        if compound_fact := COMPOUND_CANONICAL_FACTS_MAP.get(target_key):  # noqa: SIM102
-            if compound_fact_val := canonical_facts.get(compound_fact):
-                target_facts[compound_fact] = compound_fact_val
-
-        existing_host = _find_host_by_multiple_facts_in_db_or_in_memory(identity, target_facts, from_hosts)
-        if existing_host:
-            return existing_host
-
-    return None
-
-
 # The CanonicalFactsSchema ensures that both components of compound
 # canonical facts are provided. This check is included to detect any
 # unforeseen issues.
-def _check_compound_canonical_facts(canonical_facts):
-    for key, value in COMPOUND_CANONICAL_FACTS_MAP.items():
+def _check_compound_id_facts(canonical_facts: dict[str, Any]) -> None:
+    for key, value in COMPOUND_ID_FACTS_MAP.items():
         if key in canonical_facts and value not in canonical_facts:
             raise InventoryException(title="Invalid request", detail=f"Unpaired compound fact: {key} missing {value}")
 
@@ -213,7 +192,7 @@ def _check_compound_canonical_facts(canonical_facts):
 def multiple_canonical_facts_host_query(
     identity: Identity, canonical_facts: dict[str, Any], restrict_to_owner_id: bool = True
 ) -> Query:
-    _check_compound_canonical_facts(canonical_facts)
+    _check_compound_id_facts(canonical_facts)
 
     query = Host.query.filter(
         (Host.org_id == identity.org_id)
@@ -222,7 +201,7 @@ def multiple_canonical_facts_host_query(
     )
     if restrict_to_owner_id:
         query = update_query_for_owner_id(identity, query)
-    return find_non_culled_hosts(query, identity)
+    return find_non_culled_hosts(query, identity.org_id)
 
 
 def multiple_canonical_facts_host_query_in_memory(
@@ -238,29 +217,9 @@ def multiple_canonical_facts_host_query_in_memory(
     return _query
 
 
-def find_host_by_multiple_canonical_facts(
-    identity: Identity, canonical_facts: dict, from_hosts: list[Host] | None = None
-) -> Host | None:
-    """
-    Returns first match for a host containing given canonical facts
-    """
-    logger.debug(f"find_host_by_multiple_canonical_facts({canonical_facts}, {from_hosts})")
-
-    # If no canonical facts are supplied, it can't match anything.
-    # Just in case the last canonical fact was removed during the process.
-    if not canonical_facts:
-        return None
-
-    host = _find_host_by_multiple_facts_in_db_or_in_memory(identity, canonical_facts, from_hosts)
-    if host:
-        logger.debug(f"Found existing host using canonical_fact match: {host}")
-
-    return host
-
-
-def find_hosts_by_staleness(staleness_types: list[str], query: Query, identity: Identity) -> Query:
+def find_hosts_by_staleness(staleness_types: list[str], query: Query, org_id: str) -> Query:
     logger.debug("find_hosts_by_staleness(%s)", staleness_types)
-    staleness_obj = serialize_staleness_to_dict(get_staleness_obj(identity.org_id))
+    staleness_obj = serialize_staleness_to_dict(get_staleness_obj(org_id))
     staleness_conditions = [
         or_(False, *staleness_to_conditions(staleness_obj, staleness_types, host_type, stale_timestamp_filter))
         for host_type in HOST_TYPES
@@ -325,8 +284,8 @@ def find_hosts_sys_default_staleness(staleness_types):
     return or_(False, *staleness_conditions)
 
 
-def find_non_culled_hosts(query: Query, identity: Identity) -> Query:
-    return find_hosts_by_staleness(ALL_STALENESS_STATES, query, identity)
+def find_non_culled_hosts(query: Query, org_id: str) -> Query:
+    return find_hosts_by_staleness(ALL_STALENESS_STATES, query, org_id)
 
 
 @metrics.new_host_commit_processing_time.time()
@@ -362,9 +321,7 @@ def contains_no_incorrect_facts_filter(canonical_facts: dict[str, Any]) -> Binar
     # -> NOT( OR( *Incorrect values ) )
     filter_: tuple = ()
     for key, value in canonical_facts.items():
-        filter_ += (
-            and_(Host.canonical_facts.has_key(key), not_(Host.canonical_facts.contains({key: value}))),  # noqa: W601
-        )
+        filter_ += (and_(Host.canonical_facts.has_key(key), not_(Host.canonical_facts.contains({key: value}))),)
 
     return not_(or_(*filter_))
 
@@ -386,7 +343,7 @@ def matches_at_least_one_canonical_fact_filter(canonical_facts: dict[str, Any]) 
         # Don't include the second component of compound canonical facts
         # in the OR logic of the query. It was already included in the
         # AND logic generated by contains_no_incorrect_facts_filter().
-        if key in COMPOUND_CANONICAL_FACTS:
+        if key in COMPOUND_ID_FACTS:
             continue
         filter_ += (Host.canonical_facts.contains({key: value}),)
 
@@ -442,4 +399,11 @@ def get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter=None, c
     query = Host.query.join(HostGroupAssoc, isouter=True).join(Group, isouter=True).filter(*filters).group_by(Host.id)
     if columns:
         query = query.with_entities(*columns)
-    return find_non_culled_hosts(update_query_for_owner_id(identity, query), identity)
+    return find_non_culled_hosts(update_query_for_owner_id(identity, query), identity.org_id)
+
+
+def get_non_culled_hosts_count_in_group(group: Group, org_id: str) -> int:
+    return find_non_culled_hosts(
+        db.session.query(Host).join(HostGroupAssoc).filter(HostGroupAssoc.group_id == group.id).group_by(Host.id),
+        org_id,
+    ).count()

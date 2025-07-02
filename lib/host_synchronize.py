@@ -10,6 +10,7 @@ from app.queue.events import message_headers
 from app.serialization import serialize_host
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness
+from lib.group_repository import get_group_using_host_id
 from lib.metrics import synchronize_host_count
 
 logger = get_logger(__name__)
@@ -32,6 +33,12 @@ def synchronize_hosts(
             # First, set host.groups to [] if it's null.
             if host.groups is None:
                 host.groups = []
+
+            # This is a temporary fix that we can remove later.
+            # If host.groups says it's empty,
+            # Get the host's associated Group (if any) and store it in the "groups" field
+            if host.groups == [] and (group := get_group_using_host_id(str(host.id), host.org_id)):
+                host.groups = [{"id": str(group.id), "name": group.name, "ungrouped": group.ungrouped}]
 
             staleness = None
             try:

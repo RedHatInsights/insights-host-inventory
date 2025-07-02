@@ -26,6 +26,7 @@ from app.auth.identity import IdentityType
 from app.auth.identity import from_auth_header
 from app.auth.identity import to_auth_header
 from app.common import inventory_config
+from app.exceptions import ResourceNotFoundException
 from app.instrumentation import rbac_failure
 from app.instrumentation import rbac_group_permission_denied
 from app.instrumentation import rbac_permission_denied
@@ -102,7 +103,7 @@ def rbac_get_request_using_endpoint_and_headers(rbac_endpoint: str, request_head
 
 def get_rbac_permissions(app: str, request_header: dict):
     resp_data = rbac_get_request_using_endpoint_and_headers(get_rbac_url(app), request_header)
-    logger.debug("Fetched RBAC Data", extra=resp_data)
+    logger.debug("Fetched RBAC Data", extra={"resp_data": resp_data})
     return resp_data["data"]
 
 
@@ -325,7 +326,7 @@ def post_rbac_workspace_using_endpoint_and_headers(
     try:
         resp_data = rbac_response.json()
         workspace_id = resp_data["id"]
-        logger.debug("POSTED RBAC Data", extra=resp_data)
+        logger.debug("POSTED RBAC Data", extra={"resp_data": resp_data})
     except (JSONDecodeError, KeyError) as e:
         rbac_failure(logger, e)
         abort(503, "Failed to parse RBAC response, request cannot be fulfilled")
@@ -369,7 +370,7 @@ def _handle_delete_error(e: HTTPError, workspace_id: str) -> bool:
 
     if status == 404:
         logger.info(f"404 deleting RBAC workspace {workspace_id}: {detail}")
-        return False
+        raise ResourceNotFoundException(f"Workspace {workspace_id} not found in RBAC; skipping deletion")
 
     if 400 <= status < 500:
         logger.warning(f"RBAC client error {status} deleting {workspace_id}: {detail}")
