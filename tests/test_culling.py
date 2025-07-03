@@ -155,7 +155,7 @@ def test_culled_host_is_removed(
     inventory_config,
     is_host_grouped,
 ):
-    with patch("app.models.datetime") as mock_datetime:
+    with patch("app.models.utils.datetime") as mock_datetime:
         mock_datetime.now.return_value = datetime(
             year=2023, month=4, day=2, hour=1, minute=1, second=1, tzinfo=pytz.utc
         )
@@ -271,7 +271,7 @@ def test_non_culled_host_is_not_removed(
 def test_reaper_shutdown_handler(
     flask_app, db_create_host, db_get_hosts, inventory_config, notification_event_producer_mock
 ):
-    with patch("app.models.datetime") as mock_datetime:
+    with patch("app.models.utils.datetime") as mock_datetime:
         mock_datetime.now.return_value = datetime(year=2023, month=4, day=2, hour=1, minute=1, second=1)
         mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
 
@@ -364,7 +364,7 @@ def test_reaper_stops_after_kafka_producer_error(
     inventory_config,
     mocker,
 ):
-    with patch("app.models.datetime") as mock_datetime:
+    with patch("app.models.utils.datetime") as mock_datetime:
         mock_datetime.now.return_value = datetime(year=2023, month=4, day=2, hour=1, minute=1, second=1)
         mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
 

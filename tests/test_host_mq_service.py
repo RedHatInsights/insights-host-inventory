@@ -587,7 +587,7 @@ def test_add_host_defer_to_stale(mq_create_or_update_host, db_get_host):
     )
 
     # Make host stale here
-    with patch("app.models.datetime") as models_datetime:
+    with patch("app.models.utils.datetime") as models_datetime:
         models_datetime.now.return_value = now() + timedelta(days=2)
         updated_host = mq_create_or_update_host(host, operation_args={"defer_to_reporter": "puptoo"})
         assert str(updated_host.id) == str(existing_host_id)

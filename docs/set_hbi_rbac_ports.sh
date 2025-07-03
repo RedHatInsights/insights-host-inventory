@@ -27,6 +27,9 @@ HBI_SVC="svc/host-inventory-service"
 RBAC_DB_SVC="svc/rbac-db"
 RBAC_SVC="svc/rbac-service"
 
+# feature flag
+FEATURE_FLAG_SVC="svc/env-${PROJECT_NAME}-featureflags"
+
 kubectl port-forward "$ENV_EPHEM_CONNECT_SVC" 8083:8083 -n "$PROJECT_NAME" >/dev/null 2>&1 &
 kubectl port-forward "$ENV_EPHEM_KAFKA_SVC" 9092:9092 -n "$PROJECT_NAME" >/dev/null 2>&1 &
 kubectl port-forward "$ENV_EPHEM_KAFKA_SVC" 29092:9092 -n "$PROJECT_NAME" >/dev/null 2>&1 &
@@ -36,5 +39,7 @@ kubectl port-forward "$RBAC_SVC" 8111:8000 -n "$PROJECT_NAME" >/dev/null 2>&1 &
 
 kubectl port-forward "$HBI_DB_SVC" 5432:5432 -n "$PROJECT_NAME" >/dev/null 2>&1 &
 kubectl port-forward "$HBI_SVC" 8000:8000 -n "$PROJECT_NAME" >/dev/null 2>&1 &
+
+kubectl port-forward "$FEATURE_FLAG_SVC" 4242:4242 -n "$PROJECT_NAME" >/dev/null 2>&1 &
 
 pgrep -fla "kubectl port-forward"

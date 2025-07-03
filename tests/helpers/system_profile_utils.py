@@ -105,7 +105,7 @@ def mock_system_profile_specification(mock_spec):
     try:
         with NamedTemporaryFile("w+") as temp_file:
             safe_dump(mock_spec, temp_file)
-            with patch("app.models.SYSTEM_PROFILE_SPECIFICATION_FILE", temp_file.name):
+            with patch("app.models.system_profile_normalizer.SYSTEM_PROFILE_SPECIFICATION_FILE", temp_file.name):
                 yield
     finally:
         clear_schema_cache()

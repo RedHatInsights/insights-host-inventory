@@ -1,12 +1,31 @@
 import os
+from collections.abc import Generator
 from importlib import reload
 from unittest import mock
 
+import pytest
 import segment.analytics as analytics
 
-import api.segmentio
+import api
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_resource_types_url
+
+
+@pytest.fixture(scope="module", autouse=True)
+def patch_segmentio_rate_limits() -> Generator[None]:
+    """
+    This fixture increases the segmentio rate limits. If not used, segmentio will reach the default
+    rate limit while running the previous tests in the full test suite, which leads to the tracking
+    being skipped and the tests in this module failing.
+    """
+    with mock.patch.dict(os.environ, {"SEGMENTIO_LIMIT_CALLS": "1000", "SEGMENTIO_LIMIT_PERIOD": "1"}):
+        reload(api.segmentio)
+        reload(api)
+
+    yield
+
+    reload(api.segmentio)
+    reload(api)
 
 
 def test_segmentio_track_with_write_key(mocker, api_get):
@@ -122,7 +141,7 @@ def test_segmentio_rate_limit(mocker, api_get):
     #
     # Lower the maximum call limit.
     #
-    with mock.patch.dict(os.environ, {"SEGMENTIO_LIMIT_CALLS": str(max_calls)}):
+    with mock.patch.dict(os.environ, {"SEGMENTIO_LIMIT_CALLS": str(max_calls), "SEGMENTIO_LIMIT_PERIOD": "60"}):
         reload(api.segmentio)
         reload(api)
 

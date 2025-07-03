@@ -124,7 +124,7 @@ def test_replace_empty_facts_on_multiple_hosts(db_create_multiple_hosts, db_get_
 
 @pytest.mark.system_culling
 def test_replace_facts_on_multiple_culled_hosts(db_create_multiple_hosts, api_put):
-    with patch("app.models.datetime") as mock_datetime:
+    with patch("app.models.utils.datetime") as mock_datetime:
         mock_datetime.now.return_value = datetime(year=2023, month=4, day=2)
         mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
 

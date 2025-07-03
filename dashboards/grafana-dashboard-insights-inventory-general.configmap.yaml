@@ -3018,7 +3018,7 @@ data:
               "custom": {},
               "links": [],
               "color": {
-                "mode": "threshold"
+                "mode": "thresholds"
               }
             },
             "overrides": []
