@@ -12,4 +12,3 @@ set -ex && if [ -e `which python3.9` ]; then ln -s `which python3.9` /usr/local/
 set -ex && if [ -e `which pip3.9` ]; then ln -s `which pip3.9` /usr/local/bin/pip3; fi
 set -ex && if [ -e `which pip3.9` ]; then ln -s `which pip3.9` /usr/local/bin/pip; fi
 microdnf install -y wget
-pip install --upgrade pip
