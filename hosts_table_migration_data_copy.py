@@ -24,6 +24,8 @@ RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
 This job copies all historical data from the original 'hosts' table into the
 new partitioned tables ('hosts_new' and 'hosts_groups_new'). It processes
 data in batches to manage memory and WAL size.
+
+This script should only be run during a planned maintenance window.
 """
 
 
