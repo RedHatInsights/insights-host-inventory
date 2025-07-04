@@ -2640,17 +2640,14 @@ parameters:
 - name: ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE
   description: The batch size to use for the assign-ungrouped-hosts script.
   value: '10'
-<<<<<<< HEAD
 - name: HOSTS_TABLE_NUM_PARTITIONS
   description: The number of partitions for the hosts table
   value: '1'
-=======
 - name: HOSTS_TABLE_MIGRATION_BATCH_SIZE
   description: The batch size to use for the hosts partitioned table migration.
   value: '5000'
 - name: HOSTS_TABLE_MIGRATION_DATA_COPY_SUSPEND
   value: 'true'
->>>>>>> e3381b9 (Updated pagination method)
 
 # NGINX
 - displayName: Minimum replicas
