@@ -44,6 +44,7 @@ from lib.group_repository import patch_group
 from lib.group_repository import remove_hosts_from_group
 from lib.group_repository import validate_add_host_list_to_group_for_group_create
 from lib.group_repository import wait_for_workspace_event
+from lib.host_repository import find_existing_host_by_id
 from lib.metrics import create_group_count
 from lib.middleware import delete_rbac_workspace
 from lib.middleware import patch_rbac_workspace
@@ -183,12 +184,18 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
         log_patch_group_failed(logger, group_id)
         abort(HTTPStatus.NOT_FOUND)
 
-    try:
-        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
-            # Update group on Kessel
-            new_group_name = validated_patch_group_data.get("name")
+    # Do not patch the group if bad hosts provided
+    if body.get("host_ids") is not None:
+        for host_id in body["host_ids"]:
+            if not find_existing_host_by_id(identity, host_id):
+                log_patch_group_failed(logger, group_id, f"not finding the host with id: '{host_id}'")
+                abort(HTTPStatus.BAD_REQUEST, f"The host with id: '{host_id}' not found")
 
-            if new_group_name:
+    # group and hosts in it are valid, let's patch the group
+    try:
+        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):  # noqa: SIM102
+            # Update group on Kessel
+            if new_group_name := validated_patch_group_data.get("name"):  # noqa: SIM102
                 patch_rbac_workspace(group_id, name=new_group_name)
 
         # Separate out the host IDs because they're not stored on the Group

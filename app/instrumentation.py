@@ -288,8 +288,11 @@ def log_patch_group_success(logger, group_id):
     logger.info(f"Patched group: {group_id}")
 
 
-def log_patch_group_failed(logger, group_id):
-    logger.debug(f"Failed to find group during patch operation: {group_id}")
+def log_patch_group_failed(logger, group_id, message=None):
+    if not message:
+        logger.debug(f"Failed to find group during patch operation: {group_id}")
+    else:
+        logger.debug(f"Failed to patch group with id: {group_id} due to {message}")
 
 
 def rbac_failure(logger, error_message=None):
