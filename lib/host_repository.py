@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import timezone, datetime
 from enum import Enum
 from typing import Any
 from typing import Callable
@@ -7,10 +8,11 @@ from uuid import UUID
 
 from flask import current_app
 from flask_sqlalchemy.query import Query
-from sqlalchemy import and_
+from sqlalchemy import and_, func
 from sqlalchemy import not_
 from sqlalchemy import or_
-from sqlalchemy.sql.elements import BinaryExpression
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.sql.elements import BinaryExpression, literal_column
 from sqlalchemy.sql.elements import BooleanClauseList
 
 from api.filtering.db_filters import find_stale_host_in_window
@@ -40,6 +42,7 @@ from lib import metrics
 __all__ = (
     "AddHostResult",
     "add_host",
+    "add_hosts",
     "multiple_canonical_facts_host_query",
     "create_new_host",
     "find_existing_host",
@@ -94,6 +97,96 @@ def add_host(
     else:
         return create_new_host(input_host)
 
+
+def add_hosts(
+    input_hosts: list[Host],
+    identities: list[Identity],
+    operation_args: list[dict] | None = None,
+) -> list[tuple[Host, AddHostResult]]:
+    """
+    Add or update multiple hosts in a batch operation
+    
+    Parameters:
+     - input_hosts: List of host objects to add or update
+     - identities: List of identity objects corresponding to each host
+     - operation_args: List of operation args dicts for each host (optional)
+     - existing_hosts: Pre-fetched list of existing hosts to search (optional)
+    
+    Returns:
+     - List of tuples (Host, AddHostResult) for each processed host
+    """
+    if operation_args is None:
+        operation_args = [{}] * len(input_hosts)
+    
+    if len(input_hosts) != len(identities):
+        raise ValueError("input_hosts and identities lists must have the same length")
+    
+    if len(operation_args) != len(input_hosts):
+        raise ValueError("operation_args list must have the same length as input_hosts")
+
+    hosts = []
+    for i, host in enumerate(input_hosts):
+        host.created_on = datetime.now(timezone.utc)
+        host.modified_on = datetime.now(timezone.utc)
+        host.stale_timestamp = datetime.now(timezone.utc)
+        hosts.append({
+            "id": func.find_host_by_canonical_facts(
+                identities[i].org_id,
+                host.canonical_facts.get("provider_id"),
+                host.canonical_facts.get("provider_type"),
+                host.canonical_facts.get("subscription_manager_id"),
+                host.canonical_facts.get("insights_id"),
+            ),
+            "account": host.account,
+            "org_id": host.org_id,
+            "display_name": host.display_name,
+            "ansible_host": host.ansible_host,
+            "created_on": host.created_on,
+            "modified_on": host.modified_on,
+            "facts": host.facts,
+            "tags": host.tags,
+            "tags_alt": host.tags_alt,
+            "canonical_facts": host.canonical_facts,
+            "system_profile_facts": host.system_profile_facts,
+            "groups": host.groups,
+            "last_check_in": host.last_check_in,
+            "stale_timestamp": host.stale_timestamp,
+            "deletion_timestamp": host.deletion_timestamp,
+            "stale_warning_timestamp": host.stale_warning_timestamp,
+            "reporter": host.reporter,
+            "per_reporter_staleness": host.per_reporter_staleness,
+        })
+
+    stmt = insert(Host).values(hosts)
+    stmt = stmt.on_conflict_do_update(
+        index_elements=['id'],
+        set_=dict(
+            display_name=stmt.excluded.display_name,
+            # merge rather than replace canonical facts
+            canonical_facts=Host.canonical_facts.op('||')(stmt.excluded.canonical_facts),
+            facts=stmt.excluded.facts,
+            tags=stmt.excluded.tags,
+            tags_alt=stmt.excluded.tags_alt,
+            system_profile_facts=stmt.excluded.system_profile_facts,
+            ansible_host=stmt.excluded.ansible_host,
+            stale_timestamp=stmt.excluded.stale_timestamp,
+            reporter=stmt.excluded.reporter,
+            per_reporter_staleness=stmt.excluded.per_reporter_staleness,
+            groups=stmt.excluded.groups,
+            last_check_in=stmt.excluded.last_check_in,
+            stale_warning_timestamp=stmt.excluded.stale_warning_timestamp,
+            deletion_timestamp=stmt.excluded.deletion_timestamp,
+            modified_on=func.now()
+        )
+    ).returning(Host.id, literal_column('xmax = 0').label('inserted'))
+    result = db.session.execute(stmt)
+    results = result.fetchall()
+    processed_hosts = []
+    for i, host in enumerate(input_hosts):
+        host.id = results[i][0]
+        inserted = results[i][1]
+        processed_hosts.append((host, AddHostResult.created if inserted else AddHostResult.updated))
+    return processed_hosts
 
 def _extract_immutable_and_id_facts(canonical_facts: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
     """
