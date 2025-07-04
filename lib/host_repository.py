@@ -396,7 +396,12 @@ def get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter=None, c
 
         filters += (or_(*rbac_group_filters),)
 
-    query = Host.query.join(HostGroupAssoc, isouter=True).join(Group, isouter=True).filter(*filters).group_by(Host.id)
+    query = (
+        Host.query.join(HostGroupAssoc, isouter=True)
+        .join(Group, isouter=True)
+        .filter(*filters)
+        .group_by(Host.id, Host.org_id)
+    )
     if columns:
         query = query.with_entities(*columns)
     return find_non_culled_hosts(update_query_for_owner_id(identity, query), identity.org_id)
@@ -404,6 +409,9 @@ def get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter=None, c
 
 def get_non_culled_hosts_count_in_group(group: Group, org_id: str) -> int:
     return find_non_culled_hosts(
-        db.session.query(Host).join(HostGroupAssoc).filter(HostGroupAssoc.group_id == group.id).group_by(Host.id),
+        db.session.query(Host)
+        .join(HostGroupAssoc)
+        .filter(HostGroupAssoc.group_id == group.id)
+        .group_by(Host.id, Host.org_id),
         org_id,
     ).count()
