@@ -41,6 +41,7 @@ from lib.group_repository import delete_group_list
 from lib.group_repository import get_group_by_id_from_db
 from lib.group_repository import get_group_by_name_from_db
 from lib.group_repository import get_group_using_host_id
+from lib.group_repository import get_host_ids_using_group_id
 from lib.group_repository import get_ungrouped_group
 from lib.group_repository import patch_group
 from lib.group_repository import remove_hosts_from_group
