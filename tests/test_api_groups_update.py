@@ -347,10 +347,7 @@ def test_patch_group_with_a_bad_host(
     group_id = group.id
     host_id_list = [str(host.id) for host in db_get_hosts_for_group(group_id)]
 
-    import uuid
-
-    phantom_host_id = uuid.uuid4()
-    host_id_list.append(str(phantom_host_id))
+    host_id_list.append(generate_uuid())
 
     patch_doc = {"name": "modified_group", "host_ids": host_id_list}
     response_status, _ = api_patch_group(group_id, patch_doc)

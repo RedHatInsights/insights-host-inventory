@@ -193,6 +193,7 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
 
     # group and hosts in it are valid, let's patch the group
     try:
+        # both if statements must be evaluated separately. That's why noqa used
         if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):  # noqa: SIM102
             # Update group on Kessel
             if new_group_name := validated_patch_group_data.get("name"):  # noqa: SIM102
