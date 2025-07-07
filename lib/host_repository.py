@@ -83,7 +83,7 @@ def add_host(
         matched_host = find_existing_host(identity, input_host.canonical_facts)
 
     if matched_host:
-        defer_to_reporter = operation_args.get("defer_to_reporter", None)
+        defer_to_reporter = operation_args.get("defer_to_reporter")
         if defer_to_reporter is not None:
             logger.debug("host_repository.add_host: defer_to_reporter = %s", defer_to_reporter)
             if not matched_host.reporter_stale(defer_to_reporter):
