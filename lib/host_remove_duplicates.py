@@ -1,10 +1,16 @@
+from logging import Logger
+from typing import Callable
+from uuid import UUID
+
 from sqlalchemy import and_
 from sqlalchemy import not_
 from sqlalchemy import or_
 from sqlalchemy.dialects.postgresql import array
+from sqlalchemy.orm import Session
 
 from app.instrumentation import log_host_delete_succeeded
 from app.models import Host
+from app.queue.event_producer import EventProducer
 from app.queue.events import EventType
 from app.queue.events import build_event
 from app.queue.events import message_headers
@@ -79,15 +85,21 @@ def find_host_list_by_regular_canonical_facts(canonical_facts, query, logger):
     return hosts
 
 
-def _delete_hosts_by_id_list(session, host_id_list):
+def _delete_hosts_by_id_list(session: Session, host_id_list: list[UUID]) -> None:
     delete_query = session.query(Host).filter(Host.id.in_(host_id_list))
     delete_query.delete(synchronize_session="fetch")
     delete_query.session.commit()
 
 
 def delete_duplicate_hosts(
-    org_ids_session, hosts_session, misc_session, chunk_size, logger, event_producer, interrupt=lambda: False
-):
+    org_ids_session: Session,
+    hosts_session: Session,
+    misc_session: Session,
+    chunk_size: int,
+    logger: Logger,
+    event_producer: EventProducer,
+    interrupt: Callable[[], bool] = lambda: False,
+) -> int:
     total_deleted = 0
     hosts_query = hosts_session.query(Host)
     org_id_query = org_ids_session.query(Host.org_id)
@@ -101,7 +113,7 @@ def delete_duplicate_hosts(
         duplicate_list = list()
         misc_query = misc_session.query(Host).filter(Host.org_id == org_id)
 
-        def unique(host_list):
+        def unique(host_list: list[Host]) -> None:
             if host_list[0].id not in unique_list:
                 unique_list.append(host_list[0].id)
                 logger.info(f"{host_list[0].id} is unique, total: {len(unique_list)}")
@@ -133,7 +145,7 @@ def delete_duplicate_hosts(
         # delete duplicate hosts
         _delete_hosts_by_id_list(misc_session, duplicate_list)
         for host_id in duplicate_list:
-            log_host_delete_succeeded(logger, host_id, "DEDUP")
+            log_host_delete_succeeded(logger, host_id, "DEDUP", {})
             delete_duplicate_host_count.inc()
             event = build_event(EventType.delete, host)
             headers = message_headers(
@@ -149,7 +161,7 @@ def delete_duplicate_hosts(
 
         total_deleted += len(duplicate_list)
 
-        if interrupt:
+        if interrupt():
             break
 
     return total_deleted
