@@ -51,6 +51,7 @@ COPY update_edge_hosts_prs.py update_edge_hosts_prs.py
 COPY delete_hosts_without_id_facts.py delete_hosts_without_id_facts.py
 COPY app_migrations/ app_migrations/
 COPY jobs/ jobs/
+COPY add_inventory_view.py add_inventory_view.py
 
 ENV PIP_NO_CACHE_DIR=1
 ENV PIPENV_CLEAR=1
