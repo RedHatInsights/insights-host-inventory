@@ -731,6 +731,8 @@ objects:
               key: psks.json
               name: rbac-psks
               optional: false
+        - name: HOSTS_TABLE_NUM_PARTITIONS
+          value: ${HOSTS_TABLE_NUM_PARTITIONS}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -1839,6 +1841,7 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_HOSTS_WITHOUT_ID_FACTS_JOB}
             memory: ${MEMORY_REQUEST_HOSTS_WITHOUT_ID_FACTS_JOB}
+
     database:
       name: ${DB_NAME}
       version: 16
@@ -2531,6 +2534,9 @@ parameters:
 - name: ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE
   description: The batch size to use for the assign-ungrouped-hosts script.
   value: '10'
+- name: HOSTS_TABLE_NUM_PARTITIONS
+  description: The number of partitions for the hosts table
+  value: '1'
 
 # NGINX
 - displayName: Minimum replicas
