@@ -28,9 +28,7 @@ def contains_no_incorrect_facts_filter(canonical_facts):
     # -> NOT( OR( *Incorrect values ) )
     filter_ = ()
     for key, value in canonical_facts.items():
-        filter_ += (
-            and_(Host.canonical_facts.has_key(key), not_(Host.canonical_facts.contains({key: value}))),  # noqa: W601
-        )
+        filter_ += (and_(Host.canonical_facts.has_key(key), not_(Host.canonical_facts.contains({key: value}))),)
 
     return not_(or_(*filter_))
 

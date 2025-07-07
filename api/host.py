@@ -435,7 +435,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
         Host.org_id == current_identity.org_id,
         Host.id.in_(host_id_list),
         Host.facts.has_key(namespace),
-    )  # noqa: W601 JSONB query filter, not a dict
+    )
 
     query = Host.query.join(HostGroupAssoc, isouter=True).filter(*filters).group_by(Host.id)
 
