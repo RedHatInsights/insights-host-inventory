@@ -76,7 +76,7 @@ def perform_action(session: Session, logger: Logger):
         logger.info("Successfully switched to new partitioned tables.")
 
     elif action == "rollback":
-        logger.warning("HOSTS_TABLE_MIGRATION_SWITCH_MODE=rollback. Starting emergency rollback procedure...")
+        logger.warning("HOSTS_TABLE_MIGRATION_SWITCH_MODE=rollback. Starting rollback procedure...")
         sql_block = f"""
             DO $$
             BEGIN
