@@ -1,9 +1,11 @@
 import sys
 from functools import partial
+from logging import Logger
 
 from prometheus_client import CollectorRegistry
 from prometheus_client import push_to_gateway
 from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
 from sqlalchemy.orm import sessionmaker
 
 from app.config import Config
@@ -26,26 +28,34 @@ COLLECTED_METRICS = (delete_duplicate_host_count,)
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
 
 
-def _init_config():
+def _init_config() -> Config:
     config = Config(RUNTIME_ENVIRONMENT)
     config.log_configuration()
     return config
 
 
-def _init_db(config):
+def _init_db(config: Config) -> sessionmaker:
     engine = create_engine(config.db_uri)
     return sessionmaker(bind=engine)
 
 
-def _prometheus_job(namespace):
+def _prometheus_job(namespace: str) -> str:
     return f"{PROMETHEUS_JOB}-{namespace}" if namespace else PROMETHEUS_JOB
 
 
-def _excepthook(logger, type, value, traceback):  # noqa: ARG001, needed by sys.excepthook
+def _excepthook(logger: Logger, type, value, traceback) -> None:  # noqa: ARG001, needed by sys.excepthook
     logger.exception("Host duplicate remover failed", exc_info=value)
 
 
-def run(config, logger, org_ids_session, hosts_session, misc_session, event_producer, shutdown_handler):
+def run(
+    config: Config,
+    logger: Logger,
+    org_ids_session: Session,
+    hosts_session: Session,
+    misc_session: Session,
+    event_producer: EventProducer,
+    shutdown_handler: ShutdownHandler,
+) -> int:
     num_deleted = delete_duplicate_hosts(
         org_ids_session,
         hosts_session,
@@ -59,7 +69,7 @@ def run(config, logger, org_ids_session, hosts_session, misc_session, event_prod
     return num_deleted
 
 
-def main(logger):
+def main(logger: Logger) -> None:
     config = _init_config()
     registry = CollectorRegistry()
 
@@ -70,10 +80,10 @@ def main(logger):
     prometheus_shutdown = partial(push_to_gateway, config.prometheus_pushgateway, job, registry)
     register_shutdown(prometheus_shutdown, "Pushing metrics")
 
-    Session = _init_db(config)
-    org_ids_session = Session()
-    hosts_session = Session()
-    misc_session = Session()
+    SessionMaker = _init_db(config)
+    org_ids_session = SessionMaker()
+    hosts_session = SessionMaker()
+    misc_session = SessionMaker()
     register_shutdown(org_ids_session.get_bind().dispose, "Closing database")
     register_shutdown(hosts_session.get_bind().dispose, "Closing database")
     register_shutdown(misc_session.get_bind().dispose, "Closing database")
