@@ -32,12 +32,14 @@ from app.instrumentation import log_patch_group_success
 from app.logging import get_logger
 from app.models import InputGroupSchema
 from app.queue.events import EventType
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.feature_flags import get_flag_value
 from lib.group_repository import add_hosts_to_group
 from lib.group_repository import create_group_from_payload
 from lib.group_repository import delete_group_list
 from lib.group_repository import get_group_by_id_from_db
+from lib.group_repository import get_group_by_name_from_db
 from lib.group_repository import get_group_using_host_id
 from lib.group_repository import get_ungrouped_group
 from lib.group_repository import patch_group
@@ -101,6 +103,17 @@ def create_group(body, rbac_filter=None):
 
     try:
         # Create group with validated data
+        group_name = validated_create_group_data.get("name")
+
+        # check the group's existence and for Kessel Phase 1
+        if not get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1) and does_group_with_name_exist(
+            group_name, get_current_identity().org_id
+        ):
+            log_create_group_failed(logger, group_name)
+            return json_error_response(
+                "Integrity error", f"A group with name {group_name} already exists.", HTTPStatus.BAD_REQUEST
+            )
+
         if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
             group_name = validated_create_group_data.get("name")
             # Before waiting for workspace creation in RBAC, check that the name isn't already in use
@@ -184,11 +197,23 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
         abort(HTTPStatus.NOT_FOUND)
 
     try:
-        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
-            # Update group on Kessel
+        if not get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1):
             new_group_name = validated_patch_group_data.get("name")
-
             if new_group_name:
+                existing_groups = get_group_by_name_from_db(new_group_name, identity.org_id)
+                if len(existing_groups) > 0:
+                    return (
+                        {
+                            "status": 400,
+                            "title": "Bad Request",
+                            "detail": f"A group with name {new_group_name} already exists.",
+                            "type": "unknown",
+                        },
+                        400,
+                    )
+        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
+            new_group_name = validated_patch_group_data.get("name")
+            if new_group_name:  # noqa: SIM102, using two feature flags requires 2 separate if statements
                 patch_rbac_workspace(group_id, name=new_group_name)
 
         # Separate out the host IDs because they're not stored on the Group
