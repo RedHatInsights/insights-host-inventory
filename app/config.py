@@ -343,7 +343,7 @@ class Config:
         self.s3_access_key_id = os.getenv("S3_AWS_ACCESS_KEY_ID")
         self.s3_secret_access_key = os.getenv("S3_AWS_SECRET_ACCESS_KEY")
         self.s3_bucket = os.getenv("S3_AWS_BUCKET")
-        self.dry_run = os.getenv("DRY_RUN")
+        self.dry_run = os.getenv("DRY_RUN", "true").lower() == "true"
 
         self.sp_fields_to_log = os.getenv("SP_FIELDS_TO_LOG", "").split(",")
 
