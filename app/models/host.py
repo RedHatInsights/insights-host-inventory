@@ -62,6 +62,15 @@ class LimitedHost(db.Model):
         system_profile_facts=None,
         groups=None,
         id=None,
+        insights_id=None,
+        subscription_manager_id=None,
+        satellite_id=None,
+        fqdn=None,
+        bios_uuid=None,
+        ip_addresses=None,
+        mac_addresses=None,
+        provider_id=None,
+        provider_type=None,
     ):
         if id:
             self.id = id
@@ -86,6 +95,17 @@ class LimitedHost(db.Model):
         self.system_profile_facts = system_profile_facts or {}
         self.groups = groups or []
         self.last_check_in = _time_now()
+
+        # canonical facts
+        self.insights_id = insights_id
+        self.subscription_manager_id = subscription_manager_id
+        self.satellite_id = satellite_id
+        self.fqdn = fqdn
+        self.bios_uuid = bios_uuid
+        self.ip_addresses = ip_addresses
+        self.mac_addresses = mac_addresses
+        self.provider_id = provider_id
+        self.provider_type = provider_type
 
     def _update_ansible_host(self, ansible_host):
         if ansible_host is not None:
@@ -142,6 +162,15 @@ class LimitedHost(db.Model):
     tags = db.Column(JSONB)
     tags_alt = db.Column(JSONB)
     canonical_facts = db.Column(JSONB)
+    insights_id = db.Column(UUID(as_uuid=True), default="00000000-0000-0000-0000-000000000000")
+    subscription_manager_id = db.Column(db.String(36))
+    satellite_id = db.Column(db.String(255))
+    fqdn = db.Column(db.String(255))
+    bios_uuid = db.Column(db.String(36))
+    ip_addresses = db.Column(JSONB)
+    mac_addresses = db.Column(JSONB)
+    provider_id = db.Column(db.String(500))
+    provider_type = db.Column(db.String(50))
     system_profile_facts = db.Column(JSONB)
     groups = db.Column(MutableList.as_mutable(JSONB), default=lambda: [])
     host_type = column_property(system_profile_facts["host_type"])
@@ -154,15 +183,6 @@ class Host(LimitedHost):
     stale_warning_timestamp = db.Column(db.DateTime(timezone=True))
     reporter = db.Column(db.String(255))
     per_reporter_staleness = db.Column(JSONB)
-    insights_id = db.Column(UUID(as_uuid=True), server_default="00000000-0000-0000-0000-000000000000")
-    subscription_manager_id = db.Column(db.String(36))
-    satellite_id = db.Column(db.String(255))
-    fqdn = db.Column(db.String(255))
-    bios_uuid = db.Column(db.String(36))
-    ip_addresses = db.Column(JSONB)
-    mac_addresses = db.Column(JSONB)
-    provider_id = db.Column(db.String(500))
-    provider_type = db.Column(db.String(50))
 
     def __init__(
         self,
@@ -179,6 +199,15 @@ class Host(LimitedHost):
         reporter=None,
         per_reporter_staleness=None,
         groups=None,
+        insights_id=None,
+        subscription_manager_id=None,
+        satellite_id=None,
+        fqdn=None,
+        bios_uuid=None,
+        ip_addresses=None,
+        mac_addresses=None,
+        provider_id=None,
+        provider_type=None,
     ):
         id = None
         if tags is None:
@@ -214,6 +243,15 @@ class Host(LimitedHost):
             system_profile_facts,
             groups,
             id,
+            insights_id,
+            subscription_manager_id,
+            satellite_id,
+            fqdn,
+            bios_uuid,
+            ip_addresses,
+            mac_addresses,
+            provider_id,
+            provider_type,
         )
 
         self._update_last_check_in_date()
@@ -280,28 +318,8 @@ class Host(LimitedHost):
             canonical_facts,
         )
         self.canonical_facts.update(canonical_facts)  # Field being removed in the future
-        self.insights_id = canonical_facts.get("insights_id")
-        self.subscription_manager_id = canonical_facts.get("subscription_manager_id")
-        self.satellite_id = canonical_facts.get("satellite_id")
-        self.fqdn = canonical_facts.get("fqdn")
-        self.bios_uuid = canonical_facts.get("bios_uuid")
-        self.ip_addresses = canonical_facts.get("ip_addresses")
-        self.mac_addresses = canonical_facts.get("mac_addresses")
-        self.provider_id = canonical_facts.get("provider_id")
-        self.provider_type = canonical_facts.get("provider_type")
-
         logger.debug("Host (id=%s) has updated canonical_facts (%s)", self.id, self.canonical_facts)
-
         orm.attributes.flag_modified(self, "canonical_facts")  # Field being removed in the future
-        orm.attributes.flag_modified(self, "insights_id")
-        orm.attributes.flag_modified(self, "subscription_manager_id")
-        orm.attributes.flag_modified(self, "satellite_id")
-        orm.attributes.flag_modified(self, "fqdn")
-        orm.attributes.flag_modified(self, "bios_uuid")
-        orm.attributes.flag_modified(self, "ip_addresses")
-        orm.attributes.flag_modified(self, "mac_addresses")
-        orm.attributes.flag_modified(self, "provider_id")
-        orm.attributes.flag_modified(self, "provider_type")
 
     def update_facts(self, facts_dict):
         if facts_dict:
