@@ -1158,7 +1158,7 @@ def test_canonical_facts_v1_mac_addresses_required():
         CanonicalFactsSchema().load(canonical_facts)
 
 
-@pytest.mark.parametrize("mac_addresses", (None, [], (), "c2:00:d0:c8:61:01", ["XXX"]))
+@pytest.mark.parametrize("mac_addresses", ([], (), "c2:00:d0:c8:61:01", ["XXX"]))
 def test_canonical_facts_v1_mac_addresses_badvalues(mac_addresses):
     canonical_facts = {"canonical_facts_version": 1, "is_virtual": False, "mac_addresses": mac_addresses}
     with pytest.raises(MarshmallowValidationError):
@@ -1352,3 +1352,59 @@ def test_create_host_validate_staleness(db_create_host, db_get_host):
         assert retrieved_host.stale_warning_timestamp == staleness_timestamps["stale_warning_timestamp"]
         assert retrieved_host.deletion_timestamp == staleness_timestamps["culled_timestamp"]
         assert retrieved_host.reporter == host_data["reporter"]
+
+
+def test_create_host_with_canonical_facts(db_create_host_custom_canonical_facts, db_get_host):
+    canonical_facts = {
+        "insights_id": generate_uuid(),
+        "subscription_manager_id": generate_uuid(),
+        "satellite_id": generate_uuid(),
+        "fqdn": "test.fqdn",
+        "bios_uuid": generate_uuid(),
+        "ip_addresses": ["192.168.1.1"],
+        "mac_addresses": ["00:00:00:00:00:00"],
+        "provider_id": "test_provider",
+        "provider_type": "test_provider_type",
+    }
+
+    host_data = {"canonical_facts": canonical_facts, **canonical_facts}
+
+    created_host = db_create_host_custom_canonical_facts(SYSTEM_IDENTITY, extra_data=host_data)
+    retrieved_host = db_get_host(created_host.id)
+    assert retrieved_host.canonical_facts == host_data["canonical_facts"]
+    assert retrieved_host.insights_id == uuid.UUID(host_data["insights_id"])
+    assert retrieved_host.subscription_manager_id == host_data["subscription_manager_id"]
+    assert retrieved_host.satellite_id == host_data["satellite_id"]
+    assert retrieved_host.fqdn == host_data["fqdn"]
+    assert retrieved_host.bios_uuid == host_data["bios_uuid"]
+    assert retrieved_host.ip_addresses == host_data["ip_addresses"]
+    assert retrieved_host.mac_addresses == host_data["mac_addresses"]
+    assert retrieved_host.provider_id == host_data["provider_id"]
+    assert retrieved_host.provider_type == host_data["provider_type"]
+
+
+def test_create_host_with_missing_canonical_facts(db_create_host_custom_canonical_facts, db_get_host):
+    canonical_facts = {
+        "insights_id": generate_uuid(),
+        "subscription_manager_id": generate_uuid(),
+        "satellite_id": generate_uuid(),
+        "fqdn": "test.fqdn",
+        "bios_uuid": generate_uuid(),
+        "provider_id": "test_provider",
+        "provider_type": "test_provider_type",
+    }
+
+    host_data = {"canonical_facts": canonical_facts, **canonical_facts}
+
+    created_host = db_create_host_custom_canonical_facts(SYSTEM_IDENTITY, extra_data=host_data)
+    retrieved_host = db_get_host(created_host.id)
+    assert retrieved_host.canonical_facts == host_data["canonical_facts"]
+    assert retrieved_host.insights_id == uuid.UUID(host_data["insights_id"])
+    assert retrieved_host.subscription_manager_id == host_data["subscription_manager_id"]
+    assert retrieved_host.satellite_id == host_data["satellite_id"]
+    assert retrieved_host.fqdn == host_data["fqdn"]
+    assert retrieved_host.bios_uuid == host_data["bios_uuid"]
+    assert retrieved_host.provider_id == host_data["provider_id"]
+    assert retrieved_host.provider_type == host_data["provider_type"]
+    assert retrieved_host.ip_addresses is None
+    assert retrieved_host.mac_addresses is None
