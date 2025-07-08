@@ -4,6 +4,7 @@ import os
 from collections.abc import Generator
 from typing import Any
 from typing import Callable
+from uuid import UUID
 
 import pytest
 from connexion import FlaskApp
@@ -55,8 +56,8 @@ def database(database_name: None) -> Generator[str]:  # noqa: ARG001
 
 
 @pytest.fixture(scope="function")
-def db_get_host(flask_app):  # noqa: ARG001
-    def _db_get_host(host_id):
+def db_get_host(flask_app: FlaskApp) -> Callable[[UUID], Host | None]:  # noqa: ARG001
+    def _db_get_host(host_id: UUID) -> Host | None:
         return Host.query.filter(Host.id == host_id).one_or_none()
 
     return _db_get_host

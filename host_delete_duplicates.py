@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import sys
 from functools import partial
 from logging import Logger
@@ -37,7 +39,7 @@ def run(
     notifications_event_producer: EventProducer,
     shutdown_handler: ShutdownHandler,
     application: FlaskApp,
-) -> None:
+) -> int | None:
     with application.app.app_context():
         threadctx.request_id = None
         try:
@@ -52,9 +54,11 @@ def run(
                 shutdown_handler.shut_down,
             )
             logger.info(f"Total number of hosts deleted: {num_deleted}")
+            return num_deleted
 
         except InterruptedError:
             logger.info(f"{PROMETHEUS_JOB} was interrupted.")
+            return None
 
 
 if __name__ == "__main__":
