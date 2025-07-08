@@ -197,24 +197,24 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
         abort(HTTPStatus.NOT_FOUND)
 
     try:
-        if not get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1):
-            new_group_name = validated_patch_group_data.get("name")
-            if new_group_name:
-                existing_groups = get_group_by_name_from_db(new_group_name, identity.org_id)
-                if len(existing_groups) > 0:
-                    return (
-                        {
-                            "status": 400,
-                            "title": "Bad Request",
-                            "detail": f"A group with name {new_group_name} already exists.",
-                            "type": "unknown",
-                        },
-                        400,
-                    )
-        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
-            new_group_name = validated_patch_group_data.get("name")
-            if new_group_name:  # noqa: SIM102, using two feature flags requires 2 separate if statements
-                patch_rbac_workspace(group_id, name=new_group_name)
+        if not get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1) and (
+            new_group_name := validated_patch_group_data.get("name")
+        ):
+            existing_groups = get_group_by_name_from_db(new_group_name, identity.org_id)
+            if len(existing_groups) > 0:
+                return (
+                    {
+                        "status": 400,
+                        "title": "Bad Request",
+                        "detail": f"A group with name {new_group_name} already exists.",
+                        "type": "unknown",
+                    },
+                    400,
+                )
+        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION) and (
+            new_group_name := validated_patch_group_data.get("name")
+        ):
+            patch_rbac_workspace(group_id, name=new_group_name)
 
         # Separate out the host IDs because they're not stored on the Group
         patch_group(group_to_update, validated_patch_group_data, identity, current_app.event_producer)
