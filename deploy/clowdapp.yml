@@ -1618,20 +1618,66 @@ objects:
           - name: S3_AWS_ACCESS_KEY_ID
             valueFrom:
               secretKeyRef:
-                name: ${S3_AWS_SECRET}
+                name: ${KESSEL_S3_AWS_SECRET}
                 key: aws_access_key_id
           - name: S3_AWS_SECRET_ACCESS_KEY
             valueFrom:
               secretKeyRef:
-                name: ${S3_AWS_SECRET}
+                name: ${KESSEL_S3_AWS_SECRET}
                 key: aws_secret_access_key
           - name: S3_AWS_BUCKET
             valueFrom:
               secretKeyRef:
-                name: ${S3_AWS_SECRET}
+                name: ${KESSEL_S3_AWS_SECRET}
                 key: bucket
           - name: BYPASS_KESSEL_JOBS
             value: ${BYPASS_KESSEL_JOBS}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_GROUPS_S3_EXPORT}
+            memory: ${MEMORY_LIMIT_GROUPS_S3_EXPORT}
+          requests:
+            cpu: ${CPU_REQUEST_GROUPS_S3_EXPORT}
+            memory: ${MEMORY_REQUEST_GROUPS_S3_EXPORT}
+    - name: delete-hosts-s3
+      restartPolicy: OnFailure
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: ["./delete_hosts_s3.py"]
+        env:
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: DRY_RUN
+            value: ${DELETE_HOSTS_DRY_RUN}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: S3_AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${DELETE_HOSTS_S3_AWS_SECRET}
+                key: aws_access_key_id
+          - name: S3_AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${DELETE_HOSTS_S3_AWS_SECRET}
+                key: aws_secret_access_key
+          - name: S3_AWS_BUCKET
+            valueFrom:
+              secretKeyRef:
+                name: ${DELETE_HOSTS_S3_AWS_SECRET}
+                key: bucket
         resources:
           limits:
             cpu: ${CPU_LIMIT_GROUPS_S3_EXPORT}
@@ -2519,9 +2565,15 @@ parameters:
   value: '60'
 - name: INVENTORY_DB_SCHEMA
   value: 'hbi'
-- name: S3_AWS_SECRET
-  description: The AWS secret for S3
+- name: KESSEL_S3_AWS_SECRET
+  description: The AWS secret for the Kessel S3 bucket
   value: 'hbi-kessel-s3'
+- name: DELETE_HOSTS_S3_AWS_SECRET
+  description: The AWS secret for the delete-hosts S3 bucket
+  value: 'hbi-delete-host-ids-s3'
+- name: DELETE_HOSTS_DRY_RUN
+  description: Whether the delete_hosts_s3 script should run in dry-run mode
+  value: 'true'
 - name: RBAC_V2_FORCE_ORG_ADMIN
   description: Whether to force User Identities to use is_org_admin=True for RBAC v2 calls
   value: 'false'
