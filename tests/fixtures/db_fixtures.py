@@ -22,6 +22,7 @@ from app.models import Staleness
 from app.models import db
 from lib.group_repository import serialize_group
 from tests.helpers.db_utils import db_group
+from tests.helpers.db_utils import db_host_with_custom_canonical_facts
 from tests.helpers.db_utils import db_staleness_culling
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.test_utils import SYSTEM_IDENTITY
@@ -148,6 +149,24 @@ def db_create_host(flask_app: FlaskApp) -> Callable[..., Host]:  # noqa: ARG001
         return host
 
     return _db_create_host
+
+
+@pytest.fixture(scope="function")
+def db_create_host_custom_canonical_facts(flask_app: FlaskApp) -> Callable[..., Host]:  # noqa: ARG001
+    def _create_host_custom_canonical_facts(
+        identity: dict[str, Any] | None = None, host: Host | None = None, extra_data: dict[str, Any] | None = None
+    ) -> Host:
+        identity = identity or SYSTEM_IDENTITY
+        extra_data = extra_data or {}
+        org_id = extra_data.pop("org_id", None) or identity["org_id"]
+        host = host or db_host_with_custom_canonical_facts(
+            org_id=org_id, account=identity["account_number"], **extra_data
+        )
+        db.session.add(host)
+        db.session.commit()
+        return host
+
+    return _create_host_custom_canonical_facts
 
 
 @pytest.fixture(scope="function")
