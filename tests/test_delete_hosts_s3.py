@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import pytest
 
+import delete_hosts_s3
 from app.config import Config
 
 # Patch constants and functions used in run
@@ -112,8 +113,6 @@ def test_run_happy_and_edge_cases(
     monkeypatch.setattr("delete_hosts_s3.not_found_count", 0)
     monkeypatch.setattr("delete_hosts_s3.deleted_count", 0)
 
-    import delete_hosts_s3
-
     # Act
     delete_hosts_s3.run(mock_config, mock_logger, mock_session, flask_app)
 
@@ -133,7 +132,6 @@ def test_run_exception_handling(
 ):
     # Arrange
     patch_get_s3_client.get_object.side_effect = exception_type("fail!")
-    import delete_hosts_s3
 
     # Act
     delete_hosts_s3.run(mock_config, mock_logger, mock_session, flask_app)
@@ -149,7 +147,6 @@ def test_run_finally_always_closes_s3(mock_config, mock_logger, mock_session, fl
     s3_body = MagicMock()
     s3_body.read.return_value = b"id1\n"
     patch_get_s3_client.get_object.return_value = {"Body": s3_body}
-    import delete_hosts_s3
 
     # Act
     delete_hosts_s3.run(mock_config, mock_logger, mock_session, flask_app)
@@ -167,7 +164,6 @@ def test_run_handles_app_context(mock_config, mock_logger, mock_session, patch_g
     mock_app = MagicMock()
     mock_ctx = MagicMock()
     mock_app.app.app_context.return_value = mock_ctx
-    import delete_hosts_s3
 
     # Act
     delete_hosts_s3.run(mock_config, mock_logger, mock_session, mock_app)
