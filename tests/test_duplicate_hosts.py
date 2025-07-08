@@ -1,18 +1,26 @@
+from __future__ import annotations
+
 from copy import deepcopy
 from random import choice
 from random import randint
+from typing import Callable
 from unittest import mock
+from uuid import UUID
 
 import pytest
+from connexion import FlaskApp
 
+from app.config import Config
 from app.logging import get_logger
 from app.logging import threadctx
+from app.models import Host
 from app.models import ProviderType
 from host_delete_duplicates import run as host_delete_duplicates_run
 from jobs.common import init_db
 from lib.db import multi_session_guard
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.db_utils import update_host_in_db
+from tests.helpers.mq_utils import MockEventProducer
 from tests.helpers.test_utils import generate_random_string
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import get_staleness_timestamps
@@ -23,7 +31,14 @@ logger = get_logger(__name__)
 
 
 @pytest.mark.host_delete_duplicates
-def test_delete_duplicate_host(event_producer_mock, db_create_host, db_get_host, inventory_config):
+def test_delete_duplicate_host(
+    event_producer_mock: MockEventProducer,
+    notification_event_producer_mock: MockEventProducer,
+    db_create_host: Callable[..., Host],
+    db_get_host: Callable[[UUID], Host | None],
+    inventory_config: Config,
+    flask_app: FlaskApp,
+):
     # make two hosts that are the same
     canonical_facts = {
         "provider_type": ProviderType.AWS.value,  # Doesn't matter
@@ -41,8 +56,6 @@ def test_delete_duplicate_host(event_producer_mock, db_create_host, db_get_host,
     old_host_id = created_old_host.id
     assert created_old_host.canonical_facts["provider_id"] == created_new_host.canonical_facts["provider_id"]
 
-    threadctx.request_id = None
-
     Session = init_db(inventory_config)
     org_ids_session = Session()
     hosts_session = Session()
@@ -51,16 +64,17 @@ def test_delete_duplicate_host(event_producer_mock, db_create_host, db_get_host,
     with multi_session_guard([org_ids_session, hosts_session, misc_session]):
         num_deleted = host_delete_duplicates_run(
             inventory_config,
-            mock.Mock(),
+            logger,
             org_ids_session,
             hosts_session,
             misc_session,
-            event_producer_mock,
+            event_producer_mock,  # type: ignore[arg-type]
+            notification_event_producer_mock,  # type: ignore[arg-type]
             shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
+            application=flask_app,
         )
 
-    print("deleted this many hosts:")
-    print(num_deleted)
+    logger.info(f"Deleted this many hosts: {num_deleted}")
 
     assert num_deleted == 1
     assert db_get_host(created_new_host.id)

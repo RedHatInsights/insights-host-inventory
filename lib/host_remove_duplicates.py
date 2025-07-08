@@ -64,10 +64,12 @@ def delete_duplicate_hosts(
     logger.info(f"Total number of org_ids in inventory: {org_id_query.distinct(Host.org_id).count()}")
 
     for org_id in org_id_query.distinct(Host.org_id).yield_per(chunk_size):
-        logger.info(f"Processing org_id {org_id}")
+        actual_org_id = org_id[0]  # query.distinct() returns a tuple of all queried columns
+        logger.info(f"Processing org_id: {actual_org_id}")
+
         unique_host_ids = set()
         duplicate_host_ids = set()
-        misc_query = misc_session.query(Host).filter(Host.org_id == org_id)
+        misc_query = misc_session.query(Host).filter(Host.org_id == actual_org_id)
 
         def unique(host_list: list[Host]) -> None:
             unique_host_ids.add(host_list[0].id)
@@ -77,7 +79,9 @@ def delete_duplicate_hosts(
                     duplicate_host_ids.add(host_id)
                     logger.info(f"{host_id} is a potential duplicate, total: {len(duplicate_host_ids)}")
 
-        for host in hosts_query.filter(Host.org_id == org_id).order_by(Host.modified_on.desc()).yield_per(chunk_size):
+        for host in (
+            hosts_query.filter(Host.org_id == actual_org_id).order_by(Host.last_check_in.desc()).yield_per(chunk_size)
+        ):
             canonical_facts = host.canonical_facts
             logger.info(f"find by canonical facts: {canonical_facts}")
             matching_hosts = find_matching_hosts(canonical_facts, misc_query)
@@ -88,16 +92,21 @@ def delete_duplicate_hosts(
 
         # delete duplicate hosts
         hosts_by_ids_query = misc_session.query(Host).filter(Host.id.in_(duplicate_host_ids))
-        delete_hosts(
-            hosts_by_ids_query,
-            event_producer,
-            notifications_event_producer,
-            chunk_size,
-            interrupt,
-            control_rule="DEDUP",
+        deleted_count = len(
+            list(
+                delete_hosts(
+                    hosts_by_ids_query,
+                    event_producer,
+                    notifications_event_producer,
+                    chunk_size,
+                    interrupt,
+                    control_rule="DEDUP",
+                )
+            )
         )
+        logger.info(f"Deleted {deleted_count} hosts for org_id: {actual_org_id}")
 
-        total_deleted += len(duplicate_host_ids)
+        total_deleted += deleted_count
 
         if interrupt():
             break

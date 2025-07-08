@@ -33,6 +33,6 @@ def flask_app(new_flask_app: FlaskApp) -> Generator[FlaskApp]:
 
 
 @pytest.fixture(scope="function")
-def inventory_config(flask_app: FlaskApp):
+def inventory_config(flask_app: FlaskApp) -> Generator[Config]:
     yield flask_app.app.config["INVENTORY_CONFIG"]
     flask_app.app.config["INVENTORY_CONFIG"] = Config(RuntimeEnvironment.TEST)
