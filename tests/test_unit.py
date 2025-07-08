@@ -1138,6 +1138,15 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             host_input["stale_timestamp"],
             host_input["reporter"],
             host_input["groups"],
+            insights_id=deserialize_canonical_facts.return_value.get("insights_id"),
+            subscription_manager_id=deserialize_canonical_facts.return_value.get("subscription_manager_id"),
+            satellite_id=deserialize_canonical_facts.return_value.get("satellite_id"),
+            fqdn=deserialize_canonical_facts.return_value.get("fqdn"),
+            bios_uuid=deserialize_canonical_facts.return_value.get("bios_uuid"),
+            ip_addresses=deserialize_canonical_facts.return_value.get("ip_addresses"),
+            mac_addresses=deserialize_canonical_facts.return_value.get("mac_addresses"),
+            provider_id=deserialize_canonical_facts.return_value.get("provider_id"),
+            provider_type=deserialize_canonical_facts.return_value.get("provider_type"),
         )
 
     def test_without_facts(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
@@ -1198,6 +1207,15 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             host_input["stale_timestamp"],
             host_input["reporter"],
             host_input["groups"],
+            insights_id=deserialize_canonical_facts.return_value.get("insights_id"),
+            subscription_manager_id=deserialize_canonical_facts.return_value.get("subscription_manager_id"),
+            satellite_id=deserialize_canonical_facts.return_value.get("satellite_id"),
+            fqdn=deserialize_canonical_facts.return_value.get("fqdn"),
+            bios_uuid=deserialize_canonical_facts.return_value.get("bios_uuid"),
+            ip_addresses=deserialize_canonical_facts.return_value.get("ip_addresses"),
+            mac_addresses=deserialize_canonical_facts.return_value.get("mac_addresses"),
+            provider_id=deserialize_canonical_facts.return_value.get("provider_id"),
+            provider_type=deserialize_canonical_facts.return_value.get("provider_type"),
         )
 
     def test_without_tags(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
@@ -1258,6 +1276,15 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             host_input["stale_timestamp"],
             host_input["reporter"],
             host_input["groups"],
+            insights_id=deserialize_canonical_facts.return_value.get("insights_id"),
+            subscription_manager_id=deserialize_canonical_facts.return_value.get("subscription_manager_id"),
+            satellite_id=deserialize_canonical_facts.return_value.get("satellite_id"),
+            fqdn=deserialize_canonical_facts.return_value.get("fqdn"),
+            bios_uuid=deserialize_canonical_facts.return_value.get("bios_uuid"),
+            ip_addresses=deserialize_canonical_facts.return_value.get("ip_addresses"),
+            mac_addresses=deserialize_canonical_facts.return_value.get("mac_addresses"),
+            provider_id=deserialize_canonical_facts.return_value.get("provider_id"),
+            provider_type=deserialize_canonical_facts.return_value.get("provider_type"),
         )
 
     def test_without_display_name(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
@@ -1321,6 +1348,15 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             host_input["stale_timestamp"],
             host_input["reporter"],
             host_input["groups"],
+            insights_id=deserialize_canonical_facts.return_value.get("insights_id"),
+            subscription_manager_id=deserialize_canonical_facts.return_value.get("subscription_manager_id"),
+            satellite_id=deserialize_canonical_facts.return_value.get("satellite_id"),
+            fqdn=deserialize_canonical_facts.return_value.get("fqdn"),
+            bios_uuid=deserialize_canonical_facts.return_value.get("bios_uuid"),
+            ip_addresses=deserialize_canonical_facts.return_value.get("ip_addresses"),
+            mac_addresses=deserialize_canonical_facts.return_value.get("mac_addresses"),
+            provider_id=deserialize_canonical_facts.return_value.get("provider_id"),
+            provider_type=deserialize_canonical_facts.return_value.get("provider_type"),
         )
 
     def test_without_system_profile(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
@@ -1379,6 +1415,15 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             host_input["stale_timestamp"],
             host_input["reporter"],
             host_input["groups"],
+            insights_id=deserialize_canonical_facts.return_value.get("insights_id"),
+            subscription_manager_id=deserialize_canonical_facts.return_value.get("subscription_manager_id"),
+            satellite_id=deserialize_canonical_facts.return_value.get("satellite_id"),
+            fqdn=deserialize_canonical_facts.return_value.get("fqdn"),
+            bios_uuid=deserialize_canonical_facts.return_value.get("bios_uuid"),
+            ip_addresses=deserialize_canonical_facts.return_value.get("ip_addresses"),
+            mac_addresses=deserialize_canonical_facts.return_value.get("mac_addresses"),
+            provider_id=deserialize_canonical_facts.return_value.get("provider_id"),
+            provider_type=deserialize_canonical_facts.return_value.get("provider_type"),
         )
 
     def test_without_groups(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
@@ -1425,6 +1470,15 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             host_input["stale_timestamp"],
             host_input["reporter"],
             [],
+            insights_id=deserialize_canonical_facts.return_value.get("insights_id"),
+            subscription_manager_id=deserialize_canonical_facts.return_value.get("subscription_manager_id"),
+            satellite_id=deserialize_canonical_facts.return_value.get("satellite_id"),
+            fqdn=deserialize_canonical_facts.return_value.get("fqdn"),
+            bios_uuid=deserialize_canonical_facts.return_value.get("bios_uuid"),
+            ip_addresses=deserialize_canonical_facts.return_value.get("ip_addresses"),
+            mac_addresses=deserialize_canonical_facts.return_value.get("mac_addresses"),
+            provider_id=deserialize_canonical_facts.return_value.get("provider_id"),
+            provider_type=deserialize_canonical_facts.return_value.get("provider_type"),
         )
 
     def test_without_culling_fields(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
