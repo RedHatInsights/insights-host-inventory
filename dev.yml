@@ -4,6 +4,7 @@ services:
       container_name: hbi-db
       image: docker.io/library/postgres:16.4
       restart: always
+      shm_size: 1gb
       environment:
           POSTGRES_PASSWORD: insights
           POSTGRES_USER: insights
@@ -69,7 +70,7 @@ services:
 
     kafka:
       container_name: kafka
-      image: docker.io/confluentinc/cp-kafka
+      image: docker.io/confluentinc/cp-kafka:7.4.0
       restart: always
       ports:
         - "29092:29092"

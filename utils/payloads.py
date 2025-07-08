@@ -62,7 +62,7 @@ IDENTITY = {
 # }
 
 
-apiKey = base64.b64encode(json.dumps({"identity": IDENTITY}).encode("utf-8"))
+
 
 
 def rpm_list():
@@ -580,7 +580,7 @@ IS_EDGE = os.environ.get("IS_EDGE", False)
 USE_RANDOMNESS = os.environ.get("USE_RANDOMNESS", "True").lower() == "true"
 
 
-def build_host_chunk():
+def build_host_chunk(canonical_facts=None):
     fqdn = random_uuid()[:6] + ".foo.redhat.com"
     system_profile = create_system_profile()
 
@@ -622,15 +622,29 @@ def build_host_chunk():
             ["cloud-connector", "puptoo", "rhsm-conduit", "rhsm-system-profile-bridge", "yuptoo"]
         )
 
+    if canonical_facts:
+        payload.pop('bios_uuid', None)
+        payload.pop('insights_id', None)
+        payload.pop('subscription_manager_id', None)
+        payload.pop('provider_id', None)
+        payload.pop('provider_type', None)
+        payload['org_id'] = canonical_facts[1]
+        payload = {**payload, **canonical_facts[0]}
+
     return payload
 
 
-def build_host_payload(payload_builder=build_host_chunk):
-    return payload_builder()
+def build_host_payload(payload_builder=build_host_chunk, canonical_facts=None):
+    return payload_builder(canonical_facts)
 
 
 # for testing rhsm-conduit, comment out b64_identity and provide subscription_manager_id in host.
-def build_mq_payload(payload_builder=build_host_chunk):
+def build_mq_payload(payload_builder=build_host_chunk, canonical_facts=None):
+    if canonical_facts is None:
+        identity = IDENTITY
+    else:
+        identity = {**IDENTITY, "org_id": canonical_facts[1]}
+    apiKey = base64.b64encode(json.dumps({"identity": identity}).encode("utf-8"))
     message = {
         "operation": "add_host",
         "platform_metadata": {
@@ -638,7 +652,7 @@ def build_mq_payload(payload_builder=build_host_chunk):
             "archive_url": "http://s3.aws.com/redhat/insights/1234567",
             "b64_identity": apiKey.decode("ascii"),
         },
-        "data": build_host_payload(payload_builder),
+        "data": build_host_payload(payload_builder, canonical_facts),
     }
     return json.dumps(message).encode("utf-8")
 
