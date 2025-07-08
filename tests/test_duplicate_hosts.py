@@ -8,9 +8,8 @@ import pytest
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import ProviderType
-from host_delete_duplicates import _init_db as _init_db
-from host_delete_duplicates import main as host_delete_duplicates_main
 from host_delete_duplicates import run as host_delete_duplicates_run
+from jobs.common import init_db
 from lib.db import multi_session_guard
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.db_utils import update_host_in_db
@@ -44,7 +43,7 @@ def test_delete_duplicate_host(event_producer_mock, db_create_host, db_get_host,
 
     threadctx.request_id = None
 
-    Session = _init_db(inventory_config)
+    Session = init_db(inventory_config)
     org_ids_session = Session()
     hosts_session = Session()
     misc_session = Session()
@@ -110,7 +109,7 @@ def test_delete_dupe_more_hosts_than_chunk_size(
 
     threadctx.request_id = None
 
-    Session = _init_db(inventory_config)
+    Session = init_db(inventory_config)
     org_ids_session = Session()
     hosts_session = Session()
     misc_session = Session()
@@ -142,7 +141,7 @@ def test_no_hosts_delete_when_no_dupes(event_producer_mock, db_get_host, db_crea
 
     threadctx.request_id = None
 
-    Session = _init_db(inventory_config)
+    Session = init_db(inventory_config)
     org_ids_session = Session()
     hosts_session = Session()
     misc_session = Session()
@@ -219,7 +218,7 @@ def test_delete_duplicates_customer_scenario_1(event_producer, db_create_host, d
     assert db_get_host(created_host4.id)
     assert db_get_host(created_host5.id)
 
-    Session = _init_db(inventory_config)
+    Session = init_db(inventory_config)
     sessions = [Session() for _ in range(3)]
     with multi_session_guard(sessions):
         deleted_hosts_count = host_delete_duplicates_run(
@@ -274,7 +273,7 @@ def test_delete_duplicates_customer_scenario_2(event_producer, db_create_host, d
     assert db_get_host(created_host2.id)
     assert db_get_host(created_host3.id)
 
-    Session = _init_db(inventory_config)
+    Session = init_db(inventory_config)
     sessions = [Session() for _ in range(3)]
     with multi_session_guard(sessions):
         deleted_hosts_count = host_delete_duplicates_run(
@@ -340,7 +339,7 @@ def test_delete_duplicates_elevated_ids_matching(
     for host in created_hosts:
         assert db_get_host(host.id)
 
-    Session = _init_db(inventory_config)
+    Session = init_db(inventory_config)
     sessions = [Session() for _ in range(3)]
     with multi_session_guard(sessions):
         deleted_hosts_count = host_delete_duplicates_run(
@@ -402,7 +401,7 @@ def test_delete_duplicates_elevated_ids_not_matching(
     for host in created_hosts:
         assert db_get_host(host.id)
 
-    Session = _init_db(inventory_config)
+    Session = init_db(inventory_config)
     sessions = [Session() for _ in range(3)]
     with multi_session_guard(sessions):
         deleted_hosts_count = host_delete_duplicates_run(
@@ -454,7 +453,7 @@ def test_delete_duplicates_without_elevated_matching(event_producer, db_create_h
     for host in created_hosts:
         assert db_get_host(host.id)
 
-    Session = _init_db(inventory_config)
+    Session = init_db(inventory_config)
     sessions = [Session() for _ in range(3)]
     with multi_session_guard(sessions):
         deleted_hosts_count = host_delete_duplicates_run(
@@ -526,7 +525,7 @@ def test_delete_duplicates_without_elevated_not_matching(
     for host in created_hosts:
         assert db_get_host(host.id)
 
-    Session = _init_db(inventory_config)
+    Session = init_db(inventory_config)
     sessions = [Session() for _ in range(3)]
     with multi_session_guard(sessions):
         deleted_hosts_count = host_delete_duplicates_run(
@@ -562,7 +561,7 @@ def test_delete_duplicates_last_modified(event_producer, db_create_multiple_host
     for host_id in created_host_ids:
         assert db_get_host(host_id)
 
-    Session = _init_db(inventory_config)
+    Session = init_db(inventory_config)
     sessions = [Session() for _ in range(3)]
     with multi_session_guard(sessions):
         deleted_hosts_count = host_delete_duplicates_run(
@@ -582,9 +581,8 @@ def test_delete_duplicates_last_modified(event_producer, db_create_multiple_host
 
 
 @pytest.mark.host_delete_duplicates
-@pytest.mark.parametrize("script_function", ["run", "main"])
 def test_delete_duplicates_multiple_scenarios(
-    event_producer, db_create_host, db_create_bulk_hosts, db_get_host, inventory_config, script_function
+    event_producer, db_create_host, db_create_bulk_hosts, db_get_host, inventory_config
 ):
     threadctx.request_id = None
     chunk_size = inventory_config.script_chunk_size
@@ -759,22 +757,19 @@ def test_delete_duplicates_multiple_scenarios(
     for host in without_elevated_not_matching_created_hosts:
         assert db_get_host(host)
 
-    if script_function == "run":
-        Session = _init_db(inventory_config)
-        sessions = [Session() for _ in range(3)]
-        with multi_session_guard(sessions):
-            deleted_hosts_count = host_delete_duplicates_run(
-                inventory_config,
-                mock.Mock(),
-                *sessions,
-                event_producer,
-                shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
-            )
-        assert deleted_hosts_count == elevated_matching_host_count * 3 + without_elevated_matching_host_count + len(
-            without_elevated_matching_canonical_facts
+    Session = init_db(inventory_config)
+    sessions = [Session() for _ in range(3)]
+    with multi_session_guard(sessions):
+        deleted_hosts_count = host_delete_duplicates_run(
+            inventory_config,
+            mock.Mock(),
+            *sessions,
+            event_producer,
+            shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
         )
-    else:
-        host_delete_duplicates_main(mock.Mock())
+    assert deleted_hosts_count == elevated_matching_host_count * 3 + without_elevated_matching_host_count + len(
+        without_elevated_matching_canonical_facts
+    )
 
     assert not db_get_host(customer_created_host1)
     assert not db_get_host(customer_created_host2)
@@ -809,7 +804,7 @@ def test_delete_duplicates_multiple_org_ids(event_producer, db_create_host, db_g
     host2 = minimal_db_host(canonical_facts=canonical_facts, org_id="222222")
     created_host2 = db_create_host(host=host2).id
 
-    Session = _init_db(inventory_config)
+    Session = init_db(inventory_config)
     sessions = [Session() for _ in range(3)]
     with multi_session_guard(sessions):
         deleted_hosts_count = host_delete_duplicates_run(
