@@ -24,7 +24,6 @@ from lib.group_repository import serialize_group
 from tests.helpers.db_utils import db_group
 from tests.helpers.db_utils import db_staleness_culling
 from tests.helpers.db_utils import minimal_db_host
-from tests.helpers.db_utils import minimal_db_host_dict
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import now
 from tests.helpers.test_utils import set_environment
@@ -177,22 +176,6 @@ def db_create_multiple_hosts(flask_app: FlaskApp) -> Callable[..., list[Host]]: 
         return created_hosts
 
     return _db_create_multiple_hosts
-
-
-@pytest.fixture(scope="function")
-def db_create_bulk_hosts(flask_app):  # noqa: ARG001
-    def _db_create_bulk_hosts(identity=None, how_many=10, extra_data=None):
-        identity = identity or SYSTEM_IDENTITY
-        extra_data = extra_data or {}
-        host_dicts = []
-
-        for _ in range(how_many):
-            hd = minimal_db_host_dict(org_id=identity["org_id"], **extra_data)
-            host_dicts.append(hd)
-
-        db.engine.execute(Host.__table__.insert(), host_dicts)
-
-    return _db_create_bulk_hosts
 
 
 @pytest.fixture(scope="function")

@@ -41,7 +41,7 @@ def find_hosts_by_multiple_facts(canonical_facts: dict[str, str], query: Query) 
             (contains_no_incorrect_facts_filter(canonical_facts))
             & (matches_at_least_one_canonical_fact_filter(canonical_facts))
         )
-        .order_by(Host.modified_on.desc())
+        .order_by(Host.last_check_in.desc())
         .all()
     )
 
@@ -87,8 +87,8 @@ def delete_duplicate_hosts(
             matching_hosts = find_matching_hosts(canonical_facts, misc_query)
 
             unique(matching_hosts)
-            hosts_session.expunge_all()
-        org_ids_session.expunge_all()
+
+        hosts_session.expunge_all()
 
         # delete duplicate hosts
         hosts_by_ids_query = misc_session.query(Host).filter(Host.id.in_(duplicate_host_ids))
