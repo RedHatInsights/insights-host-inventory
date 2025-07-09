@@ -1975,7 +1975,7 @@ objects:
             value: "true"
           - name: SCRIPT_CHUNK_SIZE
             value: ${SCRIPT_CHUNK_SIZE}
-          - name: REMOVE_DUPLICATES_DRY_RUN
+          - name: DRY_RUN
             value: ${REMOVE_DUPLICATES_DRY_RUN}
         resources:
           limits:

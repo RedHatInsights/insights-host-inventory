@@ -26,7 +26,7 @@ logger = get_logger(__name__)
 
 @pytest.fixture()
 def mocked_config(inventory_config: Config) -> Config:
-    inventory_config.remove_duplicates_dry_run = False
+    inventory_config.dry_run = False
     return inventory_config
 
 
@@ -41,7 +41,7 @@ def test_delete_duplicate_host(
     db_get_host: Callable[[UUID], Host | None],
     dry_run: bool,
 ):
-    inventory_config.remove_duplicates_dry_run = dry_run
+    inventory_config.dry_run = dry_run
 
     # make two hosts that are the same
     canonical_facts = {
