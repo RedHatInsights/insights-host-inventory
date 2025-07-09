@@ -645,6 +645,8 @@ objects:
           inheritEnv: true
         args: ["./inv_mq_service.py"]
         env:
+        - name: MIGRATION_MODE
+          value: ${MIGRATION_MODE}
         - name: CONSOLEDOT_HOSTNAME
           value: ${CONSOLEDOT_HOSTNAME}
         - name: INVENTORY_LOG_LEVEL
@@ -2655,3 +2657,9 @@ parameters:
 - name: FLOORIST_DB_SECRET_NAME
   description: database secret name
   value: host-inventory-db
+
+# DB refactoring
+- name: MIGRATION_MODE
+  description: Choose migration mode to run DB refactoring tables transition
+  required: true
+  value: automated
