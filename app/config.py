@@ -330,7 +330,6 @@ class Config:
         )
 
         self.bypass_kessel_jobs = os.getenv("BYPASS_KESSEL_JOBS", "false").lower() == "true"
-        self.rbac_v2_force_org_admin = os.getenv("RBAC_V2_FORCE_ORG_ADMIN", "false").lower() == "true"
         self.use_sub_man_id_for_host_id = os.environ.get("USE_SUBMAN_ID", "false").lower() == "true"
         self.host_delete_chunk_size = int(os.getenv("HOST_DELETE_CHUNK_SIZE", "1000"))
         self.script_chunk_size = int(os.getenv("SCRIPT_CHUNK_SIZE", "500"))
@@ -343,6 +342,7 @@ class Config:
         self.s3_access_key_id = os.getenv("S3_AWS_ACCESS_KEY_ID")
         self.s3_secret_access_key = os.getenv("S3_AWS_SECRET_ACCESS_KEY")
         self.s3_bucket = os.getenv("S3_AWS_BUCKET")
+        self.dry_run = os.getenv("DRY_RUN", "true").lower() == "true"
 
         self.sp_fields_to_log = os.getenv("SP_FIELDS_TO_LOG", "").split(",")
 
