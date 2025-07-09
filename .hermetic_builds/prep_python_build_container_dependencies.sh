@@ -4,7 +4,7 @@ pgRepo="https://copr.fedorainfracloud.org/coprs/g/insights/postgresql-16/repo/ep
 microdnf module enable -y postgresql:16  || curl -o /etc/yum.repos.d/postgresql.repo $pgRepo && \
     microdnf upgrade -y && \
     microdnf install --setopt=tsflags=nodocs -y postgresql python39 rsync tar procps-ng make which && \
-    microdnf install --setopt=tsflags=nodocs -y libpq-devel python3-devel gcc && \
+    microdnf install --setopt=tsflags=nodocs -y libpq-devel python3-devel gcc cargo rust && \
     microdnf clean all
 
 set -ex && if [ -e `which python3.9` ]; then ln -s `which python3.9` /usr/local/bin/python3; fi
