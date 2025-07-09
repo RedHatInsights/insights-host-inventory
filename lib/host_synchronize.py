@@ -76,6 +76,8 @@ def synchronize_hosts(
 
         # flush changes, and then load next chunk using keyset pagination
         query.session.flush()
-        host_list = query.filter(Host.id > host_list[-1].id).limit(chunk_size).all()
+        host_list = (
+            query.filter(Host.org_id == host_list[-1].org_id, Host.id > host_list[-1].id).limit(chunk_size).all()
+        )
 
     return num_synchronized

@@ -13,7 +13,7 @@ class HostGroupAssoc(db.Model):
         Index("idxhostsgroups", "host_id", "group_id"),
         Index("idxgroups_hosts", "group_id", "host_id"),
         ForeignKeyConstraint(
-            ["host_id", "org_id"], [f"{INVENTORY_SCHEMA}.hosts.id", f"{INVENTORY_SCHEMA}.hosts.org_id"]
+            ["org_id", "host_id"], [f"{INVENTORY_SCHEMA}.hosts.org_id", f"{INVENTORY_SCHEMA}.hosts.id"]
         ),
         {"schema": INVENTORY_SCHEMA},
     )
