@@ -40,6 +40,11 @@ def run(
     shutdown_handler: ShutdownHandler,
     application: FlaskApp,
 ) -> int | None:
+    if config.remove_duplicates_dry_run:
+        logger.info(f"Running {PROMETHEUS_JOB} in dry-run mode. No hosts will be deleted.")
+    else:
+        logger.info(f"Running {PROMETHEUS_JOB} without dry-run. Duplicate hosts will be deleted.")
+
     with application.app.app_context():
         threadctx.request_id = None
         try:
@@ -52,8 +57,15 @@ def run(
                 event_producer,
                 notifications_event_producer,
                 shutdown_handler.shut_down,
+                dry_run=config.remove_duplicates_dry_run,
             )
-            logger.info(f"Total number of hosts deleted: {num_deleted}")
+            if config.remove_duplicates_dry_run:
+                logger.info(
+                    f"This was a dry run. This many hosts would have been deleted in an actual run: {num_deleted}"
+                )
+            else:
+                logger.info(f"his was NOT a dry run. Total number of deleted hosts: {num_deleted}")
+
             return num_deleted
 
         except InterruptedError:
