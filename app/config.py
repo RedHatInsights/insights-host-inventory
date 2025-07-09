@@ -330,7 +330,6 @@ class Config:
         )
 
         self.bypass_kessel_jobs = os.getenv("BYPASS_KESSEL_JOBS", "false").lower() == "true"
-        self.rbac_v2_force_org_admin = os.getenv("RBAC_V2_FORCE_ORG_ADMIN", "false").lower() == "true"
         self.use_sub_man_id_for_host_id = os.environ.get("USE_SUBMAN_ID", "false").lower() == "true"
         self.host_delete_chunk_size = int(os.getenv("HOST_DELETE_CHUNK_SIZE", "1000"))
         self.script_chunk_size = int(os.getenv("SCRIPT_CHUNK_SIZE", "500"))
