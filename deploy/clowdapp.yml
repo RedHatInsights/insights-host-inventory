@@ -653,6 +653,8 @@ objects:
           inheritEnv: true
         args: ["./inv_mq_service.py"]
         env:
+        - name: MIGRATION_MODE
+          value: ${MIGRATION_MODE}
         - name: CONSOLEDOT_HOSTNAME
           value: ${CONSOLEDOT_HOSTNAME}
         - name: INVENTORY_LOG_LEVEL
@@ -2941,8 +2943,13 @@ parameters:
   description: database secret name
   value: host-inventory-db
 
-
 # Replica namespace
 - name: REPLICA_NAMESPACE
   description: Disable Kafka operations in the replica namespace
   value: 'false'
+
+# DB refactoring
+- name: MIGRATION_MODE
+  description: Choose migration mode to run DB refactoring tables transition
+  required: true
+  value: automated
