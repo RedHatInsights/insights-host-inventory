@@ -57,16 +57,18 @@ def database(database_name: None) -> Generator[str]:  # noqa: ARG001
 
 @pytest.fixture(scope="function")
 def db_get_host(flask_app: FlaskApp) -> Callable[[UUID], Host | None]:  # noqa: ARG001
-    def _db_get_host(host_id: UUID) -> Host | None:
-        return Host.query.filter(Host.id == host_id).one_or_none()
+    def _db_get_host(host_id: UUID, org_id: str | None = None) -> Host | None:
+        org_id = org_id or SYSTEM_IDENTITY["org_id"]
+        return Host.query.filter(Host.org_id == org_id, Host.id == host_id).one_or_none()
 
     return _db_get_host
 
 
 @pytest.fixture(scope="function")
-def db_get_hosts(flask_app: FlaskApp) -> Callable[[list[str]], Query]:  # noqa: ARG001
-    def _db_get_hosts(host_ids: list[str]) -> Query:
-        return Host.query.filter(Host.id.in_(host_ids))
+def db_get_hosts(flask_app: FlaskApp) -> Callable[[list[str], str | None], Query]:  # noqa: ARG001
+    def _db_get_hosts(host_ids: list[str], org_id: str | None = None) -> Query:
+        org_id = org_id or SYSTEM_IDENTITY["org_id"]
+        return Host.query.filter(Host.org_id == org_id, Host.id.in_(host_ids))
 
     return _db_get_hosts
 
@@ -129,8 +131,13 @@ def db_get_hosts_for_group(flask_app):  # noqa: ARG001
 
 @pytest.fixture(scope="function")
 def db_get_groups_for_host(flask_app):  # noqa: ARG001
-    def _db_get_groups_for_host(host_id):
-        return Group.query.join(HostGroupAssoc).filter(HostGroupAssoc.host_id == host_id).all()
+    def _db_get_groups_for_host(host_id, org_id=None):
+        org_id = org_id or SYSTEM_IDENTITY["org_id"]
+        return (
+            Group.query.join(HostGroupAssoc)
+            .filter(HostGroupAssoc.org_id == org_id, HostGroupAssoc.host_id == host_id)
+            .all()
+        )
 
     return _db_get_groups_for_host
 
@@ -233,7 +240,9 @@ def db_create_host_group_assoc(flask_app, db_get_group_by_id):  # noqa: ARG001
         host_group = HostGroupAssoc(host_id=host_id, group_id=group_id, org_id=group.org_id)
         db.session.add(host_group)
         serialized_groups = [serialize_group(group)]
-        db.session.query(Host).filter(Host.id == host_id).update({"groups": serialized_groups})
+        db.session.query(Host).filter(Host.org_id == group.org_id, Host.id == host_id).update(
+            {"groups": serialized_groups}
+        )
 
         db.session.commit()
         return host_group
@@ -244,7 +253,13 @@ def db_create_host_group_assoc(flask_app, db_get_group_by_id):  # noqa: ARG001
 @pytest.fixture(scope="function")
 def db_remove_hosts_from_group(flask_app):  # noqa: ARG001
     def _db_remove_hosts_from_group(host_id_list, group_id):
-        db.session.query(Host).filter(Host.id.in_(host_id_list)).update({"groups": []}, synchronize_session=False)
+        # Get the org_id from the group to ensure we use the composite primary key
+        group = db.session.query(Group).filter(Group.id == group_id).first()
+        if not group:
+            raise ValueError(f"Group with id {group_id} not found")
+        db.session.query(Host).filter(Host.org_id == group.org_id, Host.id.in_(host_id_list)).update(
+            {"groups": []}, synchronize_session=False
+        )
         delete_query = db.session.query(HostGroupAssoc).filter(
             HostGroupAssoc.group_id == group_id, HostGroupAssoc.host_id.in_(host_id_list)
         )

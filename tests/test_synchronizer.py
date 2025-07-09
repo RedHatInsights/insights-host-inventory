@@ -99,7 +99,9 @@ def test_synchronize_grouped_host_event(
     db_create_host_group_assoc(created_host_id, created_group_id)
 
     # Overwrite Host.groups data
-    db.session.query(Host).filter(Host.id == created_host_id).update({"groups": []})
+    db.session.query(Host).filter(Host.org_id == created_host.org_id, Host.id == created_host_id).update(
+        {"groups": []}
+    )
     db.session.commit()
 
     retrieved_host = db_get_host(created_host_id)

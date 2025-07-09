@@ -95,7 +95,10 @@ def delete_duplicate_hosts(
             logger.info(f"Found {len(duplicate_host_ids)} duplicates for org_id: {actual_org_id}")
             total_deleted += len(duplicate_host_ids)
         else:
-            hosts_by_ids_query = misc_session.query(Host).filter(Host.id.in_(duplicate_host_ids))
+            hosts_by_ids_query = misc_session.query(Host).filter(
+                Host.org_id == actual_org_id,
+                Host.id.in_(duplicate_host_ids)
+            )
             deleted_count = len(
                 list(
                     delete_hosts(
