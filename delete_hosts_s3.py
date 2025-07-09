@@ -66,7 +66,7 @@ def process_batch(
     """
     global deleted_count, not_deleted_count, not_found_count
     with session_guard(session):
-        logger.info(f"Processing batch of {len(batch)} host IDs...")
+        logger.info(f"Processing batch of {len(batch)} Subscription Manager IDs...")
         base_query = session.query(Host).filter(Host.canonical_facts["subscription_manager_id"].astext.in_(batch))
 
         # Get the count of hosts that match, but have multiple reporters, so they shouldn't be deleted
