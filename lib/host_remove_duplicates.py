@@ -55,6 +55,7 @@ def delete_duplicate_hosts(
     event_producer: EventProducer,
     notifications_event_producer: EventProducer,
     interrupt: Callable[[], bool] = lambda: False,
+    dry_run: bool = True,
 ) -> int:
     total_deleted = 0
     hosts_query = hosts_session.query(Host)
@@ -91,22 +92,25 @@ def delete_duplicate_hosts(
         hosts_session.expunge_all()
 
         # delete duplicate hosts
-        hosts_by_ids_query = misc_session.query(Host).filter(Host.id.in_(duplicate_host_ids))
-        deleted_count = len(
-            list(
-                delete_hosts(
-                    hosts_by_ids_query,
-                    event_producer,
-                    notifications_event_producer,
-                    chunk_size,
-                    interrupt,
-                    control_rule="DEDUP",
+        if dry_run:
+            logger.info(f"Found {len(duplicate_host_ids)} duplicates for org_id: {actual_org_id}")
+            total_deleted += len(duplicate_host_ids)
+        else:
+            hosts_by_ids_query = misc_session.query(Host).filter(Host.id.in_(duplicate_host_ids))
+            deleted_count = len(
+                list(
+                    delete_hosts(
+                        hosts_by_ids_query,
+                        event_producer,
+                        notifications_event_producer,
+                        chunk_size,
+                        interrupt,
+                        control_rule="DEDUP",
+                    )
                 )
             )
-        )
-        logger.info(f"Deleted {deleted_count} hosts for org_id: {actual_org_id}")
-
-        total_deleted += deleted_count
+            logger.info(f"Deleted {deleted_count} hosts for org_id: {actual_org_id}")
+            total_deleted += deleted_count
 
         if interrupt():
             break
