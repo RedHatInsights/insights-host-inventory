@@ -1,0 +1,4 @@
+packages: [cargo, gcc, git, libpq-devel, make, npm, postgresql, procps-ng, python3-devel, python39, rsync, rust, tar, which]
+contentOrigin:
+  repofiles: ["./ubi.repo"]
+arches: [x86_64]

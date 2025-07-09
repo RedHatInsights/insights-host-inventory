@@ -12,7 +12,7 @@ RUN (microdnf module enable -y postgresql:16 || curl -o /etc/yum.repos.d/postgre
     microdnf upgrade -y && \
     microdnf install --setopt=tsflags=nodocs -y postgresql python39 rsync tar procps-ng make && \
     rpm -qa | sort > packages-before-devel-install.txt && \
-    microdnf install --setopt=tsflags=nodocs -y libpq-devel python3-devel gcc && \
+    microdnf install --setopt=tsflags=nodocs -y libpq-devel python3-devel gcc cargo rust && \
     rpm -qa | sort > packages-after-devel-install.txt
 
 COPY api/ api/
@@ -72,7 +72,7 @@ RUN if [ "$TEST_IMAGE" = "true" ]; then \
     fi
 
 # remove devel packages that were only necessary for psycopg2 to compile
-RUN microdnf remove  -y  libpq-devel python3-devel gcc && \
+RUN microdnf remove  -y  libpq-devel python3-devel gcc cargo rust && \
     microdnf clean all
 
 USER 1001
