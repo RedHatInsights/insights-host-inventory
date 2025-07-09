@@ -1,9 +1,9 @@
 #!/usr/bin/python
 import csv
+import io
 import os
 import sys
 from functools import partial
-from io import StringIO
 from logging import Logger
 
 import boto3
@@ -116,9 +116,10 @@ def run(
             logger.info(f"Running host_delete_s3 with batch size {BATCH_SIZE}")
             s3_client = get_s3_client(config)
 
-            # Read the CSV data from the S3 bucket one batch at a time
+            # Stream the CSV data from the S3 bucket one batch at a time
             s3_object = s3_client.get_object(Bucket=config.s3_bucket, Key=S3_OBJECT_KEY)
-            csv_stream = StringIO(s3_object["Body"].read().decode("utf-8"))
+            # s3_object["Body"] is a file-like object, so we can wrap it with TextIOWrapper for decoding
+            csv_stream = io.TextIOWrapper(s3_object["Body"], encoding="utf-8")
             reader = csv.reader(csv_stream)
 
             batch = []
