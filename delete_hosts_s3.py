@@ -51,7 +51,7 @@ def process_batch(
     notification_event_producer: EventProducer,
 ):
     """
-    Processes a batch of host IDs and deletes hosts with only one reporter.
+    Processes a batch of Subscription Manager IDs and deletes hosts with only one reporter.
 
     This function retrieves hosts from the database whose IDs are in the provided batch.
     Hosts with only one reporter are deleted unless in dry-run mode. The function updates
@@ -59,7 +59,7 @@ def process_batch(
     committed to the database if not in dry-run mode.
 
     Args:
-        batch (list[str]): List of host IDs to process.
+        batch (list[str]): List of Subscription Manager IDs to process.
         session (Session): SQLAlchemy session for database operations.
         config (Config): Application configuration object.
         logger (Logger): Logger for logging information.
@@ -98,9 +98,9 @@ def run(
     application: FlaskApp,
 ):
     """
-    Runs the host deletion job using host IDs from a CSV file in an S3 bucket.
+    Runs the host deletion job using Subscription Manager IDs from a CSV file in an S3 bucket.
 
-    This function reads host IDs from a CSV file stored in S3, processes them in batches,
+    This function reads Subscription Manager IDs from a CSV file stored in S3, processes them in batches,
     and deletes hosts with only one reporter from the database unless in dry-run mode.
     It logs the results of the deletion process, including counts of deleted, not deleted,
     and not found hosts.
@@ -138,7 +138,7 @@ def run(
                 process_batch(batch, config, logger, session, event_producer, notification_event_producer)
 
             logger.info(f"Hosts that were not deleted because they had multiple reporters: {not_deleted_count}")
-            logger.info(f"Hosts whose IDs were not found in the DB: {not_found_count}")
+            logger.info(f"Hosts whose Subscription Manager IDs were not found in the DB: {not_found_count}")
             if config.dry_run:
                 logger.info(
                     f"This was a dry run. This many hosts would have been deleted in an actual run: {deleted_count}"
