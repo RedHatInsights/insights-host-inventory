@@ -346,8 +346,6 @@ class Config:
 
         self.sp_fields_to_log = os.getenv("SP_FIELDS_TO_LOG", "").split(",")
 
-        self.remove_duplicates_dry_run = os.getenv("REMOVE_DUPLICATES_DRY_RUN", "true").lower() == "true"
-
         try:
             self.api_bulk_tag_count_allowed = int(os.getenv("API_BULK_TAG_COUNT_ALLOWED", 10))
         except ValueError:

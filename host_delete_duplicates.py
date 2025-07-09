@@ -40,7 +40,7 @@ def run(
     shutdown_handler: ShutdownHandler,
     application: FlaskApp,
 ) -> int | None:
-    if config.remove_duplicates_dry_run:
+    if config.dry_run:
         logger.info(f"Running {PROMETHEUS_JOB} in dry-run mode. No hosts will be deleted.")
     else:
         logger.info(f"Running {PROMETHEUS_JOB} without dry-run. Duplicate hosts will be deleted.")
@@ -57,9 +57,9 @@ def run(
                 event_producer,
                 notifications_event_producer,
                 shutdown_handler.shut_down,
-                dry_run=config.remove_duplicates_dry_run,
+                dry_run=config.dry_run,
             )
-            if config.remove_duplicates_dry_run:
+            if config.dry_run:
                 logger.info(
                     f"This was a dry run. This many hosts would have been deleted in an actual run: {num_deleted}"
                 )
