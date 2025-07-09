@@ -286,10 +286,7 @@ def rbac(resource_type: RbacResourceType, required_permission: RbacPermission, p
                 allowed, rbac_filter = get_rbac_filter(
                     resource_type, required_permission, current_identity, request_headers, permission_base
                 )            
-
-            allowed, rbac_filter = get_rbac_filter(
-                resource_type, required_permission, current_identity, request_headers, permission_base
-            )
+            
             if allowed:
                 if rbac_filter:
                     return partial(func, rbac_filter=rbac_filter)(*args, **kwargs)
