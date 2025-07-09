@@ -1657,6 +1657,8 @@ objects:
             value: ${PROMETHEUS_PUSHGATEWAY}
           - name: DRY_RUN
             value: ${DELETE_HOSTS_DRY_RUN}
+          - name: DELETE_HOSTS_S3_BATCH_SIZE
+            value: ${DELETE_HOSTS_S3_BATCH_SIZE}
           - name: NAMESPACE
             valueFrom:
               fieldRef:
@@ -2574,6 +2576,9 @@ parameters:
 - name: DELETE_HOSTS_DRY_RUN
   description: Whether the delete_hosts_s3 script should run in dry-run mode
   value: 'true'
+- name: DELETE_HOSTS_S3_BATCH_SIZE
+  description: The batch size to use for the delete-hosts-s3 script.
+  value: '500'
 - name: RBAC_V2_FORCE_ORG_ADMIN
   description: Whether to force User Identities to use is_org_admin=True for RBAC v2 calls
   value: 'false'

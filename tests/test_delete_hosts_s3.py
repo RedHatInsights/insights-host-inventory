@@ -101,6 +101,8 @@ def test_run_happy_and_edge_cases(
     patch_get_s3_client,
     patch_process_batch,
     monkeypatch,
+    event_producer,
+    notification_event_producer,
 ):
     # Arrange
     mock_config.dry_run = dry_run
@@ -114,7 +116,7 @@ def test_run_happy_and_edge_cases(
     monkeypatch.setattr("delete_hosts_s3.deleted_count", 0)
 
     # Act
-    delete_hosts_s3.run(mock_config, mock_logger, mock_session, flask_app)
+    delete_hosts_s3.run(mock_config, mock_logger, mock_session, event_producer, notification_event_producer, flask_app)
 
     # Assert
     actual_batches = [call[0][0] for call in patch_process_batch.call_args_list]
@@ -128,13 +130,20 @@ def test_run_happy_and_edge_cases(
     (Exception, RuntimeError),
 )
 def test_run_exception_handling(
-    exception_type, mock_config, mock_logger, mock_session, flask_app, patch_get_s3_client
+    exception_type,
+    mock_config,
+    mock_logger,
+    mock_session,
+    flask_app,
+    patch_get_s3_client,
+    event_producer,
+    notification_event_producer,
 ):
     # Arrange
     patch_get_s3_client.get_object.side_effect = exception_type("fail!")
 
     # Act
-    delete_hosts_s3.run(mock_config, mock_logger, mock_session, flask_app)
+    delete_hosts_s3.run(mock_config, mock_logger, mock_session, event_producer, notification_event_producer, flask_app)
 
     # Assert
     assert mock_logger.exception.called
@@ -142,21 +151,25 @@ def test_run_exception_handling(
 
 
 @pytest.mark.usefixtures("patch_globals", "patch_process_batch")
-def test_run_finally_always_closes_s3(mock_config, mock_logger, mock_session, flask_app, patch_get_s3_client):
+def test_run_finally_always_closes_s3(
+    mock_config, mock_logger, mock_session, flask_app, patch_get_s3_client, event_producer, notification_event_producer
+):
     # Arrange
     s3_body = MagicMock()
     s3_body.read.return_value = b"id1\n"
     patch_get_s3_client.get_object.return_value = {"Body": s3_body}
 
     # Act
-    delete_hosts_s3.run(mock_config, mock_logger, mock_session, flask_app)
+    delete_hosts_s3.run(mock_config, mock_logger, mock_session, event_producer, notification_event_producer, flask_app)
 
     # Assert
     patch_get_s3_client.close.assert_called_once()
 
 
 @pytest.mark.usefixtures("patch_globals", "patch_process_batch")
-def test_run_handles_app_context(mock_config, mock_logger, mock_session, patch_get_s3_client):
+def test_run_handles_app_context(
+    mock_config, mock_logger, mock_session, patch_get_s3_client, event_producer, notification_event_producer
+):
     # Arrange
     s3_body = MagicMock()
     s3_body.read.return_value = b"id1\n"
@@ -166,7 +179,7 @@ def test_run_handles_app_context(mock_config, mock_logger, mock_session, patch_g
     mock_app.app.app_context.return_value = mock_ctx
 
     # Act
-    delete_hosts_s3.run(mock_config, mock_logger, mock_session, mock_app)
+    delete_hosts_s3.run(mock_config, mock_logger, mock_session, event_producer, notification_event_producer, mock_app)
 
     # Assert
     mock_app.app.app_context.assert_called_once()

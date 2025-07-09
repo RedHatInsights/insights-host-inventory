@@ -1,5 +1,6 @@
 #!/usr/bin/python
 import csv
+import os
 import sys
 from functools import partial
 from io import StringIO
@@ -7,21 +8,24 @@ from logging import Logger
 
 import boto3
 from connexion import FlaskApp
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.config import Config
 from app.environment import RuntimeEnvironment
 from app.logging import get_logger
 from app.models import Host
+from app.queue.event_producer import EventProducer
 from jobs.common import excepthook
 from jobs.common import job_setup
 from lib.db import session_guard
+from lib.host_delete import delete_hosts
 
 PROMETHEUS_JOB = "inventory-delete-hosts-s3"
 LOGGER_NAME = "delete_hosts_s3"
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
 S3_OBJECT_KEY = "host_ids.csv"
-BATCH_SIZE = 500
+BATCH_SIZE = int(os.getenv("DELETE_HOSTS_S3_BATCH_SIZE", 500))
 
 # Vars to keep track of the number of hosts deleted, not deleted, and not found
 deleted_count = 0
@@ -38,7 +42,14 @@ def get_s3_client(config: Config):
     )
 
 
-def process_batch(batch: list[str], session: Session, config: Config, logger: Logger):
+def process_batch(
+    batch: list[str],
+    config: Config,
+    logger: Logger,
+    session: Session,
+    event_producer: EventProducer,
+    notification_event_producer: EventProducer,
+):
     """
     Processes a batch of host IDs and deletes hosts with only one reporter.
 
@@ -56,25 +67,36 @@ def process_batch(batch: list[str], session: Session, config: Config, logger: Lo
     global deleted_count, not_deleted_count, not_found_count
     with session_guard(session):
         logger.info(f"Processing batch of {len(batch)} host IDs...")
-        host_list = session.query(Host).filter(Host.id.in_(batch)).all()
-        not_found_count += len(batch) - len(host_list)
+        base_query = session.query(Host).filter(Host.canonical_facts["subscription_manager_id"].astext.in_(batch))
 
-        for host in host_list:
-            # Check whether there's another reporter. If so, increment a counter; otherwise, delete it
-            if len(host.per_reporter_staleness) > 1:
-                not_deleted_count += 1
-            else:
-                # Delete the host if it's not in dry-run mode
-                if not config.dry_run:
-                    session.delete(host)
-                deleted_count += 1
+        # Get the count of hosts that match, but have multiple reporters, so they shouldn't be deleted
+        not_deleted_count += base_query.filter(
+            func.jsonb_array_length(func.jsonb_object_keys(Host.per_reporter_staleness)) > 1
+        ).count()
 
-        # Commit deletions if not in dry-run mode
-        if not config.dry_run:
-            session.commit()
+        # Get the hosts that that match and only have 1 reporter
+        delete_query = base_query.filter(
+            func.jsonb_array_length(func.jsonb_object_keys(Host.per_reporter_staleness)) == 1
+        )
+
+        if config.dry_run:
+            # If it's a dry run, just get the count of matching hosts.
+            num_deleted = delete_query.count()
+        else:
+            # If it's a real run, delete the hosts.
+            num_deleted = delete_hosts(delete_query, event_producer, notification_event_producer, BATCH_SIZE)
+
+        not_found_count += len(batch) - num_deleted
 
 
-def run(config: Config, logger: Logger, session: Session, application: FlaskApp):
+def run(
+    config: Config,
+    logger: Logger,
+    session: Session,
+    event_producer: EventProducer,
+    notification_event_producer: EventProducer,
+    application: FlaskApp,
+):
     """
     Runs the host deletion job using host IDs from a CSV file in an S3 bucket.
 
@@ -106,14 +128,14 @@ def run(config: Config, logger: Logger, session: Session, application: FlaskApp)
                 batch.append(row[0])
                 if len(batch) == BATCH_SIZE:
                     # The batch is now full, so we should process the hosts in the batch.
-                    process_batch(batch, session, config, logger)
+                    process_batch(batch, config, logger, session, event_producer, notification_event_producer)
 
                     # Empty the batch and start again
                     batch = []
 
             # If the reader ran out of rows, process that final batch
             if batch:
-                process_batch(batch, session, config, logger)
+                process_batch(batch, config, logger, session, event_producer, notification_event_producer)
 
             logger.info(f"Hosts that were not deleted because they had multiple reporters: {not_deleted_count}")
             logger.info(f"Hosts whose IDs were not found in the DB: {not_found_count}")
@@ -135,5 +157,5 @@ if __name__ == "__main__":
     job_type = "Delete host IDs via S3"
     sys.excepthook = partial(excepthook, logger, job_type)
 
-    config, session, _, _, _, application = job_setup((), PROMETHEUS_JOB)
-    run(config, logger, session, application)
+    config, session, event_producer, notification_event_producer, _, application = job_setup((), PROMETHEUS_JOB)
+    run(config, logger, session, event_producer, notification_event_producer, application)
