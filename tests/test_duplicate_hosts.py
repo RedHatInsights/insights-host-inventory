@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from copy import deepcopy
-from random import choice
 from random import randint
 from typing import Callable
 from unittest import mock
@@ -12,32 +10,28 @@ from connexion import FlaskApp
 
 from app.config import Config
 from app.logging import get_logger
-from app.logging import threadctx
 from app.models import Host
 from app.models import ProviderType
 from host_delete_duplicates import run as host_delete_duplicates_run
 from jobs.common import init_db
 from lib.db import multi_session_guard
 from tests.helpers.db_utils import minimal_db_host
-from tests.helpers.db_utils import update_host_in_db
 from tests.helpers.mq_utils import MockEventProducer
 from tests.helpers.test_utils import generate_random_string
 from tests.helpers.test_utils import generate_uuid
-from tests.helpers.test_utils import get_staleness_timestamps
 
-ELEVATED_IDS = ("provider_id", "insights_id", "subscription_manager_id")
-CANONICAL_FACTS = ("fqdn", "satellite_id", "bios_uuid", "ip_addresses", "mac_addresses")
+ID_FACTS = ("provider_id", "subscription_manager_id", "insights_id")
 logger = get_logger(__name__)
 
 
 @pytest.mark.host_delete_duplicates
 def test_delete_duplicate_host(
+    inventory_config: Config,
+    flask_app: FlaskApp,
     event_producer_mock: MockEventProducer,
     notification_event_producer_mock: MockEventProducer,
     db_create_host: Callable[..., Host],
     db_get_host: Callable[[UUID], Host | None],
-    inventory_config: Config,
-    flask_app: FlaskApp,
 ):
     # make two hosts that are the same
     canonical_facts = {
@@ -82,8 +76,14 @@ def test_delete_duplicate_host(
 
 
 @pytest.mark.host_delete_duplicates
-def test_delete_dupe_more_hosts_than_chunk_size(
-    event_producer_mock, db_get_host, db_create_bulk_hosts, db_create_host, inventory_config
+def test_delete_duplicate_host_more_hosts_than_chunk_size(
+    inventory_config: Config,
+    flask_app: FlaskApp,
+    event_producer_mock: MockEventProducer,
+    notification_event_producer_mock: MockEventProducer,
+    db_create_host: Callable[..., Host],
+    db_create_multiple_hosts: Callable[..., list[Host]],
+    db_get_host: Callable[[UUID], Host | None],
 ):
     canonical_facts_1 = {
         "provider_id": generate_uuid(),
@@ -105,23 +105,19 @@ def test_delete_dupe_more_hosts_than_chunk_size(
     new_host_1 = minimal_db_host(canonical_facts=canonical_facts_1)
 
     created_old_host_1 = db_create_host(host=old_host_1)
-
     created_new_host_1 = db_create_host(host=new_host_1)
 
-    db_create_bulk_hosts(how_many=num_hosts)
+    db_create_multiple_hosts(how_many=num_hosts)
 
     # create another host after
     old_host_2 = minimal_db_host(canonical_facts=canonical_facts_2)
     new_host_2 = minimal_db_host(canonical_facts=canonical_facts_2)
 
     created_old_host_2 = db_create_host(host=old_host_2)
-
     created_new_host_2 = db_create_host(host=new_host_2)
 
     assert created_old_host_1.id != created_new_host_1.id
     assert created_old_host_2.id != created_new_host_2.id
-
-    threadctx.request_id = None
 
     Session = init_db(inventory_config)
     org_ids_session = Session()
@@ -131,12 +127,14 @@ def test_delete_dupe_more_hosts_than_chunk_size(
     with multi_session_guard([org_ids_session, hosts_session, misc_session]):
         num_deleted = host_delete_duplicates_run(
             inventory_config,
-            mock.Mock(),
+            logger,
             org_ids_session,
             hosts_session,
             misc_session,
-            event_producer_mock,
+            event_producer_mock,  # type: ignore[arg-type]
+            notification_event_producer_mock,  # type: ignore[arg-type]
             shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
+            application=flask_app,
         )
     assert num_deleted == 2
 
@@ -148,12 +146,17 @@ def test_delete_dupe_more_hosts_than_chunk_size(
 
 
 @pytest.mark.host_delete_duplicates
-def test_no_hosts_delete_when_no_dupes(event_producer_mock, db_get_host, db_create_multiple_hosts, inventory_config):
+def test_no_hosts_delete_when_no_dupes(
+    inventory_config: Config,
+    flask_app: FlaskApp,
+    event_producer_mock: MockEventProducer,
+    notification_event_producer_mock: MockEventProducer,
+    db_create_multiple_hosts: Callable[..., list[Host]],
+    db_get_host: Callable[[UUID], Host | None],
+):
     num_hosts = 100
     created_hosts = db_create_multiple_hosts(how_many=num_hosts)
-    created_host_ids = [str(host.id) for host in created_hosts]
-
-    threadctx.request_id = None
+    created_host_ids = [host.id for host in created_hosts]
 
     Session = init_db(inventory_config)
     org_ids_session = Session()
@@ -163,150 +166,31 @@ def test_no_hosts_delete_when_no_dupes(event_producer_mock, db_get_host, db_crea
     with multi_session_guard([org_ids_session, hosts_session, misc_session]):
         num_deleted = host_delete_duplicates_run(
             inventory_config,
-            mock.Mock(),
+            logger,
             org_ids_session,
             hosts_session,
             misc_session,
-            event_producer_mock,
+            event_producer_mock,  # type: ignore[arg-type]
+            notification_event_producer_mock,  # type: ignore[arg-type]
             shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
+            application=flask_app,
         )
     assert num_deleted == 0
 
-    for id in created_host_ids:
-        assert db_get_host(id)
+    for host_id in created_host_ids:
+        assert db_get_host(host_id)
 
 
 @pytest.mark.host_delete_duplicates
-def test_delete_duplicates_customer_scenario_1(event_producer, db_create_host, db_get_host, inventory_config):
-    staleness_timestamps = get_staleness_timestamps()
-
-    rhsm_id = generate_uuid()
-    bios_uuid = generate_uuid()
-    canonical_facts = {
-        "insights_id": generate_uuid(),
-        "subscription_manager_id": rhsm_id,
-        "bios_uuid": bios_uuid,
-        "satellite_id": rhsm_id,
-        "fqdn": "rn001018",
-        "ip_addresses": ["10.230.230.3"],
-        "mac_addresses": ["00:50:56:ab:5a:22", "00:00:00:00:00:00"],
-    }
-    host_data = {
-        "stale_timestamp": staleness_timestamps["stale_warning"],
-        "reporter": "puptoo",
-        "canonical_facts": canonical_facts,
-    }
-    host1 = minimal_db_host(**host_data)
-    created_host1 = db_create_host(host=host1)
-
-    host_data["canonical_facts"]["ip_addresses"] = ["10.230.230.30"]
-    host_data["canonical_facts"].pop("bios_uuid")
-    host_data["stale_timestamp"] = staleness_timestamps["stale"]
-    host2 = minimal_db_host(**host_data)
-    created_host2 = db_create_host(host=host2)
-
-    host_data["canonical_facts"]["ip_addresses"] = ["10.230.230.3"]
-    host3 = minimal_db_host(**host_data)
-    created_host3 = db_create_host(host=host3)
-
-    host_data["reporter"] = "yupana"
-    host_data["canonical_facts"]["ip_addresses"] = ["10.230.230.1"]
-    host_data["canonical_facts"]["mac_addresses"] = ["00:50:56:ab:5a:22"]
-    host_data["canonical_facts"]["bios_uuid"] = bios_uuid
-    host_data["canonical_facts"]["fqdn"] = "rn001018.bcbst.com"
-    host_data["stale_timestamp"] = staleness_timestamps["fresh"]
-    host4 = minimal_db_host(**host_data)
-    created_host4 = db_create_host(host=host4)
-
-    host_data["reporter"] = "puptoo"
-    host_data["canonical_facts"]["ip_addresses"] = ["10.230.230.15"]
-    host_data["canonical_facts"]["mac_addresses"] = ["00:50:56:ab:5a:22", "00:00:00:00:00:00"]
-    host_data["canonical_facts"].pop("bios_uuid")
-    host_data["canonical_facts"]["fqdn"] = "rn001018"
-    host5 = minimal_db_host(**host_data)
-    created_host5 = db_create_host(host=host5)
-
-    assert db_get_host(created_host1.id)
-    assert db_get_host(created_host2.id)
-    assert db_get_host(created_host3.id)
-    assert db_get_host(created_host4.id)
-    assert db_get_host(created_host5.id)
-
-    Session = init_db(inventory_config)
-    sessions = [Session() for _ in range(3)]
-    with multi_session_guard(sessions):
-        deleted_hosts_count = host_delete_duplicates_run(
-            inventory_config,
-            mock.Mock(),
-            *sessions,
-            event_producer,
-            shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
-        )
-
-    assert deleted_hosts_count == 4
-    assert not db_get_host(created_host1.id)
-    assert not db_get_host(created_host2.id)
-    assert not db_get_host(created_host3.id)
-    assert not db_get_host(created_host4.id)
-    assert db_get_host(created_host5.id)
-
-
-@pytest.mark.host_delete_duplicates
-def test_delete_duplicates_customer_scenario_2(event_producer, db_create_host, db_get_host, inventory_config):
-    staleness_timestamps = get_staleness_timestamps()
-
-    rhsm_id = generate_uuid()
-    bios_uuid = generate_uuid()
-    canonical_facts = {
-        "insights_id": generate_uuid(),
-        "subscription_manager_id": rhsm_id,
-        "bios_uuid": bios_uuid,
-        "satellite_id": rhsm_id,
-        "fqdn": "rozrhjrad01.base.srvco.net",
-        "ip_addresses": ["10.230.230.10", "10.230.230.13"],
-        "mac_addresses": ["00:50:56:ac:56:45", "00:50:56:ac:48:61", "00:00:00:00:00:00"],
-    }
-    host_data = {
-        "stale_timestamp": staleness_timestamps["stale_warning"],
-        "reporter": "puptoo",
-        "canonical_facts": canonical_facts,
-    }
-    host1 = minimal_db_host(**host_data)
-    created_host1 = db_create_host(host=host1)
-
-    host_data["canonical_facts"]["ip_addresses"] = ["10.230.230.3", "10.230.230.4"]
-    host2 = minimal_db_host(**host_data)
-    created_host2 = db_create_host(host=host2)
-
-    host_data["canonical_facts"]["ip_addresses"] = ["10.230.230.1", "10.230.230.4"]
-    host_data["stale_timestamp"] = staleness_timestamps["fresh"]
-    host3 = minimal_db_host(**host_data)
-    created_host3 = db_create_host(host=host3)
-
-    assert db_get_host(created_host1.id)
-    assert db_get_host(created_host2.id)
-    assert db_get_host(created_host3.id)
-
-    Session = init_db(inventory_config)
-    sessions = [Session() for _ in range(3)]
-    with multi_session_guard(sessions):
-        deleted_hosts_count = host_delete_duplicates_run(
-            inventory_config,
-            mock.Mock(),
-            *sessions,
-            event_producer,
-            shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
-        )
-    assert deleted_hosts_count == 2
-    assert not db_get_host(created_host1.id)
-    assert not db_get_host(created_host2.id)
-    assert db_get_host(created_host3.id)
-
-
-@pytest.mark.host_delete_duplicates
-@pytest.mark.parametrize("tested_id", ELEVATED_IDS)
-def test_delete_duplicates_elevated_ids_matching(
-    event_producer, db_create_host, db_get_host, inventory_config, tested_id
+@pytest.mark.parametrize("tested_id", ID_FACTS)
+def test_delete_duplicates_id_facts_matching(
+    inventory_config: Config,
+    flask_app: FlaskApp,
+    event_producer_mock: MockEventProducer,
+    notification_event_producer_mock: MockEventProducer,
+    db_create_host: Callable[..., Host],
+    db_get_host: Callable[[UUID], Host | None],
+    tested_id: str,
 ):
     def _gen_canonical_facts():
         facts = {
@@ -321,8 +205,8 @@ def test_delete_duplicates_elevated_ids_matching(
             facts["provider_type"] = "aws"
         if tested_id in ("insights_id", "subscription_manager_id"):
             facts.pop("provider_id", None)
-        if tested_id == "subscription_manager_id":
-            facts.pop("insights_id", None)
+        if tested_id == "insights_id":
+            facts.pop("subscription_manager_id", None)
         return facts
 
     host_count = 10
@@ -354,14 +238,21 @@ def test_delete_duplicates_elevated_ids_matching(
         assert db_get_host(host.id)
 
     Session = init_db(inventory_config)
-    sessions = [Session() for _ in range(3)]
-    with multi_session_guard(sessions):
+    org_ids_session = Session()
+    hosts_session = Session()
+    misc_session = Session()
+
+    with multi_session_guard([org_ids_session, hosts_session, misc_session]):
         deleted_hosts_count = host_delete_duplicates_run(
             inventory_config,
-            mock.Mock(),
-            *sessions,
-            event_producer,
+            logger,
+            org_ids_session,
+            hosts_session,
+            misc_session,
+            event_producer_mock,  # type: ignore[arg-type]
+            notification_event_producer_mock,  # type: ignore[arg-type]
             shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
+            application=flask_app,
         )
 
     assert deleted_hosts_count == host_count * 3 - 1
@@ -371,9 +262,15 @@ def test_delete_duplicates_elevated_ids_matching(
 
 
 @pytest.mark.host_delete_duplicates
-@pytest.mark.parametrize("tested_id", ELEVATED_IDS)
-def test_delete_duplicates_elevated_ids_not_matching(
-    event_producer, db_create_host, db_get_host, inventory_config, tested_id
+@pytest.mark.parametrize("tested_id", ID_FACTS)
+def test_delete_duplicates_id_facts_not_matching(
+    inventory_config: Config,
+    flask_app: FlaskApp,
+    event_producer_mock: MockEventProducer,
+    notification_event_producer_mock: MockEventProducer,
+    db_create_host: Callable[..., Host],
+    db_get_host: Callable[[UUID], Host | None],
+    tested_id: str,
 ):
     canonical_facts = {
         "provider_id": generate_uuid(),
@@ -387,8 +284,8 @@ def test_delete_duplicates_elevated_ids_not_matching(
         canonical_facts["provider_type"] = "aws"
     if tested_id in ("insights_id", "subscription_manager_id"):
         canonical_facts.pop("provider_id", None)
-    if tested_id == "subscription_manager_id":
-        canonical_facts.pop("insights_id", None)
+    if tested_id == "insights_id":
+        canonical_facts.pop("subscription_manager_id", None)
 
     host_count = 10
     created_hosts = []
@@ -416,14 +313,21 @@ def test_delete_duplicates_elevated_ids_not_matching(
         assert db_get_host(host.id)
 
     Session = init_db(inventory_config)
-    sessions = [Session() for _ in range(3)]
-    with multi_session_guard(sessions):
+    org_ids_session = Session()
+    hosts_session = Session()
+    misc_session = Session()
+
+    with multi_session_guard([org_ids_session, hosts_session, misc_session]):
         deleted_hosts_count = host_delete_duplicates_run(
             inventory_config,
-            mock.Mock(),
-            *sessions,
-            event_producer,
+            logger,
+            org_ids_session,
+            hosts_session,
+            misc_session,
+            event_producer_mock,  # type: ignore[arg-type]
+            notification_event_producer_mock,  # type: ignore[arg-type]
             shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
+            application=flask_app,
         )
 
     assert deleted_hosts_count == 0
@@ -432,132 +336,16 @@ def test_delete_duplicates_elevated_ids_not_matching(
 
 
 @pytest.mark.host_delete_duplicates
-def test_delete_duplicates_without_elevated_matching(event_producer, db_create_host, db_get_host, inventory_config):
-    canonical_facts = {
-        "bios_uuid": generate_uuid(),
-        "satellite_id": generate_uuid(),
-        "fqdn": generate_random_string(),
-        "ip_addresses": ["10.0.0.1"],
-        "mac_addresses": ["aa:bb:cc:dd:ee:ff"],
-    }
-
-    host_count = 10
-    created_hosts = []
-
-    # Hosts with less canonical facts
-    for fact in canonical_facts:
-        facts = {fact: canonical_facts[fact]}
-        host = minimal_db_host(canonical_facts=facts)
-        created_hosts.append(db_create_host(host=host))
-
-    # # Hosts with more canonical facts
-    # for fact in ELEVATED_IDS:
-    #     facts = deepcopy(canonical_facts)
-    #     facts[fact] = generate_uuid()
-    #     if fact == "provider_id":
-    #         facts["provider_type"] = "aws"
-    #     host = minimal_db_host(canonical_facts=facts)
-    #     created_hosts.append(db_create_host(host=host))  <-- Issue with missing elevated ID
-
-    # Hosts with the same amount of canonical facts
-    for _ in range(host_count):
-        host = minimal_db_host(canonical_facts=canonical_facts)
-        created_hosts.append(db_create_host(host=host))
-
-    for host in created_hosts:
-        assert db_get_host(host.id)
-
-    Session = init_db(inventory_config)
-    sessions = [Session() for _ in range(3)]
-    with multi_session_guard(sessions):
-        deleted_hosts_count = host_delete_duplicates_run(
-            inventory_config,
-            mock.Mock(),
-            *sessions,
-            event_producer,
-            shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
-        )
-
-    # Issue with missing elevated ID
-    # assert deleted_hosts_count == host_count + len(canonical_facts) + len(ELEVATED_IDS) - 1
-    assert deleted_hosts_count == host_count + len(canonical_facts) - 1
-    for i in range(len(created_hosts) - 1):
-        assert not db_get_host(created_hosts[i].id)
-    assert db_get_host(created_hosts[-1].id)
-
-
-@pytest.mark.host_delete_duplicates
-@pytest.mark.parametrize("tested_fact", CANONICAL_FACTS)
-def test_delete_duplicates_without_elevated_not_matching(
-    event_producer, db_create_host, db_get_host, inventory_config, tested_fact
+def test_delete_duplicates_last_checked_in(
+    inventory_config: Config,
+    flask_app: FlaskApp,
+    event_producer_mock: MockEventProducer,
+    notification_event_producer_mock: MockEventProducer,
+    db_create_host: Callable[..., Host],
+    db_create_multiple_hosts: Callable[..., list[Host]],
+    db_get_host: Callable[[UUID], Host | None],
 ):
-    def _generate_fact(fact_name):
-        if fact_name == "fqdn":
-            return generate_random_string()
-        if fact_name == "ip_addresses":
-            return [f"{randint(1, 255)}.{randint(0, 255)}.{randint(0, 255)}.{randint(1, 255)}"]
-        if fact_name == "mac_addresses":
-            hex_chars = "0123456789abcdef"
-            addr = ":".join([f"{choice(hex_chars)}{choice(hex_chars)}" for _ in range(6)])
-            return [addr]
-        return generate_uuid()
-
-    canonical_facts = {
-        "bios_uuid": generate_uuid(),
-        "satellite_id": generate_uuid(),
-        "fqdn": generate_random_string(),
-        "ip_addresses": ["0.0.0.0"],
-        "mac_addresses": ["aa:bb:cc:dd:ee:ff"],
-    }
-
-    host_count = 10
-    created_hosts = []
-
-    # Hosts with the same amount of canonical facts
-    for _ in range(host_count):
-        facts = deepcopy(canonical_facts)
-        facts[tested_fact] = _generate_fact(tested_fact)
-        host = minimal_db_host(canonical_facts=facts)
-        created_hosts.append(db_create_host(host=host))
-
-    # Hosts with less canonical facts
-    for _ in range(host_count):
-        facts = {tested_fact: _generate_fact(tested_fact)}
-        host = minimal_db_host(canonical_facts=facts)
-        created_hosts.append(db_create_host(host=host))
-
-    # Hosts with more canonical facts
-    for fact in ELEVATED_IDS:
-        facts = deepcopy(canonical_facts)
-        facts[tested_fact] = _generate_fact(tested_fact)
-        facts[fact] = generate_uuid()
-        if fact == "provider_id":
-            facts["provider_type"] = "aws"
-        host = minimal_db_host(canonical_facts=facts)
-        created_hosts.append(db_create_host(host=host))
-
-    for host in created_hosts:
-        assert db_get_host(host.id)
-
-    Session = init_db(inventory_config)
-    sessions = [Session() for _ in range(3)]
-    with multi_session_guard(sessions):
-        deleted_hosts_count = host_delete_duplicates_run(
-            inventory_config,
-            mock.Mock(),
-            *sessions,
-            event_producer,
-            shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
-        )
-
-    assert deleted_hosts_count == 0
-    for host in created_hosts:
-        assert db_get_host(host.id)
-
-
-@pytest.mark.host_delete_duplicates
-def test_delete_duplicates_last_modified(event_producer, db_create_multiple_hosts, db_get_host, inventory_config):
-    """Test that the deletion script always keeps host with the latest 'modified_on' date"""
+    """Test that the deletion script always keeps host with the latest 'last_check_in' date"""
     canonical_facts = {
         "provider_id": generate_uuid(),
         "insights_id": generate_uuid(),
@@ -570,24 +358,34 @@ def test_delete_duplicates_last_modified(event_producer, db_create_multiple_host
     host_count = 100
 
     hosts = [minimal_db_host(canonical_facts=canonical_facts) for _ in range(host_count)]
-    created_host_ids = [host.id for host in db_create_multiple_hosts(hosts=hosts)]
-    updated_host = update_host_in_db(choice(created_host_ids), display_name="new-display-name")
-    for host_id in created_host_ids:
+    created_hosts = db_create_multiple_hosts(hosts=hosts)
+    host_ids = [host.id for host in created_hosts]
+    updated_host = created_hosts[50]
+    updated_host._update_last_check_in_date()
+    db_create_host(host=updated_host)
+    for host_id in host_ids:
         assert db_get_host(host_id)
 
     Session = init_db(inventory_config)
-    sessions = [Session() for _ in range(3)]
-    with multi_session_guard(sessions):
+    org_ids_session = Session()
+    hosts_session = Session()
+    misc_session = Session()
+
+    with multi_session_guard([org_ids_session, hosts_session, misc_session]):
         deleted_hosts_count = host_delete_duplicates_run(
             inventory_config,
-            mock.Mock(),
-            *sessions,
-            event_producer,
+            logger,
+            org_ids_session,
+            hosts_session,
+            misc_session,
+            event_producer_mock,  # type: ignore[arg-type]
+            notification_event_producer_mock,  # type: ignore[arg-type]
             shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
+            application=flask_app,
         )
 
     assert deleted_hosts_count == host_count - 1
-    for host_id in created_host_ids:
+    for host_id in host_ids:
         if host_id != updated_host.id:
             assert not db_get_host(host_id)
         else:
@@ -595,217 +393,14 @@ def test_delete_duplicates_last_modified(event_producer, db_create_multiple_host
 
 
 @pytest.mark.host_delete_duplicates
-def test_delete_duplicates_multiple_scenarios(
-    event_producer, db_create_host, db_create_bulk_hosts, db_get_host, inventory_config
+def test_delete_duplicates_multiple_org_ids(
+    inventory_config: Config,
+    flask_app: FlaskApp,
+    event_producer_mock: MockEventProducer,
+    notification_event_producer_mock: MockEventProducer,
+    db_create_host: Callable[..., Host],
+    db_get_host: Callable[[UUID], Host | None],
 ):
-    threadctx.request_id = None
-    chunk_size = inventory_config.script_chunk_size
-
-    # Customer scenario
-    staleness_timestamps = get_staleness_timestamps()
-
-    rhsm_id = generate_uuid()
-    bios_uuid = generate_uuid()
-    canonical_facts = {
-        "insights_id": generate_uuid(),
-        "subscription_manager_id": rhsm_id,
-        "bios_uuid": bios_uuid,
-        "satellite_id": rhsm_id,
-        "fqdn": "rozrhjrad01.base.srvco.net",
-        "ip_addresses": ["10.230.230.10", "10.230.230.13"],
-        "mac_addresses": ["00:50:56:ac:56:45", "00:50:56:ac:48:61", "00:00:00:00:00:00"],
-    }
-    host_data = {
-        "stale_timestamp": staleness_timestamps["stale_warning"],
-        "reporter": "puptoo",
-        "canonical_facts": canonical_facts,
-    }
-    customer_host1 = minimal_db_host(**host_data)
-    customer_created_host1 = db_create_host(host=customer_host1).id
-
-    host_data["canonical_facts"]["ip_addresses"] = ["10.230.230.3", "10.230.230.4"]
-    customer_host2 = minimal_db_host(**host_data)
-    customer_created_host2 = db_create_host(host=customer_host2).id
-
-    host_data["canonical_facts"]["ip_addresses"] = ["10.230.230.1", "10.230.230.4"]
-    host_data["stale_timestamp"] = staleness_timestamps["fresh"]
-    customer_host3 = minimal_db_host(**host_data)
-    customer_created_host3 = db_create_host(host=customer_host3).id
-
-    assert db_get_host(customer_created_host1)
-    assert db_get_host(customer_created_host2)
-    assert db_get_host(customer_created_host3)
-
-    # Matching elevated ID
-    def _gen_canonical_facts():
-        return {
-            "insights_id": generate_uuid(),
-            "subscription_manager_id": generate_uuid(),
-            "bios_uuid": generate_uuid(),
-            "satellite_id": generate_uuid(),
-            "fqdn": generate_random_string(),
-        }
-
-    elevated_matching_host_count = 10
-    elevated_id = generate_uuid()
-    elevated_matching_created_hosts = []
-
-    # Hosts with the same amount of canonical facts
-    for _ in range(elevated_matching_host_count):
-        canonical_facts = _gen_canonical_facts()
-        canonical_facts["insights_id"] = elevated_id
-        host = minimal_db_host(canonical_facts=canonical_facts)
-        elevated_matching_created_hosts.append(db_create_host(host=host).id)
-
-    # Hosts with less canonical facts
-    for _ in range(elevated_matching_host_count):
-        canonical_facts = {"insights_id": elevated_id}
-        host = minimal_db_host(canonical_facts=canonical_facts)
-        elevated_matching_created_hosts.append(db_create_host(host=host).id)
-
-    # Create a lot of hosts to test that the script deletes duplicates in multiple chunks
-    db_create_bulk_hosts(how_many=chunk_size)
-
-    # Hosts with more canonical facts
-    for _ in range(elevated_matching_host_count):
-        canonical_facts = _gen_canonical_facts()
-        canonical_facts["insights_id"] = elevated_id
-        canonical_facts["ip_addresses"] = [f"10.0.0.{randint(1, 255)}"]
-        host = minimal_db_host(canonical_facts=canonical_facts)
-        elevated_matching_created_hosts.append(db_create_host(host=host).id)
-
-    for host in elevated_matching_created_hosts:
-        assert db_get_host(host)
-
-    # Elevated IDs not matching
-    elevated_not_matching_canonical_facts = _gen_canonical_facts()
-    elevated_not_matching_host_count = 10
-    elevated_not_matching_created_hosts = []
-
-    # Hosts with the same amount of canonical facts
-    for _ in range(elevated_not_matching_host_count):
-        elevated_not_matching_canonical_facts["insights_id"] = generate_uuid()
-        host = minimal_db_host(canonical_facts=elevated_not_matching_canonical_facts)
-        elevated_not_matching_created_hosts.append(db_create_host(host=host).id)
-
-    # Hosts with less canonical facts
-    for _ in range(elevated_not_matching_host_count):
-        facts = {"insights_id": generate_uuid()}
-        host = minimal_db_host(canonical_facts=facts)
-        elevated_not_matching_created_hosts.append(db_create_host(host=host).id)
-
-    # Hosts with more canonical facts
-    for _ in range(elevated_not_matching_host_count):
-        elevated_not_matching_canonical_facts["insights_id"] = generate_uuid()
-        elevated_not_matching_canonical_facts["ip_addresses"] = ["10.0.0.10"]
-        host = minimal_db_host(canonical_facts=elevated_not_matching_canonical_facts)
-        elevated_not_matching_created_hosts.append(db_create_host(host=host).id)
-
-    for host in elevated_not_matching_created_hosts:
-        assert db_get_host(host)
-
-    # Without elevated IDs - canonical facts matching
-    without_elevated_matching_canonical_facts = {
-        "bios_uuid": generate_uuid(),
-        "satellite_id": generate_uuid(),
-        "fqdn": generate_random_string(),
-        "ip_addresses": ["10.0.0.1"],
-        "mac_addresses": ["aa:bb:cc:dd:ee:ff"],
-    }
-
-    without_elevated_matching_host_count = 10
-    without_elevated_matching_created_hosts = []
-
-    # Hosts with less canonical facts
-    for fact in without_elevated_matching_canonical_facts:
-        facts = {fact: without_elevated_matching_canonical_facts[fact]}
-        host = minimal_db_host(canonical_facts=facts)
-        without_elevated_matching_created_hosts.append(db_create_host(host=host).id)
-
-    # Create a lot of hosts to test that the script deletes duplicates in multiple chunks
-    db_create_bulk_hosts(how_many=chunk_size)
-
-    # Hosts with the same amount of canonical facts
-    for _ in range(without_elevated_matching_host_count):
-        host = minimal_db_host(canonical_facts=without_elevated_matching_canonical_facts)
-        without_elevated_matching_created_hosts.append(db_create_host(host=host).id)
-
-    for host in without_elevated_matching_created_hosts:
-        assert db_get_host(host)
-
-    # Without elevated IDs - canonical facts not matching
-    without_elevated_not_matching_canonical_facts = {
-        "bios_uuid": generate_uuid(),
-        "satellite_id": generate_uuid(),
-        "fqdn": generate_random_string(),
-        "ip_addresses": ["0.0.0.0"],
-        "mac_addresses": ["aa:bb:cc:dd:ee:ff"],
-    }
-
-    without_elevated_not_matching_host_count = 10
-    without_elevated_not_matching_created_hosts = []
-
-    # Hosts with the same amount of canonical facts
-    for _ in range(without_elevated_not_matching_host_count):
-        facts = deepcopy(without_elevated_not_matching_canonical_facts)
-        facts["fqdn"] = generate_random_string()
-        host = minimal_db_host(canonical_facts=facts)
-        without_elevated_not_matching_created_hosts.append(db_create_host(host=host).id)
-
-    # Hosts with less canonical facts
-    for _ in range(without_elevated_not_matching_host_count):
-        facts = {"fqdn": generate_random_string()}
-        host = minimal_db_host(canonical_facts=facts)
-        without_elevated_not_matching_created_hosts.append(db_create_host(host=host).id)
-
-    # Hosts with more canonical facts
-    for fact in ELEVATED_IDS:
-        facts = deepcopy(without_elevated_not_matching_canonical_facts)
-        facts["fqdn"] = generate_random_string()
-        facts[fact] = generate_uuid()
-        if fact == "provider_id":
-            facts["provider_type"] = "aws"
-        host = minimal_db_host(canonical_facts=facts)
-        without_elevated_not_matching_created_hosts.append(db_create_host(host=host).id)
-
-    for host in without_elevated_not_matching_created_hosts:
-        assert db_get_host(host)
-
-    Session = init_db(inventory_config)
-    sessions = [Session() for _ in range(3)]
-    with multi_session_guard(sessions):
-        deleted_hosts_count = host_delete_duplicates_run(
-            inventory_config,
-            mock.Mock(),
-            *sessions,
-            event_producer,
-            shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
-        )
-    assert deleted_hosts_count == elevated_matching_host_count * 3 + without_elevated_matching_host_count + len(
-        without_elevated_matching_canonical_facts
-    )
-
-    assert not db_get_host(customer_created_host1)
-    assert not db_get_host(customer_created_host2)
-    assert db_get_host(customer_created_host3)
-
-    for i in range(len(elevated_matching_created_hosts) - 1):
-        assert not db_get_host(elevated_matching_created_hosts[i])
-    assert db_get_host(elevated_matching_created_hosts[-1])
-
-    for host in elevated_not_matching_created_hosts:
-        assert db_get_host(host)
-
-    for i in range(len(without_elevated_matching_created_hosts) - 1):
-        assert not db_get_host(without_elevated_matching_created_hosts[i])
-    assert db_get_host(without_elevated_matching_created_hosts[-1])
-
-    for host in without_elevated_not_matching_created_hosts:
-        assert db_get_host(host)
-
-
-@pytest.mark.host_delete_duplicates
-def test_delete_duplicates_multiple_org_ids(event_producer, db_create_host, db_get_host, inventory_config):
     canonical_facts = {
         "insights_id": generate_uuid(),
         "subscription_manager_id": generate_uuid(),
@@ -819,14 +414,21 @@ def test_delete_duplicates_multiple_org_ids(event_producer, db_create_host, db_g
     created_host2 = db_create_host(host=host2).id
 
     Session = init_db(inventory_config)
-    sessions = [Session() for _ in range(3)]
-    with multi_session_guard(sessions):
+    org_ids_session = Session()
+    hosts_session = Session()
+    misc_session = Session()
+
+    with multi_session_guard([org_ids_session, hosts_session, misc_session]):
         deleted_hosts_count = host_delete_duplicates_run(
             inventory_config,
-            mock.Mock(),
-            *sessions,
-            event_producer,
+            logger,
+            org_ids_session,
+            hosts_session,
+            misc_session,
+            event_producer_mock,  # type: ignore[arg-type]
+            notification_event_producer_mock,  # type: ignore[arg-type]
             shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
+            application=flask_app,
         )
     assert deleted_hosts_count == 0
     assert db_get_host(created_host1)
