@@ -50,6 +50,7 @@ COPY delete_hosts_s3.py delete_hosts_s3.py
 COPY update_hosts_last_check_in.py update_hosts_last_check_in.py
 COPY update_edge_hosts_prs.py update_edge_hosts_prs.py
 COPY delete_hosts_without_id_facts.py delete_hosts_without_id_facts.py
+COPY host_delete_duplicates.py host_delete_duplicates.py
 COPY app_migrations/ app_migrations/
 COPY jobs/ jobs/
 COPY add_inventory_view.py add_inventory_view.py

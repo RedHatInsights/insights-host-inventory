@@ -64,7 +64,7 @@ def run(
                     f"This was a dry run. This many hosts would have been deleted in an actual run: {num_deleted}"
                 )
             else:
-                logger.info(f"his was NOT a dry run. Total number of deleted hosts: {num_deleted}")
+                logger.info(f"This was NOT a dry run. Total number of deleted hosts: {num_deleted}")
 
             return num_deleted
 
