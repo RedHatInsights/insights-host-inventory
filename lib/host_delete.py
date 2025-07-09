@@ -94,8 +94,12 @@ def delete_hosts(
 
 def _delete_host(session: Session, host: Host, identity: Identity | None, control_rule: str | None) -> OperationResult:
     sp_fields_to_log = extract_host_model_sp_to_log(host)
-    assoc_delete_query = session.query(HostGroupAssoc).filter(HostGroupAssoc.host_id == host.id)
-    host_delete_query = session.query(Host).filter(Host.id == host.id)
+    # Use identity org_id if provided, otherwise use host org_id for optimal performance on partitioned tables
+    org_id = identity.org_id if identity else host.org_id
+    assoc_delete_query = session.query(HostGroupAssoc).filter(
+        HostGroupAssoc.org_id == org_id, HostGroupAssoc.host_id == host.id
+    )
+    host_delete_query = session.query(Host).filter(Host.org_id == org_id, Host.id == host.id)
     assoc_delete_query.delete(synchronize_session="fetch")
     host_delete_query.delete(synchronize_session="fetch")
     return OperationResult(

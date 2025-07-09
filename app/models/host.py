@@ -182,7 +182,7 @@ class Host(LimitedHost):
     deletion_timestamp = db.Column(db.DateTime(timezone=True))
     stale_warning_timestamp = db.Column(db.DateTime(timezone=True))
     reporter = db.Column(db.String(255))
-    per_reporter_staleness = db.Column(JSONB)
+    per_reporter_staleness = db.Column(JSONB, default=dict)
 
     def __init__(
         self,
