@@ -171,8 +171,6 @@ objects:
           value: ${FF_LAST_CHECKIN}
         - name: UNLEASH_REFRESH_INTERVAL
           value: ${UNLEASH_REFRESH_INTERVAL}
-        - name: RBAC_V2_FORCE_ORG_ADMIN
-          value: ${RBAC_V2_FORCE_ORG_ADMIN}
         - name: SEGMENTIO_WRITE_KEY
           valueFrom:
             secretKeyRef:
@@ -487,8 +485,6 @@ objects:
           value: ${FF_LAST_CHECKIN}
         - name: UNLEASH_REFRESH_INTERVAL
           value: ${UNLEASH_REFRESH_INTERVAL}
-        - name: RBAC_V2_FORCE_ORG_ADMIN
-          value: ${RBAC_V2_FORCE_ORG_ADMIN}
         - name: SEGMENTIO_WRITE_KEY
           valueFrom:
             secretKeyRef:
@@ -614,8 +610,6 @@ objects:
           value: ${MQ_DB_BATCH_MAX_MESSAGES}
         - name: MQ_DB_BATCH_MAX_SECONDS
           value: ${MQ_DB_BATCH_MAX_SECONDS}
-        - name: RBAC_V2_FORCE_ORG_ADMIN
-          value: ${RBAC_V2_FORCE_ORG_ADMIN}
         - name: RBAC_PSKS
           valueFrom:
             secretKeyRef:
@@ -723,8 +717,6 @@ objects:
           value: ${MQ_DB_BATCH_MAX_MESSAGES}
         - name: MQ_DB_BATCH_MAX_SECONDS
           value: ${MQ_DB_BATCH_MAX_SECONDS}
-        - name: RBAC_V2_FORCE_ORG_ADMIN
-          value: ${RBAC_V2_FORCE_ORG_ADMIN}
         - name: RBAC_PSKS
           valueFrom:
             secretKeyRef:
@@ -919,8 +911,6 @@ objects:
           value: ${MQ_DB_BATCH_MAX_SECONDS}
         - name: CONSUMER_MQ_BROKER
           value: ${CONSUMER_MQ_BROKER}
-        - name: RBAC_V2_FORCE_ORG_ADMIN
-          value: ${RBAC_V2_FORCE_ORG_ADMIN}
         - name: RBAC_PSKS
           valueFrom:
             secretKeyRef:
@@ -2595,9 +2585,6 @@ parameters:
 - name: DELETE_HOSTS_S3_BATCH_SIZE
   description: The batch size to use for the delete-hosts-s3 script.
   value: '500'
-- name: RBAC_V2_FORCE_ORG_ADMIN
-  description: Whether to force User Identities to use is_org_admin=True for RBAC v2 calls
-  value: 'false'
 - name: BYPASS_KESSEL_JOBS
   description: Whether to bypass Kessel-related jobs, even when triggered via CJI
   value: 'false'
