@@ -120,7 +120,14 @@ def run(
             s3_object = s3_client.get_object(Bucket=config.s3_bucket, Key=S3_OBJECT_KEY)
             # s3_object["Body"] is a file-like object, so we can wrap it with TextIOWrapper for decoding
             csv_stream = io.TextIOWrapper(s3_object["Body"], encoding="utf-8")
-            reader = csv.reader(csv_stream)
+            reader = csv.reader(csv_stream, delimiter="\t")
+
+            # Skip the header row
+            try:
+                next(reader)
+            except StopIteration:
+                logger.warning("CSV file is empty.")
+                return
 
             batch = []
             for row in reader:
