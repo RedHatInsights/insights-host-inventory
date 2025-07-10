@@ -115,14 +115,14 @@ def upgrade():
             $$;
         """)
 
-        # Step 3: Set the default value for the per_reporter_staleness column to an empty JSONB object
-        op.alter_column(
-            f"{INVENTORY_SCHEMA}.hosts",
-            "per_reporter_staleness",
-            existing_type=postgresql.JSONB(astext_type=sa.Text()),
-            nullable=False,
-            server_default="{}",
-        )
+    # Set the default value for the per_reporter_staleness column to an empty JSONB object
+    op.alter_column(
+        f"{INVENTORY_SCHEMA}.hosts",
+        "per_reporter_staleness",
+        existing_type=postgresql.JSONB(astext_type=sa.Text()),
+        nullable=False,
+        server_default="{}",
+    )
 
     # This safety check verifies that the table migration was successful before stamping.
     # It runs for ALL modes to ensure consistency.
