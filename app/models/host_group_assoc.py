@@ -15,7 +15,10 @@ class HostGroupAssoc(db.Model):
         ForeignKeyConstraint(
             ["org_id", "host_id"], [f"{INVENTORY_SCHEMA}.hosts.org_id", f"{INVENTORY_SCHEMA}.hosts.id"]
         ),
-        {"schema": INVENTORY_SCHEMA},
+        {
+            "schema": INVENTORY_SCHEMA,
+            "postgresql_partition_by": "HASH (org_id)",
+        },
     )
 
     def __init__(

@@ -46,7 +46,10 @@ class LimitedHost(db.Model):
         Index("idxdisplay_name", "display_name"),
         Index("idxsystem_profile_facts", "system_profile_facts", postgresql_using="gin"),
         Index("idxgroups", "groups", postgresql_using="gin"),
-        {"schema": INVENTORY_SCHEMA},
+        {
+            "schema": INVENTORY_SCHEMA,
+            "postgresql_partition_by": "HASH (org_id)",
+        },
     )
 
     def __init__(
@@ -182,7 +185,7 @@ class Host(LimitedHost):
     deletion_timestamp = db.Column(db.DateTime(timezone=True))
     stale_warning_timestamp = db.Column(db.DateTime(timezone=True))
     reporter = db.Column(db.String(255))
-    per_reporter_staleness = db.Column(JSONB, default=dict)
+    per_reporter_staleness = db.Column(JSONB)
 
     def __init__(
         self,
