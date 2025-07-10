@@ -204,17 +204,33 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
             existing_groups = get_group_by_name_from_db(new_group_name, identity.org_id)
 
             for group in existing_groups:
-                host_ids = get_host_ids_using_group_id(group.id)
-                if not host_ids or validated_patch_group_data.hosts_ids == host_ids:
+                existing_host_ids = get_host_ids_using_group_id(group.id)
+
+                # no existing hosts, no incoming hosts
+                if len(existing_host_ids) == 0 and not validated_patch_group_data.get("host_ids"):
                     return (
                         {
                             "status": 400,
-                            "title": "Bad Request",
-                            "detail": f"A group with name {new_group_name} already exists.",
+                            "title": "Bad Request: no hosts provided nor in the group",
+                            "detail": f"A group with name {new_group_name} already exists. \
+                                Incoming and existing groups empty",
                             "type": "unknown",
                         },
                         400,
                     )
+
+                # existing hosts same as incoming hosts
+                elif existing_host_ids == validated_patch_group_data.hosts_ids:
+                    return (
+                        {
+                            "status": 400,
+                            "title": "Bad Request: identical hosts",
+                            "detail": f"A group with name {new_group_name} already exists and identical hosts",
+                            "type": "unknown",
+                        },
+                        400,
+                    )
+
         if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION) and (
             new_group_name := validated_patch_group_data.get("name")
         ):
