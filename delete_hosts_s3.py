@@ -123,7 +123,11 @@ def run(
             reader = csv.reader(csv_stream, delimiter="\t")
 
             # Skip the header row
-            next(reader)
+            try:
+                next(reader)
+            except StopIteration:
+                logger.warning("CSV file is empty.")
+                return
 
             batch = []
             for row in reader:
