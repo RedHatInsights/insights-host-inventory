@@ -8,8 +8,6 @@ from logging import Logger
 
 import boto3
 from connexion import FlaskApp
-from sqlalchemy import func
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import Config
@@ -65,33 +63,37 @@ def process_batch(
         config (Config): Application configuration object.
         logger (Logger): Logger for logging information.
     """
+    if not batch:
+        logger.info("Received empty batch, skipping.")
+        return
+
     global deleted_count, not_deleted_count, not_found_count
     with session_guard(session):
         logger.info(f"Processing batch of {len(batch)} Subscription Manager IDs...")
-        base_query = session.query(Host).filter(Host.canonical_facts["subscription_manager_id"].astext.in_(batch))
-
-        # Get the count of hosts that match, but have multiple reporters, so they shouldn't be deleted
-        # Workaround: Use a subquery to count the number of keys in per_reporter_staleness
-        # This avoids set-returning functions in WHERE, which are not allowed in Postgres.
-        key_count_subquery = (
-            select([func.count()])
-            .select_from(func.jsonb_object_keys(Host.per_reporter_staleness).alias("keys"))
-            .correlate(Host)
+        batch_hosts = (
+            session.query(Host).filter(Host.canonical_facts["subscription_manager_id"].astext.in_(batch)).all()
         )
 
-        not_deleted_count += base_query.filter(key_count_subquery.as_scalar() > 1).count()
+        # The difference in length tells us how many were not found.
+        not_found_count += len(batch) - len(batch_hosts)
 
-        # Get the hosts that that match and only have 1 reporter
-        delete_query = base_query.filter(key_count_subquery.as_scalar() == 1)
+        # Get the IDs of the hosts that only have 1 reporter.
+        host_ids_to_delete = [host.id for host in batch_hosts if len(host.per_reporter_staleness) == 1]
+
+        # The difference in length tells us how many we *aren't* deleting.
+        not_deleted_count += len(batch_hosts) - len(host_ids_to_delete)
+
+        # Make the query filtered on the host IDs.
+        delete_query = session.query(Host).filter(Host.id.in_(host_ids_to_delete))
 
         if config.dry_run:
             # If it's a dry run, just get the count of matching hosts.
-            num_deleted = delete_query.count()
+            deleted_count += delete_query.count()
         else:
-            # If it's a real run, delete the hosts.
-            num_deleted = delete_hosts(delete_query, event_producer, notification_event_producer, BATCH_SIZE)
-
-        not_found_count += len(batch) - num_deleted
+            # If it's a real run, delete the hosts (and add to the count).
+            deleted_count += sum(
+                1 for _ in delete_hosts(delete_query, event_producer, notification_event_producer, BATCH_SIZE)
+            )
 
 
 def run(
