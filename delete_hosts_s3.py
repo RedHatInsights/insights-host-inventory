@@ -9,6 +9,7 @@ from logging import Logger
 import boto3
 from connexion import FlaskApp
 from sqlalchemy import func
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import Config
@@ -70,14 +71,18 @@ def process_batch(
         base_query = session.query(Host).filter(Host.canonical_facts["subscription_manager_id"].astext.in_(batch))
 
         # Get the count of hosts that match, but have multiple reporters, so they shouldn't be deleted
-        not_deleted_count += base_query.filter(
-            func.cardinality(func.array(func.jsonb_object_keys(Host.per_reporter_staleness))) > 1
-        ).count()
+        # Workaround: Use a subquery to count the number of keys in per_reporter_staleness
+        # This avoids set-returning functions in WHERE, which are not allowed in Postgres.
+        key_count_subquery = (
+            select([func.count()])
+            .select_from(func.jsonb_object_keys(Host.per_reporter_staleness).alias("keys"))
+            .correlate(Host)
+        )
+
+        not_deleted_count += base_query.filter(key_count_subquery.as_scalar() > 1).count()
 
         # Get the hosts that that match and only have 1 reporter
-        delete_query = base_query.filter(
-            func.cardinality(func.array(func.jsonb_object_keys(Host.per_reporter_staleness))) == 1
-        )
+        delete_query = base_query.filter(key_count_subquery.as_scalar() == 1)
 
         if config.dry_run:
             # If it's a dry run, just get the count of matching hosts.
