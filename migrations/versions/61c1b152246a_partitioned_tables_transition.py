@@ -10,7 +10,6 @@ import os
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects import postgresql
 
 from app.models.constants import INVENTORY_SCHEMA
 
@@ -117,11 +116,11 @@ def upgrade():
 
     # Set the default value for the per_reporter_staleness column to an empty JSONB object
     op.alter_column(
-        f"{INVENTORY_SCHEMA}.hosts",
+        "hosts",
         "per_reporter_staleness",
-        existing_type=postgresql.JSONB(astext_type=sa.Text()),
         nullable=False,
-        server_default="{}",
+        server_default=sa.text("'{}'::jsonb"),
+        schema=INVENTORY_SCHEMA,
     )
 
     # This safety check verifies that the table migration was successful before stamping.
