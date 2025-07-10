@@ -41,7 +41,6 @@ from lib.group_repository import delete_group_list
 from lib.group_repository import get_group_by_id_from_db
 from lib.group_repository import get_group_by_name_from_db
 from lib.group_repository import get_group_using_host_id
-from lib.group_repository import get_host_ids_using_group_id
 from lib.group_repository import get_ungrouped_group
 from lib.group_repository import patch_group
 from lib.group_repository import remove_hosts_from_group
@@ -203,33 +202,10 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
         ):
             existing_groups = get_group_by_name_from_db(new_group_name, identity.org_id)
 
+            # find the matching group to patch
             for group in existing_groups:
-                existing_host_ids = get_host_ids_using_group_id(group.id)
-
-                # no existing hosts, no incoming hosts
-                if len(existing_host_ids) == 0 and not validated_patch_group_data.get("host_ids"):
-                    return (
-                        {
-                            "status": 400,
-                            "title": "Bad Request: no hosts provided nor in the group",
-                            "detail": f"A group with name {new_group_name} already exists. \
-                                Incoming and existing groups empty",
-                            "type": "unknown",
-                        },
-                        400,
-                    )
-
-                # existing hosts same as incoming hosts
-                elif existing_host_ids == validated_patch_group_data.hosts_ids:
-                    return (
-                        {
-                            "status": 400,
-                            "title": "Bad Request: identical hosts",
-                            "detail": f"A group with name {new_group_name} already exists and identical hosts",
-                            "type": "unknown",
-                        },
-                        400,
-                    )
+                if group.id == group_id:
+                    patch_rbac_workspace(group_id, name=new_group_name)
 
         if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION) and (
             new_group_name := validated_patch_group_data.get("name")

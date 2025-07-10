@@ -157,9 +157,8 @@ def test_patch_group_existing_name_same_org(db_create_group, api_patch_group, pa
 
     response_status, response_body = api_patch_group(new_id, {"name": patch_name})
 
-    # Now duplicate group names are not allowed when Kessel Phase 1 is disabled.
-    assert_response_status(response_status, 400)
-    assert patch_name in response_body["detail"]
+    assert_response_status(response_status, 200)
+    assert patch_name in response_body["name"]
 
 
 def test_patch_group_hosts_from_different_group(
