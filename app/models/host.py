@@ -46,10 +46,7 @@ class LimitedHost(db.Model):
         Index("idxdisplay_name", "display_name"),
         Index("idxsystem_profile_facts", "system_profile_facts", postgresql_using="gin"),
         Index("idxgroups", "groups", postgresql_using="gin"),
-        {
-            "schema": INVENTORY_SCHEMA,
-            "postgresql_partition_by": "HASH (org_id)",
-        },
+        {"schema": INVENTORY_SCHEMA},
     )
 
     def __init__(
