@@ -71,12 +71,12 @@ def process_batch(
 
         # Get the count of hosts that match, but have multiple reporters, so they shouldn't be deleted
         not_deleted_count += base_query.filter(
-            func.jsonb_array_length(func.jsonb_object_keys(Host.per_reporter_staleness)) > 1
+            func.cardinality(func.array(func.jsonb_object_keys(Host.per_reporter_staleness))) > 1
         ).count()
 
         # Get the hosts that that match and only have 1 reporter
         delete_query = base_query.filter(
-            func.jsonb_array_length(func.jsonb_object_keys(Host.per_reporter_staleness)) == 1
+            func.cardinality(func.array(func.jsonb_object_keys(Host.per_reporter_staleness))) == 1
         )
 
         if config.dry_run:
