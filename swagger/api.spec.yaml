@@ -39,6 +39,7 @@ paths:
         - $ref: '#/components/parameters/stalenessParam'
         - $ref: '#/components/parameters/tagsParam'
         - $ref: '#/components/parameters/registered_with'
+        - $ref: '#/components/parameters/systemTypeParam'
         - $ref: '#/components/parameters/filter_param'
         - $ref: '#/components/parameters/fields_param'
       responses:
@@ -1204,6 +1205,17 @@ components:
             - "!puptoo"
             - "!rhsm-conduit"
             - "!cloud-connector"
+    systemTypeParam:
+      in: query
+      name: system_type
+      required: false
+      description: Filters systems by type
+      schema:
+        type: string
+        enum:
+          - conventional
+          - bootc
+          - edge
     filter_param:
       in: query
       name: filter
