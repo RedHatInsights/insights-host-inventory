@@ -299,7 +299,7 @@ objects:
   kind: Service
   metadata:
     labels:
-      app: insights-inventory-replica
+      app: insights-inventory
     name: insights-inventory
   spec:
     ports:
