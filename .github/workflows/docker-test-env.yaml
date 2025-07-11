@@ -1,0 +1,37 @@
+name: Test Docker Compose Setup
+
+on:
+  schedule:
+    - cron: "0 0 * * *" # Runs daily at midnight
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  test-docker-compose:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v2
+
+      - name: Start Docker Compose services
+        run: |
+          docker-compose -f dev.yml up -d
+
+      - name: Wait for services to be healthy
+        run: |
+          sleep 60 # Wait for services to initialize
+
+      - name: Create and upgrade DB Schema
+        run: |
+          make upgrade_db
+
+      - name: Test database connection
+        run: |
+          docker exec hbi-db pg_isready -h localhost -p 5432
+
+      - name: Stop Docker Compose services
+        run: |
+          docker-compose -f dev.yml down
