@@ -22,6 +22,7 @@ def main():
 
     if config.replica_namespace:
         logger.info("Running in replica cluster - sleeping until shutdown")
+        start_http_server(config.metrics_port)
 
         shutdown_handler = ShutdownHandler()
         shutdown_handler.register()
