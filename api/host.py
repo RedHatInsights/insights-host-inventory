@@ -88,6 +88,7 @@ def get_host_list(
     order_how=None,
     staleness=None,
     registered_with=None,
+    system_type=None,
     filter=None,
     fields=None,
     rbac_filter=None,
@@ -110,6 +111,7 @@ def get_host_list(
             order_by,
             order_how,
             registered_with,
+            system_type,
             filter,
             fields,
         ]
@@ -153,6 +155,7 @@ def get_host_list(
             order_how,
             staleness,
             registered_with,
+            system_type,
             filter,
             fields,
             rbac_filter,
@@ -227,6 +230,7 @@ def delete_hosts_by_filter(
             updated_end,
             group_name,
             registered_with,
+            None,  # system_type is not used in this query
             staleness,
             tags,
             filter,
