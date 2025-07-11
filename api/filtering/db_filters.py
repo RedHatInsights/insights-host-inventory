@@ -29,6 +29,7 @@ from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import db
+from app.models.constants import SystemType
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_states import HostStalenessStatesDbFilters
 from app.utils import Tag
@@ -327,6 +328,29 @@ def update_query_for_owner_id(identity: Identity, query: Query) -> Query:
     return query
 
 
+def _system_type_filter(system_type):
+    valid_values = {st.value for st in SystemType}
+    if system_type not in valid_values:
+        raise ValidationException(f"Invalid system_type: {system_type}")
+
+    PROFILE_FILTERS = {
+        SystemType.CONVENTIONAL.value: {
+            "system_profile": {
+                "bootc_status": {"booted": {"image_digest": {"eq": "false"}}},
+                "host_type": {"eq": "false"},
+            }
+        },
+        SystemType.BOOTC.value: {"system_profile": {"bootc_status": {"booted": {"image_digest": {"eq": "true"}}}}},
+    }
+
+    if system_type == SystemType.EDGE.value:
+        return [_host_type_filter(SystemType.EDGE.value)]
+
+    sp_filter_body = PROFILE_FILTERS[system_type]
+    query_filter, _ = _system_profile_filter(sp_filter_body)
+    return list(query_filter)  # always a list
+
+
 def query_filters(
     fqdn: str | None = None,
     display_name: str | None = None,
@@ -342,6 +366,7 @@ def query_filters(
     tags: list[str] | None = None,
     staleness: list[str] | None = None,
     registered_with: list[str] | None = None,
+    system_type: str | None = None,
     filter: dict | None = None,
     rbac_filter: dict | None = None,
     order_by: str | None = None,
@@ -389,6 +414,8 @@ def query_filters(
         filters += _get_staleness_filter(staleness, host_type_filter, identity.org_id)
     if registered_with:
         filters += _registered_with_filter(registered_with, host_type_filter, identity.org_id)
+    if system_type:
+        filters += _system_type_filter(system_type)
     if rbac_filter:
         filters += rbac_permissions_filter(rbac_filter)
 
