@@ -28,7 +28,7 @@ def init_payload_tracker(config, producer=None):
 
 
 def get_payload_tracker(account=None, org_id=None, request_id=None):
-    if _CFG.payload_tracker_enabled is False or request_id is None:
+    if _CFG.payload_tracker_enabled is False or _CFG.replica_namespace is True or request_id is None:
         return NullPayloadTracker()
 
     payload_tracker = KafkaPayloadTracker(

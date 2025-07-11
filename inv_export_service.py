@@ -1,4 +1,5 @@
 #!/usr/bin/python
+import sys
 from functools import partial
 
 from confluent_kafka import Consumer as KafkaConsumer
@@ -17,6 +18,11 @@ logger = get_logger("export_sevice_mq")
 def main():
     application = create_app(RuntimeEnvironment.SERVICE)
     config = application.app.config["INVENTORY_CONFIG"]
+
+    if config.replica_namespace:
+        logger.info("Running in replica cluster - skipping export service")
+        sys.exit(0)
+
     start_http_server(config.metrics_port)
 
     consumer = KafkaConsumer(

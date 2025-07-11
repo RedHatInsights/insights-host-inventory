@@ -378,6 +378,10 @@ class Config:
             self.bypass_tenant_translation = True
             self.bypass_unleash = True
 
+        self.replica_namespace = os.environ.get("REPLICA_NAMESPACE", "false").lower() == "true"
+        if self.replica_namespace:
+            self.logger.info("***PROD REPLICA NAMESPACE DETECTED - Kafka operations will be disabled ***")
+
     def _build_base_url_path(self):
         app_name = os.getenv("APP_NAME", "inventory")
         path_prefix = os.getenv("PATH_PREFIX", "api")

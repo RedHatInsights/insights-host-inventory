@@ -177,6 +177,8 @@ objects:
               name: segmentio
               key: WRITE_KEY
               optional: true
+        - name: REPLICA_NAMESPACE
+          value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_SERVICE}
@@ -335,6 +337,8 @@ objects:
               name: segmentio
               key: WRITE_KEY
               optional: true
+        - name: REPLICA_NAMESPACE
+          value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_SERVICE}
@@ -491,6 +495,8 @@ objects:
               name: segmentio
               key: WRITE_KEY
               optional: true
+        - name: REPLICA_NAMESPACE
+          value: ${REPLICA_NAMESPACE}
         - name: RBAC_PSKS
           valueFrom:
             secretKeyRef:
@@ -616,6 +622,8 @@ objects:
               key: psks.json
               name: rbac-psks
               optional: false
+        - name: REPLICA_NAMESPACE
+          value: ${REPLICA_NAMESPACE}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -725,6 +733,8 @@ objects:
               optional: false
         - name: HOSTS_TABLE_NUM_PARTITIONS
           value: ${HOSTS_TABLE_NUM_PARTITIONS}
+        - name: REPLICA_NAMESPACE
+          value: ${REPLICA_NAMESPACE}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -819,6 +829,8 @@ objects:
           value: ${MQ_DB_BATCH_MAX_MESSAGES}
         - name: MQ_DB_BATCH_MAX_SECONDS
           value: ${MQ_DB_BATCH_MAX_SECONDS}
+        - name: REPLICA_NAMESPACE
+          value: ${REPLICA_NAMESPACE}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -917,6 +929,8 @@ objects:
               key: psks.json
               name: rbac-psks
               optional: false
+        - name: REPLICA_NAMESPACE
+          value: ${REPLICA_NAMESPACE}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -988,6 +1002,8 @@ objects:
           value: ${FF_LAST_CHECKIN}
         - name: UNLEASH_REFRESH_INTERVAL
           value: ${UNLEASH_REFRESH_INTERVAL}
+        - name: REPLICA_NAMESPACE
+          value: ${REPLICA_NAMESPACE}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -1088,6 +1104,8 @@ objects:
                 key: psks.json
                 name: rbac-psks
                 optional: false
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_REAPER}
@@ -1152,6 +1170,8 @@ objects:
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: CONSOLEDOT_HOSTNAME
             value: ${CONSOLEDOT_HOSTNAME}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_STALE_HOST_NOTIFICAION}
@@ -1272,6 +1292,8 @@ objects:
             value: ${FF_LAST_CHECKIN}
           - name: UNLEASH_REFRESH_INTERVAL
             value: ${UNLEASH_REFRESH_INTERVAL}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_SP_VALIDATOR}
@@ -1393,6 +1415,8 @@ objects:
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: REBUILD_EVENTS_TIME_LIMIT
             value: ${REBUILD_EVENTS_TIME_LIMIT}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_SYNCHRONIZER}
@@ -1462,6 +1486,8 @@ objects:
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: REBUILD_EVENTS_TIME_LIMIT
             value: ${REBUILD_EVENTS_TIME_LIMIT}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_SYNCHRONIZER}
@@ -1576,6 +1602,8 @@ objects:
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: BYPASS_KESSEL_JOBS
             value: ${BYPASS_KESSEL_JOBS}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_UNGROUPED_HOSTS_JOB}
@@ -1686,6 +1714,8 @@ objects:
               secretKeyRef:
                 name: ${DELETE_HOSTS_S3_AWS_SECRET}
                 key: bucket
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_GROUPS_S3_EXPORT}
@@ -1755,6 +1785,8 @@ objects:
             value: ${BYPASS_KESSEL_JOBS}
           - name: ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE
             value: ${ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_UNGROUPED_HOSTS_JOB}
@@ -1888,6 +1920,8 @@ objects:
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: HOST_DELETE_CHUNK_SIZE
             value: ${HOST_DELETE_CHUNK_SIZE}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_HOSTS_WITHOUT_ID_FACTS_JOB}
@@ -2655,3 +2689,9 @@ parameters:
 - name: FLOORIST_DB_SECRET_NAME
   description: database secret name
   value: host-inventory-db
+
+
+# Replica namespace
+- name: REPLICA_NAMESPACE
+  description: Disable Kafka operations in the replica namespace
+  value: 'false'

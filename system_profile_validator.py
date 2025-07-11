@@ -176,6 +176,10 @@ def _validate_schema_for_pr_and_generate_comment(pr_number: str, config: Config)
 def main(logger):
     config = _init_config()
 
+    if config.replica_namespace:
+        logger.info("Running in replica cluster - skipping schema validation")
+        sys.exit(0)
+
     # Get list of PRs that require validation
     logger.info("Starting validation check.")
     prs_to_validate = _get_prs_that_require_validation(REPO_OWNER, REPO_NAME)
