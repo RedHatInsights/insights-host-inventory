@@ -1,6 +1,7 @@
 #!/usr/bin/python
 import json
 import sys
+import time
 from datetime import datetime
 from datetime import timedelta
 from functools import partial
@@ -96,7 +97,15 @@ def main(logger):
     config = application.app.config["INVENTORY_CONFIG"]
 
     if config.replica_namespace:
-        logger.info("Running in replica cluster - skipping event topic rebuild")
+        logger.info("Running in replica cluster - sleeping until shutdown")
+
+        shutdown_handler = ShutdownHandler()
+        shutdown_handler.register()
+
+        while not shutdown_handler.shut_down():
+            time.sleep(1)
+
+        logger.info("Shutdown signal received, exiting gracefully")
         sys.exit(0)
 
     Session = _init_db(config)
