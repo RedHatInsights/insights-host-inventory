@@ -41,7 +41,6 @@ from lib.group_repository import delete_group_list
 from lib.group_repository import get_group_by_id_from_db
 from lib.group_repository import get_group_by_name_from_db
 from lib.group_repository import get_group_using_host_id
-from lib.group_repository import get_host_ids_using_group_id
 from lib.group_repository import get_ungrouped_group
 from lib.group_repository import patch_group
 from lib.group_repository import remove_hosts_from_group
@@ -203,10 +202,21 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
         ):
             existing_groups = get_group_by_name_from_db(new_group_name, identity.org_id)
 
-            # find the matching group to patch
-            for group in existing_groups:
-                if group.id == group_id:
-                    patch_rbac_workspace(group_id, name=new_group_name)
+            if len(existing_groups) > 1:
+                log_patch_group_failed(logger, group_id)
+                return (
+                    {
+                        "status": 400,
+                        "title": "Bad Request",
+                        "detail": f"Group with name '{new_group_name}' already exists.",
+                        "type": "unknown",
+                    },
+                    400,
+                )
+
+            # Since only one group is found, call patch_rbac_workspace if the name needs updating
+            if new_group_name != group_to_update.name:
+                patch_rbac_workspace(group_id, name=new_group_name)
 
         if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION) and (
             new_group_name := validated_patch_group_data.get("name")
