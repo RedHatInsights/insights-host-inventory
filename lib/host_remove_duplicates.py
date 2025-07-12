@@ -79,8 +79,8 @@ def find_host_list_by_regular_canonical_facts(canonical_facts, query, logger):
     return hosts
 
 
-def _delete_hosts_by_id_list(session, host_id_list):
-    delete_query = session.query(Host).filter(Host.id.in_(host_id_list))
+def _delete_hosts_by_id_list(session, host_id_list, org_id):
+    delete_query = session.query(Host).filter(Host.org_id == org_id, Host.id.in_(host_id_list))
     delete_query.delete(synchronize_session="fetch")
     delete_query.session.commit()
 
@@ -131,7 +131,7 @@ def delete_duplicate_hosts(
         org_ids_session.expunge_all()
 
         # delete duplicate hosts
-        _delete_hosts_by_id_list(misc_session, duplicate_list)
+        _delete_hosts_by_id_list(misc_session, duplicate_list, org_id)
         for host_id in duplicate_list:
             log_host_delete_succeeded(logger, host_id, "DEDUP")
             delete_duplicate_host_count.inc()

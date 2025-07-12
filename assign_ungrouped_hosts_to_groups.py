@@ -57,7 +57,7 @@ def run(logger: Logger, session: Session, application: FlaskApp):
                     )
                     hosts_to_process = len(host_ids)
                     for (host_id,) in host_ids:
-                        assoc = HostGroupAssoc(host_id, ungrouped_group_id)
+                        assoc = HostGroupAssoc(host_id, ungrouped_group_id, org_id)
                         session.add(assoc)
                     logger.info(f"Created {len(host_ids)} host-group associations for org {org_id}.")
 

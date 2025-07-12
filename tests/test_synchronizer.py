@@ -83,9 +83,9 @@ def test_synchronizer_update_null_groups(mocker, event_producer, db_create_multi
 
     hosts = db_create_multiple_hosts(how_many=host_count)
     # Set each one's groups field to null
-    db.session.query(Host).filter(Host.id.in_([h.id for h in hosts])).update(
-        {"groups": None}, synchronize_session="fetch"
-    )
+    db.session.query(Host).filter(
+        Host.org_id.in_([h.org_id for h in hosts]), Host.id.in_([h.id for h in hosts])
+    ).update({"groups": None}, synchronize_session="fetch")
     db.session.commit()
 
     threadctx.request_id = None
@@ -100,7 +100,9 @@ def test_synchronizer_update_null_groups(mocker, event_producer, db_create_multi
     )
 
     # Verify that the hosts' "groups" fields were updated in the DB
-    synced_hosts = db.session.query(Host).filter(Host.id.in_([h.id for h in hosts]))
+    synced_hosts = db.session.query(Host).filter(
+        Host.org_id.in_([h.org_id for h in hosts]), Host.id.in_([h.id for h in hosts])
+    )
     for h in synced_hosts:
         assert h.groups == []
 
@@ -136,7 +138,9 @@ def test_synchronize_grouped_host_event(
     db_create_host_group_assoc(created_host_id, created_group_id)
 
     # Overwrite Host.groups data
-    db.session.query(Host).filter(Host.id == created_host_id).update({"groups": []})
+    db.session.query(Host).filter(Host.org_id == created_host.org_id, Host.id == created_host_id).update(
+        {"groups": []}
+    )
     db.session.commit()
 
     retrieved_host = db_get_host(created_host_id)
