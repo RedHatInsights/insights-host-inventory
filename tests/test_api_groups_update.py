@@ -1,5 +1,6 @@
 import json
 from copy import deepcopy
+from tempfile import TemporaryDirectory
 
 import pytest
 from dateutil import parser
@@ -13,6 +14,7 @@ from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
+from tests.helpers.test_utils import set_environment
 
 
 @pytest.mark.parametrize(
@@ -185,24 +187,27 @@ def test_patch_group_hosts_from_different_group(
 
 @pytest.mark.usefixtures("enable_rbac", "event_producer")
 def test_patch_groups_RBAC_allowed_specific_groups(mocker, db_create_group_with_hosts, api_patch_group):
-    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
-    group_id = str(db_create_group_with_hosts("new_group", 3).id)
-    # Make a list of allowed group IDs (including some mock ones)
-    group_id_list = [generate_uuid(), group_id, generate_uuid()]
+    with TemporaryDirectory() as temp_directory:
+        with set_environment({"PROMETHEUS_MULTIPROC_DIR": temp_directory}):
+            get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+            patch_rbac_workspace_mock = mocker.patch("api.group.patch_rbac_workspace")  # noqa: F841, this variable used by the test framework
+            group_id = str(db_create_group_with_hosts("new_group", 3).id)
+            # Make a list of allowed group IDs (including some mock ones)
+            group_id_list = [generate_uuid(), group_id, generate_uuid()]
 
-    # Grant permissions to all 3 groups
-    mock_rbac_response = create_mock_rbac_response(
-        "tests/helpers/rbac-mock-data/inv-groups-write-resource-defs-template.json"
-    )
-    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = group_id_list
+            # Grant permissions to all 3 groups
+            mock_rbac_response = create_mock_rbac_response(
+                "tests/helpers/rbac-mock-data/inv-groups-write-resource-defs-template.json"
+            )
+            mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = group_id_list
 
-    get_rbac_permissions_mock.return_value = mock_rbac_response
-    patch_doc = {"name": "new_name"}
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+            patch_doc = {"name": "new_name"}
 
-    response_status, _ = api_patch_group(group_id, patch_doc)
+            response_status, _ = api_patch_group(group_id, patch_doc)
 
-    # Should be allowed
-    assert_response_status(response_status, 200)
+            # Should be allowed
+            assert_response_status(response_status, 200)
 
 
 @pytest.mark.usefixtures("enable_rbac")

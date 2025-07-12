@@ -197,6 +197,11 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
         abort(HTTPStatus.NOT_FOUND)
 
     try:
+        # Check if trying to modify ungrouped group before any RBAC calls
+        if group_to_update.ungrouped and "name" in validated_patch_group_data:
+            log_patch_group_failed(logger, group_id)
+            abort(HTTPStatus.BAD_REQUEST, "The 'ungrouped' group can not be modified.")
+
         if not get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1) and (
             new_group_name := validated_patch_group_data.get("name")
         ):
