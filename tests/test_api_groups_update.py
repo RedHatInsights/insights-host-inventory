@@ -148,19 +148,24 @@ def test_patch_group_existing_name_different_org(
 
 
 @pytest.mark.parametrize("patch_name", ["existing_group", "EXISTING_GROUP"])
-def test_patch_group_existing_name_same_org(db_create_group, api_patch_group, patch_name, mocker):
-    mocker.patch(
-        "lib.feature_flags.get_flag_value",
-        side_effect=lambda name: name == FLAG_INVENTORY_KESSEL_PHASE_1,
-    )
+def test_patch_group_existing_name_same_org(db_create_group, api_patch_group, patch_name, event_producer, mocker):
+    mocker.patch.object(event_producer, "write_event")
+    # Explicitly mock the feature flag to ensure the duplicate name check logic is executed
+    feature_flag_mock = mocker.patch("lib.feature_flags.get_flag_value")
+    # feature_flag_mock.side_effect = lambda name: False if name == FLAG_INVENTORY_KESSEL_PHASE_1 else True
+    feature_flag_mock.side_effect = lambda name: name != FLAG_INVENTORY_KESSEL_PHASE_1
+
+    # Also mock the specific modules that might be importing the flag
+    mocker.patch("api.group.get_flag_value", side_effect=lambda name: name != FLAG_INVENTORY_KESSEL_PHASE_1)
+
     # Create 2 groups
     db_create_group("existing_group")
     new_id = db_create_group("another_group").id
 
     response_status, response_body = api_patch_group(new_id, {"name": patch_name})
 
-    assert_response_status(response_status, 200)
-    assert patch_name in response_body["name"]
+    assert_response_status(response_status, 400)
+    assert patch_name in response_body["detail"]
 
 
 def test_patch_group_hosts_from_different_group(

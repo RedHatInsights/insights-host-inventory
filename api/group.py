@@ -207,7 +207,8 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
         ):
             existing_groups = get_group_by_name_from_db(new_group_name, identity.org_id)
 
-            if len(existing_groups) > 1:
+            # Check if there are any existing groups with this name other than the current group
+            if len(existing_groups) > 0 and any(group.id != group_to_update.id for group in existing_groups):
                 log_patch_group_failed(logger, group_id)
                 return (
                     {
@@ -219,7 +220,7 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
                     400,
                 )
 
-            # Since only one group is found, call patch_rbac_workspace if the name needs updating
+            # Since no conflicting group is found, call patch_rbac_workspace if the name needs updating
             if new_group_name != group_to_update.name:
                 patch_rbac_workspace(group_id, name=new_group_name)
 
