@@ -88,54 +88,44 @@ class Config:
 
         self.export_service_token = os.environ.get("EXPORT_SERVICE_TOKEN", "testing-a-psk")
 
-        self.replica_namespace = os.environ.get("REPLICA_NAMESPACE", "false").lower() == "true"
-        if not self.replica_namespace:
+        def topic(t):
+            if t:
+                t_topic = app_common_python.KafkaTopics.get(t)
+                if t_topic:
+                    return t_topic.name
+            return None
 
-            def topic(t):
-                if t:
-                    t_topic = app_common_python.KafkaTopics.get(t)
-                    if t_topic:
-                        return t_topic.name
-                return None
+        self.host_ingress_topic = topic(os.environ.get("KAFKA_HOST_INGRESS_TOPIC"))
+        self.additional_validation_topic = topic(os.environ.get("KAFKA_ADDITIONAL_VALIDATION_TOPIC"))
+        self.system_profile_topic = topic(os.environ.get("KAFKA_SYSTEM_PROFILE_TOPIC"))
+        self.kafka_consumer_topic = topic(os.environ.get("KAFKA_CONSUMER_TOPIC"))
+        self.notification_topic = topic(os.environ.get("KAFKA_NOTIFICATION_TOPIC"))
+        self.event_topic = topic(os.environ.get("KAFKA_EVENT_TOPIC"))
+        self.payload_tracker_kafka_topic = topic("platform.payload-status")
+        self.export_service_topic = topic(os.environ.get("KAFKA_EXPORT_SERVICE_TOPIC", "platform.export.requests"))
+        self.workspaces_topic = topic(os.environ.get("KAFKA_WORKSPACES_TOPIC"))
 
-            self.host_ingress_topic = topic(os.environ.get("KAFKA_HOST_INGRESS_TOPIC"))
-            self.additional_validation_topic = topic(os.environ.get("KAFKA_ADDITIONAL_VALIDATION_TOPIC"))
-            self.system_profile_topic = topic(os.environ.get("KAFKA_SYSTEM_PROFILE_TOPIC"))
-            self.kafka_consumer_topic = topic(os.environ.get("KAFKA_CONSUMER_TOPIC"))
-            self.notification_topic = topic(os.environ.get("KAFKA_NOTIFICATION_TOPIC"))
-            self.event_topic = topic(os.environ.get("KAFKA_EVENT_TOPIC"))
-            self.payload_tracker_kafka_topic = topic("platform.payload-status")
-            self.export_service_topic = topic(os.environ.get("KAFKA_EXPORT_SERVICE_TOPIC", "platform.export.requests"))
-            self.workspaces_topic = topic(os.environ.get("KAFKA_WORKSPACES_TOPIC"))
+        self.bootstrap_servers = ",".join(app_common_python.KafkaServers)
+        if custom_broker := os.getenv("CONSUMER_MQ_BROKER"):
+            self.bootstrap_servers = custom_broker
 
-            self.bootstrap_servers = ",".join(app_common_python.KafkaServers)
-            if custom_broker := os.getenv("CONSUMER_MQ_BROKER"):
-                self.bootstrap_servers = custom_broker
+        broker_cfg = cfg.kafka.brokers[0]
 
-            broker_cfg = cfg.kafka.brokers[0]
-
-            # certificates are required in fedramp, but not in managed kafka
-            try:
-                self.kafka_ssl_cafile = self._kafka_ca(broker_cfg.cacert)
-            except AttributeError:
-                self.kafka_ssl_cafile = None
-            try:
-                self.kafka_sasl_username = broker_cfg.sasl.username
-                self.kafka_sasl_password = broker_cfg.sasl.password
-                self.kafka_sasl_mechanism = broker_cfg.sasl.saslMechanism
-                self.kafka_security_protocol = broker_cfg.sasl.securityProtocol
-            except AttributeError:
-                self.kafka_sasl_username = ""
-                self.kafka_sasl_password = ""
-                self.kafka_sasl_mechanism = "PLAIN"
-                self.kafka_security_protocol = "PLAINTEXT"
-        else:
+        # certificates are required in fedramp, but not in managed kafka
+        try:
+            self.kafka_ssl_cafile = self._kafka_ca(broker_cfg.cacert)
+        except AttributeError:
             self.kafka_ssl_cafile = None
+        try:
+            self.kafka_sasl_username = broker_cfg.sasl.username
+            self.kafka_sasl_password = broker_cfg.sasl.password
+            self.kafka_sasl_mechanism = broker_cfg.sasl.saslMechanism
+            self.kafka_security_protocol = broker_cfg.sasl.securityProtocol
+        except AttributeError:
             self.kafka_sasl_username = ""
             self.kafka_sasl_password = ""
             self.kafka_sasl_mechanism = "PLAIN"
             self.kafka_security_protocol = "PLAINTEXT"
-            self.bootstrap_servers = ""
 
         # Feature flags
         unleash = cfg.featureFlags
