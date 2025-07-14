@@ -68,7 +68,6 @@ from lib import group_repository
 from lib import host_repository
 from lib.db import session_guard
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
-from lib.feature_flags import FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM
 from lib.feature_flags import get_flag_value
 from lib.group_repository import get_or_create_ungrouped_hosts_group_for_identity
 from lib.group_repository import serialize_group
@@ -671,20 +670,19 @@ def write_add_update_event_message(
     result.success_logger(output_host)
 
     org_id = output_host.get("org_id")
-    if get_flag_value(FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM):
-        try:
-            owner_id = output_host.get("system_profile", {}).get("owner_id")
-            if owner_id and insights_id and org_id:
-                system_key = make_system_cache_key(insights_id, org_id, owner_id)
-                if "tags" in output_host:
-                    del output_host["tags"]
-                if "system_profile" in output_host:
-                    del output_host["system_profile"]
-                # Set full group details before caching
-                output_host["groups"] = result.row.groups or []
-                set_cached_system(system_key, output_host, inventory_config())
-        except Exception as ex:
-            logger.error("Error during set cache", ex)
+    try:
+        owner_id = output_host.get("system_profile", {}).get("owner_id")
+        if owner_id and insights_id and org_id:
+            system_key = make_system_cache_key(insights_id, org_id, owner_id)
+            if "tags" in output_host:
+                del output_host["tags"]
+            if "system_profile" in output_host:
+                del output_host["system_profile"]
+            # Set full group details before caching
+            output_host["groups"] = result.row.groups or []
+            set_cached_system(system_key, output_host, inventory_config())
+    except Exception as ex:
+        logger.error("Error during set cache", ex)
 
 
 def write_message_batch(
