@@ -1,4 +1,6 @@
 #!/usr/bin/python
+import sys
+import time
 from functools import partial
 
 from confluent_kafka import Consumer as KafkaConsumer
@@ -17,6 +19,20 @@ logger = get_logger("export_sevice_mq")
 def main():
     application = create_app(RuntimeEnvironment.SERVICE)
     config = application.app.config["INVENTORY_CONFIG"]
+
+    if config.replica_namespace:
+        logger.info("Running in replica cluster - sleeping until shutdown")
+        start_http_server(config.metrics_port)
+
+        shutdown_handler = ShutdownHandler()
+        shutdown_handler.register()
+
+        while not shutdown_handler.shut_down():
+            time.sleep(1)
+
+        logger.info("Shutdown signal received, exiting gracefully")
+        sys.exit(0)
+
     start_http_server(config.metrics_port)
 
     consumer = KafkaConsumer(

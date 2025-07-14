@@ -79,6 +79,40 @@ CONSUMER_POLL_TIMEOUT_SECONDS = 0.5
 SYSTEM_IDENTITY = {"auth_type": "cert-auth", "system": {"cert_type": "system"}, "type": "System"}
 
 
+class NullConsumer:
+    # ruff: noqa: ARG002
+    """Mock consumer that doesn't consume messages when in replica cluster"""
+
+    def __init__(self, config):
+        logger.info("Starting NullConsumer() - Kafka operations disabled in replica cluster")
+        self.config = config
+
+    def consume(self, num_messages=1, timeout=1.0):
+        logger.debug("NullConsumer: Skipping message consumption in replica cluster")
+        return []  # Return empty list to prevent processing
+
+    def subscribe(self, topics):
+        logger.debug("NullConsumer: Skipping subscription to topics in replica cluster: %s", topics)
+        # Do nothing
+
+    def close(self):
+        logger.debug("NullConsumer: Closing (no-op)")
+
+
+def create_consumer(config):
+    """Factory function to create appropriate kafka consumer"""
+    if config.replica_namespace:
+        return NullConsumer(config)
+    return Consumer(
+        {
+            "group.id": config.host_ingress_consumer_group,
+            "bootstrap.servers": config.bootstrap_servers,
+            "auto.offset.reset": "earliest",
+            **config.kafka_consumer,
+        }
+    )
+
+
 class HostOperationSchema(Schema):
     operation = fields.Str(required=True)
     operation_args = fields.Dict()

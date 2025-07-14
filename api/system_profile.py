@@ -115,6 +115,11 @@ def validate_schema(repo_fork="RedHatInsights", repo_branch="master", days=1, ma
     _ = (rbac_filter,)  # Unused. No RBAC needed because we check for specific users.
     # Use the identity header to make sure the user is someone from our team.
     config = Config(RuntimeEnvironment.SERVICE)
+
+    if config.replica_namespace:
+        logger.info("Running in replica cluster - skipping schema validation")
+        return flask_json_response({"message": "Schema validation skipped - running in replica cluster"})
+
     identity = get_current_identity()
     if not hasattr(identity, "user") or identity.user.get("username") not in config.sp_authorized_users:
         flask.abort(403, "This endpoint is restricted to HBI Admins.")
