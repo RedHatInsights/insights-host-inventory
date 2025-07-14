@@ -24,12 +24,14 @@ def upgrade():
         if_not_exists=True,
         unique=False,
         schema="hbi",
+        postgresql_concurrently=False,
     )
     op.drop_index(
         "idx_groups_org_id_name_nocase",
         table_name="groups",
         if_exists=True,
         schema="hbi",
+        postgresql_concurrently=False,
     )
 
 
@@ -39,6 +41,7 @@ def downgrade():
         "groups",
         if_exists=True,
         schema="hbi",
+        postgresql_concurrently=False,
     )
     op.create_index(
         "idx_groups_org_id_name_nocase",
@@ -47,4 +50,5 @@ def downgrade():
         if_not_exists=True,
         unique=True,
         schema="hbi",
+        postgresql_concurrently=False,
     )
