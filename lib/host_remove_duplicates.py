@@ -19,9 +19,8 @@ def find_matching_hosts(canonical_facts: dict[str, Any], query: Query) -> list[H
     immutable_facts, id_facts = extract_immutable_and_id_facts(canonical_facts)
 
     # First search based on immutable ID facts.
-    if immutable_facts:  # noqa: SIM102
-        if existing_hosts := find_hosts_by_multiple_facts(immutable_facts, query):
-            return existing_hosts
+    if immutable_facts and (existing_hosts := find_hosts_by_multiple_facts(immutable_facts, query)):
+        return existing_hosts
 
     # Now search based on other ID facts
     # Dicts have been ordered since Python 3.7, so the priority ordering will be respected
