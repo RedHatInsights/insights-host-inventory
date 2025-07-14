@@ -83,6 +83,14 @@ $defs:
         type: string
         maxLength: 2048
         example: "abc, dfg, pop"
+      status:
+        type: array  # technically a set, ordering is not important
+        items:
+          description: The module stream's status
+          type: string
+          maxLength: 64
+          enum: [default, enabled, installed]
+          example: "default, enabled, installed"
   InstalledProduct:
     description: Representation of one installed product
     type: object
