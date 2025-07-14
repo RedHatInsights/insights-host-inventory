@@ -480,10 +480,6 @@ def get_group_using_host_id(host_id: str, org_id: str):
     return get_group_by_id_from_db(str(assoc.group_id), org_id) if assoc else None
 
 
-def get_host_ids_using_group_id(group_id: str):
-    return db.session.query(HostGroupAssoc).filter(HostGroupAssoc.group_id == group_id).all()
-
-
 def get_or_create_ungrouped_hosts_group_for_identity(identity: Identity) -> Group:
     group = get_ungrouped_group(identity)
 
