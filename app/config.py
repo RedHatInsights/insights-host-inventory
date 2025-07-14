@@ -130,6 +130,7 @@ class Config:
                 self.kafka_sasl_mechanism = "PLAIN"
                 self.kafka_security_protocol = "PLAINTEXT"
         else:
+            self.kafka_ssl_cafile = None
             self.kafka_sasl_username = ""
             self.kafka_sasl_password = ""
             self.kafka_sasl_mechanism = "PLAIN"
