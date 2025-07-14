@@ -53,8 +53,6 @@ from app.serialization import deserialize_canonical_facts
 from app.serialization import serialize_host
 from app.serialization import serialize_host_with_params
 from app.utils import Tag
-from lib.feature_flags import FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM
-from lib.feature_flags import get_flag_value
 from lib.host_delete import delete_hosts
 from lib.host_repository import find_existing_host
 from lib.host_repository import find_non_culled_hosts
@@ -121,10 +119,8 @@ def get_host_list(
         and insights_id
         and page == 1
         and not has_complex_params
-        and get_flag_value(FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM)
     )
     if is_cached_insights_client_system_query:
-        logger.info(f"{FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM} is applied")
         owner_id = current_identity.system.get("cn")
         system_key = make_system_cache_key(insights_id, current_identity.org_id, owner_id)
         stored_system = CACHE.get(f"{system_key}")
@@ -527,11 +523,8 @@ def host_checkin(body, rbac_filter=None):  # noqa: ARG001, required for all API 
     existing_host = find_existing_host(current_identity, canonical_facts)
     staleness = get_staleness_obj(current_identity.org_id)
     if existing_host:
-        if get_flag_value(FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM):
-            existing_host._update_last_check_in_date()
-            existing_host._update_staleness_timestamps()
-        else:
-            existing_host._update_modified_date()
+        existing_host._update_last_check_in_date()
+        existing_host._update_staleness_timestamps()
         db.session.commit()
         serialized_host = serialize_host(existing_host, staleness_timestamps(), staleness=staleness)
         _emit_patch_event(serialized_host, existing_host)
