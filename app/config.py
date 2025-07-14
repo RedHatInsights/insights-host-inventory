@@ -135,6 +135,7 @@ class Config:
             self.kafka_sasl_password = ""
             self.kafka_sasl_mechanism = "PLAIN"
             self.kafka_security_protocol = "PLAINTEXT"
+            self.bootstrap_servers = ""
 
         # Feature flags
         unleash = cfg.featureFlags
