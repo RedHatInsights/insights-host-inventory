@@ -46,11 +46,14 @@ COPY create_ungrouped_host_groups.py create_ungrouped_host_groups.py
 COPY delete_ungrouped_host_groups.py delete_ungrouped_host_groups.py
 COPY assign_ungrouped_hosts_to_groups.py assign_ungrouped_hosts_to_groups.py
 COPY export_group_data_s3.py export_group_data_s3.py
+COPY delete_hosts_s3.py delete_hosts_s3.py
 COPY update_hosts_last_check_in.py update_hosts_last_check_in.py
 COPY update_edge_hosts_prs.py update_edge_hosts_prs.py
 COPY delete_hosts_without_id_facts.py delete_hosts_without_id_facts.py
 COPY app_migrations/ app_migrations/
 COPY jobs/ jobs/
+COPY add_inventory_view.py add_inventory_view.py
+COPY delete_host_namespace_access_tags.py delete_host_namespace_access_tags.py
 
 ENV PIP_NO_CACHE_DIR=1
 ENV PIPENV_CLEAR=1

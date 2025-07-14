@@ -23,8 +23,6 @@ from app import RbacResourceType
 from app.auth import get_current_identity
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
-from app.auth.identity import from_auth_header
-from app.auth.identity import to_auth_header
 from app.common import inventory_config
 from app.exceptions import ResourceNotFoundException
 from app.instrumentation import rbac_failure
@@ -268,25 +266,12 @@ def rbac_group_id_check(rbac_filter: dict, requested_ids: set) -> None:
             abort(HTTPStatus.FORBIDDEN, f"You do not have access to the the following groups: {joined_ids}")
 
 
-def _temp_add_org_admin_user_identity(identity_header: str) -> str:
-    identity = from_auth_header(identity_header)
-    if inventory_config().rbac_v2_force_org_admin and identity.identity_type == IdentityType.USER:
-        if hasattr(identity, "user"):
-            identity.user["is_org_admin"] = True
-        else:
-            identity.user = {"username": "hbi-override", "is_org_admin": True}
-        return to_auth_header(identity)
-
-    return identity_header
-
-
 def post_rbac_workspace(name) -> UUID | None:
     if inventory_config().bypass_rbac:
         return None
 
     rbac_endpoint = get_rbac_v2_url(endpoint="workspaces/")
-    identity_header = _temp_add_org_admin_user_identity(request.headers[IDENTITY_HEADER])
-    request_headers = _build_rbac_request_headers(identity_header, threadctx.request_id)
+    request_headers = _build_rbac_request_headers(request.headers[IDENTITY_HEADER], threadctx.request_id)
     request_data = {"name": name}
 
     return post_rbac_workspace_using_endpoint_and_headers(request_data, rbac_endpoint, request_headers)
