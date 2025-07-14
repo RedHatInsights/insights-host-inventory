@@ -56,6 +56,12 @@ run_reaper:
 run_pendo_syncher:
 	python3 pendo_syncher.py
 
+run_host_view_create:
+	python3 add_inventory_view.py
+
+run_host_delete_access_tags:
+	python3 delete_host_namespace_access_tags.py
+
 style:
 	pre-commit run --all-files
 

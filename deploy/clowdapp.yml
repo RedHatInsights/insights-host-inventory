@@ -171,14 +171,14 @@ objects:
           value: ${FF_LAST_CHECKIN}
         - name: UNLEASH_REFRESH_INTERVAL
           value: ${UNLEASH_REFRESH_INTERVAL}
-        - name: RBAC_V2_FORCE_ORG_ADMIN
-          value: ${RBAC_V2_FORCE_ORG_ADMIN}
         - name: SEGMENTIO_WRITE_KEY
           valueFrom:
             secretKeyRef:
               name: segmentio
               key: WRITE_KEY
               optional: true
+        - name: REPLICA_NAMESPACE
+          value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_SERVICE}
@@ -337,6 +337,8 @@ objects:
               name: segmentio
               key: WRITE_KEY
               optional: true
+        - name: REPLICA_NAMESPACE
+          value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_SERVICE}
@@ -487,14 +489,14 @@ objects:
           value: ${FF_LAST_CHECKIN}
         - name: UNLEASH_REFRESH_INTERVAL
           value: ${UNLEASH_REFRESH_INTERVAL}
-        - name: RBAC_V2_FORCE_ORG_ADMIN
-          value: ${RBAC_V2_FORCE_ORG_ADMIN}
         - name: SEGMENTIO_WRITE_KEY
           valueFrom:
             secretKeyRef:
               name: segmentio
               key: WRITE_KEY
               optional: true
+        - name: REPLICA_NAMESPACE
+          value: ${REPLICA_NAMESPACE}
         - name: RBAC_PSKS
           valueFrom:
             secretKeyRef:
@@ -614,14 +616,14 @@ objects:
           value: ${MQ_DB_BATCH_MAX_MESSAGES}
         - name: MQ_DB_BATCH_MAX_SECONDS
           value: ${MQ_DB_BATCH_MAX_SECONDS}
-        - name: RBAC_V2_FORCE_ORG_ADMIN
-          value: ${RBAC_V2_FORCE_ORG_ADMIN}
         - name: RBAC_PSKS
           valueFrom:
             secretKeyRef:
               key: psks.json
               name: rbac-psks
               optional: false
+        - name: REPLICA_NAMESPACE
+          value: ${REPLICA_NAMESPACE}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -723,14 +725,16 @@ objects:
           value: ${MQ_DB_BATCH_MAX_MESSAGES}
         - name: MQ_DB_BATCH_MAX_SECONDS
           value: ${MQ_DB_BATCH_MAX_SECONDS}
-        - name: RBAC_V2_FORCE_ORG_ADMIN
-          value: ${RBAC_V2_FORCE_ORG_ADMIN}
         - name: RBAC_PSKS
           valueFrom:
             secretKeyRef:
               key: psks.json
               name: rbac-psks
               optional: false
+        - name: HOSTS_TABLE_NUM_PARTITIONS
+          value: ${HOSTS_TABLE_NUM_PARTITIONS}
+        - name: REPLICA_NAMESPACE
+          value: ${REPLICA_NAMESPACE}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -825,6 +829,8 @@ objects:
           value: ${MQ_DB_BATCH_MAX_MESSAGES}
         - name: MQ_DB_BATCH_MAX_SECONDS
           value: ${MQ_DB_BATCH_MAX_SECONDS}
+        - name: REPLICA_NAMESPACE
+          value: ${REPLICA_NAMESPACE}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -917,14 +923,14 @@ objects:
           value: ${MQ_DB_BATCH_MAX_SECONDS}
         - name: CONSUMER_MQ_BROKER
           value: ${CONSUMER_MQ_BROKER}
-        - name: RBAC_V2_FORCE_ORG_ADMIN
-          value: ${RBAC_V2_FORCE_ORG_ADMIN}
         - name: RBAC_PSKS
           valueFrom:
             secretKeyRef:
               key: psks.json
               name: rbac-psks
               optional: false
+        - name: REPLICA_NAMESPACE
+          value: ${REPLICA_NAMESPACE}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -996,6 +1002,8 @@ objects:
           value: ${FF_LAST_CHECKIN}
         - name: UNLEASH_REFRESH_INTERVAL
           value: ${UNLEASH_REFRESH_INTERVAL}
+        - name: REPLICA_NAMESPACE
+          value: ${REPLICA_NAMESPACE}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -1096,6 +1104,8 @@ objects:
                 key: psks.json
                 name: rbac-psks
                 optional: false
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_REAPER}
@@ -1160,6 +1170,8 @@ objects:
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: CONSOLEDOT_HOSTNAME
             value: ${CONSOLEDOT_HOSTNAME}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_STALE_HOST_NOTIFICAION}
@@ -1280,6 +1292,8 @@ objects:
             value: ${FF_LAST_CHECKIN}
           - name: UNLEASH_REFRESH_INTERVAL
             value: ${UNLEASH_REFRESH_INTERVAL}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_SP_VALIDATOR}
@@ -1401,6 +1415,8 @@ objects:
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: REBUILD_EVENTS_TIME_LIMIT
             value: ${REBUILD_EVENTS_TIME_LIMIT}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_SYNCHRONIZER}
@@ -1470,6 +1486,8 @@ objects:
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: REBUILD_EVENTS_TIME_LIMIT
             value: ${REBUILD_EVENTS_TIME_LIMIT}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_SYNCHRONIZER}
@@ -1584,6 +1602,8 @@ objects:
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: BYPASS_KESSEL_JOBS
             value: ${BYPASS_KESSEL_JOBS}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_UNGROUPED_HOSTS_JOB}
@@ -1616,20 +1636,86 @@ objects:
           - name: S3_AWS_ACCESS_KEY_ID
             valueFrom:
               secretKeyRef:
-                name: ${S3_AWS_SECRET}
+                name: ${KESSEL_S3_AWS_SECRET}
                 key: aws_access_key_id
           - name: S3_AWS_SECRET_ACCESS_KEY
             valueFrom:
               secretKeyRef:
-                name: ${S3_AWS_SECRET}
+                name: ${KESSEL_S3_AWS_SECRET}
                 key: aws_secret_access_key
           - name: S3_AWS_BUCKET
             valueFrom:
               secretKeyRef:
-                name: ${S3_AWS_SECRET}
+                name: ${KESSEL_S3_AWS_SECRET}
                 key: bucket
           - name: BYPASS_KESSEL_JOBS
             value: ${BYPASS_KESSEL_JOBS}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_GROUPS_S3_EXPORT}
+            memory: ${MEMORY_LIMIT_GROUPS_S3_EXPORT}
+          requests:
+            cpu: ${CPU_REQUEST_GROUPS_S3_EXPORT}
+            memory: ${MEMORY_REQUEST_GROUPS_S3_EXPORT}
+    - name: delete-hosts-s3
+      restartPolicy: OnFailure
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: ["./delete_hosts_s3.py"]
+        env:
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: KAFKA_BOOTSTRAP_SERVERS
+            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - name: DRY_RUN
+            value: ${DELETE_HOSTS_DRY_RUN}
+          - name: DELETE_HOSTS_S3_BATCH_SIZE
+            value: ${DELETE_HOSTS_S3_BATCH_SIZE}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: S3_AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${DELETE_HOSTS_S3_AWS_SECRET}
+                key: aws_access_key_id
+          - name: S3_AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${DELETE_HOSTS_S3_AWS_SECRET}
+                key: aws_secret_access_key
+          - name: S3_AWS_BUCKET
+            valueFrom:
+              secretKeyRef:
+                name: ${DELETE_HOSTS_S3_AWS_SECRET}
+                key: bucket
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_GROUPS_S3_EXPORT}
@@ -1699,6 +1785,8 @@ objects:
             value: ${BYPASS_KESSEL_JOBS}
           - name: ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE
             value: ${ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_UNGROUPED_HOSTS_JOB}
@@ -1832,6 +1920,8 @@ objects:
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: HOST_DELETE_CHUNK_SIZE
             value: ${HOST_DELETE_CHUNK_SIZE}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_HOSTS_WITHOUT_ID_FACTS_JOB}
@@ -1839,6 +1929,7 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_HOSTS_WITHOUT_ID_FACTS_JOB}
             memory: ${MEMORY_REQUEST_HOSTS_WITHOUT_ID_FACTS_JOB}
+
     database:
       name: ${DB_NAME}
       version: 16
@@ -2516,12 +2607,18 @@ parameters:
   value: '60'
 - name: INVENTORY_DB_SCHEMA
   value: 'hbi'
-- name: S3_AWS_SECRET
-  description: The AWS secret for S3
+- name: KESSEL_S3_AWS_SECRET
+  description: The AWS secret for the Kessel S3 bucket
   value: 'hbi-kessel-s3'
-- name: RBAC_V2_FORCE_ORG_ADMIN
-  description: Whether to force User Identities to use is_org_admin=True for RBAC v2 calls
-  value: 'false'
+- name: DELETE_HOSTS_S3_AWS_SECRET
+  description: The AWS secret for the delete-hosts S3 bucket
+  value: 'hbi-delete-host-ids-s3'
+- name: DELETE_HOSTS_DRY_RUN
+  description: Whether the delete_hosts_s3 script should run in dry-run mode
+  value: 'true'
+- name: DELETE_HOSTS_S3_BATCH_SIZE
+  description: The batch size to use for the delete-hosts-s3 script.
+  value: '500'
 - name: BYPASS_KESSEL_JOBS
   description: Whether to bypass Kessel-related jobs, even when triggered via CJI
   value: 'false'
@@ -2531,6 +2628,9 @@ parameters:
 - name: ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE
   description: The batch size to use for the assign-ungrouped-hosts script.
   value: '10'
+- name: HOSTS_TABLE_NUM_PARTITIONS
+  description: The number of partitions for the hosts table
+  value: '1'
 
 # NGINX
 - displayName: Minimum replicas
@@ -2589,3 +2689,9 @@ parameters:
 - name: FLOORIST_DB_SECRET_NAME
   description: database secret name
   value: host-inventory-db
+
+
+# Replica namespace
+- name: REPLICA_NAMESPACE
+  description: Disable Kafka operations in the replica namespace
+  value: 'false'
