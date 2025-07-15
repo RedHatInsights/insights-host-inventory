@@ -28,7 +28,7 @@ from app.logging import get_logger
 from app.logging import threadctx
 from app.models import SPECIFICATION_DIR
 from app.models import db
-from app.queue.event_producer import EventProducer
+from app.queue.event_producer import create_event_producer
 from app.queue.events import EventType
 from app.queue.metrics import event_producer_failure
 from app.queue.metrics import event_producer_success
@@ -324,7 +324,7 @@ def create_app(runtime_environment) -> connexion.FlaskApp:
         return response
 
     if runtime_environment.event_producer_enabled:
-        flask_app.event_producer = EventProducer(app_config, app_config.event_topic)
+        flask_app.event_producer = create_event_producer(app_config, app_config.event_topic)
         register_shutdown(flask_app.event_producer.close, "Closing EventProducer")
     else:
         logger.warning(
@@ -333,7 +333,7 @@ def create_app(runtime_environment) -> connexion.FlaskApp:
         )
 
     if runtime_environment.notification_producer_enabled:
-        flask_app.notification_event_producer = EventProducer(app_config, app_config.notification_topic)
+        flask_app.notification_event_producer = create_event_producer(app_config, app_config.notification_topic)
         register_shutdown(flask_app.notification_event_producer.close, "Closing NotificationEventProducer")
     else:
         logger.warning(

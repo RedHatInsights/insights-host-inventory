@@ -15,7 +15,7 @@ from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
 from app.models import Staleness
-from app.queue.event_producer import EventProducer
+from app.queue.event_producer import create_event_producer
 from app.queue.metrics import event_producer_failure
 from app.queue.metrics import event_producer_success
 from app.queue.metrics import event_serialization_time
@@ -88,7 +88,7 @@ def main(logger):
     session = Session()
     register_shutdown(session.get_bind().dispose, "Closing database")
 
-    event_producer = EventProducer(config, config.event_topic)
+    event_producer = create_event_producer(config, config.event_topic)
     register_shutdown(event_producer.close, "Closing producer")
 
     shutdown_handler = ShutdownHandler()
