@@ -68,7 +68,6 @@ from lib import group_repository
 from lib import host_repository
 from lib.db import session_guard
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
-from lib.feature_flags import FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM
 from lib.feature_flags import get_flag_value
 from lib.group_repository import get_or_create_ungrouped_hosts_group_for_identity
 from lib.group_repository import serialize_group
@@ -78,6 +77,40 @@ logger = get_logger(__name__)
 
 CONSUMER_POLL_TIMEOUT_SECONDS = 0.5
 SYSTEM_IDENTITY = {"auth_type": "cert-auth", "system": {"cert_type": "system"}, "type": "System"}
+
+
+class NullConsumer:
+    # ruff: noqa: ARG002
+    """Mock consumer that doesn't consume messages when in replica cluster"""
+
+    def __init__(self, config):
+        logger.info("Starting NullConsumer() - Kafka operations disabled in replica cluster")
+        self.config = config
+
+    def consume(self, num_messages=1, timeout=1.0):
+        logger.debug("NullConsumer: Skipping message consumption in replica cluster")
+        return []  # Return empty list to prevent processing
+
+    def subscribe(self, topics):
+        logger.debug("NullConsumer: Skipping subscription to topics in replica cluster: %s", topics)
+        # Do nothing
+
+    def close(self):
+        logger.debug("NullConsumer: Closing (no-op)")
+
+
+def create_consumer(config):
+    """Factory function to create appropriate kafka consumer"""
+    if config.replica_namespace:
+        return NullConsumer(config)
+    return Consumer(
+        {
+            "group.id": config.host_ingress_consumer_group,
+            "bootstrap.servers": config.bootstrap_servers,
+            "auto.offset.reset": "earliest",
+            **config.kafka_consumer,
+        }
+    )
 
 
 class HostOperationSchema(Schema):
@@ -671,20 +704,19 @@ def write_add_update_event_message(
     result.success_logger(output_host)
 
     org_id = output_host.get("org_id")
-    if get_flag_value(FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM):
-        try:
-            owner_id = output_host.get("system_profile", {}).get("owner_id")
-            if owner_id and insights_id and org_id:
-                system_key = make_system_cache_key(insights_id, org_id, owner_id)
-                if "tags" in output_host:
-                    del output_host["tags"]
-                if "system_profile" in output_host:
-                    del output_host["system_profile"]
-                # Set full group details before caching
-                output_host["groups"] = result.row.groups or []
-                set_cached_system(system_key, output_host, inventory_config())
-        except Exception as ex:
-            logger.error("Error during set cache", ex)
+    try:
+        owner_id = output_host.get("system_profile", {}).get("owner_id")
+        if owner_id and insights_id and org_id:
+            system_key = make_system_cache_key(insights_id, org_id, owner_id)
+            if "tags" in output_host:
+                del output_host["tags"]
+            if "system_profile" in output_host:
+                del output_host["system_profile"]
+            # Set full group details before caching
+            output_host["groups"] = result.row.groups or []
+            set_cached_system(system_key, output_host, inventory_config())
+    except Exception as ex:
+        logger.error("Error during set cache", ex)
 
 
 def write_message_batch(
