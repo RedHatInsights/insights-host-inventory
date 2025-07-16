@@ -244,7 +244,7 @@ def add_group(
     session.flush()
 
     # gets the ID of the group after it has been committed
-    return new_group
+    return session.query(Group).filter((Group.name == group_name) & (Group.org_id == org_id)).one_or_none()
 
 
 def add_group_with_hosts(
@@ -260,14 +260,13 @@ def add_group_with_hosts(
     with session_guard(db.session):
         # Create group
         created_group = add_group(group_name, identity.org_id, account, group_id, ungrouped)
-        created_group_id = created_group.id
 
         # Add hosts to group
         if host_id_list:
             _add_hosts_to_group(created_group.id, host_id_list, identity.org_id)
 
-    # gets the group after it has been committed
-    created_group = get_group_by_id_from_db(created_group_id, identity.org_id)
+    # gets the ID of the group after it has been committed
+    created_group = Group.query.filter((Group.name == group_name) & (Group.org_id == identity.org_id)).one_or_none()
 
     # Produce update messages once the DB session has been closed
     serialized_groups, host_id_list = _update_hosts_for_group_changes(
@@ -416,12 +415,6 @@ def get_group_by_id_from_db(group_id: str, org_id: str, session: Optional[Sessio
     return group
 
 
-def get_group_by_name_from_db(group_name: str, org_id: str, session: Optional[Session] = None) -> list[Group]:
-    session = session or db.session
-    query = session.query(Group).filter(Group.org_id == org_id, Group.name == group_name.lower())
-    return query.all()
-
-
 def patch_group(group: Group, patch_data: dict, identity: Identity, event_producer: EventProducer):
     group_id = group.id
     host_id_data = patch_data.get("host_ids")
@@ -477,7 +470,11 @@ def _update_group_update_time(group_id: str, org_id: str):
 
 def get_group_using_host_id(host_id: str, org_id: str):
     assoc = db.session.query(HostGroupAssoc).filter(HostGroupAssoc.host_id == host_id).one_or_none()
-    return get_group_by_id_from_db(str(assoc.group_id), org_id) if assoc else None
+    if assoc:
+        # check current identity against db
+        return get_group_by_id_from_db(str(assoc.group_id), org_id)
+    else:
+        return None
 
 
 def get_or_create_ungrouped_hosts_group_for_identity(identity: Identity) -> Group:
