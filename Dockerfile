@@ -26,6 +26,7 @@ COPY Makefile Makefile
 COPY gunicorn.conf.py gunicorn.conf.py
 COPY host_reaper.py host_reaper.py
 COPY host_synchronizer.py host_synchronizer.py
+COPY host_sync_group_data.py host_sync_group_data.py
 COPY inv_mq_service.py inv_mq_service.py
 COPY inv_publish_hosts.py inv_publish_hosts.py
 COPY inv_export_service.py inv_export_service.py

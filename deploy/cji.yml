@@ -83,6 +83,16 @@ objects:
     appName: host-inventory
     jobs:
       - duplicate-hosts-remover
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    labels:
+      app: host-inventory
+    name: host-sync-group-data-${HOST_SYNC_GROUP_DATA_RUN_NUMBER}
+  spec:
+    appName: host-inventory
+    jobs:
+      - sync-host-groups
 parameters:
 - name: SYNCHRONIZER_RUN_NUMBER
   value: '1'
@@ -99,4 +109,6 @@ parameters:
 - name: DELETE_HOSTS_S3_RUN_NUMBER
   value: '1'
 - name: DUPLICATE_HOSTS_REMOVER_RUN_NUMBER
+  value: '1'
+- name: HOST_SYNC_GROUP_DATA_RUN_NUMBER
   value: '1'
