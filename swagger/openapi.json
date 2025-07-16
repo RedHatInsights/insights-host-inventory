@@ -145,6 +145,9 @@
             "$ref": "#/components/parameters/registered_with"
           },
           {
+            "$ref": "#/components/parameters/systemTypeParam"
+          },
+          {
             "$ref": "#/components/parameters/stalenessNoDefaultsParam"
           },
           {
@@ -1132,6 +1135,9 @@
           },
           {
             "$ref": "#/components/parameters/registered_with"
+          },
+          {
+            "$ref": "#/components/parameters/systemTypeParam"
           },
           {
             "$ref": "#/components/parameters/filter_param"
