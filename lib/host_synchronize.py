@@ -78,6 +78,7 @@ def sync_group_data(select_hosts_query, chunk_size, interrupt=lambda: False):
     num_failed = 0
 
     while len(host_list) > 0 and not interrupt():
+        logger.info(f"Processing batch of {len(host_list)}")
         for host in host_list:
             # If host.groups says it's empty,
             # Get the host's associated Group (if any) and store it in the "groups" field
@@ -90,6 +91,7 @@ def sync_group_data(select_hosts_query, chunk_size, interrupt=lambda: False):
         try:
             query.session.flush()
             num_updated += len(host_list)
+            logger.info(f"Changes flushed; {num_updated} updated so far.")
         except Exception as exc:
             logger.exception("Failed to sync host.groups data for batch.", exc_info=exc)
             num_failed += len(host_list)
