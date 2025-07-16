@@ -87,9 +87,9 @@ def sync_group_data(select_hosts_query, chunk_size, interrupt=lambda: False):
             ):
                 host.groups = [serialize_group_without_host_count(group)]
 
-        # flush changes, and then load next chunk using keyset pagination
+        # commit changes, and then load next chunk using keyset pagination
         try:
-            query.session.flush()
+            query.session.commit()
             num_updated += len(host_list)
             logger.info(f"Changes flushed; {num_updated} updated so far.")
         except Exception as exc:
