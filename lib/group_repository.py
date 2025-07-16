@@ -411,8 +411,7 @@ def _remove_hosts_from_group(group_id, host_id_list, org_id):
 def get_group_by_id_from_db(group_id: str, org_id: str, session: Optional[Session] = None) -> Group:
     session = session or db.session
     query = session.query(Group).filter(Group.org_id == org_id, Group.id == group_id)
-    group = query.one_or_none()
-    return group
+    return query.one_or_none()
 
 
 def patch_group(group: Group, patch_data: dict, identity: Identity, event_producer: EventProducer):
