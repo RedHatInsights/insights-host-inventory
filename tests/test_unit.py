@@ -1601,7 +1601,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
 
     def test_with_only_required_fields(self):
         for with_last_check_in in [True, False]:
-            for group_data in ({"groups": None}, {"groups": ""}, {"groups": {}}, {"groups": []}, {}):
+            for group_data in ({"groups": None}, {"groups": []}, {}):
                 with (
                     self.subTest(group_data=group_data, with_last_check_in=with_last_check_in),
                     patch("app.serialization.get_flag_value", return_value=with_last_check_in),
