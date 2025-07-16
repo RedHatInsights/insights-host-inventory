@@ -71,8 +71,8 @@ def synchronize_hosts(
     return num_synchronized
 
 
-def sync_group_data(select_hosts_query, chunk_size, interrupt=lambda: False):
-    query = select_hosts_query.order_by(Host.id)
+def sync_group_data(session, chunk_size, interrupt=lambda: False):
+    query = session.query(Host).filter(Host.groups == []).order_by(Host.id)
     host_list = query.limit(chunk_size).all()
     num_updated = 0
     num_failed = 0
@@ -89,7 +89,7 @@ def sync_group_data(select_hosts_query, chunk_size, interrupt=lambda: False):
 
         # commit changes, and then load next chunk using keyset pagination
         try:
-            query.session.commit()
+            session.commit()
             num_updated += len(host_list)
             logger.info(f"Changes flushed; {num_updated} updated so far.")
         except Exception as exc:
