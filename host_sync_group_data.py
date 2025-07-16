@@ -18,8 +18,7 @@ from lib.host_synchronize import sync_group_data
 
 __all__ = ("main", "run")
 
-PROMETHEUS_JOB = "inventory-synchronizer"
-LOGGER_NAME = "inventory_synchronizer"
+LOGGER_NAME = "inventory_host_group_synchronizer"
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
 
 application = create_app(RUNTIME_ENVIRONMENT)
@@ -38,7 +37,7 @@ def _init_db(config):
 
 
 def _excepthook(logger, type, value, traceback):  # noqa: ARG001, needed by sys.excepthook
-    logger.exception("Host synchronizer failed", exc_info=value)
+    logger.exception("Host.groups synchronizer failed", exc_info=value)
 
 
 def run(config, logger, session, shutdown_handler):
