@@ -90,7 +90,7 @@ def sync_group_data(select_hosts_query, chunk_size, interrupt=lambda: False):
 
             # flush changes, and then load next chunk using keyset pagination
             try:
-                query.session.commit()
+                query.session.flush()
                 num_updated += len(host_list)
             except Exception as exc:
                 logger.exception("Failed to sync host.groups data for batch.", exc_info=exc)
