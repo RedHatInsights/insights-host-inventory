@@ -470,11 +470,7 @@ def _update_group_update_time(group_id: str, org_id: str):
 
 def get_group_using_host_id(host_id: str, org_id: str):
     assoc = db.session.query(HostGroupAssoc).filter(HostGroupAssoc.host_id == host_id).one_or_none()
-    if assoc:
-        # check current identity against db
-        return get_group_by_id_from_db(str(assoc.group_id), org_id)
-    else:
-        return None
+    return get_group_by_id_from_db(str(assoc.group_id), org_id) if assoc else None
 
 
 def get_or_create_ungrouped_hosts_group_for_identity(identity: Identity) -> Group:

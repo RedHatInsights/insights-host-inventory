@@ -135,7 +135,7 @@ def serialize_host(
     system_profile_fields=None,
 ):
     # Ensure additional_fields is a tuple
-    additional_fields = additional_fields or tuple()
+    additional_fields = additional_fields or ()
 
     timestamps = get_staleness_timestamps(host, staleness_timestamps, staleness)
 
@@ -177,7 +177,7 @@ def serialize_host(
     }
 
     # Process each field dynamically
-    serialized_host.update({key: func() for key, func in field_mapping.items() if key in fields})
+    serialized_host |= {key: func() for key, func in field_mapping.items() if key in fields}
 
     # Handle system_profile separately due to its complexity
     if "system_profile" in fields:
@@ -232,6 +232,18 @@ def serialize_host_for_export_svc(
 
     serialized_host = {key: serialized_host[key] for key in _EXPORT_SERVICE_FIELDS}
     return serialized_host
+
+
+def serialize_group_without_host_count(group: Group) -> dict:
+    return {
+        "id": _serialize_uuid(group.id),
+        "org_id": group.org_id,
+        "account": group.account,
+        "name": group.name,
+        "ungrouped": group.ungrouped,
+        "created": _serialize_datetime(group.created_on),
+        "updated": _serialize_datetime(group.modified_on),
+    }
 
 
 def serialize_group_with_host_count(group: Group, host_count: int) -> dict:
