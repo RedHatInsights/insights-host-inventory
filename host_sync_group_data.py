@@ -12,6 +12,7 @@ from app.logging import configure_logging
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
+from lib.db import session_guard
 from lib.handlers import ShutdownHandler
 from lib.handlers import register_shutdown
 from lib.host_synchronize import sync_group_data
@@ -57,7 +58,7 @@ def main(logger):
     shutdown_handler = ShutdownHandler()
     shutdown_handler.register()
 
-    with app.app_context():
+    with session_guard(session), app.app_context():
         run(config, logger, session, shutdown_handler)
 
 
