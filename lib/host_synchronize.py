@@ -12,6 +12,7 @@ from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness
 from lib.db import session_guard
 from lib.group_repository import get_group_using_host_id
+from lib.group_repository import serialize_group
 from lib.metrics import synchronize_host_count
 
 logger = get_logger(__name__)
@@ -85,7 +86,7 @@ def sync_group_data(select_hosts_query, chunk_size, interrupt=lambda: False):
                 if (host.groups is None or host.groups == []) and (
                     group := get_group_using_host_id(str(host.id), host.org_id)
                 ):
-                    host.groups = [{"id": str(group.id), "name": group.name, "ungrouped": group.ungrouped}]
+                    host.groups = [serialize_group(group)]
 
             # flush changes, and then load next chunk using keyset pagination
             try:
