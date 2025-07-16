@@ -7,11 +7,11 @@ from app.models import Host
 from app.queue.events import EventType
 from app.queue.events import build_event
 from app.queue.events import message_headers
+from app.serialization import serialize_group_without_host_count
 from app.serialization import serialize_host
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness
 from lib.group_repository import get_group_using_host_id
-from lib.group_repository import serialize_group
 from lib.metrics import synchronize_host_count
 
 logger = get_logger(__name__)
@@ -78,18 +78,20 @@ def sync_group_data(select_hosts_query, chunk_size, interrupt=lambda: False):
     num_failed = 0
 
     while len(host_list) > 0 and not interrupt():
+        logger.info(f"Processing batch of {len(host_list)}")
         for host in host_list:
             # If host.groups says it's empty,
             # Get the host's associated Group (if any) and store it in the "groups" field
             if (host.groups is None or host.groups == []) and (
                 group := get_group_using_host_id(str(host.id), host.org_id)
             ):
-                host.groups = [serialize_group(group)]
+                host.groups = [serialize_group_without_host_count(group)]
 
         # flush changes, and then load next chunk using keyset pagination
         try:
             query.session.flush()
             num_updated += len(host_list)
+            logger.info(f"Changes flushed; {num_updated} updated so far.")
         except Exception as exc:
             logger.exception("Failed to sync host.groups data for batch.", exc_info=exc)
             num_failed += len(host_list)
