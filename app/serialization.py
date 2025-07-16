@@ -247,9 +247,7 @@ def serialize_group_without_host_count(group: Group) -> dict:
 
 
 def serialize_group_with_host_count(group: Group, host_count: int) -> dict:
-    serialized_group = serialize_group_without_host_count(group)
-    serialized_group["host_count"] = host_count
-    return serialized_group
+    return {**serialize_group_without_host_count(group), "host_count": host_count}
 
 
 def serialize_host_system_profile(host):
