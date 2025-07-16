@@ -1732,6 +1732,7 @@ def test_query_all_sp_filters_invalid_operating_system(api_get, sp_filter_param)
         "[arch]=RkFz%60Z%2Ag%5D9_tW%3A%2CR%27v%22sjJsEo%23R%5D%27%27n.N2%3D%60G%22R%7C%7C.ER/1/wd6%603w-71%3CxC2",
         "[arch]=%5B%3Cb_Tu%7Dd%21%5D%7C/%22%29IS-%3Ct%28EwU%3F%3C4s7%7Cv%5DRE5hSU%3AQRJ%7D%29%230%27Vcf7%60eU%25k%2B/Cp%3CSxgKopb%3E%60",  # noqa E501
         "[arch]=%26.%40%7DE%21_A%2AE%26dgjV%7D%60yPc%22wO%7B%21b0%28kAGL%24-3mh%5EV%3E86%27RmG%7D.%2C5xQI~W/d%23/n%5DAr%22T",  # noqa E501
+        "[arch]=EElM%298Z%28%29HjNL%21oRSc/gxC2%24%5Dpc%27tv%2A~mW%22kiF%7Ddos%60TE%7D%7DpAZ9C%3CNCRsEb%5BxH0",
     ),
 )
 def test_query_all_sp_filters_sql_character_issues(api_get, sp_filter_param):
@@ -2228,8 +2229,8 @@ def test_system_type_filter_invalid_types(api_get, invalid_system_type):
             "?system_type=conventional",
             {
                 "system_profile_facts": {
-                    "bootc_status": {"booted": {"image_digest": ""}},
-                    "host_type": "",
+                    "bootc_status": {"booted": {"image_digest": None}},
+                    "host_type": None,
                 }
             },
         ),
@@ -2251,11 +2252,11 @@ def test_system_type_filter_invalid_types(api_get, invalid_system_type):
 def test_system_type_happy_path(
     api_get, db_create_host, db_create_multiple_hosts, query_filter_param, match_system_type
 ):
-    db_create_multiple_hosts(how_many=4)
+    if query_filter_param != "?system_type=conventional":
+        db_create_multiple_hosts(how_many=4)
 
     host_id = str(db_create_host(extra_data=match_system_type).id)
 
-    # Query for hosts with the specified system type
     url = build_hosts_url(query=query_filter_param)
     response_status, response_data = api_get(url)
 

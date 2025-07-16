@@ -363,6 +363,7 @@ def get_tag_list(
     search: str,
     staleness: list[str],
     registered_with: list[str],
+    system_type: str,
     filter: dict,
     rbac_filter: dict,
 ) -> tuple[list, int]:
@@ -389,7 +390,7 @@ def get_tag_list(
         tags,
         staleness,
         registered_with,
-        None,  # system_type is not used in this query
+        system_type,
         filter,
         rbac_filter,
         order_by,

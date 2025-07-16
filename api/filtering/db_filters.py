@@ -336,19 +336,16 @@ def _system_type_filter(system_type):
     PROFILE_FILTERS = {
         SystemType.CONVENTIONAL.value: {
             "system_profile": {
-                "bootc_status": {"booted": {"image_digest": {"eq": "false"}}},
-                "host_type": {"eq": "false"},
+                "bootc_status": {"booted": {"image_digest": {"eq": "nil"}}},
+                "host_type": {"eq": "nil"},
             }
         },
-        SystemType.BOOTC.value: {"system_profile": {"bootc_status": {"booted": {"image_digest": {"eq": "true"}}}}},
+        SystemType.BOOTC.value: {"system_profile": {"bootc_status": {"booted": {"image_digest": {"eq": "not_nil"}}}}},
+        SystemType.EDGE.value: {"system_profile": {"host_type": {"eq": SystemType.EDGE.value}}},
     }
 
-    if system_type == SystemType.EDGE.value:
-        return [_host_type_filter(SystemType.EDGE.value)]
-
-    sp_filter_body = PROFILE_FILTERS[system_type]
-    query_filter, _ = _system_profile_filter(sp_filter_body)
-    return list(query_filter)  # always a list
+    query_filter, _ = _system_profile_filter(PROFILE_FILTERS[system_type])
+    return query_filter
 
 
 def query_filters(
