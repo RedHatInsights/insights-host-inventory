@@ -34,6 +34,7 @@ def upgrade():
             schema="hbi",
             postgresql_concurrently=True,
         )
+        op.execute("SELECT 1")
 
 
 def downgrade():
@@ -54,3 +55,4 @@ def downgrade():
             schema="hbi",
             postgresql_concurrently=True,
         )
+        op.execute("SELECT 1")
