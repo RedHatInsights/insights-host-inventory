@@ -13,6 +13,7 @@ from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy.orm import column_property
 
 from app.config import ID_FACTS
@@ -142,7 +143,7 @@ class LimitedHost(db.Model):
     tags_alt = db.Column(JSONB)
     canonical_facts = db.Column(JSONB)
     system_profile_facts = db.Column(JSONB)
-    groups = db.Column(JSONB)
+    groups = db.Column(MutableList.as_mutable(JSONB), default=list)
     host_type = column_property(system_profile_facts["host_type"])
     last_check_in = db.Column(db.DateTime(timezone=True))
 

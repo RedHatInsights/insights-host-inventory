@@ -79,20 +79,24 @@ def sync_group_data(session, chunk_size, interrupt=lambda: False):
 
     while len(host_list) > 0 and not interrupt():
         logger.info(f"Processing batch of {len(host_list)}")
+        num_in_current_batch = 0
         for host in host_list:
             # If host.groups says it's empty,
             # Get the host's associated Group (if any) and store it in the "groups" field
-            if (host.groups is None or host.groups == []) and (
-                group := get_group_using_host_id(str(host.id), host.org_id)
-            ):
+            if host.groups is None:
+                host.groups = []
+
+            group = get_group_using_host_id(str(host.id), host.org_id)
+            if host.groups == [] and group:
                 host.groups = [serialize_group_without_host_count(group)]
                 session.add(host)
+                num_in_current_batch += 1
 
         # commit changes, and then load next chunk using keyset pagination
         try:
             session.commit()
-            num_updated += len(host_list)
-            logger.info(f"Changes flushed; {num_updated} updated so far.")
+            num_updated += num_in_current_batch
+            logger.info(f"{num_in_current_batch} changes flushed; {num_updated} updated so far.")
         except Exception as exc:
             logger.exception("Failed to sync host.groups data for batch.", exc_info=exc)
             num_failed += len(host_list)
