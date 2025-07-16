@@ -247,16 +247,9 @@ def serialize_group_without_host_count(group: Group) -> dict:
 
 
 def serialize_group_with_host_count(group: Group, host_count: int) -> dict:
-    return {
-        "id": _serialize_uuid(group.id),
-        "org_id": group.org_id,
-        "account": group.account,
-        "name": group.name,
-        "host_count": host_count,
-        "ungrouped": group.ungrouped,
-        "created": _serialize_datetime(group.created_on),
-        "updated": _serialize_datetime(group.modified_on),
-    }
+    serialized_group = serialize_group_without_host_count(group)
+    serialized_group["host_count"] = host_count
+    return serialized_group
 
 
 def serialize_host_system_profile(host):
