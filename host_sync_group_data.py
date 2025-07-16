@@ -3,7 +3,6 @@ import sys
 from functools import partial
 
 from sqlalchemy import create_engine
-from sqlalchemy import or_
 from sqlalchemy.orm import sessionmaker
 
 from app import create_app
@@ -43,7 +42,7 @@ def _excepthook(logger, type, value, traceback):  # noqa: ARG001, needed by sys.
 
 
 def run(config, logger, session, shutdown_handler):
-    query_hosts = session.query(Host).filter(or_(Host.groups.is_(None), Host.groups == []))
+    query_hosts = session.query(Host).filter(Host.groups == [])
     update_count, failed_count = sync_group_data(query_hosts, config.script_chunk_size, shutdown_handler.shut_down)
     logger.info(f"Total number of host.groups updated: {update_count}")
     logger.info(f"Total number of hosts failed to update: {failed_count}")

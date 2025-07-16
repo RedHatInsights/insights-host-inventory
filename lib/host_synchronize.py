@@ -78,7 +78,7 @@ def sync_group_data(select_hosts_query, chunk_size, interrupt=lambda: False):
     num_failed = 0
 
     while len(host_list) > 0 and not interrupt():
-        with session_guard(select_hosts_query.session):
+        with session_guard(query.session):
             for host in host_list:
                 # If host.groups says it's empty,
                 # Get the host's associated Group (if any) and store it in the "groups" field
