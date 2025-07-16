@@ -86,6 +86,7 @@ def sync_group_data(session, chunk_size, interrupt=lambda: False):
                 group := get_group_using_host_id(str(host.id), host.org_id)
             ):
                 host.groups = [serialize_group_without_host_count(group)]
+                session.add(host)
 
         # commit changes, and then load next chunk using keyset pagination
         try:
