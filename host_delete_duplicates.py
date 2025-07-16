@@ -79,6 +79,7 @@ if __name__ == "__main__":
     logger = get_logger(LOGGER_NAME)
     if SUSPEND_JOB:
         logger.info("SUSPEND_JOB set to true; exiting.")
+        sys.exit(0)
 
     job_type = "Delete duplicate hosts"
     sys.excepthook = partial(excepthook, logger, job_type)
