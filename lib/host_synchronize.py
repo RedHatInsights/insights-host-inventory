@@ -87,6 +87,7 @@ def sync_group_data(session, chunk_size, interrupt=lambda: False):
                 host.groups = []
 
             group = get_group_using_host_id(str(host.id), host.org_id)
+            logger.info(f"host.groups={host.groups}, group={group}")
             if host.groups == [] and group:
                 host.groups = [serialize_group_without_host_count(group)]
                 session.add(host)
