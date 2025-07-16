@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sys
 from functools import partial
 from logging import Logger
@@ -27,6 +28,7 @@ PROMETHEUS_JOB = "duplicate-hosts-remover"
 LOGGER_NAME = "duplicate-hosts-remover"
 COLLECTED_METRICS = (delete_duplicate_host_count,)
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
+SUSPEND_JOB = os.environ.get("SUSPEND_JOB", "true").lower() == "true"
 
 
 def run(
@@ -75,6 +77,9 @@ def run(
 
 if __name__ == "__main__":
     logger = get_logger(LOGGER_NAME)
+    if SUSPEND_JOB:
+        logger.info("SUSPEND_JOB set to true; exiting.")
+
     job_type = "Delete duplicate hosts"
     sys.excepthook = partial(excepthook, logger, job_type)
 
