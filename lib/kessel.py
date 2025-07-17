@@ -1,9 +1,10 @@
 from typing import Optional
+from api import resource_type
 from app.models import (
     Host,
     HostGroupAssoc
 )
-from app import Config
+from app import Config, KesselPermission
 from flask import current_app
 from sqlalchemy import event
 from sqlalchemy.orm import Session
@@ -15,6 +16,7 @@ logger = get_logger(__name__)
 
 import grpc
 from kessel.inventory.v1beta2 import (
+    check_request_pb2,
     representation_metadata_pb2,
     resource_representations_pb2,
     inventory_service_pb2_grpc,
@@ -74,6 +76,13 @@ class Kessel:
         channel = grpc.insecure_channel(config.kessel_target_url)
         self.inventory_svc = inventory_service_pb2_grpc.KesselInventoryServiceStub(channel)
 
+    def Check(self, current_identity: Identity, permission: KesselPermission, ids: list[int]) -> bool:
+        # Check or bulk check depending on if 1 or many ids passed. Use resource type (name is type, namespace is reporter_type) and permission (specifically, resource_permission) to populate request.
+        pass
+    def CheckForUpdate(self, current_identity: Identity, permission: KesselPermission, ids: list[int]) -> bool:
+        # CheckForUpdate or bulk depending on if 1 or many ids passed (name is type, namespace is reporter_type) and permission (specifically, resource_permission) to populate request.
+        pass
+
     def ListAllowedWorkspaces(self, current_identity: Identity, relation) -> list[str]:
             object_type = representation_type_pb2.RepresentationType(
                 resource_type="workspace",
@@ -83,7 +92,7 @@ class Kessel:
             #logger.info(f"user identity that reached the kessel lib: {current_identity.user}")
             user_id = current_identity.user['user_id'] if current_identity.user['user_id'] else current_identity.user['username'] #HACK: this is ONLY to continue testing while waiting for the user_id bits to start working
             #logger.info(f"user_id resolved from the identity: {user_id}")
-            resource_ref = resource_reference_pb2.ResourceReference(
+            subject_ref = resource_reference_pb2.ResourceReference(
                 resource_type="principal",
                 resource_id=f"redhat/{user_id}", #Platform/IdP/whatever 'redhat' is, probably needs to be parameterized
                 reporter=reporter_reference_pb2.ReporterReference(
@@ -92,7 +101,7 @@ class Kessel:
             )
 
             subject = subject_reference_pb2.SubjectReference(
-                resource=resource_ref,
+                resource=subject_ref,
             )
 
             request = streamed_list_objects_request_pb2.StreamedListObjectsRequest(

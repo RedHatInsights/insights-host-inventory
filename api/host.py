@@ -25,7 +25,7 @@ from api.host_query_db import get_host_list_by_id_list
 from api.host_query_db import get_host_tags_list_by_id_list
 from api.host_query_db import get_sparse_system_profile
 from api.staleness_query import get_staleness_obj
-from app import RbacPermission
+from app import KesselResourceTypes, RbacPermission
 from app import RbacResourceType
 from app.auth import get_current_identity
 from app.auth.identity import IdentityType
@@ -59,6 +59,7 @@ from lib.host_repository import find_existing_host
 from lib.host_repository import find_non_culled_hosts
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.middleware import rbac
+from lib.middleware import access
 from lib.outbox_repository import write_event_to_outbox
 
 FactOperations = Enum("FactOperations", ("merge", "replace"))
@@ -68,6 +69,7 @@ logger = get_logger(__name__)
 
 
 @api_operation
+@access(KesselResourceTypes.HOST.view)
 @rbac(RbacResourceType.HOSTS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_host_list(
@@ -181,7 +183,6 @@ def get_host_list(
 
 
 @api_operation
-@rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def delete_hosts_by_filter(
     display_name=None,
@@ -339,7 +340,7 @@ def delete_host_by_id(host_id_list, rbac_filter=None):
 
 
 @api_operation
-@rbac(RbacResourceType.HOSTS, RbacPermission.READ)
+@access(KesselResourceTypes.HOST.view, id_param="host_id_list")
 @metrics.api_request_time.time()
 def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None, fields=None, rbac_filter=None):
     try:
