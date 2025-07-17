@@ -468,7 +468,11 @@ def _update_group_update_time(group_id: str, org_id: str):
 
 
 def get_group_using_host_id(host_id: str, org_id: str):
-    assoc = db.session.query(HostGroupAssoc).filter(HostGroupAssoc.org_id == org_id, HostGroupAssoc.host_id == host_id).one_or_none()
+    assoc = (
+        db.session.query(HostGroupAssoc)
+        .filter(HostGroupAssoc.org_id == org_id, HostGroupAssoc.host_id == host_id)
+        .one_or_none()
+    )
     return get_group_by_id_from_db(str(assoc.group_id), org_id) if assoc else None
 
 
