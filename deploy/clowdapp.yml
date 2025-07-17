@@ -177,6 +177,8 @@ objects:
               name: segmentio
               key: WRITE_KEY
               optional: true
+        - name: REPLICA_NAMESPACE
+          value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_SERVICE}
@@ -335,6 +337,8 @@ objects:
               name: segmentio
               key: WRITE_KEY
               optional: true
+        - name: REPLICA_NAMESPACE
+          value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_SERVICE}
@@ -491,6 +495,8 @@ objects:
               name: segmentio
               key: WRITE_KEY
               optional: true
+        - name: REPLICA_NAMESPACE
+          value: ${REPLICA_NAMESPACE}
         - name: RBAC_PSKS
           valueFrom:
             secretKeyRef:
@@ -616,6 +622,8 @@ objects:
               key: psks.json
               name: rbac-psks
               optional: false
+        - name: REPLICA_NAMESPACE
+          value: ${REPLICA_NAMESPACE}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -725,6 +733,8 @@ objects:
               optional: false
         - name: HOSTS_TABLE_NUM_PARTITIONS
           value: ${HOSTS_TABLE_NUM_PARTITIONS}
+        - name: REPLICA_NAMESPACE
+          value: ${REPLICA_NAMESPACE}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -819,6 +829,8 @@ objects:
           value: ${MQ_DB_BATCH_MAX_MESSAGES}
         - name: MQ_DB_BATCH_MAX_SECONDS
           value: ${MQ_DB_BATCH_MAX_SECONDS}
+        - name: REPLICA_NAMESPACE
+          value: ${REPLICA_NAMESPACE}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -917,6 +929,8 @@ objects:
               key: psks.json
               name: rbac-psks
               optional: false
+        - name: REPLICA_NAMESPACE
+          value: ${REPLICA_NAMESPACE}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -988,6 +1002,8 @@ objects:
           value: ${FF_LAST_CHECKIN}
         - name: UNLEASH_REFRESH_INTERVAL
           value: ${UNLEASH_REFRESH_INTERVAL}
+        - name: REPLICA_NAMESPACE
+          value: ${REPLICA_NAMESPACE}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -1088,6 +1104,8 @@ objects:
                 key: psks.json
                 name: rbac-psks
                 optional: false
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_REAPER}
@@ -1152,6 +1170,8 @@ objects:
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: CONSOLEDOT_HOSTNAME
             value: ${CONSOLEDOT_HOSTNAME}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_STALE_HOST_NOTIFICAION}
@@ -1272,6 +1292,8 @@ objects:
             value: ${FF_LAST_CHECKIN}
           - name: UNLEASH_REFRESH_INTERVAL
             value: ${UNLEASH_REFRESH_INTERVAL}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_SP_VALIDATOR}
@@ -1393,6 +1415,8 @@ objects:
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: REBUILD_EVENTS_TIME_LIMIT
             value: ${REBUILD_EVENTS_TIME_LIMIT}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_SYNCHRONIZER}
@@ -1462,6 +1486,79 @@ objects:
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: REBUILD_EVENTS_TIME_LIMIT
             value: ${REBUILD_EVENTS_TIME_LIMIT}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_SYNCHRONIZER}
+            memory: ${MEMORY_LIMIT_SYNCHRONIZER}
+          requests:
+            cpu: ${CPU_REQUEST_SYNCHRONIZER}
+            memory: ${MEMORY_REQUEST_SYNCHRONIZER}
+    - name: sync-host-groups
+      restartPolicy: OnFailure
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: ["./host_sync_group_data.py"]
+        env:
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: KAFKA_BOOTSTRAP_SERVERS
+            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
+            value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory-mq-service
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'true'
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: SCRIPT_CHUNK_SIZE
+            value: ${SCRIPT_CHUNK_SIZE}
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - name: UNLEASH_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: ${UNLEASH_SECRET_NAME}
+                key: CLIENT_ACCESS_TOKEN
+                optional: true
+          - name: BYPASS_UNLEASH
+            value: ${BYPASS_UNLEASH}
+          - name: FF_LAST_CHECKIN
+            value: ${FF_LAST_CHECKIN}
+          - name: UNLEASH_REFRESH_INTERVAL
+            value: ${UNLEASH_REFRESH_INTERVAL}
+          - name: REBUILD_EVENTS_TIME_LIMIT
+            value: ${REBUILD_EVENTS_TIME_LIMIT}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_SYNCHRONIZER}
@@ -1576,6 +1673,8 @@ objects:
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: BYPASS_KESSEL_JOBS
             value: ${BYPASS_KESSEL_JOBS}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_UNGROUPED_HOSTS_JOB}
@@ -1686,6 +1785,10 @@ objects:
               secretKeyRef:
                 name: ${DELETE_HOSTS_S3_AWS_SECRET}
                 key: bucket
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+          - name: SUSPEND_JOB
+            value: ${SUSPEND_DELETE_HOSTS_S3}
         resources:
           limits:
             cpu: ${CPU_LIMIT_GROUPS_S3_EXPORT}
@@ -1755,6 +1858,8 @@ objects:
             value: ${BYPASS_KESSEL_JOBS}
           - name: ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE
             value: ${ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_UNGROUPED_HOSTS_JOB}
@@ -1888,6 +1993,8 @@ objects:
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: HOST_DELETE_CHUNK_SIZE
             value: ${HOST_DELETE_CHUNK_SIZE}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_HOSTS_WITHOUT_ID_FACTS_JOB}
@@ -1895,6 +2002,63 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_HOSTS_WITHOUT_ID_FACTS_JOB}
             memory: ${MEMORY_REQUEST_HOSTS_WITHOUT_ID_FACTS_JOB}
+    - name: duplicate-hosts-remover
+      restartPolicy: Never
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: [ "./host_delete_duplicates.py" ]
+        env:
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: KAFKA_BOOTSTRAP_SERVERS
+            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
+            value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory-mq-service
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'true'
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: SCRIPT_CHUNK_SIZE
+            value: ${SCRIPT_CHUNK_SIZE}
+          - name: DRY_RUN
+            value: ${REMOVE_DUPLICATES_DRY_RUN}
+          - name: SUSPEND_JOB
+            value: ${SUSPEND_DUPLICATE_HOSTS_REMOVER}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_DUPLICATE_HOSTS_REMOVER_JOB}
+            memory: ${MEMORY_LIMIT_DUPLICATE_HOSTS_REMOVER_JOB}
+          requests:
+            cpu: ${CPU_REQUEST_DUPLICATE_HOSTS_REMOVER_JOB}
+            memory: ${MEMORY_REQUEST_DUPLICATE_HOSTS_REMOVER_JOB}
 
     database:
       name: ${DB_NAME}
@@ -2351,6 +2515,18 @@ parameters:
 - name: MEMORY_LIMIT_HOSTS_WITHOUT_ID_FACTS_JOB
   value: 512Mi
 
+- name: CPU_REQUEST_DUPLICATE_HOSTS_REMOVER_JOB
+  value: 250m
+- name: CPU_LIMIT_DUPLICATE_HOSTS_REMOVER_JOB
+  value: 500m
+- name: MEMORY_REQUEST_DUPLICATE_HOSTS_REMOVER_JOB
+  value: 256Mi
+- name: MEMORY_LIMIT_DUPLICATE_HOSTS_REMOVER_JOB
+  value: 512Mi
+- name: REMOVE_DUPLICATES_DRY_RUN
+  description: Whether the duplicate hosts remover script should run in dry-run mode
+  value: 'true'
+
 - description: Replica count for p1 consumer
   name: REPLICAS_P1
   value: "5"
@@ -2597,6 +2773,12 @@ parameters:
 - name: HOSTS_TABLE_NUM_PARTITIONS
   description: The number of partitions for the hosts table
   value: '1'
+- name: SUSPEND_DELETE_HOSTS_S3
+  description: If set to true, the delete-hosts-s3 job will immediately exit upon running.
+  value: 'true'
+- name: SUSPEND_DUPLICATE_HOSTS_REMOVER
+  description: If set to true, the duplicate-hosts-remover job will immediately exit upon running.
+  value: 'true'
 
 # NGINX
 - displayName: Minimum replicas
@@ -2655,3 +2837,9 @@ parameters:
 - name: FLOORIST_DB_SECRET_NAME
   description: database secret name
   value: host-inventory-db
+
+
+# Replica namespace
+- name: REPLICA_NAMESPACE
+  description: Disable Kafka operations in the replica namespace
+  value: 'false'

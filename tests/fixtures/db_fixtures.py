@@ -4,6 +4,7 @@ import os
 from collections.abc import Generator
 from typing import Any
 from typing import Callable
+from uuid import UUID
 
 import pytest
 from connexion import FlaskApp
@@ -23,7 +24,6 @@ from lib.group_repository import serialize_group
 from tests.helpers.db_utils import db_group
 from tests.helpers.db_utils import db_staleness_culling
 from tests.helpers.db_utils import minimal_db_host
-from tests.helpers.db_utils import minimal_db_host_dict
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import now
 from tests.helpers.test_utils import set_environment
@@ -55,8 +55,8 @@ def database(database_name: None) -> Generator[str]:  # noqa: ARG001
 
 
 @pytest.fixture(scope="function")
-def db_get_host(flask_app):  # noqa: ARG001
-    def _db_get_host(host_id):
+def db_get_host(flask_app: FlaskApp) -> Callable[[UUID], Host | None]:  # noqa: ARG001
+    def _db_get_host(host_id: UUID) -> Host | None:
         return Host.query.filter(Host.id == host_id).one_or_none()
 
     return _db_get_host
@@ -176,22 +176,6 @@ def db_create_multiple_hosts(flask_app: FlaskApp) -> Callable[..., list[Host]]: 
         return created_hosts
 
     return _db_create_multiple_hosts
-
-
-@pytest.fixture(scope="function")
-def db_create_bulk_hosts(flask_app):  # noqa: ARG001
-    def _db_create_bulk_hosts(identity=None, how_many=10, extra_data=None):
-        identity = identity or SYSTEM_IDENTITY
-        extra_data = extra_data or {}
-        host_dicts = []
-
-        for _ in range(how_many):
-            hd = minimal_db_host_dict(org_id=identity["org_id"], **extra_data)
-            host_dicts.append(hd)
-
-        db.engine.execute(Host.__table__.insert(), host_dicts)
-
-    return _db_create_bulk_hosts
 
 
 @pytest.fixture(scope="function")
