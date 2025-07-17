@@ -22,13 +22,16 @@ def init_payload_tracker(config, producer=None):
     if producer is not None:
         logger.info(f"Using injected producer object ({producer}) for PayloadTracker")
         _PRODUCER = producer
+    elif config.replica_namespace:
+        logger.info("Starting NullProducer() PayloadTracker - Kafka operations disabled in replica cluster")
+        _PRODUCER = NullProducer()
     else:
         logger.info("Starting KafkaProducer() for PayloadTracker")
         _PRODUCER = KafkaProducer(**config.payload_tracker_kafka_producer)
 
 
 def get_payload_tracker(account=None, org_id=None, request_id=None):
-    if _CFG.payload_tracker_enabled is False or request_id is None:
+    if _CFG.payload_tracker_enabled is False or _CFG.replica_namespace is True or request_id is None:
         return NullPayloadTracker()
 
     payload_tracker = KafkaPayloadTracker(

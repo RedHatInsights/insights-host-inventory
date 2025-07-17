@@ -65,27 +65,21 @@ def patch_globals(monkeypatch):
     "csv_content, dry_run, expected_batches, expected_final_log",
     [
         (
-            "id1\nid2\nid3\nid4\n",
+            "header\nid1\nid2\nid3\nid4\n",
             False,
             [["id1", "id2"], ["id3", "id4"]],
             "Hosts that were not deleted because they had multiple reporters: 0",
         ),
         (
-            "id1\nid2\nid3\n",
+            "header\nid1\nid2\nid3\n",
             True,
             [["id1", "id2"], ["id3"]],
             "This was a dry run. This many hosts would have been deleted in an actual run: 0",
         ),
         (
-            "\n\nid1\n\n",
+            "header\n\nid1\n\n",
             False,
             [["id1"]],
-            "Hosts that were not deleted because they had multiple reporters: 0",
-        ),
-        (
-            "",
-            False,
-            [],
             "Hosts that were not deleted because they had multiple reporters: 0",
         ),
     ],

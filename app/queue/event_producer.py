@@ -34,6 +34,23 @@ class MessageDetails:
             message_produced(logger, message, self.headers)
 
 
+class NullEventProducer:
+    # ruff: noqa: ARG002
+    """Mock EventProducer that does nothing when in replica cluster"""
+
+    def __init__(self, config, topic):
+        logger.info("Starting NullEventProducer() - Kafka operations disabled in replica cluster")
+        self.mq_topic = topic
+
+    def write_event(self, event, key, headers, *, wait=False):
+        logger.debug(
+            "NullEventProducer: Skipping event production in replica cluster. Topic: %s, key: %s", self.mq_topic, key
+        )
+
+    def close(self):
+        logger.debug("NullEventProducer: Closing (no-op)")
+
+
 class EventProducer:
     def __init__(self, config, topic):
         logger.info("Starting EventProducer()")
@@ -65,3 +82,10 @@ class EventProducer:
 
     def close(self):
         self._kafka_producer.flush()
+
+
+def create_event_producer(config, topic):
+    """Factory function to create appropriate EventProducer"""
+    if config.replica_namespace:
+        return NullEventProducer(config, topic)
+    return EventProducer(config, topic)

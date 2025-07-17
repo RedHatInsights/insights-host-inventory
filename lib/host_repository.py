@@ -39,6 +39,7 @@ from lib import metrics
 
 __all__ = (
     "AddHostResult",
+    "extract_immutable_and_id_facts",
     "add_host",
     "multiple_canonical_facts_host_query",
     "create_new_host",
@@ -95,7 +96,7 @@ def add_host(
         return create_new_host(input_host)
 
 
-def _extract_immutable_and_id_facts(canonical_facts: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+def extract_immutable_and_id_facts(canonical_facts: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
     """
     Returns two dictionaries:
     - immutable_facts: All immutable facts present in the canonical facts, together with their compound facts
@@ -129,7 +130,7 @@ def find_existing_host(
     identity: Identity, canonical_facts: dict[str, Any], from_hosts: list[Host] | None = None
 ) -> Host | None:
     logger.debug(f"find_existing_host({identity}, {canonical_facts}, {from_hosts})")
-    immutable_facts, id_facts = _extract_immutable_and_id_facts(canonical_facts)
+    immutable_facts, id_facts = extract_immutable_and_id_facts(canonical_facts)
 
     # First search based on immutable id facts.
     if immutable_facts:  # noqa: SIM102

@@ -7,6 +7,7 @@ from app.models import Host
 from app.queue.events import EventType
 from app.queue.events import build_event
 from app.queue.events import message_headers
+from app.serialization import serialize_group_without_host_count
 from app.serialization import serialize_host
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness
@@ -15,7 +16,7 @@ from lib.metrics import synchronize_host_count
 
 logger = get_logger(__name__)
 
-__all__ = ("synchronize_hosts",)
+__all__ = ("synchronize_hosts", "sync_group_data")
 
 
 def synchronize_hosts(
@@ -30,16 +31,6 @@ def synchronize_hosts(
 
     while len(host_list) > 0 and not interrupt():
         for host in host_list:
-            # First, set host.groups to [] if it's null.
-            if host.groups is None:
-                host.groups = []
-
-            # This is a temporary fix that we can remove later.
-            # If host.groups says it's empty,
-            # Get the host's associated Group (if any) and store it in the "groups" field
-            if host.groups == [] and (group := get_group_using_host_id(str(host.id), host.org_id)):
-                host.groups = [{"id": str(group.id), "name": group.name, "ungrouped": group.ungrouped}]
-
             staleness = None
             try:
                 staleness = custom_staleness_dict[host.org_id]
@@ -74,8 +65,42 @@ def synchronize_hosts(
         except ProduceError as e:
             raise ProduceError(f"ProduceError: Kafka failure to flush {chunk_size} records within 300 seconds") from e
 
-        # flush changes, and then load next chunk using keyset pagination
-        query.session.flush()
+        # load next chunk using keyset pagination
         host_list = query.filter(Host.id > host_list[-1].id).limit(chunk_size).all()
 
     return num_synchronized
+
+
+def sync_group_data(session, chunk_size, interrupt=lambda: False):
+    query = session.query(Host).filter(Host.groups == []).order_by(Host.id)
+    host_list = query.limit(chunk_size).all()
+    num_updated = 0
+    num_failed = 0
+
+    while len(host_list) > 0 and not interrupt():
+        logger.info(f"Processing batch of {len(host_list)}")
+        num_in_current_batch = 0
+        for host in host_list:
+            # If host.groups says it's empty,
+            # Get the host's associated Group (if any) and store it in the "groups" field
+            if host.groups is None:
+                host.groups = []
+
+            group = get_group_using_host_id(str(host.id), host.org_id)
+            if host.groups == [] and group:
+                host.groups = [serialize_group_without_host_count(group)]
+                session.add(host)
+                num_in_current_batch += 1
+
+        # commit changes, and then load next chunk using keyset pagination
+        try:
+            session.commit()
+            num_updated += num_in_current_batch
+            logger.info(f"{num_in_current_batch} changes flushed; {num_updated} updated so far.")
+        except Exception as exc:
+            logger.exception("Failed to sync host.groups data for batch.", exc_info=exc)
+            num_failed += len(host_list)
+
+        host_list = query.filter(Host.id > host_list[-1].id).limit(chunk_size).all()
+
+    return num_updated, num_failed
