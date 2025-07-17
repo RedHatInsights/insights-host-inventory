@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.config import Config
 from app.environment import RuntimeEnvironment
 from app.logging import get_logger
+from app.logging import threadctx
 from app.models import Host
 from app.queue.event_producer import EventProducer
 from jobs.common import excepthook
@@ -171,12 +172,13 @@ def run(
 
 if __name__ == "__main__":
     logger = get_logger(LOGGER_NAME)
+    job_type = "Delete host IDs via S3"
+    sys.excepthook = partial(excepthook, logger, job_type)
+    threadctx.request_id = None
+
     if SUSPEND_JOB:
         logger.info("SUSPEND_JOB set to true; exiting.")
         sys.exit(0)
-
-    job_type = "Delete host IDs via S3"
-    sys.excepthook = partial(excepthook, logger, job_type)
 
     config, session, event_producer, notification_event_producer, _, application = job_setup((), PROMETHEUS_JOB)
     run(config, logger, session, event_producer, notification_event_producer, application)
