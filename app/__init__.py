@@ -94,6 +94,45 @@ class RbacResourceType(Enum):
     STALENESS = "staleness"
     ALL = "*"
 
+class KesselResourceType:
+    namespace: str
+    name: str
+    v1_type: RbacResourceType
+    v1_app: str
+
+    def __init__(self, namespace: str, name: str, v1_type: RbacResourceType, v1_app: str) -> None:
+        self.namespace = namespace
+        self.name = name
+        self.v1_type = v1_type
+        self.v1_app = v1_app
+
+class KesselPermission:
+    resource_type: KesselResourceType
+    workspace_permission: str
+    resource_permission: str
+    v1_permission: RbacPermission
+
+    def __init__(self, resourceType: KesselResourceType, workspacePermission: str, resourcePermission: str, v1Permission: RbacPermission) -> None:
+        resource_type = resourceType
+        workspace_permission = workspacePermission
+        resource_permission = resourcePermission
+        v1_permission = v1Permission
+
+class HostKesselResourceType(KesselResourceType):
+    view: KesselPermission
+    def __init__(self) -> None:
+        super().__init__("hbi", "host", RbacResourceType.HOSTS, "inventory")
+        view = KesselPermission(self, "inventory_hosts_view", "view", RbacPermission.READ)
+        #Add more host permissions here
+
+#Add more resource types as subclasses of KesselResourceType
+
+
+class KesselResourceTypes:
+    HOST = HostKesselResourceType()
+    # Expose resource type specific subclasses here
+
+    
 
 def initialize_metrics(config):
     event_topic_name = config.event_topic
