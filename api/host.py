@@ -376,7 +376,7 @@ def _emit_patch_event(serialized_host, host):
 
 
 @api_operation
-@rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
+@access(KesselResourceTypes.HOST.write, id_param="host_id_list", writeOperation=True)
 @metrics.api_request_time.time()
 def patch_host_by_id(host_id_list, body, rbac_filter=None):
     try:
