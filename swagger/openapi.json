@@ -79,6 +79,9 @@
             "$ref": "#/components/parameters/registered_with"
           },
           {
+            "$ref": "#/components/parameters/systemTypeParam"
+          },
+          {
             "$ref": "#/components/parameters/filter_param"
           },
           {
@@ -140,6 +143,9 @@
           },
           {
             "$ref": "#/components/parameters/registered_with"
+          },
+          {
+            "$ref": "#/components/parameters/systemTypeParam"
           },
           {
             "$ref": "#/components/parameters/stalenessNoDefaultsParam"
@@ -1131,6 +1137,9 @@
             "$ref": "#/components/parameters/registered_with"
           },
           {
+            "$ref": "#/components/parameters/systemTypeParam"
+          },
+          {
             "$ref": "#/components/parameters/filter_param"
           }
         ],
@@ -1911,6 +1920,23 @@
               "!puptoo",
               "!rhsm-conduit",
               "!cloud-connector"
+            ]
+          }
+        }
+      },
+      "systemTypeParam": {
+        "in": "query",
+        "name": "system_type",
+        "required": false,
+        "description": "Filters systems by type",
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "conventional",
+              "bootc",
+              "edge"
             ]
           }
         }

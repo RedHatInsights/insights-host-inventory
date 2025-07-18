@@ -39,6 +39,7 @@ def get_tags(
     per_page=None,
     staleness=None,
     registered_with=None,
+    system_type=None,
     filter=None,
     rbac_filter=None,
 ):
@@ -68,6 +69,7 @@ def get_tags(
             order_how=order_how,
             staleness=staleness,
             registered_with=registered_with,
+            system_type=system_type,
             filter=filter,
             rbac_filter=rbac_filter,
         )
