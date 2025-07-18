@@ -17,6 +17,7 @@ from api.group_query import get_filtered_group_list_db
 from api.group_query import get_group_list_by_id_list_db
 from app import RbacPermission
 from app import RbacResourceType
+from app import KesselResourceTypes
 from app.auth import get_current_identity
 from app.common import inventory_config
 from app.exceptions import InventoryException
@@ -51,11 +52,13 @@ from lib.middleware import patch_rbac_workspace
 from lib.middleware import post_rbac_workspace
 from lib.middleware import rbac
 from lib.middleware import rbac_group_id_check
+from lib.middleware import access
 
 logger = get_logger(__name__)
 
 
 @api_operation
+@access(KesselResourceTypes.GROUP.view)
 @rbac(RbacResourceType.GROUPS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_group_list(
@@ -81,6 +84,7 @@ def get_group_list(
 
 
 @api_operation
+@access(KesselResourceTypes.GROUP.create, writeOperation=True)
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def create_group(body, rbac_filter=None):
@@ -168,6 +172,7 @@ def create_group(body, rbac_filter=None):
 
 
 @api_operation
+@access(KesselResourceTypes.GROUP.write, writeOperation=True)
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def patch_group_by_id(group_id, body, rbac_filter=None):
@@ -227,6 +232,7 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
 
 
 @api_operation
+@access(KesselResourceTypes.GROUP.delete, id_param="group_id_list", writeOperation=True)
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def delete_groups(group_id_list, rbac_filter=None):
@@ -266,6 +272,7 @@ def delete_groups(group_id_list, rbac_filter=None):
 
 
 @api_operation
+@access(KesselResourceTypes.GROUP.view, id_param="group_id_list")
 @rbac(RbacResourceType.GROUPS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_groups_by_id(
