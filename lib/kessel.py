@@ -1,5 +1,4 @@
 from typing import Optional
-from api import resource_type
 from app.models import (
     Host,
     HostGroupAssoc
