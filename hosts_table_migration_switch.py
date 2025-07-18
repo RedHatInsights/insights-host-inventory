@@ -43,6 +43,10 @@ def perform_action(session: Session, logger: Logger):
         sql_block = f"""
             DO $$
             BEGIN
+                -- Set a local timeout for this transaction only.
+                -- If it can't get a lock within 60 seconds, it will error out.
+                SET LOCAL lock_timeout = '60s';
+
                 -- Lock all tables involved in the swap
                 RAISE NOTICE 'Acquiring exclusive locks on all tables...';
                 LOCK TABLE {INVENTORY_SCHEMA}.hosts IN ACCESS EXCLUSIVE MODE;
@@ -80,6 +84,10 @@ def perform_action(session: Session, logger: Logger):
         sql_block = f"""
             DO $$
             BEGIN
+                -- Set a local timeout for this transaction only.
+                -- If it can't get a lock within 60 seconds, it will error out.
+                SET LOCAL lock_timeout = '60s';
+
                 -- Lock all tables involved in the swap
                 RAISE NOTICE 'Acquiring exclusive locks on all tables for rollback...';
                 LOCK TABLE {INVENTORY_SCHEMA}.hosts IN ACCESS EXCLUSIVE MODE;
