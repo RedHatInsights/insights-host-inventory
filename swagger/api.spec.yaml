@@ -1213,11 +1213,13 @@ components:
       required: false
       description: Filters systems by type
       schema:
-        type: string
-        enum:
-          - conventional
-          - bootc
-          - edge
+        type: array
+        items:
+          type: string
+          enum:
+            - conventional
+            - bootc
+            - edge
     filter_param:
       in: query
       name: filter
