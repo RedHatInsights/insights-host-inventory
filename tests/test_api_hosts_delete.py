@@ -17,8 +17,10 @@ from lib.host_delete import delete_hosts
 from lib.host_repository import get_host_list_by_id_list_from_db
 from tests.helpers.api_utils import HOST_WRITE_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import RBACFilterOperation
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_hosts_url
+from tests.helpers.api_utils import create_custom_rbac_response
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.db_utils import db_host
 from tests.helpers.mq_utils import MockEventProducer
@@ -528,11 +530,9 @@ def test_delete_host_RBAC_allowed_specific_groups(
     group_id_list = [generate_uuid(), str(group_id), generate_uuid()]
 
     # Grant permissions to all 3 groups
-    mock_rbac_response = create_mock_rbac_response(
-        "tests/helpers/rbac-mock-data/inv-hosts-write-resource-defs-template.json"
+    get_rbac_permissions_mock.return_value = create_custom_rbac_response(
+        group_id_list, RBACFilterOperation.IN, "write"
     )
-    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = group_id_list
-    get_rbac_permissions_mock.return_value = mock_rbac_response
 
     response_status, _ = api_delete_host(host_id)
 
@@ -547,12 +547,10 @@ def test_delete_host_RBAC_denied_specific_groups(mocker, db_create_host, db_get_
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     host_id = db_create_host().id
 
-    # Deny access to created group
-    mock_rbac_response = create_mock_rbac_response(
-        "tests/helpers/rbac-mock-data/inv-hosts-write-resource-defs-template.json"
+    # Deny access to our created group, only allow access to some mock groups
+    get_rbac_permissions_mock.return_value = create_custom_rbac_response(
+        [generate_uuid(), generate_uuid()], RBACFilterOperation.IN, "write"
     )
-    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = [generate_uuid(), generate_uuid()]
-    get_rbac_permissions_mock.return_value = mock_rbac_response
 
     response_status, _ = api_delete_host(host_id)
 
