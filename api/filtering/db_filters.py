@@ -14,6 +14,8 @@ from sqlalchemy import not_
 from sqlalchemy import or_
 from sqlalchemy.dialects.postgresql import JSON
 
+from api.filtering.db_custom_filters import _unique_paths
+from api.filtering.db_custom_filters import build_single_filter
 from api.filtering.db_custom_filters import build_system_profile_filter
 from api.filtering.db_custom_filters import get_host_types_from_filter
 from api.staleness_query import get_staleness_obj
@@ -328,24 +330,33 @@ def update_query_for_owner_id(identity: Identity, query: Query) -> Query:
     return query
 
 
-def _system_type_filter(system_type):
-    valid_values = {st.value for st in SystemType}
-    if system_type not in valid_values:
-        raise ValidationException(f"Invalid system_type: {system_type}")
-
+def _system_type_filter(filters: list[str]) -> list:
     PROFILE_FILTERS = {
-        SystemType.CONVENTIONAL.value: {
+        "conventional": {
             "system_profile": {
                 "bootc_status": {"booted": {"image_digest": {"eq": "nil"}}},
                 "host_type": {"eq": "nil"},
             }
         },
-        SystemType.BOOTC.value: {"system_profile": {"bootc_status": {"booted": {"image_digest": {"eq": "not_nil"}}}}},
-        SystemType.EDGE.value: {"system_profile": {"host_type": {"eq": SystemType.EDGE.value}}},
+        "bootc": {"system_profile": {"bootc_status": {"booted": {"image_digest": {"eq": "not_nil"}}}}},
+        "edge": {"system_profile": {"host_type": {"eq": SystemType.EDGE.value}}},
     }
+    valid_values = [st.value for st in SystemType]
+    query_filters: list = []
+    for system_type in filters:
+        if system_type not in valid_values:
+            raise ValidationException(f"Invalid system_type: {system_type}")
 
-    query_filter, _ = _system_profile_filter(PROFILE_FILTERS[system_type])
-    return query_filter
+        filter_obj = PROFILE_FILTERS[system_type]
+
+        if len(filter_obj["system_profile"].keys()) > 1:
+            filter_param_list = _unique_paths(filter_obj)
+            subfilter = [build_single_filter(filter_param["system_profile"]) for filter_param in filter_param_list]
+
+            query_filters += [and_(*subfilter)]
+        else:
+            query_filters += [or_(*build_system_profile_filter(filter_obj["system_profile"]))]
+    return query_filters
 
 
 def query_filters(
@@ -363,7 +374,7 @@ def query_filters(
     tags: list[str] | None = None,
     staleness: list[str] | None = None,
     registered_with: list[str] | None = None,
-    system_type: str | None = None,
+    system_type: list[str] | None = None,
     filter: dict | None = None,
     rbac_filter: dict | None = None,
     order_by: str | None = None,
@@ -392,6 +403,8 @@ def query_filters(
     elif subscription_manager_id:
         filters += canonical_fact_filter("subscription_manager_id", subscription_manager_id.lower())
 
+    if system_type:
+        filters += _system_type_filter(system_type)
     if provider_id:
         filters += canonical_fact_filter("provider_id", provider_id, case_insensitive=True)
     if provider_type:
@@ -411,8 +424,6 @@ def query_filters(
         filters += _get_staleness_filter(staleness, host_type_filter, identity.org_id)
     if registered_with:
         filters += _registered_with_filter(registered_with, host_type_filter, identity.org_id)
-    if system_type:
-        filters += _system_type_filter(system_type)
     if rbac_filter:
         filters += rbac_permissions_filter(rbac_filter)
 
