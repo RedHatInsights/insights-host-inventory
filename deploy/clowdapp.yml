@@ -1228,6 +1228,8 @@ objects:
             value: "${INVENTORY_DB_SCHEMA}"
           - name: PROMETHEUS_PUSHGATEWAY
             value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_SYNDICATOR}
@@ -1374,6 +1376,8 @@ objects:
             value: ${FF_LAST_CHECKIN}
           - name: UNLEASH_REFRESH_INTERVAL
             value: ${UNLEASH_REFRESH_INTERVAL}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_PENDO_SYNCHER}
@@ -1642,6 +1646,8 @@ objects:
             value: ${BYPASS_KESSEL_JOBS}
           - name: CREATE_UNGROUPED_GROUPS_BATCH_SIZE
             value: ${CREATE_UNGROUPED_GROUPS_BATCH_SIZE}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_UNGROUPED_HOSTS_JOB}
@@ -1761,6 +1767,8 @@ objects:
                 key: bucket
           - name: BYPASS_KESSEL_JOBS
             value: ${BYPASS_KESSEL_JOBS}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_GROUPS_S3_EXPORT}
@@ -1941,6 +1949,8 @@ objects:
                 fieldPath: metadata.namespace
           - name: CLOWDER_ENABLED
             value: "true"
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_HOSTS_LAST_CHECK_IN}
@@ -1975,6 +1985,8 @@ objects:
                 fieldPath: metadata.namespace
           - name: CLOWDER_ENABLED
             value: "true"
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_EDGE_HOSTS_PRS}
@@ -2105,6 +2117,8 @@ objects:
             value: ${REMOVE_DUPLICATES_DRY_RUN}
           - name: SUSPEND_JOB
             value: ${SUSPEND_DUPLICATE_HOSTS_REMOVER}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_DUPLICATE_HOSTS_REMOVER_JOB}
