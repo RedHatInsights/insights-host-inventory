@@ -113,23 +113,47 @@ class KesselPermission:
     v1_permission: RbacPermission
 
     def __init__(self, resourceType: KesselResourceType, workspacePermission: str, resourcePermission: str, v1Permission: RbacPermission) -> None:
-        resource_type = resourceType
-        workspace_permission = workspacePermission
-        resource_permission = resourcePermission
-        v1_permission = v1Permission
+        self.resource_type = resourceType
+        self.workspace_permission = workspacePermission
+        self.resource_permission = resourcePermission
+        self.v1_permission = v1Permission
 
 class HostKesselResourceType(KesselResourceType):
-    view: KesselPermission
     def __init__(self) -> None:
         super().__init__("hbi", "host", RbacResourceType.HOSTS, "inventory")
-        view = KesselPermission(self, "inventory_hosts_view", "view", RbacPermission.READ)
-        #Add more host permissions here
+        self.view = KesselPermission(self, "inventory_hosts_view", "view", RbacPermission.READ)
+        self.write = KesselPermission(self, "inventory_hosts_write", "edit", RbacPermission.WRITE)
+        self.delete = KesselPermission(self, "inventory_hosts_write", "delete", RbacPermission.WRITE)
+        self.create = KesselPermission(self, "inventory_hosts_write", "create", RbacPermission.WRITE)
+
+class GroupKesselResourceType(KesselResourceType):
+    def __init__(self) -> None:
+        super().__init__("hbi", "group", RbacResourceType.GROUPS, "inventory")
+        self.view = KesselPermission(self, "inventory_groups_view", "view", RbacPermission.READ)
+        self.write = KesselPermission(self, "inventory_groups_write", "edit", RbacPermission.WRITE)
+        self.delete = KesselPermission(self, "inventory_groups_write", "delete", RbacPermission.WRITE)
+        self.create = KesselPermission(self, "inventory_groups_write", "create", RbacPermission.WRITE)
+
+class StalenessKesselResourceType(KesselResourceType):
+    def __init__(self) -> None:
+        super().__init__("hbi", "staleness", RbacResourceType.STALENESS, "inventory")
+        self.view = KesselPermission(self, "inventory_staleness_view", "view", RbacPermission.READ)
+        self.write = KesselPermission(self, "inventory_staleness_write", "edit", RbacPermission.WRITE)
+        self.delete = KesselPermission(self, "inventory_staleness_write", "delete", RbacPermission.WRITE)
+        self.create = KesselPermission(self, "inventory_staleness_write", "create", RbacPermission.WRITE)
+
+class AllKesselResourceType(KesselResourceType):
+    def __init__(self) -> None:
+        super().__init__("hbi", "all", RbacResourceType.ALL, "inventory")
+        self.admin = KesselPermission(self, "inventory_admin", "admin", RbacPermission.ADMIN)
 
 #Add more resource types as subclasses of KesselResourceType
 
-
 class KesselResourceTypes:
     HOST = HostKesselResourceType()
+    GROUP = GroupKesselResourceType()
+    STALENESS = StalenessKesselResourceType()
+    ALL = AllKesselResourceType()
     # Expose resource type specific subclasses here
 
     
