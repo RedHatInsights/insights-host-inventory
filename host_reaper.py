@@ -19,6 +19,8 @@ from app.queue.metrics import event_producer_success
 from app.queue.metrics import event_serialization_time
 from jobs.common import excepthook
 from jobs.common import job_setup as host_reaper_job_setup
+from lib.feature_flags import FLAG_INVENTORY_API_READ_ONLY
+from lib.feature_flags import get_flag_value
 from lib.host_delete import delete_hosts
 from lib.host_repository import find_hosts_by_staleness_job
 from lib.host_repository import find_hosts_sys_default_staleness
@@ -143,4 +145,10 @@ if __name__ == "__main__":
     config, session, event_producer, notification_event_producer, shutdown_handler, application = (
         host_reaper_job_setup(COLLECTED_METRICS, PROMETHEUS_JOB)
     )
+
+    with application.app.app_context():
+        if get_flag_value(FLAG_INVENTORY_API_READ_ONLY):
+            logger.info("Inventory API is currently in read-only mode. Exiting.")
+            sys.exit(0)
+
     run(config, logger, session, event_producer, notification_event_producer, shutdown_handler, application)
