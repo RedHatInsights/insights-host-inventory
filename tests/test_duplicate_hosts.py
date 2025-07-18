@@ -413,7 +413,7 @@ def test_delete_duplicates_multiple_org_ids(
     event_producer_mock: MockEventProducer,
     notification_event_producer_mock: MockEventProducer,
     db_create_host: Callable[..., Host],
-    db_get_host: Callable[[UUID], Host | None],
+    db_get_host: Callable[[UUID, str], Host | None],
 ):
     canonical_facts = {
         "insights_id": generate_uuid(),
@@ -445,5 +445,5 @@ def test_delete_duplicates_multiple_org_ids(
             application=flask_app,
         )
     assert deleted_hosts_count == 0
-    assert db_get_host(created_host1)
-    assert db_get_host(created_host2)
+    assert db_get_host(created_host1, "111111")
+    assert db_get_host(created_host2, "222222")
