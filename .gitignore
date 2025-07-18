@@ -17,3 +17,4 @@ swagger/inventory-schemas/
 coverage.xml
 
 sonarqube/
+ubi.repo
