@@ -102,23 +102,23 @@ class CanonicalFactsSchema(MarshmallowSchema):
     )
     is_virtual = fields.Boolean(required=False)
 
-    insights_id = fields.Str(validate=verify_uuid_format)
-    subscription_manager_id = fields.Str(validate=verify_uuid_format)
-    satellite_id = fields.Str(validate=verify_satellite_id)
-    fqdn = fields.Str(validate=marshmallow_validate.Length(min=1, max=255))
-    bios_uuid = fields.Str(validate=verify_uuid_format)
-    ip_addresses = fields.List(fields.Str(validate=verify_ip_address_format))
+    insights_id = fields.Raw(validate=verify_uuid_format, allow_none=True)
+    subscription_manager_id = fields.Str(validate=verify_uuid_format, allow_none=True)
+    satellite_id = fields.Str(validate=verify_satellite_id, allow_none=True)
+    fqdn = fields.Str(validate=marshmallow_validate.Length(min=1, max=255), allow_none=True)
+    bios_uuid = fields.Str(validate=verify_uuid_format, allow_none=True)
+    ip_addresses = fields.List(fields.Str(validate=verify_ip_address_format), allow_none=True)
     mac_addresses = fields.List(
-        fields.Str(validate=verify_mac_address_format), validate=marshmallow_validate.Length(min=1)
+        fields.Str(validate=verify_mac_address_format), validate=marshmallow_validate.Length(min=1), allow_none=True
     )
-    provider_id = fields.Str(validate=marshmallow_validate.Length(min=1, max=500))
-    provider_type = fields.Str(validate=marshmallow_validate.Length(min=1, max=50))
+    provider_id = fields.Str(validate=marshmallow_validate.Length(min=1, max=500), allow_none=True)
+    provider_type = fields.Str(validate=marshmallow_validate.Length(min=1, max=50), allow_none=True)
 
     @validates_schema
     def validate_schema(self, data, **kwargs):
         schema_version = data.get("canonical_facts_version")
 
-        if "mac_addresses" in data:
+        if "mac_addresses" in data and data["mac_addresses"] is not None:
             mac_addresses = data["mac_addresses"]
             while ZERO_MAC_ADDRESS in mac_addresses:
                 from app.models import logger
@@ -245,6 +245,15 @@ class LimitedHostSchema(CanonicalFactsSchema):
             tags_alt=tags_alt if tags_alt else [],
             system_profile_facts=data.get("system_profile", {}),
             groups=data.get("groups", []),
+            insights_id=canonical_facts.get("insights_id"),
+            subscription_manager_id=canonical_facts.get("subscription_manager_id"),
+            satellite_id=canonical_facts.get("satellite_id"),
+            fqdn=canonical_facts.get("fqdn"),
+            bios_uuid=canonical_facts.get("bios_uuid"),
+            ip_addresses=canonical_facts.get("ip_addresses"),
+            mac_addresses=canonical_facts.get("mac_addresses"),
+            provider_id=canonical_facts.get("provider_id"),
+            provider_type=canonical_facts.get("provider_type"),
         )
 
     @pre_load
@@ -293,6 +302,15 @@ class HostSchema(LimitedHostSchema):
             data["stale_timestamp"],
             data["reporter"],
             data.get("groups", []),
+            insights_id=canonical_facts.get("insights_id"),
+            subscription_manager_id=canonical_facts.get("subscription_manager_id"),
+            satellite_id=canonical_facts.get("satellite_id"),
+            fqdn=canonical_facts.get("fqdn"),
+            bios_uuid=canonical_facts.get("bios_uuid"),
+            ip_addresses=canonical_facts.get("ip_addresses"),
+            mac_addresses=canonical_facts.get("mac_addresses"),
+            provider_id=canonical_facts.get("provider_id"),
+            provider_type=canonical_facts.get("provider_type"),
         )
 
 

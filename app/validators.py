@@ -12,6 +12,9 @@ def verify_uuid_format_draft4(uuid_str):
     if not uuid_str:
         return False
 
+    if isinstance(uuid_str, uuid.UUID):
+        uuid_str = str(uuid_str)
+
     try:
         uuid.UUID(uuid_str)
     except Exception:

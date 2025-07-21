@@ -62,6 +62,15 @@ class LimitedHost(db.Model):
         system_profile_facts=None,
         groups=None,
         id=None,
+        insights_id=None,
+        subscription_manager_id=None,
+        satellite_id=None,
+        fqdn=None,
+        bios_uuid=None,
+        ip_addresses=None,
+        mac_addresses=None,
+        provider_id=None,
+        provider_type=None,
     ):
         if id:
             self.id = id
@@ -86,6 +95,17 @@ class LimitedHost(db.Model):
         self.system_profile_facts = system_profile_facts or {}
         self.groups = groups or []
         self.last_check_in = _time_now()
+
+        # canonical facts
+        self.insights_id = insights_id
+        self.subscription_manager_id = subscription_manager_id
+        self.satellite_id = satellite_id
+        self.fqdn = fqdn
+        self.bios_uuid = bios_uuid
+        self.ip_addresses = ip_addresses
+        self.mac_addresses = mac_addresses
+        self.provider_id = provider_id
+        self.provider_type = provider_type
 
     def _update_ansible_host(self, ansible_host):
         if ansible_host is not None:
@@ -133,7 +153,7 @@ class LimitedHost(db.Model):
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     account = db.Column(db.String(10))
-    org_id = db.Column(db.String(36))
+    org_id = db.Column(db.String(36), primary_key=True)
     display_name = db.Column(db.String(200), default=_set_display_name_on_save)
     ansible_host = db.Column(db.String(255))
     created_on = db.Column(db.DateTime(timezone=True), default=_time_now)
@@ -142,6 +162,15 @@ class LimitedHost(db.Model):
     tags = db.Column(JSONB)
     tags_alt = db.Column(JSONB)
     canonical_facts = db.Column(JSONB)
+    insights_id = db.Column(UUID(as_uuid=True), default="00000000-0000-0000-0000-000000000000")
+    subscription_manager_id = db.Column(db.String(36))
+    satellite_id = db.Column(db.String(255))
+    fqdn = db.Column(db.String(255))
+    bios_uuid = db.Column(db.String(36))
+    ip_addresses = db.Column(JSONB)
+    mac_addresses = db.Column(JSONB)
+    provider_id = db.Column(db.String(500))
+    provider_type = db.Column(db.String(50))
     system_profile_facts = db.Column(JSONB)
     groups = db.Column(MutableList.as_mutable(JSONB), default=lambda: [])
     host_type = column_property(system_profile_facts["host_type"])
@@ -170,6 +199,15 @@ class Host(LimitedHost):
         reporter=None,
         per_reporter_staleness=None,
         groups=None,
+        insights_id=None,
+        subscription_manager_id=None,
+        satellite_id=None,
+        fqdn=None,
+        bios_uuid=None,
+        ip_addresses=None,
+        mac_addresses=None,
+        provider_id=None,
+        provider_type=None,
     ):
         id = None
         if tags is None:
@@ -205,6 +243,15 @@ class Host(LimitedHost):
             system_profile_facts,
             groups,
             id,
+            insights_id,
+            subscription_manager_id,
+            satellite_id,
+            fqdn,
+            bios_uuid,
+            ip_addresses,
+            mac_addresses,
+            provider_id,
+            provider_type,
         )
 
         self._update_last_check_in_date()
@@ -215,6 +262,8 @@ class Host(LimitedHost):
         self.per_reporter_staleness = per_reporter_staleness or {}
         if not per_reporter_staleness:
             self._update_per_reporter_staleness(reporter)
+
+        self.update_canonical_facts(canonical_facts)
 
     def save(self):
         self._cleanup_tags()
@@ -268,9 +317,9 @@ class Host(LimitedHost):
             self.canonical_facts,
             canonical_facts,
         )
-        self.canonical_facts.update(canonical_facts)
+        self.canonical_facts.update(canonical_facts)  # Field being removed in the future
         logger.debug("Host (id=%s) has updated canonical_facts (%s)", self.id, self.canonical_facts)
-        orm.attributes.flag_modified(self, "canonical_facts")
+        orm.attributes.flag_modified(self, "canonical_facts")  # Field being removed in the future
 
     def update_facts(self, facts_dict):
         if facts_dict:
