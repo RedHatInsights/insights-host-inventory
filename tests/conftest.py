@@ -35,3 +35,18 @@ def pytest_sessionfinish():
             continue
         for handler in logger.handlers[:]:
             logger.removeHandler(handler)
+
+
+# Outbox-specific fixtures
+import pytest
+from app.models import db
+
+
+@pytest.fixture
+def outbox_db(app):
+    """Fixture to ensure database and tables are available for outbox operations."""
+    with app.app_context():
+        db.create_all()
+        yield
+        db.session.remove()
+        db.drop_all()
