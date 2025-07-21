@@ -58,7 +58,7 @@ def _update_hosts_for_group_changes(host_id_list: list[str], group_id_list: list
     ]
 
     # Update groups data on each host record
-    db.session.query(Host).filter(Host.id.in_(host_id_list)).update(
+    db.session.query(Host).filter(Host.id.in_(host_id_list), Host.org_id == identity.org_id).update(
         {"groups": serialized_groups}, synchronize_session="fetch"
     )
     db.session.commit()
@@ -162,7 +162,7 @@ def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str):
     )
 
     host_group_assoc = [
-        HostGroupAssoc(host_id=host_id, group_id=group_id)
+        HostGroupAssoc(host_id=host_id, group_id=group_id, org_id=org_id)
         for host_id in host_id_list
         if host_id not in ids_already_in_this_group
     ]
@@ -468,7 +468,11 @@ def _update_group_update_time(group_id: str, org_id: str):
 
 
 def get_group_using_host_id(host_id: str, org_id: str):
-    assoc = db.session.query(HostGroupAssoc).filter(HostGroupAssoc.host_id == host_id).one_or_none()
+    assoc = (
+        db.session.query(HostGroupAssoc)
+        .filter(HostGroupAssoc.org_id == org_id, HostGroupAssoc.host_id == host_id)
+        .one_or_none()
+    )
     return get_group_by_id_from_db(str(assoc.group_id), org_id) if assoc else None
 
 
