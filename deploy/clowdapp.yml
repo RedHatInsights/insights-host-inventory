@@ -2059,7 +2059,78 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_DUPLICATE_HOSTS_REMOVER_JOB}
             memory: ${MEMORY_REQUEST_DUPLICATE_HOSTS_REMOVER_JOB}
-
+    - name: hosts-table-migration-data-copy
+      restartPolicy: OnFailure
+      suspend: ${{HOSTS_TABLE_MIGRATION_DATA_COPY_SUSPEND}}
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: [ "./hosts_table_migration_data_copy.py" ]
+        env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: HOSTS_TABLE_MIGRATION_BATCH_SIZE
+            value: ${HOSTS_TABLE_MIGRATION_BATCH_SIZE}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+        resources:
+          limits:
+            cpu: ${CPU_REQUEST_HOSTS_TABLE_MIGRATION_DATA_COPY}
+            memory: ${MEMORY_LIMIT_HOSTS_TABLE_MIGRATION_DATA_COPY}
+          requests:
+            cpu: ${CPU_REQUEST_HOSTS_TABLE_MIGRATION_DATA_COPY}
+            memory: ${MEMORY_REQUEST_HOSTS_TABLE_MIGRATION_DATA_COPY}
+    - name: hosts-table-migration-switch
+      restartPolicy: Never
+      suspend: ${{HOSTS_TABLE_MIGRATION_SWITCH_SUSPEND}}
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: [ "./hosts_table_migration_switch.py" ]
+        env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: HOSTS_TABLE_MIGRATION_SWITCH_MODE
+            value: ${HOSTS_TABLE_MIGRATION_SWITCH_MODE}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+        resources:
+          limits:
+            cpu: ${CPU_REQUEST_HOSTS_TABLE_MIGRATION_SWITCH}
+            memory: ${MEMORY_LIMIT_HOSTS_TABLE_MIGRATION_SWITCH}
+          requests:
+            cpu: ${CPU_REQUEST_HOSTS_TABLE_MIGRATION_SWITCH}
+            memory: ${MEMORY_REQUEST_HOSTS_TABLE_MIGRATION_SWITCH}
     database:
       name: ${DB_NAME}
       version: 16
@@ -2527,6 +2598,24 @@ parameters:
   description: Whether the duplicate hosts remover script should run in dry-run mode
   value: 'true'
 
+- name: CPU_REQUEST_HOSTS_TABLE_MIGRATION_DATA_COPY
+  value: 250m
+- name: CPU_LIMIT_HOSTS_TABLE_MIGRATION_DATA_COPY
+  value: 500m
+- name: MEMORY_REQUEST_HOSTS_TABLE_MIGRATION_DATA_COPY
+  value: 256Mi
+- name: MEMORY_LIMIT_HOSTS_TABLE_MIGRATION_DATA_COPY
+  value: 512Mi
+
+- name: CPU_REQUEST_HOSTS_TABLE_MIGRATION_SWITCH
+  value: 250m
+- name: CPU_LIMIT_HOSTS_TABLE_MIGRATION_SWITCH
+  value: 500m
+- name: MEMORY_REQUEST_HOSTS_TABLE_MIGRATION_SWITCH
+  value: 256Mi
+- name: MEMORY_LIMIT_HOSTS_TABLE_MIGRATION_SWITCH
+  value: 512Mi
+
 - description: Replica count for p1 consumer
   name: REPLICAS_P1
   value: "5"
@@ -2779,6 +2868,16 @@ parameters:
 - name: SUSPEND_DUPLICATE_HOSTS_REMOVER
   description: If set to true, the duplicate-hosts-remover job will immediately exit upon running.
   value: 'true'
+- name: HOSTS_TABLE_MIGRATION_BATCH_SIZE
+  description: The batch size to use for the hosts partitioned table migration.
+  value: '10000'
+- name: HOSTS_TABLE_MIGRATION_DATA_COPY_SUSPEND
+  value: 'true'
+- name: HOSTS_TABLE_MIGRATION_SWITCH_SUSPEND
+  value: 'true'
+- name: HOSTS_TABLE_MIGRATION_SWITCH_MODE
+  description: switch or rollback to revert the hosts table switch.
+  value: 'switch'
 
 # NGINX
 - displayName: Minimum replicas
