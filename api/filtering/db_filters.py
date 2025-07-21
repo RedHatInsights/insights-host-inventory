@@ -14,7 +14,6 @@ from sqlalchemy import not_
 from sqlalchemy import or_
 from sqlalchemy.dialects.postgresql import JSON
 
-from api.filtering.db_custom_filters import _unique_paths
 from api.filtering.db_custom_filters import build_system_profile_filter
 from api.filtering.db_custom_filters import get_host_types_from_filter
 from api.staleness_query import get_staleness_obj
@@ -346,25 +345,10 @@ def _system_type_filter(filters: list[str]) -> list:
         if system_type not in valid_values:
             raise ValidationException(f"Invalid system_type: {system_type}")
 
-    filter = PROFILE_FILTERS[system_type] if len(filters) == 1 else [PROFILE_FILTERS[st] for st in filters]
-    # filter will be a dict if only one system type is provided (should use AND)
-    # and a list if multiple system types are provided (should use OR)
+        query_filter, _ = _system_profile_filter(PROFILE_FILTERS[system_type])
+        query_filters.append(and_(*query_filter))  # Using and_ here, because if system_type is "conventional",
+        # then we need both filters at the same time
 
-    if isinstance(filter, dict):
-        # uses AND for multiple fields in same system type
-        if len(filter["system_profile"].keys()) > 1:
-            filter_param_list = _unique_paths(filter)
-            for filter_param in filter_param_list:
-                query_filter, _ = _system_profile_filter(filter_param)
-                query_filters += query_filter
-            return [and_(*query_filters)]
-        else:
-            query_filters, _ = _system_profile_filter(filter)
-    else:
-        # uses OR for multiple system types
-        for filter_param in filter:
-            query_filter, _ = _system_profile_filter(filter_param)
-            query_filters += query_filter
     return [or_(*query_filters)]
 
 
