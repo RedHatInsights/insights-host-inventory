@@ -135,11 +135,9 @@ class GroupKesselResourceType(KesselResourceType):
 
 class StalenessKesselResourceType(KesselResourceType):
     def __init__(self) -> None:
-        super().__init__("hbi", "staleness", RbacResourceType.STALENESS, "inventory")
-        self.view = KesselPermission(self, "inventory_staleness_view", "view", RbacPermission.READ)
-        self.write = KesselPermission(self, "inventory_staleness_write", "edit", RbacPermission.WRITE)
-        self.delete = KesselPermission(self, "inventory_staleness_write", "delete", RbacPermission.WRITE)
-        self.create = KesselPermission(self, "inventory_staleness_write", "create", RbacPermission.WRITE)
+        super().__init__("hbi", "staleness", RbacResourceType.STALENESS, "staleness")
+        self.view = KesselPermission(self, "staleness_staleness_view", "view", RbacPermission.READ)
+        self.write = KesselPermission(self, "staleness_staleness_update", "edit", RbacPermission.WRITE)
 
 class AllKesselResourceType(KesselResourceType):
     def __init__(self) -> None:
