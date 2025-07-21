@@ -2233,12 +2233,7 @@ def test_system_type_filter_invalid_types(api_get, invalid_system_type):
 )
 def test_system_type_happy_path(api_get, db_create_host, query_filter_param):
     sp_facts = [
-        {
-            "system_profile_facts": {
-                "bootc_status": {"booted": {"image_digest": ""}},
-                "host_type": "",
-            }
-        },
+        {},
         {
             "system_profile_facts": {
                 "bootc_status": {
@@ -2258,7 +2253,6 @@ def test_system_type_happy_path(api_get, db_create_host, query_filter_param):
 
     # Count the number of times "system_type" appears in the query
     matching_hosts = query_filter_param.count("system_type=")
-
     url = build_hosts_url(query=query_filter_param)
     response_status, response_data = api_get(url)
 

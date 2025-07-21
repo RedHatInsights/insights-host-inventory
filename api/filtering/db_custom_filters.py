@@ -111,7 +111,7 @@ def _get_field_filter_for_deepest_param(sp_spec: dict, filter: dict, parent_node
     if sp_spec[key].get("is_array") is True:
         return "array"
 
-    return sp_spec[key]["filter"] if "filter" in sp_spec[key] else sp_spec[key]
+    return sp_spec[key]["filter"]
 
 
 # Extracts specific filters from the filter param object and puts them in an easier format
@@ -256,6 +256,7 @@ def _unique_paths(
 
         else:
             all_filters = [_build_dict_from_path_list([*current_path, node])]
+
     return all_filters
 
 
