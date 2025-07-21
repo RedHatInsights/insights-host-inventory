@@ -19,7 +19,7 @@ from api import metrics
 from api.cache import delete_cached_system_keys
 from api.host_query import staleness_timestamps
 from api.staleness_query import get_staleness_obj
-from app import RbacPermission
+from app import KesselResourceTypes, RbacPermission
 from app import RbacResourceType
 from app.auth import get_current_identity
 from app.auth.identity import Identity
@@ -41,7 +41,7 @@ from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness_api
 from lib.feature_flags import FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS
 from lib.feature_flags import get_flag_value
-from lib.middleware import rbac
+from lib.middleware import access, rbac
 from lib.staleness import add_staleness
 from lib.staleness import patch_staleness
 from lib.staleness import remove_staleness
@@ -160,8 +160,7 @@ def _validate_flag_and_async_update_host(identity: Identity, created_staleness: 
 
 
 @api_operation
-@rbac(RbacResourceType.STALENESS, RbacPermission.READ, permission_base="staleness")
-@rbac(RbacResourceType.HOSTS, RbacPermission.READ)
+@access(KesselResourceTypes.STALENESS.view)
 @metrics.api_request_time.time()
 def get_staleness(rbac_filter=None):  # noqa: ARG001, 'rbac_filter' is required for all API endpoints
     try:
@@ -174,8 +173,8 @@ def get_staleness(rbac_filter=None):  # noqa: ARG001, 'rbac_filter' is required 
 
 
 @api_operation
-@rbac(RbacResourceType.STALENESS, RbacPermission.READ, permission_base="staleness")
-@rbac(RbacResourceType.HOSTS, RbacPermission.READ)
+@access(KesselResourceTypes.STALENESS.view)
+@access(KesselResourceTypes.HOST.view)
 @metrics.api_request_time.time()
 def get_default_staleness(rbac_filter=None):  # noqa: ARG001, 'rbac_filter' is required for all API endpoints
     try:
@@ -189,8 +188,8 @@ def get_default_staleness(rbac_filter=None):  # noqa: ARG001, 'rbac_filter' is r
 
 
 @api_operation
-@rbac(RbacResourceType.STALENESS, RbacPermission.WRITE, permission_base="staleness")
-@rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
+@access(KesselResourceTypes.STALENESS.write, writeOperation=True)
+@access(KesselResourceTypes.HOST.write, writeOperation=True)
 @metrics.api_request_time.time()
 def create_staleness(body):
     # Validate account staleness input data
@@ -219,8 +218,8 @@ def create_staleness(body):
 
 
 @api_operation
-@rbac(RbacResourceType.STALENESS, RbacPermission.WRITE, permission_base="staleness")
-@rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
+@access(KesselResourceTypes.STALENESS.write, writeOperation=True)
+@access(KesselResourceTypes.HOST.write, writeOperation=True)
 @metrics.api_request_time.time()
 def delete_staleness():
     identity = get_current_identity()
@@ -239,8 +238,8 @@ def delete_staleness():
 
 
 @api_operation
-@rbac(RbacResourceType.STALENESS, RbacPermission.WRITE, permission_base="staleness")
-@rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
+@access(KesselResourceTypes.STALENESS.write, writeOperation=True)
+@access(KesselResourceTypes.HOST.write, writeOperation=True)
 @metrics.api_request_time.time()
 def update_staleness(body):
     # Validate account staleness input data
