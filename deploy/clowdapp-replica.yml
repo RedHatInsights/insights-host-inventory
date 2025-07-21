@@ -17,407 +17,83 @@ objects:
       - rbac
       - ingress
       - export-service
-    deployments:
-    - name: service
-      podSpec:
-        command:
-        - nginx
-        - -g
-        - daemon off;
-        env:
-        - name: CLOWDER_ENABLED
-          value: ${CLOWDER_ENABLED}
-        - name: APP_POD_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
-        image: registry.access.redhat.com/ubi9/nginx-124:latest
-        livenessProbe:
-          failureThreshold: 5
-          httpGet:
-            path: /healthz
-            port: web
-            scheme: HTTP
-          initialDelaySeconds: 30
-          periodSeconds: 20
-          successThreshold: 1
-          timeoutSeconds: 10
-        readinessProbe:
-          failureThreshold: 5
-          httpGet:
-            path: /healthz
-            port: web
-            scheme: HTTP
-          initialDelaySeconds: 30
-          periodSeconds: 20
-          successThreshold: 1
-          timeoutSeconds: 10
-        resources:
-          limits:
-            cpu: ${NGINX_CPU_LIMIT}
-            memory: ${NGINX_MEMORY_LIMIT}
-          requests:
-            cpu: ${NGINX_CPU_REQUEST}
-            memory: ${NGINX_MEMORY_REQUEST}
-        volumeMounts:
-        - mountPath: /etc/nginx
-          name: api-nginx-conf
-        volumes:
-        - configMap:
-            name: inventory-nginx-conf
-          name: api-nginx-conf
-      replicas: ${{NGINX_REPLICAS}}
-      webServices:
-        private:
-          enabled: false
-        public:
-          apiPath: inventory
-          enabled: true
-    - name: service-reads
-      replicas: ${{REPLICAS_SVC_READS}}
-      webServices:
-        public:
-          enabled: true
-      podSpec:
-        image: ${IMAGE}:${IMAGE_TAG}
-        args: [
-          "gunicorn",
-          "--workers=${GUNICORN_WORKERS}",
-          "--threads=${GUNICORN_THREADS}",
-          "--limit-request-field_size=${GUNICORN_REQUEST_FIELD_LIMIT}",
-          "--limit-request-line=${GUNICORN_REQUEST_LINE_LIMIT}",
-          "--worker-tmp-dir=/gunicorn",
-          "--log-file=-",
-          "--access-logfile=-",
-          "-c",
-          "gunicorn.conf.py",
-          "-b",
-          "0.0.0.0:8000",
-          "-t",
-          "60",
-          "--worker-class=uvicorn.workers.UvicornWorker",
-          "run:app"
-        ]
-        env:
-        - name: APP_NAME
-          value: ${APP_NAME}
-        - name: PATH_PREFIX
-          value: ${PATH_PREFIX}
-        - name: CONSOLEDOT_HOSTNAME
-          value: ${CONSOLEDOT_HOSTNAME}
-        - name: INVENTORY_LEGACY_API_URL
-          value: /r/insights/platform/inventory/v1
-        - name: PROMETHEUS_MULTIPROC_DIR
-          value: /tmp/inventory/prometheus
-        - name: INVENTORY_LOG_LEVEL
-          value: ${LOG_LEVEL}
-        - name: URLLIB3_LOG_LEVEL
-          value: ${URLLIB3_LOG_LEVEL}
-        - name: INVENTORY_DB_SSL_MODE
-          value: ${INVENTORY_DB_SSL_MODE}
-        - name: PAYLOAD_TRACKER_SERVICE_NAME
-          value: inventory
-        - name: PAYLOAD_TRACKER_ENABLED
-          value: 'true'
-        - name: BYPASS_RBAC
-          value: ${BYPASS_RBAC}
-        - name: KAFKA_PRODUCER_ACKS
-          value: ${KAFKA_PRODUCER_ACKS}
-        - name: KAFKA_PRODUCER_RETRIES
-          value: ${KAFKA_PRODUCER_RETRIES}
-        - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
-          value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
-        - name: KAFKA_SECURITY_PROTOCOL
-          value: ${KAFKA_SECURITY_PROTOCOL}
-        - name: KAFKA_SASL_MECHANISM
-          value: ${KAFKA_SASL_MECHANISM}
-        - name: KAFKA_EVENT_TOPIC
-          value: ${KAFKA_EVENT_TOPIC}
-        - name: KAFKA_NOTIFICATION_TOPIC
-          value: ${KAFKA_NOTIFICATION_TOPIC}
-        - name: TENANT_TRANSLATOR_URL
-          value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
-        - name: BYPASS_TENANT_TRANSLATION
-          value: ${BYPASS_TENANT_TRANSLATION}
-        - name: CLOWDER_ENABLED
-          value: "true"
-        - name: INVENTORY_DB_STATEMENT_TIMEOUT
-          value: "${INVENTORY_DB_STATEMENT_TIMEOUT}"
-        - name: INVENTORY_DB_LOCK_TIMEOUT
-          value: "${INVENTORY_DB_LOCK_TIMEOUT}"
-        - name: INVENTORY_DB_SCHEMA
-          value: "${INVENTORY_DB_SCHEMA}"
-        - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
-          value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
-        - name: INVENTORY_API_CACHE_TYPE
-          value: "${INVENTORY_API_CACHE_TYPE}"
-        - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
-          value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
-        - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
-          value: "${INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS}"
-        - name: INVENTORY_API_USE_READREPLICA
-          value: "${INVENTORY_API_USE_READREPLICA}"
-        - name: UNLEASH_URL
-          value: ${UNLEASH_URL}
-        - name: UNLEASH_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: ${UNLEASH_SECRET_NAME}
-              key: CLIENT_ACCESS_TOKEN
-              optional: true
-        - name: BYPASS_UNLEASH
-          value: ${BYPASS_UNLEASH}
-        - name: FF_LAST_CHECKIN
-          value: ${FF_LAST_CHECKIN}
-        - name: UNLEASH_REFRESH_INTERVAL
-          value: ${UNLEASH_REFRESH_INTERVAL}
-        - name: SEGMENTIO_WRITE_KEY
-          valueFrom:
-            secretKeyRef:
-              name: segmentio
-              key: WRITE_KEY
-              optional: true
-        - name: REPLICA_NAMESPACE
-          value: ${REPLICA_NAMESPACE}
-        resources:
-          limits:
-            cpu: ${CPU_LIMIT_SERVICE}
-            memory: ${MEMORY_LIMIT_SERVICE}
-          requests:
-            cpu: ${CPU_REQUEST_SERVICE}
-            memory: ${MEMORY_REQUEST_SERVICE}
-        livenessProbe:
-          failureThreshold: 3
-          httpGet:
-            path: /health
-            port: 8000
-            scheme: HTTP
-          periodSeconds: ${{INVENTORY_API_READS_LIVENESS_PROBE_PERIOD_SECONDS}}
-          successThreshold: 1
-          timeoutSeconds: ${{INVENTORY_API_READS_LIVENESS_PROBE_TIMEOUT_SECONDS}}
-        readinessProbe:
-          failureThreshold: 3
-          httpGet:
-            path: /health
-            port: 8000
-            scheme: HTTP
-          periodSeconds: ${{INVENTORY_API_READS_READINESS_PROBE_PERIOD_SECONDS}}
-          successThreshold: 1
-          timeoutSeconds: ${{INVENTORY_API_READS_READINESS_PROBE_TIMEOUT_SECONDS}}
-        volumeMounts:
-        - mountPath: /tmp/inventory/prometheus
-          name: prometheus-volume
-        - mountPath: /gunicorn
-          name: gunicorn-worker-dir
-        - mountPath: /etc/db/readreplica
-          name: host-inventory-read-only-db
-          readOnly: true
-        volumes:
-        - emptyDir: {}
-          name: prometheus-volume
-        - emptyDir:
-            medium: Memory
-          name: gunicorn-worker-dir
-        - name: host-inventory-read-only-db
-          secret:
-            items:
-            - key: db.host
-              path: db_host
-            - key: db.name
-              path: db_name
-            - key: db.password
-              path: db_password
-            - key: db.port
-              path: db_port
-            - key: db.user
-              path: db_user
-            secretName: ${INVENTORY_API_READREPLICA_SECRET}
-            optional: true
-    - name: mq-p1
-      replicas: ${{REPLICAS_P1}}
-      podSpec:
-        initContainers:
-        - args: ["FLASK_APP=./manage.py", "flask", "db", "upgrade"]
-          inheritEnv: true
-        args: ["./inv_mq_service.py"]
-        env:
-        - name: CONSOLEDOT_HOSTNAME
-          value: ${CONSOLEDOT_HOSTNAME}
-        - name: INVENTORY_LOG_LEVEL
-          value: ${LOG_LEVEL}
-        - name: INVENTORY_DB_SSL_MODE
-          value: ${INVENTORY_DB_SSL_MODE}
-        - name: INVENTORY_DB_SSL_CERT
-          value: ${INVENTORY_DB_SSL_CERT}
-        - name: KAFKA_CONSUMER_TOPIC
-          value: ${KAFKA_HOST_INGRESS_P1_TOPIC}
-        - name: KAFKA_HOST_INGRESS_TOPIC
-          value: ${KAFKA_HOST_INGRESS_P1_TOPIC}
-        - name: KAFKA_EVENT_TOPIC
-          value: ${KAFKA_EVENT_TOPIC}
-        - name: KAFKA_NOTIFICATION_TOPIC
-          value: ${KAFKA_NOTIFICATION_TOPIC}
-        - name: KAFKA_SYSTEM_PROFILE_TOPIC
-          value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
-        - name: KAFKA_HOST_INGRESS_GROUP
-          value: ${KAFKA_HOST_INGRESS_GROUP}
-        - name: PAYLOAD_TRACKER_SERVICE_NAME
-          value: inventory-mq-service
-        - name: PAYLOAD_TRACKER_ENABLED
-          value: 'true'
-        - name: KAFKA_PRODUCER_ACKS
-          value: ${KAFKA_PRODUCER_ACKS}
-        - name: KAFKA_PRODUCER_RETRIES
-          value: ${KAFKA_PRODUCER_RETRIES}
-        - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
-          value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
-        - name: KAFKA_SECURITY_PROTOCOL
-          value: ${KAFKA_SECURITY_PROTOCOL}
-        - name: KAFKA_SASL_MECHANISM
-          value: ${KAFKA_SASL_MECHANISM}
-        - name: TENANT_TRANSLATOR_URL
-          value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
-        - name: BYPASS_TENANT_TRANSLATION
-          value: ${BYPASS_TENANT_TRANSLATION}
-        - name: CLOWDER_ENABLED
-          value: "true"
-        - name: INVENTORY_DB_SCHEMA
-          value: "${INVENTORY_DB_SCHEMA}"
-        - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
-          value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
-        - name: INVENTORY_API_CACHE_TYPE
-          value: "${INVENTORY_API_CACHE_TYPE}"
-        - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
-          value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
-        - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
-          value: "${INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS}"
-        - name: KAFKA_CONSUMER_SESSION_TIMEOUT_MS
-          value: "${KAFKA_CONSUMER_SESSION_TIMEOUT_MS}"
-        - name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
-          value: "${KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS}"
-        - name: UNLEASH_URL
-          value: ${UNLEASH_URL}
-        - name: UNLEASH_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: ${UNLEASH_SECRET_NAME}
-              key: CLIENT_ACCESS_TOKEN
-              optional: true
-        - name: BYPASS_UNLEASH
-          value: ${BYPASS_UNLEASH}
-        - name: FF_LAST_CHECKIN
-          value: ${FF_LAST_CHECKIN}
-        - name: UNLEASH_REFRESH_INTERVAL
-          value: ${UNLEASH_REFRESH_INTERVAL}
-        - name: MQ_DB_BATCH_MAX_MESSAGES
-          value: ${MQ_DB_BATCH_MAX_MESSAGES}
-        - name: MQ_DB_BATCH_MAX_SECONDS
-          value: ${MQ_DB_BATCH_MAX_SECONDS}
-        - name: RBAC_PSKS
-          valueFrom:
-            secretKeyRef:
-              key: psks.json
-              name: rbac-psks
-              optional: false
-        - name: HOSTS_TABLE_NUM_PARTITIONS
-          value: ${HOSTS_TABLE_NUM_PARTITIONS}
-        - name: REPLICA_NAMESPACE
-          value: ${REPLICA_NAMESPACE}
-        image: ${IMAGE}:${IMAGE_TAG}
-        livenessProbe:
-          failureThreshold: 3
-          httpGet:
-            path: /
-            port: 9000
-            scheme: HTTP
-          initialDelaySeconds: 10
-          periodSeconds: 10
-          successThreshold: 1
-          timeoutSeconds: 5
-        readinessProbe:
-          tcpSocket:
-            port: 9000
-        resources:
-          limits:
-            cpu: ${CPU_LIMIT_MQ_P1}
-            memory: ${MEMORY_LIMIT_MQ_P1}
-          requests:
-            cpu: ${CPU_REQUEST_MQ_P1}
-            memory: ${MEMORY_REQUEST_MQ_P1}
-
     jobs:
-    - name: hosts-table-migration-data-copy
-      restartPolicy: OnFailure
-      suspend: ${{HOSTS_TABLE_MIGRATION_DATA_COPY_SUSPEND}}
-      podSpec:
-        image: ${IMAGE}:${IMAGE_TAG}
-        args: [ "./hosts_table_migration_data_copy.py" ]
-        env:
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
-          - name: INVENTORY_LOG_LEVEL
-            value: ${LOG_LEVEL}
-          - name: INVENTORY_DB_SSL_MODE
-            value: ${INVENTORY_DB_SSL_MODE}
-          - name: INVENTORY_DB_SSL_CERT
-            value: ${INVENTORY_DB_SSL_CERT}
-          - name: INVENTORY_DB_SCHEMA
-            value: "${INVENTORY_DB_SCHEMA}"
-          - name: PROMETHEUS_PUSHGATEWAY
-            value: ${PROMETHEUS_PUSHGATEWAY}
-          - name: NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
-          - name: CLOWDER_ENABLED
-            value: "true"
-          - name: HOSTS_TABLE_MIGRATION_BATCH_SIZE
-            value: ${HOSTS_TABLE_MIGRATION_BATCH_SIZE}
-          - name: REPLICA_NAMESPACE
-            value: ${REPLICA_NAMESPACE}
-        resources:
-          limits:
-            cpu: ${CPU_REQUEST_HOSTS_TABLE_MIGRATION_DATA_COPY}
-            memory: ${MEMORY_LIMIT_HOSTS_TABLE_MIGRATION_DATA_COPY}
-          requests:
-            cpu: ${CPU_REQUEST_HOSTS_TABLE_MIGRATION_DATA_COPY}
-            memory: ${MEMORY_REQUEST_HOSTS_TABLE_MIGRATION_DATA_COPY}
-    - name: hosts-table-migration-switch
-      restartPolicy: Never
-      suspend: ${{HOSTS_TABLE_MIGRATION_SWITCH_SUSPEND}}
-      podSpec:
-        image: ${IMAGE}:${IMAGE_TAG}
-        args: [ "./hosts_table_migration_switch.py" ]
-        env:
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
-          - name: INVENTORY_LOG_LEVEL
-            value: ${LOG_LEVEL}
-          - name: INVENTORY_DB_SSL_MODE
-            value: ${INVENTORY_DB_SSL_MODE}
-          - name: INVENTORY_DB_SSL_CERT
-            value: ${INVENTORY_DB_SSL_CERT}
-          - name: INVENTORY_DB_SCHEMA
-            value: "${INVENTORY_DB_SCHEMA}"
-          - name: PROMETHEUS_PUSHGATEWAY
-            value: ${PROMETHEUS_PUSHGATEWAY}
-          - name: NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
-          - name: CLOWDER_ENABLED
-            value: "true"
-          - name: HOSTS_TABLE_MIGRATION_SWITCH_MODE
-            value: ${HOSTS_TABLE_MIGRATION_SWITCH_MODE}
-          - name: REPLICA_NAMESPACE
-            value: ${REPLICA_NAMESPACE}
-        resources:
-          limits:
-            cpu: ${CPU_REQUEST_HOSTS_TABLE_MIGRATION_SWITCH}
-            memory: ${MEMORY_LIMIT_HOSTS_TABLE_MIGRATION_SWITCH}
-          requests:
-            cpu: ${CPU_REQUEST_HOSTS_TABLE_MIGRATION_SWITCH}
-            memory: ${MEMORY_REQUEST_HOSTS_TABLE_MIGRATION_SWITCH}
+      - name: hosts-table-migration-data-copy
+        restartPolicy: OnFailure
+        suspend: ${{HOSTS_TABLE_MIGRATION_DATA_COPY_SUSPEND}}
+        podSpec:
+          image: ${IMAGE}:${IMAGE_TAG}
+          args: [ "./hosts_table_migration_data_copy.py" ]
+          env:
+            - name: PYTHONPATH
+              value: '/opt/app-root/src'
+            - name: INVENTORY_LOG_LEVEL
+              value: ${LOG_LEVEL}
+            - name: INVENTORY_DB_SSL_MODE
+              value: ${INVENTORY_DB_SSL_MODE}
+            - name: INVENTORY_DB_SSL_CERT
+              value: ${INVENTORY_DB_SSL_CERT}
+            - name: INVENTORY_DB_SCHEMA
+              value: "${INVENTORY_DB_SCHEMA}"
+            - name: PROMETHEUS_PUSHGATEWAY
+              value: ${PROMETHEUS_PUSHGATEWAY}
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: CLOWDER_ENABLED
+              value: "true"
+            - name: HOSTS_TABLE_MIGRATION_BATCH_SIZE
+              value: ${HOSTS_TABLE_MIGRATION_BATCH_SIZE}
+            - name: REPLICA_NAMESPACE
+              value: ${REPLICA_NAMESPACE}
+            - name: SUSPEND_JOB
+              value: ${HOSTS_TABLE_MIGRATION_DATA_COPY_SUSPEND}
+          resources:
+            limits:
+              cpu: ${CPU_REQUEST_HOSTS_TABLE_MIGRATION_DATA_COPY}
+              memory: ${MEMORY_LIMIT_HOSTS_TABLE_MIGRATION_DATA_COPY}
+            requests:
+              cpu: ${CPU_REQUEST_HOSTS_TABLE_MIGRATION_DATA_COPY}
+              memory: ${MEMORY_REQUEST_HOSTS_TABLE_MIGRATION_DATA_COPY}
+      - name: hosts-table-migration-switch
+        restartPolicy: Never
+        suspend: ${{HOSTS_TABLE_MIGRATION_SWITCH_SUSPEND}}
+        podSpec:
+          image: ${IMAGE}:${IMAGE_TAG}
+          args: [ "./hosts_table_migration_switch.py" ]
+          env:
+            - name: PYTHONPATH
+              value: '/opt/app-root/src'
+            - name: INVENTORY_LOG_LEVEL
+              value: ${LOG_LEVEL}
+            - name: INVENTORY_DB_SSL_MODE
+              value: ${INVENTORY_DB_SSL_MODE}
+            - name: INVENTORY_DB_SSL_CERT
+              value: ${INVENTORY_DB_SSL_CERT}
+            - name: INVENTORY_DB_SCHEMA
+              value: "${INVENTORY_DB_SCHEMA}"
+            - name: PROMETHEUS_PUSHGATEWAY
+              value: ${PROMETHEUS_PUSHGATEWAY}
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: CLOWDER_ENABLED
+              value: "true"
+            - name: HOSTS_TABLE_MIGRATION_SWITCH_MODE
+              value: ${HOSTS_TABLE_MIGRATION_SWITCH_MODE}
+            - name: REPLICA_NAMESPACE
+              value: ${REPLICA_NAMESPACE}
+            - name: SUSPEND_JOB
+              value: ${HOSTS_TABLE_MIGRATION_SWITCH_SUSPEND}
+          resources:
+            limits:
+              cpu: ${CPU_REQUEST_HOSTS_TABLE_MIGRATION_SWITCH}
+              memory: ${MEMORY_LIMIT_HOSTS_TABLE_MIGRATION_SWITCH}
+            requests:
+              cpu: ${CPU_REQUEST_HOSTS_TABLE_MIGRATION_SWITCH}
+              memory: ${MEMORY_REQUEST_HOSTS_TABLE_MIGRATION_SWITCH}
 
     database:
       name: ${DB_NAME}
@@ -907,7 +583,7 @@ parameters:
   value: '1'
 - name: HOSTS_TABLE_MIGRATION_BATCH_SIZE
   description: The batch size to use for the hosts partitioned table migration.
-  value: '5000'
+  value: '50000'
 - name: HOSTS_TABLE_MIGRATION_DATA_COPY_SUSPEND
   value: 'true'
 - name: HOSTS_TABLE_MIGRATION_SWITCH_SUSPEND
