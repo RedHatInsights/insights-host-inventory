@@ -331,14 +331,14 @@ def update_query_for_owner_id(identity: Identity, query: Query) -> Query:
 
 def _system_type_filter(filters: list[str]) -> list:
     PROFILE_FILTERS = {
-        "conventional": {
+        SystemType.CONVENTIONAL.value: {
             "system_profile": {
                 "bootc_status": {"booted": {"image_digest": {"eq": "nil"}}},
                 "host_type": {"eq": "nil"},
             }
         },
-        "bootc": {"system_profile": {"bootc_status": {"booted": {"image_digest": {"eq": "not_nil"}}}}},
-        "edge": {"system_profile": {"host_type": {"eq": SystemType.EDGE.value}}},
+        SystemType.BOOTC.value: {"system_profile": {"bootc_status": {"booted": {"image_digest": {"eq": "not_nil"}}}}},
+        SystemType.EDGE.value: {"system_profile": {"host_type": {"eq": SystemType.EDGE.value}}},
     }
     valid_values = [st.value for st in SystemType]
     query_filters: list = []
@@ -347,6 +347,8 @@ def _system_type_filter(filters: list[str]) -> list:
             raise ValidationException(f"Invalid system_type: {system_type}")
 
     filter = PROFILE_FILTERS[system_type] if len(filters) == 1 else [PROFILE_FILTERS[st] for st in filters]
+    # filter will be a dict if only one system type is provided (should use AND)
+    # and a list if multiple system types are provided (should use OR)
 
     if isinstance(filter, dict):
         # uses AND for multiple fields in same system type
