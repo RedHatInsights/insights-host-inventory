@@ -2088,6 +2088,8 @@ objects:
             value: ${HOSTS_TABLE_MIGRATION_BATCH_SIZE}
           - name: REPLICA_NAMESPACE
             value: ${REPLICA_NAMESPACE}
+          - name: SUSPEND_JOB
+            value: ${HOSTS_TABLE_MIGRATION_DATA_COPY_SUSPEND}
         resources:
           limits:
             cpu: ${CPU_REQUEST_HOSTS_TABLE_MIGRATION_DATA_COPY}
@@ -2124,6 +2126,8 @@ objects:
             value: ${HOSTS_TABLE_MIGRATION_SWITCH_MODE}
           - name: REPLICA_NAMESPACE
             value: ${REPLICA_NAMESPACE}
+          - name: SUSPEND_JOB
+            value: ${HOSTS_TABLE_MIGRATION_SWITCH_SUSPEND}
         resources:
           limits:
             cpu: ${CPU_REQUEST_HOSTS_TABLE_MIGRATION_SWITCH}

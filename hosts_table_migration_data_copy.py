@@ -19,6 +19,7 @@ from jobs.common import job_setup
 PROMETHEUS_JOB = "hosts-table-migration-data-copy"
 LOGGER_NAME = "hosts_table_migration_data_copy"
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
+SUSPEND_JOB = os.environ.get("SUSPEND_JOB", "true").lower() == "true"
 
 """
 This job copies all historical data from the original 'hosts' table into the
@@ -150,6 +151,11 @@ def run(logger: Logger, session: Session, application: FlaskApp):
 
 if __name__ == "__main__":
     logger = get_logger(LOGGER_NAME)
+
+    if SUSPEND_JOB:
+        logger.info("SUSPEND_JOB set to true; exiting.")
+        sys.exit(0)
+
     job_type = "Hosts partitioned tables full data copy"
     sys.excepthook = partial(excepthook, logger, job_type)
 
