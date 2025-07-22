@@ -82,7 +82,7 @@ class EventProducer:
         except KafkaException as error:
             message_not_produced(logger, error, topic, event=v, key=k, headers=h)
             raise error
-        except Exception as error:  
+        except Exception as error:
             message_not_produced(logger, error, topic, event=v, key=k, headers=h)
             raise error
 

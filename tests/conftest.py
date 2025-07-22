@@ -1,6 +1,9 @@
 import os
 import sys
 
+import pytest
+
+from app.models import db
 from app.utils import HostWrapper
 
 # Make test helpers available to be imported
@@ -38,10 +41,6 @@ def pytest_sessionfinish():
 
 
 # Outbox-specific fixtures
-import pytest
-from app.models import db
-
-
 @pytest.fixture
 def outbox_db(app):
     """Fixture to ensure database and tables are available for outbox operations."""

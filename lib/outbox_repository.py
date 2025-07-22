@@ -1,4 +1,5 @@
 import json
+
 # from typing import Union, Dict, Any
 
 # Try to import Flask dependencies, fallback to basic logging if not available
@@ -7,11 +8,12 @@ try:
     from app.models.database import db
     from app.models.outbox import Outbox
     from lib.db import session_guard
-    
+
     logger = get_logger(__name__)
     FLASK_AVAILABLE = True
 except ImportError as e:
     import logging
+
     logging.basicConfig(level=logging.DEBUG)
     logger = logging.getLogger(__name__)
     logger.warning(f"Flask dependencies not available: {e}")
@@ -37,7 +39,7 @@ def _create_update_event_payload(event_dict):
         "satellite_id": host.get("satellite_id", None),
         "subscription_manager_id": host.get("subscription_manager_id", None),
         "insights_inventory_id": host.get("insights_inventory_id", None),
-        "ansible_host": host.get("ansible_host", None)
+        "ansible_host": host.get("ansible_host", None),
     }
 
     representations = {
@@ -53,6 +55,7 @@ def _create_update_event_payload(event_dict):
         "representations": representations,
     }
 
+
 def _delete_event_payload(event_dict):
     host = event_dict.get("host", {})
     if not host:
@@ -60,11 +63,7 @@ def _delete_event_payload(event_dict):
         return None
 
     reporter = {"type": "HBI"}
-    reference = { 
-        "resource_type": "host", 
-        "resource_id": host["id"], 
-        "reporter": reporter 
-    }
+    reference = {"resource_type": "host", "resource_id": host["id"], "reporter": reporter}
 
     return {"reference": reference}
 
@@ -72,32 +71,35 @@ def _delete_event_payload(event_dict):
 def write_event_to_outbox(event: str) -> bool:
     """
     Write an event to the outbox table.
-    
+
     Args:
         event: Event data as JSON string
-        
+
     Returns:
         bool: True if successfully written to database, False if failed
     """
     if not FLASK_AVAILABLE:
         logger.error("Flask dependencies not available - cannot write to outbox")
         return False
-    
+
     try:
         # Convert event to dictionary from string
         event_dict = json.loads(event) if isinstance(event, str) else event
-        logger.debug("Writing event to outbox: type=%s, aggregate_id=%s", 
-                    event_dict.get("type"), event_dict.get("host", {}).get("id"))
+        logger.debug(
+            "Writing event to outbox: type=%s, aggregate_id=%s",
+            event_dict.get("type"),
+            event_dict.get("host", {}).get("id"),
+        )
 
         # Validate required fields
         if "type" not in event_dict:
             logger.error("Missing required field 'type' in event data")
             return False
-            
+
         if "host" not in event_dict:
             logger.error("Missing required field 'host' in event data")
             return False
-            
+
         if "id" not in event_dict["host"]:
             logger.error("Missing required field 'host.id' in event data")
             return False
@@ -110,11 +112,9 @@ def write_event_to_outbox(event: str) -> bool:
         elif event_type == "delete":
             payload = _delete_event_payload(event_dict)
         else:
-            logger.error(
-                'Unknown event type.  Valid event types are "created", "updated", or "delete"'
-            )
-            return False    
-        
+            logger.error('Unknown event type.  Valid event types are "created", "updated", or "delete"')
+            return False
+
         logger.debug("Creating outbox entry: aggregate_id=%s, type=%s", aggregate_id, event_type)
 
         # Ensure database tables exist
@@ -124,7 +124,7 @@ def write_event_to_outbox(event: str) -> bool:
         except Exception as table_error:
             logger.warning("Could not create database tables: %s", table_error)
             # Continue anyway - tables might already exist
-    
+
         # Write to outbox table within transaction
         try:
             with session_guard(db.session):
@@ -140,18 +140,19 @@ def write_event_to_outbox(event: str) -> bool:
 
             logger.info("Successfully wrote event to outbox for aggregate_id=%s", aggregate_id)
             return True
-            
+
         except Exception as db_error:
             logger.error("Database error while writing to outbox: %s", str(db_error))
             logger.error("Event data: %s", event)
-            
+
             # Check if it's a table doesn't exist error
             error_str = str(db_error).lower()
-            if 'table' in error_str and ('does not exist' in error_str or 'doesn\'t exist' in error_str):
+            if "table" in error_str and ("does not exist" in error_str or "doesn't exist" in error_str):
                 logger.error("Outbox table does not exist. Run database migrations first.")
                 logger.error("Try: flask db upgrade")
-            
+
             import traceback
+
             logger.debug("Database error traceback: %s", traceback.format_exc())
             return False
 
@@ -166,5 +167,6 @@ def write_event_to_outbox(event: str) -> bool:
     except Exception as e:
         logger.error("Unexpected error writing event to outbox: %s. Event: %s", str(e), event)
         import traceback
+
         logger.error("Traceback: %s", traceback.format_exc())
         return False
