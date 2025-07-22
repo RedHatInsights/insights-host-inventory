@@ -545,9 +545,9 @@ pdm-backend==2.4.3 \
 pgxnclient==1.3.2 \
     --hash=sha256:b0343e044b8d0044ff4be585ecce0147b1007db7ae8b12743bf222758a4ec7d9
     # via -r requirements-build.in
-pipenv==2025.0.3 \
-    --hash=sha256:87370bedcf0ff66d226af07ca341ae94afcc08fed90d57ad9fea9ffd44ced4d3 \
-    --hash=sha256:f0a67aa928824e61003d52acea72a94b180800019f03d38a311966f6330bc8d1
+pipenv==2025.0.4 \
+    --hash=sha256:36fc2a7841ccdb2f58a9f787b296c2e15dea3b5b79b84d4071812f28b7e8d7a2 \
+    --hash=sha256:e1fbe4cfd25ab179f123d1fbb1fa1cdc0b3ffcdb1f21c775dcaa12ccc356f2bb
     # via -r requirements-build.in
 platformdirs==4.3.8 \
     --hash=sha256:3d512d96e16bcb959a814c9f348431070822a6496326a4be0911c40b5a74c2bc \
