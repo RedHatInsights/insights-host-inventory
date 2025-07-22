@@ -3,6 +3,7 @@ from __future__ import annotations
 from copy import deepcopy
 from datetime import timedelta
 from functools import partial
+from typing import Any
 from uuid import UUID
 
 from dateutil import parser
@@ -329,7 +330,7 @@ def update_query_for_owner_id(identity: Identity, query: Query) -> Query:
 
 
 def _system_type_filter(filters: list[str]) -> list:
-    PROFILE_FILTERS = {
+    PROFILE_FILTERS: dict[str, dict[str, Any]] = {
         SystemType.CONVENTIONAL.value: {
             "system_profile": {
                 "bootc_status": {"booted": {"image_digest": {"eq": "nil"}}},
