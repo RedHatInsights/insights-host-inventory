@@ -235,11 +235,8 @@ class Config:
             "sasl.password": self.kafka_sasl_password,
         }
 
-        self.consumer_config_common = {
+        self.base_consumer_config = {
             **self.kafka_ssl_configs,
-            "max.in.flight.requests.per.connection": int(
-                os.environ.get("KAFKA_CONSUMER_MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION", "5")
-            ),
             "session.timeout.ms": int(os.environ.get("KAFKA_CONSUMER_SESSION_TIMEOUT_MS", "10000")),
             "heartbeat.interval.ms": int(os.environ.get("KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS", "3000")),
         }
@@ -249,13 +246,13 @@ class Config:
             "auto.offset.reset": os.environ.get("KAFKA_CONSUMER_AUTO_OFFSET_RESET", "latest"),
             "auto.commit.interval.ms": int(os.environ.get("KAFKA_CONSUMER_AUTO_COMMIT_INTERVAL_MS", "5000")),
             "partition.assignment.strategy": "cooperative-sticky",
-            **self.consumer_config_common,
+            **self.base_consumer_config,
         }
 
         self.validator_kafka_consumer = {
             "group.id": "inventory-sp-validator",
             "enable.auto.commit": False,
-            **self.consumer_config_common,
+            **self.base_consumer_config,
         }
 
         self.events_kafka_consumer = {
@@ -264,7 +261,7 @@ class Config:
             "queued.max.messages.kbytes": "65536",
             "enable.auto.commit": False,
             "max.partition.fetch.bytes": int(os.environ.get("KAFKA_CONSUMER_MAX_PARTITION_FETCH_BYTES", "3145728")),
-            **self.consumer_config_common,
+            **self.base_consumer_config,
         }
 
         self.kafka_producer = {
