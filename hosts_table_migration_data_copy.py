@@ -31,6 +31,42 @@ This script should only be run during a planned maintenance window.
 """
 
 
+def create_index(session: Session, logger: Logger):
+    # Step 0: Create the index
+    index_exists_query = text("""
+                              SELECT EXISTS (SELECT 1
+                                             FROM pg_indexes
+                                             WHERE schemaname = :schema
+                                               AND indexname = :index_name);
+                              """)
+    result = session.execute(index_exists_query, {"schema": INVENTORY_SCHEMA, "index_name": PAGINATION_INDEX_NAME})
+    index_exists = result.scalar_one()
+
+    session.commit()
+
+    if not index_exists:
+        logger.info("Index does not exist. Creating it now (this may take a long time)...")
+
+        # CREATE INDEX CONCURRENTLY cannot run inside a transaction.
+        # We get the raw DBAPI connection and set it to autocommit mode for this operation.
+        connection = session.connection().connection
+        isolation_level_before = connection.isolation_level
+        connection.set_isolation_level(0)  # 0 = autocommit
+
+        try:
+            create_index_sql = text(f"""
+                CREATE INDEX CONCURRENTLY {PAGINATION_INDEX_NAME}
+                ON {INVENTORY_SCHEMA}.hosts (created_on, id);
+            """)
+            session.execute(create_index_sql)
+            logger.info("Successfully created temporary pagination index.")
+        finally:
+            # Restore the original isolation level to resume normal transactional behavior.
+            connection.set_isolation_level(isolation_level_before)
+    else:
+        logger.info("Temporary pagination index already exists.")
+
+
 def copy_data_in_batches(session: Session, logger: Logger):
     """
     Copies data from the old hosts table to the new partitioned tables using
@@ -41,27 +77,6 @@ def copy_data_in_batches(session: Session, logger: Logger):
     last_created_on = "1970-01-01 00:00:00+00"
     last_id = "00000000-0000-0000-0000-000000000000"
     total_rows_copied = 0
-
-    # Step 0: Create the index
-    index_exists_query = text("""
-            SELECT EXISTS (
-                SELECT 1
-                FROM pg_indexes
-                WHERE schemaname = :schema AND indexname = :index_name
-            );
-        """)
-    result = session.execute(index_exists_query, {"schema": INVENTORY_SCHEMA, "index_name": PAGINATION_INDEX_NAME})
-    index_exists = result.scalar_one()
-
-    if not index_exists:
-        logger.info("Creating the host migration index")
-        create_index_sql = text(f"""
-                    CREATE INDEX CONCURRENTLY {PAGINATION_INDEX_NAME}
-                    ON {INVENTORY_SCHEMA}.hosts (created_on, id);
-                """)
-        session.execute(create_index_sql)
-        session.commit()
-        logger.info("Finished creating the host migration index")
 
     logger.info(f"Starting batched data migration with a batch size of {batch_size} rows.")
 
@@ -162,6 +177,7 @@ def run(logger: Logger, session: Session, application: FlaskApp):
     """Main execution function."""
     try:
         with application.app.app_context():
+            create_index(session, logger)
             copy_data_in_batches(session, logger)
     except Exception:
         logger.exception("A critical error occurred during the data copy job.")
