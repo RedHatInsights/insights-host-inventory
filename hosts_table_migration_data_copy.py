@@ -67,21 +67,6 @@ def create_index(session: Session, logger: Logger):
         logger.info("Temporary pagination index already exists.")
 
 
-def update_table_column(session: Session, logger: Logger):
-    # We get the raw DBAPI connection and set it to autocommit mode for this operation.
-    connection = session.connection().connection
-    isolation_level_before = connection.isolation_level
-    connection.set_isolation_level(0)  # 0 = autocommit
-
-    try:
-        update_column = text(f"""ALTER TABLE {INVENTORY_SCHEMA}.hosts_new ALTER COLUMN bios_uuid TYPE VARCHAR(255);""")
-        session.execute(update_column)
-        logger.info("Successfully updated column")
-    finally:
-        # Restore the original isolation level to resume normal transactional behavior.
-        connection.set_isolation_level(isolation_level_before)
-
-
 def copy_data_in_batches(session: Session, logger: Logger):
     """
     Copies data from the old hosts table to the new partitioned tables using
@@ -193,7 +178,6 @@ def run(logger: Logger, session: Session, application: FlaskApp):
     try:
         with application.app.app_context():
             create_index(session, logger)
-            update_table_column(session, logger)
             copy_data_in_batches(session, logger)
     except Exception:
         logger.exception("A critical error occurred during the data copy job.")
