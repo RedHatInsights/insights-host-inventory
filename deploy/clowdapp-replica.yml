@@ -373,7 +373,7 @@ parameters:
   value: inventory
 - description: ClowdApp name
   name: CLOWDAPP_NAME
-  value: host-inventory
+  value: host-inventory-replica
 - description: Database name
   name: DB_NAME
   value: host-inventory

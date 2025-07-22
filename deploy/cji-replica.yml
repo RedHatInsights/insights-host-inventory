@@ -7,20 +7,20 @@ objects:
   kind: ClowdJobInvocation
   metadata:
     labels:
-      app: host-inventory
+      app: host-inventory-replica
     name: hosts-table-migration-data-copy-${HOSTS_TABLE_MIGRATION_DATA_COPY_RUN_NUMBER}
   spec:
-    appName: host-inventory
+    appName: host-inventory-replica
     jobs:
       - hosts-table-migration-data-copy
 - apiVersion: cloud.redhat.com/v1alpha1
   kind: ClowdJobInvocation
   metadata:
     labels:
-      app: host-inventory
+      app: host-inventory-replica
     name: hosts-table-migration-switch-${HOSTS_TABLE_MIGRATION_SWITCH_RUN_NUMBER}
   spec:
-    appName: host-inventory
+    appName: host-inventory-replica
     jobs:
       - hosts-table-migration-switch
 
