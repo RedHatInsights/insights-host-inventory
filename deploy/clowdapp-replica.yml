@@ -13,10 +13,6 @@ objects:
     inMemoryDb: true
     testing:
       iqePlugin: host-inventory
-    dependencies:
-      - rbac
-      - ingress
-      - export-service
     jobs:
       - name: hosts-table-migration-data-copy
         restartPolicy: OnFailure
@@ -94,7 +90,6 @@ objects:
             requests:
               cpu: ${CPU_REQUEST_HOSTS_TABLE_MIGRATION_SWITCH}
               memory: ${MEMORY_REQUEST_HOSTS_TABLE_MIGRATION_SWITCH}
-
     database:
       name: ${DB_NAME}
       version: 16
@@ -130,7 +125,186 @@ objects:
       targetPort: 8000
     selector:
       pod: host-inventory-service
+- apiVersion: metrics.console.redhat.com/v1alpha1
+  kind: FloorPlan
+  metadata:
+    name: host-inventory
+  spec:
+    database:
+      secretName: ${FLOORIST_DB_SECRET_NAME}
+    objectStore:
+      secretName: ${FLOORIST_BUCKET_SECRET_NAME}
+    suspend: ${{FLOORIST_SUSPEND}}
+    logLevel: ${FLOORIST_LOGLEVEL}
+    queries:
+      - prefix: insights/inventory/hosts
+        chunksize: 50000
+        query: >-
+          SELECT
+            "id",
+            "account" AS "account_number",
+            "created_on" AS "created_at",
+            "modified_on" AS "updated_at",
+            "ansible_host" AS "ansible_host",
+            CONCAT_WS('.',"system_profile_facts"->'operating_system'->>'name',"system_profile_facts"->'operating_system'->'major',"system_profile_facts"->'operating_system'->'minor') AS "os_version",
+            "system_profile_facts"->'host_type' AS "host_type",
+            "system_profile_facts"->'ansible'->'controller_version' AS "ansible_controller_version",
+            "system_profile_facts"->'ansible'->'hub_version' AS "ansible_hub_version",
+            "system_profile_facts"->'rhsm'->'version' AS "rhsm_version",
+            "system_profile_facts"->'is_marketplace' AS "is_marketplace_installation",
+            "system_profile_facts"->'insights_client_version' AS "insights_client_version",
+            "system_profile_facts"->'insights_egg_version' AS "insights_egg_version",
+            "system_profile_facts"->'satellite_managed' AS "is_satellite_managed",
+            "system_profile_facts"->'subscription_status' AS "subscription_status",
+            "system_profile_facts"->'ansible' AS "ansible_workload",
+            "system_profile_facts"->'mssql' AS "mssql_workload",
+            "system_profile_facts"->'sap' AS "sap_workload",
+            "system_profile_facts"->'rhc_client_id' AS "rhc_client_id"
+          FROM "hbi"."hosts"
+- apiVersion: metrics.console.redhat.com/v1alpha1
+  kind: FloorPlan
+  metadata:
+    name: host-inventory-hms
+  spec:
+    database:
+      secretName: ${FLOORIST_DB_SECRET_NAME}
+    objectStore:
+      secretName: ${FLOORIST_HMS_BUCKET_SECRET_NAME}
+    suspend: ${{FLOORIST_SUSPEND}}
+    logLevel: ${FLOORIST_LOGLEVEL}
+    queries:
+#      - prefix: hms_analytics/inventory/${ENV_NAME}/hosts
+#        query: >-
+#          SELECT
+#            "id",
+#            COALESCE("account", '0') AS "account",
+#            "org_id" AS "org_id",
+#            "created_on" AS "created_at",
+#            "modified_on" AS "updated_at",
+#            "reporter" AS "reporter",
+#            "canonical_facts"->>'insights_id' AS "insights_id",
+#            "canonical_facts"->>'subscription_manager_id' AS "subscription_manager_id",
+#            "canonical_facts"->>'bios_uuid' AS "bios_uuid",
+#            "canonical_facts"->>'provider_id' AS "provider_id",
+#            "canonical_facts"->>'provider_type' AS "provider_type"
+#          FROM "hbi"."hosts";
+      - prefix: hms_analytics/inventory/${ENV_NAME}/groups
+        chunksize: 10000
+        query: >-
+          SELECT
+            "id",
+            "org_id" AS "org_id",
+            COALESCE("account", '0') AS "account",
+            "name" AS "name",
+            "created_on" AS "created_at",
+            "modified_on" AS "updated_at"
+          FROM "hbi"."groups"
+      - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/hosts_count
+        query: >-
+          SELECT COUNT(*) AS "hosts_count"
+          FROM "hbi"."hosts";
+      - prefix: hms_analytics/inventory/${ENV_NAME}/groups_metrics/groups_count
+        query: >-
+          SELECT COUNT(*) AS "group_counts"
+          FROM "hbi"."groups";
+      - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/daily_created_by_reporters
+        query: >-
+          SELECT
+            "reporter" AS "reporter",
+            count(*) AS "hosts_created"
+          FROM "hbi"."hosts"
+          WHERE "created_on" >= NOW() - INTERVAL '1 day'
+          GROUP BY "reporter";
+      - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/daily_updated_by_reporters
+        query: >-
+          SELECT  "reporter" AS "reporter", count(*) AS "hosts_updated"
+          FROM "hbi"."hosts"
+          WHERE "modified_on" >= NOW() - INTERVAL '1 day'
+          GROUP BY "reporter";
+      - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/hosts_per_org_id
+        chunksize: 10000
+        query: >-
+          SELECT
+            "org_id" AS "org_id",
+            COUNT(*) AS "host_count"
+          FROM "hbi"."hosts"
+          GROUP BY "org_id"
+          ORDER BY "host_count" DESC;
+      - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/hosts_per_public_cloud
+        query: >-
+          SELECT
+            "canonical_facts"->>'provider_type' AS "provider_type",
+            COUNT(*) AS "host_count"
+          FROM "hbi"."hosts"
+          GROUP BY "provider_type";
+      - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/duplicated_hosts_by_org
+        chunksize: 10000
+        query: >-
+          SELECT
+            "aa"."org_id",
+            "aa"."id_value",
+            "aa"."hosts_count",
+            "aa"."reporter",
+            "aa"."id_type"
+          FROM (
+            SELECT
+              "org_id",
+              "canonical_facts"->>'insights_id' AS "id_value",
+              COUNT(*) AS "hosts_count",
+              "reporter",
+              'insights_id' AS "id_type"
+            FROM
+              "hbi"."hosts"
+            WHERE
+              "canonical_facts"->'provider_id' IS NULL
+              AND "canonical_facts"->>'insights_id' IS NOT NULL
+            GROUP BY
+              "org_id",
+              "canonical_facts"->>'insights_id',
+              "reporter"
 
+            UNION ALL
+
+            SELECT
+              "org_id",
+              "canonical_facts"->>'subscription_manager_id' AS "id_value",
+              COUNT(*) AS "hosts_count",
+              "reporter",
+              'subscription_manager_id' AS "id_type"
+            FROM
+              "hbi"."hosts"
+            WHERE
+              "canonical_facts"->'provider_id' IS NULL
+              AND "canonical_facts"->>'insights_id' IS NULL
+              AND "canonical_facts"->>'subscription_manager_id' IS NOT NULL
+            GROUP BY
+              "org_id",
+              "canonical_facts"->>'subscription_manager_id',
+              "reporter"
+          ) AS "aa"
+          WHERE
+            "aa"."hosts_count" > 1
+          ORDER BY
+            "aa"."org_id" ASC,
+            "aa"."id_type" ASC;
+      - prefix: hms_analytics/inventory/${ENV_NAME}/groups_metrics/org_ids_with_group_names
+        chunksize: 10000
+        query: >-
+          SELECT
+            DISTINCT "org_id" AS "org_id", "name" AS "name"
+          FROM "hbi"."groups"
+          ORDER BY "name" ASC;
+      - prefix: hms_analytics/inventory/${ENV_NAME}/groups_metrics/hosts_per_groups
+        chunksize: 10000
+        query: >-
+          SELECT
+            "id" AS "group_id",
+            "name" AS "group_name",
+            COUNT(*) AS "host_count"
+          FROM "hbi"."groups"
+          JOIN "hbi"."hosts_groups" ON "groups"."id" = "hbi"."hosts_groups"."group_id"
+          GROUP BY "groups"."id"
+          ORDER BY "host_count" DESC;
 - apiVersion: v1
   data:
     nginx.conf: |-
@@ -358,7 +532,61 @@ parameters:
 - name: CPU_LIMIT_EDGE_HOSTS_PRS
   value: 500m
 - name: MEMORY_REQUEST_EDGE_HOSTS_PRS
-  value: 256Mifalse
+  value: 256Mi
+- name: MEMORY_LIMIT_EDGE_HOSTS_PRS
+  value: 512Mi
+
+- name: CPU_REQUEST_HOSTS_WITHOUT_ID_FACTS_JOB
+  value: 250m
+- name: CPU_LIMIT_HOSTS_WITHOUT_ID_FACTS_JOB
+  value: 500m
+- name: MEMORY_REQUEST_HOSTS_WITHOUT_ID_FACTS_JOB
+  value: 256Mi
+- name: MEMORY_LIMIT_HOSTS_WITHOUT_ID_FACTS_JOB
+  value: 512Mi
+
+- name: CPU_REQUEST_HOSTS_TABLE_MIGRATION_DATA_COPY
+  value: 250m
+- name: CPU_LIMIT_HOSTS_TABLE_MIGRATION_DATA_COPY
+  value: 500m
+- name: MEMORY_REQUEST_HOSTS_TABLE_MIGRATION_DATA_COPY
+  value: 256Mi
+- name: MEMORY_LIMIT_HOSTS_TABLE_MIGRATION_DATA_COPY
+  value: 512Mi
+
+- name: CPU_REQUEST_HOSTS_TABLE_MIGRATION_SWITCH
+  value: 250m
+- name: CPU_LIMIT_HOSTS_TABLE_MIGRATION_SWITCH
+  value: 500m
+- name: MEMORY_REQUEST_HOSTS_TABLE_MIGRATION_SWITCH
+  value: 256Mi
+- name: MEMORY_LIMIT_HOSTS_TABLE_MIGRATION_SWITCH
+  value: 512Mi
+
+- description: Replica count for p1 consumer
+  name: REPLICAS_P1
+  value: "5"
+- description: Replica count for pmin consumer
+  name: REPLICAS_PMIN
+  value: "3"
+- description: Replica count for sp consumer
+  name: REPLICAS_SP
+  value: "2"
+- description: Replica count for webservice
+  name: REPLICAS_SVC_READS
+  value: "7"
+- description: Replica count for webservice
+  name: REPLICAS_SVC_SECONDARY_READS
+  value: "1"
+- description: Replica count for webservice
+  name: REPLICAS_SVC_WRITES
+  value: "3"
+- description: Replica count for export-service
+  name: REPLICAS_EXPORT_SVC
+  value: "2"
+- description: Replica count for mq-workspaces consumer
+  name: REPLICAS_WORKSPACES
+  value: "1"
 - description: Image tag
   name: IMAGE_TAG
   required: true
@@ -557,18 +785,12 @@ parameters:
   value: '60'
 - name: INVENTORY_DB_SCHEMA
   value: 'hbi'
-- name: KESSEL_S3_AWS_SECRET
-  description: The AWS secret for the Kessel S3 bucket
+- name: S3_AWS_SECRET
+  description: The AWS secret for S3
   value: 'hbi-kessel-s3'
-- name: DELETE_HOSTS_S3_AWS_SECRET
-  description: The AWS secret for the delete-hosts S3 bucket
-  value: 'hbi-delete-host-ids-s3'
-- name: DELETE_HOSTS_DRY_RUN
-  description: Whether the delete_hosts_s3 script should run in dry-run mode
-  value: 'true'
-- name: DELETE_HOSTS_S3_BATCH_SIZE
-  description: The batch size to use for the delete-hosts-s3 script.
-  value: '500'
+- name: RBAC_V2_FORCE_ORG_ADMIN
+  description: Whether to force User Identities to use is_org_admin=True for RBAC v2 calls
+  value: 'false'
 - name: BYPASS_KESSEL_JOBS
   description: Whether to bypass Kessel-related jobs, even when triggered via CJI
   value: 'false'
@@ -578,19 +800,6 @@ parameters:
 - name: ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE
   description: The batch size to use for the assign-ungrouped-hosts script.
   value: '10'
-- name: HOSTS_TABLE_NUM_PARTITIONS
-  description: The number of partitions for the hosts table
-  value: '1'
-- name: HOSTS_TABLE_MIGRATION_BATCH_SIZE
-  description: The batch size to use for the hosts partitioned table migration.
-  value: '50000'
-- name: HOSTS_TABLE_MIGRATION_DATA_COPY_SUSPEND
-  value: 'true'
-- name: HOSTS_TABLE_MIGRATION_SWITCH_SUSPEND
-  value: 'true'
-- name: HOSTS_TABLE_MIGRATION_SWITCH_MODE
-  description: switch or rollback to revert the hosts table switch.
-  value: 'switch'
 
 # NGINX
 - displayName: Minimum replicas
@@ -651,7 +860,21 @@ parameters:
   value: host-inventory-db
 
 
-# Replica namespace
+- name: HOSTS_TABLE_NUM_PARTITIONS
+  description: The number of partitions for the hosts table
+  value: '1'
+- name: HOSTS_TABLE_MIGRATION_BATCH_SIZE
+  description: The batch size to use for the hosts partitioned table migration.
+  value: '50000'
+- name: HOSTS_TABLE_MIGRATION_DATA_COPY_SUSPEND
+  value: 'true'
+- name: HOSTS_TABLE_MIGRATION_SWITCH_SUSPEND
+  value: 'true'
+- name: HOSTS_TABLE_MIGRATION_SWITCH_MODE
+  description: switch or rollback to revert the hosts table switch.
+  value: 'switch'
+
+
+# new namespace
 - name: REPLICA_NAMESPACE
-  description: Disable Kafka operations in the replica namespace
   value: 'true'
