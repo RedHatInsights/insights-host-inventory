@@ -51,17 +51,19 @@ def run(
     with application.app.app_context():
         threadctx.request_id = None
         try:
-            num_deleted = delete_duplicate_hosts(
-                org_ids_session,
-                hosts_session,
-                misc_session,
-                config.script_chunk_size,
-                logger,
-                event_producer,
-                notifications_event_producer,
-                shutdown_handler.shut_down,
-                dry_run=config.dry_run,
-            )
+            with multi_session_guard([org_ids_session, hosts_session, misc_session]):
+                num_deleted = delete_duplicate_hosts(
+                    org_ids_session,
+                    hosts_session,
+                    misc_session,
+                    config.script_chunk_size,
+                    logger,
+                    event_producer,
+                    notifications_event_producer,
+                    shutdown_handler.shut_down,
+                    dry_run=config.dry_run,
+                )
+
             if config.dry_run:
                 logger.info(
                     f"This was a dry run. This many hosts would have been deleted in an actual run: {num_deleted}"
@@ -97,15 +99,14 @@ if __name__ == "__main__":
     register_shutdown(hosts_session.get_bind().dispose, "Closing database")
     register_shutdown(misc_session.get_bind().dispose, "Closing database")
 
-    with multi_session_guard([org_ids_session, hosts_session, misc_session]):
-        run(
-            config,
-            logger,
-            org_ids_session,
-            hosts_session,
-            misc_session,
-            event_producer,
-            notifications_event_producer,
-            shutdown_handler,
-            application,
-        )
+    run(
+        config,
+        logger,
+        org_ids_session,
+        hosts_session,
+        misc_session,
+        event_producer,
+        notifications_event_producer,
+        shutdown_handler,
+        application,
+    )

@@ -7,6 +7,7 @@ from functools import partial
 from logging import Logger
 
 import boto3
+from botocore.config import Config as BotoConfig
 from connexion import FlaskApp
 from sqlalchemy.orm import Session
 
@@ -41,6 +42,7 @@ def get_s3_client(config: Config):
         "s3",
         aws_access_key_id=config.s3_access_key_id,
         aws_secret_access_key=config.s3_secret_access_key,
+        config=BotoConfig(retries={"mode": "standard", "total_max_attempts": 20}),
     )
 
 
