@@ -514,18 +514,19 @@ def _formatted_uuid(uuid_string):
 
 def _get_identity(host, metadata) -> Identity:
     # rhsm reporter does not provide identity.  Set identity type to system for access the host in future.
+    identity_dict: dict[str, Any]
     if metadata and "b64_identity" in metadata:
-        identity = _decode_id(metadata["b64_identity"])
+        identity_dict = _decode_id(metadata["b64_identity"])
     else:
         reporter = host.get("reporter")
         if (reporter == "rhsm-conduit" or reporter == "rhsm-system-profile-bridge") and host.get(
             "subscription_manager_id"
         ):
-            identity = deepcopy(SYSTEM_IDENTITY)
+            identity_dict = deepcopy(SYSTEM_IDENTITY)
             if "account" in host:
-                identity["account_number"] = host["account"]
-            identity["org_id"] = host.get("org_id")
-            identity["system"]["cn"] = _formatted_uuid(host.get("subscription_manager_id"))
+                identity_dict["account_number"] = host["account"]
+            identity_dict["org_id"] = host.get("org_id")
+            identity_dict["system"]["cn"] = _formatted_uuid(host.get("subscription_manager_id"))
         elif metadata:
             raise ValidationException(
                 "When identity is not provided, reporter MUST be rhsm-conduit or rhsm-system-profile-bridge,"
@@ -537,10 +538,10 @@ def _get_identity(host, metadata) -> Identity:
 
     if not host.get("org_id"):
         raise ValidationException("org_id must be provided")
-    elif host.get("org_id") != identity["org_id"]:
+    elif host.get("org_id") != identity_dict["org_id"]:
         raise ValidationException("The org_id in the identity does not match the org_id in the host.")
     try:
-        identity = Identity(identity)
+        identity = Identity(identity_dict)
     except ValueError as e:
         raise ValidationException(str(e)) from e
     return identity
