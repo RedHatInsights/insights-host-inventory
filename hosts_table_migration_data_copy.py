@@ -44,6 +44,7 @@ def copy_data_in_batches(session: Session, logger: Logger):
     # Step 0: Create the index
     logger.info("Creating the host migration index")
     session.execute(text("CREATE INDEX CONCURRENTLY idx_hosts_migration_pagination ON hbi.hosts (created_on, id);"))
+    session.commit()
     logger.info("Finished creating the host migration index")
 
     logger.info(f"Starting batched data migration with a batch size of {batch_size} rows.")
