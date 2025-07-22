@@ -74,11 +74,11 @@ class EventProducer:
                 self._kafka_producer.flush()
             else:
                 self._kafka_producer.poll()
-            
+
             if write_event_to_outbox(event):
-                logger.info("✓ Event written to outbox successfully")
+                logger.info(f"✓ Event written to outbox successfully: {event}")
             else:
-                logger.error("✗ Failed to write event to outbox")
+                logger.error(f"✗ Failed to write event to outbox: {event}")
         except KafkaException as error:
             message_not_produced(logger, error, topic, event=v, key=k, headers=h)
             raise error
