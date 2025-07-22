@@ -38,7 +38,7 @@ def _create_update_event_payload(event_dict):
     reporter = {
         "satellite_id": host.get("satellite_id", None),
         "subscription_manager_id": host.get("subscription_manager_id", None),
-        "insights_inventory_id": host.get("insights_inventory_id", None),
+        "insights_id": host.get("insights_id", None),
         "ansible_host": host.get("ansible_host", None),
     }
 
@@ -131,7 +131,7 @@ def write_event_to_outbox(event: str) -> bool:
                 outbox_entry = Outbox(
                     aggregate_id=aggregate_id,
                     aggregate_type="hbi.hosts",
-                    type=event_type,
+                    event_type=event_type,
                     payload=json.dumps(payload),
                 )
                 db.session.add(outbox_entry)
