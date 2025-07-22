@@ -20,7 +20,6 @@ PROMETHEUS_JOB = "hosts-table-migration-data-copy"
 LOGGER_NAME = "hosts_table_migration_data_copy"
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
 SUSPEND_JOB = os.environ.get("SUSPEND_JOB", "true").lower() == "true"
-PAGINATION_INDEX_NAME = "idx_hosts_migration_pagination_temp"
 
 """
 This job copies all historical data from the original 'hosts' table into the
@@ -31,40 +30,22 @@ This script should only be run during a planned maintenance window.
 """
 
 
-def create_index(session: Session, logger: Logger):
-    # Step 0: Create the index
-    index_exists_query = text("""
-                              SELECT EXISTS (SELECT 1
-                                             FROM pg_indexes
-                                             WHERE schemaname = :schema
-                                               AND indexname = :index_name);
-                              """)
-    result = session.execute(index_exists_query, {"schema": INVENTORY_SCHEMA, "index_name": PAGINATION_INDEX_NAME})
-    index_exists = result.scalar_one()
+def update_table_column(session: Session, logger: Logger):
+    logger.info("Index does not exist. Creating it now (this may take a long time)...")
 
-    session.commit()
+    # CREATE INDEX CONCURRENTLY cannot run inside a transaction.
+    # We get the raw DBAPI connection and set it to autocommit mode for this operation.
+    connection = session.connection().connection
+    isolation_level_before = connection.isolation_level
+    connection.set_isolation_level(0)  # 0 = autocommit
 
-    if not index_exists:
-        logger.info("Index does not exist. Creating it now (this may take a long time)...")
-
-        # CREATE INDEX CONCURRENTLY cannot run inside a transaction.
-        # We get the raw DBAPI connection and set it to autocommit mode for this operation.
-        connection = session.connection().connection
-        isolation_level_before = connection.isolation_level
-        connection.set_isolation_level(0)  # 0 = autocommit
-
-        try:
-            create_index_sql = text(f"""
-                CREATE INDEX CONCURRENTLY {PAGINATION_INDEX_NAME}
-                ON {INVENTORY_SCHEMA}.hosts (created_on, id);
-            """)
-            session.execute(create_index_sql)
-            logger.info("Successfully created temporary pagination index.")
-        finally:
-            # Restore the original isolation level to resume normal transactional behavior.
-            connection.set_isolation_level(isolation_level_before)
-    else:
-        logger.info("Temporary pagination index already exists.")
+    try:
+        update_column = text(f"""ALTER TABLE {INVENTORY_SCHEMA}.hosts_new ALTER COLUMN bios_uuid TYPE VARCHAR(255);""")
+        session.execute(update_column)
+        logger.info("Successfully updated column")
+    finally:
+        # Restore the original isolation level to resume normal transactional behavior.
+        connection.set_isolation_level(isolation_level_before)
 
 
 def copy_data_in_batches(session: Session, logger: Logger):
@@ -177,7 +158,7 @@ def run(logger: Logger, session: Session, application: FlaskApp):
     """Main execution function."""
     try:
         with application.app.app_context():
-            create_index(session, logger)
+            update_table_column(session, logger)
             copy_data_in_batches(session, logger)
     except Exception:
         logger.exception("A critical error occurred during the data copy job.")
