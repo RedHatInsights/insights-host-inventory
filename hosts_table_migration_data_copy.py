@@ -20,6 +20,7 @@ PROMETHEUS_JOB = "hosts-table-migration-data-copy"
 LOGGER_NAME = "hosts_table_migration_data_copy"
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
 SUSPEND_JOB = os.environ.get("SUSPEND_JOB", "true").lower() == "true"
+PAGINATION_INDEX_NAME = "idx_hosts_migration_pagination_temp"
 
 """
 This job copies all historical data from the original 'hosts' table into the
@@ -42,10 +43,25 @@ def copy_data_in_batches(session: Session, logger: Logger):
     total_rows_copied = 0
 
     # Step 0: Create the index
-    logger.info("Creating the host migration index")
-    session.execute(text("CREATE INDEX CONCURRENTLY idx_hosts_migration_pagination ON hbi.hosts (created_on, id);"))
-    session.commit()
-    logger.info("Finished creating the host migration index")
+    index_exists_query = text("""
+            SELECT EXISTS (
+                SELECT 1
+                FROM pg_indexes
+                WHERE schemaname = :schema AND indexname = :index_name
+            );
+        """)
+    result = session.execute(index_exists_query, {"schema": INVENTORY_SCHEMA, "index_name": PAGINATION_INDEX_NAME})
+    index_exists = result.scalar_one()
+
+    if not index_exists:
+        logger.info("Creating the host migration index")
+        create_index_sql = text(f"""
+                    CREATE INDEX CONCURRENTLY {PAGINATION_INDEX_NAME}
+                    ON {INVENTORY_SCHEMA}.hosts (created_on, id);
+                """)
+        session.execute(create_index_sql)
+        session.commit()
+        logger.info("Finished creating the host migration index")
 
     logger.info(f"Starting batched data migration with a batch size of {batch_size} rows.")
 
