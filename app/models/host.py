@@ -16,6 +16,7 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy.orm import column_property
 
+from app.common import inventory_config
 from app.config import ID_FACTS
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
@@ -96,16 +97,17 @@ class LimitedHost(db.Model):
         self.groups = groups or []
         self.last_check_in = _time_now()
 
-        # canonical facts
-        self.insights_id = insights_id
-        self.subscription_manager_id = subscription_manager_id
-        self.satellite_id = satellite_id
-        self.fqdn = fqdn
-        self.bios_uuid = bios_uuid
-        self.ip_addresses = ip_addresses
-        self.mac_addresses = mac_addresses
-        self.provider_id = provider_id
-        self.provider_type = provider_type
+        if not inventory_config().hbi_db_refact_skip_in_prod:
+            # New code: assign canonical facts to individual columns
+            self.insights_id = insights_id
+            self.subscription_manager_id = subscription_manager_id
+            self.satellite_id = satellite_id
+            self.fqdn = fqdn
+            self.bios_uuid = bios_uuid
+            self.ip_addresses = ip_addresses
+            self.mac_addresses = mac_addresses
+            self.provider_id = provider_id
+            self.provider_type = provider_type
 
     def _update_ansible_host(self, ansible_host):
         if ansible_host is not None:
@@ -263,7 +265,9 @@ class Host(LimitedHost):
         if not per_reporter_staleness:
             self._update_per_reporter_staleness(reporter)
 
-        self.update_canonical_facts(canonical_facts)
+        if not inventory_config().hbi_db_refact_skip_in_prod:
+            # New code: update canonical facts to individual columns
+            self.update_canonical_facts(canonical_facts)
 
     def save(self):
         self._cleanup_tags()
