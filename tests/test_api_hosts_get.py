@@ -2204,3 +2204,59 @@ def test_query_by_staleness_using_columns(db_create_multiple_hosts, api_get, sub
             response_status, response_data = api_get(url)
             assert response_status == 200
             assert count == len(response_data["results"])
+
+
+@pytest.mark.parametrize("system_type", ("conventional", "bootc", "edge"))
+def test_system_type_filter_valid_types(api_get, system_type):
+    url = build_hosts_url(query=f"?system_type={system_type}")
+    response_status, _ = api_get(url)
+
+    assert response_status == 200
+
+
+@pytest.mark.parametrize("invalid_system_type", ("invalid_type", ""))
+def test_system_type_filter_invalid_types(api_get, invalid_system_type):
+    url = build_hosts_url(query=f"?system_type={invalid_system_type}")
+    response_status, _ = api_get(url)
+
+    assert response_status == 400
+
+
+@pytest.mark.parametrize(
+    "query_filter_param",
+    (
+        "?system_type=conventional",
+        "?system_type=bootc",
+        "?system_type=edge",
+        "?system_type=bootc&system_type=edge",
+    ),
+)
+def test_system_type_happy_path(api_get, db_create_host, query_filter_param):
+    sp_facts = [
+        {},
+        {
+            "system_profile_facts": {
+                "bootc_status": {
+                    "booted": {
+                        "image_digest": "sha256:806d77394f96e47cf99b1233561ce970c94521244a2d8f2affa12c3261961223"
+                    }
+                }
+            }
+        },
+        {"system_profile_facts": {"host_type": "edge"}},
+    ]
+    host_ids = []
+
+    for sp_fact in sp_facts:
+        host_id = str(db_create_host(extra_data=sp_fact).id)
+        host_ids.append(host_id)
+
+    # Count the number of times "system_type" appears in the query
+    matching_hosts = query_filter_param.count("system_type=")
+    url = build_hosts_url(query=query_filter_param)
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == matching_hosts
+    for result in response_data["results"]:
+        assert result["id"] in host_ids
