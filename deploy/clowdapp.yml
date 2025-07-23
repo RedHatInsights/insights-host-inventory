@@ -1907,6 +1907,7 @@ objects:
     - name: update-edge-hosts-prs
       schedule: ${{EDGE_HOSTS_PRS_SCHEDULE}}
       restartPolicy: Never
+      concurrencyPolicy: "Forbid"
       suspend: ${{EDGE_HOSTS_PRS_SUSPEND}}
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
