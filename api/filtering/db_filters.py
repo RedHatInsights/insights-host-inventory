@@ -3,6 +3,7 @@ from __future__ import annotations
 from copy import deepcopy
 from datetime import timedelta
 from functools import partial
+from typing import Any
 from uuid import UUID
 
 from dateutil import parser
@@ -29,6 +30,7 @@ from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import db
+from app.models.constants import SystemType
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_states import HostStalenessStatesDbFilters
 from app.utils import Tag
@@ -327,6 +329,30 @@ def update_query_for_owner_id(identity: Identity, query: Query) -> Query:
     return query
 
 
+def _system_type_filter(filters: list[str]) -> list:
+    PROFILE_FILTERS: dict[str, dict[str, Any]] = {
+        SystemType.CONVENTIONAL.value: {
+            "system_profile": {
+                "bootc_status": {"booted": {"image_digest": {"eq": "nil"}}},
+                "host_type": {"eq": "nil"},
+            }
+        },
+        SystemType.BOOTC.value: {"system_profile": {"bootc_status": {"booted": {"image_digest": {"eq": "not_nil"}}}}},
+        SystemType.EDGE.value: {"system_profile": {"host_type": {"eq": SystemType.EDGE.value}}},
+    }
+    valid_values = [st.value for st in SystemType]
+    query_filters: list = []
+    for system_type in filters:
+        if system_type not in valid_values:
+            raise ValidationException(f"Invalid system_type: {system_type}")
+
+        query_filter, _ = _system_profile_filter(PROFILE_FILTERS[system_type])
+        query_filters.append(and_(*query_filter))  # Using and_ here, because if system_type is "conventional",
+        # then we need both filters at the same time
+
+    return [or_(*query_filters)]
+
+
 def query_filters(
     fqdn: str | None = None,
     display_name: str | None = None,
@@ -342,6 +368,7 @@ def query_filters(
     tags: list[str] | None = None,
     staleness: list[str] | None = None,
     registered_with: list[str] | None = None,
+    system_type: list[str] | None = None,
     filter: dict | None = None,
     rbac_filter: dict | None = None,
     order_by: str | None = None,
@@ -370,6 +397,8 @@ def query_filters(
     elif subscription_manager_id:
         filters += canonical_fact_filter("subscription_manager_id", subscription_manager_id.lower())
 
+    if system_type:
+        filters += _system_type_filter(system_type)
     if provider_id:
         filters += canonical_fact_filter("provider_id", provider_id, case_insensitive=True)
     if provider_type:
