@@ -7,6 +7,7 @@ from logging import Logger
 from connexion import FlaskApp
 from sqlalchemy.orm import Session
 
+from app.common import inventory_config
 from app.environment import RuntimeEnvironment
 from app.logging import get_logger
 from app.logging import threadctx
@@ -57,7 +58,12 @@ def run(logger: Logger, session: Session, application: FlaskApp):
                     )
                     hosts_to_process = len(host_ids)
                     for (host_id,) in host_ids:
-                        assoc = HostGroupAssoc(host_id, ungrouped_group_id, org_id)
+                        if inventory_config().hbi_db_refact_skip_in_prod:
+                            # Old code: constructor without org_id
+                            assoc = HostGroupAssoc(host_id, ungrouped_group_id)
+                        else:
+                            # New code: constructor with org_id
+                            assoc = HostGroupAssoc(host_id, ungrouped_group_id, org_id)
                         session.add(assoc)
                     logger.info(f"Created {len(host_ids)} host-group associations for org {org_id}.")
 
