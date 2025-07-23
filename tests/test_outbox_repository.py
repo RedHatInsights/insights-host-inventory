@@ -55,7 +55,7 @@ class TestOutboxRepositoryHelperFunctions:
         assert metadata["reporterVersion"] == "1.0"
 
         # Check common (note: typo in original code "workpsace_id")
-        assert representations["common"]["workpsace_id"] == group_id
+        assert representations["common"]["workspace_id"] == group_id
 
         # Check reporter
         reporter = representations["reporter"]
