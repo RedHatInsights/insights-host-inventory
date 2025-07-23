@@ -22,6 +22,25 @@ RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
 SUSPEND_JOB = os.environ.get("SUSPEND_JOB", "true").lower() == "true"
 PAGINATION_INDEX_NAME = "idx_hosts_migration_pagination_temp"
 
+# Define all index names in a list for easy management
+HOSTS_NEW_INDEXES = [
+    "idx_hosts_modified_on_id",
+    "idx_hosts_insights_id",
+    "idx_hosts_subscription_manager_id",
+    "idx_hosts_canonical_facts_gin",
+    "idx_hosts_groups_gin",
+    "idx_hosts_host_type",
+    "idx_hosts_cf_insights_id",
+    "idx_hosts_cf_subscription_manager_id",
+    "idx_hosts_mssql",
+    "idx_hosts_ansible",
+    "idx_hosts_sap_system",
+    "idx_hosts_host_type_modified_on_org_id",
+    "idx_hosts_bootc_status",
+    "idx_hosts_operating_system_multi",
+]
+HOSTS_GROUPS_NEW_INDEXES = ["idx_hosts_groups_forward", "idx_hosts_groups_reverse"]
+
 """
 This job copies all historical data from the original 'hosts' table into the
 new partitioned tables ('hosts_new' and 'hosts_groups_new'). It processes
@@ -31,7 +50,123 @@ This script should only be run during a planned maintenance window.
 """
 
 
-def create_index(session: Session, logger: Logger):
+def truncate_new_tables(session: Session, logger: Logger):
+    """Truncates the target tables to ensure they are empty before copying."""
+    logger.warning("Truncating hosts_new and hosts_groups_new tables...")
+    session.execute(text(f"TRUNCATE TABLE {INVENTORY_SCHEMA}.hosts_new CASCADE;"))
+    session.execute(text(f"TRUNCATE TABLE {INVENTORY_SCHEMA}.hosts_groups_new CASCADE;"))
+    session.commit()
+    logger.info("Target tables have been truncated.")
+
+
+def drop_indexes(session: Session, logger: Logger):
+    """Drops all non-primary key indexes from the target tables to speed up inserts."""
+    logger.warning("Dropping all non-PK indexes from hosts_new and hosts_groups_new to optimize data copy...")
+    all_indexes = HOSTS_NEW_INDEXES + HOSTS_GROUPS_NEW_INDEXES
+    for index_name in all_indexes:
+        logger.info(f"  Dropping index: {index_name}")
+        session.execute(text(f"DROP INDEX IF EXISTS {INVENTORY_SCHEMA}.{index_name};"))
+    session.commit()
+    logger.info("All non-PK indexes have been dropped.")
+
+
+def recreate_indexes(session: Session, logger: Logger):
+    """Recreates all indexes on the target tables after the data copy is complete."""
+    logger.info("Data copy finished. Recreating all indexes (this may take a long time)...")
+
+    # Use autocommit for CREATE INDEX CONCURRENTLY
+    connection = session.connection().connection
+    isolation_level_before = connection.isolation_level
+    connection.set_isolation_level(0)  # autocommit
+
+    try:
+        # Recreate indexes for hosts_new
+        logger.info("Recreating indexes on hosts_new...")
+        session.execute(
+            text(f"CREATE INDEX idx_hosts_modified_on_id ON {INVENTORY_SCHEMA}.hosts_new (modified_on DESC, id DESC);")
+        )
+        session.execute(text(f"CREATE INDEX idx_hosts_insights_id ON {INVENTORY_SCHEMA}.hosts_new (insights_id);"))
+        session.execute(
+            text(
+                f"CREATE INDEX idx_hosts_subscription_manager_id ON {INVENTORY_SCHEMA}.hosts_new (subscription_manager_id);"
+            )
+        )
+        session.execute(
+            text(
+                f"CREATE INDEX idx_hosts_canonical_facts_gin ON {INVENTORY_SCHEMA}.hosts_new USING gin (canonical_facts jsonb_path_ops);"
+            )
+        )
+        session.execute(text(f"CREATE INDEX idx_hosts_groups_gin ON {INVENTORY_SCHEMA}.hosts_new USING gin (groups);"))
+        session.execute(
+            text(
+                f"CREATE INDEX idx_hosts_host_type ON {INVENTORY_SCHEMA}.hosts_new ((system_profile_facts ->> 'host_type'));"
+            )
+        )
+        session.execute(
+            text(
+                f"CREATE INDEX idx_hosts_cf_insights_id ON {INVENTORY_SCHEMA}.hosts_new ((canonical_facts ->> 'insights_id'));"
+            )
+        )
+        session.execute(
+            text(
+                f"CREATE INDEX idx_hosts_cf_subscription_manager_id ON {INVENTORY_SCHEMA}.hosts_new ((canonical_facts ->> 'subscription_manager_id'));"
+            )
+        )
+        session.execute(
+            text(f"CREATE INDEX idx_hosts_mssql ON {INVENTORY_SCHEMA}.hosts_new ((system_profile_facts ->> 'mssql'));")
+        )
+        session.execute(
+            text(
+                f"CREATE INDEX idx_hosts_ansible ON {INVENTORY_SCHEMA}.hosts_new ((system_profile_facts ->> 'ansible'));"
+            )
+        )
+        session.execute(
+            text(
+                f"CREATE INDEX idx_hosts_sap_system ON {INVENTORY_SCHEMA}.hosts_new (((system_profile_facts ->> 'sap_system')::boolean));"
+            )
+        )
+        session.execute(
+            text(
+                f"CREATE INDEX idx_hosts_bootc_status ON {INVENTORY_SCHEMA}.hosts_new (org_id, modified_on, (system_profile_facts ->> 'host_type'));"
+            )
+        )
+        session.execute(
+            text(
+                f"CREATE INDEX idx_hosts_operating_system_multi ON {INVENTORY_SCHEMA}.hosts_new (org_id) WHERE ((system_profile_facts -> 'bootc_status' -> 'booted' ->> 'image_digest') IS NOT NULL);"
+            )
+        )
+        session.execute(
+            text(f"""
+            CREATE INDEX idx_hosts_new_operating_system_multi ON {INVENTORY_SCHEMA}.hosts_new (
+                ((system_profile_facts -> 'operating_system' ->> 'name')),
+                ((system_profile_facts -> 'operating_system' ->> 'major')::integer),
+                ((system_profile_facts -> 'operating_system' ->> 'minor')::integer),
+                (system_profile_facts ->> 'host_type'),
+                modified_on,
+                org_id
+            ) WHERE (system_profile_facts -> 'operating_system') IS NOT NULL;
+        """)
+        )
+
+        # Recreate indexes for hosts_groups_new
+        logger.info("Recreating indexes on hosts_groups_new...")
+        session.execute(
+            text(
+                f"CREATE INDEX idx_hosts_groups_forward ON {INVENTORY_SCHEMA}.hosts_groups_new (org_id, host_id, group_id);"
+            )
+        )
+        session.execute(
+            text(
+                f"CREATE INDEX idx_hosts_groups_reverse ON {INVENTORY_SCHEMA}.hosts_groups_new (org_id, group_id, host_id);"
+            )
+        )
+
+        logger.info("All indexes have been recreated successfully.")
+    finally:
+        connection.set_isolation_level(isolation_level_before)
+
+
+def create_pagination_index(session: Session, logger: Logger):
     # Step 0: Create the index
     index_exists_query = text("""
                               SELECT EXISTS (SELECT 1
@@ -177,12 +312,18 @@ def run(logger: Logger, session: Session, application: FlaskApp):
     """Main execution function."""
     try:
         with application.app.app_context():
-            create_index(session, logger)
+            truncate_new_tables(session, logger)
+            create_pagination_index(session, logger)
+            drop_indexes(session, logger)
+            indexes_were_dropped = True
             copy_data_in_batches(session, logger)
     except Exception:
         logger.exception("A critical error occurred during the data copy job.")
         raise
     finally:
+        with application.app.app_context():
+            if indexes_were_dropped:
+                recreate_indexes(session, logger)
         logger.info("Closing database session.")
         session.close()
 
