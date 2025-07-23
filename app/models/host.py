@@ -1,3 +1,4 @@
+import os
 import uuid
 from contextlib import suppress
 
@@ -164,15 +165,18 @@ class LimitedHost(db.Model):
     tags = db.Column(JSONB)
     tags_alt = db.Column(JSONB)
     canonical_facts = db.Column(JSONB)
-    insights_id = db.Column(UUID(as_uuid=True), default="00000000-0000-0000-0000-000000000000")
-    subscription_manager_id = db.Column(db.String(36))
-    satellite_id = db.Column(db.String(255))
-    fqdn = db.Column(db.String(255))
-    bios_uuid = db.Column(db.String(36))
-    ip_addresses = db.Column(JSONB)
-    mac_addresses = db.Column(JSONB)
-    provider_id = db.Column(db.String(500))
-    provider_type = db.Column(db.String(50))
+
+    if os.environ.get("HBI_DB_REFACT_SKIP_IN_PROD", "false").lower() != "true":
+        insights_id = db.Column(UUID(as_uuid=True), default="00000000-0000-0000-0000-000000000000")
+        subscription_manager_id = db.Column(db.String(36))
+        satellite_id = db.Column(db.String(255))
+        fqdn = db.Column(db.String(255))
+        bios_uuid = db.Column(db.String(36))
+        ip_addresses = db.Column(JSONB)
+        mac_addresses = db.Column(JSONB)
+        provider_id = db.Column(db.String(500))
+        provider_type = db.Column(db.String(50))
+
     system_profile_facts = db.Column(JSONB)
     groups = db.Column(MutableList.as_mutable(JSONB), default=lambda: [])
     host_type = column_property(system_profile_facts["host_type"])
