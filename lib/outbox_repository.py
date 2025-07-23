@@ -33,7 +33,9 @@ def _create_update_event_payload(event_dict):
         "reporterVersion": "1.0",
     }
 
-    common = {"workspace_id": event_dict["host"]["groups"][0]["id"]}
+    # common = {"workspace_id": event_dict["host"]["groups"][0]["id"]}
+    groups = event_dict.get("host").get("groups")
+    common = {"workspace_id": groups[0]["id"]} if len(groups) > 0 else {}
 
     reporter = {
         "satellite_id": host.get("satellite_id", None),
