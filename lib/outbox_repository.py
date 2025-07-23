@@ -33,7 +33,7 @@ def _create_update_event_payload(event_dict):
         "reporterVersion": "1.0",
     }
 
-    common = {"workpsace_id": event_dict["host"]["groups"][0]["id"]}
+    common = {"workspace_id": event_dict["host"]["groups"][0]["id"]}
 
     reporter = {
         "satellite_id": host.get("satellite_id", None),
@@ -116,14 +116,6 @@ def write_event_to_outbox(event: str) -> bool:
             return False
 
         logger.debug("Creating outbox entry: aggregate_id=%s, type=%s", aggregate_id, event_type)
-
-        # Ensure database tables exist
-        try:
-            db.create_all()
-            logger.debug("Database tables verified/created")
-        except Exception as table_error:
-            logger.warning("Could not create database tables: %s", table_error)
-            # Continue anyway - tables might already exist
 
         # Write to outbox table within transaction
         try:

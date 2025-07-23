@@ -1,9 +1,6 @@
 import os
 import sys
 
-import pytest
-
-from app.models import db
 from app.utils import HostWrapper
 
 # Make test helpers available to be imported
