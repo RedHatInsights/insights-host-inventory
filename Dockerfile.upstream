@@ -71,7 +71,7 @@ RUN if [ "$TEST_IMAGE" = "true" ]; then \
     fi
 
 # remove devel packages that were only necessary for psycopg2 to compile
-RUN microdnf remove  -y  libpq-devel python3-devel gcc cargo rust && \
+RUN microdnf remove  -y  libpq-devel python3-devel gcc cargo rust rust-std-static && \
     microdnf clean all
 
 USER 1001

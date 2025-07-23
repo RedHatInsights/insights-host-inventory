@@ -31,3 +31,9 @@ class ProviderType(str, Enum):
     AZURE = "azure"
     GCP = "gcp"
     IBM = "ibm"
+
+
+class SystemType(str, Enum):
+    CONVENTIONAL = "conventional"
+    BOOTC = "bootc"
+    EDGE = "edge"

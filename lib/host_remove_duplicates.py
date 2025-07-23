@@ -89,6 +89,7 @@ def delete_duplicate_hosts(
             unique(matching_hosts)
 
         hosts_session.expunge_all()
+        misc_session.expunge_all()
 
         # delete duplicate hosts
         if dry_run:
@@ -112,6 +113,8 @@ def delete_duplicate_hosts(
             )
             logger.info(f"Deleted {deleted_count} hosts for org_id: {actual_org_id}")
             total_deleted += deleted_count
+
+        misc_session.expunge_all()
 
         if interrupt():
             break
