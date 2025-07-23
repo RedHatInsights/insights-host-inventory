@@ -235,48 +235,33 @@ class Config:
             "sasl.password": self.kafka_sasl_password,
         }
 
-        # https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md
-        self.kafka_consumer = {
-            "request.timeout.ms": int(os.environ.get("KAFKA_CONSUMER_REQUEST_TIMEOUT_MS", "305000")),
-            "max.in.flight.requests.per.connection": int(
-                os.environ.get("KAFKA_CONSUMER_MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION", "5")
-            ),
-            "auto.offset.reset": os.environ.get("KAFKA_CONSUMER_AUTO_OFFSET_RESET", "latest"),
-            "auto.commit.interval.ms": int(os.environ.get("KAFKA_CONSUMER_AUTO_COMMIT_INTERVAL_MS", "5000")),
-            "max.poll.interval.ms": int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS", "300000")),
+        self.base_consumer_config = {
+            **self.kafka_ssl_configs,
             "session.timeout.ms": int(os.environ.get("KAFKA_CONSUMER_SESSION_TIMEOUT_MS", "10000")),
             "heartbeat.interval.ms": int(os.environ.get("KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS", "3000")),
+        }
+
+        # https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md
+        self.kafka_consumer = {
+            "auto.offset.reset": os.environ.get("KAFKA_CONSUMER_AUTO_OFFSET_RESET", "latest"),
+            "auto.commit.interval.ms": int(os.environ.get("KAFKA_CONSUMER_AUTO_COMMIT_INTERVAL_MS", "5000")),
             "partition.assignment.strategy": "cooperative-sticky",
-            **self.kafka_ssl_configs,
+            **self.base_consumer_config,
         }
 
         self.validator_kafka_consumer = {
             "group.id": "inventory-sp-validator",
-            "request.timeout.ms": int(os.environ.get("KAFKA_CONSUMER_REQUEST_TIMEOUT_MS", "305000")),
-            "max.in.flight.requests.per.connection": int(
-                os.environ.get("KAFKA_CONSUMER_MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION", "5")
-            ),
             "enable.auto.commit": False,
-            "max.poll.interval.ms": int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS", "300000")),
-            "session.timeout.ms": int(os.environ.get("KAFKA_CONSUMER_SESSION_TIMEOUT_MS", "10000")),
-            "heartbeat.interval.ms": int(os.environ.get("KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS", "3000")),
-            **self.kafka_ssl_configs,
+            **self.base_consumer_config,
         }
 
         self.events_kafka_consumer = {
             "group.id": "inventory-events-rebuild",
             "auto.offset.reset": "earliest",
             "queued.max.messages.kbytes": "65536",
-            "request.timeout.ms": int(os.environ.get("KAFKA_CONSUMER_REQUEST_TIMEOUT_MS", "305000")),
-            "max.in.flight.requests.per.connection": int(
-                os.environ.get("KAFKA_CONSUMER_MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION", "5")
-            ),
             "enable.auto.commit": False,
-            "max.poll.interval.ms": int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS", "300000")),
             "max.partition.fetch.bytes": int(os.environ.get("KAFKA_CONSUMER_MAX_PARTITION_FETCH_BYTES", "3145728")),
-            "session.timeout.ms": int(os.environ.get("KAFKA_CONSUMER_SESSION_TIMEOUT_MS", "10000")),
-            "heartbeat.interval.ms": int(os.environ.get("KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS", "3000")),
-            **self.kafka_ssl_configs,
+            **self.base_consumer_config,
         }
 
         self.kafka_producer = {
