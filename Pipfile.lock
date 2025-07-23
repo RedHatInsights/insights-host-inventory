@@ -368,6 +368,13 @@
             "markers": "python_version >= '3.8' and python_version < '4.0'",
             "version": "==3.2.0"
         },
+        "distlib": {
+            "hashes": [
+                "sha256:9659f7d87e46584a30b5780e43ac7a2143098441670ff0a49d5f9034c54a6c16",
+                "sha256:feec40075be03a04501a973d81f633735b4b69f98b05450592310c0f401a4e0d"
+            ],
+            "version": "==0.4.0"
+        },
         "exceptiongroup": {
             "hashes": [
                 "sha256:4d111e6e0c13d0644cad6ddaa7ed0261a0b36971f6d23e7ec9b4b9097da78a10",
@@ -383,6 +390,14 @@
             ],
             "markers": "python_version >= '3.9'",
             "version": "==0.6.0"
+        },
+        "filelock": {
+            "hashes": [
+                "sha256:adbc88eabb99d2fec8c9c1b229b171f18afa655400173ddc653d5d01501fb9f2",
+                "sha256:c401f4f8377c4464e6db25fff06205fd89bdd83b65eb0488ed1b160f780e21de"
+            ],
+            "markers": "python_version >= '3.9'",
+            "version": "==3.18.0"
         },
         "flask": {
             "extras": [
@@ -1524,6 +1539,15 @@
             "index": "pypi",
             "markers": "python_version >= '3.9'",
             "version": "==0.35.0"
+        },
+        "virtualenv": {
+            "hashes": [
+                "sha256:2c310aecb62e5aa1b06103ed7c2977b81e042695de2697d01017ff0f1034af56",
+                "sha256:886bf75cadfdc964674e6e33eb74d787dff31ca314ceace03ca5810620f4ecf0"
+            ],
+            "index": "pypi",
+            "markers": "python_version >= '3.8'",
+            "version": "==20.32.0"
         },
         "watchfiles": {
             "hashes": [
