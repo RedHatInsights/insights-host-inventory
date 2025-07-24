@@ -1,3 +1,4 @@
+import os
 import uuid
 from contextlib import suppress
 
@@ -16,6 +17,7 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy.orm import column_property
 
+from app.common import inventory_config
 from app.config import ID_FACTS
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
@@ -96,16 +98,17 @@ class LimitedHost(db.Model):
         self.groups = groups or []
         self.last_check_in = _time_now()
 
-        # canonical facts
-        self.insights_id = insights_id
-        self.subscription_manager_id = subscription_manager_id
-        self.satellite_id = satellite_id
-        self.fqdn = fqdn
-        self.bios_uuid = bios_uuid
-        self.ip_addresses = ip_addresses
-        self.mac_addresses = mac_addresses
-        self.provider_id = provider_id
-        self.provider_type = provider_type
+        if not inventory_config().hbi_db_refactoring_use_old_table:
+            # New code: assign canonical facts to individual columns
+            self.insights_id = insights_id
+            self.subscription_manager_id = subscription_manager_id
+            self.satellite_id = satellite_id
+            self.fqdn = fqdn
+            self.bios_uuid = bios_uuid
+            self.ip_addresses = ip_addresses
+            self.mac_addresses = mac_addresses
+            self.provider_id = provider_id
+            self.provider_type = provider_type
 
     def _update_ansible_host(self, ansible_host):
         if ansible_host is not None:
@@ -162,15 +165,18 @@ class LimitedHost(db.Model):
     tags = db.Column(JSONB)
     tags_alt = db.Column(JSONB)
     canonical_facts = db.Column(JSONB)
-    insights_id = db.Column(UUID(as_uuid=True), default="00000000-0000-0000-0000-000000000000")
-    subscription_manager_id = db.Column(db.String(36))
-    satellite_id = db.Column(db.String(255))
-    fqdn = db.Column(db.String(255))
-    bios_uuid = db.Column(db.String(36))
-    ip_addresses = db.Column(JSONB)
-    mac_addresses = db.Column(JSONB)
-    provider_id = db.Column(db.String(500))
-    provider_type = db.Column(db.String(50))
+
+    if os.environ.get("HBI_DB_REFACTORING_USE_OLD_TABLE", "false").lower() != "true":
+        insights_id = db.Column(UUID(as_uuid=True), default="00000000-0000-0000-0000-000000000000")
+        subscription_manager_id = db.Column(db.String(36))
+        satellite_id = db.Column(db.String(255))
+        fqdn = db.Column(db.String(255))
+        bios_uuid = db.Column(db.String(36))
+        ip_addresses = db.Column(JSONB)
+        mac_addresses = db.Column(JSONB)
+        provider_id = db.Column(db.String(500))
+        provider_type = db.Column(db.String(50))
+
     system_profile_facts = db.Column(JSONB)
     groups = db.Column(MutableList.as_mutable(JSONB), default=lambda: [])
     host_type = column_property(system_profile_facts["host_type"])
@@ -263,7 +269,9 @@ class Host(LimitedHost):
         if not per_reporter_staleness:
             self._update_per_reporter_staleness(reporter)
 
-        self.update_canonical_facts(canonical_facts)
+        if not inventory_config().hbi_db_refactoring_use_old_table:
+            # New code: update canonical facts to individual columns
+            self.update_canonical_facts(canonical_facts)
 
     def save(self):
         self._cleanup_tags()
