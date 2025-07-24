@@ -21,6 +21,37 @@ LOGGER_NAME = "hosts_table_migration_data_copy"
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
 SUSPEND_JOB = os.environ.get("SUSPEND_JOB", "true").lower() == "true"
 
+# Single Source of Truth for Index DDL
+INDEX_DEFINITIONS = {
+    # hosts_new indexes
+    "idx_hosts_modified_on_id": "CREATE INDEX {index_name} ON {schema}.hosts_new (modified_on DESC, id DESC);",
+    "idx_hosts_insights_id": "CREATE INDEX {index_name} ON {schema}.hosts_new (insights_id);",
+    "idx_hosts_subscription_manager_id": "CREATE INDEX {index_name} ON {schema}.hosts_new (subscription_manager_id);",
+    "idx_hosts_canonical_facts_gin": "CREATE INDEX {index_name} ON {schema}.hosts_new USING gin (canonical_facts jsonb_path_ops);",
+    "idx_hosts_groups_gin": "CREATE INDEX {index_name} ON {schema}.hosts_new USING gin (groups);",
+    "idx_hosts_host_type": "CREATE INDEX {index_name} ON {schema}.hosts_new ((system_profile_facts ->> 'host_type'));",
+    "idx_hosts_cf_insights_id": "CREATE INDEX {index_name} ON {schema}.hosts_new ((canonical_facts ->> 'insights_id'));",
+    "idx_hosts_cf_subscription_manager_id": "CREATE INDEX {index_name} ON {schema}.hosts_new ((canonical_facts ->> 'subscription_manager_id'));",
+    "idx_hosts_mssql": "CREATE INDEX {index_name} ON {schema}.hosts_new ((system_profile_facts ->> 'mssql'));",
+    "idx_hosts_ansible": "CREATE INDEX {index_name} ON {schema}.hosts_new ((system_profile_facts ->> 'ansible'));",
+    "idx_hosts_sap_system": "CREATE INDEX {index_name} ON {schema}.hosts_new (((system_profile_facts ->> 'sap_system')::boolean));",
+    "idx_hosts_host_type_modified_on_org_id": "CREATE INDEX {index_name} ON {schema}.hosts_new (org_id, modified_on, (system_profile_facts ->> 'host_type'));",
+    "idx_hosts_bootc_status": "CREATE INDEX {index_name} ON {schema}.hosts_new (org_id) WHERE ((system_profile_facts -> 'bootc_status' -> 'booted' ->> 'image_digest') IS NOT NULL);",
+    "idx_hosts_operating_system_multi": """
+        CREATE INDEX {index_name} ON {schema}.hosts_new (
+            ((system_profile_facts -> 'operating_system' ->> 'name')),
+            ((system_profile_facts -> 'operating_system' ->> 'major')::integer),
+            ((system_profile_facts -> 'operating_system' ->> 'minor')::integer),
+            (system_profile_facts ->> 'host_type'),
+            modified_on,
+            org_id
+        ) WHERE (system_profile_facts -> 'operating_system') IS NOT NULL;
+    """,
+    # hosts_groups_new indexes
+    "idx_hosts_groups_forward": "CREATE INDEX {index_name} ON {schema}.hosts_groups_new (org_id, host_id, group_id);",
+    "idx_hosts_groups_reverse": "CREATE INDEX {index_name} ON {schema}.hosts_groups_new (org_id, group_id, host_id);",
+}
+
 """
 This job copies all historical data from the original 'hosts' table into the
 new partitioned tables ('hosts_new' and 'hosts_groups_new'). It processes
@@ -30,41 +61,112 @@ This script should only be run during a planned maintenance window.
 """
 
 
+def truncate_new_tables(session: Session, logger: Logger):
+    """Truncates the target tables to ensure they are empty before copying."""
+    logger.warning("Truncating hosts_new and hosts_groups_new tables...")
+    session.execute(text(f"TRUNCATE TABLE {INVENTORY_SCHEMA}.hosts_new CASCADE;"))
+    session.execute(text(f"TRUNCATE TABLE {INVENTORY_SCHEMA}.hosts_groups_new CASCADE;"))
+    session.commit()
+    logger.info("Target tables have been truncated.")
+
+
+def update_bios_uuid_column_type(session: Session, logger: Logger):
+    """
+    Alters the bios_uuid column in hosts_new to VARCHAR(255).
+    This operation is idempotent and will not run if the column is already correct.
+    """
+    logger.info("Checking data type of 'bios_uuid' column in hosts_new table...")
+
+    # Query the information schema to get the current character limit
+    check_sql = text("""
+                     SELECT character_maximum_length
+                     FROM information_schema.columns
+                     WHERE table_schema = :schema
+                       AND table_name = 'hosts_new'
+                       AND column_name = 'bios_uuid';
+                     """)
+
+    try:
+        current_length = session.execute(check_sql, {"schema": INVENTORY_SCHEMA}).scalar_one_or_none()
+
+        if current_length == 255:
+            logger.info("'bios_uuid' column is already VARCHAR(255). No action needed.")
+            return
+
+        logger.warning(f"Current 'bios_uuid' type is VARCHAR({current_length})... updating to VARCHAR(255).")
+        alter_sql = text(f"ALTER TABLE {INVENTORY_SCHEMA}.hosts_new ALTER COLUMN bios_uuid TYPE VARCHAR(255);")
+
+        session.execute(alter_sql)
+        session.commit()
+        logger.info("'bios_uuid' column has been successfully updated to VARCHAR(255).")
+
+    except Exception:
+        logger.error("Failed to alter 'bios_uuid' column. Rolling back.")
+        session.rollback()
+        raise
+
+
+def drop_indexes(session: Session, logger: Logger):
+    """Drops all non-primary key indexes from the target tables to speed up inserts."""
+    logger.warning("Dropping all non-PK indexes from target tables to optimize data copy...")
+    for index_name in INDEX_DEFINITIONS.keys():
+        logger.info(f"  Dropping index: {index_name}")
+        session.execute(text(f"DROP INDEX IF EXISTS {INVENTORY_SCHEMA}.{index_name};"))
+    session.commit()
+    logger.info("All non-PK indexes have been dropped.")
+
+
+def recreate_indexes(session: Session, logger: Logger):
+    """Recreates all indexes using a data-driven approach after the data copy is complete."""
+    logger.info("Data copy finished. Recreating all indexes (this may take a long time)...")
+    try:
+        for index_name, index_ddl in INDEX_DEFINITIONS.items():
+            logger.info(f"  Recreating index: {index_name}")
+            session.execute(text(index_ddl.format(index_name=index_name, schema=INVENTORY_SCHEMA)))
+
+        logger.info("Committing index creation transaction...")
+        session.commit()
+        logger.info("All indexes have been recreated successfully.")
+    except Exception:
+        logger.error("An error occurred during index recreation. Rolling back.")
+        session.rollback()
+        raise
+
+
 def copy_data_in_batches(session: Session, logger: Logger):
-    """
-    Copies data from the old hosts table to the new partitioned tables using
-    a batched, keyset pagination approach for efficiency.
-    """
+    """Copies data using the existing (modified_on, id) index for keyset pagination."""
     batch_size = int(os.getenv("HOSTS_TABLE_MIGRATION_BATCH_SIZE", 5000))
-    # Initialize cursor for pagination using a guaranteed sequential column
-    last_created_on = "1970-01-01 00:00:00+00"
-    last_id = "00000000-0000-0000-0000-000000000000"
+    # Initialize cursor for DESC pagination. These are "max" values to start from the top.
+    last_modified_on = "9999-12-31 23:59:59+00"
+    last_id = "ffffffff-ffff-ffff-ffff-ffffffffffff"
     total_rows_copied = 0
 
-    logger.info(f"Starting batched data migration with a batch size of {batch_size} rows.")
+    logger.info(
+        f"Starting batched data migration using (modified_on, id) index with a batch size of {batch_size} rows."
+    )
 
     while True:
         batch_start_time = time.perf_counter()
+        logger.info(f"Fetching next batch of hosts modified before: {last_modified_on} - {last_id}")
 
-        # Step 1: Fetch the next batch of hosts.
-        logger.info(f"Fetching next batch of hosts created after: {last_created_on} - {last_id}")
-
-        # Fetch both id and created_on to determine the next starting point
+        # Step 1: Fetch the next batch using the descending index.
+        # The ORDER BY clause must match the index definition for efficiency.
         batch_to_process = session.execute(
-            text(f"""
-                SELECT id, created_on FROM {INVENTORY_SCHEMA}.hosts
-                WHERE (created_on, id) > (:last_created_on, :last_id)
-                ORDER BY created_on, id
+            text(
+                f"""
+                SELECT id, modified_on FROM {INVENTORY_SCHEMA}.hosts
+                WHERE (modified_on, id) < (:last_modified_on, :last_id)
+                ORDER BY modified_on DESC, id DESC
                 LIMIT :batch_size;
-            """),
-            {"last_created_on": last_created_on, "last_id": last_id, "batch_size": batch_size},
+                """
+            ),
+            {"last_modified_on": last_modified_on, "last_id": last_id, "batch_size": batch_size},
         ).fetchall()
 
         if not batch_to_process:
             logger.info("No more hosts to process. Data migration complete.")
             break
 
-        # Extract just the IDs for the WHERE...IN clause, which is very efficient
         id_list = [row[0] for row in batch_to_process]
         logger.info(f"Processing batch of {len(id_list)} hosts...")
 
@@ -119,7 +221,7 @@ def copy_data_in_batches(session: Session, logger: Logger):
 
         # Update loop variables with the last row from the processed batch
         last_row = batch_to_process[-1]
-        last_created_on = last_row[1]
+        last_modified_on = last_row[1]
         last_id = last_row[0]
 
         total_rows_copied += len(id_list)
@@ -128,7 +230,7 @@ def copy_data_in_batches(session: Session, logger: Logger):
         logger.info(
             f"Batch complete in {batch_duration:.2f}s. "
             f"Total rows copied so far: {total_rows_copied}. "
-            f"Next batch starts after: {last_created_on}"
+            f"Next batch starts before: {last_modified_on}"
         )
 
         session.commit()
@@ -140,7 +242,11 @@ def run(logger: Logger, session: Session, application: FlaskApp):
     """Main execution function."""
     try:
         with application.app.app_context():
+            truncate_new_tables(session, logger)
+            update_bios_uuid_column_type(session, logger)
+            drop_indexes(session, logger)
             copy_data_in_batches(session, logger)
+            recreate_indexes(session, logger)
     except Exception:
         logger.exception("A critical error occurred during the data copy job.")
         raise
@@ -153,12 +259,12 @@ if __name__ == "__main__":
     logger = get_logger(LOGGER_NAME)
 
     if SUSPEND_JOB:
-        logger.info("SUSPEND_JOB set to true; exiting.")
+        logger.info("SUSPEND_JOB is set to true; exiting job.")
         sys.exit(0)
 
     job_type = "Hosts partitioned tables full data copy"
     sys.excepthook = partial(excepthook, logger, job_type)
 
-    config, session, _, _, _, application = job_setup((), PROMETHEUS_JOB)
+    _, session, _, _, _, application = job_setup((), PROMETHEUS_JOB)
 
     run(logger, session, application)
