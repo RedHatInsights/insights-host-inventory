@@ -17,12 +17,6 @@ branch_labels = None
 depends_on = None
 
 
-def validate_inputs(num_partitions: int):
-    """Validate input parameters"""
-    if not 1 <= num_partitions <= 32:
-        raise ValueError(f"Invalid number of partitions: {num_partitions}. Must be between 1 and 32.")
-
-
 def upgrade():
     op.create_table(
         "system_profiles_static",
@@ -54,8 +48,8 @@ def upgrade():
         sa.Column("installed_packages_delta", postgresql.ARRAY(sa.String(length=512)), nullable=True),
         sa.Column("installed_services", postgresql.ARRAY(sa.String(length=512)), nullable=True),
         sa.Column("intersystems", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-        sa.Column("is_marketplace", sa.Boolean(), server_default=sa.text('false'), nullable=True),
-        sa.Column("katello_agent_running", sa.Boolean(), server_default=sa.text('false'), nullable=True),
+        sa.Column("is_marketplace", sa.Boolean(), server_default="FALSE", nullable=True),
+        sa.Column("katello_agent_running", sa.Boolean(), server_default="FALSE", nullable=True),
         sa.Column("number_of_cpus", sa.Integer(), nullable=True),
         sa.Column("number_of_sockets", sa.Integer(), nullable=True),
         sa.Column("operating_system", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
@@ -70,16 +64,34 @@ def upgrade():
         sa.Column("rhel_ai", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column("rhsm", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column("rpm_ostree_deployments", postgresql.ARRAY(postgresql.JSONB()), nullable=True),
-        sa.Column("satellite_managed", sa.Boolean(), server_default=sa.text('false'), nullable=True),
+        sa.Column("satellite_managed", sa.Boolean(), server_default="FALSE", nullable=True),
         sa.Column("selinux_config_file", sa.String(length=128), nullable=True),
         sa.Column("selinux_current_mode", sa.String(length=10), nullable=True),
         sa.Column("subscription_auto_attach", sa.String(length=100), nullable=True),
-        sa.PrimaryKeyConstraint("owner_id", name=op.f("pk_system_profiles_static")),
+        sa.Column("subscription_status", sa.String(length=100), nullable=True),
+        sa.Column("system_purpose", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column("system_update_method", sa.String(length=10), nullable=True),
+        sa.Column("third_party_services", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column("threads_per_core", sa.Integer(), nullable=True),
+        sa.Column("tuned_profile", sa.String(length=256), nullable=True),
+        sa.Column("virtual_host_uuid", sa.String(length=36), nullable=True),
+        sa.Column("workloads", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column("yum_repos", postgresql.ARRAY(postgresql.JSONB()), nullable=True),
         # --- CONSTRAINTS ---
+        sa.PrimaryKeyConstraint("org_id", "host_id", name=op.f("pk_system_profiles_static")),
         sa.ForeignKeyConstraint(
             ["org_id", "host_id"], ["hbi.hosts.org_id", "hbi.hosts.id"], name=op.f("fk_system_profiles_static_hosts")
         ),
-        sa.PrimaryKeyConstraint("org_id", "host_id", name=op.f("pk_system_profiles_static")),
+        sa.CheckConstraint(
+            "cores_per_socket >= 0 AND cores_per_socket <= 2147483647", name="cores_per_socket_range_check"
+        ),
+        sa.CheckConstraint("number_of_cpus >= 0 AND number_of_cpus <= 2147483647", name="number_of_cpus_range_check"),
+        sa.CheckConstraint(
+            "number_of_sockets >= 0 AND number_of_sockets <= 2147483647", name="number_of_sockets_range_check"
+        ),
+        sa.CheckConstraint(
+            "threads_per_core >= 0 AND threads_per_core <= 2147483647", name="threads_per_core_range_check"
+        ),
         schema="hbi",
         postgresql_partition_by="HASH (org_id)",
     )
@@ -98,9 +110,17 @@ def upgrade():
         """
     )
 
+    # --- INDEX CREATION ---
+    op.create_index("idxorgid", "system_profiles_static", ["org_id"], schema="hbi")
+    op.create_index("idxhostid", "system_profiles_static", ["host_id"], schema="hbi")
+
 
 def downgrade():
     """
     Removes the system_profiles_static table and its partitions.
     """
+    # Drop indexes first
+    op.drop_index("idxorgid", "system_profiles_static", schema="hbi")
+    op.drop_index("idxhostid", "system_profiles_static", schema="hbi")
+
     op.drop_table("system_profiles_static", schema="hbi")
