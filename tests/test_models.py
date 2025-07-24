@@ -22,6 +22,7 @@ from app.models import InputGroupSchema
 from app.models import LimitedHost
 from app.models import _create_staleness_timestamps_values
 from app.models import db
+from app.models.constants import EDGE_HOST_STALE_TIMESTAMP
 from app.staleness_serialization import get_staleness_timestamps
 from app.staleness_serialization import get_sys_default_staleness
 from app.utils import Tag
@@ -1408,3 +1409,78 @@ def test_create_host_with_missing_canonical_facts(db_create_host_custom_canonica
     assert retrieved_host.provider_type == host_data["provider_type"]
     assert retrieved_host.ip_addresses is None
     assert retrieved_host.mac_addresses is None
+
+
+def test_create_host_rhsm_conduit_only_sets_far_future_timestamps(mocker, db_create_host):
+    """Test that creating a host with only rhsm-conduit reporter sets far-future staleness timestamps."""
+    with (
+        mocker.patch("app.serialization.get_flag_value", return_value=True),
+        mocker.patch("app.models.host.get_flag_value", return_value=True),
+        mocker.patch("app.staleness_serialization.get_flag_value", return_value=True),
+    ):
+        stale_timestamp = datetime.now() + timedelta(days=1)
+
+        input_host = Host(
+            {"subscription_manager_id": generate_uuid()},
+            display_name="display_name",
+            reporter="rhsm-conduit",
+            stale_timestamp=stale_timestamp,
+            org_id=USER_IDENTITY["org_id"],
+        )
+        created_host = db_create_host(host=input_host)
+
+        # Host should have far-future timestamps since it only has rhsm-conduit
+        far_future = EDGE_HOST_STALE_TIMESTAMP
+
+        # Check that main staleness timestamps are set to far future
+        assert created_host.stale_timestamp == far_future
+        assert created_host.stale_warning_timestamp == far_future
+        assert created_host.deletion_timestamp == far_future
+
+        # Check per_reporter_staleness
+        assert "rhsm-conduit" in created_host.per_reporter_staleness
+        prs = created_host.per_reporter_staleness["rhsm-conduit"]
+        assert prs["stale_timestamp"] == far_future.isoformat()
+        assert prs["stale_warning_timestamp"] == far_future.isoformat()
+        assert prs["culled_timestamp"] == far_future.isoformat()
+
+
+def test_host_with_rhsm_conduit_and_other_reporters_normal_behavior(mocker, db_create_host, models_datetime_mock):
+    """Test that hosts with rhsm-conduit AND other reporters behave normally."""
+    with (
+        mocker.patch("app.serialization.get_flag_value", return_value=True),
+        mocker.patch("app.models.host.get_flag_value", return_value=True),
+        mocker.patch("app.staleness_serialization.get_flag_value", return_value=True),
+    ):
+        stale_timestamp = models_datetime_mock + timedelta(days=1)
+
+        input_host = Host(
+            {"subscription_manager_id": generate_uuid()},
+            display_name="display_name",
+            reporter="puptoo",
+            stale_timestamp=stale_timestamp,
+            org_id=USER_IDENTITY["org_id"],
+        )
+
+        created_host = db_create_host(host=input_host)
+
+        # Add another reporter to simulate normal multi-reporter host
+        created_host.per_reporter_staleness["puptoo"] = {
+            "last_check_in": datetime.now().isoformat(),
+            "stale_timestamp": stale_timestamp.isoformat(),
+            "check_in_succeeded": True,
+        }
+
+        created_host.save()
+
+        far_future = EDGE_HOST_STALE_TIMESTAMP
+
+        # Should NOT have far-future timestamps since it has multiple reporters
+        assert created_host.stale_timestamp != far_future
+
+        # Update per_reporter_staleness for rhsm-conduit - should behave normally
+        created_host._update_per_reporter_staleness("rhsm-conduit")
+
+        # Should still not have far-future timestamps
+        prs = created_host.per_reporter_staleness["rhsm-conduit"]
+        assert datetime.fromisoformat(prs["stale_timestamp"]) != far_future
