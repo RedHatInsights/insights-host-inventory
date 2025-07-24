@@ -20,26 +20,37 @@ PROMETHEUS_JOB = "hosts-table-migration-data-copy"
 LOGGER_NAME = "hosts_table_migration_data_copy"
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
 SUSPEND_JOB = os.environ.get("SUSPEND_JOB", "true").lower() == "true"
-PAGINATION_INDEX_NAME = "idx_hosts_migration_pagination_temp"
 
-# Define all index names in a list for easy management
-HOSTS_NEW_INDEXES = [
-    "idx_hosts_modified_on_id",
-    "idx_hosts_insights_id",
-    "idx_hosts_subscription_manager_id",
-    "idx_hosts_canonical_facts_gin",
-    "idx_hosts_groups_gin",
-    "idx_hosts_host_type",
-    "idx_hosts_cf_insights_id",
-    "idx_hosts_cf_subscription_manager_id",
-    "idx_hosts_mssql",
-    "idx_hosts_ansible",
-    "idx_hosts_sap_system",
-    "idx_hosts_host_type_modified_on_org_id",
-    "idx_hosts_bootc_status",
-    "idx_hosts_operating_system_multi",
-]
-HOSTS_GROUPS_NEW_INDEXES = ["idx_hosts_groups_forward", "idx_hosts_groups_reverse"]
+# Single Source of Truth for Index DDL
+INDEX_DEFINITIONS = {
+    # hosts_new indexes
+    "idx_hosts_modified_on_id": "CREATE INDEX {index_name} ON {schema}.hosts_new (modified_on DESC, id DESC);",
+    "idx_hosts_insights_id": "CREATE INDEX {index_name} ON {schema}.hosts_new (insights_id);",
+    "idx_hosts_subscription_manager_id": "CREATE INDEX {index_name} ON {schema}.hosts_new (subscription_manager_id);",
+    "idx_hosts_canonical_facts_gin": "CREATE INDEX {index_name} ON {schema}.hosts_new USING gin (canonical_facts jsonb_path_ops);",
+    "idx_hosts_groups_gin": "CREATE INDEX {index_name} ON {schema}.hosts_new USING gin (groups);",
+    "idx_hosts_host_type": "CREATE INDEX {index_name} ON {schema}.hosts_new ((system_profile_facts ->> 'host_type'));",
+    "idx_hosts_cf_insights_id": "CREATE INDEX {index_name} ON {schema}.hosts_new ((canonical_facts ->> 'insights_id'));",
+    "idx_hosts_cf_subscription_manager_id": "CREATE INDEX {index_name} ON {schema}.hosts_new ((canonical_facts ->> 'subscription_manager_id'));",
+    "idx_hosts_mssql": "CREATE INDEX {index_name} ON {schema}.hosts_new ((system_profile_facts ->> 'mssql'));",
+    "idx_hosts_ansible": "CREATE INDEX {index_name} ON {schema}.hosts_new ((system_profile_facts ->> 'ansible'));",
+    "idx_hosts_sap_system": "CREATE INDEX {index_name} ON {schema}.hosts_new (((system_profile_facts ->> 'sap_system')::boolean));",
+    "idx_hosts_host_type_modified_on_org_id": "CREATE INDEX {index_name} ON {schema}.hosts_new (org_id, modified_on, (system_profile_facts ->> 'host_type'));",
+    "idx_hosts_bootc_status": "CREATE INDEX {index_name} ON {schema}.hosts_new (org_id) WHERE ((system_profile_facts -> 'bootc_status' -> 'booted' ->> 'image_digest') IS NOT NULL);",
+    "idx_hosts_operating_system_multi": """
+        CREATE INDEX {index_name} ON {schema}.hosts_new (
+            ((system_profile_facts -> 'operating_system' ->> 'name')),
+            ((system_profile_facts -> 'operating_system' ->> 'major')::integer),
+            ((system_profile_facts -> 'operating_system' ->> 'minor')::integer),
+            (system_profile_facts ->> 'host_type'),
+            modified_on,
+            org_id
+        ) WHERE (system_profile_facts -> 'operating_system') IS NOT NULL;
+    """,
+    # hosts_groups_new indexes
+    "idx_hosts_groups_forward": "CREATE INDEX {index_name} ON {schema}.hosts_groups_new (org_id, host_id, group_id);",
+    "idx_hosts_groups_reverse": "CREATE INDEX {index_name} ON {schema}.hosts_groups_new (org_id, group_id, host_id);",
+}
 
 """
 This job copies all historical data from the original 'hosts' table into the
@@ -59,11 +70,46 @@ def truncate_new_tables(session: Session, logger: Logger):
     logger.info("Target tables have been truncated.")
 
 
+def update_bios_uuid_column_type(session: Session, logger: Logger):
+    """
+    Alters the bios_uuid column in hosts_new to VARCHAR(255).
+    This operation is idempotent and will not run if the column is already correct.
+    """
+    logger.info("Checking data type of 'bios_uuid' column in hosts_new table...")
+
+    # Query the information schema to get the current character limit
+    check_sql = text("""
+                     SELECT character_maximum_length
+                     FROM information_schema.columns
+                     WHERE table_schema = :schema
+                       AND table_name = 'hosts_new'
+                       AND column_name = 'bios_uuid';
+                     """)
+
+    try:
+        current_length = session.execute(check_sql, {"schema": INVENTORY_SCHEMA}).scalar_one_or_none()
+
+        if current_length == 255:
+            logger.info("'bios_uuid' column is already VARCHAR(255). No action needed.")
+            return
+
+        logger.warning(f"Current 'bios_uuid' type is VARCHAR({current_length})... updating to VARCHAR(255).")
+        alter_sql = text(f"ALTER TABLE {INVENTORY_SCHEMA}.hosts_new ALTER COLUMN bios_uuid TYPE VARCHAR(255);")
+
+        session.execute(alter_sql)
+        session.commit()
+        logger.info("'bios_uuid' column has been successfully updated to VARCHAR(255).")
+
+    except Exception:
+        logger.error("Failed to alter 'bios_uuid' column. Rolling back.")
+        session.rollback()
+        raise
+
+
 def drop_indexes(session: Session, logger: Logger):
     """Drops all non-primary key indexes from the target tables to speed up inserts."""
-    logger.warning("Dropping all non-PK indexes from hosts_new and hosts_groups_new to optimize data copy...")
-    all_indexes = HOSTS_NEW_INDEXES + HOSTS_GROUPS_NEW_INDEXES
-    for index_name in all_indexes:
+    logger.warning("Dropping all non-PK indexes from target tables to optimize data copy...")
+    for index_name in INDEX_DEFINITIONS.keys():
         logger.info(f"  Dropping index: {index_name}")
         session.execute(text(f"DROP INDEX IF EXISTS {INVENTORY_SCHEMA}.{index_name};"))
     session.commit()
@@ -71,172 +117,56 @@ def drop_indexes(session: Session, logger: Logger):
 
 
 def recreate_indexes(session: Session, logger: Logger):
-    """Recreates all indexes on the target tables after the data copy is complete."""
+    """Recreates all indexes using a data-driven approach after the data copy is complete."""
     logger.info("Data copy finished. Recreating all indexes (this may take a long time)...")
-
-    # Use autocommit for CREATE INDEX CONCURRENTLY
-    connection = session.connection().connection
-    isolation_level_before = connection.isolation_level
-    connection.set_isolation_level(0)  # autocommit
-
     try:
-        # Recreate indexes for hosts_new
-        logger.info("Recreating indexes on hosts_new...")
-        session.execute(
-            text(f"CREATE INDEX idx_hosts_modified_on_id ON {INVENTORY_SCHEMA}.hosts_new (modified_on DESC, id DESC);")
-        )
-        session.execute(text(f"CREATE INDEX idx_hosts_insights_id ON {INVENTORY_SCHEMA}.hosts_new (insights_id);"))
-        session.execute(
-            text(
-                f"CREATE INDEX idx_hosts_subscription_manager_id ON {INVENTORY_SCHEMA}.hosts_new (subscription_manager_id);"
-            )
-        )
-        session.execute(
-            text(
-                f"CREATE INDEX idx_hosts_canonical_facts_gin ON {INVENTORY_SCHEMA}.hosts_new USING gin (canonical_facts jsonb_path_ops);"
-            )
-        )
-        session.execute(text(f"CREATE INDEX idx_hosts_groups_gin ON {INVENTORY_SCHEMA}.hosts_new USING gin (groups);"))
-        session.execute(
-            text(
-                f"CREATE INDEX idx_hosts_host_type ON {INVENTORY_SCHEMA}.hosts_new ((system_profile_facts ->> 'host_type'));"
-            )
-        )
-        session.execute(
-            text(
-                f"CREATE INDEX idx_hosts_cf_insights_id ON {INVENTORY_SCHEMA}.hosts_new ((canonical_facts ->> 'insights_id'));"
-            )
-        )
-        session.execute(
-            text(
-                f"CREATE INDEX idx_hosts_cf_subscription_manager_id ON {INVENTORY_SCHEMA}.hosts_new ((canonical_facts ->> 'subscription_manager_id'));"
-            )
-        )
-        session.execute(
-            text(f"CREATE INDEX idx_hosts_mssql ON {INVENTORY_SCHEMA}.hosts_new ((system_profile_facts ->> 'mssql'));")
-        )
-        session.execute(
-            text(
-                f"CREATE INDEX idx_hosts_ansible ON {INVENTORY_SCHEMA}.hosts_new ((system_profile_facts ->> 'ansible'));"
-            )
-        )
-        session.execute(
-            text(
-                f"CREATE INDEX idx_hosts_sap_system ON {INVENTORY_SCHEMA}.hosts_new (((system_profile_facts ->> 'sap_system')::boolean));"
-            )
-        )
-        session.execute(
-            text(
-                f"CREATE INDEX idx_hosts_bootc_status ON {INVENTORY_SCHEMA}.hosts_new (org_id, modified_on, (system_profile_facts ->> 'host_type'));"
-            )
-        )
-        session.execute(
-            text(
-                f"CREATE INDEX idx_hosts_operating_system_multi ON {INVENTORY_SCHEMA}.hosts_new (org_id) WHERE ((system_profile_facts -> 'bootc_status' -> 'booted' ->> 'image_digest') IS NOT NULL);"
-            )
-        )
-        session.execute(
-            text(f"""
-            CREATE INDEX idx_hosts_new_operating_system_multi ON {INVENTORY_SCHEMA}.hosts_new (
-                ((system_profile_facts -> 'operating_system' ->> 'name')),
-                ((system_profile_facts -> 'operating_system' ->> 'major')::integer),
-                ((system_profile_facts -> 'operating_system' ->> 'minor')::integer),
-                (system_profile_facts ->> 'host_type'),
-                modified_on,
-                org_id
-            ) WHERE (system_profile_facts -> 'operating_system') IS NOT NULL;
-        """)
-        )
+        for index_name, index_ddl in INDEX_DEFINITIONS.items():
+            logger.info(f"  Recreating index: {index_name}")
+            session.execute(text(index_ddl.format(index_name=index_name, schema=INVENTORY_SCHEMA)))
 
-        # Recreate indexes for hosts_groups_new
-        logger.info("Recreating indexes on hosts_groups_new...")
-        session.execute(
-            text(
-                f"CREATE INDEX idx_hosts_groups_forward ON {INVENTORY_SCHEMA}.hosts_groups_new (org_id, host_id, group_id);"
-            )
-        )
-        session.execute(
-            text(
-                f"CREATE INDEX idx_hosts_groups_reverse ON {INVENTORY_SCHEMA}.hosts_groups_new (org_id, group_id, host_id);"
-            )
-        )
-
+        logger.info("Committing index creation transaction...")
+        session.commit()
         logger.info("All indexes have been recreated successfully.")
-    finally:
-        connection.set_isolation_level(isolation_level_before)
-
-
-def create_pagination_index(session: Session, logger: Logger):
-    # Step 0: Create the index
-    index_exists_query = text("""
-                              SELECT EXISTS (SELECT 1
-                                             FROM pg_indexes
-                                             WHERE schemaname = :schema
-                                               AND indexname = :index_name);
-                              """)
-    result = session.execute(index_exists_query, {"schema": INVENTORY_SCHEMA, "index_name": PAGINATION_INDEX_NAME})
-    index_exists = result.scalar_one()
-
-    session.commit()
-
-    if not index_exists:
-        logger.info("Index does not exist. Creating it now (this may take a long time)...")
-
-        # CREATE INDEX CONCURRENTLY cannot run inside a transaction.
-        # We get the raw DBAPI connection and set it to autocommit mode for this operation.
-        connection = session.connection().connection
-        isolation_level_before = connection.isolation_level
-        connection.set_isolation_level(0)  # 0 = autocommit
-
-        try:
-            create_index_sql = text(f"""
-                CREATE INDEX CONCURRENTLY {PAGINATION_INDEX_NAME}
-                ON {INVENTORY_SCHEMA}.hosts (created_on, id);
-            """)
-            session.execute(create_index_sql)
-            logger.info("Successfully created temporary pagination index.")
-        finally:
-            # Restore the original isolation level to resume normal transactional behavior.
-            connection.set_isolation_level(isolation_level_before)
-    else:
-        logger.info("Temporary pagination index already exists.")
+    except Exception:
+        logger.error("An error occurred during index recreation. Rolling back.")
+        session.rollback()
+        raise
 
 
 def copy_data_in_batches(session: Session, logger: Logger):
-    """
-    Copies data from the old hosts table to the new partitioned tables using
-    a batched, keyset pagination approach for efficiency.
-    """
+    """Copies data using the existing (modified_on, id) index for keyset pagination."""
     batch_size = int(os.getenv("HOSTS_TABLE_MIGRATION_BATCH_SIZE", 5000))
-    # Initialize cursor for pagination using a guaranteed sequential column
-    last_created_on = "1970-01-01 00:00:00+00"
-    last_id = "00000000-0000-0000-0000-000000000000"
+    # Initialize cursor for DESC pagination. These are "max" values to start from the top.
+    last_modified_on = "9999-12-31 23:59:59+00"
+    last_id = "ffffffff-ffff-ffff-ffff-ffffffffffff"
     total_rows_copied = 0
 
-    logger.info(f"Starting batched data migration with a batch size of {batch_size} rows.")
+    logger.info(
+        f"Starting batched data migration using (modified_on, id) index with a batch size of {batch_size} rows."
+    )
 
     while True:
         batch_start_time = time.perf_counter()
+        logger.info(f"Fetching next batch of hosts modified before: {last_modified_on} - {last_id}")
 
-        # Step 1: Fetch the next batch of hosts.
-        logger.info(f"Fetching next batch of hosts created after: {last_created_on} - {last_id}")
-
-        # Fetch both id and created_on to determine the next starting point
+        # Step 1: Fetch the next batch using the descending index.
+        # The ORDER BY clause must match the index definition for efficiency.
         batch_to_process = session.execute(
-            text(f"""
-                SELECT id, created_on FROM {INVENTORY_SCHEMA}.hosts
-                WHERE (created_on, id) > (:last_created_on, :last_id)
-                ORDER BY created_on, id
+            text(
+                f"""
+                SELECT id, modified_on FROM {INVENTORY_SCHEMA}.hosts
+                WHERE (modified_on, id) < (:last_modified_on, :last_id)
+                ORDER BY modified_on DESC, id DESC
                 LIMIT :batch_size;
-            """),
-            {"last_created_on": last_created_on, "last_id": last_id, "batch_size": batch_size},
+                """
+            ),
+            {"last_modified_on": last_modified_on, "last_id": last_id, "batch_size": batch_size},
         ).fetchall()
 
         if not batch_to_process:
             logger.info("No more hosts to process. Data migration complete.")
             break
 
-        # Extract just the IDs for the WHERE...IN clause, which is very efficient
         id_list = [row[0] for row in batch_to_process]
         logger.info(f"Processing batch of {len(id_list)} hosts...")
 
@@ -291,7 +221,7 @@ def copy_data_in_batches(session: Session, logger: Logger):
 
         # Update loop variables with the last row from the processed batch
         last_row = batch_to_process[-1]
-        last_created_on = last_row[1]
+        last_modified_on = last_row[1]
         last_id = last_row[0]
 
         total_rows_copied += len(id_list)
@@ -300,7 +230,7 @@ def copy_data_in_batches(session: Session, logger: Logger):
         logger.info(
             f"Batch complete in {batch_duration:.2f}s. "
             f"Total rows copied so far: {total_rows_copied}. "
-            f"Next batch starts after: {last_created_on}"
+            f"Next batch starts before: {last_modified_on}"
         )
 
         session.commit()
@@ -313,17 +243,14 @@ def run(logger: Logger, session: Session, application: FlaskApp):
     try:
         with application.app.app_context():
             truncate_new_tables(session, logger)
-            create_pagination_index(session, logger)
+            update_bios_uuid_column_type(session, logger)
             drop_indexes(session, logger)
-            indexes_were_dropped = True
             copy_data_in_batches(session, logger)
+            recreate_indexes(session, logger)
     except Exception:
         logger.exception("A critical error occurred during the data copy job.")
         raise
     finally:
-        with application.app.app_context():
-            if indexes_were_dropped:
-                recreate_indexes(session, logger)
         logger.info("Closing database session.")
         session.close()
 
@@ -332,12 +259,12 @@ if __name__ == "__main__":
     logger = get_logger(LOGGER_NAME)
 
     if SUSPEND_JOB:
-        logger.info("SUSPEND_JOB set to true; exiting.")
+        logger.info("SUSPEND_JOB is set to true; exiting job.")
         sys.exit(0)
 
     job_type = "Hosts partitioned tables full data copy"
     sys.excepthook = partial(excepthook, logger, job_type)
 
-    config, session, _, _, _, application = job_setup((), PROMETHEUS_JOB)
+    _, session, _, _, _, application = job_setup((), PROMETHEUS_JOB)
 
     run(logger, session, application)
