@@ -113,6 +113,16 @@ objects:
     appName: host-inventory
     jobs:
       - hosts-table-migration-switch
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    labels:
+      app: host-inventory
+    name: update-rhsm-only-staleness-${UPDATE_RHSM_ONLY_STALENESS_RUN_NUMBER}
+  spec:
+    appName: host-inventory
+    jobs:
+      - update-rhsm-only-staleness
 parameters:
 - name: SYNCHRONIZER_RUN_NUMBER
   value: '1'
@@ -135,4 +145,6 @@ parameters:
 - name: HOSTS_TABLE_MIGRATION_DATA_COPY_RUN_NUMBER
   value: '1'
 - name: HOSTS_TABLE_MIGRATION_SWITCH_RUN_NUMBER
+  value: '1'
+- name: UPDATE_RHSM_ONLY_STALENESS_RUN_NUMBER
   value: '1'

@@ -339,11 +339,13 @@ class Host(LimitedHost):
                 self.replace_facts_in_namespace(input_namespace, input_facts)
 
     def _update_stale_timestamp(self, stale_timestamp, reporter):
-        if self.system_profile_facts and self.system_profile_facts.get("host_type") == "edge":
+        self.reporter = reporter
+        if (
+            self.system_profile_facts and self.system_profile_facts.get("host_type") == "edge"
+        ) or should_host_stay_fresh_forever(self):
             self.stale_timestamp = EDGE_HOST_STALE_TIMESTAMP
         else:
             self.stale_timestamp = stale_timestamp
-        self.reporter = reporter
 
     def _update_all_per_reporter_staleness(self, staleness, staleness_ts):
         for reporter in self.per_reporter_staleness:
@@ -379,7 +381,25 @@ class Host(LimitedHost):
         if old_reporter := NEW_TO_OLD_REPORTER_MAP.get(reporter):
             self.per_reporter_staleness.pop(old_reporter, None)
 
-        if get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS):
+        # For hosts that should stay fresh forever, set far-future timestamps and don't update last_check_in
+        if should_host_stay_fresh_forever(self):
+            far_future = EDGE_HOST_STALE_TIMESTAMP
+
+            # Keep the existing last_check_in if it exists, otherwise use current time
+            existing_last_check_in = (
+                self.per_reporter_staleness[reporter].get("last_check_in")
+                if self.per_reporter_staleness.get(reporter)
+                else self.last_check_in.isoformat()
+            )
+
+            self.per_reporter_staleness[reporter].update(
+                stale_timestamp=far_future.isoformat(),
+                culled_timestamp=far_future.isoformat(),
+                stale_warning_timestamp=far_future.isoformat(),
+                last_check_in=existing_last_check_in,
+                check_in_succeeded=True,
+            )
+        elif get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS):
             st = _create_staleness_timestamps_values(self, self.org_id)
 
             self.per_reporter_staleness[reporter].update(
@@ -511,6 +531,11 @@ class Host(LimitedHost):
             orm.attributes.flag_modified(self, "deletion_timestamp")
 
     def reporter_stale(self, reporter):
+        # Hosts that should stay fresh forever are never stale
+        if should_host_stay_fresh_forever(self):
+            logger.debug("Host should stay fresh forever, reports from %s are not stale", reporter)
+            return False
+
         prs = self.per_reporter_staleness.get(reporter, None)
         if not prs:
             logger.debug("Reports from %s are stale", reporter)
@@ -530,3 +555,21 @@ class Host(LimitedHost):
             f"<Host id='{self.id}' account='{self.account}' org_id='{self.org_id}' display_name='{self.display_name}' "
             f"canonical_facts={self.canonical_facts}>"
         )
+
+
+def should_host_stay_fresh_forever(host: Host) -> bool:
+    """
+    Check if a host should stay fresh forever (never become stale).
+    Currently applies to hosts that have only "rhsm-conduit" as a reporter.
+
+    Args:
+        host: The host object to check
+
+    Returns:
+        bool: True if the host should stay fresh forever, False otherwise
+    """
+    if not hasattr(host, "per_reporter_staleness") or not host.per_reporter_staleness:
+        return host.reporter == "rhsm-conduit"
+
+    reporters = list(host.per_reporter_staleness.keys())
+    return len(reporters) == 1 and reporters[0] == "rhsm-conduit"

@@ -2,6 +2,7 @@ from datetime import datetime
 
 from app.common import inventory_config
 from app.culling import Timestamps
+from app.models.constants import EDGE_HOST_STALE_TIMESTAMP
 from lib.feature_flags import FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS
 from lib.feature_flags import get_flag_value
 
@@ -41,6 +42,16 @@ def get_staleness_timestamps(host, staleness_timestamps: Timestamps, staleness: 
     Returns:
         dict: A dictionary with keys 'stale_timestamp', 'stale_warning_timestamp', and 'culled_timestamp'.
     """
+    from app.models.host import should_host_stay_fresh_forever
+
+    # Check if host should stay fresh forever (e.g., rhsm-conduit-only hosts)
+    if should_host_stay_fresh_forever(host):
+        far_future = EDGE_HOST_STALE_TIMESTAMP
+        return {
+            "stale_timestamp": far_future,
+            "stale_warning_timestamp": far_future,
+            "culled_timestamp": far_future,
+        }
 
     staleness_type = _find_host_type(host)
 
@@ -78,6 +89,17 @@ def get_reporter_staleness_timestamps(
     Returns:
         dict: A dictionary with keys 'stale_timestamp', 'stale_warning_timestamp', and 'culled_timestamp'.
     """
+    # Import here to avoid circular imports
+    from app.models.host import should_host_stay_fresh_forever
+
+    # Check if host should stay fresh forever (e.g., rhsm-conduit-only hosts)
+    if should_host_stay_fresh_forever(host):
+        far_future = EDGE_HOST_STALE_TIMESTAMP
+        return {
+            "stale_timestamp": far_future,
+            "stale_warning_timestamp": far_future,
+            "culled_timestamp": far_future,
+        }
 
     staleness_type = _find_host_type(host)
 
