@@ -1,0 +1,100 @@
+from sqlalchemy import CheckConstraint
+from sqlalchemy import Index
+from sqlalchemy import String
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID
+
+from app.exceptions import ValidationException
+from app.logging import get_logger
+from app.models.constants import INVENTORY_SCHEMA
+from app.models.database import db
+
+logger = get_logger(__name__)
+
+
+class HostStaticSystemProfile(db.Model):
+    __tablename__ = "system_profiles_static"
+    __table_args__ = (
+        Index("idxorgid", "org_id"),
+        Index("idxhostid", "host_id"),
+        CheckConstraint(
+            "cores_per_socket >= 0 AND cores_per_socket <= 2147483647", name="cores_per_socket_range_check"
+        ),
+        CheckConstraint("number_of_cpus >= 0 AND number_of_cpus <= 2147483647", name="number_of_cpus_range_check"),
+        CheckConstraint(
+            "number_of_sockets >= 0 AND number_of_sockets <= 2147483647", name="number_of_sockets_range_check"
+        ),
+        CheckConstraint(
+            "threads_per_core >= 0 AND threads_per_core <= 2147483647", name="threads_per_core_range_check"
+        ),
+        {"schema": INVENTORY_SCHEMA},
+    )
+
+    def __init__(
+        self,
+        org_id,
+        host_id,
+        **kwargs,
+    ):
+        super().__init__(org_id, host_id, **kwargs)
+
+        if not org_id:
+            raise ValidationException("System org_id cannot be null.")
+        if not host_id:
+            raise ValidationException("System host_id cannot be null.")
+
+    org_id = db.Column(db.String(36), nullable=False, primary_key=True)
+    host_id = db.Column(db.UUID(as_uuid=True), nullable=False, primary_key=True)
+    arch = db.Column(db.String(50), nullable=True)
+    basearch = db.Column(db.String(50), nullable=True)
+    bios_release_date = db.Column(db.String(50), nullable=True)
+    bios_vendor = db.Column(db.String(100), nullable=True)
+    bios_version = db.Column(db.String(100), nullable=True)
+    bootc_status = db.Column(JSONB(astext_type=db.Text()), nullable=True)
+    cloud_provider = db.Column(db.String(100), nullable=True)
+    conversions = db.Column(JSONB(astext_type=db.Text()), nullable=True)
+    cores_per_socket = db.Column(db.Integer, nullable=True)
+    cpu_model = db.Column(db.String(100), nullable=True)
+    disk_devices = db.Column(db.Array(JSONB), nullable=True)
+    dnf_modules = db.Column(db.Array(JSONB), nullable=True)
+    enabled_services = db.Column(db.Array(String(512)), nullable=True)
+    gpg_pubkeys = db.Column(db.Array(String(512)), nullable=True)
+    greenboot_fallback_detected = db.Column(db.Boolean, default=False, nullable=True)
+    greenboot_status = db.Column(db.String(5), nullable=True)
+    host_type = db.Column(db.String(4), nullable=True)
+    image_builder = db.Column(JSONB(astext_type=db.Text()), nullable=True)
+    infrastructure_type = db.Column(db.String(100), nullable=True)
+    infrastructure_vendor = db.Column(db.String(100), nullable=True)
+    insights_client_version = db.Column(db.String(50), nullable=True)
+    installed_packages_delta = db.Column(db.Array(String(512)), nullable=True)
+    installed_services = db.Column(db.Array(String(512)), nullable=True)
+    intersystems = db.Column(JSONB(astext_type=db.Text()), nullable=True)
+    is_marketplace = db.Column(db.Boolean, default=False, nullable=True)
+    katello_agent_running = db.Column(db.Boolean, default=False, nullable=True)
+    number_of_cpus = db.Column(db.Integer, nullable=True)
+    number_of_sockets = db.Column(db.Integer, nullable=True)
+    operating_system = db.Column(JSONB(astext_type=db.Text()), nullable=True)
+    os_kernel_version = db.Column(db.String(20), nullable=True)
+    os_release = db.Column(db.String(100), nullable=True)
+    owner_id = db.Column(UUID(as_uuid=True), nullable=True)
+    public_dns = db.Column(db.Array(String(100)), nullable=True)
+    public_ipv4_addresses = db.Column(db.Array(String(15)), nullable=True)
+    releasever = db.Column(db.String(100), nullable=True)
+    rhc_client_id = db.Column(UUID(as_uuid=True), nullable=True)
+    rhc_config_state = db.Column(UUID(as_uuid=True), nullable=True)
+    rhel_ai = db.Column(JSONB(astext_type=db.Text()), nullable=True)
+    rhsm = db.Column(JSONB(astext_type=db.Text()), nullable=True)
+    rpm_ostree_deployments = db.Column(db.Array(JSONB), nullable=True)
+    satellite_managed = db.Column(db.Boolean, default=False, nullable=True)
+    selinux_config_file = db.Column(db.String(128), nullable=True)
+    selinux_current_mode = db.Column(db.String(10), nullable=True)
+    subscription_auto_attach = db.Column(db.String(100), nullable=True)
+    subscription_status = db.Column(db.String(100), nullable=True)
+    system_purpose = db.Column(JSONB(astext_type=db.Text()), nullable=True)
+    system_update_method = db.Column(db.String(10), nullable=True)
+    third_party_services = db.Column(JSONB(astext_type=db.Text()), nullable=True)
+    threads_per_core = db.Column(db.Integer, nullable=True)
+    tuned_profile = db.Column(db.String(256), nullable=True)
+    virtual_host_uuid = db.Column(db.String(36), nullable=True)
+    workloads = db.Column(JSONB(astext_type=db.Text()), nullable=True)
+    yum_repos = db.Column(db.Array(JSONB), nullable=True)
