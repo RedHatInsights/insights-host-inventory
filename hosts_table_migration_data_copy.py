@@ -106,6 +106,44 @@ def update_bios_uuid_column_type(session: Session, logger: Logger):
         raise
 
 
+def update_per_reporter_staleness_default(session: Session, logger: Logger):
+    """
+    Alters the per_reporter_staleness column in hosts_new to have a default
+    value of an empty JSONB object. This operation is idempotent.
+    """
+    logger.info("Checking default value of 'per_reporter_staleness' column in hosts_new table...")
+
+    check_sql = text(
+        """
+        SELECT column_default
+        FROM information_schema.columns
+        WHERE table_schema = :schema
+          AND table_name = 'hosts_new'
+          AND column_name = 'per_reporter_staleness';
+    """
+    )
+
+    try:
+        column_default = session.execute(check_sql, {"schema": INVENTORY_SCHEMA}).scalar_one_or_none()
+
+        if column_default == "'{}'::jsonb":
+            logger.info("'per_reporter_staleness' column already has the correct default value. No action needed.")
+            return
+
+        logger.warning(f"Current default is '{column_default}'. Setting default to '{{}}'::jsonb.")
+        alter_default_sql = text(
+            f"ALTER TABLE {INVENTORY_SCHEMA}.hosts_new ALTER COLUMN per_reporter_staleness SET DEFAULT '{{}}'::jsonb;"
+        )
+        session.execute(alter_default_sql)
+        session.commit()
+        logger.info("'per_reporter_staleness' column default has been set successfully.")
+
+    except Exception:
+        logger.error("Failed to set default for 'per_reporter_staleness' column. Rolling back.")
+        session.rollback()
+        raise
+
+
 def drop_indexes(session: Session, logger: Logger):
     """Drops all non-primary key indexes from the target tables to speed up inserts."""
     logger.warning("Dropping all non-PK indexes from target tables to optimize data copy...")
@@ -244,6 +282,7 @@ def run(logger: Logger, session: Session, application: FlaskApp):
         with application.app.app_context():
             truncate_new_tables(session, logger)
             update_bios_uuid_column_type(session, logger)
+            update_per_reporter_staleness_default(session, logger)
             drop_indexes(session, logger)
             copy_data_in_batches(session, logger)
             recreate_indexes(session, logger)
