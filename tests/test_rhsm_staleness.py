@@ -1,5 +1,5 @@
 """
-Test the rhsm-conduit-only hosts functionality to ensure they stay fresh forever.
+Test the rhsm-system-profile-bridge-only hosts functionality to ensure they stay fresh forever.
 """
 
 from datetime import datetime
@@ -21,19 +21,19 @@ from tests.helpers.test_utils import generate_uuid
 
 
 class TestRhsmConduitUtilityFunctions:
-    """Test the utility functions for rhsm-conduit-only hosts."""
+    """Test the utility functions for rhsm-system-profile-bridge-only hosts."""
 
     def test_should_host_stay_fresh_forever_true(self, flask_app):
-        """Test that rhsm-conduit-only hosts should stay fresh forever."""
+        """Test that rhsm-system-profile-bridge-only hosts should stay fresh forever."""
         with flask_app.app.app_context():
             host = Host(
                 canonical_facts={"subscription_manager_id": generate_uuid()},
-                reporter="rhsm-conduit",
+                reporter="rhsm-system-profile-bridge",
                 stale_timestamp=datetime.now(timezone.utc),
                 org_id=USER_IDENTITY["org_id"],
             )
             host.per_reporter_staleness = {
-                "rhsm-conduit": {
+                "rhsm-system-profile-bridge": {
                     "last_check_in": datetime.now(timezone.utc).isoformat(),
                     "stale_timestamp": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
                     "check_in_succeeded": True,
@@ -51,7 +51,7 @@ class TestRhsmConduitUtilityFunctions:
             org_id=USER_IDENTITY["org_id"],
         )
         host.per_reporter_staleness = {
-            "rhsm-conduit": {
+            "rhsm-system-profile-bridge": {
                 "last_check_in": datetime.now(timezone.utc).isoformat(),
                 "stale_timestamp": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
                 "check_in_succeeded": True,
@@ -67,18 +67,21 @@ class TestRhsmConduitUtilityFunctions:
 
 
 class TestRhsmConduitStalenessTimestamps:
-    """Test staleness timestamp calculation for rhsm-conduit-only hosts."""
+    """Test staleness timestamp calculation for rhsm-system-profile-bridge-only hosts."""
 
     def test_get_staleness_timestamps_rhsm_conduit_only(self, mocker):
-        """Test that rhsm-conduit-only hosts get far-future timestamps."""
+        """Test that rhsm-system-profile-bridge-only hosts get far-future timestamps."""
         host = Host(
             canonical_facts={"subscription_manager_id": generate_uuid()},
-            reporter="rhsm-conduit",
+            reporter="rhsm-system-profile-bridge",
             stale_timestamp=datetime.now(timezone.utc),
             org_id=USER_IDENTITY["org_id"],
         )
         host.per_reporter_staleness = {
-            "rhsm-conduit": {"last_check_in": datetime.now(timezone.utc).isoformat(), "check_in_succeeded": True}
+            "rhsm-system-profile-bridge": {
+                "last_check_in": datetime.now(timezone.utc).isoformat(),
+                "check_in_succeeded": True,
+            }
         }
 
         # Mock the flag to test both code paths
@@ -120,15 +123,18 @@ class TestRhsmConduitStalenessTimestamps:
         assert result["culled_timestamp"] != far_future
 
     def test_get_reporter_staleness_timestamps_rhsm_conduit_only(self, mocker):
-        """Test that per-reporter staleness for rhsm-conduit-only hosts gets far-future timestamps."""
+        """Test that per-reporter staleness for rhsm-system-profile-bridge-only hosts gets far-future timestamps."""
         host = Host(
             canonical_facts={"subscription_manager_id": generate_uuid()},
-            reporter="rhsm-conduit",
+            reporter="rhsm-system-profile-bridge",
             stale_timestamp=datetime.now(timezone.utc),
             org_id=USER_IDENTITY["org_id"],
         )
         host.per_reporter_staleness = {
-            "rhsm-conduit": {"last_check_in": datetime.now(timezone.utc).isoformat(), "check_in_succeeded": True}
+            "rhsm-system-profile-bridge": {
+                "last_check_in": datetime.now(timezone.utc).isoformat(),
+                "check_in_succeeded": True,
+            }
         }
 
         mocker.patch("app.staleness_serialization.get_flag_value", return_value=True)
@@ -136,7 +142,7 @@ class TestRhsmConduitStalenessTimestamps:
         st = staleness_timestamps()
         staleness = get_sys_default_staleness()
 
-        result = get_reporter_staleness_timestamps(host, st, staleness, "rhsm-conduit")
+        result = get_reporter_staleness_timestamps(host, st, staleness, "rhsm-system-profile-bridge")
         far_future = EDGE_HOST_STALE_TIMESTAMP
 
         assert result["stale_timestamp"] == far_future
@@ -145,13 +151,13 @@ class TestRhsmConduitStalenessTimestamps:
 
 
 class TestRhsmConduitHostModel:
-    """Test Host model behavior for rhsm-conduit-only hosts."""
+    """Test Host model behavior for rhsm-system-profile-bridge-only hosts."""
 
     def test_reporter_stale_rhsm_conduit_only_always_false(self, db_create_host):
-        """Test that rhsm-conduit-only hosts never report as stale."""
+        """Test that rhsm-system-profile-bridge-only hosts never report as stale."""
         host = Host(
             canonical_facts={"subscription_manager_id": generate_uuid()},
-            reporter="rhsm-conduit",
+            reporter="rhsm-system-profile-bridge",
             stale_timestamp=datetime.now(timezone.utc) - timedelta(days=10),  # Way in the past
             org_id=USER_IDENTITY["org_id"],
         )
@@ -159,7 +165,7 @@ class TestRhsmConduitHostModel:
         # Set per_reporter_staleness with past timestamp to simulate stale condition
         past_time = datetime.now(timezone.utc) - timedelta(days=5)
         host.per_reporter_staleness = {
-            "rhsm-conduit": {
+            "rhsm-system-profile-bridge": {
                 "last_check_in": past_time.isoformat(),
                 "stale_timestamp": past_time.isoformat(),
                 "check_in_succeeded": True,
@@ -169,7 +175,7 @@ class TestRhsmConduitHostModel:
         created_host = db_create_host(host=host)
 
         # Even with past timestamp, should not be stale
-        assert created_host.reporter_stale("rhsm-conduit") is False
+        assert created_host.reporter_stale("rhsm-system-profile-bridge") is False
 
     def test_reporter_stale_normal_host_can_be_stale(self, db_create_host):
         """Test that normal hosts can be stale."""
@@ -197,18 +203,21 @@ class TestRhsmConduitHostModel:
 
 
 class TestRhsmConduitSerialization:
-    """Test serialization behavior for rhsm-conduit-only hosts."""
+    """Test serialization behavior for rhsm-system-profile-bridge-only hosts."""
 
     def test_serialize_per_reporter_staleness_rhsm_conduit_only(self):
-        """Test that per-reporter staleness serialization uses far-future timestamps for rhsm-conduit-only hosts."""
+        """Test that per-reporter staleness serialization uses far-future timestamps for rhsm-only hosts."""
         host = Host(
             canonical_facts={"subscription_manager_id": generate_uuid()},
-            reporter="rhsm-conduit",
+            reporter="rhsm-system-profile-bridge",
             stale_timestamp=datetime.now(timezone.utc),
             org_id=USER_IDENTITY["org_id"],
         )
         host.per_reporter_staleness = {
-            "rhsm-conduit": {"last_check_in": datetime.now(timezone.utc).isoformat(), "check_in_succeeded": True}
+            "rhsm-system-profile-bridge": {
+                "last_check_in": datetime.now(timezone.utc).isoformat(),
+                "check_in_succeeded": True,
+            }
         }
 
         staleness = get_sys_default_staleness()
@@ -217,7 +226,7 @@ class TestRhsmConduitSerialization:
         result = _serialize_per_reporter_staleness(host, staleness, st)
         far_future = EDGE_HOST_STALE_TIMESTAMP
 
-        rhsm_data = result["rhsm-conduit"]
+        rhsm_data = result["rhsm-system-profile-bridge"]
         assert datetime.fromisoformat(rhsm_data["stale_timestamp"]) == far_future
         assert datetime.fromisoformat(rhsm_data["stale_warning_timestamp"]) == far_future
         assert datetime.fromisoformat(rhsm_data["culled_timestamp"]) == far_future
@@ -247,9 +256,9 @@ class TestRhsmConduitSerialization:
         assert datetime.fromisoformat(puptoo_data["culled_timestamp"]) != far_future
 
 
-@pytest.mark.parametrize("reporter", ["rhsm-conduit"])
+@pytest.mark.parametrize("reporter", ["rhsm-system-profile-bridge"])
 def test_rhsm_conduit_reporter_parametrized(reporter):
-    """Parametrized test to ensure rhsm-conduit behavior."""
+    """Parametrized test to ensure rhsm-system-profile-bridge behavior."""
     host = Host(
         canonical_facts={"subscription_manager_id": generate_uuid()},
         reporter=reporter,
@@ -266,9 +275,9 @@ def test_rhsm_conduit_reporter_parametrized(reporter):
 @pytest.mark.parametrize(
     "reporters",
     [
-        ["rhsm-conduit", "puptoo"],
-        ["rhsm-conduit", "cloud-connector"],
-        ["rhsm-conduit", "yuptoo", "puptoo"],
+        ["rhsm-system-profile-bridge", "puptoo"],
+        ["rhsm-system-profile-bridge", "cloud-connector"],
+        ["rhsm-system-profile-bridge", "yuptoo", "puptoo"],
         ["puptoo"],
         ["cloud-connector"],
         ["discovery", "satellite"],
@@ -292,7 +301,7 @@ def test_multiple_reporters_parametrized(reporters):
     }
     host.per_reporter_staleness = per_reporter_staleness
 
-    if len(reporters) == 1 and reporters[0] == "rhsm-conduit":
+    if len(reporters) == 1 and reporters[0] == "rhsm-system-profile-bridge":
         assert should_host_stay_fresh_forever(host) is True
     else:
         assert should_host_stay_fresh_forever(host) is False

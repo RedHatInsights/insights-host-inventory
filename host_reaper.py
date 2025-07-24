@@ -76,25 +76,6 @@ def find_hosts_in_state(logger, session, state: list):
     return query_filters
 
 
-def _filter_out_fresh_forever_hosts(query):
-    """
-    Filter out hosts that should stay fresh forever (e.g., rhsm-conduit-only hosts).
-    These hosts should never be considered for deletion.
-    """
-    # Exclude hosts that have only "rhsm-conduit" as a reporter
-    # This is done by checking that per_reporter_staleness has exactly one key and it's "rhsm-conduit"
-    rhsm_conduit_only_filter = and_(
-        Host.per_reporter_staleness.has_key("rhsm-conduit"),
-        # Check that per_reporter_staleness has exactly one key by ensuring it doesn't have other common reporters
-        ~Host.per_reporter_staleness.has_any(
-            array(["cloud-connector", "puptoo", "rhsm-system-profile-bridge", "yuptoo", "discovery", "satellite"])
-        ),
-    )
-
-    # Filter out these hosts from deletion
-    return query.filter(~rhsm_conduit_only_filter)
-
-
 @host_reaper_fail_count.count_exceptions()
 def run(config, logger, session, event_producer, notification_event_producer, shutdown_handler, application):
     with application.app.app_context():
@@ -134,12 +115,11 @@ def run(config, logger, session, event_producer, notification_event_producer, sh
 
         # Apply the main filter and exclude hosts that should stay fresh forever
         query = session.query(Host).filter(and_(or_(False, *filter_hosts_to_delete)))
-        query = _filter_out_fresh_forever_hosts(query)
 
         hosts_processed = config.host_delete_chunk_size
         deletions_remaining = query.count()
 
-        logger.info(f"Found {deletions_remaining} hosts to potentially delete (excluding rhsm-conduit-only hosts)")
+        logger.info(f"Found {deletions_remaining} hosts to potentially delete (excluding rhsm-only hosts)")
 
         while hosts_processed == config.host_delete_chunk_size:
             logger.info(f"Reaper starting batch; {deletions_remaining} remaining.")

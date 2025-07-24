@@ -44,7 +44,7 @@ def get_staleness_timestamps(host, staleness_timestamps: Timestamps, staleness: 
     """
     from app.models.host import should_host_stay_fresh_forever
 
-    # Check if host should stay fresh forever (e.g., rhsm-conduit-only hosts)
+    # Check if host should stay fresh forever (e.g., rhsm-only hosts)
     if should_host_stay_fresh_forever(host):
         far_future = EDGE_HOST_STALE_TIMESTAMP
         return {
@@ -92,7 +92,7 @@ def get_reporter_staleness_timestamps(
     # Import here to avoid circular imports
     from app.models.host import should_host_stay_fresh_forever
 
-    # Check if host should stay fresh forever (e.g., rhsm-conduit-only hosts)
+    # Check if host should stay fresh forever (e.g., rhsm-only hosts)
     if should_host_stay_fresh_forever(host):
         far_future = EDGE_HOST_STALE_TIMESTAMP
         return {

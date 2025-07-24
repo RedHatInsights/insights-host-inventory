@@ -1412,7 +1412,7 @@ def test_create_host_with_missing_canonical_facts(db_create_host_custom_canonica
 
 
 def test_create_host_rhsm_conduit_only_sets_far_future_timestamps(mocker, db_create_host):
-    """Test that creating a host with only rhsm-conduit reporter sets far-future staleness timestamps."""
+    """Test that creating a host with only rhsm-system-profile-bridge reporter sets far-future staleness timestamps."""
     with (
         mocker.patch("app.serialization.get_flag_value", return_value=True),
         mocker.patch("app.models.host.get_flag_value", return_value=True),
@@ -1423,13 +1423,13 @@ def test_create_host_rhsm_conduit_only_sets_far_future_timestamps(mocker, db_cre
         input_host = Host(
             {"subscription_manager_id": generate_uuid()},
             display_name="display_name",
-            reporter="rhsm-conduit",
+            reporter="rhsm-system-profile-bridge",
             stale_timestamp=stale_timestamp,
             org_id=USER_IDENTITY["org_id"],
         )
         created_host = db_create_host(host=input_host)
 
-        # Host should have far-future timestamps since it only has rhsm-conduit
+        # Host should have far-future timestamps since it only has rhsm-system-profile-bridge
         far_future = EDGE_HOST_STALE_TIMESTAMP
 
         # Check that main staleness timestamps are set to far future
@@ -1438,15 +1438,15 @@ def test_create_host_rhsm_conduit_only_sets_far_future_timestamps(mocker, db_cre
         assert created_host.deletion_timestamp == far_future
 
         # Check per_reporter_staleness
-        assert "rhsm-conduit" in created_host.per_reporter_staleness
-        prs = created_host.per_reporter_staleness["rhsm-conduit"]
+        assert "rhsm-system-profile-bridge" in created_host.per_reporter_staleness
+        prs = created_host.per_reporter_staleness["rhsm-system-profile-bridge"]
         assert prs["stale_timestamp"] == far_future.isoformat()
         assert prs["stale_warning_timestamp"] == far_future.isoformat()
         assert prs["culled_timestamp"] == far_future.isoformat()
 
 
 def test_host_with_rhsm_conduit_and_other_reporters_normal_behavior(mocker, db_create_host, models_datetime_mock):
-    """Test that hosts with rhsm-conduit AND other reporters behave normally."""
+    """Test that hosts with rhsm-system-profile-bridge AND other reporters behave normally."""
     with (
         mocker.patch("app.serialization.get_flag_value", return_value=True),
         mocker.patch("app.models.host.get_flag_value", return_value=True),
@@ -1478,9 +1478,9 @@ def test_host_with_rhsm_conduit_and_other_reporters_normal_behavior(mocker, db_c
         # Should NOT have far-future timestamps since it has multiple reporters
         assert created_host.stale_timestamp != far_future
 
-        # Update per_reporter_staleness for rhsm-conduit - should behave normally
-        created_host._update_per_reporter_staleness("rhsm-conduit")
+        # Update per_reporter_staleness for rhsm-system-profile-bridge - should behave normally
+        created_host._update_per_reporter_staleness("rhsm-system-profile-bridge")
 
         # Should still not have far-future timestamps
-        prs = created_host.per_reporter_staleness["rhsm-conduit"]
+        prs = created_host.per_reporter_staleness["rhsm-system-profile-bridge"]
         assert datetime.fromisoformat(prs["stale_timestamp"]) != far_future

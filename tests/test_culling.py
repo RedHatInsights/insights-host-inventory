@@ -406,7 +406,7 @@ def test_reaper_stops_after_kafka_producer_error(
 def test_host_reaper_excludes_rhsm_conduit_only_hosts(
     db_create_host, event_producer_mock, notification_event_producer_mock, inventory_config, flask_app
 ):
-    """Test that the host reaper excludes hosts with only rhsm-conduit reporter from deletion."""
+    """Test that the host reaper excludes hosts with only rhsm-system-profile-bridge reporter from deletion."""
     from datetime import datetime
     from datetime import timedelta
     from datetime import timezone
@@ -417,21 +417,21 @@ def test_host_reaper_excludes_rhsm_conduit_only_hosts(
     from tests.helpers.test_utils import USER_IDENTITY
     from tests.helpers.test_utils import generate_uuid
 
-    # Create a host with only rhsm-conduit reporter that should be culled based on timestamp
+    # Create a host with only rhsm-system-profile-bridge reporter that should be culled based on timestamp
     # but should be excluded from deletion
     past_time = datetime.now(timezone.utc) - timedelta(days=30)  # Way past culling time
 
     rhsm_conduit_host = Host(
         canonical_facts={"subscription_manager_id": generate_uuid()},
-        display_name="rhsm-conduit-only-host",
-        reporter="rhsm-conduit",
+        display_name="rhsm-system-profile-bridge-only-host",
+        reporter="rhsm-system-profile-bridge",
         stale_timestamp=past_time,
         org_id=USER_IDENTITY["org_id"],
     )
     rhsm_conduit_host.stale_warning_timestamp = past_time
     rhsm_conduit_host.deletion_timestamp = past_time  # Should be culled
     rhsm_conduit_host.per_reporter_staleness = {
-        "rhsm-conduit": {
+        "rhsm-system-profile-bridge": {
             "last_check_in": past_time.isoformat(),
             "stale_timestamp": past_time.isoformat(),
             "stale_warning_timestamp": past_time.isoformat(),
@@ -477,11 +477,11 @@ def test_host_reaper_excludes_rhsm_conduit_only_hosts(
             application=flask_app,
         )
 
-    # Check that the rhsm-conduit-only host still exists
+    # Check that the rhsm-system-profile-bridge-only host still exists
     rhsm_host_still_exists = db.session.get(Host, [created_rhsm_host.id, USER_IDENTITY["org_id"]])
     normal_host_still_exists = db.session.get(Host, [created_normal_host.id, USER_IDENTITY["org_id"]])
 
-    # rhsm-conduit-only host should still exist (not deleted)
+    # rhsm-system-profile-bridge-only host should still exist (not deleted)
     assert rhsm_host_still_exists is not None
     assert normal_host_still_exists is not None
 
@@ -491,7 +491,7 @@ def test_host_reaper_excludes_rhsm_conduit_only_hosts(
 
 @pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
 def test_host_with_rhsm_conduit_and_other_reporters_can_be_culled(db_create_host):
-    """Test that hosts with rhsm-conduit AND other reporters can still be culled normally."""
+    """Test that hosts with rhsm-system-profile-bridge AND other reporters can still be culled normally."""
     from datetime import datetime
     from datetime import timedelta
     from datetime import timezone
@@ -500,20 +500,20 @@ def test_host_with_rhsm_conduit_and_other_reporters_can_be_culled(db_create_host
     from tests.helpers.test_utils import USER_IDENTITY
     from tests.helpers.test_utils import generate_uuid
 
-    # Create a host with rhsm-conduit AND other reporters
+    # Create a host with rhsm-system-profile-bridge AND other reporters
     past_time = datetime.now(timezone.utc) - timedelta(days=30)
 
     mixed_reporter_host = Host(
         canonical_facts={"subscription_manager_id": generate_uuid()},
         display_name="mixed-reporter-host",
-        reporter="rhsm-conduit",
+        reporter="rhsm-system-profile-bridge",
         stale_timestamp=past_time,
         org_id=USER_IDENTITY["org_id"],
     )
     mixed_reporter_host.stale_warning_timestamp = past_time
     mixed_reporter_host.deletion_timestamp = past_time
     mixed_reporter_host.per_reporter_staleness = {
-        "rhsm-conduit": {
+        "rhsm-system-profile-bridge": {
             "last_check_in": past_time.isoformat(),
             "stale_timestamp": past_time.isoformat(),
             "stale_warning_timestamp": past_time.isoformat(),
@@ -540,9 +540,9 @@ def test_host_with_rhsm_conduit_and_other_reporters_can_be_culled(db_create_host
 @pytest.mark.parametrize(
     "reporters",
     [
-        ["rhsm-conduit"],  # Should be excluded
-        ["rhsm-conduit", "puptoo"],  # Should NOT be excluded
-        ["rhsm-conduit", "cloud-connector", "yuptoo"],  # Should NOT be excluded
+        ["rhsm-system-profile-bridge"],  # Should be excluded
+        ["rhsm-system-profile-bridge", "puptoo"],  # Should NOT be excluded
+        ["rhsm-system-profile-bridge", "cloud-connector", "yuptoo"],  # Should NOT be excluded
         ["puptoo"],  # Should NOT be excluded
     ],
 )
@@ -574,8 +574,8 @@ def test_host_reaper_filter_logic_parametrized(reporters):
     }
     host.per_reporter_staleness = per_reporter_staleness
 
-    # Only hosts with ONLY rhsm-conduit should stay fresh forever
-    if len(reporters) == 1 and reporters[0] == "rhsm-conduit":
+    # Only hosts with ONLY rhsm-system-profile-bridge should stay fresh forever
+    if len(reporters) == 1 and reporters[0] == "rhsm-system-profile-bridge":
         assert should_host_stay_fresh_forever(host) is True
     else:
         assert should_host_stay_fresh_forever(host) is False

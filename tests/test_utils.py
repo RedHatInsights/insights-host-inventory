@@ -186,15 +186,18 @@ def test_should_host_stay_fresh_forever():
     from tests.helpers.test_utils import USER_IDENTITY
     from tests.helpers.test_utils import generate_uuid
 
-    # Test rhsm-conduit-only host
+    # Test rhsm-system-profile-bridge-only host
     host_rhsm_only = Host(
         canonical_facts={"subscription_manager_id": generate_uuid()},
-        reporter="rhsm-conduit",
+        reporter="rhsm-system-profile-bridge",
         stale_timestamp=datetime.now(timezone.utc),
         org_id=USER_IDENTITY["org_id"],
     )
     host_rhsm_only.per_reporter_staleness = {
-        "rhsm-conduit": {"last_check_in": datetime.now(timezone.utc).isoformat(), "check_in_succeeded": True}
+        "rhsm-system-profile-bridge": {
+            "last_check_in": datetime.now(timezone.utc).isoformat(),
+            "check_in_succeeded": True,
+        }
     }
     assert should_host_stay_fresh_forever(host_rhsm_only) is True
 
