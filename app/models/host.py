@@ -560,7 +560,7 @@ class Host(LimitedHost):
 def should_host_stay_fresh_forever(host: Host) -> bool:
     """
     Check if a host should stay fresh forever (never become stale).
-    Currently applies to hosts that have only "rhsm-conduit" as a reporter.
+    Currently applies to hosts that have only "rhsm-system-profile-bridge" as a reporter.
 
     Args:
         host: The host object to check
@@ -569,7 +569,7 @@ def should_host_stay_fresh_forever(host: Host) -> bool:
         bool: True if the host should stay fresh forever, False otherwise
     """
     if not hasattr(host, "per_reporter_staleness") or not host.per_reporter_staleness:
-        return host.reporter == "rhsm-conduit"
+        return host.reporter == "rhsm-system-profile-bridge"
 
     reporters = list(host.per_reporter_staleness.keys())
-    return len(reporters) == 1 and reporters[0] == "rhsm-conduit"
+    return len(reporters) == 1 and reporters[0] == "rhsm-system-profile-bridge"
