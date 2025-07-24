@@ -23,6 +23,7 @@ from app.models.host import Host
 from app.models.host import LimitedHost
 from app.models.host_group_assoc import HostGroupAssoc
 from app.models.host_inventory_metadata import HostInventoryMetadata
+from app.models.outbox import Outbox
 from app.models.schemas import CanonicalFactsSchema
 from app.models.schemas import DiskDeviceSchema
 from app.models.schemas import DnfModuleSchema
@@ -73,6 +74,7 @@ __all__ = [
     "Host",
     "Group",
     "HostGroupAssoc",
+    "Outbox",
     "Staleness",
     "HostInventoryMetadata",
     "DiskDeviceSchema",
