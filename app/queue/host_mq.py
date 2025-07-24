@@ -425,7 +425,7 @@ class IngressMessageConsumer(HostMessageConsumer):
                 db.session.flush()  # Flush so that we can retrieve the created host's ID
                 # Get org's "ungrouped hosts" group (create if not exists) and assign host to it
                 group = get_or_create_ungrouped_hosts_group_for_identity(identity)
-                if inventory_config().hbi_db_refact_skip_in_prod:
+                if inventory_config().hbi_db_refactoring_use_old_table:
                     # Old code: constructor without org_id
                     assoc = HostGroupAssoc(host_row.id, group.id)
                 else:

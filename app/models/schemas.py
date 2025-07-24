@@ -235,7 +235,7 @@ class LimitedHostSchema(CanonicalFactsSchema):
 
     @staticmethod
     def build_model(data, canonical_facts, facts, tags, tags_alt=None):
-        if inventory_config().hbi_db_refact_skip_in_prod:
+        if inventory_config().hbi_db_refactoring_use_old_table:
             # Old code: constructor without canonical facts parameters
             return LimitedHost(
                 canonical_facts=canonical_facts,
@@ -306,7 +306,7 @@ class HostSchema(LimitedHostSchema):
     def build_model(data, canonical_facts, facts, tags, tags_alt=None):
         if tags_alt is None:
             tags_alt = []
-        if inventory_config().hbi_db_refact_skip_in_prod:
+        if inventory_config().hbi_db_refactoring_use_old_table:
             # Old code: constructor without canonical facts parameters
             return Host(
                 canonical_facts,

@@ -97,7 +97,7 @@ def _delete_host(session: Session, host: Host, identity: Identity | None, contro
     sp_fields_to_log = extract_host_model_sp_to_log(host)
     org_id = identity.org_id if identity else host.org_id
 
-    if inventory_config().hbi_db_refact_skip_in_prod:
+    if inventory_config().hbi_db_refactoring_use_old_table:
         # Old code: filter by ID only
         assoc_delete_query = session.query(HostGroupAssoc).filter(HostGroupAssoc.host_id == host.id)
         host_delete_query = session.query(Host).filter(Host.id == host.id)

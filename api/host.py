@@ -439,7 +439,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
         Host.facts.has_key(namespace),
     )
 
-    if inventory_config().hbi_db_refact_skip_in_prod:
+    if inventory_config().hbi_db_refactoring_use_old_table:
         # Old code: use single column GROUP BY
         query = Host.query.join(HostGroupAssoc, isouter=True).filter(*filters).group_by(Host.id)
     else:
@@ -452,7 +452,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
         ).count()
         filters += (HostGroupAssoc.group_id.in_(rbac_filter["groups"]),)
 
-        if inventory_config().hbi_db_refact_skip_in_prod:
+        if inventory_config().hbi_db_refactoring_use_old_table:
             # Old code: use single column GROUP BY
             query = Host.query.join(HostGroupAssoc, isouter=True).filter(*filters).group_by(Host.id)
         else:

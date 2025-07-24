@@ -13,7 +13,7 @@ from app.models.database import db
 
 class HostGroupAssoc(db.Model):
     __tablename__ = "hosts_groups"
-    if os.environ.get("HBI_DB_REFACT_SKIP_IN_PROD", "false").lower() != "true":
+    if os.environ.get("HBI_DB_REFACTORING_USE_OLD_TABLE", "false").lower() != "true":
         __table_args__ = (
             Index("idxhostsgroups", "host_id", "group_id"),
             Index("idxgroups_hosts", "group_id", "host_id"),
@@ -39,10 +39,10 @@ class HostGroupAssoc(db.Model):
         self.host_id = host_id
         self.group_id = group_id
 
-        if not inventory_config().hbi_db_refact_skip_in_prod:
+        if not inventory_config().hbi_db_refactoring_use_old_table:
             self.org_id = org_id
 
-    if os.environ.get("HBI_DB_REFACT_SKIP_IN_PROD", "false").lower() != "true":
+    if os.environ.get("HBI_DB_REFACTORING_USE_OLD_TABLE", "false").lower() != "true":
         host_id = db.Column(UUID(as_uuid=True), primary_key=True)
         org_id = db.Column(db.String(36), primary_key=True)
     else:

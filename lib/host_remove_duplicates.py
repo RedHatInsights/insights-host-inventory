@@ -97,7 +97,7 @@ def delete_duplicate_hosts(
             logger.info(f"Found {len(duplicate_host_ids)} duplicates for org_id: {actual_org_id}")
             total_deleted += len(duplicate_host_ids)
         else:
-            if inventory_config().hbi_db_refact_skip_in_prod:
+            if inventory_config().hbi_db_refactoring_use_old_table:
                 # Old code: filter by ID only
                 hosts_by_ids_query = misc_session.query(Host).filter(Host.id.in_(duplicate_host_ids))
             else:
