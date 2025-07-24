@@ -98,7 +98,7 @@ class LimitedHost(db.Model):
         self.groups = groups or []
         self.last_check_in = _time_now()
 
-        if not inventory_config().hbi_db_refact_skip_in_prod:
+        if not inventory_config().hbi_db_refactoring_use_old_table:
             # New code: assign canonical facts to individual columns
             self.insights_id = insights_id
             self.subscription_manager_id = subscription_manager_id
@@ -166,7 +166,7 @@ class LimitedHost(db.Model):
     tags_alt = db.Column(JSONB)
     canonical_facts = db.Column(JSONB)
 
-    if os.environ.get("HBI_DB_REFACT_SKIP_IN_PROD", "false").lower() != "true":
+    if os.environ.get("HBI_DB_REFACTORING_USE_OLD_TABLE", "false").lower() != "true":
         insights_id = db.Column(UUID(as_uuid=True), default="00000000-0000-0000-0000-000000000000")
         subscription_manager_id = db.Column(db.String(36))
         satellite_id = db.Column(db.String(255))
@@ -269,7 +269,7 @@ class Host(LimitedHost):
         if not per_reporter_staleness:
             self._update_per_reporter_staleness(reporter)
 
-        if not inventory_config().hbi_db_refact_skip_in_prod:
+        if not inventory_config().hbi_db_refactoring_use_old_table:
             # New code: update canonical facts to individual columns
             self.update_canonical_facts(canonical_facts)
 

@@ -60,7 +60,7 @@ def database(database_name: None) -> Generator[str]:  # noqa: ARG001
 def db_get_host(flask_app: FlaskApp) -> Callable[[UUID], Host | None]:  # noqa: ARG001
     def _db_get_host(host_id: UUID, org_id: str | None = None) -> Host | None:
         org_id = org_id or SYSTEM_IDENTITY["org_id"]
-        if inventory_config().hbi_db_refact_skip_in_prod:
+        if inventory_config().hbi_db_refactoring_use_old_table:
             # Old code: filter by ID only
             return Host.query.filter(Host.id == host_id).one_or_none()
         else:

@@ -58,7 +58,7 @@ def run(logger: Logger, session: Session, application: FlaskApp):
                     )
                     hosts_to_process = len(host_ids)
                     for (host_id,) in host_ids:
-                        if inventory_config().hbi_db_refact_skip_in_prod:
+                        if inventory_config().hbi_db_refactoring_use_old_table:
                             # Old code: constructor without org_id
                             assoc = HostGroupAssoc(host_id, ungrouped_group_id)
                         else:

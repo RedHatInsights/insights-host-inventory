@@ -58,7 +58,7 @@ def _update_hosts_for_group_changes(host_id_list: list[str], group_id_list: list
     ]
 
     # Update groups data on each host record
-    if inventory_config().hbi_db_refact_skip_in_prod:
+    if inventory_config().hbi_db_refactoring_use_old_table:
         # Old code: filter by ID only
         db.session.query(Host).filter(Host.id.in_(host_id_list)).update(
             {"groups": serialized_groups}, synchronize_session="fetch"
@@ -168,7 +168,7 @@ def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str):
         synchronize_session="fetch"
     )
 
-    if inventory_config().hbi_db_refact_skip_in_prod:
+    if inventory_config().hbi_db_refactoring_use_old_table:
         # Old code: constructor without org_id
         host_group_assoc = [
             HostGroupAssoc(host_id=host_id, group_id=group_id)
@@ -484,7 +484,7 @@ def _update_group_update_time(group_id: str, org_id: str):
 
 
 def get_group_using_host_id(host_id: str, org_id: str):
-    if inventory_config().hbi_db_refact_skip_in_prod:
+    if inventory_config().hbi_db_refactoring_use_old_table:
         # Old code: filter by host_id only
         assoc = db.session.query(HostGroupAssoc).filter(HostGroupAssoc.host_id == host_id).one_or_none()
     else:

@@ -398,7 +398,7 @@ def get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter=None, c
 
         filters += (or_(*rbac_group_filters),)
 
-    if inventory_config().hbi_db_refact_skip_in_prod:
+    if inventory_config().hbi_db_refactoring_use_old_table:
         # Old code: use single column GROUP BY
         query = (
             Host.query.join(HostGroupAssoc, isouter=True).join(Group, isouter=True).filter(*filters).group_by(Host.id)
@@ -417,7 +417,7 @@ def get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter=None, c
 
 
 def get_non_culled_hosts_count_in_group(group: Group, org_id: str) -> int:
-    if inventory_config().hbi_db_refact_skip_in_prod:
+    if inventory_config().hbi_db_refactoring_use_old_table:
         # Old code: use single column GROUP BY
         query = (
             db.session.query(Host).join(HostGroupAssoc).filter(HostGroupAssoc.group_id == group.id).group_by(Host.id)
