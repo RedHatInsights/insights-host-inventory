@@ -414,12 +414,6 @@ def test_host_reaper_excludes_rhsm_conduit_only_hosts(
     db_create_host, event_producer_mock, notification_event_producer_mock, inventory_config, flask_app
 ):
     """Test that the host reaper excludes hosts with only rhsm-system-profile-bridge reporter from deletion."""
-    from datetime import timezone
-
-    from app.models import Host
-    from host_reaper import run as host_reaper_run
-    from tests.helpers.test_utils import USER_IDENTITY
-    from tests.helpers.test_utils import generate_uuid
 
     # Create a host with only rhsm-system-profile-bridge reporter that should be culled based on timestamp
     # but should be excluded from deletion
@@ -529,8 +523,6 @@ def test_host_with_rhsm_conduit_and_other_reporters_can_be_culled(db_create_host
     created_mixed_host = db_create_host(host=mixed_reporter_host)
 
     # This host should be eligible for deletion since it has multiple reporters
-    from app.models.host import should_host_stay_fresh_forever
-
     assert should_host_stay_fresh_forever(created_mixed_host) is False
 
 

@@ -91,11 +91,10 @@ class TestRhsmConduitStalenessTimestamps:
         staleness = get_sys_default_staleness()
 
         result = get_staleness_timestamps(host, st, staleness)
-        far_future = FAR_FUTURE_STALE_TIMESTAMP
 
-        assert result["stale_timestamp"] == far_future
-        assert result["stale_warning_timestamp"] == far_future
-        assert result["culled_timestamp"] == far_future
+        assert result["stale_timestamp"] == FAR_FUTURE_STALE_TIMESTAMP
+        assert result["stale_warning_timestamp"] == FAR_FUTURE_STALE_TIMESTAMP
+        assert result["culled_timestamp"] == FAR_FUTURE_STALE_TIMESTAMP
 
     def test_get_staleness_timestamps_normal_host(self, mocker):
         """Test that normal hosts get regular timestamps."""
@@ -115,12 +114,11 @@ class TestRhsmConduitStalenessTimestamps:
         staleness = get_sys_default_staleness()
 
         result = get_staleness_timestamps(host, st, staleness)
-        far_future = FAR_FUTURE_STALE_TIMESTAMP
 
         # These should NOT be far future timestamps
-        assert result["stale_timestamp"] != far_future
-        assert result["stale_warning_timestamp"] != far_future
-        assert result["culled_timestamp"] != far_future
+        assert result["stale_timestamp"] != FAR_FUTURE_STALE_TIMESTAMP
+        assert result["stale_warning_timestamp"] != FAR_FUTURE_STALE_TIMESTAMP
+        assert result["culled_timestamp"] != FAR_FUTURE_STALE_TIMESTAMP
 
     def test_get_reporter_staleness_timestamps_rhsm_conduit_only(self, mocker):
         """Test that per-reporter staleness for rhsm-system-profile-bridge-only hosts gets far-future timestamps."""
@@ -143,11 +141,10 @@ class TestRhsmConduitStalenessTimestamps:
         staleness = get_sys_default_staleness()
 
         result = get_reporter_staleness_timestamps(host, st, staleness, "rhsm-system-profile-bridge")
-        far_future = FAR_FUTURE_STALE_TIMESTAMP
 
-        assert result["stale_timestamp"] == far_future
-        assert result["stale_warning_timestamp"] == far_future
-        assert result["culled_timestamp"] == far_future
+        assert result["stale_timestamp"] == FAR_FUTURE_STALE_TIMESTAMP
+        assert result["stale_warning_timestamp"] == FAR_FUTURE_STALE_TIMESTAMP
+        assert result["culled_timestamp"] == FAR_FUTURE_STALE_TIMESTAMP
 
 
 class TestRhsmConduitHostModel:
@@ -224,12 +221,11 @@ class TestRhsmConduitSerialization:
         st = staleness_timestamps()
 
         result = _serialize_per_reporter_staleness(host, staleness, st)
-        far_future = FAR_FUTURE_STALE_TIMESTAMP
 
         rhsm_data = result["rhsm-system-profile-bridge"]
-        assert datetime.fromisoformat(rhsm_data["stale_timestamp"]) == far_future
-        assert datetime.fromisoformat(rhsm_data["stale_warning_timestamp"]) == far_future
-        assert datetime.fromisoformat(rhsm_data["culled_timestamp"]) == far_future
+        assert datetime.fromisoformat(rhsm_data["stale_timestamp"]) == FAR_FUTURE_STALE_TIMESTAMP
+        assert datetime.fromisoformat(rhsm_data["stale_warning_timestamp"]) == FAR_FUTURE_STALE_TIMESTAMP
+        assert datetime.fromisoformat(rhsm_data["culled_timestamp"]) == FAR_FUTURE_STALE_TIMESTAMP
 
     def test_serialize_per_reporter_staleness_normal_host(self):
         """Test that per-reporter staleness serialization uses normal timestamps for regular hosts."""
@@ -247,13 +243,12 @@ class TestRhsmConduitSerialization:
         st = staleness_timestamps()
 
         result = _serialize_per_reporter_staleness(host, staleness, st)
-        far_future = FAR_FUTURE_STALE_TIMESTAMP
 
         puptoo_data = result["puptoo"]
         # Should NOT have far-future timestamps
-        assert datetime.fromisoformat(puptoo_data["stale_timestamp"]) != far_future
-        assert datetime.fromisoformat(puptoo_data["stale_warning_timestamp"]) != far_future
-        assert datetime.fromisoformat(puptoo_data["culled_timestamp"]) != far_future
+        assert datetime.fromisoformat(puptoo_data["stale_timestamp"]) != FAR_FUTURE_STALE_TIMESTAMP
+        assert datetime.fromisoformat(puptoo_data["stale_warning_timestamp"]) != FAR_FUTURE_STALE_TIMESTAMP
+        assert datetime.fromisoformat(puptoo_data["culled_timestamp"]) != FAR_FUTURE_STALE_TIMESTAMP
 
 
 @pytest.mark.parametrize("reporter", ["rhsm-system-profile-bridge"])

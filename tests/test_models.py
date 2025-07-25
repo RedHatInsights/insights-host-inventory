@@ -1429,20 +1429,17 @@ def test_create_host_rhsm_conduit_only_sets_far_future_timestamps(mocker, db_cre
         )
         created_host = db_create_host(host=input_host)
 
-        # Host should have far-future timestamps since it only has rhsm-system-profile-bridge
-        far_future = FAR_FUTURE_STALE_TIMESTAMP
-
         # Check that main staleness timestamps are set to far future
-        assert created_host.stale_timestamp == far_future
-        assert created_host.stale_warning_timestamp == far_future
-        assert created_host.deletion_timestamp == far_future
+        assert created_host.stale_timestamp == FAR_FUTURE_STALE_TIMESTAMP
+        assert created_host.stale_warning_timestamp == FAR_FUTURE_STALE_TIMESTAMP
+        assert created_host.deletion_timestamp == FAR_FUTURE_STALE_TIMESTAMP
 
         # Check per_reporter_staleness
         assert "rhsm-system-profile-bridge" in created_host.per_reporter_staleness
         prs = created_host.per_reporter_staleness["rhsm-system-profile-bridge"]
-        assert prs["stale_timestamp"] == far_future.isoformat()
-        assert prs["stale_warning_timestamp"] == far_future.isoformat()
-        assert prs["culled_timestamp"] == far_future.isoformat()
+        assert prs["stale_timestamp"] == FAR_FUTURE_STALE_TIMESTAMP.isoformat()
+        assert prs["stale_warning_timestamp"] == FAR_FUTURE_STALE_TIMESTAMP.isoformat()
+        assert prs["culled_timestamp"] == FAR_FUTURE_STALE_TIMESTAMP.isoformat()
 
 
 def test_host_with_rhsm_conduit_and_other_reporters_normal_behavior(mocker, db_create_host, models_datetime_mock):
@@ -1473,14 +1470,12 @@ def test_host_with_rhsm_conduit_and_other_reporters_normal_behavior(mocker, db_c
 
         created_host.save()
 
-        far_future = FAR_FUTURE_STALE_TIMESTAMP
-
         # Should NOT have far-future timestamps since it has multiple reporters
-        assert created_host.stale_timestamp != far_future
+        assert created_host.stale_timestamp != FAR_FUTURE_STALE_TIMESTAMP
 
         # Update per_reporter_staleness for rhsm-system-profile-bridge - should behave normally
         created_host._update_per_reporter_staleness("rhsm-system-profile-bridge")
 
         # Should still not have far-future timestamps
         prs = created_host.per_reporter_staleness["rhsm-system-profile-bridge"]
-        assert datetime.fromisoformat(prs["stale_timestamp"]) != far_future
+        assert datetime.fromisoformat(prs["stale_timestamp"]) != FAR_FUTURE_STALE_TIMESTAMP

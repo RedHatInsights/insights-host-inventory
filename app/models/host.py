@@ -383,12 +383,10 @@ class Host(LimitedHost):
 
         # For hosts that should stay fresh forever, set far-future timestamps
         if should_host_stay_fresh_forever(self):
-            far_future = FAR_FUTURE_STALE_TIMESTAMP
-
             self.per_reporter_staleness[reporter].update(
-                stale_timestamp=far_future.isoformat(),
-                culled_timestamp=far_future.isoformat(),
-                stale_warning_timestamp=far_future.isoformat(),
+                stale_timestamp=FAR_FUTURE_STALE_TIMESTAMP.isoformat(),
+                culled_timestamp=FAR_FUTURE_STALE_TIMESTAMP.isoformat(),
+                stale_warning_timestamp=FAR_FUTURE_STALE_TIMESTAMP.isoformat(),
                 last_check_in=self.last_check_in.isoformat(),
                 check_in_succeeded=True,
             )
