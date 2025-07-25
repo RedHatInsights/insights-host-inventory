@@ -22,7 +22,7 @@ from app.models import InputGroupSchema
 from app.models import LimitedHost
 from app.models import _create_staleness_timestamps_values
 from app.models import db
-from app.models.constants import EDGE_HOST_STALE_TIMESTAMP
+from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 from app.staleness_serialization import get_staleness_timestamps
 from app.staleness_serialization import get_sys_default_staleness
 from app.utils import Tag
@@ -1430,7 +1430,7 @@ def test_create_host_rhsm_conduit_only_sets_far_future_timestamps(mocker, db_cre
         created_host = db_create_host(host=input_host)
 
         # Host should have far-future timestamps since it only has rhsm-system-profile-bridge
-        far_future = EDGE_HOST_STALE_TIMESTAMP
+        far_future = FAR_FUTURE_STALE_TIMESTAMP
 
         # Check that main staleness timestamps are set to far future
         assert created_host.stale_timestamp == far_future
@@ -1473,7 +1473,7 @@ def test_host_with_rhsm_conduit_and_other_reporters_normal_behavior(mocker, db_c
 
         created_host.save()
 
-        far_future = EDGE_HOST_STALE_TIMESTAMP
+        far_future = FAR_FUTURE_STALE_TIMESTAMP
 
         # Should NOT have far-future timestamps since it has multiple reporters
         assert created_host.stale_timestamp != far_future

@@ -10,7 +10,7 @@ import pytest
 
 from api.host_query import staleness_timestamps
 from app.models import Host
-from app.models.constants import EDGE_HOST_STALE_TIMESTAMP
+from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 from app.models.host import should_host_stay_fresh_forever
 from app.serialization import _serialize_per_reporter_staleness
 from app.staleness_serialization import get_reporter_staleness_timestamps
@@ -91,7 +91,7 @@ class TestRhsmConduitStalenessTimestamps:
         staleness = get_sys_default_staleness()
 
         result = get_staleness_timestamps(host, st, staleness)
-        far_future = EDGE_HOST_STALE_TIMESTAMP
+        far_future = FAR_FUTURE_STALE_TIMESTAMP
 
         assert result["stale_timestamp"] == far_future
         assert result["stale_warning_timestamp"] == far_future
@@ -115,7 +115,7 @@ class TestRhsmConduitStalenessTimestamps:
         staleness = get_sys_default_staleness()
 
         result = get_staleness_timestamps(host, st, staleness)
-        far_future = EDGE_HOST_STALE_TIMESTAMP
+        far_future = FAR_FUTURE_STALE_TIMESTAMP
 
         # These should NOT be far future timestamps
         assert result["stale_timestamp"] != far_future
@@ -143,7 +143,7 @@ class TestRhsmConduitStalenessTimestamps:
         staleness = get_sys_default_staleness()
 
         result = get_reporter_staleness_timestamps(host, st, staleness, "rhsm-system-profile-bridge")
-        far_future = EDGE_HOST_STALE_TIMESTAMP
+        far_future = FAR_FUTURE_STALE_TIMESTAMP
 
         assert result["stale_timestamp"] == far_future
         assert result["stale_warning_timestamp"] == far_future
@@ -224,7 +224,7 @@ class TestRhsmConduitSerialization:
         st = staleness_timestamps()
 
         result = _serialize_per_reporter_staleness(host, staleness, st)
-        far_future = EDGE_HOST_STALE_TIMESTAMP
+        far_future = FAR_FUTURE_STALE_TIMESTAMP
 
         rhsm_data = result["rhsm-system-profile-bridge"]
         assert datetime.fromisoformat(rhsm_data["stale_timestamp"]) == far_future
@@ -247,7 +247,7 @@ class TestRhsmConduitSerialization:
         st = staleness_timestamps()
 
         result = _serialize_per_reporter_staleness(host, staleness, st)
-        far_future = EDGE_HOST_STALE_TIMESTAMP
+        far_future = FAR_FUTURE_STALE_TIMESTAMP
 
         puptoo_data = result["puptoo"]
         # Should NOT have far-future timestamps
