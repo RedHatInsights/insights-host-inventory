@@ -475,16 +475,12 @@ def test_host_reaper_excludes_rhsm_conduit_only_hosts(
             application=flask_app,
         )
 
-    # Check that the rhsm-system-profile-bridge-only host still exists
+    # Check that both hosts still exist
     rhsm_host_still_exists = db.session.get(Host, [created_rhsm_host.id, USER_IDENTITY["org_id"]])
     normal_host_still_exists = db.session.get(Host, [created_normal_host.id, USER_IDENTITY["org_id"]])
 
-    # rhsm-system-profile-bridge-only host should still exist (not deleted)
     assert rhsm_host_still_exists is not None
     assert normal_host_still_exists is not None
-
-    # Normal host should have been deleted (depending on test setup)
-    # Note: This assertion might need adjustment based on test fixture behavior
 
 
 @pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
