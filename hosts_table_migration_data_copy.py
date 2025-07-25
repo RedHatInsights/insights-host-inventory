@@ -61,15 +61,6 @@ This script should only be run during a planned maintenance window.
 """
 
 
-def truncate_new_tables(session: Session, logger: Logger):
-    """Truncates the target tables to ensure they are empty before copying."""
-    logger.warning("Truncating hosts_new and hosts_groups_new tables...")
-    session.execute(text(f"TRUNCATE TABLE {INVENTORY_SCHEMA}.hosts_new CASCADE;"))
-    session.execute(text(f"TRUNCATE TABLE {INVENTORY_SCHEMA}.hosts_groups_new CASCADE;"))
-    session.commit()
-    logger.info("Target tables have been truncated.")
-
-
 def update_bios_uuid_column_type(session: Session, logger: Logger):
     """
     Alters the bios_uuid column in hosts_new to VARCHAR(255).
@@ -280,7 +271,6 @@ def run(logger: Logger, session: Session, application: FlaskApp):
     """Main execution function."""
     try:
         with application.app.app_context():
-            truncate_new_tables(session, logger)
             update_bios_uuid_column_type(session, logger)
             update_per_reporter_staleness_default(session, logger)
             drop_indexes(session, logger)
