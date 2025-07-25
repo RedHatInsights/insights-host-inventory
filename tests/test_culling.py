@@ -1,5 +1,6 @@
 from datetime import datetime
 from datetime import timedelta
+from datetime import timezone
 from unittest import mock
 from unittest.mock import patch
 
@@ -8,8 +9,11 @@ import pytz
 from confluent_kafka import KafkaException
 
 from app.logging import threadctx
+from app.models import Host
 from app.models import db
+from app.models.host import should_host_stay_fresh_forever
 from host_reaper import run as host_reaper_run
+from lib.handlers import ShutdownHandler
 from tests.helpers.api_utils import build_facts_url
 from tests.helpers.api_utils import build_host_tags_url
 from tests.helpers.api_utils import build_hosts_url
@@ -18,6 +22,8 @@ from tests.helpers.api_utils import build_tags_count_url
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.mq_utils import assert_delete_event_is_valid
 from tests.helpers.mq_utils import assert_delete_notification_is_valid
+from tests.helpers.test_utils import USER_IDENTITY
+from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import get_staleness_timestamps
 
 
@@ -403,17 +409,15 @@ def test_reaper_stops_after_kafka_producer_error(
         assert notification_event_producer._kafka_producer.produce.call_count == 1
 
 
+@pytest.mark.host_reaper
 def test_host_reaper_excludes_rhsm_conduit_only_hosts(
     db_create_host, event_producer_mock, notification_event_producer_mock, inventory_config, flask_app
 ):
     """Test that the host reaper excludes hosts with only rhsm-system-profile-bridge reporter from deletion."""
-    from datetime import datetime
-    from datetime import timedelta
     from datetime import timezone
 
     from app.models import Host
     from host_reaper import run as host_reaper_run
-    from lib.handlers import ShutdownHandler
     from tests.helpers.test_utils import USER_IDENTITY
     from tests.helpers.test_utils import generate_uuid
 
@@ -492,13 +496,6 @@ def test_host_reaper_excludes_rhsm_conduit_only_hosts(
 @pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
 def test_host_with_rhsm_conduit_and_other_reporters_can_be_culled(db_create_host):
     """Test that hosts with rhsm-system-profile-bridge AND other reporters can still be culled normally."""
-    from datetime import datetime
-    from datetime import timedelta
-    from datetime import timezone
-
-    from app.models import Host
-    from tests.helpers.test_utils import USER_IDENTITY
-    from tests.helpers.test_utils import generate_uuid
 
     # Create a host with rhsm-system-profile-bridge AND other reporters
     past_time = datetime.now(timezone.utc) - timedelta(days=30)
@@ -548,14 +545,6 @@ def test_host_with_rhsm_conduit_and_other_reporters_can_be_culled(db_create_host
 )
 def test_host_reaper_filter_logic_parametrized(reporters):
     """Parametrized test for host reaper filter logic."""
-    from datetime import datetime
-    from datetime import timezone
-
-    from app.models import Host
-    from app.models.host import should_host_stay_fresh_forever
-    from tests.helpers.test_utils import USER_IDENTITY
-    from tests.helpers.test_utils import generate_uuid
-
     host = Host(
         canonical_facts={"subscription_manager_id": generate_uuid()},
         display_name="test-host",

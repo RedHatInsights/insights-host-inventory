@@ -22,7 +22,7 @@ from app.config import ID_FACTS
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import get_logger
-from app.models.constants import EDGE_HOST_STALE_TIMESTAMP
+from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 from app.models.constants import INVENTORY_SCHEMA
 from app.models.constants import NEW_TO_OLD_REPORTER_MAP
 from app.models.database import db
@@ -343,7 +343,7 @@ class Host(LimitedHost):
         if (
             self.system_profile_facts and self.system_profile_facts.get("host_type") == "edge"
         ) or should_host_stay_fresh_forever(self):
-            self.stale_timestamp = EDGE_HOST_STALE_TIMESTAMP
+            self.stale_timestamp = FAR_FUTURE_STALE_TIMESTAMP
         else:
             self.stale_timestamp = stale_timestamp
 
@@ -381,22 +381,15 @@ class Host(LimitedHost):
         if old_reporter := NEW_TO_OLD_REPORTER_MAP.get(reporter):
             self.per_reporter_staleness.pop(old_reporter, None)
 
-        # For hosts that should stay fresh forever, set far-future timestamps and don't update last_check_in
+        # For hosts that should stay fresh forever, set far-future timestamps
         if should_host_stay_fresh_forever(self):
-            far_future = EDGE_HOST_STALE_TIMESTAMP
-
-            # Keep the existing last_check_in if it exists, otherwise use current time
-            existing_last_check_in = (
-                self.per_reporter_staleness[reporter].get("last_check_in")
-                if self.per_reporter_staleness.get(reporter)
-                else self.last_check_in.isoformat()
-            )
+            far_future = FAR_FUTURE_STALE_TIMESTAMP
 
             self.per_reporter_staleness[reporter].update(
                 stale_timestamp=far_future.isoformat(),
                 culled_timestamp=far_future.isoformat(),
                 stale_warning_timestamp=far_future.isoformat(),
-                last_check_in=existing_last_check_in,
+                last_check_in=self.last_check_in.isoformat(),
                 check_in_succeeded=True,
             )
         elif get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS):
