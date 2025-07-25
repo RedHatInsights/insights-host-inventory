@@ -1,5 +1,6 @@
 from datetime import datetime
 from datetime import timedelta
+from datetime import timezone
 from unittest import mock
 from unittest.mock import patch
 
@@ -8,8 +9,11 @@ import pytz
 from confluent_kafka import KafkaException
 
 from app.logging import threadctx
+from app.models import Host
 from app.models import db
+from app.models.host import should_host_stay_fresh_forever
 from host_reaper import run as host_reaper_run
+from lib.handlers import ShutdownHandler
 from tests.helpers.api_utils import build_facts_url
 from tests.helpers.api_utils import build_host_tags_url
 from tests.helpers.api_utils import build_hosts_url
@@ -18,6 +22,8 @@ from tests.helpers.api_utils import build_tags_count_url
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.mq_utils import assert_delete_event_is_valid
 from tests.helpers.mq_utils import assert_delete_notification_is_valid
+from tests.helpers.test_utils import USER_IDENTITY
+from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import get_staleness_timestamps
 
 
@@ -401,3 +407,152 @@ def test_reaper_stops_after_kafka_producer_error(
         assert remaining_hosts.count() == 2
         assert event_producer._kafka_producer.produce.call_count == 2
         assert notification_event_producer._kafka_producer.produce.call_count == 1
+
+
+@pytest.mark.host_reaper
+def test_host_reaper_excludes_rhsm_conduit_only_hosts(
+    db_create_host, event_producer_mock, notification_event_producer_mock, inventory_config, flask_app
+):
+    """Test that the host reaper excludes hosts with only rhsm-system-profile-bridge reporter from deletion."""
+
+    # Create a host with only rhsm-system-profile-bridge reporter that should be culled based on timestamp
+    # but should be excluded from deletion
+    past_time = datetime.now(timezone.utc) - timedelta(days=30)  # Way past culling time
+
+    rhsm_conduit_host = Host(
+        canonical_facts={"subscription_manager_id": generate_uuid()},
+        display_name="rhsm-system-profile-bridge-only-host",
+        reporter="rhsm-system-profile-bridge",
+        stale_timestamp=past_time,
+        org_id=USER_IDENTITY["org_id"],
+    )
+    rhsm_conduit_host.stale_warning_timestamp = past_time
+    rhsm_conduit_host.deletion_timestamp = past_time  # Should be culled
+    rhsm_conduit_host.per_reporter_staleness = {
+        "rhsm-system-profile-bridge": {
+            "last_check_in": past_time.isoformat(),
+            "stale_timestamp": past_time.isoformat(),
+            "stale_warning_timestamp": past_time.isoformat(),
+            "culled_timestamp": past_time.isoformat(),
+            "check_in_succeeded": True,
+        }
+    }
+
+    # Create a normal host that should be culled
+    normal_host = Host(
+        canonical_facts={"subscription_manager_id": generate_uuid()},
+        display_name="normal-host",
+        reporter="puptoo",
+        stale_timestamp=past_time,
+        org_id=USER_IDENTITY["org_id"],
+    )
+    normal_host.stale_warning_timestamp = past_time
+    normal_host.deletion_timestamp = past_time
+    normal_host.per_reporter_staleness = {
+        "puptoo": {
+            "last_check_in": past_time.isoformat(),
+            "stale_timestamp": past_time.isoformat(),
+            "stale_warning_timestamp": past_time.isoformat(),
+            "culled_timestamp": past_time.isoformat(),
+            "check_in_succeeded": True,
+        }
+    }
+
+    created_rhsm_host = db_create_host(host=rhsm_conduit_host)
+    created_normal_host = db_create_host(host=normal_host)
+
+    # Run the host reaper
+    shutdown_handler = ShutdownHandler()
+
+    with flask_app.app.app_context():
+        host_reaper_run(
+            config=inventory_config,
+            logger=mock.Mock(),
+            session=db.session,
+            event_producer=event_producer_mock,
+            notification_event_producer=notification_event_producer_mock,
+            shutdown_handler=shutdown_handler,
+            application=flask_app,
+        )
+
+    # Check that both hosts still exist
+    rhsm_host_still_exists = db.session.get(Host, [created_rhsm_host.id, USER_IDENTITY["org_id"]])
+    normal_host_still_exists = db.session.get(Host, [created_normal_host.id, USER_IDENTITY["org_id"]])
+
+    assert rhsm_host_still_exists is not None
+    assert normal_host_still_exists is not None
+
+
+@pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
+def test_host_with_rhsm_conduit_and_other_reporters_can_be_culled(db_create_host):
+    """Test that hosts with rhsm-system-profile-bridge AND other reporters can still be culled normally."""
+
+    # Create a host with rhsm-system-profile-bridge AND other reporters
+    past_time = datetime.now(timezone.utc) - timedelta(days=30)
+
+    mixed_reporter_host = Host(
+        canonical_facts={"subscription_manager_id": generate_uuid()},
+        display_name="mixed-reporter-host",
+        reporter="rhsm-system-profile-bridge",
+        stale_timestamp=past_time,
+        org_id=USER_IDENTITY["org_id"],
+    )
+    mixed_reporter_host.stale_warning_timestamp = past_time
+    mixed_reporter_host.deletion_timestamp = past_time
+    mixed_reporter_host.per_reporter_staleness = {
+        "rhsm-system-profile-bridge": {
+            "last_check_in": past_time.isoformat(),
+            "stale_timestamp": past_time.isoformat(),
+            "stale_warning_timestamp": past_time.isoformat(),
+            "culled_timestamp": past_time.isoformat(),
+            "check_in_succeeded": True,
+        },
+        "puptoo": {
+            "last_check_in": past_time.isoformat(),
+            "stale_timestamp": past_time.isoformat(),
+            "stale_warning_timestamp": past_time.isoformat(),
+            "culled_timestamp": past_time.isoformat(),
+            "check_in_succeeded": True,
+        },
+    }
+
+    created_mixed_host = db_create_host(host=mixed_reporter_host)
+
+    # This host should be eligible for deletion since it has multiple reporters
+    assert should_host_stay_fresh_forever(created_mixed_host) is False
+
+
+@pytest.mark.parametrize(
+    "reporters",
+    [
+        ["rhsm-system-profile-bridge"],  # Should be excluded
+        ["rhsm-system-profile-bridge", "puptoo"],  # Should NOT be excluded
+        ["rhsm-system-profile-bridge", "cloud-connector", "yuptoo"],  # Should NOT be excluded
+        ["puptoo"],  # Should NOT be excluded
+    ],
+)
+def test_host_reaper_filter_logic_parametrized(reporters):
+    """Parametrized test for host reaper filter logic."""
+    host = Host(
+        canonical_facts={"subscription_manager_id": generate_uuid()},
+        display_name="test-host",
+        reporter=reporters[0],
+        stale_timestamp=datetime.now(timezone.utc),
+        org_id=USER_IDENTITY["org_id"],
+    )
+
+    per_reporter_staleness = {
+        reporter: {
+            "last_check_in": datetime.now(timezone.utc).isoformat(),
+            "stale_timestamp": datetime.now(timezone.utc).isoformat(),
+            "check_in_succeeded": True,
+        }
+        for reporter in reporters
+    }
+    host.per_reporter_staleness = per_reporter_staleness
+
+    # Only hosts with ONLY rhsm-system-profile-bridge should stay fresh forever
+    if len(reporters) == 1 and reporters[0] == "rhsm-system-profile-bridge":
+        assert should_host_stay_fresh_forever(host) is True
+    else:
+        assert should_host_stay_fresh_forever(host) is False

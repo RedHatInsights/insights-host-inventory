@@ -19,6 +19,7 @@ from app.models import Host
 from app.models import HostSchema
 from app.models import LimitedHost
 from app.models import LimitedHostSchema
+from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 from app.staleness_serialization import get_staleness_timestamps
 from app.utils import Tag
 from lib.feature_flags import FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS
@@ -418,8 +419,15 @@ def serialize_staleness_to_dict(staleness_obj) -> dict:
 
 
 def _serialize_per_reporter_staleness(host, staleness, staleness_timestamps):
+    from app.models.host import should_host_stay_fresh_forever
+
     for reporter in host.per_reporter_staleness:
-        if host.host_type == "edge" or (
+        # For hosts that should stay fresh forever, use far-future timestamps
+        if should_host_stay_fresh_forever(host):
+            stale_timestamp = FAR_FUTURE_STALE_TIMESTAMP
+            stale_warning_timestamp = FAR_FUTURE_STALE_TIMESTAMP
+            delete_timestamp = FAR_FUTURE_STALE_TIMESTAMP
+        elif host.host_type == "edge" or (
             hasattr(host, "system_profile_facts")
             and host.system_profile_facts
             and host.system_profile_facts.get("host_type") == "edge"
