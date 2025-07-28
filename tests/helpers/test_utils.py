@@ -327,3 +327,26 @@ class MockResponseObject:
 
     def __next__(self):
         return self
+
+
+def get_sample_profile_data(org_id, host_id):
+    """Returns a dictionary of sample data for creating a dynamic profile."""
+    current_time = datetime.now(timezone.utc)
+    return {
+        "org_id": org_id,
+        "host_id": host_id,
+        "captured_date": current_time,
+        "running_processes": ["sshd", "crond", "systemd"],
+        "last_boot_time": current_time - timedelta(days=7),
+        "installed_packages": ["kernel-5.14.0", "python3-3.9.7", "openssl-1.1.1k"],
+        "network_interfaces": [
+            {"name": "eth0", "ipv4_addresses": ["192.168.1.10"], "state": "UP"},
+            {"name": "lo", "ipv4_addresses": ["127.0.0.1"], "state": "UNKNOWN"},
+        ],
+        "installed_products": [{"name": "Red Hat Enterprise Linux", "id": "RHEL-8"}],
+        "cpu_flags": ["fpu", "vme", "de", "pse", "tsc"],
+        "insights_egg_version": "2.1.3",
+        "kernel_modules": ["ext4", "xfs", "btrfs", "i915"],
+        "system_memory_bytes": 1024,
+        "systemd": {"services_enabled": 52, "services_disabled": 11, "sockets": 15},
+    }
