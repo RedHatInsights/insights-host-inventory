@@ -13,7 +13,6 @@ from app.models import Host
 from app.models import db
 from app.models.host import should_host_stay_fresh_forever
 from host_reaper import run as host_reaper_run
-from lib.handlers import ShutdownHandler
 from tests.helpers.api_utils import build_facts_url
 from tests.helpers.api_utils import build_host_tags_url
 from tests.helpers.api_utils import build_hosts_url
@@ -149,6 +148,13 @@ def test_system_profile_doesnt_use_staleness_parameter(mq_create_hosts_in_all_st
     "is_host_grouped",
     (True, False),
 )
+@pytest.mark.parametrize(
+    "reporter,should_be_removed",
+    (
+        ("puptoo", True),
+        ("rhsm-system-profile-bridge", False),
+    ),
+)
 def test_culled_host_is_removed(
     flask_app,
     event_producer_mock,
@@ -160,6 +166,8 @@ def test_culled_host_is_removed(
     db_create_host_group_assoc,
     inventory_config,
     is_host_grouped,
+    reporter,
+    should_be_removed,
 ):
     with patch("app.models.utils.datetime") as mock_datetime:
         mock_datetime.now.return_value = datetime(
@@ -169,7 +177,7 @@ def test_culled_host_is_removed(
 
         staleness_timestamps = get_staleness_timestamps()
 
-        host = minimal_db_host(stale_timestamp=staleness_timestamps["culled"], reporter="some reporter")
+        host = minimal_db_host(stale_timestamp=staleness_timestamps["culled"], reporter=reporter)
         created_host = db_create_host(host=host)
 
         if is_host_grouped:
@@ -189,18 +197,21 @@ def test_culled_host_is_removed(
             application=flask_app,
         )
 
-        assert not db_get_host(created_host.id)
-
-        assert_delete_event_is_valid(
-            event_producer=event_producer_mock,
-            host=created_host,
-            timestamp=event_datetime_mock,
-            identity=None,
-        )
-
-        assert_delete_notification_is_valid(
-            notification_event_producer=notification_event_producer_mock, host=created_host
-        )
+        if should_be_removed:
+            assert not db_get_host(created_host.id)
+            assert_delete_event_is_valid(
+                event_producer=event_producer_mock,
+                host=created_host,
+                timestamp=event_datetime_mock,
+                identity=None,
+            )
+            assert_delete_notification_is_valid(
+                notification_event_producer=notification_event_producer_mock, host=created_host
+            )
+        else:
+            assert db_get_host(created_host.id)
+            assert event_producer_mock.event is None
+            assert notification_event_producer_mock.event is None
 
 
 @pytest.mark.host_reaper
@@ -286,7 +297,7 @@ def test_reaper_shutdown_handler(
 
         host_count = 3
         for _ in range(host_count):
-            host_data = minimal_db_host(stale_timestamp=staleness_timestamps["culled"], reporter="some reporter")
+            host_data = minimal_db_host(stale_timestamp=staleness_timestamps["culled"], reporter="puptoo")
             created_host = db_create_host(host=host_data)
             created_host_ids.append(created_host.id)
 
@@ -382,7 +393,7 @@ def test_reaper_stops_after_kafka_producer_error(
 
         host_count = 3
         created_hosts = db_create_multiple_hosts(
-            how_many=host_count, extra_data={"stale_timestamp": staleness_timestamps["culled"]}
+            how_many=host_count, extra_data={"stale_timestamp": staleness_timestamps["culled"], "reporter": "puptoo"}
         )
         created_host_ids = [str(host.id) for host in created_hosts]
 
@@ -407,80 +418,6 @@ def test_reaper_stops_after_kafka_producer_error(
         assert remaining_hosts.count() == 2
         assert event_producer._kafka_producer.produce.call_count == 2
         assert notification_event_producer._kafka_producer.produce.call_count == 1
-
-
-@pytest.mark.host_reaper
-def test_host_reaper_excludes_rhsm_conduit_only_hosts(
-    db_create_host, event_producer_mock, notification_event_producer_mock, inventory_config, flask_app
-):
-    """Test that the host reaper excludes hosts with only rhsm-system-profile-bridge reporter from deletion."""
-
-    # Create a host with only rhsm-system-profile-bridge reporter that should be culled based on timestamp
-    # but should be excluded from deletion
-    past_time = datetime.now(timezone.utc) - timedelta(days=30)  # Way past culling time
-
-    rhsm_conduit_host = Host(
-        canonical_facts={"subscription_manager_id": generate_uuid()},
-        display_name="rhsm-system-profile-bridge-only-host",
-        reporter="rhsm-system-profile-bridge",
-        stale_timestamp=past_time,
-        org_id=USER_IDENTITY["org_id"],
-    )
-    rhsm_conduit_host.stale_warning_timestamp = past_time
-    rhsm_conduit_host.deletion_timestamp = past_time  # Should be culled
-    rhsm_conduit_host.per_reporter_staleness = {
-        "rhsm-system-profile-bridge": {
-            "last_check_in": past_time.isoformat(),
-            "stale_timestamp": past_time.isoformat(),
-            "stale_warning_timestamp": past_time.isoformat(),
-            "culled_timestamp": past_time.isoformat(),
-            "check_in_succeeded": True,
-        }
-    }
-
-    # Create a normal host that should be culled
-    normal_host = Host(
-        canonical_facts={"subscription_manager_id": generate_uuid()},
-        display_name="normal-host",
-        reporter="puptoo",
-        stale_timestamp=past_time,
-        org_id=USER_IDENTITY["org_id"],
-    )
-    normal_host.stale_warning_timestamp = past_time
-    normal_host.deletion_timestamp = past_time
-    normal_host.per_reporter_staleness = {
-        "puptoo": {
-            "last_check_in": past_time.isoformat(),
-            "stale_timestamp": past_time.isoformat(),
-            "stale_warning_timestamp": past_time.isoformat(),
-            "culled_timestamp": past_time.isoformat(),
-            "check_in_succeeded": True,
-        }
-    }
-
-    created_rhsm_host = db_create_host(host=rhsm_conduit_host)
-    created_normal_host = db_create_host(host=normal_host)
-
-    # Run the host reaper
-    shutdown_handler = ShutdownHandler()
-
-    with flask_app.app.app_context():
-        host_reaper_run(
-            config=inventory_config,
-            logger=mock.Mock(),
-            session=db.session,
-            event_producer=event_producer_mock,
-            notification_event_producer=notification_event_producer_mock,
-            shutdown_handler=shutdown_handler,
-            application=flask_app,
-        )
-
-    # Check that both hosts still exist
-    rhsm_host_still_exists = db.session.get(Host, [created_rhsm_host.id, USER_IDENTITY["org_id"]])
-    normal_host_still_exists = db.session.get(Host, [created_normal_host.id, USER_IDENTITY["org_id"]])
-
-    assert rhsm_host_still_exists is not None
-    assert normal_host_still_exists is not None
 
 
 @pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")

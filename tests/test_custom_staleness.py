@@ -73,10 +73,10 @@ def test_delete_only_immutable_hosts(
     with patch("app.models.utils.datetime") as mock_datetime:
         mock_datetime.now.return_value = datetime.now() - timedelta(minutes=1)
         immutable_hosts = db_create_multiple_hosts(
-            how_many=2, extra_data={"system_profile_facts": {"host_type": "edge"}}
+            how_many=2, extra_data={"system_profile_facts": {"host_type": "edge"}, "reporter": "puptoo"}
         )
         immutable_hosts = [host.id for host in immutable_hosts]
-        conventional_hosts = db_create_multiple_hosts(how_many=2)
+        conventional_hosts = db_create_multiple_hosts(how_many=2, extra_data={"reporter": "puptoo"})
         conventional_hosts = [host.id for host in conventional_hosts]
 
     threadctx.request_id = None
@@ -107,10 +107,10 @@ def test_delete_only_conventional_hosts(
     with patch("app.models.utils.datetime") as mock_datetime:
         mock_datetime.now.return_value = datetime.now() - timedelta(minutes=1)
         immutable_hosts = db_create_multiple_hosts(
-            how_many=2, extra_data={"system_profile_facts": {"host_type": "edge"}}
+            how_many=2, extra_data={"system_profile_facts": {"host_type": "edge"}, "reporter": "puptoo"}
         )
         immutable_hosts = [host.id for host in immutable_hosts]
-        conventional_hosts = db_create_multiple_hosts(how_many=2)
+        conventional_hosts = db_create_multiple_hosts(how_many=2, extra_data={"reporter": "puptoo"})
         conventional_hosts = [host.id for host in conventional_hosts]
 
     threadctx.request_id = None
@@ -141,10 +141,10 @@ def test_delete_conventional_immutable_hosts(
     with patch("app.models.utils.datetime") as mock_datetime:
         mock_datetime.now.return_value = datetime.now() - timedelta(minutes=1)
         immutable_hosts = db_create_multiple_hosts(
-            how_many=2, extra_data={"system_profile_facts": {"host_type": "edge"}}
+            how_many=2, extra_data={"system_profile_facts": {"host_type": "edge"}, "reporter": "puptoo"}
         )
         immutable_hosts = [host.id for host in immutable_hosts]
-        conventional_hosts = db_create_multiple_hosts(how_many=2)
+        conventional_hosts = db_create_multiple_hosts(how_many=2, extra_data={"reporter": "puptoo"})
         conventional_hosts = [host.id for host in conventional_hosts]
 
     threadctx.request_id = None
