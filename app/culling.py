@@ -96,3 +96,21 @@ class Conditions:
 def days_to_seconds(n_days: int) -> int:
     factor = 86400
     return n_days * factor
+
+
+def should_host_stay_fresh_forever(host) -> bool:
+    """
+    Check if a host should stay fresh forever (never become stale).
+    Currently applies to hosts that have only "rhsm-system-profile-bridge" as a reporter.
+
+    Args:
+        host: The host object to check
+
+    Returns:
+        bool: True if the host should stay fresh forever, False otherwise
+    """
+    if not hasattr(host, "per_reporter_staleness") or not host.per_reporter_staleness:
+        return host.reporter == "rhsm-system-profile-bridge"
+
+    reporters = list(host.per_reporter_staleness.keys())
+    return len(reporters) == 1 and reporters[0] == "rhsm-system-profile-bridge"

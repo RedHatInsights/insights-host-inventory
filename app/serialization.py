@@ -10,6 +10,7 @@ from app.auth import get_current_identity
 from app.common import inventory_config
 from app.culling import Conditions
 from app.culling import Timestamps
+from app.culling import should_host_stay_fresh_forever
 from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
 from app.logging import get_logger
@@ -419,8 +420,6 @@ def serialize_staleness_to_dict(staleness_obj) -> dict:
 
 
 def _serialize_per_reporter_staleness(host, staleness, staleness_timestamps):
-    from app.models.host import should_host_stay_fresh_forever
-
     for reporter in host.per_reporter_staleness:
         # For hosts that should stay fresh forever, use far-future timestamps
         if should_host_stay_fresh_forever(host):

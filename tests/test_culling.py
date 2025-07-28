@@ -8,10 +8,10 @@ import pytest
 import pytz
 from confluent_kafka import KafkaException
 
+from app.culling import should_host_stay_fresh_forever
 from app.logging import threadctx
 from app.models import Host
 from app.models import db
-from app.models.host import should_host_stay_fresh_forever
 from host_reaper import run as host_reaper_run
 from tests.helpers.api_utils import build_facts_url
 from tests.helpers.api_utils import build_host_tags_url

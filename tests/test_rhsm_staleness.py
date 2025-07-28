@@ -9,9 +9,9 @@ from datetime import timezone
 import pytest
 
 from api.host_query import staleness_timestamps
+from app.culling import should_host_stay_fresh_forever
 from app.models import Host
 from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
-from app.models.host import should_host_stay_fresh_forever
 from app.serialization import _serialize_per_reporter_staleness
 from app.staleness_serialization import get_reporter_staleness_timestamps
 from app.staleness_serialization import get_staleness_timestamps

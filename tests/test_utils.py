@@ -181,8 +181,8 @@ def test_should_host_stay_fresh_forever():
     from datetime import datetime
     from datetime import timezone
 
+    from app.culling import should_host_stay_fresh_forever
     from app.models import Host
-    from app.models.host import should_host_stay_fresh_forever
     from tests.helpers.test_utils import USER_IDENTITY
     from tests.helpers.test_utils import generate_uuid
 
