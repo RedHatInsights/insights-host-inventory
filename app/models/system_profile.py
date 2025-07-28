@@ -1,6 +1,7 @@
 from sqlalchemy import CheckConstraint
 from sqlalchemy import Index
 from sqlalchemy import String
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID
 
@@ -36,12 +37,15 @@ class HostStaticSystemProfile(db.Model):
         host_id,
         **kwargs,
     ):
-        super().__init__(org_id, host_id, **kwargs)
+        super().__init__(**kwargs)
 
         if not org_id:
             raise ValidationException("System org_id cannot be null.")
         if not host_id:
             raise ValidationException("System host_id cannot be null.")
+
+        self.org_id = org_id
+        self.host_id = host_id
 
     org_id = db.Column(db.String(36), nullable=False, primary_key=True)
     host_id = db.Column(db.UUID(as_uuid=True), nullable=False, primary_key=True)
@@ -55,10 +59,10 @@ class HostStaticSystemProfile(db.Model):
     conversions = db.Column(JSONB(astext_type=db.Text()), nullable=True)
     cores_per_socket = db.Column(db.Integer, nullable=True)
     cpu_model = db.Column(db.String(100), nullable=True)
-    disk_devices = db.Column(db.Array(JSONB), nullable=True)
-    dnf_modules = db.Column(db.Array(JSONB), nullable=True)
-    enabled_services = db.Column(db.Array(String(512)), nullable=True)
-    gpg_pubkeys = db.Column(db.Array(String(512)), nullable=True)
+    disk_devices = db.Column(ARRAY(JSONB(astext_type=db.Text())), nullable=True)
+    dnf_modules = db.Column(ARRAY(JSONB(astext_type=db.Text())), nullable=True)
+    enabled_services = db.Column(ARRAY(String(512)), nullable=True)
+    gpg_pubkeys = db.Column(ARRAY(String(512)), nullable=True)
     greenboot_fallback_detected = db.Column(db.Boolean, default=False, nullable=True)
     greenboot_status = db.Column(db.String(5), nullable=True)
     host_type = db.Column(db.String(4), nullable=True)
@@ -66,25 +70,25 @@ class HostStaticSystemProfile(db.Model):
     infrastructure_type = db.Column(db.String(100), nullable=True)
     infrastructure_vendor = db.Column(db.String(100), nullable=True)
     insights_client_version = db.Column(db.String(50), nullable=True)
-    installed_packages_delta = db.Column(db.Array(String(512)), nullable=True)
-    installed_services = db.Column(db.Array(String(512)), nullable=True)
+    installed_packages_delta = db.Column(ARRAY(String(512)), nullable=True)
+    installed_services = db.Column(ARRAY(String(512)), nullable=True)
     intersystems = db.Column(JSONB(astext_type=db.Text()), nullable=True)
     is_marketplace = db.Column(db.Boolean, default=False, nullable=True)
     katello_agent_running = db.Column(db.Boolean, default=False, nullable=True)
     number_of_cpus = db.Column(db.Integer, nullable=True)
     number_of_sockets = db.Column(db.Integer, nullable=True)
     operating_system = db.Column(JSONB(astext_type=db.Text()), nullable=True)
-    os_kernel_version = db.Column(db.String(20), nullable=True)
+    os_kernel_version = db.Column(db.String(50), nullable=True)
     os_release = db.Column(db.String(100), nullable=True)
     owner_id = db.Column(UUID(as_uuid=True), nullable=True)
-    public_dns = db.Column(db.Array(String(100)), nullable=True)
-    public_ipv4_addresses = db.Column(db.Array(String(15)), nullable=True)
+    public_dns = db.Column(ARRAY(String(100)), nullable=True)
+    public_ipv4_addresses = db.Column(ARRAY(String(15)), nullable=True)
     releasever = db.Column(db.String(100), nullable=True)
     rhc_client_id = db.Column(UUID(as_uuid=True), nullable=True)
     rhc_config_state = db.Column(UUID(as_uuid=True), nullable=True)
     rhel_ai = db.Column(JSONB(astext_type=db.Text()), nullable=True)
     rhsm = db.Column(JSONB(astext_type=db.Text()), nullable=True)
-    rpm_ostree_deployments = db.Column(db.Array(JSONB), nullable=True)
+    rpm_ostree_deployments = db.Column(ARRAY(JSONB(astext_type=db.Text())), nullable=True)
     satellite_managed = db.Column(db.Boolean, default=False, nullable=True)
     selinux_config_file = db.Column(db.String(128), nullable=True)
     selinux_current_mode = db.Column(db.String(10), nullable=True)
@@ -97,4 +101,4 @@ class HostStaticSystemProfile(db.Model):
     tuned_profile = db.Column(db.String(256), nullable=True)
     virtual_host_uuid = db.Column(db.String(36), nullable=True)
     workloads = db.Column(JSONB(astext_type=db.Text()), nullable=True)
-    yum_repos = db.Column(db.Array(JSONB), nullable=True)
+    yum_repos = db.Column(ARRAY(JSONB(astext_type=db.Text())), nullable=True)

@@ -6,9 +6,14 @@ Create Date: 2025-07-23 15:59:07.694257
 
 """
 
+import os
+
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy import text
 from sqlalchemy.dialects import postgresql
+
+from app.models.constants import INVENTORY_SCHEMA
 
 # revision identifiers, used by Alembic.
 revision = "30b45455a1d2"
@@ -18,6 +23,9 @@ depends_on = None
 
 
 def upgrade():
+    # Get number of partitions from environment variable
+    sp_tables_num_partitions = int(os.getenv("SP_TABLES_NUM_PARTITIONS", 32))
+
     op.create_table(
         "system_profiles_static",
         # --- PK COLUMNS ---
@@ -80,7 +88,10 @@ def upgrade():
         # --- CONSTRAINTS ---
         sa.PrimaryKeyConstraint("org_id", "host_id", name=op.f("pk_system_profiles_static")),
         sa.ForeignKeyConstraint(
-            ["org_id", "host_id"], ["hbi.hosts.org_id", "hbi.hosts.id"], name=op.f("fk_system_profiles_static_hosts")
+            ["org_id", "host_id"],
+            [f"{INVENTORY_SCHEMA}.hosts.org_id", f"{INVENTORY_SCHEMA}.hosts.id"],
+            name="fk_system_profiles_static_on_hosts",
+            ondelete="CASCADE",
         ),
         sa.CheckConstraint(
             "cores_per_socket >= 0 AND cores_per_socket <= 2147483647", name="cores_per_socket_range_check"
@@ -92,18 +103,22 @@ def upgrade():
         sa.CheckConstraint(
             "threads_per_core >= 0 AND threads_per_core <= 2147483647", name="threads_per_core_range_check"
         ),
-        schema="hbi",
+        schema=INVENTORY_SCHEMA,
         postgresql_partition_by="HASH (org_id)",
     )
 
     # --- PARTITION CREATION ---
     op.execute(
-        """
+        f"""
         DO $$
         BEGIN
-            FOR i IN 0..31 LOOP
-                EXECUTE format('CREATE TABLE hbi.system_profiles_static_p%s PARTITION
-                OF hbi.system_profiles_static FOR VALUES WITH (MODULUS 32, REMAINDER %s);', i, i);
+            FOR i IN 0..({sp_tables_num_partitions}-1) LOOP
+                EXECUTE format(
+                    'CREATE TABLE {INVENTORY_SCHEMA}.system_profiles_static_p%s PARTITION ' ||
+                    'OF {INVENTORY_SCHEMA}.system_profiles_static ' ||
+                    'FOR VALUES WITH (MODULUS {sp_tables_num_partitions}, REMAINDER %s);',
+                    i, i
+                );
             END LOOP;
         END;
         $$;
@@ -113,6 +128,31 @@ def upgrade():
     # --- INDEX CREATION ---
     op.create_index("idx_system_profiles_static_org_id", "system_profiles_static", ["org_id"], schema="hbi")
     op.create_index("idx_system_profiles_static_host_id", "system_profiles_static", ["host_id"], schema="hbi")
+    op.create_index("idx_system_profiles_static_host_type", "system_profiles_static", ["host_type"], schema="hbi")
+    op.create_index(
+        "idx_system_profiles_static_bootc_status", "system_profiles_static", ["bootc_status"], schema="hbi"
+    )
+    op.create_index(
+        "idx_system_profiles_static_rhc_client_id", "system_profiles_static", ["rhc_client_id"], schema="hbi"
+    )
+    op.create_index(
+        "idx_system_profiles_static_system_update_method",
+        "system_profiles_static",
+        ["system_update_method"],
+        schema="hbi",
+    )
+    op.create_index(
+        "idx_system_profiles_static_operating_system_multi",
+        "system_profiles_static",
+        [
+            text("((operating_system ->> 'name'))"),
+            text("((operating_system ->> 'major')::integer)"),
+            text("((operating_system ->> 'minor')::integer)"),
+            "org_id",
+        ],
+        schema=INVENTORY_SCHEMA,
+        postgresql_where=text("operating_system IS NOT NULL"),
+    )
 
 
 def downgrade():
@@ -120,7 +160,12 @@ def downgrade():
     Removes the system_profiles_static table and its partitions.
     """
     # Drop indexes first
-    op.drop_index("idx_system_profiles_static_org_id", "system_profiles_static", schema="hbi")
+    op.drop_index("idx_system_profiles_static_operating_system_multi", "system_profiles_static", schema="hbi")
+    op.drop_index("idx_system_profiles_static_system_update_method", "system_profiles_static", schema="hbi")
+    op.drop_index("idx_system_profiles_static_rhc_client_id", "system_profiles_static", schema="hbi")
+    op.drop_index("idx_system_profiles_static_bootc_status", "system_profiles_static", schema="hbi")
+    op.drop_index("idx_system_profiles_static_host_type", "system_profiles_static", schema="hbi")
     op.drop_index("idx_system_profiles_static_host_id", "system_profiles_static", schema="hbi")
+    op.drop_index("idx_system_profiles_static_org_id", "system_profiles_static", schema="hbi")
 
-    op.drop_table("system_profiles_static", schema="hbi")
+    op.drop_table("system_profiles_static", schema=INVENTORY_SCHEMA)
