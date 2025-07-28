@@ -2301,6 +2301,7 @@ objects:
             "created_on" AS "created_at",
             "modified_on" AS "updated_at"
           FROM "hbi"."groups"
+          WHERE "ungrouped" IS FALSE;
       - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/hosts_count
         query: >-
           SELECT COUNT(*) AS "hosts_count"
@@ -2308,7 +2309,8 @@ objects:
       - prefix: hms_analytics/inventory/${ENV_NAME}/groups_metrics/groups_count
         query: >-
           SELECT COUNT(*) AS "group_counts"
-          FROM "hbi"."groups";
+          FROM "hbi"."groups"
+          WHERE "ungrouped" IS FALSE;
       - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/daily_created_by_reporters
         query: >-
           SELECT
