@@ -32,8 +32,6 @@ from app.queue.event_producer import create_event_producer
 from app.queue.events import EventType
 from app.queue.metrics import event_producer_failure
 from app.queue.metrics import event_producer_success
-from app.queue.metrics import outbox_save_failure
-from app.queue.metrics import outbox_save_success
 from app.queue.metrics import notification_event_producer_failure
 from app.queue.metrics import notification_event_producer_success
 from app.queue.metrics import rbac_access_denied
@@ -101,9 +99,7 @@ def initialize_metrics(config):
     for event_type in EventType:
         event_producer_failure.labels(event_type=event_type.name, topic=event_topic_name)
         event_producer_success.labels(event_type=event_type.name, topic=event_topic_name)
-        outbox_save_success.labels(event_type=event_type.name, aggreate_type="hbi.hosts")
-        outbox_save_failure.labels(event_type=event_type.name, aggreate_type="hbi.hosts")
-        
+
     for notification_type in NotificationType:
         notification_event_producer_failure.labels(
             notification_type=notification_type.name, topic=notification_topic_name

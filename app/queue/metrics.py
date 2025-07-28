@@ -53,12 +53,6 @@ event_producer_success = Counter(
 event_producer_failure = Counter(
     "inventory_event_producer_failures", "Total amount of failures while writing messages", ["event_type", "topic"]
 )
-outbox_save_success = Counter(
-    "inventory_outbox_save_successes", "Total amount of outbox events successfully written", ["event_type", "hbi.hosts"]
-)
-outbox_save_failure = Counter(
-    "inventory_outbox_save_failures", "Total amount of outbox events failured to write", ["event_type", "hbi.hosts"]
-)
 event_serialization_time = Summary(
     "inventory_event_serialization_seconds", "Time spent parsing a message", ["event_type"]
 )

@@ -2,15 +2,15 @@ from confluent_kafka import KafkaError
 from confluent_kafka import KafkaException
 from confluent_kafka import Producer as KafkaProducer
 
+from app.exceptions import OutboxSaveException
 from app.instrumentation import message_not_produced
 from app.instrumentation import message_produced
 from app.logging import get_logger
 from app.queue.metrics import produce_large_message_failure
 from app.queue.metrics import produced_message_size
+from lib.metrics import outbox_save_failure
+from lib.metrics import outbox_save_success
 from lib.outbox_repository import write_event_to_outbox
-from app.exceptions import InventoryException, OutboxSaveException
-from app.queue.metrics import outbox_save_failure
-from app.queue.metrics import outbox_save_success
 
 logger = get_logger(__name__)
 
@@ -88,17 +88,13 @@ class EventProducer:
         # After an even has been produced, write the event to outbox table for syncing with Kessel.
         if write_event_to_outbox(event):
             logger.debug(f"✓ Event written to outbox successfully: {event}")
-            outbox_save_success.labels(event_type=event, aggregate_type="hbi.hosts").inc()
+            outbox_save_success.inc()
         else:
-            # TODO: Since syncing via the outbox is very important, we need more consequences here than just an error log.
-            # We need to raise an exception so that the session committing the upstream change (e.g. a Host record) does a rollback.
-            # We need to increment a metric that tracks the number of outbox save failures.
-            outbox_save_failure.labels(event_type=event, aggregate_type="hbi.hosts").inc()
+            outbox_save_failure.inc()
             logger.error(f"✗ Failed to write event to outbox: {event}")
             raise OutboxSaveException(
                 detail=f"The write event encountered problems when saving to the Outbox table '{event}'",
             )
-
 
     def close(self):
         self._kafka_producer.flush()

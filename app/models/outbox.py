@@ -16,7 +16,7 @@ class Outbox(db.Model):
         aggregate_type,
         aggregate_id,
         event_type,
-        payload
+        payload,
         id=None,
     ):
         self.id = id or uuid.uuid4()

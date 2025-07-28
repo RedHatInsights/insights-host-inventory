@@ -6,9 +6,9 @@ try:
     from app.logging import get_logger
     from app.models.database import db
     from app.models.outbox import Outbox
-    from lib.metrics import outbox_save_success
-    from lib.metrics import outbox_save_failure
     from lib.db import session_guard
+    from lib.metrics import outbox_save_failure
+    from lib.metrics import outbox_save_success
 
     logger = get_logger(__name__)
     FLASK_AVAILABLE = True
@@ -20,10 +20,11 @@ except ImportError as e:
     logger.warning(f"Flask dependencies not available: {e}")
     FLASK_AVAILABLE = False
 
+from sqlalchemy import JSON
 from sqlalchemy.exc import SQLAlchemyError
 
 
-def _create_update_event_payload(event_dict) -> json:
+def _create_update_event_payload(event_dict) -> JSON:
     host = event_dict.get("host", {})
     if not host:
         logger.error("Missing required field 'host' in event data")
@@ -62,7 +63,7 @@ def _create_update_event_payload(event_dict) -> json:
     }
 
 
-def _delete_event_payload(event_dict) -> json:
+def _delete_event_payload(event_dict) -> JSON:
     host = event_dict.get("host", {})
     if not host:
         logger.error("Missing required field 'host' in event data")
@@ -123,7 +124,6 @@ def write_event_to_outbox(event: str) -> bool:
         if not payload:
             logger.error("Failed to create payload for event: %s", event)
             return False
-        
 
         logger.debug("Creating outbox entry: aggregate_id=%s, type=%s", aggregate_id, event_type)
 
@@ -138,7 +138,7 @@ def write_event_to_outbox(event: str) -> bool:
                 )
                 db.session.add(outbox_entry)
                 db.session.flush()  # Ensure it's written before commit
-                outbox_save_success.labels(event_type=event_type, aggregate_type="hbi.hosts").inc()
+                outbox_save_success.inc()
                 logger.debug("Successfully wrote event to outbox: outbox_id=%s", outbox_entry.id)
 
             logger.info("Successfully wrote event to outbox for aggregate_id=%s", aggregate_id)
@@ -147,7 +147,7 @@ def write_event_to_outbox(event: str) -> bool:
         except SQLAlchemyError as db_error:
             logger.error("Database error while writing to outbox: %s", str(db_error))
             logger.error("Event data: %s", event)
-            outbox_save_failure.labels(event_type=event_type, aggregate_type="hbi.hosts").inc()
+            outbox_save_failure.inc()
 
             # Check if it's a table doesn't exist error
             error_str = str(db_error).lower()
