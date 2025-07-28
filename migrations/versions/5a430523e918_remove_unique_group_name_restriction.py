@@ -17,38 +17,40 @@ depends_on = None
 
 
 def upgrade():
-    op.create_index(
-        "idx_groups_org_id_name_ignorecase",
-        "groups",
-        [text("lower(name)"), "org_id"],
-        if_not_exists=True,
-        unique=False,
-        schema="hbi",
-        postgresql_concurrently=False,
-    )
-    op.drop_index(
-        "idx_groups_org_id_name_nocase",
-        table_name="groups",
-        if_exists=True,
-        schema="hbi",
-        postgresql_concurrently=False,
-    )
+    with op.get_context().autocommit_block():
+        op.create_index(
+            "idx_groups_org_id_name_ignorecase",
+            "groups",
+            [text("lower(name)"), "org_id"],
+            if_not_exists=True,
+            unique=False,
+            schema="hbi",
+            postgresql_concurrently=True,
+        )
+        op.drop_index(
+            "idx_groups_org_id_name_nocase",
+            table_name="groups",
+            if_exists=True,
+            schema="hbi",
+            postgresql_concurrently=True,
+        )
 
 
 def downgrade():
-    op.drop_index(
-        "idx_groups_org_id_name_ignorecase",
-        "groups",
-        if_exists=True,
-        schema="hbi",
-        postgresql_concurrently=False,
-    )
-    op.create_index(
-        "idx_groups_org_id_name_nocase",
-        "groups",
-        [text("lower(name)"), "org_id"],
-        if_not_exists=True,
-        unique=True,
-        schema="hbi",
-        postgresql_concurrently=False,
-    )
+    with op.get_context().autocommit_block():
+        op.drop_index(
+            "idx_groups_org_id_name_ignorecase",
+            "groups",
+            if_exists=True,
+            schema="hbi",
+            postgresql_concurrently=True,
+        )
+        op.create_index(
+            "idx_groups_org_id_name_nocase",
+            "groups",
+            [text("lower(name)"), "org_id"],
+            if_not_exists=True,
+            unique=True,
+            schema="hbi",
+            postgresql_concurrently=True,
+        )
