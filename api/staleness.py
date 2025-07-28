@@ -196,8 +196,8 @@ def get_default_staleness(rbac_filter=None):  # noqa: ARG001, 'rbac_filter' is r
 
 
 @api_operation
-@access(KesselResourceTypes.STALENESS.write, writeOperation=True)
-@access(KesselResourceTypes.HOST.write, writeOperation=True)
+@access(KesselResourceTypes.STALENESS.update, writeOperation=True)
+@access(KesselResourceTypes.HOST.update, writeOperation=True)
 @metrics.api_request_time.time()
 def create_staleness(body):
     # Validate account staleness input data
@@ -226,8 +226,8 @@ def create_staleness(body):
 
 
 @api_operation
-@access(KesselResourceTypes.STALENESS.write, writeOperation=True)
-@access(KesselResourceTypes.HOST.write, writeOperation=True)
+@access(KesselResourceTypes.STALENESS.update, writeOperation=True)
+@access(KesselResourceTypes.HOST.update, writeOperation=True)
 @metrics.api_request_time.time()
 def delete_staleness():
     identity = get_current_identity()
@@ -246,8 +246,8 @@ def delete_staleness():
 
 
 @api_operation
-@access(KesselResourceTypes.STALENESS.write, writeOperation=True)
-@access(KesselResourceTypes.HOST.write, writeOperation=True)
+@access(KesselResourceTypes.STALENESS.update, writeOperation=True)
+@access(KesselResourceTypes.HOST.update, writeOperation=True)
 @metrics.api_request_time.time()
 def update_staleness(body):
     # Validate account staleness input data
