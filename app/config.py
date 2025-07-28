@@ -304,15 +304,11 @@ class Config:
             "CONVENTIONAL_TIME_TO_DELETE_SECONDS", days_to_seconds(14)
         )
 
-        self.immutable_time_to_stale_seconds = os.environ.get("IMMUTABLE_TIME_TO_STALE_SECONDS", days_to_seconds(2))
+        self.immutable_time_to_stale_seconds = self.conventional_time_to_stale_seconds
 
-        self.immutable_time_to_stale_warning_seconds = os.environ.get(
-            "IMMUTABLE_TIME_TO_STALE_WARNING_SECONDS", days_to_seconds(180)
-        )
+        self.immutable_time_to_stale_warning_seconds = self.conventional_time_to_stale_warning_seconds
 
-        self.immutable_time_to_delete_seconds = os.environ.get(
-            "IMMUTABLE_TIME_TO_DELETE_SECONDS", days_to_seconds(730)
-        )
+        self.immutable_time_to_delete_seconds = self.conventional_time_to_delete_seconds
 
         self.use_sub_man_id_for_host_id = os.environ.get("USE_SUBMAN_ID", "false").lower() == "true"
         self.host_delete_chunk_size = int(os.getenv("HOST_DELETE_CHUNK_SIZE", "1000"))

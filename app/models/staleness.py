@@ -25,9 +25,9 @@ class Staleness(db.Model):
         conventional_time_to_stale=None,
         conventional_time_to_stale_warning=None,
         conventional_time_to_delete=None,
-        immutable_time_to_stale=None,
-        immutable_time_to_stale_warning=None,
-        immutable_time_to_delete=None,
+        immutable_time_to_stale=None,  # noqa: ARG002
+        immutable_time_to_stale_warning=None,  # noqa: ARG002
+        immutable_time_to_delete=None,  # noqa: ARG002
     ):
         if not org_id:
             raise ValidationException("Staleness org_id cannot be null.")
@@ -36,23 +36,21 @@ class Staleness(db.Model):
         self.conventional_time_to_stale = conventional_time_to_stale
         self.conventional_time_to_stale_warning = conventional_time_to_stale_warning
         self.conventional_time_to_delete = conventional_time_to_delete
-        self.immutable_time_to_stale = immutable_time_to_stale
-        self.immutable_time_to_stale_warning = immutable_time_to_stale_warning
-        self.immutable_time_to_delete = immutable_time_to_delete
+        # immutable settings will sett automaticaly to conventional
+        self.immutable_time_to_stale = self.conventional_time_to_stale
+        self.immutable_time_to_stale_warning = self.conventional_time_to_stale_warning
+        self.immutable_time_to_delete = self.conventional_time_to_delete
 
     def update(self, input_acc):
         if input_acc.conventional_time_to_stale:
             self.conventional_time_to_stale = input_acc.conventional_time_to_stale
+            self.immutable_time_to_stale = self.conventional_time_to_stale
         if input_acc.conventional_time_to_stale_warning:
             self.conventional_time_to_stale_warning = input_acc.conventional_time_to_stale_warning
+            self.immutable_time_to_stale_warning = self.conventional_time_to_stale_warning
         if input_acc.conventional_time_to_delete:
             self.conventional_time_to_delete = input_acc.conventional_time_to_delete
-        if input_acc.immutable_time_to_stale:
-            self.immutable_time_to_stale = input_acc.immutable_time_to_stale
-        if input_acc.immutable_time_to_stale_warning:
-            self.immutable_time_to_stale_warning = input_acc.immutable_time_to_stale_warning
-        if input_acc.immutable_time_to_delete:
-            self.immutable_time_to_delete = input_acc.immutable_time_to_delete
+            self.immutable_time_to_delete = self.conventional_time_to_delete
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     org_id = db.Column(db.String(36), nullable=False)
