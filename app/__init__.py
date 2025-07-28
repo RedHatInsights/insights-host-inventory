@@ -3,6 +3,7 @@ import json
 import os
 from enum import Enum
 from os.path import join
+from typing import Any
 
 import connexion
 import segment.analytics as analytics
@@ -20,6 +21,7 @@ from api.mgmt import monitoring_blueprint
 from api.parsing import customURIParser
 from api.spec import spec_blueprint
 from app import payload_tracker
+from app.auth.identity import Identity
 from app.config import Config
 from app.custom_validator import build_validator_map
 from app.exceptions import InventoryException
@@ -99,6 +101,12 @@ class KesselResourceType:
     v1_type: RbacResourceType
     v1_app: str
 
+    def get_resource_id(self, kwargs: dict[str, Any], id_param: str) -> list[str]:
+        if id_param != "":
+            return kwargs[id_param]
+        else:
+            return []
+
     def __init__(self, namespace: str, name: str, v1_type: RbacResourceType, v1_app: str) -> None:
         self.namespace = namespace
         self.name = name
@@ -121,9 +129,14 @@ class HostKesselResourceType(KesselResourceType):
     def __init__(self) -> None:
         super().__init__("hbi", "host", RbacResourceType.HOSTS, "inventory")
         self.view = KesselPermission(self, "inventory_host_view", "view", RbacPermission.READ)
-        self.write = KesselPermission(self, "inventory_host_update", "update", RbacPermission.WRITE)
-        self.delete = KesselPermission(self, "inventory_host_update", "update", RbacPermission.WRITE)
-        self.create = KesselPermission(self, "inventory_host_update", "update", RbacPermission.WRITE)
+        self.update = KesselPermission(self, "inventory_host_update", "update", RbacPermission.WRITE)
+        self.move = KesselPermission(self, "inventory_host_move", "move", RbacPermission.WRITE)
+        self.delete = KesselPermission(self, "inventory_host_delete", "delete", RbacPermission.WRITE)
+
+class WorkspaceKesselResourceType(KesselResourceType):
+    def __init__(self) -> None:
+        super().__init__("rbac", "workspace", RbacResourceType.GROUPS, "inventory")
+        self.move_host = KesselPermission(self, "inventory_host_move", "inventory_host_move", RbacPermission.WRITE)
 
 class GroupKesselResourceType(KesselResourceType):
     def __init__(self) -> None:
@@ -134,10 +147,18 @@ class GroupKesselResourceType(KesselResourceType):
         self.create = KesselPermission(self, "inventory_groups_update", "create", RbacPermission.WRITE)
 
 class StalenessKesselResourceType(KesselResourceType):
+    def get_resource_id(self, kwargs: dict[str, Any], id_param: str) -> list[str]:
+        from lib.middleware import get_rbac_default_workspace
+        workspace_id = get_rbac_default_workspace()
+        if workspace_id:
+            return [str(workspace_id)]
+        else:
+            return []
+
     def __init__(self) -> None:
-        super().__init__("hbi", "staleness", RbacResourceType.STALENESS, "staleness")
-        self.view = KesselPermission(self, "staleness_staleness_view", "view", RbacPermission.READ)
-        self.write = KesselPermission(self, "staleness_staleness_update", "edit", RbacPermission.WRITE)
+        super().__init__("rbac", "workspace", RbacResourceType.STALENESS, "staleness")
+        self.view = KesselPermission(self, "staleness_staleness_view", "staleness_staleness_view", RbacPermission.READ)
+        self.update = KesselPermission(self, "staleness_staleness_update", "staleness_staleness_update", RbacPermission.WRITE)
 
 class AllKesselResourceType(KesselResourceType):
     def __init__(self) -> None:
@@ -148,6 +169,7 @@ class AllKesselResourceType(KesselResourceType):
 
 class KesselResourceTypes:
     HOST = HostKesselResourceType()
+    WORKSPACE = WorkspaceKesselResourceType()
     GROUP = GroupKesselResourceType()
     STALENESS = StalenessKesselResourceType()
     ALL = AllKesselResourceType()
