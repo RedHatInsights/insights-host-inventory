@@ -15,8 +15,8 @@ logger = get_logger(__name__)
 class HostStaticSystemProfile(db.Model):
     __tablename__ = "system_profiles_static"
     __table_args__ = (
-        Index("idxorgid", "org_id"),
-        Index("idxhostid", "host_id"),
+        Index("idx_system_profiles_static_org_id", "org_id"),
+        Index("idx_system_profiles_static_host_id", "host_id"),
         CheckConstraint(
             "cores_per_socket >= 0 AND cores_per_socket <= 2147483647", name="cores_per_socket_range_check"
         ),

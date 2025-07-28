@@ -111,8 +111,8 @@ def upgrade():
     )
 
     # --- INDEX CREATION ---
-    op.create_index("idxorgid", "system_profiles_static", ["org_id"], schema="hbi")
-    op.create_index("idxhostid", "system_profiles_static", ["host_id"], schema="hbi")
+    op.create_index("idx_system_profiles_static_org_id", "system_profiles_static", ["org_id"], schema="hbi")
+    op.create_index("idx_system_profiles_static_host_id", "system_profiles_static", ["host_id"], schema="hbi")
 
 
 def downgrade():
@@ -120,7 +120,7 @@ def downgrade():
     Removes the system_profiles_static table and its partitions.
     """
     # Drop indexes first
-    op.drop_index("idxorgid", "system_profiles_static", schema="hbi")
-    op.drop_index("idxhostid", "system_profiles_static", schema="hbi")
+    op.drop_index("idx_system_profiles_static_org_id", "system_profiles_static", schema="hbi")
+    op.drop_index("idx_system_profiles_static_host_id", "system_profiles_static", schema="hbi")
 
     op.drop_table("system_profiles_static", schema="hbi")
