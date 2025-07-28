@@ -27,8 +27,8 @@ logger = get_logger(__name__)
 
 
 @api_operation
-@access(KesselResourceTypes.GROUP.write, id_param="group_id", writeOperation=True)
-@access(KesselResourceTypes.HOST.write, id_param="host_id_list", writeOperation=True)
+@access(KesselResourceTypes.WORKSPACE.move_host, id_param="group_id", writeOperation=True)
+@access(KesselResourceTypes.HOST.move, id_param="host_id_list", writeOperation=True)
 @metrics.api_request_time.time()
 def add_host_list_to_group(group_id, body, rbac_filter=None):
     if type(body) is not list:
@@ -60,8 +60,8 @@ def add_host_list_to_group(group_id, body, rbac_filter=None):
 
 
 @api_operation
-@access(KesselResourceTypes.GROUP.write, id_param="group_id", writeOperation=True)
-@access(KesselResourceTypes.HOST.write, id_param="host_id_list", writeOperation=True)
+@access(KesselResourceTypes.WORKSPACE.move_host, id_param="group_id", writeOperation=True)
+@access(KesselResourceTypes.HOST.move, id_param="host_id_list", writeOperation=True)
 @metrics.api_request_time.time()
 def delete_hosts_from_group(group_id, host_id_list, rbac_filter=None):
     rbac_group_id_check(rbac_filter, {group_id})
