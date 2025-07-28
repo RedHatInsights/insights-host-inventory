@@ -17,6 +17,7 @@ from requests.adapters import HTTPAdapter
 from requests.exceptions import HTTPError
 from requests.packages.urllib3.util.retry import Retry
 
+
 from api.metrics import outbound_http_response_time
 from app import IDENTITY_HEADER, KesselPermission, KesselResourceTypes
 from app import REQUEST_ID_HEADER
@@ -70,7 +71,7 @@ def _build_rbac_request_headers(identity_header: str | None = None, request_id_h
     return request_headers
 
 
-def rbac_get_request_using_endpoint_and_headers(rbac_endpoint: str, request_headers: dict):
+def rbac_get_request_using_endpoint_and_headers(rbac_endpoint: str, request_headers: dict, request_params: dict | None = None):
     if inventory_config().bypass_rbac:
         return None
 
@@ -82,6 +83,7 @@ def rbac_get_request_using_endpoint_and_headers(rbac_endpoint: str, request_head
         with outbound_http_response_time.labels("rbac").time():
             rbac_response = request_session.get(
                 url=rbac_endpoint,
+                params=request_params,
                 headers=request_headers,
                 timeout=inventory_config().rbac_timeout,
                 verify=LoadedConfig.tlsCAPath,
@@ -508,6 +510,7 @@ def delete_rbac_workspace(workspace_id: str) -> bool:
         request_session.close()
 
 
+
 def patch_rbac_workspace(workspace_id: str, name: str | None = None) -> None:
     if inventory_config().bypass_rbac:
         return None
@@ -536,3 +539,14 @@ def patch_rbac_workspace(workspace_id: str, name: str | None = None) -> None:
         abort(503, "Failed to reach RBAC endpoint, request cannot be fulfilled")
     finally:
         request_session.close()
+
+
+def get_rbac_default_workspace() -> UUID | None:
+    if inventory_config().bypass_rbac:
+        return None
+
+    data = rbac_get_request_using_endpoint_and_headers(get_rbac_v2_url(endpoint="workspaces/"), _build_rbac_request_headers(), {"limit": 1, "type": "default"})
+    if data and len(data) > 0:
+        return data[0]["id"]
+    else:
+        return None
