@@ -11,6 +11,7 @@ RUN (microdnf module enable -y postgresql:16 || curl -o /etc/yum.repos.d/postgre
     microdnf install --setopt=tsflags=nodocs -y postgresql python39 rsync tar procps-ng make git && \
     rpm -qa | sort > packages-before-devel-install.txt && \
     microdnf install --setopt=tsflags=nodocs -y libpq-devel python3-devel gcc cargo rust glibc-devel krb5-libs krb5-devel libffi-devel gcc-c++ make zlib zlib-devel openssl-libs openssl-devel libzstd libzstd-devel unzip which diffutils && \
+    microdnf update -y && \
     rpm -qa | sort > packages-after-devel-install.txt
 
 # Download and install librdkafka
