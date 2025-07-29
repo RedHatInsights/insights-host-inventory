@@ -1,4 +1,6 @@
 from collections import namedtuple
+from datetime import datetime
+from datetime import timezone
 from itertools import product
 from tempfile import TemporaryFile
 from unittest.mock import MagicMock
@@ -9,9 +11,13 @@ from pytest import raises
 from yaml import safe_load
 
 from api.cache_key import make_system_cache_key
+from app.culling import should_host_stay_fresh_forever
+from app.models import Host
 from lib.feature_flags import FLAG_FALLBACK_VALUES
 from lib.feature_flags import UNLEASH
 from lib.feature_flags import get_flag_value_and_fallback
+from tests.helpers.test_utils import USER_IDENTITY
+from tests.helpers.test_utils import generate_uuid
 from utils.deploy import main as deploy
 
 RESOURCE_TEMPLATES_INDEXES = {
@@ -178,14 +184,6 @@ def test_make_system_cache_key_valid():
 
 def test_should_host_stay_fresh_forever():
     """Test the should_host_stay_fresh_forever utility function."""
-    from datetime import datetime
-    from datetime import timezone
-
-    from app.culling import should_host_stay_fresh_forever
-    from app.models import Host
-    from tests.helpers.test_utils import USER_IDENTITY
-    from tests.helpers.test_utils import generate_uuid
-
     # Test rhsm-system-profile-bridge-only host
     host_rhsm_only = Host(
         canonical_facts={"subscription_manager_id": generate_uuid()},
