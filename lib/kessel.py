@@ -94,7 +94,7 @@ class Kessel:
         
         return False  # Fail closed by default
 
-    def Check(self, current_identity: Identity, permission: KesselPermission, ids: list[int]) -> bool:
+    def Check(self, current_identity: Identity, permission: KesselPermission, ids: list[str]) -> bool:
         """
         Check if the current user has permission to access the specified resources.
         Automatically handles single or bulk checks based on the number of IDs provided.
@@ -120,7 +120,7 @@ class Kessel:
             logger.error(f"Kessel Check failed: {str(e)}", exc_info=True)
             return False
 
-    def CheckForUpdate(self, current_identity: Identity, permission: KesselPermission, ids: list[int]) -> bool:
+    def CheckForUpdate(self, current_identity: Identity, permission: KesselPermission, ids: list[str]) -> bool:
         """
         Check if the current user has permission to update the specified resources.
         Automatically handles single or bulk checks based on the number of IDs provided.
@@ -131,10 +131,10 @@ class Kessel:
             
             if len(ids) == 1:
                 # Single resource update check
-                return self._check_single_resource_for_update(subject_ref, permission, str(ids[0]))
+                return self._check_single_resource_for_update(subject_ref, permission, ids[0])
             elif len(ids) > 1:
                 # Bulk update check - all resources must be updatable
-                return self._check_bulk_resources_for_update(subject_ref, permission, [str(id) for id in ids])
+                return self._check_bulk_resources_for_update(subject_ref, permission, ids)
             else:
                 # No specific IDs - this shouldn't happen in normal CheckForUpdate flow
                 logger.warning("CheckForUpdate called with empty ID list")

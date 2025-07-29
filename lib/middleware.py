@@ -252,7 +252,7 @@ def get_kessel_filter(
     kessel_client: Kessel,
     current_identity: Identity,
     permission: KesselPermission,
-    ids: list[int],
+    ids: list[str],
     write: bool
 ) -> Tuple[bool, Dict[str, Any]]:
     if current_identity.identity_type not in CHECKED_TYPES:
@@ -337,9 +337,8 @@ def access(permission: KesselPermission, id_param: str = "", writeOperation: boo
             rbac_filter = None
             if get_flag_value(FLAG_INVENTORY_KESSEL_HOST_MIGRATION) and permission.resource_type.v1_app != "rbac" and permission.resource_type.v1_type not in [RbacResourceType.GROUPS]: # Workspace permissions aren't part of HBI in V2, fallback to rbac for now.
                 kessel_client = get_kessel_client(current_app)
-                ids = []
-                if id_param != "":
-                    ids = kwargs[id_param]
+                ids = permission.resource_type.get_resource_id(kwargs, id_param)
+
                 allowed, rbac_filter = get_kessel_filter(kessel_client, current_identity, permission, ids, writeOperation)
             else:
                 allowed, rbac_filter = get_rbac_filter(
@@ -545,8 +544,10 @@ def get_rbac_default_workspace() -> UUID | None:
     if inventory_config().bypass_rbac:
         return None
 
-    data = rbac_get_request_using_endpoint_and_headers(get_rbac_v2_url(endpoint="workspaces/"), _build_rbac_request_headers(), {"limit": 1, "type": "default"})
+    response = rbac_get_request_using_endpoint_and_headers(get_rbac_v2_url(endpoint="workspaces/"), _build_rbac_request_headers(), {"limit": 1, "type": "default"})
+    data = response["data"] if response else None
     if data and len(data) > 0:
         return data[0]["id"]
     else:
         return None
+        
