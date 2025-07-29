@@ -109,6 +109,7 @@ def should_host_stay_fresh_forever(host) -> bool:
     Returns:
         bool: True if the host should stay fresh forever, False otherwise
     """
+    # If the host has no per_reporter_staleness, it's a new host, and we should check the reporter instead
     if not hasattr(host, "per_reporter_staleness") or not host.per_reporter_staleness:
         return host.reporter == "rhsm-system-profile-bridge"
 
