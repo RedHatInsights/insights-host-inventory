@@ -13,6 +13,7 @@ from marshmallow import validate as marshmallow_validate
 from marshmallow import validates
 from marshmallow import validates_schema
 
+from app.common import inventory_config
 from app.models.constants import MAX_CANONICAL_FACTS_VERSION
 from app.models.constants import MIN_CANONICAL_FACTS_VERSION
 from app.models.constants import TAG_KEY_VALIDATION
@@ -234,27 +235,43 @@ class LimitedHostSchema(CanonicalFactsSchema):
 
     @staticmethod
     def build_model(data, canonical_facts, facts, tags, tags_alt=None):
-        return LimitedHost(
-            canonical_facts=canonical_facts,
-            display_name=data.get("display_name"),
-            ansible_host=data.get("ansible_host"),
-            account=data.get("account"),
-            org_id=data.get("org_id"),
-            facts=facts,
-            tags=tags,
-            tags_alt=tags_alt if tags_alt else [],
-            system_profile_facts=data.get("system_profile", {}),
-            groups=data.get("groups", []),
-            insights_id=canonical_facts.get("insights_id"),
-            subscription_manager_id=canonical_facts.get("subscription_manager_id"),
-            satellite_id=canonical_facts.get("satellite_id"),
-            fqdn=canonical_facts.get("fqdn"),
-            bios_uuid=canonical_facts.get("bios_uuid"),
-            ip_addresses=canonical_facts.get("ip_addresses"),
-            mac_addresses=canonical_facts.get("mac_addresses"),
-            provider_id=canonical_facts.get("provider_id"),
-            provider_type=canonical_facts.get("provider_type"),
-        )
+        if inventory_config().hbi_db_refactoring_use_old_table:
+            # Old code: constructor without canonical facts parameters
+            return LimitedHost(
+                canonical_facts=canonical_facts,
+                display_name=data.get("display_name"),
+                ansible_host=data.get("ansible_host"),
+                account=data.get("account"),
+                org_id=data.get("org_id"),
+                facts=facts,
+                tags=tags,
+                tags_alt=tags_alt if tags_alt else [],
+                system_profile_facts=data.get("system_profile", {}),
+                groups=data.get("groups", []),
+            )
+        else:
+            # New code: constructor with canonical facts parameters
+            return LimitedHost(
+                canonical_facts=canonical_facts,
+                display_name=data.get("display_name"),
+                ansible_host=data.get("ansible_host"),
+                account=data.get("account"),
+                org_id=data.get("org_id"),
+                facts=facts,
+                tags=tags,
+                tags_alt=tags_alt if tags_alt else [],
+                system_profile_facts=data.get("system_profile", {}),
+                groups=data.get("groups", []),
+                insights_id=canonical_facts.get("insights_id"),
+                subscription_manager_id=canonical_facts.get("subscription_manager_id"),
+                satellite_id=canonical_facts.get("satellite_id"),
+                fqdn=canonical_facts.get("fqdn"),
+                bios_uuid=canonical_facts.get("bios_uuid"),
+                ip_addresses=canonical_facts.get("ip_addresses"),
+                mac_addresses=canonical_facts.get("mac_addresses"),
+                provider_id=canonical_facts.get("provider_id"),
+                provider_type=canonical_facts.get("provider_type"),
+            )
 
     @pre_load
     def coerce_system_profile_types(self, data, **kwargs):
@@ -289,29 +306,47 @@ class HostSchema(LimitedHostSchema):
     def build_model(data, canonical_facts, facts, tags, tags_alt=None):
         if tags_alt is None:
             tags_alt = []
-        return Host(
-            canonical_facts,
-            data.get("display_name"),
-            data.get("ansible_host"),
-            data.get("account"),
-            data.get("org_id"),
-            facts,
-            tags,
-            tags_alt,
-            data.get("system_profile", {}),
-            data["stale_timestamp"],
-            data["reporter"],
-            data.get("groups", []),
-            insights_id=canonical_facts.get("insights_id"),
-            subscription_manager_id=canonical_facts.get("subscription_manager_id"),
-            satellite_id=canonical_facts.get("satellite_id"),
-            fqdn=canonical_facts.get("fqdn"),
-            bios_uuid=canonical_facts.get("bios_uuid"),
-            ip_addresses=canonical_facts.get("ip_addresses"),
-            mac_addresses=canonical_facts.get("mac_addresses"),
-            provider_id=canonical_facts.get("provider_id"),
-            provider_type=canonical_facts.get("provider_type"),
-        )
+        if inventory_config().hbi_db_refactoring_use_old_table:
+            # Old code: constructor without canonical facts parameters
+            return Host(
+                canonical_facts,
+                data.get("display_name"),
+                data.get("ansible_host"),
+                data.get("account"),
+                data.get("org_id"),
+                facts,
+                tags,
+                tags_alt,
+                data.get("system_profile", {}),
+                data["stale_timestamp"],
+                data["reporter"],
+                data.get("groups", []),
+            )
+        else:
+            # New code: constructor with canonical facts parameters
+            return Host(
+                canonical_facts,
+                data.get("display_name"),
+                data.get("ansible_host"),
+                data.get("account"),
+                data.get("org_id"),
+                facts,
+                tags,
+                tags_alt,
+                data.get("system_profile", {}),
+                data["stale_timestamp"],
+                data["reporter"],
+                data.get("groups", []),
+                insights_id=canonical_facts.get("insights_id"),
+                subscription_manager_id=canonical_facts.get("subscription_manager_id"),
+                satellite_id=canonical_facts.get("satellite_id"),
+                fqdn=canonical_facts.get("fqdn"),
+                bios_uuid=canonical_facts.get("bios_uuid"),
+                ip_addresses=canonical_facts.get("ip_addresses"),
+                mac_addresses=canonical_facts.get("mac_addresses"),
+                provider_id=canonical_facts.get("provider_id"),
+                provider_type=canonical_facts.get("provider_type"),
+            )
 
 
 class PatchHostSchema(MarshmallowSchema):

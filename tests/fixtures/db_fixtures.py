@@ -13,6 +13,7 @@ from sqlalchemy_utils import create_database
 from sqlalchemy_utils import database_exists
 from sqlalchemy_utils import drop_database
 
+from app.common import inventory_config
 from app.config import Config
 from app.environment import RuntimeEnvironment
 from app.models import Group
@@ -59,7 +60,12 @@ def database(database_name: None) -> Generator[str]:  # noqa: ARG001
 def db_get_host(flask_app: FlaskApp) -> Callable[[UUID], Host | None]:  # noqa: ARG001
     def _db_get_host(host_id: UUID, org_id: str | None = None) -> Host | None:
         org_id = org_id or SYSTEM_IDENTITY["org_id"]
-        return Host.query.filter(Host.org_id == org_id, Host.id == host_id).one_or_none()
+        if inventory_config().hbi_db_refactoring_use_old_table:
+            # Old code: filter by ID only
+            return Host.query.filter(Host.id == host_id).one_or_none()
+        else:
+            # New code: filter by org_id and ID
+            return Host.query.filter(Host.org_id == org_id, Host.id == host_id).one_or_none()
 
     return _db_get_host
 
