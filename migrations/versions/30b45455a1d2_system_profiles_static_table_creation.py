@@ -24,7 +24,7 @@ depends_on = None
 
 def upgrade():
     # Get number of partitions from environment variable
-    sp_tables_num_partitions = int(os.getenv("SP_TABLES_NUM_PARTITIONS", 32))
+    sp_tables_num_partitions = int(os.getenv("SP_TABLES_NUM_PARTITIONS", 1))
 
     op.create_table(
         "system_profiles_static",
