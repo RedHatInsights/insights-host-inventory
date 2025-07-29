@@ -58,9 +58,16 @@ def _update_hosts_for_group_changes(host_id_list: list[str], group_id_list: list
     ]
 
     # Update groups data on each host record
-    db.session.query(Host).filter(Host.id.in_(host_id_list), Host.org_id == identity.org_id).update(
-        {"groups": serialized_groups}, synchronize_session="fetch"
-    )
+    if inventory_config().hbi_db_refactoring_use_old_table:
+        # Old code: filter by ID only
+        db.session.query(Host).filter(Host.id.in_(host_id_list)).update(
+            {"groups": serialized_groups}, synchronize_session="fetch"
+        )
+    else:
+        # New code: filter by ID and org_id
+        db.session.query(Host).filter(Host.id.in_(host_id_list), Host.org_id == identity.org_id).update(
+            {"groups": serialized_groups}, synchronize_session="fetch"
+        )
     db.session.commit()
 
     return serialized_groups, host_id_list
@@ -161,11 +168,20 @@ def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str):
         synchronize_session="fetch"
     )
 
-    host_group_assoc = [
-        HostGroupAssoc(host_id=host_id, group_id=group_id, org_id=org_id)
-        for host_id in host_id_list
-        if host_id not in ids_already_in_this_group
-    ]
+    if inventory_config().hbi_db_refactoring_use_old_table:
+        # Old code: constructor without org_id
+        host_group_assoc = [
+            HostGroupAssoc(host_id=host_id, group_id=group_id)
+            for host_id in host_id_list
+            if host_id not in ids_already_in_this_group
+        ]
+    else:
+        # New code: constructor with org_id
+        host_group_assoc = [
+            HostGroupAssoc(host_id=host_id, group_id=group_id, org_id=org_id)
+            for host_id in host_id_list
+            if host_id not in ids_already_in_this_group
+        ]
     db.session.add_all(host_group_assoc)
 
     _update_group_update_time(group_id, org_id)
@@ -468,11 +484,16 @@ def _update_group_update_time(group_id: str, org_id: str):
 
 
 def get_group_using_host_id(host_id: str, org_id: str):
-    assoc = (
-        db.session.query(HostGroupAssoc)
-        .filter(HostGroupAssoc.org_id == org_id, HostGroupAssoc.host_id == host_id)
-        .one_or_none()
-    )
+    if inventory_config().hbi_db_refactoring_use_old_table:
+        # Old code: filter by host_id only
+        assoc = db.session.query(HostGroupAssoc).filter(HostGroupAssoc.host_id == host_id).one_or_none()
+    else:
+        # New code: filter by org_id and host_id
+        assoc = (
+            db.session.query(HostGroupAssoc)
+            .filter(HostGroupAssoc.org_id == org_id, HostGroupAssoc.host_id == host_id)
+            .one_or_none()
+        )
     return get_group_by_id_from_db(str(assoc.group_id), org_id) if assoc else None
 
 
