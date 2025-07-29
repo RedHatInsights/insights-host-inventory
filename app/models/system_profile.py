@@ -28,6 +28,7 @@ class HostStaticSystemProfile(db.Model):
         CheckConstraint(
             "threads_per_core >= 0 AND threads_per_core <= 2147483647", name="threads_per_core_range_check"
         ),
+        PrimaryKeyConstraint('org_id', 'host_id'),
         {"schema": INVENTORY_SCHEMA},
     )
 
