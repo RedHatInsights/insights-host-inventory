@@ -19,6 +19,7 @@ from sqlalchemy.orm import column_property
 
 from app.common import inventory_config
 from app.config import ID_FACTS
+from app.culling import should_host_stay_fresh_forever
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import get_logger
@@ -546,21 +547,3 @@ class Host(LimitedHost):
             f"<Host id='{self.id}' account='{self.account}' org_id='{self.org_id}' display_name='{self.display_name}' "
             f"canonical_facts={self.canonical_facts}>"
         )
-
-
-def should_host_stay_fresh_forever(host: Host) -> bool:
-    """
-    Check if a host should stay fresh forever (never become stale).
-    Currently applies to hosts that have only "rhsm-system-profile-bridge" as a reporter.
-
-    Args:
-        host: The host object to check
-
-    Returns:
-        bool: True if the host should stay fresh forever, False otherwise
-    """
-    if not hasattr(host, "per_reporter_staleness") or not host.per_reporter_staleness:
-        return host.reporter == "rhsm-system-profile-bridge"
-
-    reporters = list(host.per_reporter_staleness.keys())
-    return len(reporters) == 1 and reporters[0] == "rhsm-system-profile-bridge"
