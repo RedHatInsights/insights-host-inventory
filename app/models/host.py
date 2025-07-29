@@ -341,9 +341,7 @@ class Host(LimitedHost):
 
     def _update_stale_timestamp(self, stale_timestamp, reporter):
         self.reporter = reporter
-        if (
-            self.system_profile_facts and self.system_profile_facts.get("host_type") == "edge"
-        ) or should_host_stay_fresh_forever(self):
+        if should_host_stay_fresh_forever(self):
             self.stale_timestamp = FAR_FUTURE_STALE_TIMESTAMP
         else:
             self.stale_timestamp = stale_timestamp
