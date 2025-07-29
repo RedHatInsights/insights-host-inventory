@@ -15,6 +15,8 @@ from sqlalchemy.dialects import postgresql
 
 from app.models.constants import INVENTORY_SCHEMA
 
+SP_STATIC_TABLE_NAME = "system_profiles_static"
+
 # revision identifiers, used by Alembic.
 revision = "30b45455a1d2"
 down_revision = "61c1b152246a"
@@ -22,12 +24,19 @@ branch_labels = None
 depends_on = None
 
 
+def validate_inputs(num_partitions: int):
+    """Validate input parameters"""
+    if not 1 <= num_partitions <= 32:
+        raise ValueError(f"Invalid number of partitions: {num_partitions}. Must be between 1 and 32.")
+
+
 def upgrade():
     # Get number of partitions from environment variable
     sp_tables_num_partitions = int(os.getenv("SP_TABLES_NUM_PARTITIONS", 1))
+    validate_inputs(sp_tables_num_partitions)
 
     op.create_table(
-        "system_profiles_static",
+        SP_STATIC_TABLE_NAME,
         # --- PK COLUMNS ---
         sa.Column("org_id", sa.String(36), nullable=False),
         sa.Column("host_id", sa.UUID(as_uuid=True), nullable=False),
@@ -90,8 +99,7 @@ def upgrade():
         sa.ForeignKeyConstraint(
             ["org_id", "host_id"],
             [f"{INVENTORY_SCHEMA}.hosts.org_id", f"{INVENTORY_SCHEMA}.hosts.id"],
-            name="fk_system_profiles_static_on_hosts",
-            ondelete="CASCADE",
+            name="fk_system_profiles_static_hosts",
         ),
         sa.CheckConstraint(
             "cores_per_socket >= 0 AND cores_per_socket <= 2147483647", name="cores_per_socket_range_check"
@@ -108,22 +116,14 @@ def upgrade():
     )
 
     # --- PARTITION CREATION ---
-    op.execute(
-        f"""
-        DO $$
-        BEGIN
-            FOR i IN 0..({sp_tables_num_partitions}-1) LOOP
-                EXECUTE format(
-                    'CREATE TABLE {INVENTORY_SCHEMA}.system_profiles_static_p%s PARTITION ' ||
-                    'OF {INVENTORY_SCHEMA}.system_profiles_static ' ||
-                    'FOR VALUES WITH (MODULUS {sp_tables_num_partitions}, REMAINDER %s);',
-                    i, i
-                );
-            END LOOP;
-        END;
-        $$;
-        """
-    )
+    for i in range(sp_tables_num_partitions):
+        op.execute(
+            text(f"""
+                CREATE TABLE {INVENTORY_SCHEMA}.{SP_STATIC_TABLE_NAME}_p{i}
+                PARTITION OF {INVENTORY_SCHEMA}.{SP_STATIC_TABLE_NAME}
+                FOR VALUES WITH (MODULUS {sp_tables_num_partitions}, REMAINDER {i});
+            """)
+        )
 
     # --- INDEX CREATION ---
     op.create_index("idx_system_profiles_static_org_id", "system_profiles_static", ["org_id"], schema="hbi")

@@ -1,5 +1,7 @@
 from sqlalchemy import CheckConstraint
+from sqlalchemy import ForeignKeyConstraint
 from sqlalchemy import Index
+from sqlalchemy import PrimaryKeyConstraint
 from sqlalchemy import String
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
@@ -28,7 +30,10 @@ class HostStaticSystemProfile(db.Model):
         CheckConstraint(
             "threads_per_core >= 0 AND threads_per_core <= 2147483647", name="threads_per_core_range_check"
         ),
-        PrimaryKeyConstraint('org_id', 'host_id'),
+        PrimaryKeyConstraint("org_id", "host_id"),
+        ForeignKeyConstraint(
+            ["org_id", "host_id"], ["hbi.hosts.org_id", "hbi.hosts.id"], name="fk_system_profiles_static_hosts"
+        ),
         {"schema": INVENTORY_SCHEMA},
     )
 
