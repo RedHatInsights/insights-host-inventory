@@ -4,8 +4,8 @@ from functools import partial
 
 from sqlalchemy import ColumnElement
 from sqlalchemy import and_
+from sqlalchemy import func
 from sqlalchemy import or_
-from sqlalchemy.dialects.postgresql import array
 
 from app.environment import RuntimeEnvironment
 from app.logging import get_logger
@@ -83,8 +83,9 @@ def run(config, logger, session, event_producer, notification_event_producer, sh
         query = session.query(Host).filter(
             and_(
                 or_(False, *filter_hosts_to_delete),
-                Host.per_reporter_staleness.has_any(
-                    array(["cloud-connector", "puptoo", "rhsm-conduit", "yuptoo", "discovery", "satellite"])
+                Host.per_reporter_staleness
+                != func.jsonb_build_object(
+                    "rhsm-system-profile-bridge", Host.per_reporter_staleness["rhsm-system-profile-bridge"]
                 ),
             )
         )

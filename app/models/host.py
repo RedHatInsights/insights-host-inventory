@@ -511,17 +511,6 @@ class Host(LimitedHost):
             orm.attributes.flag_modified(self, "stale_warning_timestamp")
             orm.attributes.flag_modified(self, "deletion_timestamp")
 
-    def _update_staleness_timestamps_in_reaper(self, staleness_ts, staleness):
-        if get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS):
-            staleness_timestamps = get_staleness_timestamps(self, staleness_ts, staleness)
-            self.stale_timestamp = staleness_timestamps["stale_timestamp"]
-            self.stale_warning_timestamp = staleness_timestamps["stale_warning_timestamp"]
-            self.deletion_timestamp = staleness_timestamps["culled_timestamp"]
-
-            orm.attributes.flag_modified(self, "stale_timestamp")
-            orm.attributes.flag_modified(self, "stale_warning_timestamp")
-            orm.attributes.flag_modified(self, "deletion_timestamp")
-
     def reporter_stale(self, reporter):
         # Hosts that should stay fresh forever are never stale
         if should_host_stay_fresh_forever(self):
