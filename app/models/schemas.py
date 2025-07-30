@@ -473,24 +473,18 @@ class OutboxSchema(MarshmallowSchema):
         unknown = EXCLUDE
 
     id = fields.Raw(validate=verify_uuid_format, dump_only=True)
-    aggregate_type = fields.Str(
-        validate=marshmallow_validate.Length(min=1, max=255), 
-        load_default="hbi.hosts"
-    )
+    aggregate_type = fields.Str(validate=marshmallow_validate.Length(min=1, max=255), load_default="hbi.hosts")
     aggregate_id = fields.Raw(validate=verify_uuid_format, required=True)
-    event_type = fields.Str(
-        validate=marshmallow_validate.OneOf(["created", "updated", "delete"]), 
-        required=True
-    )
+    event_type = fields.Str(validate=marshmallow_validate.OneOf(["created", "updated", "delete"]), required=True)
     payload = fields.Raw(required=True)
 
     # Remove field-level payload validation since we can't reliably access event_type at this stage
 
     @validates_schema
     def validate_payload_with_event_type(self, data, **kwargs):
-        event_type = data.get('event_type')
-        payload = data.get('payload')
-        
+        event_type = data.get("event_type")
+        payload = data.get("payload")
+
         if event_type and payload:
             if event_type in ["created", "updated"]:
                 OutboxCreateUpdatePayloadSchema().load(payload)

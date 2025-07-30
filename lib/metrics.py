@@ -78,10 +78,5 @@ stale_host_notification_fail_count = Counter(
     "inventory_stale_host_notification_fail_count", "The total amount of Stale Host Notification failures."
 )
 
-outbox_save_success = Counter(
-    "inventory_outbox_save_successes",
-    "Total number of outbox events successfully written"
-)
-outbox_save_failure = Counter(
-    "inventory_outbox_save_failures", "Total number of outbox events failed to write"
-)
+outbox_save_success = Counter("inventory_outbox_save_successes", "Total number of outbox events successfully written")
+outbox_save_failure = Counter("inventory_outbox_save_failures", "Total number of outbox events failed to write")

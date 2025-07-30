@@ -1,4 +1,6 @@
 import json
+from typing import Literal
+from typing import Union
 
 from marshmallow import ValidationError
 
@@ -11,7 +13,6 @@ try:
     from app.logging import get_logger
     from app.models.database import db
     from app.models.outbox import Outbox
-    from lib.db import session_guard
     from lib.metrics import outbox_save_failure
     from lib.metrics import outbox_save_success
 
@@ -25,19 +26,17 @@ except ImportError as e:
     logger.warning(f"Flask dependencies not available: {e}")
     FLASK_AVAILABLE = False
 
-from sqlalchemy import event
 from sqlalchemy.exc import SQLAlchemyError
 
 
-def _create_update_event_payload(host) -> dict:
-
+def _create_update_event_payload(host) -> Union[dict, None]:
     if not host:
         logger.error("Missing required field 'host' in event data")
 
         # TODO: raise an error
         return None
 
-    # Handle both nested structure (test format) and flat structure (production format) 
+    # Handle both nested structure (test format) and flat structure (production format)
     if "id" in host:
         host_id = host["id"]
     else:
@@ -75,7 +74,7 @@ def _create_update_event_payload(host) -> dict:
     }
 
 
-def _delete_event_payload(host) -> dict:
+def _delete_event_payload(host) -> Union[dict, None]:
     if not host:
         logger.error("Missing required field 'host' in event data")
 
@@ -98,8 +97,7 @@ def _delete_event_payload(host) -> dict:
     # validated_data = StalenessSchema().load({**staleness_obj, **body})
 
 
-def _create_outbox_entry(event: str) -> dict:
-
+def _create_outbox_entry(event: str) -> Union[dict, None, Literal[False]]:
     try:
         event_dict = json.loads(event) if isinstance(event, str) else event
 
@@ -169,7 +167,6 @@ def _create_outbox_entry(event: str) -> dict:
 
 
 def write_event_to_outbox(event: str) -> bool:
-
     """
     Write an event to the outbox table.
 
@@ -182,7 +179,7 @@ def write_event_to_outbox(event: str) -> bool:
     if not FLASK_AVAILABLE:
         logger.error("Flask dependencies not available, cannot write to outbox")
         return False
-        
+
     if not event:
         logger.error("Missing required field 'event'")
         return False
@@ -190,7 +187,7 @@ def write_event_to_outbox(event: str) -> bool:
     try:
         outbox_entry = _create_outbox_entry(event)
         if outbox_entry is None:
-            # Notification event skipped - this is success 
+            # Notification event skipped - this is success
             logger.debug("Event skipped for outbox processing")
             return True
         elif outbox_entry is False:
@@ -198,11 +195,16 @@ def write_event_to_outbox(event: str) -> bool:
             return False
         validated_outbox_entry = OutboxSchema().load(outbox_entry)
     except ValidationError as ve:
-        logger.exception(f'Input validation error, "{str(ve.messages)}", while creating outbox_entry: {outbox_entry if "outbox_entry" in locals() else "N/A"}')
+        logger.exception(
+            f'Input validation error, "{str(ve.messages)}", \
+                while creating outbox_entry: {outbox_entry if "outbox_entry" in locals() else "N/A"}'
+        )
         raise OutboxSaveException("Invalid host or event was provided") from ve
 
-
-    logger.debug(f'Creating outbox entry: aggregate_id={validated_outbox_entry["aggregate_id"]}, type={validated_outbox_entry["event_type"]}')
+    logger.debug(
+        f"Creating outbox entry: aggregate_id={validated_outbox_entry['aggregate_id']}, \
+            type={validated_outbox_entry['event_type']}"
+    )
 
     # Write to outbox table in same transaction without using session_guard to avoid DetachedInstanceError
     try:

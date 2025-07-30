@@ -408,7 +408,9 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
                 insights_id = host.canonical_facts.get("insights_id")
                 owner_id = host.system_profile_facts.get("owner_id")
                 if insights_id and owner_id:
-                    delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id, owner_id=owner_id)
+                    delete_cached_system_keys(
+                        insights_id=insights_id, org_id=current_identity.org_id, owner_id=owner_id
+                    )
             except StaleDataError:
                 # Handle race condition where host was deleted by another request
                 # Don't access host.id after StaleDataError since session is in bad state
@@ -506,7 +508,9 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
                 insights_id = host.canonical_facts.get("insights_id")
                 owner_id = host.system_profile_facts.get("owner_id")
                 if insights_id and owner_id:
-                    delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id, owner_id=owner_id)
+                    delete_cached_system_keys(
+                        insights_id=insights_id, org_id=current_identity.org_id, owner_id=owner_id
+                    )
             except StaleDataError:
                 # Handle race condition where host was deleted by another request
                 # Don't access host.id after StaleDataError since session is in bad state

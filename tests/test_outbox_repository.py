@@ -269,18 +269,14 @@ class TestWriteEventToOutbox:
     @patch("lib.outbox_repository.db")
     def test_write_event_to_outbox_database_error(self, mock_db, valid_created_event):
         """Test write_event_to_outbox with database error."""
-        # Mock database session to raise an exception
+        # Mock database session to raise an exception when adding to session
         mock_session = MagicMock()
         mock_session.add.side_effect = DatabaseError("Database connection error", None, None)
         mock_db.session = mock_session
 
-        with patch("lib.outbox_repository.session_guard") as mock_guard:
-            mock_guard.return_value.__enter__ = MagicMock(return_value=mock_session)
-            mock_guard.return_value.__exit__ = MagicMock(return_value=None)
+        result = write_event_to_outbox(json.dumps(valid_created_event))
 
-            result = write_event_to_outbox(json.dumps(valid_created_event))
-
-            assert result is False
+        assert result is False
 
     @pytest.mark.skipif(not FLASK_AVAILABLE, reason="Flask dependencies not available")
     @patch("lib.outbox_repository.db")
@@ -291,19 +287,15 @@ class TestWriteEventToOutbox:
         mock_session.add.side_effect = DatabaseError("table does not exist", None, None)
         mock_db.session = mock_session
 
-        with patch("lib.outbox_repository.session_guard") as mock_guard:
-            mock_guard.return_value.__enter__ = MagicMock(return_value=mock_session)
-            mock_guard.return_value.__exit__ = MagicMock(return_value=None)
+        result = write_event_to_outbox(json.dumps(valid_created_event))
 
-            result = write_event_to_outbox(json.dumps(valid_created_event))
-
-            assert result is False
+        assert result is False
 
     @pytest.mark.skipif(not FLASK_AVAILABLE, reason="Flask dependencies not available")
     @patch("lib.outbox_repository.db")
     def test_write_event_to_outbox_create_all_error(self, mock_db, valid_created_event):
         """Test write_event_to_outbox when db.create_all() fails."""
-        # Mock db.create_all to raise an exception
+        # Mock db.create_all to raise an exception (this doesn't actually affect the outbox write)
         mock_db.create_all.side_effect = Exception("Cannot create tables")
 
         # Mock session to work normally
@@ -314,17 +306,13 @@ class TestWriteEventToOutbox:
         mock_session.flush.return_value = None
         mock_db.session = mock_session
 
-        with patch("lib.outbox_repository.session_guard") as mock_guard:
-            mock_guard.return_value.__enter__ = MagicMock(return_value=mock_session)
-            mock_guard.return_value.__exit__ = MagicMock(return_value=None)
+        with patch("lib.outbox_repository.Outbox") as mock_outbox_class:
+            mock_outbox_class.return_value = mock_outbox_entry
 
-            with patch("lib.outbox_repository.Outbox") as mock_outbox_class:
-                mock_outbox_class.return_value = mock_outbox_entry
+            result = write_event_to_outbox(json.dumps(valid_created_event))
 
-                result = write_event_to_outbox(json.dumps(valid_created_event))
-
-                # Should still succeed despite create_all error
-                assert result is True
+            # Should still succeed since we don't call create_all in the function
+            assert result is True
 
     def test_write_event_to_outbox_unexpected_error(self, valid_created_event):
         """Test write_event_to_outbox with unexpected error."""
