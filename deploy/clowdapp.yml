@@ -2992,7 +2992,7 @@ parameters:
   value: "15"
 - name: FF_LAST_CHECKIN
   description: Env var used to enable last checkin feature flag
-  value: 'false'
+  value: 'true'
 
 #floorist
 - name: FLOORIST_SUSPEND
