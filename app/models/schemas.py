@@ -397,3 +397,107 @@ class StalenessSchema(MarshmallowSchema):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+
+class OutboxEventMetadataSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    localResourceId = fields.Raw(validate=verify_uuid_format, required=True)
+    apiHref = fields.Str(validate=marshmallow_validate.Length(min=1, max=2048), required=True)
+    consoleHref = fields.Str(validate=marshmallow_validate.Length(min=1, max=2048), required=True)
+    reporterVersion = fields.Str(validate=marshmallow_validate.Length(min=1, max=50), required=True)
+
+
+class OutboxEventCommonSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    workspace_id = fields.Raw(validate=verify_uuid_format, allow_none=True)
+
+
+class OutboxEventReporterSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    satellite_id = fields.Str(validate=verify_satellite_id, allow_none=True)
+    subscription_manager_id = fields.Str(validate=verify_uuid_format, allow_none=True)
+    insights_id = fields.Raw(validate=verify_uuid_format, allow_none=True)
+    ansible_host = fields.Str(validate=marshmallow_validate.Length(max=255), allow_none=True)
+
+
+class OutboxEventRepresentationsSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    metadata = fields.Nested(OutboxEventMetadataSchema, required=True)
+    common = fields.Nested(OutboxEventCommonSchema, required=True)
+    reporter = fields.Nested(OutboxEventReporterSchema, required=True)
+
+
+class OutboxCreateUpdatePayloadSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    type = fields.Str(validate=marshmallow_validate.OneOf(["host"]), required=True)
+    reporterType = fields.Str(validate=marshmallow_validate.OneOf(["hbi"]), required=True)
+    reporterInstanceId = fields.Str(validate=marshmallow_validate.Length(min=1, max=255), required=True)
+    representations = fields.Nested(OutboxEventRepresentationsSchema, required=True)
+
+
+class OutboxDeleteReporterSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    type = fields.Str(validate=marshmallow_validate.OneOf(["HBI"]), required=True)
+
+
+class OutboxDeleteReferenceSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    resource_type = fields.Str(validate=marshmallow_validate.OneOf(["host"]), required=True)
+    resource_id = fields.Raw(validate=verify_uuid_format, required=True)
+    reporter = fields.Nested(OutboxDeleteReporterSchema, required=True)
+
+
+class OutboxDeletePayloadSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    reference = fields.Nested(OutboxDeleteReferenceSchema, required=True)
+
+
+class OutboxSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    id = fields.Raw(validate=verify_uuid_format, dump_only=True)
+    aggregate_type = fields.Str(
+        validate=marshmallow_validate.Length(min=1, max=255), 
+        load_default="hbi.hosts"
+    )
+    aggregate_id = fields.Raw(validate=verify_uuid_format, required=True)
+    event_type = fields.Str(
+        validate=marshmallow_validate.OneOf(["created", "updated", "delete"]), 
+        required=True
+    )
+    payload = fields.Raw(required=True)
+
+    # Remove field-level payload validation since we can't reliably access event_type at this stage
+
+    @validates_schema
+    def validate_payload_with_event_type(self, data, **kwargs):
+        event_type = data.get('event_type')
+        payload = data.get('payload')
+        
+        if event_type and payload:
+            if event_type in ["created", "updated"]:
+                OutboxCreateUpdatePayloadSchema().load(payload)
+            elif event_type == "delete":
+                OutboxDeletePayloadSchema().load(payload)
+            else:
+                raise MarshmallowValidationError(f"Unknown event_type: {event_type}")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
