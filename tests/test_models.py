@@ -23,12 +23,14 @@ from app.models import LimitedHost
 from app.models import _create_staleness_timestamps_values
 from app.models import db
 from app.models.system_profile import HostStaticSystemProfile
+from app.models.system_profiles_dynamic import HostDynamicSystemProfile
 from app.staleness_serialization import get_staleness_timestamps
 from app.staleness_serialization import get_sys_default_staleness
 from app.utils import Tag
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
+from tests.helpers.test_utils import get_sample_profile_data
 from tests.helpers.test_utils import now
 
 """
@@ -1735,3 +1737,123 @@ def test_host_static_system_profile_complex_data_types(db_create_host):
     assert retrieved_profile.rhsm["version"] == "1.29.26"
     assert len(retrieved_profile.yum_repos) == 1
     assert retrieved_profile.yum_repos[0]["id"] == "rhel-9-appstream-rpms"
+
+
+def test_add_dynamic_profile(db_create_host):
+    """
+    Tests adding a HostDynamicSystemProfile record using a sample data dictionary.
+    """
+    host = db_create_host()
+    sample_data = get_sample_profile_data(host.org_id, host.id)
+    profile = HostDynamicSystemProfile(**sample_data)
+
+    db.session.add(profile)
+    db.session.commit()
+
+    retrieved = db.session.query(HostDynamicSystemProfile).filter_by(org_id=host.org_id, host_id=host.id).one()
+
+    assert retrieved is not None
+    for key, value in sample_data.items():
+        assert getattr(retrieved, key) == value
+
+
+def test_delete_dynamic_profile(db_create_host):
+    """
+    Tests deleting a HostDynamicSystemProfile record from the database.
+    """
+    host = db_create_host()
+    profile = HostDynamicSystemProfile(**get_sample_profile_data(host.org_id, host.id))
+    db.session.add(profile)
+    db.session.commit()
+
+    db.session.delete(profile)
+    db.session.commit()
+
+    retrieved = db.session.query(HostDynamicSystemProfile).filter_by(org_id=host.org_id, host_id=host.id).one_or_none()
+
+    assert retrieved is None
+
+
+def test_update_dynamic_profile(db_create_host):
+    """
+    Tests updating a HostDynamicSystemProfile record in the database.
+    """
+    host = db_create_host()
+    profile = HostDynamicSystemProfile(**get_sample_profile_data(host.org_id, host.id))
+    db.session.add(profile)
+    db.session.commit()
+
+    profile.insights_egg_version = "2.1.4"
+    db.session.commit()
+
+    retrieved = db.session.query(HostDynamicSystemProfile).filter_by(org_id=host.org_id, host_id=host.id).one()
+
+    assert retrieved.insights_egg_version == "2.1.4"
+
+
+def test_add_profile_fails_without_parent_host():
+    """
+    Tests that adding a profile fails with an IntegrityError if the parent Host
+    does not exist, validating the foreign key constraint.
+    """
+
+    org_id = "org-failure-case"
+    non_existent_host_id = uuid.uuid4()
+    sample_data = get_sample_profile_data(org_id, non_existent_host_id)
+
+    profile = HostDynamicSystemProfile(org_id=org_id, host_id=non_existent_host_id)
+    for key, value in sample_data.items():
+        if key not in ["org_id", "host_id"]:
+            setattr(profile, key, value)
+
+    with pytest.raises(IntegrityError) as excinfo:
+        db.session.add(profile)
+        db.session.commit()
+
+    db.session.rollback()
+
+    assert "fk_system_profiles_dynamic_hosts" in str(excinfo.value)
+
+
+def test_dynamic_profile_missing_required_field(db_create_host):
+    """
+    Tests that creating a HostDynamicSystemProfile with missing required fields raises an exception.
+    """
+    host = db_create_host()
+    sample_data = get_sample_profile_data(host.org_id, host.id)
+    # Remove a required field (e.g., 'org_id')
+    sample_data.pop("org_id", None)
+    with pytest.raises(TypeError):
+        _ = HostDynamicSystemProfile(**sample_data)
+
+
+def test_dynamic_profile_incorrect_type(db_create_host):
+    """
+    Tests that creating a HostDynamicSystemProfile with incorrect data types raises an exception.
+    """
+    host = db_create_host()
+    sample_data = get_sample_profile_data(host.org_id, host.id)
+    # Set a field to an incorrect type (e.g., 'host_id' as a string instead of UUID)
+    sample_data["host_id"] = "not-a-uuid"
+    profile = HostDynamicSystemProfile(**sample_data)
+    db.session.add(profile)
+    with pytest.raises(DataError):
+        db.session.commit()
+    db.session.rollback()
+
+
+def test_dynamic_profile_constraint_violation(db_create_host):
+    """
+    Tests that creating a HostDynamicSystemProfile with duplicate primary key raises an exception.
+    """
+    host = db_create_host()
+    sample_data = get_sample_profile_data(host.org_id, host.id)
+    profile1 = HostDynamicSystemProfile(**sample_data)
+    db.session.add(profile1)
+    db.session.commit()
+    # Attempt to add another profile with the same primary key
+    profile2 = HostDynamicSystemProfile(**sample_data)
+    db.session.add(profile2)
+    with pytest.raises(IntegrityError):
+        db.session.commit()
+    db.session.rollback()
