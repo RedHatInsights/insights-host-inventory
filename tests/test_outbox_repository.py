@@ -7,7 +7,6 @@ import pytest
 from sqlalchemy.exc import DatabaseError
 
 from app.models.outbox import Outbox
-from lib.outbox_repository import FLASK_AVAILABLE
 from lib.outbox_repository import _create_update_event_payload
 from lib.outbox_repository import _delete_event_payload
 from lib.outbox_repository import write_event_to_outbox
@@ -154,7 +153,6 @@ class TestWriteEventToOutbox:
         """Fixture for a valid delete event."""
         return {"type": "delete", "host": {"id": str(uuid.uuid4())}}
 
-    @pytest.mark.skipif(not FLASK_AVAILABLE, reason="Flask dependencies not available")
     def test_write_event_to_outbox_created_success(self, valid_created_event, flask_app):  # noqa: ARG002, fixture needed by pytest
         """Test successfully writing a created event to outbox."""
         event_json = json.dumps(valid_created_event)
@@ -174,7 +172,6 @@ class TestWriteEventToOutbox:
         assert payload["type"] == "host"
         assert payload["reporterType"] == "hbi"
 
-    @pytest.mark.skipif(not FLASK_AVAILABLE, reason="Flask dependencies not available")
     def test_write_event_to_outbox_updated_success(self, valid_updated_event, flask_app):  # noqa: ARG002
         """Test successfully writing an updated event to outbox."""
         event_json = json.dumps(valid_updated_event)
@@ -188,7 +185,6 @@ class TestWriteEventToOutbox:
         assert outbox_entry is not None
         assert outbox_entry.event_type == "updated"
 
-    @pytest.mark.skipif(not FLASK_AVAILABLE, reason="Flask dependencies not available")
     def test_write_event_to_outbox_delete_success(self, valid_delete_event, flask_app):  # noqa: ARG002
         """Test successfully writing a delete event to outbox."""
         event_json = json.dumps(valid_delete_event)
@@ -207,7 +203,6 @@ class TestWriteEventToOutbox:
         assert "reference" in payload
         assert payload["reference"]["resource_type"] == "host"
 
-    @pytest.mark.skipif(not FLASK_AVAILABLE, reason="Flask dependencies not available")
     def test_write_event_to_outbox_dict_input(self, valid_created_event, flask_app):  # noqa: ARG002
         """Test writing event when input is already a dict (not JSON string)."""
         result = write_event_to_outbox(valid_created_event)
@@ -217,13 +212,6 @@ class TestWriteEventToOutbox:
         # Verify the event was written to the database
         outbox_entry = Outbox.query.filter_by(aggregate_id=valid_created_event["host"]["id"]).first()
         assert outbox_entry is not None
-
-    def test_write_event_to_outbox_flask_not_available(self):
-        """Test write_event_to_outbox when Flask dependencies are not available."""
-        with patch("lib.outbox_repository.FLASK_AVAILABLE", False):
-            result = write_event_to_outbox('{"type": "created"}')
-
-            assert result is False
 
     def test_write_event_to_outbox_invalid_json(self):
         """Test write_event_to_outbox with invalid JSON."""
@@ -265,7 +253,6 @@ class TestWriteEventToOutbox:
 
         assert result is False
 
-    @pytest.mark.skipif(not FLASK_AVAILABLE, reason="Flask dependencies not available")
     @patch("lib.outbox_repository.db")
     def test_write_event_to_outbox_database_error(self, mock_db, valid_created_event):
         """Test write_event_to_outbox with database error."""
@@ -278,7 +265,6 @@ class TestWriteEventToOutbox:
 
         assert result is False
 
-    @pytest.mark.skipif(not FLASK_AVAILABLE, reason="Flask dependencies not available")
     @patch("lib.outbox_repository.db")
     def test_write_event_to_outbox_table_not_exist_error(self, mock_db, valid_created_event):
         """Test write_event_to_outbox with table doesn't exist error."""
@@ -291,7 +277,6 @@ class TestWriteEventToOutbox:
 
         assert result is False
 
-    @pytest.mark.skipif(not FLASK_AVAILABLE, reason="Flask dependencies not available")
     @patch("lib.outbox_repository.db")
     def test_write_event_to_outbox_create_all_error(self, mock_db, valid_created_event):
         """Test write_event_to_outbox when db.create_all() fails."""
@@ -323,7 +308,6 @@ class TestWriteEventToOutbox:
 
             assert result is False
 
-    @pytest.mark.skipif(not FLASK_AVAILABLE, reason="Flask dependencies not available")
     def test_write_event_to_outbox_key_error(self, flask_app):  # noqa: ARG002
         """Test write_event_to_outbox with KeyError during processing."""
         # Create an event that will cause a KeyError in payload generation
@@ -344,7 +328,6 @@ class TestWriteEventToOutbox:
 class TestEdgeCases:
     """Test edge cases and boundary conditions."""
 
-    @pytest.mark.skipif(not FLASK_AVAILABLE, reason="Flask dependencies not available")
     def test_event_with_all_supported_types(self, flask_app):  # noqa: ARG002
         """Test that all supported event types work correctly."""
         host_id = str(uuid.uuid4())
@@ -360,7 +343,6 @@ class TestEdgeCases:
             result = write_event_to_outbox(json.dumps(event))
             assert result is True
 
-    @pytest.mark.skipif(not FLASK_AVAILABLE, reason="Flask dependencies not available")
     def test_event_with_unicode_data(self, flask_app):  # noqa: ARG002
         """Test event with unicode characters in data."""
         event = {
@@ -376,7 +358,6 @@ class TestEdgeCases:
 
         assert result is True
 
-    @pytest.mark.skipif(not FLASK_AVAILABLE, reason="Flask dependencies not available")
     def test_event_with_large_data(self, flask_app):  # noqa: ARG002
         """Test event with large data payload that exceeds validation limits."""
         large_string = "x" * 10000  # 10KB string - exceeds 255 char limit for ansible_host
@@ -394,7 +375,6 @@ class TestEdgeCases:
             # If an exception is raised, that's also acceptable for this test
             pass
 
-    @pytest.mark.skipif(not FLASK_AVAILABLE, reason="Flask dependencies not available")
     def test_concurrent_writes(self, flask_app):  # noqa: ARG002
         """Test multiple concurrent writes to outbox."""
         events = []

@@ -3,30 +3,17 @@ from typing import Literal
 from typing import Union
 
 from marshmallow import ValidationError
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.exceptions import OutboxSaveException
+from app.logging import get_logger
+from app.models.database import db
+from app.models.outbox import Outbox
 from app.models.schemas import OutboxSchema
+from lib.metrics import outbox_save_failure
+from lib.metrics import outbox_save_success
 
-# Try to import Flask dependencies, fallback to basic logging if not available
-# TODO: Remove these conditional imports
-try:
-    from app.logging import get_logger
-    from app.models.database import db
-    from app.models.outbox import Outbox
-    from lib.metrics import outbox_save_failure
-    from lib.metrics import outbox_save_success
-
-    logger = get_logger(__name__)
-    FLASK_AVAILABLE = True
-except ImportError as e:
-    import logging
-
-    logging.basicConfig(level=logging.DEBUG)
-    logger = logging.getLogger(__name__)
-    logger.warning(f"Flask dependencies not available: {e}")
-    FLASK_AVAILABLE = False
-
-from sqlalchemy.exc import SQLAlchemyError
+logger = get_logger(__name__)
 
 
 def _create_update_event_payload(host) -> Union[dict, None]:
@@ -176,10 +163,6 @@ def write_event_to_outbox(event: str) -> bool:
     Returns:
         bool: True if successfully written to database, False if failed
     """
-    if not FLASK_AVAILABLE:
-        logger.error("Flask dependencies not available, cannot write to outbox")
-        return False
-
     if not event:
         logger.error("Missing required field 'event'")
         return False
