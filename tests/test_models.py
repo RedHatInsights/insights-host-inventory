@@ -22,6 +22,7 @@ from app.models import InputGroupSchema
 from app.models import LimitedHost
 from app.models import _create_staleness_timestamps_values
 from app.models import db
+from app.models.system_profile import HostStaticSystemProfile
 from app.staleness_serialization import get_staleness_timestamps
 from app.staleness_serialization import get_sys_default_staleness
 from app.utils import Tag
@@ -1408,3 +1409,329 @@ def test_create_host_with_missing_canonical_facts(db_create_host_custom_canonica
     assert retrieved_host.provider_type == host_data["provider_type"]
     assert retrieved_host.ip_addresses is None
     assert retrieved_host.mac_addresses is None
+
+
+def test_create_host_static_system_profile(db_create_host):
+    """Test creating a HostStaticSystemProfile record"""
+    # Create a host first
+    created_host = db_create_host(
+        SYSTEM_IDENTITY,
+        extra_data={
+            "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]},
+            "display_name": "test_host_for_static_profile",
+        },
+    )
+
+    # Create static system profile data
+    system_profile_data = {
+        "org_id": created_host.org_id,
+        "host_id": created_host.id,
+        "arch": "x86_64",
+        "basearch": "x86_64",
+        "bios_vendor": "Dell Inc.",
+        "bios_version": "2.15.0",
+        "cloud_provider": "aws",
+        "cores_per_socket": 4,
+        "cpu_model": "Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz",
+        "host_type": "edge",
+        "infrastructure_type": "virtual",
+        "infrastructure_vendor": "aws",
+        "insights_client_version": "3.1.7",
+        "is_marketplace": False,
+        "katello_agent_running": False,
+        "number_of_cpus": 8,
+        "number_of_sockets": 2,
+        "operating_system": {"name": "RHEL", "major": 9, "minor": 1},
+        "os_kernel_version": "5.14.0",
+        "os_release": "Red Hat Enterprise Linux 9.1",
+        "satellite_managed": False,
+        "system_update_method": "yum",
+        "threads_per_core": 2,
+    }
+
+    # Create the static system profile
+    static_profile = HostStaticSystemProfile(**system_profile_data)
+    db.session.add(static_profile)
+    db.session.commit()
+
+    # Verify the record was created
+    retrieved_profile = (
+        db.session.query(HostStaticSystemProfile)
+        .filter_by(org_id=created_host.org_id, host_id=created_host.id)
+        .first()
+    )
+
+    assert retrieved_profile is not None
+    assert retrieved_profile.org_id == created_host.org_id
+    assert retrieved_profile.host_id == created_host.id
+    assert retrieved_profile.arch == "x86_64"
+    assert retrieved_profile.bios_vendor == "Dell Inc."
+    assert retrieved_profile.cores_per_socket == 4
+    assert retrieved_profile.number_of_cpus == 8
+    assert retrieved_profile.operating_system == {"name": "RHEL", "major": 9, "minor": 1}
+
+
+def test_create_host_static_system_profile_minimal(db_create_host):
+    """Test creating a HostStaticSystemProfile with minimal required data"""
+    # Create a host first
+    created_host = db_create_host(
+        SYSTEM_IDENTITY,
+        extra_data={
+            "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]},
+            "display_name": "test_host_minimal",
+        },
+    )
+
+    # Create with only required fields
+    minimal_data = {
+        "org_id": created_host.org_id,
+        "host_id": created_host.id,
+    }
+
+    static_profile = HostStaticSystemProfile(**minimal_data)
+    db.session.add(static_profile)
+    db.session.commit()
+
+    # Verify the record was created
+    retrieved_profile = (
+        db.session.query(HostStaticSystemProfile)
+        .filter_by(org_id=created_host.org_id, host_id=created_host.id)
+        .first()
+    )
+
+    assert retrieved_profile is not None
+    assert retrieved_profile.org_id == created_host.org_id
+    assert retrieved_profile.host_id == created_host.id
+
+
+def test_host_static_system_profile_validation_errors():
+    """Test validation errors for HostStaticSystemProfile"""
+    # Test missing org_id
+    with pytest.raises(ValidationException, match="System org_id cannot be null"):
+        HostStaticSystemProfile(org_id=None, host_id=generate_uuid())
+
+    # Test missing host_id
+    with pytest.raises(ValidationException, match="System host_id cannot be null"):
+        HostStaticSystemProfile(org_id=USER_IDENTITY["org_id"], host_id=None)
+
+    # Test empty org_id
+    with pytest.raises(ValidationException, match="System org_id cannot be null"):
+        HostStaticSystemProfile(org_id="", host_id=generate_uuid())
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("cores_per_socket", -1),
+        ("cores_per_socket", 2147483648),  # Max int + 1
+        ("number_of_cpus", -1),
+        ("number_of_cpus", 2147483648),
+        ("number_of_sockets", -1),
+        ("number_of_sockets", 2147483648),
+        ("threads_per_core", -1),
+        ("threads_per_core", 2147483648),
+    ],
+)
+def test_host_static_system_profile_check_constraints(db_create_host, field, value):
+    """Test check constraints on integer fields"""
+    created_host = db_create_host(
+        SYSTEM_IDENTITY,
+        extra_data={
+            "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]},
+            "display_name": "test_host_constraints",
+        },
+    )
+
+    data = {
+        "org_id": created_host.org_id,
+        "host_id": created_host.id,
+        field: value,
+    }
+
+    static_profile = HostStaticSystemProfile(**data)
+    db.session.add(static_profile)
+    if value == -1:
+        with pytest.raises(IntegrityError):
+            db.session.commit()
+    else:
+        with pytest.raises(DataError):
+            db.session.commit()
+
+
+def test_update_host_static_system_profile(db_create_host):
+    """Test updating a HostStaticSystemProfile record"""
+    # Create a host first
+    created_host = db_create_host(
+        SYSTEM_IDENTITY,
+        extra_data={
+            "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]},
+            "display_name": "test_host_update",
+        },
+    )
+
+    # Create initial static system profile
+    initial_data = {
+        "org_id": created_host.org_id,
+        "host_id": created_host.id,
+        "arch": "x86_64",
+        "number_of_cpus": 4,
+        "host_type": "edge",
+        "system_update_method": "yum",
+    }
+
+    static_profile = HostStaticSystemProfile(**initial_data)
+    db.session.add(static_profile)
+    db.session.commit()
+
+    # Update the record
+    static_profile.arch = "aarch64"
+    static_profile.number_of_cpus = 8
+    static_profile.host_type = "host"
+    static_profile.system_update_method = "dnf"
+    static_profile.bios_vendor = "Updated Vendor"
+    db.session.commit()
+
+    # Verify the updates
+    retrieved_profile = (
+        db.session.query(HostStaticSystemProfile)
+        .filter_by(org_id=created_host.org_id, host_id=created_host.id)
+        .first()
+    )
+
+    assert retrieved_profile.arch == "aarch64"
+    assert retrieved_profile.number_of_cpus == 8
+    assert retrieved_profile.host_type == "host"
+    assert retrieved_profile.system_update_method == "dnf"
+    assert retrieved_profile.bios_vendor == "Updated Vendor"
+
+
+def test_delete_host_static_system_profile(db_create_host):
+    """Test deleting a HostStaticSystemProfile record"""
+    # Create a host first
+    created_host = db_create_host(
+        SYSTEM_IDENTITY,
+        extra_data={
+            "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]},
+            "display_name": "test_host_delete",
+        },
+    )
+
+    # Create static system profile
+    static_profile_data = {
+        "org_id": created_host.org_id,
+        "host_id": created_host.id,
+        "arch": "x86_64",
+        "number_of_cpus": 4,
+    }
+
+    static_profile = HostStaticSystemProfile(**static_profile_data)
+    db.session.add(static_profile)
+    db.session.commit()
+
+    # Verify it exists
+    retrieved_profile = (
+        db.session.query(HostStaticSystemProfile)
+        .filter_by(org_id=created_host.org_id, host_id=created_host.id)
+        .first()
+    )
+    assert retrieved_profile is not None
+
+    # Delete the record
+    db.session.delete(static_profile)
+    db.session.commit()
+
+    # Verify it's gone
+    retrieved_profile = (
+        db.session.query(HostStaticSystemProfile)
+        .filter_by(org_id=created_host.org_id, host_id=created_host.id)
+        .first()
+    )
+    assert retrieved_profile is None
+
+
+def test_host_static_system_profile_complex_data_types(db_create_host):
+    """Test HostStaticSystemProfile with complex JSONB and array data types"""
+    # Create a host first
+    created_host = db_create_host(
+        SYSTEM_IDENTITY,
+        extra_data={
+            "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]},
+            "display_name": "test_host_complex_data",
+        },
+    )
+
+    # Create static system profile with complex data
+    complex_data = {
+        "org_id": created_host.org_id,
+        "host_id": created_host.id,
+        "operating_system": {
+            "name": "Red Hat Enterprise Linux Server",
+            "major": 9,
+            "minor": 1,
+            "version_id": "9.1",
+        },
+        "bootc_status": {
+            "booted": {
+                "image": "quay.io/example/bootc:latest",
+                "incompatible": False,
+                "pinned": False,
+            },
+            "rollback": {
+                "image": "quay.io/example/bootc:previous",
+                "incompatible": False,
+                "pinned": True,
+            },
+        },
+        "disk_devices": [
+            {
+                "device": "/dev/sda",
+                "label": "disk1",
+                "mount_point": "/",
+                "type": "disk",
+            },
+            {
+                "device": "/dev/sdb",
+                "label": "disk2",
+                "mount_point": "/home",
+                "type": "disk",
+            },
+        ],
+        "enabled_services": ["sshd", "chronyd", "NetworkManager"],
+        "gpg_pubkeys": ["key1", "key2", "key3"],
+        "public_dns": ["8.8.8.8", "8.8.4.4"],
+        "public_ipv4_addresses": ["203.0.113.1", "203.0.113.2"],
+        "conversions": {"activity": "Conversion completed successfully"},
+        "rhsm": {
+            "version": "1.29.26",
+            "auto_registration": False,
+        },
+        "yum_repos": [
+            {
+                "id": "rhel-9-appstream-rpms",
+                "name": "Red Hat Enterprise Linux 9 - AppStream",
+                "enabled": True,
+            }
+        ],
+    }
+
+    static_profile = HostStaticSystemProfile(**complex_data)
+    db.session.add(static_profile)
+    db.session.commit()
+
+    # Verify the complex data was stored correctly
+    retrieved_profile = (
+        db.session.query(HostStaticSystemProfile)
+        .filter_by(org_id=created_host.org_id, host_id=created_host.id)
+        .first()
+    )
+
+    assert retrieved_profile.operating_system["name"] == "Red Hat Enterprise Linux Server"
+    assert retrieved_profile.operating_system["major"] == 9
+    assert retrieved_profile.bootc_status["booted"]["image"] == "quay.io/example/bootc:latest"
+    assert len(retrieved_profile.disk_devices) == 2
+    assert retrieved_profile.disk_devices[0]["device"] == "/dev/sda"
+    assert "sshd" in retrieved_profile.enabled_services
+    assert "8.8.8.8" in retrieved_profile.public_dns
+    assert retrieved_profile.rhsm["version"] == "1.29.26"
+    assert len(retrieved_profile.yum_repos) == 1
+    assert retrieved_profile.yum_repos[0]["id"] == "rhel-9-appstream-rpms"
