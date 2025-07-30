@@ -2,6 +2,10 @@ from collections import namedtuple
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.models.host import Host
 
 __all__ = ("Conditions", "Timestamps", "days_to_seconds")
 
@@ -98,13 +102,13 @@ def days_to_seconds(n_days: int) -> int:
     return n_days * factor
 
 
-def should_host_stay_fresh_forever(host) -> bool:
+def should_host_stay_fresh_forever(host: "Host") -> bool:
     """
     Check if a host should stay fresh forever (never become stale).
     Currently applies to hosts that have only "rhsm-system-profile-bridge" as a reporter.
 
     Args:
-        host: The host object to check; type app.models.host.Host
+        host: The host object to check
 
     Returns:
         bool: True if the host should stay fresh forever, False otherwise
