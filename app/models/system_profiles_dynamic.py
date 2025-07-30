@@ -1,5 +1,7 @@
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
+from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID
 
 from app.models.constants import INVENTORY_SCHEMA
 from app.models.database import db
@@ -16,7 +18,9 @@ class HostDynamicSystemProfile(db.Model):
     __table_args__ = (
         sa.PrimaryKeyConstraint("org_id", "host_id"),
         sa.ForeignKeyConstraint(
-            ["org_id", "host_id"], ["hbi.hosts.org_id", "hbi.hosts.id"], name="fk_system_profiles_dynamic_hosts"
+            ["org_id", "host_id"],
+            [f"{INVENTORY_SCHEMA}.hosts.org_id", f"{INVENTORY_SCHEMA}.hosts.id"],
+            name="fk_system_profiles_dynamic_hosts",
         ),
         {"schema": INVENTORY_SCHEMA},
     )
@@ -31,15 +35,16 @@ class HostDynamicSystemProfile(db.Model):
         super().__init__(**kwargs)
 
     org_id = sa.Column(sa.String(36), primary_key=True)
-    host_id = sa.Column(postgresql.UUID(as_uuid=True), primary_key=True)
+    host_id = sa.Column(UUID(as_uuid=True), primary_key=True)
     captured_date = sa.Column(sa.DateTime(timezone=True), nullable=True)
-    running_processes = sa.Column(postgresql.ARRAY(sa.String), nullable=True)
+    running_processes = sa.Column(ARRAY(sa.String), nullable=True)
     last_boot_time = sa.Column(sa.DateTime(timezone=True), nullable=True)
-    installed_packages = sa.Column(postgresql.ARRAY(sa.String), nullable=True)
-    network_interfaces = sa.Column(postgresql.JSONB(astext_type=sa.Text()), nullable=True)
-    installed_products = sa.Column(postgresql.JSONB(astext_type=sa.Text()), nullable=True)
-    cpu_flags = sa.Column(postgresql.ARRAY(sa.String), nullable=True)
+    installed_packages = sa.Column(ARRAY(sa.String), nullable=True)
+    network_interfaces = sa.Column(JSONB(astext_type=sa.Text()), nullable=True)
+    installed_products = sa.Column(JSONB(astext_type=sa.Text()), nullable=True)
+    cpu_flags = sa.Column(ARRAY(sa.String), nullable=True)
     insights_egg_version = sa.Column(sa.String(50), nullable=True)
-    kernel_modules = sa.Column(postgresql.ARRAY(sa.String), nullable=True)
+    kernel_modules = sa.Column(ARRAY(sa.String), nullable=True)
     system_memory_bytes = sa.Column(sa.BigInteger, nullable=True)
-    systemd = sa.Column(postgresql.JSONB(astext_type=sa.Text()), nullable=True)
+    systemd = sa.Column(JSONB(astext_type=sa.Text()), nullable=True)
+    workloads = db.Column(JSONB(astext_type=db.Text()), nullable=True)

@@ -58,6 +58,7 @@ def upgrade():
         sa.Column("kernel_modules", sa.ARRAY(sa.String), nullable=True),
         sa.Column("system_memory_bytes", sa.BigInteger, nullable=True),
         sa.Column("systemd", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column("workloads", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         # --- CONSTRAINTS ---
         sa.ForeignKeyConstraint(
             ["org_id", "host_id"],
