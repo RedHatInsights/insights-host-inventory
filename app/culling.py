@@ -104,7 +104,7 @@ def should_host_stay_fresh_forever(host) -> bool:
     Currently applies to hosts that have only "rhsm-system-profile-bridge" as a reporter.
 
     Args:
-        host: The host object to check
+        host: The host object to check; type app.models.host.Host
 
     Returns:
         bool: True if the host should stay fresh forever, False otherwise
