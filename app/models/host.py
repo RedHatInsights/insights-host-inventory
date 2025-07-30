@@ -16,6 +16,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy.orm import column_property
+from sqlalchemy.orm import relationship
 
 from app.common import inventory_config
 from app.config import ID_FACTS
@@ -189,6 +190,13 @@ class Host(LimitedHost):
     stale_warning_timestamp = db.Column(db.DateTime(timezone=True))
     reporter = db.Column(db.String(255))
     per_reporter_staleness = db.Column(JSONB)
+
+    static_system_profile = relationship(
+        "HostStaticSystemProfile", back_populates="host", cascade="all, delete-orphan", lazy="select", uselist=False
+    )
+    dynamic_system_profile = relationship(
+        "HostDynamicSystemProfile", back_populates="host", cascade="all, delete-orphan", lazy="select", uselist=False
+    )
 
     def __init__(
         self,
@@ -478,6 +486,8 @@ class Host(LimitedHost):
 
     def update_system_profile(self, input_system_profile: dict):
         logger.debug("Updating host's (id=%s) system profile", self.id)
+
+        # Update the existing JSONB column (backward compatibility)
         if not self.system_profile_facts:
             self.system_profile_facts = input_system_profile
         else:
@@ -487,6 +497,46 @@ class Host(LimitedHost):
                 else:
                     self.system_profile_facts[key] = value
         orm.attributes.flag_modified(self, "system_profile_facts")
+
+        # Update the normalized system profile tables
+        try:
+            self._update_normalized_system_profiles(input_system_profile)
+        except Exception as e:
+            logger.warning("Failed to update normalized system profile tables for host %s: %s", self.id, str(e))
+
+    def _update_normalized_system_profiles(self, input_system_profile: dict):
+        """Update the normalized system profile tables."""
+        from app.models.system_profile import HostStaticSystemProfile
+        from app.models.system_profile_transformer import validate_and_transform
+        from app.models.system_profiles_dynamic import HostDynamicSystemProfile
+
+        if not input_system_profile:
+            return
+
+        # Transform and validate the data
+        static_data, dynamic_data = validate_and_transform(str(self.org_id), str(self.id), input_system_profile)
+
+        # Update or create static system profile
+        if static_data and any(key != "org_id" and key != "host_id" for key in static_data.keys()):
+            if self.static_system_profile:
+                # Update existing record
+                for key, value in static_data.items():
+                    if key not in ["org_id", "host_id"]:
+                        setattr(self.static_system_profile, key, value)
+            else:
+                # Create new record
+                self.static_system_profile = HostStaticSystemProfile(**static_data)
+
+        # Update or create dynamic system profile
+        if dynamic_data and any(key != "org_id" and key != "host_id" for key in dynamic_data.keys()):
+            if self.dynamic_system_profile:
+                # Update existing record
+                for key, value in dynamic_data.items():
+                    if key not in ["org_id", "host_id"]:
+                        setattr(self.dynamic_system_profile, key, value)
+            else:
+                # Create new record
+                self.dynamic_system_profile = HostDynamicSystemProfile(**dynamic_data)
 
     def _update_staleness_timestamps(self):
         if get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS):

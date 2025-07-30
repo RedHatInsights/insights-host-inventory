@@ -6,6 +6,7 @@ from sqlalchemy import String
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
 
 from app.exceptions import ValidationException
 from app.logging import get_logger
@@ -109,3 +110,5 @@ class HostStaticSystemProfile(db.Model):
     tuned_profile = db.Column(db.String(256), nullable=True)
     virtual_host_uuid = db.Column(db.UUID(as_uuid=True), nullable=True)
     yum_repos = db.Column(ARRAY(JSONB(astext_type=db.Text())), nullable=True)
+
+    host = relationship("Host", back_populates="static_system_profile")

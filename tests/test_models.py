@@ -1857,3 +1857,72 @@ def test_dynamic_profile_constraint_violation(db_create_host):
     with pytest.raises(IntegrityError):
         db.session.commit()
     db.session.rollback()
+
+
+def test_host_system_profile_normalization_integration(db_create_host):
+    """
+    Integration test for the complete system profile normalization flow.
+    Tests that updating a host's system profile correctly updates both JSONB and normalized tables.
+    """
+    # Create a host
+    host = db_create_host()
+    db.session.commit()
+
+    # Verify initial state
+    assert host.static_system_profile is None
+    assert host.dynamic_system_profile is None
+    assert host.system_profile_facts == {}
+
+    # Update system profile with mixed static and dynamic data
+    system_profile_data = {
+        "arch": "x86_64",
+        "bios_vendor": "Dell Inc.",
+        "cores_per_socket": 4,
+        "running_processes": ["systemd", "sshd"],
+        "network_interfaces": [{"name": "eth0", "state": "up"}],
+        "installed_packages": ["vim", "git", "htop"],
+    }
+
+    host.update_system_profile(system_profile_data)
+    db.session.commit()
+
+    # Verify JSONB column was updated (backward compatibility)
+    assert host.system_profile_facts["arch"] == "x86_64"
+    assert host.system_profile_facts["bios_vendor"] == "Dell Inc."
+    assert host.system_profile_facts["running_processes"] == ["systemd", "sshd"]
+
+    # Verify normalized tables were created
+    assert host.static_system_profile is not None
+    assert host.dynamic_system_profile is not None
+
+    # Verify static system profile data
+    static_profile = host.static_system_profile
+    assert static_profile.org_id == host.org_id
+    assert static_profile.host_id == host.id
+    assert static_profile.arch == "x86_64"
+    assert static_profile.bios_vendor == "Dell Inc."
+    assert static_profile.cores_per_socket == 4
+
+    # Verify dynamic system profile data
+    dynamic_profile = host.dynamic_system_profile
+    assert dynamic_profile.org_id == host.org_id
+    assert dynamic_profile.host_id == host.id
+    assert dynamic_profile.running_processes == ["systemd", "sshd"]
+    assert dynamic_profile.network_interfaces == [{"name": "eth0", "state": "up"}]
+    assert dynamic_profile.installed_packages == ["vim", "git", "htop"]
+
+    # Test updating existing system profile
+    updated_data = {
+        "arch": "aarch64",  # Change static field
+        "running_processes": ["systemd", "nginx"],  # Change dynamic field
+        "new_static_field": "value",  # New unknown field (should go to static)
+    }
+
+    host.update_system_profile(updated_data)
+    db.session.commit()
+
+    # Verify updates
+    assert host.system_profile_facts["arch"] == "aarch64"
+    assert host.system_profile_facts["running_processes"] == ["systemd", "nginx"]
+    assert host.static_system_profile.arch == "aarch64"
+    assert host.dynamic_system_profile.running_processes == ["systemd", "nginx"]

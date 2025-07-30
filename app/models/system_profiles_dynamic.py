@@ -2,6 +2,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
 
 from app.models.constants import INVENTORY_SCHEMA
 from app.models.database import db
@@ -48,3 +49,5 @@ class HostDynamicSystemProfile(db.Model):
     system_memory_bytes = sa.Column(sa.BigInteger, nullable=True)
     systemd = sa.Column(JSONB(astext_type=sa.Text()), nullable=True)
     workloads = db.Column(JSONB(astext_type=db.Text()), nullable=True)
+
+    host = relationship("Host", back_populates="dynamic_system_profile")
