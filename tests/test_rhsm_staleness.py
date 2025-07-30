@@ -69,7 +69,7 @@ class TestRhsmConduitUtilityFunctions:
 class TestRhsmConduitStalenessTimestamps:
     """Test staleness timestamp calculation for rhsm-system-profile-bridge-only hosts."""
 
-    def test_get_staleness_timestamps_rhsm_conduit_only(self, mocker):
+    def test_get_staleness_timestamps_rhsm_conduit_only(self):
         """Test that rhsm-system-profile-bridge-only hosts get far-future timestamps."""
         host = Host(
             canonical_facts={"subscription_manager_id": generate_uuid()},
@@ -84,9 +84,6 @@ class TestRhsmConduitStalenessTimestamps:
             }
         }
 
-        # Mock the flag to test both code paths
-        mocker.patch("app.staleness_serialization.get_flag_value", return_value=True)
-
         st = staleness_timestamps()
         staleness = get_sys_default_staleness()
 
@@ -96,7 +93,7 @@ class TestRhsmConduitStalenessTimestamps:
         assert result["stale_warning_timestamp"] == FAR_FUTURE_STALE_TIMESTAMP
         assert result["culled_timestamp"] == FAR_FUTURE_STALE_TIMESTAMP
 
-    def test_get_staleness_timestamps_normal_host(self, mocker):
+    def test_get_staleness_timestamps_normal_host(self):
         """Test that normal hosts get regular timestamps."""
         host = Host(
             canonical_facts={"subscription_manager_id": generate_uuid()},
@@ -108,8 +105,6 @@ class TestRhsmConduitStalenessTimestamps:
             "puptoo": {"last_check_in": datetime.now(timezone.utc).isoformat(), "check_in_succeeded": True}
         }
 
-        mocker.patch("app.staleness_serialization.get_flag_value", return_value=True)
-
         st = staleness_timestamps()
         staleness = get_sys_default_staleness()
 
@@ -120,7 +115,7 @@ class TestRhsmConduitStalenessTimestamps:
         assert result["stale_warning_timestamp"] != FAR_FUTURE_STALE_TIMESTAMP
         assert result["culled_timestamp"] != FAR_FUTURE_STALE_TIMESTAMP
 
-    def test_get_reporter_staleness_timestamps_rhsm_conduit_only(self, mocker):
+    def test_get_reporter_staleness_timestamps_rhsm_conduit_only(self):
         """Test that per-reporter staleness for rhsm-system-profile-bridge-only hosts gets far-future timestamps."""
         host = Host(
             canonical_facts={"subscription_manager_id": generate_uuid()},
@@ -134,8 +129,6 @@ class TestRhsmConduitStalenessTimestamps:
                 "check_in_succeeded": True,
             }
         }
-
-        mocker.patch("app.staleness_serialization.get_flag_value", return_value=True)
 
         st = staleness_timestamps()
         staleness = get_sys_default_staleness()

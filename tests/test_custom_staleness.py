@@ -200,11 +200,6 @@ def test_async_update_host_create_custom_staleness(
     db_get_hosts, db_create_multiple_hosts, api_get, api_post, flask_app, event_producer, mocker, num_hosts
 ):
     with (
-        patch("app.models.host.get_flag_value", return_value=True),
-        patch("app.serialization.get_flag_value", return_value=True),
-        patch("app.staleness_serialization.get_flag_value", return_value=True),
-        patch("api.host_query_db.get_flag_value", return_value=True),
-        patch("api.staleness.get_flag_value", return_value=True),
         patch("app.models.utils.datetime") as mock_datetime,
     ):
         with flask_app.app.app_context():
@@ -259,11 +254,6 @@ def test_async_update_host_delete_custom_staleness(
 ):
     db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
     with (
-        patch("app.models.host.get_flag_value", return_value=True),
-        patch("app.serialization.get_flag_value", return_value=True),
-        patch("app.staleness_serialization.get_flag_value", return_value=True),
-        patch("api.host_query_db.get_flag_value", return_value=True),
-        patch("api.staleness.get_flag_value", return_value=True),
         patch("app.models.utils.datetime") as mock_datetime,
     ):
         with flask_app.app.app_context():
@@ -317,11 +307,6 @@ def test_async_update_host_update_custom_staleness(
 ):
     db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
     with (
-        patch("app.models.host.get_flag_value", return_value=True),
-        patch("app.serialization.get_flag_value", return_value=True),
-        patch("app.staleness_serialization.get_flag_value", return_value=True),
-        patch("api.host_query_db.get_flag_value", return_value=True),
-        patch("api.staleness.get_flag_value", return_value=True),
         patch("app.models.utils.datetime") as mock_datetime,
     ):
         with flask_app.app.app_context():
@@ -375,11 +360,6 @@ def test_async_update_host_update_custom_staleness_no_modified_on_change(
 ):
     db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
     with (
-        patch("app.models.host.get_flag_value", return_value=True),
-        patch("app.serialization.get_flag_value", return_value=True),
-        patch("app.staleness_serialization.get_flag_value", return_value=True),
-        patch("api.host_query_db.get_flag_value", return_value=True),
-        patch("api.staleness.get_flag_value", return_value=True),
         patch("app.models.utils.datetime") as mock_datetime,
     ):
         with flask_app.app.app_context():
