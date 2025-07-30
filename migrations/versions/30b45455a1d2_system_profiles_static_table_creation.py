@@ -91,8 +91,7 @@ def upgrade():
         sa.Column("third_party_services", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column("threads_per_core", sa.Integer(), nullable=True),
         sa.Column("tuned_profile", sa.String(length=256), nullable=True),
-        sa.Column("virtual_host_uuid", sa.String(length=36), nullable=True),
-        sa.Column("workloads", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column("virtual_host_uuid", sa.UUID(as_uuid=True), nullable=True),
         sa.Column("yum_repos", postgresql.ARRAY(postgresql.JSONB()), nullable=True),
         # --- CONSTRAINTS ---
         sa.PrimaryKeyConstraint("org_id", "host_id", name=op.f("pk_system_profiles_static")),

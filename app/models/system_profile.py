@@ -32,7 +32,9 @@ class HostStaticSystemProfile(db.Model):
         ),
         PrimaryKeyConstraint("org_id", "host_id"),
         ForeignKeyConstraint(
-            ["org_id", "host_id"], ["hbi.hosts.org_id", "hbi.hosts.id"], name="fk_system_profiles_static_hosts"
+            ["org_id", "host_id"],
+            [f"{INVENTORY_SCHEMA}.hosts.org_id", f"{INVENTORY_SCHEMA}.hosts.id"],
+            name="fk_system_profiles_static_hosts",
         ),
         {"schema": INVENTORY_SCHEMA},
     )
@@ -105,6 +107,5 @@ class HostStaticSystemProfile(db.Model):
     third_party_services = db.Column(JSONB(astext_type=db.Text()), nullable=True)
     threads_per_core = db.Column(db.Integer, nullable=True)
     tuned_profile = db.Column(db.String(256), nullable=True)
-    virtual_host_uuid = db.Column(db.String(36), nullable=True)
-    workloads = db.Column(JSONB(astext_type=db.Text()), nullable=True)
+    virtual_host_uuid = db.Column(db.UUID(as_uuid=True), nullable=True)
     yum_repos = db.Column(ARRAY(JSONB(astext_type=db.Text())), nullable=True)
