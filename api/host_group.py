@@ -28,7 +28,7 @@ logger = get_logger(__name__)
 
 @api_operation
 @access(KesselResourceTypes.WORKSPACE.move_host, id_param="group_id", writeOperation=True)
-@access(KesselResourceTypes.HOST.move, id_param="host_id_list", writeOperation=True)
+@access(KesselResourceTypes.HOST.move, id_param="body", writeOperation=True)
 @metrics.api_request_time.time()
 def add_host_list_to_group(group_id, body, rbac_filter=None):
     if type(body) is not list:
