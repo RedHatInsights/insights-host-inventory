@@ -2206,6 +2206,50 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_HOSTS_TABLE_MIGRATION_SWITCH}
             memory: ${MEMORY_REQUEST_HOSTS_TABLE_MIGRATION_SWITCH}
+    - name: hosts-table-migration-rollback
+      restartPolicy: OnFailure
+      suspend: ${{HOSTS_TABLE_MIGRATION_ROLLBACK_SUSPEND}}
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: [ "./hosts_table_migration_rollback.py" ]
+        env:
+          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
+            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: HOSTS_TABLE_MIGRATION_BATCH_SIZE
+            value: ${HOSTS_TABLE_MIGRATION_BATCH_SIZE}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+          - name: SUSPEND_JOB
+            value: ${HOSTS_TABLE_MIGRATION_ROLLBACK_SUSPEND}
+          - name: SYNC_SINCE_TIMESTAMP
+            value: ${HOSTS_TABLE_MIGRATION_ROLLBACK_SYNC_SINCE_TIMESTAMP}
+          - name: HOSTS_TABLE_MIGRATION_BATCH_SIZE
+            value: ${HOSTS_TABLE_MIGRATION_BATCH_SIZE}
+        resources:
+          limits:
+            cpu: ${CPU_REQUEST_HOSTS_TABLE_MIGRATION_ROLLBACK}
+            memory: ${MEMORY_LIMIT_HOSTS_TABLE_MIGRATION_ROLLBACK}
+          requests:
+            cpu: ${CPU_REQUEST_HOSTS_TABLE_MIGRATION_ROLLBACK}
+            memory: ${MEMORY_REQUEST_HOSTS_TABLE_MIGRATION_ROLLBACK}
     database:
       name: ${DB_NAME}
       version: 16
@@ -2693,6 +2737,15 @@ parameters:
 - name: MEMORY_LIMIT_HOSTS_TABLE_MIGRATION_SWITCH
   value: 512Mi
 
+- name: CPU_REQUEST_HOSTS_TABLE_MIGRATION_ROLLBACK
+  value: 250m
+- name: CPU_LIMIT_HOSTS_TABLE_MIGRATION_ROLLBACK
+  value: 500m
+- name: MEMORY_REQUEST_HOSTS_TABLE_MIGRATION_ROLLBACK
+  value: 256Mi
+- name: MEMORY_LIMIT_HOSTS_TABLE_MIGRATION_ROLLBACK
+  value: 512Mi
+
 - description: Replica count for p1 consumer
   name: REPLICAS_P1
   value: "5"
@@ -2955,6 +3008,10 @@ parameters:
 - name: HOSTS_TABLE_MIGRATION_SWITCH_MODE
   description: switch or rollback to revert the hosts table switch.
   value: 'switch'
+- name: HOSTS_TABLE_MIGRATION_ROLLBACK_SUSPEND
+  value: 'true'
+- name: HOSTS_TABLE_MIGRATION_ROLLBACK_SYNC_SINCE_TIMESTAMP
+  value: '2025-08-03 08:00:00+00'
 
 # NGINX
 - displayName: Minimum replicas
