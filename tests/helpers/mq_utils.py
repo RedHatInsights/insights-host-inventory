@@ -230,7 +230,6 @@ def assert_stale_notification_is_valid(notification_event_producer, host):
 
 
 def assert_patch_event_is_valid(
-    with_last_check_in,
     host,
     event_producer,
     expected_request_id,
@@ -240,7 +239,7 @@ def assert_patch_event_is_valid(
     reporter=None,
     identity=USER_IDENTITY,
 ):
-    date_to_use = host.last_check_in if with_last_check_in else host.modified_on
+    date_to_use = host.last_check_in
     stale_timestamp = (date_to_use.astimezone(timezone.utc) + timedelta(seconds=104400)).isoformat()
     stale_warning_timestamp = (date_to_use.astimezone(timezone.utc) + timedelta(seconds=604800)).isoformat()
     culled_timestamp = (date_to_use.astimezone(timezone.utc) + timedelta(seconds=1209600)).isoformat()
@@ -284,9 +283,6 @@ def assert_patch_event_is_valid(
         "metadata": {"request_id": expected_request_id},
         "timestamp": expected_timestamp.isoformat(),
     }
-
-    if not with_last_check_in:
-        del expected_event["host"]["last_check_in"]
 
     # We don't have this information without retrieving the host after the patch request
     del event["host"]["updated"]

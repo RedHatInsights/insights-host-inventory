@@ -39,8 +39,6 @@ from app.serialization import serialize_host
 from app.serialization import serialize_staleness_response
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness_api
-from lib.feature_flags import FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS
-from lib.feature_flags import get_flag_value
 from lib.middleware import rbac
 from lib.staleness import add_staleness
 from lib.staleness import patch_staleness
@@ -143,20 +141,17 @@ def _validate_flag_and_async_update_host(identity: Identity, created_staleness: 
     is it is, call the async host staleness update,
     otherwise, just delete the cache as usual
     """
-    if get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS):
-        update_hosts_thread = Thread(
-            target=_update_hosts_staleness_async,
-            daemon=True,
-            args=(
-                identity,
-                current_app._get_current_object(),
-                created_staleness,
-                request_id,
-            ),
-        )
-        update_hosts_thread.start()
-    else:
-        delete_cached_system_keys(org_id=identity.org_id, spawn=True)
+    update_hosts_thread = Thread(
+        target=_update_hosts_staleness_async,
+        daemon=True,
+        args=(
+            identity,
+            current_app._get_current_object(),
+            created_staleness,
+            request_id,
+        ),
+    )
+    update_hosts_thread.start()
 
 
 @api_operation

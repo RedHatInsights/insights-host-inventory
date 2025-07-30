@@ -23,8 +23,6 @@ from app.models import LimitedHostSchema
 from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 from app.staleness_serialization import get_staleness_timestamps
 from app.utils import Tag
-from lib.feature_flags import FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS
-from lib.feature_flags import get_flag_value
 
 logger = get_logger(__name__)
 
@@ -78,6 +76,7 @@ DEFAULT_FIELDS = (
     "created",
     "updated",
     "groups",
+    "last_check_in",
 )
 
 ADDITIONAL_HOST_MQ_FIELDS = (
@@ -141,10 +140,7 @@ def serialize_host(
 
     timestamps = get_staleness_timestamps(host, staleness_timestamps, staleness)
 
-    if get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS):
-        fields = DEFAULT_FIELDS + ("last_check_in",) + additional_fields
-    else:
-        fields = DEFAULT_FIELDS + additional_fields
+    fields = DEFAULT_FIELDS + additional_fields
 
     if for_mq:
         fields += ADDITIONAL_HOST_MQ_FIELDS

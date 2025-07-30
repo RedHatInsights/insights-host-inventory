@@ -4,8 +4,6 @@ from app.common import inventory_config
 from app.culling import Timestamps
 from app.culling import should_host_stay_fresh_forever
 from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
-from lib.feature_flags import FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS
-from lib.feature_flags import get_flag_value
 
 __all__ = ("get_staleness_timestamps",)
 
@@ -53,11 +51,8 @@ def get_staleness_timestamps(host, staleness_timestamps: Timestamps, staleness: 
 
     staleness_type = _find_host_type(host)
 
-    date_to_use = (
-        host.last_check_in
-        if get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS)
-        else host.modified_on
-    )
+    date_to_use = host.last_check_in
+
     return {
         "stale_timestamp": staleness_timestamps.stale_timestamp(
             date_to_use, staleness[f"{staleness_type}_time_to_stale"]
@@ -97,11 +92,8 @@ def get_reporter_staleness_timestamps(
 
     staleness_type = _find_host_type(host)
 
-    date_to_use = (
-        datetime.fromisoformat(host.per_reporter_staleness[reporter]["last_check_in"])
-        if get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS)
-        else host.modified_on
-    )
+    date_to_use = datetime.fromisoformat(host.per_reporter_staleness[reporter]["last_check_in"])
+
     return {
         "stale_timestamp": staleness_timestamps.stale_timestamp(
             date_to_use, staleness[f"{staleness_type}_time_to_stale"]

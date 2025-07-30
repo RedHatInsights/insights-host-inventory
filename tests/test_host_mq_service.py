@@ -1262,42 +1262,35 @@ def test_delete_host_tags(mq_create_or_update_host, db_get_host_by_insights_id, 
 
 
 @pytest.mark.usefixtures("event_datetime_mock")
-@pytest.mark.parametrize("with_last_check_in", [True, False])
-def test_add_host_stale_timestamp(mq_create_or_update_host, with_last_check_in):
+def test_add_host_stale_timestamp(mq_create_or_update_host):
     """
     Tests to see if the host is successfully created with both reporter
     and stale_timestamp set.
     """
-    with (
-        patch("app.serialization.get_flag_value", return_value=with_last_check_in),
-        patch("app.staleness_serialization.get_flag_value", return_value=with_last_check_in),
-    ):
-        expected_insights_id = generate_uuid()
-        stale_timestamp = now()
+    expected_insights_id = generate_uuid()
+    stale_timestamp = now()
 
-        host = minimal_host(
-            account=SYSTEM_IDENTITY["account_number"],
-            insights_id=expected_insights_id,
-            stale_timestamp=stale_timestamp.isoformat(),
-        )
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"],
+        insights_id=expected_insights_id,
+        stale_timestamp=stale_timestamp.isoformat(),
+    )
 
-        host_keys_to_check = ["reporter", "stale_timestamp", "culled_timestamp"]
+    host_keys_to_check = ["reporter", "stale_timestamp", "culled_timestamp"]
 
-        key, event, _ = mq_create_or_update_host(host, return_all_data=True)
-        if with_last_check_in:
-            updated_timestamp = datetime.fromisoformat(event["host"]["last_check_in"])
-        else:
-            updated_timestamp = datetime.fromisoformat(event["host"]["updated"])
-        host.stale_timestamp = (updated_timestamp + timedelta(seconds=104400)).isoformat()
-        expected_results = {
-            "host": {
-                **host.data(),
-                "stale_warning_timestamp": (updated_timestamp + timedelta(seconds=604800)).isoformat(),
-                "culled_timestamp": (updated_timestamp + timedelta(seconds=1209600)).isoformat(),
-            }
+    key, event, _ = mq_create_or_update_host(host, return_all_data=True)
+    updated_timestamp = datetime.fromisoformat(event["host"]["last_check_in"])
+
+    host.stale_timestamp = (updated_timestamp + timedelta(seconds=104400)).isoformat()
+    expected_results = {
+        "host": {
+            **host.data(),
+            "stale_warning_timestamp": (updated_timestamp + timedelta(seconds=604800)).isoformat(),
+            "culled_timestamp": (updated_timestamp + timedelta(seconds=1209600)).isoformat(),
         }
+    }
 
-        assert_mq_host_data(key, event, expected_results, host_keys_to_check)
+    assert_mq_host_data(key, event, expected_results, host_keys_to_check)
 
 
 @pytest.mark.parametrize("field_to_remove", ["stale_timestamp", "reporter"])
@@ -2539,6 +2532,7 @@ def test_write_add_update_event_message(mocker):
         per_reporter_staleness = {}
         created_on = datetime.now()
         modified_on = datetime.now()
+        last_check_in = datetime.now()
 
     result = OperationResult(
         row=FakeHostRow(),
