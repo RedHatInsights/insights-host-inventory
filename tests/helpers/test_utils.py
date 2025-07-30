@@ -349,4 +349,39 @@ def get_sample_profile_data(org_id, host_id):
         "kernel_modules": ["ext4", "xfs", "btrfs", "i915"],
         "system_memory_bytes": 1024,
         "systemd": {"services_enabled": 52, "services_disabled": 11, "sockets": 15},
+        "workloads": {
+            "ansible": {
+                "controller_version": "4.5.6",
+                "hub_version": "4.5.6",
+                "catalog_worker_version": "1.2.3",
+                "sso_version": "7.8.9",
+            },
+            "crowdstrike": {
+                "falcon_aid": "44e3b7d20b434a2bb2815d9808fa3a8b",
+                "falcon_backend": "kernel",
+                "falcon_version": "7.14.16703.0",
+            },
+            "ibm_db2": {"is_running": True},
+            "intersystems": {
+                "is_intersystems": True,
+                "running_instances": [
+                    {"name": "HEALTH_PROD", "version": "2023.1.0.215.0", "path": "/opt/intersystems/iris/bin"}
+                ],
+            },
+            "mssql": {"version": "15.2.0"},
+            "oracle_db": {"is_running": False},
+            "rhel_ai": {
+                "variant": "RHEL AI",
+                "rhel_ai_version_id": "v1.1.3",
+                "gpu_models": [{"name": "NVIDIA A100 80GB PCIe", "vendor": "Nvidia", "memory": "80GB", "count": 4}],
+                "ai_models": ["granite-7b-redhat-lab", "granite-7b-starter"],
+                "free_disk_storage": "698GB",
+            },
+            "sap": {
+                "sap_system": True,
+                "sids": ["H2O", "ABC"],
+                "instance_number": "03",
+                "version": "2.00.122.04.1478575636",
+            },
+        },
     }

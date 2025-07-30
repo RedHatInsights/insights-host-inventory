@@ -22,8 +22,8 @@ from app.models import InputGroupSchema
 from app.models import LimitedHost
 from app.models import _create_staleness_timestamps_values
 from app.models import db
-from app.models.system_profiles_dynamic import HostDynamicSystemProfile
 from app.models.system_profile import HostStaticSystemProfile
+from app.models.system_profiles_dynamic import HostDynamicSystemProfile
 from app.staleness_serialization import get_staleness_timestamps
 from app.staleness_serialization import get_sys_default_staleness
 from app.utils import Tag
