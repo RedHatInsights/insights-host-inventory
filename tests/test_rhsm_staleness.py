@@ -20,7 +20,7 @@ from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 
 
-class TestRhsmConduitUtilityFunctions:
+class TestRhsmSpBridgeUtilityFunctions:
     """Test the utility functions for rhsm-system-profile-bridge-only hosts."""
 
     def test_should_host_stay_fresh_forever_true(self, flask_app):
@@ -66,7 +66,7 @@ class TestRhsmConduitUtilityFunctions:
         assert should_host_stay_fresh_forever(host) is False
 
 
-class TestRhsmConduitStalenessTimestamps:
+class TestRhsmSpBridgeStalenessTimestamps:
     """Test staleness timestamp calculation for rhsm-system-profile-bridge-only hosts."""
 
     def test_get_staleness_timestamps_rhsm_conduit_only(self):
@@ -140,7 +140,7 @@ class TestRhsmConduitStalenessTimestamps:
         assert result["culled_timestamp"] == FAR_FUTURE_STALE_TIMESTAMP
 
 
-class TestRhsmConduitHostModel:
+class TestRhsmSpBridgeHostModel:
     """Test Host model behavior for rhsm-system-profile-bridge-only hosts."""
 
     def test_reporter_stale_rhsm_conduit_only_always_false(self, db_create_host):
@@ -192,7 +192,7 @@ class TestRhsmConduitHostModel:
         assert created_host.reporter_stale("puptoo") is True
 
 
-class TestRhsmConduitSerialization:
+class TestRhsmSpBridgeSerialization:
     """Test serialization behavior for rhsm-system-profile-bridge-only hosts."""
 
     def test_serialize_per_reporter_staleness_rhsm_conduit_only(self):
@@ -244,17 +244,19 @@ class TestRhsmConduitSerialization:
         assert datetime.fromisoformat(puptoo_data["culled_timestamp"]) != FAR_FUTURE_STALE_TIMESTAMP
 
 
-@pytest.mark.parametrize("reporter", ["rhsm-system-profile-bridge"])
-def test_rhsm_conduit_reporter_parametrized(reporter):
+def test_rhsm_conduit_reporter():
     """Parametrized test to ensure rhsm-system-profile-bridge behavior."""
     host = Host(
         canonical_facts={"subscription_manager_id": generate_uuid()},
-        reporter=reporter,
+        reporter="rhsm-system-profile-bridge",
         stale_timestamp=datetime.now(timezone.utc),
         org_id=USER_IDENTITY["org_id"],
     )
     host.per_reporter_staleness = {
-        reporter: {"last_check_in": datetime.now(timezone.utc).isoformat(), "check_in_succeeded": True}
+        "rhsm-system-profile-bridge": {
+            "last_check_in": datetime.now(timezone.utc).isoformat(),
+            "check_in_succeeded": True,
+        }
     }
 
     assert should_host_stay_fresh_forever(host) is True
@@ -289,7 +291,4 @@ def test_multiple_reporters_parametrized(reporters):
     }
     host.per_reporter_staleness = per_reporter_staleness
 
-    if len(reporters) == 1 and reporters[0] == "rhsm-system-profile-bridge":
-        assert should_host_stay_fresh_forever(host) is True
-    else:
-        assert should_host_stay_fresh_forever(host) is False
+    assert should_host_stay_fresh_forever(host) is False

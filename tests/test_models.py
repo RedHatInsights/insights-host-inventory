@@ -1329,7 +1329,7 @@ def test_create_host_with_missing_canonical_facts(db_create_host_custom_canonica
     assert retrieved_host.mac_addresses is None
 
 
-def test_create_host_rhsm_conduit_only_sets_far_future_timestamps(db_create_host):
+def test_create_host_rhsm_only_sets_far_future_timestamps(db_create_host):
     """Test that creating a host with only rhsm-system-profile-bridge reporter sets far-future staleness timestamps."""
     stale_timestamp = datetime.now() + timedelta(days=1)
 
@@ -1355,7 +1355,7 @@ def test_create_host_rhsm_conduit_only_sets_far_future_timestamps(db_create_host
     assert prs["culled_timestamp"] == FAR_FUTURE_STALE_TIMESTAMP.isoformat()
 
 
-def test_host_with_rhsm_conduit_and_other_reporters_normal_behavior(db_create_host, models_datetime_mock):
+def test_host_with_rhsm_and_other_reporters_normal_behavior(db_create_host, models_datetime_mock):
     """Test that hosts with rhsm-system-profile-bridge AND other reporters behave normally."""
     stale_timestamp = models_datetime_mock + timedelta(days=1)
 
@@ -1368,15 +1368,6 @@ def test_host_with_rhsm_conduit_and_other_reporters_normal_behavior(db_create_ho
     )
 
     created_host = db_create_host(host=input_host)
-
-    # Add another reporter to simulate normal multi-reporter host
-    created_host.per_reporter_staleness["puptoo"] = {
-        "last_check_in": datetime.now().isoformat(),
-        "stale_timestamp": stale_timestamp.isoformat(),
-        "check_in_succeeded": True,
-    }
-
-    created_host.save()
 
     # Should NOT have far-future timestamps since it has multiple reporters
     assert created_host.stale_timestamp != FAR_FUTURE_STALE_TIMESTAMP
