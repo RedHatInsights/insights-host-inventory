@@ -10,7 +10,6 @@ from app.queue.metrics import produce_large_message_failure
 from app.queue.metrics import produced_message_size
 from lib.metrics import outbox_save_failure
 from lib.metrics import outbox_save_success
-from lib.outbox_repository import write_event_to_outbox
 
 logger = get_logger(__name__)
 
@@ -86,15 +85,22 @@ class EventProducer:
             raise error
 
         # After an even has been produced, write the event to outbox table for syncing with Kessel.
-        if write_event_to_outbox(event):
-            logger.debug(f"✓ Event written to outbox successfully: {event}")
-            outbox_save_success.inc()
-        else:
+        try:
+            from lib.outbox_repository import write_event_to_outbox
+
+            if write_event_to_outbox(event):
+                logger.debug(f"✓ Event written to outbox successfully: {event}")
+                outbox_save_success.inc()
+            else:
+                outbox_save_failure.inc()
+                logger.error(f"✗ Failed to write event to outbox: {event}")
+                raise OutboxSaveException(
+                    detail=f"The write event encountered problems when saving to the Outbox table '{event}'",
+                )
+        except OutboxSaveException:
+            # Re-raise outbox exceptions (these come from database errors in write_event_to_outbox)
             outbox_save_failure.inc()
-            logger.error(f"✗ Failed to write event to outbox: {event}")
-            raise OutboxSaveException(
-                detail=f"The write event encountered problems when saving to the Outbox table '{event}'",
-            )
+            raise
 
     def close(self):
         self._kafka_producer.flush()

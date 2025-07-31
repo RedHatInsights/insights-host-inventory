@@ -256,26 +256,28 @@ class TestWriteEventToOutbox:
     @patch("lib.outbox_repository.db")
     def test_write_event_to_outbox_database_error(self, mock_db, valid_created_event):
         """Test write_event_to_outbox with database error."""
+        from app.exceptions import OutboxSaveException
+
         # Mock database session to raise an exception when adding to session
         mock_session = MagicMock()
         mock_session.add.side_effect = DatabaseError("Database connection error", None, None)
         mock_db.session = mock_session
 
-        result = write_event_to_outbox(json.dumps(valid_created_event))
-
-        assert result is False
+        with pytest.raises(OutboxSaveException):
+            write_event_to_outbox(json.dumps(valid_created_event))
 
     @patch("lib.outbox_repository.db")
     def test_write_event_to_outbox_table_not_exist_error(self, mock_db, valid_created_event):
         """Test write_event_to_outbox with table doesn't exist error."""
+        from app.exceptions import OutboxSaveException
+
         # Mock database session to raise a table doesn't exist error
         mock_session = MagicMock()
         mock_session.add.side_effect = DatabaseError("table does not exist", None, None)
         mock_db.session = mock_session
 
-        result = write_event_to_outbox(json.dumps(valid_created_event))
-
-        assert result is False
+        with pytest.raises(OutboxSaveException):
+            write_event_to_outbox(json.dumps(valid_created_event))
 
     @patch("lib.outbox_repository.db")
     def test_write_event_to_outbox_create_all_error(self, mock_db, valid_created_event):

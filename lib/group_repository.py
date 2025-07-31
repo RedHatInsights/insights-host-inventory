@@ -236,14 +236,24 @@ def add_hosts_to_group(
     event_producer: EventProducer,
 ):
     staleness = get_staleness_obj(identity.org_id)
-    with session_guard(db.session):
+    try:
+        # Step 1: Save host-group associations to database
         _add_hosts_to_group(group_id, host_id_list, identity.org_id)
 
-    # Produce update messages once the DB session has been closed
-    serialized_groups, host_id_list = _update_hosts_for_group_changes(
-        host_id_list, group_id_list=[group_id], identity=identity
-    )
-    _process_host_changes(host_id_list, serialized_groups, staleness, identity, event_producer)
+        # Step 2: Produce the events using EventProducer.write_event (which includes outbox write)
+        # Step 3: Save the corresponding events to the Outbox table (handled by EventProducer)
+        # All within the same transaction - if outbox fails, everything rolls back
+        serialized_groups, host_id_list = _update_hosts_for_group_changes(
+            host_id_list, group_id_list=[group_id], identity=identity
+        )
+        _process_host_changes(host_id_list, serialized_groups, staleness, identity, event_producer)
+
+        # Only commit if both host-group associations AND event production (including outbox) succeed
+        db.session.commit()
+
+    except Exception:
+        db.session.rollback()
+        raise
 
 
 def add_group(
@@ -274,23 +284,35 @@ def add_group_with_hosts(
     event_producer: EventProducer,
 ) -> Group:
     created_group_id = None
-    with session_guard(db.session):
+    try:
+        # Step 1: Save group and host associations to database
         # Create group
         created_group = add_group(group_name, identity.org_id, account, group_id, ungrouped)
-        # Capture the group ID before the session is closed to avoid DetachedInstanceError
+        # Capture the group ID before potential rollback
         created_group_id = created_group.id
 
         # Add hosts to group
         if host_id_list:
             _add_hosts_to_group(created_group_id, host_id_list, identity.org_id)
 
-    # Produce update messages once the DB session has been closed
-    serialized_groups, host_id_list = _update_hosts_for_group_changes(
-        host_id_list, group_id_list=[created_group_id], identity=identity
-    )
-    _process_host_changes(host_id_list, serialized_groups, staleness, identity, event_producer)
+        # Step 2: Produce the events using EventProducer.write_event (which includes outbox write)
+        # Step 3: Save the corresponding events to the Outbox table (handled by EventProducer)
+        # All within the same transaction - if outbox fails, everything rolls back
+        serialized_groups, host_id_list = _update_hosts_for_group_changes(
+            host_id_list, group_id_list=[created_group_id], identity=identity
+        )
 
-    # Get a fresh session-bound Group object using the captured ID to avoid DetachedInstanceError
+        # Produce events within the same transaction
+        _process_host_changes(host_id_list, serialized_groups, staleness, identity, event_producer)
+
+        # Only commit if both group operations AND event production (including outbox) succeed
+        db.session.commit()
+
+    except Exception:
+        db.session.rollback()
+        raise
+
+    # Get a fresh session-bound Group object using the captured ID
     created_group = get_group_by_id_from_db(created_group_id, identity.org_id)
     return created_group
 
@@ -441,7 +463,8 @@ def patch_group(group: Group, patch_data: dict, identity: Identity, event_produc
     existing_host_ids = {str(host_id[0]) for host_id in existing_host_uuids}
     staleness = get_staleness_obj(identity.org_id)
 
-    with session_guard(db.session):
+    try:
+        # Step 1: Save group and host association changes to database
         # Patch Group data, if provided
         group_patched = group.patch(patch_data)
 
@@ -454,28 +477,39 @@ def patch_group(group: Group, patch_data: dict, identity: Identity, event_produc
                 ungrouped_group = get_or_create_ungrouped_hosts_group_for_identity(identity)
                 _add_hosts_to_group(str(ungrouped_group.id), list(existing_host_ids - new_host_ids), identity.org_id)
 
-    # Send MQ messages
-    if group_patched and host_id_data is None:
-        # If anything was updated, and the host list is not being replaced,
-        # send update messages to existing hosts. Otherwise, wait until the host list is replaced
-        # so we don't produce messages that will be instantly obsoleted.
-        serialized_groups, host_id_list = _update_hosts_for_group_changes(
-            list(existing_host_ids), [group_id], identity
-        )
-        _process_host_changes(host_id_list, serialized_groups, staleness, identity, event_producer)
-    elif new_host_ids is not None:
-        # If host IDs were provided, we need to update the host list.
-        # First, update the modified date for the group
-        group.update_modified_on()
-        db.session.add(group)
+        # Step 2: Produce the events using EventProducer.write_event (which includes outbox write)
+        # Step 3: Save the corresponding events to the Outbox table (handled by EventProducer)
+        # All within the same transaction - if outbox fails, everything rolls back
 
-        deleted_host_uuids = [str(host_id) for host_id in (existing_host_ids - new_host_ids)]
-        serialized_groups, host_id_list = _update_hosts_for_group_changes(deleted_host_uuids, [], identity)
-        _process_host_changes(host_id_list, serialized_groups, staleness, identity, event_producer)
+        # Send MQ messages
+        if group_patched and host_id_data is None:
+            # If anything was updated, and the host list is not being replaced,
+            # send update messages to existing hosts. Otherwise, wait until the host list is replaced
+            # so we don't produce messages that will be instantly obsoleted.
+            serialized_groups, host_id_list = _update_hosts_for_group_changes(
+                list(existing_host_ids), [group_id], identity
+            )
+            _process_host_changes(host_id_list, serialized_groups, staleness, identity, event_producer)
+        elif new_host_ids is not None:
+            # If host IDs were provided, we need to update the host list.
+            # First, update the modified date for the group
+            group.update_modified_on()
+            db.session.add(group)
 
-        added_host_uuids = [str(host_id) for host_id in new_host_ids]
-        serialized_groups, host_id_list = _update_hosts_for_group_changes(added_host_uuids, [group_id], identity)
-        _process_host_changes(host_id_list, serialized_groups, staleness, identity, event_producer)
+            deleted_host_uuids = [str(host_id) for host_id in (existing_host_ids - new_host_ids)]
+            serialized_groups, host_id_list = _update_hosts_for_group_changes(deleted_host_uuids, [], identity)
+            _process_host_changes(host_id_list, serialized_groups, staleness, identity, event_producer)
+
+            added_host_uuids = [str(host_id) for host_id in new_host_ids]
+            serialized_groups, host_id_list = _update_hosts_for_group_changes(added_host_uuids, [group_id], identity)
+            _process_host_changes(host_id_list, serialized_groups, staleness, identity, event_producer)
+
+        # Only commit if both group changes AND event production (including outbox) succeed
+        db.session.commit()
+
+    except Exception:
+        db.session.rollback()
+        raise
 
 
 def _update_group_update_time(group_id: str, org_id: str):

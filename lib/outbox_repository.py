@@ -5,7 +5,6 @@ from typing import Union
 from marshmallow import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.exceptions import OutboxSaveException
 from app.logging import get_logger
 from app.models.database import db
 from app.models.outbox import Outbox
@@ -155,13 +154,21 @@ def _create_outbox_entry(event: str) -> Union[dict, None, Literal[False]]:
 
 def write_event_to_outbox(event: str) -> bool:
     """
-    Write an event to the outbox table.
+    Add an event to the outbox table within the current database transaction.
+
+    This function adds the outbox entry to the current database session but does not
+    commit the transaction. The caller is responsible for committing or rolling back
+    the transaction. If an error occurs, OutboxSaveException is raised to allow
+    the caller to handle rollback.
 
     Args:
         event: Event data as JSON string containing type and host information
 
     Returns:
-        bool: True if successfully written to database, False if failed
+        bool: True if successfully added to session
+
+    Raises:
+        OutboxSaveException: If there's an error adding to the outbox
     """
     if not event:
         logger.error("Missing required field 'event'")
@@ -178,6 +185,8 @@ def write_event_to_outbox(event: str) -> bool:
             return False
         validated_outbox_entry = OutboxSchema().load(outbox_entry)
     except ValidationError as ve:
+        from app.exceptions import OutboxSaveException
+
         logger.exception(
             f'Input validation error, "{str(ve.messages)}", \
                 while creating outbox_entry: {outbox_entry if "outbox_entry" in locals() else "N/A"}'
@@ -189,7 +198,7 @@ def write_event_to_outbox(event: str) -> bool:
             type={validated_outbox_entry['event_type']}"
     )
 
-    # Write to outbox table in same transaction without using session_guard to avoid DetachedInstanceError
+    # Write to outbox table in same transaction - let caller handle commit/rollback
     try:
         outbox_entry_db = Outbox(
             aggregate_id=validated_outbox_entry["aggregate_id"],
@@ -198,29 +207,29 @@ def write_event_to_outbox(event: str) -> bool:
             payload=validated_outbox_entry["payload"],
         )
         db.session.add(outbox_entry_db)
-        db.session.flush()  # Ensure it's written before commit
+        # Do not flush or commit - let the caller handle transaction lifecycle
         outbox_save_success.inc()
-        logger.debug("Successfully wrote event to outbox: outbox_id=%s", outbox_entry_db.id)
+        logger.debug("Added outbox entry to session: aggregate_id=%s", validated_outbox_entry["aggregate_id"])
 
-        logger.info("Successfully wrote event to outbox for aggregate_id=%s", validated_outbox_entry["aggregate_id"])
+        logger.info("Successfully added event to outbox for aggregate_id=%s", validated_outbox_entry["aggregate_id"])
         return True
 
     except SQLAlchemyError as db_error:
-        return _extracted_from_write_event_to_outbox(db_error)
+        # Log error but don't handle rollback - let caller handle transaction
+        logger.error("Database error while adding to outbox: %s", str(db_error))
+        outbox_save_failure.inc()
 
+        # Check if it's a table doesn't exist error
+        error_str = str(db_error).lower()
+        if "table" in error_str and ("does not exist" in error_str or "doesn't exist" in error_str):
+            logger.error("Outbox table does not exist. Run database migrations first.")
+            logger.error("Try: flask db upgrade")
 
-# TODO Rename this here and in `write_event_to_outbox`
-def _extracted_from_write_event_to_outbox(db_error):
-    logger.error("Database error while writing to outbox: %s", str(db_error))
-    outbox_save_failure.inc()
+        import traceback
 
-    # Check if it's a table doesn't exist error
-    error_str = str(db_error).lower()
-    if "table" in error_str and ("does not exist" in error_str or "doesn't exist" in error_str):
-        logger.error("Outbox table does not exist. Run database migrations first.")
-        logger.error("Try: flask db upgrade")
+        logger.debug("Database error traceback: %s", traceback.format_exc())
 
-    import traceback
+        # Re-raise the exception so caller can handle rollback
+        from app.exceptions import OutboxSaveException
 
-    logger.debug("Database error traceback: %s", traceback.format_exc())
-    return False
+        raise OutboxSaveException("Failed to save event to outbox") from db_error

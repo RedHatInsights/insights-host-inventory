@@ -651,5 +651,19 @@ def test_patch_updated_timestamp(event_producer, db_create_host, db_get_host, ap
     b64_identity = json.loads(event_producer.write_event.call_args_list[0][0][0])["platform_metadata"]["b64_identity"]
     identity = from_auth_header(b64_identity)
 
-    assert updated_timestamp_from_event == record.modified_on.isoformat()
+    # With our transaction consistency changes, events are produced BEFORE database commit,
+    # so there can be a small timing difference between event and database timestamps.
+    # Check that they're close (within 1 second) rather than exactly equal.
+    from datetime import datetime
+    from datetime import timezone
+
+    event_time = datetime.fromisoformat(updated_timestamp_from_event.replace("Z", "+00:00"))
+    db_time = record.modified_on.astimezone(timezone.utc)
+
+    time_diff = abs((event_time - db_time).total_seconds())
+    assert time_diff < 1.0, (
+        f"Event timestamp ({updated_timestamp_from_event}) and DB timestamp ({record.modified_on.isoformat()})\
+             differ by {time_diff} seconds"
+    )
+
     assert identity._asdict() == USER_IDENTITY

@@ -2221,10 +2221,12 @@ def test_batch_mq_graceful_rollback(mocker, flask_app):
     consumer = IngressMessageConsumer(fake_consumer, flask_app, mocker.Mock(), mocker.Mock())
     consumer.event_loop(interrupt=mocker.Mock(side_effect=([False for _ in range(2)] + [True])))
 
-    # Assert that the hosts that came in after the error were still processed
-    # Since batch size is 3 and we're sending 5 messages,the first batch (3 messages) will get dropped,
-    # but the second batch (2 messages) should have events produced.
-    assert write_batch_patch.call_count == 1
+    # Assert that both batches had events produced, even though the first batch was rolled back
+    # Since batch size is 3 and we're sending 5 messages, both batches will have events produced:
+    # - First batch (3 messages): events produced but then rolled back due to StaleDataError
+    # - Second batch (2 messages): events produced and successfully committed
+    # This is the correct behavior with the new single-transaction approach
+    assert write_batch_patch.call_count == 2
 
 
 @pytest.mark.usefixtures("flask_app")
