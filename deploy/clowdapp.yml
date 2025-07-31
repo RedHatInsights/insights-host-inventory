@@ -2354,7 +2354,7 @@ objects:
             "canonical_facts"->>'provider_type' AS "provider_type",
             COUNT(*) AS "host_count"
           FROM "hbi"."hosts"
-          GROUP BY "provider_type";
+          GROUP BY "canonical_facts"->>'provider_type';
       - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/duplicated_hosts_by_org
         chunksize: 10000
         query: >-
