@@ -23,14 +23,7 @@ from app.models import LimitedHost
 from app.models import _create_staleness_timestamps_values
 from app.models import db
 from app.models.system_profile import HostStaticSystemProfile
-<<<<<<< HEAD
-<<<<<<< HEAD
 from app.models.system_profiles_dynamic import HostDynamicSystemProfile
-=======
->>>>>>> 6acd8794 (feat(RHINENG-18032): implement system_profiles_static table (#2816))
-=======
-from app.models.system_profiles_dynamic import HostDynamicSystemProfile
->>>>>>> 85c6ee88 (feat: add migration to create sys profile dynamic table (#2799))
 from app.staleness_serialization import get_staleness_timestamps
 from app.staleness_serialization import get_sys_default_staleness
 from app.utils import Tag
@@ -1864,3 +1857,5 @@ def test_dynamic_profile_constraint_violation(db_create_host):
     with pytest.raises(IntegrityError):
         db.session.commit()
     db.session.rollback()
+=======
+>>>>>>> 6acd8794 (feat(RHINENG-18032): implement system_profiles_static table (#2816))
