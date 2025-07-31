@@ -3,6 +3,7 @@ from __future__ import annotations
 from functools import partial
 from functools import wraps
 from http import HTTPStatus
+import inspect
 from json import JSONDecodeError
 from uuid import UUID
 from typing import Dict, Tuple
@@ -320,6 +321,8 @@ def rbac(resource_type: RbacResourceType, required_permission: RbacPermission, p
 
 def access(permission: KesselPermission, id_param: str = "", writeOperation: bool=False):
     def other_func(func):
+        sig = inspect.signature(func)
+        
         @wraps(func)
         def modified_func(*args, **kwargs):
             # If the API is in read-only mode and this is a Write endpoint, abort with HTTP 503.
@@ -335,7 +338,7 @@ def access(permission: KesselPermission, id_param: str = "", writeOperation: boo
 
             allowed = None
             rbac_filter = None
-            if get_flag_value(FLAG_INVENTORY_KESSEL_HOST_MIGRATION) and permission.resource_type.v1_app != "rbac" and permission.resource_type.v1_type not in [RbacResourceType.GROUPS]: # Workspace permissions aren't part of HBI in V2, fallback to rbac for now.
+            if get_flag_value(FLAG_INVENTORY_KESSEL_HOST_MIGRATION): # Workspace permissions aren't part of HBI in V2, fallback to rbac for now.
                 kessel_client = get_kessel_client(current_app)
                 ids = permission.resource_type.get_resource_id(kwargs, id_param)
 
@@ -346,10 +349,9 @@ def access(permission: KesselPermission, id_param: str = "", writeOperation: boo
                 )            
             
             if allowed:
-                if rbac_filter:
-                    return partial(func, rbac_filter=rbac_filter)(*args, **kwargs)
-                else:
-                    return func(*args, **kwargs)
+                if rbac_filter and "rbac_filter" in sig.parameters:
+                    kwargs["rbac_filter"] = rbac_filter
+                return func(*args, **kwargs)
             else:
                 abort(HTTPStatus.FORBIDDEN)
 
