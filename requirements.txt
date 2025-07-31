@@ -57,7 +57,7 @@ openapi-schema-validator==0.6.3; python_full_version >= '3.8.0' and python_full_
 openapi-spec-validator==0.7.2; python_full_version >= '3.8.0' and python_full_version < '4.0.0'
 packaging==25.0; python_version >= '3.8'
 pathable==0.4.4; python_full_version >= '3.7.0' and python_full_version < '4.0.0'
-platformdirs==3.11.0; python_version >= '3.7'
+platformdirs==4.3.8; python_version >= '3.7'
 prance==23.6.21.0; python_version >= '3.8'
 prometheus-client==0.22.1; python_version >= '3.9'
 prometheus-flask-exporter==0.23.2
