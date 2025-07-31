@@ -102,10 +102,15 @@ class KesselResourceType:
     v1_app: str
 
     def get_resource_id(self, kwargs: dict[str, Any], id_param: str) -> list[str]:
-        if id_param != "":
-            return kwargs[id_param]
-        else:
+        if id_param == "":
             return []
+        
+        value = kwargs.get(id_param)
+
+        if isinstance(value, list):
+            return list(value)
+
+        return [str(value)]
 
     def __init__(self, namespace: str, name: str, v1_type: RbacResourceType, v1_app: str) -> None:
         self.namespace = namespace
