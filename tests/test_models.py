@@ -1857,5 +1857,3 @@ def test_dynamic_profile_constraint_violation(db_create_host):
     with pytest.raises(IntegrityError):
         db.session.commit()
     db.session.rollback()
-=======
->>>>>>> 6acd8794 (feat(RHINENG-18032): implement system_profiles_static table (#2816))
