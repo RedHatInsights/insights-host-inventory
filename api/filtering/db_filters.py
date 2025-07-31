@@ -96,15 +96,11 @@ def _group_ids_filter(group_id_list: list) -> list:
 
 
 def stale_timestamp_filter(gt=None, lte=None):
-    def _get_date_field():
-        return Host.last_check_in
-
     filters = []
-    date_field = _get_date_field()
     if gt:
-        filters.append(date_field > gt)
+        filters.append(Host.last_check_in > gt)
     if lte:
-        filters.append(date_field <= lte)
+        filters.append(Host.last_check_in <= lte)
     return and_(*filters)
 
 

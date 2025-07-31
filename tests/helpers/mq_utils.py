@@ -239,10 +239,9 @@ def assert_patch_event_is_valid(
     reporter=None,
     identity=USER_IDENTITY,
 ):
-    date_to_use = host.last_check_in
-    stale_timestamp = (date_to_use.astimezone(timezone.utc) + timedelta(seconds=104400)).isoformat()
-    stale_warning_timestamp = (date_to_use.astimezone(timezone.utc) + timedelta(seconds=604800)).isoformat()
-    culled_timestamp = (date_to_use.astimezone(timezone.utc) + timedelta(seconds=1209600)).isoformat()
+    stale_timestamp = (host.last_check_in.astimezone(timezone.utc) + timedelta(seconds=104400)).isoformat()
+    stale_warning_timestamp = (host.last_check_in.astimezone(timezone.utc) + timedelta(seconds=604800)).isoformat()
+    culled_timestamp = (host.last_check_in.astimezone(timezone.utc) + timedelta(seconds=1209600)).isoformat()
 
     reporter = reporter or host.reporter
 

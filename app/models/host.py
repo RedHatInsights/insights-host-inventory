@@ -289,6 +289,8 @@ class Host(LimitedHost):
         if input_host.org_id:
             self.org_id = input_host.org_id
 
+        self.reporter = input_host.reporter
+
         if update_system_profile:
             self.update_system_profile(input_host.system_profile_facts)
 

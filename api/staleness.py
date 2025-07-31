@@ -135,11 +135,9 @@ def _build_host_updated_event_params(serialized_host: dict, host: Host, identity
     return event, headers
 
 
-def _validate_flag_and_async_update_host(identity: Identity, created_staleness: Staleness, request_id):
+def _async_update_host_staleness(identity: Identity, created_staleness: Staleness, request_id):
     """
-    This method validates if feature flag is enabled,
-    is it is, call the async host staleness update,
-    otherwise, just delete the cache as usual
+    This method starts a new thread to update the host staleness.
     """
     update_hosts_thread = Thread(
         target=_update_hosts_staleness_async,
@@ -201,7 +199,7 @@ def create_staleness(body):
     try:
         # Create account staleness with validated data
         created_staleness = add_staleness(validated_data)
-        _validate_flag_and_async_update_host(identity, created_staleness, request_id)
+        _async_update_host_staleness(identity, created_staleness, request_id)
         log_create_staleness_succeeded(logger, created_staleness.id)
     except IntegrityError:
         error_message = f"Staleness record for org_id {org_id} already exists."
@@ -224,7 +222,7 @@ def delete_staleness():
     try:
         remove_staleness()
         staleness = get_sys_default_staleness_api(identity)
-        _validate_flag_and_async_update_host(identity, staleness, request_id)
+        _async_update_host_staleness(identity, staleness, request_id)
         return flask_json_response(None, HTTPStatus.NO_CONTENT)
     except NoResultFound:
         abort(
@@ -254,7 +252,7 @@ def update_staleness(body):
             # since update only return None with no record instead of exception.
             raise NoResultFound
 
-        _validate_flag_and_async_update_host(identity, updated_staleness, request_id)
+        _async_update_host_staleness(identity, updated_staleness, request_id)
 
         log_patch_staleness_succeeded(logger, updated_staleness.id)
 

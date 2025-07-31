@@ -51,17 +51,15 @@ def get_staleness_timestamps(host, staleness_timestamps: Timestamps, staleness: 
 
     staleness_type = _find_host_type(host)
 
-    date_to_use = host.last_check_in
-
     return {
         "stale_timestamp": staleness_timestamps.stale_timestamp(
-            date_to_use, staleness[f"{staleness_type}_time_to_stale"]
+            host.last_check_in, staleness[f"{staleness_type}_time_to_stale"]
         ),
         "stale_warning_timestamp": staleness_timestamps.stale_warning_timestamp(
-            date_to_use, staleness[f"{staleness_type}_time_to_stale_warning"]
+            host.last_check_in, staleness[f"{staleness_type}_time_to_stale_warning"]
         ),
         "culled_timestamp": staleness_timestamps.culled_timestamp(
-            date_to_use, staleness[f"{staleness_type}_time_to_delete"]
+            host.last_check_in, staleness[f"{staleness_type}_time_to_delete"]
         ),
     }
 
