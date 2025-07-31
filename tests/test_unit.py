@@ -816,205 +816,47 @@ class TagCreateNestedFromTagsTestCase(TestCase):
 
 class SerializationDeserializeHostCompoundTestCase(TestCase):
     def test_with_all_fields(self):
-        canonical_facts = {
-            "insights_id": str(uuid4()),
-            "subscription_manager_id": str(uuid4()),
-            "satellite_id": str(uuid4()),
-            "bios_uuid": str(uuid4()),
-            "ip_addresses": ["10.10.0.1", "10.0.0.2"],
-            "fqdn": "some fqdn",
-            "mac_addresses": ["c2:00:d0:c8:61:01"],
-        }
-        unchanged_input = {
-            "display_name": "some display name",
-            "ansible_host": "some ansible host",
-            "account": "some acct",
-            "org_id": "some org_id",
-            "tags": {
-                "some namespace": {"some key": ["some value", "another value"], "another key": ["value"]},
-                "another namespace": {"key": ["value"]},
-            },
-            "reporter": "puptoo",
-        }
-        stale_timestamp = now()
-        full_input = {
-            **canonical_facts,
-            **unchanged_input,
-            "stale_timestamp": stale_timestamp.isoformat(),
-            "facts": [
-                {"namespace": "some namespace", "facts": {"some key": "some value"}},
-                {"namespace": "another namespace", "facts": {"another key": "another value"}},
-            ],
-            "system_profile": {
-                "number_of_cpus": 1,
-                "number_of_sockets": 2,
-                "cores_per_socket": 3,
-                "system_memory_bytes": 4,
-            },
-        }
+        # Create Flask app for application context
+        app = create_app(RuntimeEnvironment.TEST)
 
-        actual = deserialize_host(full_input)
-        expected = {
-            "canonical_facts": canonical_facts,
-            **unchanged_input,
-            "stale_timestamp": stale_timestamp,
-            "facts": {item["namespace"]: item["facts"] for item in full_input["facts"]},
-            "system_profile_facts": full_input["system_profile"],
-        }
-
-        self.assertIs(Host, type(actual))
-        for key, value in expected.items():
-            self.assertEqual(value, getattr(actual, key))
-
-    def test_with_only_required_fields(self):
-        org_id = "some org_id"
-        stale_timestamp = now()
-        reporter = "puptoo"
-        canonical_facts = {"subscription_manager_id": generate_uuid()}
-
-        with self.subTest(schema=HostSchema):
-            host = deserialize_host(
-                {
-                    "org_id": org_id,
-                    "stale_timestamp": stale_timestamp.isoformat(),
-                    "reporter": reporter,
-                    **canonical_facts,
-                }
-            )
-
-            self.assertIs(Host, type(host))
-            self.assertEqual(canonical_facts, host.canonical_facts)
-            self.assertIsNone(host.display_name)
-            self.assertIsNone(host.ansible_host)
-            self.assertEqual(org_id, host.org_id)
-            self.assertEqual(stale_timestamp, host.stale_timestamp)
-            self.assertEqual(reporter, host.reporter)
-            self.assertEqual({}, host.facts)
-            self.assertEqual({}, host.tags)
-            self.assertEqual({}, host.system_profile_facts)
-
-    def test_with_invalid_input(self):
-        stale_timestamp = now().isoformat()
-        inputs = (
-            {},
-            {"org_id": "some org_id", "stale_timestamp": stale_timestamp},
-            {"org_id": "some org_id", "reporter": "some reporter"},
-            {"stale_timestamp": stale_timestamp, "reporter": "some reporter"},
-            {"org_id": "", "stale_timestamp": stale_timestamp, "reporter": "some reporter"},
-            {
-                "org_id": "some org_id that's wayyyyyyyyyy too long",
+        with app.app.app_context():
+            canonical_facts = {
+                "insights_id": str(uuid4()),
+                "subscription_manager_id": str(uuid4()),
+                "satellite_id": str(uuid4()),
+                "bios_uuid": str(uuid4()),
+                "ip_addresses": ["10.10.0.1", "10.0.0.2"],
                 "fqdn": "some fqdn",
-                "stale_timestamp": stale_timestamp,
-                "reporter": "some reporter",
-            },
-            {"org_id": "some org_id", "fqdn": None, "stale_timestamp": stale_timestamp, "reporter": "some reporter"},
-            {"org_id": "some org_id", "fqdn": "", "stale_timestamp": stale_timestamp, "reporter": "some reporter"},
-            {
+                "mac_addresses": ["c2:00:d0:c8:61:01"],
+            }
+            unchanged_input = {
+                "display_name": "some display name",
+                "ansible_host": "some ansible host",
+                "account": "some acct",
                 "org_id": "some org_id",
-                "fqdn": "x" * 256,
-                "stale_timestamp": stale_timestamp,
-                "reporter": "some reporter",
-            },
-            {
-                "org_id": "some org_id",
-                "fqdn": "some fqdn",
-                "facts": {"some ns": {"some key": "some value"}},
-                "stale_timestamp": stale_timestamp,
-                "reporter": "some reporter",
-            },
-            {
-                "org_id": "some org_id",
-                "fqdn": "some fqdn",
-                "mac_addresses": ["00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff:00:11:22:33:44"],
-                "stale_timestamp": stale_timestamp,
-                "reporter": "some reporter",
-            },
-            {
-                "org_id": "some org_id",
-                "fqdn": "some fqdn",
-                "tags": [{"namespace": "namespace", "value": "value"}],
-                "stale_timestamp": stale_timestamp,
-                "reporter": "some reporter",
-            },
-            {
-                "org_id": "some org_id",
-                "insights_id": str(uuid4()) + str(uuid4()),  # longer than 36 chars
-                "tags": [{"namespace": "namespace", "value": "value"}],
-                "stale_timestamp": stale_timestamp,
-                "reporter": "some reporter",
-            },
-            {
-                "org_id": str(uuid4()) + str(uuid4()),  # longer than 36 chars
-                "tags": [{"namespace": "namespace", "value": "value"}],
-                "stale_timestamp": stale_timestamp,
-                "reporter": "some reporter",
-            },
-            {
-                "org_id": "some org_id",
-                "bios_uuid": "01234567890abcd",  # test shorter than 36 chars
-                "tags": [{"namespace": "namespace", "value": "value"}],
-                "stale_timestamp": stale_timestamp,
-                "reporter": "some reporter",
-            },
-            {
-                "org_id": "some org_id",
-                "subscription_manager_id": str(uuid4()).replace(
-                    "-", ""
-                ),  # uuid witout dashes not allowed for dedup control
-                "stale_timestamp": stale_timestamp,
-                "reporter": "some reporter",
-            },
-            {
-                "org_id": "some org_id",
-                "satellite_id": None,  # test for null
-                "stale_timestamp": stale_timestamp,
-                "reporter": "some reporter",
-            },
-        )
-        for inp in inputs:
-            with self.subTest(input=inp):
-                with self.assertRaises(ValidationException) as context:
-                    deserialize_host(inp)
+                "tags": {
+                    "some namespace": {"some key": ["some value", "another value"], "another key": ["value"]},
+                    "another namespace": {"key": ["value"]},
+                },
+                "reporter": "puptoo",
+            }
+            stale_timestamp = now()
+            full_input = {
+                **canonical_facts,
+                **unchanged_input,
+                "stale_timestamp": stale_timestamp.isoformat(),
+                "facts": [
+                    {"namespace": "some namespace", "facts": {"some key": "some value"}},
+                    {"namespace": "another namespace", "facts": {"another key": "another value"}},
+                ],
+                "system_profile": {
+                    "number_of_cpus": 1,
+                    "number_of_sockets": 2,
+                    "cores_per_socket": 3,
+                    "system_memory_bytes": 4,
+                },
+            }
 
-                    expected_errors = HostSchema().validate(inp)
-                    self.assertEqual(str(expected_errors), str(context.exception))
-
-    # Test that both of the host schemas will pass all of these fields
-    # needed because HTTP schema does not accept tags anymore (RHCLOUD - 5593)
-    def test_with_all_common_fields(self):
-        canonical_facts = {
-            "insights_id": str(uuid4()),
-            "subscription_manager_id": str(uuid4()),
-            "satellite_id": str(uuid4()),
-            "bios_uuid": str(uuid4()),
-            "ip_addresses": ["10.10.0.1", "10.0.0.2"],
-            "fqdn": "some fqdn",
-            "mac_addresses": ["c2:00:d0:c8:61:01"],
-        }
-        unchanged_input = {
-            "display_name": "some display name",
-            "ansible_host": "some ansible host",
-            "org_id": "some org_id",
-            "reporter": "puptoo",
-        }
-        stale_timestamp = now()
-        full_input = {
-            **canonical_facts,
-            **unchanged_input,
-            "stale_timestamp": stale_timestamp.isoformat(),
-            "facts": [
-                {"namespace": "some namespace", "facts": {"some key": "some value"}},
-                {"namespace": "another namespace", "facts": {"another key": "another value"}},
-            ],
-            "system_profile": {
-                "number_of_cpus": 1,
-                "number_of_sockets": 2,
-                "cores_per_socket": 3,
-                "system_memory_bytes": 4,
-            },
-        }
-
-        with self.subTest(schema=HostSchema):
             actual = deserialize_host(full_input)
             expected = {
                 "canonical_facts": canonical_facts,
@@ -1028,23 +870,207 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
             for key, value in expected.items():
                 self.assertEqual(value, getattr(actual, key))
 
-    def test_with_tags(self):
-        tags = {
-            "some namespace": {"some key": ["some value", "another value"], "another key": ["value"]},
-            "another namespace": {"key": ["value"]},
-        }
-        host = deserialize_host(
-            {
-                "org_id": "3340851",
-                "stale_timestamp": now().isoformat(),
-                "reporter": "puptoo",
-                "subscription_manager_id": generate_uuid(),
-                "tags": tags,
-            }
-        )
+    def test_with_only_required_fields(self):
+        # Create Flask app for application context
+        app = create_app(RuntimeEnvironment.TEST)
 
-        self.assertIs(Host, type(host))
-        self.assertEqual(tags, host.tags)
+        with app.app.app_context():
+            org_id = "some org_id"
+            stale_timestamp = now()
+            reporter = "puptoo"
+            canonical_facts = {"subscription_manager_id": generate_uuid()}
+
+            with self.subTest(schema=HostSchema):
+                host = deserialize_host(
+                    {
+                        "org_id": org_id,
+                        "stale_timestamp": stale_timestamp.isoformat(),
+                        "reporter": reporter,
+                        **canonical_facts,
+                    }
+                )
+
+                self.assertIs(Host, type(host))
+                self.assertEqual(canonical_facts, host.canonical_facts)
+
+            self.assertIsNone(host.display_name)
+            self.assertIsNone(host.ansible_host)
+            self.assertEqual(org_id, host.org_id)
+            self.assertEqual(stale_timestamp, host.stale_timestamp)
+            self.assertEqual(reporter, host.reporter)
+            self.assertEqual({}, host.facts)
+            self.assertEqual({}, host.tags)
+            self.assertEqual({}, host.system_profile_facts)
+
+    def test_with_invalid_input(self):
+        # Create Flask app for application context
+        app = create_app(RuntimeEnvironment.TEST)
+
+        with app.app.app_context():
+            stale_timestamp = now().isoformat()
+            inputs = (
+                {},
+                {"org_id": "some org_id", "stale_timestamp": stale_timestamp},
+                {"org_id": "some org_id", "reporter": "some reporter"},
+                {"stale_timestamp": stale_timestamp, "reporter": "some reporter"},
+                {"org_id": "", "stale_timestamp": stale_timestamp, "reporter": "some reporter"},
+                {
+                    "org_id": "some org_id that's wayyyyyyyyyy too long",
+                    "fqdn": "some fqdn",
+                    "stale_timestamp": stale_timestamp,
+                    "reporter": "some reporter",
+                },
+                {
+                    "org_id": "some org_id",
+                    "fqdn": None,
+                    "stale_timestamp": stale_timestamp,
+                    "reporter": "some reporter",
+                },
+                {"org_id": "some org_id", "fqdn": "", "stale_timestamp": stale_timestamp, "reporter": "some reporter"},
+                {
+                    "org_id": "some org_id",
+                    "fqdn": "x" * 256,
+                    "stale_timestamp": stale_timestamp,
+                    "reporter": "some reporter",
+                },
+                {
+                    "org_id": "some org_id",
+                    "fqdn": "some fqdn",
+                    "facts": {"some ns": {"some key": "some value"}},
+                    "stale_timestamp": stale_timestamp,
+                    "reporter": "some reporter",
+                },
+                {
+                    "org_id": "some org_id",
+                    "fqdn": "some fqdn",
+                    "mac_addresses": ["00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff:00:11:22:33:44"],
+                    "stale_timestamp": stale_timestamp,
+                    "reporter": "some reporter",
+                },
+                {
+                    "org_id": "some org_id",
+                    "fqdn": "some fqdn",
+                    "tags": [{"namespace": "namespace", "value": "value"}],
+                    "stale_timestamp": stale_timestamp,
+                    "reporter": "some reporter",
+                },
+                {
+                    "org_id": "some org_id",
+                    "insights_id": str(uuid4()) + str(uuid4()),  # longer than 36 chars
+                    "tags": [{"namespace": "namespace", "value": "value"}],
+                    "stale_timestamp": stale_timestamp,
+                    "reporter": "some reporter",
+                },
+                {
+                    "org_id": str(uuid4()) + str(uuid4()),  # longer than 36 chars
+                    "tags": [{"namespace": "namespace", "value": "value"}],
+                    "stale_timestamp": stale_timestamp,
+                    "reporter": "some reporter",
+                },
+                {
+                    "org_id": "some org_id",
+                    "bios_uuid": "01234567890abcd",  # test shorter than 36 chars
+                    "tags": [{"namespace": "namespace", "value": "value"}],
+                    "stale_timestamp": stale_timestamp,
+                    "reporter": "some reporter",
+                },
+                {
+                    "org_id": "some org_id",
+                    "subscription_manager_id": str(uuid4()).replace(
+                        "-", ""
+                    ),  # uuid witout dashes not allowed for dedup control
+                    "stale_timestamp": stale_timestamp,
+                    "reporter": "some reporter",
+                },
+                {
+                    "org_id": "some org_id",
+                    "satellite_id": None,  # test for null
+                    "stale_timestamp": stale_timestamp,
+                    "reporter": "some reporter",
+                },
+            )
+        for inp in inputs:
+            with self.subTest(input=inp):
+                with self.assertRaises(ValidationException) as context:
+                    deserialize_host(inp)
+
+                    expected_errors = HostSchema().validate(inp)
+                    self.assertEqual(str(expected_errors), str(context.exception))
+
+    # Test that both of the host schemas will pass all of these fields
+    # needed because HTTP schema does not accept tags anymore (RHCLOUD - 5593)
+    def test_with_all_common_fields(self):
+        # Create Flask app for application context
+        app = create_app(RuntimeEnvironment.TEST)
+
+        with app.app.app_context():
+            canonical_facts = {
+                "insights_id": str(uuid4()),
+                "subscription_manager_id": str(uuid4()),
+                "satellite_id": str(uuid4()),
+                "bios_uuid": str(uuid4()),
+                "ip_addresses": ["10.10.0.1", "10.0.0.2"],
+                "fqdn": "some fqdn",
+                "mac_addresses": ["c2:00:d0:c8:61:01"],
+            }
+            unchanged_input = {
+                "display_name": "some display name",
+                "ansible_host": "some ansible host",
+                "org_id": "some org_id",
+                "reporter": "puptoo",
+            }
+            stale_timestamp = now()
+            full_input = {
+                **canonical_facts,
+                **unchanged_input,
+                "stale_timestamp": stale_timestamp.isoformat(),
+                "facts": [
+                    {"namespace": "some namespace", "facts": {"some key": "some value"}},
+                    {"namespace": "another namespace", "facts": {"another key": "another value"}},
+                ],
+                "system_profile": {
+                    "number_of_cpus": 1,
+                    "number_of_sockets": 2,
+                    "cores_per_socket": 3,
+                    "system_memory_bytes": 4,
+                },
+            }
+
+            with self.subTest(schema=HostSchema):
+                actual = deserialize_host(full_input)
+                expected = {
+                    "canonical_facts": canonical_facts,
+                    **unchanged_input,
+                    "stale_timestamp": stale_timestamp,
+                    "facts": {item["namespace"]: item["facts"] for item in full_input["facts"]},
+                    "system_profile_facts": full_input["system_profile"],
+                }
+
+                self.assertIs(Host, type(actual))
+                for key, value in expected.items():
+                    self.assertEqual(value, getattr(actual, key))
+
+    def test_with_tags(self):
+        # Create Flask app for application context
+        app = create_app(RuntimeEnvironment.TEST)
+
+        with app.app.app_context():
+            tags = {
+                "some namespace": {"some key": ["some value", "another value"], "another key": ["value"]},
+                "another namespace": {"key": ["value"]},
+            }
+            host = deserialize_host(
+                {
+                    "org_id": "3340851",
+                    "stale_timestamp": now().isoformat(),
+                    "reporter": "puptoo",
+                    "subscription_manager_id": generate_uuid(),
+                    "tags": tags,
+                }
+            )
+
+            self.assertIs(Host, type(host))
+            self.assertEqual(tags, host.tags)
 
 
 @patch("app.models.schemas.Host")
@@ -1069,58 +1095,62 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
         self.assertIsNone(exception.__cause__)
 
     def test_with_all_fields(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
-        host_input = {
-            "display_name": "some display name",
-            "ansible_host": "some ansible host",
-            "account": "some acct",
-            "org_id": "3340851",
-            "insights_id": str(uuid4()),
-            "subscription_manager_id": str(uuid4()),
-            "satellite_id": str(uuid4()),
-            "bios_uuid": str(uuid4()),
-            "ip_addresses": ["10.10.0.1", "10.0.0.2"],
-            "fqdn": "some fqdn",
-            "mac_addresses": ["c2:00:d0:c8:61:01"],
-            "provider_id": "i-05d2313e6b9a42b16",
-            "provider_type": "aws",
-            "facts": {
-                "some namespace": {"some key": "some value"},
-                "another namespace": {"another key": "another value"},
-            },
-            "tags": {
-                "some namespace": {"some key": ["some value", "another value"], "another key": ["value"]},
-                "another namespace": {"key": ["value"]},
-            },
-            "system_profile": {
-                "number_of_cpus": 1,
-                "number_of_sockets": 2,
-                "cores_per_socket": 3,
-                "system_memory_bytes": 4,
-            },
-            "stale_timestamp": now().isoformat(),
-            "reporter": "some reporter",
-            "groups": [
-                {
-                    "id": str(uuid4()),
-                    "org_id": "3340851",
-                    "account": "some acct",
-                    "name": "group 1",
-                    "created": now().isoformat(),
-                    "updated": now().isoformat(),
+        # Create Flask app for application context
+        app = create_app(RuntimeEnvironment.TEST)
+
+        with app.app.app_context():
+            host_input = {
+                "display_name": "some display name",
+                "ansible_host": "some ansible host",
+                "account": "some acct",
+                "org_id": "3340851",
+                "insights_id": str(uuid4()),
+                "subscription_manager_id": str(uuid4()),
+                "satellite_id": str(uuid4()),
+                "bios_uuid": str(uuid4()),
+                "ip_addresses": ["10.10.0.1", "10.0.0.2"],
+                "fqdn": "some fqdn",
+                "mac_addresses": ["c2:00:d0:c8:61:01"],
+                "provider_id": "i-05d2313e6b9a42b16",
+                "provider_type": "aws",
+                "facts": {
+                    "some namespace": {"some key": "some value"},
+                    "another namespace": {"another key": "another value"},
                 },
-                {
-                    "id": str(uuid4()),
-                    "org_id": "3340851",
-                    "account": "some acct",
-                    "name": "group 2",
-                    "created": now().isoformat(),
-                    "updated": now().isoformat(),
+                "tags": {
+                    "some namespace": {"some key": ["some value", "another value"], "another key": ["value"]},
+                    "another namespace": {"key": ["value"]},
                 },
-            ],
-        }
-        host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
-        result = deserialize_host({}, host_schema)
-        self.assertEqual(host.return_value, result)
+                "system_profile": {
+                    "number_of_cpus": 1,
+                    "number_of_sockets": 2,
+                    "cores_per_socket": 3,
+                    "system_memory_bytes": 4,
+                },
+                "stale_timestamp": now().isoformat(),
+                "reporter": "some reporter",
+                "groups": [
+                    {
+                        "id": str(uuid4()),
+                        "org_id": "3340851",
+                        "account": "some acct",
+                        "name": "group 1",
+                        "created": now().isoformat(),
+                        "updated": now().isoformat(),
+                    },
+                    {
+                        "id": str(uuid4()),
+                        "org_id": "3340851",
+                        "account": "some acct",
+                        "name": "group 2",
+                        "created": now().isoformat(),
+                        "updated": now().isoformat(),
+                    },
+                ],
+            }
+            host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
+            result = deserialize_host({}, host_schema)
+            self.assertEqual(host.return_value, result)
 
         deserialize_canonical_facts.assert_called_once_with(host_input)
         deserialize_facts.assert_called_once_with(host_input["facts"])
@@ -1150,46 +1180,50 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
         )
 
     def test_without_facts(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
-        host_input = {
-            "display_name": "some display name",
-            "ansible_host": "some ansible host",
-            "account": "some account",
-            "org_id": "3340851",
-            "tags": {
-                "some namespace": {"some key": ["some value", "another value"], "another key": ["value"]},
-                "another namespace": {"key": ["value"]},
-            },
-            "system_profile": {
-                "number_of_cpus": 1,
-                "number_of_sockets": 2,
-                "cores_per_socket": 3,
-                "system_memory_bytes": 4,
-            },
-            "stale_timestamp": now().isoformat(),
-            "reporter": "some reporter",
-            "groups": [
-                {
-                    "id": str(uuid4()),
-                    "org_id": "3340851",
-                    "account": "some acct",
-                    "name": "group 1",
-                    "created": now().isoformat(),
-                    "updated": now().isoformat(),
-                },
-                {
-                    "id": str(uuid4()),
-                    "org_id": "3340851",
-                    "account": "some acct",
-                    "name": "group 2",
-                    "created": now().isoformat(),
-                    "updated": now().isoformat(),
-                },
-            ],
-        }
-        host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
+        # Create Flask app for application context
+        app = create_app(RuntimeEnvironment.TEST)
 
-        result = deserialize_host({}, host_schema)
-        self.assertEqual(host.return_value, result)
+        with app.app.app_context():
+            host_input = {
+                "display_name": "some display name",
+                "ansible_host": "some ansible host",
+                "account": "some account",
+                "org_id": "3340851",
+                "tags": {
+                    "some namespace": {"some key": ["some value", "another value"], "another key": ["value"]},
+                    "another namespace": {"key": ["value"]},
+                },
+                "system_profile": {
+                    "number_of_cpus": 1,
+                    "number_of_sockets": 2,
+                    "cores_per_socket": 3,
+                    "system_memory_bytes": 4,
+                },
+                "stale_timestamp": now().isoformat(),
+                "reporter": "some reporter",
+                "groups": [
+                    {
+                        "id": str(uuid4()),
+                        "org_id": "3340851",
+                        "account": "some acct",
+                        "name": "group 1",
+                        "created": now().isoformat(),
+                        "updated": now().isoformat(),
+                    },
+                    {
+                        "id": str(uuid4()),
+                        "org_id": "3340851",
+                        "account": "some acct",
+                        "name": "group 2",
+                        "created": now().isoformat(),
+                        "updated": now().isoformat(),
+                    },
+                ],
+            }
+            host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
+
+            result = deserialize_host({}, host_schema)
+            self.assertEqual(host.return_value, result)
 
         deserialize_canonical_facts.assert_called_once_with(host_input)
         deserialize_facts.assert_called_once_with(None)
@@ -1219,46 +1253,50 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
         )
 
     def test_without_tags(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
-        host_input = {
-            "display_name": "some display name",
-            "ansible_host": "some ansible host",
-            "account": "some account",
-            "org_id": "3340851",
-            "facts": {
-                "some namespace": {"some key": "some value"},
-                "another namespace": {"another key": "another value"},
-            },
-            "system_profile": {
-                "number_of_cpus": 1,
-                "number_of_sockets": 2,
-                "cores_per_socket": 3,
-                "system_memory_bytes": 4,
-            },
-            "stale_timestamp": now().isoformat(),
-            "reporter": "some reporter",
-            "groups": [
-                {
-                    "id": str(uuid4()),
-                    "org_id": "3340851",
-                    "account": "some acct",
-                    "name": "group 1",
-                    "created": now().isoformat(),
-                    "updated": now().isoformat(),
-                },
-                {
-                    "id": str(uuid4()),
-                    "org_id": "3340851",
-                    "account": "some acct",
-                    "name": "group 2",
-                    "created": now().isoformat(),
-                    "updated": now().isoformat(),
-                },
-            ],
-        }
-        host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
+        # Create Flask app for application context
+        app = create_app(RuntimeEnvironment.TEST)
 
-        result = deserialize_host({}, host_schema)
-        self.assertEqual(host.return_value, result)
+        with app.app.app_context():
+            host_input = {
+                "display_name": "some display name",
+                "ansible_host": "some ansible host",
+                "account": "some account",
+                "org_id": "3340851",
+                "facts": {
+                    "some namespace": {"some key": "some value"},
+                    "another namespace": {"another key": "another value"},
+                },
+                "system_profile": {
+                    "number_of_cpus": 1,
+                    "number_of_sockets": 2,
+                    "cores_per_socket": 3,
+                    "system_memory_bytes": 4,
+                },
+                "stale_timestamp": now().isoformat(),
+                "reporter": "some reporter",
+                "groups": [
+                    {
+                        "id": str(uuid4()),
+                        "org_id": "3340851",
+                        "account": "some acct",
+                        "name": "group 1",
+                        "created": now().isoformat(),
+                        "updated": now().isoformat(),
+                    },
+                    {
+                        "id": str(uuid4()),
+                        "org_id": "3340851",
+                        "account": "some acct",
+                        "name": "group 2",
+                        "created": now().isoformat(),
+                        "updated": now().isoformat(),
+                    },
+                ],
+            }
+            host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
+
+            result = deserialize_host({}, host_schema)
+            self.assertEqual(host.return_value, result)
 
         deserialize_canonical_facts.assert_called_once_with(host_input)
         deserialize_facts.assert_called_once_with(host_input["facts"])
@@ -1288,45 +1326,49 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
         )
 
     def test_without_display_name(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
-        host_input = {
-            "ansible_host": "some ansible host",
-            "account": "some account",
-            "org_id": "3340851",
-            "facts": {
-                "some namespace": {"some key": "some value"},
-                "another namespace": {"another key": "another value"},
-            },
-            "tags": [
-                {"namespace": "NS1", "key": "key1", "value": "value1"},
-                {"namespace": "NS2", "key": "key2", "value": "value2"},
-            ],
-            "system_profile": {
-                "number_of_cpus": 1,
-                "number_of_sockets": 2,
-                "cores_per_socket": 3,
-                "system_memory_bytes": 4,
-            },
-            "stale_timestamp": now().isoformat(),
-            "reporter": "some reporter",
-            "groups": [
-                {
-                    "id": str(uuid4()),
-                    "org_id": "3340851",
-                    "account": "some acct",
-                    "name": "group 1",
-                    "created": now().isoformat(),
-                    "updated": now().isoformat(),
+        # Create Flask app for application context
+        app = create_app(RuntimeEnvironment.TEST)
+
+        with app.app.app_context():
+            host_input = {
+                "ansible_host": "some ansible host",
+                "account": "some account",
+                "org_id": "3340851",
+                "facts": {
+                    "some namespace": {"some key": "some value"},
+                    "another namespace": {"another key": "another value"},
                 },
-                {
-                    "id": str(uuid4()),
-                    "org_id": "3340851",
-                    "account": "some acct",
-                    "name": "group 2",
-                    "created": now().isoformat(),
-                    "updated": now().isoformat(),
+                "tags": [
+                    {"namespace": "NS1", "key": "key1", "value": "value1"},
+                    {"namespace": "NS2", "key": "key2", "value": "value2"},
+                ],
+                "system_profile": {
+                    "number_of_cpus": 1,
+                    "number_of_sockets": 2,
+                    "cores_per_socket": 3,
+                    "system_memory_bytes": 4,
                 },
-            ],
-        }
+                "stale_timestamp": now().isoformat(),
+                "reporter": "some reporter",
+                "groups": [
+                    {
+                        "id": str(uuid4()),
+                        "org_id": "3340851",
+                        "account": "some acct",
+                        "name": "group 1",
+                        "created": now().isoformat(),
+                        "updated": now().isoformat(),
+                    },
+                    {
+                        "id": str(uuid4()),
+                        "org_id": "3340851",
+                        "account": "some acct",
+                        "name": "group 2",
+                        "created": now().isoformat(),
+                        "updated": now().isoformat(),
+                    },
+                ],
+            }
         host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
 
         result = deserialize_host({}, host_schema)
@@ -1360,40 +1402,44 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
         )
 
     def test_without_system_profile(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
-        host_input = {
-            "display_name": "some display name",
-            "ansible_host": "some ansible host",
-            "account": "some account",
-            "org_id": "3340851",
-            "tags": [
-                {"namespace": "NS1", "key": "key1", "value": "value1"},
-                {"namespace": "NS2", "key": "key2", "value": "value2"},
-            ],
-            "facts": {
-                "some namespace": {"some key": "some value"},
-                "another namespace": {"another key": "another value"},
-            },
-            "stale_timestamp": now().isoformat(),
-            "reporter": "some reporter",
-            "groups": [
-                {
-                    "id": str(uuid4()),
-                    "org_id": "3340851",
-                    "account": "some acct",
-                    "name": "group 1",
-                    "created": now().isoformat(),
-                    "updated": now().isoformat(),
+        # Create Flask app for application context
+        app = create_app(RuntimeEnvironment.TEST)
+
+        with app.app.app_context():
+            host_input = {
+                "display_name": "some display name",
+                "ansible_host": "some ansible host",
+                "account": "some account",
+                "org_id": "3340851",
+                "tags": [
+                    {"namespace": "NS1", "key": "key1", "value": "value1"},
+                    {"namespace": "NS2", "key": "key2", "value": "value2"},
+                ],
+                "facts": {
+                    "some namespace": {"some key": "some value"},
+                    "another namespace": {"another key": "another value"},
                 },
-                {
-                    "id": str(uuid4()),
-                    "org_id": "3340851",
-                    "account": "some acct",
-                    "name": "group 2",
-                    "created": now().isoformat(),
-                    "updated": now().isoformat(),
-                },
-            ],
-        }
+                "stale_timestamp": now().isoformat(),
+                "reporter": "some reporter",
+                "groups": [
+                    {
+                        "id": str(uuid4()),
+                        "org_id": "3340851",
+                        "account": "some acct",
+                        "name": "group 1",
+                        "created": now().isoformat(),
+                        "updated": now().isoformat(),
+                    },
+                    {
+                        "id": str(uuid4()),
+                        "org_id": "3340851",
+                        "account": "some acct",
+                        "name": "group 2",
+                        "created": now().isoformat(),
+                        "updated": now().isoformat(),
+                    },
+                ],
+            }
         host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
 
         result = deserialize_host({}, host_schema)
@@ -1427,28 +1473,32 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
         )
 
     def test_without_groups(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
-        host_input = {
-            "display_name": "some display name",
-            "ansible_host": "some ansible host",
-            "account": "some account",
-            "org_id": "3340851",
-            "tags": [
-                {"namespace": "NS1", "key": "key1", "value": "value1"},
-                {"namespace": "NS2", "key": "key2", "value": "value2"},
-            ],
-            "system_profile": {
-                "number_of_cpus": 1,
-                "number_of_sockets": 2,
-                "cores_per_socket": 3,
-                "system_memory_bytes": 4,
-            },
-            "facts": {
-                "some namespace": {"some key": "some value"},
-                "another namespace": {"another key": "another value"},
-            },
-            "stale_timestamp": now().isoformat(),
-            "reporter": "some reporter",
-        }
+        # Create Flask app for application context
+        app = create_app(RuntimeEnvironment.TEST)
+
+        with app.app.app_context():
+            host_input = {
+                "display_name": "some display name",
+                "ansible_host": "some ansible host",
+                "account": "some account",
+                "org_id": "3340851",
+                "tags": [
+                    {"namespace": "NS1", "key": "key1", "value": "value1"},
+                    {"namespace": "NS2", "key": "key2", "value": "value2"},
+                ],
+                "system_profile": {
+                    "number_of_cpus": 1,
+                    "number_of_sockets": 2,
+                    "cores_per_socket": 3,
+                    "system_memory_bytes": 4,
+                },
+                "facts": {
+                    "some namespace": {"some key": "some value"},
+                    "another namespace": {"another key": "another value"},
+                },
+                "stale_timestamp": now().isoformat(),
+                "reporter": "some reporter",
+            }
         host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
 
         result = deserialize_host({}, host_schema)
@@ -1482,25 +1532,29 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
         )
 
     def test_without_culling_fields(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
-        common_data = {
-            "display_name": "some display name",
-            "ansible_host": "some ansible host",
-            "account": "some account",
-            "tags": [
-                {"namespace": "NS1", "key": "key1", "value": "value1"},
-                {"namespace": "NS2", "key": "key2", "value": "value2"},
-            ],
-            "facts": {
-                "some namespace": {"some key": "some value"},
-                "another namespace": {"another key": "another value"},
-            },
-            "system_profile": {
-                "number_of_cpus": 1,
-                "number_of_sockets": 2,
-                "cores_per_socket": 3,
-                "system_memory_bytes": 4,
-            },
-        }
+        # Create Flask app for application context
+        app = create_app(RuntimeEnvironment.TEST)
+
+        with app.app.app_context():
+            common_data = {
+                "display_name": "some display name",
+                "ansible_host": "some ansible host",
+                "account": "some account",
+                "tags": [
+                    {"namespace": "NS1", "key": "key1", "value": "value1"},
+                    {"namespace": "NS2", "key": "key2", "value": "value2"},
+                ],
+                "facts": {
+                    "some namespace": {"some key": "some value"},
+                    "another namespace": {"another key": "another value"},
+                },
+                "system_profile": {
+                    "number_of_cpus": 1,
+                    "number_of_sockets": 2,
+                    "cores_per_socket": 3,
+                    "system_memory_bytes": 4,
+                },
+            }
         for additional_data in ({"stale_timestamp": "2019-12-16T10:10:06.754201+00:00"}, {"reporter": "puptoo"}):
             with self.subTest(additional_data=additional_data):
                 for thismock in (deserialize_canonical_facts, deserialize_facts, deserialize_tags):
@@ -1554,8 +1608,12 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
         return stale_timestamp + timedelta(seconds=seconds)
 
     def test_with_all_fields(self):
+        # Create Flask app for application context
+        app = create_app(RuntimeEnvironment.TEST)
+
         for with_last_check_in in [True, False]:
             with (
+                app.app.app_context(),  # Add Flask application context
                 self.subTest(with_last_check_in=with_last_check_in),
                 patch("app.serialization.get_flag_value", return_value=with_last_check_in),
                 patch("app.models.host.get_flag_value", return_value=with_last_check_in),
@@ -1654,9 +1712,13 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                 self.assertEqual(expected, actual)
 
     def test_with_only_required_fields(self):
+        # Create Flask app for application context
+        app = create_app(RuntimeEnvironment.TEST)
+
         for with_last_check_in in [True, False]:
             for group_data in ({"groups": None}, {"groups": []}, {}):
                 with (
+                    app.app.app_context(),  # Add Flask application context
                     self.subTest(group_data=group_data, with_last_check_in=with_last_check_in),
                     patch("app.serialization.get_flag_value", return_value=with_last_check_in),
                     patch("app.models.host.get_flag_value", return_value=with_last_check_in),
@@ -1734,9 +1796,13 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                     self.assertEqual(expected, actual)
 
     def test_stale_timestamp_config(self):
+        # Create Flask app for application context
+        app = create_app(RuntimeEnvironment.TEST)
+
         for with_last_check_in in [True, False]:
             for stale_warning_offset_seconds, culled_offset_seconds in ((604800, 1209600),):
                 with (
+                    app.app.app_context(),  # Add Flask application context
                     self.subTest(
                         with_last_check_in=with_last_check_in,
                         stale_warning_offset_seconds=stale_warning_offset_seconds,
@@ -1791,8 +1857,12 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
 @patch("app.serialization.serialize_canonical_facts")
 class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTestCase):
     def test_with_all_fields(self, serialize_canonical_facts, serialize_facts, serialize_tags):
+        # Create Flask app for application context
+        app = create_app(RuntimeEnvironment.TEST)
+
         for with_last_check_in in [True, False]:
             with (
+                app.app.app_context(),  # Add Flask application context
                 self.subTest(with_last_check_in=with_last_check_in),
                 patch("app.serialization.get_flag_value", return_value=with_last_check_in),
                 patch("app.models.host.get_flag_value", return_value=with_last_check_in),
@@ -1887,40 +1957,48 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
 
 class SerializationSerializeHostSystemProfileTestCase(TestCase):
     def test_non_empty_profile_is_not_changed(self):
-        system_profile_facts = {
-            "number_of_cpus": 1,
-            "number_of_sockets": 2,
-            "cores_per_socket": 3,
-            "system_memory_bytes": 4,
-        }
-        host = Host(
-            canonical_facts={"subscription_manager_id": generate_uuid()},
-            display_name="some display name",
-            system_profile_facts=system_profile_facts,
-            stale_timestamp=now(),
-            reporter="yupana",
-            org_id=USER_IDENTITY["org_id"],
-        )
-        host.id = uuid4()
+        # Create Flask app for application context
+        app = create_app(RuntimeEnvironment.TEST)
 
-        actual = serialize_host_system_profile(host)
-        expected = {"id": str(host.id), "system_profile": system_profile_facts}
-        self.assertEqual(expected, actual)
+        with app.app.app_context():
+            system_profile_facts = {
+                "number_of_cpus": 1,
+                "number_of_sockets": 2,
+                "cores_per_socket": 3,
+                "system_memory_bytes": 4,
+            }
+            host = Host(
+                canonical_facts={"subscription_manager_id": generate_uuid()},
+                display_name="some display name",
+                system_profile_facts=system_profile_facts,
+                stale_timestamp=now(),
+                reporter="yupana",
+                org_id=USER_IDENTITY["org_id"],
+            )
+            host.id = uuid4()
+
+            actual = serialize_host_system_profile(host)
+            expected = {"id": str(host.id), "system_profile": system_profile_facts}
+            self.assertEqual(expected, actual)
 
     def test_empty_profile_is_empty_dict(self):
-        host = Host(
-            canonical_facts={"subscription_manager_id": generate_uuid()},
-            display_name="some display name",
-            stale_timestamp=now(),
-            reporter="yupana",
-            org_id=USER_IDENTITY["org_id"],
-        )
-        host.id = uuid4()
-        host.system_profile_facts = None
+        # Create Flask app for application context
+        app = create_app(RuntimeEnvironment.TEST)
 
-        actual = serialize_host_system_profile(host)
-        expected = {"id": str(host.id), "system_profile": {}}
-        self.assertEqual(expected, actual)
+        with app.app.app_context():
+            host = Host(
+                canonical_facts={"subscription_manager_id": generate_uuid()},
+                display_name="some display name",
+                stale_timestamp=now(),
+                reporter="yupana",
+                org_id=USER_IDENTITY["org_id"],
+            )
+            host.id = uuid4()
+            host.system_profile_facts = None
+
+            actual = serialize_host_system_profile(host)
+            expected = {"id": str(host.id), "system_profile": {}}
+            self.assertEqual(expected, actual)
 
 
 class SerializationDeserializeCanonicalFactsTestCase(TestCase):
@@ -2112,21 +2190,25 @@ class HostUpdateStaleTimestamp(TestCase):
         return Host(**{"canonical_facts": {"subscription_manager_id": generate_uuid()}, **values})
 
     def test_always_updated(self):
-        old_stale_timestamp = now() + timedelta(days=2)
-        old_reporter = "old reporter"
-        stale_timestamps = (old_stale_timestamp - timedelta(days=1), old_stale_timestamp - timedelta(days=2))
-        reporters = (old_reporter, "new reporter")
-        for new_stale_timestamp, new_reporter in product(stale_timestamps, reporters):
-            with self.subTest(stale_timestamps=new_stale_timestamp, reporter=new_reporter):
-                host = self._make_host(
-                    stale_timestamp=old_stale_timestamp, reporter=old_reporter, org_id=USER_IDENTITY["org_id"]
-                )
+        # Create Flask app for application context
+        app = create_app(RuntimeEnvironment.TEST)
 
-                new_stale_timestamp = now() + timedelta(days=2)
-                host._update_stale_timestamp(new_stale_timestamp, new_reporter)
+        with app.app.app_context():
+            old_stale_timestamp = now() + timedelta(days=2)
+            old_reporter = "old reporter"
+            stale_timestamps = (old_stale_timestamp - timedelta(days=1), old_stale_timestamp - timedelta(days=2))
+            reporters = (old_reporter, "new reporter")
+            for new_stale_timestamp, new_reporter in product(stale_timestamps, reporters):
+                with self.subTest(stale_timestamps=new_stale_timestamp, reporter=new_reporter):
+                    host = self._make_host(
+                        stale_timestamp=old_stale_timestamp, reporter=old_reporter, org_id=USER_IDENTITY["org_id"]
+                    )
 
-                self.assertEqual(new_stale_timestamp, host.stale_timestamp)
-                self.assertEqual(new_reporter, host.reporter)
+                    new_stale_timestamp = now() + timedelta(days=2)
+                    host._update_stale_timestamp(new_stale_timestamp, new_reporter)
+
+                    self.assertEqual(new_stale_timestamp, host.stale_timestamp)
+                    self.assertEqual(new_reporter, host.reporter)
 
 
 class SerializationDeserializeTags(TestCase):
@@ -2236,60 +2318,68 @@ class EventProducerTests(TestCase):
         }
 
     def test_happy_path(self):
-        produce = self.event_producer._kafka_producer.produce
-        poll = self.event_producer._kafka_producer.poll
-        host_id = self.basic_host["id"]
+        # Create Flask app for application context
+        app = create_app(RuntimeEnvironment.TEST)
 
-        for event_type, host in (
-            (EventType.created, self.basic_host),
-            (EventType.updated, self.basic_host),
-            (EventType.delete, deserialize_host(self.basic_host)),
-        ):
-            with self.subTest(event_type=event_type):
-                event = build_event(event_type, host)
-                headers = message_headers(event_type, host_id)
+        with app.app.app_context():
+            produce = self.event_producer._kafka_producer.produce
+            poll = self.event_producer._kafka_producer.poll
+            host_id = self.basic_host["id"]
 
-                self.event_producer.write_event(event, host_id, headers)
+            for event_type, host in (
+                (EventType.created, self.basic_host),
+                (EventType.updated, self.basic_host),
+                (EventType.delete, deserialize_host(self.basic_host)),
+            ):
+                with self.subTest(event_type=event_type):
+                    event = build_event(event_type, host)
+                    headers = message_headers(event_type, host_id)
 
-                produce.assert_called_once_with(
-                    self.topic_name,
-                    event.encode("utf-8"),
-                    host_id.encode("utf-8"),
-                    callback=ANY,
-                    headers=ANY,
-                )
-                poll.assert_called_once()
+                    self.event_producer.write_event(event, host_id, headers)
 
-                produce.reset_mock()
-                poll.reset_mock()
+                    produce.assert_called_once_with(
+                        self.topic_name,
+                        event.encode("utf-8"),
+                        host_id.encode("utf-8"),
+                        callback=ANY,
+                        headers=ANY,
+                    )
+                    poll.assert_called_once()
+
+                    produce.reset_mock()
+                    poll.reset_mock()
 
     def test_producer_poll(self):
-        produce = self.event_producer._kafka_producer.produce
-        poll = self.event_producer._kafka_producer.poll
-        host_id = self.basic_host["id"]
+        # Create Flask app for application context
+        app = create_app(RuntimeEnvironment.TEST)
 
-        for event_type, host in (
-            (EventType.created, self.basic_host),
-            (EventType.updated, self.basic_host),
-            (EventType.delete, deserialize_host(self.basic_host)),
-        ):
-            with self.subTest(event_type=event_type):
-                event = build_event(event_type, host)
-                headers = message_headers(event_type, host_id)
+        with app.app.app_context():
+            produce = self.event_producer._kafka_producer.produce
+            poll = self.event_producer._kafka_producer.poll
+            host_id = self.basic_host["id"]
 
-                self.event_producer.write_event(event, host_id, headers)
+            for event_type, host in (
+                (EventType.created, self.basic_host),
+                (EventType.updated, self.basic_host),
+                (EventType.delete, deserialize_host(self.basic_host)),
+            ):
+                with self.subTest(event_type=event_type):
+                    event = build_event(event_type, host)
+                    headers = message_headers(event_type, host_id)
 
-                produce.assert_called_once_with(
-                    self.topic_name,
-                    event.encode("utf-8"),
-                    host_id.encode("utf-8"),
-                    callback=ANY,
-                    headers=ANY,
-                )
-                poll.assert_called_once()
+                    self.event_producer.write_event(event, host_id, headers)
 
-                produce.reset_mock()
-                poll.reset_mock()
+                    produce.assert_called_once_with(
+                        self.topic_name,
+                        event.encode("utf-8"),
+                        host_id.encode("utf-8"),
+                        callback=ANY,
+                        headers=ANY,
+                    )
+                    poll.assert_called_once()
+
+                    produce.reset_mock()
+                    poll.reset_mock()
 
     @patch("app.queue.event_producer.message_not_produced")
     def test_kafka_exceptions_are_caught(self, message_not_produced_mock):

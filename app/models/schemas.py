@@ -457,7 +457,7 @@ class OutboxDeleteReferenceSchema(MarshmallowSchema):
         unknown = EXCLUDE
 
     resource_type = fields.Str(validate=marshmallow_validate.OneOf(["host"]), required=True)
-    resource_id = fields.Raw(validate=verify_uuid_format, required=True)
+    resource_id = fields.Raw(validate=verify_uuid_format, allow_none=True)
     reporter = fields.Nested(OutboxDeleteReporterSchema, required=True)
 
 
@@ -474,7 +474,7 @@ class OutboxSchema(MarshmallowSchema):
 
     id = fields.Raw(validate=verify_uuid_format, dump_only=True)
     aggregate_type = fields.Str(validate=marshmallow_validate.Length(min=1, max=255), load_default="hbi.hosts")
-    aggregate_id = fields.Raw(validate=verify_uuid_format, required=True)
+    aggregate_id = fields.Raw(validate=verify_uuid_format, allow_none=True)
     event_type = fields.Str(validate=marshmallow_validate.OneOf(["created", "updated", "delete"]), required=True)
     payload = fields.Raw(required=True)
 
@@ -484,6 +484,11 @@ class OutboxSchema(MarshmallowSchema):
     def validate_payload_with_event_type(self, data, **kwargs):
         event_type = data.get("event_type")
         payload = data.get("payload")
+        aggregate_id = data.get("aggregate_id")
+
+        # Validate aggregate_id based on event_type
+        if event_type in ["created", "updated"] and aggregate_id is None:
+            raise MarshmallowValidationError("aggregate_id is required for created/updated events")
 
         if event_type and payload:
             if event_type in ["created", "updated"]:
