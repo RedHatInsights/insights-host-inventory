@@ -3,6 +3,7 @@ from __future__ import annotations
 from functools import partial
 from functools import wraps
 from http import HTTPStatus
+import inspect
 from json import JSONDecodeError
 from uuid import UUID
 from typing import Dict, Tuple
@@ -17,8 +18,9 @@ from requests.adapters import HTTPAdapter
 from requests.exceptions import HTTPError
 from requests.packages.urllib3.util.retry import Retry
 
+
 from api.metrics import outbound_http_response_time
-from app import IDENTITY_HEADER
+from app import IDENTITY_HEADER, KesselPermission, KesselResourceTypes
 from app import REQUEST_ID_HEADER
 from app import RbacPermission
 from app import RbacResourceType
@@ -72,7 +74,7 @@ def _build_rbac_request_headers(identity_header: str | None = None, request_id_h
     return request_headers
 
 
-def rbac_get_request_using_endpoint_and_headers(rbac_endpoint: str, request_headers: dict):
+def rbac_get_request_using_endpoint_and_headers(rbac_endpoint: str, request_headers: dict, request_params: dict | None = None):
     if inventory_config().bypass_rbac:
         return None
 
@@ -84,6 +86,7 @@ def rbac_get_request_using_endpoint_and_headers(rbac_endpoint: str, request_head
         with outbound_http_response_time.labels("rbac").time():
             rbac_response = request_session.get(
                 url=rbac_endpoint,
+                params=request_params,
                 headers=request_headers,
                 timeout=inventory_config().rbac_timeout,
                 verify=LoadedConfig.tlsCAPath,
@@ -242,20 +245,33 @@ def kessel_verb(perm) -> str:
 def get_kessel_filter(
     kessel_client: Kessel,
     current_identity: Identity,
-    application: str,
-    resource_type: RbacResourceType,
-    verb: RbacPermission,
+    permission: KesselPermission,
+    ids: list[str],
+    write: bool
 ) -> Tuple[bool, Dict[str, Any]]:
     if current_identity.identity_type not in CHECKED_TYPES:
-        if resource_type == RbacResourceType.HOSTS:
+        if permission.resource_type == KesselResourceTypes.HOST:
             return True, None
         else:
             return False, None
 
-    relation = f"{application}_{kessel_type(resource_type)}_{kessel_verb(verb)}"
+    if len(ids) > 0:
+        if write:
+            # Write specific object(s) by id(s)
+            if kessel_client.CheckForUpdate(current_identity, permission, ids):
+                return True, None
+            else:
+                return False, None #The objects are not authorized - reject the request.
+        else:
+            # Read specific object(s) by id(s)
+            if kessel_client.Check(current_identity, permission, ids):
+                return True, None #No need to apply a filter - the objects are authorized
+            else:
+                return False, None #The objects are not authorized - reject the request. Note: this is a potential departure from current behavior where an attempt to request multiple objects by id will return all accessible objects, ignoring inaccessible ones.
 
+    # No ids passed, operate on many objects not by ids
+    relation = permission.workspace_permission
     workspaces = kessel_client.ListAllowedWorkspaces(current_identity, relation)
-
     # TODO: this won't work for org-level permissions OR permissions like add group (which we may not need to handle) that require a permission to be unfiltered
     if len(workspaces) == 0:
         return False, None
@@ -279,19 +295,56 @@ def rbac(resource_type: RbacResourceType, required_permission: RbacPermission, p
 
             allowed = None
             rbac_filter = None
-            if get_flag_value(FLAG_INVENTORY_KESSEL_HOST_MIGRATION) and permission_base != "rbac" and resource_type not in [RbacResourceType.GROUPS]: # Workspace permissions aren't part of HBI in V2, fallback to rbac for now.
-                kessel_client = get_kessel_client(current_app)
-                allowed, rbac_filter = get_kessel_filter(kessel_client, current_identity, permission_base, resource_type, required_permission)
-            else:
-                allowed, rbac_filter = get_rbac_filter(
-                    resource_type, required_permission, current_identity, request_headers, permission_base
-                )            
+
+            allowed, rbac_filter = get_rbac_filter(
+                resource_type, required_permission, current_identity, request_headers, permission_base
+            )            
             
             if allowed:
                 if rbac_filter:
                     return partial(func, rbac_filter=rbac_filter)(*args, **kwargs)
                 else:
                     return func(*args, **kwargs)
+            else:
+                abort(HTTPStatus.FORBIDDEN)
+
+        return modified_func
+
+    return other_func
+
+def access(permission: KesselPermission, id_param: str = "", writeOperation: bool=False):
+    def other_func(func):
+        sig = inspect.signature(func)
+        
+        @wraps(func)
+        def modified_func(*args, **kwargs):
+            # If the API is in read-only mode and this is a Write endpoint, abort with HTTP 503.
+            if writeOperation and get_flag_value(FLAG_INVENTORY_API_READ_ONLY):
+                abort(503, "Inventory API is currently in read-only mode.")
+
+            if inventory_config().bypass_rbac:
+                return func(*args, **kwargs)
+
+            current_identity = get_current_identity()
+
+            request_headers = _build_rbac_request_headers()
+
+            allowed = None
+            rbac_filter = None
+            if get_flag_value(FLAG_INVENTORY_KESSEL_HOST_MIGRATION): # Workspace permissions aren't part of HBI in V2, fallback to rbac for now.
+                kessel_client = get_kessel_client(current_app)
+                ids = permission.resource_type.get_resource_id(kwargs, id_param)
+
+                allowed, rbac_filter = get_kessel_filter(kessel_client, current_identity, permission, ids, writeOperation)
+            else:
+                allowed, rbac_filter = get_rbac_filter(
+                    permission.resource_type.v1_type, permission.v1_permission, current_identity, request_headers, permission.resource_type.v1_app
+                )            
+            
+            if allowed:
+                if rbac_filter and "rbac_filter" in sig.parameters:
+                    kwargs["rbac_filter"] = rbac_filter
+                return func(*args, **kwargs)
             else:
                 abort(HTTPStatus.FORBIDDEN)
 
@@ -464,6 +517,7 @@ def delete_rbac_workspace(workspace_id: str) -> bool:
         request_session.close()
 
 
+
 def patch_rbac_workspace(workspace_id: str, name: str | None = None) -> None:
     if inventory_config().bypass_rbac:
         return None
@@ -492,3 +546,16 @@ def patch_rbac_workspace(workspace_id: str, name: str | None = None) -> None:
         abort(503, "Failed to reach RBAC endpoint, request cannot be fulfilled")
     finally:
         request_session.close()
+
+
+def get_rbac_default_workspace() -> UUID | None:
+    if inventory_config().bypass_rbac:
+        return None
+
+    response = rbac_get_request_using_endpoint_and_headers(get_rbac_v2_url(endpoint="workspaces/"), _build_rbac_request_headers(), {"limit": 1, "type": "default"})
+    data = response["data"] if response else None
+    if data and len(data) > 0:
+        return data[0]["id"]
+    else:
+        return None
+        
