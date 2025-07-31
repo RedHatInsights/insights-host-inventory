@@ -2256,3 +2256,30 @@ def test_system_type_happy_path(api_get, db_create_host, query_filter_param):
     assert len(response_data["results"]) == matching_hosts
     for result in response_data["results"]:
         assert result["id"] in host_ids
+
+
+def test_fresh_staleness_with_only_rhsm_system_profile_bridge(api_get, db_create_host):
+    """
+    Ensure that a host with only "rhsm-system-profile-bridge" in per_reporter_staleness,
+    and "last_check_in" and "updated" timestamps far in the past, is still returned
+    with the "?staleness=fresh" filter.
+    """
+    # Set timestamps far in the past
+    with patch("app.models.utils.datetime", **{"now.return_value": (now() - timedelta(days=365))}):
+        # Only "rhsm-system-profile-bridge" reporter is present
+        host = db_create_host(
+            extra_data={
+                "reporter": "rhsm-system-profile-bridge",
+            }
+        )
+        host_id = str(host.id)
+
+    # Set FLAG_INVENTORY_FILTER_STALENESS_USING_COLUMNS to true
+    with patch("api.filtering.db_filters.get_flag_value", return_value=True):
+        url = build_hosts_url(query="?staleness=fresh")
+        response_status, response_data = api_get(url=url)
+
+    assert response_status == 200
+    # The host should be present in the results
+    result_ids = [result["id"] for result in response_data["results"]]
+    assert host_id in result_ids

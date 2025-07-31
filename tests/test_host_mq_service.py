@@ -24,6 +24,7 @@ from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import threadctx
 from app.models import Host
+from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 from app.queue.event_producer import EventProducer
 from app.queue.events import EventType
 from app.queue.host_mq import IngressMessageConsumer
@@ -154,6 +155,66 @@ def test_handle_message_happy_path(
         assert result.row.groups == []
 
     mock_notification_event_producer.write_event.assert_not_called()
+
+
+@pytest.mark.usefixtures("flask_app")
+def test_handle_message_update_reporter_to_rhsm(db_get_host, ingress_message_consumer_mock):
+    def _test_host_reporter_and_timestamps(host, reporter):
+        assert host.reporter == reporter
+        assert host.stale_timestamp != FAR_FUTURE_STALE_TIMESTAMP
+        assert host.stale_warning_timestamp != FAR_FUTURE_STALE_TIMESTAMP
+        assert host.deletion_timestamp != FAR_FUTURE_STALE_TIMESTAMP
+
+    # Create a host with a reporter
+    expected_insights_id = generate_uuid()
+    host = minimal_host(insights_id=expected_insights_id, reporter="puptoo")
+    message = wrap_message(host.data(), "add_host", get_platform_metadata(USER_IDENTITY))
+    result = ingress_message_consumer_mock.handle_message(json.dumps(message))
+    host_id = result.row.id
+    retrieved_host = db_get_host(host_id)
+
+    # Make sure the reporter is correct, and that the timestamps are not far future
+    _test_host_reporter_and_timestamps(retrieved_host, "puptoo")
+
+    # Update the host to have a different reporter
+    host = minimal_host(insights_id=expected_insights_id, reporter="rhsm-system-profile-bridge")
+
+    message = wrap_message(host.data(), "update_host", get_platform_metadata(USER_IDENTITY))
+    ingress_message_consumer_mock.handle_message(json.dumps(message))
+
+    # Make sure the reporter was updated and the timestamps are still not far future
+    retrieved_host = db_get_host(host_id)
+    _test_host_reporter_and_timestamps(retrieved_host, "rhsm-system-profile-bridge")
+
+
+@pytest.mark.usefixtures("flask_app")
+def test_handle_message_update_reporter_from_rhsm(db_get_host, ingress_message_consumer_mock):
+    # Create a host with a reporter
+    expected_insights_id = generate_uuid()
+    host = minimal_host(insights_id=expected_insights_id, reporter="rhsm-system-profile-bridge")
+    message = wrap_message(host.data(), "add_host", get_platform_metadata(USER_IDENTITY))
+    result = ingress_message_consumer_mock.handle_message(json.dumps(message))
+    host_id = result.row.id
+    retrieved_host = db_get_host(host_id)
+
+    # Make sure the reporter is correct, and that the timestamps are far future
+    assert retrieved_host.reporter == "rhsm-system-profile-bridge"
+    assert retrieved_host.stale_timestamp == FAR_FUTURE_STALE_TIMESTAMP
+    assert retrieved_host.stale_warning_timestamp == FAR_FUTURE_STALE_TIMESTAMP
+    assert retrieved_host.deletion_timestamp == FAR_FUTURE_STALE_TIMESTAMP
+
+    # Update the host to have a different reporter
+    host = minimal_host(insights_id=expected_insights_id, reporter="puptoo")
+
+    message = wrap_message(host.data(), "update_host", get_platform_metadata(USER_IDENTITY))
+    ingress_message_consumer_mock.handle_message(json.dumps(message))
+
+    # Make sure the reporter was updated and the timestamps are no longer far future
+    retrieved_host = db_get_host(host_id)
+    assert retrieved_host.reporter == "puptoo"
+    assert retrieved_host.stale_timestamp != FAR_FUTURE_STALE_TIMESTAMP
+    assert retrieved_host.stale_warning_timestamp != FAR_FUTURE_STALE_TIMESTAMP
+    assert retrieved_host.deletion_timestamp != FAR_FUTURE_STALE_TIMESTAMP
 
 
 @pytest.mark.usefixtures("flask_app")
