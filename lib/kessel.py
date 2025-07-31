@@ -26,7 +26,8 @@ from kessel.inventory.v1beta2 import (
     reporter_reference_pb2,
     streamed_list_objects_request_pb2,
     representation_type_pb2,
-    subject_reference_pb2
+    subject_reference_pb2,
+    allowed_pb2
 )
 from google.protobuf import struct_pb2
 
@@ -184,7 +185,7 @@ class Kessel:
         )
         
         response = self.inventory_svc.Check(request, timeout=self.timeout)
-        return response.allowed
+        return response.allowed == allowed_pb2.Allowed.ALLOWED_TRUE
 
     def _check_bulk_resources(self, subject_ref: subject_reference_pb2.SubjectReference,
                             permission: KesselPermission, resource_ids: list[str]) -> bool:
@@ -216,7 +217,7 @@ class Kessel:
         )
         
         response = self.inventory_svc.CheckForUpdate(request, timeout=self.timeout)
-        return response.allowed
+        return response.allowed == allowed_pb2.Allowed.ALLOWED_TRUE
 
     def _check_bulk_resources_for_update(self, subject_ref: subject_reference_pb2.SubjectReference,
                                        permission: KesselPermission, resource_ids: list[str]) -> bool:
