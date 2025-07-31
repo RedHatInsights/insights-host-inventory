@@ -744,6 +744,7 @@ def test_canonical_facts_version_toohigh():
         {"provider_type": "alibaba", "provider_id": generate_uuid()},
         {"provider_type": "aws", "provider_id": "i-05d2313e6b9a42b16"},
         {"provider_type": "azure", "provider_id": generate_uuid()},
+        {"provider_type": "discovery", "provider_id": generate_uuid()},
         {"provider_type": "gcp", "provider_id": generate_uuid()},
         {"provider_type": "ibm", "provider_id": generate_uuid()},
         #
@@ -768,6 +769,13 @@ def test_canonical_facts_version_toohigh():
             "is_virtual": True,
             "mac_addresses": ["c2:00:d0:c8:61:01", "aa:bb:cc:dd:ee:ff"],
             "provider_type": "azure",
+            "provider_id": generate_uuid(),
+        },
+        {
+            "canonical_facts_version": 1,
+            "is_virtual": True,
+            "mac_addresses": ["c2:00:d0:c8:61:01", "aa:bb:cc:dd:ee:ff"],
+            "provider_type": "discovery",
             "provider_id": generate_uuid(),
         },
         {
