@@ -2421,6 +2421,7 @@ objects:
             COUNT(*) AS "host_count"
           FROM "hbi"."groups"
           JOIN "hbi"."hosts_groups" ON "groups"."id" = "hbi"."hosts_groups"."group_id"
+          WHERE "ungrouped" IS FALSE
           GROUP BY "groups"."id"
           ORDER BY "host_count" DESC;
 - apiVersion: v1
