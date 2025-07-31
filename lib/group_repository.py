@@ -260,7 +260,7 @@ def add_group(
     session.flush()
 
     # gets the ID of the group after it has been committed
-    return session.query(Group).filter((Group.name == group_name) & (Group.org_id == org_id)).one_or_none()
+    return new_group
 
 
 def add_group_with_hosts(
@@ -276,13 +276,14 @@ def add_group_with_hosts(
     with session_guard(db.session):
         # Create group
         created_group = add_group(group_name, identity.org_id, account, group_id, ungrouped)
+        created_group_id = created_group.id
 
         # Add hosts to group
         if host_id_list:
             _add_hosts_to_group(created_group.id, host_id_list, identity.org_id)
 
     # gets the ID of the group after it has been committed
-    created_group = Group.query.filter((Group.name == group_name) & (Group.org_id == identity.org_id)).one_or_none()
+    created_group = get_group_by_id_from_db(created_group_id, identity.org_id)
 
     # Produce update messages once the DB session has been closed
     serialized_groups, host_id_list = _update_hosts_for_group_changes(
@@ -428,6 +429,12 @@ def get_group_by_id_from_db(group_id: str, org_id: str, session: Optional[Sessio
     session = session or db.session
     query = session.query(Group).filter(Group.org_id == org_id, Group.id == group_id)
     return query.one_or_none()
+
+
+def get_group_by_name_from_db(group_name: str, org_id: str, session: Optional[Session] = None) -> list[Group]:
+    session = session or db.session
+    query = session.query(Group).filter(Group.org_id == org_id, Group.name == group_name.lower())
+    return query.all()
 
 
 def patch_group(group: Group, patch_data: dict, identity: Identity, event_producer: EventProducer):
