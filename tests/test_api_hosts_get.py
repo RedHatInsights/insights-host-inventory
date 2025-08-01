@@ -1,10 +1,14 @@
 import random
 from datetime import timedelta
 from itertools import chain
+from typing import Callable
 from unittest.mock import patch
 
 import pytest
+from pytest_mock import MockerFixture
+from pytest_subtests import SubTests
 
+from app.models.host import Host
 from lib.host_repository import find_hosts_by_staleness
 from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
@@ -2173,11 +2177,17 @@ def test_get_host_from_different_org(mocker, api_get):
     assert_response_status(response_status, 403)
 
 
-def test_query_by_staleness_using_columns(db_create_multiple_hosts, api_get, subtests):
-    patch("app.staleness_serialization.get_flag_value", return_value=True)
-    patch("app.models.get_flag_value", return_value=True)
-    patch("app.serialization.get_flag_value", return_value=True)
-    patch("api.host_query_db.get_flag_value", return_value=True)
+def test_query_by_staleness_using_columns(
+    db_create_multiple_hosts: Callable[..., list[Host]],
+    api_get: Callable[..., tuple[int, dict]],
+    mocker: MockerFixture,
+    subtests: SubTests,
+) -> None:
+    mocker.patch("app.staleness_serialization.get_flag_value", return_value=True)
+    mocker.patch("app.models.host.get_flag_value", return_value=True)
+    mocker.patch("app.serialization.get_flag_value", return_value=True)
+    mocker.patch("api.host_query_db.get_flag_value", return_value=True)
+    mocker.patch("api.filtering.db_filters.get_flag_value", return_value=True)
 
     expected_staleness_results_map = {
         "fresh": 3,
@@ -2194,7 +2204,7 @@ def test_query_by_staleness_using_columns(db_create_multiple_hosts, api_get, sub
     # Create the hosts in each state
     for staleness, num_hosts in expected_staleness_results_map.items():
         # Patch the "now" function so the hosts are created in the desired state
-        with patch("app.models.utils.datetime", **{"now.return_value": staleness_timestamp_map[staleness]}):
+        with mocker.patch("app.models.utils.datetime", **{"now.return_value": staleness_timestamp_map[staleness]}):
             staleness_to_host_ids_map[staleness] = [str(h.id) for h in db_create_multiple_hosts(how_many=num_hosts)]
 
     for staleness, count in expected_staleness_results_map.items():
