@@ -25,6 +25,8 @@ class _WithConfig:
 class Timestamps(_WithConfig):
     @staticmethod
     def _add_time(timestamp, delta):
+        if timestamp is None:
+            return None
         return timestamp + delta
 
     def stale_timestamp(self, stale_timestamp, stale_seconds):

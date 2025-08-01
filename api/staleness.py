@@ -110,12 +110,16 @@ def _update_hosts_staleness_async(identity: Identity, app: Flask, staleness: Sta
                     # Create host update event and append it to an array
                     event, headers = _build_host_updated_event_params(serialized_host, host, identity)
                     list_of_events_params.append((event, headers, str(host.id)))
-                hosts_query.session.commit()
 
-                # After a successful commit to the db
-                # call all the events in the list
+                # Step 1: Save host staleness updates to hbi.hosts table (already done above)
+                # Step 2: Produce the events using EventProducer.write_event (which includes outbox write)
+                # Step 3: Save the corresponding events to the Outbox table (handled by EventProducer)
+                # All within the same transaction - if outbox fails, everything rolls back
                 for event, headers, host_id in list_of_events_params:
                     app.event_producer.write_event(event, host_id, headers, wait=True)
+
+                # Only commit if both host staleness updates AND event production (including outbox) succeed
+                hosts_query.session.commit()
 
                 delete_cached_system_keys(org_id=identity.org_id, spawn=True)
             logger.debug("Leaving host staleness update thread")
