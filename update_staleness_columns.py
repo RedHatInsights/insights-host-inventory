@@ -71,7 +71,7 @@ def run(logger: Logger, session: Session, application: FlaskApp):
                 ~Host.per_reporter_staleness[reporter].has_key("stale_warning_timestamp")
                 for reporter in reporters_list
             ),
-            or_(Host.stale_warning_timestamp is None, Host.deletion_timestamp is None),
+            or_(Host.stale_warning_timestamp.is_(None), Host.deletion_timestamp.is_(None)),
         )
 
         hosts_query = session.query(Host).filter(query_filter).order_by(Host.org_id)
