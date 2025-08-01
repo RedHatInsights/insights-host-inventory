@@ -2219,19 +2219,25 @@ def test_query_by_staleness_using_columns(
 
     # "unknown" staleness filter should be ignored, so if it's the only filter,
     # then all non-culled hosts should be returned
-    expected_staleness_results_map["unknown"] = 9
+    staleness_to_host_ids_map["unknown"] = sum(
+        [staleness_to_host_ids_map[staleness] for staleness in ["fresh", "stale", "stale_warning"]], []
+    )
+    expected_staleness_results_map["unknown"] = len(staleness_to_host_ids_map["unknown"])
 
     for staleness, expected_count in expected_staleness_results_map.items():
         with subtests.test(staleness):
             url = build_hosts_url(query=f"?staleness={staleness}")
-            # Validate the basics, i.e. response code and results size
+            expected_host_ids = set(staleness_to_host_ids_map[staleness])
+
             response_status, response_data = api_get(url)
             assert response_status == 200
             assert len(response_data["results"]) == expected_count
+            assert {host["id"] for host in response_data["results"]} == expected_host_ids
 
     # Test combinations of staleness filters
 
     # "unknown" staleness filter should be ignored
+    staleness_to_host_ids_map["unknown"] = []
     expected_staleness_results_map["unknown"] = 0
 
     for n in range(2, len(expected_staleness_results_map.keys()) + 1):
@@ -2240,10 +2246,13 @@ def test_query_by_staleness_using_columns(
             with subtests.test(", ".join(filters)):
                 query = "?" + "&".join(f"staleness={staleness}" for staleness in filters)
                 expected_count = sum(expected_staleness_results_map[staleness] for staleness in filters)
+                expected_host_ids = set(sum([staleness_to_host_ids_map[staleness] for staleness in filters], []))
                 logger.info(f"Testing query: {query}")
+
                 response_status, response_data = api_get(build_hosts_url(query=query))
                 assert response_status == 200
                 assert len(response_data["results"]) == expected_count
+                assert {host["id"] for host in response_data["results"]} == expected_host_ids
 
 
 @pytest.mark.parametrize("system_type", ("conventional", "bootc", "edge"))
