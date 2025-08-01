@@ -180,6 +180,11 @@ def write_event_to_outbox(event: str) -> bool:
             # Notification event skipped - this is success
             logger.debug("Event skipped for outbox processing")
             return True
+
+        elif outbox_entry.get("event_type", None) == "created" and outbox_entry.get("aggregate_id", None) == 'None':
+            logger.debug("Event skipped for outbox processing because \
+                         the host has not yet been saved to the database and does not have an ID")
+            return True
         elif outbox_entry is False:
             logger.error("Failed to create outbox entry from event data")
             return False
