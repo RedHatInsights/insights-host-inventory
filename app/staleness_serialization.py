@@ -2,8 +2,8 @@ from datetime import datetime
 
 from app.common import inventory_config
 from app.culling import Timestamps
-from lib.feature_flags import FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS
-from lib.feature_flags import get_flag_value
+from app.culling import should_host_stay_fresh_forever
+from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 
 __all__ = ("get_staleness_timestamps",)
 
@@ -41,23 +41,25 @@ def get_staleness_timestamps(host, staleness_timestamps: Timestamps, staleness: 
     Returns:
         dict: A dictionary with keys 'stale_timestamp', 'stale_warning_timestamp', and 'culled_timestamp'.
     """
+    # Check if host should stay fresh forever (e.g., rhsm-only hosts)
+    if should_host_stay_fresh_forever(host):
+        return {
+            "stale_timestamp": FAR_FUTURE_STALE_TIMESTAMP,
+            "stale_warning_timestamp": FAR_FUTURE_STALE_TIMESTAMP,
+            "culled_timestamp": FAR_FUTURE_STALE_TIMESTAMP,
+        }
 
     staleness_type = _find_host_type(host)
 
-    date_to_use = (
-        host.last_check_in
-        if get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS)
-        else host.modified_on
-    )
     return {
         "stale_timestamp": staleness_timestamps.stale_timestamp(
-            date_to_use, staleness[f"{staleness_type}_time_to_stale"]
+            host.last_check_in, staleness[f"{staleness_type}_time_to_stale"]
         ),
         "stale_warning_timestamp": staleness_timestamps.stale_warning_timestamp(
-            date_to_use, staleness[f"{staleness_type}_time_to_stale_warning"]
+            host.last_check_in, staleness[f"{staleness_type}_time_to_stale_warning"]
         ),
         "culled_timestamp": staleness_timestamps.culled_timestamp(
-            date_to_use, staleness[f"{staleness_type}_time_to_delete"]
+            host.last_check_in, staleness[f"{staleness_type}_time_to_delete"]
         ),
     }
 
@@ -78,14 +80,18 @@ def get_reporter_staleness_timestamps(
     Returns:
         dict: A dictionary with keys 'stale_timestamp', 'stale_warning_timestamp', and 'culled_timestamp'.
     """
+    # Check if host should stay fresh forever (e.g., rhsm-only hosts)
+    if should_host_stay_fresh_forever(host):
+        return {
+            "stale_timestamp": FAR_FUTURE_STALE_TIMESTAMP,
+            "stale_warning_timestamp": FAR_FUTURE_STALE_TIMESTAMP,
+            "culled_timestamp": FAR_FUTURE_STALE_TIMESTAMP,
+        }
 
     staleness_type = _find_host_type(host)
 
-    date_to_use = (
-        datetime.fromisoformat(host.per_reporter_staleness[reporter]["last_check_in"])
-        if get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS)
-        else host.modified_on
-    )
+    date_to_use = datetime.fromisoformat(host.per_reporter_staleness[reporter]["last_check_in"])
+
     return {
         "stale_timestamp": staleness_timestamps.stale_timestamp(
             date_to_use, staleness[f"{staleness_type}_time_to_stale"]

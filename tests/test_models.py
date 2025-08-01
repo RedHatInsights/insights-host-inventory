@@ -3,7 +3,6 @@ from contextlib import suppress
 from copy import deepcopy
 from datetime import datetime
 from datetime import timedelta
-from unittest.mock import patch
 
 import pytest
 from marshmallow import ValidationError as MarshmallowValidationError
@@ -22,6 +21,7 @@ from app.models import InputGroupSchema
 from app.models import LimitedHost
 from app.models import _create_staleness_timestamps_values
 from app.models import db
+from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 from app.models.system_profile import HostStaticSystemProfile
 from app.models.system_profiles_dynamic import HostDynamicSystemProfile
 from app.staleness_serialization import get_staleness_timestamps
@@ -355,7 +355,6 @@ def test_host_model_assigned_values(db_create_host, db_get_host):
         "tags": {"namespace": {"key": ["value"]}},
         "canonical_facts": {"subscription_manager_id": generate_uuid()},
         "system_profile_facts": {"number_of_cpus": 1},
-        "stale_timestamp": now(),
         "reporter": "reporter",
     }
 
@@ -459,240 +458,161 @@ def test_host_model_constraints(field, value, db_create_host):
         db_create_host(host=host)
 
 
-@pytest.mark.parametrize("with_last_check_in", [True, False])
-def test_create_host_sets_per_reporter_staleness(mocker, db_create_host, models_datetime_mock, with_last_check_in):
-    with (
-        mocker.patch("app.serialization.get_flag_value", return_value=with_last_check_in),
-        mocker.patch("app.models.host.get_flag_value", return_value=with_last_check_in),
-        mocker.patch("app.staleness_serialization.get_flag_value", return_value=with_last_check_in),
-    ):
-        stale_timestamp = models_datetime_mock + timedelta(days=1)
+def test_create_host_sets_per_reporter_staleness(db_create_host, models_datetime_mock):
+    stale_timestamp = models_datetime_mock + timedelta(days=1)
 
-        input_host = Host(
-            {"subscription_manager_id": generate_uuid()},
-            display_name="display_name",
-            reporter="puptoo",
-            stale_timestamp=stale_timestamp,
-            org_id=USER_IDENTITY["org_id"],
-        )
-        created_host = db_create_host(host=input_host)
-        staleness = get_sys_default_staleness()
-        st = staleness_timestamps()
-        timestamps = get_staleness_timestamps(created_host, st, staleness)
+    input_host = Host(
+        {"subscription_manager_id": generate_uuid()},
+        display_name="display_name",
+        reporter="puptoo",
+        stale_timestamp=stale_timestamp,
+        org_id=USER_IDENTITY["org_id"],
+    )
+    created_host = db_create_host(host=input_host)
+    staleness = get_sys_default_staleness()
+    st = staleness_timestamps()
+    timestamps = get_staleness_timestamps(created_host, st, staleness)
 
-        if with_last_check_in:
-            assert created_host.per_reporter_staleness == {
-                "puptoo": {
-                    "last_check_in": models_datetime_mock.isoformat(),
-                    "stale_timestamp": timestamps["stale_timestamp"].isoformat(),
-                    "check_in_succeeded": True,
-                    "culled_timestamp": timestamps["culled_timestamp"].isoformat(),
-                    "stale_warning_timestamp": timestamps["stale_warning_timestamp"].isoformat(),
-                }
-            }
-        else:
-            assert created_host.per_reporter_staleness == {
-                "puptoo": {
-                    "last_check_in": models_datetime_mock.isoformat(),
-                    "stale_timestamp": stale_timestamp.isoformat(),
-                    "check_in_succeeded": True,
-                }
-            }
+    assert created_host.per_reporter_staleness == {
+        "puptoo": {
+            "last_check_in": models_datetime_mock.isoformat(),
+            "stale_timestamp": timestamps["stale_timestamp"].isoformat(),
+            "check_in_succeeded": True,
+            "culled_timestamp": timestamps["culled_timestamp"].isoformat(),
+            "stale_warning_timestamp": timestamps["stale_warning_timestamp"].isoformat(),
+        }
+    }
 
 
-@pytest.mark.parametrize("with_last_check_in", [True, False])
-def test_update_per_reporter_staleness(mocker, db_create_host, models_datetime_mock, with_last_check_in):
-    with (
-        mocker.patch("app.serialization.get_flag_value", return_value=with_last_check_in),
-        mocker.patch("app.models.host.get_flag_value", return_value=with_last_check_in),
-        mocker.patch("app.staleness_serialization.get_flag_value", return_value=with_last_check_in),
-    ):
-        puptoo_stale_timestamp = models_datetime_mock + timedelta(days=1)
+def test_update_per_reporter_staleness(db_create_host, models_datetime_mock):
+    puptoo_stale_timestamp = models_datetime_mock + timedelta(days=1)
 
-        subman_id = generate_uuid()
-        input_host = Host(
-            {"subscription_manager_id": subman_id},
-            display_name="display_name",
-            reporter="puptoo",
-            stale_timestamp=puptoo_stale_timestamp,
-            org_id=USER_IDENTITY["org_id"],
-        )
+    subman_id = generate_uuid()
+    input_host = Host(
+        {"subscription_manager_id": subman_id},
+        display_name="display_name",
+        reporter="puptoo",
+        stale_timestamp=puptoo_stale_timestamp,
+        org_id=USER_IDENTITY["org_id"],
+    )
 
-        existing_host = db_create_host(host=input_host)
-        staleness = get_sys_default_staleness()
-        st = staleness_timestamps()
-        timestamps = get_staleness_timestamps(existing_host, st, staleness)
+    existing_host = db_create_host(host=input_host)
+    staleness = get_sys_default_staleness()
+    st = staleness_timestamps()
+    timestamps = get_staleness_timestamps(existing_host, st, staleness)
 
-        if with_last_check_in:
-            assert existing_host.per_reporter_staleness == {
-                "puptoo": {
-                    "last_check_in": models_datetime_mock.isoformat(),
-                    "stale_timestamp": timestamps["stale_timestamp"].isoformat(),
-                    "check_in_succeeded": True,
-                    "culled_timestamp": timestamps["culled_timestamp"].isoformat(),
-                    "stale_warning_timestamp": timestamps["stale_warning_timestamp"].isoformat(),
-                }
-            }
-        else:
-            assert existing_host.per_reporter_staleness == {
-                "puptoo": {
-                    "last_check_in": models_datetime_mock.isoformat(),
-                    "stale_timestamp": puptoo_stale_timestamp.isoformat(),
-                    "check_in_succeeded": True,
-                }
-            }
+    assert existing_host.per_reporter_staleness == {
+        "puptoo": {
+            "last_check_in": models_datetime_mock.isoformat(),
+            "stale_timestamp": timestamps["stale_timestamp"].isoformat(),
+            "check_in_succeeded": True,
+            "culled_timestamp": timestamps["culled_timestamp"].isoformat(),
+            "stale_warning_timestamp": timestamps["stale_warning_timestamp"].isoformat(),
+        }
+    }
 
-        puptoo_stale_timestamp += timedelta(days=1)
+    puptoo_stale_timestamp += timedelta(days=1)
 
-        update_host = Host(
-            {"subscription_manager_id": subman_id},
-            display_name="display_name",
-            reporter="puptoo",
-            stale_timestamp=puptoo_stale_timestamp,
-            org_id=USER_IDENTITY["org_id"],
-        )
-        existing_host.update(update_host)
+    update_host = Host(
+        {"subscription_manager_id": subman_id},
+        display_name="display_name",
+        reporter="puptoo",
+        stale_timestamp=puptoo_stale_timestamp,
+        org_id=USER_IDENTITY["org_id"],
+    )
+    existing_host.update(update_host)
 
-        # datetime will not change because the datetime.now() method is patched
-        if with_last_check_in:
-            assert existing_host.per_reporter_staleness == {
-                "puptoo": {
-                    "last_check_in": models_datetime_mock.isoformat(),
-                    "stale_timestamp": timestamps["stale_timestamp"].isoformat(),
-                    "check_in_succeeded": True,
-                    "culled_timestamp": timestamps["culled_timestamp"].isoformat(),
-                    "stale_warning_timestamp": timestamps["stale_warning_timestamp"].isoformat(),
-                }
-            }
-        else:
-            assert existing_host.per_reporter_staleness == {
-                "puptoo": {
-                    "last_check_in": models_datetime_mock.isoformat(),
-                    "stale_timestamp": puptoo_stale_timestamp.isoformat(),
-                    "check_in_succeeded": True,
-                }
-            }
+    # datetime will not change because the datetime.now() method is patched
+    assert existing_host.per_reporter_staleness == {
+        "puptoo": {
+            "last_check_in": models_datetime_mock.isoformat(),
+            "stale_timestamp": timestamps["stale_timestamp"].isoformat(),
+            "check_in_succeeded": True,
+            "culled_timestamp": timestamps["culled_timestamp"].isoformat(),
+            "stale_warning_timestamp": timestamps["stale_warning_timestamp"].isoformat(),
+        }
+    }
 
-        yupana_stale_timestamp = puptoo_stale_timestamp + timedelta(days=1)
+    yupana_stale_timestamp = puptoo_stale_timestamp + timedelta(days=1)
 
-        update_host = Host(
-            {"subscription_manager_id": subman_id},
-            display_name="display_name",
-            reporter="yupana",
-            stale_timestamp=yupana_stale_timestamp,
-            org_id=USER_IDENTITY["org_id"],
-        )
-        existing_host.update(update_host)
+    update_host = Host(
+        {"subscription_manager_id": subman_id},
+        display_name="display_name",
+        reporter="yupana",
+        stale_timestamp=yupana_stale_timestamp,
+        org_id=USER_IDENTITY["org_id"],
+    )
+    existing_host.update(update_host)
 
-        # datetime will not change because the datetime.now() method is patched
-        if with_last_check_in:
-            assert existing_host.per_reporter_staleness == {
-                "puptoo": {
-                    "last_check_in": models_datetime_mock.isoformat(),
-                    "stale_timestamp": timestamps["stale_timestamp"].isoformat(),
-                    "check_in_succeeded": True,
-                    "culled_timestamp": timestamps["culled_timestamp"].isoformat(),
-                    "stale_warning_timestamp": timestamps["stale_warning_timestamp"].isoformat(),
-                },
-                "yupana": {
-                    "last_check_in": models_datetime_mock.isoformat(),
-                    "stale_timestamp": timestamps["stale_timestamp"].isoformat(),
-                    "check_in_succeeded": True,
-                    "culled_timestamp": timestamps["culled_timestamp"].isoformat(),
-                    "stale_warning_timestamp": timestamps["stale_warning_timestamp"].isoformat(),
-                },
-            }
-        else:
-            assert existing_host.per_reporter_staleness == {
-                "puptoo": {
-                    "last_check_in": models_datetime_mock.isoformat(),
-                    "stale_timestamp": puptoo_stale_timestamp.isoformat(),
-                    "check_in_succeeded": True,
-                },
-                "yupana": {
-                    "last_check_in": models_datetime_mock.isoformat(),
-                    "stale_timestamp": yupana_stale_timestamp.isoformat(),
-                    "check_in_succeeded": True,
-                },
-            }
+    # datetime will not change because the datetime.now() method is patched
+    assert existing_host.per_reporter_staleness == {
+        "puptoo": {
+            "last_check_in": models_datetime_mock.isoformat(),
+            "stale_timestamp": timestamps["stale_timestamp"].isoformat(),
+            "check_in_succeeded": True,
+            "culled_timestamp": timestamps["culled_timestamp"].isoformat(),
+            "stale_warning_timestamp": timestamps["stale_warning_timestamp"].isoformat(),
+        },
+        "yupana": {
+            "last_check_in": models_datetime_mock.isoformat(),
+            "stale_timestamp": timestamps["stale_timestamp"].isoformat(),
+            "check_in_succeeded": True,
+            "culled_timestamp": timestamps["culled_timestamp"].isoformat(),
+            "stale_warning_timestamp": timestamps["stale_warning_timestamp"].isoformat(),
+        },
+    }
 
 
 @pytest.mark.parametrize(
     "new_reporter",
     ["satellite", "discovery"],
 )
-@pytest.mark.parametrize("with_last_check_in", [True, False])
-def test_update_per_reporter_staleness_yupana_replacement(
-    mocker, db_create_host, models_datetime_mock, new_reporter, with_last_check_in
-):
-    with (
-        mocker.patch("app.serialization.get_flag_value", return_value=with_last_check_in),
-        mocker.patch("app.models.host.get_flag_value", return_value=with_last_check_in),
-        mocker.patch("app.staleness_serialization.get_flag_value", return_value=with_last_check_in),
-    ):
-        yupana_stale_timestamp = models_datetime_mock + timedelta(days=1)
-        subman_id = generate_uuid()
-        input_host = Host(
-            {"subscription_manager_id": subman_id},
-            display_name="display_name",
-            reporter="yupana",
-            stale_timestamp=yupana_stale_timestamp,
-            org_id=USER_IDENTITY["org_id"],
-        )
-        existing_host = db_create_host(host=input_host)
+def test_update_per_reporter_staleness_yupana_replacement(db_create_host, models_datetime_mock, new_reporter):
+    yupana_stale_timestamp = models_datetime_mock + timedelta(days=1)
+    subman_id = generate_uuid()
+    input_host = Host(
+        {"subscription_manager_id": subman_id},
+        display_name="display_name",
+        reporter="yupana",
+        stale_timestamp=yupana_stale_timestamp,
+        org_id=USER_IDENTITY["org_id"],
+    )
+    existing_host = db_create_host(host=input_host)
 
-        staleness = get_sys_default_staleness()
-        st = staleness_timestamps()
-        timestamps = get_staleness_timestamps(existing_host, st, staleness)
-        if with_last_check_in:
-            assert existing_host.per_reporter_staleness == {
-                "yupana": {
-                    "last_check_in": models_datetime_mock.isoformat(),
-                    "stale_timestamp": timestamps["stale_timestamp"].isoformat(),
-                    "check_in_succeeded": True,
-                    "culled_timestamp": timestamps["culled_timestamp"].isoformat(),
-                    "stale_warning_timestamp": timestamps["stale_warning_timestamp"].isoformat(),
-                }
-            }
-        else:
-            assert existing_host.per_reporter_staleness == {
-                "yupana": {
-                    "last_check_in": models_datetime_mock.isoformat(),
-                    "stale_timestamp": yupana_stale_timestamp.isoformat(),
-                    "check_in_succeeded": True,
-                }
-            }
+    staleness = get_sys_default_staleness()
+    st = staleness_timestamps()
+    timestamps = get_staleness_timestamps(existing_host, st, staleness)
+    assert existing_host.per_reporter_staleness == {
+        "yupana": {
+            "last_check_in": models_datetime_mock.isoformat(),
+            "stale_timestamp": timestamps["stale_timestamp"].isoformat(),
+            "check_in_succeeded": True,
+            "culled_timestamp": timestamps["culled_timestamp"].isoformat(),
+            "stale_warning_timestamp": timestamps["stale_warning_timestamp"].isoformat(),
+        }
+    }
 
-        yupana_stale_timestamp += timedelta(days=1)
+    yupana_stale_timestamp += timedelta(days=1)
 
-        update_host = Host(
-            {"subscription_manager_id": subman_id},
-            display_name="display_name",
-            reporter=new_reporter,
-            stale_timestamp=yupana_stale_timestamp,
-            org_id=USER_IDENTITY["org_id"],
-        )
-        existing_host.update(update_host)
+    update_host = Host(
+        {"subscription_manager_id": subman_id},
+        display_name="display_name",
+        reporter=new_reporter,
+        stale_timestamp=yupana_stale_timestamp,
+        org_id=USER_IDENTITY["org_id"],
+    )
+    existing_host.update(update_host)
 
-        # datetime will not change because the datetime.now() method is patched
-        if with_last_check_in:
-            assert existing_host.per_reporter_staleness == {
-                new_reporter: {
-                    "last_check_in": models_datetime_mock.isoformat(),
-                    "stale_timestamp": timestamps["stale_timestamp"].isoformat(),
-                    "check_in_succeeded": True,
-                    "culled_timestamp": timestamps["culled_timestamp"].isoformat(),
-                    "stale_warning_timestamp": timestamps["stale_warning_timestamp"].isoformat(),
-                }
-            }
-        else:
-            assert existing_host.per_reporter_staleness == {
-                new_reporter: {
-                    "last_check_in": models_datetime_mock.isoformat(),
-                    "stale_timestamp": yupana_stale_timestamp.isoformat(),
-                    "check_in_succeeded": True,
-                }
-            }
+    # datetime will not change because the datetime.now() method is patched
+    assert existing_host.per_reporter_staleness == {
+        new_reporter: {
+            "last_check_in": models_datetime_mock.isoformat(),
+            "stale_timestamp": timestamps["stale_timestamp"].isoformat(),
+            "check_in_succeeded": True,
+            "culled_timestamp": timestamps["culled_timestamp"].isoformat(),
+            "stale_warning_timestamp": timestamps["stale_warning_timestamp"].isoformat(),
+        }
+    }
 
 
 def test_canonical_facts_version_default():
@@ -1345,24 +1265,20 @@ def test_delete_staleness_culling(db_create_staleness_culling, db_delete_stalene
 
 
 def test_create_host_validate_staleness(db_create_host, db_get_host):
-    with (
-        patch("app.staleness_serialization.get_flag_value", return_value=True),
-        patch("app.models.host.get_flag_value", return_value=True),
-    ):
-        host_data = {
-            "canonical_facts": {"subscription_manager_id": generate_uuid()},
-            "stale_timestamp": now(),
-            "reporter": "test_reporter",
-        }
+    host_data = {
+        "canonical_facts": {"subscription_manager_id": generate_uuid()},
+        "stale_timestamp": now(),
+        "reporter": "test_reporter",
+    }
 
-        created_host = db_create_host(SYSTEM_IDENTITY, extra_data=host_data)
-        staleness_timestamps = _create_staleness_timestamps_values(created_host, created_host.org_id)
-        retrieved_host = db_get_host(created_host.id)
+    created_host = db_create_host(SYSTEM_IDENTITY, extra_data=host_data)
+    staleness_timestamps = _create_staleness_timestamps_values(created_host, created_host.org_id)
+    retrieved_host = db_get_host(created_host.id)
 
-        assert retrieved_host.stale_timestamp == staleness_timestamps["stale_timestamp"]
-        assert retrieved_host.stale_warning_timestamp == staleness_timestamps["stale_warning_timestamp"]
-        assert retrieved_host.deletion_timestamp == staleness_timestamps["culled_timestamp"]
-        assert retrieved_host.reporter == host_data["reporter"]
+    assert retrieved_host.stale_timestamp == staleness_timestamps["stale_timestamp"]
+    assert retrieved_host.stale_warning_timestamp == staleness_timestamps["stale_warning_timestamp"]
+    assert retrieved_host.deletion_timestamp == staleness_timestamps["culled_timestamp"]
+    assert retrieved_host.reporter == host_data["reporter"]
 
 
 def test_create_host_with_canonical_facts(db_create_host_custom_canonical_facts, db_get_host):
@@ -1419,6 +1335,57 @@ def test_create_host_with_missing_canonical_facts(db_create_host_custom_canonica
     assert retrieved_host.provider_type == host_data["provider_type"]
     assert retrieved_host.ip_addresses is None
     assert retrieved_host.mac_addresses is None
+
+
+def test_create_host_rhsm_only_sets_far_future_timestamps(db_create_host):
+    """Test that creating a host with only rhsm-system-profile-bridge reporter sets far-future staleness timestamps."""
+    stale_timestamp = datetime.now() + timedelta(days=1)
+
+    input_host = Host(
+        {"subscription_manager_id": generate_uuid()},
+        display_name="display_name",
+        reporter="rhsm-system-profile-bridge",
+        stale_timestamp=stale_timestamp,
+        org_id=USER_IDENTITY["org_id"],
+    )
+    created_host = db_create_host(host=input_host)
+
+    # Check that main staleness timestamps are set to far future
+    assert created_host.stale_timestamp == FAR_FUTURE_STALE_TIMESTAMP
+    assert created_host.stale_warning_timestamp == FAR_FUTURE_STALE_TIMESTAMP
+    assert created_host.deletion_timestamp == FAR_FUTURE_STALE_TIMESTAMP
+
+    # Check per_reporter_staleness
+    assert "rhsm-system-profile-bridge" in created_host.per_reporter_staleness
+    prs = created_host.per_reporter_staleness["rhsm-system-profile-bridge"]
+    assert prs["stale_timestamp"] == FAR_FUTURE_STALE_TIMESTAMP.isoformat()
+    assert prs["stale_warning_timestamp"] == FAR_FUTURE_STALE_TIMESTAMP.isoformat()
+    assert prs["culled_timestamp"] == FAR_FUTURE_STALE_TIMESTAMP.isoformat()
+
+
+def test_host_with_rhsm_and_other_reporters_normal_behavior(db_create_host, models_datetime_mock):
+    """Test that hosts with rhsm-system-profile-bridge AND other reporters behave normally."""
+    stale_timestamp = models_datetime_mock + timedelta(days=1)
+
+    input_host = Host(
+        {"subscription_manager_id": generate_uuid()},
+        display_name="display_name",
+        reporter="puptoo",
+        stale_timestamp=stale_timestamp,
+        org_id=USER_IDENTITY["org_id"],
+    )
+
+    created_host = db_create_host(host=input_host)
+
+    # Should NOT have far-future timestamps since it has multiple reporters
+    assert created_host.stale_timestamp != FAR_FUTURE_STALE_TIMESTAMP
+
+    # Update per_reporter_staleness for rhsm-system-profile-bridge - should behave normally
+    created_host._update_per_reporter_staleness("rhsm-system-profile-bridge")
+
+    # Should still not have far-future timestamps
+    prs = created_host.per_reporter_staleness["rhsm-system-profile-bridge"]
+    assert datetime.fromisoformat(prs["stale_timestamp"]) != FAR_FUTURE_STALE_TIMESTAMP
 
 
 def test_create_host_static_system_profile(db_create_host):
