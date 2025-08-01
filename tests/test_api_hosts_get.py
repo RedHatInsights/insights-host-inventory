@@ -1,6 +1,8 @@
+import logging
 import random
 from datetime import timedelta
 from itertools import chain
+from itertools import combinations
 from typing import Callable
 from unittest.mock import patch
 
@@ -40,6 +42,8 @@ from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
+
+logger = logging.getLogger(__name__)
 
 
 def test_query_single_non_existent_host(api_get, subtests):
@@ -2193,11 +2197,13 @@ def test_query_by_staleness_using_columns(
         "fresh": 3,
         "stale": 4,
         "stale_warning": 2,
+        "culled": 10,
     }
     staleness_timestamp_map = {
         "fresh": now(),
         "stale": now() - timedelta(days=3),
         "stale_warning": now() - timedelta(days=10),
+        "culled": now() - timedelta(days=20),
     }
     staleness_to_host_ids_map = dict()
 
@@ -2207,13 +2213,27 @@ def test_query_by_staleness_using_columns(
         with mocker.patch("app.models.utils.datetime", **{"now.return_value": staleness_timestamp_map[staleness]}):
             staleness_to_host_ids_map[staleness] = [str(h.id) for h in db_create_multiple_hosts(how_many=num_hosts)]
 
-    for staleness, count in expected_staleness_results_map.items():
-        with subtests.test():
+    expected_staleness_results_map.pop("culled")
+
+    # Test single staleness filters
+    for staleness, expected_count in expected_staleness_results_map.items():
+        with subtests.test(staleness):
             url = build_hosts_url(query=f"?staleness={staleness}")
             # Validate the basics, i.e. response code and results size
             response_status, response_data = api_get(url)
             assert response_status == 200
-            assert count == len(response_data["results"])
+            assert len(response_data["results"]) == expected_count
+
+    # Test combinations of staleness filters
+    for n in range(len(expected_staleness_results_map.keys())):
+        for filters in combinations(expected_staleness_results_map.keys(), n + 1):
+            with subtests.test(", ".join(filters)):
+                query = "?" + "&".join(f"staleness={staleness}" for staleness in filters)
+                expected_count = sum(expected_staleness_results_map[staleness] for staleness in filters)
+                logger.info(f"Testing query: {query}")
+                response_status, response_data = api_get(build_hosts_url(query=query))
+                assert response_status == 200
+                assert len(response_data["results"]) == expected_count
 
 
 @pytest.mark.parametrize("system_type", ("conventional", "bootc", "edge"))
