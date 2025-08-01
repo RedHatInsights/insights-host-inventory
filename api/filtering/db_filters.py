@@ -177,7 +177,10 @@ def per_reporter_staleness_filter(staleness, reporter, host_type_filter, org_id)
 
 def _staleness_filter_using_columns(staleness: list[str]) -> list:
     host_staleness_states_filters = HostStalenessStatesDbFilters()
-    filters = [getattr(host_staleness_states_filters, state)() for state in staleness if state != "unknown"]
+    if staleness == ["unknown"]:
+        filters = [not_(host_staleness_states_filters.culled())]
+    else:
+        filters = [getattr(host_staleness_states_filters, state)() for state in staleness if state != "unknown"]
     return [or_(*filters)]
 
 

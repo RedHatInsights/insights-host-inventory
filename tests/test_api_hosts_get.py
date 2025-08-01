@@ -2216,6 +2216,11 @@ def test_query_by_staleness_using_columns(
     expected_staleness_results_map.pop("culled")
 
     # Test single staleness filters
+
+    # "unknown" staleness filter should be ignored, so if it's the only filter,
+    # then all non-culled hosts should be returned
+    expected_staleness_results_map["unknown"] = 9
+
     for staleness, expected_count in expected_staleness_results_map.items():
         with subtests.test(staleness):
             url = build_hosts_url(query=f"?staleness={staleness}")
@@ -2225,8 +2230,13 @@ def test_query_by_staleness_using_columns(
             assert len(response_data["results"]) == expected_count
 
     # Test combinations of staleness filters
-    for n in range(len(expected_staleness_results_map.keys())):
-        for filters in combinations(expected_staleness_results_map.keys(), n + 1):
+
+    # "unknown" staleness filter should be ignored
+    expected_staleness_results_map["unknown"] = 0
+
+    for n in range(2, len(expected_staleness_results_map.keys()) + 1):
+        # Test all possible combinations of `n` staleness filters
+        for filters in combinations(expected_staleness_results_map.keys(), n):
             with subtests.test(", ".join(filters)):
                 query = "?" + "&".join(f"staleness={staleness}" for staleness in filters)
                 expected_count = sum(expected_staleness_results_map[staleness] for staleness in filters)
