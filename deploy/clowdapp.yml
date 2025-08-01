@@ -1958,14 +1958,14 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_HOSTS_LAST_CHECK_IN}
             memory: ${MEMORY_REQUEST_HOSTS_LAST_CHECK_IN}
-    - name: update-edge-hosts-prs
-      schedule: ${{EDGE_HOSTS_PRS_SCHEDULE}}
+    - name: update-staleness-columns
+      schedule: ${{UPDATE_STALENESS_COLUMNS_SCHEDULE}}
       restartPolicy: Never
       concurrencyPolicy: "Forbid"
-      suspend: ${{EDGE_HOSTS_PRS_SUSPEND}}
+      suspend: ${{UPDATE_STALENESS_COLUMNS_SUSPEND}}
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        args: ["./update_edge_hosts_prs.py"]
+        args: ["./update_staleness_columns.py"]
         env:
           - name: HBI_DB_REFACTORING_USE_OLD_TABLE
             value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
@@ -1989,11 +1989,11 @@ objects:
             value: ${REPLICA_NAMESPACE}
         resources:
           limits:
-            cpu: ${CPU_LIMIT_EDGE_HOSTS_PRS}
-            memory: ${MEMORY_LIMIT_EDGE_HOSTS_PRS}
+            cpu: ${CPU_LIMIT_UPDATE_STALENESS_COLUMNS}
+            memory: ${MEMORY_LIMIT_UPDATE_STALENESS_COLUMNS}
           requests:
-            cpu: ${CPU_REQUEST_EDGE_HOSTS_PRS}
-            memory: ${MEMORY_REQUEST_EDGE_HOSTS_PRS}
+            cpu: ${CPU_REQUEST_UPDATE_STALENESS_COLUMNS}
+            memory: ${MEMORY_REQUEST_UPDATE_STALENESS_COLUMNS}
     - name: delete-hosts-without-id-facts
       restartPolicy: OnFailure
       podSpec:
@@ -2646,13 +2646,13 @@ parameters:
 - name: HOST_UPDATE_LIMIT
   value: "50000"
 
-- name: CPU_REQUEST_EDGE_HOSTS_PRS
+- name: CPU_REQUEST_UPDATE_STALENESS_COLUMNS
   value: 250m
-- name: CPU_LIMIT_EDGE_HOSTS_PRS
+- name: CPU_LIMIT_UPDATE_STALENESS_COLUMNS
   value: 500m
-- name: MEMORY_REQUEST_EDGE_HOSTS_PRS
+- name: MEMORY_REQUEST_UPDATE_STALENESS_COLUMNS
   value: 256Mi
-- name: MEMORY_LIMIT_EDGE_HOSTS_PRS
+- name: MEMORY_LIMIT_UPDATE_STALENESS_COLUMNS
   value: 512Mi
 
 - name: CPU_REQUEST_HOSTS_WITHOUT_ID_FACTS_JOB
@@ -2848,9 +2848,9 @@ parameters:
   value: '@hourly'
 - name: HOSTS_LAST_CHECK_IN_SUSPEND
   value: 'false'
-- name: EDGE_HOSTS_PRS_SCHEDULE
+- name: UPDATE_STALENESS_COLUMNS_SCHEDULE
   value: '@hourly'
-- name: EDGE_HOSTS_PRS_SUSPEND
+- name: UPDATE_STALENESS_COLUMNS_SUSPEND
   value: 'false'
 - name: KAFKA_SP_VALIDATOR_MAX_MESSAGES
   value: '10000'
