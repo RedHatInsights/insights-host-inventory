@@ -127,7 +127,7 @@ def wrap_message(host_data, operation="add_host", platform_metadata=None, operat
     return message
 
 
-def assert_mq_host_data(actual_id, actual_event, expected_results, host_keys_to_check):
+def assert_mq_host_data(actual_id: str, actual_event: dict, expected_results: dict, host_keys_to_check: list[str]):
     assert actual_event["host"]["id"] == actual_id
 
     for key in host_keys_to_check:
