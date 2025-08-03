@@ -2241,8 +2241,6 @@ objects:
             value: ${HOSTS_TABLE_MIGRATION_ROLLBACK_SUSPEND}
           - name: SYNC_SINCE_TIMESTAMP
             value: ${HOSTS_TABLE_MIGRATION_ROLLBACK_SYNC_SINCE_TIMESTAMP}
-          - name: HOSTS_TABLE_MIGRATION_BATCH_SIZE
-            value: ${HOSTS_TABLE_MIGRATION_BATCH_SIZE}
         resources:
           limits:
             cpu: ${CPU_REQUEST_HOSTS_TABLE_MIGRATION_ROLLBACK}
