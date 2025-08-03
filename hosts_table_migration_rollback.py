@@ -150,7 +150,6 @@ def sync_deleted_hosts(session: Session, logger: Logger, since_timestamp: str):
             FROM {INVENTORY_SCHEMA}.hosts_old h_old
             LEFT JOIN {INVENTORY_SCHEMA}.hosts h_new ON h_old.id = h_new.id
             WHERE h_new.id IS NULL
-              AND h_old.modified_on >= :since_timestamp
         );
     """
     result = session.execute(text(delete_sql), {"since_timestamp": since_timestamp})
