@@ -110,9 +110,8 @@ def sync_new_and_updated_hosts(session: Session, logger: Logger, since_timestamp
 
         # Second, re-insert the correct associations by reading from the live partitioned table's JSONB.
         reinsert_groups_sql = f"""
-            INSERT INTO {INVENTORY_SCHEMA}.hosts_groups_old (org_id, host_id, group_id)
+            INSERT INTO {INVENTORY_SCHEMA}.hosts_groups_old (host_id, group_id)
             SELECT
-                h.org_id,
                 h.id,
                 (g.value ->> 'id')::uuid
             FROM
