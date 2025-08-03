@@ -2183,9 +2183,6 @@ def test_query_by_staleness_using_columns(
     mocker: MockerFixture,
     subtests: SubTests,
 ) -> None:
-    mocker.patch("app.staleness_serialization.get_flag_value", return_value=True)
-    mocker.patch("app.models.host.get_flag_value", return_value=True)
-    mocker.patch("app.serialization.get_flag_value", return_value=True)
     mocker.patch("api.host_query_db.get_flag_value", return_value=True)
     mocker.patch("api.filtering.db_filters.get_flag_value", return_value=True)
 
