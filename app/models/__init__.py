@@ -46,14 +46,12 @@ from app.models.utils import _get_staleness_obj
 from app.models.utils import _set_display_name_on_save
 from app.models.utils import _time_now
 from app.models.utils import deleted_by_this_query
-from lib.feature_flags import get_flag_value
 
 logger = get_logger(__name__)
 
 __all__ = [
     "db",
     "migrate",
-    "get_flag_value",
     "jsonschema_validate",
     "logger",
     "ProviderType",
