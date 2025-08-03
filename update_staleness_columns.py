@@ -7,7 +7,6 @@ from logging import Logger
 import sqlalchemy as sa
 from connexion import FlaskApp
 from sqlalchemy import or_
-from sqlalchemy import orm
 from sqlalchemy.engine.base import Connection
 from sqlalchemy.orm import Mapper
 from sqlalchemy.orm import Session
@@ -48,8 +47,6 @@ def receive_before_host_update(mapper: Mapper, connection: Connection, host: Hos
     host_details = sa.inspect(host)
     prs_changed, _, _ = host_details.attrs.per_reporter_staleness.history
     staleness_changed, _, _ = host_details.attrs.deletion_timestamp.history
-    if prs_changed or staleness_changed:
-        orm.attributes.flag_modified(host, "modified_on")
 
 
 def run(logger: Logger, session: Session, application: FlaskApp):

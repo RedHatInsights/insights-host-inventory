@@ -6,7 +6,6 @@ from uuid import UUID
 
 import pytest
 from connexion import FlaskApp
-from pytest_mock import MockerFixture
 
 from app.models import db
 from app.models.host import Host
@@ -20,7 +19,6 @@ def test_update_edge_host_staleness_columns(
     flask_app: FlaskApp,
     db_create_host: Callable[..., Host],
     db_get_host: Callable[[UUID], Host | None],
-    mocker: MockerFixture,
     is_edge_host: bool,
 ) -> None:
     staleness_timestamps = get_staleness_timestamps()
@@ -33,12 +31,12 @@ def test_update_edge_host_staleness_columns(
     )
 
     created_host = db_create_host(host=host)
+    created_host.stale_warning_timestamp = None
+    created_host.deletion_timestamp = None
+    db.session.commit()
+
     assert created_host.stale_warning_timestamp is None
     assert created_host.deletion_timestamp is None
-    assert "stale_warning_timestamp" not in created_host.per_reporter_staleness[host.reporter]
-    assert "culled_timestamp" not in created_host.per_reporter_staleness[host.reporter]
-
-    mocker.patch("app.models.host.get_flag_value", return_value=True)
 
     with flask_app.app.app_context():
         run_update_staleness_columns(logger=mock.MagicMock(), session=db.session, application=flask_app)
