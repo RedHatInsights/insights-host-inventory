@@ -427,7 +427,7 @@ def get_non_culled_hosts_count_in_group(group: Group, org_id: str) -> int:
         query = (
             db.session.query(Host)
             .join(HostGroupAssoc)
-            .filter(HostGroupAssoc.group_id == group.id)
+            .filter(HostGroupAssoc.group_id == group.id, HostGroupAssoc.org_id == org_id)
             .group_by(Host.id, Host.org_id)
         )
 
