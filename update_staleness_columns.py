@@ -6,7 +6,6 @@ from logging import Logger
 
 import sqlalchemy as sa
 from connexion import FlaskApp
-from sqlalchemy import and_
 from sqlalchemy import or_
 from sqlalchemy import orm
 from sqlalchemy.engine.base import Connection
@@ -22,11 +21,11 @@ from app.models import Host
 from jobs.common import excepthook
 from jobs.common import job_setup
 
-PROMETHEUS_JOB = "inventory-update-edge-hosts-prs"
-LOGGER_NAME = "update-edge-hosts-prs"
+PROMETHEUS_JOB = "inventory-update-staleness-columns"
+LOGGER_NAME = "update-staleness-columns"
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
 
-NUM_EDGE_HOSTS_STALENESS = int(os.getenv("NUM_EDGE_HOSTS_STALENESS", 500))
+NUM_HOSTS_UPDATE_STALENESS = int(os.getenv("NUM_HOSTS_UPDATE_STALENESS", 500))
 
 
 @sa.event.listens_for(Host, "before_update")
@@ -35,8 +34,8 @@ def receive_before_host_update(mapper: Mapper, connection: Connection, host: Hos
 
     This SQLAlchemy event listener, triggered before any host update,
     prevents the ``modified_on`` timestamp from being updated when only
-    the ``per_reporter_staleness`` field is changed.  This avoids
-    unnecessary updates as ``modified_on`` is automatically updated for
+    the ``per_reporter_staleness`` field or host-level staleness fields are changed.
+    This avoids unnecessary updates as ``modified_on`` is automatically updated for
     every change to a Host object, which can lead to confusion to the user.
 
     For more details on SQLAlchemy event listeners, see:
@@ -55,10 +54,8 @@ def receive_before_host_update(mapper: Mapper, connection: Connection, host: Hos
 
 def run(logger: Logger, session: Session, application: FlaskApp):
     with application.app.app_context():
-        logger.info("Starting job to update per_reporter_staleness field")
+        logger.info("Starting job to update staleness columns and per_reporter_staleness field")
 
-        # We only want to update Edge hosts, as other hosts are going to update
-        # this value during host check in.
         reporters_list = [
             "cloud-connector",
             "puptoo",
@@ -69,11 +66,12 @@ def run(logger: Logger, session: Session, application: FlaskApp):
             "satellite",
         ]
         query_filter = or_(
-            and_(
-                Host.system_profile_facts.has_key("host_type"),
-                or_(~Host.per_reporter_staleness[reporter].has_key("culled_timestamp") for reporter in reporters_list),
+            or_(~Host.per_reporter_staleness[reporter].has_key("culled_timestamp") for reporter in reporters_list),
+            or_(
+                ~Host.per_reporter_staleness[reporter].has_key("stale_warning_timestamp")
+                for reporter in reporters_list
             ),
-            and_(Host.system_profile_facts.has_key("host_type"), Host.stale_warning_timestamp == None),  # noqa: E711
+            or_(Host.stale_warning_timestamp.is_(None), Host.deletion_timestamp.is_(None)),
         )
 
         hosts_query = session.query(Host).filter(query_filter).order_by(Host.org_id)
@@ -84,7 +82,7 @@ def run(logger: Logger, session: Session, application: FlaskApp):
         total_hosts_updated = 0
 
         org_id = None
-        for host in hosts_query.yield_per(NUM_EDGE_HOSTS_STALENESS):
+        for host in hosts_query.yield_per(NUM_HOSTS_UPDATE_STALENESS):
             try:
                 if org_id is None or org_id != host.org_id:
                     org_id = host.org_id
@@ -96,7 +94,7 @@ def run(logger: Logger, session: Session, application: FlaskApp):
 
                 processed_in_current_batch += 1
                 total_hosts_updated += 1
-                if processed_in_current_batch >= NUM_EDGE_HOSTS_STALENESS:
+                if processed_in_current_batch >= NUM_HOSTS_UPDATE_STALENESS:
                     logger.info(f"Updating batch of {processed_in_current_batch} hosts...")
                     session.flush()  # Flush current session so we free memory
                     logger.info(f"Flushed. Total updated so far: {total_hosts_updated}")
@@ -119,7 +117,7 @@ def run(logger: Logger, session: Session, application: FlaskApp):
 
 if __name__ == "__main__":
     logger = get_logger(LOGGER_NAME)
-    job_type = "Update host per_reporter_staleness field for edge hosts"
+    job_type = "Update hosts' staleness columns and per_reporter_staleness field"
     sys.excepthook = partial(excepthook, logger, job_type)
 
     _, session, event_producer, _, _, application = job_setup(tuple(), PROMETHEUS_JOB)

@@ -2615,3 +2615,49 @@ def test_write_add_update_event_message(mocker):
     # Assert that all group fields were present when calling mock_set_cached_system
     cached_group = mock_set_cached_system.call_args[0][1]["groups"][0]
     assert cached_group == serialized_group
+
+
+@pytest.mark.parametrize("provider_type", ["alibaba", "aws", "azure", "discovery", "gcp", "ibm"])
+def test_add_host_with_provider_types(
+    mq_create_or_update_host: Callable,
+    db_get_host: Callable[[str], Host],
+    provider_type: str,
+) -> None:
+    """
+    Tests adding a host with various provider_type values via Kafka message
+    and validates that the host is successfully created in the database.
+    """
+    provider_id = generate_uuid()
+
+    host = minimal_host(provider_type=provider_type, provider_id=provider_id)
+
+    expected_results = {"host": {**host.data()}}
+    host_keys_to_check = ["provider_type", "provider_id"]
+
+    key, event, _ = mq_create_or_update_host(host, return_all_data=True)
+    assert_mq_host_data(key, event, expected_results, host_keys_to_check)
+
+    # Verify host was created in database with correct provider_type
+    created_host: Host = db_get_host(key)
+    assert created_host.canonical_facts["provider_type"] == provider_type
+    assert created_host.canonical_facts["provider_id"] == provider_id
+
+
+@pytest.mark.parametrize("invalid_provider_type", ["invalid_provider", "discovery-system", "unknown", ""])
+def test_add_host_with_invalid_provider_type(
+    mocker: MockerFixture,
+    mq_create_or_update_host: Callable,
+    invalid_provider_type: str,
+) -> None:
+    """
+    Tests that adding a host with invalid provider_type via Kafka message
+    raises ValidationException and sends notification event.
+    """
+    host = minimal_host(insights_id=generate_uuid(), provider_type=invalid_provider_type, provider_id=generate_uuid())
+
+    mock_notification_event_producer = mocker.Mock()
+    with pytest.raises(ValidationException):
+        mq_create_or_update_host(host, notification_event_producer=mock_notification_event_producer)
+
+    # Verify that notification event was sent for the validation failure
+    mock_notification_event_producer.write_event.assert_called_once()

@@ -1,10 +1,16 @@
+import logging
 import random
 from datetime import timedelta
 from itertools import chain
+from itertools import combinations
+from typing import Callable
 from unittest.mock import patch
 
 import pytest
+from pytest_mock import MockerFixture
+from pytest_subtests import SubTests
 
+from app.models.host import Host
 from lib.host_repository import find_hosts_by_staleness
 from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
@@ -36,6 +42,8 @@ from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
+
+logger = logging.getLogger(__name__)
 
 
 def test_query_single_non_existent_host(api_get, subtests):
@@ -2169,37 +2177,78 @@ def test_get_host_from_different_org(mocker, api_get):
     assert_response_status(response_status, 403)
 
 
-def test_query_by_staleness_using_columns(db_create_multiple_hosts, api_get, subtests):
-    patch("app.staleness_serialization.get_flag_value", return_value=True)
-    patch("app.models.get_flag_value", return_value=True)
-    patch("app.serialization.get_flag_value", return_value=True)
-    patch("api.host_query_db.get_flag_value", return_value=True)
+def test_query_by_staleness_using_columns(
+    db_create_multiple_hosts: Callable[..., list[Host]],
+    api_get: Callable[..., tuple[int, dict]],
+    mocker: MockerFixture,
+    subtests: SubTests,
+) -> None:
+    mocker.patch("app.staleness_serialization.get_flag_value", return_value=True)
+    mocker.patch("app.models.host.get_flag_value", return_value=True)
+    mocker.patch("app.serialization.get_flag_value", return_value=True)
+    mocker.patch("api.host_query_db.get_flag_value", return_value=True)
+    mocker.patch("api.filtering.db_filters.get_flag_value", return_value=True)
 
     expected_staleness_results_map = {
         "fresh": 3,
         "stale": 4,
         "stale_warning": 2,
+        "culled": 10,
     }
     staleness_timestamp_map = {
         "fresh": now(),
         "stale": now() - timedelta(days=3),
         "stale_warning": now() - timedelta(days=10),
+        "culled": now() - timedelta(days=20),
     }
     staleness_to_host_ids_map = dict()
 
     # Create the hosts in each state
     for staleness, num_hosts in expected_staleness_results_map.items():
         # Patch the "now" function so the hosts are created in the desired state
-        with patch("app.models.utils.datetime", **{"now.return_value": staleness_timestamp_map[staleness]}):
+        with mocker.patch("app.models.utils.datetime", **{"now.return_value": staleness_timestamp_map[staleness]}):
             staleness_to_host_ids_map[staleness] = [str(h.id) for h in db_create_multiple_hosts(how_many=num_hosts)]
 
-    for staleness, count in expected_staleness_results_map.items():
-        with subtests.test():
+    expected_staleness_results_map.pop("culled")
+
+    # Test single staleness filters
+
+    # "unknown" staleness filter should be ignored, so if it's the only filter,
+    # then all non-culled hosts should be returned
+    staleness_to_host_ids_map["unknown"] = sum(
+        [staleness_to_host_ids_map[staleness] for staleness in ["fresh", "stale", "stale_warning"]], []
+    )
+    expected_staleness_results_map["unknown"] = len(staleness_to_host_ids_map["unknown"])
+
+    for staleness, expected_count in expected_staleness_results_map.items():
+        with subtests.test(staleness):
             url = build_hosts_url(query=f"?staleness={staleness}")
-            # Validate the basics, i.e. response code and results size
+            expected_host_ids = set(staleness_to_host_ids_map[staleness])
+
             response_status, response_data = api_get(url)
             assert response_status == 200
-            assert count == len(response_data["results"])
+            assert len(response_data["results"]) == expected_count
+            assert {host["id"] for host in response_data["results"]} == expected_host_ids
+
+    # Test combinations of staleness filters
+
+    # "unknown" staleness filter should be ignored
+    staleness_to_host_ids_map["unknown"] = []
+    expected_staleness_results_map["unknown"] = 0
+
+    for n in range(2, len(expected_staleness_results_map.keys()) + 1):
+        # Test all possible combinations of `n` staleness filters
+        for filters in combinations(expected_staleness_results_map.keys(), n):
+            with subtests.test(", ".join(filters)):
+                query = "?" + "&".join(f"staleness={staleness}" for staleness in filters)
+                expected_count = sum(expected_staleness_results_map[staleness] for staleness in filters)
+                expected_host_ids = set(sum([staleness_to_host_ids_map[staleness] for staleness in filters], []))
+                logger.info(f"Testing query: {query}")
+
+                response_status, response_data = api_get(build_hosts_url(query=query))
+                assert response_status == 200
+                assert len(response_data["results"]) == expected_count
+                assert {host["id"] for host in response_data["results"]} == expected_host_ids
 
 
 @pytest.mark.parametrize("system_type", ("conventional", "bootc", "edge"))

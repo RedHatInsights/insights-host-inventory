@@ -29,6 +29,7 @@ class ProviderType(str, Enum):
     ALIBABA = "alibaba"
     AWS = "aws"
     AZURE = "azure"
+    DISCOVERY = "discovery"
     GCP = "gcp"
     IBM = "ibm"
 
