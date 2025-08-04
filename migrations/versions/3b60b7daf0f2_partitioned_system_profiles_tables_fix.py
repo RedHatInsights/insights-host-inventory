@@ -313,5 +313,3 @@ def downgrade():
     """
     op.execute(f"DROP TRIGGER IF EXISTS trigger_sync_insights_id ON {INVENTORY_SCHEMA}.hosts;")
     op.execute(f"DROP FUNCTION IF EXISTS {INVENTORY_SCHEMA}.sync_insights_id_to_profiles();")
-    op.drop_table(SP_STATIC_TABLE_NAME, schema=INVENTORY_SCHEMA)
-    op.drop_table(SP_DYNAMIC_TABLE_NAME, schema=INVENTORY_SCHEMA)
