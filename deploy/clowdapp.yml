@@ -1841,11 +1841,11 @@ objects:
             value: ${SUSPEND_DELETE_HOSTS_S3}
         resources:
           limits:
-            cpu: ${CPU_LIMIT_GROUPS_S3_EXPORT}
-            memory: ${MEMORY_LIMIT_GROUPS_S3_EXPORT}
+            cpu: ${CPU_LIMIT_DELETE_HOSTS_S3}
+            memory: ${MEMORY_LIMIT_DELETE_HOSTS_S3}
           requests:
-            cpu: ${CPU_REQUEST_GROUPS_S3_EXPORT}
-            memory: ${MEMORY_REQUEST_GROUPS_S3_EXPORT}
+            cpu: ${CPU_REQUEST_DELETE_HOSTS_S3}
+            memory: ${MEMORY_REQUEST_DELETE_HOSTS_S3}
     - name: assign-ungrouped-host-groups
       restartPolicy: OnFailure
       podSpec:
@@ -2616,6 +2616,15 @@ parameters:
   value: 256Mi
 - name: MEMORY_LIMIT_GROUPS_S3_EXPORT
   value: 512Mi
+
+- name: CPU_REQUEST_DELETE_HOSTS_S3
+  value: 250m
+- name: CPU_LIMIT_DELETE_HOSTS_S3
+  value: 500m
+- name: MEMORY_REQUEST_DELETE_HOSTS_S3
+  value: 0.5Gi
+- name: MEMORY_LIMIT_DELETE_HOSTS_S3
+  value: 1Gi
 
 - name: CPU_REQUEST_SYNDICATOR
   value: 250m
