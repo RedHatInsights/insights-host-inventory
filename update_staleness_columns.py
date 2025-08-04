@@ -105,7 +105,13 @@ def run(logger: Logger, session: Session, application: FlaskApp):
                 logger.error(f"Error committing batch: {e}", exc_info=True)
                 session.rollback()
 
-            logger.info(f"Job finished. Successfully updated staleness for {total_hosts_updated} hosts.")
+        if processed_in_current_batch > 0:
+            try:
+                logger.info(f"Updating batch of {processed_in_current_batch} hosts...")
+                session.commit()
+                logger.info(f"Job finished. Successfully updated staleness for {total_hosts_updated} hosts.")
+            except Exception:
+                session.rollback()
         else:
             logger.info("No hosts to be updated. Finishing job")
 
