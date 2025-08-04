@@ -1922,42 +1922,6 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_HOSTS_LAST_CHECK_IN}
             memory: ${MEMORY_REQUEST_HOSTS_LAST_CHECK_IN}
-    - name: update-staleness-columns
-      schedule: ${{UPDATE_STALENESS_COLUMNS_SCHEDULE}}
-      restartPolicy: Never
-      concurrencyPolicy: "Forbid"
-      suspend: ${{UPDATE_STALENESS_COLUMNS_SUSPEND}}
-      podSpec:
-        image: ${IMAGE}:${IMAGE_TAG}
-        args: ["./update_staleness_columns.py"]
-        env:
-          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
-            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
-          - name: INVENTORY_LOG_LEVEL
-            value: ${LOG_LEVEL}
-          - name: INVENTORY_DB_SSL_MODE
-            value: ${INVENTORY_DB_SSL_MODE}
-          - name: INVENTORY_DB_SSL_CERT
-            value: ${INVENTORY_DB_SSL_CERT}
-          - name: INVENTORY_DB_SCHEMA
-            value: "${INVENTORY_DB_SCHEMA}"
-          - name: PROMETHEUS_PUSHGATEWAY
-            value: ${PROMETHEUS_PUSHGATEWAY}
-          - name: NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
-          - name: CLOWDER_ENABLED
-            value: "true"
-          - name: REPLICA_NAMESPACE
-            value: ${REPLICA_NAMESPACE}
-        resources:
-          limits:
-            cpu: ${CPU_LIMIT_UPDATE_STALENESS_COLUMNS}
-            memory: ${MEMORY_LIMIT_UPDATE_STALENESS_COLUMNS}
-          requests:
-            cpu: ${CPU_REQUEST_UPDATE_STALENESS_COLUMNS}
-            memory: ${MEMORY_REQUEST_UPDATE_STALENESS_COLUMNS}
     - name: delete-hosts-without-id-facts
       restartPolicy: OnFailure
       podSpec:
@@ -2608,15 +2572,6 @@ parameters:
 - name: HOST_UPDATE_LIMIT
   value: "50000"
 
-- name: CPU_REQUEST_UPDATE_STALENESS_COLUMNS
-  value: 250m
-- name: CPU_LIMIT_UPDATE_STALENESS_COLUMNS
-  value: 500m
-- name: MEMORY_REQUEST_UPDATE_STALENESS_COLUMNS
-  value: 256Mi
-- name: MEMORY_LIMIT_UPDATE_STALENESS_COLUMNS
-  value: 512Mi
-
 - name: CPU_REQUEST_HOSTS_WITHOUT_ID_FACTS_JOB
   value: 250m
 - name: CPU_LIMIT_HOSTS_WITHOUT_ID_FACTS_JOB
@@ -2809,10 +2764,6 @@ parameters:
 - name: HOSTS_LAST_CHECK_IN_SCHEDULE
   value: '@hourly'
 - name: HOSTS_LAST_CHECK_IN_SUSPEND
-  value: 'false'
-- name: UPDATE_STALENESS_COLUMNS_SCHEDULE
-  value: '@hourly'
-- name: UPDATE_STALENESS_COLUMNS_SUSPEND
   value: 'false'
 - name: KAFKA_SP_VALIDATOR_MAX_MESSAGES
   value: '10000'
