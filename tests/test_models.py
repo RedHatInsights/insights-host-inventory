@@ -22,8 +22,8 @@ from app.models import LimitedHost
 from app.models import _create_staleness_timestamps_values
 from app.models import db
 from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
-from app.models.system_profile import HostStaticSystemProfile
-from app.models.system_profiles_dynamic import HostDynamicSystemProfile
+from app.models.system_profile_dynamic import HostDynamicSystemProfile
+from app.models.system_profile_static import HostStaticSystemProfile
 from app.staleness_serialization import get_staleness_timestamps
 from app.staleness_serialization import get_sys_default_staleness
 from app.utils import Tag
@@ -1391,18 +1391,9 @@ def test_host_with_rhsm_and_other_reporters_normal_behavior(db_create_host, mode
 def test_create_host_static_system_profile(db_create_host):
     """Test creating a HostStaticSystemProfile record"""
     # Create a host first
-    created_host = db_create_host(
-        SYSTEM_IDENTITY,
-        extra_data={
-            "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]},
-            "display_name": "test_host_for_static_profile",
-        },
-    )
 
     # Create static system profile data
     system_profile_data = {
-        "org_id": created_host.org_id,
-        "host_id": created_host.id,
         "arch": "x86_64",
         "basearch": "x86_64",
         "bios_vendor": "Dell Inc.",
@@ -1426,9 +1417,14 @@ def test_create_host_static_system_profile(db_create_host):
         "threads_per_core": 2,
     }
 
-    # Create the static system profile
-    static_profile = HostStaticSystemProfile(**system_profile_data)
-    db.session.add(static_profile)
+    created_host = db_create_host(
+        SYSTEM_IDENTITY,
+        extra_data={
+            "system_profile_facts": system_profile_data,
+            "display_name": "test_host_for_static_profile",
+        },
+    )
+
     db.session.commit()
 
     # Verify the record was created
@@ -1448,54 +1444,6 @@ def test_create_host_static_system_profile(db_create_host):
     assert retrieved_profile.operating_system == {"name": "RHEL", "major": 9, "minor": 1}
 
 
-def test_create_host_static_system_profile_minimal(db_create_host):
-    """Test creating a HostStaticSystemProfile with minimal required data"""
-    # Create a host first
-    created_host = db_create_host(
-        SYSTEM_IDENTITY,
-        extra_data={
-            "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]},
-            "display_name": "test_host_minimal",
-        },
-    )
-
-    # Create with only required fields
-    minimal_data = {
-        "org_id": created_host.org_id,
-        "host_id": created_host.id,
-    }
-
-    static_profile = HostStaticSystemProfile(**minimal_data)
-    db.session.add(static_profile)
-    db.session.commit()
-
-    # Verify the record was created
-    retrieved_profile = (
-        db.session.query(HostStaticSystemProfile)
-        .filter_by(org_id=created_host.org_id, host_id=created_host.id)
-        .first()
-    )
-
-    assert retrieved_profile is not None
-    assert retrieved_profile.org_id == created_host.org_id
-    assert retrieved_profile.host_id == created_host.id
-
-
-def test_host_static_system_profile_validation_errors():
-    """Test validation errors for HostStaticSystemProfile"""
-    # Test missing org_id
-    with pytest.raises(ValidationException, match="System org_id cannot be null"):
-        HostStaticSystemProfile(org_id=None, host_id=generate_uuid())
-
-    # Test missing host_id
-    with pytest.raises(ValidationException, match="System host_id cannot be null"):
-        HostStaticSystemProfile(org_id=USER_IDENTITY["org_id"], host_id=None)
-
-    # Test empty org_id
-    with pytest.raises(ValidationException, match="System org_id cannot be null"):
-        HostStaticSystemProfile(org_id="", host_id=generate_uuid())
-
-
 @pytest.mark.parametrize(
     "field,value",
     [
@@ -1511,7 +1459,7 @@ def test_host_static_system_profile_validation_errors():
 )
 def test_host_static_system_profile_check_constraints(db_create_host, field, value):
     """Test check constraints on integer fields"""
-    created_host = db_create_host(
+    db_create_host(
         SYSTEM_IDENTITY,
         extra_data={
             "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]},
@@ -1520,8 +1468,6 @@ def test_host_static_system_profile_check_constraints(db_create_host, field, val
     )
 
     data = {
-        "org_id": created_host.org_id,
-        "host_id": created_host.id,
         field: value,
     }
 
@@ -1537,35 +1483,29 @@ def test_host_static_system_profile_check_constraints(db_create_host, field, val
 
 def test_update_host_static_system_profile(db_create_host):
     """Test updating a HostStaticSystemProfile record"""
-    # Create a host first
-    created_host = db_create_host(
-        SYSTEM_IDENTITY,
-        extra_data={
-            "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]},
-            "display_name": "test_host_update",
-        },
-    )
 
     # Create initial static system profile
     initial_data = {
-        "org_id": created_host.org_id,
-        "host_id": created_host.id,
         "arch": "x86_64",
         "number_of_cpus": 4,
         "host_type": "edge",
         "system_update_method": "yum",
     }
 
-    static_profile = HostStaticSystemProfile(**initial_data)
-    db.session.add(static_profile)
-    db.session.commit()
+    created_host = db_create_host(
+        SYSTEM_IDENTITY,
+        extra_data={
+            "system_profile_facts": initial_data,
+            "display_name": "test_host_update",
+        },
+    )
 
     # Update the record
-    static_profile.arch = "aarch64"
-    static_profile.number_of_cpus = 8
-    static_profile.host_type = "host"
-    static_profile.system_update_method = "dnf"
-    static_profile.bios_vendor = "Updated Vendor"
+    created_host.static_system_profile.arch = "aarch64"
+    created_host.static_system_profile.number_of_cpus = 8
+    created_host.static_system_profile.host_type = "host"
+    created_host.static_system_profile.system_update_method = "dnf"
+    created_host.static_system_profile.bios_vendor = "Updated Vendor"
     db.session.commit()
 
     # Verify the updates
@@ -1584,25 +1524,20 @@ def test_update_host_static_system_profile(db_create_host):
 
 def test_delete_host_static_system_profile(db_create_host):
     """Test deleting a HostStaticSystemProfile record"""
-    # Create a host first
-    created_host = db_create_host(
-        SYSTEM_IDENTITY,
-        extra_data={
-            "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]},
-            "display_name": "test_host_delete",
-        },
-    )
 
-    # Create static system profile
     static_profile_data = {
-        "org_id": created_host.org_id,
-        "host_id": created_host.id,
         "arch": "x86_64",
         "number_of_cpus": 4,
     }
 
-    static_profile = HostStaticSystemProfile(**static_profile_data)
-    db.session.add(static_profile)
+    created_host = db_create_host(
+        SYSTEM_IDENTITY,
+        extra_data={
+            "system_profile_facts": static_profile_data,
+            "display_name": "test_host_delete",
+        },
+    )
+
     db.session.commit()
 
     # Verify it exists
@@ -1614,7 +1549,7 @@ def test_delete_host_static_system_profile(db_create_host):
     assert retrieved_profile is not None
 
     # Delete the record
-    db.session.delete(static_profile)
+    db.session.delete(created_host)
     db.session.commit()
 
     # Verify it's gone
@@ -1628,24 +1563,13 @@ def test_delete_host_static_system_profile(db_create_host):
 
 def test_host_static_system_profile_complex_data_types(db_create_host):
     """Test HostStaticSystemProfile with complex JSONB and array data types"""
-    # Create a host first
-    created_host = db_create_host(
-        SYSTEM_IDENTITY,
-        extra_data={
-            "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]},
-            "display_name": "test_host_complex_data",
-        },
-    )
 
     # Create static system profile with complex data
     complex_data = {
-        "org_id": created_host.org_id,
-        "host_id": created_host.id,
         "operating_system": {
             "name": "Red Hat Enterprise Linux Server",
             "major": 9,
             "minor": 1,
-            "version_id": "9.1",
         },
         "bootc_status": {
             "booted": {
@@ -1680,7 +1604,7 @@ def test_host_static_system_profile_complex_data_types(db_create_host):
         "conversions": {"activity": "Conversion completed successfully"},
         "rhsm": {
             "version": "1.29.26",
-            "auto_registration": False,
+            "environment_ids": ["262e621d10ae4475ab5732b39a9160b2"],
         },
         "yum_repos": [
             {
@@ -1691,9 +1615,13 @@ def test_host_static_system_profile_complex_data_types(db_create_host):
         ],
     }
 
-    static_profile = HostStaticSystemProfile(**complex_data)
-    db.session.add(static_profile)
-    db.session.commit()
+    created_host = db_create_host(
+        SYSTEM_IDENTITY,
+        extra_data={
+            "system_profile_facts": complex_data,
+            "display_name": "test_host_complex_data",
+        },
+    )
 
     # Verify the complex data was stored correctly
     retrieved_profile = (
@@ -1718,28 +1646,31 @@ def test_add_dynamic_profile(db_create_host):
     """
     Tests adding a HostDynamicSystemProfile record using a sample data dictionary.
     """
-    host = db_create_host()
-    sample_data = get_sample_profile_data(host.org_id, host.id)
-    profile = HostDynamicSystemProfile(**sample_data)
 
-    db.session.add(profile)
-    db.session.commit()
-
+    static_profile_data, dynamic_profile_data = get_sample_profile_data()
+    system_profile_data = {**static_profile_data, **dynamic_profile_data}
+    host = db_create_host(extra_data={"system_profile_facts": system_profile_data})
     retrieved = db.session.query(HostDynamicSystemProfile).filter_by(org_id=host.org_id, host_id=host.id).one()
 
     assert retrieved is not None
-    for key, value in sample_data.items():
-        assert getattr(retrieved, key) == value
+    for key, value in dynamic_profile_data.items():
+        # We return datetime objects from the database,
+        # so we need to convert them to strings for comparison
+        if isinstance(getattr(retrieved, key), datetime):
+            assert getattr(retrieved, key).isoformat() == value
+        else:
+            assert getattr(retrieved, key) == value
 
 
 def test_delete_dynamic_profile(db_create_host):
     """
     Tests deleting a HostDynamicSystemProfile record from the database.
     """
-    host = db_create_host()
-    profile = HostDynamicSystemProfile(**get_sample_profile_data(host.org_id, host.id))
-    db.session.add(profile)
-    db.session.commit()
+
+    static_profile_data, dynamic_profile_data = get_sample_profile_data()
+    system_profile_data = {**static_profile_data, **dynamic_profile_data}
+    host = db_create_host(extra_data={"system_profile_facts": system_profile_data})
+    profile = db.session.query(HostDynamicSystemProfile).filter_by(org_id=host.org_id, host_id=host.id).one()
 
     db.session.delete(profile)
     db.session.commit()
@@ -1753,12 +1684,11 @@ def test_update_dynamic_profile(db_create_host):
     """
     Tests updating a HostDynamicSystemProfile record in the database.
     """
-    host = db_create_host()
-    profile = HostDynamicSystemProfile(**get_sample_profile_data(host.org_id, host.id))
-    db.session.add(profile)
-    db.session.commit()
+    static_profile_data, dynamic_profile_data = get_sample_profile_data()
+    system_profile_data = {**static_profile_data, **dynamic_profile_data}
+    host = db_create_host(extra_data={"system_profile_facts": system_profile_data})
 
-    profile.insights_egg_version = "2.1.4"
+    host.dynamic_system_profile.insights_egg_version = "2.1.4"
     db.session.commit()
 
     retrieved = db.session.query(HostDynamicSystemProfile).filter_by(org_id=host.org_id, host_id=host.id).one()
@@ -1766,69 +1696,112 @@ def test_update_dynamic_profile(db_create_host):
     assert retrieved.insights_egg_version == "2.1.4"
 
 
-def test_add_profile_fails_without_parent_host():
-    """
-    Tests that adding a profile fails with an IntegrityError if the parent Host
-    does not exist, validating the foreign key constraint.
-    """
-
-    org_id = "org-failure-case"
-    non_existent_host_id = uuid.uuid4()
-    sample_data = get_sample_profile_data(org_id, non_existent_host_id)
-
-    profile = HostDynamicSystemProfile(org_id=org_id, host_id=non_existent_host_id)
-    for key, value in sample_data.items():
-        if key not in ["org_id", "host_id"]:
-            setattr(profile, key, value)
-
-    with pytest.raises(IntegrityError) as excinfo:
-        db.session.add(profile)
-        db.session.commit()
-
-    db.session.rollback()
-
-    assert "fk_system_profiles_dynamic_hosts" in str(excinfo.value)
-
-
-def test_dynamic_profile_missing_required_field(db_create_host):
-    """
-    Tests that creating a HostDynamicSystemProfile with missing required fields raises an exception.
-    """
-    host = db_create_host()
-    sample_data = get_sample_profile_data(host.org_id, host.id)
-    # Remove a required field (e.g., 'org_id')
-    sample_data.pop("org_id", None)
-    with pytest.raises(TypeError):
-        _ = HostDynamicSystemProfile(**sample_data)
-
-
 def test_dynamic_profile_incorrect_type(db_create_host):
     """
     Tests that creating a HostDynamicSystemProfile with incorrect data types raises an exception.
     """
-    host = db_create_host()
-    sample_data = get_sample_profile_data(host.org_id, host.id)
-    # Set a field to an incorrect type (e.g., 'host_id' as a string instead of UUID)
-    sample_data["host_id"] = "not-a-uuid"
-    profile = HostDynamicSystemProfile(**sample_data)
-    db.session.add(profile)
-    with pytest.raises(DataError):
-        db.session.commit()
-    db.session.rollback()
+    static_profile_data, dynamic_profile_data = get_sample_profile_data()
+    system_profile_data = {**static_profile_data, **dynamic_profile_data}
+    system_profile_data["number_of_cpus"] = "not-a-number"
+    with pytest.raises(MarshmallowValidationError):
+        db_create_host(extra_data={"system_profile_facts": system_profile_data})
 
 
-def test_dynamic_profile_constraint_violation(db_create_host):
+def test_host_system_profile_normalization_integration(db_create_host):
     """
-    Tests that creating a HostDynamicSystemProfile with duplicate primary key raises an exception.
+    Integration test for the complete system profile normalization flow.
+    Tests that updating a host's system profile correctly updates both JSONB and normalized tables.
     """
+    # Create a host
     host = db_create_host()
-    sample_data = get_sample_profile_data(host.org_id, host.id)
-    profile1 = HostDynamicSystemProfile(**sample_data)
-    db.session.add(profile1)
     db.session.commit()
-    # Attempt to add another profile with the same primary key
-    profile2 = HostDynamicSystemProfile(**sample_data)
-    db.session.add(profile2)
-    with pytest.raises(IntegrityError):
-        db.session.commit()
-    db.session.rollback()
+
+    # Verify initial state
+    assert host.static_system_profile is None
+    assert host.dynamic_system_profile is None
+    assert host.system_profile_facts == {}
+
+    # Update system profile with static and dynamic data
+    static_profile_data, dynamic_profile_data = get_sample_profile_data()
+    system_profile_data = {**static_profile_data, **dynamic_profile_data}
+    host.update_system_profile(system_profile_data)
+    db.session.commit()
+
+    # Verify normalized tables were created
+    assert host.static_system_profile is not None
+    assert host.dynamic_system_profile is not None
+
+    # Verify static system profile data matches JSONB system profile data
+    assert host.static_system_profile.org_id == host.org_id
+    assert host.static_system_profile.host_id == host.id
+    assert host.static_system_profile.arch == host.system_profile_facts["arch"]
+    assert host.static_system_profile.bios_vendor == host.system_profile_facts["bios_vendor"]
+    assert host.static_system_profile.cores_per_socket == host.system_profile_facts["cores_per_socket"]
+
+    # Verify dynamic system profile data matches JSONB system profile data
+    assert host.dynamic_system_profile.org_id == host.org_id
+    assert host.dynamic_system_profile.host_id == host.id
+    assert host.dynamic_system_profile.running_processes == host.system_profile_facts["running_processes"]
+    assert host.dynamic_system_profile.network_interfaces == host.system_profile_facts["network_interfaces"]
+    assert host.dynamic_system_profile.installed_packages == host.system_profile_facts["installed_packages"]
+
+    # Test updating existing system profile
+    updated_data = {
+        "arch": "aarch64",  # Change static field
+        "running_processes": ["systemd", "nginx"],  # Change dynamic field
+    }
+
+    host.update_system_profile(updated_data)
+    db.session.commit()
+
+    # Verify updates
+    assert host.system_profile_facts["arch"] == "aarch64"
+    assert host.system_profile_facts["running_processes"] == ["systemd", "nginx"]
+    assert host.static_system_profile.arch == "aarch64"
+    assert host.dynamic_system_profile.running_processes == ["systemd", "nginx"]
+
+
+def test_create_host_with_workloads_in_top_level(db_create_host):
+    """
+    Tests creating a host with workloads in the top level of the system profile.
+    """
+    workloads_data = {
+        "ansible": {
+            "controller_version": "4.5.6",
+            "hub_version": "4.5.6",
+            "catalog_worker_version": "1.2.3",
+            "sso_version": "7.8.9",
+        },
+        "crowdstrike": {
+            "falcon_aid": "44e3b7d20b434a2bb2815d9808fa3a8b",
+            "falcon_backend": "kernel",
+            "falcon_version": "7.14.16703.0",
+        },
+        "ibm_db2": {"is_running": True},
+        "intersystems": {
+            "is_intersystems": True,
+            "running_instances": [
+                {"name": "HEALTH_PROD", "version": "2023.1.0.215.0", "path": "/opt/intersystems/iris/bin"}
+            ],
+        },
+        "mssql": {"version": "15.2.0"},
+        "oracle_db": {"is_running": False},
+        "rhel_ai": {
+            "variant": "RHEL AI",
+            "rhel_ai_version_id": "v1.1.3",
+            "gpu_models": [{"name": "NVIDIA A100 80GB PCIe", "vendor": "Nvidia", "memory": "80GB", "count": 4}],
+            "ai_models": ["granite-7b-redhat-lab", "granite-7b-starter"],
+            "free_disk_storage": "698GB",
+        },
+        "sap": {
+            "sap_system": True,
+            "sids": ["H2O", "ABC"],
+            "instance_number": "03",
+            "version": "2.00.122.04.1478575636",
+        },
+    }
+
+    static_profile_data, dynamic_profile_data = get_sample_profile_data()
+    system_profile_data = {**static_profile_data, **dynamic_profile_data, **workloads_data}
+    host = db_create_host(extra_data={"system_profile_facts": system_profile_data})
+    assert host.system_profile_facts["ansible"]["controller_version"] == "4.5.6"
