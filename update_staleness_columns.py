@@ -74,47 +74,61 @@ def run(logger: Logger, session: Session, application: FlaskApp):
             or_(Host.stale_warning_timestamp.is_(None), Host.deletion_timestamp.is_(None)),
         )
 
-        hosts_query = session.query(Host).filter(query_filter).order_by(Host.org_id)
-        hosts_count = hosts_query.count()
+        # Get total count first
+        hosts_count = session.query(Host).filter(query_filter).count()
+        logger.info(f"Found {hosts_count} hosts to be updated")
 
-        logger.info(f"Found {hosts_count} to be updated")
-        processed_in_current_batch = 0
         total_hosts_updated = 0
-
         org_id = None
-        for host in hosts_query.yield_per(NUM_HOSTS_UPDATE_STALENESS):
+        staleness = None
+        staleness_ts = None
+        last_host_id = None
+
+        # Process hosts in batches without yield_per()
+        hosts_to_process = 1
+        while hosts_to_process > 0:
+            # Query a batch of hosts, starting after the last processed host ID
+            hosts_query = session.query(Host).filter(query_filter).order_by(Host.org_id, Host.id)
+
+            # If we have a last_host_id, start from the next host
+            if last_host_id is not None:
+                hosts_query = hosts_query.filter(
+                    or_(Host.org_id > org_id, sa.and_(Host.org_id == org_id, Host.id > last_host_id))
+                )
+
+            hosts_batch = hosts_query.limit(NUM_HOSTS_UPDATE_STALENESS).all()
+            hosts_to_process = len(hosts_batch)
+
+            if hosts_to_process == 0:
+                break
+
+            logger.info(f"Processing batch of {hosts_to_process} hosts...")
+
             try:
-                if org_id is None or org_id != host.org_id:
-                    org_id = host.org_id
-                    staleness = get_staleness_obj(org_id)
-                    staleness_ts = Timestamps.from_config(inventory_config())
+                for host in hosts_batch:
+                    # Update staleness objects when org_id changes
+                    if org_id is None or org_id != host.org_id:
+                        org_id = host.org_id
+                        staleness = get_staleness_obj(org_id)
+                        staleness_ts = Timestamps.from_config(inventory_config())
 
-                host._update_all_per_reporter_staleness(staleness, staleness_ts)
-                host._update_staleness_timestamps()
+                    host._update_all_per_reporter_staleness(staleness, staleness_ts)
+                    host._update_staleness_timestamps()
 
-                processed_in_current_batch += 1
-                total_hosts_updated += 1
-                if processed_in_current_batch >= NUM_HOSTS_UPDATE_STALENESS:
-                    logger.info(f"Updating batch of {processed_in_current_batch} hosts...")
-                    session.commit()
-                    logger.info(f"Flushed and committed. Total updated so far: {total_hosts_updated}")
-                    processed_in_current_batch = 0  # Reset counter for the next batch
+                    # Track the last processed host
+                    last_host_id = host.id
+
+                # Commit the entire batch
+                session.commit()
+                total_hosts_updated += hosts_to_process
+                logger.info(f"Successfully updated batch. Total updated so far: {total_hosts_updated}")
 
             except Exception as e:
-                logger.error(f"Error committing batch: {e}", exc_info=True)
+                logger.error(f"Error processing batch: {e}", exc_info=True)
                 session.rollback()
                 break
 
-        if processed_in_current_batch > 0:
-            try:
-                logger.info(f"Updating batch of {processed_in_current_batch} hosts...")
-                session.commit()
-                logger.info(f"Job finished. Successfully updated staleness for {total_hosts_updated} hosts.")
-            except Exception as e:
-                logger.error(f"Error committing batch: {e}", exc_info=True)
-                session.rollback()
-        else:
-            logger.info("No hosts to be updated. Finishing job")
+        logger.info(f"Job finished. Successfully updated staleness for {total_hosts_updated} hosts.")
 
 
 if __name__ == "__main__":
