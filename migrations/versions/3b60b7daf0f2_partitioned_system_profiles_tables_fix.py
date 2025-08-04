@@ -308,8 +308,9 @@ def upgrade():
 
 def downgrade():
     """
-    Removes the system_profiles_static and system_profiles_dynamic tables
-    and their partitions, as well as the synchronization trigger.
+    Removes only the synchronization trigger. Drop table commands are omitted because
+    previous migrations still have the system_profiles_static and system_profiles_dynamic tables.
+    Downgrading 2 revisions would result in it trying to drop these tables twice.
     """
     op.execute(f"DROP TRIGGER IF EXISTS trigger_sync_insights_id ON {INVENTORY_SCHEMA}.hosts;")
     op.execute(f"DROP FUNCTION IF EXISTS {INVENTORY_SCHEMA}.sync_insights_id_to_profiles();")
