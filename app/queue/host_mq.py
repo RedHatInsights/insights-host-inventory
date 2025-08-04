@@ -423,7 +423,7 @@ class IngressMessageConsumer(HostMessageConsumer):
                 FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
             ):
                 group = get_or_create_ungrouped_hosts_group_for_identity(identity)
-                host_row.groups = [serialize_group(group, identity.org_id)]
+                host_row.groups = [serialize_group(group)]
                 db.session.flush()  # Flush so that we can retrieve the created host's ID
                 # Get org's "ungrouped hosts" group (create if not exists) and assign host to it
                 group = get_or_create_ungrouped_hosts_group_for_identity(identity)
