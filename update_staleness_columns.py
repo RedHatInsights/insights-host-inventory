@@ -96,7 +96,6 @@ def run(logger: Logger, session: Session, application: FlaskApp):
                 total_hosts_updated += 1
                 if processed_in_current_batch >= NUM_HOSTS_UPDATE_STALENESS:
                     logger.info(f"Updating batch of {processed_in_current_batch} hosts...")
-                    session.flush()  # Flush current session so we free memory
                     session.commit()
                     logger.info(f"Flushed and committed. Total updated so far: {total_hosts_updated}")
                     processed_in_current_batch = 0  # Reset counter for the next batch
