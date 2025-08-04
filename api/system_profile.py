@@ -12,7 +12,7 @@ from api import pagination_params
 from api.host_query_db import get_os_info
 from api.host_query_db import get_sap_sids_info
 from api.host_query_db import get_sap_system_info
-from app import RbacPermission
+from app import KesselResourceTypes, RbacPermission
 from app import RbacResourceType
 from app.auth import get_current_identity
 from app.config import Config
@@ -21,14 +21,14 @@ from app.instrumentation import log_get_operating_system_succeeded
 from app.instrumentation import log_get_sap_sids_succeeded
 from app.instrumentation import log_get_sap_system_succeeded
 from app.logging import get_logger
-from lib.middleware import rbac
+from lib.middleware import access, rbac
 from lib.system_profile_validate import validate_sp_for_branch
 
 logger = get_logger(__name__)
 
 
 @api_operation
-@rbac(RbacResourceType.HOSTS, RbacPermission.READ)
+@access(KesselResourceTypes.HOST.view)
 @metrics.api_request_time.time()
 def get_sap_system(
     tags=None, page=None, per_page=None, staleness=None, registered_with=None, filter=None, rbac_filter=None
@@ -48,7 +48,7 @@ def get_sap_system(
 
 
 @api_operation
-@rbac(RbacResourceType.HOSTS, RbacPermission.READ)
+@access(KesselResourceTypes.HOST.view)
 @metrics.api_request_time.time()
 def get_sap_sids(
     search=None,
@@ -82,7 +82,7 @@ def get_sap_sids(
 
 
 @api_operation
-@rbac(RbacResourceType.HOSTS, RbacPermission.READ)
+@access(KesselResourceTypes.HOST.view)
 @metrics.api_request_time.time()
 def get_operating_system(
     tags=None,
@@ -109,7 +109,7 @@ def get_operating_system(
 
 
 @api_operation
-@rbac(RbacResourceType.HOSTS, RbacPermission.READ)
+@access(KesselResourceTypes.HOST.view)
 @metrics.schema_validation_time.time()
 def validate_schema(repo_fork="RedHatInsights", repo_branch="master", days=1, max_messages=10000, rbac_filter=None):
     _ = (rbac_filter,)  # Unused. No RBAC needed because we check for specific users.
