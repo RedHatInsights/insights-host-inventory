@@ -13,7 +13,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `pytest --cov=.` - Run all tests with coverage
 - `pytest tests/test_api_auth.py` - Run tests in a specific file
 - `pytest tests/test_api_auth.py::test_validate_valid_identity` - Run a specific test
-- `make style` - Run pre-commit hooks for code formatting (uses ruff)
+- `make style` - Run pre-commit hooks for code formatting
 
 ### Local Development Services
 - `make run_inv_mq_service` - Start the message queue service for processing Kafka messages
