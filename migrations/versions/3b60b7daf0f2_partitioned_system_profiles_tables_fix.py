@@ -298,7 +298,6 @@ def upgrade():
         $$ LANGUAGE plpgsql;
     """)
 
-    # The WHEN clause is removed, and the logic is moved into the function.
     op.execute(f"""
         CREATE TRIGGER trigger_sync_insights_id
         AFTER INSERT OR UPDATE OF insights_id ON {INVENTORY_SCHEMA}.hosts
