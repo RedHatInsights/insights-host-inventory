@@ -128,10 +128,15 @@ def run(
             logger.info(f"Running host_delete_s3 with batch size {BATCH_SIZE}")
             s3_client = get_s3_client(config)
 
-            # Stream the CSV data from the S3 bucket one batch at a time
+            # Download the entire CSV file from S3 first
+            logger.info("Downloading CSV file from S3...")
             s3_object = s3_client.get_object(Bucket=config.s3_bucket, Key=S3_OBJECT_KEY)
-            # s3_object["Body"] is a file-like object, so we can wrap it with TextIOWrapper for decoding
-            csv_stream = io.TextIOWrapper(s3_object["Body"], encoding="utf-8")
+            # Download the entire file content
+            csv_content = s3_object["Body"].read().decode("utf-8")
+            logger.info(f"Downloaded CSV file, size: {len(csv_content)} bytes")
+
+            # Create a file-like object from the downloaded content
+            csv_stream = io.StringIO(csv_content)
             reader = csv.reader(csv_stream, delimiter="\t")
 
             # Skip the header row
