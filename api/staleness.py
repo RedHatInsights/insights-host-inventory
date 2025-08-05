@@ -6,6 +6,7 @@ from flask import Flask
 from flask import abort
 from flask import current_app
 from marshmallow import ValidationError
+from sqlalchemy import orm
 from sqlalchemy.engine.base import Connection
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapper
@@ -80,6 +81,8 @@ def receive_before_host_update(mapper: Mapper, connection: Connection, host: Hos
     host_details = sa.inspect(host)
     prs_changed, _, _ = host_details.attrs.per_reporter_staleness.history
     staleness_changed, _, _ = host_details.attrs.deletion_timestamp.history
+    if prs_changed or staleness_changed:
+        orm.attributes.flag_modified(host, "modified_on")
 
 
 def _update_hosts_staleness_async(identity: Identity, app: Flask, staleness: Staleness, request_id):
