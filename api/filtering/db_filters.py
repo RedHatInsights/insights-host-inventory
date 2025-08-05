@@ -257,11 +257,6 @@ def _registered_with_filter(registered_with: list[str], host_type_filter: set[st
     if not registered_with:
         return _query_filter
     reg_with_copy = deepcopy(registered_with)
-    if "insights" in registered_with:
-        _query_filter.append(Host.insights_id is not None)
-        reg_with_copy.remove("insights")
-    if not reg_with_copy:
-        return _query_filter
 
     # Get the per_report_staleness check_in value for the reporter
     # and build the filter based on it
