@@ -579,7 +579,7 @@ data:
           ],
           "targets": [
             {
-              "expr": "sum(increase(inventory_ingress_add_host_successes_total[1m])) + sum(increase(inventory_ingress_add_host_failures_total[1m]))",
+              "expr": "sum(increase(inventory_ingress_add_host_successes_total[5m])) + sum(increase(inventory_ingress_add_host_failures_total[5m]))",
               "instant": true,
               "interval": "1s",
               "legendFormat": "{{topic}}",
