@@ -1419,7 +1419,7 @@ data:
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(aws_kafka_sum_offset_lag_sum{consumer_group='inventory-mq') by (topic)",
+              "expr": "sum(aws_kafka_sum_offset_lag_sum{consumer_group='inventory-mq'}) by (topic)",
               "interval": "1m",
               "legendFormat": "{{topic}}",
               "refId": "A"
