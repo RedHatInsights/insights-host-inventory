@@ -236,7 +236,6 @@ def assert_stale_notification_is_valid(notification_event_producer, host):
 
 
 def assert_patch_event_is_valid(
-    with_last_check_in,
     host,
     event_producer,
     expected_request_id,
@@ -246,6 +245,10 @@ def assert_patch_event_is_valid(
     reporter=None,
     identity=USER_IDENTITY,
 ):
+    stale_timestamp = (host.last_check_in.astimezone(timezone.utc) + timedelta(seconds=104400)).isoformat()
+    stale_warning_timestamp = (host.last_check_in.astimezone(timezone.utc) + timedelta(seconds=604800)).isoformat()
+    culled_timestamp = (host.last_check_in.astimezone(timezone.utc) + timedelta(seconds=1209600)).isoformat()
+
     reporter = reporter or host.reporter
 
     event = json.loads(event_producer.event)
@@ -301,6 +304,7 @@ def assert_patch_event_is_valid(
     if "updated" in event.get("host", {}):
         # This is acceptable - just note it exists
         pass
+
     assert event_producer.key == str(host.id)
     assert event_producer.headers == expected_headers(
         "updated",

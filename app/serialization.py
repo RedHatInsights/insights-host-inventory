@@ -10,6 +10,7 @@ from app.auth import get_current_identity
 from app.common import inventory_config
 from app.culling import Conditions
 from app.culling import Timestamps
+from app.culling import should_host_stay_fresh_forever
 from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
 from app.logging import get_logger
@@ -19,10 +20,9 @@ from app.models import Host
 from app.models import HostSchema
 from app.models import LimitedHost
 from app.models import LimitedHostSchema
+from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 from app.staleness_serialization import get_staleness_timestamps
 from app.utils import Tag
-from lib.feature_flags import FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS
-from lib.feature_flags import get_flag_value
 
 logger = get_logger(__name__)
 
@@ -76,6 +76,7 @@ DEFAULT_FIELDS = (
     "created",
     "updated",
     "groups",
+    "last_check_in",
 )
 
 ADDITIONAL_HOST_MQ_FIELDS = (
@@ -139,10 +140,7 @@ def serialize_host(
 
     timestamps = get_staleness_timestamps(host, staleness_timestamps, staleness)
 
-    if get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS):
-        fields = DEFAULT_FIELDS + ("last_check_in",) + additional_fields
-    else:
-        fields = DEFAULT_FIELDS + additional_fields
+    fields = DEFAULT_FIELDS + additional_fields
 
     if for_mq:
         fields += ADDITIONAL_HOST_MQ_FIELDS
@@ -422,13 +420,13 @@ def serialize_staleness_to_dict(staleness_obj) -> dict:
 
 
 def _serialize_per_reporter_staleness(host, staleness, staleness_timestamps):
-    # Create a deep copy to avoid mutating the original host object
-    import copy
-
-    per_reporter_staleness = copy.deepcopy(host.per_reporter_staleness)
-
-    for reporter in per_reporter_staleness:
-        if host.host_type == "edge" or (
+    for reporter in host.per_reporter_staleness:
+        # For hosts that should stay fresh forever, use far-future timestamps
+        if should_host_stay_fresh_forever(host):
+            stale_timestamp = FAR_FUTURE_STALE_TIMESTAMP
+            stale_warning_timestamp = FAR_FUTURE_STALE_TIMESTAMP
+            delete_timestamp = FAR_FUTURE_STALE_TIMESTAMP
+        elif host.host_type == "edge" or (
             hasattr(host, "system_profile_facts")
             and host.system_profile_facts
             and host.system_profile_facts.get("host_type") == "edge"

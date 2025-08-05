@@ -4,7 +4,6 @@ from copy import deepcopy
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
-from itertools import product
 from json import dumps
 from random import choice
 from unittest import TestCase
@@ -818,7 +817,6 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
     def test_with_all_fields(self):
         # Create Flask app for application context
         app = create_app(RuntimeEnvironment.TEST)
-
         with app.app.app_context():
             canonical_facts = {
                 "insights_id": str(uuid4()),
@@ -856,7 +854,6 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
                     "system_memory_bytes": 4,
                 },
             }
-
             actual = deserialize_host(full_input)
             expected = {
                 "canonical_facts": canonical_facts,
@@ -865,7 +862,6 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
                 "facts": {item["namespace"]: item["facts"] for item in full_input["facts"]},
                 "system_profile_facts": full_input["system_profile"],
             }
-
             self.assertIs(Host, type(actual))
             for key, value in expected.items():
                 self.assertEqual(value, getattr(actual, key))
@@ -896,7 +892,6 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
             self.assertIsNone(host.display_name)
             self.assertIsNone(host.ansible_host)
             self.assertEqual(org_id, host.org_id)
-            self.assertEqual(stale_timestamp, host.stale_timestamp)
             self.assertEqual(reporter, host.reporter)
             self.assertEqual({}, host.facts)
             self.assertEqual({}, host.tags)
@@ -1633,25 +1628,16 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                     "provider_type": "aws",
                 }
                 unchanged_data = {
-                    "display_name": "some display name",
-                    "ansible_host": "some ansible host",
-                    "account": "some acct",
-                    "org_id": "3340851",
-                    "reporter": "insights",
-                    "groups": [],
+                    "display_name": None,
+                    "org_id": "some org_id",
+                    "account": None,
+                    "reporter": "yupana",
                 }
                 host_init_data = {
-                    "canonical_facts": canonical_facts,
-                    **unchanged_data,
-                    "facts": {
-                        "some namespace": {"some key": "some value"},
-                        "another namespace": {"another key": "another value"},
-                    },
                     "stale_timestamp": now(),
-                    "tags": {
-                        "some namespace": {"some key": ["some value", "another value"], "another key": ["value"]},
-                        "another namespace": {"key": ["value"]},
-                    },
+                    "canonical_facts": {"subscription_manager_id": generate_uuid()},
+                    **unchanged_data,
+                    "facts": {},
                 }
                 host = Host(**host_init_data)
 
@@ -1661,29 +1647,29 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                     "modified_on": now(),
                     "last_check_in": now(),
                     "per_reporter_staleness": host.per_reporter_staleness,
+                    **group_data,
                 }
                 for k, v in host_attr_data.items():
                     setattr(host, k, v)
 
-                config = CullingConfig(
-                    stale_warning_offset_delta=timedelta(days=7), culled_offset_delta=timedelta(days=14)
-                )
+                staleness_offset = staleness_timestamps()
                 staleness = get_sys_default_staleness()
-                actual = serialize_host(host, Timestamps(config), False, ("tags",), staleness=staleness)
-
+                actual = serialize_host(host, staleness_offset, False, ("tags",), staleness=staleness)
                 expected = {
-                    **canonical_facts,
+                    **host_init_data["canonical_facts"],
+                    "insights_id": None,
+                    "fqdn": None,
+                    "satellite_id": None,
+                    "bios_uuid": None,
+                    "ip_addresses": None,
+                    "mac_addresses": None,
+                    "ansible_host": None,
+                    "provider_id": None,
+                    "provider_type": None,
                     **unchanged_data,
-                    "facts": [
-                        {"namespace": namespace, "facts": facts}
-                        for namespace, facts in host_init_data["facts"].items()
-                    ],
-                    "tags": [
-                        {"namespace": namespace, "key": key, "value": value}
-                        for namespace, ns_tags in host_init_data["tags"].items()
-                        for key, values in ns_tags.items()
-                        for value in values
-                    ],
+                    "facts": [],
+                    "groups": [],
+                    "tags": [],
                     "id": str(host_attr_data["id"]),
                     "created": self._timestamp_to_str(host_attr_data["created_on"]),
                     "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
@@ -1699,17 +1685,6 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                     ),
                     "per_reporter_staleness": host_attr_data["per_reporter_staleness"],
                 }
-                if not with_last_check_in:
-                    del expected["last_check_in"]
-                    expected["stale_timestamp"] = self._timestamp_to_str(
-                        self._add_seconds(host_attr_data["modified_on"], 104400)
-                    )
-                    expected["stale_warning_timestamp"] = self._timestamp_to_str(
-                        self._add_seconds(host_attr_data["modified_on"], 604800)
-                    )
-                    expected["culled_timestamp"] = self._timestamp_to_str(
-                        self._add_seconds(host_attr_data["modified_on"], 1209600)
-                    )
 
                 self.assertEqual(expected, actual)
 
@@ -1889,76 +1864,62 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
                 ]
                 stale_timestamp = now()
 
-                unchanged_data = {
-                    "display_name": "some display name",
-                    "ansible_host": "some ansible host",
-                    "account": "some acct",
-                    "org_id": "3340851",
-                    "reporter": "some reporter",
-                    "groups": [],
-                }
-                host_init_data = {
-                    "canonical_facts": canonical_facts,
-                    **unchanged_data,
-                    "facts": facts,
-                    "stale_timestamp": stale_timestamp,
-                    "tags": {
-                        "some namespace": {"some key": ["some value", "another value"], "another key": ["value"]},
-                        "another namespace": {"key": ["value"]},
-                    },
-                }
-                host = Host(**host_init_data)
+        unchanged_data = {
+            "display_name": "some display name",
+            "ansible_host": "some ansible host",
+            "account": "some acct",
+            "org_id": "3340851",
+            "reporter": "some reporter",
+            "groups": [],
+        }
+        host_init_data = {
+            "canonical_facts": canonical_facts,
+            **unchanged_data,
+            "facts": facts,
+            "stale_timestamp": stale_timestamp,
+            "tags": {
+                "some namespace": {"some key": ["some value", "another value"], "another key": ["value"]},
+                "another namespace": {"key": ["value"]},
+            },
+        }
+        host = Host(**host_init_data)
 
-                host_attr_data = {
-                    "id": uuid4(),
-                    "created_on": now(),
-                    "modified_on": now(),
-                    "last_check_in": now(),
-                    "per_reporter_staleness": host.per_reporter_staleness,
-                }
-                for k, v in host_attr_data.items():
-                    setattr(host, k, v)
+        host_attr_data = {
+            "id": uuid4(),
+            "created_on": now(),
+            "modified_on": now(),
+            "last_check_in": now(),
+            "per_reporter_staleness": host.per_reporter_staleness,
+        }
+        for k, v in host_attr_data.items():
+            setattr(host, k, v)
 
-                staleness_offset = staleness_timestamps()
-                staleness = get_sys_default_staleness()
-                actual = serialize_host(host, staleness_offset, False, ("tags",), staleness=staleness)
-                expected = {
-                    **canonical_facts,
-                    **unchanged_data,
-                    "facts": serialize_facts.return_value,
-                    "tags": serialize_tags.return_value,
-                    "id": str(host_attr_data["id"]),
-                    "created": self._timestamp_to_str(host_attr_data["created_on"]),
-                    "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
-                    "last_check_in": self._timestamp_to_str(host_attr_data["last_check_in"]),
-                    "stale_timestamp": self._timestamp_to_str(
-                        host_attr_data["last_check_in"] + timedelta(seconds=104400)
-                    ),
-                    "stale_warning_timestamp": self._timestamp_to_str(
-                        host_attr_data["last_check_in"] + timedelta(seconds=604800)
-                    ),
-                    "culled_timestamp": self._timestamp_to_str(
-                        host_attr_data["last_check_in"] + timedelta(seconds=1209600)
-                    ),
-                    "per_reporter_staleness": host_attr_data["per_reporter_staleness"],
-                }
-                if not with_last_check_in:
-                    del expected["last_check_in"]
-                    expected["stale_timestamp"] = self._timestamp_to_str(
-                        host_attr_data["modified_on"] + timedelta(seconds=104400)
-                    )
-                    expected["stale_warning_timestamp"] = self._timestamp_to_str(
-                        host_attr_data["modified_on"] + timedelta(seconds=604800)
-                    )
-                    expected["culled_timestamp"] = self._timestamp_to_str(
-                        host_attr_data["modified_on"] + timedelta(seconds=1209600)
-                    )
-                self.assertEqual(expected, actual)
+        staleness_offset = staleness_timestamps()
+        staleness = get_sys_default_staleness()
+        actual = serialize_host(host, staleness_offset, False, ("tags",), staleness=staleness)
+        expected = {
+            **canonical_facts,
+            **unchanged_data,
+            "facts": serialize_facts.return_value,
+            "tags": serialize_tags.return_value,
+            "id": str(host_attr_data["id"]),
+            "created": self._timestamp_to_str(host_attr_data["created_on"]),
+            "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
+            "last_check_in": self._timestamp_to_str(host_attr_data["last_check_in"]),
+            "stale_timestamp": self._timestamp_to_str(host_attr_data["last_check_in"] + timedelta(seconds=104400)),
+            "stale_warning_timestamp": self._timestamp_to_str(
+                host_attr_data["last_check_in"] + timedelta(seconds=604800)
+            ),
+            "culled_timestamp": self._timestamp_to_str(host_attr_data["last_check_in"] + timedelta(seconds=1209600)),
+            "per_reporter_staleness": host_attr_data["per_reporter_staleness"],
+        }
 
-            # It is called twice, because we have 2 test cases
-            serialize_canonical_facts.assert_called_with(host_init_data["canonical_facts"])
-            serialize_facts.assert_called_with(host_init_data["facts"])
-            serialize_tags.assert_called_with(host_init_data["tags"])
+        self.assertEqual(expected, actual)
+
+        # It is called twice, because we have 2 test cases
+        serialize_canonical_facts.assert_called_with(host_init_data["canonical_facts"])
+        serialize_facts.assert_called_with(host_init_data["facts"])
+        serialize_tags.assert_called_with(host_init_data["tags"])
 
 
 class SerializationSerializeHostSystemProfileTestCase(TestCase):
