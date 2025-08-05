@@ -57,7 +57,6 @@ COPY assign_ungrouped_hosts_to_groups.py assign_ungrouped_hosts_to_groups.py
 COPY export_group_data_s3.py export_group_data_s3.py
 COPY delete_hosts_s3.py delete_hosts_s3.py
 COPY update_hosts_last_check_in.py update_hosts_last_check_in.py
-COPY update_staleness_columns.py update_staleness_columns.py
 COPY delete_hosts_without_id_facts.py delete_hosts_without_id_facts.py
 COPY host_delete_duplicates.py host_delete_duplicates.py
 COPY app_migrations/ app_migrations/

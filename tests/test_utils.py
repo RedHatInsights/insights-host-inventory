@@ -1,4 +1,6 @@
 from collections import namedtuple
+from datetime import datetime
+from datetime import timezone
 from itertools import product
 from tempfile import TemporaryFile
 from unittest.mock import MagicMock
@@ -9,9 +11,13 @@ from pytest import raises
 from yaml import safe_load
 
 from api.cache_key import make_system_cache_key
+from app.culling import should_host_stay_fresh_forever
+from app.models import Host
 from lib.feature_flags import FLAG_FALLBACK_VALUES
 from lib.feature_flags import UNLEASH
 from lib.feature_flags import get_flag_value_and_fallback
+from tests.helpers.test_utils import USER_IDENTITY
+from tests.helpers.test_utils import generate_uuid
 from utils.deploy import main as deploy
 
 RESOURCE_TEMPLATES_INDEXES = {
@@ -174,3 +180,33 @@ def test_make_system_cache_key_valid():
     owner_id = "1919388393"
     key = make_system_cache_key(insights_id, org_id, owner_id)
     assert key == f"insights_id={insights_id}_org={org_id}_user=SYSTEM-{owner_id}"
+
+
+def test_should_host_stay_fresh_forever():
+    """Test the should_host_stay_fresh_forever utility function."""
+    # Test rhsm-system-profile-bridge-only host
+    host_rhsm_only = Host(
+        canonical_facts={"subscription_manager_id": generate_uuid()},
+        reporter="rhsm-system-profile-bridge",
+        stale_timestamp=datetime.now(timezone.utc),
+        org_id=USER_IDENTITY["org_id"],
+    )
+    host_rhsm_only.per_reporter_staleness = {
+        "rhsm-system-profile-bridge": {
+            "last_check_in": datetime.now(timezone.utc).isoformat(),
+            "check_in_succeeded": True,
+        }
+    }
+    assert should_host_stay_fresh_forever(host_rhsm_only) is True
+
+    # Test normal host
+    host_normal = Host(
+        canonical_facts={"subscription_manager_id": generate_uuid()},
+        reporter="puptoo",
+        stale_timestamp=datetime.now(timezone.utc),
+        org_id=USER_IDENTITY["org_id"],
+    )
+    host_normal.per_reporter_staleness = {
+        "puptoo": {"last_check_in": datetime.now(timezone.utc).isoformat(), "check_in_succeeded": True}
+    }
+    assert should_host_stay_fresh_forever(host_normal) is False

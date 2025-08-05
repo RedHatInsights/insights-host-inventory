@@ -909,27 +909,23 @@ def test_get_hosts_order_by_group_name_post_kessel(mocker, db_create_group_with_
 
 
 @pytest.mark.parametrize("order_how", ("ASC", "DESC"))
-def test_get_hosts_order_by_last_check_in(mocker, db_create_host, api_get, order_how):
+def test_get_hosts_order_by_last_check_in(db_create_host, api_get, order_how):
     host0 = str(db_create_host().id)
     host1 = str(db_create_host().id)
 
-    with (
-        mocker.patch("app.serialization.get_flag_value", return_value=True),
-        mocker.patch("api.host_query_db.get_flag_value", return_value=True),
-    ):
-        url = build_hosts_url(query=f"?order_by=last_check_in&order_how={order_how}")
+    url = build_hosts_url(query=f"?order_by=last_check_in&order_how={order_how}")
 
-        response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url)
 
-        assert response_status == 200
-        assert len(response_data["results"]) == 2
-        hosts = response_data["results"]
-        if order_how == "DESC":
-            assert host1 == hosts[0]["id"]
-            assert host0 == hosts[1]["id"]
-        else:
-            assert host0 == hosts[0]["id"]
-            assert host1 == hosts[1]["id"]
+    assert response_status == 200
+    assert len(response_data["results"]) == 2
+    hosts = response_data["results"]
+    if order_how == "DESC":
+        assert host1 == hosts[0]["id"]
+        assert host0 == hosts[1]["id"]
+    else:
+        assert host0 == hosts[0]["id"]
+        assert host1 == hosts[1]["id"]
 
 
 @pytest.mark.parametrize("order_how", ("", "ASC", "DESC"))
@@ -2187,9 +2183,6 @@ def test_query_by_staleness_using_columns(
     mocker: MockerFixture,
     subtests: SubTests,
 ) -> None:
-    mocker.patch("app.staleness_serialization.get_flag_value", return_value=True)
-    mocker.patch("app.models.host.get_flag_value", return_value=True)
-    mocker.patch("app.serialization.get_flag_value", return_value=True)
     mocker.patch("api.host_query_db.get_flag_value", return_value=True)
     mocker.patch("api.filtering.db_filters.get_flag_value", return_value=True)
 
@@ -2309,3 +2302,30 @@ def test_system_type_happy_path(api_get, db_create_host, query_filter_param):
     assert len(response_data["results"]) == matching_hosts
     for result in response_data["results"]:
         assert result["id"] in host_ids
+
+
+def test_fresh_staleness_with_only_rhsm_system_profile_bridge(api_get, db_create_host):
+    """
+    Ensure that a host with only "rhsm-system-profile-bridge" in per_reporter_staleness,
+    and "last_check_in" and "updated" timestamps far in the past, is still returned
+    with the "?staleness=fresh" filter.
+    """
+    # Set timestamps far in the past
+    with patch("app.models.utils.datetime", **{"now.return_value": (now() - timedelta(days=365))}):
+        # Only "rhsm-system-profile-bridge" reporter is present
+        host = db_create_host(
+            extra_data={
+                "reporter": "rhsm-system-profile-bridge",
+            }
+        )
+        host_id = str(host.id)
+
+    # Set FLAG_INVENTORY_FILTER_STALENESS_USING_COLUMNS to true
+    with patch("api.filtering.db_filters.get_flag_value", return_value=True):
+        url = build_hosts_url(query="?staleness=fresh")
+        response_status, response_data = api_get(url=url)
+
+    assert response_status == 200
+    # The host should be present in the results
+    result_ids = [result["id"] for result in response_data["results"]]
+    assert host_id in result_ids
