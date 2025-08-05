@@ -432,6 +432,10 @@ class IngressMessageConsumer(HostMessageConsumer):
             identity = _get_identity(host_data, platform_metadata)
             input_host = deserialize_host(host_data)
 
+            # create a new id for the host if it is not provided for the new hosts
+            if input_host.id is None:
+                input_host.id = uuid.uuid4()
+
             # basic-auth does not need owner_id
             if identity.identity_type == IdentityType.SYSTEM:
                 input_host = _set_owner(input_host, identity)
