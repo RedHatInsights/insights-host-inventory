@@ -299,7 +299,7 @@ def test_system_profile_operating_system(mq_create_or_update_host, api_get):
     ]
     ordered_insights_ids = [generate_uuid() for _ in range(len(ordered_sp_data))]
     # Create an association between the insights IDs
-    ordered_host_data = dict(zip(ordered_insights_ids, ordered_sp_data))
+    ordered_host_data = dict(zip(ordered_insights_ids, ordered_sp_data, strict=False))
 
     # Create hosts for the above host data (in shuffled order)
     _ = [
@@ -337,7 +337,7 @@ def test_system_profile_sap_system(mq_create_or_update_host, api_get):
     ordered_insights_ids = [generate_uuid() for _ in range(len(ordered_sap_system_data))]
 
     # Create an association between the insights IDs
-    ordered_host_data = dict(zip(ordered_insights_ids, ordered_sap_system_data))
+    ordered_host_data = dict(zip(ordered_insights_ids, ordered_sap_system_data, strict=False))
 
     # Create hosts for the above host data
     _ = [
@@ -375,7 +375,7 @@ def test_system_profile_sap_sids(mq_create_or_update_host, api_get):
     ordered_sap_sids_data = [["ABC", "HZO", "XYZ"], ["ABC"], [], [], ["XYZ"], []]
     ordered_insights_ids = [generate_uuid() for _ in range(len(ordered_sap_sids_data))]
 
-    ordered_host_data = dict(zip(ordered_insights_ids, ordered_sap_sids_data))
+    ordered_host_data = dict(zip(ordered_insights_ids, ordered_sap_sids_data, strict=False))
 
     # Create hosts for the above host data
     _ = [
@@ -405,7 +405,7 @@ def test_system_profile_sap_sids_with_search(mq_create_or_update_host, api_get):
     ordered_sap_sids_data = [["ABC", "HZO", "XYZ"], ["ABC"], [], [], ["XYZ"], []]
     ordered_insights_ids = [generate_uuid() for _ in range(len(ordered_sap_sids_data))]
 
-    ordered_host_data = dict(zip(ordered_insights_ids, ordered_sap_sids_data))
+    ordered_host_data = dict(zip(ordered_insights_ids, ordered_sap_sids_data, strict=False))
 
     # Create hosts for the above host data
     _ = [

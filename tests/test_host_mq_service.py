@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Callable
 from copy import deepcopy
 from datetime import datetime
 from datetime import timedelta
 from types import SimpleNamespace
-from typing import Callable
 from unittest import mock
 from unittest.mock import patch
 

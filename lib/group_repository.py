@@ -1,5 +1,4 @@
 import time
-from typing import Optional
 from uuid import UUID
 
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
@@ -247,12 +246,12 @@ def add_hosts_to_group(
 
 
 def add_group(
-    group_name: Optional[str],
+    group_name: str | None,
     org_id: str,
-    account: Optional[str] = None,
-    group_id: Optional[UUID] = None,
+    account: str | None = None,
+    group_id: UUID | None = None,
     ungrouped: bool = False,
-    session: Optional[Session] = None,
+    session: Session | None = None,
 ) -> Group:
     session = session or db.session
     new_group = Group(org_id=org_id, name=group_name, account=account, id=group_id, ungrouped=ungrouped)
@@ -264,11 +263,11 @@ def add_group(
 
 
 def add_group_with_hosts(
-    group_name: Optional[str],
+    group_name: str | None,
     host_id_list: list[str],
     identity: Identity,
     account: str,
-    group_id: Optional[UUID],
+    group_id: UUID | None,
     ungrouped: bool,
     staleness: AttrDict,
     event_producer: EventProducer,
@@ -424,7 +423,7 @@ def _remove_hosts_from_group(group_id, host_id_list, org_id):
     return removed_host_ids
 
 
-def get_group_by_id_from_db(group_id: str, org_id: str, session: Optional[Session] = None) -> Group:
+def get_group_by_id_from_db(group_id: str, org_id: str, session: Session | None = None) -> Group:
     session = session or db.session
     query = session.query(Group).filter(Group.org_id == org_id, Group.id == group_id)
     return query.one_or_none()

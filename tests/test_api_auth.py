@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from base64 import b64encode
+from collections.abc import Callable
 from copy import deepcopy
 from json import dumps
 from typing import Any
-from typing import Callable
 
 import pytest
 from pytest_subtests import SubTests
