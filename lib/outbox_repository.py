@@ -79,9 +79,6 @@ def _delete_event_payload(host) -> Union[dict, None]:
 
     return {"reference": reference}
 
-    # staleness_obj = serialize_staleness_to_dict(get_staleness_obj(identity.org_id))
-    # validated_data = StalenessSchema().load({**staleness_obj, **body})
-
 
 def _create_outbox_entry(event: str) -> Union[dict, None, Literal[False]]:
     try:
@@ -180,12 +177,7 @@ def write_event_to_outbox(event: str) -> bool:
             # Notification event skipped - this is success
             logger.debug("Event skipped for outbox processing")
             return True
-
-        elif outbox_entry.get("event_type", None) == "created" and outbox_entry.get("aggregate_id", None) == 'None':
-            logger.debug("Event skipped for outbox processing because \
-                         the host has not yet been saved to the database and does not have an ID")
-            return True
-        elif outbox_entry is False:
+        if outbox_entry is False:
             logger.error("Failed to create outbox entry from event data")
             return False
         validated_outbox_entry = OutboxSchema().load(outbox_entry)
