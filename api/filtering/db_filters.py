@@ -4,6 +4,7 @@ from copy import deepcopy
 from datetime import timedelta
 from functools import partial
 from typing import Any
+from typing import Callable
 from uuid import UUID
 
 from dateutil import parser
@@ -20,6 +21,7 @@ from api.filtering.db_custom_filters import get_host_types_from_filter
 from api.staleness_query import get_staleness_obj
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
+from app.common import inventory_config
 from app.config import ALL_STALENESS_STATES
 from app.config import HOST_TYPES
 from app.culling import Conditions
@@ -31,6 +33,7 @@ from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import db
 from app.models.constants import SystemType
+from app.models.system_profile import HostStaticSystemProfile
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_states import HostStalenessStatesDbFilters
 from app.utils import Tag
@@ -105,7 +108,10 @@ def stale_timestamp_filter(gt=None, lte=None):
 
 
 def _host_type_filter(host_type: str | None):
-    return Host.system_profile_facts["host_type"].as_string() == host_type
+    if inventory_config().hbi_db_refactoring_use_old_table:
+        return Host.system_profile_facts["host_type"].as_string() == host_type
+    else:
+        return HostStaticSystemProfile.host_type == host_type
 
 
 def _stale_timestamp_per_reporter_filter(gt=None, lte=None, reporter=None):
@@ -176,7 +182,7 @@ def _staleness_filter_using_columns(staleness: list[str]) -> list:
     return [or_(*filters)]
 
 
-def _staleness_filter(staleness: list[str] | tuple[str, ...], host_type_filter: set[str | None], org_id) -> list:
+def _staleness_filter(staleness: list[str] | tuple[str, ...], host_type_filter: set[str | None], org_id: str) -> list:
     staleness_obj = serialize_staleness_to_dict(get_staleness_obj(org_id))
     staleness_conditions = []
     for host_type in host_type_filter:
@@ -195,7 +201,11 @@ def _staleness_filter(staleness: list[str] | tuple[str, ...], host_type_filter: 
 
 
 def staleness_to_conditions(
-    staleness, staleness_states, host_type, timestamp_filter_func, omit_host_type_filter: bool = False
+    staleness: dict,
+    staleness_states: list[str] | tuple[str, ...],
+    host_type: str | None,
+    timestamp_filter_func: Callable[..., Any],
+    omit_host_type_filter: bool = False,
 ):
     def _timestamp_and_host_type_filter(condition, state):
         filter_ = timestamp_filter_func(*getattr(condition, state)())
