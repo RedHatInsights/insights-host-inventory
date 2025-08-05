@@ -579,7 +579,7 @@ data:
           ],
           "targets": [
             {
-              "expr": "sum(increase(kafka_consumergroup_group_offset{topic=~'(platform-mq-stage.|platform-mq-prod)?platform.inventory.host-ingress.*'}[5m])) by (topic)",
+              "expr": "sum(increase(inventory_ingress_add_host_successes_total[1m])) + sum(increase(inventory_ingress_add_host_failures_total[1m]))",
               "instant": true,
               "interval": "1s",
               "legendFormat": "{{topic}}",
@@ -1374,7 +1374,7 @@ data:
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$datasource",
+          "datasource": "$datasource_awskafka",
           "fieldConfig": {
             "defaults": {
               "custom": {},
@@ -1419,7 +1419,7 @@ data:
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(kafka_consumergroup_group_lag{topic=~'(platform-mq-stage.|platform-mq-prod)?platform.inventory.host-ingress.*'}) by (topic)",
+              "expr": "sum(aws_kafka_sum_offset_lag_sum{consumer_group='inventory-mq') by (topic)",
               "interval": "1m",
               "legendFormat": "{{topic}}",
               "refId": "A"
@@ -2731,7 +2731,7 @@ data:
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$datasource",
+          "datasource": "$datasource_awskafka",
           "fieldConfig": {
             "defaults": {
               "custom": {},
@@ -2776,7 +2776,7 @@ data:
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(kafka_consumergroup_group_lag{topic=~'(platform-mq-stage.|platform-mq-prod)?platform.inventory.host-ingress.*'}) by (topic)",
+              "expr": "sum(aws_kafka_sum_offset_lag_sum{consumer_group='inventory-mq'}) by (topic)",
               "interval": "1m",
               "legendFormat": "{{topic}}",
               "refId": "A"
@@ -2873,7 +2873,7 @@ data:
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(increase(kafka_consumergroup_group_offset{topic=~'(platform-mq-stage.|platform-mq-prod)?platform.inventory.host-ingress.*'}[1m])) by (topic)",
+              "expr": "(sum(increase(inventory_ingress_add_host_successes_total[1m])) by (container) + sum(increase(inventory_ingress_add_host_failures_total[1m])) by (container))",
               "interval": "1m",
               "legendFormat": "{{topic}}",
               "refId": "A"
@@ -4291,6 +4291,24 @@ data:
             "query": "prometheus",
             "refresh": 1,
             "regex": "/.*appsre.*/",
+            "skipUrlSync": false,
+            "type": "datasource"
+          },
+          {
+            "current": {
+              "selected": false,
+              "text": "appsrep11ue1-prometheus",
+              "value": "appsrep11ue1-prometheus"
+            },
+            "hide": 0,
+            "includeAll": false,
+            "label": "Datasource - AWS Kafka",
+            "multi": false,
+            "name": "datasource_awskafka",
+            "options": [],
+            "query": "prometheus",
+            "refresh": 1,
+            "regex": "(appsrep11ue1-prometheus|appsres11ue1-prometheus)",
             "skipUrlSync": false,
             "type": "datasource"
           },
