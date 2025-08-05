@@ -33,7 +33,7 @@ def validate_inputs(num_partitions: int):
 
 def upgrade():
     # Get number of partitions from environment variable
-    num_partitions = int(os.getenv("HOSTS_TABLES_NUM_PARTITIONS", 1))
+    num_partitions = int(os.getenv("HOSTS_TABLE_NUM_PARTITIONS", 1))
     validate_inputs(num_partitions)
 
     # System profile tables were created using the wrong number of partitions in stage
