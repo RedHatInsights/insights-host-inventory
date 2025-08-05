@@ -5,7 +5,6 @@ from copy import deepcopy
 from datetime import timedelta
 from functools import partial
 from typing import Any
-from typing import Callable
 from uuid import UUID
 
 from dateutil import parser
@@ -15,14 +14,12 @@ from sqlalchemy import and_
 from sqlalchemy import func
 from sqlalchemy import not_
 from sqlalchemy import or_
-from sqlalchemy.dialects.postgresql import JSON
 
 from api.filtering.db_custom_filters import build_system_profile_filter
 from api.filtering.db_custom_filters import get_host_types_from_filter
 from api.staleness_query import get_staleness_obj
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
-from app.common import inventory_config
 from app.config import ALL_STALENESS_STATES
 from app.config import HOST_TYPES
 from app.culling import Conditions
@@ -34,7 +31,8 @@ from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import db
 from app.models.constants import SystemType
-from app.models.system_profile import HostStaticSystemProfile
+from app.models.system_profile_dynamic import HostDynamicSystemProfile
+from app.models.system_profile_static import HostStaticSystemProfile
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_states import HostStalenessStatesDbFilters
 from app.utils import Tag
@@ -54,11 +52,58 @@ __all__ = (
 logger = get_logger(__name__)
 DEFAULT_STALENESS_VALUES = ["not_culled"]
 
+# Maps host columns -> is_array?
+CANONICAL_FACT_MAP: dict[str, bool] = {
+    "insights_id": False,
+    "subscription_manager_id": False,
+    "satellite_id": False,
+    "fqdn": False,
+    "bios_uuid": False,
+    "ip_addresses": True,
+    "mac_addresses": True,
+}
 
-def canonical_fact_filter(canonical_fact: str, value, case_insensitive: bool = False) -> list:
-    if case_insensitive:
-        return [func.lower(Host.canonical_facts[canonical_fact].astext) == value.lower()]
-    return [Host.canonical_facts[canonical_fact].astext == value]
+# Static system type filter mappings
+SYSTEM_TYPE_FILTERS: dict[str, Any] = {
+    SystemType.CONVENTIONAL.value: and_(
+        or_(
+            HostStaticSystemProfile.bootc_status.is_(None),
+            HostStaticSystemProfile.bootc_status["booted"]["image_digest"].astext.is_(None),
+            HostStaticSystemProfile.bootc_status["booted"]["image_digest"].astext == "",
+        ),
+        or_(
+            HostStaticSystemProfile.host_type.is_(None),
+            HostStaticSystemProfile.host_type == "",
+        ),
+    ),
+    SystemType.BOOTC.value: and_(
+        HostStaticSystemProfile.bootc_status.isnot(None),
+        HostStaticSystemProfile.bootc_status["booted"]["image_digest"].astext.isnot(None),
+        HostStaticSystemProfile.bootc_status["booted"]["image_digest"].astext != "",
+    ),
+    SystemType.EDGE.value: HostStaticSystemProfile.host_type == SystemType.EDGE.value,
+}
+
+
+def canonical_fact_filter(name: str, value, case_insensitive: bool = False) -> list:
+    is_array = CANONICAL_FACT_MAP.get(name)
+    if is_array is not None:
+        field = getattr(Host, name)
+        val = value.lower() if case_insensitive else value
+        if is_array:
+            return [field.contains([val])]
+        else:
+            if case_insensitive:
+                return [func.lower(field) == val]
+            else:
+                return [field == val]
+    else:
+        # Fallback to canonical_facts JSON field for unknown facts
+        expr = Host.canonical_facts[name].astext
+        if case_insensitive:
+            expr = func.lower(expr)
+            value = value.lower()
+        return [expr == value]
 
 
 def _display_name_filter(display_name: str) -> list:
@@ -178,14 +223,18 @@ def _staleness_filter_using_columns(staleness: list[str]) -> list:
     return [or_(*filters)]
 
 
-def _staleness_filter(staleness: list[str] | tuple[str, ...], org_id) -> list:
+def _staleness_filter(staleness: list[str] | tuple[str, ...], org_id: str) -> list:
     staleness_obj = serialize_staleness_to_dict(get_staleness_obj(org_id))
     staleness_conditions = [or_(*staleness_to_conditions(staleness_obj, staleness, stale_timestamp_filter))]
 
     return [or_(*staleness_conditions)]
 
 
-def staleness_to_conditions(staleness, staleness_states, timestamp_filter_func):
+def staleness_to_conditions(
+    staleness: dict,
+    staleness_states: list[str] | tuple[str, ...],
+    timestamp_filter_func: Callable[..., Any],
+):
     condition = Conditions(staleness)
     filtered_states = (state for state in staleness_states if state != "unknown")
     return (timestamp_filter_func(*getattr(condition, state)()) for state in filtered_states)
@@ -209,7 +258,7 @@ def _registered_with_filter(registered_with: list[str], host_type_filter: set[st
         return _query_filter
     reg_with_copy = deepcopy(registered_with)
     if "insights" in registered_with:
-        _query_filter.append(Host.canonical_facts["insights_id"] != JSON.NULL)
+        _query_filter.append(Host.insights_id is not None)
         reg_with_copy.remove("insights")
     if not reg_with_copy:
         return _query_filter
@@ -245,7 +294,7 @@ def _hostname_or_id_filter(hostname_or_id: str) -> tuple:
     wildcard_id = f"%{hostname_or_id.replace('*', '%')}%"
     filter_list = [
         Host.display_name.ilike(wildcard_id),
-        Host.canonical_facts["fqdn"].astext.ilike(wildcard_id),
+        Host.fqdn.ilike(wildcard_id),
     ]
 
     try:
@@ -317,32 +366,15 @@ def update_query_for_owner_id(identity: Identity, query: Query) -> Query:
     if identity:
         logger.debug("identity auth type: %s", identity.auth_type)
         if identity.identity_type == IdentityType.SYSTEM:
-            return query.filter(and_(Host.system_profile_facts["owner_id"].as_string() == identity.system["cn"]))
+            return query.filter(and_(HostStaticSystemProfile.owner_id == identity.system["cn"]))
     return query
 
 
 def _system_type_filter(filters: list[str]) -> list:
-    PROFILE_FILTERS: dict[str, dict[str, Any]] = {
-        SystemType.CONVENTIONAL.value: {
-            "system_profile": {
-                "bootc_status": {"booted": {"image_digest": {"eq": "nil"}}},
-                "host_type": {"eq": "nil"},
-            }
-        },
-        SystemType.BOOTC.value: {"system_profile": {"bootc_status": {"booted": {"image_digest": {"eq": "not_nil"}}}}},
-        SystemType.EDGE.value: {"system_profile": {"host_type": {"eq": SystemType.EDGE.value}}},
-    }
-    valid_values = [st.value for st in SystemType]
-    query_filters: list = []
-    for system_type in filters:
-        if system_type not in valid_values:
-            raise ValidationException(f"Invalid system_type: {system_type}")
-
-        query_filter, _ = _system_profile_filter(PROFILE_FILTERS[system_type])
-        query_filters.append(and_(*query_filter))  # Using and_ here, because if system_type is "conventional",
-        # then we need both filters at the same time
-
-    return [or_(*query_filters)]
+    invalid = set(filters) - SYSTEM_TYPE_FILTERS.keys()
+    if invalid:
+        raise ValidationException(f"Invalid system_type: {invalid.pop()}")
+    return [or_(*(SYSTEM_TYPE_FILTERS[f] for f in filters))]
 
 
 def query_filters(
@@ -422,6 +454,12 @@ def query_filters(
     # Determine query_base
     if group_name or group_ids or rbac_filter or order_by == "group_name":
         query_base = db.session.query(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
+    elif filter or system_type:
+        query_base = (
+            db.session.query(Host)
+            .join(HostStaticSystemProfile, isouter=True)
+            .join(HostDynamicSystemProfile, isouter=True)
+        )
     else:
         query_base = db.session.query(Host)
 
