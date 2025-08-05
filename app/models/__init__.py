@@ -3,7 +3,7 @@ from datetime import datetime
 from jsonschema import validate as jsonschema_validate
 
 from app.logging import get_logger
-from app.models.constants import EDGE_HOST_STALE_TIMESTAMP
+from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 from app.models.constants import INVENTORY_SCHEMA
 from app.models.constants import MAX_CANONICAL_FACTS_VERSION
 from app.models.constants import MIN_CANONICAL_FACTS_VERSION
@@ -60,7 +60,7 @@ __all__ = [
     "TAG_VALUE_VALIDATION",
     "SPECIFICATION_DIR",
     "SYSTEM_PROFILE_SPECIFICATION_FILE",
-    "EDGE_HOST_STALE_TIMESTAMP",
+    "FAR_FUTURE_STALE_TIMESTAMP",
     "NEW_TO_OLD_REPORTER_MAP",
     "OLD_TO_NEW_REPORTER_MAP",
     "MIN_CANONICAL_FACTS_VERSION",
