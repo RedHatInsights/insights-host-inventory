@@ -649,7 +649,7 @@ objects:
       replicas: ${{REPLICAS_P1}}
       podSpec:
         initContainers:
-        - args:
+        - command:
             - "sh"
             - "-c"
             - "FLASK_APP=./manage.py flask db ${DB_MIGRATION_COMMAND}"
