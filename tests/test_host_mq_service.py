@@ -455,7 +455,7 @@ def test_verify_bootc_in_headers(expected_value, system_profile, mq_create_or_up
 
     _, _, headers = mq_create_or_update_host(host, return_all_data=True)
     assert "is_bootc" in headers
-    assert headers["is_bootc"] is expected_value
+    assert headers["is_bootc"] == expected_value
 
 
 @pytest.mark.usefixtures("event_datetime_mock")
