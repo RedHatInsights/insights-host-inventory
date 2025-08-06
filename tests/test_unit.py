@@ -1620,7 +1620,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                 app.app.app_context(),  # Add Flask application context
                 self.subTest(with_last_check_in=with_last_check_in),
             ):
-                canonical_facts = {
+                canonical_facts = {  # noqa: F841, though "_" works but leaving it in just to be safe.
                     "insights_id": str(uuid4()),
                     "subscription_manager_id": str(uuid4()),
                     "satellite_id": str(uuid4()),
