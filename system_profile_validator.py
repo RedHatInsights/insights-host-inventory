@@ -3,6 +3,7 @@ import json
 import sys
 from datetime import datetime
 from functools import partial
+from logging import Logger
 from os import getenv
 from typing import Union
 
@@ -15,10 +16,10 @@ from requests.auth import HTTPBasicAuth
 from yaml import parser as yamlParser
 
 from app.config import Config
-from app.environment import RuntimeEnvironment
-from app.logging import configure_logging
 from app.logging import get_logger
 from app.logging import threadctx
+from jobs.common import excepthook
+from jobs.common import job_setup
 from lib.system_profile_validate import TestResult
 from lib.system_profile_validate import get_schema
 from lib.system_profile_validate import get_schema_from_url
@@ -26,26 +27,16 @@ from lib.system_profile_validate import validate_sp_schemas
 
 __all__ = "main"
 
+PROMETHEUS_JOB = "inventory-sp-validator"
 LOGGER_NAME = "inventory_sp_validator"
 REPO_OWNER = "RedHatInsights"
 REPO_NAME = "inventory-schemas"
 SP_SPEC_PATH = "schemas/system_profile/v1.yaml"
-RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
 GIT_USER = getenv("GIT_USER", "")
 GIT_TOKEN = getenv("GIT_TOKEN", "")
 VALIDATE_DAYS = int(getenv("VALIDATE_DAYS", 3))
 
 logger = get_logger(LOGGER_NAME)
-
-
-def _init_config():
-    config = Config(RUNTIME_ENVIRONMENT)
-    config.log_configuration()
-    return config
-
-
-def _excepthook(logger, type, value, traceback):  # noqa: ARG001, needed by sys.excepthook
-    logger.exception("System Profile Validator failed", exc_info=value)
 
 
 def _get_git_response(path: str) -> dict:
@@ -173,9 +164,7 @@ def _validate_schema_for_pr_and_generate_comment(pr_number: str, config: Config)
         sys.exit(1)
 
 
-def main(logger):
-    config = _init_config()
-
+def main(logger: Logger, config: Config):
     if config.replica_namespace:
         logger.info("Running in replica cluster - skipping schema validation")
         sys.exit(0)
@@ -205,9 +194,10 @@ def main(logger):
 
 
 if __name__ == "__main__":
-    configure_logging()
-
-    sys.excepthook = partial(_excepthook, logger)
-
+    job_type = "System Profile Validator"
+    sys.excepthook = partial(excepthook, logger, job_type)
     threadctx.request_id = None
-    main(logger)
+
+    config, _, _, _, _, application = job_setup((), PROMETHEUS_JOB)
+    with application.app.app_context():
+        main(logger, config)
