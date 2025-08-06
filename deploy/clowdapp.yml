@@ -649,15 +649,10 @@ objects:
       replicas: ${{REPLICAS_P1}}
       podSpec:
         initContainers:
-        - command:
-            - "sh"
-            - "-c"
-            - "FLASK_APP=./manage.py flask db ${DB_MIGRATION_COMMAND}"
+        - args: ["FLASK_APP=./manage.py", "flask", "db", "upgrade"]
           inheritEnv: true
         args: ["./inv_mq_service.py"]
         env:
-        - name: DB_MIGRATION_COMMAND
-          value: ${DB_MIGRATION_COMMAND}
         - name: HBI_DB_REFACTORING_USE_OLD_TABLE
           value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
         - name: MIGRATION_MODE
@@ -2901,9 +2896,6 @@ parameters:
 - name: HOSTS_TABLE_MIGRATION_SWITCH_MODE
   description: switch or rollback to revert the hosts table switch.
   value: 'switch'
-- name: DB_MIGRATION_COMMAND
-  description: Upgrade or downgrade a database migration to a specific version.
-  value: 'upgrade'
 
 # NGINX
 - displayName: Minimum replicas
