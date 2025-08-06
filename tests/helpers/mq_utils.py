@@ -244,11 +244,8 @@ def assert_patch_event_is_valid(
     stale_timestamp=None,  # noqa: ARG001, stale_timestamp is used by the test, not the function
     reporter=None,
     identity=USER_IDENTITY,
+    with_last_check_in=True,
 ):
-    stale_timestamp = (host.last_check_in.astimezone(timezone.utc) + timedelta(seconds=104400)).isoformat()
-    stale_warning_timestamp = (host.last_check_in.astimezone(timezone.utc) + timedelta(seconds=604800)).isoformat()
-    culled_timestamp = (host.last_check_in.astimezone(timezone.utc) + timedelta(seconds=1209600)).isoformat()
-
     reporter = reporter or host.reporter
 
     event = json.loads(event_producer.event)

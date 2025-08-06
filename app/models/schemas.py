@@ -321,6 +321,7 @@ class HostSchema(LimitedHostSchema):
                 data["stale_timestamp"],
                 data["reporter"],
                 data.get("groups", []),
+                calculate_timestamps=False,  # Preserve provided timestamps during deserialization
             )
         else:
             # New code: constructor with canonical facts parameters
@@ -346,6 +347,7 @@ class HostSchema(LimitedHostSchema):
                 mac_addresses=canonical_facts.get("mac_addresses"),
                 provider_id=canonical_facts.get("provider_id"),
                 provider_type=canonical_facts.get("provider_type"),
+                calculate_timestamps=False,  # Preserve provided timestamps during deserialization
             )
 
 

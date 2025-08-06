@@ -4,6 +4,7 @@ from copy import deepcopy
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
+from itertools import product
 from json import dumps
 from random import choice
 from unittest import TestCase
@@ -984,13 +985,13 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
                     "reporter": "some reporter",
                 },
             )
-        for inp in inputs:
-            with self.subTest(input=inp):
-                with self.assertRaises(ValidationException) as context:
-                    deserialize_host(inp)
+            for inp in inputs:
+                with self.subTest(input=inp):
+                    with self.assertRaises(ValidationException) as context:
+                        deserialize_host(inp)
 
-                    expected_errors = HostSchema().validate(inp)
-                    self.assertEqual(str(expected_errors), str(context.exception))
+                        expected_errors = HostSchema().validate(inp)
+                        self.assertEqual(str(expected_errors), str(context.exception))
 
     # Test that both of the host schemas will pass all of these fields
     # needed because HTTP schema does not accept tags anymore (RHCLOUD - 5593)
@@ -1172,6 +1173,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             mac_addresses=deserialize_canonical_facts.return_value.get("mac_addresses"),
             provider_id=deserialize_canonical_facts.return_value.get("provider_id"),
             provider_type=deserialize_canonical_facts.return_value.get("provider_type"),
+            calculate_timestamps=False,
         )
 
     def test_without_facts(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
@@ -1245,6 +1247,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             mac_addresses=deserialize_canonical_facts.return_value.get("mac_addresses"),
             provider_id=deserialize_canonical_facts.return_value.get("provider_id"),
             provider_type=deserialize_canonical_facts.return_value.get("provider_type"),
+            calculate_timestamps=False,
         )
 
     def test_without_tags(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
@@ -1318,6 +1321,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             mac_addresses=deserialize_canonical_facts.return_value.get("mac_addresses"),
             provider_id=deserialize_canonical_facts.return_value.get("provider_id"),
             provider_type=deserialize_canonical_facts.return_value.get("provider_type"),
+            calculate_timestamps=False,
         )
 
     def test_without_display_name(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
@@ -1364,37 +1368,38 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                     },
                 ],
             }
-        host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
+            host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
 
-        result = deserialize_host({}, host_schema)
-        self.assertEqual(host.return_value, result)
+            result = deserialize_host({}, host_schema)
+            self.assertEqual(host.return_value, result)
 
-        deserialize_canonical_facts.assert_called_once_with(host_input)
-        deserialize_facts.assert_called_once_with(host_input["facts"])
-        deserialize_tags.assert_called_once_with(host_input["tags"])
-        host.assert_called_once_with(
-            deserialize_canonical_facts.return_value,
-            None,
-            host_input["ansible_host"],
-            host_input["account"],
-            host_input["org_id"],
-            deserialize_facts.return_value,
-            deserialize_tags.return_value,
-            [],
-            host_input["system_profile"],
-            host_input["stale_timestamp"],
-            host_input["reporter"],
-            host_input["groups"],
-            insights_id=deserialize_canonical_facts.return_value.get("insights_id"),
-            subscription_manager_id=deserialize_canonical_facts.return_value.get("subscription_manager_id"),
-            satellite_id=deserialize_canonical_facts.return_value.get("satellite_id"),
-            fqdn=deserialize_canonical_facts.return_value.get("fqdn"),
-            bios_uuid=deserialize_canonical_facts.return_value.get("bios_uuid"),
-            ip_addresses=deserialize_canonical_facts.return_value.get("ip_addresses"),
-            mac_addresses=deserialize_canonical_facts.return_value.get("mac_addresses"),
-            provider_id=deserialize_canonical_facts.return_value.get("provider_id"),
-            provider_type=deserialize_canonical_facts.return_value.get("provider_type"),
-        )
+            deserialize_canonical_facts.assert_called_once_with(host_input)
+            deserialize_facts.assert_called_once_with(host_input["facts"])
+            deserialize_tags.assert_called_once_with(host_input["tags"])
+            host.assert_called_once_with(
+                deserialize_canonical_facts.return_value,
+                None,
+                host_input["ansible_host"],
+                host_input["account"],
+                host_input["org_id"],
+                deserialize_facts.return_value,
+                deserialize_tags.return_value,
+                [],
+                host_input["system_profile"],
+                host_input["stale_timestamp"],
+                host_input["reporter"],
+                host_input["groups"],
+                insights_id=deserialize_canonical_facts.return_value.get("insights_id"),
+                subscription_manager_id=deserialize_canonical_facts.return_value.get("subscription_manager_id"),
+                satellite_id=deserialize_canonical_facts.return_value.get("satellite_id"),
+                fqdn=deserialize_canonical_facts.return_value.get("fqdn"),
+                bios_uuid=deserialize_canonical_facts.return_value.get("bios_uuid"),
+                ip_addresses=deserialize_canonical_facts.return_value.get("ip_addresses"),
+                mac_addresses=deserialize_canonical_facts.return_value.get("mac_addresses"),
+                provider_id=deserialize_canonical_facts.return_value.get("provider_id"),
+                provider_type=deserialize_canonical_facts.return_value.get("provider_type"),
+                calculate_timestamps=False,
+            )
 
     def test_without_system_profile(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
         # Create Flask app for application context
@@ -1435,37 +1440,38 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                     },
                 ],
             }
-        host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
+            host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
 
-        result = deserialize_host({}, host_schema)
-        self.assertEqual(host.return_value, result)
+            result = deserialize_host({}, host_schema)
+            self.assertEqual(host.return_value, result)
 
-        deserialize_canonical_facts.assert_called_once_with(host_input)
-        deserialize_facts.assert_called_once_with(host_input["facts"])
-        deserialize_tags.assert_called_once_with(host_input["tags"])
-        host.assert_called_once_with(
-            deserialize_canonical_facts.return_value,
-            host_input["display_name"],
-            host_input["ansible_host"],
-            host_input["account"],
-            host_input["org_id"],
-            deserialize_facts.return_value,
-            deserialize_tags.return_value,
-            [],
-            {},
-            host_input["stale_timestamp"],
-            host_input["reporter"],
-            host_input["groups"],
-            insights_id=deserialize_canonical_facts.return_value.get("insights_id"),
-            subscription_manager_id=deserialize_canonical_facts.return_value.get("subscription_manager_id"),
-            satellite_id=deserialize_canonical_facts.return_value.get("satellite_id"),
-            fqdn=deserialize_canonical_facts.return_value.get("fqdn"),
-            bios_uuid=deserialize_canonical_facts.return_value.get("bios_uuid"),
-            ip_addresses=deserialize_canonical_facts.return_value.get("ip_addresses"),
-            mac_addresses=deserialize_canonical_facts.return_value.get("mac_addresses"),
-            provider_id=deserialize_canonical_facts.return_value.get("provider_id"),
-            provider_type=deserialize_canonical_facts.return_value.get("provider_type"),
-        )
+            deserialize_canonical_facts.assert_called_once_with(host_input)
+            deserialize_facts.assert_called_once_with(host_input["facts"])
+            deserialize_tags.assert_called_once_with(host_input["tags"])
+            host.assert_called_once_with(
+                deserialize_canonical_facts.return_value,
+                host_input["display_name"],
+                host_input["ansible_host"],
+                host_input["account"],
+                host_input["org_id"],
+                deserialize_facts.return_value,
+                deserialize_tags.return_value,
+                [],
+                {},
+                host_input["stale_timestamp"],
+                host_input["reporter"],
+                host_input["groups"],
+                insights_id=deserialize_canonical_facts.return_value.get("insights_id"),
+                subscription_manager_id=deserialize_canonical_facts.return_value.get("subscription_manager_id"),
+                satellite_id=deserialize_canonical_facts.return_value.get("satellite_id"),
+                fqdn=deserialize_canonical_facts.return_value.get("fqdn"),
+                bios_uuid=deserialize_canonical_facts.return_value.get("bios_uuid"),
+                ip_addresses=deserialize_canonical_facts.return_value.get("ip_addresses"),
+                mac_addresses=deserialize_canonical_facts.return_value.get("mac_addresses"),
+                provider_id=deserialize_canonical_facts.return_value.get("provider_id"),
+                provider_type=deserialize_canonical_facts.return_value.get("provider_type"),
+                calculate_timestamps=False,
+            )
 
     def test_without_groups(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
         # Create Flask app for application context
@@ -1494,37 +1500,38 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                 "stale_timestamp": now().isoformat(),
                 "reporter": "some reporter",
             }
-        host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
+            host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
 
-        result = deserialize_host({}, host_schema)
-        self.assertEqual(host.return_value, result)
+            result = deserialize_host({}, host_schema)
+            self.assertEqual(host.return_value, result)
 
-        deserialize_canonical_facts.assert_called_once_with(host_input)
-        deserialize_facts.assert_called_once_with(host_input["facts"])
-        deserialize_tags.assert_called_once_with(host_input["tags"])
-        host.assert_called_once_with(
-            deserialize_canonical_facts.return_value,
-            host_input["display_name"],
-            host_input["ansible_host"],
-            host_input["account"],
-            host_input["org_id"],
-            deserialize_facts.return_value,
-            deserialize_tags.return_value,
-            [],
-            host_input["system_profile"],
-            host_input["stale_timestamp"],
-            host_input["reporter"],
-            [],
-            insights_id=deserialize_canonical_facts.return_value.get("insights_id"),
-            subscription_manager_id=deserialize_canonical_facts.return_value.get("subscription_manager_id"),
-            satellite_id=deserialize_canonical_facts.return_value.get("satellite_id"),
-            fqdn=deserialize_canonical_facts.return_value.get("fqdn"),
-            bios_uuid=deserialize_canonical_facts.return_value.get("bios_uuid"),
-            ip_addresses=deserialize_canonical_facts.return_value.get("ip_addresses"),
-            mac_addresses=deserialize_canonical_facts.return_value.get("mac_addresses"),
-            provider_id=deserialize_canonical_facts.return_value.get("provider_id"),
-            provider_type=deserialize_canonical_facts.return_value.get("provider_type"),
-        )
+            deserialize_canonical_facts.assert_called_once_with(host_input)
+            deserialize_facts.assert_called_once_with(host_input["facts"])
+            deserialize_tags.assert_called_once_with(host_input["tags"])
+            host.assert_called_once_with(
+                deserialize_canonical_facts.return_value,
+                host_input["display_name"],
+                host_input["ansible_host"],
+                host_input["account"],
+                host_input["org_id"],
+                deserialize_facts.return_value,
+                deserialize_tags.return_value,
+                [],
+                host_input["system_profile"],
+                host_input["stale_timestamp"],
+                host_input["reporter"],
+                [],
+                insights_id=deserialize_canonical_facts.return_value.get("insights_id"),
+                subscription_manager_id=deserialize_canonical_facts.return_value.get("subscription_manager_id"),
+                satellite_id=deserialize_canonical_facts.return_value.get("satellite_id"),
+                fqdn=deserialize_canonical_facts.return_value.get("fqdn"),
+                bios_uuid=deserialize_canonical_facts.return_value.get("bios_uuid"),
+                ip_addresses=deserialize_canonical_facts.return_value.get("ip_addresses"),
+                mac_addresses=deserialize_canonical_facts.return_value.get("mac_addresses"),
+                provider_id=deserialize_canonical_facts.return_value.get("provider_id"),
+                provider_type=deserialize_canonical_facts.return_value.get("provider_type"),
+                calculate_timestamps=False,
+            )
 
     def test_without_culling_fields(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
         # Create Flask app for application context
@@ -1550,23 +1557,23 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                     "system_memory_bytes": 4,
                 },
             }
-        for additional_data in ({"stale_timestamp": "2019-12-16T10:10:06.754201+00:00"}, {"reporter": "puptoo"}):
-            with self.subTest(additional_data=additional_data):
-                for thismock in (deserialize_canonical_facts, deserialize_facts, deserialize_tags):
-                    thismock.reset_mock()
+            for additional_data in ({"stale_timestamp": "2019-12-16T10:10:06.754201+00:00"}, {"reporter": "puptoo"}):
+                with self.subTest(additional_data=additional_data):
+                    for thismock in (deserialize_canonical_facts, deserialize_facts, deserialize_tags):
+                        thismock.reset_mock()
 
-                all_data = {**common_data, **additional_data}
-                host_schema = Mock(
-                    **{"return_value.load.return_value": all_data, "build_model": HostSchema.build_model}
-                )
+                    all_data = {**common_data, **additional_data}
+                    host_schema = Mock(
+                        **{"return_value.load.return_value": all_data, "build_model": HostSchema.build_model}
+                    )
 
-                with self.assertRaises(KeyError):
-                    deserialize_host({}, host_schema)
+                    with self.assertRaises(KeyError):
+                        deserialize_host({}, host_schema)
 
-                deserialize_canonical_facts.assert_called_once_with(all_data)
-                deserialize_facts.assert_called_once_with(common_data["facts"])
-                deserialize_tags.assert_called_once_with(common_data["tags"])
-                host.assert_not_called()
+                    deserialize_canonical_facts.assert_called_once_with(all_data)
+                    deserialize_facts.assert_called_once_with(common_data["facts"])
+                    deserialize_tags.assert_called_once_with(common_data["tags"])
+                    host.assert_not_called()
 
     @patch("app.serialization.ValidationError", new=ValidationError)
     def test_invalid_host_error(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
@@ -1612,9 +1619,6 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             with (
                 app.app.app_context(),  # Add Flask application context
                 self.subTest(with_last_check_in=with_last_check_in),
-                patch("app.serialization.get_flag_value", return_value=with_last_check_in),
-                patch("app.models.host.get_flag_value", return_value=with_last_check_in),
-                patch("app.staleness_serialization.get_flag_value", return_value=with_last_check_in),
             ):
                 canonical_facts = {
                     "insights_id": str(uuid4()),
@@ -1647,7 +1651,6 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                     "modified_on": now(),
                     "last_check_in": now(),
                     "per_reporter_staleness": host.per_reporter_staleness,
-                    **group_data,
                 }
                 for k, v in host_attr_data.items():
                     setattr(host, k, v)
@@ -1699,9 +1702,6 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                     # TODO: Should this test be fixed?
                     # Expectations have changed due to the transaction consistency changes
                     # self.subTest(group_data=group_data, with_last_check_in=with_last_check_in),
-                    patch("app.serialization.get_flag_value", return_value=with_last_check_in),
-                    patch("app.models.host.get_flag_value", return_value=with_last_check_in),
-                    patch("app.staleness_serialization.get_flag_value", return_value=with_last_check_in),
                 ):
                     unchanged_data = {
                         "display_name": None,
@@ -1779,7 +1779,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
         # Create Flask app for application context
         app = create_app(RuntimeEnvironment.TEST)
 
-        for with_last_check_in in [True, False]:
+        for with_last_check_in in [True]:
             for stale_warning_offset_seconds, culled_offset_seconds in ((604800, 1209600),):
                 with (
                     app.app.app_context(),  # Add Flask application context
@@ -1788,11 +1788,9 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                         stale_warning_offset_seconds=stale_warning_offset_seconds,
                         culled_offset_seconds=culled_offset_seconds,
                     ),
-                    patch("app.serialization.get_flag_value", return_value=with_last_check_in),
-                    patch("app.models.host.get_flag_value", return_value=with_last_check_in),
-                    patch("app.staleness_serialization.get_flag_value", return_value=with_last_check_in),
                 ):
-                    stale_timestamp = now() + timedelta(days=1)
+                    current_time = now()
+                    stale_timestamp = current_time + timedelta(days=1)
                     host = Host(
                         {"subscription_manager_id": generate_uuid()},
                         facts={},
@@ -1801,7 +1799,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                         org_id=USER_IDENTITY["org_id"],
                     )
 
-                    for k, v in (("id", uuid4()), ("created_on", now()), ("modified_on", now())):
+                    for k, v in (("id", uuid4()), ("created_on", current_time), ("modified_on", current_time)):
                         setattr(host, k, v)
 
                     config = CullingConfig(
@@ -1845,9 +1843,6 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
             with (
                 app.app.app_context(),  # Add Flask application context
                 self.subTest(with_last_check_in=with_last_check_in),
-                patch("app.serialization.get_flag_value", return_value=with_last_check_in),
-                patch("app.models.host.get_flag_value", return_value=with_last_check_in),
-                patch("app.staleness_serialization.get_flag_value", return_value=with_last_check_in),
             ):
                 canonical_facts = {"insights_id": str(uuid4()), "fqdn": "some fqdn"}
                 serialize_canonical_facts.return_value = canonical_facts
@@ -1864,62 +1859,66 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
                 ]
                 stale_timestamp = now()
 
-        unchanged_data = {
-            "display_name": "some display name",
-            "ansible_host": "some ansible host",
-            "account": "some acct",
-            "org_id": "3340851",
-            "reporter": "some reporter",
-            "groups": [],
-        }
-        host_init_data = {
-            "canonical_facts": canonical_facts,
-            **unchanged_data,
-            "facts": facts,
-            "stale_timestamp": stale_timestamp,
-            "tags": {
-                "some namespace": {"some key": ["some value", "another value"], "another key": ["value"]},
-                "another namespace": {"key": ["value"]},
-            },
-        }
-        host = Host(**host_init_data)
+                unchanged_data = {
+                    "display_name": "some display name",
+                    "ansible_host": "some ansible host",
+                    "account": "some acct",
+                    "org_id": "3340851",
+                    "reporter": "some reporter",
+                    "groups": [],
+                }
+                host_init_data = {
+                    "canonical_facts": canonical_facts,
+                    **unchanged_data,
+                    "facts": facts,
+                    "stale_timestamp": stale_timestamp,
+                    "tags": {
+                        "some namespace": {"some key": ["some value", "another value"], "another key": ["value"]},
+                        "another namespace": {"key": ["value"]},
+                    },
+                }
+                host = Host(**host_init_data)
 
-        host_attr_data = {
-            "id": uuid4(),
-            "created_on": now(),
-            "modified_on": now(),
-            "last_check_in": now(),
-            "per_reporter_staleness": host.per_reporter_staleness,
-        }
-        for k, v in host_attr_data.items():
-            setattr(host, k, v)
+                host_attr_data = {
+                    "id": uuid4(),
+                    "created_on": now(),
+                    "modified_on": now(),
+                    "last_check_in": now(),
+                    "per_reporter_staleness": host.per_reporter_staleness,
+                }
+                for k, v in host_attr_data.items():
+                    setattr(host, k, v)
 
-        staleness_offset = staleness_timestamps()
-        staleness = get_sys_default_staleness()
-        actual = serialize_host(host, staleness_offset, False, ("tags",), staleness=staleness)
-        expected = {
-            **canonical_facts,
-            **unchanged_data,
-            "facts": serialize_facts.return_value,
-            "tags": serialize_tags.return_value,
-            "id": str(host_attr_data["id"]),
-            "created": self._timestamp_to_str(host_attr_data["created_on"]),
-            "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
-            "last_check_in": self._timestamp_to_str(host_attr_data["last_check_in"]),
-            "stale_timestamp": self._timestamp_to_str(host_attr_data["last_check_in"] + timedelta(seconds=104400)),
-            "stale_warning_timestamp": self._timestamp_to_str(
-                host_attr_data["last_check_in"] + timedelta(seconds=604800)
-            ),
-            "culled_timestamp": self._timestamp_to_str(host_attr_data["last_check_in"] + timedelta(seconds=1209600)),
-            "per_reporter_staleness": host_attr_data["per_reporter_staleness"],
-        }
+                staleness_offset = staleness_timestamps()
+                staleness = get_sys_default_staleness()
+                actual = serialize_host(host, staleness_offset, False, ("tags",), staleness=staleness)
+                expected = {
+                    **canonical_facts,
+                    **unchanged_data,
+                    "facts": serialize_facts.return_value,
+                    "tags": serialize_tags.return_value,
+                    "id": str(host_attr_data["id"]),
+                    "created": self._timestamp_to_str(host_attr_data["created_on"]),
+                    "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
+                    "last_check_in": self._timestamp_to_str(host_attr_data["last_check_in"]),
+                    "stale_timestamp": self._timestamp_to_str(
+                        host_attr_data["last_check_in"] + timedelta(seconds=104400)
+                    ),
+                    "stale_warning_timestamp": self._timestamp_to_str(
+                        host_attr_data["last_check_in"] + timedelta(seconds=604800)
+                    ),
+                    "culled_timestamp": self._timestamp_to_str(
+                        host_attr_data["last_check_in"] + timedelta(seconds=1209600)
+                    ),
+                    "per_reporter_staleness": host_attr_data["per_reporter_staleness"],
+                }
 
-        self.assertEqual(expected, actual)
+                self.assertEqual(expected, actual)
 
-        # It is called twice, because we have 2 test cases
-        serialize_canonical_facts.assert_called_with(host_init_data["canonical_facts"])
-        serialize_facts.assert_called_with(host_init_data["facts"])
-        serialize_tags.assert_called_with(host_init_data["tags"])
+                # It is called twice, because we have 2 test cases
+                serialize_canonical_facts.assert_called_with(host_init_data["canonical_facts"])
+                serialize_facts.assert_called_with(host_init_data["facts"])
+                serialize_tags.assert_called_with(host_init_data["tags"])
 
 
 class SerializationSerializeHostSystemProfileTestCase(TestCase):
