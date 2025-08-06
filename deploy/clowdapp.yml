@@ -650,7 +650,7 @@ objects:
       podSpec:
         initContainers:
         - args:
-            - "bash"
+            - "sh"
             - "-c"
             - "FLASK_APP=./manage.py flask db ${DB_MIGRATION_COMMAND}"
           inheritEnv: true
