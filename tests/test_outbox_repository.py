@@ -162,9 +162,9 @@ class TestWriteEventToOutbox:
         assert result is True
 
         # Verify the event was written to the database
-        outbox_entry = Outbox.query.filter_by(aggregate_id=valid_created_event["host"]["id"]).first()
+        outbox_entry = Outbox.query.filter_by(aggregateid=valid_created_event["host"]["id"]).first()
         assert outbox_entry is not None
-        assert outbox_entry.aggregate_type == "hbi.hosts"
+        assert outbox_entry.aggregatetype == "hbi.hosts"
         assert outbox_entry.event_type == "created"
 
         # Verify payload structure
@@ -181,7 +181,7 @@ class TestWriteEventToOutbox:
         assert result is True
 
         # Verify the event was written to the database
-        outbox_entry = Outbox.query.filter_by(aggregate_id=valid_updated_event["host"]["id"]).first()
+        outbox_entry = Outbox.query.filter_by(aggregateid=valid_updated_event["host"]["id"]).first()
         assert outbox_entry is not None
         assert outbox_entry.event_type == "updated"
 
@@ -194,7 +194,7 @@ class TestWriteEventToOutbox:
         assert result is True
 
         # Verify the event was written to the database
-        outbox_entry = Outbox.query.filter_by(aggregate_id=valid_delete_event["host"]["id"]).first()
+        outbox_entry = Outbox.query.filter_by(aggregateid=valid_delete_event["host"]["id"]).first()
         assert outbox_entry is not None
         assert outbox_entry.event_type == "delete"
 
@@ -210,7 +210,7 @@ class TestWriteEventToOutbox:
         assert result is True
 
         # Verify the event was written to the database
-        outbox_entry = Outbox.query.filter_by(aggregate_id=valid_created_event["host"]["id"]).first()
+        outbox_entry = Outbox.query.filter_by(aggregateid=valid_created_event["host"]["id"]).first()
         assert outbox_entry is not None
 
     def test_write_event_to_outbox_invalid_json(self):

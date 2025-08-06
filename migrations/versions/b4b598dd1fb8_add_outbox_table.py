@@ -21,8 +21,8 @@ def upgrade():
     op.create_table(
         "outbox",
         sa.Column("id", sa.UUID(), nullable=False),
-        sa.Column("aggregate_type", sa.String(length=255), nullable=False),
-        sa.Column("aggregate_id", sa.UUID(), nullable=False),
+        sa.Column("aggregatetype", sa.String(length=255), nullable=False),
+        sa.Column("aggregateid", sa.UUID(), nullable=False),
         sa.Column("event_type", sa.String(length=255), nullable=False),
         sa.Column("payload", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.PrimaryKeyConstraint("id"),

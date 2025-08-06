@@ -112,8 +112,8 @@ def _create_outbox_entry(event: str) -> Union[dict, None, Literal[False]]:
             return False
 
         outbox_entry = {
-            "aggregate_id": host_id,
-            "aggregate_type": "hbi.hosts",
+            "aggregateid": host_id,
+            "aggregatetype": "hbi.hosts",
             "event_type": event_type,
         }
 
@@ -191,24 +191,24 @@ def write_event_to_outbox(event: str) -> bool:
         raise OutboxSaveException("Invalid host or event was provided") from ve
 
     logger.debug(
-        f"Creating outbox entry: aggregate_id={validated_outbox_entry['aggregate_id']}, \
+        f"Creating outbox entry: aggregateid={validated_outbox_entry['aggregateid']}, \
             type={validated_outbox_entry['event_type']}"
     )
 
     # Write to outbox table in same transaction - let caller handle commit/rollback
     try:
         outbox_entry_db = Outbox(
-            aggregate_id=validated_outbox_entry["aggregate_id"],
-            aggregate_type=validated_outbox_entry["aggregate_type"],
+            aggregateid=validated_outbox_entry["aggregateid"],
+            aggregatetype=validated_outbox_entry["aggregatetype"],
             event_type=validated_outbox_entry["event_type"],
             payload=validated_outbox_entry["payload"],
         )
         db.session.add(outbox_entry_db)
         # Do not flush or commit - let the caller handle transaction lifecycle
         outbox_save_success.inc()
-        logger.debug("Added outbox entry to session: aggregate_id=%s", validated_outbox_entry["aggregate_id"])
+        logger.debug("Added outbox entry to session: aggregateid=%s", validated_outbox_entry["aggregateid"])
 
-        logger.info("Successfully added event to outbox for aggregate_id=%s", validated_outbox_entry["aggregate_id"])
+        logger.info("Successfully added event to outbox for aggregateid=%s", validated_outbox_entry["aggregateid"])
         return True
 
     except SQLAlchemyError as db_error:

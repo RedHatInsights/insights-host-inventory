@@ -44,16 +44,16 @@ class TestEndToEndOutboxScenarios:
 
         # Verify outbox record was created
         outbox_records = (
-            db.session.query(Outbox).filter(Outbox.aggregate_id == host_id, Outbox.event_type == "created").all()
+            db.session.query(Outbox).filter(Outbox.aggregateid == host_id, Outbox.event_type == "created").all()
         )
 
         assert len(outbox_records) == 1
         outbox_record = outbox_records[0]
 
         # Verify outbox record structure
-        assert outbox_record.aggregate_type == "hbi.hosts"
+        assert outbox_record.aggregatetype == "hbi.hosts"
         assert outbox_record.event_type == "created"
-        assert str(outbox_record.aggregate_id) == host_id
+        assert str(outbox_record.aggregateid) == host_id
 
         # Verify payload structure
         payload = outbox_record.payload
@@ -91,16 +91,16 @@ class TestEndToEndOutboxScenarios:
 
         # Verify outbox record was created
         outbox_records = (
-            db.session.query(Outbox).filter(Outbox.aggregate_id == host_id, Outbox.event_type == "updated").all()
+            db.session.query(Outbox).filter(Outbox.aggregateid == host_id, Outbox.event_type == "updated").all()
         )
 
         assert len(outbox_records) == 1
         outbox_record = outbox_records[0]
 
         # Verify outbox record structure
-        assert outbox_record.aggregate_type == "hbi.hosts"
+        assert outbox_record.aggregatetype == "hbi.hosts"
         assert outbox_record.event_type == "updated"
-        assert str(outbox_record.aggregate_id) == host_id
+        assert str(outbox_record.aggregateid) == host_id
 
         # Verify payload structure
         payload = outbox_record.payload
@@ -137,16 +137,16 @@ class TestEndToEndOutboxScenarios:
 
         # Verify outbox record was created
         outbox_records = (
-            db.session.query(Outbox).filter(Outbox.aggregate_id == host_id, Outbox.event_type == "delete").all()
+            db.session.query(Outbox).filter(Outbox.aggregateid == host_id, Outbox.event_type == "delete").all()
         )
 
         assert len(outbox_records) == 1
         outbox_record = outbox_records[0]
 
         # Verify outbox record structure
-        assert outbox_record.aggregate_type == "hbi.hosts"
+        assert outbox_record.aggregatetype == "hbi.hosts"
         assert outbox_record.event_type == "delete"
-        assert str(outbox_record.aggregate_id) == host_id
+        assert str(outbox_record.aggregateid) == host_id
 
         # Verify payload structure for delete events
         payload = outbox_record.payload
@@ -202,7 +202,7 @@ class TestEndToEndOutboxScenarios:
 
         # Verify all three outbox records were created
         outbox_records = (
-            db.session.query(Outbox).filter(Outbox.aggregate_id == host_id).order_by(Outbox.event_type).all()
+            db.session.query(Outbox).filter(Outbox.aggregateid == host_id).order_by(Outbox.event_type).all()
         )
 
         # Should have created, delete, updated (alphabetical order)
@@ -215,8 +215,8 @@ class TestEndToEndOutboxScenarios:
 
         # Verify each record has correct structure
         for record in outbox_records:
-            assert record.aggregate_type == "hbi.hosts"
-            assert str(record.aggregate_id) == host_id
+            assert record.aggregatetype == "hbi.hosts"
+            assert str(record.aggregateid) == host_id
             assert record.payload is not None
 
     def teardown_method(self):
