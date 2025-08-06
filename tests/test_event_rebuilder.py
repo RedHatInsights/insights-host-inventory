@@ -76,5 +76,5 @@ def test_creates_delete_event_when_missing_from_db(
 
     for i in range(num_missing):
         produced_event = json.loads(event_producer_mock.write_event.call_args_list[i][0][0])
-        assert produced_event["type"] == "delete"
+        assert produced_event["type"] == "deleted"
         assert produced_event["id"] in missing_hosts_id_list

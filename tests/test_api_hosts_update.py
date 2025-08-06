@@ -588,7 +588,7 @@ def test_update_delete_race(event_producer, db_create_host, db_get_host, api_pat
 
     # the host should be deleted and the last message to be produced should be the delete message
     assert not db_get_host(host_id)
-    assert event_producer.write_event.call_args_list[-1][0][2]["event_type"] == "delete"
+    assert event_producer.write_event.call_args_list[-1][0][2]["event_type"] == "deleted"
 
 
 def test_no_event_on_noop(event_producer, db_create_host, api_patch, mocker):

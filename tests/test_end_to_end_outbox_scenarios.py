@@ -120,7 +120,7 @@ class TestEndToEndOutboxScenarios:
 
         # Create a simple host delete event that matches the expected structure
         event_data = {
-            "type": "delete",
+            "type": "deleted",
             "id": host_id,
             "display_name": original_host.display_name,
             "account": original_host.account,
@@ -137,7 +137,7 @@ class TestEndToEndOutboxScenarios:
 
         # Verify outbox record was created
         outbox_records = (
-            db.session.query(Outbox).filter(Outbox.aggregateid == host_id, Outbox.event_type == "delete").all()
+            db.session.query(Outbox).filter(Outbox.aggregateid == host_id, Outbox.event_type == "deleted").all()
         )
 
         assert len(outbox_records) == 1
@@ -145,7 +145,7 @@ class TestEndToEndOutboxScenarios:
 
         # Verify outbox record structure
         assert outbox_record.aggregatetype == "hbi.hosts"
-        assert outbox_record.event_type == "delete"
+        assert outbox_record.event_type == "deleted"
         assert str(outbox_record.aggregateid) == host_id
 
         # Verify payload structure for delete events
@@ -191,7 +191,7 @@ class TestEndToEndOutboxScenarios:
 
         # Create a "delete" event
         delete_event = {
-            "type": "delete",
+            "type": "deleted",
             "id": host_id,
             "display_name": "updated-lifecycle-host",
             "account": created_host.account,
@@ -211,7 +211,7 @@ class TestEndToEndOutboxScenarios:
         event_types = [record.event_type for record in outbox_records]
         assert "created" in event_types
         assert "updated" in event_types
-        assert "delete" in event_types
+        assert "deleted" in event_types
 
         # Verify each record has correct structure
         for record in outbox_records:

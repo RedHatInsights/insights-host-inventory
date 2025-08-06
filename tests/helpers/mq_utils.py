@@ -164,7 +164,7 @@ def assert_delete_event_is_valid(
 
     assert timestamp.replace(tzinfo=timezone.utc).isoformat() == event["timestamp"]
 
-    assert event["type"] == "delete"
+    assert event["type"] == "deleted"
 
     assert host.canonical_facts.get("insights_id") == event["insights_id"]
 
@@ -175,7 +175,7 @@ def assert_delete_event_is_valid(
 
     assert event_producer.key == str(host.id)
     assert event_producer.headers == expected_headers(
-        "delete",
+        "deleted",
         event["request_id"],
         host.canonical_facts.get("insights_id"),
         host.reporter,

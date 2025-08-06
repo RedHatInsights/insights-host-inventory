@@ -151,7 +151,7 @@ class TestWriteEventToOutbox:
     @pytest.fixture
     def valid_delete_event(self):
         """Fixture for a valid delete event."""
-        return {"type": "delete", "host": {"id": str(uuid.uuid4())}}
+        return {"type": "deleted", "host": {"id": str(uuid.uuid4())}}
 
     def test_write_event_to_outbox_created_success(self, valid_created_event, flask_app):  # noqa: ARG002, fixture needed by pytest
         """Test successfully writing a created event to outbox."""
@@ -196,7 +196,7 @@ class TestWriteEventToOutbox:
         # Verify the event was written to the database
         outbox_entry = Outbox.query.filter_by(aggregateid=valid_delete_event["host"]["id"]).first()
         assert outbox_entry is not None
-        assert outbox_entry.event_type == "delete"
+        assert outbox_entry.event_type == "deleted"
 
         # Verify delete payload structure
         payload = outbox_entry.payload
@@ -338,7 +338,7 @@ class TestEdgeCases:
         events = [
             {"type": "created", "host": {"id": host_id, "groups": [{"id": group_id}]}},
             {"type": "updated", "host": {"id": host_id, "groups": [{"id": group_id}]}},
-            {"type": "delete", "host": {"id": host_id}},
+            {"type": "deleted", "host": {"id": host_id}},
         ]
 
         for event in events:

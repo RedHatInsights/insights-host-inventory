@@ -477,7 +477,7 @@ class OutboxSchema(MarshmallowSchema):
     id = fields.Raw(validate=verify_uuid_format, dump_only=True)
     aggregatetype = fields.Str(validate=marshmallow_validate.Length(min=1, max=255), load_default="hbi.hosts")
     aggregateid = fields.Raw(validate=verify_uuid_format, allow_none=True)
-    event_type = fields.Str(validate=marshmallow_validate.OneOf(["created", "updated", "delete"]), required=True)
+    event_type = fields.Str(validate=marshmallow_validate.OneOf(["created", "updated", "deleted"]), required=True)
     payload = fields.Raw(required=True)
 
     # Remove field-level payload validation since we can't reliably access event_type at this stage
@@ -495,7 +495,7 @@ class OutboxSchema(MarshmallowSchema):
         if event_type and payload:
             if event_type in ["created", "updated"]:
                 OutboxCreateUpdatePayloadSchema().load(payload)
-            elif event_type == "delete":
+            elif event_type == "deleted":
                 OutboxDeletePayloadSchema().load(payload)
             else:
                 raise MarshmallowValidationError(f"Unknown event_type: {event_type}")

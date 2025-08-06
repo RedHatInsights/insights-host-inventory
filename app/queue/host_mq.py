@@ -289,7 +289,7 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                 None,
                 None,
                 None,
-                EventType.delete,
+                EventType.deleted,
                 partial(log_delete_groups_via_mq, logger, num_deleted, str(workspace["id"])),
             )
         else:
@@ -649,16 +649,16 @@ def parse_operation_message(message: str | bytes, schema: type[Schema]):
 
 
 def sync_event_message(message, session, event_producer):
-    if message["type"] != EventType.delete.name:
+    if message["type"] != EventType.deleted.name:
         host_id = message["host"]["id"]
         query = session.query(Host).filter((Host.org_id == message["host"]["org_id"]) & (Host.id == UUID(host_id)))
         # If the host doesn't exist in the DB, produce a Delete event.
         if not query.count():
             host = deserialize_host({k: v for k, v in message["host"].items() if v}, schema=LimitedHostSchema)
             host.id = host_id
-            event = build_event(EventType.delete, host)
+            event = build_event(EventType.deleted, host)
             headers = message_headers(
-                EventType.delete,
+                EventType.deleted,
                 host.canonical_facts.get("insights_id"),
                 message["host"].get("reporter"),
                 host.system_profile_facts.get("host_type"),
@@ -673,13 +673,13 @@ def sync_event_message(message, session, event_producer):
 
 def write_delete_event_message(event_producer: EventProducer, result: OperationResult, initiated_by_frontend: bool):
     event = build_event(
-        EventType.delete,
+        EventType.deleted,
         result.row,
         platform_metadata=result.platform_metadata,
         initiated_by_frontend=initiated_by_frontend,
     )
     headers = message_headers(
-        EventType.delete,
+        EventType.deleted,
         result.row.canonical_facts.get("insights_id"),
         result.row.reporter,
         result.row.system_profile_facts.get("host_type"),

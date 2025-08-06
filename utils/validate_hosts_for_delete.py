@@ -13,7 +13,7 @@ logger = get_logger("utils")
 
 def test_validations(host):
     try:
-        build_event(EventType.delete, host)
+        build_event(EventType.deleted, host)
     except ValidationError as error:
         return error.messages
     else:

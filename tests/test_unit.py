@@ -2295,7 +2295,7 @@ class EventProducerTests(TestCase):
             for event_type, host in (
                 (EventType.created, self.basic_host),
                 (EventType.updated, self.basic_host),
-                (EventType.delete, deserialize_host(self.basic_host)),
+                (EventType.deleted, deserialize_host(self.basic_host)),
             ):
                 with self.subTest(event_type=event_type):
                     event = build_event(event_type, host)
@@ -2327,7 +2327,7 @@ class EventProducerTests(TestCase):
             for event_type, host in (
                 (EventType.created, self.basic_host),
                 (EventType.updated, self.basic_host),
-                (EventType.delete, deserialize_host(self.basic_host)),
+                (EventType.deleted, deserialize_host(self.basic_host)),
             ):
                 with self.subTest(event_type=event_type):
                     event = build_event(event_type, host)

@@ -123,7 +123,7 @@ def _create_outbox_entry(event: str) -> Union[dict, None, Literal[False]]:
                 logger.error("Failed to create payload for created/updated event")
                 return False
             outbox_entry["payload"] = payload
-        elif event_type == "delete":
+        elif event_type == "deleted":
             payload = _delete_event_payload(host)
             if payload is None:
                 logger.error("Failed to create payload for delete event")
