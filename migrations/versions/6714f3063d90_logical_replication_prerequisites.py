@@ -1,7 +1,7 @@
 """Logical Replication - Prerequisites
 
 Revision ID: 6714f3063d90
-Revises: 3b60b7daf0f2
+Revises: 96e12ae08c05
 Create Date: 2025-08-06 13:57:13.109100
 """
 
@@ -14,7 +14,7 @@ from app.models.constants import INVENTORY_SCHEMA
 
 # revision identifiers, used by Alembic.
 revision = "6714f3063d90"
-down_revision = "3b60b7daf0f2"
+down_revision = "96e12ae08c05"
 branch_labels = None
 depends_on = None
 
