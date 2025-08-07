@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import json
+from logging import Logger
 
 from flask import g
 
@@ -78,7 +81,7 @@ def message_not_produced(logger, error, topic, event, key, headers, message=None
         event_producer_failure.labels(event_type=dict(headers)["event_type"].decode("utf-8"), topic=topic).inc()
 
 
-def get_control_rule():
+def get_control_rule() -> str:
     if hasattr(g, "access_control_rule"):
         return g.access_control_rule
     else:
@@ -86,7 +89,7 @@ def get_control_rule():
 
 
 # delete host
-def log_host_delete_succeeded(logger, host_id, control_rule, sp_fields_to_log):
+def log_host_delete_succeeded(logger: Logger, host_id: str, control_rule: str | None, sp_fields_to_log: dict) -> None:
     logger.info(
         "Deleted host: %s",
         host_id,
@@ -254,7 +257,7 @@ def log_add_host_failure(logger, message, host_data, sp_fields_to_log):
 
 
 # update system profile
-def log_update_system_profile_success(logger, host_data, sp_fields_to_log):
+def log_update_system_profile_success(logger: Logger, sp_fields_to_log: dict, host_data: dict):
     metrics.update_system_profile_success.inc()
     logger.info(
         "System profile updated for host ID: %s",
@@ -341,3 +344,15 @@ def log_create_staleness_failed(logger, org_id):
 # stale host notification
 def log_host_stale_notification_succeeded(logger, host_id, control_rule):
     logger.info("Sent Notification for stale host: %s", host_id, extra={"access_rule": control_rule})
+
+
+def log_create_group_via_mq(logger, group_id):
+    logger.info(f"Group created via MQ: {group_id}")
+
+
+def log_update_group_via_mq(logger, group_id):
+    logger.info(f"Group updated via MQ: {group_id}")
+
+
+def log_delete_groups_via_mq(logger, num_deleted, group_id):
+    logger.info(f"{num_deleted} groups deleted via MQ with ID: {group_id}")

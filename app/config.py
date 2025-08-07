@@ -15,6 +15,15 @@ PRODUCER_ACKS = {"0": 0, "1": 1, "all": "all"}
 HOST_TYPES = ["edge", None]
 ALL_STALENESS_STATES = ["fresh", "stale", "stale_warning"]
 
+# NOTE: The order of this tuple is important. The order defines the priority.
+ID_FACTS = ("provider_id", "subscription_manager_id", "insights_id")
+# This elevated fact is to be used when the USE_SUBMAN_ID env is True
+ID_FACTS_USE_SUBMAN_ID = ("subscription_manager_id",)
+
+COMPOUND_ID_FACTS_MAP = {"provider_id": "provider_type"}
+COMPOUND_ID_FACTS = tuple(COMPOUND_ID_FACTS_MAP.values())
+IMMUTABLE_ID_FACTS = ("provider_id",)
+
 
 class Config:
     SSL_VERIFY_FULL = "verify-full"
@@ -226,48 +235,33 @@ class Config:
             "sasl.password": self.kafka_sasl_password,
         }
 
-        # https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md
-        self.kafka_consumer = {
-            "request.timeout.ms": int(os.environ.get("KAFKA_CONSUMER_REQUEST_TIMEOUT_MS", "305000")),
-            "max.in.flight.requests.per.connection": int(
-                os.environ.get("KAFKA_CONSUMER_MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION", "5")
-            ),
-            "auto.offset.reset": os.environ.get("KAFKA_CONSUMER_AUTO_OFFSET_RESET", "latest"),
-            "auto.commit.interval.ms": int(os.environ.get("KAFKA_CONSUMER_AUTO_COMMIT_INTERVAL_MS", "5000")),
-            "max.poll.interval.ms": int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS", "300000")),
+        self.base_consumer_config = {
+            **self.kafka_ssl_configs,
             "session.timeout.ms": int(os.environ.get("KAFKA_CONSUMER_SESSION_TIMEOUT_MS", "10000")),
             "heartbeat.interval.ms": int(os.environ.get("KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS", "3000")),
+        }
+
+        # https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md
+        self.kafka_consumer = {
+            "auto.offset.reset": os.environ.get("KAFKA_CONSUMER_AUTO_OFFSET_RESET", "latest"),
+            "auto.commit.interval.ms": int(os.environ.get("KAFKA_CONSUMER_AUTO_COMMIT_INTERVAL_MS", "5000")),
             "partition.assignment.strategy": "cooperative-sticky",
-            **self.kafka_ssl_configs,
+            **self.base_consumer_config,
         }
 
         self.validator_kafka_consumer = {
             "group.id": "inventory-sp-validator",
-            "request.timeout.ms": int(os.environ.get("KAFKA_CONSUMER_REQUEST_TIMEOUT_MS", "305000")),
-            "max.in.flight.requests.per.connection": int(
-                os.environ.get("KAFKA_CONSUMER_MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION", "5")
-            ),
             "enable.auto.commit": False,
-            "max.poll.interval.ms": int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS", "300000")),
-            "session.timeout.ms": int(os.environ.get("KAFKA_CONSUMER_SESSION_TIMEOUT_MS", "10000")),
-            "heartbeat.interval.ms": int(os.environ.get("KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS", "3000")),
-            **self.kafka_ssl_configs,
+            **self.base_consumer_config,
         }
 
         self.events_kafka_consumer = {
             "group.id": "inventory-events-rebuild",
             "auto.offset.reset": "earliest",
             "queued.max.messages.kbytes": "65536",
-            "request.timeout.ms": int(os.environ.get("KAFKA_CONSUMER_REQUEST_TIMEOUT_MS", "305000")),
-            "max.in.flight.requests.per.connection": int(
-                os.environ.get("KAFKA_CONSUMER_MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION", "5")
-            ),
             "enable.auto.commit": False,
-            "max.poll.interval.ms": int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS", "300000")),
             "max.partition.fetch.bytes": int(os.environ.get("KAFKA_CONSUMER_MAX_PARTITION_FETCH_BYTES", "3145728")),
-            "session.timeout.ms": int(os.environ.get("KAFKA_CONSUMER_SESSION_TIMEOUT_MS", "10000")),
-            "heartbeat.interval.ms": int(os.environ.get("KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS", "3000")),
-            **self.kafka_ssl_configs,
+            **self.base_consumer_config,
         }
 
         self.kafka_producer = {
@@ -321,7 +315,6 @@ class Config:
         )
 
         self.bypass_kessel_jobs = os.getenv("BYPASS_KESSEL_JOBS", "false").lower() == "true"
-        self.rbac_v2_force_org_admin = os.getenv("RBAC_V2_FORCE_ORG_ADMIN", "false").lower() == "true"
         self.use_sub_man_id_for_host_id = os.environ.get("USE_SUBMAN_ID", "false").lower() == "true"
         self.host_delete_chunk_size = int(os.getenv("HOST_DELETE_CHUNK_SIZE", "1000"))
         self.script_chunk_size = int(os.getenv("SCRIPT_CHUNK_SIZE", "500"))
@@ -334,6 +327,7 @@ class Config:
         self.s3_access_key_id = os.getenv("S3_AWS_ACCESS_KEY_ID")
         self.s3_secret_access_key = os.getenv("S3_AWS_SECRET_ACCESS_KEY")
         self.s3_bucket = os.getenv("S3_AWS_BUCKET")
+        self.dry_run = os.getenv("DRY_RUN", "true").lower() == "true"
 
         self.sp_fields_to_log = os.getenv("SP_FIELDS_TO_LOG", "").split(",")
 
@@ -369,6 +363,14 @@ class Config:
             self.bypass_tenant_translation = True
             self.bypass_unleash = True
 
+        self.replica_namespace = os.environ.get("REPLICA_NAMESPACE", "false").lower() == "true"
+        if self.replica_namespace:
+            self.logger.info("***PROD REPLICA NAMESPACE DETECTED - Kafka operations will be disabled ***")
+
+        self.hbi_db_refactoring_use_old_table = (
+            os.environ.get("HBI_DB_REFACTORING_USE_OLD_TABLE", "false").lower() == "true"
+        )
+
     def _build_base_url_path(self):
         app_name = os.getenv("APP_NAME", "inventory")
         path_prefix = os.getenv("PATH_PREFIX", "api")
@@ -384,14 +386,38 @@ class Config:
     def _build_db_uri(self, ssl_mode, hide_password=False):
         db_user = self._db_user
         db_password = self._db_password
+        query_parts = []
+        socket_path = None
+        netloc = ""
+        path = f"/{self._db_name}"
 
         if hide_password:
             db_user = "xxxx"
             db_password = "XXXX"
 
-        db_uri = f"postgresql://{db_user}:{db_password}@{self._db_host}:{self._db_port}/{self._db_name}"
+        # Check if the host is a Unix socket (e.g., starts with '/')
+        if self._db_host.startswith("/"):
+            # Unix socket: no host/port, use query param for socket path
+            socket_path = self._db_host  # Keep socket path unencoded
+        else:
+            # TCP connection: include host and port
+            netloc = f"{self._db_host}:{self._db_port}"
+
+        # Add query parameters
+        if socket_path:
+            query_parts.append(f"host={socket_path}")
         if ssl_mode == self.SSL_VERIFY_FULL:
-            db_uri += f"?sslmode={self._db_ssl_mode}&sslrootcert={self._db_ssl_cert}"
+            query_parts.append(f"sslmode={self._db_ssl_mode}")
+            query_parts.append(f"sslrootcert={self._db_ssl_cert}")
+
+        # Construct the query string
+        query_string = "&".join(query_parts) if query_parts else ""
+
+        # Construct the URI
+        db_uri = f"postgresql://{db_user}:{db_password}@{netloc}{path}"
+        if query_string:
+            db_uri += f"?{query_string}"
+
         return db_uri
 
     def _from_dict(self, dict, name, default):

@@ -1,4 +1,9 @@
+from __future__ import annotations
+
 import logging
+from copy import deepcopy
+from typing import Any
+from typing import Callable
 from unittest import mock
 from unittest.mock import patch
 
@@ -12,13 +17,19 @@ from lib.host_delete import delete_hosts
 from lib.host_repository import get_host_list_by_id_list_from_db
 from tests.helpers.api_utils import HOST_WRITE_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import RBACFilterOperation
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_hosts_url
+from tests.helpers.api_utils import create_custom_rbac_response
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.db_utils import db_host
+from tests.helpers.mq_utils import MockEventProducer
 from tests.helpers.mq_utils import assert_delete_event_is_valid
 from tests.helpers.mq_utils import assert_delete_notification_is_valid
+from tests.helpers.test_utils import RHSM_ERRATA_IDENTITY_PROD
+from tests.helpers.test_utils import RHSM_ERRATA_IDENTITY_STAGE
 from tests.helpers.test_utils import SYSTEM_IDENTITY
+from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 
 
@@ -519,11 +530,9 @@ def test_delete_host_RBAC_allowed_specific_groups(
     group_id_list = [generate_uuid(), str(group_id), generate_uuid()]
 
     # Grant permissions to all 3 groups
-    mock_rbac_response = create_mock_rbac_response(
-        "tests/helpers/rbac-mock-data/inv-hosts-write-resource-defs-template.json"
+    get_rbac_permissions_mock.return_value = create_custom_rbac_response(
+        group_id_list, RBACFilterOperation.IN, "write"
     )
-    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = group_id_list
-    get_rbac_permissions_mock.return_value = mock_rbac_response
 
     response_status, _ = api_delete_host(host_id)
 
@@ -538,12 +547,10 @@ def test_delete_host_RBAC_denied_specific_groups(mocker, db_create_host, db_get_
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     host_id = db_create_host().id
 
-    # Deny access to created group
-    mock_rbac_response = create_mock_rbac_response(
-        "tests/helpers/rbac-mock-data/inv-hosts-write-resource-defs-template.json"
+    # Deny access to our created group, only allow access to some mock groups
+    get_rbac_permissions_mock.return_value = create_custom_rbac_response(
+        [generate_uuid(), generate_uuid()], RBACFilterOperation.IN, "write"
     )
-    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = [generate_uuid(), generate_uuid()]
-    get_rbac_permissions_mock.return_value = mock_rbac_response
 
     response_status, _ = api_delete_host(host_id)
 
@@ -589,6 +596,60 @@ def test_postgres_delete_filtered_hosts(
     response_status, response_data = api_get(build_hosts_url(not_deleted_host_id))
     assert_response_status(response_status, expected_status=200)
     assert response_data["results"][0]["id"] == not_deleted_host_id
+
+
+@pytest.mark.usefixtures("notification_event_producer_mock")
+@pytest.mark.parametrize("identity", (RHSM_ERRATA_IDENTITY_PROD, RHSM_ERRATA_IDENTITY_STAGE), ids=("prod", "stage"))
+def test_delete_hosts_by_subman_id_internal_rhsm_request(
+    db_create_host: Callable[..., Host],
+    api_get: Callable[..., tuple[int, dict]],
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict]],
+    event_producer_mock: MockEventProducer,
+    identity: dict[str, Any],
+):
+    """
+    This test simulates the internal `DELETE /hosts?subscription_manager_id=...` request from RHSM
+    that they make when a host is unregistered from RHSM, to delete it from Insights Inventory.
+    """
+    searched_subman_id = generate_uuid()
+    matching_host_id = str(
+        db_create_host(extra_data={"canonical_facts": {"subscription_manager_id": searched_subman_id}}).id
+    )
+    not_matching_host_id = str(
+        db_create_host(extra_data={"canonical_facts": {"subscription_manager_id": generate_uuid()}}).id
+    )
+    different_org_host_id = str(
+        db_create_host(
+            extra_data={"canonical_facts": {"subscription_manager_id": searched_subman_id}, "org_id": "12345"}
+        ).id
+    )
+
+    # Delete the host using the bulk deletion endpoint
+    response_status, response_data = api_delete_filtered_hosts(
+        {"subscription_manager_id": searched_subman_id},
+        identity=identity,
+        extra_headers={"x-inventory-org-id": "test"},
+    )
+    assert_response_status(response_status, expected_status=202)
+    assert response_data["hosts_deleted"] == 1
+    assert response_data["hosts_found"] == 1
+
+    # Make sure the correct host was deleted and produced a deletion event
+    assert '"type": "delete"' in event_producer_mock.event
+
+    _, response_data = api_get(build_hosts_url([matching_host_id, not_matching_host_id, different_org_host_id]))
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["id"] == not_matching_host_id
+
+    # Make sure the host from different org wasn't deleted
+    different_org_identity = deepcopy(USER_IDENTITY)
+    different_org_identity["org_id"] = "12345"
+    _, response_data = api_get(
+        build_hosts_url([matching_host_id, not_matching_host_id, different_org_host_id]),
+        identity=different_org_identity,
+    )
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["id"] == different_org_host_id
 
 
 @pytest.mark.usefixtures("event_producer_mock")

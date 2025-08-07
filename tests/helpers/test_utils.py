@@ -16,9 +16,10 @@ from random import choice
 from random import randint
 from typing import Any
 
+from app.config import COMPOUND_ID_FACTS_MAP
+from app.config import ID_FACTS
 from app.models import ProviderType
 from app.utils import HostWrapper
-from lib.host_repository import COMPOUND_CANONICAL_FACTS_MAP
 
 NS = "testns"
 ID = "whoabuddy"
@@ -52,6 +53,24 @@ SERVICE_ACCOUNT_IDENTITY: dict[str, Any] = {
     "type": "ServiceAccount",
 }
 
+X509_IDENTITY: dict[str, Any] = {
+    "type": "X509",
+    "auth_type": "X509",
+    "x509": {
+        "subject_dn": "/CN=some-host.example.com",
+        "issuer_dn": "/CN=certificate-authority.example.com",
+    },
+}
+
+RHSM_ERRATA_IDENTITY_PROD = deepcopy(X509_IDENTITY)
+RHSM_ERRATA_IDENTITY_PROD["x509"]["subject_dn"] = "/O=mpaas/OU=serviceaccounts/UID=mpp:rhsm:prod-errata-notifications"
+RHSM_ERRATA_IDENTITY_PROD["x509"]["issuer_dn"] = "/O=Red Hat/OU=prod/CN=2023 Certificate Authority RHCSv2"
+
+RHSM_ERRATA_IDENTITY_STAGE = deepcopy(RHSM_ERRATA_IDENTITY_PROD)
+RHSM_ERRATA_IDENTITY_STAGE["x509"]["subject_dn"] = (
+    "/O=mpaas/OU=serviceaccounts/UID=mpp:rhsm:nonprod-errata-notifications"
+)
+
 YUM_REPO1 = {"id": "repo1", "name": "repo1", "gpgcheck": True, "enabled": True, "base_url": "http://rpms.redhat.com"}
 
 YUM_REPO2 = {"id": "repo2", "name": "repo2", "gpgcheck": True, "enabled": True, "base_url": "http://rpms.redhat.com"}
@@ -60,6 +79,18 @@ SATELLITE_IDENTITY = deepcopy(SYSTEM_IDENTITY)
 SATELLITE_IDENTITY["system"]["cert_type"] = "satellite"
 
 COMPOUND_FACT_VALUES = {"provider_type": ProviderType.AWS.value}
+
+CANONICAL_FACTS_LIST = (
+    "provider_id",
+    "provider_type",
+    "subscription_manager_id",
+    "insights_id",
+    "satellite_id",
+    "fqdn",
+    "bios_uuid",
+    "ip_addresses",
+    "mac_addresses",
+)
 
 
 def generate_uuid():
@@ -117,7 +148,8 @@ def base_host(**values):
 # It should be used in test cases where specific canonical facts are not needed.
 def minimal_host(**values) -> HostWrapper:
     host_wrapper = HostWrapper(_base_host_data(**values))
-    host_wrapper.bios_uuid = generate_uuid()
+    if all(id_fact not in values for id_fact in ID_FACTS):
+        host_wrapper.subscription_manager_id = generate_uuid()
     return host_wrapper
 
 
@@ -239,7 +271,7 @@ def get_platform_metadata(identity=SYSTEM_IDENTITY):
     }
 
 
-def random_mac():
+def random_mac() -> str:
     return (
         f"{random.randint(0, 255):02x}:{random.randint(0, 255):02x}:"
         f"{random.randint(0, 255):02x}:{random.randint(0, 255):02x}:"
@@ -247,26 +279,39 @@ def random_mac():
     )
 
 
-def generate_mac_addresses(num_mac):
-    macs = []
-    for _ in range(num_mac):
-        macs.append(random_mac())
-    return macs
+def random_ip() -> str:
+    return ".".join(str(random.randint(0, 255)) for _ in range(4))
+
+
+def generate_mac_addresses(num_macs: int) -> list[str]:
+    return [random_mac() for _ in range(num_macs)]
+
+
+def generate_ip_addresses(num_ips: int) -> list[str]:
+    return [random_ip() for _ in range(num_ips)]
 
 
 # Extend this method as new types are required.
-def generate_fact(fact_name, num=1):
+def generate_fact(fact_name: str, num: int = 1) -> str | list[str]:
     if fact_name == "mac_addresses":
         return generate_mac_addresses(num)
+    if fact_name == "ip_addresses":
+        return generate_ip_addresses(num)
+    if fact_name == "provider_type":
+        return choice(list(ProviderType))
     return generate_uuid()
 
 
 def generate_fact_dict(fact_name, num=1):
     fact_dict = {fact_name: generate_fact(fact_name, num)}
-    if compound_fact := COMPOUND_CANONICAL_FACTS_MAP.get(fact_name):
+    if compound_fact := COMPOUND_ID_FACTS_MAP.get(fact_name):
         fact_dict[compound_fact] = COMPOUND_FACT_VALUES[compound_fact]
 
     return fact_dict
+
+
+def generate_all_canonical_facts() -> dict[str, str | list[str]]:
+    return {canonical_fact: generate_fact(canonical_fact) for canonical_fact in CANONICAL_FACTS_LIST}
 
 
 class MockResponseObject:
@@ -282,3 +327,61 @@ class MockResponseObject:
 
     def __next__(self):
         return self
+
+
+def get_sample_profile_data(org_id, host_id):
+    """Returns a dictionary of sample data for creating a dynamic profile."""
+    current_time = datetime.now(timezone.utc)
+    return {
+        "org_id": org_id,
+        "host_id": host_id,
+        "captured_date": current_time,
+        "running_processes": ["sshd", "crond", "systemd"],
+        "last_boot_time": current_time - timedelta(days=7),
+        "installed_packages": ["kernel-5.14.0", "python3-3.9.7", "openssl-1.1.1k"],
+        "network_interfaces": [
+            {"name": "eth0", "ipv4_addresses": ["192.168.1.10"], "state": "UP"},
+            {"name": "lo", "ipv4_addresses": ["127.0.0.1"], "state": "UNKNOWN"},
+        ],
+        "installed_products": [{"name": "Red Hat Enterprise Linux", "id": "RHEL-8"}],
+        "cpu_flags": ["fpu", "vme", "de", "pse", "tsc"],
+        "insights_egg_version": "2.1.3",
+        "kernel_modules": ["ext4", "xfs", "btrfs", "i915"],
+        "system_memory_bytes": 1024,
+        "systemd": {"services_enabled": 52, "services_disabled": 11, "sockets": 15},
+        "workloads": {
+            "ansible": {
+                "controller_version": "4.5.6",
+                "hub_version": "4.5.6",
+                "catalog_worker_version": "1.2.3",
+                "sso_version": "7.8.9",
+            },
+            "crowdstrike": {
+                "falcon_aid": "44e3b7d20b434a2bb2815d9808fa3a8b",
+                "falcon_backend": "kernel",
+                "falcon_version": "7.14.16703.0",
+            },
+            "ibm_db2": {"is_running": True},
+            "intersystems": {
+                "is_intersystems": True,
+                "running_instances": [
+                    {"name": "HEALTH_PROD", "version": "2023.1.0.215.0", "path": "/opt/intersystems/iris/bin"}
+                ],
+            },
+            "mssql": {"version": "15.2.0"},
+            "oracle_db": {"is_running": False},
+            "rhel_ai": {
+                "variant": "RHEL AI",
+                "rhel_ai_version_id": "v1.1.3",
+                "gpu_models": [{"name": "NVIDIA A100 80GB PCIe", "vendor": "Nvidia", "memory": "80GB", "count": 4}],
+                "ai_models": ["granite-7b-redhat-lab", "granite-7b-starter"],
+                "free_disk_storage": "698GB",
+            },
+            "sap": {
+                "sap_system": True,
+                "sids": ["H2O", "ABC"],
+                "instance_number": "03",
+                "version": "2.00.122.04.1478575636",
+            },
+        },
+    }

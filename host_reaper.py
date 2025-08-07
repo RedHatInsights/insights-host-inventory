@@ -4,8 +4,8 @@ from functools import partial
 
 from sqlalchemy import ColumnElement
 from sqlalchemy import and_
+from sqlalchemy import func
 from sqlalchemy import or_
-from sqlalchemy.dialects.postgresql import array
 
 from app.environment import RuntimeEnvironment
 from app.logging import get_logger
@@ -17,6 +17,8 @@ from app.queue.metrics import event_producer_success
 from app.queue.metrics import event_serialization_time
 from jobs.common import excepthook
 from jobs.common import job_setup as host_reaper_job_setup
+from lib.feature_flags import FLAG_INVENTORY_API_READ_ONLY
+from lib.feature_flags import get_flag_value
 from lib.host_delete import delete_hosts
 from lib.host_repository import find_hosts_by_staleness_job
 from lib.host_repository import find_hosts_sys_default_staleness
@@ -77,28 +79,21 @@ def run(config, logger, session, event_producer, notification_event_producer, sh
     with application.app.app_context():
         filter_hosts_to_delete = find_hosts_in_state(logger, session, ["culled"])
 
-        # Adhoc fix for RHINENG-16901
-        # hosts reporter by rhsm-system-profile-bridge are not being deleted
-        # when marked as culled, and are also prevented to stay culled as w
-        # we are forcing its modified_on and last_check_in to be updated.
-
-        rhsm_bridge_hosts_query = session.query(Host).filter(
+        # Apply the main filter and exclude hosts that should stay fresh forever
+        query = session.query(Host).filter(
             and_(
                 or_(False, *filter_hosts_to_delete),
-                Host.reporter == "rhsm-system-profile-bridge",
-                ~Host.per_reporter_staleness.has_any(
-                    array(["cloud-connector", "puptoo", "rhsm-conduit", "yuptoo", "discovery", "satellite"])
+                Host.per_reporter_staleness
+                != func.jsonb_build_object(
+                    "rhsm-system-profile-bridge", Host.per_reporter_staleness["rhsm-system-profile-bridge"]
                 ),
             )
         )
 
-        for host in rhsm_bridge_hosts_query.yield_per(config.host_delete_chunk_size):
-            host._update_modified_date()
-            host._update_last_check_in_date()
-
-        query = session.query(Host).filter(and_(or_(False, *filter_hosts_to_delete)))
         hosts_processed = config.host_delete_chunk_size
         deletions_remaining = query.count()
+
+        logger.info(f"Found {deletions_remaining} hosts to potentially delete (excluding rhsm-only hosts)")
 
         while hosts_processed == config.host_delete_chunk_size:
             logger.info(f"Reaper starting batch; {deletions_remaining} remaining.")
@@ -128,4 +123,10 @@ if __name__ == "__main__":
     config, session, event_producer, notification_event_producer, shutdown_handler, application = (
         host_reaper_job_setup(COLLECTED_METRICS, PROMETHEUS_JOB)
     )
+
+    with application.app.app_context():
+        if get_flag_value(FLAG_INVENTORY_API_READ_ONLY):
+            logger.info("Inventory API is currently in read-only mode. Exiting.")
+            sys.exit(0)
+
     run(config, logger, session, event_producer, notification_event_producer, shutdown_handler, application)

@@ -10,11 +10,11 @@ echo '===================================='
 # copy workspace directory and chown it to match podman user namespace
 podman unshare rm -fr ./workspace_copy
 rsync -Rr . ./workspace_copy
-podman unshare chown -R 1001:1001 workspace_copy
 set +e
 # run pre-commit with the copied workspace mounted as a volume
-podman run -u 1001:1001 -t -v ./workspace_copy:/workspace:Z \
-    --workdir /workspace --env HOME=/workspace "${IMAGE}:${IMAGE_TAG}" pre-commit run --all-files
+podman run -u 0:0 -t -v ./workspace_copy:/workspace:Z \
+    --workdir /workspace --env HOME=/workspace "${IMAGE}:${IMAGE_TAG}" \
+    "pipenv install --system --dev && pre-commit run --all-files --verbose"
 TEST_RESULT=$?
 set -e
 # remove copy of the workspace
@@ -56,9 +56,28 @@ fi
 
 DB_IP_ADDR=$(podman inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$DB_CONTAINER_ID")
 
+# --- ADDED: Wait for the database to be ready ---
+echo "Waiting for PostgreSQL to become available at ${DB_IP_ADDR}:5432..."
+MAX_ATTEMPTS=20
+ATTEMPT=0
+until podman exec "$DB_CONTAINER_ID" pg_isready -h "$DB_IP_ADDR" -p 5432 -U inventory-test || [ $ATTEMPT -ge $MAX_ATTEMPTS ]; do
+    echo "PostgreSQL not ready yet, waiting 2 seconds (attempt $((ATTEMPT+1))/$MAX_ATTEMPTS)..."
+    sleep 2
+    ATTEMPT=$((ATTEMPT+1))
+done
+
+if [ $ATTEMPT -ge $MAX_ATTEMPTS ]; then
+    echo "Error: PostgreSQL did not become ready after $MAX_ATTEMPTS attempts."
+    exit 1
+fi
+echo "PostgreSQL is ready!"
+# --- END ADDED ---
+
+
 # Do tests
 TEST_CONTAINER_ID=$(podman run -d \
     --network "$NETWORK" \
+    -u 0:0 \
     -e INVENTORY_DB_NAME="inventory-test" \
     -e INVENTORY_DB_HOST="$DB_IP_ADDR" \
     -e INVENTORY_DB_PORT="5432" \
@@ -80,7 +99,7 @@ echo '===================================='
 echo '=== Installing Pip Dependencies ===='
 echo '===================================='
 set +e
-podman exec "$TEST_CONTAINER_ID" pipenv install --system --dev
+podman exec -u 0:0 "$TEST_CONTAINER_ID" pipenv install --system --dev
 TEST_RESULT=$?
 set -e
 if [[ "$TEST_RESULT" -ne 0 ]]; then
@@ -95,7 +114,7 @@ echo '===================================='
 echo '====        Running Tests       ===='
 echo '===================================='
 set +e
-podman exec -e FLASK_APP=manage.py "$TEST_CONTAINER_ID" \
+podman exec -u 0:0  -e FLASK_APP=manage.py "$TEST_CONTAINER_ID" \
     bash -c 'flask db upgrade && pytest --cov=. --junitxml=junit-unittest.xml --cov-report html -sv'
 TEST_RESULT=$?
 set -e

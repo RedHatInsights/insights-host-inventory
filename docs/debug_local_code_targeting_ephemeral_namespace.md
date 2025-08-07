@@ -11,7 +11,6 @@ Debugging Host Inventory code requires a database, Kafka broker, Kafka Zookeeper
 3. Deploy host-inventory and RBAC using the following command.  The `RBAC V2` options may be omitted to use `RBAC V1`.
     ```bash
         bonfire deploy host-inventory \
-            --set-parameter host-inventory/RBAC_V2_FORCE_ORG_ADMIN=true \
             --set-parameter host-inventory/CONSUMER_MQ_BROKER=rbac-kafka-kafka-bootstrap:9092 \
             --ref-env insights-stage \
             --set-image-tag quay.io/cloudservices/insights-inventory=latest \

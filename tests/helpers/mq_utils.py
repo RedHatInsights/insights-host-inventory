@@ -121,7 +121,7 @@ def wrap_message(host_data, operation="add_host", platform_metadata=None, operat
     return message
 
 
-def assert_mq_host_data(actual_id, actual_event, expected_results, host_keys_to_check):
+def assert_mq_host_data(actual_id: str, actual_event: dict, expected_results: dict, host_keys_to_check: list[str]):
     assert actual_event["host"]["id"] == actual_id
 
     for key in host_keys_to_check:
@@ -230,7 +230,6 @@ def assert_stale_notification_is_valid(notification_event_producer, host):
 
 
 def assert_patch_event_is_valid(
-    with_last_check_in,
     host,
     event_producer,
     expected_request_id,
@@ -240,10 +239,9 @@ def assert_patch_event_is_valid(
     reporter=None,
     identity=USER_IDENTITY,
 ):
-    date_to_use = host.last_check_in if with_last_check_in else host.modified_on
-    stale_timestamp = (date_to_use.astimezone(timezone.utc) + timedelta(seconds=104400)).isoformat()
-    stale_warning_timestamp = (date_to_use.astimezone(timezone.utc) + timedelta(seconds=604800)).isoformat()
-    culled_timestamp = (date_to_use.astimezone(timezone.utc) + timedelta(seconds=1209600)).isoformat()
+    stale_timestamp = (host.last_check_in.astimezone(timezone.utc) + timedelta(seconds=104400)).isoformat()
+    stale_warning_timestamp = (host.last_check_in.astimezone(timezone.utc) + timedelta(seconds=604800)).isoformat()
+    culled_timestamp = (host.last_check_in.astimezone(timezone.utc) + timedelta(seconds=1209600)).isoformat()
 
     reporter = reporter or host.reporter
 
@@ -284,9 +282,6 @@ def assert_patch_event_is_valid(
         "metadata": {"request_id": expected_request_id},
         "timestamp": expected_timestamp.isoformat(),
     }
-
-    if not with_last_check_in:
-        del expected_event["host"]["last_check_in"]
 
     # We don't have this information without retrieving the host after the patch request
     del event["host"]["updated"]
@@ -376,7 +371,7 @@ def expected_encoded_headers(event_type, request_id, insights_id=None, reporter=
 
 
 def assert_synchronize_event_is_valid(
-    event_producer, key, host, timestamp, expected_request_id=None, expected_metadata=None
+    event_producer, key, host, groups, timestamp, expected_request_id=None, expected_metadata=None
 ):
     event = json.loads(event_producer.event)
 
@@ -389,6 +384,15 @@ def assert_synchronize_event_is_valid(
     assert event["type"] == "updated"
     assert host.canonical_facts.get("insights_id") == event["host"]["insights_id"]
     assert str(host.id) in event_producer.key
+
+    # Assert groups data
+    if groups == []:
+        assert event["host"]["groups"] == []
+    else:
+        assert event["host"]["groups"][0]["id"] == str(groups[0].id)
+        assert event["host"]["groups"][0]["name"] == groups[0].name
+        assert event["host"]["groups"][0]["ungrouped"] == groups[0].ungrouped
+
     assert event_producer.headers == expected_headers(
         "updated",
         event["metadata"]["request_id"],

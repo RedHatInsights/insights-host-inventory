@@ -36,7 +36,6 @@ from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import db
 from app.serialization import serialize_host_for_export_svc
-from lib.feature_flags import FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.feature_flags import get_flag_value
 
@@ -88,8 +87,6 @@ def _get_host_list_using_filters(
     fields: dict,
 ) -> tuple[list[Host], int, tuple[str], list[str]]:
     columns = DEFAULT_COLUMNS.copy()
-    if not get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS):
-        columns.pop()
 
     system_profile_fields = ["host_type"]
     if fields and fields.get("system_profile"):
@@ -98,7 +95,7 @@ def _get_host_list_using_filters(
         columns = list(columns)
         columns.append(Host.system_profile_facts)
     else:
-        additional_fields = tuple()
+        additional_fields = ()
 
     base_query = _find_hosts_entities_query(query_base=query_base, columns=columns).filter(*all_filters)
     host_query = base_query.order_by(*params_to_order_by(param_order_by, param_order_how))
@@ -130,6 +127,7 @@ def get_host_list(
     param_order_how: str,
     staleness: list[str],
     registered_with: list[str],
+    system_type: list[str] | None,
     filter: dict,
     fields: dict,
     rbac_filter: dict,
@@ -149,6 +147,7 @@ def get_host_list(
         tags,
         staleness,
         registered_with,
+        system_type,
         filter,
         rbac_filter,
         param_order_by,
@@ -216,32 +215,20 @@ def params_to_order_by(order_by: str | None = None, order_how: str | None = None
     elif order_by == "operating_system":
         ordering = (_order_how(Host.operating_system, order_how),) if order_how else (Host.operating_system.desc(),)  # type: ignore [attr-defined]
 
-    elif order_by == "last_check_in" and get_flag_value(
-        FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS
-    ):
+    elif order_by == "last_check_in":
         ordering = (_order_how(Host.last_check_in, order_how),) if order_how else (Host.last_check_in.desc(),)
 
     elif order_by:
-        if get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS):
-            raise ValueError(
-                'Unsupported ordering column: use "updated", "display_name",'
-                ' "group_name", "operating_system" or "last_check_in"'
-            )
-        else:
-            raise ValueError(
-                'Unsupported ordering column: use "updated", "display_name", "group_name", "operating_system"'
-            )
+        raise ValueError(
+            'Unsupported ordering column: use "updated", "display_name",'
+            ' "group_name", "operating_system" or "last_check_in"'
+        )
     elif order_how:
-        if get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS):
-            raise ValueError(
-                "Providing ordering direction without a column is not supported."
-                " Provide order_by={updated,display_name,group_name,operating_system,last_check_in}."
-            )
-        else:
-            raise ValueError(
-                "Providing ordering direction without a column is not supported."
-                " Provide order_by={updated,display_name,group_name,operating_system}."
-            )
+        raise ValueError(
+            "Providing ordering direction without a column is not supported."
+            " Provide order_by={updated,display_name,group_name,operating_system,last_check_in}."
+        )
+
     return ordering + modified_on_ordering + (Host.id.desc(),)
 
 
@@ -361,6 +348,7 @@ def get_tag_list(
     search: str,
     staleness: list[str],
     registered_with: list[str],
+    system_type: list[str] | None,
     filter: dict,
     rbac_filter: dict,
 ) -> tuple[list, int]:
@@ -387,6 +375,7 @@ def get_tag_list(
         tags,
         staleness,
         registered_with,
+        system_type,
         filter,
         rbac_filter,
         order_by,
@@ -623,6 +612,7 @@ def get_host_ids_list(
     updated_end: str,
     group_name: list[str],
     registered_with: list[str],
+    system_type: list[str] | None,
     staleness: list[str],
     tags: list[str],
     filter: dict,
@@ -644,6 +634,7 @@ def get_host_ids_list(
         tags,
         staleness,
         registered_with,
+        system_type,
         filter,
         rbac_filter,
         identity=identity,

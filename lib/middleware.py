@@ -23,9 +23,8 @@ from app import RbacResourceType
 from app.auth import get_current_identity
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
-from app.auth.identity import from_auth_header
-from app.auth.identity import to_auth_header
 from app.common import inventory_config
+from app.exceptions import ResourceNotFoundException
 from app.instrumentation import rbac_failure
 from app.instrumentation import rbac_group_permission_denied
 from app.instrumentation import rbac_permission_denied
@@ -102,7 +101,7 @@ def rbac_get_request_using_endpoint_and_headers(rbac_endpoint: str, request_head
 
 def get_rbac_permissions(app: str, request_header: dict):
     resp_data = rbac_get_request_using_endpoint_and_headers(get_rbac_url(app), request_header)
-    logger.debug("Fetched RBAC Data", extra=resp_data)
+    logger.debug("Fetched RBAC Data", extra={"resp_data": resp_data})
     return resp_data["data"]
 
 
@@ -125,18 +124,24 @@ def _is_request_allowed_by_permission(
 
 # Validate RBAC response, and fetch
 def _get_group_list_from_resource_definition(resource_definition: dict) -> list[str]:
+    allowed_ops = ("in", "equal")
+
     if "attributeFilter" in resource_definition:
+        operation = resource_definition["attributeFilter"].get("operation")
         if resource_definition["attributeFilter"].get("key") != "group.id":
             abort(
                 HTTPStatus.SERVICE_UNAVAILABLE,
                 "Invalid value for attributeFilter.key in RBAC response.",
             )
-        elif resource_definition["attributeFilter"].get("operation") != "in":
+        elif operation not in allowed_ops:
             abort(
                 HTTPStatus.SERVICE_UNAVAILABLE,
-                "Invalid value for attributeFilter.operation in RBAC response.",
+                (
+                    "Invalid value for attributeFilter.operation in RBAC response: "
+                    f"'{operation}'. Allowed values are {allowed_ops}."
+                ),
             )
-        elif not isinstance(resource_definition["attributeFilter"]["value"], list):
+        elif operation == "in" and not isinstance(resource_definition["attributeFilter"]["value"], list):
             abort(
                 HTTPStatus.SERVICE_UNAVAILABLE,
                 "Did not receive a list for attributeFilter.value in RBAC response.",
@@ -144,6 +149,9 @@ def _get_group_list_from_resource_definition(resource_definition: dict) -> list[
         else:
             # Validate that all values in the filter are UUIDs.
             group_list = resource_definition["attributeFilter"]["value"]
+            if operation == "equal":
+                group_list = [group_list]
+
             try:
                 for gid in group_list:
                     if gid is not None:
@@ -258,25 +266,12 @@ def rbac_group_id_check(rbac_filter: dict, requested_ids: set) -> None:
             abort(HTTPStatus.FORBIDDEN, f"You do not have access to the the following groups: {joined_ids}")
 
 
-def _temp_add_org_admin_user_identity(identity_header: str) -> str:
-    identity = from_auth_header(identity_header)
-    if inventory_config().rbac_v2_force_org_admin and identity.identity_type == IdentityType.USER:
-        if hasattr(identity, "user"):
-            identity.user["is_org_admin"] = True
-        else:
-            identity.user = {"username": "hbi-override", "is_org_admin": True}
-        return to_auth_header(identity)
-
-    return identity_header
-
-
 def post_rbac_workspace(name) -> UUID | None:
     if inventory_config().bypass_rbac:
         return None
 
     rbac_endpoint = get_rbac_v2_url(endpoint="workspaces/")
-    identity_header = _temp_add_org_admin_user_identity(request.headers[IDENTITY_HEADER])
-    request_headers = _build_rbac_request_headers(identity_header, threadctx.request_id)
+    request_headers = _build_rbac_request_headers(request.headers[IDENTITY_HEADER], threadctx.request_id)
     request_data = {"name": name}
 
     return post_rbac_workspace_using_endpoint_and_headers(request_data, rbac_endpoint, request_headers)
@@ -325,7 +320,7 @@ def post_rbac_workspace_using_endpoint_and_headers(
     try:
         resp_data = rbac_response.json()
         workspace_id = resp_data["id"]
-        logger.debug("POSTED RBAC Data", extra=resp_data)
+        logger.debug("POSTED RBAC Data", extra={"resp_data": resp_data})
     except (JSONDecodeError, KeyError) as e:
         rbac_failure(logger, e)
         abort(503, "Failed to parse RBAC response, request cannot be fulfilled")
@@ -369,7 +364,7 @@ def _handle_delete_error(e: HTTPError, workspace_id: str) -> bool:
 
     if status == 404:
         logger.info(f"404 deleting RBAC workspace {workspace_id}: {detail}")
-        return False
+        raise ResourceNotFoundException(f"Workspace {workspace_id} not found in RBAC; skipping deletion")
 
     if 400 <= status < 500:
         logger.warning(f"RBAC client error {status} deleting {workspace_id}: {detail}")

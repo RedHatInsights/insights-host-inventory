@@ -9,7 +9,7 @@ from api.cache import init_cache
 from app import create_app
 from app.config import Config
 from app.environment import RuntimeEnvironment
-from app.queue.event_producer import EventProducer
+from app.queue.event_producer import create_event_producer
 from lib.handlers import ShutdownHandler
 from lib.handlers import register_shutdown
 
@@ -18,7 +18,7 @@ __all__ = "job_setup"
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
 
 
-def init_config():
+def init_config() -> Config:
     config = Config(RUNTIME_ENVIRONMENT)
     config.log_configuration()
     return config
@@ -55,10 +55,10 @@ def job_setup(collected_metrics: tuple, prometheus_job_name: str):
     session = Session()
     register_shutdown(session.get_bind().dispose, "Closing database")
 
-    event_producer = EventProducer(config, config.event_topic)
+    event_producer = create_event_producer(config, config.event_topic)
     register_shutdown(event_producer.close, "Closing producer")
 
-    notification_event_producer = EventProducer(config, config.notification_topic)
+    notification_event_producer = create_event_producer(config, config.notification_topic)
     register_shutdown(notification_event_producer.close, "Closing notification producer")
 
     shutdown_handler = ShutdownHandler()

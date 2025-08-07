@@ -1,6 +1,8 @@
 from datetime import datetime
 from datetime import timezone
 
+from sqlalchemy import and_
+
 from app.models import Host
 
 
@@ -12,10 +14,10 @@ class HostStalenessStatesDbFilters:
         return self.now < Host.stale_timestamp
 
     def stale(self):
-        return self.now >= Host.stale_timestamp
+        return and_(self.now >= Host.stale_timestamp, self.now < Host.stale_warning_timestamp)
 
     def stale_warning(self):
-        return self.now >= Host.stale_warning_timestamp
+        return and_(self.now >= Host.stale_warning_timestamp, self.now < Host.deletion_timestamp)
 
     def culled(self):
         return self.now >= Host.deletion_timestamp

@@ -70,13 +70,13 @@ def test_delete_only_immutable_hosts(
 ):
     db_create_staleness_culling(**CUSTOM_STALENESS_DELETE_ONLY_IMMUTABLE)
 
-    with patch("app.models.datetime") as mock_datetime:
+    with patch("app.models.utils.datetime") as mock_datetime:
         mock_datetime.now.return_value = datetime.now() - timedelta(minutes=1)
         immutable_hosts = db_create_multiple_hosts(
-            how_many=2, extra_data={"system_profile_facts": {"host_type": "edge"}}
+            how_many=2, extra_data={"system_profile_facts": {"host_type": "edge"}, "reporter": "puptoo"}
         )
         immutable_hosts = [host.id for host in immutable_hosts]
-        conventional_hosts = db_create_multiple_hosts(how_many=2)
+        conventional_hosts = db_create_multiple_hosts(how_many=2, extra_data={"reporter": "puptoo"})
         conventional_hosts = [host.id for host in conventional_hosts]
 
     threadctx.request_id = None
@@ -104,13 +104,13 @@ def test_delete_only_conventional_hosts(
 ):
     db_create_staleness_culling(**CUSTOM_STALENESS_DELETE_ONLY_CONVENTIONAL)
 
-    with patch("app.models.datetime") as mock_datetime:
+    with patch("app.models.utils.datetime") as mock_datetime:
         mock_datetime.now.return_value = datetime.now() - timedelta(minutes=1)
         immutable_hosts = db_create_multiple_hosts(
-            how_many=2, extra_data={"system_profile_facts": {"host_type": "edge"}}
+            how_many=2, extra_data={"system_profile_facts": {"host_type": "edge"}, "reporter": "puptoo"}
         )
         immutable_hosts = [host.id for host in immutable_hosts]
-        conventional_hosts = db_create_multiple_hosts(how_many=2)
+        conventional_hosts = db_create_multiple_hosts(how_many=2, extra_data={"reporter": "puptoo"})
         conventional_hosts = [host.id for host in conventional_hosts]
 
     threadctx.request_id = None
@@ -138,13 +138,13 @@ def test_delete_conventional_immutable_hosts(
 ):
     db_create_staleness_culling(**CUSTOM_STALENESS_DELETE_CONVENTIONAL_IMMUTABLE)
 
-    with patch("app.models.datetime") as mock_datetime:
+    with patch("app.models.utils.datetime") as mock_datetime:
         mock_datetime.now.return_value = datetime.now() - timedelta(minutes=1)
         immutable_hosts = db_create_multiple_hosts(
-            how_many=2, extra_data={"system_profile_facts": {"host_type": "edge"}}
+            how_many=2, extra_data={"system_profile_facts": {"host_type": "edge"}, "reporter": "puptoo"}
         )
         immutable_hosts = [host.id for host in immutable_hosts]
-        conventional_hosts = db_create_multiple_hosts(how_many=2)
+        conventional_hosts = db_create_multiple_hosts(how_many=2, extra_data={"reporter": "puptoo"})
         conventional_hosts = [host.id for host in conventional_hosts]
 
     threadctx.request_id = None
@@ -172,7 +172,7 @@ def test_no_hosts_to_delete(
 ):
     db_create_staleness_culling(**CUSTOM_STALENESS_NO_HOSTS_TO_DELETE)
 
-    with patch("app.models.datetime") as mock_datetime:
+    with patch("app.models.utils.datetime") as mock_datetime:
         mock_datetime.now.return_value = datetime.now() - timedelta(minutes=1)
         immutable_hosts = db_create_multiple_hosts(
             how_many=2, extra_data={"system_profile_facts": {"host_type": "edge"}}
@@ -200,12 +200,7 @@ def test_async_update_host_create_custom_staleness(
     db_get_hosts, db_create_multiple_hosts, api_get, api_post, flask_app, event_producer, mocker, num_hosts
 ):
     with (
-        patch("app.models.get_flag_value", return_value=True),
-        patch("app.serialization.get_flag_value", return_value=True),
-        patch("app.staleness_serialization.get_flag_value", return_value=True),
-        patch("api.host_query_db.get_flag_value", return_value=True),
-        patch("api.staleness.get_flag_value", return_value=True),
-        patch("app.models.datetime") as mock_datetime,
+        patch("app.models.utils.datetime") as mock_datetime,
     ):
         with flask_app.app.app_context():
             mocker.patch.object(event_producer, "write_event")
@@ -259,12 +254,7 @@ def test_async_update_host_delete_custom_staleness(
 ):
     db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
     with (
-        patch("app.models.get_flag_value", return_value=True),
-        patch("app.serialization.get_flag_value", return_value=True),
-        patch("app.staleness_serialization.get_flag_value", return_value=True),
-        patch("api.host_query_db.get_flag_value", return_value=True),
-        patch("api.staleness.get_flag_value", return_value=True),
-        patch("app.models.datetime") as mock_datetime,
+        patch("app.models.utils.datetime") as mock_datetime,
     ):
         with flask_app.app.app_context():
             mocker.patch.object(event_producer, "write_event")
@@ -317,12 +307,7 @@ def test_async_update_host_update_custom_staleness(
 ):
     db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
     with (
-        patch("app.models.get_flag_value", return_value=True),
-        patch("app.serialization.get_flag_value", return_value=True),
-        patch("app.staleness_serialization.get_flag_value", return_value=True),
-        patch("api.host_query_db.get_flag_value", return_value=True),
-        patch("api.staleness.get_flag_value", return_value=True),
-        patch("app.models.datetime") as mock_datetime,
+        patch("app.models.utils.datetime") as mock_datetime,
     ):
         with flask_app.app.app_context():
             mocker.patch.object(event_producer, "write_event")
@@ -375,12 +360,7 @@ def test_async_update_host_update_custom_staleness_no_modified_on_change(
 ):
     db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
     with (
-        patch("app.models.get_flag_value", return_value=True),
-        patch("app.serialization.get_flag_value", return_value=True),
-        patch("app.staleness_serialization.get_flag_value", return_value=True),
-        patch("api.host_query_db.get_flag_value", return_value=True),
-        patch("api.staleness.get_flag_value", return_value=True),
-        patch("app.models.datetime") as mock_datetime,
+        patch("app.models.utils.datetime") as mock_datetime,
     ):
         with flask_app.app.app_context():
             mocker.patch.object(event_producer, "write_event")

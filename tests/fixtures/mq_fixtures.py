@@ -2,10 +2,12 @@ import json
 from collections.abc import Generator
 from datetime import datetime
 from datetime import timezone
+from typing import Callable
 from unittest.mock import patch
 
 import pytest
 from connexion import FlaskApp
+from pytest_mock import MockFixture
 
 from app.models import db
 from app.queue.event_producer import EventProducer
@@ -30,10 +32,10 @@ from tests.helpers.test_utils import now
 
 @pytest.fixture(scope="function")
 def mq_create_or_update_host(
-    flask_app,
-    event_producer_mock,
-    notification_event_producer_mock,
-):
+    flask_app: FlaskApp,
+    event_producer_mock: MockEventProducer,
+    notification_event_producer_mock: MockEventProducer,
+) -> Callable:
     def _mq_create_or_update_host(
         host_data,
         platform_metadata=None,
@@ -120,7 +122,7 @@ def mq_create_hosts_in_all_states(mq_create_or_update_host):
 
 @pytest.fixture(scope="function")
 def mq_create_deleted_hosts(mq_create_or_update_host):
-    with patch("app.models.datetime") as mock_datetime:
+    with patch("app.models.utils.datetime") as mock_datetime:
         mock_datetime.now.return_value = datetime(
             year=2023, month=4, day=2, hour=1, minute=1, second=1, tzinfo=timezone.utc
         )
@@ -171,7 +173,7 @@ def notification_event_producer(flask_app, notification_kafka_producer):  # noqa
 
 
 @pytest.fixture(scope="function")
-def event_producer_mock(flask_app, mocker):
+def event_producer_mock(flask_app: FlaskApp, mocker: MockFixture) -> Generator[MockEventProducer]:
     flask_app.app.event_producer = MockEventProducer()
     mocker.patch("lib.host_delete.kafka_available")
     yield flask_app.app.event_producer
@@ -179,7 +181,7 @@ def event_producer_mock(flask_app, mocker):
 
 
 @pytest.fixture(scope="function")
-def notification_event_producer_mock(flask_app, mocker):
+def notification_event_producer_mock(flask_app: FlaskApp, mocker: MockFixture) -> Generator[MockEventProducer]:
     flask_app.app.notification_event_producer = MockEventProducer()
     mocker.patch("lib.host_delete.kafka_available")
     yield flask_app.app.notification_event_producer

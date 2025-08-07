@@ -11,6 +11,7 @@ from uuid import UUID
 
 from confluent_kafka import Consumer
 from connexion import FlaskApp
+from flask_sqlalchemy.model import Model
 from marshmallow import Schema
 from marshmallow import ValidationError
 from marshmallow import fields
@@ -34,7 +35,10 @@ from app.exceptions import ValidationException
 from app.instrumentation import log_add_host_attempt
 from app.instrumentation import log_add_host_failure
 from app.instrumentation import log_add_update_host_succeeded
+from app.instrumentation import log_create_group_via_mq
 from app.instrumentation import log_db_access_failure
+from app.instrumentation import log_delete_groups_via_mq
+from app.instrumentation import log_update_group_via_mq
 from app.instrumentation import log_update_system_profile_failure
 from app.instrumentation import log_update_system_profile_success
 from app.logging import get_logger
@@ -58,22 +62,55 @@ from app.queue.notifications import NotificationType
 from app.queue.notifications import send_notification
 from app.serialization import deserialize_host
 from app.serialization import remove_null_canonical_facts
-from app.serialization import serialize_group
 from app.serialization import serialize_host
 from app.staleness_serialization import AttrDict
 from lib import group_repository
 from lib import host_repository
 from lib.db import session_guard
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
-from lib.feature_flags import FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM
 from lib.feature_flags import get_flag_value
 from lib.group_repository import get_or_create_ungrouped_hosts_group_for_identity
+from lib.group_repository import serialize_group
 from utils.system_profile_log import extract_host_dict_sp_to_log
 
 logger = get_logger(__name__)
 
 CONSUMER_POLL_TIMEOUT_SECONDS = 0.5
 SYSTEM_IDENTITY = {"auth_type": "cert-auth", "system": {"cert_type": "system"}, "type": "System"}
+
+
+class NullConsumer:
+    # ruff: noqa: ARG002
+    """Mock consumer that doesn't consume messages when in replica cluster"""
+
+    def __init__(self, config):
+        logger.info("Starting NullConsumer() - Kafka operations disabled in replica cluster")
+        self.config = config
+
+    def consume(self, num_messages=1, timeout=1.0):
+        logger.debug("NullConsumer: Skipping message consumption in replica cluster")
+        return []  # Return empty list to prevent processing
+
+    def subscribe(self, topics):
+        logger.debug("NullConsumer: Skipping subscription to topics in replica cluster: %s", topics)
+        # Do nothing
+
+    def close(self):
+        logger.debug("NullConsumer: Closing (no-op)")
+
+
+def create_consumer(config):
+    """Factory function to create appropriate kafka consumer"""
+    if config.replica_namespace:
+        return NullConsumer(config)
+    return Consumer(
+        {
+            "group.id": config.host_ingress_consumer_group,
+            "bootstrap.servers": config.bootstrap_servers,
+            "auto.offset.reset": "earliest",
+            **config.kafka_consumer,
+        }
+    )
 
 
 class HostOperationSchema(Schema):
@@ -107,14 +144,14 @@ class DebeziumEnvelopeSchema(Schema):
 class OperationResult:
     def __init__(
         self,
-        hr: Host,
+        row: Model,
         pm: dict[str, Any] | None,
         st: Timestamps | None,
         so: AttrDict | None,
         et: EventType | None,
         sl: Callable,
     ):
-        self.host_row = hr
+        self.row = row
         self.platform_metadata = pm
         self.staleness_timestamps = st
         self.staleness_object = so
@@ -209,8 +246,15 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                     group_id=workspace["id"],
                     ungrouped=(validated_operation_msg["workspace"]["type"] == "ungrouped-hosts"),
                 )
-                logger.info(f"Created group with ID {str(group.id)}")
-                _pg_notify_workspace(operation, str(group.id))
+                return OperationResult(
+                    group,
+                    None,
+                    None,
+                    None,
+                    EventType.created,
+                    partial(log_create_group_via_mq, logger, workspace["id"]),
+                )
+
             except (IntegrityError, UniqueViolation):
                 logger.warning(f"Group with ID {workspace['id']} already exists; skipping creation")
                 db.session.rollback()
@@ -223,7 +267,14 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                 identity=identity,
                 event_producer=self.event_producer,
             )
-            logger.info(f"Updated group with ID {workspace['id']}")
+            return OperationResult(
+                None,
+                None,
+                None,
+                None,
+                EventType.updated,
+                partial(log_update_group_via_mq, logger, workspace["id"]),
+            )
 
         elif operation == "delete":
             num_deleted = group_repository.delete_group_list(
@@ -231,9 +282,38 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                 identity=identity,
                 event_producer=self.event_producer,
             )
-            logger.info(f"Deleted {num_deleted} group(s) with ID {workspace['id']}")
+            return OperationResult(
+                None,
+                None,
+                None,
+                None,
+                EventType.delete,
+                partial(log_delete_groups_via_mq, logger, num_deleted, str(workspace["id"])),
+            )
         else:
             raise ValidationError("Operation must be 'create', 'update', or 'delete'.")
+
+    def post_process_rows(self) -> None:
+        try:
+            if len(self.processed_rows) > 0:
+                db.session.commit()
+
+            for processed_row in self.processed_rows:
+                # Invoke OperationResult success logger for each processed row
+                if hasattr(processed_row, "success_logger") and callable(processed_row.success_logger):
+                    processed_row.success_logger()
+
+                # PG Notify for each processed workspace
+                if processed_row and processed_row.event_type and processed_row.row:
+                    _pg_notify_workspace(processed_row.event_type.name, str(processed_row.row.id))
+
+        except StaleDataError as exc:
+            metrics.ingress_message_handler_failure.inc(amount=len(self.processed_rows))
+            logger.error(
+                f"Session data is stale; failed to commit data from {len(self.processed_rows)} payloads.",
+                exc_info=exc,
+            )
+            db.session.rollback()
 
 
 class HostMessageConsumer(HBIMessageConsumerBase):
@@ -333,7 +413,7 @@ class IngressMessageConsumer(HostMessageConsumer):
                 input_host = _set_owner(input_host, identity)
 
             log_add_host_attempt(logger, input_host, sp_fields_to_log, identity)
-            processed_hosts = [result.host_row for result in self.processed_rows]
+            processed_hosts = [result.row for result in self.processed_rows]
             host_row, add_result = host_repository.add_host(
                 input_host, identity, operation_args=operation_args, existing_hosts=processed_hosts
             )
@@ -345,9 +425,14 @@ class IngressMessageConsumer(HostMessageConsumer):
                 db.session.flush()  # Flush so that we can retrieve the created host's ID
                 # Get org's "ungrouped hosts" group (create if not exists) and assign host to it
                 group = get_or_create_ungrouped_hosts_group_for_identity(identity)
-                assoc = HostGroupAssoc(host_row.id, group.id)
+                if inventory_config().hbi_db_refactoring_use_old_table:
+                    # Old code: constructor without org_id
+                    assoc = HostGroupAssoc(host_row.id, group.id)
+                else:
+                    # New code: constructor with org_id
+                    assoc = HostGroupAssoc(host_row.id, group.id, identity.org_id)
                 db.session.add(assoc)
-                host_row.groups = [serialize_group(group, identity.org_id)]
+                host_row.groups = [serialize_group(group)]
                 db.session.flush()
 
             success_logger = partial(log_add_update_host_succeeded, logger, add_result, sp_fields_to_log)
@@ -434,18 +519,19 @@ def _formatted_uuid(uuid_string):
 
 def _get_identity(host, metadata) -> Identity:
     # rhsm reporter does not provide identity.  Set identity type to system for access the host in future.
+    identity_dict: dict[str, Any]
     if metadata and "b64_identity" in metadata:
-        identity = _decode_id(metadata["b64_identity"])
+        identity_dict = _decode_id(metadata["b64_identity"])
     else:
         reporter = host.get("reporter")
         if (reporter == "rhsm-conduit" or reporter == "rhsm-system-profile-bridge") and host.get(
             "subscription_manager_id"
         ):
-            identity = deepcopy(SYSTEM_IDENTITY)
+            identity_dict = deepcopy(SYSTEM_IDENTITY)
             if "account" in host:
-                identity["account_number"] = host["account"]
-            identity["org_id"] = host.get("org_id")
-            identity["system"]["cn"] = _formatted_uuid(host.get("subscription_manager_id"))
+                identity_dict["account_number"] = host["account"]
+            identity_dict["org_id"] = host.get("org_id")
+            identity_dict["system"]["cn"] = _formatted_uuid(host.get("subscription_manager_id"))
         elif metadata:
             raise ValidationException(
                 "When identity is not provided, reporter MUST be rhsm-conduit or rhsm-system-profile-bridge,"
@@ -457,10 +543,10 @@ def _get_identity(host, metadata) -> Identity:
 
     if not host.get("org_id"):
         raise ValidationException("org_id must be provided")
-    elif host.get("org_id") != identity["org_id"]:
+    elif host.get("org_id") != identity_dict["org_id"]:
         raise ValidationException("The org_id in the identity does not match the org_id in the host.")
     try:
-        identity = Identity(identity)
+        identity = Identity(identity_dict)
     except ValueError as e:
         raise ValidationException(str(e)) from e
     return identity
@@ -559,25 +645,23 @@ def sync_event_message(message, session, event_producer):
 def write_delete_event_message(event_producer: EventProducer, result: OperationResult, initiated_by_frontend: bool):
     event = build_event(
         EventType.delete,
-        result.host_row,
+        result.row,
         platform_metadata=result.platform_metadata,
         initiated_by_frontend=initiated_by_frontend,
     )
     headers = message_headers(
         EventType.delete,
-        result.host_row.canonical_facts.get("insights_id"),
-        result.host_row.reporter,
-        result.host_row.system_profile_facts.get("host_type"),
-        result.host_row.system_profile_facts.get("operating_system", {}).get("name"),
-        str(result.host_row.system_profile_facts.get("bootc_status", {}).get("booted") is not None),
+        result.row.canonical_facts.get("insights_id"),
+        result.row.reporter,
+        result.row.system_profile_facts.get("host_type"),
+        result.row.system_profile_facts.get("operating_system", {}).get("name"),
+        str(result.row.system_profile_facts.get("bootc_status", {}).get("booted") is not None),
     )
-    event_producer.write_event(event, str(result.host_row.id), headers, wait=True)
-    insights_id = result.host_row.canonical_facts.get("insights_id")
-    owner_id = result.host_row.system_profile_facts.get("owner_id")
+    event_producer.write_event(event, str(result.row.id), headers, wait=True)
+    insights_id = result.row.canonical_facts.get("insights_id")
+    owner_id = result.row.system_profile_facts.get("owner_id")
     if insights_id and owner_id:
-        delete_cached_system_keys(
-            insights_id=insights_id, org_id=result.host_row.org_id, owner_id=owner_id, spawn=True
-        )
+        delete_cached_system_keys(insights_id=insights_id, org_id=result.row.org_id, owner_id=owner_id, spawn=True)
     result.success_logger()
 
 
@@ -591,17 +675,17 @@ def write_add_update_event_message(
 
     # The request ID in the headers is fetched from threadctx.request_id
     request_id = result.platform_metadata.get("request_id")
-    initialize_thread_local_storage(request_id, result.host_row.org_id, result.host_row.account)
+    initialize_thread_local_storage(request_id, result.row.org_id, result.row.account)
     payload_tracker = get_payload_tracker(request_id=request_id)
 
     with PayloadTrackerProcessingContext(
         payload_tracker,
         processing_status_message="host operation complete",
         current_operation="write_message_batch",
-        inventory_id=result.host_row.id,
+        inventory_id=result.row.id,
     ):
-        output_host = serialize_host(result.host_row, result.staleness_timestamps, staleness=result.staleness_object)
-        insights_id = result.host_row.canonical_facts.get("insights_id")
+        output_host = serialize_host(result.row, result.staleness_timestamps, staleness=result.staleness_object)
+        insights_id = result.row.canonical_facts.get("insights_id")
         event = build_event(result.event_type, output_host, platform_metadata=result.platform_metadata)
 
         headers = message_headers(
@@ -613,7 +697,7 @@ def write_add_update_event_message(
             str(output_host.get("system_profile", {}).get("bootc_status", {}).get("booted") is not None),
         )
 
-    event_producer.write_event(event, str(result.host_row.id), headers, wait=True)
+    event_producer.write_event(event, str(result.row.id), headers, wait=True)
 
     if result.event_type.name == HOST_EVENT_TYPE_CREATED:
         # Notifications are expected to omit null canonical facts
@@ -626,18 +710,19 @@ def write_add_update_event_message(
     result.success_logger(output_host)
 
     org_id = output_host.get("org_id")
-    if get_flag_value(FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM):
-        try:
-            owner_id = output_host.get("system_profile", {}).get("owner_id")
-            if owner_id and insights_id and org_id:
-                system_key = make_system_cache_key(insights_id, org_id, owner_id)
-                if "tags" in output_host:
-                    del output_host["tags"]
-                if "system_profile" in output_host:
-                    del output_host["system_profile"]
-                set_cached_system(system_key, output_host, inventory_config())
-        except Exception as ex:
-            logger.error("Error during set cache", ex)
+    try:
+        owner_id = output_host.get("system_profile", {}).get("owner_id")
+        if owner_id and insights_id and org_id:
+            system_key = make_system_cache_key(insights_id, org_id, owner_id)
+            if "tags" in output_host:
+                del output_host["tags"]
+            if "system_profile" in output_host:
+                del output_host["system_profile"]
+            # Set full group details before caching
+            output_host["groups"] = result.row.groups or []
+            set_cached_system(system_key, output_host, inventory_config())
+    except Exception as ex:
+        logger.error("Error during set cache", ex)
 
 
 def write_message_batch(

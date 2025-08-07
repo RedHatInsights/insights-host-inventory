@@ -87,6 +87,7 @@ def validate_sp_schemas(
                         logger.info(f"Message failed validation: {ie.detail}")
                     except Exception as e:
                         logger.info(f"Message caused an unexpected exception: {e}")
+                        raise e
             except json.JSONDecodeError:
                 logger.exception("Unable to parse json message from message queue.")
             except ValidationError:

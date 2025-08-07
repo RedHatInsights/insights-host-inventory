@@ -156,9 +156,7 @@ def run(
             for host in query.yield_per(500):
                 identity = create_mock_identity_with_org_id(host.org_id)
                 result = _create_host_operation_result(host, identity, logger)
-                send_notification(
-                    notification_event_producer, NotificationType.system_became_stale, vars(result.host_row)
-                )
+                send_notification(notification_event_producer, NotificationType.system_became_stale, vars(result.row))
 
                 stale_host_notification_success_count.inc()
                 result.success_logger()

@@ -4,14 +4,16 @@ import os
 from collections.abc import Generator
 from typing import Any
 from typing import Callable
+from uuid import UUID
 
 import pytest
 from connexion import FlaskApp
+from sqlalchemy.orm import Query
 from sqlalchemy_utils import create_database
 from sqlalchemy_utils import database_exists
 from sqlalchemy_utils import drop_database
 
-from app.auth.identity import Identity
+from app.common import inventory_config
 from app.config import Config
 from app.environment import RuntimeEnvironment
 from app.models import Group
@@ -19,13 +21,12 @@ from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import Staleness
 from app.models import db
-from app.serialization import serialize_group
+from lib.group_repository import serialize_group
 from tests.helpers.db_utils import db_group
+from tests.helpers.db_utils import db_host_with_custom_canonical_facts
 from tests.helpers.db_utils import db_staleness_culling
 from tests.helpers.db_utils import minimal_db_host
-from tests.helpers.db_utils import minimal_db_host_dict
 from tests.helpers.test_utils import SYSTEM_IDENTITY
-from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import now
 from tests.helpers.test_utils import set_environment
 
@@ -56,17 +57,24 @@ def database(database_name: None) -> Generator[str]:  # noqa: ARG001
 
 
 @pytest.fixture(scope="function")
-def db_get_host(flask_app):  # noqa: ARG001
-    def _db_get_host(host_id):
-        return Host.query.filter(Host.id == host_id).one_or_none()
+def db_get_host(flask_app: FlaskApp) -> Callable[[UUID], Host | None]:  # noqa: ARG001
+    def _db_get_host(host_id: UUID, org_id: str | None = None) -> Host | None:
+        org_id = org_id or SYSTEM_IDENTITY["org_id"]
+        if inventory_config().hbi_db_refactoring_use_old_table:
+            # Old code: filter by ID only
+            return Host.query.filter(Host.id == host_id).one_or_none()
+        else:
+            # New code: filter by org_id and ID
+            return Host.query.filter(Host.org_id == org_id, Host.id == host_id).one_or_none()
 
     return _db_get_host
 
 
 @pytest.fixture(scope="function")
-def db_get_hosts(flask_app):  # noqa: ARG001
-    def _db_get_hosts(host_ids):
-        return Host.query.filter(Host.id.in_(host_ids))
+def db_get_hosts(flask_app: FlaskApp) -> Callable[[list[str], str | None], Query]:  # noqa: ARG001
+    def _db_get_hosts(host_ids: list[str], org_id: str | None = None) -> Query:
+        org_id = org_id or SYSTEM_IDENTITY["org_id"]
+        return Host.query.filter(Host.org_id == org_id, Host.id.in_(host_ids))
 
     return _db_get_hosts
 
@@ -129,8 +137,13 @@ def db_get_hosts_for_group(flask_app):  # noqa: ARG001
 
 @pytest.fixture(scope="function")
 def db_get_groups_for_host(flask_app):  # noqa: ARG001
-    def _db_get_groups_for_host(host_id):
-        return Group.query.join(HostGroupAssoc).filter(HostGroupAssoc.host_id == host_id).all()
+    def _db_get_groups_for_host(host_id, org_id=None):
+        org_id = org_id or SYSTEM_IDENTITY["org_id"]
+        return (
+            Group.query.join(HostGroupAssoc)
+            .filter(HostGroupAssoc.org_id == org_id, HostGroupAssoc.host_id == host_id)
+            .all()
+        )
 
     return _db_get_groups_for_host
 
@@ -138,10 +151,12 @@ def db_get_groups_for_host(flask_app):  # noqa: ARG001
 @pytest.fixture(scope="function")
 def db_create_host(flask_app: FlaskApp) -> Callable[..., Host]:  # noqa: ARG001
     def _db_create_host(
-        identity: dict[str, Any] = SYSTEM_IDENTITY, host: Host | None = None, extra_data: dict[str, Any] | None = None
+        identity: dict[str, Any] | None = None, host: Host | None = None, extra_data: dict[str, Any] | None = None
     ) -> Host:
+        identity = identity or SYSTEM_IDENTITY
         extra_data = extra_data or {}
-        host = host or minimal_db_host(org_id=identity["org_id"], account=identity["account_number"], **extra_data)
+        org_id = extra_data.pop("org_id", None) or identity["org_id"]
+        host = host or minimal_db_host(org_id=org_id, account=identity["account_number"], **extra_data)
         db.session.add(host)
         db.session.commit()
         return host
@@ -150,8 +165,32 @@ def db_create_host(flask_app: FlaskApp) -> Callable[..., Host]:  # noqa: ARG001
 
 
 @pytest.fixture(scope="function")
-def db_create_multiple_hosts(flask_app):  # noqa: ARG001
-    def _db_create_multiple_hosts(identity=SYSTEM_IDENTITY, hosts=None, how_many=10, extra_data=None):
+def db_create_host_custom_canonical_facts(flask_app: FlaskApp) -> Callable[..., Host]:  # noqa: ARG001
+    def _create_host_custom_canonical_facts(
+        identity: dict[str, Any] | None = None, host: Host | None = None, extra_data: dict[str, Any] | None = None
+    ) -> Host:
+        identity = identity or SYSTEM_IDENTITY
+        extra_data = extra_data or {}
+        org_id = extra_data.pop("org_id", None) or identity["org_id"]
+        host = host or db_host_with_custom_canonical_facts(
+            org_id=org_id, account=identity["account_number"], **extra_data
+        )
+        db.session.add(host)
+        db.session.commit()
+        return host
+
+    return _create_host_custom_canonical_facts
+
+
+@pytest.fixture(scope="function")
+def db_create_multiple_hosts(flask_app: FlaskApp) -> Callable[..., list[Host]]:  # noqa: ARG001
+    def _db_create_multiple_hosts(
+        identity: dict[str, Any] | None = None,
+        hosts: list[Host] | None = None,
+        how_many: int = 10,
+        extra_data: dict[str, Any] | None = None,
+    ) -> list[Host]:
+        identity = identity or SYSTEM_IDENTITY
         extra_data = extra_data or {}
         created_hosts = []
         if isinstance(hosts, list):
@@ -172,21 +211,6 @@ def db_create_multiple_hosts(flask_app):  # noqa: ARG001
 
 
 @pytest.fixture(scope="function")
-def db_create_bulk_hosts(flask_app):  # noqa: ARG001
-    def _db_create_bulk_hosts(identity=SYSTEM_IDENTITY, how_many=10, extra_data=None):
-        extra_data = extra_data or {}
-        host_dicts = []
-
-        for _ in range(how_many):
-            hd = minimal_db_host_dict(org_id=identity["org_id"], **extra_data)
-            host_dicts.append(hd)
-
-        db.engine.execute(Host.__table__.insert(), host_dicts)
-
-    return _db_create_bulk_hosts
-
-
-@pytest.fixture(scope="function")
 def db_create_host_in_unknown_state(db_create_host):
     host = minimal_db_host()
     host.stale_timestamp = None
@@ -196,13 +220,14 @@ def db_create_host_in_unknown_state(db_create_host):
 
 @pytest.fixture(scope="function")
 def models_datetime_mock(mocker):
-    mock = mocker.patch("app.models.datetime", **{"now.return_value": now()})
+    mock = mocker.patch("app.models.utils.datetime", **{"now.return_value": now()})
     return mock.now.return_value
 
 
 @pytest.fixture(scope="function")
 def db_create_group(flask_app):  # noqa: ARG001
-    def _db_create_group(name, identity=SYSTEM_IDENTITY, ungrouped=False):
+    def _db_create_group(name, identity=None, ungrouped=False):
+        identity = identity or SYSTEM_IDENTITY
         group = db_group(org_id=identity["org_id"], account=identity["account_number"], name=name, ungrouped=ungrouped)
         db.session.add(group)
         db.session.commit()
@@ -214,11 +239,16 @@ def db_create_group(flask_app):  # noqa: ARG001
 @pytest.fixture(scope="function")
 def db_create_host_group_assoc(flask_app, db_get_group_by_id):  # noqa: ARG001
     def _db_create_host_group_assoc(host_id, group_id):
-        host_group = HostGroupAssoc(host_id=host_id, group_id=group_id)
+        # Get the group to obtain the org_id (same as host's org_id in test fixtures)
+        group = db_get_group_by_id(group_id)
+        if group is None:
+            raise ValueError(f"Group with id {group_id} not found")
+        host_group = HostGroupAssoc(host_id=host_id, group_id=group_id, org_id=group.org_id)
         db.session.add(host_group)
-        identity = Identity(USER_IDENTITY)
-        serialized_groups = [serialize_group(db_get_group_by_id(group_id), identity.org_id)]
-        db.session.query(Host).filter(Host.id == host_id).update({"groups": serialized_groups})
+        serialized_groups = [serialize_group(group)]
+        db.session.query(Host).filter(Host.org_id == group.org_id, Host.id == host_id).update(
+            {"groups": serialized_groups}
+        )
 
         db.session.commit()
         return host_group
@@ -229,7 +259,13 @@ def db_create_host_group_assoc(flask_app, db_get_group_by_id):  # noqa: ARG001
 @pytest.fixture(scope="function")
 def db_remove_hosts_from_group(flask_app):  # noqa: ARG001
     def _db_remove_hosts_from_group(host_id_list, group_id):
-        db.session.query(Host).filter(Host.id.in_(host_id_list)).update({"groups": []}, synchronize_session=False)
+        # Get the org_id from the group to ensure we use the composite primary key
+        group = db.session.query(Group).filter(Group.id == group_id).first()
+        if not group:
+            raise ValueError(f"Group with id {group_id} not found")
+        db.session.query(Host).filter(Host.org_id == group.org_id, Host.id.in_(host_id_list)).update(
+            {"groups": []}, synchronize_session=False
+        )
         delete_query = db.session.query(HostGroupAssoc).filter(
             HostGroupAssoc.group_id == group_id, HostGroupAssoc.host_id.in_(host_id_list)
         )

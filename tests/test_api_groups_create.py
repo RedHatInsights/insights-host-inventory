@@ -24,7 +24,7 @@ def test_create_group_with_empty_host_list(api_create_group, db_get_group_by_nam
     assert_response_status(response_status, expected_status=201)
 
     retrieved_group = db_get_group_by_name(group_data.get("name"))
-    assert_group_response(response_data, retrieved_group)
+    assert_group_response(response_data, retrieved_group, 0)
 
     # No hosts modified, so no events should be written.
     assert event_producer.write_event.call_count == 0
@@ -39,7 +39,7 @@ def test_create_group_without_hosts_in_request_body(api_create_group, db_get_gro
     assert_response_status(response_status, expected_status=201)
 
     retrieved_group = db_get_group_by_name(group_data.get("name"))
-    assert_group_response(response_data, retrieved_group)
+    assert_group_response(response_data, retrieved_group, 0)
 
     # No hosts modified, so no events should be written.
     assert event_producer.write_event.call_count == 0
@@ -60,7 +60,7 @@ def test_create_group_with_hosts(
     assert_response_status(response_status, expected_status=201)
 
     retrieved_group = db_get_group_by_name(group_data["name"])
-    assert_group_response(response_data, retrieved_group)
+    assert_group_response(response_data, retrieved_group, 2)
     assert event_producer.write_event.call_count == 2
     for call_arg in event_producer.write_event.call_args_list:
         event = json.loads(call_arg[0][0])

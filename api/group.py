@@ -20,6 +20,7 @@ from app import RbacResourceType
 from app.auth import get_current_identity
 from app.common import inventory_config
 from app.exceptions import InventoryException
+from app.exceptions import ResourceNotFoundException
 from app.instrumentation import log_create_group_failed
 from app.instrumentation import log_create_group_not_allowed
 from app.instrumentation import log_create_group_succeeded
@@ -30,6 +31,7 @@ from app.instrumentation import log_patch_group_failed
 from app.instrumentation import log_patch_group_success
 from app.logging import get_logger
 from app.models import InputGroupSchema
+from app.queue.events import EventType
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.feature_flags import get_flag_value
 from lib.group_repository import add_hosts_to_group
@@ -41,7 +43,7 @@ from lib.group_repository import get_ungrouped_group
 from lib.group_repository import patch_group
 from lib.group_repository import remove_hosts_from_group
 from lib.group_repository import validate_add_host_list_to_group_for_group_create
-from lib.group_repository import wait_for_workspace_creation
+from lib.group_repository import wait_for_workspace_event
 from lib.metrics import create_group_count
 from lib.middleware import delete_rbac_workspace
 from lib.middleware import patch_rbac_workspace
@@ -61,12 +63,13 @@ def get_group_list(
     per_page=100,
     order_by=None,
     order_how=None,
-    type=None,
+    group_type=None,
     rbac_filter=None,
 ):
-    print(f">>> type: {type}")
     try:
-        group_list, total = get_filtered_group_list_db(name, page, per_page, order_by, order_how, rbac_filter, type)
+        group_list, total = get_filtered_group_list_db(
+            name, page, per_page, order_by, order_how, rbac_filter, group_type
+        )
     except ValueError as e:
         log_get_group_list_failed(logger)
         abort(400, str(e))
@@ -123,7 +126,7 @@ def create_group(body, rbac_filter=None):
 
             # Wait for the MQ to notify us of the workspace creation
             try:
-                wait_for_workspace_creation(workspace_id, inventory_config().rbac_timeout)
+                wait_for_workspace_event(workspace_id, EventType.created, inventory_config().rbac_timeout)
             except TimeoutError:
                 abort(HTTPStatus.SERVICE_UNAVAILABLE, "Timed out waiting for a message from RBAC v2.")
 
@@ -221,7 +224,21 @@ def delete_groups(group_id_list, rbac_filter=None):
             if ungrouped_group_id == group_id:
                 abort(HTTPStatus.BAD_REQUEST, f"Ungrouped workspace {group_id} can not be deleted.")
 
-        delete_count = sum((delete_rbac_workspace(group_id)) is True for group_id in group_id_list)
+        group_ids_to_delete = []
+        delete_count = 0
+
+        # Attempt to delete the RBAC workspaces
+        for group_id in group_id_list:
+            try:
+                if delete_rbac_workspace(group_id):
+                    delete_count += 1
+            except ResourceNotFoundException:
+                # For workspaces that are missing from RBAC,
+                # we'll attempt to delete the groups on our side
+                group_ids_to_delete.append(group_id)
+
+        # Attempt to delete the "not found" groups on our side
+        delete_count += delete_group_list(group_ids_to_delete, get_current_identity(), current_app.event_producer)
     else:
         delete_count = delete_group_list(group_id_list, get_current_identity(), current_app.event_producer)
 
