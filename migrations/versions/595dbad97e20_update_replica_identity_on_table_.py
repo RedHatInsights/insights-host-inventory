@@ -85,5 +85,5 @@ def downgrade():
         sp_static_partition_name = f"{INVENTORY_SCHEMA}.system_profiles_static_p{i}"
         op.execute(text(f"ALTER TABLE {sp_static_partition_name} REPLICA IDENTITY DEFAULT;"))
 
-        sp_dynamic_partition_name = f"{INVENTORY_SCHEMA}.system_profiles_dynamic_p{i}"
+        sp_dynamic_partition_name = f"{INVENTORY_SCHEMA}.system_profile_dynamic_p{i}"
         op.execute(text(f"ALTER TABLE {sp_dynamic_partition_name} REPLICA IDENTITY DEFAULT;"))
