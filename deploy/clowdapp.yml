@@ -2296,7 +2296,7 @@ objects:
             ) AS "package_mode_count",
             COUNT(*) FILTER (WHERE
               "system_profile_facts"->>'host_type' = 'edge'
-            ) AS "edge_count",
+            ) AS "edge_count"
           FROM "hbi"."hosts"
           GROUP BY "org_id";
       - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/duplicated_hosts_by_org
