@@ -42,21 +42,12 @@ class Timestamps(_WithConfig):
 
 
 class Conditions:
-    def __init__(self, staleness, host_type):
-        self.now = datetime.now(UTC)
-        self.host_type = host_type
-
-        self.staleness_host_type = {
-            None: {
-                "stale": staleness["conventional_time_to_stale"],
-                "warning": staleness["conventional_time_to_stale_warning"],
-                "culled": staleness["conventional_time_to_delete"],
-            },
-            "edge": {
-                "stale": staleness["immutable_time_to_stale"],
-                "warning": staleness["immutable_time_to_stale_warning"],
-                "culled": staleness["immutable_time_to_delete"],
-            },
+    def __init__(self, staleness):
+        self.now = datetime.now(timezone.utc)
+        self.staleness_setting = {
+            "stale": staleness["conventional_time_to_stale"],
+            "warning": staleness["conventional_time_to_stale_warning"],
+            "culled": staleness["conventional_time_to_delete"],
         }
 
     def fresh(self):
@@ -75,15 +66,15 @@ class Conditions:
         return self._culled_timestamp(), None
 
     def _stale_timestamp(self):
-        offset = timedelta(seconds=self.staleness_host_type[self.host_type]["stale"])
+        offset = timedelta(seconds=self.staleness_setting["stale"])
         return self.now - offset
 
     def _stale_warning_timestamp(self):
-        offset = timedelta(seconds=self.staleness_host_type[self.host_type]["warning"])
+        offset = timedelta(seconds=self.staleness_setting["warning"])
         return self.now - offset
 
     def _culled_timestamp(self):
-        offset = timedelta(seconds=self.staleness_host_type[self.host_type]["culled"])
+        offset = timedelta(seconds=self.staleness_setting["culled"])
         return self.now - offset
 
     @staticmethod
