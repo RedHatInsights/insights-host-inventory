@@ -250,9 +250,8 @@ def find_stale_hosts(org_id, last_run_secs, job_start_time):
     staleness_conditions = [
         or_(
             False,
-            *find_stale_host_in_window(staleness_obj, host_type, last_run_secs, job_start_time),
+            *find_stale_host_in_window(staleness_obj, last_run_secs, job_start_time),
         )
-        for host_type in HOST_TYPES
     ]
 
     return or_(False, *staleness_conditions)
@@ -264,9 +263,8 @@ def find_stale_host_sys_default_staleness(last_run_secs, job_start_time):
     staleness_conditions = [
         or_(
             False,
-            *find_stale_host_in_window(sys_default_staleness, host_type, last_run_secs, job_start_time),
+            *find_stale_host_in_window(sys_default_staleness, last_run_secs, job_start_time),
         )
-        for host_type in HOST_TYPES
     ]
 
     return or_(False, *staleness_conditions)
