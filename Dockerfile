@@ -30,6 +30,7 @@ COPY migrations/ migrations/
 COPY swagger/ swagger/
 COPY tests/ tests/
 COPY utils/ utils/
+COPY mk/ mk/
 COPY Makefile Makefile
 COPY gunicorn.conf.py gunicorn.conf.py
 COPY host_reaper.py host_reaper.py

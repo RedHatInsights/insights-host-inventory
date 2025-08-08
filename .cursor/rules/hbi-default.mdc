@@ -6,4 +6,3 @@ alwaysApply: true
 
 - This project runs in a virtual environment; always use `pipenv run` when running python or pytest commands.
 - When making changes, always test your code and make fixes as needed.
-- Before finishing your code changes, always run `make style` to lint the code and check for errors.
