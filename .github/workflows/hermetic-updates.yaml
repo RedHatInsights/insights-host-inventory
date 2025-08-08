@@ -21,9 +21,9 @@ jobs:
 
       - name: Subscribe to Red Hat
         run: |
-          subscription-manager register \
-            --org="${{ secrets.BUILD_RH_ORG_ID }}" \
-            --activationkey="${{ secrets.BUILD_RH_ACTIVATION_KEY }}"
+          su -c "subscription-manager register \
+                --org='${{ secrets.BUILD_RH_ORG_ID }}' \
+                --activationkey='${{ secrets.BUILD_RH_ORG_ACTIVATION_KEY }}'" root
 
       - name: Run the hermetic lockfile updates
         run: make generate-hermetic-lockfiles
@@ -72,4 +72,4 @@ jobs:
       - name: Unsubscribe (cleanup)
         if: always()
         run: |
-          subscription-manager unregister || true
+          su -c "subscription-manager unregister || true" root
