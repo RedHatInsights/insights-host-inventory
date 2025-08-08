@@ -22,6 +22,22 @@ SP_DYNAMIC_TABLE_NAME = "system_profiles_dynamic"
 SP_STATIC_TABLE_NAME = "system_profiles_static"
 
 
+"""
+This migration prepares the `hosts`, `system_profiles_dynamic`, and `system_profiles_static` tables
+for logical replication by:
+   1. Creating a unique index on (org_id, id, insights_id) in the `hosts` table and setting it as the replica identity.
+      - In "automated" mode: Creates the index directly on the parent table.
+      - In "managed" mode: Builds indexes concurrently on each partition first, waits for
+        completion, then creates the parent index. (Stage and Prod)
+   2. Creating new triggers and functions to keep `insights_id` values in the
+      `system_profiles_static` and `system_profiles_dynamic` tables in sync with updates
+      to the `hosts` table.
+
+The `insights_id` field in the system profile tables is used solely to filter out records
+during logical replication. It is not itself replicated, and the application does not need to know it exists.
+"""
+
+
 def validate_num_partitions(num_partitions: int):
     if not 1 <= num_partitions <= 32:
         raise ValueError(f"Invalid number of partitions: {num_partitions}. Must be between 1 and 32.")
@@ -104,11 +120,11 @@ def upgrade():
             IF (TG_OP = 'UPDATE' AND NEW.insights_id IS DISTINCT FROM OLD.insights_id) THEN
                 UPDATE {INVENTORY_SCHEMA}.{SP_STATIC_TABLE_NAME}
                 SET insights_id = NEW.insights_id
-                WHERE host_id = NEW.id AND org_id = NEW.org_id;
+                WHERE org_id = NEW.org_id AND host_id = NEW.id;
 
                 UPDATE {INVENTORY_SCHEMA}.{SP_DYNAMIC_TABLE_NAME}
                 SET insights_id = NEW.insights_id
-                WHERE host_id = NEW.id AND org_id = NEW.org_id;
+                WHERE org_id = NEW.org_id AND host_id = NEW.id;
             END IF;
 
             RETURN NULL;
@@ -131,12 +147,12 @@ def upgrade():
         BEGIN
             SELECT insights_id INTO v_host_insights_id
             FROM {INVENTORY_SCHEMA}.hosts
-            WHERE id = NEW.host_id AND org_id = NEW.org_id;
+            WHERE org_id = NEW.org_id AND id = NEW.host_id;
 
             IF v_host_insights_id IS DISTINCT FROM NEW.insights_id THEN
                 UPDATE {INVENTORY_SCHEMA}.{SP_STATIC_TABLE_NAME}
                 SET insights_id = v_host_insights_id
-                WHERE host_id = NEW.host_id AND org_id = NEW.org_id;
+                WHERE org_id = NEW.org_id AND host_id = NEW.host_id;
             END IF;
 
             RETURN NULL;
@@ -159,12 +175,12 @@ def upgrade():
         BEGIN
             SELECT insights_id INTO v_host_insights_id
             FROM {INVENTORY_SCHEMA}.hosts
-            WHERE id = NEW.host_id AND org_id = NEW.org_id;
+            WHERE org_id = NEW.org_id AND id = NEW.host_id;
 
             IF v_host_insights_id IS DISTINCT FROM NEW.insights_id THEN
                 UPDATE {INVENTORY_SCHEMA}.{SP_DYNAMIC_TABLE_NAME}
                 SET insights_id = v_host_insights_id
-                WHERE host_id = NEW.host_id AND org_id = NEW.org_id;
+                WHERE org_id = NEW.org_id AND host_id = NEW.host_id;
             END IF;
 
             RETURN NULL;
