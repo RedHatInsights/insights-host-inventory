@@ -1,5 +1,3 @@
-from typing import Optional
-
 import flask
 from confluent_kafka import Consumer as KafkaConsumer
 
@@ -86,10 +84,10 @@ def get_sap_sids(
 @metrics.api_request_time.time()
 def get_operating_system(
     tags=None,
-    page: Optional[int] = None,
-    per_page: Optional[int] = None,
-    staleness: Optional[list[str]] = None,
-    registered_with: Optional[list[str]] = None,
+    page: int | None = None,
+    per_page: int | None = None,
+    staleness: list[str] | None = None,
+    registered_with: list[str] | None = None,
     filter=None,
     rbac_filter=None,
 ):

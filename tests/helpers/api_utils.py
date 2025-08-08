@@ -3,13 +3,13 @@ from __future__ import annotations
 import json
 import math
 from base64 import b64encode
+from collections.abc import Callable
 from datetime import timedelta
 from enum import Enum
 from http import HTTPStatus
 from itertools import product
 from struct import unpack
 from typing import Any
-from typing import Callable
 from urllib.parse import parse_qs
 from urllib.parse import quote_plus as url_quote
 from urllib.parse import urlencode

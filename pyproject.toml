@@ -4,7 +4,7 @@ version = "0.1.0"
 
 [tool.ruff]
 line-length = 119
-target-version = "py39"
+target-version = "py311"
 
 lint.select = [
     # pycodestyle
@@ -42,7 +42,7 @@ lint.isort.force-single-line = true
 lint.flake8-unused-arguments.ignore-variadic-names = true
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.11"
 
 # Start off with these
 warn_unused_configs = true

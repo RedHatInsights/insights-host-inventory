@@ -50,7 +50,7 @@ the [Inventory section in our Platform Docs site](https://consoledot.pages.redha
 Before starting, ensure you have the following installed on your system:
 
 - **Docker**: For running containers and services.
-- **Python 3.9.x**: The recommended version for this project.
+- **Python 3.11.x**: The recommended version for this project.
 - **pipenv**: For managing Python dependencies.
 
 ### Environment setup

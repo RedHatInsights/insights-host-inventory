@@ -8,10 +8,12 @@ ENV APP_ROOT=/opt/app-root/src
 WORKDIR $APP_ROOT
 
 RUN (microdnf module enable -y postgresql:16 || curl -o /etc/yum.repos.d/postgresql.repo $pgRepo) && \
-    microdnf install --setopt=tsflags=nodocs -y postgresql python39 rsync tar procps-ng make git && \
+    microdnf install --setopt=tsflags=nodocs -y postgresql python3.11 python3.11-pip rsync tar procps-ng make git && \
     rpm -qa | sort > packages-before-devel-install.txt && \
-    microdnf install --setopt=tsflags=nodocs -y libpq-devel python3-devel gcc cargo rust glibc-devel krb5-libs krb5-devel libffi-devel gcc-c++ make zlib zlib-devel openssl-libs openssl-devel libzstd libzstd-devel unzip which diffutils && \
-    rpm -qa | sort > packages-after-devel-install.txt
+    microdnf install --setopt=tsflags=nodocs -y libpq-devel python3.11-devel gcc cargo rust glibc-devel krb5-libs krb5-devel libffi-devel gcc-c++ make zlib zlib-devel openssl-libs openssl-devel libzstd libzstd-devel unzip which diffutils && \
+    rpm -qa | sort > packages-after-devel-install.txt && \
+    ln -s /usr/bin/python3.11 /usr/bin/python && \
+    ln -s /usr/bin/python3.11 /usr/bin/python3
 
 # Download and install librdkafka
 RUN curl -L https://github.com/confluentinc/librdkafka/archive/refs/tags/v2.10.1.zip -o /tmp/librdkafka.zip || cp /cachi2/output/deps/generic/v2.10.1.zip /tmp/librdkafka.zip && \
@@ -76,7 +78,7 @@ RUN python3 -m pip install --upgrade pip setuptools wheel && \
     pipenv install --system
 
 # remove devel packages that were only necessary for psycopg2 to compile
-RUN microdnf remove  -y  libpq-devel python3-devel gcc cargo rust rust-std-static gcc-c++ && \
+RUN microdnf remove  -y  libpq-devel python3.11-devel gcc cargo rust rust-std-static gcc-c++ && \
     microdnf clean all
 
 ENV LD_LIBRARY_PATH=/usr/lib64:/usr/lib

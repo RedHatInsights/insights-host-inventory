@@ -1,4 +1,4 @@
-from typing import Callable
+from collections.abc import Callable
 
 from connexion import FlaskApp
 from pytest_mock import MockerFixture

@@ -1,5 +1,5 @@
+from datetime import UTC
 from datetime import datetime
-from datetime import timezone
 
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm.base import instance_state
@@ -36,7 +36,7 @@ def _set_display_name_on_save(context):
 
 
 def _time_now():
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _create_staleness_timestamps_values(host, org_id):

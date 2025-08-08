@@ -1,4 +1,4 @@
-packages: [cargo, diffutils, gcc, gcc-c++, git, glibc-devel, krb5-devel, krb5-libs, libffi-devel, libpq-devel, libzstd, libzstd-devel, make, openssl-devel, openssl-libs, postgresql, procps-ng, python39, python3-devel, rsync, rust, tar, unzip, which, zlib, zlib-devel]
+packages: [cargo, diffutils, gcc, gcc-c++, git, glibc-devel, krb5-devel, krb5-libs, libffi-devel, libpq-devel, libzstd, libzstd-devel, make, openssl-devel, openssl-libs, postgresql, procps-ng, python3.11, python3.11-devel, python3.11-pip, rsync, rust, tar, unzip, which, zlib, zlib-devel]
 contentOrigin:
   repofiles: ["./ubi.repo"]
 moduleEnable: ["postgresql:16"]

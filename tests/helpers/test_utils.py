@@ -9,9 +9,9 @@ import string
 import unittest.mock
 import uuid
 from copy import deepcopy
+from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
-from datetime import timezone
 from random import choice
 from random import randint
 from typing import Any
@@ -102,7 +102,7 @@ def generate_random_string(size=10):
 
 
 def now():
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def get_staleness_timestamps():
@@ -331,7 +331,7 @@ class MockResponseObject:
 
 def get_sample_profile_data(org_id, host_id):
     """Returns a dictionary of sample data for creating a dynamic profile."""
-    current_time = datetime.now(timezone.utc)
+    current_time = datetime.now(UTC)
     return {
         "org_id": org_id,
         "host_id": host_id,

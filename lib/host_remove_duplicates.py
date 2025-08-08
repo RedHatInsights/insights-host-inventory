@@ -1,6 +1,6 @@
+from collections.abc import Callable
 from logging import Logger
 from typing import Any
-from typing import Callable
 
 from flask_sqlalchemy.query import Query
 from sqlalchemy.orm import Session
