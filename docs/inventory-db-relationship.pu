@@ -1,0 +1,13 @@
+@startuml
+
+class SystemProfile
+class Hosts
+class NetworkInterface
+class DiskDevice
+
+
+Hosts "1" *-- "1" SystemProfile
+SystemProfile "1" *-- "1..*" NetworkInterface
+SystemProfile "1" *-- "1..*" DiskDevice
+
+@enduml
