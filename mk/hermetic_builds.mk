@@ -7,12 +7,13 @@ CONTAINERFILE ?= Dockerfile
 hermetic_builds_dir = .hermetic_builds
 hermetic_builds_path = $(project_dir)/$(hermetic_builds_dir)
 
-
 .PHONY: generate-hermetic-lockfiles
 generate-hermetic-lockfiles: generate-rpms-lockfile generate-requirements-txt generate-requirements-build-txt
 
 # Generate rpms.in.yaml listing RPM packages installed via yum, dnf, or microdnf from CONTAINERFILE
-# Usage: make generate-rpms-lockfile [CONTAINERFILE=<path>] [BASE_IMAGE=<image>]
+# Usage: make generate-rpms-lockfile [CONTAINERFILE=<path>] [BASE_IMAGE=<image>|local]
+#   BASE_IMAGE can be set to 'local' to use the local system's repositories instead of a container image.
+#     It then assumes you're running in the context of the base image already (e.g., in a UBI 9).
 # Example: make generate-rpms-lockfile CONTAINERFILE=Containerfile BASE_IMAGE=registry.access.redhat.com/ubi9/ubi:latest
 #          make generate-rpms-lockfile (uses default CONTAINERFILE=Dockerfile and BASE_IMAGE=registry.access.redhat.com/ubi9/ubi-minimal:latest)
 .PHONY: generate-rpms-lockfile
@@ -23,7 +24,11 @@ $(hermetic_builds_dir)/ubi.repo:
 		echo "Error: This system is not running RHEL 9"; \
 		exit 1; \
 	fi
-	@podman run -it $(BASE_IMAGE) cat /etc/yum.repos.d/ubi.repo > $(hermetic_builds_path)/ubi.repo || { echo "Failed to fetch ubi.repo"; exit 1; }
+	@if [ "$(BASE_IMAGE)" = "local" ]; then \
+		cp /etc/yum.repos.d/ubi.repo $(hermetic_builds_path)/ubi.repo || { echo "Failed to fetch ubi.repo"; exit 1; }; \
+	else \
+		podman run -it $(BASE_IMAGE) cat /etc/yum.repos.d/ubi.repo > $(hermetic_builds_path)/ubi.repo || { echo "Failed to fetch ubi.repo"; exit 1; }; \
+	fi
 	@sed -i 's/ubi-9-appstream-source-rpms/ubi-9-for-x86_64-appstream-source-rpms/' $(hermetic_builds_path)/ubi.repo
 	@sed -i 's/ubi-9-appstream-rpms/ubi-9-for-x86_64-appstream-rpms/' $(hermetic_builds_path)/ubi.repo
 	@sed -i 's/ubi-9-baseos-source-rpms/ubi-9-for-x86_64-baseos-source-rpms/' $(hermetic_builds_path)/ubi.repo
@@ -174,7 +179,11 @@ generate-requirements-build-txt: generate-requirements-build-in
 		echo "Error: Missing scripts in $(hermetic_builds_dir) directory"; \
 		exit 1; \
 	fi
-	@podman run -it -v "$(hermetic_builds_path)":/project:Z --user 0:0 -w /project $(BASE_IMAGE) bash -c "/project/prep_python_build_container_dependencies.sh && /project/generate_requirements_build.sh"
+	@if [ "$(BASE_IMAGE)" = "local" ]; then \
+		$(hermetic_builds_path)/generate_requirements_build.sh; \
+	else \
+		podman run -it -v "$(hermetic_builds_path)":/project:Z --user 0:0 -w /project $(BASE_IMAGE) bash -c "/project/prep_python_build_container_dependencies.sh && /project/generate_requirements_build.sh"; \
+	fi
 	@if [ ! -f $(hermetic_builds_path)/requirements-build.txt ]; then \
 		echo "Error: requirements-build.txt was not generated"; \
 		exit 1; \

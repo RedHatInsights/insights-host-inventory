@@ -27,7 +27,7 @@ jobs:
             --activationkey='${{ secrets.BUILD_RH_ORG_ACTIVATION_KEY }}'
 
       - name: Run the hermetic lockfile updates
-        run: make generate-hermetic-lockfiles
+        run: make generate-hermetic-lockfiles BASE_IMAGE=local
 
       - name: Commit and push changes with gh
         id: commit-changes
