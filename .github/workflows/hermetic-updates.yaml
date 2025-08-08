@@ -15,6 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: registry.access.redhat.com/ubi9/python-312
+      options: "--user root:root"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -22,11 +23,11 @@ jobs:
       - name: Subscribe to Red Hat
         run: |
           subscription-manager register \
-            --org="${{ secrets.BUILD_RH_ORG_ID }}" \
-            --activationkey="${{ secrets.BUILD_RH_ACTIVATION_KEY }}"
+            --org='${{ secrets.BUILD_RH_ORG_ID }}' \
+            --activationkey='${{ secrets.BUILD_RH_ORG_ACTIVATION_KEY }}'
 
       - name: Run the hermetic lockfile updates
-        run: make generate-hermetic-lockfiles
+        run: make generate-hermetic-lockfiles BASE_IMAGE=local
 
       - name: Commit and push changes with gh
         id: commit-changes
