@@ -204,16 +204,15 @@ def staleness_to_conditions(
         else:
             return and_(filter_, _host_type_filter(host_type))
 
-    condition = Conditions(staleness, host_type)
+    condition = Conditions(staleness)
     filtered_states = (state for state in staleness_states if state != "unknown")
     return (_timestamp_and_host_type_filter(condition, state) for state in filtered_states)
 
 
-def find_stale_host_in_window(staleness, host_type, last_run_secs, job_start_time):
+def find_stale_host_in_window(staleness, last_run_secs, job_start_time):
     logger.debug("finding hosts that went stale in the last %s seconds", last_run_secs)
     end_date = job_start_time
-    prefix = "immutable" if host_type == "edge" else "conventional"
-    stale_timestamp = end_date - timedelta(seconds=staleness[f"{prefix}_time_to_stale"])
+    stale_timestamp = end_date - timedelta(seconds=staleness["conventional_time_to_stale"])
     return (
         stale_timestamp_filter(
             stale_timestamp - timedelta(seconds=last_run_secs),
