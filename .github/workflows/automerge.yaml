@@ -1,5 +1,9 @@
 name: Dependabot Auto-merge
-on: pull_request_target
+on:
+  pull_request_target:
+    paths:
+      - 'Pipfile'
+      - 'Pipfile.lock'
 
 jobs:
   dependabot-automerge:
