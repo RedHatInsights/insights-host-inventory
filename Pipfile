@@ -43,7 +43,7 @@ ratelimit = "*"
 confluent-kafka = "==2.10.1"
 rpds-py = "==0.23.1"
 tomli = "==2.0.2"
-unleashclient = "==5.12.2"
+unleashclient = "==6.3.0"
 
 [dev-packages]
 pytest = "~=8.4.1"
