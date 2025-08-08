@@ -4,6 +4,7 @@
   "ignorePaths": [
     "Pipfile"
   ],
+  "baseBranches": ["master"],
   "tekton": {
     "includePaths": ["pipelines/**"],
     "schedule": ["at any time"]
