@@ -1,6 +1,6 @@
 #!/bin/bash
 
-hermetic_builds_dir=${1:-".hermetic_builds"}
+hermetic_builds_dir=${1:-"."}
 
 pip3 install pip-tools pybuild-deps
 pip3 install "pip<25"

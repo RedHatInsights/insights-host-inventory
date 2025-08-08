@@ -180,7 +180,7 @@ generate-requirements-build-txt: generate-requirements-build-in
 		exit 1; \
 	fi
 	@if [ "$(BASE_IMAGE)" = "local" ]; then \
-		$(hermetic_builds_path)/generate_requirements_build.sh; \
+		$(hermetic_builds_path)/generate_requirements_build.sh $(hermetic_builds_path); \
 	else \
 		podman run -it -v "$(hermetic_builds_path)":/project:Z --user 0:0 -w /project $(BASE_IMAGE) bash -c "/project/prep_python_build_container_dependencies.sh && /project/generate_requirements_build.sh"; \
 	fi

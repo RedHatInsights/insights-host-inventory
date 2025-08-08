@@ -1,6 +1,8 @@
 #!/bin/bash
 
-cat <<EOF >> requirements-build.in
+hermetic_builds_dir=${1:-".hermetic_builds"}
+
+cat <<EOF >> ${hermetic_builds_dir}/requirements-build.in
 pipenv==2025.0.4
 wheel==0.45.1
 flit_core<4,>=3.8
@@ -52,7 +54,7 @@ types-requests==2.32.4.20250611
 types-ujson==5.10.0.20250326
 EOF
 
-cat <<EOF >> requirements-extras.in
+cat <<EOF >> ${hermetic_builds_dir}/requirements-extras.in
 setuptools-scm==7.1.0
 tomli==2.0.2
 typing-extensions==4.14.0
