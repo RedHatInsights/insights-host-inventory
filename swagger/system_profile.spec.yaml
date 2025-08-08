@@ -273,6 +273,7 @@ $defs:
         # The MAX_SAFE_INTEGER limit in JavaScript will lead to errors if we don't constrain our int64 values.
         minimum: 0
         maximum: 9007199254740991
+        x-dynamic: true
       infrastructure_type:
         type: string
         maxLength: 100
@@ -285,6 +286,7 @@ $defs:
         type: array  # techincally a set, ordering is not important
         items:
           $ref: '#/$defs/NetworkInterface'
+        x-dynamic: true
       disk_devices:
         type: array  # techincally a set, ordering is not important
         items:
@@ -308,9 +310,11 @@ $defs:
           type: string
           maxLength: 30
           example: "ex1, ex2, ex3"
+        x-dynamic: true
       systemd:
         description: Object for whole system systemd state, as reported by systemctl status --all
         type: object
+        x-dynamic: true
         required:
           - state
           - jobs_queued
@@ -398,10 +402,12 @@ $defs:
           type: string
           maxLength: 255
           example: "ex1, ex2, ex3"
+        x-dynamic: true
       last_boot_time:
         type: string
         format: date-time
         maxLength: 50
+        x-dynamic: true
       running_processes:
         type: array  # techincally a set, ordering is not important
         items:
@@ -409,6 +415,7 @@ $defs:
           type: string
           maxLength: 1000
           example: "ex1, ex2, ex3"
+        x-dynamic: true
       subscription_status:
         type: string
         maxLength: 100
@@ -453,6 +460,7 @@ $defs:
         type: array  # technically a set, ordering is not important
         items:
           $ref: '#/$defs/InstalledProduct'
+        x-dynamic: true
       insights_client_version:
         type: string
         description: The version number of insights client. supports wildcards
@@ -463,10 +471,12 @@ $defs:
         type: string
         maxLength: 50
         example: "2.3, 4.4, 5.1"
+        x-dynamic: true
       captured_date:
         type: string
         maxLength: 32
         example: "ex1, ex2, ex3"
+        x-dynamic: true
       installed_packages:
         type: array  # technically a set, ordered by RPM sorting algorithm
         items:
@@ -474,6 +484,7 @@ $defs:
           example: "krb5-libs-0:-1.16.1-23.fc29.i686, arb5-libs-0:-1.16.1-23.fc29.i686, brb5-libs-0:-1.16.1-23.fc29.i686"
           type: string
           maxLength: 512
+        x-dynamic: true
       installed_packages_delta:
         type: array  # packages not in installed_packages, ordered by RPM sorting algorithm
         items:
@@ -867,6 +878,7 @@ $defs:
       workloads:
         description: Object containing information about system workloads
         type: object
+        x-dynamic: true
         properties:
           ansible:
             description: Object containing data specific to Ansible Automation Platform
