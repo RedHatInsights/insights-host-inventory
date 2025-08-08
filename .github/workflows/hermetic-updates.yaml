@@ -26,6 +26,11 @@ jobs:
             --org='${{ secrets.BUILD_RH_ORG_ID }}' \
             --activationkey='${{ secrets.BUILD_RH_ORG_ACTIVATION_KEY }}'
 
+      - name: Install prerequisites
+        run: |
+          microdnf install -y dnf-plugins-core python3-dnf
+          python3 -m pip install https://github.com/konflux-ci/rpm-lockfile-prototype/archive/refs/heads/main.zip
+
       - name: Run the hermetic lockfile updates
         run: make generate-hermetic-lockfiles BASE_IMAGE=local
 
