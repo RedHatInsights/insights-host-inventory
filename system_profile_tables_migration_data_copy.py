@@ -88,6 +88,7 @@ def copy_profile_data_in_batches(session: Session, logger: Logger):
                 h.system_profile_facts -> 'systemd',
                 h.system_profile_facts -> 'workloads'
             FROM {INVENTORY_SCHEMA}.hosts h
+            WHERE h.id = ANY(:id_list)
             ON CONFLICT (org_id, host_id) DO NOTHING;
         """
         session.execute(text(dynamic_insert_sql), {"id_list": id_list})
@@ -166,6 +167,7 @@ def copy_profile_data_in_batches(session: Session, logger: Logger):
                 (h.system_profile_facts ->> 'virtual_host_uuid')::uuid,
                 (SELECT array_agg(value) FROM jsonb_array_elements(h.system_profile_facts -> 'yum_repos'))
             FROM {INVENTORY_SCHEMA}.hosts h
+            WHERE h.id = ANY(:id_list)
             ON CONFLICT (org_id, host_id) DO NOTHING;
         """
         session.execute(text(static_insert_sql), {"id_list": id_list})
