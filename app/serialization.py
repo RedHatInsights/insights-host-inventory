@@ -294,14 +294,18 @@ def serialize_facts(facts):
 
 
 def _serialize_datetime(dt):
+    if dt is None:
+        return None
     return dt.astimezone(timezone.utc).isoformat()
 
 
-def _serialize_staleness_to_string(dt) -> str:
+def _serialize_staleness_to_string(dt):
     """
     This function makes sure a datetime object
-    is returned as a string
+    is returned as a string. Returns None if dt is None.
     """
+    if dt is None:
+        return None
     if isinstance(dt, str):
         return dt
     return dt.astimezone(timezone.utc).isoformat()

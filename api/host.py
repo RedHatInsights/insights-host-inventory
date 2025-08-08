@@ -5,6 +5,7 @@ import flask
 from confluent_kafka.error import KafkaError
 from flask import current_app
 from marshmallow import ValidationError
+from sqlalchemy.orm.exc import StaleDataError
 
 from api import api_operation
 from api import build_collection_response
@@ -31,6 +32,7 @@ from app.auth import get_current_identity
 from app.auth.identity import IdentityType
 from app.auth.identity import to_auth_header
 from app.common import inventory_config
+from app.exceptions import OutboxSaveException
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_get_host_exists_succeeded
 from app.instrumentation import log_get_host_list_failed
@@ -400,13 +402,35 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
         host.patch(validated_patch_host_data)
 
         if db.session.is_modified(host):
-            db.session.commit()
-            serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
-            _emit_patch_event(serialized_host, host)
-            insights_id = host.canonical_facts.get("insights_id")
-            owner_id = host.system_profile_facts.get("owner_id")
-            if insights_id and owner_id:
-                delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id, owner_id=owner_id)
+            try:
+                # Prepare serialized data before committing
+                serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
+
+                # Emit event (which writes to outbox) before committing -
+                # this ensures outbox and host changes are in same transaction
+                _emit_patch_event(serialized_host, host)
+
+                # If event emission succeeds, commit both host changes and outbox entry together
+                db.session.commit()
+
+                # Handle cache invalidation after successful commit
+                insights_id = host.canonical_facts.get("insights_id")
+                owner_id = host.system_profile_facts.get("owner_id")
+                if insights_id and owner_id:
+                    delete_cached_system_keys(
+                        insights_id=insights_id, org_id=current_identity.org_id, owner_id=owner_id
+                    )
+            except StaleDataError:
+                # Handle race condition where host was deleted by another request
+                # Don't access host.id after StaleDataError since session is in bad state
+                db.session.rollback()
+                logger.warning("Host was modified or deleted by another request during update")
+                return flask.abort(HTTPStatus.CONFLICT, "Host was modified or deleted by another request.")
+            except OutboxSaveException:
+                # Handle outbox save failure - rollback the entire transaction
+                db.session.rollback()
+                logger.error("Failed to save event to outbox, rolling back host update transaction")
+                return flask.abort(HTTPStatus.INTERNAL_SERVER_ERROR, "Failed to save event data.")
 
     log_patch_host_success(logger, host_id_list)
     return 200
@@ -491,13 +515,35 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
             host.merge_facts_in_namespace(namespace, fact_dict)
 
         if db.session.is_modified(host):
-            db.session.commit()
-            serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
-            _emit_patch_event(serialized_host, host)
-            insights_id = host.canonical_facts.get("insights_id")
-            owner_id = host.system_profile_facts.get("owner_id")
-            if insights_id and owner_id:
-                delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id, owner_id=owner_id)
+            try:
+                # Prepare serialized data before committing
+                serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
+
+                # Emit event (which writes to outbox) before committing -
+                # this ensures outbox and host changes are in same transaction
+                _emit_patch_event(serialized_host, host)
+
+                # If event emission succeeds, commit both host changes and outbox entry together
+                db.session.commit()
+
+                # Handle cache invalidation after successful commit
+                insights_id = host.canonical_facts.get("insights_id")
+                owner_id = host.system_profile_facts.get("owner_id")
+                if insights_id and owner_id:
+                    delete_cached_system_keys(
+                        insights_id=insights_id, org_id=current_identity.org_id, owner_id=owner_id
+                    )
+            except StaleDataError:
+                # Handle race condition where host was deleted by another request
+                # Don't access host.id after StaleDataError since session is in bad state
+                db.session.rollback()
+                logger.warning("Host was modified or deleted by another request during facts update")
+                return "Host was modified or deleted by another request.", 409
+            except OutboxSaveException:
+                # Handle outbox save failure - rollback the entire transaction
+                db.session.rollback()
+                logger.error("Failed to save event to outbox, rolling back facts update transaction")
+                return "Failed to save event data.", 500
 
     logger.debug("hosts_to_update:%s", hosts_to_update)
 
@@ -543,14 +589,34 @@ def host_checkin(body, rbac_filter=None):  # noqa: ARG001, required for all API 
     if existing_host:
         existing_host._update_last_check_in_date()
         existing_host._update_staleness_timestamps()
-        db.session.commit()
-        serialized_host = serialize_host(existing_host, staleness_timestamps(), staleness=staleness)
-        _emit_patch_event(serialized_host, existing_host)
-        insights_id = existing_host.canonical_facts.get("insights_id")
-        owner_id = existing_host.system_profile_facts.get("owner_id")
-        if insights_id and owner_id:
-            delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id, owner_id=owner_id)
-        return flask_json_response(serialized_host, 201)
+        try:
+            # Prepare serialized data before committing
+            serialized_host = serialize_host(existing_host, staleness_timestamps(), staleness=staleness)
+
+            # Emit event (which writes to outbox) before committing -
+            # this ensures outbox and host changes are in same transaction
+            _emit_patch_event(serialized_host, existing_host)
+
+            # If event emission succeeds, commit both host changes and outbox entry together
+            db.session.commit()
+
+            # Handle cache invalidation after successful commit
+            insights_id = existing_host.canonical_facts.get("insights_id")
+            owner_id = existing_host.system_profile_facts.get("owner_id")
+            if insights_id and owner_id:
+                delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id, owner_id=owner_id)
+            return flask_json_response(serialized_host, 201)
+        except StaleDataError:
+            # Handle race condition where host was deleted by another request
+            # Don't access existing_host.id after StaleDataError since session is in bad state
+            db.session.rollback()
+            logger.warning("Host was modified or deleted by another request during checkin")
+            flask.abort(404, "Host was deleted during checkin.")
+        except OutboxSaveException:
+            # Handle outbox save failure - rollback the entire transaction
+            db.session.rollback()
+            logger.error("Failed to save event to outbox, rolling back checkin transaction")
+            flask.abort(500, "Failed to save event data.")
     else:
         flask.abort(404, "No hosts match the provided canonical facts.")
 

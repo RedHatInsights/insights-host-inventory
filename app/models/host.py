@@ -200,7 +200,7 @@ class Host(LimitedHost):
         tags=None,
         tags_alt=None,
         system_profile_facts=None,
-        stale_timestamp=None,  # noqa: ARG002 - to be removed
+        stale_timestamp=None,
         reporter=None,
         per_reporter_staleness=None,
         groups=None,
@@ -213,6 +213,7 @@ class Host(LimitedHost):
         mac_addresses=None,
         provider_id=None,
         provider_type=None,
+        calculate_timestamps=True,
     ):
         id = None
         if tags is None:
@@ -261,7 +262,27 @@ class Host(LimitedHost):
         self.reporter = reporter
 
         self._update_last_check_in_date()
-        self._update_staleness_timestamps()
+
+        # Handle staleness timestamps based on the calculate_timestamps parameter
+        if calculate_timestamps:
+            # Calculate timestamps based on host configuration
+            self._update_staleness_timestamps()
+        else:
+            # Use provided timestamps for deserialization scenarios
+            # But RHSM hosts should always get far future timestamps regardless
+            if should_host_stay_fresh_forever(self):
+                self.stale_timestamp = FAR_FUTURE_STALE_TIMESTAMP
+                self.stale_warning_timestamp = FAR_FUTURE_STALE_TIMESTAMP
+                self.deletion_timestamp = FAR_FUTURE_STALE_TIMESTAMP
+            elif stale_timestamp is not None:
+                self.stale_timestamp = stale_timestamp
+                # For deserialization, we might not have other timestamps, so calculate them
+                staleness_timestamps = _create_staleness_timestamps_values(self, self.org_id)
+                self.stale_warning_timestamp = staleness_timestamps["stale_warning_timestamp"]
+                self.deletion_timestamp = staleness_timestamps["culled_timestamp"]
+            else:
+                # If no timestamp provided but calculation disabled, still need to set something
+                self._update_staleness_timestamps()
 
         self.per_reporter_staleness = per_reporter_staleness or {}
         if not per_reporter_staleness:
@@ -497,6 +518,13 @@ class Host(LimitedHost):
         orm.attributes.flag_modified(self, "stale_timestamp")
         orm.attributes.flag_modified(self, "stale_warning_timestamp")
         orm.attributes.flag_modified(self, "deletion_timestamp")
+
+    def _update_stale_timestamp(self, stale_timestamp, reporter):
+        """Update the host's stale timestamp and reporter."""
+        self.stale_timestamp = stale_timestamp
+        self.reporter = reporter
+        orm.attributes.flag_modified(self, "stale_timestamp")
+        orm.attributes.flag_modified(self, "reporter")
 
     def reporter_stale(self, reporter):
         # Hosts that should stay fresh forever are never stale

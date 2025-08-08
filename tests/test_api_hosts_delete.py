@@ -179,7 +179,7 @@ def test_delete_all_hosts(
     # delete all hosts on the current org_id
     response_status, response_data = api_delete_all_hosts({"confirm_delete_all": True})
 
-    assert '"type": "delete"' in event_producer_mock.event
+    assert '"type": "deleted"' in event_producer_mock.event
     assert response_data.get("hosts_deleted") == len(created_hosts)
     assert_response_status(response_status, expected_status=202)
     assert len(host_ids) == response_data["hosts_deleted"]
@@ -584,7 +584,7 @@ def test_postgres_delete_filtered_hosts(
     assert response_data["hosts_deleted"] == 2
 
     # Make sure they were both deleted and produced deletion events
-    assert '"type": "delete"' in event_producer_mock.event
+    assert '"type": "deleted"' in event_producer_mock.event
     _, response_data = api_get(build_hosts_url(host_1_id))
     assert len(response_data["results"]) == 0
     _, response_data = api_get(build_hosts_url(host_2_id))
@@ -635,7 +635,7 @@ def test_delete_hosts_by_subman_id_internal_rhsm_request(
     assert response_data["hosts_found"] == 1
 
     # Make sure the correct host was deleted and produced a deletion event
-    assert '"type": "delete"' in event_producer_mock.event
+    assert '"type": "deleted"' in event_producer_mock.event
 
     _, response_data = api_get(build_hosts_url([matching_host_id, not_matching_host_id, different_org_host_id]))
     assert len(response_data["results"]) == 1

@@ -10,7 +10,7 @@ import pytest
 from pytest_mock import MockerFixture
 from pytest_subtests import SubTests
 
-from app.models.host import Host
+from app.models import Host
 from lib.host_repository import find_hosts_by_staleness
 from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
@@ -2186,6 +2186,20 @@ def test_query_by_staleness_using_columns(
     mocker.patch("api.host_query_db.get_flag_value", return_value=True)
     mocker.patch("api.filtering.db_filters.get_flag_value", return_value=True)
 
+    # Mock the current time for staleness filtering to match test data
+    test_time = now()
+
+    # Patch the HostStalenessStatesDbFilters to use our test time
+    def mock_staleness_filter_constructor(_now=None):
+        from app.staleness_states import HostStalenessStatesDbFilters
+
+        return HostStalenessStatesDbFilters(now=test_time)
+
+    mocker.patch(
+        "api.filtering.db_filters.HostStalenessStatesDbFilters",
+        side_effect=mock_staleness_filter_constructor,
+    )
+
     expected_staleness_results_map = {
         "fresh": 3,
         "stale": 4,
@@ -2193,10 +2207,10 @@ def test_query_by_staleness_using_columns(
         "culled": 10,
     }
     staleness_timestamp_map = {
-        "fresh": now(),
-        "stale": now() - timedelta(days=3),
-        "stale_warning": now() - timedelta(days=10),
-        "culled": now() - timedelta(days=20),
+        "fresh": test_time,
+        "stale": test_time - timedelta(days=3),
+        "stale_warning": test_time - timedelta(days=10),
+        "culled": test_time - timedelta(days=20),
     }
     staleness_to_host_ids_map = dict()
 

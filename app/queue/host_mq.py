@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import json
 import sys
+import uuid
 from copy import deepcopy
 from functools import partial
 from typing import Any
@@ -31,6 +32,7 @@ from app.auth.identity import create_mock_identity_with_org_id
 from app.common import inventory_config
 from app.culling import Timestamps
 from app.exceptions import InventoryException
+from app.exceptions import OutboxSaveException
 from app.exceptions import ValidationException
 from app.instrumentation import log_add_host_attempt
 from app.instrumentation import log_add_host_failure
@@ -287,7 +289,7 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                 None,
                 None,
                 None,
-                EventType.delete,
+                EventType.deleted,
                 partial(log_delete_groups_via_mq, logger, num_deleted, str(workspace["id"])),
             )
         else:
@@ -372,15 +374,38 @@ class HostMessageConsumer(HBIMessageConsumerBase):
     def post_process_rows(self) -> None:
         try:
             if len(self.processed_rows) > 0:
-                db.session.commit()
-                # The above session is automatically committed or rolled back.
-                # Now we need to send out messages for the batch of hosts we just processed.
+                logger.debug(f"post_process_rows: Processing {len(self.processed_rows)} rows")
+                # Step 1: Save host to hbi.hosts table (already done in process_message)
+                # Step 2: Produce the event using EventProducer.write_event (which includes outbox write)
+                # Step 3: Save the corresponding event to the Outbox table (handled by EventProducer)
+                # All within the same transaction - if outbox fails, everything rolls back
                 write_message_batch(self.event_producer, self.notification_event_producer, self.processed_rows)
+                logger.debug("post_process_rows: write_message_batch completed")
+
+                # Only commit if both host saving AND event production (including outbox) succeed
+                db.session.commit()
+                logger.debug(f"Successfully committed {len(self.processed_rows)} hosts and their events to database")
+            else:
+                logger.debug("post_process_rows: No processed_rows to handle")
 
         except StaleDataError as exc:
             metrics.ingress_message_handler_failure.inc(amount=len(self.processed_rows))
             logger.error(
                 f"Session data is stale; failed to commit data from {len(self.processed_rows)} payloads.",
+                exc_info=exc,
+            )
+            db.session.rollback()
+        except OutboxSaveException as exc:
+            metrics.ingress_message_handler_failure.inc(amount=len(self.processed_rows))
+            logger.error(
+                f"Failed to save events to outbox; rolling back {len(self.processed_rows)} host changes.",
+                exc_info=exc,
+            )
+            db.session.rollback()
+        except Exception as exc:
+            metrics.ingress_message_handler_failure.inc(amount=len(self.processed_rows))
+            logger.error(
+                f"Unexpected error during post-processing; rolling back {len(self.processed_rows)} host changes.",
                 exc_info=exc,
             )
             db.session.rollback()
@@ -407,6 +432,10 @@ class IngressMessageConsumer(HostMessageConsumer):
         try:
             identity = _get_identity(host_data, platform_metadata)
             input_host = deserialize_host(host_data)
+
+            # create a new id for the host if it is not provided for the new hosts
+            if input_host.id is None:
+                input_host.id = uuid.uuid4()
 
             # basic-auth does not need owner_id
             if identity.identity_type == IdentityType.SYSTEM:
@@ -620,16 +649,16 @@ def parse_operation_message(message: str | bytes, schema: type[Schema]):
 
 
 def sync_event_message(message, session, event_producer):
-    if message["type"] != EventType.delete.name:
+    if message["type"] != EventType.deleted.name:
         host_id = message["host"]["id"]
         query = session.query(Host).filter((Host.org_id == message["host"]["org_id"]) & (Host.id == UUID(host_id)))
         # If the host doesn't exist in the DB, produce a Delete event.
         if not query.count():
             host = deserialize_host({k: v for k, v in message["host"].items() if v}, schema=LimitedHostSchema)
             host.id = host_id
-            event = build_event(EventType.delete, host)
+            event = build_event(EventType.deleted, host)
             headers = message_headers(
-                EventType.delete,
+                EventType.deleted,
                 host.canonical_facts.get("insights_id"),
                 message["host"].get("reporter"),
                 host.system_profile_facts.get("host_type"),
@@ -644,13 +673,13 @@ def sync_event_message(message, session, event_producer):
 
 def write_delete_event_message(event_producer: EventProducer, result: OperationResult, initiated_by_frontend: bool):
     event = build_event(
-        EventType.delete,
+        EventType.deleted,
         result.row,
         platform_metadata=result.platform_metadata,
         initiated_by_frontend=initiated_by_frontend,
     )
     headers = message_headers(
-        EventType.delete,
+        EventType.deleted,
         result.row.canonical_facts.get("insights_id"),
         result.row.reporter,
         result.row.system_profile_facts.get("host_type"),
