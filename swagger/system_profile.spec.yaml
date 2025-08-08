@@ -465,8 +465,8 @@ $defs:
         example: "2.3, 4.4, 5.1"
       captured_date:
         type: string
-        maxLength: 32
-        example: "ex1, ex2, ex3"
+        format: date-time
+        maxLength: 50
       installed_packages:
         type: array  # technically a set, ordered by RPM sorting algorithm
         items:
