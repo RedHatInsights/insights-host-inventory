@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: registry.access.redhat.com/ubi9/python-39
-      options: "--user root:root"
+      options: "--user root:root -v /usr/bin:/mnt/usrbin"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -68,6 +68,7 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
+          PATH=$PATH:/mnt/usrbin
           gh repo set-default ${{ github.repository }}
 
           # Push to hermetic_updates branch, force overwrite
