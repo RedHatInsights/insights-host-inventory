@@ -93,7 +93,7 @@ $(hermetic_builds_dir)/rpms.in.yaml: $(CONTAINERFILE) $(hermetic_builds_dir)/ubi
 # Example: make .hermetic_builds/rpms.lock.yaml BASE_IMAGE=registry.access.redhat.com/ubi9/ubi:latest
 #          make .hermetic_builds/rpms.lock.yaml (uses default BASE_IMAGE)
 $(hermetic_builds_dir)/rpms.lock.yaml: $(hermetic_builds_dir)/rpms.in.yaml
-	@if [ ! command -v rpm-lockfile-prototype >/dev/null 2>&1 ]; then \
+	@if ! command -v rpm-lockfile-prototype >/dev/null 2>&1; then \
 		echo "Error: Command rpm-lockfile-prototype not found"; \
 		echo "Please install it using 'python3 -m pip install --user https://github.com/konflux-ci/rpm-lockfile-prototype/archive/refs/heads/main.zip'"; \
 		echo "See https://github.com/konflux-ci/rpm-lockfile-prototype/?tab=readme-ov-file#running-in-a-container for usage in a container"; \
