@@ -15,15 +15,16 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: registry.access.redhat.com/ubi9/python-312
+      options: "--user root:root"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Subscribe to Red Hat
         run: |
-          su -c "subscription-manager register \
-                --org='${{ secrets.BUILD_RH_ORG_ID }}' \
-                --activationkey='${{ secrets.BUILD_RH_ORG_ACTIVATION_KEY }}'" root
+          subscription-manager register \
+            --org='${{ secrets.BUILD_RH_ORG_ID }}' \
+            --activationkey='${{ secrets.BUILD_RH_ORG_ACTIVATION_KEY }}'
 
       - name: Run the hermetic lockfile updates
         run: make generate-hermetic-lockfiles
@@ -72,4 +73,4 @@ jobs:
       - name: Unsubscribe (cleanup)
         if: always()
         run: |
-          su -c "subscription-manager unregister || true" root
+          subscription-manager unregister || true
