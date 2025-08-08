@@ -1649,7 +1649,7 @@ arches:
     name: kernel
     evr: 5.14.0-570.32.1.el9_6
   module_metadata:
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/repodata/5d8251c591281c43a71a7973f089a9e283dfcdfec8b194776a5f2db86914d501-modules.yaml.gz
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/repodata/d6413620b70da3e46e9b36c02e417bde9683ed06cb88014d5b68ba313a54b892-modules.yaml.gz
     repoid: rhel-9-for-x86_64-appstream-rpms
     size: 32671
-    checksum: sha256:5d8251c591281c43a71a7973f089a9e283dfcdfec8b194776a5f2db86914d501
+    checksum: sha256:d6413620b70da3e46e9b36c02e417bde9683ed06cb88014d5b68ba313a54b892
