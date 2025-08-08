@@ -99,7 +99,7 @@ $(hermetic_builds_dir)/rpms.lock.yaml: $(hermetic_builds_dir)/rpms.in.yaml
 		echo "See https://github.com/konflux-ci/rpm-lockfile-prototype/?tab=readme-ov-file#running-in-a-container for usage in a container"; \
 		exit 1; \
 	fi;
-	@rpm-lockfile-prototype --image $(BASE_IMAGE) --outfile=$@ $<
+	@rpm-lockfile-prototype --outfile=$@ $<
 	@if [ ! -f $(hermetic_builds_dir)/rpms.lock.yaml ]; then \
 		echo "Error: rpms.lock.yaml was not generated"; \
 		exit 1; \
