@@ -44,6 +44,9 @@ COPY manage.py manage.py
 COPY pendo_syncher.py pendo_syncher.py
 COPY Pipfile Pipfile
 COPY Pipfile.lock Pipfile.lock
+COPY .hermetic_builds/requirements.txt .hermetic_builds/requirements.txt
+COPY .hermetic_builds/requirements-build.txt .hermetic_builds/requirements-build.txt
+COPY .hermetic_builds/requirements-extras.txt .hermetic_builds/requirements-extras.txt
 COPY pytest.ini pytest.ini
 COPY rebuild_events_topic.py rebuild_events_topic.py
 COPY run_gunicorn.py run_gunicorn.py
@@ -67,14 +70,14 @@ COPY delete_host_namespace_access_tags.py delete_host_namespace_access_tags.py
 COPY hosts_table_migration_data_copy.py hosts_table_migration_data_copy.py
 COPY hosts_table_migration_switch.py hosts_table_migration_switch.py
 
-ENV PIP_NO_CACHE_DIR=1
-ENV PIPENV_CLEAR=1
+ENV PIP_NO_CACHE_DIR=0
+ENV PIPENV_CLEAR=0
 ENV PIPENV_VENV_IN_PROJECT=1
 
 RUN python3 -m pip install --upgrade pip setuptools wheel && \
-    python3 -m pip install pipenv && \
     python3 -m pip install dumb-init && \
-    pipenv install --system --verbose
+    PIP_PREFER_BINARY=1 python3 -m pip install --verbose --no-deps -r .hermetic_builds/requirements.txt -r .hermetic_builds/requirements-dev.txt && \
+    python3 -m pip cache purge
 
 # remove devel packages that were only necessary for psycopg2 to compile
 RUN microdnf remove  -y  libpq-devel python3-devel gcc cargo rust rust-std-static gcc-c++ && \
