@@ -76,7 +76,7 @@ ENV PIPENV_VENV_IN_PROJECT=1
 
 RUN python3 -m pip install --upgrade pip setuptools wheel && \
     python3 -m pip install dumb-init && \
-    PIP_PREFER_BINARY=1 python3 -m pip install --verbose --no-deps -r .hermetic_builds/requirements-build.txt -r .hermetic_builds/requirements-extras.txt -r .hermetic_builds/requirements.txt && \
+    PIP_PREFER_BINARY=1 python3 -m pip install --verbose --no-deps -r .hermetic_builds/requirements-build.txt && \
     python3 -m pip cache purge
 
 # remove devel packages that were only necessary for psycopg2 to compile
