@@ -72,6 +72,7 @@ ENV PIPENV_CLEAR=0
 ENV PIPENV_VENV_IN_PROJECT=1
 
 RUN python3 -m pip install --upgrade pip setuptools wheel && \
+    python3 -m pip install pipenv && \
     python3 -m pip install dumb-init && \
     PIP_PREFER_BINARY=1 pipenv sync --system --deploy --verbose && \
     python3 -m pip cache purge
