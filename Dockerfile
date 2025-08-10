@@ -44,9 +44,6 @@ COPY manage.py manage.py
 COPY pendo_syncher.py pendo_syncher.py
 COPY Pipfile Pipfile
 COPY Pipfile.lock Pipfile.lock
-COPY .hermetic_builds/requirements.txt .hermetic_builds/requirements.txt
-COPY .hermetic_builds/requirements-build.txt .hermetic_builds/requirements-build.txt
-COPY .hermetic_builds/requirements-extras.txt .hermetic_builds/requirements-extras.txt
 COPY pytest.ini pytest.ini
 COPY rebuild_events_topic.py rebuild_events_topic.py
 COPY run_gunicorn.py run_gunicorn.py
@@ -76,7 +73,7 @@ ENV PIPENV_VENV_IN_PROJECT=1
 
 RUN python3 -m pip install --upgrade pip setuptools wheel && \
     python3 -m pip install dumb-init && \
-    PIP_PREFER_BINARY=1 python3 -m pip install --verbose --no-deps -r .hermetic_builds/requirements.txt && \
+    PIP_PREFER_BINARY=1 pipenv sync --system --deploy --verbose && \
     python3 -m pip cache purge
 
 # remove devel packages that were only necessary for psycopg2 to compile
