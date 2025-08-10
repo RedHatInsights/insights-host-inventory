@@ -67,14 +67,15 @@ COPY delete_host_namespace_access_tags.py delete_host_namespace_access_tags.py
 COPY hosts_table_migration_data_copy.py hosts_table_migration_data_copy.py
 COPY hosts_table_migration_switch.py hosts_table_migration_switch.py
 
-ENV PIP_NO_CACHE_DIR=1
-ENV PIPENV_CLEAR=1
+ENV PIP_NO_CACHE_DIR=0
+ENV PIPENV_CLEAR=0
 ENV PIPENV_VENV_IN_PROJECT=1
 
 RUN python3 -m pip install --upgrade pip setuptools wheel && \
     python3 -m pip install pipenv && \
     python3 -m pip install dumb-init && \
-    pipenv install --system
+    PIP_PREFER_BINARY=1 pipenv sync --system --verbose && \
+    python3 -m pip cache purge
 
 # remove devel packages that were only necessary for psycopg2 to compile
 RUN microdnf remove  -y  libpq-devel python3-devel gcc cargo rust rust-std-static gcc-c++ && \
