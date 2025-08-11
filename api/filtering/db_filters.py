@@ -34,7 +34,6 @@ from app.models.constants import SystemType
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_states import HostStalenessStatesDbFilters
 from app.utils import Tag
-from lib.feature_flags import FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS
 from lib.feature_flags import FLAG_INVENTORY_FILTER_STALENESS_USING_COLUMNS
 from lib.feature_flags import get_flag_value
 
@@ -97,19 +96,11 @@ def _group_ids_filter(group_id_list: list) -> list:
 
 
 def stale_timestamp_filter(gt=None, lte=None):
-    def _get_date_field():
-        return (
-            Host.last_check_in
-            if get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS)
-            else Host.modified_on
-        )
-
     filters = []
-    date_field = _get_date_field()
     if gt:
-        filters.append(date_field > gt)
+        filters.append(Host.last_check_in > gt)
     if lte:
-        filters.append(date_field <= lte)
+        filters.append(Host.last_check_in <= lte)
     return and_(*filters)
 
 
@@ -177,7 +168,11 @@ def per_reporter_staleness_filter(staleness, reporter, host_type_filter, org_id)
 
 def _staleness_filter_using_columns(staleness: list[str]) -> list:
     host_staleness_states_filters = HostStalenessStatesDbFilters()
-    filters = [getattr(host_staleness_states_filters, state)() for state in staleness if state != "unknown"]
+    if staleness == ["unknown"]:
+        # "unknown" filter should be ignored, but shouldn't return culled hosts
+        filters = [not_(host_staleness_states_filters.culled())]
+    else:
+        filters = [getattr(host_staleness_states_filters, state)() for state in staleness if state != "unknown"]
     return [or_(*filters)]
 
 

@@ -3,10 +3,10 @@ from __future__ import annotations
 import base64
 import json
 import sys
+from collections.abc import Callable
 from copy import deepcopy
 from functools import partial
 from typing import Any
-from typing import Callable
 from uuid import UUID
 
 from confluent_kafka import Consumer

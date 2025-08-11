@@ -169,8 +169,6 @@ objects:
               optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
-        - name: FF_LAST_CHECKIN
-          value: ${FF_LAST_CHECKIN}
         - name: UNLEASH_REFRESH_INTERVAL
           value: ${UNLEASH_REFRESH_INTERVAL}
         - name: SEGMENTIO_WRITE_KEY
@@ -331,8 +329,6 @@ objects:
               optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
-        - name: FF_LAST_CHECKIN
-          value: ${FF_LAST_CHECKIN}
         - name: UNLEASH_REFRESH_INTERVAL
           value: ${UNLEASH_REFRESH_INTERVAL}
         - name: SEGMENTIO_WRITE_KEY
@@ -491,8 +487,6 @@ objects:
               optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
-        - name: FF_LAST_CHECKIN
-          value: ${FF_LAST_CHECKIN}
         - name: UNLEASH_REFRESH_INTERVAL
           value: ${UNLEASH_REFRESH_INTERVAL}
         - name: SEGMENTIO_WRITE_KEY
@@ -616,8 +610,6 @@ objects:
               optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
-        - name: FF_LAST_CHECKIN
-          value: ${FF_LAST_CHECKIN}
         - name: UNLEASH_REFRESH_INTERVAL
           value: ${UNLEASH_REFRESH_INTERVAL}
         - name: MQ_DB_BATCH_MAX_MESSAGES
@@ -729,8 +721,6 @@ objects:
               optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
-        - name: FF_LAST_CHECKIN
-          value: ${FF_LAST_CHECKIN}
         - name: UNLEASH_REFRESH_INTERVAL
           value: ${UNLEASH_REFRESH_INTERVAL}
         - name: MQ_DB_BATCH_MAX_MESSAGES
@@ -835,8 +825,6 @@ objects:
               optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
-        - name: FF_LAST_CHECKIN
-          value: ${FF_LAST_CHECKIN}
         - name: UNLEASH_REFRESH_INTERVAL
           value: ${UNLEASH_REFRESH_INTERVAL}
         - name: MQ_DB_BATCH_MAX_MESSAGES
@@ -929,8 +917,6 @@ objects:
               optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
-        - name: FF_LAST_CHECKIN
-          value: ${FF_LAST_CHECKIN}
         - name: UNLEASH_REFRESH_INTERVAL
           value: ${UNLEASH_REFRESH_INTERVAL}
         - name: MQ_DB_BATCH_MAX_MESSAGES
@@ -1016,8 +1002,6 @@ objects:
               optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
-        - name: FF_LAST_CHECKIN
-          value: ${FF_LAST_CHECKIN}
         - name: UNLEASH_REFRESH_INTERVAL
           value: ${UNLEASH_REFRESH_INTERVAL}
         - name: REPLICA_NAMESPACE
@@ -1114,8 +1098,6 @@ objects:
                 optional: true
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
-          - name: FF_LAST_CHECKIN
-            value: ${FF_LAST_CHECKIN}
           - name: UNLEASH_REFRESH_INTERVAL
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: RBAC_PSKS
@@ -1186,8 +1168,6 @@ objects:
                 optional: true
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
-          - name: FF_LAST_CHECKIN
-            value: ${FF_LAST_CHECKIN}
           - name: UNLEASH_REFRESH_INTERVAL
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: CONSOLEDOT_HOSTNAME
@@ -1316,8 +1296,6 @@ objects:
                 optional: true
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
-          - name: FF_LAST_CHECKIN
-            value: ${FF_LAST_CHECKIN}
           - name: UNLEASH_REFRESH_INTERVAL
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: REPLICA_NAMESPACE
@@ -1372,8 +1350,6 @@ objects:
                 optional: true
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
-          - name: FF_LAST_CHECKIN
-            value: ${FF_LAST_CHECKIN}
           - name: UNLEASH_REFRESH_INTERVAL
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: REPLICA_NAMESPACE
@@ -1443,8 +1419,6 @@ objects:
                 optional: true
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
-          - name: FF_LAST_CHECKIN
-            value: ${FF_LAST_CHECKIN}
           - name: UNLEASH_REFRESH_INTERVAL
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: REBUILD_EVENTS_TIME_LIMIT
@@ -1516,8 +1490,6 @@ objects:
                 optional: true
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
-          - name: FF_LAST_CHECKIN
-            value: ${FF_LAST_CHECKIN}
           - name: UNLEASH_REFRESH_INTERVAL
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: REBUILD_EVENTS_TIME_LIMIT
@@ -1589,8 +1561,6 @@ objects:
                 optional: true
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
-          - name: FF_LAST_CHECKIN
-            value: ${FF_LAST_CHECKIN}
           - name: UNLEASH_REFRESH_INTERVAL
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: REBUILD_EVENTS_TIME_LIMIT
@@ -1638,8 +1608,6 @@ objects:
                 optional: true
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
-          - name: FF_LAST_CHECKIN
-            value: ${FF_LAST_CHECKIN}
           - name: UNLEASH_REFRESH_INTERVAL
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: BYPASS_KESSEL_JOBS
@@ -1711,8 +1679,6 @@ objects:
                 optional: true
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
-          - name: FF_LAST_CHECKIN
-            value: ${FF_LAST_CHECKIN}
           - name: UNLEASH_REFRESH_INTERVAL
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: BYPASS_KESSEL_JOBS
@@ -1841,11 +1807,11 @@ objects:
             value: ${SUSPEND_DELETE_HOSTS_S3}
         resources:
           limits:
-            cpu: ${CPU_LIMIT_GROUPS_S3_EXPORT}
-            memory: ${MEMORY_LIMIT_GROUPS_S3_EXPORT}
+            cpu: ${CPU_LIMIT_DELETE_HOSTS_S3}
+            memory: ${MEMORY_LIMIT_DELETE_HOSTS_S3}
           requests:
-            cpu: ${CPU_REQUEST_GROUPS_S3_EXPORT}
-            memory: ${MEMORY_REQUEST_GROUPS_S3_EXPORT}
+            cpu: ${CPU_REQUEST_DELETE_HOSTS_S3}
+            memory: ${MEMORY_REQUEST_DELETE_HOSTS_S3}
     - name: assign-ungrouped-host-groups
       restartPolicy: OnFailure
       podSpec:
@@ -1902,8 +1868,6 @@ objects:
                 optional: true
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
-          - name: FF_LAST_CHECKIN
-            value: ${FF_LAST_CHECKIN}
           - name: UNLEASH_REFRESH_INTERVAL
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: BYPASS_KESSEL_JOBS
@@ -1958,42 +1922,6 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_HOSTS_LAST_CHECK_IN}
             memory: ${MEMORY_REQUEST_HOSTS_LAST_CHECK_IN}
-    - name: update-edge-hosts-prs
-      schedule: ${{EDGE_HOSTS_PRS_SCHEDULE}}
-      restartPolicy: Never
-      concurrencyPolicy: "Forbid"
-      suspend: ${{EDGE_HOSTS_PRS_SUSPEND}}
-      podSpec:
-        image: ${IMAGE}:${IMAGE_TAG}
-        args: ["./update_edge_hosts_prs.py"]
-        env:
-          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
-            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
-          - name: INVENTORY_LOG_LEVEL
-            value: ${LOG_LEVEL}
-          - name: INVENTORY_DB_SSL_MODE
-            value: ${INVENTORY_DB_SSL_MODE}
-          - name: INVENTORY_DB_SSL_CERT
-            value: ${INVENTORY_DB_SSL_CERT}
-          - name: INVENTORY_DB_SCHEMA
-            value: "${INVENTORY_DB_SCHEMA}"
-          - name: PROMETHEUS_PUSHGATEWAY
-            value: ${PROMETHEUS_PUSHGATEWAY}
-          - name: NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
-          - name: CLOWDER_ENABLED
-            value: "true"
-          - name: REPLICA_NAMESPACE
-            value: ${REPLICA_NAMESPACE}
-        resources:
-          limits:
-            cpu: ${CPU_LIMIT_EDGE_HOSTS_PRS}
-            memory: ${MEMORY_LIMIT_EDGE_HOSTS_PRS}
-          requests:
-            cpu: ${CPU_REQUEST_EDGE_HOSTS_PRS}
-            memory: ${MEMORY_REQUEST_EDGE_HOSTS_PRS}
     - name: delete-hosts-without-id-facts
       restartPolicy: OnFailure
       podSpec:
@@ -2050,8 +1978,6 @@ objects:
                 optional: true
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
-          - name: FF_LAST_CHECKIN
-            value: ${FF_LAST_CHECKIN}
           - name: UNLEASH_REFRESH_INTERVAL
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: HOST_DELETE_CHUNK_SIZE
@@ -2354,7 +2280,25 @@ objects:
             "canonical_facts"->>'provider_type' AS "provider_type",
             COUNT(*) AS "host_count"
           FROM "hbi"."hosts"
-          GROUP BY "provider_type";
+          GROUP BY "canonical_facts"->>'provider_type';
+      - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/org_id_by_system_update_method
+        chunksize: 10000
+        query: >-
+          SELECT
+            "org_id",
+            COUNT(*) FILTER (WHERE
+              "system_profile_facts"->'bootc_status'->>'image_digest' IS NOT NULL
+              AND "system_profile_facts"->'bootc_status'->>'image_digest' <> ''
+            ) AS "image_mode_count",
+            COUNT(*) FILTER (WHERE
+              "system_profile_facts"->'bootc_status'->>'image_digest' IS NULL
+              AND "system_profile_facts"->>'host_type' IS NULL
+            ) AS "package_mode_count",
+            COUNT(*) FILTER (WHERE
+              "system_profile_facts"->>'host_type' = 'edge'
+            ) AS "edge_count"
+          FROM "hbi"."hosts"
+          GROUP BY "org_id";
       - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/duplicated_hosts_by_org
         chunksize: 10000
         query: >-
@@ -2421,6 +2365,7 @@ objects:
             COUNT(*) AS "host_count"
           FROM "hbi"."groups"
           JOIN "hbi"."hosts_groups" ON "groups"."id" = "hbi"."hosts_groups"."group_id"
+          WHERE "ungrouped" IS FALSE
           GROUP BY "groups"."id"
           ORDER BY "host_count" DESC;
 - apiVersion: v1
@@ -2616,6 +2561,15 @@ parameters:
 - name: MEMORY_LIMIT_GROUPS_S3_EXPORT
   value: 512Mi
 
+- name: CPU_REQUEST_DELETE_HOSTS_S3
+  value: 250m
+- name: CPU_LIMIT_DELETE_HOSTS_S3
+  value: 500m
+- name: MEMORY_REQUEST_DELETE_HOSTS_S3
+  value: 0.5Gi
+- name: MEMORY_LIMIT_DELETE_HOSTS_S3
+  value: 1Gi
+
 - name: CPU_REQUEST_SYNDICATOR
   value: 250m
 - name: CPU_LIMIT_SYNDICATOR
@@ -2644,15 +2598,6 @@ parameters:
   value: 512Mi
 - name: HOST_UPDATE_LIMIT
   value: "50000"
-
-- name: CPU_REQUEST_EDGE_HOSTS_PRS
-  value: 250m
-- name: CPU_LIMIT_EDGE_HOSTS_PRS
-  value: 500m
-- name: MEMORY_REQUEST_EDGE_HOSTS_PRS
-  value: 256Mi
-- name: MEMORY_LIMIT_EDGE_HOSTS_PRS
-  value: 512Mi
 
 - name: CPU_REQUEST_HOSTS_WITHOUT_ID_FACTS_JOB
   value: 250m
@@ -2847,10 +2792,6 @@ parameters:
   value: '@hourly'
 - name: HOSTS_LAST_CHECK_IN_SUSPEND
   value: 'false'
-- name: EDGE_HOSTS_PRS_SCHEDULE
-  value: '@hourly'
-- name: EDGE_HOSTS_PRS_SUSPEND
-  value: 'false'
 - name: KAFKA_SP_VALIDATOR_MAX_MESSAGES
   value: '10000'
 - name: TENANT_TRANSLATOR_HOST
@@ -2990,9 +2931,6 @@ parameters:
 - description: How frequently the Unleash client refreshes data from the server (in seconds)
   name: UNLEASH_REFRESH_INTERVAL
   value: "15"
-- name: FF_LAST_CHECKIN
-  description: Env var used to enable last checkin feature flag
-  value: 'false'
 
 #floorist
 - name: FLOORIST_SUSPEND

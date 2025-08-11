@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Callable
 from copy import deepcopy
 from datetime import datetime
 from datetime import timedelta
 from types import SimpleNamespace
-from typing import Callable
 from unittest import mock
 from unittest.mock import patch
 
@@ -24,6 +24,7 @@ from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import threadctx
 from app.models import Host
+from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 from app.queue.event_producer import EventProducer
 from app.queue.events import EventType
 from app.queue.host_mq import IngressMessageConsumer
@@ -154,6 +155,66 @@ def test_handle_message_happy_path(
         assert result.row.groups == []
 
     mock_notification_event_producer.write_event.assert_not_called()
+
+
+@pytest.mark.usefixtures("flask_app")
+def test_handle_message_update_reporter_to_rhsm(db_get_host, ingress_message_consumer_mock):
+    def _test_host_reporter_and_timestamps(host, reporter):
+        assert host.reporter == reporter
+        assert host.stale_timestamp != FAR_FUTURE_STALE_TIMESTAMP
+        assert host.stale_warning_timestamp != FAR_FUTURE_STALE_TIMESTAMP
+        assert host.deletion_timestamp != FAR_FUTURE_STALE_TIMESTAMP
+
+    # Create a host with a reporter
+    expected_insights_id = generate_uuid()
+    host = minimal_host(insights_id=expected_insights_id, reporter="puptoo")
+    message = wrap_message(host.data(), "add_host", get_platform_metadata(USER_IDENTITY))
+    result = ingress_message_consumer_mock.handle_message(json.dumps(message))
+    host_id = result.row.id
+    retrieved_host = db_get_host(host_id)
+
+    # Make sure the reporter is correct, and that the timestamps are not far future
+    _test_host_reporter_and_timestamps(retrieved_host, "puptoo")
+
+    # Update the host to have a different reporter
+    host = minimal_host(insights_id=expected_insights_id, reporter="rhsm-system-profile-bridge")
+
+    message = wrap_message(host.data(), "update_host", get_platform_metadata(USER_IDENTITY))
+    ingress_message_consumer_mock.handle_message(json.dumps(message))
+
+    # Make sure the reporter was updated and the timestamps are still not far future
+    retrieved_host = db_get_host(host_id)
+    _test_host_reporter_and_timestamps(retrieved_host, "rhsm-system-profile-bridge")
+
+
+@pytest.mark.usefixtures("flask_app")
+def test_handle_message_update_reporter_from_rhsm(db_get_host, ingress_message_consumer_mock):
+    # Create a host with a reporter
+    expected_insights_id = generate_uuid()
+    host = minimal_host(insights_id=expected_insights_id, reporter="rhsm-system-profile-bridge")
+    message = wrap_message(host.data(), "add_host", get_platform_metadata(USER_IDENTITY))
+    result = ingress_message_consumer_mock.handle_message(json.dumps(message))
+    host_id = result.row.id
+    retrieved_host = db_get_host(host_id)
+
+    # Make sure the reporter is correct, and that the timestamps are far future
+    assert retrieved_host.reporter == "rhsm-system-profile-bridge"
+    assert retrieved_host.stale_timestamp == FAR_FUTURE_STALE_TIMESTAMP
+    assert retrieved_host.stale_warning_timestamp == FAR_FUTURE_STALE_TIMESTAMP
+    assert retrieved_host.deletion_timestamp == FAR_FUTURE_STALE_TIMESTAMP
+
+    # Update the host to have a different reporter
+    host = minimal_host(insights_id=expected_insights_id, reporter="puptoo")
+
+    message = wrap_message(host.data(), "update_host", get_platform_metadata(USER_IDENTITY))
+    ingress_message_consumer_mock.handle_message(json.dumps(message))
+
+    # Make sure the reporter was updated and the timestamps are no longer far future
+    retrieved_host = db_get_host(host_id)
+    assert retrieved_host.reporter == "puptoo"
+    assert retrieved_host.stale_timestamp != FAR_FUTURE_STALE_TIMESTAMP
+    assert retrieved_host.stale_warning_timestamp != FAR_FUTURE_STALE_TIMESTAMP
+    assert retrieved_host.deletion_timestamp != FAR_FUTURE_STALE_TIMESTAMP
 
 
 @pytest.mark.usefixtures("flask_app")
@@ -394,7 +455,7 @@ def test_verify_bootc_in_headers(expected_value, system_profile, mq_create_or_up
 
     _, _, headers = mq_create_or_update_host(host, return_all_data=True)
     assert "is_bootc" in headers
-    assert headers["is_bootc"] is expected_value
+    assert headers["is_bootc"] == expected_value
 
 
 @pytest.mark.usefixtures("event_datetime_mock")
@@ -417,34 +478,6 @@ def test_add_host_simple(mq_create_or_update_host):
     key, event, _ = mq_create_or_update_host(host, return_all_data=True)
 
     assert_mq_host_data(key, event, expected_results, host_keys_to_check)
-
-
-@pytest.mark.usefixtures("event_datetime_mock")
-def test_add_edge_host(mq_create_or_update_host, db_get_host):
-    """
-    Tests adding an edge host
-    """
-    expected_insights_id = generate_uuid()
-
-    host = minimal_host(
-        account=SYSTEM_IDENTITY["account_number"],
-        insights_id=expected_insights_id,
-        system_profile={"owner_id": OWNER_ID, "host_type": "edge", "system_update_method": "dnf"},
-    )
-
-    expected_results = {"host": {**host.data()}}
-
-    host_keys_to_check = ["display_name", "insights_id", "account"]
-
-    key, event, headers = mq_create_or_update_host(host, return_all_data=True)
-
-    assert_mq_host_data(key, event, expected_results, host_keys_to_check)
-
-    # verify that the edge host has stale_timestamp set in year 2260, way out in the future to avoid culling.
-    saved_host_from_db = db_get_host(event["host"]["id"])
-
-    # verify that the saved host stale_timestamp is past Year 2200. The actual year should be 2260
-    assert saved_host_from_db.stale_timestamp.year == 2260
 
 
 @pytest.mark.usefixtures("event_datetime_mock")
@@ -1290,42 +1323,35 @@ def test_delete_host_tags(mq_create_or_update_host, db_get_host_by_insights_id, 
 
 
 @pytest.mark.usefixtures("event_datetime_mock")
-@pytest.mark.parametrize("with_last_check_in", [True, False])
-def test_add_host_stale_timestamp(mq_create_or_update_host, with_last_check_in):
+def test_add_host_stale_timestamp(mq_create_or_update_host):
     """
     Tests to see if the host is successfully created with both reporter
     and stale_timestamp set.
     """
-    with (
-        patch("app.serialization.get_flag_value", return_value=with_last_check_in),
-        patch("app.staleness_serialization.get_flag_value", return_value=with_last_check_in),
-    ):
-        expected_insights_id = generate_uuid()
-        stale_timestamp = now()
+    expected_insights_id = generate_uuid()
+    stale_timestamp = now()
 
-        host = minimal_host(
-            account=SYSTEM_IDENTITY["account_number"],
-            insights_id=expected_insights_id,
-            stale_timestamp=stale_timestamp.isoformat(),
-        )
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"],
+        insights_id=expected_insights_id,
+        stale_timestamp=stale_timestamp.isoformat(),
+    )
 
-        host_keys_to_check = ["reporter", "stale_timestamp", "culled_timestamp"]
+    host_keys_to_check = ["reporter", "stale_timestamp", "culled_timestamp"]
 
-        key, event, _ = mq_create_or_update_host(host, return_all_data=True)
-        if with_last_check_in:
-            updated_timestamp = datetime.fromisoformat(event["host"]["last_check_in"])
-        else:
-            updated_timestamp = datetime.fromisoformat(event["host"]["updated"])
-        host.stale_timestamp = (updated_timestamp + timedelta(seconds=104400)).isoformat()
-        expected_results = {
-            "host": {
-                **host.data(),
-                "stale_warning_timestamp": (updated_timestamp + timedelta(seconds=604800)).isoformat(),
-                "culled_timestamp": (updated_timestamp + timedelta(seconds=1209600)).isoformat(),
-            }
+    key, event, _ = mq_create_or_update_host(host, return_all_data=True)
+    updated_timestamp = datetime.fromisoformat(event["host"]["last_check_in"])
+
+    host.stale_timestamp = (updated_timestamp + timedelta(seconds=104400)).isoformat()
+    expected_results = {
+        "host": {
+            **host.data(),
+            "stale_warning_timestamp": (updated_timestamp + timedelta(seconds=604800)).isoformat(),
+            "culled_timestamp": (updated_timestamp + timedelta(seconds=1209600)).isoformat(),
         }
+    }
 
-        assert_mq_host_data(key, event, expected_results, host_keys_to_check)
+    assert_mq_host_data(key, event, expected_results, host_keys_to_check)
 
 
 @pytest.mark.parametrize("field_to_remove", ["stale_timestamp", "reporter"])
@@ -2567,6 +2593,7 @@ def test_write_add_update_event_message(mocker):
         per_reporter_staleness = {}
         created_on = datetime.now()
         modified_on = datetime.now()
+        last_check_in = datetime.now()
 
     result = OperationResult(
         row=FakeHostRow(),
@@ -2588,3 +2615,49 @@ def test_write_add_update_event_message(mocker):
     # Assert that all group fields were present when calling mock_set_cached_system
     cached_group = mock_set_cached_system.call_args[0][1]["groups"][0]
     assert cached_group == serialized_group
+
+
+@pytest.mark.parametrize("provider_type", ["alibaba", "aws", "azure", "discovery", "gcp", "ibm"])
+def test_add_host_with_provider_types(
+    mq_create_or_update_host: Callable,
+    db_get_host: Callable[[str], Host],
+    provider_type: str,
+) -> None:
+    """
+    Tests adding a host with various provider_type values via Kafka message
+    and validates that the host is successfully created in the database.
+    """
+    provider_id = generate_uuid()
+
+    host = minimal_host(provider_type=provider_type, provider_id=provider_id)
+
+    expected_results = {"host": {**host.data()}}
+    host_keys_to_check = ["provider_type", "provider_id"]
+
+    key, event, _ = mq_create_or_update_host(host, return_all_data=True)
+    assert_mq_host_data(key, event, expected_results, host_keys_to_check)
+
+    # Verify host was created in database with correct provider_type
+    created_host: Host = db_get_host(key)
+    assert created_host.canonical_facts["provider_type"] == provider_type
+    assert created_host.canonical_facts["provider_id"] == provider_id
+
+
+@pytest.mark.parametrize("invalid_provider_type", ["invalid_provider", "discovery-system", "unknown", ""])
+def test_add_host_with_invalid_provider_type(
+    mocker: MockerFixture,
+    mq_create_or_update_host: Callable,
+    invalid_provider_type: str,
+) -> None:
+    """
+    Tests that adding a host with invalid provider_type via Kafka message
+    raises ValidationException and sends notification event.
+    """
+    host = minimal_host(insights_id=generate_uuid(), provider_type=invalid_provider_type, provider_id=generate_uuid())
+
+    mock_notification_event_producer = mocker.Mock()
+    with pytest.raises(ValidationException):
+        mq_create_or_update_host(host, notification_event_producer=mock_notification_event_producer)
+
+    # Verify that notification event was sent for the validation failure
+    mock_notification_event_producer.write_event.assert_called_once()

@@ -1,8 +1,8 @@
 import json
+from collections.abc import Callable
 from collections.abc import Generator
+from datetime import UTC
 from datetime import datetime
-from datetime import timezone
-from typing import Callable
 from unittest.mock import patch
 
 import pytest
@@ -123,9 +123,7 @@ def mq_create_hosts_in_all_states(mq_create_or_update_host):
 @pytest.fixture(scope="function")
 def mq_create_deleted_hosts(mq_create_or_update_host):
     with patch("app.models.utils.datetime") as mock_datetime:
-        mock_datetime.now.return_value = datetime(
-            year=2023, month=4, day=2, hour=1, minute=1, second=1, tzinfo=timezone.utc
-        )
+        mock_datetime.now.return_value = datetime(year=2023, month=4, day=2, hour=1, minute=1, second=1, tzinfo=UTC)
         mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
 
         staleness_timestamps = get_staleness_timestamps()
