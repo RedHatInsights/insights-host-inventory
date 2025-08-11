@@ -1,6 +1,6 @@
 import os
+from datetime import UTC
 from datetime import datetime
-from datetime import timezone
 from enum import Enum
 
 from marshmallow import validate as marshmallow_validate
@@ -12,7 +12,7 @@ TAG_VALUE_VALIDATION = marshmallow_validate.Length(max=255)
 SPECIFICATION_DIR = "./swagger/"
 SYSTEM_PROFILE_SPECIFICATION_FILE = "system_profile.spec.yaml"
 
-FAR_FUTURE_STALE_TIMESTAMP = datetime(2260, 1, 1, tzinfo=timezone.utc)
+FAR_FUTURE_STALE_TIMESTAMP = datetime(2260, 1, 1, tzinfo=UTC)
 
 NEW_TO_OLD_REPORTER_MAP = {"satellite": "yupana", "discovery": "yupana"}
 OLD_TO_NEW_REPORTER_MAP = {"yupana": ("satellite", "discovery")}

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import logging
 import os
+from datetime import UTC
 from datetime import datetime
-from datetime import timezone
 from enum import Enum
 
 from marshmallow import Schema
@@ -107,7 +107,7 @@ def host_create_update_event(event_type, host, platform_metadata=None):
     return (
         HostCreateUpdateEvent,
         {
-            "timestamp": datetime.now(timezone.utc),
+            "timestamp": datetime.now(UTC),
             "type": event_type.name,
             "host": host,
             "platform_metadata": platform_metadata,
@@ -118,7 +118,7 @@ def host_create_update_event(event_type, host, platform_metadata=None):
 
 def host_delete_event(event_type, host, initiated_by_frontend=False, platform_metadata=None):
     delete_event = {
-        "timestamp": datetime.now(timezone.utc),
+        "timestamp": datetime.now(UTC),
         "type": event_type.name,
         "id": host.id,
         **serialize_canonical_facts(host.canonical_facts),
