@@ -1,6 +1,6 @@
+from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
-from datetime import timezone
 from unittest import mock
 from unittest.mock import patch
 
@@ -425,7 +425,7 @@ def test_host_with_rhsm_conduit_and_other_reporters_can_be_culled(db_create_host
     """Test that hosts with rhsm-system-profile-bridge AND other reporters can still be culled normally."""
 
     # Create a host with rhsm-system-profile-bridge AND other reporters
-    past_time = datetime.now(timezone.utc) - timedelta(days=30)
+    past_time = datetime.now(UTC) - timedelta(days=30)
 
     mixed_reporter_host = Host(
         canonical_facts={"subscription_manager_id": generate_uuid()},
@@ -474,14 +474,14 @@ def test_host_reaper_filter_logic_parametrized(reporters):
         canonical_facts={"subscription_manager_id": generate_uuid()},
         display_name="test-host",
         reporter=reporters[0],
-        stale_timestamp=datetime.now(timezone.utc),
+        stale_timestamp=datetime.now(UTC),
         org_id=USER_IDENTITY["org_id"],
     )
 
     per_reporter_staleness = {
         reporter: {
-            "last_check_in": datetime.now(timezone.utc).isoformat(),
-            "stale_timestamp": datetime.now(timezone.utc).isoformat(),
+            "last_check_in": datetime.now(UTC).isoformat(),
+            "stale_timestamp": datetime.now(UTC).isoformat(),
             "check_in_succeeded": True,
         }
         for reporter in reporters

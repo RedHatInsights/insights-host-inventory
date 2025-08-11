@@ -1,6 +1,6 @@
 from collections import namedtuple
+from datetime import UTC
 from datetime import datetime
-from datetime import timezone
 from itertools import product
 from tempfile import TemporaryFile
 from unittest.mock import MagicMock
@@ -188,12 +188,12 @@ def test_should_host_stay_fresh_forever():
     host_rhsm_only = Host(
         canonical_facts={"subscription_manager_id": generate_uuid()},
         reporter="rhsm-system-profile-bridge",
-        stale_timestamp=datetime.now(timezone.utc),
+        stale_timestamp=datetime.now(UTC),
         org_id=USER_IDENTITY["org_id"],
     )
     host_rhsm_only.per_reporter_staleness = {
         "rhsm-system-profile-bridge": {
-            "last_check_in": datetime.now(timezone.utc).isoformat(),
+            "last_check_in": datetime.now(UTC).isoformat(),
             "check_in_succeeded": True,
         }
     }
@@ -203,10 +203,10 @@ def test_should_host_stay_fresh_forever():
     host_normal = Host(
         canonical_facts={"subscription_manager_id": generate_uuid()},
         reporter="puptoo",
-        stale_timestamp=datetime.now(timezone.utc),
+        stale_timestamp=datetime.now(UTC),
         org_id=USER_IDENTITY["org_id"],
     )
     host_normal.per_reporter_staleness = {
-        "puptoo": {"last_check_in": datetime.now(timezone.utc).isoformat(), "check_in_succeeded": True}
+        "puptoo": {"last_check_in": datetime.now(UTC).isoformat(), "check_in_succeeded": True}
     }
     assert should_host_stay_fresh_forever(host_normal) is False

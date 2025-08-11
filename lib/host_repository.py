@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from enum import Enum
 from typing import Any
-from typing import Callable
 from uuid import UUID
 
 from flask import current_app
