@@ -430,7 +430,7 @@ def get_group_by_id_from_db(group_id: str, org_id: str, session: Session | None 
     return query.one_or_none()
 
 
-def get_group_by_name_from_db(group_name: str, org_id: str, session: Optional[Session] = None) -> list[Group]:
+def get_group_by_name_from_db(group_name: str, org_id: str, session: Session | None = None) -> list[Group]:
     session = session or db.session
     query = session.query(Group).filter(Group.org_id == org_id, Group.name == group_name.lower())
     return query.all()

@@ -13,7 +13,7 @@ objects:
     inMemoryDb: true
     testing:
       iqePlugin: host-inventory
-    deployment: 
+    deployment:
       - name: mq-p1
         replicas: ${{REPLICAS_P1}}
         podSpec:

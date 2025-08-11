@@ -7,6 +7,7 @@ from datetime import timedelta
 import pytest
 from marshmallow import ValidationError as MarshmallowValidationError
 from sqlalchemy.exc import DataError
+from sqlalchemy.exc import IntegrityError
 
 from api.host_query import staleness_timestamps
 from app.exceptions import ValidationException
