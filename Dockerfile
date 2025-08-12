@@ -59,6 +59,7 @@ COPY host_delete_duplicates.py host_delete_duplicates.py
 COPY app_migrations/ app_migrations/
 COPY jobs/ jobs/
 COPY add_inventory_view.py add_inventory_view.py
+COPY delete_host_namespace_access_tags.py delete_host_namespace_access_tags.py
 COPY hosts_table_migration_data_copy.py hosts_table_migration_data_copy.py
 COPY hosts_table_migration_switch.py hosts_table_migration_switch.py
 
