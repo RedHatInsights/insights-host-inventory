@@ -1,9 +1,9 @@
 import logging
 import random
+from collections.abc import Callable
 from datetime import timedelta
 from itertools import chain
 from itertools import combinations
-from typing import Callable
 from unittest.mock import patch
 
 import pytest
@@ -516,7 +516,7 @@ def test_get_host_by_tag(mq_create_three_specific_hosts, api_get, subtests):
     assert response_status == 200
     assert len(expected_response_list) == len(response_data["results"])
 
-    for host, result in zip(expected_response_list, response_data["results"]):
+    for host, result in zip(expected_response_list, response_data["results"], strict=False):
         assert host.id == result["id"]
 
 
@@ -531,7 +531,7 @@ def test_get_multiple_hosts_by_tag(mq_create_three_specific_hosts, api_get, subt
     assert response_status == 200
     assert len(expected_response_list) == len(response_data["results"])
 
-    for host, result in zip(expected_response_list, response_data["results"]):
+    for host, result in zip(expected_response_list, response_data["results"], strict=False):
         assert host.id == result["id"]
 
 
@@ -601,7 +601,7 @@ def test_get_host_with_tag_no_value_at_all(mq_create_three_specific_hosts, api_g
     assert response_status == 200
     assert len(expected_response_list) == len(response_data["results"])
 
-    for host, result in zip(expected_response_list, response_data["results"]):
+    for host, result in zip(expected_response_list, response_data["results"], strict=False):
         assert host.id == result["id"]
 
 
@@ -619,7 +619,7 @@ def test_get_host_with_tag_no_value_in_query(mq_create_three_specific_hosts, api
     assert response_status == 200
     assert len(expected_response_list) == len(response_data["results"])
 
-    for host, result in zip(expected_response_list, response_data["results"]):
+    for host, result in zip(expected_response_list, response_data["results"], strict=False):
         assert host.id == result["id"]
 
 
@@ -636,7 +636,7 @@ def test_get_host_with_tag_no_namespace(mq_create_three_specific_hosts, api_get,
     assert len(expected_response_list) == len(response_data["results"])
     api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
 
-    for host, result in zip(expected_response_list, response_data["results"]):
+    for host, result in zip(expected_response_list, response_data["results"], strict=False):
         assert host.id == result["id"]
 
 
@@ -654,7 +654,7 @@ def test_get_host_with_tag_only_key(mq_create_three_specific_hosts, api_get, sub
     assert response_status == 200
     assert len(expected_response_list) == len(response_data["results"])
 
-    for host, result in zip(expected_response_list, response_data["results"]):
+    for host, result in zip(expected_response_list, response_data["results"], strict=False):
         assert host.id == result["id"]
 
 
@@ -673,7 +673,7 @@ def test_get_host_by_display_name_and_tag(mq_create_three_specific_hosts, api_ge
     assert response_status == 200
     assert len(expected_response_list) == len(response_data["results"])
 
-    for host, result in zip(expected_response_list, response_data["results"]):
+    for host, result in zip(expected_response_list, response_data["results"], strict=False):
         assert host.id == result["id"]
 
 
@@ -692,7 +692,7 @@ def test_get_host_by_display_name_and_tag_backwards(mq_create_three_specific_hos
     assert response_status == 200
     assert len(expected_response_list) == len(response_data["results"])
 
-    for host, result in zip(expected_response_list, response_data["results"]):
+    for host, result in zip(expected_response_list, response_data["results"], strict=False):
         assert host.id == result["id"]
 
 
@@ -944,7 +944,7 @@ def test_get_hosts_order_by_operating_system(mq_create_or_update_host, api_get, 
     ordered_insights_ids = [generate_uuid() for _ in range(len(ordered_operating_system_data))]
 
     # Create an association between the insights IDs
-    ordered_host_data = dict(zip(ordered_insights_ids, ordered_operating_system_data))
+    ordered_host_data = dict(zip(ordered_insights_ids, ordered_operating_system_data, strict=False))
 
     # Create a shuffled list of insights_ids so we can create the hosts in a random order
     shuffled_insights_ids = ordered_insights_ids.copy()
@@ -1171,7 +1171,7 @@ def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
     insights_ids = [generate_uuid() for _ in range(len(registered_with_data))]
 
     # Create an association between the insights IDs
-    registered_with_host_data = dict(zip(insights_ids, registered_with_data))
+    registered_with_host_data = dict(zip(insights_ids, registered_with_data, strict=False))
 
     # Create hosts for the above host data
     _ = [

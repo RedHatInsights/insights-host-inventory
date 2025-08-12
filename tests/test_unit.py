@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 from base64 import b64encode
 from copy import deepcopy
+from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
-from datetime import timezone
 from json import dumps
 from random import choice
 from unittest import TestCase
@@ -1541,7 +1541,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
 
 class SerializationSerializeHostBaseTestCase(TestCase):
     def _timestamp_to_str(self, timestamp):
-        return timestamp.astimezone(timezone.utc).isoformat()
+        return timestamp.astimezone(UTC).isoformat()
 
 
 class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseTestCase):
@@ -2010,7 +2010,7 @@ class SerializationSerializeDatetime(TestCase):
         self.assertEqual(_now.isoformat(), _serialize_datetime(_now))
 
     def test_iso_format_is_used(self):
-        dt = datetime(2019, 7, 3, 1, 1, 4, 20647, timezone.utc)
+        dt = datetime(2019, 7, 3, 1, 1, 4, 20647, UTC)
         self.assertEqual("2019-07-03T01:01:04.020647+00:00", _serialize_datetime(dt))
 
 

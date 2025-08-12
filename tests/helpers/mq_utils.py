@@ -1,9 +1,9 @@
 import json
 import os
 from collections import namedtuple
+from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
-from datetime import timezone
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -156,7 +156,7 @@ def assert_delete_event_is_valid(
     }
     assert set(event.keys()) == expected_keys
 
-    assert timestamp.replace(tzinfo=timezone.utc).isoformat() == event["timestamp"]
+    assert timestamp.replace(tzinfo=UTC).isoformat() == event["timestamp"]
 
     assert event["type"] == "delete"
 
@@ -239,9 +239,9 @@ def assert_patch_event_is_valid(
     reporter=None,
     identity=USER_IDENTITY,
 ):
-    stale_timestamp = (host.last_check_in.astimezone(timezone.utc) + timedelta(seconds=104400)).isoformat()
-    stale_warning_timestamp = (host.last_check_in.astimezone(timezone.utc) + timedelta(seconds=604800)).isoformat()
-    culled_timestamp = (host.last_check_in.astimezone(timezone.utc) + timedelta(seconds=1209600)).isoformat()
+    stale_timestamp = (host.last_check_in.astimezone(UTC) + timedelta(seconds=104400)).isoformat()
+    stale_warning_timestamp = (host.last_check_in.astimezone(UTC) + timedelta(seconds=604800)).isoformat()
+    culled_timestamp = (host.last_check_in.astimezone(UTC) + timedelta(seconds=1209600)).isoformat()
 
     reporter = reporter or host.reporter
 
@@ -273,7 +273,7 @@ def assert_patch_event_is_valid(
             "stale_timestamp": stale_timestamp,
             "stale_warning_timestamp": stale_warning_timestamp,
             "culled_timestamp": culled_timestamp,
-            "created": host.created_on.astimezone(timezone.utc).isoformat(),
+            "created": host.created_on.astimezone(UTC).isoformat(),
             "last_check_in": host.last_check_in.isoformat(),
             "provider_id": host.canonical_facts.get("provider_id"),
             "provider_type": host.canonical_facts.get("provider_type"),
@@ -380,7 +380,7 @@ def assert_synchronize_event_is_valid(
     expected_keys = {"metadata", "timestamp", "host", "platform_metadata", "type"}
 
     assert set(event.keys()) == expected_keys
-    assert timestamp.replace(tzinfo=timezone.utc).isoformat() == event["timestamp"]
+    assert timestamp.replace(tzinfo=UTC).isoformat() == event["timestamp"]
     assert event["type"] == "updated"
     assert host.canonical_facts.get("insights_id") == event["host"]["insights_id"]
     assert str(host.id) in event_producer.key

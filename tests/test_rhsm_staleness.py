@@ -2,9 +2,9 @@
 Test the rhsm-system-profile-bridge-only hosts functionality to ensure they stay fresh forever.
 """
 
+from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
-from datetime import timezone
 
 import pytest
 
@@ -29,13 +29,13 @@ class TestRhsmSpBridgeUtilityFunctions:
             host = Host(
                 canonical_facts={"subscription_manager_id": generate_uuid()},
                 reporter="rhsm-system-profile-bridge",
-                stale_timestamp=datetime.now(timezone.utc),
+                stale_timestamp=datetime.now(UTC),
                 org_id=USER_IDENTITY["org_id"],
             )
             host.per_reporter_staleness = {
                 "rhsm-system-profile-bridge": {
-                    "last_check_in": datetime.now(timezone.utc).isoformat(),
-                    "stale_timestamp": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
+                    "last_check_in": datetime.now(UTC).isoformat(),
+                    "stale_timestamp": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
                     "check_in_succeeded": True,
                 }
             }
@@ -47,18 +47,18 @@ class TestRhsmSpBridgeUtilityFunctions:
         host = Host(
             canonical_facts={"subscription_manager_id": generate_uuid()},
             reporter="puptoo",
-            stale_timestamp=datetime.now(timezone.utc),
+            stale_timestamp=datetime.now(UTC),
             org_id=USER_IDENTITY["org_id"],
         )
         host.per_reporter_staleness = {
             "rhsm-system-profile-bridge": {
-                "last_check_in": datetime.now(timezone.utc).isoformat(),
-                "stale_timestamp": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
+                "last_check_in": datetime.now(UTC).isoformat(),
+                "stale_timestamp": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
                 "check_in_succeeded": True,
             },
             "puptoo": {
-                "last_check_in": datetime.now(timezone.utc).isoformat(),
-                "stale_timestamp": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
+                "last_check_in": datetime.now(UTC).isoformat(),
+                "stale_timestamp": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
                 "check_in_succeeded": True,
             },
         }
@@ -74,12 +74,12 @@ class TestRhsmSpBridgeStalenessTimestamps:
         host = Host(
             canonical_facts={"subscription_manager_id": generate_uuid()},
             reporter="rhsm-system-profile-bridge",
-            stale_timestamp=datetime.now(timezone.utc),
+            stale_timestamp=datetime.now(UTC),
             org_id=USER_IDENTITY["org_id"],
         )
         host.per_reporter_staleness = {
             "rhsm-system-profile-bridge": {
-                "last_check_in": datetime.now(timezone.utc).isoformat(),
+                "last_check_in": datetime.now(UTC).isoformat(),
                 "check_in_succeeded": True,
             }
         }
@@ -98,11 +98,11 @@ class TestRhsmSpBridgeStalenessTimestamps:
         host = Host(
             canonical_facts={"subscription_manager_id": generate_uuid()},
             reporter="puptoo",
-            stale_timestamp=datetime.now(timezone.utc),
+            stale_timestamp=datetime.now(UTC),
             org_id=USER_IDENTITY["org_id"],
         )
         host.per_reporter_staleness = {
-            "puptoo": {"last_check_in": datetime.now(timezone.utc).isoformat(), "check_in_succeeded": True}
+            "puptoo": {"last_check_in": datetime.now(UTC).isoformat(), "check_in_succeeded": True}
         }
 
         st = staleness_timestamps()
@@ -120,12 +120,12 @@ class TestRhsmSpBridgeStalenessTimestamps:
         host = Host(
             canonical_facts={"subscription_manager_id": generate_uuid()},
             reporter="rhsm-system-profile-bridge",
-            stale_timestamp=datetime.now(timezone.utc),
+            stale_timestamp=datetime.now(UTC),
             org_id=USER_IDENTITY["org_id"],
         )
         host.per_reporter_staleness = {
             "rhsm-system-profile-bridge": {
-                "last_check_in": datetime.now(timezone.utc).isoformat(),
+                "last_check_in": datetime.now(UTC).isoformat(),
                 "check_in_succeeded": True,
             }
         }
@@ -148,12 +148,12 @@ class TestRhsmSpBridgeHostModel:
         host = Host(
             canonical_facts={"subscription_manager_id": generate_uuid()},
             reporter="rhsm-system-profile-bridge",
-            stale_timestamp=datetime.now(timezone.utc) - timedelta(days=10),  # Way in the past
+            stale_timestamp=datetime.now(UTC) - timedelta(days=10),  # Way in the past
             org_id=USER_IDENTITY["org_id"],
         )
 
         # Set per_reporter_staleness with past timestamp to simulate stale condition
-        past_time = datetime.now(timezone.utc) - timedelta(days=5)
+        past_time = datetime.now(UTC) - timedelta(days=5)
         host.per_reporter_staleness = {
             "rhsm-system-profile-bridge": {
                 "last_check_in": past_time.isoformat(),
@@ -172,12 +172,12 @@ class TestRhsmSpBridgeHostModel:
         host = Host(
             canonical_facts={"subscription_manager_id": generate_uuid()},
             reporter="puptoo",
-            stale_timestamp=datetime.now(timezone.utc) - timedelta(days=10),
+            stale_timestamp=datetime.now(UTC) - timedelta(days=10),
             org_id=USER_IDENTITY["org_id"],
         )
 
         # Set per_reporter_staleness with past timestamp to simulate stale condition
-        past_time = datetime.now(timezone.utc) - timedelta(days=5)
+        past_time = datetime.now(UTC) - timedelta(days=5)
         host.per_reporter_staleness = {
             "puptoo": {
                 "last_check_in": past_time.isoformat(),
@@ -200,12 +200,12 @@ class TestRhsmSpBridgeSerialization:
         host = Host(
             canonical_facts={"subscription_manager_id": generate_uuid()},
             reporter="rhsm-system-profile-bridge",
-            stale_timestamp=datetime.now(timezone.utc),
+            stale_timestamp=datetime.now(UTC),
             org_id=USER_IDENTITY["org_id"],
         )
         host.per_reporter_staleness = {
             "rhsm-system-profile-bridge": {
-                "last_check_in": datetime.now(timezone.utc).isoformat(),
+                "last_check_in": datetime.now(UTC).isoformat(),
                 "check_in_succeeded": True,
             }
         }
@@ -225,11 +225,11 @@ class TestRhsmSpBridgeSerialization:
         host = Host(
             canonical_facts={"subscription_manager_id": generate_uuid()},
             reporter="puptoo",
-            stale_timestamp=datetime.now(timezone.utc),
+            stale_timestamp=datetime.now(UTC),
             org_id=USER_IDENTITY["org_id"],
         )
         host.per_reporter_staleness = {
-            "puptoo": {"last_check_in": datetime.now(timezone.utc).isoformat(), "check_in_succeeded": True}
+            "puptoo": {"last_check_in": datetime.now(UTC).isoformat(), "check_in_succeeded": True}
         }
 
         staleness = get_sys_default_staleness()
@@ -249,12 +249,12 @@ def test_rhsm_conduit_reporter():
     host = Host(
         canonical_facts={"subscription_manager_id": generate_uuid()},
         reporter="rhsm-system-profile-bridge",
-        stale_timestamp=datetime.now(timezone.utc),
+        stale_timestamp=datetime.now(UTC),
         org_id=USER_IDENTITY["org_id"],
     )
     host.per_reporter_staleness = {
         "rhsm-system-profile-bridge": {
-            "last_check_in": datetime.now(timezone.utc).isoformat(),
+            "last_check_in": datetime.now(UTC).isoformat(),
             "check_in_succeeded": True,
         }
     }
@@ -278,13 +278,13 @@ def test_multiple_reporters_parametrized(reporters):
     host = Host(
         canonical_facts={"subscription_manager_id": generate_uuid()},
         reporter=reporters[0],
-        stale_timestamp=datetime.now(timezone.utc),
+        stale_timestamp=datetime.now(UTC),
         org_id=USER_IDENTITY["org_id"],
     )
 
     per_reporter_staleness = {
         reporter: {
-            "last_check_in": datetime.now(timezone.utc).isoformat(),
+            "last_check_in": datetime.now(UTC).isoformat(),
             "check_in_succeeded": True,
         }
         for reporter in reporters
