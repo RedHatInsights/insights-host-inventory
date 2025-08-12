@@ -32,7 +32,8 @@ from app.instrumentation import log_patch_group_success
 from app.logging import get_logger
 from app.models import InputGroupSchema
 from app.queue.events import EventType
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1, FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.feature_flags import get_flag_value
 from lib.group_repository import add_hosts_to_group
 from lib.group_repository import create_group_from_payload
@@ -203,7 +204,9 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
         if not get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1) and (
             new_group_name := validated_patch_group_data.get("name")
         ):
-            if new_group_name != group_to_update.name and does_group_with_name_exist(new_group_name, get_current_identity().org_id):
+            if new_group_name != group_to_update.name and does_group_with_name_exist(
+                new_group_name, get_current_identity().org_id
+            ):
                 log_patch_group_failed(logger, group_id)
                 abort(HTTPStatus.BAD_REQUEST, f"Group with name '{new_group_name}' already exists.")
 

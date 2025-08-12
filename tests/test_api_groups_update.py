@@ -11,9 +11,10 @@ from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
 from tests.helpers.api_utils import assert_group_response
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
-from tests.helpers.test_utils import SYSTEM_IDENTITY, set_environment
+from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
+from tests.helpers.test_utils import set_environment
 
 
 @pytest.mark.parametrize(
@@ -212,7 +213,6 @@ def test_patch_groups_RBAC_allowed_specific_groups(mocker, db_create_group_with_
 
             # Should be allowed
             assert_response_status(response_status, 200)
-
 
 
 @pytest.mark.usefixtures("enable_rbac")
