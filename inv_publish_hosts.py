@@ -30,14 +30,26 @@ COLLECTED_METRICS = (
 
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
 
-PUBLICATION_NAME = "hbi_hosts_pub_v1_0_1"
-PUBLICATION_COLUMNS = "id,account,display_name,created_on,modified_on,facts,canonical_facts, \
-system_profile_facts,ansible_host,stale_timestamp,reporter,per_reporter_staleness,org_id, \
+PUBLICATION_NAME = "hbi_hosts_pub_v1_0_2"
+HOSTS_PUBLICATION_COLUMNS = "org_id,id,account,display_name,created_on,modified_on,facts,\
+ansible_host,insights_id,subscription_manager_id,satellite_id,fqdn,bios_uuid,ip_addresses,mac_addresses,\
+provider_id,provider_type,stale_timestamp,reporter,per_reporter_staleness,\
 groups,tags_alt,last_check_in,stale_warning_timestamp,deletion_timestamp"
+SP_DYNAMIC_PUBLICATION_COLUMNS = "org_id,host_id,installed_packages,installed_products,workloads"
+SP_STATIC_PUBLICATION_COLUMNS = "org_id,host_id,arch,bootc_status,dnf_modules,host_type,image_builder,\
+operating_system,owner_id,releasever,rhc_client_id,rhsm,satellite_managed,system_update_method,yum_repos"
 CHECK_PUBLICATION = f"SELECT EXISTS(SELECT * FROM pg_catalog.pg_publication WHERE pubname = '{PUBLICATION_NAME}')"
-CREATE_PUBLICATION = f"CREATE PUBLICATION {PUBLICATION_NAME} FOR TABLE hbi.hosts ({PUBLICATION_COLUMNS})"
+CREATE_PUBLICATION = (
+    f"CREATE PUBLICATION {PUBLICATION_NAME} "
+    f"FOR TABLE "
+    f"hbi.hosts ({HOSTS_PUBLICATION_COLUMNS}), "
+    f"hbi.system_profiles_dynamic ({SP_DYNAMIC_PUBLICATION_COLUMNS}), "
+    f"hbi.system_profiles_static ({SP_STATIC_PUBLICATION_COLUMNS}) "
+    f"WHERE (insights_id != '00000000-0000-0000-0000-000000000000') "
+    f"WITH (publish_via_partition_root = true);"
+)
 CHECK_REPLICATION_SLOTS = "SELECT slot_name, active FROM pg_replication_slots"
-DROP_PUBLICATIONS = ["hbi_hosts_pub"]
+DROP_PUBLICATIONS = ["hbi_hosts_pub", "hbi_hosts_pub_v1_0_0", "hbi_hosts_pub_v1_0_1"]
 DROP_PUBLICATION = "DROP PUBLICATION IF EXISTS "
 
 
