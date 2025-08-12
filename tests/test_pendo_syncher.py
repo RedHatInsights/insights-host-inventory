@@ -6,7 +6,7 @@ from requests import exceptions
 from app.config import Config
 from app.environment import RuntimeEnvironment
 from app.models import db
-from pendo_syncher import run as pendo_syncher_run
+from jobs.pendo_syncher import run as pendo_syncher_run
 from tests.helpers.test_utils import MockResponseObject
 
 
