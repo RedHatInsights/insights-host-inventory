@@ -2403,10 +2403,6 @@ parameters:
   value: 'false'
 - name: SYNDICATOR_CRON_SCHEDULE
   value: '*/5 * * * *'
-- name: HOSTS_LAST_CHECK_IN_SCHEDULE
-  value: '@hourly'
-- name: HOSTS_LAST_CHECK_IN_SUSPEND
-  value: 'false'
 - name: KAFKA_SP_VALIDATOR_MAX_MESSAGES
   value: '10000'
 - name: TENANT_TRANSLATOR_HOST
