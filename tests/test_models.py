@@ -1155,14 +1155,6 @@ def test_create_group_existing_name_diff_org(db_create_group, db_get_group_by_id
     assert db_get_group_by_id(group2.id).name == group_name
 
 
-def test_create_group_existing_name_same_org(db_create_group):
-    # Make sure we can't create two groups with the same name in the same org
-    group_name = "TestGroup"
-    db_create_group(group_name)
-    with pytest.raises(IntegrityError):
-        db_create_group(group_name)
-
-
 def test_add_delete_host_group_happy(
     db_create_host,
     db_create_group,

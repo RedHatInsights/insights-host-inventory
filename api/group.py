@@ -32,7 +32,7 @@ from app.instrumentation import log_patch_group_success
 from app.logging import get_logger
 from app.models import InputGroupSchema
 from app.queue.events import EventType
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1, FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.feature_flags import get_flag_value
 from lib.group_repository import add_hosts_to_group
 from lib.group_repository import create_group_from_payload
@@ -101,6 +101,17 @@ def create_group(body, rbac_filter=None):
 
     try:
         # Create group with validated data
+        group_name = validated_create_group_data.get("name")
+
+        # check the group's existence and for Kessel Phase 1
+        if not get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1) and does_group_with_name_exist(
+            group_name, get_current_identity().org_id
+        ):
+            log_create_group_failed(logger, group_name)
+            return json_error_response(
+                "Integrity error", f"A group with name {group_name} already exists.", HTTPStatus.BAD_REQUEST
+            )
+
         if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
             group_name = validated_create_group_data.get("name")
             # Before waiting for workspace creation in RBAC, check that the name isn't already in use
@@ -184,12 +195,26 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
         abort(HTTPStatus.NOT_FOUND)
 
     try:
-        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
-            # Update group on Kessel
-            new_group_name = validated_patch_group_data.get("name")
+        # Check if trying to modify ungrouped group before any RBAC calls
+        if group_to_update.ungrouped and "name" in validated_patch_group_data:
+            log_patch_group_failed(logger, group_id)
+            abort(HTTPStatus.BAD_REQUEST, "The 'ungrouped' group can not be modified.")
 
-            if new_group_name:
+        if not get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1) and (
+            new_group_name := validated_patch_group_data.get("name")
+        ):
+            if new_group_name != group_to_update.name and does_group_with_name_exist(new_group_name, get_current_identity().org_id):
+                log_patch_group_failed(logger, group_id)
+                abort(HTTPStatus.BAD_REQUEST, f"Group with name '{new_group_name}' already exists.")
+
+            # Since no conflicting group is found, call patch_rbac_workspace if the name needs updating
+            if new_group_name != group_to_update.name:
                 patch_rbac_workspace(group_id, name=new_group_name)
+
+        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION) and (
+            new_group_name := validated_patch_group_data.get("name")
+        ):
+            patch_rbac_workspace(group_id, name=new_group_name)
 
         # Separate out the host IDs because they're not stored on the Group
         patch_group(group_to_update, validated_patch_group_data, identity, current_app.event_producer)
