@@ -205,10 +205,7 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
         if not get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1) and (
             new_group_name := validated_patch_group_data.get("name")
         ):
-            existing_groups = get_group_by_name_from_db(new_group_name, identity.org_id)
-
-            # Check if there are any existing groups with this name other than the current group
-            if len(existing_groups) > 0 and any(group.id != group_to_update.id for group in existing_groups):
+            if new_group_name != group_to_update.name and does_group_with_name_exist(group_name, get_current_identity().org_id):
                 log_patch_group_failed(logger, group_id)
                 abort(HTTPStatus.BAD_REQUEST, f"Group with name '{new_group_name}' already exists.")
 
