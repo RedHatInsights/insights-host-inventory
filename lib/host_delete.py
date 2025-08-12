@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from collections.abc import Generator
 from functools import partial
-from typing import Callable
 
 from confluent_kafka import KafkaException
 from flask_sqlalchemy.query import Query

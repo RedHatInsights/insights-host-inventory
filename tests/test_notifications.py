@@ -1,7 +1,7 @@
 import json
+from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
-from datetime import timezone
 from unittest import mock
 from unittest.mock import patch
 
@@ -90,7 +90,7 @@ def test_host_became_stale(
     db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
 
     with patch("app.models.utils.datetime") as models_datetime:
-        job_start_time = datetime.now(timezone.utc)
+        job_start_time = datetime.now(UTC)
         models_datetime.now.return_value = job_start_time - timedelta(minutes=5)
 
         host = minimal_db_host(reporter="some reporter")
@@ -121,7 +121,7 @@ def test_host_did_not_became_stale(
     db_create_staleness_culling(**CUSTOM_STALENESS_NO_HOSTS_TO_DELETE)
 
     with patch("app.models.utils.datetime") as models_datetime:
-        job_start_time = datetime.now(timezone.utc)
+        job_start_time = datetime.now(UTC)
         models_datetime.now.return_value = job_start_time - timedelta(minutes=5)
 
         host = minimal_db_host(reporter="some reporter")

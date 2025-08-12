@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from random import randint
-from typing import Callable
 from unittest import mock
 from uuid import UUID
 

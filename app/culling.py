@@ -1,7 +1,7 @@
 from collections import namedtuple
+from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
-from datetime import timezone
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -43,7 +43,7 @@ class Timestamps(_WithConfig):
 
 class Conditions:
     def __init__(self, staleness, host_type):
-        self.now = datetime.now(timezone.utc)
+        self.now = datetime.now(UTC)
         self.host_type = host_type
 
         self.staleness_host_type = {
@@ -88,7 +88,7 @@ class Conditions:
 
     @staticmethod
     def find_host_state(stale_timestamp, stale_warning_timestamp):
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if now < stale_timestamp:
             return "fresh"
         if now >= stale_timestamp and now < stale_warning_timestamp:

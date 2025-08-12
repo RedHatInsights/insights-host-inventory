@@ -1,7 +1,7 @@
 #!/usr/bin/python
 import sys
+from datetime import UTC
 from datetime import datetime
-from datetime import timezone
 from functools import partial
 from logging import Logger
 
@@ -171,7 +171,7 @@ def run(
 if __name__ == "__main__":
     logger = get_logger(LOGGER_NAME)
     job_type = "Stale host notification"
-    job_start_time = datetime.now(timezone.utc)
+    job_start_time = datetime.now(UTC)
     sys.excepthook = partial(excepthook, logger, job_type)
 
     threadctx.request_id = None
