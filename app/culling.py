@@ -43,7 +43,7 @@ class Timestamps(_WithConfig):
 
 class Conditions:
     def __init__(self, staleness):
-        self.now = datetime.now(timezone.utc)
+        self.now = datetime.now(UTC)
         self.staleness_setting = {
             "stale": staleness["conventional_time_to_stale"],
             "warning": staleness["conventional_time_to_stale_warning"],
