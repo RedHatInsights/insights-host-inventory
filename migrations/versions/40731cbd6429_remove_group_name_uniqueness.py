@@ -20,7 +20,7 @@ def upgrade():
     with op.get_context().autocommit_block():
         op.execute(
             text("""
-            CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS idx_groups_org_id_name_ignorecase
+            CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_groups_org_id_name_ignorecase
             ON hbi.groups (lower(name), org_id);
         """)
         )
@@ -31,7 +31,7 @@ def downgrade():
     with op.get_context().autocommit_block():
         op.execute(
             text("""
-            CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS idx_groups_org_id_name_nocase
+            CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_groups_org_id_name_nocase
             ON hbi.groups (lower(name), org_id);
         """)
         )

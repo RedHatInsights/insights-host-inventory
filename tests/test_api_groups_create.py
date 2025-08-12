@@ -6,6 +6,7 @@ from dateutil import parser
 
 from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
 from tests.helpers.api_utils import GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import assert_group_response
 from tests.helpers.api_utils import assert_response_status
@@ -110,7 +111,7 @@ def test_create_group_read_only(api_create_group, mocker):
 def test_create_group_taken_name(api_create_group, new_name, mocker):
     mocker.patch(
         "lib.feature_flags.get_flag_value",
-        side_effect=lambda name: name == "FLAG_INVENTORY_KESSEL_PHASE_1",
+        side_effect=lambda name: name == FLAG_INVENTORY_KESSEL_PHASE_1,
     )
     group_data = {"name": "test_group", "host_ids": []}
 
