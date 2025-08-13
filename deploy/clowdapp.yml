@@ -115,6 +115,8 @@ objects:
           value: ${LOG_LEVEL}
         - name: URLLIB3_LOG_LEVEL
           value: ${URLLIB3_LOG_LEVEL}
+        - name: CONNEXION_LOG_LEVEL
+          value: ${CONNEXION_LOG_LEVEL}
         - name: INVENTORY_DB_SSL_MODE
           value: ${INVENTORY_DB_SSL_MODE}
         - name: PAYLOAD_TRACKER_SERVICE_NAME
@@ -275,6 +277,8 @@ objects:
           value: ${LOG_LEVEL}
         - name: URLLIB3_LOG_LEVEL
           value: ${URLLIB3_LOG_LEVEL}
+        - name: CONNEXION_LOG_LEVEL
+          value: ${CONNEXION_LOG_LEVEL}
         - name: INVENTORY_DB_SSL_MODE
           value: ${INVENTORY_DB_SSL_MODE}
         - name: PAYLOAD_TRACKER_SERVICE_NAME
@@ -435,6 +439,8 @@ objects:
           value: ${LOG_LEVEL}
         - name: URLLIB3_LOG_LEVEL
           value: ${URLLIB3_LOG_LEVEL}
+        - name: CONNEXION_LOG_LEVEL
+          value: ${CONNEXION_LOG_LEVEL}
         - name: INVENTORY_DB_SSL_MODE
           value: ${INVENTORY_DB_SSL_MODE}
         - name: PAYLOAD_TRACKER_SERVICE_NAME
@@ -550,6 +556,8 @@ objects:
           value: ${CONSOLEDOT_HOSTNAME}
         - name: INVENTORY_LOG_LEVEL
           value: ${LOG_LEVEL}
+        - name: CONNEXION_LOG_LEVEL
+          value: ${CONNEXION_LOG_LEVEL}
         - name: INVENTORY_DB_SSL_MODE
           value: ${INVENTORY_DB_SSL_MODE}
         - name: INVENTORY_DB_SSL_CERT
@@ -661,6 +669,8 @@ objects:
           value: ${CONSOLEDOT_HOSTNAME}
         - name: INVENTORY_LOG_LEVEL
           value: ${LOG_LEVEL}
+        - name: CONNEXION_LOG_LEVEL
+          value: ${CONNEXION_LOG_LEVEL}
         - name: INVENTORY_DB_SSL_MODE
           value: ${INVENTORY_DB_SSL_MODE}
         - name: INVENTORY_DB_SSL_CERT
@@ -769,6 +779,8 @@ objects:
           value: ${CONSOLEDOT_HOSTNAME}
         - name: INVENTORY_LOG_LEVEL
           value: ${LOG_LEVEL}
+        - name: CONNEXION_LOG_LEVEL
+          value: ${CONNEXION_LOG_LEVEL}
         - name: INVENTORY_DB_SSL_MODE
           value: ${INVENTORY_DB_SSL_MODE}
         - name: INVENTORY_DB_SSL_CERT
@@ -865,6 +877,8 @@ objects:
           value: ${CONSOLEDOT_HOSTNAME}
         - name: INVENTORY_LOG_LEVEL
           value: ${LOG_LEVEL}
+        - name: CONNEXION_LOG_LEVEL
+          value: ${CONNEXION_LOG_LEVEL}
         - name: INVENTORY_DB_SSL_MODE
           value: ${INVENTORY_DB_SSL_MODE}
         - name: INVENTORY_DB_SSL_CERT
@@ -1128,6 +1142,8 @@ objects:
             value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
+          - name: CONNEXION_LOG_LEVEL
+            value: ${CONNEXION_LOG_LEVEL}
           - name: INVENTORY_DB_SSL_MODE
             value: ${INVENTORY_DB_SSL_MODE}
           - name: INVENTORY_DB_SSL_CERT
@@ -2300,6 +2316,8 @@ parameters:
 - name: CONSOLEDOT_HOSTNAME
   value: localhost
 - name: URLLIB3_LOG_LEVEL
+  value: WARNING
+- name: CONNEXION_LOG_LEVEL
   value: WARNING
 - description: SSL validation mode for the DB
   name: INVENTORY_DB_SSL_MODE
