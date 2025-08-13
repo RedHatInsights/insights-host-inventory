@@ -41,7 +41,7 @@ CUSTOM_STALENESS_HOST_BECAME_STALE = {
 }
 
 
-def test_delete_conventional_immutable_hosts(
+def test_delete_all_type_of_hosts(
     flask_app,
     db_create_staleness_culling,
     inventory_config,
