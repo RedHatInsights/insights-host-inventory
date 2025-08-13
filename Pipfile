@@ -39,7 +39,7 @@ setuptools = "~=80.9.0"
 certifi = "~=2025.7.14"
 ratelimit = "*"
 confluent-kafka = "==2.10.1"
-UnleashClient = "==5.12.2"
+unleashclient = "==5.12.2"
 
 [dev-packages]
 pytest = "~=8.4.1"
