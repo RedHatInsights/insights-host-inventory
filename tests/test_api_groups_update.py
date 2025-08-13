@@ -451,7 +451,10 @@ def test_patch_ungrouped_name_is_denied(db_create_group, db_get_group_by_id, api
 def test_patch_group_existing_name_same_org_kessel_phase1_enabled(
     db_create_group, db_get_group_by_id, api_patch_group, patch_name, mocker
 ):
-    """Test that groups can be updated to have the same name as another group when FLAG_INVENTORY_KESSEL_PHASE_1 is True."""
+    """
+    Test that groups can be updated to have the same name as another group when
+    FLAG_INVENTORY_KESSEL_PHASE_1 is True.
+    """
     # Mock FLAG_INVENTORY_KESSEL_PHASE_1 to be True and FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION to be False
     mocker.patch(
         "api.group.get_flag_value",
@@ -470,18 +473,18 @@ def test_patch_group_existing_name_same_org_kessel_phase1_enabled(
 
     # Should succeed when Kessel Phase 1 is enabled
     assert_response_status(response_status, 200)
-    
+
     # Verify the group was updated successfully
     updated_group = db_get_group_by_id(group_to_update_id)
     assert updated_group.name == patch_name
     assert updated_group.modified_on > orig_modified_on
-    
+
     # Verify the response data
     assert_group_response(response_data, updated_group, 0)
-    
+
     # Verify the original group is unchanged
     original_group = db_get_group_by_id(existing_group_id)
     assert original_group.name == "existing_group"
-    
+
     # Both groups should now have the same name (case-insensitive match)
     assert updated_group.name.lower() == original_group.name.lower()
