@@ -93,8 +93,8 @@ def run(config, logger, session, consumer, event_producer, shutdown_handler):
 
 
 def main(logger):
-    application = create_app(RuntimeEnvironment.JOB)
-    config = application.app.config["INVENTORY_CONFIG"]
+    app = create_app(RuntimeEnvironment.JOB).app
+    config = app.config["INVENTORY_CONFIG"]
 
     if config.replica_namespace:
         logger.info("Running in replica cluster - sleeping until shutdown")
@@ -128,7 +128,8 @@ def main(logger):
     shutdown_handler = ShutdownHandler()
     shutdown_handler.register()
 
-    run(config, logger, session, consumer, event_producer, shutdown_handler)
+    with app.app_context():
+        run(config, logger, session, consumer, event_producer, shutdown_handler)
 
 
 if __name__ == "__main__":

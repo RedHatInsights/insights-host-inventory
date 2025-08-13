@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "5a74022c1a37077f77b8a5aff5cf806f65bc783f6f221e06e56f01e0e47beca1"
+            "sha256": "0e898a005ea1e204e35abbff64bb41cdc2d7ae19d3f5c46632cc0751ce8bea90"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -365,14 +365,6 @@
             ],
             "markers": "python_version >= '3.8'",
             "version": "==0.16.0"
-        },
-        "honcho": {
-            "hashes": [
-                "sha256:56dcd04fc72d362a4befb9303b1a1a812cba5da283526fbc6509be122918ddf3",
-                "sha256:af3815c03c634bf67d50f114253ea9fef72ecff26e4fd06b29234789ac5b8b2e"
-            ],
-            "index": "pypi",
-            "version": "==2.0.0"
         },
         "httpcore": {
             "hashes": [
@@ -1283,15 +1275,6 @@
             ],
             "markers": "python_version >= '3.7'",
             "version": "==1.1.0"
-        },
-        "tomli": {
-            "hashes": [
-                "sha256:2ebe24485c53d303f690b0ec092806a085f07af5a5aa1464f3931eec36caaa38",
-                "sha256:d46d457a85337051c36524bc5349dd91b1877838e2979ac5ced3e710ed8a60ed"
-            ],
-            "index": "pypi",
-            "markers": "python_version >= '3.8'",
-            "version": "==2.0.2"
         },
         "typing-extensions": {
             "hashes": [
