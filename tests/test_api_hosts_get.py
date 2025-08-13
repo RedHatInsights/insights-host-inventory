@@ -2320,7 +2320,6 @@ def test_fresh_staleness_with_only_rhsm_system_profile_bridge(api_get, db_create
         )
         host_id = str(host.id)
 
-    # Set FLAG_INVENTORY_FILTER_STALENESS_USING_COLUMNS to true
     url = build_hosts_url(query="?staleness=fresh")
     response_status, response_data = api_get(url=url)
 
