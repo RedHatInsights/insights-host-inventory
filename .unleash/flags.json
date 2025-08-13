@@ -102,7 +102,7 @@
             "type": "release",
             "project": "default",
             "stale": false,
-            "enabled": false,
+            "enabled": true,
             "createdAt": "2025-05-05T22:31:19.466Z",
             "strategies": [
                 {

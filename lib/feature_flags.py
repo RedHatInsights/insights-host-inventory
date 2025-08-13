@@ -19,7 +19,7 @@ FLAG_FALLBACK_VALUES = {
     FLAG_INVENTORY_API_READ_ONLY: False,
     FLAG_INVENTORY_KESSEL_PHASE_1: False,
     # Use when all hosts are populated with stale_warning/deletion_timestamps
-    FLAG_INVENTORY_FILTER_STALENESS_USING_COLUMNS: False,
+    FLAG_INVENTORY_FILTER_STALENESS_USING_COLUMNS: True,
 }
 
 
