@@ -7,6 +7,7 @@ from uuid import UUID
 
 from flask import current_app
 from flask_sqlalchemy.query import Query
+from lib.outbox_repository import write_event_to_outbox
 from sqlalchemy import and_
 from sqlalchemy import not_
 from sqlalchemy import or_
@@ -295,6 +296,8 @@ def create_new_host(input_host: Host) -> tuple[Host, AddHostResult]:
     logger.debug("Creating a new host")
 
     input_host.save()
+    # TODO: Save the host event to outbox table
+    write_event_to_outbox(input_host.id)
 
     metrics.create_host_count.inc()
     logger.debug("Created host (uncommitted):%s", input_host)
@@ -310,6 +313,9 @@ def update_existing_host(
     logger.debug(f"existing host = {existing_host}")
 
     existing_host.update(input_host, update_system_profile)
+
+    # TODO: Save the host event to outbox table
+    write_event_to_outbox(input_host.id)
 
     metrics.update_host_count.inc()
     logger.debug("Updated host (uncommitted):%s", existing_host)
