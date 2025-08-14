@@ -119,14 +119,18 @@ x-service-base-env: &service-base-env
 
 x-mq-base-env: &mq-base-env
   - <<: *base-env
-  - name: KAFKA_HOST_INGRESS_GROUP
-    value: ${KAFKA_HOST_INGRESS_GROUP}
   - <<: *kafka-env
   - <<: *cache-env
+  - name: KAFKA_HOST_INGRESS_GROUP
+    value: ${KAFKA_HOST_INGRESS_GROUP}
   - name: KAFKA_CONSUMER_SESSION_TIMEOUT_MS
     value: "${KAFKA_CONSUMER_SESSION_TIMEOUT_MS}"
   - name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
     value: "${KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS}"
+  - name: MQ_DB_BATCH_MAX_SECONDS
+    value: ${MQ_DB_BATCH_MAX_SECONDS}
+  - name: KAFKA_SYSTEM_PROFILE_TOPIC
+    value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
 
 x-job-base-env: &job-base-env
   - <<: *base-env
@@ -448,12 +452,6 @@ objects:
           value: ${KAFKA_HOST_INGRESS_TOPIC}
         - name: KAFKA_HOST_INGRESS_TOPIC
           value: ${KAFKA_HOST_INGRESS_TOPIC}
-        - name: KAFKA_SYSTEM_PROFILE_TOPIC
-          value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
-        - name: MQ_DB_BATCH_MAX_MESSAGES
-          value: ${MQ_DB_BATCH_MAX_MESSAGES}
-        - name: MQ_DB_BATCH_MAX_SECONDS
-          value: ${MQ_DB_BATCH_MAX_SECONDS}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -486,18 +484,12 @@ objects:
         - <<: *mq-base-env
         - name: MIGRATION_MODE
           value: ${MIGRATION_MODE}
+        - name: HOSTS_TABLE_NUM_PARTITIONS
+          value: ${HOSTS_TABLE_NUM_PARTITIONS}
         - name: KAFKA_CONSUMER_TOPIC
           value: ${KAFKA_HOST_INGRESS_P1_TOPIC}
         - name: KAFKA_HOST_INGRESS_TOPIC
           value: ${KAFKA_HOST_INGRESS_P1_TOPIC}
-        - name: KAFKA_SYSTEM_PROFILE_TOPIC
-          value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
-        - name: MQ_DB_BATCH_MAX_MESSAGES
-          value: ${MQ_DB_BATCH_MAX_MESSAGES}
-        - name: MQ_DB_BATCH_MAX_SECONDS
-          value: ${MQ_DB_BATCH_MAX_SECONDS}
-        - name: HOSTS_TABLE_NUM_PARTITIONS
-          value: ${HOSTS_TABLE_NUM_PARTITIONS}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -529,12 +521,8 @@ objects:
           value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
         - name: KAFKA_HOST_INGRESS_TOPIC
           value: ${KAFKA_HOST_INGRESS_TOPIC}
-        - name: KAFKA_SYSTEM_PROFILE_TOPIC
-          value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
         - name: MQ_DB_BATCH_MAX_MESSAGES
           value: ${MQ_DB_BATCH_MAX_MESSAGES}
-        - name: MQ_DB_BATCH_MAX_SECONDS
-          value: ${MQ_DB_BATCH_MAX_SECONDS}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -566,12 +554,8 @@ objects:
           value: ${KAFKA_KESSEL_WORKSPACES_TOPIC}
         - name: KAFKA_WORKSPACES_TOPIC
           value: ${KAFKA_KESSEL_WORKSPACES_TOPIC}
-        - name: KAFKA_SYSTEM_PROFILE_TOPIC
-          value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
         - name: MQ_DB_BATCH_MAX_MESSAGES
           value: ${MQ_WORKSPACES_DB_BATCH_MAX_MESSAGES}
-        - name: MQ_DB_BATCH_MAX_SECONDS
-          value: ${MQ_DB_BATCH_MAX_SECONDS}
         - name: CONSUMER_MQ_BROKER
           value: ${CONSUMER_MQ_BROKER}
         image: ${IMAGE}:${IMAGE_TAG}
@@ -719,8 +703,6 @@ objects:
           value: ${KAFKA_HOST_INGRESS_TOPIC}
         - name: KAFKA_HOST_INGRESS_TOPIC
           value: ${KAFKA_HOST_INGRESS_TOPIC}
-        - name: KAFKA_SYSTEM_PROFILE_TOPIC
-          value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
         - name: KAFKA_ADDITIONAL_VALIDATION_TOPIC
           value: ${KAFKA_ADDITIONAL_VALIDATION_TOPIC}
         - name: KAFKA_SP_VALIDATOR_MAX_MESSAGES
