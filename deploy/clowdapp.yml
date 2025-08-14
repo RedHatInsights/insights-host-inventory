@@ -1080,6 +1080,8 @@ objects:
             value: ${KAFKA_PRODUCER_RETRIES}
           - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
             value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
           - name: NAMESPACE
             valueFrom:
               fieldRef:
@@ -1162,6 +1164,8 @@ objects:
             value: ${KAFKA_PRODUCER_RETRIES}
           - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
             value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
           - name: NAMESPACE
             valueFrom:
               fieldRef:
@@ -1214,6 +1218,8 @@ objects:
             value: ${INVENTORY_DB_SSL_MODE}
           - name: INVENTORY_DB_SSL_CERT
             value: ${INVENTORY_DB_SSL_CERT}
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
           - name: NAMESPACE
             valueFrom:
               fieldRef:
@@ -1242,6 +1248,8 @@ objects:
         image: ${IMAGE}:${IMAGE_TAG}
         args: ["./jobs/system_profile_validator.py"]
         env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
           - name: HBI_DB_REFACTORING_USE_OLD_TABLE
             value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
           - name: INVENTORY_LOG_LEVEL
@@ -1331,6 +1339,8 @@ objects:
         image: ${IMAGE}:${IMAGE_TAG}
         args: ["./jobs/pendo_syncher.py"]
         env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
           - name: HBI_DB_REFACTORING_USE_OLD_TABLE
             value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
           - name: INVENTORY_LOG_LEVEL
@@ -1383,6 +1393,8 @@ objects:
         image: ${IMAGE}:${IMAGE_TAG}
         args: ["./jobs/rebuild_events_topic.py", "&&", "./jobs/host_synchronizer.py"]
         env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
           - name: HBI_DB_REFACTORING_USE_OLD_TABLE
             value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
           - name: INVENTORY_LOG_LEVEL
@@ -1454,6 +1466,8 @@ objects:
         image: ${IMAGE}:${IMAGE_TAG}
         args: ["./jobs/host_synchronizer.py"]
         env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
           - name: HBI_DB_REFACTORING_USE_OLD_TABLE
             value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
           - name: INVENTORY_LOG_LEVEL
@@ -1525,6 +1539,8 @@ objects:
         image: ${IMAGE}:${IMAGE_TAG}
         args: ["./jobs/host_sync_group_data.py"]
         env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
           - name: HBI_DB_REFACTORING_USE_OLD_TABLE
             value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
           - name: INVENTORY_LOG_LEVEL
@@ -1596,6 +1612,8 @@ objects:
         image: ${IMAGE}:${IMAGE_TAG}
         args: ["./jobs/delete_hosts_s3.py"]
         env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
           - name: HBI_DB_REFACTORING_USE_OLD_TABLE
             value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
           - name: INVENTORY_LOG_LEVEL
@@ -1666,6 +1684,8 @@ objects:
         image: ${IMAGE}:${IMAGE_TAG}
         args: [ "./jobs/host_delete_duplicates.py" ]
         env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
           - name: HBI_DB_REFACTORING_USE_OLD_TABLE
             value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
           - name: INVENTORY_LOG_LEVEL
@@ -1728,6 +1748,8 @@ objects:
         image: ${IMAGE}:${IMAGE_TAG}
         args: [ "./jobs/hosts_table_migration_data_copy.py" ]
         env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
           - name: HBI_DB_REFACTORING_USE_OLD_TABLE
             value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
           - name: PYTHONPATH
