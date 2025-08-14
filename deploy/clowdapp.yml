@@ -4,7 +4,22 @@ metadata:
   name: insights-host-inventory
 
 # Define common environment variable groups as anchors
+x-unleash-env: &unleash-env
+  - name: UNLEASH_URL
+    value: ${UNLEASH_URL}
+  - name: UNLEASH_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: ${UNLEASH_SECRET_NAME}
+        key: CLIENT_ACCESS_TOKEN
+        optional: true
+  - name: BYPASS_UNLEASH
+    value: ${BYPASS_UNLEASH}
+  - name: UNLEASH_REFRESH_INTERVAL
+    value: ${UNLEASH_REFRESH_INTERVAL}
+
 x-base-env: &base-env
+  - <<: *unleash-env
   - name: HBI_DB_REFACTORING_USE_OLD_TABLE
     value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
   - name: INVENTORY_LOG_LEVEL
@@ -29,10 +44,16 @@ x-base-env: &base-env
     value: inventory-mq-service
   - name: PAYLOAD_TRACKER_ENABLED
     value: 'true'
+  - name: PAYLOAD_TRACKER_KAFKA_TOPIC
+    value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
   - name: TENANT_TRANSLATOR_URL
     value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
   - name: BYPASS_TENANT_TRANSLATION
     value: ${BYPASS_TENANT_TRANSLATION}
+  - name: NAMESPACE
+    valueFrom:
+      fieldRef:
+        fieldPath: metadata.namespace
 
 x-kafka-env: &kafka-env
   - name: KAFKA_SECURITY_PROTOCOL
@@ -50,19 +71,7 @@ x-kafka-env: &kafka-env
   - name: KAFKA_NOTIFICATION_TOPIC
     value: ${KAFKA_NOTIFICATION_TOPIC}
 
-x-unleash-env: &unleash-env
-  - name: UNLEASH_URL
-    value: ${UNLEASH_URL}
-  - name: UNLEASH_TOKEN
-    valueFrom:
-      secretKeyRef:
-        name: ${UNLEASH_SECRET_NAME}
-        key: CLIENT_ACCESS_TOKEN
-        optional: true
-  - name: BYPASS_UNLEASH
-    value: ${BYPASS_UNLEASH}
-  - name: UNLEASH_REFRESH_INTERVAL
-    value: ${UNLEASH_REFRESH_INTERVAL}
+
 
 x-cache-env: &cache-env
   - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
@@ -81,12 +90,6 @@ x-rbac-env: &rbac-env
         key: psks.json
         name: rbac-psks
         optional: false
-
-x-namespace-env: &namespace-env
-  - name: NAMESPACE
-    valueFrom:
-      fieldRef:
-        fieldPath: metadata.namespace
 
 x-segmentio-env: &segmentio-env
   - name: SEGMENTIO_WRITE_KEY
@@ -111,12 +114,10 @@ x-service-base-env: &service-base-env
     value: ${BYPASS_RBAC}
   - <<: *kafka-env
   - <<: *cache-env
-  - <<: *unleash-env
   - <<: *segmentio-env
 
 x-mq-base-env: &mq-base-env
   - <<: *base-env
-
   - name: KAFKA_HOST_INGRESS_GROUP
     value: ${KAFKA_HOST_INGRESS_GROUP}
   - <<: *kafka-env
@@ -125,14 +126,10 @@ x-mq-base-env: &mq-base-env
     value: "${KAFKA_CONSUMER_SESSION_TIMEOUT_MS}"
   - name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
     value: "${KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS}"
-  - <<: *unleash-env
 
 x-job-base-env: &job-base-env
   - <<: *base-env
   - <<: *kafka-env
-  - <<: *unleash-env
-  - <<: *namespace-env
-
   - name: PROMETHEUS_PUSHGATEWAY
     value: ${PROMETHEUS_PUSHGATEWAY}
 
@@ -613,7 +610,6 @@ objects:
           value: ${KAFKA_SECURITY_PROTOCOL}
         - name: KAFKA_SASL_MECHANISM
           value: ${KAFKA_SASL_MECHANISM}
-        - <<: *unleash-env
         - name: EXPORT_SERVICE_TOKEN
           valueFrom:
             secretKeyRef:
@@ -656,8 +652,6 @@ objects:
         - <<: *rbac-env
         - name: KAFKA_BOOTSTRAP_SERVERS
           value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
-        - name: PAYLOAD_TRACKER_KAFKA_TOPIC
-          value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
         - name: HOST_DELETE_CHUNK_SIZE
           value: ${HOST_DELETE_CHUNK_SIZE}
         resources:
@@ -696,7 +690,6 @@ objects:
         args: ["./inv_publish_hosts.py"]
         env:
         - <<: *base-env
-        - <<: *namespace-env
         - name: PROMETHEUS_PUSHGATEWAY
           value: ${PROMETHEUS_PUSHGATEWAY}
         resources:
@@ -727,8 +720,6 @@ objects:
               name: dippy-bot
         - name: KAFKA_BOOTSTRAP_SERVERS
           value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
-        - name: PAYLOAD_TRACKER_KAFKA_TOPIC
-          value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
         - name: KAFKA_CONSUMER_TOPIC
           value: ${KAFKA_HOST_INGRESS_TOPIC}
         - name: KAFKA_HOST_INGRESS_TOPIC
@@ -755,8 +746,6 @@ objects:
         args: ["./pendo_syncher.py"]
         env:
         - <<: *base-env
-        - <<: *unleash-env
-        - <<: *namespace-env
         - name: PROMETHEUS_PUSHGATEWAY
           value: ${PROMETHEUS_PUSHGATEWAY}
         - name: PENDO_SYNC_ACTIVE
@@ -782,8 +771,6 @@ objects:
         - <<: *job-base-env
         - name: KAFKA_BOOTSTRAP_SERVERS
           value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
-        - name: PAYLOAD_TRACKER_KAFKA_TOPIC
-          value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
         - name: SCRIPT_CHUNK_SIZE
           value: ${SCRIPT_CHUNK_SIZE}
         - name: REBUILD_EVENTS_TIME_LIMIT
@@ -804,8 +791,6 @@ objects:
         - <<: *job-base-env
         - name: KAFKA_BOOTSTRAP_SERVERS
           value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
-        - name: PAYLOAD_TRACKER_KAFKA_TOPIC
-          value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
         - name: SCRIPT_CHUNK_SIZE
           value: ${SCRIPT_CHUNK_SIZE}
         - name: REBUILD_EVENTS_TIME_LIMIT
@@ -826,8 +811,6 @@ objects:
         - <<: *job-base-env
         - name: KAFKA_BOOTSTRAP_SERVERS
           value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
-        - name: PAYLOAD_TRACKER_KAFKA_TOPIC
-          value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
         - name: SCRIPT_CHUNK_SIZE
           value: ${SCRIPT_CHUNK_SIZE}
         - name: REBUILD_EVENTS_TIME_LIMIT
@@ -885,8 +868,6 @@ objects:
         - <<: *job-base-env
         - name: KAFKA_BOOTSTRAP_SERVERS
           value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
-        - name: PAYLOAD_TRACKER_KAFKA_TOPIC
-          value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
         - name: SCRIPT_CHUNK_SIZE
           value: ${SCRIPT_CHUNK_SIZE}
         - name: DRY_RUN
@@ -908,7 +889,6 @@ objects:
         args: [ "./hosts_table_migration_data_copy.py" ]
         env:
         - <<: *base-env
-        - <<: *namespace-env
         - name: PYTHONPATH
           value: '/opt/app-root/src'
         - name: PROMETHEUS_PUSHGATEWAY
@@ -932,7 +912,6 @@ objects:
         args: [ "./hosts_table_migration_switch.py" ]
         env:
         - <<: *base-env
-        - <<: *namespace-env
         - name: PYTHONPATH
           value: '/opt/app-root/src'
         - name: PROMETHEUS_PUSHGATEWAY
