@@ -34,7 +34,6 @@ def upgrade():
     validate_num_partitions(TABLE_NUM_PARTITIONS)
 
     for i in range(TABLE_NUM_PARTITIONS):
-        # Determine the hosts index name based on environment
         if MIGRATION_MODE == "managed":
             # In managed environments, this index was created concurrently on the hosts table partitions,
             # unlike automated environments, where index creation cascades automatically from the parent table.
@@ -46,14 +45,12 @@ def upgrade():
         hosts_partition_name = f"{INVENTORY_SCHEMA}.hosts_p{i}"
         op.execute(text(f"ALTER TABLE {hosts_partition_name} REPLICA IDENTITY USING INDEX {hosts_index_name};"))
 
-        # Update replica identity for system_profiles_static partition
         sp_static_index_name = f"system_profiles_static_p{i}_org_id_host_id_insights_id_idx"
         sp_static_partition_name = f"{INVENTORY_SCHEMA}.system_profiles_static_p{i}"
         op.execute(
             text(f"ALTER TABLE {sp_static_partition_name} REPLICA IDENTITY USING INDEX {sp_static_index_name};")
         )
 
-        # Update replica identity for system_profiles_dynamic partition
         sp_dynamic_index_name = f"system_profiles_dynamic_p{i}_org_id_host_id_insights_id_idx"
         sp_dynamic_partition_name = f"{INVENTORY_SCHEMA}.system_profiles_dynamic_p{i}"
         op.execute(
