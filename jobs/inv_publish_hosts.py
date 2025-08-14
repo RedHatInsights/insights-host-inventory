@@ -85,7 +85,6 @@ DROP_PUBLICATIONS = [
     "hbi_hosts_pub",
     "hbi_hosts_pub_v1_0_0",
     "hbi_hosts_pub_v1_0_1",
-    "hbi_hosts_pub_v1_0_2",
 ]
 
 # Replication slots to drop
