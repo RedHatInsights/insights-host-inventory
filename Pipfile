@@ -40,7 +40,7 @@ certifi = "~=2025.7.14"
 ratelimit = "*"
 confluent-kafka = "==2.10.1"
 kessel-sdk = "*"
-UnleashClient=="5.12.2"
+UnleashClient = "==5.12.2"
 
 [dev-packages]
 pytest = "~=8.4.1"
