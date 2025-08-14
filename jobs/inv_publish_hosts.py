@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 import sys
 from functools import partial
 
@@ -51,7 +51,7 @@ HOSTS_PUBLICATION_COLUMNS = [
     "ip_addresses",
     "mac_addresses",
     "provider_id",
-    "provider_type"
+    "provider_type",
 ]
 SP_DYNAMIC_PUBLICATION_COLUMNS = [
     "org_id",
@@ -59,7 +59,7 @@ SP_DYNAMIC_PUBLICATION_COLUMNS = [
     "insights_id",
     "installed_packages",
     "installed_products",
-    "workloads"
+    "workloads",
 ]
 SP_STATIC_PUBLICATION_COLUMNS = (
     "org_id",
@@ -77,7 +77,7 @@ SP_STATIC_PUBLICATION_COLUMNS = (
     "rhsm",
     "satellite_managed",
     "system_update_method",
-    "yum_repos"
+    "yum_repos",
 )
 
 # Publications to drop
@@ -100,9 +100,9 @@ CHECK_REPLICATION_SLOTS_SQL = sa_text("SELECT slot_name, active FROM pg_replicat
 CREATE_PUBLICATION_SQL = sa_text(f"""
     CREATE PUBLICATION {PUBLICATION_NAME}
     FOR TABLE
-      hbi.hosts ({','.join(HOSTS_PUBLICATION_COLUMNS)}),
-      hbi.system_profiles_dynamic ({','.join(SP_DYNAMIC_PUBLICATION_COLUMNS)}),
-      hbi.system_profiles_static ({','.join(SP_STATIC_PUBLICATION_COLUMNS)})
+      hbi.hosts ({",".join(HOSTS_PUBLICATION_COLUMNS)}),
+      hbi.system_profiles_dynamic ({",".join(SP_DYNAMIC_PUBLICATION_COLUMNS)}),
+      hbi.system_profiles_static ({",".join(SP_STATIC_PUBLICATION_COLUMNS)})
     WHERE (insights_id != '00000000-0000-0000-0000-000000000000')
     WITH (publish_via_partition_root = true);
 """)
