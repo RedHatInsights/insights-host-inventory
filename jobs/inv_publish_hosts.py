@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 import sys
 from functools import partial
 
@@ -81,8 +81,7 @@ def run(logger, session, application):
 
         logger.info(f"Checking for publication using the following SQL statement:\n\t{CHECK_PUBLICATION}")
         result = session.execute(sa_text(CHECK_PUBLICATION))
-        found = result.cursor.fetchone()[0]
-        if found:
+        if result.cursor.fetchone()[0]:
             logger.info(f'Publication "{PUBLICATION_NAME}" found!')
         else:
             logger.info(f'Creating publication "{PUBLICATION_NAME}" using \n\t{CREATE_PUBLICATION}')
