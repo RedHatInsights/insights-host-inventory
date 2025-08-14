@@ -6,8 +6,8 @@ from sqlalchemy import String
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
 
-from app.exceptions import ValidationException
 from app.logging import get_logger
 from app.models.constants import INVENTORY_SCHEMA
 from app.models.database import db
@@ -35,25 +35,10 @@ class HostStaticSystemProfile(db.Model):
             ["org_id", "host_id"],
             [f"{INVENTORY_SCHEMA}.hosts.org_id", f"{INVENTORY_SCHEMA}.hosts.id"],
             name="fk_system_profiles_static_hosts",
+            ondelete="CASCADE",
         ),
         {"schema": INVENTORY_SCHEMA},
     )
-
-    def __init__(
-        self,
-        org_id,
-        host_id,
-        **kwargs,
-    ):
-        super().__init__(**kwargs)
-
-        if not org_id:
-            raise ValidationException("System org_id cannot be null.")
-        if not host_id:
-            raise ValidationException("System host_id cannot be null.")
-
-        self.org_id = org_id
-        self.host_id = host_id
 
     org_id = db.Column(db.String(36), nullable=False, primary_key=True)
     host_id = db.Column(db.UUID(as_uuid=True), nullable=False, primary_key=True)
@@ -109,3 +94,5 @@ class HostStaticSystemProfile(db.Model):
     tuned_profile = db.Column(db.String(256), nullable=True)
     virtual_host_uuid = db.Column(db.UUID(as_uuid=True), nullable=True)
     yum_repos = db.Column(ARRAY(JSONB(astext_type=db.Text())), nullable=True)
+
+    host = relationship("Host", back_populates="static_system_profile")
