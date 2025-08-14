@@ -670,9 +670,7 @@ objects:
         image: ${IMAGE}:${IMAGE_TAG}
         args: ["./jobs/inv_publish_hosts.py"]
         env:
-        - <<: *base-env
-        - name: PROMETHEUS_PUSHGATEWAY
-          value: ${PROMETHEUS_PUSHGATEWAY}
+        - <<: *job-base-env
         resources:
           limits:
             cpu: ${CPU_LIMIT_SYNDICATOR}
@@ -848,11 +846,7 @@ objects:
         image: ${IMAGE}:${IMAGE_TAG}
         args: [ "./jobs/hosts_table_migration_data_copy.py" ]
         env:
-        - <<: *base-env
-        - name: PYTHONPATH
-          value: '/opt/app-root/src'
-        - name: PROMETHEUS_PUSHGATEWAY
-          value: ${PROMETHEUS_PUSHGATEWAY}
+        - <<: *job-base-env
         - name: HOSTS_TABLE_MIGRATION_BATCH_SIZE
           value: ${HOSTS_TABLE_MIGRATION_BATCH_SIZE}
         - name: SUSPEND_JOB
@@ -871,11 +865,7 @@ objects:
         image: ${IMAGE}:${IMAGE_TAG}
         args: [ "./jobs/hosts_table_migration_switch.py" ]
         env:
-        - <<: *base-env
-        - name: PYTHONPATH
-          value: '/opt/app-root/src'
-        - name: PROMETHEUS_PUSHGATEWAY
-          value: ${PROMETHEUS_PUSHGATEWAY}
+        - <<: *job-base-env
         - name: HOSTS_TABLE_MIGRATION_SWITCH_MODE
           value: ${HOSTS_TABLE_MIGRATION_SWITCH_MODE}
         - name: SUSPEND_JOB
@@ -1064,7 +1054,7 @@ objects:
               AND "canonical_facts"->>'insights_id' IS NOT NULL
             GROUP BY
               "org_id",
-              "canonical_facts"->>'insights_id",
+              "canonical_facts"->>'insights_id',
               "reporter"
 
             UNION ALL
@@ -1083,7 +1073,7 @@ objects:
               AND "canonical_facts"->>'subscription_manager_id' IS NOT NULL
             GROUP BY
               "org_id",
-              "canonical_facts"->>'subscription_manager_id",
+              "canonical_facts"->>'subscription_manager_id',
               "reporter"
           ) AS "aa"
           WHERE
