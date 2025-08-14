@@ -18,8 +18,17 @@ x-unleash-env: &unleash-env
   - name: UNLEASH_REFRESH_INTERVAL
     value: ${UNLEASH_REFRESH_INTERVAL}
 
+x-rbac-env: &rbac-env
+  - name: RBAC_PSKS
+    valueFrom:
+      secretKeyRef:
+        key: psks.json
+        name: rbac-psks
+        optional: false
+
 x-base-env: &base-env
   - <<: *unleash-env
+  - <<: *rbac-env
   - name: HBI_DB_REFACTORING_USE_OLD_TABLE
     value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
   - name: INVENTORY_LOG_LEVEL
@@ -82,14 +91,6 @@ x-cache-env: &cache-env
     value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
   - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
     value: "${INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS}"
-
-x-rbac-env: &rbac-env
-  - name: RBAC_PSKS
-    valueFrom:
-      secretKeyRef:
-        key: psks.json
-        name: rbac-psks
-        optional: false
 
 x-segmentio-env: &segmentio-env
   - name: SEGMENTIO_WRITE_KEY
@@ -401,7 +402,6 @@ objects:
         ]
         env:
         - <<: *service-base-env
-        - <<: *rbac-env
         resources:
           limits:
             cpu: ${CPU_LIMIT_SERVICE}
@@ -484,7 +484,6 @@ objects:
         args: ["./inv_mq_service.py"]
         env:
         - <<: *mq-base-env
-        - <<: *rbac-env
         - name: MIGRATION_MODE
           value: ${MIGRATION_MODE}
         - name: KAFKA_CONSUMER_TOPIC
@@ -563,7 +562,6 @@ objects:
         args: ["./inv_mq_service.py"]
         env:
         - <<: *mq-base-env
-        - <<: *rbac-env
         - name: KAFKA_CONSUMER_TOPIC
           value: ${KAFKA_KESSEL_WORKSPACES_TOPIC}
         - name: KAFKA_WORKSPACES_TOPIC
@@ -653,8 +651,6 @@ objects:
         args: ["./jobs/host_reaper.py"]
         env:
         - <<: *job-base-env
-        - <<: *rbac-env
-
         - name: HOST_DELETE_CHUNK_SIZE
           value: ${HOST_DELETE_CHUNK_SIZE}
         resources:
