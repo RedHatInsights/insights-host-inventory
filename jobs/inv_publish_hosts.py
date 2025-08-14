@@ -85,6 +85,7 @@ DROP_PUBLICATIONS = [
     "hbi_hosts_pub",
     "hbi_hosts_pub_v1_0_0",
     "hbi_hosts_pub_v1_0_1",
+    "hbi_hosts_pub_v1_0_2",
 ]
 
 # Replication slots to drop
@@ -100,10 +101,12 @@ CHECK_REPLICATION_SLOTS_SQL = sa_text("SELECT slot_name, active FROM pg_replicat
 CREATE_PUBLICATION_SQL = sa_text(f"""
     CREATE PUBLICATION {PUBLICATION_NAME}
     FOR TABLE
-      hbi.hosts ({",".join(HOSTS_PUBLICATION_COLUMNS)}),
-      hbi.system_profiles_dynamic ({",".join(SP_DYNAMIC_PUBLICATION_COLUMNS)}),
+      hbi.hosts ({",".join(HOSTS_PUBLICATION_COLUMNS)})
+        WHERE (insights_id != '00000000-0000-0000-0000-000000000000'),
+      hbi.system_profiles_dynamic ({",".join(SP_DYNAMIC_PUBLICATION_COLUMNS)})
+        WHERE (insights_id != '00000000-0000-0000-0000-000000000000'),
       hbi.system_profiles_static ({",".join(SP_STATIC_PUBLICATION_COLUMNS)})
-    WHERE (insights_id != '00000000-0000-0000-0000-000000000000')
+        WHERE (insights_id != '00000000-0000-0000-0000-000000000000')
     WITH (publish_via_partition_root = true);
 """)
 
