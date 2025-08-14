@@ -4,9 +4,9 @@ from yaml.parser import ParserError
 from app.config import Config
 from app.environment import RuntimeEnvironment
 from app.exceptions import ValidationException
+from jobs.system_profile_validator import _validate_schema_for_pr_and_generate_comment
 from lib.host_repository import find_hosts_by_staleness
 from lib.system_profile_validate import validate_sp_for_branch
-from system_profile_validator import _validate_schema_for_pr_and_generate_comment
 from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_URL

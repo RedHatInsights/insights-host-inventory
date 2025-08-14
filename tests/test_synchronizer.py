@@ -5,8 +5,8 @@ import pytest
 from app.logging import threadctx
 from app.models import Host
 from app.models import db
-from host_sync_group_data import run as host_group_sync_run
-from host_synchronizer import run as host_synchronizer_run
+from jobs.host_sync_group_data import run as host_group_sync_run
+from jobs.host_synchronizer import run as host_synchronizer_run
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.mq_utils import assert_synchronize_event_is_valid
 from tests.helpers.test_utils import get_staleness_timestamps
