@@ -25,6 +25,7 @@ class Staleness(db.Model):
         conventional_time_to_stale=None,
         conventional_time_to_stale_warning=None,
         conventional_time_to_delete=None,
+        # The following immutable arguments are no longer used and will be removed in a follow-up PR.
         immutable_time_to_stale=None,  # noqa: ARG002
         immutable_time_to_stale_warning=None,  # noqa: ARG002
         immutable_time_to_delete=None,  # noqa: ARG002
@@ -36,7 +37,7 @@ class Staleness(db.Model):
         self.conventional_time_to_stale = conventional_time_to_stale
         self.conventional_time_to_stale_warning = conventional_time_to_stale_warning
         self.conventional_time_to_delete = conventional_time_to_delete
-        # immutable settings will sett automaticaly to conventional
+        # immutable settings will automatically be set to conventional
         self.immutable_time_to_stale = self.conventional_time_to_stale
         self.immutable_time_to_stale_warning = self.conventional_time_to_stale_warning
         self.immutable_time_to_delete = self.conventional_time_to_delete
