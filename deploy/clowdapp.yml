@@ -648,7 +648,7 @@ objects:
       restartPolicy: Never
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        args: ["./host_reaper.py"]
+        args: ["./jobs/host_reaper.py"]
         env:
         - <<: *job-base-env
         - <<: *rbac-env
@@ -669,7 +669,7 @@ objects:
       restartPolicy: Never
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        args: ["./generate_stale_host_notifications.py"]
+        args: ["./jobs/generate_stale_host_notifications.py"]
         env:
         - <<: *job-base-env
         resources:
@@ -686,7 +686,7 @@ objects:
       restartPolicy: Never
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        args: ["./inv_publish_hosts.py"]
+        args: ["./jobs/inv_publish_hosts.py"]
         env:
         - <<: *base-env
         - name: PROMETHEUS_PUSHGATEWAY
@@ -704,7 +704,7 @@ objects:
       restartPolicy: Never
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        args: ["./system_profile_validator.py"]
+        args: ["./jobs/system_profile_validator.py"]
         env:
         - <<: *job-base-env
         - name: GIT_TOKEN
@@ -740,7 +740,7 @@ objects:
       restartPolicy: Never
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        args: ["./pendo_syncher.py"]
+        args: ["./jobs/pendo_syncher.py"]
         env:
         - <<: *base-env
         - name: PROMETHEUS_PUSHGATEWAY
@@ -763,7 +763,7 @@ objects:
       restartPolicy: OnFailure
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        args: ["./rebuild_events_topic.py", "&&", "./host_synchronizer.py"]
+        args: ["./jobs/rebuild_events_topic.py", "&&", "./jobs/host_synchronizer.py"]
         env:
         - <<: *job-base-env
 
@@ -780,7 +780,7 @@ objects:
       restartPolicy: OnFailure
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        args: ["./host_synchronizer.py"]
+        args: ["./jobs/host_synchronizer.py"]
         env:
         - <<: *job-base-env
         - name: REBUILD_EVENTS_TIME_LIMIT
@@ -796,7 +796,7 @@ objects:
       restartPolicy: OnFailure
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        args: ["./host_sync_group_data.py"]
+        args: ["./jobs/host_sync_group_data.py"]
         env:
         - <<: *job-base-env
         - name: REBUILD_EVENTS_TIME_LIMIT
@@ -812,7 +812,7 @@ objects:
       restartPolicy: OnFailure
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        args: ["./delete_hosts_s3.py"]
+        args: ["./jobs/delete_hosts_s3.py"]
         env:
         - <<: *job-base-env
         - name: DRY_RUN
@@ -847,7 +847,7 @@ objects:
       restartPolicy: Never
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        args: [ "./host_delete_duplicates.py" ]
+        args: [ "./jobs/host_delete_duplicates.py" ]
         env:
         - <<: *job-base-env
         - name: DRY_RUN
@@ -866,7 +866,7 @@ objects:
       suspend: ${{HOSTS_TABLE_MIGRATION_DATA_COPY_SUSPEND}}
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        args: [ "./hosts_table_migration_data_copy.py" ]
+        args: [ "./jobs/hosts_table_migration_data_copy.py" ]
         env:
         - <<: *base-env
         - name: PYTHONPATH
@@ -889,7 +889,7 @@ objects:
       suspend: ${{HOSTS_TABLE_MIGRATION_SWITCH_SUSPEND}}
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        args: [ "./hosts_table_migration_switch.py" ]
+        args: [ "./jobs/hosts_table_migration_switch.py" ]
         env:
         - <<: *base-env
         - name: PYTHONPATH
