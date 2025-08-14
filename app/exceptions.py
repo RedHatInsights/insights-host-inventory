@@ -37,6 +37,8 @@ class ValidationException(InventoryException):
 class OutboxSaveException(InventoryException):
     def __init__(self, detail: str):
         InventoryException.__init__(self, title="Outbox Save Error", detail=detail)
+
+
 class ResourceNotFoundException(InventoryException):
     def __init__(self, detail: str):
         InventoryException.__init__(self, title="RBAC Resource Not Found", detail=detail)

@@ -7,7 +7,6 @@ from uuid import UUID
 
 from flask import current_app
 from flask_sqlalchemy.query import Query
-from lib.outbox_repository import write_event_to_outbox
 from sqlalchemy import and_
 from sqlalchemy import not_
 from sqlalchemy import or_
@@ -28,7 +27,8 @@ from app.config import HOST_TYPES
 from app.config import ID_FACTS
 from app.config import ID_FACTS_USE_SUBMAN_ID
 from app.config import IMMUTABLE_ID_FACTS
-from app.exceptions import InventoryException, OutboxSaveException
+from app.exceptions import InventoryException
+from app.exceptions import OutboxSaveException
 from app.logging import get_logger
 from app.models import Group
 from app.models import Host
@@ -38,6 +38,7 @@ from app.models import db
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness
 from lib import metrics
+from lib.outbox_repository import write_event_to_outbox
 
 __all__ = (
     "AddHostResult",
@@ -67,8 +68,8 @@ def add_host(
     Add or update a host
 
     Required parameters:
-     - at least one of the canonical facts fields is required
-     - org_id
+    - at least one of the canonical facts fields is required
+    - org_id
 
      The only supported argument in the operation_args for now is "defer_to_reporter".
      It is documented here:

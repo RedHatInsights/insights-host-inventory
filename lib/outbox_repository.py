@@ -1,15 +1,13 @@
 import json
 from typing import Literal
-from typing import Union
-from uuid import UUID
 
-from app.exceptions import OutboxSaveException
-from app.models.host import Host
 from marshmallow import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.exceptions import OutboxSaveException
 from app.logging import get_logger
 from app.models.database import db
+from app.models.host import Host
 from app.models.outbox import Outbox
 from app.models.schemas import OutboxSchema
 from lib.metrics import outbox_save_failure
@@ -69,8 +67,8 @@ def _delete_event_payload(host_id: str) -> dict:
 
     return {"reference": reference}
 
-
-def _create_outbox_entry(event: str, host_id: str, host: Host or None = None) -> Union[dict, None, Literal[False]]:
+# TODO: Should "return False" be "raise OutboxSaveException" ?
+def _create_outbox_entry(event: str, host_id: str, host: Host or None = None) -> dict | None | Literal[False]:
     try:
         if event not in {"created", "updated", "delete"}:
             logger.error("Invalid event type: %s", event)
@@ -84,8 +82,8 @@ def _create_outbox_entry(event: str, host_id: str, host: Host or None = None) ->
         outbox_entry = {
             "aggregateid": str(host_id),
             "aggregatetype": "hbi.hosts",
-            "operation": op ,
-            "version": "v1beta2"
+            "operation": op,
+            "version": "v1beta2",
         }
 
         if event in {"created", "updated"}:
@@ -122,7 +120,7 @@ def _create_outbox_entry(event: str, host_id: str, host: Host or None = None) ->
 
 def write_event_to_outbox(event: str, host_id: str, host: Host or None = None) -> bool:
     # TODO: Add a test for this function
-    # TODO: Check comments in this 
+    # TODO: Check comments in this
     """
     Add an event to the outbox table within the current database transaction.
 

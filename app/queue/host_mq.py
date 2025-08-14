@@ -3,12 +3,12 @@ from __future__ import annotations
 import base64
 import json
 import sys
+import uuid
 from collections.abc import Callable
 from copy import deepcopy
 from functools import partial
 from typing import Any
 from uuid import UUID
-import uuid
 
 from confluent_kafka import Consumer
 from connexion import FlaskApp
@@ -31,7 +31,8 @@ from app.auth.identity import IdentityType
 from app.auth.identity import create_mock_identity_with_org_id
 from app.common import inventory_config
 from app.culling import Timestamps
-from app.exceptions import InventoryException, OutboxSaveException
+from app.exceptions import InventoryException
+from app.exceptions import OutboxSaveException
 from app.exceptions import ValidationException
 from app.instrumentation import log_add_host_attempt
 from app.instrumentation import log_add_host_failure

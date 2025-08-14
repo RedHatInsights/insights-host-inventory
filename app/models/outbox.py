@@ -41,4 +41,4 @@ class Outbox(db.Model):
             aggregateid={self.aggregateid}, \
             operation={self.operation}, \
             version={self.version}, \
-            payload={self.payload})>" # TODO check if version is needed.
+            payload={self.payload})>"  # TODO check if version is needed.
