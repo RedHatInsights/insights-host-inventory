@@ -7,7 +7,7 @@ from uuid import UUID
 
 from flask import current_app
 from flask_sqlalchemy.query import Query
-from lib.outbox_repository import write_create_update_event_to_outbox
+from lib.outbox_repository import write_event_to_outbox
 from sqlalchemy import and_
 from sqlalchemy import not_
 from sqlalchemy import or_
@@ -298,10 +298,11 @@ def create_new_host(input_host: Host) -> tuple[Host, AddHostResult]:
     input_host.save()
 
     # TODO: Save the host event to outbox table
-    result = write_create_update_event_to_outbox(input_host, "created")
+    result = write_event_to_outbox("created", input_host.id, input_host)
     if not result:
         logger.error("Failed to write created event to outbox")
-        raise OutboxSaveException(title="Failed to write created event to outbox", detail="Failed to write create event to outbox")
+
+        raise OutboxSaveException("Failed to write created host event to outbox")
 
     metrics.create_host_count.inc()
     logger.debug("Created host (uncommitted):%s", input_host)
@@ -319,10 +320,10 @@ def update_existing_host(
     existing_host.update(input_host, update_system_profile)
 
     # TODO: Save the host event to outbox table
-    result = write_create_update_event_to_outbox(input_host, "updated")
+    result = write_event_to_outbox("updated", input_host.id, input_host)
     if not result:
         logger.error("Failed to write updated event to outbox")
-        raise OutboxSaveException(title="Failed to write updated event to outbox", detail="Failed to write update event to outbox")
+        raise OutboxSaveException("Failed to write update event to outbox")
 
     metrics.update_host_count.inc()
     logger.debug("Updated host (uncommitted):%s", existing_host)

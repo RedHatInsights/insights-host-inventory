@@ -31,7 +31,7 @@ from app.auth.identity import IdentityType
 from app.auth.identity import create_mock_identity_with_org_id
 from app.common import inventory_config
 from app.culling import Timestamps
-from app.exceptions import InventoryException
+from app.exceptions import InventoryException, OutboxSaveException
 from app.exceptions import ValidationException
 from app.instrumentation import log_add_host_attempt
 from app.instrumentation import log_add_host_failure
@@ -445,6 +445,9 @@ class IngressMessageConsumer(HostMessageConsumer):
             return host_row, add_result, identity, success_logger
         except ValidationException:
             metrics.add_host_failure.labels("ValidationException", host_data.get("reporter", "null")).inc()
+            raise
+        except OutboxSaveException as ose:
+            log_add_host_failure(logger, str(ose.detail), host_data, sp_fields_to_log)
             raise
         except InventoryException as ie:
             log_add_host_failure(logger, str(ie.detail), host_data, sp_fields_to_log)

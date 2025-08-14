@@ -3,6 +3,7 @@ from typing import Literal
 from typing import Union
 from uuid import UUID
 
+from app.exceptions import OutboxSaveException
 from app.models.host import Host
 from marshmallow import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
@@ -17,17 +18,15 @@ from lib.metrics import outbox_save_success
 logger = get_logger(__name__)
 
 
-def _create_update_event_payload(host) -> Union[dict, None]:
+def _create_update_event_payload(host: Host) -> dict:
     if not host:
         logger.error("Missing required field 'host' in event data")
 
-        # TODO: raise an error
-        return None
+        raise OutboxSaveException("Missing required field 'host' in event data")
 
-    # Handle both nested structure (test format) and flat structure (production format)
     if not host.id:
         logger.error("Missing required field 'id' in host data")
-        return None
+        raise OutboxSaveException("Missing required field 'id' in host data")
 
     metadata = {
         "localResourceId": str(host.id),
@@ -60,19 +59,10 @@ def _create_update_event_payload(host) -> Union[dict, None]:
     }
 
 
-def _delete_event_payload(host) -> Union[dict, None]:
-    if not host:
-        logger.error("Missing required field 'host' in event data")
-
-        # TODO: raise exception with ValueError based on checking
-        return None
-
-    # Handle both nested structure (test format) and flat structure (production format)
-    if "id" in host:
-        host_id = host["id"]
-    else:
-        logger.error("Missing required field 'id' in host data")
-        return None
+def _delete_event_payload(host_id: str) -> dict:
+    if not host_id:
+        logger.error("Missing required field 'host_id' from the 'delete' event")
+        raise OutboxSaveException("Missing required field 'host_id' from the 'delete' event")
 
     reporter = {"type": "HBI"}
     reference = {"resource_type": "host", "resource_id": host_id, "reporter": reporter}
@@ -80,10 +70,10 @@ def _delete_event_payload(host) -> Union[dict, None]:
     return {"reference": reference}
 
 
-def _create_outbox_entry(host: Host, event: str) -> Union[dict, None, Literal[False]]:
+def _create_outbox_entry(event: str, host_id: str, host: Host or None = None) -> Union[dict, None, Literal[False]]:
     try:
-        if not host.id:
-            logger.error("Missing required field 'id' in event data")
+        if event in {"created", "updated"} and not host:
+            logger.error("Missing required 'host data' for 'created/updated' event")
             return False
 
         outbox_entry = {
@@ -100,7 +90,7 @@ def _create_outbox_entry(host: Host, event: str) -> Union[dict, None, Literal[Fa
                 return False
             outbox_entry["payload"] = payload
         elif event == "delete":
-            payload = _delete_event_payload(host)
+            payload = _delete_event_payload(host_id)
             if payload is None:
                 logger.error("Failed to create payload for delete event")
                 return False
@@ -125,7 +115,7 @@ def _create_outbox_entry(host: Host, event: str) -> Union[dict, None, Literal[Fa
     return outbox_entry
 
 
-def write_create_update_event_to_outbox(host: Host, event: str) -> bool:
+def write_event_to_outbox(event: str, host_id: str, host: Host or None = None) -> bool:
     """
     Add an event to the outbox table within the current database transaction.
 
@@ -147,12 +137,16 @@ def write_create_update_event_to_outbox(host: Host, event: str) -> bool:
         logger.error("Missing required field 'event'")
         return False
 
-    if not host:
-        logger.error("Missing required field 'host'")
+    if not host_id:
+        logger.error("Missing required field 'event'")
         return False
 
+    # if not host:
+    #     logger.error("Missing required field 'host'")
+    #     return False
+
     try:
-        outbox_entry = _create_outbox_entry(host, event)
+        outbox_entry = _create_outbox_entry(event, host_id, host)
         if outbox_entry is None:
             # Notification event skipped - this is success
             logger.debug("Event skipped for outbox processing")
@@ -213,7 +207,7 @@ def write_create_update_event_to_outbox(host: Host, event: str) -> bool:
 
         raise OutboxSaveException("Failed to save event to outbox") from db_error
 
-def write_delete_event_to_outbox(id: UUID, event: str) -> bool:
+def write_delete_event_to_outbox(host_id: str, event: str) -> bool:
     """
     Add an event to the outbox table within the current database transaction.
 
@@ -235,7 +229,7 @@ def write_delete_event_to_outbox(id: UUID, event: str) -> bool:
         logger.error("Missing required field 'event'")
         return False
 
-    if not id:
+    if not host_id:
         logger.error("Missing required field 'host id'")
         return False
 
