@@ -474,29 +474,31 @@ class OutboxSchema(MarshmallowSchema):
 
     id = fields.Raw(validate=verify_uuid_format, dump_only=True)
     aggregatetype = fields.Str(validate=marshmallow_validate.Length(min=1, max=255), load_default="hbi.hosts")
-    aggregateid = fields.Raw(validate=verify_uuid_format, allow_none=True)
-    event_type = fields.Str(validate=marshmallow_validate.OneOf(["created", "updated", "deleted"]), required=True)
+    aggregateid = fields.Raw(validate=verify_uuid_format, required=True)
+    operation = fields.Str(validate=marshmallow_validate.Length(min=1, max=255), required=True)
+    version = fields.Str(validate=marshmallow_validate.Length(min=1, max=50), required=True)
     payload = fields.Raw(required=True)
 
-    # Remove field-level payload validation since we can't reliably access event_type at this stage
-
     @validates_schema
-    def validate_payload_with_event_type(self, data, **kwargs):
-        event_type = data.get("event_type")
+    def validate_payload_with_operation(self, data, **kwargs):
+        operation = data.get("operation")
         payload = data.get("payload")
-        aggregateid = data.get("aggregateid")
 
-        # Validate aggregateid based on event_type
-        if event_type in ["created", "updated"] and aggregateid is None:
-            raise MarshmallowValidationError("aggregateid is required for created/updated events")
-
-        if event_type and payload:
-            if event_type in ["created", "updated"]:
+        if operation and payload:
+            if operation in ["created", "updated"]:
                 OutboxCreateUpdatePayloadSchema().load(payload)
-            elif event_type == "deleted":
+            elif operation == "deleted":
                 OutboxDeletePayloadSchema().load(payload)
             else:
-                raise MarshmallowValidationError(f"Unknown event_type: {event_type}")
+                # Allow other operation types but still validate payload structure if it matches known patterns
+                try:
+                    OutboxCreateUpdatePayloadSchema().load(payload)
+                except MarshmallowValidationError:
+                    try:
+                        OutboxDeletePayloadSchema().load(payload)
+                    except MarshmallowValidationError:
+                        # If payload doesn't match either schema, that's okay for unknown operations
+                        pass
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

@@ -6,7 +6,7 @@ from functools import partial
 
 from confluent_kafka import KafkaException
 from flask_sqlalchemy.query import Query
-from lib.outbox_repository import write_event_to_outbox
+from lib.outbox_repository import write_delete_event_to_outbox
 from sqlalchemy.orm import Session
 
 from app.auth.identity import Identity
@@ -49,7 +49,7 @@ def _delete_host_db_records(
             results_list.append(result)
 
         # TODO: Save the host event to outbox table
-        write_event_to_outbox(host.id)
+        write_delete_event_to_outbox(host.id, "deleted")
 
         if interrupt():
             raise InterruptedError()
@@ -87,6 +87,7 @@ def delete_hosts(
                 # TODO: write to the outbox table in the _delete_host_db_records function function
                 # TODO: because _send_delete_messages_for_batch produces the event also and outbox entry should be 
                 # TODO: saved before sending the event.
+
                 batch_events = _delete_host_db_records(select_query, chunk_size, identity, interrupt, control_rule)
                 _send_delete_messages_for_batch(
                     batch_events, event_producer, notification_event_producer, initiated_by_frontend

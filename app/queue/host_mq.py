@@ -8,6 +8,7 @@ from copy import deepcopy
 from functools import partial
 from typing import Any
 from uuid import UUID
+import uuid
 
 from confluent_kafka import Consumer
 from connexion import FlaskApp
@@ -407,6 +408,10 @@ class IngressMessageConsumer(HostMessageConsumer):
         try:
             identity = _get_identity(host_data, platform_metadata)
             input_host = deserialize_host(host_data)
+
+            # create a new id for the host if it is not provided for the new hosts
+            if input_host.id is None:
+                input_host.id = uuid.uuid4()
 
             # basic-auth does not need owner_id
             if identity.identity_type == IdentityType.SYSTEM:
