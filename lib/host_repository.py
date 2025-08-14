@@ -297,11 +297,10 @@ def create_new_host(input_host: Host) -> tuple[Host, AddHostResult]:
 
     input_host.save()
 
-    # TODO: Save the host event to outbox table
+    # write to the outbox table for synchronization with Kessel
     result = write_event_to_outbox("created", input_host.id, input_host)
     if not result:
         logger.error("Failed to write created event to outbox")
-
         raise OutboxSaveException("Failed to write created host event to outbox")
 
     metrics.create_host_count.inc()
@@ -319,7 +318,7 @@ def update_existing_host(
 
     existing_host.update(input_host, update_system_profile)
 
-    # TODO: Save the host event to outbox table
+    # write to the outbox table for synchronization with Kessel
     result = write_event_to_outbox("updated", input_host.id, input_host)
     if not result:
         logger.error("Failed to write updated event to outbox")
