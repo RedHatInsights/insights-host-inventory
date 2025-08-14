@@ -134,6 +134,8 @@ x-job-base-env: &job-base-env
     value: ${PROMETHEUS_PUSHGATEWAY}
   - name: SCRIPT_CHUNK_SIZE
     value: ${SCRIPT_CHUNK_SIZE}
+  - name: PYTHONPATH
+    value: '/opt/app-root/src'
 
 objects:
 - apiVersion: cloud.redhat.com/v1alpha1
