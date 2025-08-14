@@ -9,6 +9,10 @@ x-base-env: &base-env
     value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
   - name: INVENTORY_LOG_LEVEL
     value: ${LOG_LEVEL}
+  - name: CONNEXION_LOG_LEVEL
+    value: ${CONNEXION_LOG_LEVEL}
+  - name: URLLIB3_LOG_LEVEL
+    value: ${URLLIB3_LOG_LEVEL}
   - name: INVENTORY_DB_SSL_MODE
     value: ${INVENTORY_DB_SSL_MODE}
   - name: INVENTORY_DB_SSL_CERT
@@ -17,8 +21,18 @@ x-base-env: &base-env
     value: "${INVENTORY_DB_SCHEMA}"
   - name: CLOWDER_ENABLED
     value: "true"
+  - name: CONSOLEDOT_HOSTNAME
+    value: ${CONSOLEDOT_HOSTNAME}
   - name: REPLICA_NAMESPACE
     value: ${REPLICA_NAMESPACE}
+  - name: PAYLOAD_TRACKER_SERVICE_NAME
+    value: inventory-mq-service
+  - name: PAYLOAD_TRACKER_ENABLED
+    value: 'true'
+  - name: TENANT_TRANSLATOR_URL
+    value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
+  - name: BYPASS_TENANT_TRANSLATION
+    value: ${BYPASS_TENANT_TRANSLATION}
 
 x-kafka-env: &kafka-env
   - name: KAFKA_SECURITY_PROTOCOL
@@ -60,12 +74,6 @@ x-cache-env: &cache-env
   - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
     value: "${INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS}"
 
-x-tenant-env: &tenant-env
-  - name: TENANT_TRANSLATOR_URL
-    value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
-  - name: BYPASS_TENANT_TRANSLATION
-    value: ${BYPASS_TENANT_TRANSLATION}
-
 x-rbac-env: &rbac-env
   - name: RBAC_PSKS
     valueFrom:
@@ -95,42 +103,23 @@ x-service-base-env: &service-base-env
     value: ${APP_NAME}
   - name: PATH_PREFIX
     value: ${PATH_PREFIX}
-  - name: CONSOLEDOT_HOSTNAME
-    value: ${CONSOLEDOT_HOSTNAME}
   - name: INVENTORY_LEGACY_API_URL
     value: /r/insights/platform/inventory/v1
   - name: PROMETHEUS_MULTIPROC_DIR
     value: /tmp/inventory/prometheus
-  - name: URLLIB3_LOG_LEVEL
-    value: ${URLLIB3_LOG_LEVEL}
-  - name: CONNEXION_LOG_LEVEL
-    value: ${CONNEXION_LOG_LEVEL}
-  - name: PAYLOAD_TRACKER_SERVICE_NAME
-    value: inventory
-  - name: PAYLOAD_TRACKER_ENABLED
-    value: 'true'
   - name: BYPASS_RBAC
     value: ${BYPASS_RBAC}
   - <<: *kafka-env
-  - <<: *tenant-env
   - <<: *cache-env
   - <<: *unleash-env
   - <<: *segmentio-env
 
 x-mq-base-env: &mq-base-env
   - <<: *base-env
-  - name: CONSOLEDOT_HOSTNAME
-    value: ${CONSOLEDOT_HOSTNAME}
-  - name: CONNEXION_LOG_LEVEL
-    value: ${CONNEXION_LOG_LEVEL}
+
   - name: KAFKA_HOST_INGRESS_GROUP
     value: ${KAFKA_HOST_INGRESS_GROUP}
-  - name: PAYLOAD_TRACKER_SERVICE_NAME
-    value: inventory-mq-service
-  - name: PAYLOAD_TRACKER_ENABLED
-    value: 'true'
   - <<: *kafka-env
-  - <<: *tenant-env
   - <<: *cache-env
   - name: KAFKA_CONSUMER_SESSION_TIMEOUT_MS
     value: "${KAFKA_CONSUMER_SESSION_TIMEOUT_MS}"
@@ -143,10 +132,7 @@ x-job-base-env: &job-base-env
   - <<: *kafka-env
   - <<: *unleash-env
   - <<: *namespace-env
-  - name: PAYLOAD_TRACKER_SERVICE_NAME
-    value: inventory-mq-service
-  - name: PAYLOAD_TRACKER_ENABLED
-    value: 'true'
+
   - name: PROMETHEUS_PUSHGATEWAY
     value: ${PROMETHEUS_PUSHGATEWAY}
 
@@ -627,7 +613,6 @@ objects:
           value: ${KAFKA_SECURITY_PROTOCOL}
         - name: KAFKA_SASL_MECHANISM
           value: ${KAFKA_SASL_MECHANISM}
-        - <<: *tenant-env
         - <<: *unleash-env
         - name: EXPORT_SERVICE_TOKEN
           valueFrom:
@@ -692,12 +677,8 @@ objects:
         args: ["./generate_stale_host_notifications.py"]
         env:
         - <<: *job-base-env
-        - name: CONNEXION_LOG_LEVEL
-          value: ${CONNEXION_LOG_LEVEL}
         - name: KAFKA_BOOTSTRAP_SERVERS
           value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
-        - name: CONSOLEDOT_HOSTNAME
-          value: ${CONSOLEDOT_HOSTNAME}
         resources:
           limits:
             cpu: ${CPU_LIMIT_STALE_HOST_NOTIFICAION}
