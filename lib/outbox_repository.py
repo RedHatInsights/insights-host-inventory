@@ -64,7 +64,7 @@ def _delete_event_payload(host_id: str) -> dict:
     return {"reference": reference}
 
 # TODO: Should "return False" be "raise OutboxSaveException" ?
-def _create_outbox_entry(event: str, host_id: str, host: Host or None = None) -> dict | None | Literal[False]:
+def _build_outbox_entry(event: str, host_id: str, host: Host or None = None) -> dict | None | Literal[False]:
     try:
         if event not in {"created", "updated", "delete"}:
             logger.error("Invalid event type: %s", event)
@@ -115,24 +115,8 @@ def _create_outbox_entry(event: str, host_id: str, host: Host or None = None) ->
 
 
 def write_event_to_outbox(event: str, host_id: str, host: Host or None = None) -> bool:
-    # TODO: Add a test for this function
-    # TODO: Check comments in this
     """
-    Add an event to the outbox table within the current database transaction.
-
-    This function adds the outbox entry to the current database session but does not
-    commit the transaction. The caller is responsible for committing or rolling back
-    the transaction. If an error occurs, OutboxSaveException is raised to allow
-    the caller to handle rollback.
-
-    Args:
-        event: Event data as JSON string containing type and host information
-
-    Returns:
-        bool: True if successfully added to session
-
-    Raises:
-        OutboxSaveException: If there's an error adding to the outbox
+    First check if required fields are present then build the outbox entry.
     """
     if not event:
         logger.error("Missing required field 'event'")
@@ -142,12 +126,8 @@ def write_event_to_outbox(event: str, host_id: str, host: Host or None = None) -
         logger.error("Missing required field 'event'")
         return False
 
-    # if not host:
-    #     logger.error("Missing required field 'host'")
-    #     return False
-
     try:
-        outbox_entry = _create_outbox_entry(event, host_id, host)
+        outbox_entry = _build_outbox_entry(event, host_id, host)
         if outbox_entry is None:
             # Notification event skipped - this is success
             logger.debug("Event skipped for outbox processing")
