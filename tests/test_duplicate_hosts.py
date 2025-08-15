@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from random import randint
-from typing import Callable
 from unittest import mock
 from uuid import UUID
 
@@ -12,8 +12,8 @@ from app.config import Config
 from app.logging import get_logger
 from app.models import Host
 from app.models import ProviderType
-from host_delete_duplicates import run as host_delete_duplicates_run
 from jobs.common import init_db
+from jobs.host_delete_duplicates import run as host_delete_duplicates_run
 from lib.db import multi_session_guard
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.mq_utils import MockEventProducer

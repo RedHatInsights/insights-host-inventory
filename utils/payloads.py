@@ -3,9 +3,9 @@ import json
 import os
 import random
 import uuid
+from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
-from datetime import timezone
 
 org_id = os.environ.get("INVENTORY_HOST_ACCOUNT", "321")
 # kessel user identity known to rbac deployed by bonfire in Ephemeral cluster
@@ -598,7 +598,7 @@ def build_host_chunk():
             {"namespace": "Sat", "key": "prod", "value": None},
         ],
         "system_profile": system_profile,
-        "stale_timestamp": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
+        "stale_timestamp": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
         "reporter": "puptoo",
     }
 

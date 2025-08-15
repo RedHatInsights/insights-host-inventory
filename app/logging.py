@@ -30,7 +30,7 @@ def configure_logging():
 
     # Allows for the log level of certain loggers to be redefined with an env variable
     # e.g. SQLALCHEMY_ENGINE_LOG_LEVEL=DEBUG
-    for component in ("sqlalchemy.engine", "urllib3"):
+    for component in ("sqlalchemy.engine", "urllib3", "connexion"):
         env_key = component.replace(".", "_").upper()
         level = os.getenv(f"{env_key}_LOG_LEVEL")
         if level:

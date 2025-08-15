@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from copy import deepcopy
 from typing import Any
-from typing import Callable
 from unittest import mock
 from unittest.mock import patch
 
