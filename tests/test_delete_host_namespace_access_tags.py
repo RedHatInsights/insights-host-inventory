@@ -5,7 +5,7 @@ from pytest_mock import MockerFixture
 
 from app.models import Host
 from app.models import db
-from delete_host_namespace_access_tags import run
+from jobs.delete_host_namespace_access_tags import run
 
 
 def test_delete_access_namespace_happy_path(
