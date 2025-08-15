@@ -691,7 +691,7 @@ def test_log_create_delete(
     )
 
     assert not db_get_host(host.id)
-    assert caplog.records[0].system_profile == "{}"
+    assert caplog.records[1].system_profile == "{}"
 
 
 @pytest.mark.usefixtures("notification_event_producer_mock")

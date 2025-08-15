@@ -397,3 +397,108 @@ class StalenessSchema(MarshmallowSchema):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+
+class OutboxEventMetadataSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    localResourceId = fields.Raw(validate=verify_uuid_format, required=True)
+    apiHref = fields.Str(validate=marshmallow_validate.Length(min=1, max=2048), required=True)
+    consoleHref = fields.Str(validate=marshmallow_validate.Length(min=1, max=2048), required=True)
+    reporterVersion = fields.Str(validate=marshmallow_validate.Length(min=1, max=50), required=True)
+
+
+class OutboxEventCommonSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    workspace_id = fields.Raw(validate=verify_uuid_format, allow_none=True)
+
+
+class OutboxEventReporterSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    satellite_id = fields.Str(validate=verify_satellite_id, allow_none=True)
+    subscription_manager_id = fields.Str(validate=verify_uuid_format, allow_none=True)
+    insights_id = fields.Raw(validate=verify_uuid_format, allow_none=True)
+    ansible_host = fields.Str(validate=marshmallow_validate.Length(max=255), allow_none=True)
+
+
+class OutboxEventRepresentationsSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    metadata = fields.Nested(OutboxEventMetadataSchema, required=True)
+    common = fields.Nested(OutboxEventCommonSchema, required=True)
+    reporter = fields.Nested(OutboxEventReporterSchema, required=True)
+
+
+class OutboxCreateUpdatePayloadSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    type = fields.Str(validate=marshmallow_validate.OneOf(["host"]), required=True)
+    reporterType = fields.Str(validate=marshmallow_validate.OneOf(["hbi"]), required=True)
+    reporterInstanceId = fields.Str(validate=marshmallow_validate.Length(min=1, max=255), required=True)
+    representations = fields.Nested(OutboxEventRepresentationsSchema, required=True)
+
+
+class OutboxDeleteReporterSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    type = fields.Str(validate=marshmallow_validate.OneOf(["HBI"]), required=True)
+
+
+class OutboxDeleteReferenceSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    resource_type = fields.Str(validate=marshmallow_validate.OneOf(["host"]), required=True)
+    resource_id = fields.Raw(validate=verify_uuid_format, allow_none=True)
+    reporter = fields.Nested(OutboxDeleteReporterSchema, required=True)
+
+
+class OutboxDeletePayloadSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    reference = fields.Nested(OutboxDeleteReferenceSchema, required=True)
+
+
+class OutboxSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    id = fields.Raw(validate=verify_uuid_format, dump_only=True)
+    aggregatetype = fields.Str(validate=marshmallow_validate.Length(min=1, max=255), load_default="hbi.hosts")
+    aggregateid = fields.Raw(validate=verify_uuid_format, required=True)
+    operation = fields.Str(validate=marshmallow_validate.Length(min=1, max=255), required=True)
+    version = fields.Str(validate=marshmallow_validate.Length(min=1, max=50), required=True)
+    payload = fields.Raw(required=True)
+
+    @validates_schema
+    def validate_payload_with_operation(self, data, **kwargs):
+        operation = data.get("operation")
+        payload = data.get("payload")
+
+        if operation and payload:
+            if operation in ["created", "updated"]:
+                OutboxCreateUpdatePayloadSchema().load(payload)
+            elif operation == "deleted":
+                OutboxDeletePayloadSchema().load(payload)
+            else:
+                # Allow other operation types but still validate payload structure if it matches known patterns
+                try:
+                    OutboxCreateUpdatePayloadSchema().load(payload)
+                except MarshmallowValidationError:
+                    try:
+                        OutboxDeletePayloadSchema().load(payload)
+                    except MarshmallowValidationError:
+                        # If payload doesn't match either schema, that's okay for unknown operations
+                        pass
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)

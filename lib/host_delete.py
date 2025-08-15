@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
 from app.common import inventory_config
+from app.exceptions import OutboxSaveException
 from app.instrumentation import log_host_delete_succeeded
 from app.logging import get_logger
 from app.models import Host
@@ -26,6 +27,7 @@ from lib.db import session_guard
 from lib.host_kafka import kafka_available
 from lib.metrics import delete_host_count
 from lib.metrics import delete_host_processing_time
+from lib.outbox_repository import write_event_to_outbox
 from utils.system_profile_log import extract_host_model_sp_to_log
 
 __all__ = ("delete_hosts",)
@@ -110,6 +112,17 @@ def _delete_host(session: Session, host: Host, identity: Identity | None, contro
 
     assoc_delete_query.delete(synchronize_session="fetch")
     host_delete_query.delete(synchronize_session="fetch")
+
+    try:
+        # write to the outbox table for synchronization with Kessel
+        result = write_event_to_outbox("delete", host.id)
+        if not result:
+            logger.error("Failed to write delete event to outbox")
+            raise OutboxSaveException("Failed to write delete event to outbox")
+    except OutboxSaveException as ose:
+        logger.error("Failed to write delete event to outbox: %s", str(ose))
+        raise ose
+
     return OperationResult(
         host,
         {"b64_identity": to_auth_header(identity)} if identity else None,
