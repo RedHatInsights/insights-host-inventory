@@ -17,12 +17,8 @@ logger = get_logger(__name__)
 
 
 def _create_update_event_payload(host: Host) -> dict:
-    if not host:
-        logger.error("Missing required field 'host' in event data")
 
-        raise OutboxSaveException("Missing required field 'host' in event data")
-
-    if not host.id:
+    if not host or not host.id:
         logger.error("Missing required field 'id' in host data")
         raise OutboxSaveException("Missing required field 'id' in host data")
 
