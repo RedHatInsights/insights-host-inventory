@@ -33,10 +33,10 @@ def _create_update_event_payload(host: Host) -> dict:
     common = {"workspace_id": groups[0]["id"]} if len(groups) > 0 else {}
 
     reporter = {
-        "satellite_id": host.satellite_id,
-        "subscription_manager_id": host.subscription_manager_id,
-        "insights_id": host.insights_id,
-        "ansible_host": host.ansible_host,
+        "satellite_id": str(host.satellite_id) if host.satellite_id else None,
+        "subscription_manager_id": str(host.subscription_manager_id) if host.subscription_manager_id else None,
+        "insights_id": str(host.insights_id) if host.insights_id else None,
+        "ansible_host": str(host.ansible_host) if host.ansible_host else None,
     }
 
     representations = {
@@ -73,7 +73,7 @@ def _report_error(message: str) -> None:
 def _build_outbox_entry(event: str, host_id: str, host: Host or None = None) -> dict:
     try:
         if event not in {"created", "updated", "delete"}:
-            _report_error("Invalid event type: %s", event)
+            _report_error(f"Invalid event type: {event}")
 
         if event in {"created", "updated"} and not host:
             _report_error("Missing required 'host data' for 'created' or 'updated' event for Outbox")
@@ -100,13 +100,13 @@ def _build_outbox_entry(event: str, host_id: str, host: Host or None = None) -> 
             _report_error("Unknown event type.  Valid event types are 'created', 'updated', or 'delete'")
     except KeyError as e:
         logger.error("Missing required field in event data: %s. Event: %s", str(e), event)
-        raise OutboxSaveException("Missing required field in event data: %s. Event: %s", str(e), event)
+        raise OutboxSaveException(f"Missing required field in event data: {str(e)}. Event: {event}")
 
     except json.JSONDecodeError as e:
-        _report_error("Failed to parse event JSON: %s. Event: %s", str(e), event)
+        _report_error(f"Failed to parse event JSON: {str(e)}. Event: {event}")
 
     except Exception as e:
-        _report_error("Unexpected error writing event to outbox: %s. Event: %s", str(e), event)
+        _report_error(f"Unexpected error writing event to outbox: {str(e)}. Event: {event}")
 
     return outbox_entry
 
