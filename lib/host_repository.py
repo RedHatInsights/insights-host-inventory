@@ -298,11 +298,15 @@ def create_new_host(input_host: Host) -> tuple[Host, AddHostResult]:
 
     input_host.save()
 
-    # write to the outbox table for synchronization with Kessel
-    result = write_event_to_outbox("created", input_host.id, input_host)
-    if not result:
-        logger.error("Failed to write created event to outbox")
-        raise OutboxSaveException("Failed to write created host event to outbox")
+    try:
+        # write to the outbox table for synchronization with Kessel
+        result = write_event_to_outbox("created", input_host.id, input_host)
+        if not result:
+            logger.error("Failed to write created event to outbox")
+            raise OutboxSaveException("Failed to write created host event to outbox")
+    except OutboxSaveException as ose:
+        logger.error("Failed to write created event to outbox: %s", str(ose))
+        raise ose
 
     metrics.create_host_count.inc()
     logger.debug("Created host (uncommitted):%s", input_host)
@@ -319,11 +323,15 @@ def update_existing_host(
 
     existing_host.update(input_host, update_system_profile)
 
-    # write to the outbox table for synchronization with Kessel
-    result = write_event_to_outbox("updated", input_host.id, input_host)
-    if not result:
-        logger.error("Failed to write updated event to outbox")
-        raise OutboxSaveException("Failed to write update event to outbox")
+    try:
+        # write to the outbox table for synchronization with Kessel
+        result = write_event_to_outbox("updated", input_host.id, input_host)
+        if not result:
+            logger.error("Failed to write updated event to outbox")
+            raise OutboxSaveException("Failed to write update event to outbox")
+    except OutboxSaveException as ose:
+        logger.error("Failed to write updated event to outbox: %s", str(ose))
+        raise ose
 
     metrics.update_host_count.inc()
     logger.debug("Updated host (uncommitted):%s", existing_host)

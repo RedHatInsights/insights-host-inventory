@@ -113,11 +113,15 @@ def _delete_host(session: Session, host: Host, identity: Identity | None, contro
     assoc_delete_query.delete(synchronize_session="fetch")
     host_delete_query.delete(synchronize_session="fetch")
 
-    # write to the outbox table for synchronization with Kessel
-    result = write_event_to_outbox("delete", host.id)
-    if not result:
-        logger.error("Failed to write delete event to outbox")
-        raise OutboxSaveException("Failed to write delete event to outbox")
+    try:
+        # write to the outbox table for synchronization with Kessel
+        result = write_event_to_outbox("delete", host.id)
+        if not result:
+            logger.error("Failed to write delete event to outbox")
+            raise OutboxSaveException("Failed to write delete event to outbox")
+    except OutboxSaveException as ose:
+        logger.error("Failed to write delete event to outbox: %s", str(ose))
+        raise ose
 
     return OperationResult(
         host,

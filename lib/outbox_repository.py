@@ -63,16 +63,20 @@ def _delete_event_payload(host_id: str) -> dict:
 
     return {"reference": reference}
 
-# TODO: Should "return False" be "raise OutboxSaveException" ?
-def _build_outbox_entry(event: str, host_id: str, host: Host or None = None) -> dict | None | Literal[False]:
+
+def _report_error(message: str) -> None:
+    outbox_save_failure.inc()
+    logger.error(message)
+    raise OutboxSaveException(message)
+
+
+def _build_outbox_entry(event: str, host_id: str, host: Host or None = None) -> dict:
     try:
         if event not in {"created", "updated", "delete"}:
-            logger.error("Invalid event type: %s", event)
-            return False
+            _report_error("Invalid event type: %s", event)
 
         if event in {"created", "updated"} and not host:
-            logger.error("Missing required 'host data' for 'created/updated' event")
-            return False
+            _report_error("Missing required 'host data' for 'created' or 'updated' event for Outbox")
 
         op = "ReportResource" if event in {"created", "updated"} else "DeleteResource"
         outbox_entry = {
@@ -85,32 +89,25 @@ def _build_outbox_entry(event: str, host_id: str, host: Host or None = None) -> 
         if event in {"created", "updated"}:
             payload = _create_update_event_payload(host)
             if payload is None:
-                logger.error("Failed to create payload for created/updated event")
-                return False
+                _report_error("Failed to create payload for 'created' or 'updated' event for Outbox")
             outbox_entry["payload"] = payload
         elif event == "delete":
             payload = _delete_event_payload(str(host_id))
             if payload is None:
-                logger.error("Failed to create payload for delete event")
-                return False
+                _report_error("Failed to create payload for 'delete' event")
             outbox_entry["payload"] = payload
         else:
-            logger.error('Unknown event type.  Valid event types are "created", "updated", or "delete"')
-            return False
+            _report_error("Unknown event type.  Valid event types are 'created', 'updated', or 'delete'")
     except KeyError as e:
         logger.error("Missing required field in event data: %s. Event: %s", str(e), event)
-        return False
+        raise OutboxSaveException("Missing required field in event data: %s. Event: %s", str(e), event)
 
     except json.JSONDecodeError as e:
-        logger.error("Failed to parse event JSON: %s. Event: %s", str(e), event)
-        return False
+        _report_error("Failed to parse event JSON: %s. Event: %s", str(e), event)
 
     except Exception as e:
-        logger.error("Unexpected error writing event to outbox: %s. Event: %s", str(e), event)
-        import traceback
+        _report_error("Unexpected error writing event to outbox: %s. Event: %s", str(e), event)
 
-        logger.error("Traceback: %s", traceback.format_exc())
-        return False
     return outbox_entry
 
 
@@ -119,22 +116,13 @@ def write_event_to_outbox(event: str, host_id: str, host: Host or None = None) -
     First check if required fields are present then build the outbox entry.
     """
     if not event:
-        logger.error("Missing required field 'event'")
-        return False
+        _report_error("Missing required field 'event'")
 
     if not host_id:
-        logger.error("Missing required field 'event'")
-        return False
+        _report_error("Missing required field 'host_id'")
 
     try:
         outbox_entry = _build_outbox_entry(event, host_id, host)
-        if outbox_entry is None:
-            # Notification event skipped - this is success
-            logger.debug("Event skipped for outbox processing")
-            return True
-        if outbox_entry is False:
-            logger.error("Failed to create outbox entry from event data")
-            return False
         validated_outbox_entry = OutboxSchema().load(outbox_entry)
     except ValidationError as ve:
         from app.exceptions import OutboxSaveException
