@@ -538,7 +538,7 @@ pathspec==0.12.1 \
     # via
     #   hatchling
     #   mypy
-pdm-backend==2.4.3 \
+pdm-backend==2.4.5 \
     --hash=sha256:07c7e7ae9dc7bbaf9a470e8d2cc59e987bf2897c2f27a7efbde8f1534c0ea4ee \
     --hash=sha256:dbd9047a7ac10d11a5227e97163b617ad5d665050476ff63867d971758200728
     # via -r requirements-build.in
