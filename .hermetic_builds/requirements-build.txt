@@ -214,7 +214,7 @@ cryptography==45.0.5 \
     #   -r requirements-build.in
     #   types-pyopenssl
     #   types-redis
-cython==3.1.2 \
+cython==3.1.3 \
     --hash=sha256:06789eb7bd2e55b38b9dd349e9309f794aee0fed99c26ea5c9562d463877763f \
     --hash=sha256:0b58e859889dd0fc6c3a990445b930f692948b28328bb4f3ed84b51028b7e183 \
     --hash=sha256:0d6248a2ae155ca4c42d7fa6a9a05154d62e695d7736bc17e1b85da6dcc361df \
