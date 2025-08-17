@@ -49,14 +49,15 @@ COPY inv_migration_runner.py inv_migration_runner.py
 COPY app_migrations/ app_migrations/
 COPY jobs/ jobs/
 
-ENV PIP_NO_CACHE_DIR=1
-ENV PIPENV_CLEAR=1
+ENV PIP_NO_CACHE_DIR=0
+ENV PIPENV_CLEAR=0
 ENV PIPENV_VENV_IN_PROJECT=1
 
 RUN python3 -m pip install --upgrade pip setuptools wheel && \
     python3 -m pip install pipenv && \
     python3 -m pip install dumb-init && \
-    pipenv install --system
+    PIP_PREFER_BINARY=1 pipenv sync --system --verbose && \
+    python3 -m pip cache purge
 
 # remove devel packages that were only necessary for psycopg2 to compile
 RUN microdnf remove  -y  libpq-devel python3.12-devel gcc cargo rust rust-std-static gcc-c++ && \
