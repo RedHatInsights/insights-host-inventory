@@ -691,6 +691,9 @@ def test_log_create_delete(
     )
 
     assert not db_get_host(host.id)
+    # with the new outbox implementation, 
+    # caplog[0] is inventory.lib.outbox entry
+    # caplog[1] is inventory.lib.host_delete
     assert caplog.records[1].system_profile == "{}"
 
 

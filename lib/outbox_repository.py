@@ -10,6 +10,7 @@ from app.models.database import db
 from app.models.host import Host
 from app.models.outbox import Outbox
 from app.models.schemas import OutboxSchema
+from app.queue.events import EventType
 from lib.metrics import outbox_save_failure
 from lib.metrics import outbox_save_success
 
@@ -70,7 +71,7 @@ def _report_error(message: str) -> None:
     raise OutboxSaveException(message)
 
 
-def _build_outbox_entry(event: str, host_id: str, host: Host or None = None) -> dict:
+def _build_outbox_entry(event: EventType, host_id: str, host: Host or None = None) -> dict:
     try:
         if event not in {"created", "updated", "delete"}:
             _report_error(f"Invalid event type: {event}")
@@ -111,7 +112,7 @@ def _build_outbox_entry(event: str, host_id: str, host: Host or None = None) -> 
     return outbox_entry
 
 
-def write_event_to_outbox(event: str, host_id: str, host: Host or None = None) -> bool:
+def write_event_to_outbox(event: EventType, host_id: str, host: Host or None = None) -> bool:
     """
     First check if required fields are present then build the outbox entry.
     """
@@ -125,8 +126,6 @@ def write_event_to_outbox(event: str, host_id: str, host: Host or None = None) -
         outbox_entry = _build_outbox_entry(event, host_id, host)
         validated_outbox_entry = OutboxSchema().load(outbox_entry)
     except ValidationError as ve:
-        from app.exceptions import OutboxSaveException
-
         logger.exception(
             f'Input validation error, "{str(ve.messages)}", \
                 while creating outbox_entry: {outbox_entry if "outbox_entry" in locals() else "N/A"}'
@@ -153,6 +152,12 @@ def write_event_to_outbox(event: str, host_id: str, host: Host or None = None) -
         logger.debug("Added outbox entry to session: aggregateid=%s", validated_outbox_entry["aggregateid"])
 
         logger.info("Successfully added event to outbox for aggregateid=%s", validated_outbox_entry["aggregateid"])
+
+        # db.session does not have to be committed to get an entry added to the outbox table based on 
+        # https://project-kessel.github.io/docs/building-with-kessel/how-to/report-resources/#pruning-the-outbox
+        # prune the new event from the Outbox table
+        db.session.query(Outbox).filter(Outbox.aggregateid == validated_outbox_entry["aggregateid"]).delete()
+
         return True
 
     except SQLAlchemyError as db_error:
@@ -171,6 +176,4 @@ def write_event_to_outbox(event: str, host_id: str, host: Host or None = None) -
         logger.debug("Database error traceback: %s", traceback.format_exc())
 
         # Re-raise the exception so caller can handle rollback
-        from app.exceptions import OutboxSaveException
-
         raise OutboxSaveException("Failed to save event to outbox") from db_error

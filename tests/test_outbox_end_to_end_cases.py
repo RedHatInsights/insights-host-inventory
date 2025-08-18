@@ -411,11 +411,8 @@ class TestOutboxE2ECases:
         common = payload["representations"]["common"]
         
         # Should contain workspace_id from the first group
-        if host.groups:
-            assert "workspace_id" in common
-            assert common["workspace_id"] == host.groups[0]["id"]
-        else:
-            assert common == {}
+        assert "workspace_id" in common
+        assert common["workspace_id"] == host.groups[0]["id"]
 
     def test_transaction_rollback_behavior(self, db_create_host, db_get_host):
         """Test that outbox entries are part of the same transaction."""
