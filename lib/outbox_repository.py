@@ -100,14 +100,13 @@ def _build_outbox_entry(event: EventType, host_id: str, host: Host or None = Non
         else:
             _report_error("Unknown event type.  Valid event types are 'created', 'updated', or 'delete'")
     except KeyError as e:
-        logger.error("Missing required field in event data: %s. Event: %s", str(e), event)
-        raise OutboxSaveException(f"Missing required field in event data: {str(e)}. Event: {event}")
+        _report_error(f"Missing required field in event data: {str(e)}. Event: {event}")
 
     except json.JSONDecodeError as e:
         _report_error(f"Failed to parse event JSON: {str(e)}. Event: {event}")
 
     except Exception as e:
-        _report_error(f"Unexpected error writing event to outbox: {str(e)}. Event: {event}")
+        _report_error(f"Unexpected error writing event to outbox: str(e). Event: {event}")
 
     return outbox_entry
 
@@ -117,19 +116,15 @@ def write_event_to_outbox(event: EventType, host_id: str, host: Host or None = N
     First check if required fields are present then build the outbox entry.
     """
     if not event:
-        _report_error("Missing required field 'event'")
+        _report_error(f"Missing required field 'event': {event}")
 
     if not host_id:
-        _report_error("Missing required field 'host_id'")
+        _report_error(f"Missing required field 'host_id': {host_id}")
 
     try:
         outbox_entry = _build_outbox_entry(event, host_id, host)
         validated_outbox_entry = OutboxSchema().load(outbox_entry)
     except ValidationError as ve:
-        logger.exception(
-            f'Input validation error, "{str(ve.messages)}", \
-                while creating outbox_entry: {outbox_entry if "outbox_entry" in locals() else "N/A"}'
-        )
         raise OutboxSaveException("Invalid host or event was provided") from ve
 
     logger.debug(
@@ -146,17 +141,21 @@ def write_event_to_outbox(event: EventType, host_id: str, host: Host or None = N
             payload=validated_outbox_entry["payload"],
         )
 
+        # Save the outbox entry to record the event in the write-ahead log.
         db.session.add(outbox_entry_db)
-        # Do not flush or commit - let the caller handle transaction lifecycle
+        db.session.flush()
+
+        # This commit is required because session.add() and session.flush() do not commit the transaction
+        db.session.commit()
+
         outbox_save_success.inc()
         logger.debug("Added outbox entry to session: aggregateid=%s", validated_outbox_entry["aggregateid"])
-
         logger.info("Successfully added event to outbox for aggregateid=%s", validated_outbox_entry["aggregateid"])
 
-        # db.session does not have to be committed to get an entry added to the outbox table based on 
-        # https://project-kessel.github.io/docs/building-with-kessel/how-to/report-resources/#pruning-the-outbox
         # prune the new event from the Outbox table
+        # Without the previous commit, the following delete will fail because the outbox entry is not yet committed.
         db.session.query(Outbox).filter(Outbox.aggregateid == validated_outbox_entry["aggregateid"]).delete()
+        db.session.commit()
 
         return True
 
