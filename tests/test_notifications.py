@@ -10,7 +10,7 @@ import pytest
 from app.exceptions import ValidationException
 from app.logging import threadctx
 from app.models import db
-from generate_stale_host_notifications import run as run_stale_host_notification
+from jobs.generate_stale_host_notifications import run as run_stale_host_notification
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.mq_utils import assert_stale_notification_is_valid
 from tests.helpers.mq_utils import assert_system_registered_notification_is_valid

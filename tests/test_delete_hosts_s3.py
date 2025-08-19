@@ -4,8 +4,8 @@ from unittest.mock import patch
 
 import pytest
 
-import delete_hosts_s3
 from app.config import Config
+from jobs import delete_hosts_s3
 
 # Patch constants and functions used in run
 BATCH_SIZE = 2
@@ -40,24 +40,24 @@ def mock_s3_client():
 
 @pytest.fixture
 def patch_get_s3_client(mock_s3_client):
-    with patch("delete_hosts_s3.get_s3_client", return_value=mock_s3_client):
+    with patch("jobs.delete_hosts_s3.get_s3_client", return_value=mock_s3_client):
         yield mock_s3_client
 
 
 @pytest.fixture
 def patch_process_batch():
-    with patch("delete_hosts_s3.process_batch") as mock_proc:
+    with patch("jobs.delete_hosts_s3.process_batch") as mock_proc:
         yield mock_proc
 
 
 @pytest.fixture
 def patch_globals(monkeypatch):
     # Patch the global counters
-    monkeypatch.setattr("delete_hosts_s3.BATCH_SIZE", BATCH_SIZE)
-    monkeypatch.setattr("delete_hosts_s3.S3_OBJECT_KEY", S3_OBJECT_KEY)
-    monkeypatch.setattr("delete_hosts_s3.not_deleted_count", 0)
-    monkeypatch.setattr("delete_hosts_s3.not_found_count", 0)
-    monkeypatch.setattr("delete_hosts_s3.deleted_count", 0)
+    monkeypatch.setattr("jobs.delete_hosts_s3.BATCH_SIZE", BATCH_SIZE)
+    monkeypatch.setattr("jobs.delete_hosts_s3.S3_OBJECT_KEY", S3_OBJECT_KEY)
+    monkeypatch.setattr("jobs.delete_hosts_s3.not_deleted_count", 0)
+    monkeypatch.setattr("jobs.delete_hosts_s3.not_found_count", 0)
+    monkeypatch.setattr("jobs.delete_hosts_s3.deleted_count", 0)
 
 
 @pytest.mark.usefixtures("patch_globals")
@@ -106,9 +106,9 @@ def test_run_happy_and_edge_cases(
     patch_get_s3_client.get_object.return_value = {"Body": s3_body}
 
     # Patch the global counters for logging
-    monkeypatch.setattr("delete_hosts_s3.not_deleted_count", 0)
-    monkeypatch.setattr("delete_hosts_s3.not_found_count", 0)
-    monkeypatch.setattr("delete_hosts_s3.deleted_count", 0)
+    monkeypatch.setattr("jobs.delete_hosts_s3.not_deleted_count", 0)
+    monkeypatch.setattr("jobs.delete_hosts_s3.not_found_count", 0)
+    monkeypatch.setattr("jobs.delete_hosts_s3.deleted_count", 0)
 
     # Act
     delete_hosts_s3.run(mock_config, mock_logger, mock_session, event_producer, notification_event_producer, flask_app)
