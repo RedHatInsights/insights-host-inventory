@@ -541,3 +541,63 @@ pre-commit install
 
 If inside the Red Hat network, also ensure `rh-pre-commit` is installed as per
 instructions [here](https://url.corp.redhat.com/rh-pre-commit#quickstart-install).
+
+## Interactive GABI Query Tool
+
+This script provides an interactive command-line interface to send SQL queries to a GABI endpoint and displays the results in a formatted table.
+
+### Prerequisites
+
+Before running the script, ensure you have the required Python libraries installed:
+
+```bash
+pip install requests tabulate
+```
+
+You also need to be logged into your OpenShift cluster via the `oc` command-line tool if you intend to use the default authentication and URL detection.
+
+### Usage
+
+1.  Make the script executable:
+    ```bash
+    chmod +x run_gabi_interactive.py
+    ```
+2.  Run the script. You can specify the application name, endpoint URL, and authentication token as arguments. If not provided, the script will attempt to get them from your `oc` session.
+    ```bash
+    ./run_gabi_interactive.py --app host-inventory-stage
+    ```
+3.  Once the script is running, it will prompt you to enter your SQL query.
+      * You can write multi-line queries.
+      * To execute the query, press **Enter** on an empty line.
+      * To exit the script, type `exit` or `quit` and press Enter.
+
+### Command-Line Arguments
+
+  * `--app`: The GABI application name (e.g., `host-inventory-stage`). Defaults to `host-inventory-prod`.
+  * `--url`: The full GABI endpoint URL. Overrides the URL derived from `oc`.
+  * `--auth`: The bearer token for authentication. Overrides the token derived from `oc`.
+
+### Example Session
+
+```bash
+$ ./run_gabi_interactive.py --app host-inventory-stage
+Connected to https://gabi-host-inventory-stage.apps.example.com/query
+Type 'exit' or 'quit' to end the session.
+
+Enter your SQL query (press Enter on an empty line to submit):
+SELECT id, reporter, last_check_in
+FROM hbi.hosts
+WHERE reporter = 'puptoo'
+LIMIT 2;
+
+Sending query to https://gabi-host-inventory-stage.apps.example.com/query...
+
+Query successful. Result:
+
++--------------------------------------+----------+-------------------------------+
+| id                                   | reporter | last_check_in                 |
++======================================+==========+===============================+
+| 0001a1b2-c3d4-e5f6-a7b8-c9d0e1f2a3b4 | puptoo   | 2025-08-19T18:30:00.123456Z   |
+| 0002b2c3-d4e5-f6a7-b8c9-d0e1f2a3b4c5 | puptoo   | 2025-08-19T18:25:10.654321Z   |
++--------------------------------------+----------+-------------------------------+
+```
