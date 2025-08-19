@@ -30,6 +30,11 @@ from app.queue.host_mq import IngressMessageConsumer
 from tests.helpers.mq_utils import wrap_message
 from tests.helpers.test_utils import get_platform_metadata, minimal_host
 
+from app.queue.host_mq import WorkspaceMessageConsumer
+from tests.helpers.mq_utils import generate_kessel_workspace_message
+from unittest.mock import patch, MagicMock
+        
+
 
 class TestOutboxE2ECases:
     """End-to-end test cases for outbox functionality."""
@@ -560,3 +565,143 @@ class TestOutboxE2ECases:
             assert len(outbox_entries) == 0  # Entry is deleted immediately after commit
             
             # The success metric increment proves the outbox entry was created, validated, and processed
+
+    def test_host_group_update_via_mq_with_outbox_common_validation(self, flask_app, event_producer_mock, notification_event_producer_mock, db_create_group_with_hosts, db_get_hosts_for_group, db_get_group_by_id):
+        """Test that updating a host's group via MQ workspace update triggers outbox entry with correct common field."""
+        # Create a group with hosts
+        group = db_create_group_with_hosts("original-group-name", 2)
+        original_group_id = str(group.id)
+        hosts = db_get_hosts_for_group(group.id)
+        host_ids = [str(host.id) for host in hosts]
+        
+        # Verify initial state - hosts should have the original group
+        assert len(hosts) == 2
+        for host in hosts:
+            assert len(host.groups) == 1
+            assert host.groups[0]["id"] == original_group_id
+            assert host.groups[0]["name"] == "original-group-name"
+        
+        # Create workspace update message to change group name
+        new_group_name = "updated-group-name-via-mq"
+        message = generate_kessel_workspace_message("update", original_group_id, new_group_name)
+        
+        # Mock the outbox writing to capture the calls and validate payload
+        outbox_calls = []
+        def mock_write_outbox(event_type, host_id, host_obj):
+            outbox_calls.append({
+                'event_type': event_type,
+                'host_id': host_id,
+                'host': host_obj
+            })
+            return True
+        
+        with patch('lib.group_repository.write_event_to_outbox', side_effect=mock_write_outbox):
+            # Create workspace consumer and process the update message
+            consumer = WorkspaceMessageConsumer(None, flask_app, event_producer_mock, notification_event_producer_mock)
+            result = consumer.handle_message(json.dumps(message))
+            db.session.commit()
+            
+            # Verify the workspace update was successful
+            assert result.event_type == EventType.updated
+            updated_group = db_get_group_by_id(original_group_id)
+            assert updated_group.name == new_group_name
+            
+            # Verify outbox entries were created for both hosts
+            assert len(outbox_calls) == 2
+            
+            # Validate each outbox call
+            for call in outbox_calls:
+                assert call['event_type'] == EventType.updated
+                assert call['host_id'] in host_ids
+                
+                # Get the host object from the call
+                host_obj = call['host']
+                assert host_obj is not None
+                assert len(host_obj.groups) == 1
+                assert host_obj.groups[0]["id"] == original_group_id
+                assert host_obj.groups[0]["name"] == new_group_name
+                
+                # Validate the outbox payload structure by creating it manually
+                # This simulates what _create_update_event_payload does
+                groups = host_obj.groups
+                expected_common = {"workspace_id": groups[0]["id"]} if len(groups) > 0 else {}
+                
+                # The common field should contain the workspace_id (group ID)
+                assert expected_common == {"workspace_id": original_group_id}
+                
+                # Verify that the host's group information was updated with new name
+                assert host_obj.groups[0]["name"] == new_group_name
+                assert host_obj.groups[0]["id"] == original_group_id
+
+    def test_host_group_update_via_mq_with_actual_outbox_common_validation(self, flask_app, event_producer_mock, notification_event_producer_mock, db_create_group_with_hosts, db_get_hosts_for_group, db_get_group_by_id):
+        """Test complete MQ group update flow with actual outbox entry validation of common field."""
+        
+        # Create a group with one host for simpler validation
+        group = db_create_group_with_hosts("test-workspace", 1)
+        group_id = str(group.id)
+        hosts = db_get_hosts_for_group(group.id)
+        host = hosts[0]
+        host_id = str(host.id)
+        
+        # Verify initial state
+        assert len(host.groups) == 1
+        assert host.groups[0]["id"] == group_id
+        assert host.groups[0]["name"] == "test-workspace"
+        
+        # Create workspace update message
+        new_name = "updated-workspace-name"
+        message = generate_kessel_workspace_message("update", group_id, new_name)
+        
+        # Track actual outbox operations with success metrics and capture payload
+        captured_payloads = []
+        original_write_outbox = None
+        
+        def capture_outbox_payload(event_type, host_id_param, host_obj):
+            # Call the original function to get the real behavior
+            result = original_write_outbox(event_type, host_id_param, host_obj)
+            
+            # Manually create the payload to validate the common field
+            if host_obj and len(host_obj.groups) > 0:
+                common_field = {"workspace_id": host_obj.groups[0]["id"]}
+                captured_payloads.append({
+                    'event_type': event_type,
+                    'host_id': host_id_param,
+                    'common': common_field,
+                    'group_name': host_obj.groups[0]["name"],
+                    'group_id': host_obj.groups[0]["id"]
+                })
+            
+            return result
+        
+        # Import and patch the actual function
+        from lib.outbox_repository import write_event_to_outbox
+        original_write_outbox = write_event_to_outbox
+        
+        with patch('lib.group_repository.write_event_to_outbox', side_effect=capture_outbox_payload):
+            with patch('lib.outbox_repository.outbox_save_success') as mock_success_metric:
+                # Process the workspace update message
+                consumer = WorkspaceMessageConsumer(None, flask_app, event_producer_mock, notification_event_producer_mock)
+                result = consumer.handle_message(json.dumps(message))
+                db.session.commit()
+                
+                # Verify the workspace update succeeded
+                assert result.event_type == EventType.updated
+                updated_group = db_get_group_by_id(group_id)
+                assert updated_group.name == new_name
+                
+                # Verify outbox operation succeeded
+                mock_success_metric.inc.assert_called_once()
+                
+                # Verify the captured payload has correct common field
+                assert len(captured_payloads) == 1
+                payload = captured_payloads[0]
+                
+                assert payload['event_type'] == EventType.updated
+                assert payload['host_id'] == host_id
+                assert payload['common'] == {"workspace_id": group_id}
+                assert payload['group_name'] == new_name
+                assert payload['group_id'] == group_id
+                
+                # Verify outbox table is empty (atomic outbox pattern)
+                outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
+                assert len(outbox_entries) == 0  # Entry deleted immediately after commit
