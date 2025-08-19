@@ -668,3 +668,69 @@ pre-commit install
 
 If inside the Red Hat network, also ensure `rh-pre-commit` is installed as per
 instructions [here](https://url.corp.redhat.com/rh-pre-commit#quickstart-install).
+
+## GABI Query Tool (interactive and non-interactive)
+
+Send SQL queries to a GABI endpoint either interactively (REPL) or non-interactively (file/stdin). Results can be
+displayed as a formatted table, raw JSON, or both.
+
+### Prerequisites
+
+- Logged into your OpenShift cluster via `oc` if using default authentication and URL detection.
+
+### Usage
+
+- Interactive REPL (default environment: prod):
+  ```bash
+  ./utils/run_gabi_interactive.py --interactive
+  ```
+- Interactive on stage:
+  ```bash
+  ./utils/run_gabi_interactive.py --env stage --interactive
+  ```
+- Explicit URL override (interactive):
+  ```bash
+  ./utils/run_gabi_interactive.py --url https://gabi-host-inventory-stage.apps.<cluster>/query --interactive
+  ```
+- Non-interactive from file:
+  ```bash
+  ./utils/run_gabi_interactive.py --env stage --file query.sql
+  ```
+- Non-interactive from stdin:
+  ```bash
+  cat query.sql | ./utils/run_gabi_interactive.py --env stage
+  ```
+- Output format control:
+  ```bash
+  # JSON only
+  ./utils/run_gabi_interactive.py --file query.sql --format json
+
+  # Both table and JSON
+  ./utils/run_gabi_interactive.py --file query.sql --format both
+  ```
+
+### Command-Line Arguments
+
+- `--env {prod,stage}`: Chooses the target environment (defaults to prod). Determines the app used for URL derivation.
+- `--url <API_ENDPOINT_URL>`: Explicit GABI endpoint. Overrides the derived URL.
+- `--auth <AUTH_TOKEN>`: Bearer token. Defaults to token from `oc whoami -t`.
+- `--file <SQL_QUERY_FILE>`: Run a single query from a file (non-interactive).
+- `--interactive`: Run in REPL mode and enter multiple queries.
+- `--format {table,json,both}`: Output as pretty table, raw JSON, or both (default: table).
+
+### Example (interactive)
+
+```bash
+./utils/run_gabi_interactive.py --env stage --interactive
+Connected to https://gabi-host-inventory-stage.apps.example.com/query
+Type 'exit' or 'quit' to end the session.
+
+Enter your SQL query (press Enter on an empty line to submit):
+SELECT COUNT(*) FROM hbi.hosts;
+```
+
+### Example (non-interactive)
+
+```bash
+./utils/run_gabi_interactive.py --env stage --file query.sql --format both
+```
