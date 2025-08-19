@@ -342,7 +342,10 @@ def test_system_profile_sap_system(mq_create_or_update_host, api_get):
     # Create hosts for the above host data
     _ = [
         mq_create_or_update_host(
-            minimal_host(insights_id=insights_id, system_profile={"sap_system": ordered_host_data[insights_id]})
+            minimal_host(
+                insights_id=insights_id,
+                system_profile={"workloads": {"sap": {"sap_system": ordered_host_data[insights_id]}}},
+            ),
         )
         for insights_id in ordered_insights_ids
     ]
@@ -380,7 +383,10 @@ def test_system_profile_sap_sids(mq_create_or_update_host, api_get):
     # Create hosts for the above host data
     _ = [
         mq_create_or_update_host(
-            minimal_host(insights_id=insights_id, system_profile={"sap_sids": ordered_host_data[insights_id]})
+            minimal_host(
+                insights_id=insights_id,
+                system_profile={"workloads": {"sap": {"sids": ordered_host_data[insights_id]}}},
+            )
         )
         for insights_id in ordered_insights_ids
     ]
@@ -410,7 +416,10 @@ def test_system_profile_sap_sids_with_search(mq_create_or_update_host, api_get):
     # Create hosts for the above host data
     _ = [
         mq_create_or_update_host(
-            minimal_host(insights_id=insights_id, system_profile={"sap_sids": ordered_host_data[insights_id]})
+            minimal_host(
+                insights_id=insights_id,
+                system_profile={"workloads": {"sap": {"sids": ordered_host_data[insights_id]}}},
+            )
         )
         for insights_id in ordered_insights_ids
     ]
