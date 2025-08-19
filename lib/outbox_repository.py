@@ -104,7 +104,7 @@ def _build_outbox_entry(event: EventType, host_id: str, host: Host or None = Non
         _report_error(f"Failed to parse event JSON: {str(e)}. Event: {event}")
 
     except Exception as e:
-        _report_error(f"Unexpected error writing event to outbox: str(e). Event: {event}")
+        _report_error(f"Unexpected error writing event to outbox: {str(e)}")
 
     return outbox_entry
 
