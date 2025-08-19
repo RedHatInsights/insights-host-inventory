@@ -972,3 +972,173 @@ class TestOutboxE2ECases:
             # Verify outbox table is empty (atomic outbox pattern)
             outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
             assert len(outbox_entries) == 0  # Entry deleted immediately after commit
+
+    def test_host_remove_from_group_via_api_endpoint_with_outbox_validation(self, flask_app, event_producer_mock, api_remove_hosts_from_group, api_add_hosts_to_group, db_create_host, db_create_group, db_get_host, db_get_hosts_for_group):
+        """Test that removing a host from a group via API endpoint triggers outbox entry creation and validates group removal."""
+        
+        # Create a group
+        group = db_create_group("test-remove-outbox-group")
+        group_id = str(group.id)
+        
+        # Create a host
+        host = db_create_host(extra_data={
+            "display_name": "host-to-remove-from-group",
+            "ansible_host": "remove.group.host"
+        })
+        host_id = str(host.id)
+        
+        # First, add the host to the group so we can remove it later
+        response_status, _ = api_add_hosts_to_group(group_id, [host_id])
+        assert response_status == 200
+        
+        # Verify the host is in the group initially
+        initial_hosts_in_group = db_get_hosts_for_group(group_id)
+        assert len(initial_hosts_in_group) == 1
+        assert str(initial_hosts_in_group[0].id) == host_id
+        
+        initial_host = db_get_host(host_id)
+        assert len(initial_host.groups) == 1
+        assert initial_host.groups[0]["id"] == group_id
+        
+        # Mock the outbox writing to capture the calls and validate payload
+        outbox_calls = []
+        def mock_write_outbox(event_type, host_id_param, host_obj):
+            outbox_calls.append({
+                'event_type': event_type,
+                'host_id': host_id_param,
+                'host': host_obj
+            })
+            return True
+        
+        # Mock the Kessel workspace migration flag to be False to avoid ungrouped group behavior
+        with patch('lib.group_repository.get_flag_value', return_value=False):
+            with patch('lib.group_repository.write_event_to_outbox', side_effect=mock_write_outbox):
+                # Make DELETE request to remove host from group
+                response_status, response_data = api_remove_hosts_from_group(group_id, [host_id])
+                
+                # Verify the API request was successful
+                assert response_status == 204  # No Content
+                
+                # Verify outbox entry was created
+                assert len(outbox_calls) == 1
+                
+                call = outbox_calls[0]
+                assert call['event_type'] == EventType.updated
+                assert call['host_id'] == host_id
+                
+                # Verify the host object in the outbox call has NO group information
+                host_obj = call['host']
+                assert host_obj is not None
+                assert len(host_obj.groups) == 0  # Host should have no groups after removal
+                
+                # Verify the host was actually removed from the group in the database
+                hosts_in_group_after = db_get_hosts_for_group(group_id)
+                assert len(hosts_in_group_after) == 0  # Group should be empty
+                
+                # Verify the host no longer has any group information
+                updated_host = db_get_host(host_id)
+                assert len(updated_host.groups) == 0  # Host should have no groups
+
+    def test_host_remove_from_group_via_api_endpoint_with_actual_outbox_validation(self, flask_app, event_producer_mock, api_remove_hosts_from_group, api_add_hosts_to_group, db_create_host, db_create_group, db_get_host, db_get_hosts_for_group):
+        """Test that removing a host from a group via API endpoint creates actual outbox entries and validates workspace removal."""
+        
+        # Create a group
+        group = db_create_group("test-actual-remove-outbox-group")
+        group_id = str(group.id)
+        
+        # Create a host
+        host = db_create_host(extra_data={
+            "display_name": "host-for-actual-remove-outbox",
+            "ansible_host": "actual.remove.outbox.host"
+        })
+        host_id = str(host.id)
+        
+        # First, add the host to the group so we can remove it later
+        response_status, _ = api_add_hosts_to_group(group_id, [host_id])
+        assert response_status == 200
+        
+        # Verify the host is in the group initially
+        initial_hosts_in_group = db_get_hosts_for_group(group_id)
+        assert len(initial_hosts_in_group) == 1
+        
+        initial_host = db_get_host(host_id)
+        assert len(initial_host.groups) == 1
+        assert initial_host.groups[0]["id"] == group_id
+        
+        # Use patch to capture outbox payload and verify the actual content
+        outbox_payloads = []
+        original_write_event_to_outbox = write_event_to_outbox
+        
+        def capture_outbox_payload(event_type, host_id_param, host_obj):
+            # Call the original function to ensure real outbox functionality
+            result = original_write_event_to_outbox(event_type, host_id_param, host_obj)
+            
+            # Capture the payload for validation by building it the same way
+            if host_obj is not None:
+                from lib.outbox_repository import _create_update_event_payload
+                payload = _create_update_event_payload(host_obj)
+                outbox_payloads.append({
+                    'event_type': event_type,
+                    'host_id': host_id_param,
+                    'payload': payload,
+                    'host': host_obj
+                })
+
+            return result
+        
+        # Enable the Kessel workspace migration flag to get ungrouped group behavior (as required by Kessel)
+        with patch('lib.group_repository.get_flag_value', return_value=True):
+            with patch('lib.group_repository.write_event_to_outbox', side_effect=capture_outbox_payload):
+                # Make DELETE request to remove host from group
+                response_status, response_data = api_remove_hosts_from_group(group_id, [host_id])
+                
+                # Verify the API request was successful
+                assert response_status == 204  # No Content
+                
+                # Verify outbox entry was created and processed
+                assert len(outbox_payloads) == 1
+                
+                captured = outbox_payloads[0]
+                assert captured['event_type'] == EventType.updated
+                assert captured['host_id'] == host_id
+                
+                # Verify the host object has ungrouped group information after removal (Kessel requirement)
+                host_obj = captured['host']
+                assert host_obj is not None
+                assert len(host_obj.groups) == 1  # Host should be in "ungrouped hosts" group
+                assert host_obj.groups[0]["name"] == "Ungrouped Hosts"  # Kessel requires ungrouped hosts group
+                
+                # Verify the outbox payload structure (what gets sent to Kessel)
+                payload = captured['payload']
+                assert payload["type"] == "host"
+                assert payload["reporterType"] == "hbi"
+                assert payload["reporterInstanceId"] == "redhat.com"
+                
+                # Verify representations structure
+                representations = payload["representations"]
+                assert "metadata" in representations
+                assert "common" in representations
+                
+                # Verify the "common" field contains workspace_id for the ungrouped hosts group
+                common = representations["common"]
+                assert "workspace_id" in common
+                # The workspace_id should be the ungrouped hosts group ID
+                ungrouped_group_id = host_obj.groups[0]["id"]
+                assert common["workspace_id"] == ungrouped_group_id
+                
+                # Verify host metadata in payload exists
+                metadata = representations["metadata"]
+                assert metadata is not None
+                
+                # Verify the host was actually removed from the original group in the database
+                hosts_in_group_after = db_get_hosts_for_group(group_id)
+                assert len(hosts_in_group_after) == 0  # Original group should be empty
+                
+                # Verify the host is now in the ungrouped hosts group
+                updated_host = db_get_host(host_id)
+                assert len(updated_host.groups) == 1  # Host should be in ungrouped group
+                assert updated_host.groups[0]["name"] == "Ungrouped Hosts"
+                
+                # Verify outbox table is empty (atomic outbox pattern)
+                outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
+                assert len(outbox_entries) == 0  # Entry deleted immediately after commit
