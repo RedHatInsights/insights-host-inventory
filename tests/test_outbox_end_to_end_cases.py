@@ -762,3 +762,213 @@ class TestOutboxE2ECases:
             updated_host = db_get_host(host.id)
             assert updated_host.display_name == "updated-host-name"
             assert updated_host.ansible_host == "updated.ansible.host"
+
+    def test_host_delete_via_api_endpoint_with_outbox_validation(self, flask_app, event_producer_mock, notification_event_producer_mock, api_delete_host, db_create_host, db_get_host):
+        """Test that deleting a host via DELETE API endpoint triggers outbox entry creation."""
+        
+        # Create a host to delete
+        host = db_create_host(extra_data={
+            "display_name": "host-to-delete",
+            "ansible_host": "delete.test.host"
+        })
+        host_id = str(host.id)
+        
+        # Verify initial state - host exists
+        assert db_get_host(host.id) is not None
+        assert host.display_name == "host-to-delete"
+        
+        # Mock the outbox writing to capture the calls and validate payload
+        outbox_calls = []
+        def mock_write_outbox(event_type, host_id_param, host_obj=None):
+            outbox_calls.append({
+                'event_type': event_type,
+                'host_id': host_id_param,
+                'host': host_obj
+            })
+            return True
+        
+        with patch('lib.host_delete.write_event_to_outbox', side_effect=mock_write_outbox):
+            # Make DELETE request to delete the host
+            response_status, response_data = api_delete_host(host.id)
+            
+            # Verify the API request was successful
+            assert response_status == 200
+            
+            # Verify outbox entry was created
+            assert len(outbox_calls) == 1
+            
+            call = outbox_calls[0]
+            assert call['event_type'] == EventType.delete
+            assert call['host_id'] == host_id
+            
+            # For delete events, no host object is passed (only host_id)
+            assert call['host'] is None
+            
+            # Verify the host was actually deleted from the database
+            deleted_host = db_get_host(host.id)
+            assert deleted_host is None
+
+    def test_host_add_to_group_via_api_endpoint_with_outbox_validation(self, flask_app, event_producer_mock, api_add_hosts_to_group, db_create_host, db_create_group, db_get_host, db_get_hosts_for_group):
+        """Test that adding a host to a group via API endpoint triggers outbox entry creation."""
+        
+        # Create a group
+        group = db_create_group("test-outbox-group")
+        group_id = str(group.id)
+        
+        # Create a host (initially not in any group)
+        host = db_create_host(extra_data={
+            "display_name": "host-to-add-to-group",
+            "ansible_host": "group.test.host"
+        })
+        host_id = str(host.id)
+        
+        # Verify initial state - group is empty, host has no groups
+        initial_hosts_in_group = db_get_hosts_for_group(group_id)
+        assert len(initial_hosts_in_group) == 0
+        
+        initial_host = db_get_host(host_id)
+        assert len(initial_host.groups) == 0  # Host not in any group initially
+        
+        # Mock the outbox writing to capture the calls and validate payload
+        outbox_calls = []
+        def mock_write_outbox(event_type, host_id_param, host_obj):
+            outbox_calls.append({
+                'event_type': event_type,
+                'host_id': host_id_param,
+                'host': host_obj
+            })
+            return True
+        
+        with patch('lib.group_repository.write_event_to_outbox', side_effect=mock_write_outbox):
+            # Make POST request to add host to group
+            response_status, response_data = api_add_hosts_to_group(group_id, [host_id])
+            
+            # Verify the API request was successful
+            assert response_status == 200
+            
+            # Verify outbox entry was created
+            assert len(outbox_calls) == 1
+            
+            call = outbox_calls[0]
+            assert call['event_type'] == EventType.updated
+            assert call['host_id'] == host_id
+            
+            # Verify the host object in the outbox call has updated group information
+            host_obj = call['host']
+            assert host_obj is not None
+            assert len(host_obj.groups) == 1
+            assert host_obj.groups[0]["id"] == group_id
+            assert host_obj.groups[0]["name"] == "test-outbox-group"
+            
+            # Verify the host was actually added to the group in the database
+            # Use group_id (string) instead of group.id to avoid session issues
+            hosts_in_group_after = db_get_hosts_for_group(group_id)
+            assert len(hosts_in_group_after) == 1
+            assert str(hosts_in_group_after[0].id) == host_id
+            
+            # Verify the host now has the group information
+            updated_host = db_get_host(host_id)
+            assert len(updated_host.groups) == 1
+            assert updated_host.groups[0]["id"] == group_id
+            assert updated_host.groups[0]["name"] == "test-outbox-group"
+
+    def test_host_add_to_group_via_api_endpoint_with_actual_outbox_validation(self, flask_app, event_producer_mock, api_add_hosts_to_group, db_create_host, db_create_group, db_get_host, db_get_hosts_for_group):
+        """Test that adding a host to a group via API endpoint creates actual outbox entries with real functionality."""
+        
+        # Create a group
+        group = db_create_group("test-actual-outbox-group")
+        group_id = str(group.id)
+        
+        # Create a host (initially not in any group)
+        host = db_create_host(extra_data={
+            "display_name": "host-for-actual-outbox",
+            "ansible_host": "actual.outbox.host"
+        })
+        host_id = str(host.id)
+        
+        # Verify initial state - group is empty, host has no groups
+        initial_hosts_in_group = db_get_hosts_for_group(group_id)
+        assert len(initial_hosts_in_group) == 0
+        
+        initial_host = db_get_host(host_id)
+        assert len(initial_host.groups) == 0  # Host not in any group initially
+        
+        # Use patch to capture outbox payload and verify the actual content
+        outbox_payloads = []
+        original_write_event_to_outbox = write_event_to_outbox
+        
+        def capture_outbox_payload(event_type, host_id_param, host_obj):
+            # Call the original function to ensure real outbox functionality
+            result = original_write_event_to_outbox(event_type, host_id_param, host_obj)
+            
+            # Capture the payload for validation by building it the same way
+            if host_obj is not None:
+                from lib.outbox_repository import _create_update_event_payload
+                payload = _create_update_event_payload(host_obj)
+                outbox_payloads.append({
+                    'event_type': event_type,
+                    'host_id': host_id_param,
+                    'payload': payload,
+                    'host': host_obj
+                })
+            
+            return result
+        
+        with patch('lib.group_repository.write_event_to_outbox', side_effect=capture_outbox_payload):
+            # Make POST request to add host to group
+            response_status, response_data = api_add_hosts_to_group(group_id, [host_id])
+            
+            # Verify the API request was successful
+            assert response_status == 200
+            
+            # Verify outbox entry was created and processed
+            assert len(outbox_payloads) == 1
+            
+            captured = outbox_payloads[0]
+            assert captured['event_type'] == EventType.updated
+            assert captured['host_id'] == host_id
+            
+            # Verify the host object has updated group information
+            host_obj = captured['host']
+            assert host_obj is not None
+            assert len(host_obj.groups) == 1
+            assert host_obj.groups[0]["id"] == group_id
+            assert host_obj.groups[0]["name"] == "test-actual-outbox-group"
+            
+            # Verify the outbox payload structure (what gets sent to Kessel)
+            payload = captured['payload']
+            assert payload["type"] == "host"
+            assert payload["reporterType"] == "hbi"
+            assert payload["reporterInstanceId"] == "redhat.com"
+            
+            # Verify representations structure
+            representations = payload["representations"]
+            assert "metadata" in representations
+            assert "common" in representations
+            
+            # Verify the "common" field contains the group workspace_id
+            common = representations["common"]
+            assert "workspace_id" in common
+            assert common["workspace_id"] == group_id  # First group becomes workspace_id
+            
+            # Verify host metadata in payload exists
+            metadata = representations["metadata"]
+            # Note: metadata structure may vary - just verify it exists and contains expected fields
+            assert metadata is not None
+            # Check if host-specific fields are in metadata or somewhere else in the payload
+            # Some fields might be in different parts of the representations
+            
+            # Verify the host was actually added to the group in the database
+            hosts_in_group_after = db_get_hosts_for_group(group_id)
+            assert len(hosts_in_group_after) == 1
+            assert str(hosts_in_group_after[0].id) == host_id
+            
+            # Verify the host now has the group information
+            updated_host = db_get_host(host_id)
+            assert len(updated_host.groups) == 1
+            assert updated_host.groups[0]["id"] == group_id
+            assert updated_host.groups[0]["name"] == "test-actual-outbox-group"
+            
+            # Verify outbox table is empty (atomic outbox pattern)
+            outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
+            assert len(outbox_entries) == 0  # Entry deleted immediately after commit
