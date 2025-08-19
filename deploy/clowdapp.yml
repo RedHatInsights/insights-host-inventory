@@ -1828,7 +1828,7 @@ objects:
       suspend: ${{SP_TABLES_MIGRATION_DATA_COPY_SUSPEND}}
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        args: [ "./system_profile_tables_migration_data_copy.py" ]
+        args: [ "./jobs/system_profile_tables_migration_data_copy.py" ]
         env:
           - name: PYTHONPATH
             value: '/opt/app-root/src'
@@ -1840,6 +1840,8 @@ objects:
             value: ${INVENTORY_DB_SSL_CERT}
           - name: INVENTORY_DB_SCHEMA
             value: "${INVENTORY_DB_SCHEMA}"
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
           - name: PROMETHEUS_PUSHGATEWAY
             value: ${PROMETHEUS_PUSHGATEWAY}
           - name: NAMESPACE
