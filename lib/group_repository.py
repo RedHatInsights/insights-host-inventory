@@ -12,7 +12,8 @@ from app.auth import get_current_identity
 from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
 from app.common import inventory_config
-from app.exceptions import InventoryException, OutboxSaveException
+from app.exceptions import InventoryException
+from app.exceptions import OutboxSaveException
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_get_group_list_failed
 from app.instrumentation import log_group_delete_failed

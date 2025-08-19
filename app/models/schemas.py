@@ -1,3 +1,4 @@
+import contextlib
 from copy import deepcopy
 
 from jsonschema import ValidationError as JsonSchemaValidationError
@@ -491,14 +492,11 @@ class OutboxSchema(MarshmallowSchema):
                 OutboxDeletePayloadSchema().load(payload)
             else:
                 # Allow other operation types but still validate payload structure if it matches known patterns
-                try:
+                with contextlib.suppress(MarshmallowValidationError):
                     OutboxCreateUpdatePayloadSchema().load(payload)
-                except MarshmallowValidationError:
-                    try:
-                        OutboxDeletePayloadSchema().load(payload)
-                    except MarshmallowValidationError:
-                        # If payload doesn't match either schema, that's okay for unknown operations
-                        pass
+                with contextlib.suppress(MarshmallowValidationError):
+                    OutboxDeletePayloadSchema().load(payload)
+                # If payload doesn't match either schema, that's okay for unknown operations
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

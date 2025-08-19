@@ -403,7 +403,7 @@ def test_delete_stops_after_kafka_exception(
 
     assert_response_status(response_status, expected_status=500)
 
-    # With the introduction of Outbox, a host's deletion is commited to the hosts table before an attempted is made 
+    # With the introduction of Outbox, a host's deletion is commited to the hosts table before an attempted is made
     # to produce the event, thereby 2 hosts are deleted before the kafka event is produced.
     remaining_hosts = db_get_hosts(host_id_list)
     assert remaining_hosts.count() == 1
@@ -476,8 +476,9 @@ def test_delete_host_that_belongs_to_group_success(
     assert len(hosts_after) == 2
     assert host_id_list[0] not in [host.id for host in hosts_after]
 
-
     # TODO: Question: Is this test still valid after adding Outbox?
+
+
 @pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
 def test_delete_host_that_belongs_to_group_fail(
     mocker,
@@ -509,7 +510,7 @@ def test_delete_host_that_belongs_to_group_fail(
     # Delete the first host
     api_delete_host(host_id_list[0])
 
-    # Confirm that the group contains at least 2 hosts, as the first host is deleted before 
+    # Confirm that the group contains at least 2 hosts, as the first host is deleted before
     # the kafka event is produced.
     hosts_after = db_get_hosts_for_group(group_id)
     assert len(hosts_after) == 2
@@ -696,7 +697,7 @@ def test_log_create_delete(
     )
 
     assert not db_get_host(host.id)
-    # with the new outbox implementation, 
+    # with the new outbox implementation,
     # caplog[0] is inventory.lib.outbox entry
     # caplog[1] is inventory.lib.host_delete
     assert caplog.records[1].system_profile == "{}"

@@ -2204,7 +2204,8 @@ def test_batch_mq_header_request_id_updates(mocker, flask_app):
         assert headers["request_id"] == request_id_list[i]
 
 
-# TODO: Question: Is this test still valid after adding Outbox? If so, then the test should be updated to deal with Outbo
+# TODO: Question: Is this test still valid after adding Outbox? \
+# If so, then the test should be updated to deal with Outbox
 # def test_batch_mq_graceful_rollback(mocker, flask_app):
 #     # Verifies that when the DB session runs into a StaleDataError, it's handled gracefully
 #     msg_list = []
@@ -2230,7 +2231,8 @@ def test_batch_mq_header_request_id_updates(mocker, flask_app):
 
 #     # Make it so the commit raises a StaleDataError
 #     mocker.patch(
-#         "app.queue.host_mq.db.session.commit", side_effect=[StaleDataError("Stale data"), None, None, None, None, None]
+#         "app.queue.host_mq.db.session.commit",
+#          side_effect=[StaleDataError("Stale data"), None, None, None, None, None],
 #     )
 #     write_batch_patch = mocker.patch("app.queue.host_mq.write_message_batch")
 

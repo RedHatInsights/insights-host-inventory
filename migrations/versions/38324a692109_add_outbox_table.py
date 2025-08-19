@@ -5,13 +5,14 @@ Revises: 595dbad97e20
 Create Date: 2025-08-19 12:39:56.582711
 
 """
-from alembic import op
+
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = '38324a692109'
-down_revision = '595dbad97e20'
+revision = "38324a692109"
+down_revision = "595dbad97e20"
 branch_labels = None
 depends_on = None
 

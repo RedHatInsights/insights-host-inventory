@@ -1,4 +1,5 @@
 import json
+
 from marshmallow import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -16,7 +17,6 @@ logger = get_logger(__name__)
 
 
 def _create_update_event_payload(host: Host) -> dict:
-
     if not host or not host.id:
         logger.error("Missing required field 'id' in host data")
         raise OutboxSaveException("Missing required field 'id' in host data")
@@ -69,7 +69,7 @@ def _report_error(message: str) -> None:
     raise OutboxSaveException(message)
 
 
-def _build_outbox_entry(event: EventType, host_id: str, host: Host or None = None) -> dict:
+def _build_outbox_entry(event: EventType, host_id: str, host: Host | None = None) -> dict:
     try:
         if event not in {EventType.created, EventType.updated, EventType.delete}:
             _report_error(f"Invalid event type: {event}")
@@ -78,7 +78,7 @@ def _build_outbox_entry(event: EventType, host_id: str, host: Host or None = Non
             _report_error("Missing required 'host data' for 'created' or 'updated' event for Outbox")
 
         op = "ReportResource" if event in {EventType.created, EventType.updated} else "DeleteResource"
-        outbox_entry = {
+        outbox_entry: dict[str, str | dict] = {
             "aggregateid": str(host_id),
             "aggregatetype": "hbi.hosts",
             "operation": op,
@@ -86,15 +86,19 @@ def _build_outbox_entry(event: EventType, host_id: str, host: Host or None = Non
         }
 
         if event in {EventType.created, EventType.updated}:
-            payload = _create_update_event_payload(host)
-            if payload is None:
-                _report_error("Failed to create payload for 'created' or 'updated' event for Outbox")
-            outbox_entry["payload"] = payload
+            try:
+                # host is guaranteed to be non-None due to check on line 77-78
+                assert host is not None
+                payload = _create_update_event_payload(host)
+                outbox_entry["payload"] = payload
+            except OutboxSaveException as ose:
+                _report_error(f"Failed to create payload for 'created' or 'updated' event for Outbox: {str(ose)}")
         elif event == EventType.delete:
-            payload = _delete_event_payload(str(host_id))
-            if payload is None:
-                _report_error("Failed to create payload for 'delete' event")
-            outbox_entry["payload"] = payload
+            try:
+                payload = _delete_event_payload(str(host_id))
+                outbox_entry["payload"] = payload
+            except OutboxSaveException as ose:
+                _report_error(f"Failed to create payload for 'delete' event for Outbox: {str(ose)}")
         else:
             _report_error("Unknown event type.  Valid event types are 'created', 'updated', or 'delete'")
     except KeyError as e:
@@ -109,7 +113,7 @@ def _build_outbox_entry(event: EventType, host_id: str, host: Host or None = Non
     return outbox_entry
 
 
-def write_event_to_outbox(event: EventType, host_id: str, host: Host or None = None) -> bool:
+def write_event_to_outbox(event: EventType, host_id: str, host: Host | None = None) -> bool:
     """
     First check if required fields are present then build the outbox entry.
     """
