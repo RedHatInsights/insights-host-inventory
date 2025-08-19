@@ -1,18 +1,17 @@
 """add outbox table
 
-Revision ID: d639790fd8a9
-Revises: 6714f3063d90
-Create Date: 2025-08-13 18:09:42.252661
+Revision ID: 38324a692109
+Revises: 595dbad97e20
+Create Date: 2025-08-19 12:39:56.582711
 
 """
-
-import sqlalchemy as sa
 from alembic import op
+import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = "d639790fd8a9"
-down_revision = "6714f3063d90"
+revision = '38324a692109'
+down_revision = '595dbad97e20'
 branch_labels = None
 depends_on = None
 
