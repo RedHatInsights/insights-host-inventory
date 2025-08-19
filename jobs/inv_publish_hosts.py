@@ -135,7 +135,7 @@ def _prometheus_job(namespace):
     return f"{PROMETHEUS_JOB}-{namespace}" if namespace else PROMETHEUS_JOB
 
 
-def _excepthook(logger, exc_type, value, traceback):  # noqa
+def _excepthook(logger, exc_type, value, traceback):
     logger.exception("Inventory migration failed", exc_info=(exc_type, value, traceback))
 
 
