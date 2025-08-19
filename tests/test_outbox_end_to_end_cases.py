@@ -11,7 +11,7 @@ These tests cover the complete outbox workflow including:
 
 import json
 import uuid
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from marshmallow import ValidationError as MarshmallowValidationError
@@ -32,8 +32,8 @@ from tests.helpers.test_utils import get_platform_metadata, minimal_host
 
 from app.queue.host_mq import WorkspaceMessageConsumer
 from tests.helpers.mq_utils import generate_kessel_workspace_message
-from unittest.mock import patch, MagicMock
-        
+
+from tests.helpers.api_utils import build_hosts_url
 
 
 class TestOutboxE2ECases:
@@ -705,3 +705,60 @@ class TestOutboxE2ECases:
                 # Verify outbox table is empty (atomic outbox pattern)
                 outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
                 assert len(outbox_entries) == 0  # Entry deleted immediately after commit
+
+
+    def test_host_update_via_patch_endpoint_with_outbox_validation(self, flask_app, event_producer_mock, api_patch, db_create_host, db_get_host):
+        """Test that updating a host via PATCH API endpoint triggers outbox entry creation."""
+        
+        # Create a host with initial data
+        host = db_create_host(extra_data={
+            "display_name": "original-host-name",
+            "ansible_host": "original.ansible.host"
+        })
+        host_id = str(host.id)
+        
+        # Verify initial state
+        assert host.display_name == "original-host-name"
+        assert host.ansible_host == "original.ansible.host"
+        
+        # Prepare patch data
+        patch_data = {
+            "display_name": "updated-host-name",
+            "ansible_host": "updated.ansible.host"
+        }
+        hosts_url = build_hosts_url(host_list_or_id=host.id)
+        
+        # Mock the outbox writing to capture the calls and validate payload
+        outbox_calls = []
+        def mock_write_outbox(event_type, host_id_param, host_obj):
+            outbox_calls.append({
+                'event_type': event_type,
+                'host_id': host_id_param,
+                'host': host_obj
+            })
+            return True
+        
+        with patch('api.host.write_event_to_outbox', side_effect=mock_write_outbox):
+            # Make PATCH request to update host
+            response_status, response_data = api_patch(hosts_url, patch_data)
+            
+            # Verify the API request was successful
+            assert response_status == 200
+            
+            # Verify outbox entry was created
+            assert len(outbox_calls) == 1
+            
+            call = outbox_calls[0]
+            assert call['event_type'] == EventType.updated
+            assert call['host_id'] == host_id
+            
+            # Verify the host object in the outbox call has updated data
+            host_obj = call['host']
+            assert host_obj is not None
+            assert host_obj.display_name == "updated-host-name"
+            assert host_obj.ansible_host == "updated.ansible.host"
+            
+            # Verify the host was actually updated in the database
+            updated_host = db_get_host(host.id)
+            assert updated_host.display_name == "updated-host-name"
+            assert updated_host.ansible_host == "updated.ansible.host"
