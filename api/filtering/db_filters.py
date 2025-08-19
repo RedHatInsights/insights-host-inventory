@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from copy import deepcopy
 from datetime import timedelta
 from functools import partial
 from typing import Any
-from typing import Callable
 from uuid import UUID
 
 from dateutil import parser
@@ -21,7 +21,6 @@ from api.filtering.db_custom_filters import get_host_types_from_filter
 from api.staleness_query import get_staleness_obj
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
-from app.common import inventory_config
 from app.config import ALL_STALENESS_STATES
 from app.config import HOST_TYPES
 from app.culling import Conditions
@@ -33,7 +32,6 @@ from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import db
 from app.models.constants import SystemType
-from app.models.system_profile import HostStaticSystemProfile
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_states import HostStalenessStatesDbFilters
 from app.utils import Tag
@@ -108,10 +106,7 @@ def stale_timestamp_filter(gt=None, lte=None):
 
 
 def _host_type_filter(host_type: str | None):
-    if inventory_config().hbi_db_refactoring_use_old_table:
-        return Host.system_profile_facts["host_type"].as_string() == host_type
-    else:
-        return HostStaticSystemProfile.host_type == host_type
+    return Host.host_type == host_type
 
 
 def _stale_timestamp_per_reporter_filter(gt=None, lte=None, reporter=None):
@@ -429,8 +424,6 @@ def query_filters(
     # Determine query_base
     if group_name or group_ids or rbac_filter or order_by == "group_name":
         query_base = db.session.query(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
-    elif group_ids:
-        query_base = db.session.query(Host).join(HostGroupAssoc, isouter=True)
     else:
         query_base = db.session.query(Host)
 
