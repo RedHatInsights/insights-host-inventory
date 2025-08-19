@@ -81,7 +81,7 @@ def upgrade():
         # Step 3: Create the parent index (will take a lock briefly)
         op.execute(
             text(f"""
-                CREATE UNIQUE INDEX IF NOT EXISTS idx_hosts_system_profiles_workloads_gin
+                CREATE INDEX IF NOT EXISTS idx_hosts_system_profiles_workloads_gin
                 ON {INVENTORY_SCHEMA}.hosts USING GIN ((system_profile_facts -> 'workloads'));
             """)
         )
