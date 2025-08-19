@@ -12,7 +12,7 @@ from app.auth import get_current_identity
 from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
 from app.common import inventory_config
-from app.exceptions import InventoryException
+from app.exceptions import InventoryException, OutboxSaveException
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_get_group_list_failed
 from app.instrumentation import log_group_delete_failed
@@ -44,6 +44,7 @@ from lib.metrics import delete_group_processing_time
 from lib.metrics import delete_host_group_count
 from lib.metrics import delete_host_group_processing_time
 from lib.middleware import rbac_create_ungrouped_hosts_workspace
+from lib.outbox_repository import write_event_to_outbox
 
 logger = get_logger(__name__)
 
@@ -224,6 +225,17 @@ def _process_host_changes(
 
         # Process each batch
         host_list = get_host_list_by_id_list_from_db(batch, identity)
+        for host in host_list:
+            try:
+                # write to the outbox table for synchronization with Kessel
+                result = write_event_to_outbox(EventType.updated, str(host.id), host)
+                if not result:
+                    logger.error("Failed to write updated event to outbox")
+                    raise OutboxSaveException("Failed to write update event to outbox")
+            except OutboxSaveException as ose:
+                logger.error("Failed to write updated event to outbox: %s", str(ose))
+                raise ose
+
         _produce_host_update_events(event_producer, serialized_groups, host_list, identity, staleness=staleness)
         _invalidate_system_cache(host_list, identity)
 

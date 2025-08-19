@@ -1,6 +1,4 @@
 import json
-from typing import Literal
-
 from marshmallow import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -73,13 +71,13 @@ def _report_error(message: str) -> None:
 
 def _build_outbox_entry(event: EventType, host_id: str, host: Host or None = None) -> dict:
     try:
-        if event not in {"created", "updated", "delete"}:
+        if event not in {EventType.created, EventType.updated, EventType.delete}:
             _report_error(f"Invalid event type: {event}")
 
-        if event in {"created", "updated"} and not host:
+        if event in {EventType.created, EventType.updated} and not host:
             _report_error("Missing required 'host data' for 'created' or 'updated' event for Outbox")
 
-        op = "ReportResource" if event in {"created", "updated"} else "DeleteResource"
+        op = "ReportResource" if event in {EventType.created, EventType.updated} else "DeleteResource"
         outbox_entry = {
             "aggregateid": str(host_id),
             "aggregatetype": "hbi.hosts",
@@ -87,12 +85,12 @@ def _build_outbox_entry(event: EventType, host_id: str, host: Host or None = Non
             "version": "v1beta2",
         }
 
-        if event in {"created", "updated"}:
+        if event in {EventType.created, EventType.updated}:
             payload = _create_update_event_payload(host)
             if payload is None:
                 _report_error("Failed to create payload for 'created' or 'updated' event for Outbox")
             outbox_entry["payload"] = payload
-        elif event == "delete":
+        elif event == EventType.delete:
             payload = _delete_event_payload(str(host_id))
             if payload is None:
                 _report_error("Failed to create payload for 'delete' event")

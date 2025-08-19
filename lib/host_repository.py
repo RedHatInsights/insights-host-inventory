@@ -35,6 +35,7 @@ from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import LimitedHost
 from app.models import db
+from app.queue.events import EventType
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness
 from lib import metrics
@@ -300,7 +301,7 @@ def create_new_host(input_host: Host) -> tuple[Host, AddHostResult]:
 
     try:
         # write to the outbox table for synchronization with Kessel
-        result = write_event_to_outbox("created", input_host.id, input_host)
+        result = write_event_to_outbox(EventType.created, (input_host.id), input_host)
         if not result:
             logger.error("Failed to write created event to outbox")
             raise OutboxSaveException("Failed to write created host event to outbox")
@@ -325,7 +326,7 @@ def update_existing_host(
 
     try:
         # write to the outbox table for synchronization with Kessel
-        result = write_event_to_outbox("updated", input_host.id, input_host)
+        result = write_event_to_outbox(EventType.updated, str(input_host.id), input_host)
         if not result:
             logger.error("Failed to write updated event to outbox")
             raise OutboxSaveException("Failed to write update event to outbox")
