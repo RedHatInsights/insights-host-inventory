@@ -26,6 +26,10 @@ from app.queue.events import EventType
 from lib.outbox_repository import write_event_to_outbox
 from tests.helpers.test_utils import SYSTEM_IDENTITY, generate_uuid
 
+from app.queue.host_mq import IngressMessageConsumer
+from tests.helpers.mq_utils import wrap_message
+from tests.helpers.test_utils import get_platform_metadata, minimal_host
+
 
 class TestOutboxE2ECases:
     """End-to-end test cases for outbox functionality."""
@@ -423,3 +427,136 @@ class TestOutboxE2ECases:
         
         # Since entries are immediately deleted after commit, we can't verify UUID generation
         # The success of the operation indicates UUID generation worked correctly
+
+    def test_host_creation_via_mq_with_outbox_validation(self, flask_app, event_producer_mock, notification_event_producer_mock):
+        """Test that creating a host via MQ message triggers outbox entry creation."""
+        
+        # Create test host data
+        test_host = minimal_host(
+            insights_id=generate_uuid(),
+            subscription_manager_id=generate_uuid(),
+            fqdn="test-mq-host.example.com"
+        )
+        
+        platform_metadata = get_platform_metadata(SYSTEM_IDENTITY)
+        message = wrap_message(test_host.data(), platform_metadata=platform_metadata)
+        
+        # Mock the outbox writing to capture the call without immediate deletion
+        with patch('lib.host_repository.write_event_to_outbox') as mock_write_outbox:
+            mock_write_outbox.return_value = True
+            
+            # Create MQ consumer and process message
+            consumer = IngressMessageConsumer(None, flask_app, event_producer_mock, notification_event_producer_mock)
+            result = consumer.handle_message(json.dumps(message))
+            db.session.commit()
+            
+            # Verify the host was created successfully
+            assert result.event_type == EventType.created
+            assert result.row is not None
+            created_host = result.row
+            assert str(created_host.insights_id) == test_host.insights_id
+            assert created_host.fqdn == "test-mq-host.example.com"
+            
+            # Verify outbox entry was written with correct parameters
+            mock_write_outbox.assert_called_once()
+            call_args = mock_write_outbox.call_args
+            
+            # Check the event type (first argument)
+            assert call_args[0][0] == EventType.created
+            
+            # Check the host ID (second argument)
+            assert str(call_args[0][1]) == str(created_host.id)
+            
+            # Check the host object (third argument)
+            outbox_host = call_args[0][2]
+            assert outbox_host.id == created_host.id
+            assert outbox_host.insights_id == created_host.insights_id
+            assert outbox_host.fqdn == created_host.fqdn
+
+    def test_mq_host_creation_with_groups_and_outbox_validation(self, flask_app, event_producer_mock, notification_event_producer_mock, db_create_group):
+        """Test that creating a host via MQ with groups triggers correct outbox entry creation."""
+        
+        # Create a group first to test group assignment
+        group = db_create_group("test-group", SYSTEM_IDENTITY)
+        
+        # Create test host data with group assignment capability
+        test_host = minimal_host(
+            insights_id=generate_uuid(),
+            subscription_manager_id=generate_uuid(),
+            fqdn="test-grouped-mq-host.example.com"
+        )
+        
+        platform_metadata = get_platform_metadata(SYSTEM_IDENTITY)
+        message = wrap_message(test_host.data(), platform_metadata=platform_metadata)
+        
+        # Mock the outbox writing to capture the call without immediate deletion
+        with patch('lib.host_repository.write_event_to_outbox') as mock_write_outbox:
+            # Also mock the Kessel migration flag to enable group assignment
+            with patch('app.queue.host_mq.get_flag_value', return_value=True):
+                mock_write_outbox.return_value = True
+                
+                # Create MQ consumer and process message
+                consumer = IngressMessageConsumer(None, flask_app, event_producer_mock, notification_event_producer_mock)
+                result = consumer.handle_message(json.dumps(message))
+                db.session.commit()
+                
+                # Verify the host was created successfully with group assignment
+                assert result.event_type == EventType.created
+                assert result.row is not None
+                created_host = result.row
+                assert str(created_host.insights_id) == test_host.insights_id
+                assert created_host.fqdn == "test-grouped-mq-host.example.com"
+                assert len(created_host.groups) == 1  # Should be assigned to ungrouped hosts group
+                
+                # Verify outbox entry was written with correct parameters
+                mock_write_outbox.assert_called_once()
+                call_args = mock_write_outbox.call_args
+                
+                # Check the event type (first argument)
+                assert call_args[0][0] == EventType.created
+                
+                # Check the host ID (second argument)
+                assert str(call_args[0][1]) == str(created_host.id)
+                
+                # Check the host object (third argument)
+                outbox_host = call_args[0][2]
+                assert outbox_host.id == created_host.id
+                assert outbox_host.insights_id == created_host.insights_id
+                assert outbox_host.fqdn == created_host.fqdn
+                assert len(outbox_host.groups) == 1  # Verify groups are included in outbox payload
+
+    def test_mq_host_creation_with_actual_outbox_entry(self, flask_app, event_producer_mock, notification_event_producer_mock):
+        """Test complete MQ host creation flow including actual outbox entry persistence and deletion."""
+        
+        # Create test host data
+        test_host = minimal_host(
+            insights_id=generate_uuid(),
+            subscription_manager_id=generate_uuid(),
+            fqdn="test-complete-mq-host.example.com"
+        )
+        
+        platform_metadata = get_platform_metadata(SYSTEM_IDENTITY)
+        message = wrap_message(test_host.data(), platform_metadata=platform_metadata)
+        
+        # Track outbox success metrics to verify outbox operation succeeded
+        with patch('lib.outbox_repository.outbox_save_success') as mock_success_metric:
+            # Create MQ consumer and process message
+            consumer = IngressMessageConsumer(None, flask_app, event_producer_mock, notification_event_producer_mock)
+            result = consumer.handle_message(json.dumps(message))
+            db.session.commit()
+            
+            # Verify the host was created successfully
+            assert result.event_type == EventType.created
+            assert result.row is not None
+            created_host = result.row
+            assert str(created_host.insights_id) == test_host.insights_id
+            assert created_host.fqdn == "test-complete-mq-host.example.com"
+            
+            # Verify outbox operation succeeded (metric was incremented)
+            mock_success_metric.inc.assert_called_once()
+            
+            # Verify outbox entry was created and then immediately deleted (atomic outbox pattern)
+            outbox_entries = db.session.query(Outbox).filter_by(aggregateid=created_host.id).all()
+            assert len(outbox_entries) == 0  # Entry is deleted immediately after commit
+            
+            # The success metric increment proves the outbox entry was created, validated, and processed
