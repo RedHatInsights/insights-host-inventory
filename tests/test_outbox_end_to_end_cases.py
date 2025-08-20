@@ -26,6 +26,7 @@ from app.models.schemas import OutboxSchema
 from app.queue.events import EventType
 from app.queue.host_mq import IngressMessageConsumer
 from app.queue.host_mq import WorkspaceMessageConsumer
+from lib.outbox_repository import remove_event_from_outbox
 from lib.outbox_repository import write_event_to_outbox
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.mq_utils import generate_kessel_workspace_message
@@ -1459,3 +1460,319 @@ class TestOutboxE2ECases:
             assert outbox_entry.version == "v1beta2"
             assert outbox_entry.payload["type"] == "host"
             assert outbox_entry.payload["reporterType"] == "hbi"
+
+    def test_host_creation_with_outbox_validation_and_cleanup(self, db_create_host, db_get_host):
+        """
+        Test complete host creation workflow with outbox validation:
+        1. Create a new host
+        2. Validate outbox entry is created with correct host_id as aggregateid
+        3. Validate outbox entry is deleted after calling remove_event_from_outbox
+        4. Ensure host_id matches aggregateid throughout the process
+        """
+        # Create a host with all required fields
+        insights_id = generate_uuid()
+        subscription_manager_id = generate_uuid()
+        host_data = {
+            "canonical_facts": {
+                "insights_id": insights_id,
+                "subscription_manager_id": subscription_manager_id,
+                "fqdn": "test-kafka-host.example.com",
+            },
+            "insights_id": insights_id,
+            "subscription_manager_id": subscription_manager_id,
+            "fqdn": "test-kafka-host.example.com",
+            "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]},
+        }
+
+        created_host = db_create_host(SYSTEM_IDENTITY, extra_data=host_data)
+        host_id = str(created_host.id)
+
+        # Verify the host was created successfully
+        assert created_host is not None
+        assert created_host.canonical_facts["fqdn"] == "test-kafka-host.example.com"
+        assert str(created_host.id) == host_id
+
+        # Retrieve the host to ensure it has all necessary data
+        host = db_get_host(created_host.id)
+        assert host is not None
+
+        # Write created event to outbox
+        result = write_event_to_outbox(EventType.created, host_id, host)
+
+        # Verify the operation succeeded
+        assert result is True
+
+        # Verify outbox entry was created with correct host_id as aggregateid
+        outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
+        assert len(outbox_entries) == 1
+
+        # Verify the outbox entry has the correct structure and host_id
+        outbox_entry = outbox_entries[0]
+        assert str(outbox_entry.aggregateid) == host_id  # Validate host_id matches aggregateid
+        assert outbox_entry.aggregatetype == "hbi.hosts"
+        assert outbox_entry.operation == "ReportResource"
+        assert outbox_entry.version == "v1beta2"
+        assert outbox_entry.payload["type"] == "host"
+        assert outbox_entry.payload["reporterType"] == "hbi"
+
+        # Verify the payload contains the correct host information
+        payload = outbox_entry.payload
+        assert payload["representations"]["metadata"]["localResourceId"] == host_id
+        assert payload["representations"]["reporter"]["insights_id"] == str(host.canonical_facts["insights_id"])
+        assert payload["representations"]["reporter"]["subscription_manager_id"] == str(
+            host.canonical_facts["subscription_manager_id"]
+        )
+
+        # Test outbox entry deletion by calling remove_event_from_outbox directly
+
+        # Verify the outbox entry exists before deletion
+        outbox_entries_before = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
+        assert len(outbox_entries_before) == 1
+
+        # Call the remove_event_from_outbox function directly
+        remove_event_from_outbox(host_id)
+
+        # Verify the outbox entry has been deleted
+        outbox_entries_after_deletion = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
+        assert len(outbox_entries_after_deletion) == 0
+
+        # Final validation: ensure the host still exists in the database
+        final_host = db_get_host(created_host.id)
+        assert final_host is not None
+        assert str(final_host.id) == host_id
+        assert final_host.canonical_facts["fqdn"] == "test-kafka-host.example.com"
+
+    @pytest.mark.usefixtures("event_producer_mock")
+    def test_delete_hosts_from_group_with_outbox_validation_and_ungrouped_assignment(
+        self,
+        db_create_host,
+        db_create_group,
+        db_get_host,
+        api_add_hosts_to_group,
+        api_remove_hosts_from_group,
+        db_get_hosts_for_group,
+    ):
+        """
+        Test complete workflow for deleting 2 hosts from a group of 3 hosts with outbox validation:
+        1. Create 3 new hosts
+        2. Create a new group
+        3. Add all 3 hosts to the group via API
+        4. Remove 2 hosts from the group via API
+        5. Validate the group still contains 1 host
+        6. Validate removed hosts are assigned to "ungrouped_hosts" group
+        7. Validate outbox entries are created and then deleted for all operations
+        8. Ensure host_id matches aggregateid throughout the process
+        """
+        # Create 3 hosts with unique data
+        hosts_data = []
+        created_hosts = []
+        host_ids = []
+
+        for i in range(3):
+            insights_id = generate_uuid()
+            subscription_manager_id = generate_uuid()
+            host_data = {
+                "canonical_facts": {
+                    "insights_id": insights_id,
+                    "subscription_manager_id": subscription_manager_id,
+                    "fqdn": f"test-delete-host-{i + 1}.example.com",
+                },
+                "insights_id": insights_id,
+                "subscription_manager_id": subscription_manager_id,
+                "fqdn": f"test-delete-host-{i + 1}.example.com",
+                "display_name": f"Test Delete Host {i + 1}",
+                "ansible_host": f"delete-host-{i + 1}.ansible.host",
+                "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]},
+            }
+            hosts_data.append(host_data)
+
+            created_host = db_create_host(SYSTEM_IDENTITY, extra_data=host_data)
+            created_hosts.append(created_host)
+            host_ids.append(str(created_host.id))
+
+        # Verify all hosts were created successfully
+        for i, (created_host, host_id) in enumerate(zip(created_hosts, host_ids, strict=False)):
+            assert created_host is not None
+            assert created_host.canonical_facts["fqdn"] == f"test-delete-host-{i + 1}.example.com"
+            assert created_host.display_name == f"Test Delete Host {i + 1}"
+            assert str(created_host.id) == host_id
+
+        # Create a new group
+        group = db_create_group("test-delete-outbox-group")
+        group_id = str(group.id)
+
+        # Verify initial state - group is empty, hosts have no groups
+        initial_hosts_in_group = db_get_hosts_for_group(group_id)
+        assert len(initial_hosts_in_group) == 0
+
+        for host_id in host_ids:
+            initial_host = db_get_host(host_id)
+            assert len(initial_host.groups) == 0  # Host not in any group initially
+
+        # Add all 3 hosts to the group via API
+        response_status, response_data = api_add_hosts_to_group(group_id, host_ids)
+
+        # Verify the API request was successful
+        assert response_status == 200
+
+        # Verify all hosts were actually added to the group in the database
+        hosts_in_group_after_add = db_get_hosts_for_group(group_id)
+        assert len(hosts_in_group_after_add) == 3
+
+        # Verify each host is in the group
+        hosts_in_group_ids = [str(host.id) for host in hosts_in_group_after_add]
+        for host_id in host_ids:
+            assert host_id in hosts_in_group_ids
+
+        # Verify each host has the group information
+        for host_id in host_ids:
+            host = db_get_host(host_id)
+            assert len(host.groups) == 1
+            assert host.groups[0]["id"] == group_id
+            assert host.groups[0]["name"] == "test-delete-outbox-group"
+
+        # Now remove 2 hosts from the group (keep the first host)
+        hosts_to_remove = host_ids[1:]  # Remove hosts 2 and 3
+        host_to_keep = host_ids[0]  # Keep host 1
+
+        # Mock the outbox writing to capture the calls for removal
+        outbox_calls = []
+
+        def mock_write_outbox(event_type, host_id_param, host_obj):
+            outbox_calls.append({"event_type": event_type, "host_id": host_id_param, "host": host_obj})
+            return True
+
+        # Enable the Kessel workspace migration flag to get ungrouped group behavior
+        with patch("lib.group_repository.get_flag_value", return_value=True):
+            with patch("lib.group_repository.write_event_to_outbox", side_effect=mock_write_outbox):
+                # Remove 2 hosts from the group via API
+                response_status, response_data = api_remove_hosts_from_group(group_id, hosts_to_remove)
+
+                # Verify the API request was successful
+                assert response_status == 204  # No Content
+
+                # Verify outbox entries were created for the 2 removed hosts
+                assert len(outbox_calls) == 2
+
+                # Validate each outbox call for removed hosts
+                for call in outbox_calls:
+                    assert call["event_type"] == EventType.updated
+                    assert call["host_id"] in hosts_to_remove
+
+                    # Verify the host object in the outbox call has ungrouped group information
+                    host_obj = call["host"]
+                    assert host_obj is not None
+                    assert len(host_obj.groups) == 1  # Host should be in ungrouped hosts group
+                    assert host_obj.groups[0]["name"] == "Ungrouped Hosts"  # Kessel requires ungrouped hosts group
+
+        # Verify the group now contains only 1 host
+        hosts_in_group_after_remove = db_get_hosts_for_group(group_id)
+        assert len(hosts_in_group_after_remove) == 1
+        assert str(hosts_in_group_after_remove[0].id) == host_to_keep
+
+        # Verify the remaining host still has the group information
+        remaining_host = db_get_host(host_to_keep)
+        assert len(remaining_host.groups) == 1
+        assert remaining_host.groups[0]["id"] == group_id
+        assert remaining_host.groups[0]["name"] == "test-delete-outbox-group"
+
+        # Verify the removed hosts are now in the ungrouped hosts group
+        for removed_host_id in hosts_to_remove:
+            removed_host = db_get_host(removed_host_id)
+            assert len(removed_host.groups) == 1
+            assert removed_host.groups[0]["name"] == "Ungrouped Hosts"
+            # The ungrouped hosts group should have a specific ID (usually a UUID)
+            assert "id" in removed_host.groups[0]
+
+        # Now create actual outbox entries for each host to test the complete workflow
+        # First, clear any existing outbox entries from the API operations
+
+        all_host_ids = [host_to_keep] + hosts_to_remove
+
+        # Clear existing outbox entries
+        for host_id in all_host_ids:
+            existing_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
+            for entry in existing_entries:
+                db.session.delete(entry)
+        db.session.commit()
+
+        for host_id in all_host_ids:
+            host = db_get_host(host_id)
+            assert host is not None
+
+            # Write updated event to outbox for each host
+            result = write_event_to_outbox(EventType.updated, host_id, host)
+            assert result is True
+
+            # Verify outbox entry was created with correct host_id as aggregateid
+            outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
+            assert len(outbox_entries) == 1
+
+            # Verify the outbox entry has the correct structure and host_id
+            outbox_entry = outbox_entries[0]
+            assert str(outbox_entry.aggregateid) == host_id  # Validate host_id matches aggregateid
+            assert outbox_entry.aggregatetype == "hbi.hosts"
+            assert outbox_entry.operation == "ReportResource"
+            assert outbox_entry.version == "v1beta2"
+            assert outbox_entry.payload["type"] == "host"
+            assert outbox_entry.payload["reporterType"] == "hbi"
+
+            # Verify the payload contains the correct host information
+            payload = outbox_entry.payload
+            assert payload["representations"]["metadata"]["localResourceId"] == host_id
+            assert payload["representations"]["reporter"]["insights_id"] == str(host.canonical_facts["insights_id"])
+            assert payload["representations"]["reporter"]["subscription_manager_id"] == str(
+                host.canonical_facts["subscription_manager_id"]
+            )
+
+            # Verify the common field contains the workspace_id
+            common = payload["representations"]["common"]
+            assert "workspace_id" in common
+
+            # The workspace_id should match the group the host is in
+            if host_id == host_to_keep:
+                # Host still in original group
+                assert common["workspace_id"] == group_id
+            else:
+                # Host in ungrouped hosts group
+                assert common["workspace_id"] == host.groups[0]["id"]
+
+        # Test outbox entry deletion for all hosts by calling remove_event_from_outbox directly
+
+        # Verify all outbox entries exist before deletion
+        for host_id in all_host_ids:
+            outbox_entries_before = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
+            assert len(outbox_entries_before) == 1
+
+        # Call the remove_event_from_outbox function for each host (simulating Kafka message production)
+        for host_id in all_host_ids:
+            remove_event_from_outbox(host_id)
+
+        # Verify all outbox entries have been deleted
+        for host_id in all_host_ids:
+            outbox_entries_after_deletion = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
+            assert len(outbox_entries_after_deletion) == 0
+
+        # Final validation: ensure all hosts still exist in the database with correct group information
+        for i, host_id in enumerate(all_host_ids):
+            final_host = db_get_host(host_id)
+            assert final_host is not None
+            assert str(final_host.id) == host_id
+            assert final_host.canonical_facts["fqdn"] == f"test-delete-host-{i + 1}.example.com"
+            assert final_host.display_name == f"Test Delete Host {i + 1}"
+
+            # Verify the host has the correct group information
+            if host_id == host_to_keep:
+                # Host should still be in the original group
+                assert len(final_host.groups) == 1
+                assert final_host.groups[0]["id"] == group_id
+                assert final_host.groups[0]["name"] == "test-delete-outbox-group"
+            else:
+                # Host should be in the ungrouped hosts group
+                assert len(final_host.groups) == 1
+                assert final_host.groups[0]["name"] == "Ungrouped Hosts"
+
+        # Final verification: confirm the group contains only 1 host
+        final_hosts_in_group = db_get_hosts_for_group(group_id)
+        assert len(final_hosts_in_group) == 1
+        assert str(final_hosts_in_group[0].id) == host_to_keep
