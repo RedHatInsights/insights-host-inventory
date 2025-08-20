@@ -471,6 +471,7 @@ class OutboxSchema(MarshmallowSchema):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+
 class HostStaticSystemProfileSchema(MarshmallowSchema):
     class Meta:
         unknown = EXCLUDE
