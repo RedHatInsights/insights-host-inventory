@@ -451,12 +451,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
         Host.facts.has_key(namespace),
     )
 
-    if inventory_config().hbi_db_refactoring_use_old_table:
-        # Old code: use single column GROUP BY
-        query = Host.query.join(HostGroupAssoc, isouter=True).filter(*filters).group_by(Host.id)
-    else:
-        # New code: use composite GROUP BY
-        query = Host.query.join(HostGroupAssoc, isouter=True).filter(*filters).group_by(Host.org_id, Host.id)
+    query = Host.query.join(HostGroupAssoc, isouter=True).filter(*filters).group_by(Host.org_id, Host.id)
 
     if rbac_filter and "groups" in rbac_filter:
         count_before_rbac_filter = find_non_culled_hosts(
@@ -464,12 +459,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
         ).count()
         filters += (HostGroupAssoc.group_id.in_(rbac_filter["groups"]),)
 
-        if inventory_config().hbi_db_refactoring_use_old_table:
-            # Old code: use single column GROUP BY
-            query = Host.query.join(HostGroupAssoc, isouter=True).filter(*filters).group_by(Host.id)
-        else:
-            # New code: use composite GROUP BY
-            query = Host.query.join(HostGroupAssoc, isouter=True).filter(*filters).group_by(Host.org_id, Host.id)
+        query = Host.query.join(HostGroupAssoc, isouter=True).filter(*filters).group_by(Host.org_id, Host.id)
 
         if (
             count_before_rbac_filter

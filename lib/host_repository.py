@@ -19,7 +19,6 @@ from api.filtering.db_filters import staleness_to_conditions
 from api.filtering.db_filters import update_query_for_owner_id
 from api.staleness_query import get_staleness_obj
 from app.auth.identity import Identity
-from app.common import inventory_config
 from app.config import ALL_STALENESS_STATES
 from app.config import COMPOUND_ID_FACTS
 from app.config import COMPOUND_ID_FACTS_MAP
@@ -421,37 +420,23 @@ def get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter=None, c
 
         filters += (or_(*rbac_group_filters),)
 
-    if inventory_config().hbi_db_refactoring_use_old_table:
-        # Old code: use single column GROUP BY
-        query = (
-            Host.query.join(HostGroupAssoc, isouter=True).join(Group, isouter=True).filter(*filters).group_by(Host.id)
-        )
-    else:
-        # New code: use composite GROUP BY
-        query = (
-            Host.query.join(HostGroupAssoc, isouter=True)
-            .join(Group, isouter=True)
-            .filter(*filters)
-            .group_by(Host.id, Host.org_id)
-        )
+    query = (
+        Host.query.join(HostGroupAssoc, isouter=True)
+        .join(Group, isouter=True)
+        .filter(*filters)
+        .group_by(Host.id, Host.org_id)
+    )
     if columns:
         query = query.with_entities(*columns)
     return find_non_culled_hosts(update_query_for_owner_id(identity, query), identity.org_id)
 
 
 def get_non_culled_hosts_count_in_group(group: Group, org_id: str) -> int:
-    if inventory_config().hbi_db_refactoring_use_old_table:
-        # Old code: use single column GROUP BY
-        query = (
-            db.session.query(Host).join(HostGroupAssoc).filter(HostGroupAssoc.group_id == group.id).group_by(Host.id)
-        )
-    else:
-        # New code: use composite GROUP BY
-        query = (
-            db.session.query(Host)
-            .join(HostGroupAssoc)
-            .filter(HostGroupAssoc.group_id == group.id, HostGroupAssoc.org_id == org_id)
-            .group_by(Host.id, Host.org_id)
-        )
+    query = (
+        db.session.query(Host)
+        .join(HostGroupAssoc)
+        .filter(HostGroupAssoc.group_id == group.id, HostGroupAssoc.org_id == org_id)
+        .group_by(Host.id, Host.org_id)
+    )
 
     return find_non_culled_hosts(query, org_id).count()

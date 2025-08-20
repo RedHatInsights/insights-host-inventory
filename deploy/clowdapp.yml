@@ -99,8 +99,6 @@ objects:
           "run:app"
         ]
         env:
-        - name: HBI_DB_REFACTORING_USE_OLD_TABLE
-          value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
         - name: APP_NAME
           value: ${APP_NAME}
         - name: PATH_PREFIX
@@ -261,8 +259,6 @@ objects:
           "run:app"
         ]
         env:
-        - name: HBI_DB_REFACTORING_USE_OLD_TABLE
-          value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
         - name: APP_NAME
           value: ${APP_NAME}
         - name: PATH_PREFIX
@@ -423,8 +419,6 @@ objects:
           "run:app"
         ]
         env:
-        - name: HBI_DB_REFACTORING_USE_OLD_TABLE
-          value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
         - name: APP_NAME
           value: ${APP_NAME}
         - name: PATH_PREFIX
@@ -550,8 +544,6 @@ objects:
       podSpec:
         args: ["./inv_mq_service.py"]
         env:
-        - name: HBI_DB_REFACTORING_USE_OLD_TABLE
-          value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
         - name: CONSOLEDOT_HOSTNAME
           value: ${CONSOLEDOT_HOSTNAME}
         - name: INVENTORY_LOG_LEVEL
@@ -661,8 +653,6 @@ objects:
           inheritEnv: true
         args: ["./inv_mq_service.py"]
         env:
-        - name: HBI_DB_REFACTORING_USE_OLD_TABLE
-          value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
         - name: MIGRATION_MODE
           value: ${MIGRATION_MODE}
         - name: CONSOLEDOT_HOSTNAME
@@ -773,8 +763,6 @@ objects:
       podSpec:
         args: ["./inv_mq_service.py"]
         env:
-        - name: HBI_DB_REFACTORING_USE_OLD_TABLE
-          value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
         - name: CONSOLEDOT_HOSTNAME
           value: ${CONSOLEDOT_HOSTNAME}
         - name: INVENTORY_LOG_LEVEL
@@ -871,8 +859,6 @@ objects:
       podSpec:
         args: ["./inv_mq_service.py"]
         env:
-        - name: HBI_DB_REFACTORING_USE_OLD_TABLE
-          value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
         - name: CONSOLEDOT_HOSTNAME
           value: ${CONSOLEDOT_HOSTNAME}
         - name: INVENTORY_LOG_LEVEL
@@ -978,8 +964,6 @@ objects:
       podSpec:
         args: ["./inv_export_service.py"]
         env:
-        - name: HBI_DB_REFACTORING_USE_OLD_TABLE
-          value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
         - name: INVENTORY_LOG_LEVEL
           value: DEBUG
         - name: INVENTORY_DB_SSL_MODE
@@ -1052,8 +1036,6 @@ objects:
         image: ${IMAGE}:${IMAGE_TAG}
         args: ["./jobs/host_reaper.py"]
         env:
-          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
-            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
           - name: INVENTORY_DB_SSL_MODE
@@ -1140,8 +1122,6 @@ objects:
         image: ${IMAGE}:${IMAGE_TAG}
         args: ["./jobs/generate_stale_host_notifications.py"]
         env:
-          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
-            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
           - name: CONNEXION_LOG_LEVEL
@@ -1210,8 +1190,6 @@ objects:
         image: ${IMAGE}:${IMAGE_TAG}
         args: ["./jobs/inv_publish_hosts.py"]
         env:
-          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
-            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
           - name: INVENTORY_DB_SSL_MODE
@@ -1250,8 +1228,6 @@ objects:
         env:
           - name: PYTHONPATH
             value: '/opt/app-root/src'
-          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
-            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
           - name: GIT_TOKEN
@@ -1341,8 +1317,6 @@ objects:
         env:
           - name: PYTHONPATH
             value: '/opt/app-root/src'
-          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
-            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
           - name: INVENTORY_DB_SSL_MODE
@@ -1395,8 +1369,6 @@ objects:
         env:
           - name: PYTHONPATH
             value: '/opt/app-root/src'
-          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
-            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
           - name: INVENTORY_DB_SSL_MODE
@@ -1468,8 +1440,6 @@ objects:
         env:
           - name: PYTHONPATH
             value: '/opt/app-root/src'
-          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
-            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
           - name: INVENTORY_DB_SSL_MODE
@@ -1541,8 +1511,6 @@ objects:
         env:
           - name: PYTHONPATH
             value: '/opt/app-root/src'
-          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
-            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
           - name: INVENTORY_DB_SSL_MODE
@@ -1614,8 +1582,6 @@ objects:
         env:
           - name: PYTHONPATH
             value: '/opt/app-root/src'
-          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
-            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
           - name: INVENTORY_DB_SSL_MODE
@@ -1686,8 +1652,6 @@ objects:
         env:
           - name: PYTHONPATH
             value: '/opt/app-root/src'
-          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
-            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
           - name: INVENTORY_DB_SSL_MODE
@@ -1750,8 +1714,6 @@ objects:
         env:
           - name: PYTHONPATH
             value: '/opt/app-root/src'
-          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
-            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
           - name: PYTHONPATH
             value: '/opt/app-root/src'
           - name: INVENTORY_LOG_LEVEL
@@ -1790,8 +1752,6 @@ objects:
         image: ${IMAGE}:${IMAGE_TAG}
         args: [ "./jobs/hosts_table_migration_switch.py" ]
         env:
-          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
-            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
           - name: PYTHONPATH
             value: '/opt/app-root/src'
           - name: INVENTORY_LOG_LEVEL
@@ -2601,8 +2561,3 @@ parameters:
   description: Choose migration mode to run DB refactoring tables transition
   required: true
   value: automated
-
-# Skip DB refactoring changes in prod
-- name: HBI_DB_REFACTORING_USE_OLD_TABLE
-  description: Skip DB refactoring changes in prod
-  value: 'false'
