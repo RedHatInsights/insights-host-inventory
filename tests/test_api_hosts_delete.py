@@ -474,8 +474,6 @@ def test_delete_host_that_belongs_to_group_success(
     assert len(hosts_after) == 2
     assert host_id_list[0] not in [host.id for host in hosts_after]
 
-    # TODO: Question: Is this test still valid after adding Outbox?
-
 
 @pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
 def test_delete_host_that_belongs_to_group_fail(
