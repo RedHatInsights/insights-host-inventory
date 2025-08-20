@@ -403,10 +403,8 @@ def test_delete_stops_after_kafka_exception(
 
     assert_response_status(response_status, expected_status=500)
 
-    # With the introduction of Outbox, a host's deletion is commited to the hosts table before an attempted is made
-    # to produce the event, thereby 2 hosts are deleted before the kafka event is produced.
     remaining_hosts = db_get_hosts(host_id_list)
-    assert remaining_hosts.count() == 1
+    assert remaining_hosts.count() == 2
     assert event_producer._kafka_producer.produce.call_count == 2
     assert notification_event_producer._kafka_producer.produce.call_count == 1
 
@@ -513,9 +511,8 @@ def test_delete_host_that_belongs_to_group_fail(
     # Confirm that the group contains at least 2 hosts, as the first host is deleted before
     # the kafka event is produced.
     hosts_after = db_get_hosts_for_group(group_id)
-    assert len(hosts_after) == 2
-    # TODO: Question: Is this assertion still valid after adding Outbox?
-    # assert host_id_list[0] in [host.id for host in hosts_after]
+    assert len(hosts_after) == 3
+    assert host_id_list[0] in [host.id for host in hosts_after]
 
 
 @pytest.mark.usefixtures("enable_rbac", "event_producer_mock", "notification_event_producer_mock")

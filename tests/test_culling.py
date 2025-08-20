@@ -319,9 +319,8 @@ def test_reaper_shutdown_handler(
             application=flask_app,
         )
 
-        # With the introduction of Outbox, a hosts deletion is commited to the hosts table before an attempted is made
         remaining_hosts = db_get_hosts(created_host_ids)
-        assert remaining_hosts.count() == 0
+        assert remaining_hosts.count() == 1
         assert fake_event_producer.write_event.call_count == 2
 
 
@@ -415,9 +414,8 @@ def test_reaper_stops_after_kafka_producer_error(
                 application=flask_app,
             )
 
-        # With the introduction of Outbox, a host's deletion is commited to the hosts table before an attempted is made
         remaining_hosts = db_get_hosts(created_host_ids)
-        assert remaining_hosts.count() == 1
+        assert remaining_hosts.count() == 2
         assert event_producer._kafka_producer.produce.call_count == 2
         assert notification_event_producer._kafka_producer.produce.call_count == 1
 

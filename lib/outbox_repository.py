@@ -15,6 +15,15 @@ from lib.metrics import outbox_save_success
 
 logger = get_logger(__name__)
 
+# remove the processed host from the outbox table
+def remove_event_from_outbox(key):
+    try:
+        db.session.query(Outbox).filter(Outbox.aggregateid == key).delete()
+        db.session.commit()
+    except OutboxSaveException as ose:
+        logger.error(f"Error removing event from outbox: {ose}")
+        raise OutboxSaveException(f"Error removing event from outbox: {ose}") from ose
+
 
 def _create_update_event_payload(host: Host) -> dict:
     if not host or not host.id:
@@ -71,9 +80,6 @@ def _report_error(message: str) -> None:
 
 def _build_outbox_entry(event: EventType, host_id: str, host: Host | None = None) -> dict:
     try:
-        if event not in {EventType.created, EventType.updated, EventType.delete}:
-            _report_error(f"Invalid event type: {event}")
-
         if event in {EventType.created, EventType.updated} and not host:
             _report_error("Missing required 'host data' for 'created' or 'updated' event for Outbox")
 
@@ -93,14 +99,12 @@ def _build_outbox_entry(event: EventType, host_id: str, host: Host | None = None
                 outbox_entry["payload"] = payload
             except OutboxSaveException as ose:
                 _report_error(f"Failed to create payload for 'created' or 'updated' event for Outbox: {str(ose)}")
-        elif event == EventType.delete:
+        else:
             try:
                 payload = _delete_event_payload(str(host_id))
                 outbox_entry["payload"] = payload
             except OutboxSaveException as ose:
                 _report_error(f"Failed to create payload for 'delete' event for Outbox: {str(ose)}")
-        else:
-            _report_error("Unknown event type.  Valid event types are 'created', 'updated', or 'delete'")
     except KeyError as e:
         _report_error(f"Missing required field in event data: {str(e)}. Event: {event}")
 
@@ -145,19 +149,9 @@ def write_event_to_outbox(event: EventType, host_id: str, host: Host | None = No
 
         # Save the outbox entry to record the event in the write-ahead log.
         db.session.add(outbox_entry_db)
-        db.session.flush()
-
-        # This commit is required because session.add() and session.flush() do not commit the transaction
-        db.session.commit()
-
         outbox_save_success.inc()
         logger.debug("Added outbox entry to session: aggregateid=%s", validated_outbox_entry["aggregateid"])
         logger.info("Successfully added event to outbox for aggregateid=%s", validated_outbox_entry["aggregateid"])
-
-        # prune the new event from the Outbox table
-        # Without the previous commit, the following delete will fail because the outbox entry is not yet committed.
-        db.session.query(Outbox).filter(Outbox.aggregateid == validated_outbox_entry["aggregateid"]).delete()
-        db.session.commit()
 
         return True
 
