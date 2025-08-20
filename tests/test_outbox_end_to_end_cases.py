@@ -63,7 +63,7 @@ class TestOutboxE2ECases:
         # Verify the operation succeeded
         assert result is True
 
-        # Verify outbox entry was created (entries are no longer automatically pruned)
+        # Verify outbox entry was created (these entries are pruned after producing Kafka messages)
         outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
         assert len(outbox_entries) == 1  # Entry exists since automatic pruning was removed
 
@@ -100,7 +100,7 @@ class TestOutboxE2ECases:
         # Verify the operation succeeded
         assert result is True
 
-        # Verify outbox entry was created (entries are no longer automatically pruned)
+        # Verify outbox entry was created (these entries are pruned after producing Kafka messages)
         outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
         assert len(outbox_entries) == 1  # Entry exists since automatic pruning was removed
 
@@ -124,7 +124,7 @@ class TestOutboxE2ECases:
         # Verify the operation succeeded
         assert result is True
 
-        # Verify outbox entry was created (entries are no longer automatically pruned)
+        # Verify outbox entry was created (these entries are pruned after producing Kafka messages)
         outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
         assert len(outbox_entries) == 1  # Entry exists since automatic pruning was removed
 
@@ -148,7 +148,7 @@ class TestOutboxE2ECases:
         write_event_to_outbox(EventType.updated, host_id, host)
         write_event_to_outbox(EventType.delete, host_id)
 
-        # Verify all entries were created (entries are no longer automatically pruned)
+        # Verify all entries were created (these entries are pruned after producing Kafka messages)
         outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
         assert len(outbox_entries) == 3  # All entries exist since automatic pruning was removed
 
@@ -396,7 +396,7 @@ class TestOutboxE2ECases:
 
         assert result is True
 
-        # Verify outbox entry was created (entries are no longer automatically pruned)
+        # Verify outbox entry was created (these entries are pruned after producing Kafka messages)
         outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
         assert len(outbox_entries) == 1  # Entry exists since automatic pruning was removed
 
@@ -421,7 +421,7 @@ class TestOutboxE2ECases:
         result = write_event_to_outbox(EventType.created, host_id, host)
         assert result is True
 
-        # Verify entry was created (entries are no longer automatically pruned)
+        # Verify entry was created (these entries are pruned after producing Kafka messages)
         outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
         assert len(outbox_entries) == 1  # Entry exists since automatic pruning was removed
 
@@ -449,7 +449,7 @@ class TestOutboxE2ECases:
         # Flush the session to make entries visible
         db.session.flush()
 
-        # Verify all entries were created (entries are no longer automatically pruned)
+        # Verify all entries were created (these entries are pruned after producing Kafka messages)
         all_entries = db.session.query(Outbox).all()
         assert len(all_entries) == 3  # All entries exist since automatic pruning was removed
 
@@ -620,7 +620,7 @@ class TestOutboxE2ECases:
             # Verify outbox operation succeeded (metric was incremented)
             mock_success_metric.inc.assert_called_once()
 
-            # Verify outbox entry was created (entries are no longer automatically pruned)
+            # Verify outbox entry was created (these entries are pruned after producing Kafka messages)
             outbox_entries = db.session.query(Outbox).filter_by(aggregateid=created_host.id).all()
             assert len(outbox_entries) == 1  # Entry exists since automatic pruning was removed
 
@@ -791,7 +791,7 @@ class TestOutboxE2ECases:
                 assert payload["group_name"] == new_name
                 assert payload["group_id"] == group_id
 
-                # Verify outbox entry was created (entries are no longer automatically pruned)
+                # Verify outbox entry was created (these entries are pruned after producing Kafka messages)
                 outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
                 assert len(outbox_entries) == 1  # Entry exists since automatic pruning was removed
 
@@ -803,10 +803,9 @@ class TestOutboxE2ECases:
                 assert outbox_entry.payload["type"] == "host"
                 assert outbox_entry.payload["reporterType"] == "hbi"
 
+    @pytest.mark.usefixtures("event_producer_mock")
     def test_host_update_via_patch_endpoint_with_outbox_validation(
         self,
-        flask_app,  # noqa: ARG002
-        event_producer_mock,  # noqa: ARG002
         api_patch,
         db_create_host,
         db_get_host,
@@ -859,11 +858,9 @@ class TestOutboxE2ECases:
             assert updated_host.display_name == "updated-host-name"
             assert updated_host.ansible_host == "updated.ansible.host"
 
+    @pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
     def test_host_delete_via_api_endpoint_with_outbox_validation(
         self,
-        flask_app,  # noqa: ARG002
-        event_producer_mock,  # noqa: ARG002
-        notification_event_producer_mock,  # noqa: ARG002
         api_delete_host,
         db_create_host,
         db_get_host,
@@ -906,10 +903,9 @@ class TestOutboxE2ECases:
             deleted_host = db_get_host(host.id)
             assert deleted_host is None
 
+    @pytest.mark.usefixtures("event_producer_mock")
     def test_host_add_to_group_via_api_endpoint_with_outbox_validation(
         self,
-        flask_app,  # noqa: ARG002
-        event_producer_mock,  # noqa: ARG002
         api_add_hosts_to_group,
         db_create_host,
         db_create_group,
@@ -973,10 +969,9 @@ class TestOutboxE2ECases:
             assert updated_host.groups[0]["id"] == group_id
             assert updated_host.groups[0]["name"] == "test-outbox-group"
 
+    @pytest.mark.usefixtures("event_producer_mock")
     def test_host_add_to_group_via_api_endpoint_with_actual_outbox_validation(
         self,
-        flask_app,  # noqa: ARG002
-        event_producer_mock,  # noqa: ARG002
         api_add_hosts_to_group,
         db_create_host,
         db_create_group,
@@ -1091,10 +1086,9 @@ class TestOutboxE2ECases:
             assert outbox_entry.payload["type"] == "host"
             assert outbox_entry.payload["reporterType"] == "hbi"
 
+    @pytest.mark.usefixtures("event_producer_mock")
     def test_host_remove_from_group_via_api_endpoint_with_outbox_validation(
         self,
-        flask_app,  # noqa: ARG002
-        event_producer_mock,  # noqa: ARG002
         api_remove_hosts_from_group,
         api_add_hosts_to_group,
         db_create_host,
@@ -1166,10 +1160,9 @@ class TestOutboxE2ECases:
                 updated_host = db_get_host(host_id)
                 assert len(updated_host.groups) == 0  # Host should have no groups
 
+    @pytest.mark.usefixtures("event_producer_mock")
     def test_host_remove_from_group_via_api_endpoint_with_actual_outbox_validation(
         self,
-        flask_app,  # noqa: ARG002
-        event_producer_mock,  # noqa: ARG002
         api_remove_hosts_from_group,
         api_add_hosts_to_group,
         db_create_host,
@@ -1276,7 +1269,7 @@ class TestOutboxE2ECases:
                 assert len(updated_host.groups) == 1  # Host should be in ungrouped group
                 assert updated_host.groups[0]["name"] == "Ungrouped Hosts"
 
-                # Verify outbox entries were created (entries are no longer automatically pruned)
+                # Verify outbox entries were created (these entries are pruned after producing Kafka messages)
                 outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
                 assert len(outbox_entries) == 2  # Two entries exist since automatic pruning was removed
 
@@ -1284,10 +1277,9 @@ class TestOutboxE2ECases:
                 operations = [entry.operation for entry in outbox_entries]
                 assert "ReportResource" in operations  # Both should be ReportResource operations
 
+    @pytest.mark.usefixtures("event_producer_mock")
     def test_host_facts_replace_via_put_endpoint_with_outbox_validation(
         self,
-        flask_app,  # noqa: ARG002
-        event_producer_mock,  # noqa: ARG002
         api_put,
         db_create_host,
         db_get_host,
@@ -1350,10 +1342,9 @@ class TestOutboxE2ECases:
             assert "original_key" not in updated_host.facts["test_namespace"]
             assert "existing_key" not in updated_host.facts["test_namespace"]
 
+    @pytest.mark.usefixtures("event_producer_mock")
     def test_host_facts_replace_via_put_endpoint_with_actual_outbox_validation(
         self,
-        flask_app,  # noqa: ARG002
-        event_producer_mock,  # noqa: ARG002
         api_put,
         db_create_host,
         db_get_host,
