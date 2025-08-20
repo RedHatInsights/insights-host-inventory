@@ -73,6 +73,16 @@ objects:
     appName: host-inventory
     jobs:
       - hosts-table-migration-switch
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    labels:
+      app: host-inventory
+    name: sp-tables-migration-data-copy-${SP_TABLES_MIGRATION_DATA_COPY_RUN_NUMBER}
+  spec:
+    appName: host-inventory
+    jobs:
+      - sp-tables-migration-data-copy
 parameters:
 - name: SYNCHRONIZER_RUN_NUMBER
   value: '1'
@@ -87,4 +97,6 @@ parameters:
 - name: HOSTS_TABLE_MIGRATION_DATA_COPY_RUN_NUMBER
   value: '1'
 - name: HOSTS_TABLE_MIGRATION_SWITCH_RUN_NUMBER
+  value: '1'
+- name: SP_TABLES_MIGRATION_DATA_COPY_RUN_NUMBER
   value: '1'
