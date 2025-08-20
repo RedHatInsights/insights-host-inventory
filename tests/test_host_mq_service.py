@@ -2230,7 +2230,7 @@ def test_batch_mq_graceful_rollback(mocker, flask_app):
     # Make it so the commit raises a StaleDataError
     mocker.patch(
         "app.queue.host_mq.db.session.commit",
-         side_effect=[StaleDataError("Stale data"), None, None, None, None, None],
+        side_effect=[StaleDataError("Stale data"), None, None, None, None, None],
     )
     write_batch_patch = mocker.patch("app.queue.host_mq.write_message_batch")
 

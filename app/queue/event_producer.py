@@ -74,7 +74,7 @@ class EventProducer:
                 self._kafka_producer.flush()
             else:
                 self._kafka_producer.poll()
-            
+
             # remove the event from the outbox table
             remove_event_from_outbox(key)
         except KafkaException as error:

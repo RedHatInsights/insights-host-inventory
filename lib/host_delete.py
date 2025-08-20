@@ -10,7 +10,6 @@ from sqlalchemy.orm import Session
 
 from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
-from app.common import inventory_config
 from app.exceptions import OutboxSaveException
 from app.instrumentation import log_host_delete_succeeded
 from app.logging import get_logger

@@ -66,7 +66,7 @@ class TestOutboxE2ECases:
         # Verify outbox entry was created (entries are no longer automatically pruned)
         outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
         assert len(outbox_entries) == 1  # Entry exists since automatic pruning was removed
-        
+
         # Verify the outbox entry has the correct structure
         outbox_entry = outbox_entries[0]
         assert outbox_entry.aggregatetype == "hbi.hosts"
@@ -103,7 +103,7 @@ class TestOutboxE2ECases:
         # Verify outbox entry was created (entries are no longer automatically pruned)
         outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
         assert len(outbox_entries) == 1  # Entry exists since automatic pruning was removed
-        
+
         # Verify the outbox entry has the correct structure
         outbox_entry = outbox_entries[0]
         assert outbox_entry.aggregatetype == "hbi.hosts"
@@ -127,7 +127,7 @@ class TestOutboxE2ECases:
         # Verify outbox entry was created (entries are no longer automatically pruned)
         outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
         assert len(outbox_entries) == 1  # Entry exists since automatic pruning was removed
-        
+
         # Verify the outbox entry has the correct structure
         outbox_entry = outbox_entries[0]
         assert outbox_entry.aggregatetype == "hbi.hosts"
@@ -151,11 +151,11 @@ class TestOutboxE2ECases:
         # Verify all entries were created (entries are no longer automatically pruned)
         outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
         assert len(outbox_entries) == 3  # All entries exist since automatic pruning was removed
-        
+
         # Verify each entry has the correct structure
         operations = [entry.operation for entry in outbox_entries]
         assert "ReportResource" in operations  # created event
-        assert "ReportResource" in operations  # updated event  
+        assert "ReportResource" in operations  # updated event
         assert "DeleteResource" in operations  # delete event
 
     def test_invalid_event_type_error(self, db_create_host):
@@ -238,9 +238,11 @@ class TestOutboxE2ECases:
         # The error message is wrapped in multiple layers due to error handling
         error_str = str(exc_info.value)
         # The message may be escaped, so check for both the original and escaped versions
-        assert ("Missing required field 'id' in host data" in error_str or 
-                "Missing required field \\'id\\' in host data" in error_str or
-                "Missing required field \\\\\\\'id\\\\\\\' in host data" in error_str)
+        assert (
+            "Missing required field 'id' in host data" in error_str
+            or "Missing required field \\'id\\' in host data" in error_str
+            or "Missing required field \\\\\\'id\\\\\\' in host data" in error_str
+        )
 
     def test_invalid_host_id_format_error(self):
         """Test error handling for invalid host_id format."""
@@ -397,7 +399,7 @@ class TestOutboxE2ECases:
         # Verify outbox entry was created (entries are no longer automatically pruned)
         outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
         assert len(outbox_entries) == 1  # Entry exists since automatic pruning was removed
-        
+
         # Verify the outbox entry has the correct structure
         outbox_entry = outbox_entries[0]
         assert outbox_entry.aggregatetype == "hbi.hosts"
@@ -422,7 +424,7 @@ class TestOutboxE2ECases:
         # Verify entry was created (entries are no longer automatically pruned)
         outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
         assert len(outbox_entries) == 1  # Entry exists since automatic pruning was removed
-        
+
         # Verify the outbox entry has the correct structure
         outbox_entry = outbox_entries[0]
         assert outbox_entry.aggregatetype == "hbi.hosts"
@@ -450,11 +452,11 @@ class TestOutboxE2ECases:
         # Verify all entries were created (entries are no longer automatically pruned)
         all_entries = db.session.query(Outbox).all()
         assert len(all_entries) == 3  # All entries exist since automatic pruning was removed
-        
+
         # Verify each entry has the correct structure
         operations = [entry.operation for entry in all_entries]
         assert "ReportResource" in operations  # created event
-        assert "ReportResource" in operations  # updated event  
+        assert "ReportResource" in operations  # updated event
         assert "DeleteResource" in operations  # delete event
 
     def test_payload_json_serialization(self, db_create_host, db_get_host):
@@ -621,7 +623,7 @@ class TestOutboxE2ECases:
             # Verify outbox entry was created (entries are no longer automatically pruned)
             outbox_entries = db.session.query(Outbox).filter_by(aggregateid=created_host.id).all()
             assert len(outbox_entries) == 1  # Entry exists since automatic pruning was removed
-            
+
             # Verify the outbox entry has the correct structure
             outbox_entry = outbox_entries[0]
             assert outbox_entry.aggregatetype == "hbi.hosts"
@@ -792,7 +794,7 @@ class TestOutboxE2ECases:
                 # Verify outbox entry was created (entries are no longer automatically pruned)
                 outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
                 assert len(outbox_entries) == 1  # Entry exists since automatic pruning was removed
-                
+
                 # Verify the outbox entry has the correct structure
                 outbox_entry = outbox_entries[0]
                 assert outbox_entry.aggregatetype == "hbi.hosts"
@@ -1080,7 +1082,7 @@ class TestOutboxE2ECases:
             # Verify outbox entry was created (since we're patching the function, it won't be deleted immediately)
             outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
             assert len(outbox_entries) == 1  # Entry exists since we patched the function
-            
+
             # Verify the outbox entry has the correct structure
             outbox_entry = outbox_entries[0]
             assert outbox_entry.aggregatetype == "hbi.hosts"
@@ -1277,7 +1279,7 @@ class TestOutboxE2ECases:
                 # Verify outbox entries were created (entries are no longer automatically pruned)
                 outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
                 assert len(outbox_entries) == 2  # Two entries exist since automatic pruning was removed
-                
+
                 # Verify the outbox entries have the correct structure
                 operations = [entry.operation for entry in outbox_entries]
                 assert "ReportResource" in operations  # Both should be ReportResource operations
@@ -1297,7 +1299,7 @@ class TestOutboxE2ECases:
             extra_data={
                 "display_name": "host-with-facts",
                 "ansible_host": "facts.test.host",
-                "facts": {"test_namespace": {"original_key": "original_value", "existing_key": "existing_value"}}
+                "facts": {"test_namespace": {"original_key": "original_value", "existing_key": "existing_value"}},
             }
         )
         host_id = str(host.id)
@@ -1366,7 +1368,7 @@ class TestOutboxE2ECases:
             extra_data={
                 "display_name": "host-for-actual-facts-outbox",
                 "ansible_host": "actual.facts.outbox.host",
-                "facts": {"test_namespace": {"original_key": "original_value", "existing_key": "existing_value"}}
+                "facts": {"test_namespace": {"original_key": "original_value", "existing_key": "existing_value"}},
             }
         )
         host_id = str(host.id)
@@ -1458,7 +1460,7 @@ class TestOutboxE2ECases:
             # Verify outbox entry was created (since we're patching the function, it won't be deleted immediately)
             outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
             assert len(outbox_entries) == 1  # Entry exists since we patched the function
-            
+
             # Verify the outbox entry has the correct structure
             outbox_entry = outbox_entries[0]
             assert outbox_entry.aggregatetype == "hbi.hosts"

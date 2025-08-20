@@ -15,6 +15,7 @@ from lib.metrics import outbox_save_success
 
 logger = get_logger(__name__)
 
+
 # remove the processed host from the outbox table
 def remove_event_from_outbox(key):
     try:
