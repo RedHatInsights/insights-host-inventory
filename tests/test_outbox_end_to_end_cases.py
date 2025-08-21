@@ -859,14 +859,17 @@ class TestOutboxE2ECases:
             assert updated_host.display_name == "updated-host-name"
             assert updated_host.ansible_host == "updated.ansible.host"
 
-    @pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
+    @pytest.mark.usefixtures("event_producer", "notification_event_producer")
     def test_host_delete_via_api_endpoint_with_actual_outbox_validation(
         self,
         api_delete_host,
         db_create_host,
         db_get_host,
     ):
-        """Test that deleting a host via DELETE API endpoint triggers actual outbox entry creation."""
+        """
+        Test that deleting a host via DELETE API endpoint triggers actual outbox entry creation and
+        automatic cleanup.
+        """
 
         # Create a host to delete
         host = db_create_host(extra_data={"display_name": "host-to-delete", "ansible_host": "delete.test.host"})
@@ -876,35 +879,65 @@ class TestOutboxE2ECases:
         assert db_get_host(host.id) is not None
         assert host.display_name == "host-to-delete"
 
-        # Make DELETE request to delete the host (using actual outbox, not mocked)
-        response_status, _ = api_delete_host(host.id)
+        # Create a mock event producer that doesn't clean up the outbox entry
+        # This allows us to validate the outbox entry structure
+        class MockEventProducerNoCleanup:
+            def __init__(self):
+                self.mq_topic = "test-topic"
+
+            def write_event(self, event, key, headers, *, wait=False):
+                # Don't call remove_event_from_outbox, just simulate the event production
+                pass
+
+            def close(self):
+                pass
+
+        # Use the mock event producer to test outbox entry creation without cleanup
+        with patch("api.host.current_app.event_producer", MockEventProducerNoCleanup()):
+            # Make DELETE request to delete the host
+            response_status, _ = api_delete_host(host.id)
+
+            # Verify the API request was successful
+            assert response_status == 200
+
+            # Verify the host was actually deleted from the database
+            deleted_host = db_get_host(host.id)
+            assert deleted_host is None
+
+            # Verify that the outbox entry was created with correct structure
+            outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
+            assert len(outbox_entries) == 1
+
+            # Verify the outbox entry has the correct structure and aggregate_id
+            outbox_entry = outbox_entries[0]
+            assert str(outbox_entry.aggregateid) == host_id  # Verify aggregate_id matches host_id
+            assert outbox_entry.aggregatetype == "hbi.hosts"
+            assert outbox_entry.operation == "DeleteResource"
+            assert outbox_entry.version == "v1beta2"
+            assert outbox_entry.payload["reference"]["resource_type"] == "host"
+            assert outbox_entry.payload["reference"]["resource_id"] == host_id
+
+        # Now test with the real event producer to verify automatic cleanup
+        # Create another host to delete
+        host2 = db_create_host(extra_data={"display_name": "host-to-delete-2", "ansible_host": "delete2.test.host"})
+        host2_id = str(host2.id)
+
+        # Verify initial state - host exists
+        assert db_get_host(host2.id) is not None
+        assert host2.display_name == "host-to-delete-2"
+
+        # Make DELETE request to delete the second host (using real event producer)
+        response_status, _ = api_delete_host(host2.id)
 
         # Verify the API request was successful
         assert response_status == 200
 
         # Verify the host was actually deleted from the database
-        deleted_host = db_get_host(host.id)
-        assert deleted_host is None
+        deleted_host2 = db_get_host(host2.id)
+        assert deleted_host2 is None
 
-        # Before cleaning up the outbox table, verify that aggregate_id for the delete event
-        # is the same as that of the deleted host's ID
-        outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
-        assert len(outbox_entries) == 1
-
-        # Verify the outbox entry has the correct structure and aggregate_id
-        outbox_entry = outbox_entries[0]
-        assert str(outbox_entry.aggregateid) == host_id  # Verify aggregate_id matches host_id
-        assert outbox_entry.aggregatetype == "hbi.hosts"
-        assert outbox_entry.operation == "DeleteResource"
-        assert outbox_entry.version == "v1beta2"
-        assert outbox_entry.payload["reference"]["resource_type"] == "host"
-        assert outbox_entry.payload["reference"]["resource_id"] == host_id
-
-        # Clean up the outbox table by removing the event
-        remove_event_from_outbox(host_id)
-
-        # Query the outbox at the end and assert that it has zero records
-        remaining_outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
+        # Verify that the outbox table has been automatically cleaned up by the real event producer
+        remaining_outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host2_id).all()
         assert len(remaining_outbox_entries) == 0
 
     @pytest.mark.usefixtures("event_producer_mock")
