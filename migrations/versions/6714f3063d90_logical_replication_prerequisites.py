@@ -68,7 +68,7 @@ def upgrade():
             with op.get_context().autocommit_block():
                 op.execute(
                     text(f"""
-                        CREATE UNIQUE INDEX CONCURRENTLY {index_name}
+                        CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS {index_name}
                         ON {partition_name} (org_id, id, insights_id);
                     """)
                 )
@@ -100,7 +100,7 @@ def upgrade():
         # Step 3: Create the parent index (will take a lock briefly)
         op.execute(
             text(f"""
-                CREATE UNIQUE INDEX hosts_replica_identity_idx
+                CREATE UNIQUE INDEX IF NOT EXISTS hosts_replica_identity_idx
                 ON {INVENTORY_SCHEMA}.hosts (org_id, id, insights_id);
             """)
         )
