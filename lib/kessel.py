@@ -175,7 +175,7 @@ class Kessel:
             resource_id=resource_id,
             reporter=reporter_reference_pb2.ReporterReference(
                 type=permission.resource_type.namespace,  # e.g., "hbi"
-                instance_id=reporter.reporter_instance_id
+                instance_id=reporter.instance_id
             ),
         )
         
@@ -208,7 +208,7 @@ class Kessel:
             resource_id=resource_id,
             reporter=reporter_reference_pb2.ReporterReference(
                 type=permission.resource_type.namespace,
-                instance_id=reporter.reporter_instance_id
+                instance_id=reporter.instance_id
             ),
         )
         
@@ -296,7 +296,7 @@ class Kessel:
         request = report_resource_request_pb2.ReportResourceRequest(
             type="host",
             reporter_type="hbi",
-            reporter_instance_id=reporter.reporter_instance_id,
+            reporter_instance_id=reporter.instance_id,
             representations=representations
         )
 
@@ -309,7 +309,7 @@ class Kessel:
                 resource_id=id,
                 reporter=reporter_reference_pb2.ReporterReference(
                     type="hbi",
-                    instance_id=reporter.reporter_instance_id
+                    instance_id=reporter.instance_id
                 )
             )
         )
