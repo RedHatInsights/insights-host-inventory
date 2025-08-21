@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from app.auth.identity import Identity
 from app.auth.identity import create_mock_identity_with_org_id
 from app.auth.identity import to_auth_header
+from app.exceptions import ValidationException
 from app.instrumentation import log_host_stale_notification_succeeded
 from app.logging import get_logger
 from app.logging import threadctx
@@ -161,7 +162,7 @@ def run(
 
                 stale_host_notification_success_count.inc()
                 result.success_logger()
-            except ValidationError as ve:
+            except (ValidationError, ValidationException) as ve:
                 logger.warning(f"Skipping host {host.id} due to validation error: {ve}")
                 stale_host_notification_fail_count.inc()
             except Exception as e:
