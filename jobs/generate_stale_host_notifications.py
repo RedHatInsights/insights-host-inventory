@@ -1,11 +1,12 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 import sys
+from datetime import UTC
 from datetime import datetime
-from datetime import timezone
 from functools import partial
 from logging import Logger
 
 from connexion import FlaskApp
+from marshmallow.exceptions import ValidationError
 from sqlalchemy import ColumnElement
 from sqlalchemy import and_
 from sqlalchemy import or_
@@ -15,6 +16,7 @@ from sqlalchemy.orm import Session
 from app.auth.identity import Identity
 from app.auth.identity import create_mock_identity_with_org_id
 from app.auth.identity import to_auth_header
+from app.exceptions import ValidationException
 from app.instrumentation import log_host_stale_notification_succeeded
 from app.logging import get_logger
 from app.logging import threadctx
@@ -151,27 +153,29 @@ def run(
 
         logger.info("%s hosts found as stale", stale_host_count)
 
-        try:
-            # Only load in 500 host records at a time
-            for host in query.yield_per(500):
+        # Only load in 500 host records at a time
+        for host in query.yield_per(500):
+            try:
                 identity = create_mock_identity_with_org_id(host.org_id)
                 result = _create_host_operation_result(host, identity, logger)
                 send_notification(notification_event_producer, NotificationType.system_became_stale, vars(result.row))
 
                 stale_host_notification_success_count.inc()
                 result.success_logger()
-
-            stale_host_timestamp._update_last_succeeded(job_start_time)
-            session.commit()
-        except Exception:
-            logger.error("Error while generating stale-host notifications")
-            raise
+            except (ValidationError, ValidationException) as ve:
+                logger.warning(f"Skipping host {host.id} due to validation error: {ve}")
+                stale_host_notification_fail_count.inc()
+            except Exception as e:
+                logger.exception(f"Error processing host {host.id}: {e}")
+                raise
+        stale_host_timestamp._update_last_succeeded(job_start_time)
+        session.commit()
 
 
 if __name__ == "__main__":
     logger = get_logger(LOGGER_NAME)
     job_type = "Stale host notification"
-    job_start_time = datetime.now(timezone.utc)
+    job_start_time = datetime.now(UTC)
     sys.excepthook = partial(excepthook, logger, job_type)
 
     threadctx.request_id = None

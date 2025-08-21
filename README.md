@@ -50,7 +50,7 @@ the [Inventory section in our Platform Docs site](https://consoledot.pages.redha
 Before starting, ensure you have the following installed on your system:
 
 - **Docker**: For running containers and services.
-- **Python 3.9.x**: The recommended version for this project.
+- **Python 3.12.x**: The recommended version for this project.
 - **pipenv**: For managing Python dependencies.
 
 ### Environment setup
@@ -63,13 +63,13 @@ To install this, use the command appropriate for your system:
 ##### Fedora/Centos
 
 ```bash
-sudo dnf install libpq-devel postgresql
+sudo dnf install libpq-devel postgresql python3.12-devel
 ```
 
 ##### Debian/Ubuntu
 
 ```bash
-sudo apt-get install libpq-dev postgresql
+sudo apt-get install libpq-dev postgresql python3.12-dev
 ```
 
 ##### MacOS (using Homebrew)

@@ -1,6 +1,6 @@
 import uuid
+from datetime import UTC
 from datetime import datetime
-from datetime import timezone
 
 import pytest
 from dateutil.parser import parse
@@ -287,7 +287,7 @@ def test_group_with_culled_hosts(
 ):
     # Create a group and 3 hosts
     group_id = db_create_group("test_group").id
-    current_time = datetime.now(tz=timezone.utc)
+    current_time = datetime.now(tz=UTC)
     if current_time.day > 28:
         current_time = current_time.replace(day=28)
     culling_time = current_time.replace(year=2022)

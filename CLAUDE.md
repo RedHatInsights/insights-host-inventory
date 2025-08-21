@@ -47,7 +47,7 @@ This is the Red Hat Insights Host Based Inventory (HBI) service, which manages s
 - **Web Service** (`run.py`): Flask REST API for inventory operations
 - **MQ Service** (`inv_mq_service.py`): Kafka consumer for host updates
 - **Export Service** (`inv_export_service.py`): Data export functionality
-- **Reaper** (`host_reaper.py`): Cleanup of stale hosts
+- **Reaper** (`jobs/host_reaper.py`): Cleanup of stale hosts
 
 ### Data Flow
 1. Host data arrives via Kafka messages (processed by MQ service)

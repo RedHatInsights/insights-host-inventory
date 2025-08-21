@@ -314,7 +314,6 @@ class Config:
             "IMMUTABLE_TIME_TO_DELETE_SECONDS", days_to_seconds(730)
         )
 
-        self.bypass_kessel_jobs = os.getenv("BYPASS_KESSEL_JOBS", "false").lower() == "true"
         self.use_sub_man_id_for_host_id = os.environ.get("USE_SUBMAN_ID", "false").lower() == "true"
         self.host_delete_chunk_size = int(os.getenv("HOST_DELETE_CHUNK_SIZE", "1000"))
         self.script_chunk_size = int(os.getenv("SCRIPT_CHUNK_SIZE", "500"))
@@ -366,10 +365,6 @@ class Config:
         self.replica_namespace = os.environ.get("REPLICA_NAMESPACE", "false").lower() == "true"
         if self.replica_namespace:
             self.logger.info("***PROD REPLICA NAMESPACE DETECTED - Kafka operations will be disabled ***")
-
-        self.hbi_db_refactoring_use_old_table = (
-            os.environ.get("HBI_DB_REFACTORING_USE_OLD_TABLE", "false").lower() == "true"
-        )
 
     def _build_base_url_path(self):
         app_name = os.getenv("APP_NAME", "inventory")

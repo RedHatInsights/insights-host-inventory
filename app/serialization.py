@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import timezone
+from datetime import UTC
 
 from dateutil.parser import isoparse
 from marshmallow import ValidationError
@@ -294,7 +294,7 @@ def serialize_facts(facts):
 
 
 def _serialize_datetime(dt):
-    return dt.astimezone(timezone.utc).isoformat()
+    return dt.astimezone(UTC).isoformat()
 
 
 def _serialize_staleness_to_string(dt) -> str:
@@ -304,14 +304,14 @@ def _serialize_staleness_to_string(dt) -> str:
     """
     if isinstance(dt, str):
         return dt
-    return dt.astimezone(timezone.utc).isoformat()
+    return dt.astimezone(UTC).isoformat()
 
 
 def _deserialize_datetime(s):
     dt = isoparse(s)
     if not dt.tzinfo:
         raise ValueError(f'Timezone not specified in "{s}".')
-    return dt.astimezone(timezone.utc)
+    return dt.astimezone(UTC)
 
 
 def _serialize_uuid(u):

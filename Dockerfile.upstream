@@ -10,10 +10,12 @@ WORKDIR $APP_ROOT
 
 RUN (microdnf module enable -y postgresql:16 || curl -o /etc/yum.repos.d/postgresql.repo $pgRepo) && \
     microdnf upgrade -y && \
-    microdnf install --setopt=tsflags=nodocs -y postgresql python39 rsync tar procps-ng make && \
+    microdnf install --setopt=tsflags=nodocs -y postgresql python3.12 python3.12-pip rsync tar procps-ng make && \
     rpm -qa | sort > packages-before-devel-install.txt && \
-    microdnf install --setopt=tsflags=nodocs -y libpq-devel python3-devel gcc cargo rust && \
-    rpm -qa | sort > packages-after-devel-install.txt
+    microdnf install --setopt=tsflags=nodocs -y libpq-devel python3.12-devel gcc cargo rust && \
+    rpm -qa | sort > packages-after-devel-install.txt && \
+    ln -s /usr/bin/python3.12 /usr/bin/python && \
+    ln -s /usr/bin/python3.12 /usr/bin/python3
 
 COPY api/ api/
 COPY app/ app/
@@ -25,41 +27,27 @@ COPY utils/ utils/
 COPY mk/ mk/
 COPY Makefile Makefile
 COPY gunicorn.conf.py gunicorn.conf.py
-COPY host_reaper.py host_reaper.py
-COPY host_synchronizer.py host_synchronizer.py
 COPY inv_mq_service.py inv_mq_service.py
-COPY inv_publish_hosts.py inv_publish_hosts.py
 COPY inv_export_service.py inv_export_service.py
 COPY logconfig.yaml logconfig.yaml
 COPY manage.py manage.py
-COPY pendo_syncher.py pendo_syncher.py
 COPY Pipfile Pipfile
 COPY Pipfile.lock Pipfile.lock
 COPY pytest.ini pytest.ini
-COPY rebuild_events_topic.py rebuild_events_topic.py
 COPY run_gunicorn.py run_gunicorn.py
 COPY run_command.sh run_command.sh
 COPY run.py run.py
-COPY system_profile_validator.py system_profile_validator.py
 COPY inv_migration_runner.py inv_migration_runner.py
-COPY generate_stale_host_notifications.py generate_stale_host_notifications.py
-COPY create_ungrouped_host_groups.py create_ungrouped_host_groups.py
-COPY delete_ungrouped_host_groups.py delete_ungrouped_host_groups.py
-COPY assign_ungrouped_hosts_to_groups.py assign_ungrouped_hosts_to_groups.py
-COPY export_group_data_s3.py export_group_data_s3.py
-COPY update_hosts_last_check_in.py update_hosts_last_check_in.py
-COPY delete_hosts_without_id_facts.py delete_hosts_without_id_facts.py
 COPY app_migrations/ app_migrations/
 COPY jobs/ jobs/
-COPY add_inventory_view.py add_inventory_view.py
 
 ENV PIP_NO_CACHE_DIR=1
 ENV PIPENV_CLEAR=1
 ENV PIPENV_VENV_IN_PROJECT=1
 
-RUN python3 -m pip install --upgrade pip setuptools wheel && \
-    python3 -m pip install pipenv && \
-    python3 -m pip install dumb-init && \
+RUN python3.12 -m pip install --upgrade pip setuptools wheel && \
+    python3.12 -m pip install pipenv && \
+    python3.12 -m pip install dumb-init && \
     pipenv install --system --dev
 
 # allows pre-commit and unit tests to run successfully within the container if image is built in "test" environment
@@ -71,7 +59,7 @@ RUN if [ "$TEST_IMAGE" = "true" ]; then \
     fi
 
 # remove devel packages that were only necessary for psycopg2 to compile
-RUN microdnf remove  -y  libpq-devel python3-devel gcc cargo rust rust-std-static && \
+RUN microdnf remove  -y  libpq-devel python3.12-devel gcc cargo rust rust-std-static && \
     microdnf clean all
 
 USER 1001

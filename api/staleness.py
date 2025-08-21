@@ -39,6 +39,7 @@ from app.serialization import serialize_host
 from app.serialization import serialize_staleness_response
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness_api
+from lib.db import session_guard
 from lib.middleware import rbac
 from lib.staleness import add_staleness
 from lib.staleness import patch_staleness
@@ -95,25 +96,39 @@ def _update_hosts_staleness_async(identity: Identity, app: Flask, staleness: Sta
             num_hosts = hosts_query.count()
             st = staleness_timestamps()
             staleness_dict = serialize_staleness_to_dict(staleness)
-            list_of_events_params = []
             if num_hosts > 0:
                 logger.debug(f"Found {num_hosts} hosts for org_id: {identity.org_id}")
-                for host in hosts_query.yield_per(500):
-                    host._update_all_per_reporter_staleness(staleness_dict, st)
-                    host._update_staleness_timestamps()
-                    serialized_host = serialize_host(
-                        host, for_mq=True, staleness_timestamps=st, staleness=staleness_dict
-                    )
 
-                    # Create host update event and append it to an array
-                    event, headers = _build_host_updated_event_params(serialized_host, host, identity)
-                    list_of_events_params.append((event, headers, str(host.id)))
-                hosts_query.session.commit()
+                # Process hosts in batches to avoid memory issues with large datasets
+                processed_hosts = 0
 
-                # After a successful commit to the db
-                # call all the events in the list
-                for event, headers, host_id in list_of_events_params:
-                    app.event_producer.write_event(event, host_id, headers, wait=True)
+                while processed_hosts < num_hosts:
+                    list_of_events_params = []
+
+                    # Get a batch of hosts
+                    batch_hosts = hosts_query.offset(processed_hosts).limit(500).all()
+                    if not batch_hosts:
+                        break
+
+                    with session_guard(hosts_query.session):
+                        for host in batch_hosts:
+                            host._update_all_per_reporter_staleness(staleness_dict, st)
+                            host._update_staleness_timestamps()
+                            serialized_host = serialize_host(
+                                host, for_mq=True, staleness_timestamps=st, staleness=staleness_dict
+                            )
+
+                            # Create host update event and append it to an array
+                            event, headers = _build_host_updated_event_params(serialized_host, host, identity)
+                            list_of_events_params.append((event, headers, str(host.id)))
+
+                        processed_hosts += len(batch_hosts)
+                        logger.debug(f"Updated staleness asynchronously for {processed_hosts}/{num_hosts} hosts")
+
+                    # After a successful commit to the db
+                    # call all the events in the list
+                    for event, headers, host_id in list_of_events_params:
+                        app.event_producer.write_event(event, host_id, headers, wait=True)
 
                 delete_cached_system_keys(org_id=identity.org_id, spawn=True)
             logger.debug("Leaving host staleness update thread")

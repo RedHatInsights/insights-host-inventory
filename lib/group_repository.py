@@ -1,5 +1,4 @@
 import time
-from typing import Optional
 from uuid import UUID
 
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
@@ -58,16 +57,9 @@ def _update_hosts_for_group_changes(host_id_list: list[str], group_id_list: list
     ]
 
     # Update groups data on each host record
-    if inventory_config().hbi_db_refactoring_use_old_table:
-        # Old code: filter by ID only
-        db.session.query(Host).filter(Host.id.in_(host_id_list)).update(
-            {"groups": serialized_groups}, synchronize_session="fetch"
-        )
-    else:
-        # New code: filter by ID and org_id
-        db.session.query(Host).filter(Host.id.in_(host_id_list), Host.org_id == identity.org_id).update(
-            {"groups": serialized_groups}, synchronize_session="fetch"
-        )
+    db.session.query(Host).filter(Host.id.in_(host_id_list), Host.org_id == identity.org_id).update(
+        {"groups": serialized_groups}, synchronize_session="fetch"
+    )
     db.session.commit()
 
     return serialized_groups, host_id_list
@@ -168,20 +160,11 @@ def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str):
         synchronize_session="fetch"
     )
 
-    if inventory_config().hbi_db_refactoring_use_old_table:
-        # Old code: constructor without org_id
-        host_group_assoc = [
-            HostGroupAssoc(host_id=host_id, group_id=group_id)
-            for host_id in host_id_list
-            if host_id not in ids_already_in_this_group
-        ]
-    else:
-        # New code: constructor with org_id
-        host_group_assoc = [
-            HostGroupAssoc(host_id=host_id, group_id=group_id, org_id=org_id)
-            for host_id in host_id_list
-            if host_id not in ids_already_in_this_group
-        ]
+    host_group_assoc = [
+        HostGroupAssoc(host_id=host_id, group_id=group_id, org_id=org_id)
+        for host_id in host_id_list
+        if host_id not in ids_already_in_this_group
+    ]
     db.session.add_all(host_group_assoc)
 
     _update_group_update_time(group_id, org_id)
@@ -247,12 +230,12 @@ def add_hosts_to_group(
 
 
 def add_group(
-    group_name: Optional[str],
+    group_name: str | None,
     org_id: str,
-    account: Optional[str] = None,
-    group_id: Optional[UUID] = None,
+    account: str | None = None,
+    group_id: UUID | None = None,
     ungrouped: bool = False,
-    session: Optional[Session] = None,
+    session: Session | None = None,
 ) -> Group:
     session = session or db.session
     new_group = Group(org_id=org_id, name=group_name, account=account, id=group_id, ungrouped=ungrouped)
@@ -264,11 +247,11 @@ def add_group(
 
 
 def add_group_with_hosts(
-    group_name: Optional[str],
+    group_name: str | None,
     host_id_list: list[str],
     identity: Identity,
     account: str,
-    group_id: Optional[UUID],
+    group_id: UUID | None,
     ungrouped: bool,
     staleness: AttrDict,
     event_producer: EventProducer,
@@ -424,7 +407,7 @@ def _remove_hosts_from_group(group_id, host_id_list, org_id):
     return removed_host_ids
 
 
-def get_group_by_id_from_db(group_id: str, org_id: str, session: Optional[Session] = None) -> Group:
+def get_group_by_id_from_db(group_id: str, org_id: str, session: Session | None = None) -> Group:
     session = session or db.session
     query = session.query(Group).filter(Group.org_id == org_id, Group.id == group_id)
     return query.one_or_none()
@@ -484,16 +467,11 @@ def _update_group_update_time(group_id: str, org_id: str):
 
 
 def get_group_using_host_id(host_id: str, org_id: str):
-    if inventory_config().hbi_db_refactoring_use_old_table:
-        # Old code: filter by host_id only
-        assoc = db.session.query(HostGroupAssoc).filter(HostGroupAssoc.host_id == host_id).one_or_none()
-    else:
-        # New code: filter by org_id and host_id
-        assoc = (
-            db.session.query(HostGroupAssoc)
-            .filter(HostGroupAssoc.org_id == org_id, HostGroupAssoc.host_id == host_id)
-            .one_or_none()
-        )
+    assoc = (
+        db.session.query(HostGroupAssoc)
+        .filter(HostGroupAssoc.org_id == org_id, HostGroupAssoc.host_id == host_id)
+        .one_or_none()
+    )
     return get_group_by_id_from_db(str(assoc.group_id), org_id) if assoc else None
 
 

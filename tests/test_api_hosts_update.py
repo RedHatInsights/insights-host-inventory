@@ -350,7 +350,7 @@ def test_event_producer_instrumentation(mocker, event_producer, db_create_host, 
     response_status, _ = api_patch(url, patch_doc)
 
     assert_response_status(response_status, expected_status=200)
-    assert mocked_callback_function.called_once()
+    mocked_callback_function.assert_called_once()
 
 
 def test_add_facts_without_fact_dict(api_patch):

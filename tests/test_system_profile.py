@@ -4,9 +4,9 @@ from yaml.parser import ParserError
 from app.config import Config
 from app.environment import RuntimeEnvironment
 from app.exceptions import ValidationException
+from jobs.system_profile_validator import _validate_schema_for_pr_and_generate_comment
 from lib.host_repository import find_hosts_by_staleness
 from lib.system_profile_validate import validate_sp_for_branch
-from system_profile_validator import _validate_schema_for_pr_and_generate_comment
 from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_URL
@@ -299,7 +299,7 @@ def test_system_profile_operating_system(mq_create_or_update_host, api_get):
     ]
     ordered_insights_ids = [generate_uuid() for _ in range(len(ordered_sp_data))]
     # Create an association between the insights IDs
-    ordered_host_data = dict(zip(ordered_insights_ids, ordered_sp_data))
+    ordered_host_data = dict(zip(ordered_insights_ids, ordered_sp_data, strict=False))
 
     # Create hosts for the above host data (in shuffled order)
     _ = [
@@ -337,7 +337,7 @@ def test_system_profile_sap_system(mq_create_or_update_host, api_get):
     ordered_insights_ids = [generate_uuid() for _ in range(len(ordered_sap_system_data))]
 
     # Create an association between the insights IDs
-    ordered_host_data = dict(zip(ordered_insights_ids, ordered_sap_system_data))
+    ordered_host_data = dict(zip(ordered_insights_ids, ordered_sap_system_data, strict=False))
 
     # Create hosts for the above host data
     _ = [
@@ -375,7 +375,7 @@ def test_system_profile_sap_sids(mq_create_or_update_host, api_get):
     ordered_sap_sids_data = [["ABC", "HZO", "XYZ"], ["ABC"], [], [], ["XYZ"], []]
     ordered_insights_ids = [generate_uuid() for _ in range(len(ordered_sap_sids_data))]
 
-    ordered_host_data = dict(zip(ordered_insights_ids, ordered_sap_sids_data))
+    ordered_host_data = dict(zip(ordered_insights_ids, ordered_sap_sids_data, strict=False))
 
     # Create hosts for the above host data
     _ = [
@@ -405,7 +405,7 @@ def test_system_profile_sap_sids_with_search(mq_create_or_update_host, api_get):
     ordered_sap_sids_data = [["ABC", "HZO", "XYZ"], ["ABC"], [], [], ["XYZ"], []]
     ordered_insights_ids = [generate_uuid() for _ in range(len(ordered_sap_sids_data))]
 
-    ordered_host_data = dict(zip(ordered_insights_ids, ordered_sap_sids_data))
+    ordered_host_data = dict(zip(ordered_insights_ids, ordered_sap_sids_data, strict=False))
 
     # Create hosts for the above host data
     _ = [
