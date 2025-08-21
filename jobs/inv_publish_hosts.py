@@ -85,6 +85,7 @@ DROP_PUBLICATIONS = [
     "hbi_hosts_pub",
     "hbi_hosts_pub_v1_0_0",
     "hbi_hosts_pub_v1_0_1",
+    "hbi_hosts_pub_v1_0_2",
 ]
 
 # Replication slots to drop
@@ -153,7 +154,7 @@ def setup_publication(session, logger):
 
     # 3) create the publication
     logger.info(f'Creating publication "{PUBLICATION_NAME}".')
-    session.execute(CREATE_PUBLICATION_SQL)
+    # session.execute(CREATE_PUBLICATION_SQL)
 
     # 4) sanity-check replication slots
     bad = []
