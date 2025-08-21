@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 import csv
 import io
 import os

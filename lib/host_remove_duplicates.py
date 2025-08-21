@@ -5,7 +5,6 @@ from typing import Any
 from flask_sqlalchemy.query import Query
 from sqlalchemy.orm import Session
 
-from app.common import inventory_config
 from app.models import Host
 from app.queue.event_producer import EventProducer
 from lib.host_delete import delete_hosts
@@ -97,14 +96,9 @@ def delete_duplicate_hosts(
             logger.info(f"Found {len(duplicate_host_ids)} duplicates for org_id: {actual_org_id}")
             total_deleted += len(duplicate_host_ids)
         else:
-            if inventory_config().hbi_db_refactoring_use_old_table:
-                # Old code: filter by ID only
-                hosts_by_ids_query = misc_session.query(Host).filter(Host.id.in_(duplicate_host_ids))
-            else:
-                # New code: filter by org_id and ID
-                hosts_by_ids_query = misc_session.query(Host).filter(
-                    Host.org_id == actual_org_id, Host.id.in_(duplicate_host_ids)
-                )
+            hosts_by_ids_query = misc_session.query(Host).filter(
+                Host.org_id == actual_org_id, Host.id.in_(duplicate_host_ids)
+            )
             deleted_count = len(
                 list(
                     delete_hosts(

@@ -6,7 +6,6 @@ from itertools import islice
 from typing import Any
 
 from sqlalchemy import Boolean
-from sqlalchemy import String
 from sqlalchemy import case
 from sqlalchemy import func
 from sqlalchemy import select
@@ -16,7 +15,6 @@ from sqlalchemy.orm import Query
 from sqlalchemy.orm import load_only
 from sqlalchemy.sql import expression
 from sqlalchemy.sql.expression import ColumnElement
-from sqlalchemy.sql.expression import cast
 
 from api.filtering.db_filters import canonical_fact_filter
 from api.filtering.db_filters import host_id_list_filter
@@ -427,8 +425,9 @@ def get_os_info(
 ):
     columns = [
         Host.system_profile_facts["operating_system"]["name"].label("name"),
-        cast(Host.system_profile_facts["operating_system"]["major"], String).label("major"),
-        cast(Host.system_profile_facts["operating_system"]["minor"], String).label("minor"),
+        Host.system_profile_facts["operating_system"]["major"].label("major"),
+        Host.system_profile_facts["operating_system"]["minor"].label("minor"),
+        func.count().label("count"),
     ]
 
     filters, query_base = query_filters(
@@ -439,30 +438,22 @@ def get_os_info(
         rbac_filter=rbac_filter,
         identity=identity,
     )
-    os_query = _find_hosts_entities_query(query_base=query_base, columns=columns)
+    os_query = _find_hosts_entities_query(query_base=query_base, columns=columns, identity=identity)
 
     # Only include records that have set an operating_system.name
     filters += (columns[0].isnot(None),)
 
-    query_results = os_query.filter(*filters).all()
+    query_results = os_query.filter(*filters).group_by(*columns[:-1]).order_by(func.count().desc()).all()
     db.session.close()
-    os_dict = {}
-    for result in query_results:
-        if not result or None in result:
-            continue
-        operating_system = ".".join(result)
-        if operating_system not in os_dict:
-            os_dict[operating_system] = 1
-        else:
-            os_dict[operating_system] += 1
 
     os_count_list = []
-    for os_joined, count in os_dict.items():
-        os = os_joined.split(".")
-        os_count_item = {"value": {"name": os[0], "major": int(os[1]), "minor": int(os[2])}, "count": count}
+    for result in query_results:
+        os_count_item = {
+            "value": {"name": result[0], "major": int(result[1]), "minor": int(result[2])},
+            "count": result[3],
+        }
         os_count_list.append(os_count_item)
 
-    os_count_list = sorted(os_count_list, reverse=True, key=lambda item: item["count"])  # type: ignore [arg-type, return-value]
     query_count = len(os_count_list)
     os_list = list(islice(islice(os_count_list, offset, None), limit))
     return os_list, query_count

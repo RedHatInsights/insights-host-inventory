@@ -8,7 +8,7 @@ import pytest
 
 from app.logging import threadctx
 from app.models import db
-from host_reaper import run as host_reaper_run
+from jobs.host_reaper import run as host_reaper_run
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import build_staleness_url
 from tests.helpers.test_utils import now

@@ -47,13 +47,13 @@ run_inv_http_test_producer:
 	python3 utils/rest_producer.py
 
 run_reaper:
-	python3 host_reaper.py
+	python3 jobs/host_reaper.py
 
 run_pendo_syncher:
-	python3 pendo_syncher.py
+	python3 jobs/pendo_syncher.py
 
 run_host_view_create:
-	python3 add_inventory_view.py
+	python3 jobs/add_inventory_view.py
 
 run_host_delete_access_tags:
-	python3 delete_host_namespace_access_tags.py
+	python3 jobs/delete_host_namespace_access_tags.py
