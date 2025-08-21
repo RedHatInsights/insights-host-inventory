@@ -63,13 +63,13 @@ To install this, use the command appropriate for your system:
 ##### Fedora/Centos
 
 ```bash
-sudo dnf install libpq-devel postgresql
+sudo dnf install libpq-devel postgresql python3.12-devel
 ```
 
 ##### Debian/Ubuntu
 
 ```bash
-sudo apt-get install libpq-dev postgresql
+sudo apt-get install libpq-dev postgresql python3.12-dev
 ```
 
 ##### MacOS (using Homebrew)
