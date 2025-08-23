@@ -765,7 +765,7 @@ types-cffi==1.17.0.20250523 \
     # via
     #   -r requirements-build.in
     #   types-pyopenssl
-types-psutil==7.0.0.20250601 \
+types-psutil==7.0.0.20250822 \
     --hash=sha256:0c372e2d1b6529938a080a6ba4a9358e3dfc8526d82fabf40c1ef9325e4ca52e \
     --hash=sha256:71fe9c4477a7e3d4f1233862f0877af87bff057ff398f04f4e5c0ca60aded197
     # via -r requirements-build.in
