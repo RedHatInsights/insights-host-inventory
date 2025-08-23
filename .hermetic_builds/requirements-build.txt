@@ -775,7 +775,7 @@ types-pyopenssl==24.1.0.20240722 \
     # via
     #   -r requirements-build.in
     #   types-redis
-types-python-dateutil==2.9.0.20250708 \
+types-python-dateutil==2.9.0.20250822 \
     --hash=sha256:4d6d0cc1cc4d24a2dc3816024e502564094497b713f7befda4d5bc7a8e3fd21f \
     --hash=sha256:ccdbd75dab2d6c9696c350579f34cffe2c281e4c5f27a585b2a2438dd1d5c8ab
     # via -r requirements-build.in
