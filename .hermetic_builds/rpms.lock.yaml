@@ -74,13 +74,13 @@ arches:
     name: glibc-headers
     evr: 2.34-168.el9_6.23
     sourcerpm: glibc-2.34-168.el9_6.23.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/x86_64/appstream/os/Packages/k/kernel-headers-5.14.0-570.32.1.el9_6.x86_64.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/x86_64/appstream/os/Packages/k/kernel-headers-5.14.0-570.35.1.el9_6.x86_64.rpm
     repoid: ubi-9-for-x86_64-appstream-rpms
-    size: 3697753
-    checksum: sha256:13ee355b274f7e716e31827aa999087692342195b1bd8f10960cf46103b9d18b
+    size: 3705741
+    checksum: sha256:0e183ddf666087ee3f3eceb99840cc7b6cbc1237cc3cdf78b5c7e9533741ac1a
     name: kernel-headers
-    evr: 5.14.0-570.32.1.el9_6
-    sourcerpm: kernel-5.14.0-570.32.1.el9_6.src.rpm
+    evr: 5.14.0-570.35.1.el9_6
+    sourcerpm: kernel-5.14.0-570.35.1.el9_6.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/x86_64/appstream/os/Packages/k/keyutils-libs-devel-1.6.3-1.el9.x86_64.rpm
     repoid: ubi-9-for-x86_64-appstream-rpms
     size: 66082
@@ -1660,14 +1660,14 @@ arches:
     checksum: sha256:0cccf0d5308502f6acf6924cb9a77e0eb8c3392ef5662cbccf75b3e97e7e3084
     name: postgresql
     evr: 16.8-1.module+el9.6.0+22880+6b241eec
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/source/SRPMS/Packages/k/kernel-5.14.0-570.32.1.el9_6.src.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/source/SRPMS/Packages/k/kernel-5.14.0-570.35.1.el9_6.src.rpm
     repoid: rhel-9-for-x86_64-baseos-source-rpms
-    size: 149318464
-    checksum: sha256:4dcc6331d7308d00f7a3a698da55129d9344f1be385296cca16816b4b8ee2e03
+    size: 149340404
+    checksum: sha256:d08e69e5b1ce96cf260c69977b842e80f27575eae16536fb55a46e7cc426b5e6
     name: kernel
-    evr: 5.14.0-570.32.1.el9_6
+    evr: 5.14.0-570.35.1.el9_6
   module_metadata:
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/repodata/d6413620b70da3e46e9b36c02e417bde9683ed06cb88014d5b68ba313a54b892-modules.yaml.gz
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/repodata/c8af139732d3d51bc85bb0063d2924c8cc30422ad771effe57b0e08852c9f61d-modules.yaml.gz
     repoid: rhel-9-for-x86_64-appstream-rpms
     size: 32671
-    checksum: sha256:d6413620b70da3e46e9b36c02e417bde9683ed06cb88014d5b68ba313a54b892
+    checksum: sha256:c8af139732d3d51bc85bb0063d2924c8cc30422ad771effe57b0e08852c9f61d
