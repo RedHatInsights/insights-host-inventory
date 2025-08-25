@@ -366,10 +366,6 @@ class Config:
         if self.replica_namespace:
             self.logger.info("***PROD REPLICA NAMESPACE DETECTED - Kafka operations will be disabled ***")
 
-        self.hbi_db_refactoring_use_old_table = (
-            os.environ.get("HBI_DB_REFACTORING_USE_OLD_TABLE", "false").lower() == "true"
-        )
-
     def _build_base_url_path(self):
         app_name = os.getenv("APP_NAME", "inventory")
         path_prefix = os.getenv("PATH_PREFIX", "api")
