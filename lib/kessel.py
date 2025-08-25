@@ -296,7 +296,7 @@ class Kessel:
         request = report_resource_request_pb2.ReportResourceRequest(
             type="host",
             reporter_type="hbi",
-            reporter_instance_id= "3c4e2382-26c1-11f0-8e5c-ce0194e9e144",
+            reporter_instance_id= "redhat",
             representations=representations
         )
 
