@@ -315,6 +315,16 @@ def rbac_permissions_filter(rbac_filter: dict) -> list:
     return _query_filter
 
 
+def create_base_host_query(org_id: str, host_id_or_list: str | list[str] | None = None) -> Query:
+    query = Host.query.filter(Host.org_id == org_id)
+    if host_id_or_list:
+        if isinstance(host_id_or_list, str):
+            query = query.filter(Host.id == host_id_or_list)
+        elif isinstance(host_id_or_list, list):
+            query = query.filter(Host.id.in_(host_id_or_list))
+    return query
+
+
 def update_query_for_owner_id(identity: Identity, query: Query) -> Query:
     # kafka based requests have dummy identity for working around the identity requirement for CRUD operations
     if identity:
