@@ -3,7 +3,7 @@ from datetime import datetime
 from jsonschema import validate as jsonschema_validate
 
 from app.logging import get_logger
-from app.models.constants import EDGE_HOST_STALE_TIMESTAMP
+from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 from app.models.constants import INVENTORY_SCHEMA
 from app.models.constants import MAX_CANONICAL_FACTS_VERSION
 from app.models.constants import MIN_CANONICAL_FACTS_VERSION
@@ -40,19 +40,18 @@ from app.models.schemas import TagsSchema
 from app.models.schemas import YumRepoSchema
 from app.models.staleness import Staleness
 from app.models.system_profile_normalizer import SystemProfileNormalizer
+from app.models.system_profiles_dynamic import HostDynamicSystemProfile
 from app.models.utils import _create_staleness_timestamps_values
 from app.models.utils import _get_staleness_obj
 from app.models.utils import _set_display_name_on_save
 from app.models.utils import _time_now
 from app.models.utils import deleted_by_this_query
-from lib.feature_flags import get_flag_value
 
 logger = get_logger(__name__)
 
 __all__ = [
     "db",
     "migrate",
-    "get_flag_value",
     "jsonschema_validate",
     "logger",
     "ProviderType",
@@ -61,7 +60,7 @@ __all__ = [
     "TAG_VALUE_VALIDATION",
     "SPECIFICATION_DIR",
     "SYSTEM_PROFILE_SPECIFICATION_FILE",
-    "EDGE_HOST_STALE_TIMESTAMP",
+    "FAR_FUTURE_STALE_TIMESTAMP",
     "NEW_TO_OLD_REPORTER_MAP",
     "OLD_TO_NEW_REPORTER_MAP",
     "MIN_CANONICAL_FACTS_VERSION",
@@ -96,4 +95,5 @@ __all__ = [
     "_create_staleness_timestamps_values",
     "deleted_by_this_query",
     "datetime",
+    "HostDynamicSystemProfile",
 ]

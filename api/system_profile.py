@@ -1,5 +1,3 @@
-from typing import Optional
-
 import flask
 from confluent_kafka import Consumer as KafkaConsumer
 
@@ -86,10 +84,10 @@ def get_sap_sids(
 @metrics.api_request_time.time()
 def get_operating_system(
     tags=None,
-    page: Optional[int] = None,
-    per_page: Optional[int] = None,
-    staleness: Optional[list[str]] = None,
-    registered_with: Optional[list[str]] = None,
+    page: int | None = None,
+    per_page: int | None = None,
+    staleness: list[str] | None = None,
+    registered_with: list[str] | None = None,
     filter=None,
     rbac_filter=None,
 ):
@@ -115,6 +113,11 @@ def validate_schema(repo_fork="RedHatInsights", repo_branch="master", days=1, ma
     _ = (rbac_filter,)  # Unused. No RBAC needed because we check for specific users.
     # Use the identity header to make sure the user is someone from our team.
     config = Config(RuntimeEnvironment.SERVICE)
+
+    if config.replica_namespace:
+        logger.info("Running in replica cluster - skipping schema validation")
+        return flask_json_response({"message": "Schema validation skipped - running in replica cluster"})
+
     identity = get_current_identity()
     if not hasattr(identity, "user") or identity.user.get("username") not in config.sp_authorized_users:
         flask.abort(403, "This endpoint is restricted to HBI Admins.")

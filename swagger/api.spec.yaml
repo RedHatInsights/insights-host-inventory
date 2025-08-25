@@ -39,6 +39,7 @@ paths:
         - $ref: '#/components/parameters/stalenessParam'
         - $ref: '#/components/parameters/tagsParam'
         - $ref: '#/components/parameters/registered_with'
+        - $ref: '#/components/parameters/systemTypeParam'
         - $ref: '#/components/parameters/filter_param'
         - $ref: '#/components/parameters/fields_param'
       responses:
@@ -70,6 +71,7 @@ paths:
         - $ref: '#/components/parameters/updatedEnd'
         - $ref: '#/components/parameters/groupNameListParam'
         - $ref: '#/components/parameters/registered_with'
+        - $ref: '#/components/parameters/systemTypeParam'
         - $ref: '#/components/parameters/stalenessNoDefaultsParam'
         - $ref: '#/components/parameters/tagsParam'
         - $ref: '#/components/parameters/filter_param'
@@ -674,6 +676,7 @@ paths:
         - $ref: '#/components/parameters/updatedEnd'
         - $ref: '#/components/parameters/groupNameListParam'
         - $ref: '#/components/parameters/registered_with'
+        - $ref: '#/components/parameters/systemTypeParam'
         - $ref: '#/components/parameters/filter_param'
       responses:
         '200':
@@ -1034,6 +1037,7 @@ components:
           - alibaba
           - aws
           - azure
+          - discovery
           - gcp
           - ibm
       description: Filter by provider_type
@@ -1204,6 +1208,19 @@ components:
             - "!puptoo"
             - "!rhsm-conduit"
             - "!cloud-connector"
+    systemTypeParam:
+      in: query
+      name: system_type
+      required: false
+      description: Filters systems by type
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+            - conventional
+            - bootc
+            - edge
     filter_param:
       in: query
       name: filter

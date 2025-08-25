@@ -3,10 +3,10 @@ from __future__ import annotations
 import base64
 import json
 import sys
+from collections.abc import Callable
 from copy import deepcopy
 from functools import partial
 from typing import Any
-from typing import Callable
 from uuid import UUID
 
 from confluent_kafka import Consumer
@@ -68,7 +68,6 @@ from lib import group_repository
 from lib import host_repository
 from lib.db import session_guard
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
-from lib.feature_flags import FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM
 from lib.feature_flags import get_flag_value
 from lib.group_repository import get_or_create_ungrouped_hosts_group_for_identity
 from lib.group_repository import serialize_group
@@ -78,6 +77,40 @@ logger = get_logger(__name__)
 
 CONSUMER_POLL_TIMEOUT_SECONDS = 0.5
 SYSTEM_IDENTITY = {"auth_type": "cert-auth", "system": {"cert_type": "system"}, "type": "System"}
+
+
+class NullConsumer:
+    # ruff: noqa: ARG002
+    """Mock consumer that doesn't consume messages when in replica cluster"""
+
+    def __init__(self, config):
+        logger.info("Starting NullConsumer() - Kafka operations disabled in replica cluster")
+        self.config = config
+
+    def consume(self, num_messages=1, timeout=1.0):
+        logger.debug("NullConsumer: Skipping message consumption in replica cluster")
+        return []  # Return empty list to prevent processing
+
+    def subscribe(self, topics):
+        logger.debug("NullConsumer: Skipping subscription to topics in replica cluster: %s", topics)
+        # Do nothing
+
+    def close(self):
+        logger.debug("NullConsumer: Closing (no-op)")
+
+
+def create_consumer(config):
+    """Factory function to create appropriate kafka consumer"""
+    if config.replica_namespace:
+        return NullConsumer(config)
+    return Consumer(
+        {
+            "group.id": config.host_ingress_consumer_group,
+            "bootstrap.servers": config.bootstrap_servers,
+            "auto.offset.reset": "earliest",
+            **config.kafka_consumer,
+        }
+    )
 
 
 class HostOperationSchema(Schema):
@@ -392,7 +425,7 @@ class IngressMessageConsumer(HostMessageConsumer):
                 db.session.flush()  # Flush so that we can retrieve the created host's ID
                 # Get org's "ungrouped hosts" group (create if not exists) and assign host to it
                 group = get_or_create_ungrouped_hosts_group_for_identity(identity)
-                assoc = HostGroupAssoc(host_row.id, group.id)
+                assoc = HostGroupAssoc(host_row.id, group.id, identity.org_id)
                 db.session.add(assoc)
                 host_row.groups = [serialize_group(group)]
                 db.session.flush()
@@ -481,18 +514,19 @@ def _formatted_uuid(uuid_string):
 
 def _get_identity(host, metadata) -> Identity:
     # rhsm reporter does not provide identity.  Set identity type to system for access the host in future.
+    identity_dict: dict[str, Any]
     if metadata and "b64_identity" in metadata:
-        identity = _decode_id(metadata["b64_identity"])
+        identity_dict = _decode_id(metadata["b64_identity"])
     else:
         reporter = host.get("reporter")
         if (reporter == "rhsm-conduit" or reporter == "rhsm-system-profile-bridge") and host.get(
             "subscription_manager_id"
         ):
-            identity = deepcopy(SYSTEM_IDENTITY)
+            identity_dict = deepcopy(SYSTEM_IDENTITY)
             if "account" in host:
-                identity["account_number"] = host["account"]
-            identity["org_id"] = host.get("org_id")
-            identity["system"]["cn"] = _formatted_uuid(host.get("subscription_manager_id"))
+                identity_dict["account_number"] = host["account"]
+            identity_dict["org_id"] = host.get("org_id")
+            identity_dict["system"]["cn"] = _formatted_uuid(host.get("subscription_manager_id"))
         elif metadata:
             raise ValidationException(
                 "When identity is not provided, reporter MUST be rhsm-conduit or rhsm-system-profile-bridge,"
@@ -504,10 +538,10 @@ def _get_identity(host, metadata) -> Identity:
 
     if not host.get("org_id"):
         raise ValidationException("org_id must be provided")
-    elif host.get("org_id") != identity["org_id"]:
+    elif host.get("org_id") != identity_dict["org_id"]:
         raise ValidationException("The org_id in the identity does not match the org_id in the host.")
     try:
-        identity = Identity(identity)
+        identity = Identity(identity_dict)
     except ValueError as e:
         raise ValidationException(str(e)) from e
     return identity
@@ -671,20 +705,19 @@ def write_add_update_event_message(
     result.success_logger(output_host)
 
     org_id = output_host.get("org_id")
-    if get_flag_value(FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM):
-        try:
-            owner_id = output_host.get("system_profile", {}).get("owner_id")
-            if owner_id and insights_id and org_id:
-                system_key = make_system_cache_key(insights_id, org_id, owner_id)
-                if "tags" in output_host:
-                    del output_host["tags"]
-                if "system_profile" in output_host:
-                    del output_host["system_profile"]
-                # Set full group details before caching
-                output_host["groups"] = result.row.groups or []
-                set_cached_system(system_key, output_host, inventory_config())
-        except Exception as ex:
-            logger.error("Error during set cache", ex)
+    try:
+        owner_id = output_host.get("system_profile", {}).get("owner_id")
+        if owner_id and insights_id and org_id:
+            system_key = make_system_cache_key(insights_id, org_id, owner_id)
+            if "tags" in output_host:
+                del output_host["tags"]
+            if "system_profile" in output_host:
+                del output_host["system_profile"]
+            # Set full group details before caching
+            output_host["groups"] = result.row.groups or []
+            set_cached_system(system_key, output_host, inventory_config())
+    except Exception as ex:
+        logger.error("Error during set cache", ex)
 
 
 def write_message_batch(

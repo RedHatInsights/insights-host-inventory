@@ -45,6 +45,26 @@ def minimal_db_host(**values) -> Host:
     return Host(**data)
 
 
+def db_host_with_custom_canonical_facts(**values) -> Host:
+    data = db_host_with_custom_canonical_facts_dict(**values)
+    return Host(**data)
+
+
+def db_host_with_custom_canonical_facts_dict(**values) -> dict[str, Any]:
+    data = {
+        "stale_timestamp": (now() + timedelta(days=randint(1, 7))),
+        "reporter": "test-reporter",
+        **values,
+    }
+
+    if "org_id" in values:
+        data["org_id"] = values.get("org_id")
+    else:
+        data["org_id"] = USER_IDENTITY["org_id"]
+
+    return data
+
+
 def minimal_db_host_dict(**values) -> dict[str, Any]:
     data = {
         "canonical_facts": {"insights_id": generate_uuid()},

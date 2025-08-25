@@ -13,13 +13,15 @@ from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy.orm import column_property
 
 from app.config import ID_FACTS
+from app.culling import should_host_stay_fresh_forever
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import get_logger
-from app.models.constants import EDGE_HOST_STALE_TIMESTAMP
+from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 from app.models.constants import INVENTORY_SCHEMA
 from app.models.constants import NEW_TO_OLD_REPORTER_MAP
 from app.models.database import db
@@ -29,8 +31,6 @@ from app.models.utils import _time_now
 from app.staleness_serialization import get_reporter_staleness_timestamps
 from app.staleness_serialization import get_staleness_timestamps
 from app.utils import Tag
-from lib.feature_flags import FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS
-from lib.feature_flags import get_flag_value
 
 logger = get_logger(__name__)
 
@@ -61,6 +61,15 @@ class LimitedHost(db.Model):
         system_profile_facts=None,
         groups=None,
         id=None,
+        insights_id=None,
+        subscription_manager_id=None,
+        satellite_id=None,
+        fqdn=None,
+        bios_uuid=None,
+        ip_addresses=None,
+        mac_addresses=None,
+        provider_id=None,
+        provider_type=None,
     ):
         if id:
             self.id = id
@@ -85,6 +94,16 @@ class LimitedHost(db.Model):
         self.system_profile_facts = system_profile_facts or {}
         self.groups = groups or []
         self.last_check_in = _time_now()
+        # canonical facts
+        self.insights_id = insights_id
+        self.subscription_manager_id = subscription_manager_id
+        self.satellite_id = satellite_id
+        self.fqdn = fqdn
+        self.bios_uuid = bios_uuid
+        self.ip_addresses = ip_addresses
+        self.mac_addresses = mac_addresses
+        self.provider_id = provider_id
+        self.provider_type = provider_type
 
     def _update_ansible_host(self, ansible_host):
         if ansible_host is not None:
@@ -132,7 +151,7 @@ class LimitedHost(db.Model):
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     account = db.Column(db.String(10))
-    org_id = db.Column(db.String(36))
+    org_id = db.Column(db.String(36), primary_key=True)
     display_name = db.Column(db.String(200), default=_set_display_name_on_save)
     ansible_host = db.Column(db.String(255))
     created_on = db.Column(db.DateTime(timezone=True), default=_time_now)
@@ -141,8 +160,20 @@ class LimitedHost(db.Model):
     tags = db.Column(JSONB)
     tags_alt = db.Column(JSONB)
     canonical_facts = db.Column(JSONB)
+
+    # canonical facts
+    insights_id = db.Column(UUID(as_uuid=True), default="00000000-0000-0000-0000-000000000000")
+    subscription_manager_id = db.Column(db.String(36))
+    satellite_id = db.Column(db.String(255))
+    fqdn = db.Column(db.String(255))
+    bios_uuid = db.Column(db.String(36))
+    ip_addresses = db.Column(JSONB)
+    mac_addresses = db.Column(JSONB)
+    provider_id = db.Column(db.String(500))
+    provider_type = db.Column(db.String(50))
+
     system_profile_facts = db.Column(JSONB)
-    groups = db.Column(JSONB)
+    groups = db.Column(MutableList.as_mutable(JSONB), default=lambda: [])
     host_type = column_property(system_profile_facts["host_type"])
     last_check_in = db.Column(db.DateTime(timezone=True))
 
@@ -165,10 +196,19 @@ class Host(LimitedHost):
         tags=None,
         tags_alt=None,
         system_profile_facts=None,
-        stale_timestamp=None,
+        stale_timestamp=None,  # noqa: ARG002 - to be removed
         reporter=None,
         per_reporter_staleness=None,
         groups=None,
+        insights_id=None,
+        subscription_manager_id=None,
+        satellite_id=None,
+        fqdn=None,
+        bios_uuid=None,
+        ip_addresses=None,
+        mac_addresses=None,
+        provider_id=None,
+        provider_type=None,
     ):
         id = None
         if tags is None:
@@ -186,8 +226,8 @@ class Host(LimitedHost):
         if current_app.config["USE_SUBMAN_ID"] and "subscription_manager_id" in canonical_facts:
             id = canonical_facts["subscription_manager_id"]
 
-        if not stale_timestamp or not reporter:
-            raise ValidationException("Both stale_timestamp and reporter fields must be present.")
+        if not reporter:
+            raise ValidationException("The reporter field must be present.")
 
         if tags is None:
             raise ValidationException("The tags field cannot be null.")
@@ -204,16 +244,26 @@ class Host(LimitedHost):
             system_profile_facts,
             groups,
             id,
+            insights_id,
+            subscription_manager_id,
+            satellite_id,
+            fqdn,
+            bios_uuid,
+            ip_addresses,
+            mac_addresses,
+            provider_id,
+            provider_type,
         )
+        self.reporter = reporter
 
         self._update_last_check_in_date()
-        self._update_stale_timestamp(stale_timestamp, reporter)
-
         self._update_staleness_timestamps()
 
         self.per_reporter_staleness = per_reporter_staleness or {}
         if not per_reporter_staleness:
             self._update_per_reporter_staleness(reporter)
+
+        self.update_canonical_facts(canonical_facts)
 
     def save(self):
         self._cleanup_tags()
@@ -233,10 +283,11 @@ class Host(LimitedHost):
         if input_host.org_id:
             self.org_id = input_host.org_id
 
+        self.reporter = input_host.reporter
+
         if update_system_profile:
             self.update_system_profile(input_host.system_profile_facts)
 
-        self._update_stale_timestamp(input_host.stale_timestamp, input_host.reporter)
         self._update_last_check_in_date()
         self._update_per_reporter_staleness(input_host.reporter)
         self._update_staleness_timestamps()
@@ -267,9 +318,9 @@ class Host(LimitedHost):
             self.canonical_facts,
             canonical_facts,
         )
-        self.canonical_facts.update(canonical_facts)
+        self.canonical_facts.update(canonical_facts)  # Field being removed in the future
         logger.debug("Host (id=%s) has updated canonical_facts (%s)", self.id, self.canonical_facts)
-        orm.attributes.flag_modified(self, "canonical_facts")
+        orm.attributes.flag_modified(self, "canonical_facts")  # Field being removed in the future
 
     def update_facts(self, facts_dict):
         if facts_dict:
@@ -279,13 +330,6 @@ class Host(LimitedHost):
 
             for input_namespace, input_facts in facts_dict.items():
                 self.replace_facts_in_namespace(input_namespace, input_facts)
-
-    def _update_stale_timestamp(self, stale_timestamp, reporter):
-        if self.system_profile_facts and self.system_profile_facts.get("host_type") == "edge":
-            self.stale_timestamp = EDGE_HOST_STALE_TIMESTAMP
-        else:
-            self.stale_timestamp = stale_timestamp
-        self.reporter = reporter
 
     def _update_all_per_reporter_staleness(self, staleness, staleness_ts):
         for reporter in self.per_reporter_staleness:
@@ -321,7 +365,16 @@ class Host(LimitedHost):
         if old_reporter := NEW_TO_OLD_REPORTER_MAP.get(reporter):
             self.per_reporter_staleness.pop(old_reporter, None)
 
-        if get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS):
+        # For hosts that should stay fresh forever, set far-future timestamps
+        if should_host_stay_fresh_forever(self):
+            self.per_reporter_staleness[reporter].update(
+                stale_timestamp=FAR_FUTURE_STALE_TIMESTAMP.isoformat(),
+                culled_timestamp=FAR_FUTURE_STALE_TIMESTAMP.isoformat(),
+                stale_warning_timestamp=FAR_FUTURE_STALE_TIMESTAMP.isoformat(),
+                last_check_in=self.last_check_in.isoformat(),
+                check_in_succeeded=True,
+            )
+        else:
             st = _create_staleness_timestamps_values(self, self.org_id)
 
             self.per_reporter_staleness[reporter].update(
@@ -329,12 +382,6 @@ class Host(LimitedHost):
                 culled_timestamp=st["culled_timestamp"].isoformat(),
                 stale_warning_timestamp=st["stale_warning_timestamp"].isoformat(),
                 last_check_in=self.last_check_in.isoformat(),
-                check_in_succeeded=True,
-            )
-        else:
-            self.per_reporter_staleness[reporter].update(
-                stale_timestamp=self.stale_timestamp.isoformat(),
-                last_check_in=_time_now().isoformat(),
                 check_in_succeeded=True,
             )
         orm.attributes.flag_modified(self, "per_reporter_staleness")
@@ -431,28 +478,26 @@ class Host(LimitedHost):
         orm.attributes.flag_modified(self, "system_profile_facts")
 
     def _update_staleness_timestamps(self):
-        if get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS):
+        if should_host_stay_fresh_forever(self):
+            self.stale_timestamp = FAR_FUTURE_STALE_TIMESTAMP
+            self.stale_warning_timestamp = FAR_FUTURE_STALE_TIMESTAMP
+            self.deletion_timestamp = FAR_FUTURE_STALE_TIMESTAMP
+        else:
             staleness_timestamps = _create_staleness_timestamps_values(self, self.org_id)
             self.stale_timestamp = staleness_timestamps["stale_timestamp"]
             self.stale_warning_timestamp = staleness_timestamps["stale_warning_timestamp"]
             self.deletion_timestamp = staleness_timestamps["culled_timestamp"]
 
-            orm.attributes.flag_modified(self, "stale_timestamp")
-            orm.attributes.flag_modified(self, "stale_warning_timestamp")
-            orm.attributes.flag_modified(self, "deletion_timestamp")
-
-    def _update_staleness_timestamps_in_reaper(self, staleness_ts, staleness):
-        if get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS):
-            staleness_timestamps = get_staleness_timestamps(self, staleness_ts, staleness)
-            self.stale_timestamp = staleness_timestamps["stale_timestamp"]
-            self.stale_warning_timestamp = staleness_timestamps["stale_warning_timestamp"]
-            self.deletion_timestamp = staleness_timestamps["culled_timestamp"]
-
-            orm.attributes.flag_modified(self, "stale_timestamp")
-            orm.attributes.flag_modified(self, "stale_warning_timestamp")
-            orm.attributes.flag_modified(self, "deletion_timestamp")
+        orm.attributes.flag_modified(self, "stale_timestamp")
+        orm.attributes.flag_modified(self, "stale_warning_timestamp")
+        orm.attributes.flag_modified(self, "deletion_timestamp")
 
     def reporter_stale(self, reporter):
+        # Hosts that should stay fresh forever are never stale
+        if should_host_stay_fresh_forever(self):
+            logger.debug("Host should stay fresh forever, reports from %s are not stale", reporter)
+            return False
+
         prs = self.per_reporter_staleness.get(reporter, None)
         if not prs:
             logger.debug("Reports from %s are stale", reporter)

@@ -53,8 +53,6 @@ from app.serialization import deserialize_canonical_facts
 from app.serialization import serialize_host
 from app.serialization import serialize_host_with_params
 from app.utils import Tag
-from lib.feature_flags import FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM
-from lib.feature_flags import get_flag_value
 from lib.host_delete import delete_hosts
 from lib.host_repository import find_existing_host
 from lib.host_repository import find_non_culled_hosts
@@ -88,6 +86,7 @@ def get_host_list(
     order_how=None,
     staleness=None,
     registered_with=None,
+    system_type=None,
     filter=None,
     fields=None,
     rbac_filter=None,
@@ -110,6 +109,7 @@ def get_host_list(
             order_by,
             order_how,
             registered_with,
+            system_type,
             filter,
             fields,
         ]
@@ -121,10 +121,8 @@ def get_host_list(
         and insights_id
         and page == 1
         and not has_complex_params
-        and get_flag_value(FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM)
     )
     if is_cached_insights_client_system_query:
-        logger.info(f"{FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM} is applied")
         owner_id = current_identity.system.get("cn")
         system_key = make_system_cache_key(insights_id, current_identity.org_id, owner_id)
         stored_system = CACHE.get(f"{system_key}")
@@ -153,6 +151,7 @@ def get_host_list(
             order_how,
             staleness,
             registered_with,
+            system_type,
             filter,
             fields,
             rbac_filter,
@@ -188,6 +187,7 @@ def delete_hosts_by_filter(
     updated_end=None,
     group_name=None,
     registered_with=None,
+    system_type=None,
     staleness=None,
     tags=None,
     filter=None,
@@ -206,6 +206,7 @@ def delete_hosts_by_filter(
             updated_end,
             group_name,
             registered_with,
+            system_type,
             staleness,
             tags,
             filter,
@@ -227,6 +228,7 @@ def delete_hosts_by_filter(
             updated_end,
             group_name,
             registered_with,
+            system_type,
             staleness,
             tags,
             filter,
@@ -435,16 +437,18 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
         Host.org_id == current_identity.org_id,
         Host.id.in_(host_id_list),
         Host.facts.has_key(namespace),
-    )  # noqa: W601 JSONB query filter, not a dict
+    )
 
-    query = Host.query.join(HostGroupAssoc, isouter=True).filter(*filters).group_by(Host.id)
+    query = Host.query.join(HostGroupAssoc, isouter=True).filter(*filters).group_by(Host.org_id, Host.id)
 
     if rbac_filter and "groups" in rbac_filter:
         count_before_rbac_filter = find_non_culled_hosts(
             update_query_for_owner_id(current_identity, query), current_identity.org_id
         ).count()
         filters += (HostGroupAssoc.group_id.in_(rbac_filter["groups"]),)
-        query = Host.query.join(HostGroupAssoc, isouter=True).filter(*filters).group_by(Host.id)
+
+        query = Host.query.join(HostGroupAssoc, isouter=True).filter(*filters).group_by(Host.org_id, Host.id)
+
         if (
             count_before_rbac_filter
             != find_non_culled_hosts(
@@ -527,11 +531,8 @@ def host_checkin(body, rbac_filter=None):  # noqa: ARG001, required for all API 
     existing_host = find_existing_host(current_identity, canonical_facts)
     staleness = get_staleness_obj(current_identity.org_id)
     if existing_host:
-        if get_flag_value(FLAG_INVENTORY_USE_CACHED_INSIGHTS_CLIENT_SYSTEM):
-            existing_host._update_last_check_in_date()
-            existing_host._update_staleness_timestamps()
-        else:
-            existing_host._update_modified_date()
+        existing_host._update_last_check_in_date()
+        existing_host._update_staleness_timestamps()
         db.session.commit()
         serialized_host = serialize_host(existing_host, staleness_timestamps(), staleness=staleness)
         _emit_patch_event(serialized_host, existing_host)

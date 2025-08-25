@@ -3,12 +3,13 @@ from __future__ import annotations
 import json
 import math
 from base64 import b64encode
+from collections.abc import Callable
 from datetime import timedelta
+from enum import Enum
 from http import HTTPStatus
 from itertools import product
 from struct import unpack
 from typing import Any
-from typing import Callable
 from urllib.parse import parse_qs
 from urllib.parse import quote_plus as url_quote
 from urllib.parse import urlencode
@@ -576,6 +577,43 @@ def create_mock_rbac_response(permissions_response_file):
     with open(permissions_response_file) as rbac_response:
         resp_data = json.load(rbac_response)
         return resp_data["data"]
+
+
+class RBACFilterOperation(str, Enum):
+    EQUAL = "equal"
+    IN = "in"
+
+    def __str__(self):
+        return self.value
+
+
+def create_custom_rbac_response(
+    group_ids: list, operation: RBACFilterOperation = RBACFilterOperation.IN, hosts_permission: str = "read"
+) -> list:
+    """
+    Create a custom RBAC response with a single resource definition.
+    This is useful for testing specific RBAC scenarios.
+    """
+
+    value = group_ids[0] if operation == RBACFilterOperation.EQUAL and group_ids else group_ids
+
+    return [
+        {
+            "resourceDefinitions": [
+                {
+                    "attributeFilter": {
+                        "key": "group.id",
+                        # flatten the list if operation is "equal"
+                        # otherwise, keep it as a list
+                        "value": value,
+                        "operation": operation,
+                    },
+                },
+            ],
+            "permission": "inventory:hosts:" + hosts_permission,
+        },
+        {"resourceDefinitions": [], "permission": "inventory:groups:read"},
+    ]
 
 
 def assert_group_response(response, expected_group, expected_host_count):

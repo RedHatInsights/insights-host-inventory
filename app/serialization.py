@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import timezone
+from datetime import UTC
 
 from dateutil.parser import isoparse
 from marshmallow import ValidationError
@@ -10,6 +10,7 @@ from app.auth import get_current_identity
 from app.common import inventory_config
 from app.culling import Conditions
 from app.culling import Timestamps
+from app.culling import should_host_stay_fresh_forever
 from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
 from app.logging import get_logger
@@ -19,10 +20,9 @@ from app.models import Host
 from app.models import HostSchema
 from app.models import LimitedHost
 from app.models import LimitedHostSchema
+from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 from app.staleness_serialization import get_staleness_timestamps
 from app.utils import Tag
-from lib.feature_flags import FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS
-from lib.feature_flags import get_flag_value
 
 logger = get_logger(__name__)
 
@@ -76,6 +76,7 @@ DEFAULT_FIELDS = (
     "created",
     "updated",
     "groups",
+    "last_check_in",
 )
 
 ADDITIONAL_HOST_MQ_FIELDS = (
@@ -135,14 +136,11 @@ def serialize_host(
     system_profile_fields=None,
 ):
     # Ensure additional_fields is a tuple
-    additional_fields = additional_fields or tuple()
+    additional_fields = additional_fields or ()
 
     timestamps = get_staleness_timestamps(host, staleness_timestamps, staleness)
 
-    if get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS):
-        fields = DEFAULT_FIELDS + ("last_check_in",) + additional_fields
-    else:
-        fields = DEFAULT_FIELDS + additional_fields
+    fields = DEFAULT_FIELDS + additional_fields
 
     if for_mq:
         fields += ADDITIONAL_HOST_MQ_FIELDS
@@ -177,7 +175,7 @@ def serialize_host(
     }
 
     # Process each field dynamically
-    serialized_host.update({key: func() for key, func in field_mapping.items() if key in fields})
+    serialized_host |= {key: func() for key, func in field_mapping.items() if key in fields}
 
     # Handle system_profile separately due to its complexity
     if "system_profile" in fields:
@@ -234,17 +232,20 @@ def serialize_host_for_export_svc(
     return serialized_host
 
 
-def serialize_group_with_host_count(group: Group, host_count: int) -> dict:
+def serialize_group_without_host_count(group: Group) -> dict:
     return {
         "id": _serialize_uuid(group.id),
         "org_id": group.org_id,
         "account": group.account,
         "name": group.name,
-        "host_count": host_count,
         "ungrouped": group.ungrouped,
         "created": _serialize_datetime(group.created_on),
         "updated": _serialize_datetime(group.modified_on),
     }
+
+
+def serialize_group_with_host_count(group: Group, host_count: int) -> dict:
+    return {**serialize_group_without_host_count(group), "host_count": host_count}
 
 
 def serialize_host_system_profile(host):
@@ -293,7 +294,7 @@ def serialize_facts(facts):
 
 
 def _serialize_datetime(dt):
-    return dt.astimezone(timezone.utc).isoformat()
+    return dt.astimezone(UTC).isoformat()
 
 
 def _serialize_staleness_to_string(dt) -> str:
@@ -303,14 +304,14 @@ def _serialize_staleness_to_string(dt) -> str:
     """
     if isinstance(dt, str):
         return dt
-    return dt.astimezone(timezone.utc).isoformat()
+    return dt.astimezone(UTC).isoformat()
 
 
 def _deserialize_datetime(s):
     dt = isoparse(s)
     if not dt.tzinfo:
         raise ValueError(f'Timezone not specified in "{s}".')
-    return dt.astimezone(timezone.utc)
+    return dt.astimezone(UTC)
 
 
 def _serialize_uuid(u):
@@ -416,7 +417,12 @@ def serialize_staleness_to_dict(staleness_obj) -> dict:
 
 def _serialize_per_reporter_staleness(host, staleness, staleness_timestamps):
     for reporter in host.per_reporter_staleness:
-        if host.host_type == "edge" or (
+        # For hosts that should stay fresh forever, use far-future timestamps
+        if should_host_stay_fresh_forever(host):
+            stale_timestamp = FAR_FUTURE_STALE_TIMESTAMP
+            stale_warning_timestamp = FAR_FUTURE_STALE_TIMESTAMP
+            delete_timestamp = FAR_FUTURE_STALE_TIMESTAMP
+        elif host.host_type == "edge" or (
             hasattr(host, "system_profile_facts")
             and host.system_profile_facts
             and host.system_profile_facts.get("host_type") == "edge"

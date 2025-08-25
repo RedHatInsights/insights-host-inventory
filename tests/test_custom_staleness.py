@@ -8,7 +8,7 @@ import pytest
 
 from app.logging import threadctx
 from app.models import db
-from host_reaper import run as host_reaper_run
+from jobs.host_reaper import run as host_reaper_run
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import build_staleness_url
 from tests.helpers.test_utils import now
@@ -73,10 +73,10 @@ def test_delete_only_immutable_hosts(
     with patch("app.models.utils.datetime") as mock_datetime:
         mock_datetime.now.return_value = datetime.now() - timedelta(minutes=1)
         immutable_hosts = db_create_multiple_hosts(
-            how_many=2, extra_data={"system_profile_facts": {"host_type": "edge"}}
+            how_many=2, extra_data={"system_profile_facts": {"host_type": "edge"}, "reporter": "puptoo"}
         )
         immutable_hosts = [host.id for host in immutable_hosts]
-        conventional_hosts = db_create_multiple_hosts(how_many=2)
+        conventional_hosts = db_create_multiple_hosts(how_many=2, extra_data={"reporter": "puptoo"})
         conventional_hosts = [host.id for host in conventional_hosts]
 
     threadctx.request_id = None
@@ -107,10 +107,10 @@ def test_delete_only_conventional_hosts(
     with patch("app.models.utils.datetime") as mock_datetime:
         mock_datetime.now.return_value = datetime.now() - timedelta(minutes=1)
         immutable_hosts = db_create_multiple_hosts(
-            how_many=2, extra_data={"system_profile_facts": {"host_type": "edge"}}
+            how_many=2, extra_data={"system_profile_facts": {"host_type": "edge"}, "reporter": "puptoo"}
         )
         immutable_hosts = [host.id for host in immutable_hosts]
-        conventional_hosts = db_create_multiple_hosts(how_many=2)
+        conventional_hosts = db_create_multiple_hosts(how_many=2, extra_data={"reporter": "puptoo"})
         conventional_hosts = [host.id for host in conventional_hosts]
 
     threadctx.request_id = None
@@ -141,10 +141,10 @@ def test_delete_conventional_immutable_hosts(
     with patch("app.models.utils.datetime") as mock_datetime:
         mock_datetime.now.return_value = datetime.now() - timedelta(minutes=1)
         immutable_hosts = db_create_multiple_hosts(
-            how_many=2, extra_data={"system_profile_facts": {"host_type": "edge"}}
+            how_many=2, extra_data={"system_profile_facts": {"host_type": "edge"}, "reporter": "puptoo"}
         )
         immutable_hosts = [host.id for host in immutable_hosts]
-        conventional_hosts = db_create_multiple_hosts(how_many=2)
+        conventional_hosts = db_create_multiple_hosts(how_many=2, extra_data={"reporter": "puptoo"})
         conventional_hosts = [host.id for host in conventional_hosts]
 
     threadctx.request_id = None
@@ -200,11 +200,6 @@ def test_async_update_host_create_custom_staleness(
     db_get_hosts, db_create_multiple_hosts, api_get, api_post, flask_app, event_producer, mocker, num_hosts
 ):
     with (
-        patch("app.models.host.get_flag_value", return_value=True),
-        patch("app.serialization.get_flag_value", return_value=True),
-        patch("app.staleness_serialization.get_flag_value", return_value=True),
-        patch("api.host_query_db.get_flag_value", return_value=True),
-        patch("api.staleness.get_flag_value", return_value=True),
         patch("app.models.utils.datetime") as mock_datetime,
     ):
         with flask_app.app.app_context():
@@ -259,11 +254,6 @@ def test_async_update_host_delete_custom_staleness(
 ):
     db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
     with (
-        patch("app.models.host.get_flag_value", return_value=True),
-        patch("app.serialization.get_flag_value", return_value=True),
-        patch("app.staleness_serialization.get_flag_value", return_value=True),
-        patch("api.host_query_db.get_flag_value", return_value=True),
-        patch("api.staleness.get_flag_value", return_value=True),
         patch("app.models.utils.datetime") as mock_datetime,
     ):
         with flask_app.app.app_context():
@@ -317,11 +307,6 @@ def test_async_update_host_update_custom_staleness(
 ):
     db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
     with (
-        patch("app.models.host.get_flag_value", return_value=True),
-        patch("app.serialization.get_flag_value", return_value=True),
-        patch("app.staleness_serialization.get_flag_value", return_value=True),
-        patch("api.host_query_db.get_flag_value", return_value=True),
-        patch("api.staleness.get_flag_value", return_value=True),
         patch("app.models.utils.datetime") as mock_datetime,
     ):
         with flask_app.app.app_context():
@@ -375,11 +360,6 @@ def test_async_update_host_update_custom_staleness_no_modified_on_change(
 ):
     db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
     with (
-        patch("app.models.host.get_flag_value", return_value=True),
-        patch("app.serialization.get_flag_value", return_value=True),
-        patch("app.staleness_serialization.get_flag_value", return_value=True),
-        patch("api.host_query_db.get_flag_value", return_value=True),
-        patch("api.staleness.get_flag_value", return_value=True),
         patch("app.models.utils.datetime") as mock_datetime,
     ):
         with flask_app.app.app_context():

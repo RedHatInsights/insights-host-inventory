@@ -1,15 +1,22 @@
+import logging
 import random
+from collections.abc import Callable
 from datetime import timedelta
 from itertools import chain
+from itertools import combinations
 from unittest.mock import patch
 
 import pytest
+from pytest_mock import MockerFixture
+from pytest_subtests import SubTests
 
+from app.models.host import Host
 from lib.host_repository import find_hosts_by_staleness
 from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_URL
 from tests.helpers.api_utils import LEGACY_HOST_URL
+from tests.helpers.api_utils import RBACFilterOperation
 from tests.helpers.api_utils import api_base_pagination_test
 from tests.helpers.api_utils import api_pagination_invalid_parameters_test
 from tests.helpers.api_utils import api_pagination_test
@@ -26,6 +33,7 @@ from tests.helpers.api_utils import build_system_profile_sap_sids_url
 from tests.helpers.api_utils import build_system_profile_sap_system_url
 from tests.helpers.api_utils import build_system_profile_url
 from tests.helpers.api_utils import build_tags_url
+from tests.helpers.api_utils import create_custom_rbac_response
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import quote
 from tests.helpers.api_utils import quote_everything
@@ -34,6 +42,8 @@ from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
+
+logger = logging.getLogger(__name__)
 
 
 def test_query_single_non_existent_host(api_get, subtests):
@@ -506,7 +516,7 @@ def test_get_host_by_tag(mq_create_three_specific_hosts, api_get, subtests):
     assert response_status == 200
     assert len(expected_response_list) == len(response_data["results"])
 
-    for host, result in zip(expected_response_list, response_data["results"]):
+    for host, result in zip(expected_response_list, response_data["results"], strict=False):
         assert host.id == result["id"]
 
 
@@ -521,7 +531,7 @@ def test_get_multiple_hosts_by_tag(mq_create_three_specific_hosts, api_get, subt
     assert response_status == 200
     assert len(expected_response_list) == len(response_data["results"])
 
-    for host, result in zip(expected_response_list, response_data["results"]):
+    for host, result in zip(expected_response_list, response_data["results"], strict=False):
         assert host.id == result["id"]
 
 
@@ -591,7 +601,7 @@ def test_get_host_with_tag_no_value_at_all(mq_create_three_specific_hosts, api_g
     assert response_status == 200
     assert len(expected_response_list) == len(response_data["results"])
 
-    for host, result in zip(expected_response_list, response_data["results"]):
+    for host, result in zip(expected_response_list, response_data["results"], strict=False):
         assert host.id == result["id"]
 
 
@@ -609,7 +619,7 @@ def test_get_host_with_tag_no_value_in_query(mq_create_three_specific_hosts, api
     assert response_status == 200
     assert len(expected_response_list) == len(response_data["results"])
 
-    for host, result in zip(expected_response_list, response_data["results"]):
+    for host, result in zip(expected_response_list, response_data["results"], strict=False):
         assert host.id == result["id"]
 
 
@@ -626,7 +636,7 @@ def test_get_host_with_tag_no_namespace(mq_create_three_specific_hosts, api_get,
     assert len(expected_response_list) == len(response_data["results"])
     api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
 
-    for host, result in zip(expected_response_list, response_data["results"]):
+    for host, result in zip(expected_response_list, response_data["results"], strict=False):
         assert host.id == result["id"]
 
 
@@ -644,7 +654,7 @@ def test_get_host_with_tag_only_key(mq_create_three_specific_hosts, api_get, sub
     assert response_status == 200
     assert len(expected_response_list) == len(response_data["results"])
 
-    for host, result in zip(expected_response_list, response_data["results"]):
+    for host, result in zip(expected_response_list, response_data["results"], strict=False):
         assert host.id == result["id"]
 
 
@@ -663,7 +673,7 @@ def test_get_host_by_display_name_and_tag(mq_create_three_specific_hosts, api_ge
     assert response_status == 200
     assert len(expected_response_list) == len(response_data["results"])
 
-    for host, result in zip(expected_response_list, response_data["results"]):
+    for host, result in zip(expected_response_list, response_data["results"], strict=False):
         assert host.id == result["id"]
 
 
@@ -682,7 +692,7 @@ def test_get_host_by_display_name_and_tag_backwards(mq_create_three_specific_hos
     assert response_status == 200
     assert len(expected_response_list) == len(response_data["results"])
 
-    for host, result in zip(expected_response_list, response_data["results"]):
+    for host, result in zip(expected_response_list, response_data["results"], strict=False):
         assert host.id == result["id"]
 
 
@@ -899,27 +909,23 @@ def test_get_hosts_order_by_group_name_post_kessel(mocker, db_create_group_with_
 
 
 @pytest.mark.parametrize("order_how", ("ASC", "DESC"))
-def test_get_hosts_order_by_last_check_in(mocker, db_create_host, api_get, order_how):
+def test_get_hosts_order_by_last_check_in(db_create_host, api_get, order_how):
     host0 = str(db_create_host().id)
     host1 = str(db_create_host().id)
 
-    with (
-        mocker.patch("app.serialization.get_flag_value", return_value=True),
-        mocker.patch("api.host_query_db.get_flag_value", return_value=True),
-    ):
-        url = build_hosts_url(query=f"?order_by=last_check_in&order_how={order_how}")
+    url = build_hosts_url(query=f"?order_by=last_check_in&order_how={order_how}")
 
-        response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url)
 
-        assert response_status == 200
-        assert len(response_data["results"]) == 2
-        hosts = response_data["results"]
-        if order_how == "DESC":
-            assert host1 == hosts[0]["id"]
-            assert host0 == hosts[1]["id"]
-        else:
-            assert host0 == hosts[0]["id"]
-            assert host1 == hosts[1]["id"]
+    assert response_status == 200
+    assert len(response_data["results"]) == 2
+    hosts = response_data["results"]
+    if order_how == "DESC":
+        assert host1 == hosts[0]["id"]
+        assert host0 == hosts[1]["id"]
+    else:
+        assert host0 == hosts[0]["id"]
+        assert host1 == hosts[1]["id"]
 
 
 @pytest.mark.parametrize("order_how", ("", "ASC", "DESC"))
@@ -938,7 +944,7 @@ def test_get_hosts_order_by_operating_system(mq_create_or_update_host, api_get, 
     ordered_insights_ids = [generate_uuid() for _ in range(len(ordered_operating_system_data))]
 
     # Create an association between the insights IDs
-    ordered_host_data = dict(zip(ordered_insights_ids, ordered_operating_system_data))
+    ordered_host_data = dict(zip(ordered_insights_ids, ordered_operating_system_data, strict=False))
 
     # Create a shuffled list of insights_ids so we can create the hosts in a random order
     shuffled_insights_ids = ordered_insights_ids.copy()
@@ -1165,7 +1171,7 @@ def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
     insights_ids = [generate_uuid() for _ in range(len(registered_with_data))]
 
     # Create an association between the insights IDs
-    registered_with_host_data = dict(zip(insights_ids, registered_with_data))
+    registered_with_host_data = dict(zip(insights_ids, registered_with_data, strict=False))
 
     # Create hosts for the above host data
     _ = [
@@ -2042,7 +2048,10 @@ def test_get_host_exists_error_multiple_found(db_create_host, api_get):
 
 
 @pytest.mark.usefixtures("enable_rbac")
-def test_get_host_exists_granular_rbac(db_create_host, db_create_group, db_create_host_group_assoc, api_get, mocker):
+@pytest.mark.parametrize("rbac_operation", [RBACFilterOperation.EQUAL, RBACFilterOperation.IN])
+def test_get_host_exists_granular_rbac(
+    db_create_host, db_create_group, db_create_host_group_assoc, api_get, mocker, rbac_operation
+):
     # Create 3 hosts with unique insights IDs that the user has access to
     accessible_group_id = db_create_group("accessible_group").id
     accessible_insights_id_list = [generate_uuid() for _ in range(3)]
@@ -2065,11 +2074,7 @@ def test_get_host_exists_granular_rbac(db_create_host, db_create_group, db_creat
 
     # Grant access to first group
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
-    mock_rbac_response = create_mock_rbac_response(
-        "tests/helpers/rbac-mock-data/inv-hosts-read-resource-defs-template.json"
-    )
-    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = [str(accessible_group_id)]
-    get_rbac_permissions_mock.return_value = mock_rbac_response
+    get_rbac_permissions_mock.return_value = create_custom_rbac_response([str(accessible_group_id)], rbac_operation)
 
     # Verify that the user can see each of the hosts in the "accessible" group
     for insights_id in accessible_insights_id_list:
@@ -2085,8 +2090,9 @@ def test_get_host_exists_granular_rbac(db_create_host, db_create_group, db_creat
 
 
 @pytest.mark.usefixtures("enable_rbac")
+@pytest.mark.parametrize("rbac_operation", [RBACFilterOperation.EQUAL, RBACFilterOperation.IN])
 def test_get_ungrouped_hosts_granular_rbac(
-    db_create_host, db_create_group, db_create_host_group_assoc, api_get, mocker
+    db_create_host, db_create_group, db_create_host_group_assoc, api_get, mocker, rbac_operation
 ):
     # Create the groups
     ungrouped_group_id = db_create_group("ungrouped", ungrouped=True).id
@@ -2107,11 +2113,7 @@ def test_get_ungrouped_hosts_granular_rbac(
 
     # Mock RBAC perms; only grant access to ungrouped hosts
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
-    mock_rbac_response = create_mock_rbac_response(
-        "tests/helpers/rbac-mock-data/inv-hosts-read-resource-defs-template.json"
-    )
-    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = [None]
-    get_rbac_permissions_mock.return_value = mock_rbac_response
+    get_rbac_permissions_mock.return_value = create_custom_rbac_response([None], rbac_operation)
 
     response_status, response_data = api_get(build_hosts_url())
     assert_response_status(response_status, 200)
@@ -2175,34 +2177,153 @@ def test_get_host_from_different_org(mocker, api_get):
     assert_response_status(response_status, 403)
 
 
-def test_query_by_staleness_using_columns(db_create_multiple_hosts, api_get, subtests):
-    patch("app.staleness_serialization.get_flag_value", return_value=True)
-    patch("app.models.get_flag_value", return_value=True)
-    patch("app.serialization.get_flag_value", return_value=True)
-    patch("api.host_query_db.get_flag_value", return_value=True)
+def test_query_by_staleness_using_columns(
+    db_create_multiple_hosts: Callable[..., list[Host]],
+    api_get: Callable[..., tuple[int, dict]],
+    mocker: MockerFixture,
+    subtests: SubTests,
+) -> None:
+    mocker.patch("api.host_query_db.get_flag_value", return_value=True)
+    mocker.patch("api.filtering.db_filters.get_flag_value", return_value=True)
 
     expected_staleness_results_map = {
         "fresh": 3,
         "stale": 4,
         "stale_warning": 2,
+        "culled": 10,
     }
     staleness_timestamp_map = {
         "fresh": now(),
         "stale": now() - timedelta(days=3),
         "stale_warning": now() - timedelta(days=10),
+        "culled": now() - timedelta(days=20),
     }
     staleness_to_host_ids_map = dict()
 
     # Create the hosts in each state
     for staleness, num_hosts in expected_staleness_results_map.items():
         # Patch the "now" function so the hosts are created in the desired state
-        with patch("app.models.utils.datetime", **{"now.return_value": staleness_timestamp_map[staleness]}):
+        with mocker.patch("app.models.utils.datetime", **{"now.return_value": staleness_timestamp_map[staleness]}):
             staleness_to_host_ids_map[staleness] = [str(h.id) for h in db_create_multiple_hosts(how_many=num_hosts)]
 
-    for staleness, count in expected_staleness_results_map.items():
-        with subtests.test():
+    expected_staleness_results_map.pop("culled")
+
+    # Test single staleness filters
+
+    # "unknown" staleness filter should be ignored, so if it's the only filter,
+    # then all non-culled hosts should be returned
+    staleness_to_host_ids_map["unknown"] = sum(
+        [staleness_to_host_ids_map[staleness] for staleness in ["fresh", "stale", "stale_warning"]], []
+    )
+    expected_staleness_results_map["unknown"] = len(staleness_to_host_ids_map["unknown"])
+
+    for staleness, expected_count in expected_staleness_results_map.items():
+        with subtests.test(staleness):
             url = build_hosts_url(query=f"?staleness={staleness}")
-            # Validate the basics, i.e. response code and results size
+            expected_host_ids = set(staleness_to_host_ids_map[staleness])
+
             response_status, response_data = api_get(url)
             assert response_status == 200
-            assert count == len(response_data["results"])
+            assert len(response_data["results"]) == expected_count
+            assert {host["id"] for host in response_data["results"]} == expected_host_ids
+
+    # Test combinations of staleness filters
+
+    # "unknown" staleness filter should be ignored
+    staleness_to_host_ids_map["unknown"] = []
+    expected_staleness_results_map["unknown"] = 0
+
+    for n in range(2, len(expected_staleness_results_map.keys()) + 1):
+        # Test all possible combinations of `n` staleness filters
+        for filters in combinations(expected_staleness_results_map.keys(), n):
+            with subtests.test(", ".join(filters)):
+                query = "?" + "&".join(f"staleness={staleness}" for staleness in filters)
+                expected_count = sum(expected_staleness_results_map[staleness] for staleness in filters)
+                expected_host_ids = set(sum([staleness_to_host_ids_map[staleness] for staleness in filters], []))
+                logger.info(f"Testing query: {query}")
+
+                response_status, response_data = api_get(build_hosts_url(query=query))
+                assert response_status == 200
+                assert len(response_data["results"]) == expected_count
+                assert {host["id"] for host in response_data["results"]} == expected_host_ids
+
+
+@pytest.mark.parametrize("system_type", ("conventional", "bootc", "edge"))
+def test_system_type_filter_valid_types(api_get, system_type):
+    url = build_hosts_url(query=f"?system_type={system_type}")
+    response_status, _ = api_get(url)
+
+    assert response_status == 200
+
+
+@pytest.mark.parametrize("invalid_system_type", ("invalid_type", ""))
+def test_system_type_filter_invalid_types(api_get, invalid_system_type):
+    url = build_hosts_url(query=f"?system_type={invalid_system_type}")
+    response_status, _ = api_get(url)
+
+    assert response_status == 400
+
+
+@pytest.mark.parametrize(
+    "query_filter_param",
+    (
+        "?system_type=conventional",
+        "?system_type=bootc",
+        "?system_type=edge",
+        "?system_type=bootc&system_type=edge",
+    ),
+)
+def test_system_type_happy_path(api_get, db_create_host, query_filter_param):
+    sp_facts = [
+        {},
+        {
+            "system_profile_facts": {
+                "bootc_status": {
+                    "booted": {
+                        "image_digest": "sha256:806d77394f96e47cf99b1233561ce970c94521244a2d8f2affa12c3261961223"
+                    }
+                }
+            }
+        },
+        {"system_profile_facts": {"host_type": "edge"}},
+    ]
+    host_ids = []
+
+    for sp_fact in sp_facts:
+        host_id = str(db_create_host(extra_data=sp_fact).id)
+        host_ids.append(host_id)
+
+    # Count the number of times "system_type" appears in the query
+    matching_hosts = query_filter_param.count("system_type=")
+    url = build_hosts_url(query=query_filter_param)
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == matching_hosts
+    for result in response_data["results"]:
+        assert result["id"] in host_ids
+
+
+def test_fresh_staleness_with_only_rhsm_system_profile_bridge(api_get, db_create_host):
+    """
+    Ensure that a host with only "rhsm-system-profile-bridge" in per_reporter_staleness,
+    and "last_check_in" and "updated" timestamps far in the past, is still returned
+    with the "?staleness=fresh" filter.
+    """
+    # Set timestamps far in the past
+    with patch("app.models.utils.datetime", **{"now.return_value": (now() - timedelta(days=365))}):
+        # Only "rhsm-system-profile-bridge" reporter is present
+        host = db_create_host(
+            extra_data={
+                "reporter": "rhsm-system-profile-bridge",
+            }
+        )
+        host_id = str(host.id)
+
+    url = build_hosts_url(query="?staleness=fresh")
+    response_status, response_data = api_get(url=url)
+
+    assert response_status == 200
+    # The host should be present in the results
+    result_ids = [result["id"] for result in response_data["results"]]
+    assert host_id in result_ids

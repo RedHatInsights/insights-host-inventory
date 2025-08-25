@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import uuid
+from datetime import UTC
 from datetime import datetime
-from datetime import timezone
 from enum import Enum
 from typing import Any
 
@@ -206,7 +206,7 @@ def build_base_notification_obj(notification_type: str, host: dict):
         "application": "inventory",
         "bundle": "rhel",
         "event_type": notification_type,
-        "timestamp": datetime.now(timezone.utc),
+        "timestamp": datetime.now(UTC),
     }
 
     if notification_type == NotificationType.validation_error.value:

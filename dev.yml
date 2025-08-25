@@ -62,14 +62,14 @@ services:
 
     zookeeper:
       container_name: zookeeper
-      image: docker.io/confluentinc/cp-zookeeper
+      image: docker.io/confluentinc/cp-zookeeper:7.4.4
       environment:
         - ZOOKEEPER_CLIENT_PORT=32181
         - ZOOKEEPER_SERVER_ID=1
 
     kafka:
       container_name: kafka
-      image: docker.io/confluentinc/cp-kafka
+      image: docker.io/confluentinc/cp-kafka:7.4.4
       restart: always
       ports:
         - "29092:29092"

@@ -79,6 +79,9 @@
             "$ref": "#/components/parameters/registered_with"
           },
           {
+            "$ref": "#/components/parameters/systemTypeParam"
+          },
+          {
             "$ref": "#/components/parameters/filter_param"
           },
           {
@@ -140,6 +143,9 @@
           },
           {
             "$ref": "#/components/parameters/registered_with"
+          },
+          {
+            "$ref": "#/components/parameters/systemTypeParam"
           },
           {
             "$ref": "#/components/parameters/stalenessNoDefaultsParam"
@@ -1131,6 +1137,9 @@
             "$ref": "#/components/parameters/registered_with"
           },
           {
+            "$ref": "#/components/parameters/systemTypeParam"
+          },
+          {
             "$ref": "#/components/parameters/filter_param"
           }
         ],
@@ -1705,6 +1714,7 @@
             "alibaba",
             "aws",
             "azure",
+            "discovery",
             "gcp",
             "ibm"
           ]
@@ -1911,6 +1921,23 @@
               "!puptoo",
               "!rhsm-conduit",
               "!cloud-connector"
+            ]
+          }
+        }
+      },
+      "systemTypeParam": {
+        "in": "query",
+        "name": "system_type",
+        "required": false,
+        "description": "Filters systems by type",
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "conventional",
+              "bootc",
+              "edge"
             ]
           }
         }
@@ -3044,7 +3071,8 @@
             "type": "integer",
             "format": "int64",
             "minimum": 0,
-            "maximum": 9007199254740991
+            "maximum": 9007199254740991,
+            "x-dynamic": true
           },
           "infrastructure_type": {
             "type": "string",
@@ -3060,7 +3088,8 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/SystemProfileNetworkInterface"
-            }
+            },
+            "x-dynamic": true
           },
           "disk_devices": {
             "type": "array",
@@ -3090,11 +3119,13 @@
               "type": "string",
               "maxLength": 30,
               "example": "ex1, ex2, ex3"
-            }
+            },
+            "x-dynamic": true
           },
           "systemd": {
             "description": "Object for whole system systemd state, as reported by systemctl status --all",
             "type": "object",
+            "x-dynamic": true,
             "required": [
               "state",
               "jobs_queued",
@@ -3212,12 +3243,14 @@
               "type": "string",
               "maxLength": 255,
               "example": "ex1, ex2, ex3"
-            }
+            },
+            "x-dynamic": true
           },
           "last_boot_time": {
             "type": "string",
             "format": "date-time",
-            "maxLength": 50
+            "maxLength": 50,
+            "x-dynamic": true
           },
           "running_processes": {
             "type": "array",
@@ -3226,7 +3259,8 @@
               "type": "string",
               "maxLength": 1000,
               "example": "ex1, ex2, ex3"
-            }
+            },
+            "x-dynamic": true
           },
           "subscription_status": {
             "type": "string",
@@ -3285,7 +3319,8 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/SystemProfileInstalledProduct"
-            }
+            },
+            "x-dynamic": true
           },
           "insights_client_version": {
             "type": "string",
@@ -3297,12 +3332,14 @@
           "insights_egg_version": {
             "type": "string",
             "maxLength": 50,
-            "example": "2.3, 4.4, 5.1"
+            "example": "2.3, 4.4, 5.1",
+            "x-dynamic": true
           },
           "captured_date": {
             "type": "string",
             "maxLength": 32,
-            "example": "ex1, ex2, ex3"
+            "example": "ex1, ex2, ex3",
+            "x-dynamic": true
           },
           "installed_packages": {
             "type": "array",
@@ -3311,7 +3348,8 @@
               "example": "krb5-libs-0:-1.16.1-23.fc29.i686, arb5-libs-0:-1.16.1-23.fc29.i686, brb5-libs-0:-1.16.1-23.fc29.i686",
               "type": "string",
               "maxLength": 512
-            }
+            },
+            "x-dynamic": true
           },
           "installed_packages_delta": {
             "type": "array",
@@ -3875,6 +3913,7 @@
           "workloads": {
             "description": "Object containing information about system workloads",
             "type": "object",
+            "x-dynamic": true,
             "properties": {
               "ansible": {
                 "description": "Object containing data specific to Ansible Automation Platform",
@@ -4200,6 +4239,20 @@
             "type": "string",
             "maxLength": 2048,
             "example": "abc, dfg, pop"
+          },
+          "status": {
+            "type": "array",
+            "items": {
+              "description": "The module stream's status",
+              "type": "string",
+              "maxLength": 64,
+              "enum": [
+                "default",
+                "enabled",
+                "installed"
+              ],
+              "example": "default, enabled, installed"
+            }
           }
         }
       },

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from enum import Enum
 from typing import Any
-from typing import Callable
 from uuid import UUID
 
 from flask import current_app
@@ -39,6 +39,7 @@ from lib import metrics
 
 __all__ = (
     "AddHostResult",
+    "extract_immutable_and_id_facts",
     "add_host",
     "multiple_canonical_facts_host_query",
     "create_new_host",
@@ -83,7 +84,7 @@ def add_host(
         matched_host = find_existing_host(identity, input_host.canonical_facts)
 
     if matched_host:
-        defer_to_reporter = operation_args.get("defer_to_reporter", None)
+        defer_to_reporter = operation_args.get("defer_to_reporter")
         if defer_to_reporter is not None:
             logger.debug("host_repository.add_host: defer_to_reporter = %s", defer_to_reporter)
             if not matched_host.reporter_stale(defer_to_reporter):
@@ -95,7 +96,7 @@ def add_host(
         return create_new_host(input_host)
 
 
-def _extract_immutable_and_id_facts(canonical_facts: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+def extract_immutable_and_id_facts(canonical_facts: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
     """
     Returns two dictionaries:
     - immutable_facts: All immutable facts present in the canonical facts, together with their compound facts
@@ -129,7 +130,7 @@ def find_existing_host(
     identity: Identity, canonical_facts: dict[str, Any], from_hosts: list[Host] | None = None
 ) -> Host | None:
     logger.debug(f"find_existing_host({identity}, {canonical_facts}, {from_hosts})")
-    immutable_facts, id_facts = _extract_immutable_and_id_facts(canonical_facts)
+    immutable_facts, id_facts = extract_immutable_and_id_facts(canonical_facts)
 
     # First search based on immutable id facts.
     if immutable_facts:  # noqa: SIM102
@@ -396,14 +397,23 @@ def get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter=None, c
 
         filters += (or_(*rbac_group_filters),)
 
-    query = Host.query.join(HostGroupAssoc, isouter=True).join(Group, isouter=True).filter(*filters).group_by(Host.id)
+    query = (
+        Host.query.join(HostGroupAssoc, isouter=True)
+        .join(Group, isouter=True)
+        .filter(*filters)
+        .group_by(Host.id, Host.org_id)
+    )
     if columns:
         query = query.with_entities(*columns)
     return find_non_culled_hosts(update_query_for_owner_id(identity, query), identity.org_id)
 
 
 def get_non_culled_hosts_count_in_group(group: Group, org_id: str) -> int:
-    return find_non_culled_hosts(
-        db.session.query(Host).join(HostGroupAssoc).filter(HostGroupAssoc.group_id == group.id).group_by(Host.id),
-        org_id,
-    ).count()
+    query = (
+        db.session.query(Host)
+        .join(HostGroupAssoc)
+        .filter(HostGroupAssoc.group_id == group.id, HostGroupAssoc.org_id == org_id)
+        .group_by(Host.id, Host.org_id)
+    )
+
+    return find_non_culled_hosts(query, org_id).count()
