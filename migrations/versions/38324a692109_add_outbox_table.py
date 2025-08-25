@@ -1,7 +1,7 @@
 """add outbox table
 
 Revision ID: 38324a692109
-Revises: 595dbad97e20
+Revises: e54048e82617
 Create Date: 2025-08-19 12:39:56.582711
 
 """
@@ -12,7 +12,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = "38324a692109"
-down_revision = "595dbad97e20"
+down_revision = "e54048e82617"
 branch_labels = None
 depends_on = None
 
