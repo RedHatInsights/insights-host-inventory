@@ -172,13 +172,18 @@ RBAC_ADMIN_PROHIBITED_RBAC_RESPONSE_FILES = (
     "tests/helpers/rbac-mock-data/inv-groups-splat.json",
 )
 
+DEFAULT_STALENESS_SETTINGS = {
+    "stale": 104400,
+    "stale_warning": 604800,
+    "delete": 1209600,
+}
 _INPUT_DATA = {
-    "conventional_time_to_stale": 104400,
-    "conventional_time_to_stale_warning": 604800,
-    "conventional_time_to_delete": 1209600,
-    "immutable_time_to_stale": 172800,
-    "immutable_time_to_stale_warning": 15552000,
-    "immutable_time_to_delete": 63072000,
+    "conventional_time_to_stale": DEFAULT_STALENESS_SETTINGS["stale"],
+    "conventional_time_to_stale_warning": DEFAULT_STALENESS_SETTINGS["stale_warning"],
+    "conventional_time_to_delete": DEFAULT_STALENESS_SETTINGS["delete"],
+    "immutable_time_to_stale": DEFAULT_STALENESS_SETTINGS["stale"],
+    "immutable_time_to_stale_warning": DEFAULT_STALENESS_SETTINGS["stale_warning"],
+    "immutable_time_to_delete": DEFAULT_STALENESS_SETTINGS["delete"],
 }
 
 
