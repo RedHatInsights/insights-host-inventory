@@ -5,7 +5,9 @@ from typing import Any
 
 from sqlalchemy.exc import InvalidRequestError
 
+from api.filtering.db_filters import create_base_host_query
 from app.auth.identity import Identity
+from app.common import inventory_config
 from app.models import Group
 from app.models import Host
 from app.models import Staleness
@@ -129,8 +131,11 @@ def db_staleness_culling(**values):
     return Staleness(**data)
 
 
-def update_host_in_db(host_id, **data_to_update):
-    host = Host.query.get(host_id)
+def update_host_in_db(host_id, org_id=None, **data_to_update):
+    if inventory_config().hbi_db_refactoring_use_old_table:
+        host = Host.query.get(host_id)
+    else:
+        host = create_base_host_query(org_id, host_id)
 
     for attribute, new_value in data_to_update.items():
         setattr(host, attribute, new_value)
