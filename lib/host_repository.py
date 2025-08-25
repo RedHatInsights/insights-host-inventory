@@ -12,6 +12,7 @@ from sqlalchemy import or_
 from sqlalchemy.sql.elements import BinaryExpression
 from sqlalchemy.sql.elements import BooleanClauseList
 
+from api.filtering.db_custom_filters import host_query
 from api.filtering.db_filters import find_stale_host_in_window
 from api.filtering.db_filters import stale_timestamp_filter
 from api.filtering.db_filters import staleness_to_conditions
@@ -50,7 +51,6 @@ __all__ = (
     "find_hosts_by_staleness",
     "find_non_culled_hosts",
     "update_existing_host",
-    "host_query",
 )
 
 AddHostResult = Enum("AddHostResult", ("created", "updated"))
@@ -426,10 +426,3 @@ def get_non_culled_hosts_count_in_group(group: Group, org_id: str) -> int:
     )
 
     return find_non_culled_hosts(query, org_id).count()
-
-
-# Ensures that the query is filtered by org_id
-def host_query(
-    org_id: str,
-) -> Query:
-    return Host.query.filter(Host.org_id == org_id)

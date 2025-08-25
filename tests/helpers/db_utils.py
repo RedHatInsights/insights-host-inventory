@@ -5,6 +5,7 @@ from typing import Any
 
 from sqlalchemy.exc import InvalidRequestError
 
+from api.filtering.db_custom_filters import host_query
 from app.auth.identity import Identity
 from app.models import Group
 from app.models import Host

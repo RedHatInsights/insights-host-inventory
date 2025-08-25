@@ -13,6 +13,7 @@ from sqlalchemy_utils import create_database
 from sqlalchemy_utils import database_exists
 from sqlalchemy_utils import drop_database
 
+from api.filtering.db_custom_filters import host_query
 from app.config import Config
 from app.environment import RuntimeEnvironment
 from app.models import Group
@@ -21,7 +22,6 @@ from app.models import HostGroupAssoc
 from app.models import Staleness
 from app.models import db
 from lib.group_repository import serialize_group
-from lib.host_repository import host_query
 from tests.helpers.db_utils import db_group
 from tests.helpers.db_utils import db_host_with_custom_canonical_facts
 from tests.helpers.db_utils import db_staleness_culling
