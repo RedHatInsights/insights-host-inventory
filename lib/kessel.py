@@ -275,9 +275,6 @@ class Kessel:
         reporter_struct = struct_pb2.Struct()
         reporter_struct.update({
             "insights_inventory_id": str(host.id), #Actually, should probably come from canonical_facts
-            "satellite_id": host.canonical_facts.get("satellite_id",""),
-            "subscription_manager_id": host.canonical_facts.get("subscription_manager_id",""),
-            "ansible_host": host.ansible_host,
         })
 
         metadata = representation_metadata_pb2.RepresentationMetadata(
