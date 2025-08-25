@@ -288,21 +288,6 @@ def process_identity_header(encoded_id_header):
     return org_id, access_id
 
 
-def get_reporter_instance_id():
-    """
-    Get the current reporter instance ID for HBI.
-    
-    Returns:
-        str: The current reporter instance ID
-    """
-    #TODO: get the instance_id from the payload somehow
-    return "3c4e2382-26c1-11f0-8e5c-ce0194e9e144"
-
-
-# For backward compatibility with existing Kessel code
-reporter = type('ReporterInfo', (), {'instance_id': get_reporter_instance_id()})()
-
-
 def process_spec(spec):
     system_profile_spec_processed = {}
     for field, props in spec.items():
