@@ -13,6 +13,7 @@ from sqlalchemy_utils import create_database
 from sqlalchemy_utils import database_exists
 from sqlalchemy_utils import drop_database
 
+from api.filtering.db_custom_filters import host_query
 from app.config import Config
 from app.environment import RuntimeEnvironment
 from app.models import Group
@@ -59,7 +60,7 @@ def database(database_name: None) -> Generator[str]:  # noqa: ARG001
 def db_get_host(flask_app: FlaskApp) -> Callable[[UUID | str], Host | None]:  # noqa: ARG001
     def _db_get_host(host_id: UUID | str, org_id: str | None = None) -> Host | None:
         org_id = org_id or SYSTEM_IDENTITY["org_id"]
-        return Host.query.filter(Host.org_id == org_id, Host.id == host_id).one_or_none()
+        return host_query(org_id, str(host_id)).one_or_none()
 
     return _db_get_host
 
@@ -68,31 +69,36 @@ def db_get_host(flask_app: FlaskApp) -> Callable[[UUID | str], Host | None]:  # 
 def db_get_hosts(flask_app: FlaskApp) -> Callable[[list[str], str | None], Query]:  # noqa: ARG001
     def _db_get_hosts(host_ids: list[str], org_id: str | None = None) -> Query:
         org_id = org_id or SYSTEM_IDENTITY["org_id"]
-        return Host.query.filter(Host.org_id == org_id, Host.id.in_(host_ids))
+        return host_query(org_id, host_ids)
 
     return _db_get_hosts
 
 
 @pytest.fixture(scope="function")
 def db_get_host_by_insights_id(flask_app):  # noqa: ARG001
-    def _db_get_host_by_insights_id(insights_id):
-        return Host.query.filter(Host.canonical_facts["insights_id"].astext == insights_id).one()
+    def _db_get_host_by_insights_id(insights_id, org_id: str | None = None):
+        org_id = org_id or SYSTEM_IDENTITY["org_id"]
+        return host_query(org_id, extra_filters=[Host.canonical_facts["insights_id"].astext == insights_id]).one()
 
     return _db_get_host_by_insights_id
 
 
 @pytest.fixture()
 def db_get_hosts_by_subman_id(flask_app: FlaskApp) -> Callable[[str], list[Host]]:  # noqa: ARG001
-    def _db_get_hosts_by_insights_id(subman_id: str) -> list[Host]:
-        return Host.query.filter(Host.canonical_facts["subscription_manager_id"].astext == subman_id).all()
+    def _db_get_hosts_by_insights_id(subman_id: str, org_id: str | None = None) -> list[Host]:
+        org_id = org_id or SYSTEM_IDENTITY["org_id"]
+        return host_query(
+            org_id, extra_filters=[Host.canonical_facts["subscription_manager_id"].astext == subman_id]
+        ).all()
 
     return _db_get_hosts_by_insights_id
 
 
 @pytest.fixture()
 def db_get_hosts_by_display_name(flask_app: FlaskApp) -> Callable[[str], list[Host]]:  # noqa: ARG001
-    def _db_get_hosts_by_display_name(display_name: str) -> list[Host]:
-        return Host.query.filter(Host.display_name == display_name).all()
+    def _db_get_hosts_by_display_name(display_name: str, org_id: str | None = None) -> list[Host]:
+        org_id = org_id or SYSTEM_IDENTITY["org_id"]
+        return host_query(org_id, extra_filters=[Host.display_name == display_name]).all()
 
     return _db_get_hosts_by_display_name
 

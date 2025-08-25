@@ -3,7 +3,6 @@ from __future__ import annotations
 from collections.abc import Callable
 from enum import Enum
 from typing import Any
-from uuid import UUID
 
 from flask import current_app
 from flask_sqlalchemy.query import Query
@@ -13,6 +12,7 @@ from sqlalchemy import or_
 from sqlalchemy.sql.elements import BinaryExpression
 from sqlalchemy.sql.elements import BooleanClauseList
 
+from api.filtering.db_custom_filters import host_query
 from api.filtering.db_filters import find_stale_host_in_window
 from api.filtering.db_filters import stale_timestamp_filter
 from api.filtering.db_filters import staleness_to_conditions
@@ -174,7 +174,7 @@ def find_existing_host(
 
 
 def find_existing_host_by_id(identity: Identity, host_id: str) -> Host | None:
-    query = Host.query.filter((Host.org_id == identity.org_id) & (Host.id == UUID(host_id)))
+    query = host_query(identity.org_id, host_id)
     query = update_query_for_owner_id(identity, query)
     return find_non_culled_hosts(query, identity.org_id).order_by(Host.modified_on.desc()).first()
 
@@ -211,10 +211,10 @@ def multiple_canonical_facts_host_query(
 ) -> Query:
     _check_compound_id_facts(canonical_facts)
 
-    query = Host.query.filter(
-        (Host.org_id == identity.org_id)
-        & (contains_no_incorrect_facts_filter(canonical_facts))
-        & (matches_at_least_one_canonical_fact_filter(canonical_facts))
+    base_query = host_query(identity.org_id)
+    query = base_query.filter(
+        contains_no_incorrect_facts_filter(canonical_facts),
+        matches_at_least_one_canonical_fact_filter(canonical_facts),
     )
     if restrict_to_owner_id:
         query = update_query_for_owner_id(identity, query)

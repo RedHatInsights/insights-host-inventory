@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from api.cache import delete_cached_system_keys
+from api.filtering.db_custom_filters import host_query
 from api.host_query import staleness_timestamps
 from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
@@ -96,8 +97,8 @@ def _invalidate_system_cache(host_list: list[Host], identity: Identity):
 
 def validate_add_host_list_to_group_for_group_create(host_id_list: list[str], group_name: str, org_id: str):
     # Check if the hosts exist in Inventory and have correct org_id
-    host_query = Host.query.filter((Host.org_id == org_id) & Host.id.in_(host_id_list)).all()
-    found_ids_set = {str(host.id) for host in host_query}
+    query = host_query(org_id, host_id_list).all()
+    found_ids_set = {str(host.id) for host in query}
     if found_ids_set != set(host_id_list):
         nonexistent_hosts = set(host_id_list) - found_ids_set
         log_host_group_add_failed(logger, host_id_list, group_name)

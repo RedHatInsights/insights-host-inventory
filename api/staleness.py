@@ -17,6 +17,7 @@ from api import flask_json_response
 from api import json_error_response
 from api import metrics
 from api.cache import delete_cached_system_keys
+from api.filtering.db_custom_filters import host_query
 from api.host_query import staleness_timestamps
 from api.staleness_query import get_staleness_obj
 from app import RbacPermission
@@ -92,7 +93,7 @@ def _update_hosts_staleness_async(identity: Identity, app: Flask, staleness: Sta
         logger.debug("Starting host staleness update thread")
         try:
             logger.debug(f"Querying hosts for org_id: {identity.org_id}")
-            hosts_query = Host.query.filter(Host.org_id == identity.org_id)
+            hosts_query = host_query(identity.org_id)
             num_hosts = hosts_query.count()
             st = staleness_timestamps()
             staleness_dict = serialize_staleness_to_dict(staleness)
