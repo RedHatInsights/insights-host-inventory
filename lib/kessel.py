@@ -3,7 +3,7 @@ from app.models import (
     Host,
     HostGroupAssoc
 )
-from app import Config, KesselPermission, reporter
+from app import Config, KesselPermission
 from flask import current_app
 from sqlalchemy import event
 from sqlalchemy.orm import Session
@@ -175,7 +175,7 @@ class Kessel:
             resource_id=resource_id,
             reporter=reporter_reference_pb2.ReporterReference(
                 type=permission.resource_type.namespace,  # e.g., "hbi"
-                instance_id=reporter.instance_id
+                instance_id= "3c4e2382-26c1-11f0-8e5c-ce0194e9e144"
             ),
         )
         
@@ -208,7 +208,7 @@ class Kessel:
             resource_id=resource_id,
             reporter=reporter_reference_pb2.ReporterReference(
                 type=permission.resource_type.namespace,
-                instance_id=reporter.instance_id
+                instance_id= "3c4e2382-26c1-11f0-8e5c-ce0194e9e144"
             ),
         )
         
@@ -296,7 +296,7 @@ class Kessel:
         request = report_resource_request_pb2.ReportResourceRequest(
             type="host",
             reporter_type="hbi",
-            reporter_instance_id=reporter.instance_id,
+            reporter_instance_id= "redhat",
             representations=representations
         )
 
@@ -309,7 +309,7 @@ class Kessel:
                 resource_id=id,
                 reporter=reporter_reference_pb2.ReporterReference(
                     type="hbi",
-                    instance_id=reporter.instance_id
+                    instance_id= "3c4e2382-26c1-11f0-8e5c-ce0194e9e144"
                 )
             )
         )
