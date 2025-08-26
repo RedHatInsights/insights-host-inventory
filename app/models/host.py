@@ -317,6 +317,8 @@ class Host(LimitedHost):
 
         self.update_canonical_facts(input_host.canonical_facts)
 
+        self.update_canonical_facts_columns(input_host.canonical_facts)
+
         self._update_ansible_host(input_host.ansible_host)
 
         self.update_facts(input_host.facts)
@@ -364,6 +366,16 @@ class Host(LimitedHost):
         self.canonical_facts.update(canonical_facts)  # Field being removed in the future
         logger.debug("Host (id=%s) has updated canonical_facts (%s)", self.id, self.canonical_facts)
         orm.attributes.flag_modified(self, "canonical_facts")  # Field being removed in the future
+
+    def update_canonical_facts_columns(self, canonical_facts):
+        try:
+            for key, value in canonical_facts.items():
+                if getattr(self, key) != value:
+                    setattr(self, key, value)
+                    orm.attributes.flag_modified(self, key)
+        except AttributeError as e:
+            logger.warning("Error updating canonical facts column %s: %s", key, str(e))
+            raise e
 
     def update_facts(self, facts_dict):
         if facts_dict:
