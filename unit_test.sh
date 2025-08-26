@@ -47,7 +47,8 @@ DB_CONTAINER_ID=$(podman run -d \
     -e POSTGRESQL_USER="inventory-test" \
     -e POSTGRESQL_PASSWORD="inventory-test" \
     -e POSTGRESQL_DATABASE="inventory-test" \
-    "$POSTGRES_IMAGE" || echo "0")
+    "$POSTGRES_IMAGE" \
+    -c wal_level=logical || echo "0")
 
 if [[ "$DB_CONTAINER_ID" == "0" ]]; then
     echo "Failed to start DB container"
