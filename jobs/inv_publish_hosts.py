@@ -264,6 +264,8 @@ def _get_current_replica_identity_mode(session, schema, table_name):
 
 def _set_replica_identity_single_table(session, logger, schema, table_name, mode):
     """Set replica identity for a single table."""
+    sql = None
+    sql_params = None
     try:
         current_mode = _get_current_replica_identity_mode(session, schema, table_name)
 
@@ -277,13 +279,13 @@ def _set_replica_identity_single_table(session, logger, schema, table_name, mode
 
         if mode == "default":
             sql = REPLICA_IDENTITY_DEFAULT_SQL.text.format(schema=schema, table_name=table_name)
+            sql_params = None
             session.execute(sa_text(sql))
             logger.info(f"Set replica identity DEFAULT for {schema}.{table_name}")
 
         elif mode == "index":
-            index_result = session.execute(
-                GET_UNIQUE_INDEXES_SQL, {"schema": schema, "table_name": table_name}
-            ).fetchone()
+            sql_params = {"schema": schema, "table_name": table_name}
+            index_result = session.execute(GET_UNIQUE_INDEXES_SQL, sql_params).fetchone()
 
             if index_result:
                 index_name = index_result[0]
@@ -300,8 +302,12 @@ def _set_replica_identity_single_table(session, logger, schema, table_name, mode
 
         else:
             raise ValueError(f"Invalid replica identity mode: {mode}. Use 'default' or 'index'")
-    except Exception as e:
-        logger.error(f"Failed to set replica identity for {schema}.{table_name}: {e}")
+    except Exception as exc:
+        logger.error(
+            f"Error setting replica identity for {schema}.{table_name} with mode '{mode}'. "
+            f"SQL: {sql!r}, Params: {sql_params!r}, Exception: {exc}",
+            exc_info=True,
+        )
         raise
 
 
