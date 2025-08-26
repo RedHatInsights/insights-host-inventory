@@ -164,6 +164,14 @@ class TestReplicaIdentityIntegration:
         except Exception:
             db.session.rollback()
 
+    def drop_index(self, index_name):
+        """Drop an index"""
+        try:
+            db.session.execute(sa_text(f"DROP INDEX IF EXISTS {index_name}"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
     def test_get_current_replica_identity_mode_default(self, flask_app):
         """Test getting current replica identity mode when set to default."""
         schema, table_name = get_table_info()
@@ -278,6 +286,51 @@ class TestReplicaIdentityIntegration:
             result = _get_current_replica_identity_mode(db.session, schema, table_name)
             assert result in ["index", "default"], f"Expected index or default, got {result}"
 
+    def test_set_replica_identity_selects_correct_index(self, flask_app):
+        """Test that replica identity 'index' mode selects the correct index when multiple unique indexes exist."""
+        schema, table_name = get_table_info()
+        mock_logger = Mock()
+
+        try:
+            with flask_app.app.app_context():
+                # Create multiple unique indexes
+                db.session.execute(
+                    sa_text(
+                        f"CREATE UNIQUE INDEX IF NOT EXISTS hosts_replica_identity_idx ON {schema}.{table_name} (id)"
+                    )
+                )
+                db.session.execute(
+                    sa_text(
+                        f"""
+                        CREATE UNIQUE INDEX IF NOT EXISTS hosts_other_unique_idx
+                        ON {schema}.{table_name} (subscription_manager_id)
+                        """
+                    )
+                )
+                db.session.commit()
+
+                _set_replica_identity_single_table(db.session, mock_logger, schema, table_name, "index")
+
+                # Query pg_class and pg_index to verify the correct index is set
+                result = db.session.execute(
+                    sa_text(f"""
+                    SELECT i.relname
+                    FROM pg_index x
+                    JOIN pg_class t ON t.oid = x.indrelid
+                    JOIN pg_class i ON i.oid = x.indexrelid
+                    WHERE t.relname = '{table_name}'
+                      AND x.indisreplident = true
+                """)
+                ).fetchone()
+                assert result is not None, "No replica identity index found"
+                assert result[0] == "hosts_replica_identity_idx", (
+                    f"Expected hosts_replica_identity_idx, got {result[0]}"
+                )
+        finally:
+            with flask_app.app.app_context():
+                self.drop_index(f"{schema}.hosts_replica_identity_idx")
+                self.drop_index(f"{schema}.hosts_other_unique_idx")
+
     def test_set_replica_identity_single_table_to_index_no_index(self, flask_app):
         """Test setting replica identity to index mode when no suitable index exists."""
         # Use staleness table which is not in PUBLICATION_CONFIG and doesn't have replica identity index
@@ -329,7 +382,8 @@ class TestReplicaIdentityIntegration:
             with flask_app.app.app_context():
                 self.reset_replica_identity(table_name)
 
-    def test_set_replica_identity_for_table_with_partitions(self, flask_app):
+    @pytest.mark.parametrize("partition_suffix", ["_p0", "_p1", "_p2"])
+    def test_set_replica_identity_for_table_with_partitions(self, flask_app, partition_suffix):
         """Test setting replica identity for table with partitions."""
         schema, table_name = get_table_info()
         mock_logger = Mock()
@@ -345,7 +399,7 @@ class TestReplicaIdentityIntegration:
                 assert result == "default"
 
                 # Verify replica identity is also set on partitions (migrations always create at least _p0)
-                partition_name = f"{table_name}_p0"
+                partition_name = f"{table_name}{partition_suffix}"
                 partition_result = _get_current_replica_identity_mode(db.session, schema, partition_name)
                 if partition_result != "unknown":  # Only check if partition exists
                     assert partition_result == "default", (
@@ -363,7 +417,7 @@ class TestReplicaIdentityIntegration:
             with flask_app.app.app_context():
                 self.reset_replica_identity(table_name)
                 # Also reset partitions if they exist
-                partition_name = f"{table_name}_p0"
+                partition_name = f"{table_name}{partition_suffix}"
                 self.reset_replica_identity(partition_name)
 
 
