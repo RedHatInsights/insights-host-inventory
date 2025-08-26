@@ -1783,6 +1783,42 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_HOSTS_TABLE_MIGRATION_SWITCH}
             memory: ${MEMORY_REQUEST_HOSTS_TABLE_MIGRATION_SWITCH}
+    - name: delete-host-bios-uuid
+      restartPolicy: Never
+      suspend: ${{SUSPEND_DELETE_HOST_BIOS_UUID}}
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: [ "./jobs/delete_host_bios_uuid.py" ]
+        env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: TARGET_HOST_ID
+            value: ${TARGET_HOST_ID}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: SUSPEND_JOB
+            value: ${SUSPEND_DELETE_HOST_BIOS_UUID}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_DELETE_HOST_BIOS_UUID_JOB}
+            memory: ${MEMORY_LIMIT_DELETE_HOST_BIOS_UUID_JOB}
+          requests:
+            cpu: ${CPU_REQUEST_DELETE_HOST_BIOS_UUID_JOB}
+            memory: ${MEMORY_REQUEST_DELETE_HOST_BIOS_UUID_JOB}
     database:
       name: ${DB_NAME}
       version: 16
@@ -2561,3 +2597,19 @@ parameters:
   description: Choose migration mode to run DB refactoring tables transition
   required: true
   value: automated
+
+# Delete Host BIOS UUID Job
+- name: CPU_REQUEST_DELETE_HOST_BIOS_UUID_JOB
+  value: 100m
+- name: CPU_LIMIT_DELETE_HOST_BIOS_UUID_JOB
+  value: 200m
+- name: MEMORY_REQUEST_DELETE_HOST_BIOS_UUID_JOB
+  value: 128Mi
+- name: MEMORY_LIMIT_DELETE_HOST_BIOS_UUID_JOB
+  value: 256Mi
+- name: SUSPEND_DELETE_HOST_BIOS_UUID
+  description: If set to true, the delete-host-bios-uuid job will immediately exit upon running.
+  value: 'true'
+- name: TARGET_HOST_ID
+  description: The host ID to target for bios_uuid deletion
+  value: ''
