@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from random import randint
 from unittest import mock
@@ -17,8 +18,12 @@ from jobs.host_delete_duplicates import run as host_delete_duplicates_run
 from lib.db import multi_session_guard
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.mq_utils import MockEventProducer
+from tests.helpers.mq_utils import wrap_message
+from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_random_string
 from tests.helpers.test_utils import generate_uuid
+from tests.helpers.test_utils import get_platform_metadata
+from tests.helpers.test_utils import minimal_host
 
 ID_FACTS = ("provider_id", "subscription_manager_id", "insights_id")
 logger = get_logger(__name__)
@@ -101,11 +106,13 @@ def test_delete_duplicate_host_more_hosts_than_chunk_size(
 ):
     canonical_facts_1 = {
         "provider_id": generate_uuid(),
+        "provider_type": ProviderType.AWS.value,
         "insights_id": generate_uuid(),
         "subscription_manager_id": generate_uuid(),
     }
     canonical_facts_2 = {
         "provider_id": generate_uuid(),
+        "provider_type": ProviderType.AWS.value,
         "insights_id": generate_uuid(),
         "subscription_manager_id": generate_uuid(),
     }
@@ -236,7 +243,10 @@ def test_delete_duplicates_id_facts_matching(
 
     # Hosts with less canonical facts
     for _ in range(host_count):
-        canonical_facts = {tested_id: elevated_id}
+        if tested_id == "provider_id":
+            canonical_facts = {"provider_type": "aws", tested_id: elevated_id}
+        else:
+            canonical_facts = {tested_id: elevated_id}
         host = minimal_db_host(canonical_facts=canonical_facts)
         created_hosts.append(db_create_host(host=host))
 
@@ -447,3 +457,36 @@ def test_delete_duplicates_multiple_org_ids(
     assert deleted_hosts_count == 0
     assert db_get_host(created_host1, "111111")
     assert db_get_host(created_host2, "222222")
+
+
+@pytest.mark.usefixtures("flask_app")
+def test_canonical_facts_column_updates_via_mq(
+    db_get_host: Callable[[UUID], Host | None],
+    ingress_message_consumer_mock,
+):
+    initial_bios_uuid = generate_uuid()
+    expected_insights_id = generate_uuid()
+
+    # Create host via MQ with initial bios_uuid
+    host = minimal_host(insights_id=expected_insights_id, bios_uuid=initial_bios_uuid, reporter="puptoo")
+    message = wrap_message(host.data(), "add_host", get_platform_metadata(USER_IDENTITY))
+    result = ingress_message_consumer_mock.handle_message(json.dumps(message))
+    host_id = result.row.id
+
+    # Validate host was added correctly
+    retrieved_host = db_get_host(host_id)
+    assert retrieved_host is not None
+    assert retrieved_host.canonical_facts["bios_uuid"] == initial_bios_uuid
+    assert retrieved_host.bios_uuid == initial_bios_uuid
+
+    # Update the host via MQ with new bios_uuid
+    updated_bios_uuid = generate_uuid()
+    updated_host = minimal_host(insights_id=expected_insights_id, bios_uuid=updated_bios_uuid, reporter="puptoo")
+    update_message = wrap_message(updated_host.data(), "update_host", get_platform_metadata(USER_IDENTITY))
+    ingress_message_consumer_mock.handle_message(json.dumps(update_message))
+
+    # Validate the update worked correctly
+    retrieved_host = db_get_host(host_id)
+    assert retrieved_host is not None
+    assert retrieved_host.canonical_facts["bios_uuid"] == updated_bios_uuid
+    assert retrieved_host.bios_uuid == updated_bios_uuid
