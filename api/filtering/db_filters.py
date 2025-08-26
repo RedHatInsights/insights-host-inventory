@@ -292,7 +292,7 @@ def _modified_on_filter(updated_start: str | None, updated_end: str | None) -> l
     if updated_end_date and updated_end_date.year > 1970:
         modified_on_filter += [Host.modified_on <= updated_end_date]
 
-    return [and_(*modified_on_filter)]
+    return [and_(*modified_on_filter)] if modified_on_filter else []
 
 
 def _last_check_in_filter(last_check_in_start: str | None, last_check_in_end: str | None) -> list:
@@ -308,7 +308,7 @@ def _last_check_in_filter(last_check_in_start: str | None, last_check_in_end: st
     if last_check_in_end_date and last_check_in_end_date.year > 1970:
         last_check_in_filter += [Host.last_check_in <= last_check_in_end_date]
 
-    return [and_(*last_check_in_filter)]
+    return [and_(*last_check_in_filter)] if last_check_in_filter else []
 
 
 def _get_staleness_filter(all_staleness_states: list[str], host_type_filter: set[str | None], org_id: str) -> list:
