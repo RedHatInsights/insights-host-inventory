@@ -244,7 +244,23 @@ def serialize_group_without_host_count(group: Group) -> dict:
     }
 
 
+def serialize_workspace_without_host_count(workspace: dict) -> dict:
+    return {
+        "id": _serialize_uuid(workspace["id"]),
+        "name": workspace["name"],
+        "parent_id": workspace["parent_id"],
+        "description": workspace["description"],
+        "type": workspace["type"],
+        "created": workspace["created"],
+        "modified": workspace["modified"],
+    }
+
+
 def serialize_group_with_host_count(group: Group, host_count: int) -> dict:
+    return {**serialize_group_without_host_count(group), "host_count": host_count}
+
+
+def serialize_workspace_with_host_count(group: Group, host_count: int) -> dict:
     return {**serialize_group_without_host_count(group), "host_count": host_count}
 
 

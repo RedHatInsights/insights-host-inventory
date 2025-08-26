@@ -12,6 +12,7 @@ from api import json_error_response
 from api import metrics
 from api.group_query import build_group_response
 from api.group_query import build_paginated_group_list_response
+from api.group_query import build_paginated_workspace_list_response
 from api.group_query import does_group_with_name_exist
 from api.group_query import get_filtered_group_list_db
 from api.group_query import get_group_list_by_id_list_db
@@ -47,12 +48,36 @@ from lib.group_repository import validate_add_host_list_to_group_for_group_creat
 from lib.group_repository import wait_for_workspace_event
 from lib.metrics import create_group_count
 from lib.middleware import delete_rbac_workspace
+from lib.middleware import get_rbac_workspace
 from lib.middleware import patch_rbac_workspace
 from lib.middleware import post_rbac_workspace
 from lib.middleware import rbac
 from lib.middleware import rbac_group_id_check
 
 logger = get_logger(__name__)
+
+
+@api_operation
+@rbac(RbacResourceType.GROUPS, RbacPermission.READ)
+@metrics.api_request_time.time()
+def get_workspaces_list(
+    name=None,
+    page=1,
+    per_page=100,
+    # order_by=None,
+    # order_how=None,
+    # group_type=None,
+    # rbac_filter=None,
+):
+    try:
+        group_list, total = get_rbac_workspace(name)
+    except ValueError as e:
+        log_get_group_list_failed(logger)
+        abort(400, str(e))
+
+    log_get_group_list_succeeded(logger, group_list)
+
+    return flask_json_response(build_paginated_workspace_list_response(total, page, per_page, group_list))
 
 
 @api_operation
