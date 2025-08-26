@@ -14,6 +14,7 @@ To exit, type 'exit' or 'quit' and press Enter.
 """
 
 import argparse
+import csv
 import json
 import re
 import subprocess
@@ -54,6 +55,30 @@ def get_url_from_oc_server(app_name=DEFAULT_APP):
 
     server_url = server_url.replace("https://api.", f"https://gabi-{app_name}.apps.", 1)
     return f"{server_url}/query"
+
+
+def export_to_csv(data, filename):
+    """Exports the query results to a CSV file."""
+    try:
+        if not isinstance(data, list) or len(data) < 1 or not isinstance(data[0], list):
+            print("Response data is not in the expected format for CSV export.")
+            return False
+
+        headers = data[0]
+        rows = data[1:] if len(data) > 1 else []
+
+        with open(filename, "w", newline="", encoding="utf-8") as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(headers)
+            for row in rows:
+                writer.writerow(row)
+
+        print(f"Results exported to {filename}")
+        return True
+
+    except Exception as e:
+        print(f"Failed to export to CSV: {e}")
+        return False
 
 
 def display_results_as_table(data):
@@ -145,6 +170,28 @@ def main():
             if "result" in response_json:
                 print("\nQuery successful. Result:\n")
                 display_results_as_table(response_json["result"])
+
+                # Offer CSV export option
+                while True:
+                    try:
+                        export_choice = input("\nWould you like to export this result to CSV? (y/n): ").strip().lower()
+                        if export_choice in ["y", "yes"]:
+                            filename = input(
+                                "Enter filename (or press Enter for default 'query_results.csv'): "
+                            ).strip()
+                            if not filename:
+                                filename = "query_results.csv"
+                            elif not filename.endswith(".csv"):
+                                filename += ".csv"
+
+                            export_to_csv(response_json["result"], filename)
+                            break
+                        elif export_choice in ["n", "no"]:
+                            break
+                        else:
+                            print("Please enter 'y' for yes or 'n' for no.")
+                    except EOFError:
+                        break
             else:
                 print("\nResponse received, but 'result' key was not found.")
                 print(json.dumps(response_json, indent=2))
