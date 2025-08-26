@@ -56,7 +56,7 @@ def test_query_invalid_host_id(mq_create_three_specific_hosts, api_get, subtests
     bad_id_list = ["notauuid", "1234blahblahinvalid"]
     only_bad_id = bad_id_list.copy()
 
-    # Can’t have empty string as an only ID, that results in 404 Not Found.
+    # Can't have empty string as an only ID, that results in 404 Not Found.
     more_bad_id_list = bad_id_list + [""]
     valid_id = created_hosts[0].id
     with_bad_id = [f"{valid_id},{bad_id}" for bad_id in more_bad_id_list]
@@ -576,7 +576,7 @@ def test_get_host_by_subset_of_tags(mq_create_three_specific_hosts, api_get, sub
 
 def test_get_no_host_with_different_tags_same_namespace(api_get):
     """
-    Don’t get a host with two tags in the same namespace, from which only one match. This is a
+    Don't get a host with two tags in the same namespace, from which only one match. This is a
     regression test.
     """
     url = build_hosts_url(query="?tags=NS4/key1=val2&tags=NS1/key8=val1")
@@ -821,6 +821,49 @@ def test_query_hosts_filter_updated_start_end(mq_create_or_update_host, api_get)
     assert response_data["results"][0]["insights_id"] == host_list[2].insights_id
 
     url = build_hosts_url(query=f"?updated_end={host_list[2].updated.replace('+00:00', 'Z')}")
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    # This query should return all 3 hosts
+    assert len(response_data["results"]) == 3
+
+
+def test_query_hosts_filter_last_check_in_start_end(mq_create_or_update_host, api_get):
+    host_list = [mq_create_or_update_host(minimal_host(insights_id=generate_uuid())) for _ in range(3)]
+
+    url = build_hosts_url(query=f"?last_check_in_start={host_list[0].last_check_in.replace('+00:00', 'Z')}")
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+
+    # This query should return all 3 hosts
+    assert len(response_data["results"]) == 3
+
+    url = build_hosts_url(query=f"?last_check_in_end={host_list[0].last_check_in.replace('+00:00', 'Z')}")
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+
+    # This query should return only the first host
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["insights_id"] == host_list[0].insights_id
+
+    url = build_hosts_url(
+        query=(
+            f"?last_check_in_start={host_list[0].last_check_in.replace('+00:00', 'Z')}"
+            f"&last_check_in_end={host_list[1].last_check_in.replace('+00:00', 'Z')}"
+        )
+    )
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    # This query should return 2 hosts
+    assert len(response_data["results"]) == 2
+
+    url = build_hosts_url(query=f"?last_check_in_start={host_list[2].last_check_in.replace('+00:00', 'Z')}")
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    # This query should return only the last host
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["insights_id"] == host_list[2].insights_id
+
+    url = build_hosts_url(query=f"?last_check_in_end={host_list[2].last_check_in.replace('+00:00', 'Z')}")
     response_status, response_data = api_get(url)
     assert response_status == 200
     # This query should return all 3 hosts
