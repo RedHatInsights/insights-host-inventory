@@ -150,6 +150,13 @@ def write_event_to_outbox(event: EventType, host_id: str, host: Host | None = No
 
         # Save the outbox entry to record the event in the write-ahead log.
         db.session.add(outbox_entry_db)
+
+        # trial flush to see if debezium has picked up the event
+
+        # do not try flush yet because it flushes the transaction when we intend to delete only the outbox entry.
+        db.session.flush()
+        db.session.delete(outbox_entry_db)
+
         outbox_save_success.inc()
         logger.debug("Added outbox entry to session: aggregateid=%s", validated_outbox_entry["aggregateid"])
         logger.info("Successfully added event to outbox for aggregateid=%s", validated_outbox_entry["aggregateid"])
