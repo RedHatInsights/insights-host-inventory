@@ -87,18 +87,32 @@ def test_rhsm_update_display_name_ignored_after_updated_by_puptoo(
     assert db_host.reporter == reporter
 
 
-@pytest.mark.parametrize("reporter", ("rhsm-conduit", "rhsm-system-profile-bridge"))
+@pytest.mark.parametrize(
+    "orig_reporter",
+    (
+        "yupana",
+        "yuptoo",
+        "satellite",
+        "discovery",
+        "rhsm-conduit",
+        "rhsm-system-profile-bridge",
+        "cloud-connector",
+        "test-reporter",
+    ),
+)
+@pytest.mark.parametrize("rhsm_reporter", ("rhsm-conduit", "rhsm-system-profile-bridge"))
 def test_rhsm_update_display_name_ignored_after_updated_by_api(
     mq_create_or_update_host: Callable[..., HostWrapper],
     db_get_host: Callable[[UUID | str], Host | None],
     api_patch: Callable[..., tuple[int, dict]],
-    reporter: str,
+    orig_reporter: str,
+    rhsm_reporter: str,
 ) -> None:
     # Create a host without setting the display_name
-    host_data = minimal_host(reporter="satellite")
+    host_data = minimal_host(reporter=orig_reporter)
     host = mq_create_or_update_host(host_data)
     assert host.display_name == host.id
-    assert host.reporter == "satellite"
+    assert host.reporter == orig_reporter
 
     db_host = db_get_host(host.id)
     assert db_host
@@ -115,20 +129,20 @@ def test_rhsm_update_display_name_ignored_after_updated_by_api(
     assert db_host
     assert db_host.display_name_reporter == "API"
     assert db_host.display_name == api_display_name
-    assert db_host.reporter == "satellite"
+    assert db_host.reporter == orig_reporter
 
     # Try to update the display_name as RHSM
     host_data.display_name = generate_random_string()
-    host_data.reporter = reporter
+    host_data.reporter = rhsm_reporter
     updated_host = mq_create_or_update_host(host_data)
     assert updated_host.display_name == api_display_name
-    assert updated_host.reporter == reporter
+    assert updated_host.reporter == rhsm_reporter
 
     db_host = db_get_host(host.id)
     assert db_host
     assert db_host.display_name_reporter == "API"
     assert db_host.display_name == api_display_name
-    assert db_host.reporter == reporter
+    assert db_host.reporter == rhsm_reporter
 
 
 @pytest.mark.parametrize(
@@ -278,7 +292,21 @@ def test_update_display_name_by_reporter_after_puptoo(
 
 
 @pytest.mark.parametrize(
-    "reporter",
+    "orig_reporter",
+    (
+        "puptoo",
+        "yupana",
+        "yuptoo",
+        "satellite",
+        "discovery",
+        "rhsm-conduit",
+        "rhsm-system-profile-bridge",
+        "cloud-connector",
+        "test-reporter",
+    ),
+)
+@pytest.mark.parametrize(
+    "new_reporter",
     (
         "puptoo",
         "yupana",
@@ -293,13 +321,14 @@ def test_update_display_name_by_reporter_after_api(
     mq_create_or_update_host: Callable[..., HostWrapper],
     db_get_host: Callable[[UUID | str], Host | None],
     api_patch: Callable[..., tuple[int, dict]],
-    reporter: str,
+    orig_reporter: str,
+    new_reporter: str,
 ) -> None:
     # Create a host without setting the display_name
-    host_data = minimal_host(reporter="satellite")
+    host_data = minimal_host(reporter=orig_reporter)
     host = mq_create_or_update_host(host_data)
     assert host.display_name == host.id
-    assert host.reporter == "satellite"
+    assert host.reporter == orig_reporter
 
     db_host = db_get_host(host.id)
     assert db_host
@@ -316,25 +345,39 @@ def test_update_display_name_by_reporter_after_api(
     assert db_host
     assert db_host.display_name_reporter == "API"
     assert db_host.display_name == api_display_name
-    assert db_host.reporter == "satellite"
+    assert db_host.reporter == orig_reporter
 
     # Check that we can update the display_name as any reporter except RHSM
     new_display_name = generate_random_string()
     host_data.display_name = new_display_name
-    host_data.reporter = reporter
+    host_data.reporter = new_reporter
     updated_host = mq_create_or_update_host(host_data)
     assert updated_host.display_name == new_display_name
-    assert updated_host.reporter == reporter
+    assert updated_host.reporter == new_reporter
 
     db_host = db_get_host(host.id)
     assert db_host
-    assert db_host.display_name_reporter == reporter
+    assert db_host.display_name_reporter == new_reporter
     assert db_host.display_name == new_display_name
-    assert db_host.reporter == reporter
+    assert db_host.reporter == new_reporter
 
 
 @pytest.mark.parametrize(
-    "reporter",
+    "orig_reporter",
+    (
+        "puptoo",
+        "yupana",
+        "yuptoo",
+        "satellite",
+        "discovery",
+        "rhsm-conduit",
+        "rhsm-system-profile-bridge",
+        "cloud-connector",
+        "test-reporter",
+    ),
+)
+@pytest.mark.parametrize(
+    "new_reporter",
     (
         "puptoo",
         "yupana",
@@ -350,12 +393,14 @@ def test_update_display_name_by_reporter_after_api(
 def test_update_implicit_display_name_by_reporter(
     mq_create_or_update_host: Callable[..., HostWrapper],
     db_get_host: Callable[[UUID | str], Host | None],
-    reporter: str,
+    orig_reporter: str,
+    new_reporter: str,
 ) -> None:
     # Create a host without setting the display_name
-    host_data = minimal_host()
+    host_data = minimal_host(reporter=orig_reporter)
     host = mq_create_or_update_host(host_data)
     assert host.display_name == host.id
+    assert host.reporter == orig_reporter
 
     db_host = db_get_host(host.id)
     assert db_host
@@ -364,13 +409,13 @@ def test_update_implicit_display_name_by_reporter(
     # Check that we can update the display_name as any reporter if it was set implicitly
     new_display_name = generate_random_string()
     host_data.display_name = new_display_name
-    host_data.reporter = reporter
+    host_data.reporter = new_reporter
     updated_host = mq_create_or_update_host(host_data)
     assert updated_host.display_name == new_display_name
-    assert updated_host.reporter == reporter
+    assert updated_host.reporter == new_reporter
 
     db_host = db_get_host(host.id)
     assert db_host
-    assert db_host.display_name_reporter == reporter
+    assert db_host.display_name_reporter == new_reporter
     assert db_host.display_name == new_display_name
-    assert db_host.reporter == reporter
+    assert db_host.reporter == new_reporter
