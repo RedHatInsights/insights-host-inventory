@@ -196,19 +196,18 @@ def _build_create_publication_sql(publication_name):
         publication_filter = table_config.get("publication_filter", "")
 
         if publication_filter:
-            table_spec = f"""      {schema}.{table_name} ({columns})
-        WHERE ({publication_filter})"""
+            table_spec = f"""{schema}.{table_name} ({columns}) WHERE ({publication_filter})"""
         else:
-            table_spec = f"""      {schema}.{table_name} ({columns})"""
+            table_spec = f"""{schema}.{table_name} ({columns})"""
 
         table_specs.append(table_spec)
 
     return sa_text(f"""
-    CREATE PUBLICATION {publication_name}
-    FOR TABLE
-{",\n".join(table_specs)}
-    WITH (publish_via_partition_root = true);
-""")
+        CREATE PUBLICATION {publication_name}
+        FOR TABLE
+        {",\n".join(table_specs)}
+        WITH (publish_via_partition_root = true);
+    """)
 
 
 def set_replica_identity_for_table(session, logger, table_config, mode="index"):
