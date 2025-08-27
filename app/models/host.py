@@ -355,9 +355,14 @@ class Host(LimitedHost):
         self, input_display_name: str | None, input_reporter: str, *, input_fqdn: str | None = None
     ) -> None:
         if input_display_name:
-            if input_reporter == "rhsm-conduit" and self.display_name_reporter in ("API", "puptoo"):
+            # Ignore display_name updates from RHSM, if it has already been updated by API or insights-client
+            # https://issues.redhat.com/browse/RHINENG-19514
+            if input_reporter in ("rhsm-conduit", "rhsm-system-profile-bridge") and self.display_name_reporter in (
+                "API",
+                "puptoo",
+            ):
                 logger.debug(
-                    "Ignoring display_name update from rhsm-conduit, "
+                    f"Ignoring display_name update from {input_reporter}, "
                     f"current display_name_reporter: {self.display_name_reporter}"
                 )
                 return
