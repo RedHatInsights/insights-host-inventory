@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from flask_unleash import Unleash
-from UnleashClient.strategies import Strategy
 
 from app.logging import get_logger
 
@@ -23,14 +22,15 @@ FLAG_FALLBACK_VALUES = {
 }
 
 
-class SchemaStrategy(Strategy):
-    def load_provisioning(self) -> list:
-        return self.parameters["schema-name"].split(",")
-
-    def apply(self, context) -> bool:
+class SchemaStrategy:
+    def apply(self, parameters: dict, context) -> bool:
         default_value = False
+
+        parsed_parameters = parameters["schema-name"].split(",")
+
         if "schema" in context and context["schema"] is not None:
-            default_value = context["schema"] in self.parsed_provisioning
+            default_value = context["schema"] in parsed_parameters
+
         return default_value
 
 
