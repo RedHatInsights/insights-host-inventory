@@ -893,7 +893,10 @@ class TestOutboxE2ECases:
                 pass
 
         # Use the mock event producer to test outbox entry creation without cleanup
-        with patch("api.host.current_app.event_producer", MockEventProducerNoCleanup()):
+        with (
+            patch("api.host.current_app.event_producer", MockEventProducerNoCleanup()),
+            patch("lib.host_delete.kafka_available", return_value=True),
+        ):
             # Make DELETE request to delete the host
             response_status, _ = api_delete_host(host.id)
 
