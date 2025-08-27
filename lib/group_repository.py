@@ -13,6 +13,7 @@ from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
 from app.common import inventory_config
 from app.exceptions import InventoryException
+from app.exceptions import OutboxSaveException
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_get_group_list_failed
 from app.instrumentation import log_group_delete_failed
@@ -44,6 +45,7 @@ from lib.metrics import delete_group_processing_time
 from lib.metrics import delete_host_group_count
 from lib.metrics import delete_host_group_processing_time
 from lib.middleware import rbac_create_ungrouped_hosts_workspace
+from lib.outbox_repository import write_event_to_outbox
 
 logger = get_logger(__name__)
 
@@ -57,16 +59,9 @@ def _update_hosts_for_group_changes(host_id_list: list[str], group_id_list: list
     ]
 
     # Update groups data on each host record
-    if inventory_config().hbi_db_refactoring_use_old_table:
-        # Old code: filter by ID only
-        db.session.query(Host).filter(Host.id.in_(host_id_list)).update(
-            {"groups": serialized_groups}, synchronize_session="fetch"
-        )
-    else:
-        # New code: filter by ID and org_id
-        db.session.query(Host).filter(Host.id.in_(host_id_list), Host.org_id == identity.org_id).update(
-            {"groups": serialized_groups}, synchronize_session="fetch"
-        )
+    db.session.query(Host).filter(Host.id.in_(host_id_list), Host.org_id == identity.org_id).update(
+        {"groups": serialized_groups}, synchronize_session="fetch"
+    )
     db.session.commit()
 
     return serialized_groups, host_id_list
@@ -167,20 +162,11 @@ def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str):
         synchronize_session="fetch"
     )
 
-    if inventory_config().hbi_db_refactoring_use_old_table:
-        # Old code: constructor without org_id
-        host_group_assoc = [
-            HostGroupAssoc(host_id=host_id, group_id=group_id)
-            for host_id in host_id_list
-            if host_id not in ids_already_in_this_group
-        ]
-    else:
-        # New code: constructor with org_id
-        host_group_assoc = [
-            HostGroupAssoc(host_id=host_id, group_id=group_id, org_id=org_id)
-            for host_id in host_id_list
-            if host_id not in ids_already_in_this_group
-        ]
+    host_group_assoc = [
+        HostGroupAssoc(host_id=host_id, group_id=group_id, org_id=org_id)
+        for host_id in host_id_list
+        if host_id not in ids_already_in_this_group
+    ]
     db.session.add_all(host_group_assoc)
 
     _update_group_update_time(group_id, org_id)
@@ -224,6 +210,17 @@ def _process_host_changes(
 
         # Process each batch
         host_list = get_host_list_by_id_list_from_db(batch, identity)
+        for host in host_list:
+            try:
+                # write to the outbox table for synchronization with Kessel
+                result = write_event_to_outbox(EventType.updated, str(host.id), host)
+                if not result:
+                    logger.error("Failed to write updated event to outbox")
+                    raise OutboxSaveException("Failed to write update event to outbox")
+            except OutboxSaveException as ose:
+                logger.error("Failed to write updated event to outbox: %s", str(ose))
+                raise ose
+
         _produce_host_update_events(event_producer, serialized_groups, host_list, identity, staleness=staleness)
         _invalidate_system_cache(host_list, identity)
 
@@ -483,16 +480,11 @@ def _update_group_update_time(group_id: str, org_id: str):
 
 
 def get_group_using_host_id(host_id: str, org_id: str):
-    if inventory_config().hbi_db_refactoring_use_old_table:
-        # Old code: filter by host_id only
-        assoc = db.session.query(HostGroupAssoc).filter(HostGroupAssoc.host_id == host_id).one_or_none()
-    else:
-        # New code: filter by org_id and host_id
-        assoc = (
-            db.session.query(HostGroupAssoc)
-            .filter(HostGroupAssoc.org_id == org_id, HostGroupAssoc.host_id == host_id)
-            .one_or_none()
-        )
+    assoc = (
+        db.session.query(HostGroupAssoc)
+        .filter(HostGroupAssoc.org_id == org_id, HostGroupAssoc.host_id == host_id)
+        .one_or_none()
+    )
     return get_group_by_id_from_db(str(assoc.group_id), org_id) if assoc else None
 
 

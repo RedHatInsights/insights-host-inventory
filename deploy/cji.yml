@@ -28,46 +28,6 @@ objects:
   metadata:
     labels:
       app: host-inventory
-    name: create-ungrouped-groups-${CREATE_UNGROUPED_GROUPS_RUN_NUMBER}
-  spec:
-    appName: host-inventory
-    jobs:
-      - create-ungrouped-host-groups
-- apiVersion: cloud.redhat.com/v1alpha1
-  kind: ClowdJobInvocation
-  metadata:
-    labels:
-      app: host-inventory
-    name: assign-ungrouped-hosts-${ASSIGN_UNGROUPED_HOSTS_RUN_NUMBER}
-  spec:
-    appName: host-inventory
-    jobs:
-      - assign-ungrouped-host-groups
-- apiVersion: cloud.redhat.com/v1alpha1
-  kind: ClowdJobInvocation
-  metadata:
-    labels:
-      app: host-inventory
-    name: delete-hosts-without-id-facts-${DELETE_HOSTS_WITHOUT_ID_FACTS_RUN_NUMBER}
-  spec:
-    appName: host-inventory
-    jobs:
-      - delete-hosts-without-id-facts
-- apiVersion: cloud.redhat.com/v1alpha1
-  kind: ClowdJobInvocation
-  metadata:
-    labels:
-      app: host-inventory
-    name: export-group-data-s3-${GROUP_S3_EXPORT_RUN_NUMBER}
-  spec:
-    appName: host-inventory
-    jobs:
-      - export-group-data-s3
-- apiVersion: cloud.redhat.com/v1alpha1
-  kind: ClowdJobInvocation
-  metadata:
-    labels:
-      app: host-inventory
     name: delete-hosts-s3-${DELETE_HOSTS_S3_RUN_NUMBER}
   spec:
     appName: host-inventory
@@ -113,18 +73,20 @@ objects:
     appName: host-inventory
     jobs:
       - hosts-table-migration-switch
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    labels:
+      app: host-inventory
+    name: delete-host-bios-uuid-${DELETE_HOST_BIOS_UUID_RUN_NUMBER}
+  spec:
+    appName: host-inventory
+    jobs:
+      - delete-host-bios-uuid
 parameters:
 - name: SYNCHRONIZER_RUN_NUMBER
   value: '1'
 - name: SYNCHRONIZER_ONLY_RUN_NUMBER
-  value: '1'
-- name: CREATE_UNGROUPED_GROUPS_RUN_NUMBER
-  value: '1'
-- name: ASSIGN_UNGROUPED_HOSTS_RUN_NUMBER
-  value: '1'
-- name: DELETE_HOSTS_WITHOUT_ID_FACTS_RUN_NUMBER
-  value: '1'
-- name: GROUP_S3_EXPORT_RUN_NUMBER
   value: '1'
 - name: DELETE_HOSTS_S3_RUN_NUMBER
   value: '1'
@@ -135,4 +97,6 @@ parameters:
 - name: HOSTS_TABLE_MIGRATION_DATA_COPY_RUN_NUMBER
   value: '1'
 - name: HOSTS_TABLE_MIGRATION_SWITCH_RUN_NUMBER
+  value: '1'
+- name: DELETE_HOST_BIOS_UUID_RUN_NUMBER
   value: '1'

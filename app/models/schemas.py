@@ -1,4 +1,6 @@
+import contextlib
 from copy import deepcopy
+from datetime import UTC
 
 from jsonschema import ValidationError as JsonSchemaValidationError
 from jsonschema import validate as jsonschema_validate
@@ -13,7 +15,6 @@ from marshmallow import validate as marshmallow_validate
 from marshmallow import validates
 from marshmallow import validates_schema
 
-from app.common import inventory_config
 from app.models.constants import MAX_CANONICAL_FACTS_VERSION
 from app.models.constants import MIN_CANONICAL_FACTS_VERSION
 from app.models.constants import TAG_KEY_VALIDATION
@@ -40,13 +41,14 @@ class DiskDeviceSchema(MarshmallowSchema):
 
 
 class RhsmSchema(MarshmallowSchema):
-    version = fields.Str(validate=marshmallow_validate.Length(max=255))
+    version = fields.Str(validate=marshmallow_validate.Length(max=256))
+    environment_ids = fields.List(fields.Str(validate=marshmallow_validate.Length(max=256)))
 
 
 class OperatingSystemSchema(MarshmallowSchema):
     major = fields.Int()
     minor = fields.Int()
-    name = fields.Str(validate=marshmallow_validate.Length(max=4))
+    name = fields.Str(validate=marshmallow_validate.Length(max=256))
 
 
 class YumRepoSchema(MarshmallowSchema):
@@ -55,11 +57,13 @@ class YumRepoSchema(MarshmallowSchema):
     gpgcheck = fields.Bool()
     enabled = fields.Bool()
     base_url = fields.Str(validate=marshmallow_validate.Length(max=2048))
+    mirrorlist = fields.Str(validate=marshmallow_validate.Length(max=2048))
 
 
 class DnfModuleSchema(MarshmallowSchema):
     name = fields.Str(validate=marshmallow_validate.Length(max=128))
-    stream = fields.Str(validate=marshmallow_validate.Length(max=128))
+    stream = fields.Str(validate=marshmallow_validate.Length(max=2048))
+    status = fields.List(fields.Str(validate=marshmallow_validate.Length(max=64)))
 
 
 class InstalledProductSchema(MarshmallowSchema):
@@ -75,6 +79,7 @@ class NetworkInterfaceSchema(MarshmallowSchema):
     mtu = fields.Int()
     mac_address = fields.Str(validate=marshmallow_validate.Length(max=59))
     name = fields.Str(validate=marshmallow_validate.Length(min=1, max=50))
+    state = fields.Str(validate=marshmallow_validate.Length(max=25))
     type = fields.Str(validate=marshmallow_validate.Length(max=18))
 
 
@@ -235,43 +240,27 @@ class LimitedHostSchema(CanonicalFactsSchema):
 
     @staticmethod
     def build_model(data, canonical_facts, facts, tags, tags_alt=None):
-        if inventory_config().hbi_db_refactoring_use_old_table:
-            # Old code: constructor without canonical facts parameters
-            return LimitedHost(
-                canonical_facts=canonical_facts,
-                display_name=data.get("display_name"),
-                ansible_host=data.get("ansible_host"),
-                account=data.get("account"),
-                org_id=data.get("org_id"),
-                facts=facts,
-                tags=tags,
-                tags_alt=tags_alt if tags_alt else [],
-                system_profile_facts=data.get("system_profile", {}),
-                groups=data.get("groups", []),
-            )
-        else:
-            # New code: constructor with canonical facts parameters
-            return LimitedHost(
-                canonical_facts=canonical_facts,
-                display_name=data.get("display_name"),
-                ansible_host=data.get("ansible_host"),
-                account=data.get("account"),
-                org_id=data.get("org_id"),
-                facts=facts,
-                tags=tags,
-                tags_alt=tags_alt if tags_alt else [],
-                system_profile_facts=data.get("system_profile", {}),
-                groups=data.get("groups", []),
-                insights_id=canonical_facts.get("insights_id"),
-                subscription_manager_id=canonical_facts.get("subscription_manager_id"),
-                satellite_id=canonical_facts.get("satellite_id"),
-                fqdn=canonical_facts.get("fqdn"),
-                bios_uuid=canonical_facts.get("bios_uuid"),
-                ip_addresses=canonical_facts.get("ip_addresses"),
-                mac_addresses=canonical_facts.get("mac_addresses"),
-                provider_id=canonical_facts.get("provider_id"),
-                provider_type=canonical_facts.get("provider_type"),
-            )
+        return LimitedHost(
+            canonical_facts=canonical_facts,
+            display_name=data.get("display_name"),
+            ansible_host=data.get("ansible_host"),
+            account=data.get("account"),
+            org_id=data.get("org_id"),
+            facts=facts,
+            tags=tags,
+            tags_alt=tags_alt if tags_alt else [],
+            system_profile_facts=data.get("system_profile", {}),
+            groups=data.get("groups", []),
+            insights_id=canonical_facts.get("insights_id"),
+            subscription_manager_id=canonical_facts.get("subscription_manager_id"),
+            satellite_id=canonical_facts.get("satellite_id"),
+            fqdn=canonical_facts.get("fqdn"),
+            bios_uuid=canonical_facts.get("bios_uuid"),
+            ip_addresses=canonical_facts.get("ip_addresses"),
+            mac_addresses=canonical_facts.get("mac_addresses"),
+            provider_id=canonical_facts.get("provider_id"),
+            provider_type=canonical_facts.get("provider_type"),
+        )
 
     @pre_load
     def coerce_system_profile_types(self, data, **kwargs):
@@ -306,47 +295,29 @@ class HostSchema(LimitedHostSchema):
     def build_model(data, canonical_facts, facts, tags, tags_alt=None):
         if tags_alt is None:
             tags_alt = []
-        if inventory_config().hbi_db_refactoring_use_old_table:
-            # Old code: constructor without canonical facts parameters
-            return Host(
-                canonical_facts,
-                data.get("display_name"),
-                data.get("ansible_host"),
-                data.get("account"),
-                data.get("org_id"),
-                facts,
-                tags,
-                tags_alt,
-                data.get("system_profile", {}),
-                data["stale_timestamp"],
-                data["reporter"],
-                data.get("groups", []),
-            )
-        else:
-            # New code: constructor with canonical facts parameters
-            return Host(
-                canonical_facts,
-                data.get("display_name"),
-                data.get("ansible_host"),
-                data.get("account"),
-                data.get("org_id"),
-                facts,
-                tags,
-                tags_alt,
-                data.get("system_profile", {}),
-                data["stale_timestamp"],
-                data["reporter"],
-                data.get("groups", []),
-                insights_id=canonical_facts.get("insights_id"),
-                subscription_manager_id=canonical_facts.get("subscription_manager_id"),
-                satellite_id=canonical_facts.get("satellite_id"),
-                fqdn=canonical_facts.get("fqdn"),
-                bios_uuid=canonical_facts.get("bios_uuid"),
-                ip_addresses=canonical_facts.get("ip_addresses"),
-                mac_addresses=canonical_facts.get("mac_addresses"),
-                provider_id=canonical_facts.get("provider_id"),
-                provider_type=canonical_facts.get("provider_type"),
-            )
+        return Host(
+            canonical_facts,
+            data.get("display_name"),
+            data.get("ansible_host"),
+            data.get("account"),
+            data.get("org_id"),
+            facts,
+            tags,
+            tags_alt,
+            data.get("system_profile", {}),
+            data["stale_timestamp"],
+            data["reporter"],
+            data.get("groups", []),
+            insights_id=canonical_facts.get("insights_id"),
+            subscription_manager_id=canonical_facts.get("subscription_manager_id"),
+            satellite_id=canonical_facts.get("satellite_id"),
+            fqdn=canonical_facts.get("fqdn"),
+            bios_uuid=canonical_facts.get("bios_uuid"),
+            ip_addresses=canonical_facts.get("ip_addresses"),
+            mac_addresses=canonical_facts.get("mac_addresses"),
+            provider_id=canonical_facts.get("provider_id"),
+            provider_type=canonical_facts.get("provider_type"),
+        )
 
 
 class PatchHostSchema(MarshmallowSchema):
@@ -397,3 +368,181 @@ class StalenessSchema(MarshmallowSchema):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+
+class OutboxEventMetadataSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    localResourceId = fields.Raw(validate=verify_uuid_format, required=True)
+    apiHref = fields.Str(validate=marshmallow_validate.Length(min=1, max=2048), required=True)
+    consoleHref = fields.Str(validate=marshmallow_validate.Length(min=1, max=2048), required=True)
+    reporterVersion = fields.Str(validate=marshmallow_validate.Length(min=1, max=50), required=True)
+
+
+class OutboxEventCommonSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    workspace_id = fields.Raw(validate=verify_uuid_format, allow_none=True)
+
+
+class OutboxEventReporterSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    satellite_id = fields.Str(validate=verify_satellite_id, allow_none=True)
+    subscription_manager_id = fields.Str(validate=verify_uuid_format, allow_none=True)
+    insights_id = fields.Raw(validate=verify_uuid_format, allow_none=True)
+    ansible_host = fields.Str(validate=marshmallow_validate.Length(max=255), allow_none=True)
+
+
+class OutboxEventRepresentationsSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    metadata = fields.Nested(OutboxEventMetadataSchema, required=True)
+    common = fields.Nested(OutboxEventCommonSchema, required=True)
+    reporter = fields.Nested(OutboxEventReporterSchema, required=True)
+
+
+class OutboxCreateUpdatePayloadSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    type = fields.Str(validate=marshmallow_validate.OneOf(["host"]), required=True)
+    reporterType = fields.Str(validate=marshmallow_validate.OneOf(["hbi"]), required=True)
+    reporterInstanceId = fields.Str(validate=marshmallow_validate.Length(min=1, max=255), required=True)
+    representations = fields.Nested(OutboxEventRepresentationsSchema, required=True)
+
+
+class OutboxDeleteReporterSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    type = fields.Str(validate=marshmallow_validate.OneOf(["HBI"]), required=True)
+
+
+class OutboxDeleteReferenceSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    resource_type = fields.Str(validate=marshmallow_validate.OneOf(["host"]), required=True)
+    resource_id = fields.Raw(validate=verify_uuid_format, allow_none=True)
+    reporter = fields.Nested(OutboxDeleteReporterSchema, required=True)
+
+
+class OutboxDeletePayloadSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    reference = fields.Nested(OutboxDeleteReferenceSchema, required=True)
+
+
+class OutboxSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    id = fields.Raw(validate=verify_uuid_format, dump_only=True)
+    aggregatetype = fields.Str(validate=marshmallow_validate.Length(min=1, max=255), load_default="hbi.hosts")
+    aggregateid = fields.Raw(validate=verify_uuid_format, required=True)
+    operation = fields.Str(validate=marshmallow_validate.Length(min=1, max=255), required=True)
+    version = fields.Str(validate=marshmallow_validate.Length(min=1, max=50), required=True)
+    payload = fields.Raw(required=True)
+
+    @validates_schema
+    def validate_payload_with_operation(self, data, **kwargs):
+        operation = data.get("operation")
+        payload = data.get("payload")
+
+        if operation and payload:
+            if operation in ["created", "updated"]:
+                OutboxCreateUpdatePayloadSchema().load(payload)
+            elif operation == "deleted":
+                OutboxDeletePayloadSchema().load(payload)
+            else:
+                # Allow other operation types but still validate payload structure if it matches known patterns
+                with contextlib.suppress(MarshmallowValidationError):
+                    OutboxCreateUpdatePayloadSchema().load(payload)
+                with contextlib.suppress(MarshmallowValidationError):
+                    OutboxDeletePayloadSchema().load(payload)
+                # If payload doesn't match either schema, that's okay for unknown operations
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
+class HostStaticSystemProfileSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    arch = fields.Str(validate=marshmallow_validate.Length(max=50), allow_none=True)
+    basearch = fields.Str(validate=marshmallow_validate.Length(max=50), allow_none=True)
+    bios_release_date = fields.Str(validate=marshmallow_validate.Length(max=50), allow_none=True)
+    bios_vendor = fields.Str(validate=marshmallow_validate.Length(max=100), allow_none=True)
+    bios_version = fields.Str(validate=marshmallow_validate.Length(max=100), allow_none=True)
+    bootc_status = fields.Dict(allow_none=True)
+    cloud_provider = fields.Str(validate=marshmallow_validate.Length(max=100), allow_none=True)
+    conversions = fields.Dict(allow_none=True)
+    cores_per_socket = fields.Int(validate=marshmallow_validate.Range(min=0, max=2147483647), allow_none=True)
+    cpu_model = fields.Str(validate=marshmallow_validate.Length(max=100), allow_none=True)
+    disk_devices = fields.List(fields.Nested(DiskDeviceSchema), allow_none=True)
+    dnf_modules = fields.List(fields.Nested(DnfModuleSchema), allow_none=True)
+    enabled_services = fields.List(fields.Str(validate=marshmallow_validate.Length(max=512)), allow_none=True)
+    gpg_pubkeys = fields.List(fields.Str(validate=marshmallow_validate.Length(max=512)), allow_none=True)
+    greenboot_fallback_detected = fields.Bool(allow_none=True)
+    greenboot_status = fields.Str(validate=marshmallow_validate.Length(max=5), allow_none=True)
+    host_type = fields.Str(validate=marshmallow_validate.Length(max=4), allow_none=True)
+    image_builder = fields.Dict(allow_none=True)
+    infrastructure_type = fields.Str(validate=marshmallow_validate.Length(max=100), allow_none=True)
+    infrastructure_vendor = fields.Str(validate=marshmallow_validate.Length(max=100), allow_none=True)
+    insights_client_version = fields.Str(validate=marshmallow_validate.Length(max=50), allow_none=True)
+    installed_packages_delta = fields.List(fields.Str(validate=marshmallow_validate.Length(max=512)), allow_none=True)
+    installed_services = fields.List(fields.Str(validate=marshmallow_validate.Length(max=512)), allow_none=True)
+    intersystems = fields.Dict(allow_none=True)
+    is_marketplace = fields.Bool(allow_none=True)
+    katello_agent_running = fields.Bool(allow_none=True)
+    number_of_cpus = fields.Int(validate=marshmallow_validate.Range(min=0, max=2147483647), allow_none=True)
+    number_of_sockets = fields.Int(validate=marshmallow_validate.Range(min=0, max=2147483647), allow_none=True)
+    operating_system = fields.Nested(OperatingSystemSchema, allow_none=True)
+    os_kernel_version = fields.Str(validate=marshmallow_validate.Length(max=50), allow_none=True)
+    os_release = fields.Str(validate=marshmallow_validate.Length(max=100), allow_none=True)
+    owner_id = fields.Raw(validate=verify_uuid_format, allow_none=True)
+    public_dns = fields.List(fields.Str(validate=marshmallow_validate.Length(max=100)), allow_none=True)
+    public_ipv4_addresses = fields.List(fields.Str(validate=marshmallow_validate.Length(max=15)), allow_none=True)
+    releasever = fields.Str(validate=marshmallow_validate.Length(max=100), allow_none=True)
+    rhc_client_id = fields.Raw(validate=verify_uuid_format, allow_none=True)
+    rhc_config_state = fields.Raw(validate=verify_uuid_format, allow_none=True)
+    rhel_ai = fields.Dict(allow_none=True)
+    rhsm = fields.Nested(RhsmSchema, allow_none=True)
+    rpm_ostree_deployments = fields.List(fields.Dict(), allow_none=True)
+    satellite_managed = fields.Bool(allow_none=True)
+    selinux_config_file = fields.Str(validate=marshmallow_validate.Length(max=128), allow_none=True)
+    selinux_current_mode = fields.Str(validate=marshmallow_validate.Length(max=10), allow_none=True)
+    subscription_auto_attach = fields.Str(validate=marshmallow_validate.Length(max=100), allow_none=True)
+    subscription_status = fields.Str(validate=marshmallow_validate.Length(max=100), allow_none=True)
+    system_purpose = fields.Dict(allow_none=True)
+    system_update_method = fields.Str(validate=marshmallow_validate.Length(max=10), allow_none=True)
+    third_party_services = fields.Dict(allow_none=True)
+    threads_per_core = fields.Int(validate=marshmallow_validate.Range(min=0, max=2147483647), allow_none=True)
+    tuned_profile = fields.Str(validate=marshmallow_validate.Length(max=256), allow_none=True)
+    virtual_host_uuid = fields.Raw(validate=verify_uuid_format, allow_none=True)
+    yum_repos = fields.List(fields.Nested(YumRepoSchema), allow_none=True)
+
+
+class HostDynamicSystemProfileSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    captured_date = fields.AwareDateTime(allow_none=True, default_timezone=UTC)
+    running_processes = fields.List(fields.Str(), allow_none=True)
+    last_boot_time = fields.AwareDateTime(allow_none=True, default_timezone=UTC)
+    installed_packages = fields.List(fields.Str(), allow_none=True)
+    network_interfaces = fields.List(fields.Nested(NetworkInterfaceSchema), allow_none=True)
+    installed_products = fields.List(fields.Nested(InstalledProductSchema), allow_none=True)
+    cpu_flags = fields.List(fields.Str(), allow_none=True)
+    insights_egg_version = fields.Str(validate=marshmallow_validate.Length(max=50), allow_none=True)
+    kernel_modules = fields.List(fields.Str(), allow_none=True)
+    system_memory_bytes = fields.Int(allow_none=True)
+    systemd = fields.Dict(allow_none=True)
+    workloads = fields.Dict(allow_none=True)

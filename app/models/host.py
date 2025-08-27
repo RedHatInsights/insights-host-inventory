@@ -1,4 +1,3 @@
-import os
 import uuid
 from contextlib import suppress
 
@@ -16,8 +15,8 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy.orm import column_property
+from sqlalchemy.orm import relationship
 
-from app.common import inventory_config
 from app.config import ID_FACTS
 from app.culling import should_host_stay_fresh_forever
 from app.exceptions import InventoryException
@@ -27,6 +26,8 @@ from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 from app.models.constants import INVENTORY_SCHEMA
 from app.models.constants import NEW_TO_OLD_REPORTER_MAP
 from app.models.database import db
+from app.models.system_profile_dynamic import HostDynamicSystemProfile
+from app.models.system_profile_static import HostStaticSystemProfile
 from app.models.utils import _create_staleness_timestamps_values
 from app.models.utils import _set_display_name_on_save
 from app.models.utils import _time_now
@@ -94,20 +95,19 @@ class LimitedHost(db.Model):
         self.tags = tags
         self.tags_alt = tags_alt
         self.system_profile_facts = system_profile_facts or {}
+        self._update_normalized_system_profiles(system_profile_facts)
         self.groups = groups or []
         self.last_check_in = _time_now()
-
-        if not inventory_config().hbi_db_refactoring_use_old_table:
-            # New code: assign canonical facts to individual columns
-            self.insights_id = insights_id
-            self.subscription_manager_id = subscription_manager_id
-            self.satellite_id = satellite_id
-            self.fqdn = fqdn
-            self.bios_uuid = bios_uuid
-            self.ip_addresses = ip_addresses
-            self.mac_addresses = mac_addresses
-            self.provider_id = provider_id
-            self.provider_type = provider_type
+        # canonical facts
+        self.insights_id = insights_id
+        self.subscription_manager_id = subscription_manager_id
+        self.satellite_id = satellite_id
+        self.fqdn = fqdn
+        self.bios_uuid = bios_uuid
+        self.ip_addresses = ip_addresses
+        self.mac_addresses = mac_addresses
+        self.provider_id = provider_id
+        self.provider_type = provider_type
 
     def _update_ansible_host(self, ansible_host):
         if ansible_host is not None:
@@ -153,6 +153,38 @@ class LimitedHost(db.Model):
             else_=" 000.000",
         )
 
+    def _update_normalized_system_profiles(self, input_system_profile: dict):
+        """Update the normalized system profile tables."""
+        from app.models.system_profile_transformer import validate_and_transform
+
+        if not input_system_profile:
+            return
+
+        # Transform and validate the data
+        static_data, dynamic_data = validate_and_transform(str(self.org_id), str(self.id), input_system_profile)
+
+        # Update or create static system profile
+        if static_data:
+            if self.static_system_profile:
+                # Update existing record
+                for key, value in static_data.items():
+                    if key not in ["org_id", "host_id"]:
+                        setattr(self.static_system_profile, key, value)
+            else:
+                # Create new record
+                self.static_system_profile = HostStaticSystemProfile(**static_data)
+
+        # Update or create dynamic system profile
+        if dynamic_data:
+            if self.dynamic_system_profile:
+                # Update existing record
+                for key, value in dynamic_data.items():
+                    if key not in ["org_id", "host_id"]:
+                        setattr(self.dynamic_system_profile, key, value)
+            else:
+                # Create new record
+                self.dynamic_system_profile = HostDynamicSystemProfile(**dynamic_data)
+
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     account = db.Column(db.String(10))
     org_id = db.Column(db.String(36), primary_key=True)
@@ -165,21 +197,28 @@ class LimitedHost(db.Model):
     tags_alt = db.Column(JSONB)
     canonical_facts = db.Column(JSONB)
 
-    if os.environ.get("HBI_DB_REFACTORING_USE_OLD_TABLE", "false").lower() != "true":
-        insights_id = db.Column(UUID(as_uuid=True), default="00000000-0000-0000-0000-000000000000")
-        subscription_manager_id = db.Column(db.String(36))
-        satellite_id = db.Column(db.String(255))
-        fqdn = db.Column(db.String(255))
-        bios_uuid = db.Column(db.String(36))
-        ip_addresses = db.Column(JSONB)
-        mac_addresses = db.Column(JSONB)
-        provider_id = db.Column(db.String(500))
-        provider_type = db.Column(db.String(50))
+    # canonical facts
+    insights_id = db.Column(UUID(as_uuid=True), default="00000000-0000-0000-0000-000000000000")
+    subscription_manager_id = db.Column(db.String(36))
+    satellite_id = db.Column(db.String(255))
+    fqdn = db.Column(db.String(255))
+    bios_uuid = db.Column(db.String(36))
+    ip_addresses = db.Column(JSONB)
+    mac_addresses = db.Column(JSONB)
+    provider_id = db.Column(db.String(500))
+    provider_type = db.Column(db.String(50))
 
     system_profile_facts = db.Column(JSONB)
     groups = db.Column(MutableList.as_mutable(JSONB), default=lambda: [])
     host_type = column_property(system_profile_facts["host_type"])
     last_check_in = db.Column(db.DateTime(timezone=True))
+
+    static_system_profile = relationship(
+        "HostStaticSystemProfile", back_populates="host", cascade="all, delete-orphan", lazy="select", uselist=False
+    )
+    dynamic_system_profile = relationship(
+        "HostDynamicSystemProfile", back_populates="host", cascade="all, delete-orphan", lazy="select", uselist=False
+    )
 
 
 class Host(LimitedHost):
@@ -267,9 +306,7 @@ class Host(LimitedHost):
         if not per_reporter_staleness:
             self._update_per_reporter_staleness(reporter)
 
-        if not inventory_config().hbi_db_refactoring_use_old_table:
-            # New code: update canonical facts to individual columns
-            self.update_canonical_facts(canonical_facts)
+        self.update_canonical_facts(canonical_facts)
 
     def save(self):
         self._cleanup_tags()
@@ -473,6 +510,8 @@ class Host(LimitedHost):
 
     def update_system_profile(self, input_system_profile: dict):
         logger.debug("Updating host's (id=%s) system profile", self.id)
+
+        # Update the existing JSONB column (backward compatibility)
         if not self.system_profile_facts:
             self.system_profile_facts = input_system_profile
         else:
@@ -482,6 +521,14 @@ class Host(LimitedHost):
                 else:
                     self.system_profile_facts[key] = value
         orm.attributes.flag_modified(self, "system_profile_facts")
+
+        # Update the normalized system profile tables
+        try:
+            self._update_normalized_system_profiles(input_system_profile)
+        except ValidationException as e:
+            logger.warning("Failed to update normalized system profile tables for host %s: %s", self.id, str(e))
+        except Exception as e:
+            logger.warning("Failed to update normalized system profile tables for host %s: %s", self.id, str(e))
 
     def _update_staleness_timestamps(self):
         if should_host_stay_fresh_forever(self):

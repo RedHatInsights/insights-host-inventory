@@ -5,14 +5,13 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
-import pytz
 from confluent_kafka import KafkaException
 
 from app.culling import should_host_stay_fresh_forever
 from app.logging import threadctx
 from app.models import Host
 from app.models import db
-from host_reaper import run as host_reaper_run
+from jobs.host_reaper import run as host_reaper_run
 from tests.helpers.api_utils import build_facts_url
 from tests.helpers.api_utils import build_host_tags_url
 from tests.helpers.api_utils import build_hosts_url
@@ -170,9 +169,7 @@ def test_culled_host_is_removed(
     should_be_removed,
 ):
     with patch("app.models.utils.datetime") as mock_datetime:
-        mock_datetime.now.return_value = datetime(
-            year=2023, month=4, day=2, hour=1, minute=1, second=1, tzinfo=pytz.utc
-        )
+        mock_datetime.now.return_value = datetime(year=2023, month=4, day=2, hour=1, minute=1, second=1, tzinfo=UTC)
         mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
 
         staleness_timestamps = get_staleness_timestamps()

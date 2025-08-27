@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import json
 import sys
+import uuid
 from collections.abc import Callable
 from copy import deepcopy
 from functools import partial
@@ -31,6 +32,7 @@ from app.auth.identity import create_mock_identity_with_org_id
 from app.common import inventory_config
 from app.culling import Timestamps
 from app.exceptions import InventoryException
+from app.exceptions import OutboxSaveException
 from app.exceptions import ValidationException
 from app.instrumentation import log_add_host_attempt
 from app.instrumentation import log_add_host_failure
@@ -408,6 +410,9 @@ class IngressMessageConsumer(HostMessageConsumer):
             identity = _get_identity(host_data, platform_metadata)
             input_host = deserialize_host(host_data)
 
+            # New hosts don't have an id, so create one
+            input_host.id = uuid.uuid4() if input_host.id is None else input_host.id
+
             # basic-auth does not need owner_id
             if identity.identity_type == IdentityType.SYSTEM:
                 input_host = _set_owner(input_host, identity)
@@ -425,12 +430,7 @@ class IngressMessageConsumer(HostMessageConsumer):
                 db.session.flush()  # Flush so that we can retrieve the created host's ID
                 # Get org's "ungrouped hosts" group (create if not exists) and assign host to it
                 group = get_or_create_ungrouped_hosts_group_for_identity(identity)
-                if inventory_config().hbi_db_refactoring_use_old_table:
-                    # Old code: constructor without org_id
-                    assoc = HostGroupAssoc(host_row.id, group.id)
-                else:
-                    # New code: constructor with org_id
-                    assoc = HostGroupAssoc(host_row.id, group.id, identity.org_id)
+                assoc = HostGroupAssoc(host_row.id, group.id, identity.org_id)
                 db.session.add(assoc)
                 host_row.groups = [serialize_group(group)]
                 db.session.flush()
@@ -440,6 +440,9 @@ class IngressMessageConsumer(HostMessageConsumer):
             return host_row, add_result, identity, success_logger
         except ValidationException:
             metrics.add_host_failure.labels("ValidationException", host_data.get("reporter", "null")).inc()
+            raise
+        except OutboxSaveException as ose:
+            log_add_host_failure(logger, str(ose.detail), host_data, sp_fields_to_log)
             raise
         except InventoryException as ie:
             log_add_host_failure(logger, str(ie.detail), host_data, sp_fields_to_log)

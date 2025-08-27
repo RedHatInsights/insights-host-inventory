@@ -19,7 +19,6 @@ from api.filtering.db_filters import staleness_to_conditions
 from api.filtering.db_filters import update_query_for_owner_id
 from api.staleness_query import get_staleness_obj
 from app.auth.identity import Identity
-from app.common import inventory_config
 from app.config import ALL_STALENESS_STATES
 from app.config import COMPOUND_ID_FACTS
 from app.config import COMPOUND_ID_FACTS_MAP
@@ -28,15 +27,18 @@ from app.config import ID_FACTS
 from app.config import ID_FACTS_USE_SUBMAN_ID
 from app.config import IMMUTABLE_ID_FACTS
 from app.exceptions import InventoryException
+from app.exceptions import OutboxSaveException
 from app.logging import get_logger
 from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import LimitedHost
 from app.models import db
+from app.queue.events import EventType
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness
 from lib import metrics
+from lib.outbox_repository import write_event_to_outbox
 
 __all__ = (
     "AddHostResult",
@@ -66,8 +68,8 @@ def add_host(
     Add or update a host
 
     Required parameters:
-     - at least one of the canonical facts fields is required
-     - org_id
+    - at least one of the canonical facts fields is required
+    - org_id
 
      The only supported argument in the operation_args for now is "defer_to_reporter".
      It is documented here:
@@ -296,6 +298,16 @@ def create_new_host(input_host: Host) -> tuple[Host, AddHostResult]:
 
     input_host.save()
 
+    try:
+        # write to the outbox table for synchronization with Kessel
+        result = write_event_to_outbox(EventType.created, (input_host.id), input_host)
+        if not result:
+            logger.error("Failed to write created event to outbox")
+            raise OutboxSaveException("Failed to write created host event to outbox")
+    except OutboxSaveException as ose:
+        logger.error("Failed to write created event to outbox: %s", str(ose))
+        raise ose
+
     metrics.create_host_count.inc()
     logger.debug("Created host (uncommitted):%s", input_host)
 
@@ -310,6 +322,16 @@ def update_existing_host(
     logger.debug(f"existing host = {existing_host}")
 
     existing_host.update(input_host, update_system_profile)
+
+    try:
+        # write to the outbox table for synchronization with Kessel
+        result = write_event_to_outbox(EventType.updated, str(input_host.id), input_host)
+        if not result:
+            logger.error("Failed to write updated event to outbox")
+            raise OutboxSaveException("Failed to write update event to outbox")
+    except OutboxSaveException as ose:
+        logger.error("Failed to write updated event to outbox: %s", str(ose))
+        raise ose
 
     metrics.update_host_count.inc()
     logger.debug("Updated host (uncommitted):%s", existing_host)
@@ -398,37 +420,23 @@ def get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter=None, c
 
         filters += (or_(*rbac_group_filters),)
 
-    if inventory_config().hbi_db_refactoring_use_old_table:
-        # Old code: use single column GROUP BY
-        query = (
-            Host.query.join(HostGroupAssoc, isouter=True).join(Group, isouter=True).filter(*filters).group_by(Host.id)
-        )
-    else:
-        # New code: use composite GROUP BY
-        query = (
-            Host.query.join(HostGroupAssoc, isouter=True)
-            .join(Group, isouter=True)
-            .filter(*filters)
-            .group_by(Host.id, Host.org_id)
-        )
+    query = (
+        Host.query.join(HostGroupAssoc, isouter=True)
+        .join(Group, isouter=True)
+        .filter(*filters)
+        .group_by(Host.id, Host.org_id)
+    )
     if columns:
         query = query.with_entities(*columns)
     return find_non_culled_hosts(update_query_for_owner_id(identity, query), identity.org_id)
 
 
 def get_non_culled_hosts_count_in_group(group: Group, org_id: str) -> int:
-    if inventory_config().hbi_db_refactoring_use_old_table:
-        # Old code: use single column GROUP BY
-        query = (
-            db.session.query(Host).join(HostGroupAssoc).filter(HostGroupAssoc.group_id == group.id).group_by(Host.id)
-        )
-    else:
-        # New code: use composite GROUP BY
-        query = (
-            db.session.query(Host)
-            .join(HostGroupAssoc)
-            .filter(HostGroupAssoc.group_id == group.id, HostGroupAssoc.org_id == org_id)
-            .group_by(Host.id, Host.org_id)
-        )
+    query = (
+        db.session.query(Host)
+        .join(HostGroupAssoc)
+        .filter(HostGroupAssoc.group_id == group.id, HostGroupAssoc.org_id == org_id)
+        .group_by(Host.id, Host.org_id)
+    )
 
     return find_non_culled_hosts(query, org_id).count()

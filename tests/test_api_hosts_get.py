@@ -1536,11 +1536,9 @@ def test_query_sp_filters_operating_system_name(db_create_host, api_get, sp_filt
             [None],
             [
                 {
-                    "operating_system": {
-                        "name": "RHEL",
-                        "major": "8",
-                        "minor": "1",
-                    },
+                    "name": "RHEL",
+                    "major": "8",
+                    "minor": "1",
                 }
             ],
             [
@@ -1551,11 +1549,9 @@ def test_query_sp_filters_operating_system_name(db_create_host, api_get, sp_filt
         (
             [
                 {
-                    "operating_system": {
-                        "name": "RHEL",
-                        "major": "8",
-                        "minor": "1",
-                    },
+                    "name": "RHEL",
+                    "major": "8",
+                    "minor": "1",
                 }
             ],
             [None],
@@ -1568,11 +1564,9 @@ def test_query_sp_filters_operating_system_name(db_create_host, api_get, sp_filt
             [
                 None,
                 {
-                    "operating_system": {
-                        "name": "RHEL",
-                        "major": "8",
-                        "minor": "1",
-                    },
+                    "name": "RHEL",
+                    "major": "8",
+                    "minor": "1",
                 },
             ],
             None,
@@ -1750,8 +1744,8 @@ def test_query_all_sp_filters_sql_character_issues(api_get, sp_filter_param):
 @pytest.mark.parametrize(
     "sp_filter_param",
     (
-        "[arch]=qbe%5Dd%3Fsdx%60.%7B0%60sTfX%3AGP%26dp%24kf%3By0%60F3%3B%60%5EZ1aa-b-%5B%3A9%24%26s48%5E08W%3EC%7C%2565D488De%23",  # noqa: E501
-        "[arch]=%25T%5E%3EGYlS%22Q%2A2K%3A6v57YGLU5.7H%2Ap%23kEHqhTH1u6yEX%3AyaJyFkCRN%3Ew%22xX%5B3_",
+        "[arch]=qbe%5Dd%3Fsdx%60.%7B0%60sTfX%3AGP%26dp%24kf%3By0%60F3%3B%60%5EZ1aa-b-%5B%3A9%24%26s4",  # noqa: E501
+        "[arch]=%25T%5E%3EGYlS%22Q%2A2K%3A6v57YGLU5.7H%2Ap%23kEHqhTH1u6yEX%3AyaJyFkC",
         "[arch]=0~j%40TiIP%5ExYk%26yoFc0f%28%22El%6073g2%3B%22pqm%250z",
         "[arch]=%5Bw%7B%22%28caY4%28m%605A%7D%5B%2Cn8Eif%25%25%25E8%3FFg%3FC%3By%7BA%23Viv3SZVgAUhQ",
         "[arch]=Zk0%2A%2CgJjkL%3E%7CM%25b2W%60KZgY%5BjIaH%7DB-c%2CtfWv%2AdkpHR%29%7Cje",
@@ -1762,7 +1756,7 @@ def test_query_all_sp_filters_sql_char_contents(db_create_host, api_get, sp_filt
     # Create host with this system profile
     sp_data = {
         "system_profile_facts": {
-            "arch": "qbe]d?sdx`.{0`sTfX:GP&dp$kf;y0`F3;`^Z1aa-b-[:9$&s48^08W>C|%65D488De#",
+            "arch": "qbe]d?sdx`.{0`sTfX:GP&dp$kf;y0`F3;`^Z1aa-b-[:9$&s4",
             "host_type": "edge",
             "sap_sids": ["ABC", "DEF"],
             "system_memory_bytes": 8192,
@@ -1771,7 +1765,7 @@ def test_query_all_sp_filters_sql_char_contents(db_create_host, api_get, sp_filt
     db_create_host(extra_data=sp_data)
     sp_data = {
         "system_profile_facts": {
-            "arch": '%T^>GYlS"Q*2K:6v57YGLU5.7H*p#kEHqhTH1u6yEX:yaJyFkCRN>w"xX[3_',
+            "arch": '%T^>GYlS"Q*2K:6v57YGLU5.7H*p#kEHqhTH1u6yEX:yaJyFkC',
             "host_type": "edge",
             "sap_sids": ["ABC", "DEF"],
             "system_memory_bytes": 8192,
@@ -2320,10 +2314,8 @@ def test_fresh_staleness_with_only_rhsm_system_profile_bridge(api_get, db_create
         )
         host_id = str(host.id)
 
-    # Set FLAG_INVENTORY_FILTER_STALENESS_USING_COLUMNS to true
-    with patch("api.filtering.db_filters.get_flag_value", return_value=True):
-        url = build_hosts_url(query="?staleness=fresh")
-        response_status, response_data = api_get(url=url)
+    url = build_hosts_url(query="?staleness=fresh")
+    response_status, response_data = api_get(url=url)
 
     assert response_status == 200
     # The host should be present in the results
