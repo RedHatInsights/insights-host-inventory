@@ -292,7 +292,23 @@ def _modified_on_filter(updated_start: str | None, updated_end: str | None) -> l
     if updated_end_date and updated_end_date.year > 1970:
         modified_on_filter += [Host.modified_on <= updated_end_date]
 
-    return [and_(*modified_on_filter)]
+    return [and_(*modified_on_filter)] if modified_on_filter else []
+
+
+def _last_check_in_filter(last_check_in_start: str | None, last_check_in_end: str | None) -> list:
+    last_check_in_filter = []
+    last_check_in_start_date = parser.isoparse(last_check_in_start) if last_check_in_start else None
+    last_check_in_end_date = parser.isoparse(last_check_in_end) if last_check_in_end else None
+
+    if last_check_in_start_date and last_check_in_end_date and last_check_in_start_date > last_check_in_end_date:
+        raise ValueError("last_check_in_start cannot be after last_check_in_end.")
+
+    if last_check_in_start_date and last_check_in_start_date.year > 1970:
+        last_check_in_filter += [Host.last_check_in >= last_check_in_start_date]
+    if last_check_in_end_date and last_check_in_end_date.year > 1970:
+        last_check_in_filter += [Host.last_check_in <= last_check_in_end_date]
+
+    return [and_(*last_check_in_filter)] if last_check_in_filter else []
 
 
 def _get_staleness_filter(all_staleness_states: list[str], host_type_filter: set[str | None], org_id: str) -> list:
@@ -358,6 +374,8 @@ def query_filters(
     provider_type: str | None = None,
     updated_start: str | None = None,
     updated_end: str | None = None,
+    last_check_in_start: str | None = None,
+    last_check_in_end: str | None = None,
     group_name: list[str] | None = None,
     group_ids: list[str] | None = None,
     tags: list[str] | None = None,
@@ -400,6 +418,8 @@ def query_filters(
         filters += canonical_fact_filter("provider_type", provider_type)
     if updated_start or updated_end:
         filters += _modified_on_filter(updated_start, updated_end)
+    if last_check_in_start or last_check_in_end:
+        filters += _last_check_in_filter(last_check_in_start, last_check_in_end)
     if group_ids:
         filters += _group_ids_filter(group_ids)
     if group_name:
