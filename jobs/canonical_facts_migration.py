@@ -68,17 +68,17 @@ def update_canonical_facts_in_batches(session: Session, logger: Logger):
     """Updates canonical facts columns from the canonical_facts JSONB column using batched processing."""
     batch_size = int(os.getenv("CANONICAL_FACTS_MIGRATION_BATCH_SIZE", 5000))
     # Initialize cursor for DESC pagination. These are "max" values to start from the top.
-    last_modified_on = "9999-12-31 23:59:59+00"
+    modified_on = "9999-12-31 23:59:59+00"
     last_id = "ffffffff-ffff-ffff-ffff-ffffffffffff"
     total_rows_updated = 0
 
     logger.info(
-        f"Starting canonical facts migration using (last_modified_on, id) index with a batch size of {batch_size} rows."
+        f"Starting canonical facts migration using (modified_on, id) index with a batch size of {batch_size} rows."
     )
 
     while True:
         batch_start_time = time.perf_counter()
-        logger.info(f"Fetching next batch of hosts with last_modified_on before: {last_modified_on} - {last_id}")
+        logger.info(f"Fetching next batch of hosts with modified_on before: {modified_on} - {last_id}")
 
         # Step 1: Fetch the next batch using the descending index.
         # The ORDER BY clause must match the index definition for efficiency.
@@ -86,13 +86,13 @@ def update_canonical_facts_in_batches(session: Session, logger: Logger):
             text(
                 f"""
                 SELECT id, modified_on FROM {INVENTORY_SCHEMA}.hosts
-                WHERE (modified_on, id) < (:last_modified_on, :last_id)
+                WHERE (modified_on, id) < (:modified_on, :last_id)
                     AND canonical_facts IS NOT NULL
-                ORDER BY last_check_in DESC, id DESC
+                ORDER BY modified_on DESC, id DESC
                 LIMIT :batch_size;
                 """
             ),
-            {"last_modified_on": last_modified_on, "last_id": last_id, "batch_size": batch_size},
+            {"modified_on": modified_on, "last_id": last_id, "batch_size": batch_size},
         ).fetchall()
 
         if not batch_to_process:
@@ -127,7 +127,7 @@ def update_canonical_facts_in_batches(session: Session, logger: Logger):
 
         # Update loop variables with the last row from the processed batch
         last_row = batch_to_process[-1]
-        last_modified_on = last_row[1]
+        modified_on = last_row[1]
         last_id = last_row[0]
 
         total_rows_updated += rows_affected
@@ -137,7 +137,7 @@ def update_canonical_facts_in_batches(session: Session, logger: Logger):
             f"Batch complete in {batch_duration:.2f}s. "
             f"Updated {rows_affected} rows in this batch. "
             f"Total rows updated so far: {total_rows_updated}. "
-            f"Next batch starts before: {last_modified_on}"
+            f"Next batch starts before: {modified_on}"
         )
 
         session.commit()
