@@ -13,6 +13,18 @@ objects:
     appName: host-inventory
     jobs:
       - sp-tables-migration-data-copy
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    labels:
+      app: host-inventory
+    name: simulate-replica-identity-error-${REPLICA_IDENTITY_SIMULATION_RUN_NUMBER}
+  spec:
+    appName: host-inventory
+    jobs:
+      - replica-identity-error-simulation
 parameters:
 - name: SP_TABLES_MIGRATION_DATA_COPY_RUN_NUMBER
+  value: '1'
+- name: REPLICA_IDENTITY_SIMULATION_RUN_NUMBER
   value: '1'
