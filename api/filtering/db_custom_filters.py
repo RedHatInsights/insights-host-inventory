@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-from typing import Any
-
-from flask_sqlalchemy.query import Query
 from sqlalchemy import Integer
 from sqlalchemy import and_
 from sqlalchemy import func
@@ -407,20 +404,3 @@ def create_os_filter(os_name, version_node):
             os_filter_list.append(OsFilter(os_name, os_comparator, version))
 
     return os_filter_list
-
-
-# Ensures that the query is filtered by org_id
-def host_query(
-    org_id: str,
-    host_id_or_list: str | list[str] | None = None,
-    extra_filters: list[Any] | None = None,
-) -> Query:
-    query = Host.query.filter(Host.org_id == org_id)
-    if host_id_or_list:
-        if isinstance(host_id_or_list, str):
-            query = query.filter(Host.id == host_id_or_list)
-        elif isinstance(host_id_or_list, list):
-            query = query.filter(Host.id.in_(host_id_or_list))
-    if extra_filters:
-        query = query.filter(*extra_filters)
-    return query

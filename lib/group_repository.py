@@ -6,7 +6,6 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from api.cache import delete_cached_system_keys
-from api.filtering.db_custom_filters import host_query
 from api.host_query import staleness_timestamps
 from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
@@ -41,6 +40,7 @@ from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.feature_flags import get_flag_value
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.host_repository import get_non_culled_hosts_count_in_group
+from lib.host_repository import host_query
 from lib.metrics import delete_group_count
 from lib.metrics import delete_group_processing_time
 from lib.metrics import delete_host_group_count
@@ -97,7 +97,7 @@ def _invalidate_system_cache(host_list: list[Host], identity: Identity):
 
 def validate_add_host_list_to_group_for_group_create(host_id_list: list[str], group_name: str, org_id: str):
     # Check if the hosts exist in Inventory and have correct org_id
-    query = host_query(org_id, host_id_list).all()
+    query = host_query(org_id).filter(Host.id.in_(host_id_list)).all()
     found_ids_set = {str(host.id) for host in query}
     if found_ids_set != set(host_id_list):
         nonexistent_hosts = set(host_id_list) - found_ids_set
