@@ -17,7 +17,6 @@ from api import flask_json_response
 from api import json_error_response
 from api import metrics
 from api.cache import delete_cached_system_keys
-from api.filtering.db_custom_filters import host_query
 from api.host_query import staleness_timestamps
 from api.staleness_query import get_staleness_obj
 from app import RbacPermission
@@ -41,6 +40,7 @@ from app.serialization import serialize_staleness_response
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness_api
 from lib.db import session_guard
+from lib.host_repository import host_query
 from lib.middleware import rbac
 from lib.staleness import add_staleness
 from lib.staleness import patch_staleness

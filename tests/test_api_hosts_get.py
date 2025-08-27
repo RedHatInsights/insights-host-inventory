@@ -39,6 +39,7 @@ from tests.helpers.api_utils import quote
 from tests.helpers.api_utils import quote_everything
 from tests.helpers.test_utils import SERVICE_ACCOUNT_IDENTITY
 from tests.helpers.test_utils import SYSTEM_IDENTITY
+from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
@@ -2364,3 +2365,133 @@ def test_fresh_staleness_with_only_rhsm_system_profile_bridge(api_get, db_create
     # The host should be present in the results
     result_ids = [result["id"] for result in response_data["results"]]
     assert host_id in result_ids
+
+
+def test_db_get_hosts_by_display_name_duplicate_across_orgs(db_get_hosts_by_display_name, db_create_host):
+    """Test that db_get_hosts_by_display_name correctly filters by org_id when display names are duplicated."""
+    display_name = "duplicate_name"
+    org_id_1 = USER_IDENTITY["org_id"]
+    org_id_2 = "different_org_id"
+
+    # Create hosts with same display name in different orgs
+    host1 = db_create_host(identity=USER_IDENTITY, extra_data={"org_id": org_id_1, "display_name": display_name})
+    host2 = db_create_host(
+        identity={"account_number": "123", "org_id": org_id_2},
+        extra_data={"org_id": org_id_2, "display_name": display_name},
+    )
+
+    # Test filtering by first org_id
+    hosts_org_1 = db_get_hosts_by_display_name(display_name, org_id_1)
+    assert len(hosts_org_1) == 1
+    assert hosts_org_1[0].id == host1.id
+    assert hosts_org_1[0].org_id == org_id_1
+
+    # Test filtering by second org_id
+    hosts_org_2 = db_get_hosts_by_display_name(display_name, org_id_2)
+    assert len(hosts_org_2) == 1
+    assert hosts_org_2[0].id == host2.id
+    assert hosts_org_2[0].org_id == org_id_2
+
+    # Test default behavior (should use SYSTEM_IDENTITY org_id)
+    hosts_default = db_get_hosts_by_display_name(display_name)
+    # This should return hosts from SYSTEM_IDENTITY org_id
+    expected_org_id = SYSTEM_IDENTITY["org_id"]
+    if expected_org_id == org_id_1:
+        assert len(hosts_default) == 1
+        assert hosts_default[0].id == host1.id
+    elif expected_org_id == org_id_2:
+        assert len(hosts_default) == 1
+        assert hosts_default[0].id == host2.id
+    else:
+        # No hosts in SYSTEM_IDENTITY org_id
+        assert len(hosts_default) == 0
+
+
+def test_db_get_hosts_by_display_name_multiple_in_same_org(db_get_hosts_by_display_name, db_create_host):
+    """Test db_get_hosts_by_display_name with multiple hosts having same display name in same org."""
+    display_name = "same_name"
+    org_id = USER_IDENTITY["org_id"]
+
+    # Create multiple hosts with same display name in same org
+    host1 = db_create_host(identity=USER_IDENTITY, extra_data={"org_id": org_id, "display_name": display_name})
+    host2 = db_create_host(identity=USER_IDENTITY, extra_data={"org_id": org_id, "display_name": display_name})
+
+    hosts = db_get_hosts_by_display_name(display_name, org_id)
+    assert len(hosts) == 2
+    host_ids = {host.id for host in hosts}
+    assert host_ids == {host1.id, host2.id}
+
+
+def test_db_get_hosts_by_subman_id_multiple_hosts_org_filtering(db_get_hosts_by_subman_id, db_create_host):
+    """Test that db_get_hosts_by_subman_id returns only hosts matching both subman_id and org_id."""
+    subman_id = generate_uuid()
+    org_id_1 = USER_IDENTITY["org_id"]
+    org_id_2 = "different_org_id"
+
+    # Create hosts with same subscription_manager_id in different orgs
+    host1 = db_create_host(
+        identity=USER_IDENTITY,
+        extra_data={
+            "org_id": org_id_1,
+            "canonical_facts": {"subscription_manager_id": subman_id, "insights_id": generate_uuid()},
+        },
+    )
+    host2 = db_create_host(
+        identity={"account_number": "123", "org_id": org_id_2},
+        extra_data={
+            "org_id": org_id_2,
+            "canonical_facts": {"subscription_manager_id": subman_id, "insights_id": generate_uuid()},
+        },
+    )
+
+    # Test filtering by first org_id
+    hosts_org_1 = db_get_hosts_by_subman_id(subman_id, org_id_1)
+    assert len(hosts_org_1) == 1
+    assert hosts_org_1[0].id == host1.id
+    assert hosts_org_1[0].org_id == org_id_1
+
+    # Test filtering by second org_id
+    hosts_org_2 = db_get_hosts_by_subman_id(subman_id, org_id_2)
+    assert len(hosts_org_2) == 1
+    assert hosts_org_2[0].id == host2.id
+    assert hosts_org_2[0].org_id == org_id_2
+
+    # Test default behavior (should use SYSTEM_IDENTITY org_id)
+    hosts_default = db_get_hosts_by_subman_id(subman_id)
+    expected_org_id = SYSTEM_IDENTITY["org_id"]
+    if expected_org_id == org_id_1:
+        assert len(hosts_default) == 1
+        assert hosts_default[0].id == host1.id
+    elif expected_org_id == org_id_2:
+        assert len(hosts_default) == 1
+        assert hosts_default[0].id == host2.id
+    else:
+        # No hosts in SYSTEM_IDENTITY org_id
+        assert len(hosts_default) == 0
+
+
+def test_db_get_hosts_by_subman_id_multiple_in_same_org(db_get_hosts_by_subman_id, db_create_host):
+    """Test db_get_hosts_by_subman_id with multiple hosts having same subman_id in same org."""
+    subman_id = generate_uuid()
+    org_id = USER_IDENTITY["org_id"]
+
+    # Create multiple hosts with same subscription_manager_id in same org
+    host1 = db_create_host(
+        identity=USER_IDENTITY,
+        extra_data={
+            "org_id": org_id,
+            "canonical_facts": {"subscription_manager_id": subman_id, "insights_id": generate_uuid()},
+        },
+    )
+    host2 = db_create_host(
+        identity=USER_IDENTITY,
+        extra_data={
+            "org_id": org_id,
+            "canonical_facts": {"subscription_manager_id": subman_id, "insights_id": generate_uuid()},
+        },
+    )
+
+    hosts = db_get_hosts_by_subman_id(subman_id, org_id)
+    assert len(hosts) == 2
+    host_ids = {host.id for host in hosts}
+    assert host_ids == {host1.id, host2.id}

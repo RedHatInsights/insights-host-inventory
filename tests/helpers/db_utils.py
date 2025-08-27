@@ -5,7 +5,6 @@ from typing import Any
 
 from sqlalchemy.exc import InvalidRequestError
 
-from api.filtering.db_custom_filters import host_query
 from app.auth.identity import Identity
 from app.models import Group
 from app.models import Host
@@ -128,19 +127,6 @@ def db_staleness_culling(**values):
         data["org_id"] = USER_IDENTITY["org_id"]
 
     return Staleness(**data)
-
-
-def update_host_in_db(host_id, org_id=None, **data_to_update):
-    org_id = org_id or USER_IDENTITY["org_id"]
-    host = host_query(org_id, host_id)
-
-    for attribute, new_value in data_to_update.items():
-        setattr(host, attribute, new_value)
-
-    db.session.add(host)
-    db.session.commit()
-
-    return host
 
 
 def create_reference_host_in_db(insights_id, reporter, system_profile, stale_timestamp):
