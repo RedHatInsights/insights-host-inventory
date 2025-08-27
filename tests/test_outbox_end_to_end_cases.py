@@ -859,12 +859,13 @@ class TestOutboxE2ECases:
             assert updated_host.display_name == "updated-host-name"
             assert updated_host.ansible_host == "updated.ansible.host"
 
-    @pytest.mark.usefixtures("event_producer", "notification_event_producer")
+    @pytest.mark.usefixtures("notification_event_producer")
     def test_host_delete_via_api_endpoint_with_actual_outbox_validation(
         self,
         api_delete_host,
         db_create_host,
         db_get_host,
+        event_producer,
     ):
         """
         Test that deleting a host via DELETE API endpoint triggers actual outbox entry creation and
@@ -893,7 +894,10 @@ class TestOutboxE2ECases:
                 pass
 
         # Use the mock event producer to test outbox entry creation without cleanup
-        with patch("api.host.current_app.event_producer", MockEventProducerNoCleanup()):
+        with (
+            patch("api.host.current_app.event_producer", MockEventProducerNoCleanup()),
+            patch("lib.host_delete.kafka_available", return_value=True),
+        ):
             # Make DELETE request to delete the host
             response_status, _ = api_delete_host(host.id)
 
@@ -926,8 +930,14 @@ class TestOutboxE2ECases:
         assert db_get_host(host2.id) is not None
         assert host2.display_name == "host-to-delete-2"
 
-        # Make DELETE request to delete the second host (using real event producer)
-        response_status, _ = api_delete_host(host2.id)
+        # We want to use the real event producer, but we need to mock the kafka functions
+        event_producer._kafka_producer.flush = Mock(return_value=True)
+        event_producer._kafka_producer.poll = Mock(return_value=True)
+        event_producer._kafka_producer.produce = Mock(return_value=True)
+
+        with patch("lib.host_delete.kafka_available", return_value=True):
+            # Make DELETE request to delete the second host (using real event producer)
+            response_status, _ = api_delete_host(host2.id)
 
         # Verify the API request was successful
         assert response_status == 200
