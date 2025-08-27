@@ -32,10 +32,10 @@ def _create_update_event_payload(host: Host) -> dict:
         raise OutboxSaveException("Missing required field 'id' in host data")
 
     metadata = {
-        "localResourceId": str(host.id),
-        "apiHref": "https://apiHref.com/",
-        "consoleHref": "https://www.console.com/",
-        "reporterVersion": "1.0",
+        "local_resource_id": str(host.id),
+        "api_href": "https://apiHref.com/",
+        "console_href": "https://www.console.com/",
+        "reporter_version": "1.0",
     }
 
     groups = host.groups
@@ -56,8 +56,8 @@ def _create_update_event_payload(host: Host) -> dict:
 
     return {
         "type": "host",
-        "reporterType": "hbi",
-        "reporterInstanceId": "redhat.com",
+        "reporter_type": "hbi",
+        "reporter_instance_id": host.id,
         "representations": representations,
     }
 
@@ -147,6 +147,9 @@ def write_event_to_outbox(event: EventType, host_id: str, host: Host | None = No
             version=validated_outbox_entry["version"],
             payload=validated_outbox_entry["payload"],
         )
+
+        logger.info("Adding the event to outbox:")
+        logger.info(validated_outbox_entry)
 
         # Save the outbox entry to record the event in the write-ahead log.
         db.session.add(outbox_entry_db)
