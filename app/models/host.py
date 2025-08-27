@@ -37,6 +37,9 @@ from app.utils import Tag
 
 logger = get_logger(__name__)
 
+RHSM_REPORTERS = {"rhsm-conduit", "rhsm-system-profile-bridge"}
+DISPLAY_NAME_PRIORITY_REPORTERS = {"puptoo", "API"}
+
 
 class LimitedHost(db.Model):
     __tablename__ = "hosts"
@@ -351,16 +354,24 @@ class Host(LimitedHost):
         self.update_display_name(patch_data.get("display_name"), "API")
         self._update_ansible_host(patch_data.get("ansible_host"))
 
+    def _should_ignore_display_name_update(self, input_reporter: str) -> bool:
+        # Ignore display_name updates from RHSM, if it has already been updated by API or insights-client
+        # https://issues.redhat.com/browse/RHINENG-19514
+        return input_reporter in RHSM_REPORTERS and self.display_name_reporter in DISPLAY_NAME_PRIORITY_REPORTERS
+
+    def _apply_display_name_fallback(self, input_fqdn: str | None) -> None:
+        if (
+            not self.display_name
+            or self.display_name == self.canonical_facts.get("fqdn")
+            or self.display_name == str(self.id)
+        ):
+            self.display_name = input_fqdn or self.canonical_facts.get("fqdn") or self.id
+
     def update_display_name(
         self, input_display_name: str | None, input_reporter: str, *, input_fqdn: str | None = None
     ) -> None:
         if input_display_name:
-            # Ignore display_name updates from RHSM, if it has already been updated by API or insights-client
-            # https://issues.redhat.com/browse/RHINENG-19514
-            if input_reporter in ("rhsm-conduit", "rhsm-system-profile-bridge") and self.display_name_reporter in (
-                "API",
-                "puptoo",
-            ):
+            if self._should_ignore_display_name_update(input_reporter):
                 logger.debug(
                     f"Ignoring display_name update from {input_reporter}, "
                     f"current display_name_reporter: {self.display_name_reporter}"
@@ -368,12 +379,8 @@ class Host(LimitedHost):
                 return
             self.display_name = input_display_name
             self.display_name_reporter = input_reporter
-        elif (
-            not self.display_name
-            or self.display_name == self.canonical_facts.get("fqdn")
-            or self.display_name == str(self.id)
-        ):
-            self.display_name = input_fqdn or self.canonical_facts.get("fqdn") or self.id
+        else:
+            self._apply_display_name_fallback(input_fqdn)
 
     def update_canonical_facts(self, canonical_facts):
         logger.debug(
