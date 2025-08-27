@@ -12,7 +12,6 @@ from sqlalchemy import or_
 from sqlalchemy.sql.elements import BinaryExpression
 from sqlalchemy.sql.elements import BooleanClauseList
 
-from api.filtering.db_custom_filters import host_query
 from api.filtering.db_filters import find_stale_host_in_window
 from api.filtering.db_filters import stale_timestamp_filter
 from api.filtering.db_filters import staleness_to_conditions

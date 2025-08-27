@@ -13,7 +13,6 @@ from sqlalchemy_utils import create_database
 from sqlalchemy_utils import database_exists
 from sqlalchemy_utils import drop_database
 
-from api.filtering.db_custom_filters import host_query
 from app.config import Config
 from app.environment import RuntimeEnvironment
 from app.models import Group

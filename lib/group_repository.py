@@ -6,7 +6,6 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from api.cache import delete_cached_system_keys
-from api.filtering.db_custom_filters import host_query
 from api.host_query import staleness_timestamps
 from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity

@@ -6,9 +6,9 @@ from threading import local
 import logstash_formatter
 import watchtower
 from boto3.session import Session
+from gunicorn import glogging
 from yaml import safe_load
 
-from gunicorn import glogging  # type: ignore[attr-defined]
 
 OPENSHIFT_ENVIRONMENT_NAME_FILE = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 DEFAULT_AWS_LOGGING_NAMESPACE = "inventory-dev"

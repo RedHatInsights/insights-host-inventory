@@ -244,11 +244,12 @@ def _order_how(column, order_how: str):
 
 
 def _find_hosts_entities_query(query=None, columns: list[ColumnElement] | None = None, identity: Any = None) -> Query:
-    if query is None:
-        query = db.session.query(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
-
     if not identity:
         identity = get_current_identity()
+
+    if query is None:
+        query = db.session.query(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
+        query = query.filter(Host.org_id == identity.org_id)
 
     if columns:
         query = query.with_entities(*columns)

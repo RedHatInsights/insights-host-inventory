@@ -2396,15 +2396,9 @@ def test_db_get_hosts_by_display_name_duplicate_across_orgs(db_get_hosts_by_disp
     hosts_default = db_get_hosts_by_display_name(display_name)
     # This should return hosts from SYSTEM_IDENTITY org_id
     expected_org_id = SYSTEM_IDENTITY["org_id"]
-    if expected_org_id == org_id_1:
-        assert len(hosts_default) == 1
-        assert hosts_default[0].id == host1.id
-    elif expected_org_id == org_id_2:
-        assert len(hosts_default) == 1
-        assert hosts_default[0].id == host2.id
-    else:
-        # No hosts in SYSTEM_IDENTITY org_id
-        assert len(hosts_default) == 0
+    assert len(hosts_default) == 1
+    assert hosts_default[0].id == host1.id
+    assert hosts_default[0].org_id == expected_org_id
 
 
 def test_db_get_hosts_by_display_name_multiple_in_same_org(db_get_hosts_by_display_name, db_create_host):
@@ -2459,15 +2453,9 @@ def test_db_get_hosts_by_subman_id_multiple_hosts_org_filtering(db_get_hosts_by_
     # Test default behavior (should use SYSTEM_IDENTITY org_id)
     hosts_default = db_get_hosts_by_subman_id(subman_id)
     expected_org_id = SYSTEM_IDENTITY["org_id"]
-    if expected_org_id == org_id_1:
-        assert len(hosts_default) == 1
-        assert hosts_default[0].id == host1.id
-    elif expected_org_id == org_id_2:
-        assert len(hosts_default) == 1
-        assert hosts_default[0].id == host2.id
-    else:
-        # No hosts in SYSTEM_IDENTITY org_id
-        assert len(hosts_default) == 0
+    assert len(hosts_default) == 1
+    assert hosts_default[0].id == host1.id
+    assert hosts_default[0].org_id == expected_org_id
 
 
 def test_db_get_hosts_by_subman_id_multiple_in_same_org(db_get_hosts_by_subman_id, db_create_host):
