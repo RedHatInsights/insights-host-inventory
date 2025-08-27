@@ -98,6 +98,48 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_SP_TABLES_MIGRATION_DATA_COPY}
             memory: ${MEMORY_REQUEST_SP_TABLES_MIGRATION_DATA_COPY}
+    - name: replica-identity-error-simulation
+      restartPolicy: Never
+      suspend: ${{REPLICA_IDENTITY_SIMULATION_SUSPEND}}
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: [ "./jobs/simulate_replica_identity_error.py" ]
+        env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: SP_TABLES_MIGRATION_BATCH_SIZE
+            value: ${SP_TABLES_MIGRATION_BATCH_SIZE}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+          - name: SUSPEND_JOB
+            value: ${REPLICA_IDENTITY_SIMULATION_SUSPEND}
+          - name: HOSTS_PER_PARTITION
+            value: ${REPLICA_IDENTITY_SIMULATION_HOSTS_PER_PARTITION}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_SP_TABLES_MIGRATION_DATA_COPY}
+            memory: ${MEMORY_LIMIT_SP_TABLES_MIGRATION_DATA_COPY}
+          requests:
+            cpu: ${CPU_REQUEST_SP_TABLES_MIGRATION_DATA_COPY}
+            memory: ${MEMORY_REQUEST_SP_TABLES_MIGRATION_DATA_COPY}
     database:
       name: ${DB_NAME}
       version: 16
@@ -623,6 +665,11 @@ parameters:
 - name: SP_TABLES_MIGRATION_BATCH_SIZE
   description: The batch size to use for the system profile partitioned tables migration.
   value: '10000'
+- name: REPLICA_IDENTITY_SIMULATION_SUSPEND
+  value: 'true'
+- name: REPLICA_IDENTITY_SIMULATION_HOSTS_PER_PARTITION
+  description: The number of hosts per partition to be updated
+  value: '1000'
 
 # NGINX
 - displayName: Minimum replicas
