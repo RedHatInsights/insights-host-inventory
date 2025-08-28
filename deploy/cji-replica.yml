@@ -1,36 +1,36 @@
 apiVersion: v1
 kind: Template
 metadata:
-  name: insights-host-inventory-cjis
+  name: insights-host-inventory-cjis-replica
 objects:
 - apiVersion: cloud.redhat.com/v1alpha1
   kind: ClowdJobInvocation
   metadata:
     labels:
-      app: host-inventory
+      app: host-inventory-replica
     name: sp-tables-migration-data-copy-${SP_TABLES_MIGRATION_DATA_COPY_RUN_NUMBER}
   spec:
-    appName: host-inventory
+    appName: host-inventory-replica
     jobs:
       - sp-tables-migration-data-copy
 - apiVersion: cloud.redhat.com/v1alpha1
   kind: ClowdJobInvocation
   metadata:
     labels:
-      app: host-inventory
+      app: host-inventory-replica
     name: simulate-replica-identity-error-${REPLICA_IDENTITY_SIMULATION_RUN_NUMBER}
   spec:
-    appName: host-inventory
+    appName: host-inventory-replica
     jobs:
       - replica-identity-error-simulation
 - apiVersion: cloud.redhat.com/v1alpha1
   kind: ClowdJobInvocation
   metadata:
     labels:
-      app: host-inventory
+      app: host-inventory-replica
     name: canonical-facts-migration-${CANONICAL_FACTS_MIGRATION_RUN_NUMBER}
   spec:
-    appName: host-inventory
+    appName: host-inventory-replica
     jobs:
       - canonical-facts-migration
 parameters:
