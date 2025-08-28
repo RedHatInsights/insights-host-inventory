@@ -23,8 +23,20 @@ objects:
     appName: host-inventory
     jobs:
       - replica-identity-error-simulation
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    labels:
+      app: host-inventory
+    name: canonical-facts-migration-${CANONICAL_FACTS_MIGRATION_RUN_NUMBER}
+  spec:
+    appName: host-inventory
+    jobs:
+      - canonical-facts-migration
 parameters:
 - name: SP_TABLES_MIGRATION_DATA_COPY_RUN_NUMBER
   value: '1'
 - name: REPLICA_IDENTITY_SIMULATION_RUN_NUMBER
+  value: '1'
+- name: CANONICAL_FACTS_MIGRATION_RUN_NUMBER
   value: '1'
