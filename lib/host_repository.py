@@ -105,8 +105,9 @@ def add_host(
             group = get_or_create_ungrouped_hosts_group_for_identity(identity)
             input_host.groups = [serialize_group(group)]
 
-            # TODO: Should the 'assoc = HostGroupAssoc(host_row.id, group.id, identity.org_id)' be created here?
-            # as is done in host_mq.py?
+            # create a new host group association for the host
+            assoc = HostGroupAssoc(input_host.id, group.id, identity.org_id)
+            db.session.add(assoc)
 
         return create_new_host(input_host)
 
