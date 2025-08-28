@@ -56,8 +56,8 @@ def database(database_name: None) -> Generator[str]:  # noqa: ARG001
 
 
 @pytest.fixture(scope="function")
-def db_get_host(flask_app: FlaskApp) -> Callable[[UUID], Host | None]:  # noqa: ARG001
-    def _db_get_host(host_id: UUID, org_id: str | None = None) -> Host | None:
+def db_get_host(flask_app: FlaskApp) -> Callable[[UUID | str], Host | None]:  # noqa: ARG001
+    def _db_get_host(host_id: UUID | str, org_id: str | None = None) -> Host | None:
         org_id = org_id or SYSTEM_IDENTITY["org_id"]
         return Host.query.filter(Host.org_id == org_id, Host.id == host_id).one_or_none()
 

@@ -468,6 +468,7 @@ def test_add_host_simple(mq_create_or_update_host):
     host = minimal_host(
         account=SYSTEM_IDENTITY["account_number"],
         insights_id=expected_insights_id,
+        display_name=generate_random_string(),
         system_profile={"owner_id": OWNER_ID},
     )
 
@@ -492,6 +493,7 @@ def test_add_host_with_system_profile(mq_create_or_update_host):
     host = minimal_host(
         account=SYSTEM_IDENTITY["account_number"],
         insights_id=expected_insights_id,
+        display_name=generate_random_string(),
         system_profile=expected_system_profile,
     )
 
@@ -727,7 +729,10 @@ def test_add_host_with_tags(mq_create_or_update_host):
     ]
 
     host = minimal_host(
-        account=SYSTEM_IDENTITY["account_number"], insights_id=expected_insights_id, tags=expected_tags
+        account=SYSTEM_IDENTITY["account_number"],
+        insights_id=expected_insights_id,
+        display_name=generate_random_string(),
+        tags=expected_tags,
     )
 
     expected_results = {"host": {**host.data()}}
@@ -958,7 +963,10 @@ def test_add_host_with_sap_system(mq_create_or_update_host):
     system_profile["owner_id"] = OWNER_ID
 
     host = minimal_host(
-        account=SYSTEM_IDENTITY["account_number"], insights_id=expected_insights_id, system_profile=system_profile
+        account=SYSTEM_IDENTITY["account_number"],
+        display_name=generate_random_string(),
+        insights_id=expected_insights_id,
+        system_profile=system_profile,
     )
 
     expected_results = {"host": {**host.data()}}
