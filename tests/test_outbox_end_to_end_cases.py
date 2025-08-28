@@ -74,7 +74,7 @@ class TestOutboxE2ECases:
         assert outbox_entry.operation == "ReportResource"
         assert outbox_entry.version == "v1beta2"
         assert outbox_entry.payload["type"] == "host"
-        assert outbox_entry.payload["reporterType"] == "hbi"
+        assert outbox_entry.payload["reporter_type"] == "hbi"
 
         # Note: Since the entry is immediately deleted after commit, we can't verify
         # the specific payload content. The success of the operation indicates
@@ -111,7 +111,7 @@ class TestOutboxE2ECases:
         assert outbox_entry.operation == "ReportResource"
         assert outbox_entry.version == "v1beta2"
         assert outbox_entry.payload["type"] == "host"
-        assert outbox_entry.payload["reporterType"] == "hbi"
+        assert outbox_entry.payload["reporter_type"] == "hbi"
 
     def test_successful_delete_event_e2e(self, db_create_host):
         """Test complete flow for a successful 'delete' event."""
@@ -339,14 +339,14 @@ class TestOutboxE2ECases:
             "version": "v1beta2",
             "payload": {
                 "type": "host",
-                "reporterType": "hbi",
-                "reporterInstanceId": "redhat.com",
+                "reporter_type": "hbi",
+                "reporter_instance_id": "redhat.com",
                 "representations": {
                     "metadata": {
-                        "localResourceId": str(uuid.uuid4()),
-                        "apiHref": "https://apiHref.com/",
-                        "consoleHref": "https://www.console.com/",
-                        "reporterVersion": "1.0",
+                        "local_resource_id": str(uuid.uuid4()),
+                        "api_href": "https://api_href.com/",
+                        "console_href": "https://www.console.com/",
+                        "reporter_version": "1.0",
                     },
                     "common": {},
                     "reporter": {
@@ -407,7 +407,7 @@ class TestOutboxE2ECases:
         assert outbox_entry.operation == "ReportResource"
         assert outbox_entry.version == "v1beta2"
         assert outbox_entry.payload["type"] == "host"
-        assert outbox_entry.payload["reporterType"] == "hbi"
+        assert outbox_entry.payload["reporter_type"] == "hbi"
         # Verify the common field contains workspace_id
         assert "workspace_id" in outbox_entry.payload["representations"]["common"]
 
@@ -631,7 +631,7 @@ class TestOutboxE2ECases:
             assert outbox_entry.operation == "ReportResource"
             assert outbox_entry.version == "v1beta2"
             assert outbox_entry.payload["type"] == "host"
-            assert outbox_entry.payload["reporterType"] == "hbi"
+            assert outbox_entry.payload["reporter_type"] == "hbi"
 
             # The success metric increment proves the outbox entry was created, validated, and processed
 
@@ -802,7 +802,7 @@ class TestOutboxE2ECases:
                 assert outbox_entry.operation == "ReportResource"
                 assert outbox_entry.version == "v1beta2"
                 assert outbox_entry.payload["type"] == "host"
-                assert outbox_entry.payload["reporterType"] == "hbi"
+                assert outbox_entry.payload["reporter_type"] == "hbi"
 
     @pytest.mark.usefixtures("event_producer_mock")
     def test_host_update_via_patch_endpoint_with_outbox_validation(
@@ -1090,8 +1090,8 @@ class TestOutboxE2ECases:
             # Verify the outbox payload structure (what gets sent to Kessel)
             payload = captured["payload"]
             assert payload["type"] == "host"
-            assert payload["reporterType"] == "hbi"
-            assert payload["reporterInstanceId"] == "redhat.com"
+            assert payload["reporter_type"] == "hbi"
+            assert payload["reporter_instance_id"] == "redhat.com"
 
             # Verify representations structure
             representations = payload["representations"]
@@ -1131,7 +1131,7 @@ class TestOutboxE2ECases:
             assert outbox_entry.operation == "ReportResource"
             assert outbox_entry.version == "v1beta2"
             assert outbox_entry.payload["type"] == "host"
-            assert outbox_entry.payload["reporterType"] == "hbi"
+            assert outbox_entry.payload["reporter_type"] == "hbi"
 
     @pytest.mark.usefixtures("event_producer_mock")
     def test_host_remove_from_group_via_api_endpoint_with_outbox_validation(
@@ -1288,8 +1288,8 @@ class TestOutboxE2ECases:
                 # Verify the outbox payload structure (what gets sent to Kessel)
                 payload = captured["payload"]
                 assert payload["type"] == "host"
-                assert payload["reporterType"] == "hbi"
-                assert payload["reporterInstanceId"] == "redhat.com"
+                assert payload["reporter_type"] == "hbi"
+                assert payload["reporter_instance_id"] == "redhat.com"
 
                 # Verify representations structure
                 representations = payload["representations"]
@@ -1465,8 +1465,8 @@ class TestOutboxE2ECases:
             # Verify the outbox payload structure (what gets sent to Kessel)
             payload = captured["payload"]
             assert payload["type"] == "host"
-            assert payload["reporterType"] == "hbi"
-            assert payload["reporterInstanceId"] == "redhat.com"
+            assert payload["reporter_type"] == "hbi"
+            assert payload["reporter_instance_id"] == "redhat.com"
 
             # Verify representations structure
             representations = payload["representations"]
@@ -1476,10 +1476,10 @@ class TestOutboxE2ECases:
 
             # Verify metadata structure
             metadata = representations["metadata"]
-            assert metadata["localResourceId"] == host_id
-            assert metadata["apiHref"] == "https://apiHref.com/"
-            assert metadata["consoleHref"] == "https://www.console.com/"
-            assert metadata["reporterVersion"] == "1.0"
+            assert metadata["local_resource_id"] == host_id
+            assert metadata["api_href"] == "https://api_href.com/"
+            assert metadata["console_href"] == "https://www.console.com/"
+            assert metadata["reporter_version"] == "1.0"
 
             # Verify reporter structure
             reporter = representations["reporter"]
@@ -1505,7 +1505,7 @@ class TestOutboxE2ECases:
             assert outbox_entry.operation == "ReportResource"
             assert outbox_entry.version == "v1beta2"
             assert outbox_entry.payload["type"] == "host"
-            assert outbox_entry.payload["reporterType"] == "hbi"
+            assert outbox_entry.payload["reporter_type"] == "hbi"
 
     def test_host_creation_with_outbox_validation_and_cleanup(self, db_create_host, db_get_host):
         """
@@ -1559,11 +1559,11 @@ class TestOutboxE2ECases:
         assert outbox_entry.operation == "ReportResource"
         assert outbox_entry.version == "v1beta2"
         assert outbox_entry.payload["type"] == "host"
-        assert outbox_entry.payload["reporterType"] == "hbi"
+        assert outbox_entry.payload["reporter_type"] == "hbi"
 
         # Verify the payload contains the correct host information
         payload = outbox_entry.payload
-        assert payload["representations"]["metadata"]["localResourceId"] == host_id
+        assert payload["representations"]["metadata"]["local_resource_id"] == host_id
         assert payload["representations"]["reporter"]["insights_id"] == str(host.canonical_facts["insights_id"])
         assert payload["representations"]["reporter"]["subscription_manager_id"] == str(
             host.canonical_facts["subscription_manager_id"]
@@ -1761,11 +1761,11 @@ class TestOutboxE2ECases:
             assert outbox_entry.operation == "ReportResource"
             assert outbox_entry.version == "v1beta2"
             assert outbox_entry.payload["type"] == "host"
-            assert outbox_entry.payload["reporterType"] == "hbi"
+            assert outbox_entry.payload["reporter_type"] == "hbi"
 
             # Verify the payload contains the correct host information
             payload = outbox_entry.payload
-            assert payload["representations"]["metadata"]["localResourceId"] == host_id
+            assert payload["representations"]["metadata"]["local_resource_id"] == host_id
             assert payload["representations"]["reporter"]["insights_id"] == str(host.canonical_facts["insights_id"])
             assert payload["representations"]["reporter"]["subscription_manager_id"] == str(
                 host.canonical_facts["subscription_manager_id"]

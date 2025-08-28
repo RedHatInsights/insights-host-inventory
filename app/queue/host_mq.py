@@ -46,7 +46,6 @@ from app.instrumentation import log_update_system_profile_success
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
-from app.models import HostGroupAssoc
 from app.models import LimitedHostSchema
 from app.models import db
 from app.payload_tracker import PayloadTrackerContext
@@ -69,10 +68,6 @@ from app.staleness_serialization import AttrDict
 from lib import group_repository
 from lib import host_repository
 from lib.db import session_guard
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
-from lib.feature_flags import get_flag_value
-from lib.group_repository import get_or_create_ungrouped_hosts_group_for_identity
-from lib.group_repository import serialize_group
 from utils.system_profile_log import extract_host_dict_sp_to_log
 
 logger = get_logger(__name__)
@@ -424,16 +419,16 @@ class IngressMessageConsumer(HostMessageConsumer):
             )
 
             # If this is a new host, assign it to the "ungrouped hosts" group/workspace
-            if add_result == host_repository.AddHostResult.created and get_flag_value(
-                FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
-            ):
-                db.session.flush()  # Flush so that we can retrieve the created host's ID
-                # Get org's "ungrouped hosts" group (create if not exists) and assign host to it
-                group = get_or_create_ungrouped_hosts_group_for_identity(identity)
-                assoc = HostGroupAssoc(host_row.id, group.id, identity.org_id)
-                db.session.add(assoc)
-                host_row.groups = [serialize_group(group)]
-                db.session.flush()
+            # if add_result == host_repository.AddHostResult.created and get_flag_value(
+            #     FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
+            # ):
+            #     db.session.flush()  # Flush so that we can retrieve the created host's ID
+            #     # Get org's "ungrouped hosts" group (create if not exists) and assign host to it
+            #     group = get_or_create_ungrouped_hosts_group_for_identity(identity)
+            #     assoc = HostGroupAssoc(host_row.id, group.id, identity.org_id)
+            #     db.session.add(assoc)
+            #     host_row.groups = [serialize_group(group)]
+            #     db.session.flush()
 
             success_logger = partial(log_add_update_host_succeeded, logger, add_result, sp_fields_to_log)
 

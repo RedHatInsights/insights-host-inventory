@@ -37,6 +37,8 @@ from app.queue.events import EventType
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness
 from lib import metrics
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
+from lib.feature_flags import get_flag_value
 from lib.outbox_repository import write_event_to_outbox
 
 __all__ = (
@@ -95,6 +97,17 @@ def add_host(
 
         return update_existing_host(matched_host, input_host, update_system_profile)
     else:
+        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
+            # Import here to avoid circular import
+            from lib.group_repository import get_or_create_ungrouped_hosts_group_for_identity
+            from lib.group_repository import serialize_group
+
+            group = get_or_create_ungrouped_hosts_group_for_identity(identity)
+            input_host.groups = [serialize_group(group)]
+
+            # TODO: Should the 'assoc = HostGroupAssoc(host_row.id, group.id, identity.org_id)' be created here?
+            # as is done in host_mq.py?
+
         return create_new_host(input_host)
 
 
