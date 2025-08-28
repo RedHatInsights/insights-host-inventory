@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+# ruff: noqa: E501
 import os
 import sys
 import time
@@ -26,6 +27,54 @@ into the new partitioned tables ('system_profiles_dynamic' and 'system_profiles_
 
 This script should only be run during a planned maintenance window.
 """
+
+# Single Source of Truth for Index DDL
+INDEX_DEFINITIONS = {
+    "idx_system_profiles_static_replica_identity": "CREATE UNIQUE INDEX {index_name} ON {schema}.system_profiles_static (org_id, host_id, insights_id);",
+    "idx_system_profiles_dynamic_replica_identity": "CREATE UNIQUE INDEX {index_name} ON {schema}.system_profiles_dynamic (org_id, host_id, insights_id);",
+    "idx_system_profiles_static_bootc_status": "CREATE INDEX {index_name} ON {schema}.system_profiles_static (bootc_status);",
+    "idx_system_profiles_static_host_id": "CREATE INDEX {index_name} ON {schema}.system_profiles_static (host_id);",
+    "idx_system_profiles_static_host_type": "CREATE INDEX {index_name} ON {schema}.system_profiles_static (host_type);",
+    "idx_system_profiles_static_operating_system_multi": """
+        CREATE INDEX {index_name} ON {schema}.system_profiles_static (
+            ((operating_system ->> 'name'::text)),
+            ((operating_system ->> 'major'::text)::integer),
+            ((operating_system ->> 'minor'::text)::integer),
+            org_id
+        ) WHERE operating_system IS NOT NULL;
+    """,
+    "idx_system_profiles_static_org_id": "CREATE INDEX {index_name} ON {schema}.system_profiles_static (org_id);",
+    "idx_system_profiles_static_rhc_client_id": "CREATE INDEX {index_name} ON {schema}.system_profiles_static (rhc_client_id);",
+    "idx_system_profiles_static_system_update_method": "CREATE INDEX {index_name} ON {schema}.system_profiles_static (system_update_method);",
+    "idx_system_profiles_dynamic_workloads_gin": "CREATE INDEX {index_name} ON {schema}.system_profiles_dynamic USING gin (workloads);",
+}
+
+
+def drop_indexes(session: Session, logger: Logger):
+    """Drops all non-primary key indexes from the target tables to speed up inserts."""
+    logger.warning("Dropping all non-PK indexes from target tables to optimize data copy...")
+    for index_name in INDEX_DEFINITIONS.keys():
+        logger.info(f"  Dropping index: {index_name}")
+        session.execute(text(f"DROP INDEX IF EXISTS {INVENTORY_SCHEMA}.{index_name};"))
+    session.commit()
+    logger.info("All non-PK indexes have been dropped.")
+
+
+def recreate_indexes(session: Session, logger: Logger):
+    """Recreates all indexes using a data-driven approach after the data copy is complete."""
+    logger.info("Data copy finished. Recreating all indexes (this may take a long time)...")
+    try:
+        for index_name, index_ddl in INDEX_DEFINITIONS.items():
+            logger.info(f"  Recreating index: {index_name}")
+            session.execute(text(index_ddl.format(index_name=index_name, schema=INVENTORY_SCHEMA)))
+
+        logger.info("Committing index creation transaction...")
+        session.commit()
+        logger.info("All indexes have been recreated successfully.")
+    except Exception:
+        logger.error("An error occurred during index recreation. Rolling back.")
+        session.rollback()
+        raise
 
 
 def copy_profile_data_in_batches(session: Session, logger: Logger):
@@ -60,7 +109,7 @@ def copy_profile_data_in_batches(session: Session, logger: Logger):
 
         fetch_duration = time.perf_counter() - fetch_start_time
         id_list = [row[0] for row in batch_to_process]
-        logger.info(f"Fetched {len(id_list)} hosts in {fetch_duration:.2f}s. Now processing in sub-batches...")
+        logger.info(f"Fetched {len(id_list)} hosts in {fetch_duration:.2f}s. Now processing the batch...")
 
         dynamic_insert_sql = f"""
             INSERT INTO {INVENTORY_SCHEMA}.system_profiles_dynamic (
@@ -193,7 +242,9 @@ def run(logger: Logger, session: Session, application: FlaskApp):
     """Main execution function."""
     try:
         with application.app.app_context():
+            drop_indexes(session, logger)
             copy_profile_data_in_batches(session, logger)
+            recreate_indexes(session, logger)
     except Exception:
         logger.exception("A critical error occurred during the system profile data copy job.")
         raise
