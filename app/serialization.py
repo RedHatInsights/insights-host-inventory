@@ -392,9 +392,9 @@ def serialize_staleness_response(staleness):
         "conventional_time_to_stale": staleness.conventional_time_to_stale,
         "conventional_time_to_stale_warning": staleness.conventional_time_to_stale_warning,
         "conventional_time_to_delete": staleness.conventional_time_to_delete,
-        "immutable_time_to_stale": staleness.immutable_time_to_stale,
-        "immutable_time_to_stale_warning": staleness.immutable_time_to_stale_warning,
-        "immutable_time_to_delete": staleness.immutable_time_to_delete,
+        "immutable_time_to_stale": staleness.conventional_time_to_stale,
+        "immutable_time_to_stale_warning": staleness.conventional_time_to_stale_warning,
+        "immutable_time_to_delete": staleness.conventional_time_to_delete,
         "created": _serialize_datetime(staleness.created_on) if staleness.created_on is not None else None,
         "updated": _serialize_datetime(staleness.modified_on) if staleness.modified_on is not None else None,
     }
@@ -409,9 +409,9 @@ def serialize_staleness_to_dict(staleness_obj) -> dict:
         "conventional_time_to_stale": staleness_obj.conventional_time_to_stale,
         "conventional_time_to_stale_warning": staleness_obj.conventional_time_to_stale_warning,
         "conventional_time_to_delete": staleness_obj.conventional_time_to_delete,
-        "immutable_time_to_stale": staleness_obj.immutable_time_to_stale,
-        "immutable_time_to_stale_warning": staleness_obj.immutable_time_to_stale_warning,
-        "immutable_time_to_delete": staleness_obj.immutable_time_to_delete,
+        "immutable_time_to_stale": staleness_obj.conventional_time_to_stale,
+        "immutable_time_to_stale_warning": staleness_obj.conventional_time_to_stale_warning,
+        "immutable_time_to_delete": staleness_obj.conventional_time_to_delete,
     }
 
 
@@ -422,23 +422,6 @@ def _serialize_per_reporter_staleness(host, staleness, staleness_timestamps):
             stale_timestamp = FAR_FUTURE_STALE_TIMESTAMP
             stale_warning_timestamp = FAR_FUTURE_STALE_TIMESTAMP
             delete_timestamp = FAR_FUTURE_STALE_TIMESTAMP
-        elif host.host_type == "edge" or (
-            hasattr(host, "system_profile_facts")
-            and host.system_profile_facts
-            and host.system_profile_facts.get("host_type") == "edge"
-        ):
-            stale_timestamp = staleness_timestamps.stale_timestamp(
-                _deserialize_datetime(host.per_reporter_staleness[reporter]["last_check_in"]),
-                staleness["immutable_time_to_stale"],
-            )
-            stale_warning_timestamp = staleness_timestamps.stale_timestamp(
-                _deserialize_datetime(host.per_reporter_staleness[reporter]["last_check_in"]),
-                staleness["immutable_time_to_stale_warning"],
-            )
-            delete_timestamp = staleness_timestamps.stale_timestamp(
-                _deserialize_datetime(host.per_reporter_staleness[reporter]["last_check_in"]),
-                staleness["immutable_time_to_delete"],
-            )
         else:
             stale_timestamp = staleness_timestamps.stale_timestamp(
                 _deserialize_datetime(host.per_reporter_staleness[reporter]["last_check_in"]),
