@@ -1819,6 +1819,47 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_DELETE_HOST_BIOS_UUID_JOB}
             memory: ${MEMORY_REQUEST_DELETE_HOST_BIOS_UUID_JOB}
+    - name: sp-tables-migration-data-copy
+      restartPolicy: OnFailure
+      suspend: ${{SP_TABLES_MIGRATION_DATA_COPY_SUSPEND}}
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: [ "./jobs/system_profile_tables_migration_data_copy.py" ]
+        env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: SP_TABLES_MIGRATION_BATCH_SIZE
+            value: ${SP_TABLES_MIGRATION_BATCH_SIZE}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+          - name: SUSPEND_JOB
+            value: ${SP_TABLES_MIGRATION_DATA_COPY_SUSPEND}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_SP_TABLES_MIGRATION_DATA_COPY}
+            memory: ${MEMORY_LIMIT_SP_TABLES_MIGRATION_DATA_COPY}
+          requests:
+            cpu: ${CPU_REQUEST_SP_TABLES_MIGRATION_DATA_COPY}
+            memory: ${MEMORY_REQUEST_SP_TABLES_MIGRATION_DATA_COPY}
+
     database:
       name: ${DB_NAME}
       version: 16
@@ -2287,6 +2328,15 @@ parameters:
 - name: MEMORY_LIMIT_HOSTS_TABLE_MIGRATION_SWITCH
   value: 512Mi
 
+- name: CPU_REQUEST_SP_TABLES_MIGRATION_DATA_COPY
+  value: 250m
+- name: CPU_LIMIT_SP_TABLES_MIGRATION_DATA_COPY
+  value: 500m
+- name: MEMORY_REQUEST_SP_TABLES_MIGRATION_DATA_COPY
+  value: 256Mi
+- name: MEMORY_LIMIT_SP_TABLES_MIGRATION_DATA_COPY
+  value: 512Mi
+
 - description: Replica count for p1 consumer
   name: REPLICAS_P1
   value: "5"
@@ -2531,6 +2581,11 @@ parameters:
 - name: HOSTS_TABLE_MIGRATION_SWITCH_MODE
   description: switch or rollback to revert the hosts table switch.
   value: 'switch'
+- name: SP_TABLES_MIGRATION_DATA_COPY_SUSPEND
+  value: 'true'
+- name: SP_TABLES_MIGRATION_BATCH_SIZE
+  description: The batch size to use for the system profile partitioned tables migration.
+  value: '10000'
 
 # NGINX
 - displayName: Minimum replicas
