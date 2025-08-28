@@ -29,6 +29,40 @@ to manage memory and avoid long-running transactions.
 This script can be run safely on a live system as it only performs UPDATE operations.
 """
 
+# Single Source of Truth for Index DDL
+INDEX_DEFINITIONS = {
+    "hosts_replica_identity_idx": "CREATE UNIQUE INDEX {index_name} ON {schema}.hosts (org_id, id, insights_id);",
+    "idx_hosts_insights_id": "CREATE INDEX {index_name} ON {schema}.hosts (insights_id);",
+    "idx_hosts_subscription_manager_id": "CREATE INDEX {index_name} ON {schema}.hosts (subscription_manager_id);",
+}
+
+
+def drop_indexes(session: Session, logger: Logger):
+    """Drops all non-primary key indexes from the target tables to speed up inserts."""
+    logger.warning("Dropping all non-PK indexes from target tables to optimize data copy...")
+    for index_name in INDEX_DEFINITIONS.keys():
+        logger.info(f"  Dropping index: {index_name}")
+        session.execute(text(f"DROP INDEX IF EXISTS {INVENTORY_SCHEMA}.{index_name};"))
+    session.commit()
+    logger.info("All non-PK indexes have been dropped.")
+
+
+def recreate_indexes(session: Session, logger: Logger):
+    """Recreates all indexes using a data-driven approach after the data copy is complete."""
+    logger.info("Data copy finished. Recreating all indexes (this may take a long time)...")
+    try:
+        for index_name, index_ddl in INDEX_DEFINITIONS.items():
+            logger.info(f"  Recreating index: {index_name}")
+            session.execute(text(index_ddl.format(index_name=index_name, schema=INVENTORY_SCHEMA)))
+
+        logger.info("Committing index creation transaction...")
+        session.commit()
+        logger.info("All indexes have been recreated successfully.")
+    except Exception:
+        logger.error("An error occurred during index recreation. Rolling back.")
+        session.rollback()
+        raise
+
 
 def update_canonical_facts_in_batches(session: Session, logger: Logger):
     """Updates canonical facts columns from the canonical_facts JSONB column using batched processing."""
@@ -115,7 +149,9 @@ def run(logger: Logger, session: Session, application: FlaskApp):
     """Main execution function."""
     try:
         with application.app.app_context():
+            drop_indexes(session, logger)
             update_canonical_facts_in_batches(session, logger)
+            recreate_indexes(session, logger)
     except Exception:
         logger.exception("A critical error occurred during the canonical facts migration job.")
         raise
