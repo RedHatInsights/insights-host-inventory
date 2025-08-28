@@ -60,7 +60,7 @@ def copy_profile_data_in_batches(session: Session, logger: Logger):
 
         fetch_duration = time.perf_counter() - fetch_start_time
         id_list = [row[0] for row in batch_to_process]
-        logger.info(f"Fetched {len(id_list)} hosts in {fetch_duration:.2f}s. Now processing in sub-batches...")
+        logger.info(f"Fetched {len(id_list)} hosts in {fetch_duration:.2f}s. Now processing the batch...")
 
         dynamic_insert_sql = f"""
             INSERT INTO {INVENTORY_SCHEMA}.system_profiles_dynamic (
