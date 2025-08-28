@@ -57,7 +57,7 @@ def _create_update_event_payload(host: Host) -> dict:
     return {
         "type": "host",
         "reporter_type": "hbi",
-        "reporter_instance_id": host.id,
+        "reporter_instance_id": "redhat",
         "representations": representations,
     }
 
@@ -154,9 +154,7 @@ def write_event_to_outbox(event: EventType, host_id: str, host: Host | None = No
         # Save the outbox entry to record the event in the write-ahead log.
         db.session.add(outbox_entry_db)
 
-        # trial flush to see if debezium has picked up the event
-
-        # do not try flush yet because it flushes the transaction when we intend to delete only the outbox entry.
+        # Adding flush for emitting the event to outbox
         db.session.flush()
         db.session.delete(outbox_entry_db)
 
