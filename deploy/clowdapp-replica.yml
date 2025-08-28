@@ -98,6 +98,44 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_SP_TABLES_MIGRATION_DATA_COPY}
             memory: ${MEMORY_REQUEST_SP_TABLES_MIGRATION_DATA_COPY}
+    - name: canonical-facts-migration
+      restartPolicy: Never
+      suspend: ${{SUSPEND_CANONICAL_FACTS_MIGRATION}}
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: [ "./jobs/canonical_facts_migration.py" ]
+        env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: CANONICAL_FACTS_MIGRATION_BATCH_SIZE
+            value: ${CANONICAL_FACTS_MIGRATION_BATCH_SIZE}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+          - name: SUSPEND_CANONICAL_FACTS_MIGRATION
+            value: ${SUSPEND_CANONICAL_FACTS_MIGRATION}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_CANONICAL_FACTS_MIGRATION}
+            memory: ${MEMORY_LIMIT_CANONICAL_FACTS_MIGRATION}
+          requests:
+            cpu: ${CPU_REQUEST_CANONICAL_FACTS_MIGRATION}
+            memory: ${MEMORY_REQUEST_CANONICAL_FACTS_MIGRATION}
     - name: replica-identity-error-simulation
       restartPolicy: Never
       suspend: ${{REPLICA_IDENTITY_SIMULATION_SUSPEND}}
@@ -766,3 +804,19 @@ parameters:
 - name: TARGET_HOST_ID
   description: The host ID to target for bios_uuid deletion
   value: ''
+
+# Canonical Facts Migration Job
+- name: CPU_REQUEST_CANONICAL_FACTS_MIGRATION
+  value: 250m
+- name: CPU_LIMIT_CANONICAL_FACTS_MIGRATION
+  value: 500m
+- name: MEMORY_REQUEST_CANONICAL_FACTS_MIGRATION
+  value: 256Mi
+- name: MEMORY_LIMIT_CANONICAL_FACTS_MIGRATION
+  value: 512Mi
+- name: SUSPEND_CANONICAL_FACTS_MIGRATION
+  description: If set to true, the canonical-facts-migration job will immediately exit upon running.
+  value: 'true'
+- name: CANONICAL_FACTS_MIGRATION_BATCH_SIZE
+  description: The batch size to use for the canonical facts migration.
+  value: '5000'
