@@ -30,6 +30,8 @@ This script should only be run during a planned maintenance window.
 
 # Single Source of Truth for Index DDL
 INDEX_DEFINITIONS = {
+    "idx_system_profiles_static_replica_identity": "CREATE UNIQUE INDEX {index_name} ON {schema}.system_profiles_static (org_id, host_id, insights_id);",
+    "idx_system_profiles_dynamic_replica_identity": "CREATE UNIQUE INDEX {index_name} ON {schema}.system_profiles_dynamic (org_id, host_id, insights_id);",
     "idx_system_profiles_static_bootc_status": "CREATE INDEX {index_name} ON {schema}.system_profiles_static (bootc_status);",
     "idx_system_profiles_static_host_id": "CREATE INDEX {index_name} ON {schema}.system_profiles_static (host_id);",
     "idx_system_profiles_static_host_type": "CREATE INDEX {index_name} ON {schema}.system_profiles_static (host_type);",
@@ -42,10 +44,8 @@ INDEX_DEFINITIONS = {
         ) WHERE operating_system IS NOT NULL;
     """,
     "idx_system_profiles_static_org_id": "CREATE INDEX {index_name} ON {schema}.system_profiles_static (org_id);",
-    "idx_system_profiles_static_replica_identity": "CREATE INDEX {index_name} ON {schema}.system_profiles_static (org_id, host_id, insights_id);",
     "idx_system_profiles_static_rhc_client_id": "CREATE INDEX {index_name} ON {schema}.system_profiles_static (rhc_client_id);",
     "idx_system_profiles_static_system_update_method": "CREATE INDEX {index_name} ON {schema}.system_profiles_static (system_update_method);",
-    "idx_system_profiles_dynamic_replica_identity": "CREATE INDEX {index_name} ON {schema}.system_profiles_dynamic (org_id, host_id, insights_id);",
     "idx_system_profiles_dynamic_workloads_gin": "CREATE INDEX {index_name} ON {schema}.system_profiles_dynamic USING gin (workloads);",
 }
 
