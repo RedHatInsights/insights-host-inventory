@@ -19,6 +19,8 @@ from marshmallow import ValidationError as MarshmallowValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.exceptions import OutboxSaveException
+from app.models import Group
+from app.models import HostGroupAssoc
 from app.models.database import db
 from app.models.host import Host
 from app.models.outbox import Outbox
@@ -1735,11 +1737,6 @@ class TestOutboxE2ECases:
         3. The outbox table has zero entries when done (immediate deletion)
         4. EventProducer.write_event() is called during host creation
         """
-        from app.models import Group
-        from app.models import HostGroupAssoc
-        from tests.helpers.mq_utils import wrap_message
-        from tests.helpers.test_utils import get_platform_metadata
-        from tests.helpers.test_utils import minimal_host
 
         # Create test host data
         test_host = minimal_host(
