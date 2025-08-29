@@ -374,10 +374,10 @@ class OutboxEventMetadataSchema(MarshmallowSchema):
     class Meta:
         unknown = EXCLUDE
 
-    localResourceId = fields.Raw(validate=verify_uuid_format, required=True)
-    apiHref = fields.Str(validate=marshmallow_validate.Length(min=1, max=2048), required=True)
-    consoleHref = fields.Str(validate=marshmallow_validate.Length(min=1, max=2048), required=True)
-    reporterVersion = fields.Str(validate=marshmallow_validate.Length(min=1, max=50), required=True)
+    local_resource_id = fields.Raw(validate=verify_uuid_format, required=True)
+    api_href = fields.Str(validate=marshmallow_validate.Length(min=1, max=2048), required=True)
+    console_href = fields.Str(validate=marshmallow_validate.Length(min=1, max=2048), required=True)
+    reporter_version = fields.Str(validate=marshmallow_validate.Length(min=1, max=50), required=True)
 
 
 class OutboxEventCommonSchema(MarshmallowSchema):
@@ -411,8 +411,8 @@ class OutboxCreateUpdatePayloadSchema(MarshmallowSchema):
         unknown = EXCLUDE
 
     type = fields.Str(validate=marshmallow_validate.OneOf(["host"]), required=True)
-    reporterType = fields.Str(validate=marshmallow_validate.OneOf(["hbi"]), required=True)
-    reporterInstanceId = fields.Str(validate=marshmallow_validate.Length(min=1, max=255), required=True)
+    reporter_type = fields.Str(validate=marshmallow_validate.OneOf(["hbi"]), required=True)
+    reporter_instance_id = fields.Str(validate=marshmallow_validate.Length(min=1, max=255), required=True)
     representations = fields.Nested(OutboxEventRepresentationsSchema, required=True)
 
 

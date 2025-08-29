@@ -6,6 +6,7 @@ from dateutil import parser
 
 from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from tests.helpers.api_utils import GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import assert_group_response
 from tests.helpers.api_utils import assert_response_status
@@ -17,6 +18,10 @@ from tests.helpers.test_utils import generate_uuid
 
 def test_create_group_with_empty_host_list(api_create_group, db_get_group_by_name, event_producer, mocker):
     mocker.patch.object(event_producer, "write_event")
+    mocker.patch(
+        "lib.host_repository.get_flag_value",
+        side_effect=lambda name: name == FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION,
+    )
     group_data = {"name": "my_awesome_group", "host_ids": []}
 
     response_status, response_data = api_create_group(group_data)

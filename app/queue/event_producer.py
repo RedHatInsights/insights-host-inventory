@@ -7,7 +7,6 @@ from app.instrumentation import message_produced
 from app.logging import get_logger
 from app.queue.metrics import produce_large_message_failure
 from app.queue.metrics import produced_message_size
-from lib.outbox_repository import remove_event_from_outbox
 
 logger = get_logger(__name__)
 
@@ -75,8 +74,6 @@ class EventProducer:
             else:
                 self._kafka_producer.poll()
 
-            # remove the event from the outbox table
-            remove_event_from_outbox(key)
         except KafkaException as error:
             message_not_produced(logger, error, topic, event=v, key=k, headers=h)
             raise error
