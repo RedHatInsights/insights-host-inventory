@@ -129,10 +129,8 @@ def set_environment(new_env=None):
 def _base_host_data(**values) -> dict[str, Any]:
     return {
         "org_id": USER_IDENTITY["org_id"],
-        "display_name": "test" + generate_random_string(),
         "stale_timestamp": (now() + timedelta(days=randint(1, 7))).isoformat(),
         "reporter": "test" + generate_random_string(),
-        "created": now().isoformat(),
         **values,
     }
 
