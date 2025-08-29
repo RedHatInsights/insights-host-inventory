@@ -413,6 +413,8 @@ def query_filters(
     if rbac_filter:
         filters += rbac_permissions_filter(rbac_filter)
 
+    filters = [and_(Host.org_id == identity.org_id, *filters)]
+
     # Determine query_base
     if group_name or group_ids or rbac_filter or order_by == "group_name":
         query_base = db.session.query(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)

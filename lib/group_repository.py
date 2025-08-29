@@ -40,6 +40,7 @@ from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.feature_flags import get_flag_value
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.host_repository import get_non_culled_hosts_count_in_group
+from lib.host_repository import host_query
 from lib.metrics import delete_group_count
 from lib.metrics import delete_group_processing_time
 from lib.metrics import delete_host_group_count
@@ -96,8 +97,8 @@ def _invalidate_system_cache(host_list: list[Host], identity: Identity):
 
 def validate_add_host_list_to_group_for_group_create(host_id_list: list[str], group_name: str, org_id: str):
     # Check if the hosts exist in Inventory and have correct org_id
-    host_query = Host.query.filter((Host.org_id == org_id) & Host.id.in_(host_id_list)).all()
-    found_ids_set = {str(host.id) for host in host_query}
+    query = host_query(org_id).filter(Host.id.in_(host_id_list)).all()
+    found_ids_set = {str(host.id) for host in query}
     if found_ids_set != set(host_id_list):
         nonexistent_hosts = set(host_id_list) - found_ids_set
         log_host_group_add_failed(logger, host_id_list, group_name)
