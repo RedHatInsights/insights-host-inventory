@@ -22,7 +22,7 @@ objects:
   spec:
     appName: host-inventory-replica
     jobs:
-      - replica-identity-error-simulation
+      - replica-identity-err-simulator
 - apiVersion: cloud.redhat.com/v1alpha1
   kind: ClowdJobInvocation
   metadata:

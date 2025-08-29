@@ -136,7 +136,7 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_CANONICAL_FACTS_MIGRATION}
             memory: ${MEMORY_REQUEST_CANONICAL_FACTS_MIGRATION}
-    - name: replica-identity-error-simulation
+    - name: replica-identity-err-simulator
       restartPolicy: Never
       suspend: ${{REPLICA_IDENTITY_SIMULATION_SUSPEND}}
       podSpec:
