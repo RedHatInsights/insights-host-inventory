@@ -779,7 +779,7 @@ types-python-dateutil==2.9.0.20250708 \
     --hash=sha256:4d6d0cc1cc4d24a2dc3816024e502564094497b713f7befda4d5bc7a8e3fd21f \
     --hash=sha256:ccdbd75dab2d6c9696c350579f34cffe2c281e4c5f27a585b2a2438dd1d5c8ab
     # via -r requirements-build.in
-types-pytz==2025.2.0.20250516 \
+types-pytz==2025.2.0.20250809 \
     --hash=sha256:e0e0c8a57e2791c19f718ed99ab2ba623856b11620cb6b637e5f62ce285a7451 \
     --hash=sha256:e1216306f8c0d5da6dafd6492e72eb080c9a166171fa80dd7a1990fd8be7a7b3
     # via -r requirements-build.in
