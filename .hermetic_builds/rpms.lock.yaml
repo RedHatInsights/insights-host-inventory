@@ -74,13 +74,13 @@ arches:
     name: glibc-headers
     evr: 2.34-168.el9_6.23
     sourcerpm: glibc-2.34-168.el9_6.23.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/x86_64/appstream/os/Packages/k/kernel-headers-5.14.0-570.32.1.el9_6.x86_64.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/x86_64/appstream/os/Packages/k/kernel-headers-5.14.0-570.37.1.el9_6.x86_64.rpm
     repoid: ubi-9-for-x86_64-appstream-rpms
-    size: 3697753
-    checksum: sha256:13ee355b274f7e716e31827aa999087692342195b1bd8f10960cf46103b9d18b
+    size: 3706529
+    checksum: sha256:cdf3b0f400321b66101af9ed94a830a1b4f5e82c8c47d6c5342b4f81c605b245
     name: kernel-headers
-    evr: 5.14.0-570.32.1.el9_6
-    sourcerpm: kernel-5.14.0-570.32.1.el9_6.src.rpm
+    evr: 5.14.0-570.37.1.el9_6
+    sourcerpm: kernel-5.14.0-570.37.1.el9_6.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/x86_64/appstream/os/Packages/k/keyutils-libs-devel-1.6.3-1.el9.x86_64.rpm
     repoid: ubi-9-for-x86_64-appstream-rpms
     size: 66082
@@ -1075,20 +1075,20 @@ arches:
     name: which
     evr: 2.21-30.el9_6
     sourcerpm: which-2.21-30.el9_6.src.rpm
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/p/postgresql-16.8-1.module+el9.6.0+22880+6b241eec.x86_64.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/p/postgresql-16.10-1.module+el9.6.0+23420+848a4539.x86_64.rpm
     repoid: rhel-9-for-x86_64-appstream-rpms
-    size: 2033380
-    checksum: sha256:2c75b930166c6961cbbc1ac8dd0eeb89fa0c71cdd972f0ec868fcbcc252bd14c
+    size: 2036469
+    checksum: sha256:f93bcf25e1164dc911a28de0c7945b1e270c9f63bf2f35f47ac8330589c15f0e
     name: postgresql
-    evr: 16.8-1.module+el9.6.0+22880+6b241eec
-    sourcerpm: postgresql-16.8-1.module+el9.6.0+22880+6b241eec.src.rpm
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/p/postgresql-private-libs-16.8-1.module+el9.6.0+22880+6b241eec.x86_64.rpm
+    evr: 16.10-1.module+el9.6.0+23420+848a4539
+    sourcerpm: postgresql-16.10-1.module+el9.6.0+23420+848a4539.src.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/p/postgresql-private-libs-16.10-1.module+el9.6.0+23420+848a4539.x86_64.rpm
     repoid: rhel-9-for-x86_64-appstream-rpms
-    size: 148387
-    checksum: sha256:a9b966ea83157a165024875ca6b075b8b3c941027c4af85a1605ff536f41dc33
+    size: 145972
+    checksum: sha256:2e46adc000000d86a017756a0e9c4cca7b541407ba5777464096a4f59c8a17a2
     name: postgresql-private-libs
-    evr: 16.8-1.module+el9.6.0+22880+6b241eec
-    sourcerpm: postgresql-16.8-1.module+el9.6.0+22880+6b241eec.src.rpm
+    evr: 16.10-1.module+el9.6.0+23420+848a4539
+    sourcerpm: postgresql-16.10-1.module+el9.6.0+23420+848a4539.src.rpm
   source:
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/x86_64/appstream/source/SRPMS/Packages/e/emacs-27.2-14.el9_6.2.src.rpm
     repoid: ubi-9-for-x86_64-appstream-source-rpms
@@ -1654,20 +1654,20 @@ arches:
     checksum: sha256:922957570bae59b0a45bd9d96ce804c65c6c3260f50198f40804d95ffb0db65e
     name: zstd
     evr: 1.5.5-1.el9
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/source/SRPMS/Packages/p/postgresql-16.8-1.module+el9.6.0+22880+6b241eec.src.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/source/SRPMS/Packages/p/postgresql-16.10-1.module+el9.6.0+23420+848a4539.src.rpm
     repoid: rhel-9-for-x86_64-appstream-source-rpms
-    size: 48057580
-    checksum: sha256:0cccf0d5308502f6acf6924cb9a77e0eb8c3392ef5662cbccf75b3e97e7e3084
+    size: 48170813
+    checksum: sha256:6c27063e75601b0ed05fbe0afb4625e02515513809cd59b251bec8b7c5d2bc5c
     name: postgresql
-    evr: 16.8-1.module+el9.6.0+22880+6b241eec
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/source/SRPMS/Packages/k/kernel-5.14.0-570.32.1.el9_6.src.rpm
+    evr: 16.10-1.module+el9.6.0+23420+848a4539
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/source/SRPMS/Packages/k/kernel-5.14.0-570.37.1.el9_6.src.rpm
     repoid: rhel-9-for-x86_64-baseos-source-rpms
-    size: 149318464
-    checksum: sha256:4dcc6331d7308d00f7a3a698da55129d9344f1be385296cca16816b4b8ee2e03
+    size: 149340229
+    checksum: sha256:79e4410ed541615d6bf0242cb8dde757416d37cfb50dec3e8cad99abf3426a3c
     name: kernel
-    evr: 5.14.0-570.32.1.el9_6
+    evr: 5.14.0-570.37.1.el9_6
   module_metadata:
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/repodata/d6413620b70da3e46e9b36c02e417bde9683ed06cb88014d5b68ba313a54b892-modules.yaml.gz
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/repodata/b2dc84825c22a49702f70012427cc9651cfb85c20002b65da79d036e047a1969-modules.yaml.gz
     repoid: rhel-9-for-x86_64-appstream-rpms
-    size: 32671
-    checksum: sha256:d6413620b70da3e46e9b36c02e417bde9683ed06cb88014d5b68ba313a54b892
+    size: 33551
+    checksum: sha256:b2dc84825c22a49702f70012427cc9651cfb85c20002b65da79d036e047a1969
