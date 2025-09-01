@@ -198,7 +198,7 @@ class TestReplicaIdentityIntegration:
                 sa_text(
                     f"""
                     CREATE UNIQUE INDEX IF NOT EXISTS hosts_replica_identity_idx
-                    ON {schema}.{table_name} (org_id, id);
+                    ON {schema}.{table_name} (org_id, id, insights_id);
                     """
                 )
             )
@@ -296,7 +296,10 @@ class TestReplicaIdentityIntegration:
                 # Create multiple unique indexes
                 db.session.execute(
                     sa_text(
-                        f"CREATE UNIQUE INDEX IF NOT EXISTS hosts_replica_identity_idx ON {schema}.{table_name} (id)"
+                        f"""
+                        CREATE UNIQUE INDEX IF NOT EXISTS hosts_replica_identity_idx
+                        ON {schema}.{table_name} (org_id, id, insights_id)
+                        """
                     )
                 )
                 db.session.execute(
