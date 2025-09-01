@@ -2688,6 +2688,8 @@ parameters:
 - name: HOSTS_TABLE_MIGRATION_SWITCH_MODE
   description: switch or rollback to revert the hosts table switch.
   value: 'switch'
+- name: SP_TABLES_MIGRATION_DATA_COPY_SUSPEND
+  value: 'true'
 - name: SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_PREPARE
   value: 'true'
 - name: SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_FINALIZE
