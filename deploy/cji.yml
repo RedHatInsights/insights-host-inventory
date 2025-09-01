@@ -58,6 +58,16 @@ objects:
   metadata:
     labels:
       app: host-inventory
+    name: sync-workloads-fields-data-${SYNC_WORKLOADS_FIELDS_RUN_NUMBER}
+  spec:
+    appName: host-inventory
+    jobs:
+      - sync-workloads-fields-data
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    labels:
+      app: host-inventory
     name: hosts-table-migration-data-copy-${HOSTS_TABLE_MIGRATION_DATA_COPY_RUN_NUMBER}
   spec:
     appName: host-inventory
@@ -130,6 +140,8 @@ parameters:
 - name: DUPLICATE_HOSTS_REMOVER_RUN_NUMBER
   value: '1'
 - name: HOST_SYNC_GROUP_DATA_RUN_NUMBER
+  value: '1'
+- name: SYNC_WORKLOADS_FIELDS_RUN_NUMBER
   value: '1'
 - name: HOSTS_TABLE_MIGRATION_DATA_COPY_RUN_NUMBER
   value: '1'
