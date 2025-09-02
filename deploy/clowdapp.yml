@@ -1210,6 +1210,14 @@ objects:
             value: ${PROMETHEUS_PUSHGATEWAY}
           - name: REPLICA_NAMESPACE
             value: ${REPLICA_NAMESPACE}
+          - name: CREATE_PUBLICATIONS
+            value: ${SYNDICATOR_CREATE_PUBLICATIONS}
+          - name: DROP_PUBLICATIONS
+            value: ${SYNDICATOR_DROP_PUBLICATIONS}
+          - name: DROP_REPLICATION_SLOTS
+            value: ${SYNDICATOR_DROP_REPLICATION_SLOTS}
+          - name: REPLICA_IDENTITY_MODE
+            value: ${SYNDICATOR_REPLICA_IDENTITY_MODE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_SYNDICATOR}
@@ -2624,6 +2632,20 @@ parameters:
 - name: FLOORIST_DB_SECRET_NAME
   description: database secret name
   value: host-inventory-db
+
+  # Logical replication
+- name: SYNDICATOR_CREATE_PUBLICATIONS
+  description: Publications to create
+  value: ''
+- name: SYNDICATOR_DROP_PUBLICATIONS
+  description: Publications to drop
+  value: ''
+- name: SYNDICATOR_DROP_REPLICATION_SLOTS
+  description: Replication slots to drop
+  value: ''
+- name: SYNDICATOR_REPLICA_IDENTITY_MODE
+  description: Replica Identity Mode to set in the published tables (and their partitions)
+  value: ''
 
 # Replica namespace
 - name: REPLICA_NAMESPACE
