@@ -22,7 +22,6 @@ from app.auth.identity import Identity
 from app.config import ALL_STALENESS_STATES
 from app.config import COMPOUND_ID_FACTS
 from app.config import COMPOUND_ID_FACTS_MAP
-from app.config import HOST_TYPES
 from app.config import ID_FACTS
 from app.config import ID_FACTS_USE_SUBMAN_ID
 from app.config import IMMUTABLE_ID_FACTS
@@ -224,10 +223,7 @@ def multiple_canonical_facts_host_query_in_memory(
 def find_hosts_by_staleness(staleness_types: list[str], query: Query, org_id: str) -> Query:
     logger.debug("find_hosts_by_staleness(%s)", staleness_types)
     staleness_obj = serialize_staleness_to_dict(get_staleness_obj(org_id))
-    staleness_conditions = [
-        or_(False, *staleness_to_conditions(staleness_obj, staleness_types, host_type, stale_timestamp_filter))
-        for host_type in HOST_TYPES
-    ]
+    staleness_conditions = staleness_to_conditions(staleness_obj, staleness_types, stale_timestamp_filter)
 
     return query.filter(or_(False, *staleness_conditions))
 
@@ -235,13 +231,7 @@ def find_hosts_by_staleness(staleness_types: list[str], query: Query, org_id: st
 def find_hosts_by_staleness_job(staleness_types, org_id):
     logger.debug("find_hosts_by_staleness(%s)", staleness_types)
     staleness_obj = serialize_staleness_to_dict(get_staleness_obj(org_id))
-    staleness_conditions = [
-        or_(
-            False,
-            *staleness_to_conditions(staleness_obj, staleness_types, host_type, stale_timestamp_filter),
-        )
-        for host_type in HOST_TYPES
-    ]
+    staleness_conditions = staleness_to_conditions(staleness_obj, staleness_types, stale_timestamp_filter)
 
     return or_(False, *staleness_conditions)
 
@@ -249,13 +239,7 @@ def find_hosts_by_staleness_job(staleness_types, org_id):
 def find_stale_hosts(org_id, last_run_secs, job_start_time):
     logger.debug("finding stale hosts with custom staleness")
     staleness_obj = serialize_staleness_to_dict(get_staleness_obj(org_id))
-    staleness_conditions = [
-        or_(
-            False,
-            *find_stale_host_in_window(staleness_obj, host_type, last_run_secs, job_start_time),
-        )
-        for host_type in HOST_TYPES
-    ]
+    staleness_conditions = find_stale_host_in_window(staleness_obj, last_run_secs, job_start_time)
 
     return or_(False, *staleness_conditions)
 
@@ -263,13 +247,7 @@ def find_stale_hosts(org_id, last_run_secs, job_start_time):
 def find_stale_host_sys_default_staleness(last_run_secs, job_start_time):
     logger.debug("finding stale hosts with system default staleness")
     sys_default_staleness = serialize_staleness_to_dict(get_sys_default_staleness())
-    staleness_conditions = [
-        or_(
-            False,
-            *find_stale_host_in_window(sys_default_staleness, host_type, last_run_secs, job_start_time),
-        )
-        for host_type in HOST_TYPES
-    ]
+    staleness_conditions = find_stale_host_in_window(sys_default_staleness, last_run_secs, job_start_time)
 
     return or_(False, *staleness_conditions)
 
@@ -277,13 +255,7 @@ def find_stale_host_sys_default_staleness(last_run_secs, job_start_time):
 def find_hosts_sys_default_staleness(staleness_types):
     logger.debug("find hosts with system default staleness")
     sys_default_staleness = serialize_staleness_to_dict(get_sys_default_staleness())
-    staleness_conditions = [
-        or_(
-            False,
-            *staleness_to_conditions(sys_default_staleness, staleness_types, host_type, stale_timestamp_filter),
-        )
-        for host_type in HOST_TYPES
-    ]
+    staleness_conditions = staleness_to_conditions(sys_default_staleness, staleness_types, stale_timestamp_filter)
 
     return or_(False, *staleness_conditions)
 
