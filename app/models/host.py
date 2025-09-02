@@ -201,7 +201,7 @@ class LimitedHost(db.Model):
     canonical_facts = db.Column(JSONB)
 
     # canonical facts
-    insights_id = db.Column(UUID(as_uuid=True), default="00000000-0000-0000-0000-000000000000")
+    insights_id = db.Column(UUID(as_uuid=True), nullable=False, default="00000000-0000-0000-0000-000000000000")
     subscription_manager_id = db.Column(db.String(36))
     satellite_id = db.Column(db.String(255))
     fqdn = db.Column(db.String(255))
