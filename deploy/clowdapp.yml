@@ -1722,8 +1722,6 @@ objects:
         env:
           - name: PYTHONPATH
             value: '/opt/app-root/src'
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
           - name: INVENTORY_DB_SSL_MODE
