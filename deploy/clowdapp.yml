@@ -1210,6 +1210,14 @@ objects:
             value: ${PROMETHEUS_PUSHGATEWAY}
           - name: REPLICA_NAMESPACE
             value: ${REPLICA_NAMESPACE}
+          - name: CREATE_PUBLICATIONS
+            value: ${SYNDICATOR_CREATE_PUBLICATIONS}
+          - name: DROP_PUBLICATIONS
+            value: ${SYNDICATOR_DROP_PUBLICATIONS}
+          - name: DROP_REPLICATION_SLOTS
+            value: ${SYNDICATOR_DROP_REPLICATION_SLOTS}
+          - name: REPLICA_IDENTITY_MODE
+            value: ${SYNDICATOR_REPLICA_IDENTITY_MODE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_SYNDICATOR}
@@ -1714,8 +1722,6 @@ objects:
         env:
           - name: PYTHONPATH
             value: '/opt/app-root/src'
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
           - name: INVENTORY_DB_SSL_MODE
@@ -1783,6 +1789,80 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_HOSTS_TABLE_MIGRATION_SWITCH}
             memory: ${MEMORY_REQUEST_HOSTS_TABLE_MIGRATION_SWITCH}
+    - name: delete-host-bios-uuid
+      restartPolicy: Never
+      suspend: ${{SUSPEND_DELETE_HOST_BIOS_UUID}}
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: [ "./jobs/delete_host_bios_uuid.py" ]
+        env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: TARGET_HOST_ID
+            value: ${TARGET_HOST_ID}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: SUSPEND_JOB
+            value: ${SUSPEND_DELETE_HOST_BIOS_UUID}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_DELETE_HOST_BIOS_UUID_JOB}
+            memory: ${MEMORY_LIMIT_DELETE_HOST_BIOS_UUID_JOB}
+          requests:
+            cpu: ${CPU_REQUEST_DELETE_HOST_BIOS_UUID_JOB}
+            memory: ${MEMORY_REQUEST_DELETE_HOST_BIOS_UUID_JOB}
+    - name: canonical-facts-migration
+      restartPolicy: Never
+      suspend: ${{SUSPEND_CANONICAL_FACTS_MIGRATION}}
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: [ "./jobs/canonical_facts_migration.py" ]
+        env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: CANONICAL_FACTS_MIGRATION_BATCH_SIZE
+            value: ${CANONICAL_FACTS_MIGRATION_BATCH_SIZE}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+          - name: SUSPEND_CANONICAL_FACTS_MIGRATION
+            value: ${SUSPEND_CANONICAL_FACTS_MIGRATION}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_CANONICAL_FACTS_MIGRATION}
+            memory: ${MEMORY_LIMIT_CANONICAL_FACTS_MIGRATION}
+          requests:
+            cpu: ${CPU_REQUEST_CANONICAL_FACTS_MIGRATION}
+            memory: ${MEMORY_REQUEST_CANONICAL_FACTS_MIGRATION}
     database:
       name: ${DB_NAME}
       version: 16
@@ -2551,6 +2631,20 @@ parameters:
   description: database secret name
   value: host-inventory-db
 
+  # Logical replication
+- name: SYNDICATOR_CREATE_PUBLICATIONS
+  description: Publications to create
+  value: ''
+- name: SYNDICATOR_DROP_PUBLICATIONS
+  description: Publications to drop
+  value: ''
+- name: SYNDICATOR_DROP_REPLICATION_SLOTS
+  description: Replication slots to drop
+  value: ''
+- name: SYNDICATOR_REPLICA_IDENTITY_MODE
+  description: Replica Identity Mode to set in the published tables (and their partitions)
+  value: ''
+
 # Replica namespace
 - name: REPLICA_NAMESPACE
   description: Disable Kafka operations in the replica namespace
@@ -2561,3 +2655,35 @@ parameters:
   description: Choose migration mode to run DB refactoring tables transition
   required: true
   value: automated
+
+# Delete Host BIOS UUID Job
+- name: CPU_REQUEST_DELETE_HOST_BIOS_UUID_JOB
+  value: 100m
+- name: CPU_LIMIT_DELETE_HOST_BIOS_UUID_JOB
+  value: 200m
+- name: MEMORY_REQUEST_DELETE_HOST_BIOS_UUID_JOB
+  value: 128Mi
+- name: MEMORY_LIMIT_DELETE_HOST_BIOS_UUID_JOB
+  value: 256Mi
+- name: SUSPEND_DELETE_HOST_BIOS_UUID
+  description: If set to true, the delete-host-bios-uuid job will immediately exit upon running.
+  value: 'true'
+- name: TARGET_HOST_ID
+  description: The host ID to target for bios_uuid deletion
+  value: ''
+
+# Canonical Facts Migration Job
+- name: CPU_REQUEST_CANONICAL_FACTS_MIGRATION
+  value: 250m
+- name: CPU_LIMIT_CANONICAL_FACTS_MIGRATION
+  value: 500m
+- name: MEMORY_REQUEST_CANONICAL_FACTS_MIGRATION
+  value: 256Mi
+- name: MEMORY_LIMIT_CANONICAL_FACTS_MIGRATION
+  value: 512Mi
+- name: SUSPEND_CANONICAL_FACTS_MIGRATION
+  description: If set to true, the canonical-facts-migration job will immediately exit upon running.
+  value: 'true'
+- name: CANONICAL_FACTS_MIGRATION_BATCH_SIZE
+  description: The batch size to use for the canonical facts migration.
+  value: '5000'

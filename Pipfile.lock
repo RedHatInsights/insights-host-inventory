@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "0e898a005ea1e204e35abbff64bb41cdc2d7ae19d3f5c46632cc0751ce8bea90"
+            "sha256": "db403efff4b53bf72ae3540f5a350742d6e301ca13d7b483c87f1facbfcce70e"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -32,13 +32,6 @@
             "index": "pypi",
             "markers": "python_version >= '3.9'",
             "version": "==1.16.4"
-        },
-        "aniso8601": {
-            "hashes": [
-                "sha256:25488f8663dd1528ae1f54f94ac1ea51ae25b4d531539b8bc707fed184d16845",
-                "sha256:eb19717fd4e0db6de1aab06f12450ab92144246b257423fe020af5748c0cb89e"
-            ],
-            "version": "==10.0.1"
         },
         "anyio": {
             "hashes": [
@@ -323,14 +316,6 @@
             "index": "pypi",
             "markers": "python_version >= '3.6'",
             "version": "==4.1.0"
-        },
-        "flask-restful": {
-            "hashes": [
-                "sha256:1cf93c535172f112e080b0d4503a8d15f93a48c88bdd36dd87269bdaf405051b",
-                "sha256:fe4af2ef0027df8f9b4f797aba20c5566801b6ade995ac63b588abf1a59cec37"
-            ],
-            "index": "pypi",
-            "version": "==0.3.10"
         },
         "flask-sqlalchemy": {
             "hashes": [
@@ -867,13 +852,6 @@
             ],
             "markers": "python_version >= '3.8'",
             "version": "==0.0.20"
-        },
-        "pytz": {
-            "hashes": [
-                "sha256:360b9e3dbb49a209c21ad61809c7fb453643e048b38924c765813546746e81c3",
-                "sha256:5ddf76296dd8c44c26eb8f4b6f35488f3ccbf6fbbd7adee0b7262d43f0ec2f00"
-            ],
-            "version": "==2025.2"
         },
         "pyyaml": {
             "hashes": [
@@ -2279,12 +2257,12 @@
         },
         "types-python-dateutil": {
             "hashes": [
-                "sha256:69cbf8d15ef7a75c3801d65d63466e46ac25a0baa678d89d0a137fc31a608cc1",
-                "sha256:768890cac4f2d7fd9e0feb6f3217fce2abbfdfc0cadd38d11fba325a815e4b9f"
+                "sha256:849d52b737e10a6dc6621d2bd7940ec7c65fcb69e6aa2882acf4e56b2b508ddc",
+                "sha256:84c92c34bd8e68b117bff742bc00b692a1e8531262d4507b33afcc9f7716cd53"
             ],
             "index": "pypi",
             "markers": "python_version >= '3.9'",
-            "version": "==2.9.0.20250809"
+            "version": "==2.9.0.20250822"
         },
         "types-pytz": {
             "hashes": [

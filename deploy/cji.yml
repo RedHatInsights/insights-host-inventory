@@ -73,6 +73,26 @@ objects:
     appName: host-inventory
     jobs:
       - hosts-table-migration-switch
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    labels:
+      app: host-inventory
+    name: delete-host-bios-uuid-${DELETE_HOST_BIOS_UUID_RUN_NUMBER}
+  spec:
+    appName: host-inventory
+    jobs:
+      - delete-host-bios-uuid
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    labels:
+      app: host-inventory
+    name: canonical-facts-migration-${CANONICAL_FACTS_MIGRATION_RUN_NUMBER}
+  spec:
+    appName: host-inventory
+    jobs:
+      - canonical-facts-migration
 parameters:
 - name: SYNCHRONIZER_RUN_NUMBER
   value: '1'
@@ -87,4 +107,8 @@ parameters:
 - name: HOSTS_TABLE_MIGRATION_DATA_COPY_RUN_NUMBER
   value: '1'
 - name: HOSTS_TABLE_MIGRATION_SWITCH_RUN_NUMBER
+  value: '1'
+- name: DELETE_HOST_BIOS_UUID_RUN_NUMBER
+  value: '1'
+- name: CANONICAL_FACTS_MIGRATION_RUN_NUMBER
   value: '1'

@@ -29,7 +29,7 @@ fi
 # run unit tests in containers
 DB_CONTAINER_NAME="inventory-db-${IMAGE_TAG}"
 NETWORK="inventory-test-${IMAGE_TAG}"
-POSTGRES_IMAGE="quay.io/cloudservices/postgresql-rds:cyndi-13"
+POSTGRES_IMAGE="quay.io/cloudservices/postgresql-rds:cyndi-16"
 
 function teardown_podman {
     podman rm -f "$DB_CONTAINER_ID" || true
@@ -41,12 +41,15 @@ trap "teardown_podman" EXIT SIGINT SIGTERM
 
 podman network create --driver bridge "$NETWORK"
 
+echo "wal_level = logical" > 99-wal-level.conf
+
 DB_CONTAINER_ID=$(podman run -d \
     --name "$DB_CONTAINER_NAME" \
     --network "$NETWORK" \
     -e POSTGRESQL_USER="inventory-test" \
     -e POSTGRESQL_PASSWORD="inventory-test" \
     -e POSTGRESQL_DATABASE="inventory-test" \
+    -v ./99-wal-level.conf:/etc/postgresql/conf.d/99-wal-level.conf:Z \
     "$POSTGRES_IMAGE" || echo "0")
 
 if [[ "$DB_CONTAINER_ID" == "0" ]]; then

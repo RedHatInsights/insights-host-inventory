@@ -52,6 +52,12 @@
             "$ref": "#/components/parameters/updatedEnd"
           },
           {
+            "$ref": "#/components/parameters/lastCheckInStart"
+          },
+          {
+            "$ref": "#/components/parameters/lastCheckInEnd"
+          },
+          {
             "$ref": "#/components/parameters/groupNameListParam"
           },
           {
@@ -137,6 +143,12 @@
           },
           {
             "$ref": "#/components/parameters/updatedEnd"
+          },
+          {
+            "$ref": "#/components/parameters/lastCheckInStart"
+          },
+          {
+            "$ref": "#/components/parameters/lastCheckInEnd"
           },
           {
             "$ref": "#/components/parameters/groupNameListParam"
@@ -1131,6 +1143,12 @@
             "$ref": "#/components/parameters/updatedEnd"
           },
           {
+            "$ref": "#/components/parameters/lastCheckInStart"
+          },
+          {
+            "$ref": "#/components/parameters/lastCheckInEnd"
+          },
+          {
             "$ref": "#/components/parameters/groupNameListParam"
           },
           {
@@ -1739,6 +1757,24 @@
           "format": "date-time"
         },
         "description": "Only show hosts last modified before the given date"
+      },
+      "lastCheckInStart": {
+        "in": "query",
+        "name": "last_check_in_start",
+        "schema": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "description": "Only show hosts last checked in after the given date"
+      },
+      "lastCheckInEnd": {
+        "in": "query",
+        "name": "last_check_in_end",
+        "schema": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "description": "Only show hosts last checked in before the given date"
       },
       "factsNamespace": {
         "in": "path",
@@ -3337,9 +3373,8 @@
           },
           "captured_date": {
             "type": "string",
-            "maxLength": 32,
-            "example": "ex1, ex2, ex3",
-            "x-dynamic": true
+            "format": "date-time",
+            "maxLength": 50
           },
           "installed_packages": {
             "type": "array",

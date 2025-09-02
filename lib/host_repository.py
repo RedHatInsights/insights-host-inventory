@@ -22,20 +22,24 @@ from app.auth.identity import Identity
 from app.config import ALL_STALENESS_STATES
 from app.config import COMPOUND_ID_FACTS
 from app.config import COMPOUND_ID_FACTS_MAP
-from app.config import HOST_TYPES
 from app.config import ID_FACTS
 from app.config import ID_FACTS_USE_SUBMAN_ID
 from app.config import IMMUTABLE_ID_FACTS
 from app.exceptions import InventoryException
+from app.exceptions import OutboxSaveException
 from app.logging import get_logger
 from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import LimitedHost
 from app.models import db
+from app.queue.events import EventType
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness
 from lib import metrics
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
+from lib.feature_flags import get_flag_value
+from lib.outbox_repository import write_event_to_outbox
 
 __all__ = (
     "AddHostResult",
@@ -65,8 +69,8 @@ def add_host(
     Add or update a host
 
     Required parameters:
-     - at least one of the canonical facts fields is required
-     - org_id
+    - at least one of the canonical facts fields is required
+    - org_id
 
      The only supported argument in the operation_args for now is "defer_to_reporter".
      It is documented here:
@@ -93,6 +97,18 @@ def add_host(
 
         return update_existing_host(matched_host, input_host, update_system_profile)
     else:
+        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
+            # Import here to avoid circular import
+            from lib.group_repository import get_or_create_ungrouped_hosts_group_for_identity
+            from lib.group_repository import serialize_group
+
+            group = get_or_create_ungrouped_hosts_group_for_identity(identity)
+            input_host.groups = [serialize_group(group)]
+
+            # create a new host group association for the host
+            assoc = HostGroupAssoc(input_host.id, group.id, identity.org_id)
+            db.session.add(assoc)
+
         return create_new_host(input_host)
 
 
@@ -221,10 +237,7 @@ def multiple_canonical_facts_host_query_in_memory(
 def find_hosts_by_staleness(staleness_types: list[str], query: Query, org_id: str) -> Query:
     logger.debug("find_hosts_by_staleness(%s)", staleness_types)
     staleness_obj = serialize_staleness_to_dict(get_staleness_obj(org_id))
-    staleness_conditions = [
-        or_(False, *staleness_to_conditions(staleness_obj, staleness_types, host_type, stale_timestamp_filter))
-        for host_type in HOST_TYPES
-    ]
+    staleness_conditions = staleness_to_conditions(staleness_obj, staleness_types, stale_timestamp_filter)
 
     return query.filter(or_(False, *staleness_conditions))
 
@@ -232,13 +245,7 @@ def find_hosts_by_staleness(staleness_types: list[str], query: Query, org_id: st
 def find_hosts_by_staleness_job(staleness_types, org_id):
     logger.debug("find_hosts_by_staleness(%s)", staleness_types)
     staleness_obj = serialize_staleness_to_dict(get_staleness_obj(org_id))
-    staleness_conditions = [
-        or_(
-            False,
-            *staleness_to_conditions(staleness_obj, staleness_types, host_type, stale_timestamp_filter),
-        )
-        for host_type in HOST_TYPES
-    ]
+    staleness_conditions = staleness_to_conditions(staleness_obj, staleness_types, stale_timestamp_filter)
 
     return or_(False, *staleness_conditions)
 
@@ -246,13 +253,7 @@ def find_hosts_by_staleness_job(staleness_types, org_id):
 def find_stale_hosts(org_id, last_run_secs, job_start_time):
     logger.debug("finding stale hosts with custom staleness")
     staleness_obj = serialize_staleness_to_dict(get_staleness_obj(org_id))
-    staleness_conditions = [
-        or_(
-            False,
-            *find_stale_host_in_window(staleness_obj, host_type, last_run_secs, job_start_time),
-        )
-        for host_type in HOST_TYPES
-    ]
+    staleness_conditions = find_stale_host_in_window(staleness_obj, last_run_secs, job_start_time)
 
     return or_(False, *staleness_conditions)
 
@@ -260,13 +261,7 @@ def find_stale_hosts(org_id, last_run_secs, job_start_time):
 def find_stale_host_sys_default_staleness(last_run_secs, job_start_time):
     logger.debug("finding stale hosts with system default staleness")
     sys_default_staleness = serialize_staleness_to_dict(get_sys_default_staleness())
-    staleness_conditions = [
-        or_(
-            False,
-            *find_stale_host_in_window(sys_default_staleness, host_type, last_run_secs, job_start_time),
-        )
-        for host_type in HOST_TYPES
-    ]
+    staleness_conditions = find_stale_host_in_window(sys_default_staleness, last_run_secs, job_start_time)
 
     return or_(False, *staleness_conditions)
 
@@ -274,13 +269,7 @@ def find_stale_host_sys_default_staleness(last_run_secs, job_start_time):
 def find_hosts_sys_default_staleness(staleness_types):
     logger.debug("find hosts with system default staleness")
     sys_default_staleness = serialize_staleness_to_dict(get_sys_default_staleness())
-    staleness_conditions = [
-        or_(
-            False,
-            *staleness_to_conditions(sys_default_staleness, staleness_types, host_type, stale_timestamp_filter),
-        )
-        for host_type in HOST_TYPES
-    ]
+    staleness_conditions = staleness_to_conditions(sys_default_staleness, staleness_types, stale_timestamp_filter)
 
     return or_(False, *staleness_conditions)
 
@@ -294,6 +283,16 @@ def create_new_host(input_host: Host) -> tuple[Host, AddHostResult]:
     logger.debug("Creating a new host")
 
     input_host.save()
+
+    try:
+        # write to the outbox table for synchronization with Kessel
+        result = write_event_to_outbox(EventType.created, (input_host.id), input_host)
+        if not result:
+            logger.error("Failed to write created event to outbox")
+            raise OutboxSaveException("Failed to write created host event to outbox")
+    except OutboxSaveException as ose:
+        logger.error("Failed to write created event to outbox: %s", str(ose))
+        raise ose
 
     metrics.create_host_count.inc()
     logger.debug("Created host (uncommitted):%s", input_host)
@@ -309,6 +308,16 @@ def update_existing_host(
     logger.debug(f"existing host = {existing_host}")
 
     existing_host.update(input_host, update_system_profile)
+
+    try:
+        # write to the outbox table for synchronization with Kessel
+        result = write_event_to_outbox(EventType.updated, str(input_host.id), input_host)
+        if not result:
+            logger.error("Failed to write updated event to outbox")
+            raise OutboxSaveException("Failed to write update event to outbox")
+    except OutboxSaveException as ose:
+        logger.error("Failed to write updated event to outbox: %s", str(ose))
+        raise ose
 
     metrics.update_host_count.inc()
     logger.debug("Updated host (uncommitted):%s", existing_host)

@@ -13,6 +13,7 @@ from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
 from app.common import inventory_config
 from app.exceptions import InventoryException
+from app.exceptions import OutboxSaveException
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_get_group_list_failed
 from app.instrumentation import log_group_delete_failed
@@ -44,6 +45,7 @@ from lib.metrics import delete_group_processing_time
 from lib.metrics import delete_host_group_count
 from lib.metrics import delete_host_group_processing_time
 from lib.middleware import rbac_create_ungrouped_hosts_workspace
+from lib.outbox_repository import write_event_to_outbox
 
 logger = get_logger(__name__)
 
@@ -208,6 +210,17 @@ def _process_host_changes(
 
         # Process each batch
         host_list = get_host_list_by_id_list_from_db(batch, identity)
+        for host in host_list:
+            try:
+                # write to the outbox table for synchronization with Kessel
+                result = write_event_to_outbox(EventType.updated, str(host.id), host)
+                if not result:
+                    logger.error("Failed to write updated event to outbox")
+                    raise OutboxSaveException("Failed to write update event to outbox")
+            except OutboxSaveException as ose:
+                logger.error("Failed to write updated event to outbox: %s", str(ose))
+                raise ose
+
         _produce_host_update_events(event_producer, serialized_groups, host_list, identity, staleness=staleness)
         _invalidate_system_cache(host_list, identity)
 
@@ -243,7 +256,7 @@ def add_group(
     session.flush()
 
     # gets the ID of the group after it has been committed
-    return session.query(Group).filter((Group.name == group_name) & (Group.org_id == org_id)).one_or_none()
+    return new_group
 
 
 def add_group_with_hosts(
@@ -259,13 +272,14 @@ def add_group_with_hosts(
     with session_guard(db.session):
         # Create group
         created_group = add_group(group_name, identity.org_id, account, group_id, ungrouped)
+        created_group_id = created_group.id
 
         # Add hosts to group
         if host_id_list:
             _add_hosts_to_group(created_group.id, host_id_list, identity.org_id)
 
     # gets the ID of the group after it has been committed
-    created_group = Group.query.filter((Group.name == group_name) & (Group.org_id == identity.org_id)).one_or_none()
+    created_group = get_group_by_id_from_db(created_group_id, identity.org_id)
 
     # Produce update messages once the DB session has been closed
     serialized_groups, host_id_list = _update_hosts_for_group_changes(
