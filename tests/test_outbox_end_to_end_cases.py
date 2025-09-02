@@ -340,7 +340,7 @@ class TestOutboxE2ECases:
                 "representations": {
                     "metadata": {
                         "local_resource_id": str(uuid.uuid4()),
-                        "api_href": "https://api_href.com/",
+                        "api_href": "https://apihref.com/",
                         "console_href": "https://www.console.com/",
                         "reporter_version": "1.0",
                     },
@@ -1428,7 +1428,7 @@ class TestOutboxE2ECases:
             # Verify metadata structure
             metadata = representations["metadata"]
             assert metadata["local_resource_id"] == host_id
-            assert metadata["api_href"] == "https://api_href.com/"
+            assert metadata["api_href"] == "https://apihref.com/"
             assert metadata["console_href"] == "https://www.console.com/"
             assert metadata["reporter_version"] == "1.0"
 
