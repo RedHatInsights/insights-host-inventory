@@ -9,7 +9,6 @@ from boto3.session import Session
 from gunicorn import glogging
 from yaml import safe_load
 
-
 OPENSHIFT_ENVIRONMENT_NAME_FILE = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 DEFAULT_AWS_LOGGING_NAMESPACE = "inventory-dev"
 DEFAULT_LOGGING_CONFIG_FILE = "logconfig.yaml"

@@ -38,6 +38,7 @@ repos:
       - types-python-dateutil
       - types-requests
       - types-pytz
+      - gunicorn
 
 - repo: local
   hooks:
