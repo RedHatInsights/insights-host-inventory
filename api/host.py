@@ -26,6 +26,8 @@ from api.host_query_db import get_host_tags_list_by_id_list
 from api.host_query_db import get_sparse_system_profile
 from api.staleness_query import get_staleness_obj
 from app import KesselResourceTypes
+from app import IDENTITY_HEADER, REQUEST_ID_HEADER
+from app import RbacPermission, RbacResourceType
 from app.auth import get_current_identity
 from app.auth.identity import IdentityType
 from app.auth.identity import to_auth_header
@@ -58,6 +60,9 @@ from lib.host_repository import find_existing_host
 from lib.host_repository import find_non_culled_hosts
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.middleware import access
+from lib.middleware import get_rbac_filter, get_kessel_filter
+from lib.kessel import get_kessel_client
+from lib.feature_flags import get_flag_value, FLAG_INVENTORY_KESSEL_HOST_MIGRATION
 from lib.outbox_repository import write_event_to_outbox
 
 FactOperations = Enum("FactOperations", ("merge", "replace"))
@@ -579,10 +584,34 @@ def host_checkin(body, rbac_filter=None):  # noqa: ARG001, required for all API 
 
 
 @api_operation
-@access(KesselResourceTypes.HOST.view)
 @metrics.api_request_time.time()
 def get_host_exists(insights_id, rbac_filter=None):
-    host_id = get_host_id_by_insights_id(insights_id, rbac_filter)
+    current_identity = get_current_identity()
+
+    allowed = True
+    computed_rbac_filter = None
+
+    if not inventory_config().bypass_rbac:
+        if get_flag_value(FLAG_INVENTORY_KESSEL_HOST_MIGRATION):
+            kessel_client = get_kessel_client(current_app)
+            allowed, computed_rbac_filter = get_kessel_filter(
+                kessel_client, current_identity, KesselResourceTypes.HOST.view, [], False
+            )
+        else:
+            request_headers = {
+                IDENTITY_HEADER: flask.request.headers[IDENTITY_HEADER],
+                REQUEST_ID_HEADER: flask.request.headers.get(REQUEST_ID_HEADER),
+            }
+            allowed, computed_rbac_filter = get_rbac_filter(
+                RbacResourceType.HOSTS, RbacPermission.READ, current_identity, request_headers, "inventory"
+            )
+
+    if not allowed:
+        flask.abort(HTTPStatus.FORBIDDEN)
+
+    effective_rbac_filter = rbac_filter if rbac_filter is not None else computed_rbac_filter
+
+    host_id = get_host_id_by_insights_id(insights_id, effective_rbac_filter)
 
     if not host_id:
         flask.abort(404, f"No host found for Insights ID '{insights_id}'.")
