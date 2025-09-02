@@ -30,8 +30,14 @@ def api_post(flask_client):
 
 
 @pytest.fixture(scope="function")
-def api_patch(flask_client):
-    def _api_patch(url, host_data, identity=USER_IDENTITY, query_parameters=None, extra_headers=None):
+def api_patch(flask_client: TestClient) -> Callable[..., tuple[int, dict]]:
+    def _api_patch(
+        url: str,
+        host_data: dict[str, str],
+        identity: dict[str, Any] = USER_IDENTITY,
+        query_parameters: dict[str, Any] | None = None,
+        extra_headers: dict[str, Any] | None = None,
+    ) -> tuple[int, dict]:
         return do_request(flask_client.patch, url, identity, host_data, query_parameters, extra_headers)
 
     return _api_patch

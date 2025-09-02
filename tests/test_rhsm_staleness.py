@@ -69,7 +69,7 @@ class TestRhsmSpBridgeUtilityFunctions:
 class TestRhsmSpBridgeStalenessTimestamps:
     """Test staleness timestamp calculation for rhsm-system-profile-bridge-only hosts."""
 
-    def test_get_staleness_timestamps_rhsm_conduit_only(self):
+    def test_get_staleness_timestamps_rhsm_sp_bridge_only(self):
         """Test that rhsm-system-profile-bridge-only hosts get far-future timestamps."""
         host = Host(
             canonical_facts={"subscription_manager_id": generate_uuid()},
@@ -115,7 +115,7 @@ class TestRhsmSpBridgeStalenessTimestamps:
         assert result["stale_warning_timestamp"] != FAR_FUTURE_STALE_TIMESTAMP
         assert result["culled_timestamp"] != FAR_FUTURE_STALE_TIMESTAMP
 
-    def test_get_reporter_staleness_timestamps_rhsm_conduit_only(self):
+    def test_get_reporter_staleness_timestamps_rhsm_sp_bridge_only(self):
         """Test that per-reporter staleness for rhsm-system-profile-bridge-only hosts gets far-future timestamps."""
         host = Host(
             canonical_facts={"subscription_manager_id": generate_uuid()},
@@ -195,7 +195,7 @@ class TestRhsmSpBridgeHostModel:
 class TestRhsmSpBridgeSerialization:
     """Test serialization behavior for rhsm-system-profile-bridge-only hosts."""
 
-    def test_serialize_per_reporter_staleness_rhsm_conduit_only(self):
+    def test_serialize_per_reporter_staleness_rhsm_sp_bridge_only(self):
         """Test that per-reporter staleness serialization uses far-future timestamps for rhsm-only hosts."""
         host = Host(
             canonical_facts={"subscription_manager_id": generate_uuid()},

@@ -37,6 +37,9 @@ from app.utils import Tag
 
 logger = get_logger(__name__)
 
+RHSM_REPORTERS = {"rhsm-conduit", "rhsm-system-profile-bridge"}
+DISPLAY_NAME_PRIORITY_REPORTERS = {"puptoo", "API"}
+
 
 class LimitedHost(db.Model):
     __tablename__ = "hosts"
@@ -198,7 +201,7 @@ class LimitedHost(db.Model):
     canonical_facts = db.Column(JSONB)
 
     # canonical facts
-    insights_id = db.Column(UUID(as_uuid=True), default="00000000-0000-0000-0000-000000000000")
+    insights_id = db.Column(UUID(as_uuid=True), nullable=False, default="00000000-0000-0000-0000-000000000000")
     subscription_manager_id = db.Column(db.String(36))
     satellite_id = db.Column(db.String(255))
     fqdn = db.Column(db.String(255))
@@ -227,6 +230,7 @@ class Host(LimitedHost):
     stale_warning_timestamp = db.Column(db.DateTime(timezone=True))
     reporter = db.Column(db.String(255))
     per_reporter_staleness = db.Column(JSONB)
+    display_name_reporter = db.Column(db.String(255))
 
     def __init__(
         self,
@@ -298,6 +302,8 @@ class Host(LimitedHost):
             provider_type,
         )
         self.reporter = reporter
+        if display_name:
+            self.display_name_reporter = reporter
 
         self._update_last_check_in_date()
         self._update_staleness_timestamps()
@@ -312,10 +318,14 @@ class Host(LimitedHost):
         self._cleanup_tags()
         db.session.add(self)
 
-    def update(self, input_host, update_system_profile=False):
-        self.update_display_name(input_host.display_name, input_host.canonical_facts.get("fqdn"))
+    def update(self, input_host: "Host", update_system_profile: bool = False) -> None:
+        self.update_display_name(
+            input_host.display_name, input_host.reporter, input_fqdn=input_host.canonical_facts.get("fqdn")
+        )
 
         self.update_canonical_facts(input_host.canonical_facts)
+
+        self.update_canonical_facts_columns(input_host.canonical_facts)
 
         self._update_ansible_host(input_host.ansible_host)
 
@@ -341,18 +351,36 @@ class Host(LimitedHost):
         if not patch_data:
             raise InventoryException(title="Bad Request", detail="Patch json document cannot be empty.")
 
-        self.update_display_name(patch_data.get("display_name"))
+        self.update_display_name(patch_data.get("display_name"), "API")
         self._update_ansible_host(patch_data.get("ansible_host"))
 
-    def update_display_name(self, input_display_name, input_fqdn=None):
-        if input_display_name:
-            self.display_name = input_display_name
-        elif (
+    def _should_ignore_display_name_update(self, input_reporter: str) -> bool:
+        # Ignore display_name updates from RHSM, if it has already been updated by API or insights-client
+        # https://issues.redhat.com/browse/RHINENG-19514
+        return input_reporter in RHSM_REPORTERS and self.display_name_reporter in DISPLAY_NAME_PRIORITY_REPORTERS
+
+    def _apply_display_name_fallback(self, input_fqdn: str | None) -> None:
+        if (
             not self.display_name
             or self.display_name == self.canonical_facts.get("fqdn")
             or self.display_name == str(self.id)
         ):
             self.display_name = input_fqdn or self.canonical_facts.get("fqdn") or self.id
+
+    def update_display_name(
+        self, input_display_name: str | None, input_reporter: str, *, input_fqdn: str | None = None
+    ) -> None:
+        if input_display_name:
+            if self._should_ignore_display_name_update(input_reporter):
+                logger.debug(
+                    f"Ignoring display_name update from {input_reporter}, "
+                    f"current display_name_reporter: {self.display_name_reporter}"
+                )
+                return
+            self.display_name = input_display_name
+            self.display_name_reporter = input_reporter
+        else:
+            self._apply_display_name_fallback(input_fqdn)
 
     def update_canonical_facts(self, canonical_facts):
         logger.debug(
@@ -364,6 +392,16 @@ class Host(LimitedHost):
         self.canonical_facts.update(canonical_facts)  # Field being removed in the future
         logger.debug("Host (id=%s) has updated canonical_facts (%s)", self.id, self.canonical_facts)
         orm.attributes.flag_modified(self, "canonical_facts")  # Field being removed in the future
+
+    def update_canonical_facts_columns(self, canonical_facts):
+        try:
+            for key, value in canonical_facts.items():
+                if getattr(self, key) != value:
+                    setattr(self, key, value)
+                    orm.attributes.flag_modified(self, key)
+        except AttributeError as e:
+            logger.warning("Error updating canonical facts column %s: %s", key, str(e))
+            raise e
 
     def update_facts(self, facts_dict):
         if facts_dict:
