@@ -33,7 +33,7 @@ def _create_update_event_payload(host: Host) -> dict:
 
     metadata = {
         "local_resource_id": str(host.id),
-        "api_href": "https://api_href.com/",
+        "api_href": "https://apihref.com/",
         "console_href": "https://www.console.com/",
         "reporter_version": "1.0",
     }
