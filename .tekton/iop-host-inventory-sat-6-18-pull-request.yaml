@@ -40,6 +40,16 @@ spec:
     value: '[{"type": "rpm", "path": "./.hermetic_builds"},{"type": "pip", "path": ".", "requirements_files": [".hermetic_builds/requirements.txt", ".hermetic_builds/requirements-build.txt", ".hermetic_builds/requirements-extras.txt"]}, {"type": "generic", "path": "."}]'
   - name: prefetch-dev-package-managers
     value: "true"
+  - name: labels
+    value:
+      - 'url="https://www.redhat.com"'
+      - 'name="iop-host-inventory"'
+      - 'description="This adds the satellite/iop-host-inventory-rhel9 image to the Red Hat container registry. To pull this container image, run the following command: podman pull registry.redhat.io/satellite/iop-host-inventory-rhel9"'
+      - 'summary="A new satellite/iop-host-inventory-rhel9 container image is now generally available in the Red Hat container registry."'
+      - 'com.redhat.component="iop-host-inventory"'
+      - 'io.k8s.display-name="IoP Host-Inventory"'
+      - 'io.k8s.description="This adds the satellite/iop-host-inventory-rhel9 image to the Red Hat container registry. To pull this container image, run the following command: podman pull registry.redhat.io/satellite/iop-host-inventory-rhel9"'
+      - 'io.openshift.tags="insights satellite iop host-inventory"'
   pipelineRef:
     name: docker-build-oci-ta
   taskRunTemplate:
