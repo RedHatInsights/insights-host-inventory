@@ -247,6 +247,42 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_SP_TABLES_MIGRATION_DATA_COPY}
             memory: ${MEMORY_REQUEST_SP_TABLES_MIGRATION_DATA_COPY}
+    - name: sync-workloads-fields-data
+      restartPolicy: OnFailure
+      suspend: ${{SYNC_WORKLOADS_FIELDS_SUSPEND}}
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: [ "./jobs/sync_workloads_fields_data.py" ]
+        env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+          - name: SUSPEND_JOB
+            value: ${SYNC_WORKLOADS_FIELDS_SUSPEND}
+        resources:
+          limits:
+            cpu: ${CPU_REQUEST_SYNC_WORKLOADS_FIELDS}
+            memory: ${MEMORY_LIMIT_SYNC_WORKLOADS_FIELDS}
+          requests:
+            cpu: ${CPU_REQUEST_SYNC_WORKLOADS_FIELDS}
+            memory: ${MEMORY_REQUEST_SYNC_WORKLOADS_FIELDS}
     database:
       name: ${DB_NAME}
       version: 16
@@ -521,6 +557,15 @@ parameters:
 - name: MEMORY_REQUEST_SP_TABLES_MIGRATION_DATA_COPY
   value: 256Mi
 - name: MEMORY_LIMIT_SP_TABLES_MIGRATION_DATA_COPY
+  value: 512Mi
+
+- name: CPU_REQUEST_SYNC_WORKLOADS_FIELDS
+  value: 250m
+- name: CPU_LIMIT_SYNC_WORKLOADS_FIELDS
+  value: 500m
+- name: MEMORY_REQUEST_SYNC_WORKLOADS_FIELDS
+  value: 256Mi
+- name: MEMORY_LIMIT_SYNC_WORKLOADS_FIELDS
   value: 512Mi
 
 - description: Replica count for p1 consumer
@@ -801,6 +846,8 @@ parameters:
 - name: REPLICA_IDENTITY_SIMULATION_HOSTS_PER_PARTITION
   description: The number of hosts per partition to be updated
   value: '1000'
+- name: SYNC_WORKLOADS_FIELDS_SUSPEND
+  value: 'true'
 
 # NGINX
 - displayName: Minimum replicas
