@@ -54,10 +54,10 @@ objects:
   kind: ClowdJobInvocation
   metadata:
     labels:
-      app: host-inventory
+      app: host-inventory-replica
     name: sync-workloads-fields-data-${SYNC_WORKLOADS_FIELDS_RUN_NUMBER}
   spec:
-    appName: host-inventory
+    appName: host-inventory-replica
     jobs:
       - sync-workloads-fields-data
 parameters:
