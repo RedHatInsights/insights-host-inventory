@@ -175,7 +175,7 @@ class Kessel:
             resource_id=resource_id,
             reporter=reporter_reference_pb2.ReporterReference(
                 type=permission.resource_type.namespace,  # e.g., "hbi"
-                instance_id= "3c4e2382-26c1-11f0-8e5c-ce0194e9e144"
+                instance_id= "redhat"
             ),
         )
         
@@ -208,7 +208,7 @@ class Kessel:
             resource_id=resource_id,
             reporter=reporter_reference_pb2.ReporterReference(
                 type=permission.resource_type.namespace,
-                instance_id= "3c4e2382-26c1-11f0-8e5c-ce0194e9e144"
+                instance_id= "redhat"
             ),
         )
         
@@ -306,7 +306,7 @@ class Kessel:
                 resource_id=id,
                 reporter=reporter_reference_pb2.ReporterReference(
                     type="hbi",
-                    instance_id= "3c4e2382-26c1-11f0-8e5c-ce0194e9e144"
+                    instance_id= "redhat"
                 )
             )
         )
