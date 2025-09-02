@@ -1892,7 +1892,7 @@
       "tagsParam": {
         "name": "tags",
         "in": "query",
-        "description": "filters out hosts not tagged by the given tags",
+        "description": "Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).",
         "required": false,
         "schema": {
           "type": "array",
