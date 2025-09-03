@@ -6,7 +6,7 @@ from app.models.database import db
 
 # This table is used to store the signal from the debezium connector.
 # The table will be registered to the debezium connector as a signal table.
-# The host-ivnentory does need to do anything, except have this table created.
+# The host-inventory does need to do anything, except have this table created.
 class DebeziumSignal(db.Model):
     __tablename__ = "debezium_signal"
     __table_args__ = ({"schema": INVENTORY_SCHEMA},)
