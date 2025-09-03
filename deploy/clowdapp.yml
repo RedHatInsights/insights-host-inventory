@@ -1863,6 +1863,42 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_CANONICAL_FACTS_MIGRATION}
             memory: ${MEMORY_REQUEST_CANONICAL_FACTS_MIGRATION}
+    - name: update-edge-hosts-staleness-timestamps
+      restartPolicy: Never
+      suspend: ${{SUSPEND_UPDATE_EDGE_STALENESS_TIMESTAMPS}}
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: [ "./jobs/update_edge_hosts_staleness.py" ]
+        env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+          - name: SUSPEND_UPDATE_EDGE_STALENESS_TIMESTAMPS
+            value: ${SUSPEND_UPDATE_EDGE_STALENESS_TIMESTAMPS}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_UPDATE_EDGE_STALENESS_TIMESTAMPS}
+            memory: ${MEMORY_LIMIT_UPDATE_EDGE_STALENESS_TIMESTAMPS}
+          requests:
+            cpu: ${CPU_REQUEST_UPDATE_EDGE_STALENESS_TIMESTAMPS}
+            memory: ${MEMORY_REQUEST_UPDATE_EDGE_STALENESS_TIMESTAMPS}
     database:
       name: ${DB_NAME}
       version: 16
@@ -2687,3 +2723,16 @@ parameters:
 - name: CANONICAL_FACTS_MIGRATION_BATCH_SIZE
   description: The batch size to use for the canonical facts migration.
   value: '5000'
+
+# Update Edge Staleness Timestaps Job
+- name: CPU_REQUEST_UPDATE_EDGE_STALENESS_TIMESTAMPS
+  value: 250m
+- name: CPU_LIMIT_UPDATE_EDGE_STALENESS_TIMESTAMPS
+  value: 500m
+- name: MEMORY_REQUEST_UPDATE_EDGE_STALENESS_TIMESTAMPS
+  value: 256Mi
+- name: MEMORY_LIMIT_UPDATE_EDGE_STALENESS_TIMESTAMPS
+  value: 512Mi
+- name: SUSPEND_UPDATE_EDGE_STALENESS_TIMESTAMPS
+  description: If set to true, the update-edge-hosts-staleness-timestamps job will immediately exit upon running.
+  value: 'true'

@@ -93,6 +93,16 @@ objects:
     appName: host-inventory
     jobs:
       - canonical-facts-migration
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    labels:
+      app: host-inventory
+    name: update-edge-hosts-staleness-timestamps-${UPDATE_EDGE_STALENESS_TIMESTAMPS_RUN_NUMBER}
+  spec:
+    appName: host-inventory
+    jobs:
+      - update-edge-hosts-staleness-timestamps
 parameters:
 - name: SYNCHRONIZER_RUN_NUMBER
   value: '1'
@@ -111,4 +121,6 @@ parameters:
 - name: DELETE_HOST_BIOS_UUID_RUN_NUMBER
   value: '1'
 - name: CANONICAL_FACTS_MIGRATION_RUN_NUMBER
+  value: '1'
+- name: UPDATE_EDGE_STALENESS_TIMESTAMPS_RUN_NUMBER
   value: '1'

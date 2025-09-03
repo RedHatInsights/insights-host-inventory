@@ -13,8 +13,8 @@ from app.models import Staleness
 from jobs.common import excepthook
 from jobs.common import job_setup
 
-PROMETHEUS_JOB = "inventory-update-edge-staleness"
-LOGGER_NAME = "update-edge-hosts-staleness"
+PROMETHEUS_JOB = "inventory-update-edge-staleness-timestamps"
+LOGGER_NAME = "update-edge-hosts-staleness-timestamps"
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
 
 
