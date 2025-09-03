@@ -6,7 +6,9 @@ Create Date: 2025-07-31 08:21:15.437099
 
 import os
 
+import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.dialects import postgresql
 
 from app.models.constants import INVENTORY_SCHEMA
 
@@ -24,13 +26,14 @@ created in the prior migration (3b60b7daf0f2).
 
 This script's behavior is conditional based on the `MIGRATION_MODE` environment variable:
 
-- **automated:** Performs the complete data copy from the 'hosts.system_profile_facts' column
-into the new partitioned tables ('system_profiles_dynamic' and 'system_profiles_static').
-This mode is intended for automated setups like local development, ephemeral and on-premise environments.
+- **automated:** Drops the unused 'intersystems' and 'rhel_ai' columns from the
+'system_profiles_static' table, then performs the complete data copy from the
+'hosts.system_profile_facts' column into the new partitioned tables. This mode is
+intended for automated setups like local development, ephemeral and on-premise environments.
 
 - **managed:** Skips all data operations. It only "stamps" this migration as complete.
-This mode is intended for stage and production environments where the data migration is
-performed via controlled, external script.
+This mode is intended for stage and production environments where the columns drop and
+data migration is performed via controlled, external script.
 """
 
 
@@ -41,6 +44,9 @@ def upgrade():
     # For 'managed' mode, this logic is handled by external script (system_profile_tables_migration_data_copy.py)
     # running as Openshift jobs and this migration only stamps the version.
     if migration_mode == "automated":
+        op.drop_column("system_profiles_static", "intersystems", schema=INVENTORY_SCHEMA)
+        op.drop_column("system_profiles_static", "rhel_ai", schema=INVENTORY_SCHEMA)
+
         op.execute(f"""
             INSERT INTO {INVENTORY_SCHEMA}.system_profiles_dynamic (
                 org_id, host_id, insights_id, captured_date, running_processes, last_boot_time, installed_packages,
@@ -76,9 +82,9 @@ def upgrade():
                 bootc_status, cloud_provider, conversions, cores_per_socket, cpu_model, disk_devices, dnf_modules,
                 enabled_services, gpg_pubkeys, greenboot_fallback_detected, greenboot_status, host_type,
                 image_builder, infrastructure_type, infrastructure_vendor, insights_client_version,
-                installed_packages_delta,installed_services, intersystems, is_marketplace, katello_agent_running,
+                installed_packages_delta,installed_services, is_marketplace, katello_agent_running,
                 number_of_cpus, number_of_sockets, operating_system, os_kernel_version, os_release, owner_id,
-                public_dns, public_ipv4_addresses, releasever, rhc_client_id, rhc_config_state, rhel_ai, rhsm,
+                public_dns, public_ipv4_addresses, releasever, rhc_client_id, rhc_config_state, rhsm,
                 rpm_ostree_deployments, satellite_managed, selinux_config_file, selinux_current_mode,
                 subscription_auto_attach, subscription_status, system_purpose, system_update_method,
                 third_party_services, threads_per_core, tuned_profile, virtual_host_uuid, yum_repos
@@ -112,7 +118,6 @@ def upgrade():
                     FROM jsonb_array_elements_text(h.system_profile_facts -> 'installed_packages_delta')),
                 (SELECT array_agg(value)
                     FROM jsonb_array_elements_text(h.system_profile_facts -> 'installed_services')),
-                h.system_profile_facts -> 'intersystems',
                 (h.system_profile_facts ->> 'is_marketplace')::boolean,
                 (h.system_profile_facts ->> 'katello_agent_running')::boolean,
                 (h.system_profile_facts ->> 'number_of_cpus')::integer,
@@ -127,7 +132,6 @@ def upgrade():
                 h.system_profile_facts ->> 'releasever',
                 (h.system_profile_facts ->> 'rhc_client_id')::uuid,
                 (h.system_profile_facts ->> 'rhc_config_state')::uuid,
-                h.system_profile_facts -> 'rhel_ai',
                 h.system_profile_facts -> 'rhsm',
                 (SELECT array_agg(value)
                     FROM jsonb_array_elements(h.system_profile_facts -> 'rpm_ostree_deployments')),
@@ -149,6 +153,20 @@ def upgrade():
 
 
 def downgrade():
-    # Truncate the new partitioned tables to remove the data copied during the upgrade.
-    op.execute(f"TRUNCATE TABLE {INVENTORY_SCHEMA}.system_profiles_static;")
-    op.execute(f"TRUNCATE TABLE {INVENTORY_SCHEMA}.system_profiles_dynamic;")
+    migration_mode = os.environ.get("MIGRATION_MODE", "automated").lower()
+
+    if migration_mode == "automated":
+        # Truncate the new partitioned tables to remove the data copied during the upgrade.
+        op.execute(f"TRUNCATE TABLE {INVENTORY_SCHEMA}.system_profiles_static;")
+        op.execute(f"TRUNCATE TABLE {INVENTORY_SCHEMA}.system_profiles_dynamic;")
+
+        op.add_column(
+            "system_profiles_static",
+            sa.Column("intersystems", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+            schema=INVENTORY_SCHEMA,
+        )
+        op.add_column(
+            "system_profiles_static",
+            sa.Column("rhel_ai", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+            schema=INVENTORY_SCHEMA,
+        )
