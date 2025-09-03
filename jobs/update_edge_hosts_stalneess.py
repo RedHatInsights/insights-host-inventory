@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 import sys
 from functools import partial
 from logging import Logger
@@ -52,5 +52,5 @@ if __name__ == "__main__":
     job_type = "Update edge hosts staleness timestamps"
     sys.excepthook = partial(excepthook, logger, job_type)
 
-    _, session, event_producer, _, _, application = job_setup(tuple(), PROMETHEUS_JOB)
+    _, session, _, _, _, application = job_setup((), PROMETHEUS_JOB)
     run(logger, session, application)
