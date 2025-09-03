@@ -95,7 +95,7 @@ def _get_host_list_using_filters(
     else:
         additional_fields = ()
 
-    base_query = _find_hosts_entities_query(query_base=query_base, columns=columns).filter(*all_filters)
+    base_query = _find_hosts_entities_query(query=query_base, columns=columns).filter(*all_filters)
     host_query = base_query.order_by(*params_to_order_by(param_order_by, param_order_how))
 
     # Count separately because the COUNT done by .paginate() is inefficient
@@ -243,24 +243,21 @@ def _order_how(column, order_how: str):
         raise ValueError('Unsupported ordering direction, use "ASC" or "DESC".')
 
 
-def _find_hosts_entities_query(
-    query_base=None, columns: list[ColumnElement] | None = None, identity: Any = None
-) -> Query:
-    if query_base is None:
-        query_base = db.session.query(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
-
+def _find_hosts_entities_query(query=None, columns: list[ColumnElement] | None = None, identity: Any = None) -> Query:
     if not identity:
         identity = get_current_identity()
 
-    query = query_base.filter(Host.org_id == identity.org_id)
+    if query is None:
+        query = db.session.query(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
+        query = query.filter(Host.org_id == identity.org_id)
+
     if columns:
         query = query.with_entities(*columns)
     return update_query_for_owner_id(identity, query)
 
 
 def _find_hosts_model_query(columns: list[ColumnElement] | None = None, identity: Any = None) -> Query:
-    query_base = db.session.query(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
-    query = query_base.filter(Host.org_id == identity.org_id)
+    query = db.session.query(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
 
     # In this case, return a list of Hosts
     # wih the requested columns.
@@ -387,7 +384,7 @@ def get_tag_list(
         order_by,
         get_current_identity(),
     )
-    query = _find_hosts_entities_query(query_base=query_base, columns=columns)
+    query = _find_hosts_entities_query(query=query_base, columns=columns)
 
     query_results = query.filter(*all_filters).all()
     db.session.close()
@@ -446,7 +443,7 @@ def get_os_info(
         rbac_filter=rbac_filter,
         identity=identity,
     )
-    os_query = _find_hosts_entities_query(query_base=query_base, columns=columns, identity=identity)
+    os_query = _find_hosts_entities_query(query=query_base, columns=columns, identity=identity)
 
     # Only include records that have set an operating_system.name
     filters += (columns[0].isnot(None),)
@@ -489,7 +486,7 @@ def get_sap_system_info(
         rbac_filter=rbac_filter,
         identity=identity,
     )
-    sap_query = _find_hosts_entities_query(query_base=query_base, columns=columns)
+    sap_query = _find_hosts_entities_query(query=query_base, columns=columns)
     sap_filter = [
         func.jsonb_typeof(Host.system_profile_facts["sap_system"]) == "boolean",
         Host.system_profile_facts["sap_system"].astext.cast(Boolean) != None,  # noqa:E711
@@ -527,7 +524,7 @@ def get_sap_sids_info(
         rbac_filter=rbac_filter,
         identity=identity,
     )
-    sap_sids_query = _find_hosts_entities_query(query_base=query_base, columns=columns)
+    sap_sids_query = _find_hosts_entities_query(query=query_base, columns=columns)
     query_results = sap_sids_query.filter(*filters).all()
     db.session.close()
     sap_sids = {}
