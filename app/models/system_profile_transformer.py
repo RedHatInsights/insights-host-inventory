@@ -1,21 +1,19 @@
 from typing import Any
 
-from sqlalchemy import inspect
-
 from app.logging import get_logger
 from app.models.schemas import HostDynamicSystemProfileSchema
 from app.models.schemas import HostStaticSystemProfileSchema
-from app.models.system_profile_dynamic import HostDynamicSystemProfile
-from app.models.system_profile_static import HostStaticSystemProfile
+from app.models.system_profile_normalizer import SystemProfileNormalizer
 
 logger = get_logger(__name__)
 
-# Define which fields belong to static vs dynamic system profiles
+# Define which fields belong to static vs dynamic system profiles using x-dynamic markers
 PRIMARY_KEY_FIELDS = ["org_id", "host_id"]
 
-STATIC_FIELDS = [c.key for c in inspect(HostStaticSystemProfile).mapper.columns if c.key not in PRIMARY_KEY_FIELDS]
-
-DYNAMIC_FIELDS = [c.key for c in inspect(HostDynamicSystemProfile).mapper.columns if c.key not in PRIMARY_KEY_FIELDS]
+# Use x-dynamic markers from YAML schema to determine field categorization
+_normalizer = SystemProfileNormalizer()
+STATIC_FIELDS = list(_normalizer.get_static_fields())
+DYNAMIC_FIELDS = list(_normalizer.get_dynamic_fields())
 
 WORKLOADS_FIELDS = {"ansible", "crowdstrike", "ibm_db2", "intersystems", "mssql", "oracle_db", "rhel_ai", "sap"}
 
