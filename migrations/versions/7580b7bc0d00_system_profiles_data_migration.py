@@ -1,6 +1,6 @@
 """system_profiles_data_migration
 Revision ID: 7580b7bc0d00
-Revises: c1d6c41043d0
+Revises: 91110801bc8e
 Create Date: 2025-07-31 08:21:15.437099
 """
 
@@ -12,7 +12,7 @@ from app.models.constants import INVENTORY_SCHEMA
 
 # revision identifiers, used by Alembic.
 revision = "7580b7bc0d00"
-down_revision = "c1d6c41043d0"
+down_revision = "91110801bc8e"
 branch_labels = None
 depends_on = None
 
