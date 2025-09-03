@@ -21,7 +21,6 @@ PROMETHEUS_JOB = "system-profile-tables-migration-data-copy"
 LOGGER_NAME = "system_profile_tables_migration_data_copy"
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
 
-# Single Source of Truth for Index DDL
 INDEX_DEFINITIONS = {
     "idx_system_profiles_static_replica_identity": "CREATE UNIQUE INDEX {index_name} ON {schema}.system_profiles_static (org_id, host_id, insights_id);",
     "idx_system_profiles_dynamic_replica_identity": "CREATE UNIQUE INDEX {index_name} ON {schema}.system_profiles_dynamic (org_id, host_id, insights_id);",
@@ -56,14 +55,20 @@ def parse_partitions(partition_str: str) -> list[int]:
     return sorted(list(partitions))
 
 
-def truncate_tables(session: Session, logger: Logger):
-    """Truncates the target tables to ensure a clean slate before data copy."""
-    logger.warning("Truncating target tables: system_profiles_static and system_profiles_dynamic...")
+def drop_columns(session: Session, logger: Logger):
+    """Drops the intersystems and rhel_ai columns from the system_profiles_static table."""
+    logger.warning("Dropping 'intersystems' and 'rhel_ai' columns from system_profiles_static...")
     session.execute(
-        text(f"TRUNCATE TABLE {INVENTORY_SCHEMA}.system_profiles_static, {INVENTORY_SCHEMA}.system_profiles_dynamic;")
+        text(
+            f"""
+            ALTER TABLE {INVENTORY_SCHEMA}.system_profiles_static
+            DROP COLUMN IF EXISTS intersystems,
+            DROP COLUMN IF EXISTS rhel_ai;
+        """
+        )
     )
     session.commit()
-    logger.info("Target tables have been truncated.")
+    logger.info("Columns have been dropped successfully.")
 
 
 def drop_indexes(session: Session, logger: Logger):
@@ -169,9 +174,9 @@ def copy_profile_data_in_batches(session: Session, logger: Logger, partitions_to
                     bootc_status, cloud_provider, conversions, cores_per_socket, cpu_model, disk_devices, dnf_modules,
                     enabled_services, gpg_pubkeys, greenboot_fallback_detected, greenboot_status, host_type,
                     image_builder, infrastructure_type, infrastructure_vendor, insights_client_version,
-                    installed_packages_delta,installed_services, intersystems, is_marketplace, katello_agent_running,
+                    installed_packages_delta,installed_services, is_marketplace, katello_agent_running,
                     number_of_cpus, number_of_sockets, operating_system, os_kernel_version, os_release, owner_id,
-                    public_dns, public_ipv4_addresses, releasever, rhc_client_id, rhc_config_state, rhel_ai, rhsm,
+                    public_dns, public_ipv4_addresses, releasever, rhc_client_id, rhc_config_state, rhsm,
                     rpm_ostree_deployments, satellite_managed, selinux_config_file, selinux_current_mode,
                     subscription_auto_attach, subscription_status, system_purpose, system_update_method,
                     third_party_services, threads_per_core, tuned_profile, virtual_host_uuid, yum_repos
@@ -193,7 +198,7 @@ def copy_profile_data_in_batches(session: Session, logger: Logger, partitions_to
                     b.system_profile_facts ->> 'infrastructure_vendor', b.system_profile_facts ->> 'insights_client_version',
                     (SELECT array_agg(value) FROM jsonb_array_elements_text(b.system_profile_facts -> 'installed_packages_delta')),
                     (SELECT array_agg(value) FROM jsonb_array_elements_text(b.system_profile_facts -> 'installed_services')),
-                    b.system_profile_facts -> 'intersystems', (b.system_profile_facts ->> 'is_marketplace')::boolean,
+                    (b.system_profile_facts ->> 'is_marketplace')::boolean,
                     (b.system_profile_facts ->> 'katello_agent_running')::boolean,
                     (b.system_profile_facts ->> 'number_of_cpus')::integer,
                     (b.system_profile_facts ->> 'number_of_sockets')::integer, b.system_profile_facts -> 'operating_system',
@@ -202,7 +207,7 @@ def copy_profile_data_in_batches(session: Session, logger: Logger, partitions_to
                     (SELECT array_agg(value) FROM jsonb_array_elements_text(b.system_profile_facts -> 'public_dns')),
                     (SELECT array_agg(value) FROM jsonb_array_elements_text(b.system_profile_facts -> 'public_ipv4_addresses')),
                     b.system_profile_facts ->> 'releasever', (b.system_profile_facts ->> 'rhc_client_id')::uuid,
-                    (b.system_profile_facts ->> 'rhc_config_state')::uuid, b.system_profile_facts -> 'rhel_ai',
+                    (b.system_profile_facts ->> 'rhc_config_state')::uuid,
                     b.system_profile_facts -> 'rhsm',
                     (SELECT array_agg(value) FROM jsonb_array_elements(b.system_profile_facts -> 'rpm_ostree_deployments')),
                     (b.system_profile_facts ->> 'satellite_managed')::boolean,
@@ -241,7 +246,7 @@ def run(logger: Logger, session: Session, application: FlaskApp, mode: str, part
     try:
         with application.app.app_context():
             if mode == "prepare":
-                truncate_tables(session, logger)
+                drop_columns(session, logger)
                 drop_indexes(session, logger)
                 logger.info("Preparation complete. You can now run the migration jobs in parallel.")
             elif mode == "migrate":
@@ -283,7 +288,6 @@ if __name__ == "__main__":
 
     logger = get_logger(LOGGER_NAME)
 
-    # Use a single suspend check for all modes for consistency
     if args.suspend.lower() == "true":
         logger.info(f"SUSPEND flag is set to true for job in mode '{args.mode}'; exiting.")
         sys.exit(0)
