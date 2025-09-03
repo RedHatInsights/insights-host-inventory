@@ -17,6 +17,7 @@ class DebeziumSignal(db.Model):
         data,
         id=None,
     ):
+        super().__init__()
         self.id = id or uuid.uuid4()
         self.type_column = type_column
         self.data = data
