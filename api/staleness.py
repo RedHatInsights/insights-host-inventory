@@ -40,6 +40,7 @@ from app.serialization import serialize_staleness_response
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness_api
 from lib.db import session_guard
+from lib.host_repository import host_query
 from lib.middleware import rbac
 from lib.staleness import add_staleness
 from lib.staleness import patch_staleness
@@ -92,7 +93,7 @@ def _update_hosts_staleness_async(identity: Identity, app: Flask, staleness: Sta
         logger.debug("Starting host staleness update thread")
         try:
             logger.debug(f"Querying hosts for org_id: {identity.org_id}")
-            hosts_query = Host.query.filter(Host.org_id == identity.org_id)
+            hosts_query = host_query(identity.org_id)
             num_hosts = hosts_query.count()
             st = staleness_timestamps()
             staleness_dict = serialize_staleness_to_dict(staleness)

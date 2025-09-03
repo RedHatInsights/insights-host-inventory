@@ -692,10 +692,13 @@ def test_log_create_delete(
     )
 
     assert not db_get_host(host.id)
-    # with the new outbox implementation,
-    # caplog[0] is inventory.lib.outbox entry
-    # caplog[1] is inventory.lib.host_delete
-    assert caplog.records[1].system_profile == "{}"
+    # Loops and complex code is discouraged in tests, so we're using a simple assert here.
+    # The logged messages before the deleted_host message are:
+    # caplog.records[0]: inventory.lib.outbox_repository, "Adding the event to outbox"
+    # caplog.records[1]: inventory.lib.outbox_repository, "out_box_entry_db object"
+    # caplog.records[2]: inventory.lib.outbox_repository, "Added event to outbox"
+    # caplog.records[3]: inventory.lib.host_delete, "Deleted_host"
+    assert caplog.records[3].system_profile == "{}"
 
 
 @pytest.mark.usefixtures("notification_event_producer_mock")

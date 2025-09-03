@@ -6,6 +6,7 @@ from dateutil import parser
 
 from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
 from tests.helpers.api_utils import GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import assert_group_response
 from tests.helpers.api_utils import assert_response_status
@@ -17,6 +18,7 @@ from tests.helpers.test_utils import generate_uuid
 
 def test_create_group_with_empty_host_list(api_create_group, db_get_group_by_name, event_producer, mocker):
     mocker.patch.object(event_producer, "write_event")
+    mocker.patch("lib.host_repository.get_flag_value")
     group_data = {"name": "my_awesome_group", "host_ids": []}
 
     response_status, response_data = api_create_group(group_data)
@@ -107,7 +109,11 @@ def test_create_group_read_only(api_create_group, mocker):
     "new_name",
     ["test_Group", " Test_Group", "test_group ", " test_group "],
 )
-def test_create_group_taken_name(api_create_group, new_name):
+def test_create_group_taken_name(api_create_group, new_name, mocker):
+    mocker.patch(
+        "lib.feature_flags.get_flag_value",
+        side_effect=lambda name: name == FLAG_INVENTORY_KESSEL_PHASE_1,
+    )
     group_data = {"name": "test_group", "host_ids": []}
 
     api_create_group(group_data)
@@ -246,3 +252,39 @@ def test_create_group_RBAC_denied_attribute_filter(mocker, api_create_group):
 
     # Access denied because of the attributeFilter
     assert_response_status(response_status, 403)
+
+
+@pytest.mark.usefixtures("event_producer")
+def test_create_group_same_name_kessel_phase1_enabled(api_create_group, db_get_group_by_name, mocker):
+    """Test that groups with the same name can be created when FLAG_INVENTORY_KESSEL_PHASE_1 is True."""
+    # Mock FLAG_INVENTORY_KESSEL_PHASE_1 to be True and FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION to be False
+    mocker.patch(
+        "api.group.get_flag_value",
+        side_effect=lambda flag_name: flag_name == FLAG_INVENTORY_KESSEL_PHASE_1,
+    )
+
+    group_data = {"name": "duplicate_group_name", "host_ids": []}
+
+    # Create the first group
+    response_status, response_data = api_create_group(group_data)
+    assert_response_status(response_status, expected_status=201)
+
+    first_group = db_get_group_by_name(group_data["name"])
+    assert first_group is not None
+    assert_group_response(response_data, first_group, 0)
+
+    # Create the second group with the same name - should succeed when Kessel Phase 1 is enabled
+    response_status, response_data = api_create_group(group_data)
+    assert_response_status(response_status, expected_status=201)
+
+    # Verify the second group was created successfully
+    # We can't use assert_group_response here since we can't easily retrieve the second group
+    # with the same name, but we can verify the response structure
+    assert "id" in response_data
+    assert "name" in response_data
+    assert response_data["name"] == group_data["name"]
+    assert "host_count" in response_data
+    assert response_data["host_count"] == 0
+
+    # The successful 201 response indicates the second group was created
+    # without the uniqueness constraint being enforced when Kessel Phase 1 is enabled

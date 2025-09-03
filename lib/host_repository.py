@@ -3,7 +3,6 @@ from __future__ import annotations
 from collections.abc import Callable
 from enum import Enum
 from typing import Any
-from uuid import UUID
 
 from flask import current_app
 from flask_sqlalchemy.query import Query
@@ -37,6 +36,8 @@ from app.queue.events import EventType
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness
 from lib import metrics
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
+from lib.feature_flags import get_flag_value
 from lib.outbox_repository import write_event_to_outbox
 
 __all__ = (
@@ -49,6 +50,7 @@ __all__ = (
     "find_hosts_by_staleness",
     "find_non_culled_hosts",
     "update_existing_host",
+    "host_query",
 )
 
 AddHostResult = Enum("AddHostResult", ("created", "updated"))
@@ -95,6 +97,18 @@ def add_host(
 
         return update_existing_host(matched_host, input_host, update_system_profile)
     else:
+        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
+            # Import here to avoid circular import
+            from lib.group_repository import get_or_create_ungrouped_hosts_group_for_identity
+            from lib.group_repository import serialize_group
+
+            group = get_or_create_ungrouped_hosts_group_for_identity(identity)
+            input_host.groups = [serialize_group(group)]
+
+            # create a new host group association for the host
+            assoc = HostGroupAssoc(input_host.id, group.id, identity.org_id)
+            db.session.add(assoc)
+
         return create_new_host(input_host)
 
 
@@ -160,7 +174,7 @@ def find_existing_host(
 
 
 def find_existing_host_by_id(identity: Identity, host_id: str) -> Host | None:
-    query = Host.query.filter((Host.org_id == identity.org_id) & (Host.id == UUID(host_id)))
+    query = host_query(identity.org_id).filter(Host.id == host_id)
     query = update_query_for_owner_id(identity, query)
     return find_non_culled_hosts(query, identity.org_id).order_by(Host.modified_on.desc()).first()
 
@@ -197,10 +211,10 @@ def multiple_canonical_facts_host_query(
 ) -> Query:
     _check_compound_id_facts(canonical_facts)
 
-    query = Host.query.filter(
-        (Host.org_id == identity.org_id)
-        & (contains_no_incorrect_facts_filter(canonical_facts))
-        & (matches_at_least_one_canonical_fact_filter(canonical_facts))
+    base_query = host_query(identity.org_id)
+    query = base_query.filter(
+        contains_no_incorrect_facts_filter(canonical_facts),
+        matches_at_least_one_canonical_fact_filter(canonical_facts),
     )
     if restrict_to_owner_id:
         query = update_query_for_owner_id(identity, query)
@@ -412,3 +426,10 @@ def get_non_culled_hosts_count_in_group(group: Group, org_id: str) -> int:
     )
 
     return find_non_culled_hosts(query, org_id).count()
+
+
+# Ensures that the query is filtered by org_id
+def host_query(
+    org_id: str,
+) -> Query:
+    return Host.query.filter(Host.org_id == org_id)
