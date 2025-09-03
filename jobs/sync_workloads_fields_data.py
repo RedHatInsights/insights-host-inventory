@@ -101,9 +101,9 @@ def sync_spf_workloads_fields(session: Session, logger: Logger):
             (COALESCE(system_profile_facts -> 'workloads', '{{}}'::jsonb)) || jsonb_build_object(
                 'sap', jsonb_build_object(
                     'sap_system', TRUE,
-                    'sids', COALESCE(system_profile_facts -> 'sap' -> 'sids', '[]'::jsonb),
-                    'instance_number', system_profile_facts -> 'sap' -> 'instance_number',
-                    'version', system_profile_facts -> 'sap' -> 'version'
+                    'sids', COALESCE(system_profile_facts -> 'sap_sids', '[]'::jsonb),
+                    'instance_number', system_profile_facts -> 'sap_instance_number',
+                    'version', system_profile_facts -> 'sap_version'
                 )
             )
         )
@@ -187,9 +187,9 @@ def sync_spf_workloads_fields(session: Session, logger: Logger):
             'sap',
             jsonb_build_object(
                 'sap_system', TRUE,
-                'sids', COALESCE(h.system_profile_facts -> 'sap' -> 'sids', '[]'::jsonb),
-                'instance_number', h.system_profile_facts -> 'sap' -> 'instance_number',
-                'version', h.system_profile_facts -> 'sap' -> 'version'
+                'sids', COALESCE(h.system_profile_facts -> 'sap_sids', '[]'::jsonb),
+                'instance_number', h.system_profile_facts -> 'sap_instance_number',
+                'version', h.system_profile_facts -> 'sap_version'
             )
         )
         FROM {INVENTORY_SCHEMA}.hosts h
