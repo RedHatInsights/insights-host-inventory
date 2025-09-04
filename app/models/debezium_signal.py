@@ -22,6 +22,6 @@ class DebeziumSignal(db.Model):
         self.type_column = type_column
         self.data = data
 
-    id = db.Column(db.String(36), primary_key=True, default=uuid.uuid4())
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     type_column = db.Column(db.String(50), nullable=False, name="type", default="incremental")
     data = db.Column(db.String, nullable=True)
