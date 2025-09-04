@@ -22,9 +22,9 @@ SUSPEND_JOB = os.environ.get("SUSPEND_JOB", "true").lower() == "true"
 
 
 INDEX_DEFINITIONS = {
-    "idx_hosts_temp_intersystems": "CREATE INDEX IF NOT EXISTS {index_name} ON {schema}.hosts ((1)) WHERE ((system_profile_facts -> 'intersystems' ->> 'is_intersystems')::boolean IS TRUE);",
-    "idx_hosts_temp_rhel_ai": "CREATE INDEX IF NOT EXISTS {index_name} ON {schema}.hosts ((system_profile_facts ->> 'rhel_ai'));",
-    "idx_hosts_temp_crowdstrike": "CREATE INDEX IF NOT EXISTS {index_name} ON {schema}.hosts ((system_profile_facts -> 'third_party_services' ->> 'crowdstrike'));",
+    "idx_hosts_temp_intersystems": "CREATE INDEX CONCURRENTLY IF NOT EXISTS {index_name} ON {schema}.hosts ((1)) WHERE ((system_profile_facts -> 'intersystems' ->> 'is_intersystems')::boolean IS TRUE);",
+    "idx_hosts_temp_rhel_ai": "CREATE INDEX CONCURRENTLY IF NOT EXISTS {index_name} ON {schema}.hosts ((1)) WHERE (system_profile_facts ->> 'rhel_ai') IS NOT NULL;",
+    "idx_hosts_temp_crowdstrike": "CREATE INDEX CONCURRENTLY IF NOT EXISTS {index_name} ON {schema}.hosts ((1)) WHERE (system_profile_facts -> 'third_party_services' ->> 'crowdstrike') IS NOT NULL;",
 }
 
 
@@ -204,7 +204,7 @@ def sync_spf_workloads_fields(session: Session, logger: Logger):
             )
         )
         FROM {INVENTORY_SCHEMA}.hosts h
-        WHERE spd.host_id = h.id AND h.system_profile_facts -> 'intersystems' ->> 'intersystems' IS NOT NULL;
+        WHERE spd.host_id = h.id AND (h.system_profile_facts -> 'intersystems' ->> 'is_intersystems')::boolean IS TRUE;
     """
     sql_update_dynamic_crowdstrike = f"""
         UPDATE {INVENTORY_SCHEMA}.system_profiles_dynamic spd
