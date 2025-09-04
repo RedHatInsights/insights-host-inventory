@@ -1863,6 +1863,110 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_CANONICAL_FACTS_MIGRATION}
             memory: ${MEMORY_REQUEST_CANONICAL_FACTS_MIGRATION}
+    - name: sp-tables-migration-prepare
+      restartPolicy: OnFailure
+      suspend: ${{SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_PREPARE}}
+      podSpec: &baseMigrationPodSpec
+        image: ${IMAGE}:${IMAGE_TAG}
+        args:
+          - "./jobs/system_profile_tables_migration_data_copy.py"
+          - "--mode"
+          - "prepare"
+          - "--suspend"
+          - "${SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_PREPARE}"
+        env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: SP_TABLES_MIGRATION_BATCH_SIZE
+            value: ${SP_TABLES_MIGRATION_BATCH_SIZE}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_SP_TABLES_MIGRATION_DATA_COPY}
+            memory: ${MEMORY_LIMIT_SP_TABLES_MIGRATION_DATA_COPY}
+          requests:
+            cpu: ${CPU_REQUEST_SP_TABLES_MIGRATION_DATA_COPY}
+            memory: ${MEMORY_REQUEST_SP_TABLES_MIGRATION_DATA_COPY}
+    - name: sp-tables-migration-worker-1
+      restartPolicy: OnFailure
+      suspend: ${{SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_1}}
+      podSpec:
+        <<: *baseMigrationPodSpec
+        args:
+          - "./jobs/system_profile_tables_migration_data_copy.py"
+          - "--mode"
+          - "migrate"
+          - "--partitions"
+          - "${SP_TABLES_MIGRATION_WORKER_1_PARTITIONS}"
+          - "--suspend"
+          - "${SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_1}"
+    - name: sp-tables-migration-worker-2
+      restartPolicy: OnFailure
+      suspend: ${{SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_2}}
+      podSpec:
+        <<: *baseMigrationPodSpec
+        args:
+          - "./jobs/system_profile_tables_migration_data_copy.py"
+          - "--mode"
+          - "migrate"
+          - "--partitions"
+          - "${SP_TABLES_MIGRATION_WORKER_2_PARTITIONS}"
+          - "--suspend"
+          - "${SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_2}"
+    - name: sp-tables-migration-worker-3
+      restartPolicy: OnFailure
+      suspend: ${{SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_3}}
+      podSpec:
+        <<: *baseMigrationPodSpec
+        args:
+          - "./jobs/system_profile_tables_migration_data_copy.py"
+          - "--mode"
+          - "migrate"
+          - "--partitions"
+          - "${SP_TABLES_MIGRATION_WORKER_3_PARTITIONS}"
+          - "--suspend"
+          - "${SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_3}"
+    - name: sp-tables-migration-worker-4
+      restartPolicy: OnFailure
+      suspend: ${{SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_4}}
+      podSpec:
+        <<: *baseMigrationPodSpec
+        args:
+          - "./jobs/system_profile_tables_migration_data_copy.py"
+          - "--mode"
+          - "migrate"
+          - "--partitions"
+          - "${SP_TABLES_MIGRATION_WORKER_4_PARTITIONS}"
+          - "--suspend"
+          - "${SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_4}"
+    - name: sp-tables-migration-finalize
+      restartPolicy: OnFailure
+      suspend: ${{SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_FINALIZE}}
+      podSpec:
+        <<: *baseMigrationPodSpec
+        args:
+          - "./jobs/system_profile_tables_migration_data_copy.py"
+          - "--mode"
+          - "finalize"
+          - "--suspend"
+          - "${SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_FINALIZE}"
     database:
       name: ${DB_NAME}
       version: 16
@@ -2331,6 +2435,15 @@ parameters:
 - name: MEMORY_LIMIT_HOSTS_TABLE_MIGRATION_SWITCH
   value: 512Mi
 
+- name: CPU_REQUEST_SP_TABLES_MIGRATION_DATA_COPY
+  value: 250m
+- name: CPU_LIMIT_SP_TABLES_MIGRATION_DATA_COPY
+  value: 500m
+- name: MEMORY_REQUEST_SP_TABLES_MIGRATION_DATA_COPY
+  value: 256Mi
+- name: MEMORY_LIMIT_SP_TABLES_MIGRATION_DATA_COPY
+  value: 512Mi
+
 - description: Replica count for p1 consumer
   name: REPLICAS_P1
   value: "5"
@@ -2575,6 +2688,35 @@ parameters:
 - name: HOSTS_TABLE_MIGRATION_SWITCH_MODE
   description: switch or rollback to revert the hosts table switch.
   value: 'switch'
+- name: SP_TABLES_MIGRATION_DATA_COPY_SUSPEND
+  value: 'true'
+- name: SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_PREPARE
+  value: 'true'
+- name: SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_FINALIZE
+  value: 'true'
+- name: SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_1
+  value: 'true'
+- name: SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_2
+  value: 'true'
+- name: SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_3
+  value: 'true'
+- name: SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_4
+  value: 'true'
+- name: SP_TABLES_MIGRATION_WORKER_1_PARTITIONS
+  description: "Partition range for the first worker (e.g., 0-7)"
+  value: "0"
+- name: SP_TABLES_MIGRATION_WORKER_2_PARTITIONS
+  description: "Partition range for the second worker (e.g., 8-15)"
+  value: "1"
+- name: SP_TABLES_MIGRATION_WORKER_3_PARTITIONS
+  description: "Partition range for the third worker (e.g., 16-23)"
+  value: "2"
+- name: SP_TABLES_MIGRATION_WORKER_4_PARTITIONS
+  description: "Partition range for the fourth worker (e.g., 24-31)"
+  value: "3"
+- name: SP_TABLES_MIGRATION_BATCH_SIZE
+  description: The batch size to use for the system profile partitioned tables migration.
+  value: '10000'
 
 # NGINX
 - displayName: Minimum replicas
