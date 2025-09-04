@@ -1713,6 +1713,44 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_DUPLICATE_HOSTS_REMOVER_JOB}
             memory: ${MEMORY_REQUEST_DUPLICATE_HOSTS_REMOVER_JOB}
+    - name: sync-workloads-fields-data
+      restartPolicy: OnFailure
+      suspend: ${{SYNC_WORKLOADS_FIELDS_SUSPEND}}
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: [ "./jobs/sync_workloads_fields_data.py" ]
+        env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+          - name: SUSPEND_JOB
+            value: ${SYNC_WORKLOADS_FIELDS_SUSPEND}
+        resources:
+          limits:
+            cpu: ${CPU_REQUEST_SYNC_WORKLOADS_FIELDS}
+            memory: ${MEMORY_LIMIT_SYNC_WORKLOADS_FIELDS}
+          requests:
+            cpu: ${CPU_REQUEST_SYNC_WORKLOADS_FIELDS}
+            memory: ${MEMORY_REQUEST_SYNC_WORKLOADS_FIELDS}
     - name: hosts-table-migration-data-copy
       restartPolicy: OnFailure
       suspend: ${{HOSTS_TABLE_MIGRATION_DATA_COPY_SUSPEND}}
@@ -2417,6 +2455,15 @@ parameters:
   description: Whether the duplicate hosts remover script should run in dry-run mode
   value: 'true'
 
+- name: CPU_REQUEST_SYNC_WORKLOADS_FIELDS
+  value: 250m
+- name: CPU_LIMIT_SYNC_WORKLOADS_FIELDS
+  value: 500m
+- name: MEMORY_REQUEST_SYNC_WORKLOADS_FIELDS
+  value: 256Mi
+- name: MEMORY_LIMIT_SYNC_WORKLOADS_FIELDS
+  value: 512Mi
+
 - name: CPU_REQUEST_HOSTS_TABLE_MIGRATION_DATA_COPY
   value: 250m
 - name: CPU_LIMIT_HOSTS_TABLE_MIGRATION_DATA_COPY
@@ -2717,6 +2764,8 @@ parameters:
 - name: SP_TABLES_MIGRATION_BATCH_SIZE
   description: The batch size to use for the system profile partitioned tables migration.
   value: '10000'
+- name: SYNC_WORKLOADS_FIELDS_SUSPEND
+  value: 'true'
 
 # NGINX
 - displayName: Minimum replicas
