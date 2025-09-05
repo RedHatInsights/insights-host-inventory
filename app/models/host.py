@@ -313,6 +313,7 @@ class Host(LimitedHost):
             self._update_per_reporter_staleness(reporter)
 
         self.update_canonical_facts(canonical_facts)
+        self.update_canonical_facts_columns(canonical_facts)
 
     def save(self):
         self._cleanup_tags()
