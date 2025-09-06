@@ -97,7 +97,7 @@ cfgv==3.4.0 \
     # via
     #   -r requirements-build.in
     #   pre-commit
-coherent-licensed==0.3.0 \
+coherent-licensed==0.5.2 \
     --hash=sha256:86722f627c1655b96d4deb2d6e8047754e5d3d34a8a38985a56ba6c645046d25 \
     --hash=sha256:c9003113f5c96b4e9094bbc13099f4c95a44edd16b389f89640bfebd6d0b4710
     # via -r requirements-build.in
