@@ -101,7 +101,7 @@ coherent-licensed==0.3.0 \
     --hash=sha256:86722f627c1655b96d4deb2d6e8047754e5d3d34a8a38985a56ba6c645046d25 \
     --hash=sha256:c9003113f5c96b4e9094bbc13099f4c95a44edd16b389f89640bfebd6d0b4710
     # via -r requirements-build.in
-coverage[toml]==7.9.2 \
+coverage[toml]==7.10.6 \
     --hash=sha256:0a07757de9feb1dfafd16ab651e0f628fd7ce551604d1bf23e47e1ddca93f08a \
     --hash=sha256:0a17eaf46f56ae0f870f14a3cbc2e4632fe3771eab7f687eda1ee59b73d09fe4 \
     --hash=sha256:0b4a4cb73b9f2b891c1788711408ef9707666501ba23684387277ededab1097c \
