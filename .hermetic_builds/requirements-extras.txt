@@ -4,7 +4,7 @@
 #
 #    pip-compile --allow-unsafe --generate-hashes requirements-extras.in
 #
-certifi==2025.7.14 \
+certifi==2025.8.3 \
     --hash=sha256:6b31f564a415d79ee77df69d757bb49a5bb53bd9f756cbbe24394ffd6fc1f4b2 \
     --hash=sha256:8ea99dbdfaaf2ba2f9bac77b9249ef62ec5218e7c2b2e903378ed5fccf765995
     # via -r requirements-extras.in
