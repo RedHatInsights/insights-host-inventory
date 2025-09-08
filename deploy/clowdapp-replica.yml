@@ -1,0 +1,464 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  name: insights-host-inventory-replica
+objects:
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdApp
+  metadata:
+    name: ${CLOWDAPP_NAME}
+  spec:
+    envName: ${ENV_NAME}
+    featureFlags: true
+    inMemoryDb: true
+    testing:
+      iqePlugin: host-inventory
+      deployments:
+      - name: mq-p1
+        replicas: ${{REPLICAS_P1}}
+        podSpec:
+          initContainers:
+            - args: [ "FLASK_APP=./manage.py", "flask", "db", "upgrade" ]
+              inheritEnv: true
+          args: [ "./inv_mq_service.py" ]
+          env:
+            - name: MIGRATION_MODE
+              value: ${MIGRATION_MODE}
+            - name: CONSOLEDOT_HOSTNAME
+              value: ${CONSOLEDOT_HOSTNAME}
+            - name: INVENTORY_LOG_LEVEL
+              value: ${LOG_LEVEL}
+            - name: CONNEXION_LOG_LEVEL
+              value: ${CONNEXION_LOG_LEVEL}
+            - name: INVENTORY_DB_SSL_MODE
+              value: ${INVENTORY_DB_SSL_MODE}
+            - name: INVENTORY_DB_SSL_CERT
+              value: ${INVENTORY_DB_SSL_CERT}
+            - name: KAFKA_CONSUMER_TOPIC
+              value: ${KAFKA_HOST_INGRESS_P1_TOPIC}
+            - name: KAFKA_HOST_INGRESS_TOPIC
+              value: ${KAFKA_HOST_INGRESS_P1_TOPIC}
+            - name: KAFKA_EVENT_TOPIC
+              value: ${KAFKA_EVENT_TOPIC}
+            - name: KAFKA_NOTIFICATION_TOPIC
+              value: ${KAFKA_NOTIFICATION_TOPIC}
+            - name: KAFKA_SYSTEM_PROFILE_TOPIC
+              value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
+            - name: KAFKA_HOST_INGRESS_GROUP
+              value: ${KAFKA_HOST_INGRESS_GROUP}
+            - name: PAYLOAD_TRACKER_SERVICE_NAME
+              value: inventory-mq-service
+            - name: PAYLOAD_TRACKER_ENABLED
+              value: 'true'
+            - name: KAFKA_PRODUCER_ACKS
+              value: ${KAFKA_PRODUCER_ACKS}
+            - name: KAFKA_PRODUCER_RETRIES
+              value: ${KAFKA_PRODUCER_RETRIES}
+            - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+              value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+            - name: KAFKA_SECURITY_PROTOCOL
+              value: ${KAFKA_SECURITY_PROTOCOL}
+            - name: KAFKA_SASL_MECHANISM
+              value: ${KAFKA_SASL_MECHANISM}
+            - name: TENANT_TRANSLATOR_URL
+              value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
+            - name: BYPASS_TENANT_TRANSLATION
+              value: ${BYPASS_TENANT_TRANSLATION}
+            - name: CLOWDER_ENABLED
+              value: "true"
+            - name: INVENTORY_DB_SCHEMA
+              value: "${INVENTORY_DB_SCHEMA}"
+            - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
+              value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
+            - name: INVENTORY_API_CACHE_TYPE
+              value: "${INVENTORY_API_CACHE_TYPE}"
+            - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
+              value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
+            - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
+              value: "${INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS}"
+            - name: KAFKA_CONSUMER_SESSION_TIMEOUT_MS
+              value: "${KAFKA_CONSUMER_SESSION_TIMEOUT_MS}"
+            - name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
+              value: "${KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS}"
+            - name: UNLEASH_URL
+              value: ${UNLEASH_URL}
+            - name: UNLEASH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: ${UNLEASH_SECRET_NAME}
+                  key: CLIENT_ACCESS_TOKEN
+                  optional: true
+            - name: BYPASS_UNLEASH
+              value: ${BYPASS_UNLEASH}
+            - name: UNLEASH_REFRESH_INTERVAL
+              value: ${UNLEASH_REFRESH_INTERVAL}
+            - name: MQ_DB_BATCH_MAX_MESSAGES
+              value: ${MQ_DB_BATCH_MAX_MESSAGES}
+            - name: MQ_DB_BATCH_MAX_SECONDS
+              value: ${MQ_DB_BATCH_MAX_SECONDS}
+            - name: RBAC_PSKS
+              valueFrom:
+                secretKeyRef:
+                  key: psks.json
+                  name: rbac-psks
+                  optional: false
+            - name: HOSTS_TABLE_NUM_PARTITIONS
+              value: ${HOSTS_TABLE_NUM_PARTITIONS}
+            - name: REPLICA_NAMESPACE
+              value: ${REPLICA_NAMESPACE}
+          image: ${IMAGE}:${IMAGE_TAG}
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /
+              port: 9000
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          readinessProbe:
+            tcpSocket:
+              port: 9000
+          resources:
+            limits:
+              cpu: ${CPU_LIMIT_MQ_P1}
+              memory: ${MEMORY_LIMIT_MQ_P1}
+            requests:
+              cpu: ${CPU_REQUEST_MQ_P1}
+              memory: ${MEMORY_REQUEST_MQ_P1}
+    database:
+      name: ${DB_NAME}
+      version: 16
+    kafkaTopics: # The number of Kafka partitions variables provided are the Ephemeral environments.
+      - topicName: ${KAFKA_SYSTEM_PROFILE_TOPIC}
+        partitions: ${{NUMBER_OF_KAFKA_SYSTEM_PROFILE_TOPIC_PARTITIONS}}
+      - topicName: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
+        partitions: ${{NUMBER_OF_PAYLOAD_TRACKER_KAFKA_TOPIC_PARTITIONS}}
+      - topicName: ${KAFKA_EVENT_TOPIC}
+        partitions: ${{NUMBER_OF_KAFKA_EVENT_TOPIC_PARTITIONS}}
+      - topicName: ${KAFKA_NOTIFICATION_TOPIC}
+        partitions: ${{NUMBER_OF_KAFKA_NOTIFICATION_TOPIC_PARTITIONS}}
+      - topicName: ${KAFKA_HOST_INGRESS_TOPIC}
+        partitions: ${{NUMBER_OF_KAFKA_HOST_INGRESS_TOPIC_PARTITIONS}}
+      - topicName: ${KAFKA_HOST_INGRESS_P1_TOPIC}
+        partitions: ${{NUMBER_OF_KAFKA_HOST_INGRESS_P1_TOPIC_PARTITIONS}}
+      - topicName: ${KAFKA_EXPORT_SERVICE_TOPIC}
+        partitions: ${{NUMBER_OF_KAFKA_EXPORT_SERVICE_TOPIC_PARTITIONS}}
+      - topicName: ${KAFKA_KESSEL_WORKSPACES_TOPIC}
+        partitions: ${{NUMBER_OF_KAFKA_KESSEL_WORKSPACES_TOPIC_PARTITIONS}}
+# this service proxies requests for the old URL (insights-inventory:8080) to the clowderized service (host-inventory-service:8000)
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      app: insights-inventory
+    name: insights-inventory
+  spec:
+    ports:
+    - name: port-8080
+      port: 8080
+      protocol: TCP
+      targetPort: 8000
+    selector:
+      pod: host-inventory-service
+- apiVersion: v1
+  data:
+    nginx.conf: |-
+      worker_processes  1;
+      error_log  /dev/stderr warn;
+      pid        /run/nginx.pid;
+
+      events {
+        worker_connections  1024;
+      }
+      http {
+        log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_proto" "$http_x_forwarded_for"';
+
+        access_log  /dev/stdout  main;
+
+        sendfile            on;
+        tcp_nopush          on;
+        tcp_nodelay         on;
+        keepalive_timeout   65;
+        server_tokens       off;
+
+        upstream host-inventory-service-reads {
+          server host-inventory-service-reads:8000;
+          server host-inventory-service-secondary-reads:8000;
+        }
+        upstream host-inventory-service-writes {
+          server host-inventory-service-writes:8000;
+        }
+        map $request_method $upstream_location {
+                    GET     host-inventory-service-reads;
+                    HEAD    host-inventory-service-reads;
+                    POST    host-inventory-service-writes;
+                    PUT     host-inventory-service-writes;
+                    DELETE  host-inventory-service-writes;
+                    default host-inventory-service-writes;
+        }
+        server {
+          error_log  stderr;
+          listen 8000;
+          listen 9000;
+
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
+          proxy_set_header Host $http_host;
+          proxy_redirect off;
+
+          client_max_body_size 500M;
+          client_header_buffer_size 46k;
+          location /healthz {
+              auth_basic          off;
+              allow               all;
+              return              200;
+          }
+          location /metrics {
+              auth_basic          off;
+              allow               all;
+              return              200;
+          }
+          location / {
+            proxy_pass http://$upstream_location;
+            proxy_read_timeout 600s;
+          }
+        }
+      }
+  kind: ConfigMap
+  metadata:
+    name: inventory-nginx-conf
+
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    name: rbac-psks
+  data:
+    psks.json: >-
+      ewogICJhZHZpc29yIjogewogICAgImFsdC1zZWNyZXQiOiAiMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTEiCiAgfSwKICAiYXBwcm92YWwiOiB7CiAgICAiYWx0LXNlY3JldCI6ICIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMiIKICB9LAogICJub3RpZmljYXRpb25zIjogewogICAgImFsdC1zZWNyZXQiOiAiMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMiCiAgfSwKICAiaW52ZW50b3J5IjogewogICAgInNlY3JldCI6ICI0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQiCiAgfQp9
+  type: Opaque
+
+parameters:
+- name: LOG_LEVEL
+  value: INFO
+
+- name: CPU_REQUEST_MQ_P1
+  value: 250m
+- name: CPU_LIMIT_MQ_P1
+  value: 500m
+- name: MEMORY_REQUEST_MQ_P1
+  value: 256Mi
+- name: MEMORY_LIMIT_MQ_P1
+  value: 512Mi
+
+- description: Replica count for p1 consumer
+  name: REPLICAS_P1
+  value: "1"
+- description: Image tag
+  name: IMAGE_TAG
+  required: true
+- description: Image NAME
+  name: IMAGE
+  required: true
+  value: quay.io/redhat-services-prod/insights-management-tenant/insights-host-inventory/insights-host-inventory
+- description : ClowdEnvironment name
+  name: ENV_NAME
+  value: stage
+- name: APP_NAME
+  value: inventory
+- description: ClowdApp name
+  name: CLOWDAPP_NAME
+  value: host-inventory-replica
+- description: Database name
+  name: DB_NAME
+  value: host-inventory
+- name: PATH_PREFIX
+  value: api
+- name: CONSOLEDOT_HOSTNAME
+  value: localhost
+- name: URLLIB3_LOG_LEVEL
+  value: WARNING
+- name: CONNEXION_LOG_LEVEL
+  value: WARNING
+- description: SSL validation mode for the DB
+  name: INVENTORY_DB_SSL_MODE
+  value: prefer
+- description: disable RBAC middleware
+  name: BYPASS_RBAC
+  value: 'false'
+- description: disable account-to-org_id translation, defaulting to None where org_id is not provided
+  name: BYPASS_TENANT_TRANSLATION
+  value: 'false'
+- name: KAFKA_PRODUCER_ACKS
+  value: '1'
+- name: KAFKA_PRODUCER_RETRIES
+  value: '0'
+- name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+  value: '100'
+- name: KAFKA_HOST_INGRESS_TOPIC
+  description: The topic containing Host data sent by reporters
+  value: platform.inventory.host-ingress
+- name: NUMBER_OF_KAFKA_HOST_INGRESS_TOPIC_PARTITIONS
+  description: Number of partitions for the Kafka host ingress topic
+  value: '1'
+- name: KAFKA_HOST_INGRESS_P1_TOPIC
+  description: The TOP-PRIORITY topic containing Host data sent by reporters
+  value: platform.inventory.host-ingress-p1
+- name: NUMBER_OF_KAFKA_HOST_INGRESS_P1_TOPIC_PARTITIONS
+  description: Number of partitions for the Kafka host ingress P1 topic
+  value: '1'
+- name: KAFKA_KESSEL_WORKSPACES_TOPIC
+  description: The Kafka topic for Kessel Workspace data
+  value: outbox.event.workspace
+- name: NUMBER_OF_KAFKA_KESSEL_WORKSPACES_TOPIC_PARTITIONS
+  description: Number of partitions for the Kafka kessel workspaces topic
+  value: '1'
+- name: KAFKA_EVENT_TOPIC
+  description: The topic for Host data that were processed by Inventory
+  value: platform.inventory.events
+- name: NUMBER_OF_KAFKA_EVENT_TOPIC_PARTITIONS
+  description: Number of partitions for the Kafka event topic
+  value: '1'
+- name: KAFKA_NOTIFICATION_TOPIC
+  description: The topic containing messages to be sent as notifications
+  value: platform.notifications.ingress
+- name: NUMBER_OF_KAFKA_NOTIFICATION_TOPIC_PARTITIONS
+  description: Number of partitions for the Kafka notification topic
+  value: '1'
+- name: KAFKA_ADDITIONAL_VALIDATION_TOPIC
+  description: Used by system_profile_validator
+  value: platform.inventory.host-ingress-p1
+- name: KAFKA_SYSTEM_PROFILE_TOPIC
+  description: The topic containing Host data for System Profile updates
+  value: platform.inventory.system-profile
+- name: NUMBER_OF_KAFKA_SYSTEM_PROFILE_TOPIC_PARTITIONS
+  description: Number of partitions for the Kafka system-profile topic
+  value: '1'
+- name: PAYLOAD_TRACKER_KAFKA_TOPIC
+  description: The topic for payload tracker
+  value: platform.payload-status
+- name: NUMBER_OF_PAYLOAD_TRACKER_KAFKA_TOPIC_PARTITIONS
+  description: Number of partitions for the payload tracker topic.
+  value: '1'
+- name: KAFKA_EXPORT_SERVICE_TOPIC
+  description: The topic used to consume Export Service data
+  value: platform.export.requests
+- name: NUMBER_OF_KAFKA_EXPORT_SERVICE_TOPIC_PARTITIONS
+  description: Number of partitions for the export-service topic
+  value: '1'
+- name: KAFKA_HOST_INGRESS_GROUP
+  description: The Kafka consumer group name
+  value: inventory-mq
+- name: KAFKA_SECURITY_PROTOCOL
+  description: The Kafka Security Protocol
+  value: PLAINTEXT
+- name: KAFKA_SASL_MECHANISM
+  value: 'PLAIN'
+- name: CONSUMER_MQ_BROKER
+  value: ''
+- name: PROMETHEUS_PUSHGATEWAY
+  value: 'localhost:9091'
+- name: KAFKA_BOOTSTRAP_HOST
+  value: 'localhost'
+- name: KAFKA_BOOTSTRAP_PORT
+  value: '29092'
+- name: INVENTORY_DB_SSL_CERT
+  value: ''
+- name: TENANT_TRANSLATOR_HOST
+  value: 'gateway.3scale-dev.svc.cluster.local'
+- name: TENANT_TRANSLATOR_PORT
+  value: '8892'
+- name: GUNICORN_WORKERS
+  value: '4'
+- name: GUNICORN_THREADS
+  value: '8'
+- name: GUNICORN_REQUEST_FIELD_LIMIT
+  value: '16380'
+- name: GUNICORN_REQUEST_LINE_LIMIT
+  value: '8190'
+- name: SCRIPT_CHUNK_SIZE
+  value: '500'
+- name: REBUILD_EVENTS_TIME_LIMIT
+  value: '3600'
+- name: INVENTORY_DB_STATEMENT_TIMEOUT
+  value: '30000'
+- name: INVENTORY_DB_LOCK_TIMEOUT
+  value: '30000'
+- name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
+  value: '0'
+- name: INVENTORY_API_CACHE_TYPE
+  value: 'NullCache'
+- name: MQ_DB_BATCH_MAX_MESSAGES
+  value: '1'
+- name: MQ_WORKSPACES_DB_BATCH_MAX_MESSAGES
+  value: '1'
+- name: MQ_DB_BATCH_MAX_SECONDS
+  value: '0.5'
+- name: INVENTORY_API_USE_READREPLICA
+  value: 'false'
+- name: INVENTORY_API_READREPLICA_SECRET
+  value: 'host-inventory-read-only-db'
+- name: INVENTORY_API_SECONDARY_READREPLICA_SECRET
+  value: 'host-inventory-read-only-db'
+- name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
+  value: '129600'
+- name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
+  value: '5'
+- name: KAFKA_CONSUMER_SESSION_TIMEOUT_MS
+  value: '10000'
+- name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
+  value: '3000'
+- name: INVENTORY_DB_SCHEMA
+  value: 'hbi'
+- name: HOSTS_TABLE_NUM_PARTITIONS
+  description: The number of partitions for the hosts table
+  value: '1'
+
+# NGINX
+- displayName: Minimum replicas
+  name: NGINX_REPLICAS
+  required: true
+  value: "1"
+- displayName: Memory Request
+  name: NGINX_MEMORY_REQUEST
+  required: true
+  value: 100Mi
+- displayName: Memory Limit
+  name: NGINX_MEMORY_LIMIT
+  required: true
+  value: 200Mi
+- displayName: CPU Request
+  name: NGINX_CPU_REQUEST
+  required: true
+  value: 100m
+- displayName: CPU Limit
+  name: NGINX_CPU_LIMIT
+  required: true
+  value: 200m
+
+# Feature flags
+- description: Unleash secret name
+  name: UNLEASH_SECRET_NAME
+  value: bypass
+- description: Unleash API url
+  name: UNLEASH_URL
+- description: disable Unleash (feature flags), defaulting to fallback values
+  name: BYPASS_UNLEASH
+  value: 'false'
+- description: How frequently the Unleash client refreshes data from the server (in seconds)
+  name: UNLEASH_REFRESH_INTERVAL
+  value: "15"
+
+# Replica namespace
+- name: REPLICA_NAMESPACE
+  description: Disable Kafka operations in the replica namespace
+  value: 'false'
+
+# DB refactoring
+- name: MIGRATION_MODE
+  description: Choose migration mode to run DB refactoring tables transition
+  required: true
+  value: automated
