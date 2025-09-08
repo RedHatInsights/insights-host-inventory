@@ -13,120 +13,120 @@ objects:
     inMemoryDb: true
     testing:
       iqePlugin: host-inventory
-      deployments:
-      - name: mq-p1
-        replicas: ${{REPLICAS_P1}}
-        podSpec:
-          initContainers:
-            - args: [ "FLASK_APP=./manage.py", "flask", "db", "upgrade" ]
-              inheritEnv: true
-          args: [ "./inv_mq_service.py" ]
-          env:
-            - name: MIGRATION_MODE
-              value: ${MIGRATION_MODE}
-            - name: CONSOLEDOT_HOSTNAME
-              value: ${CONSOLEDOT_HOSTNAME}
-            - name: INVENTORY_LOG_LEVEL
-              value: ${LOG_LEVEL}
-            - name: CONNEXION_LOG_LEVEL
-              value: ${CONNEXION_LOG_LEVEL}
-            - name: INVENTORY_DB_SSL_MODE
-              value: ${INVENTORY_DB_SSL_MODE}
-            - name: INVENTORY_DB_SSL_CERT
-              value: ${INVENTORY_DB_SSL_CERT}
-            - name: KAFKA_CONSUMER_TOPIC
-              value: ${KAFKA_HOST_INGRESS_P1_TOPIC}
-            - name: KAFKA_HOST_INGRESS_TOPIC
-              value: ${KAFKA_HOST_INGRESS_P1_TOPIC}
-            - name: KAFKA_EVENT_TOPIC
-              value: ${KAFKA_EVENT_TOPIC}
-            - name: KAFKA_NOTIFICATION_TOPIC
-              value: ${KAFKA_NOTIFICATION_TOPIC}
-            - name: KAFKA_SYSTEM_PROFILE_TOPIC
-              value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
-            - name: KAFKA_HOST_INGRESS_GROUP
-              value: ${KAFKA_HOST_INGRESS_GROUP}
-            - name: PAYLOAD_TRACKER_SERVICE_NAME
-              value: inventory-mq-service
-            - name: PAYLOAD_TRACKER_ENABLED
-              value: 'false'
-            - name: KAFKA_PRODUCER_ACKS
-              value: ${KAFKA_PRODUCER_ACKS}
-            - name: KAFKA_PRODUCER_RETRIES
-              value: ${KAFKA_PRODUCER_RETRIES}
-            - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
-              value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
-            - name: KAFKA_SECURITY_PROTOCOL
-              value: ${KAFKA_SECURITY_PROTOCOL}
-            - name: KAFKA_SASL_MECHANISM
-              value: ${KAFKA_SASL_MECHANISM}
-            - name: TENANT_TRANSLATOR_URL
-              value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
-            - name: BYPASS_TENANT_TRANSLATION
-              value: ${BYPASS_TENANT_TRANSLATION}
-            - name: CLOWDER_ENABLED
-              value: "true"
-            - name: INVENTORY_DB_SCHEMA
-              value: "${INVENTORY_DB_SCHEMA}"
-            - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
-              value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
-            - name: INVENTORY_API_CACHE_TYPE
-              value: "${INVENTORY_API_CACHE_TYPE}"
-            - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
-              value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
-            - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
-              value: "${INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS}"
-            - name: KAFKA_CONSUMER_SESSION_TIMEOUT_MS
-              value: "${KAFKA_CONSUMER_SESSION_TIMEOUT_MS}"
-            - name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
-              value: "${KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS}"
-            - name: UNLEASH_URL
-              value: ${UNLEASH_URL}
-            - name: UNLEASH_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: ${UNLEASH_SECRET_NAME}
-                  key: CLIENT_ACCESS_TOKEN
-                  optional: true
-            - name: BYPASS_UNLEASH
-              value: ${BYPASS_UNLEASH}
-            - name: UNLEASH_REFRESH_INTERVAL
-              value: ${UNLEASH_REFRESH_INTERVAL}
-            - name: MQ_DB_BATCH_MAX_MESSAGES
-              value: ${MQ_DB_BATCH_MAX_MESSAGES}
-            - name: MQ_DB_BATCH_MAX_SECONDS
-              value: ${MQ_DB_BATCH_MAX_SECONDS}
-            - name: RBAC_PSKS
-              valueFrom:
-                secretKeyRef:
-                  key: psks.json
-                  name: rbac-psks
-                  optional: false
-            - name: HOSTS_TABLE_NUM_PARTITIONS
-              value: ${HOSTS_TABLE_NUM_PARTITIONS}
-            - name: REPLICA_NAMESPACE
-              value: ${REPLICA_NAMESPACE}
-          image: ${IMAGE}:${IMAGE_TAG}
-          livenessProbe:
-            failureThreshold: 3
-            httpGet:
-              path: /
-              port: 9000
-              scheme: HTTP
-            initialDelaySeconds: 10
-            periodSeconds: 10
-            successThreshold: 1
-            timeoutSeconds: 5
-          readinessProbe:
-            tcpSocket:
-              port: 9000
-          resources:
-            limits:
-              cpu: ${CPU_LIMIT_MQ_P1}
-              memory: ${MEMORY_LIMIT_MQ_P1}
-            requests:
-              cpu: ${CPU_REQUEST_MQ_P1}
-              memory: ${MEMORY_REQUEST_MQ_P1}
+    deployments:
+    - name: mq-p1
+      replicas: ${{REPLICAS_P1}}
+      podSpec:
+        initContainers:
+          - args: [ "FLASK_APP=./manage.py", "flask", "db", "upgrade" ]
+            inheritEnv: true
+        args: [ "./inv_mq_service.py" ]
+        env:
+          - name: MIGRATION_MODE
+            value: ${MIGRATION_MODE}
+          - name: CONSOLEDOT_HOSTNAME
+            value: ${CONSOLEDOT_HOSTNAME}
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: CONNEXION_LOG_LEVEL
+            value: ${CONNEXION_LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: KAFKA_CONSUMER_TOPIC
+            value: ${KAFKA_HOST_INGRESS_P1_TOPIC}
+          - name: KAFKA_HOST_INGRESS_TOPIC
+            value: ${KAFKA_HOST_INGRESS_P1_TOPIC}
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: KAFKA_SYSTEM_PROFILE_TOPIC
+            value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
+          - name: KAFKA_HOST_INGRESS_GROUP
+            value: ${KAFKA_HOST_INGRESS_GROUP}
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory-mq-service
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'false'
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - name: TENANT_TRANSLATOR_URL
+            value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
+          - name: BYPASS_TENANT_TRANSLATION
+            value: ${BYPASS_TENANT_TRANSLATION}
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
+            value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
+          - name: INVENTORY_API_CACHE_TYPE
+            value: "${INVENTORY_API_CACHE_TYPE}"
+          - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
+            value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
+          - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
+            value: "${INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS}"
+          - name: KAFKA_CONSUMER_SESSION_TIMEOUT_MS
+            value: "${KAFKA_CONSUMER_SESSION_TIMEOUT_MS}"
+          - name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
+            value: "${KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS}"
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - name: UNLEASH_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: ${UNLEASH_SECRET_NAME}
+                key: CLIENT_ACCESS_TOKEN
+                optional: true
+          - name: BYPASS_UNLEASH
+            value: ${BYPASS_UNLEASH}
+          - name: UNLEASH_REFRESH_INTERVAL
+            value: ${UNLEASH_REFRESH_INTERVAL}
+          - name: MQ_DB_BATCH_MAX_MESSAGES
+            value: ${MQ_DB_BATCH_MAX_MESSAGES}
+          - name: MQ_DB_BATCH_MAX_SECONDS
+            value: ${MQ_DB_BATCH_MAX_SECONDS}
+          - name: RBAC_PSKS
+            valueFrom:
+              secretKeyRef:
+                key: psks.json
+                name: rbac-psks
+                optional: false
+          - name: HOSTS_TABLE_NUM_PARTITIONS
+            value: ${HOSTS_TABLE_NUM_PARTITIONS}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+        image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /
+            port: 9000
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+        readinessProbe:
+          tcpSocket:
+            port: 9000
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_MQ_P1}
+            memory: ${MEMORY_LIMIT_MQ_P1}
+          requests:
+            cpu: ${CPU_REQUEST_MQ_P1}
+            memory: ${MEMORY_REQUEST_MQ_P1}
     database:
       name: ${DB_NAME}
       version: 16
@@ -147,90 +147,6 @@ objects:
         partitions: ${{NUMBER_OF_KAFKA_EXPORT_SERVICE_TOPIC_PARTITIONS}}
       - topicName: ${KAFKA_KESSEL_WORKSPACES_TOPIC}
         partitions: ${{NUMBER_OF_KAFKA_KESSEL_WORKSPACES_TOPIC_PARTITIONS}}
-# this service proxies requests for the old URL (insights-inventory:8080) to the clowderized service (host-inventory-service:8000)
-- apiVersion: v1
-  kind: Service
-  metadata:
-    labels:
-      app: insights-inventory
-    name: insights-inventory
-  spec:
-    ports:
-    - name: port-8080
-      port: 8080
-      protocol: TCP
-      targetPort: 8000
-    selector:
-      pod: host-inventory-service
-- apiVersion: v1
-  data:
-    nginx.conf: |-
-      worker_processes  1;
-      error_log  /dev/stderr warn;
-      pid        /run/nginx.pid;
-
-      events {
-        worker_connections  1024;
-      }
-      http {
-        log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
-                      '$status $body_bytes_sent "$http_referer" '
-                      '"$http_user_agent" "$http_x_forwarded_proto" "$http_x_forwarded_for"';
-
-        access_log  /dev/stdout  main;
-
-        sendfile            on;
-        tcp_nopush          on;
-        tcp_nodelay         on;
-        keepalive_timeout   65;
-        server_tokens       off;
-
-        upstream host-inventory-service-reads {
-          server host-inventory-service-reads:8000;
-          server host-inventory-service-secondary-reads:8000;
-        }
-        upstream host-inventory-service-writes {
-          server host-inventory-service-writes:8000;
-        }
-        map $request_method $upstream_location {
-                    GET     host-inventory-service-reads;
-                    HEAD    host-inventory-service-reads;
-                    POST    host-inventory-service-writes;
-                    PUT     host-inventory-service-writes;
-                    DELETE  host-inventory-service-writes;
-                    default host-inventory-service-writes;
-        }
-        server {
-          error_log  stderr;
-          listen 8000;
-          listen 9000;
-
-          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-          proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
-          proxy_set_header Host $http_host;
-          proxy_redirect off;
-
-          client_max_body_size 500M;
-          client_header_buffer_size 46k;
-          location /healthz {
-              auth_basic          off;
-              allow               all;
-              return              200;
-          }
-          location /metrics {
-              auth_basic          off;
-              allow               all;
-              return              200;
-          }
-          location / {
-            proxy_pass http://$upstream_location;
-            proxy_read_timeout 600s;
-          }
-        }
-      }
-  kind: ConfigMap
-  metadata:
-    name: inventory-nginx-conf
 
 - apiVersion: v1
   kind: Secret
@@ -416,28 +332,6 @@ parameters:
 - name: HOSTS_TABLE_NUM_PARTITIONS
   description: The number of partitions for the hosts table
   value: '1'
-
-# NGINX
-- displayName: Minimum replicas
-  name: NGINX_REPLICAS
-  required: true
-  value: "1"
-- displayName: Memory Request
-  name: NGINX_MEMORY_REQUEST
-  required: true
-  value: 100Mi
-- displayName: Memory Limit
-  name: NGINX_MEMORY_LIMIT
-  required: true
-  value: 200Mi
-- displayName: CPU Request
-  name: NGINX_CPU_REQUEST
-  required: true
-  value: 100m
-- displayName: CPU Limit
-  name: NGINX_CPU_LIMIT
-  required: true
-  value: 200m
 
 # Feature flags
 - description: Unleash secret name
