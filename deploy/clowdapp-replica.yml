@@ -49,7 +49,7 @@ objects:
             - name: PAYLOAD_TRACKER_SERVICE_NAME
               value: inventory-mq-service
             - name: PAYLOAD_TRACKER_ENABLED
-              value: 'true'
+              value: 'false'
             - name: KAFKA_PRODUCER_ACKS
               value: ${KAFKA_PRODUCER_ACKS}
             - name: KAFKA_PRODUCER_RETRIES
@@ -447,7 +447,7 @@ parameters:
   name: UNLEASH_URL
 - description: disable Unleash (feature flags), defaulting to fallback values
   name: BYPASS_UNLEASH
-  value: 'false'
+  value: 'true'
 - description: How frequently the Unleash client refreshes data from the server (in seconds)
   name: UNLEASH_REFRESH_INTERVAL
   value: "15"
