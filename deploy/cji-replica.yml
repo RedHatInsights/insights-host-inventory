@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: insights-host-inventory-cjis-replica
+objects:
+
+parameters:
