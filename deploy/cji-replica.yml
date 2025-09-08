@@ -3,5 +3,15 @@ kind: Template
 metadata:
   name: insights-host-inventory-cjis-replica
 objects:
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    name: sp-migration-prepare-${SP_TABLES_MIGRATION_DATA_COPY_PREPARE_RUN_NUMBER}
+  spec:
+    appName: host-inventory-replica
+    jobs:
+      - sp-migration-prepare
 
 parameters:
+- name: SP_TABLES_MIGRATION_DATA_COPY_PREPARE_RUN_NUMBER
+  value: '1'
