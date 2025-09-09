@@ -129,10 +129,8 @@ def set_environment(new_env=None):
 def _base_host_data(**values) -> dict[str, Any]:
     return {
         "org_id": USER_IDENTITY["org_id"],
-        "display_name": "test" + generate_random_string(),
         "stale_timestamp": (now() + timedelta(days=randint(1, 7))).isoformat(),
         "reporter": "test" + generate_random_string(),
-        "created": now().isoformat(),
         **values,
     }
 
@@ -329,15 +327,17 @@ class MockResponseObject:
         return self
 
 
-def get_sample_profile_data(org_id, host_id):
+def get_sample_profile_data():
+    return get_sample_static_profile_data(), get_sample_dynamic_profile_data()
+
+
+def get_sample_dynamic_profile_data():
     """Returns a dictionary of sample data for creating a dynamic profile."""
-    current_time = datetime.now(UTC)
+    current_time = datetime.now(UTC).isoformat()
     return {
-        "org_id": org_id,
-        "host_id": host_id,
         "captured_date": current_time,
         "running_processes": ["sshd", "crond", "systemd"],
-        "last_boot_time": current_time - timedelta(days=7),
+        "last_boot_time": current_time,
         "installed_packages": ["kernel-5.14.0", "python3-3.9.7", "openssl-1.1.1k"],
         "network_interfaces": [
             {"name": "eth0", "ipv4_addresses": ["192.168.1.10"], "state": "UP"},
@@ -384,4 +384,66 @@ def get_sample_profile_data(org_id, host_id):
                 "version": "2.00.122.04.1478575636",
             },
         },
+    }
+
+
+def get_sample_static_profile_data():
+    current_time = datetime.now(UTC).isoformat()
+    return {
+        "arch": "x86_64",
+        "basearch": "x86_64",
+        "bios_release_date": current_time,
+        "bios_vendor": "SeaBIOS",
+        "bios_version": "1.16.2-1",
+        "bootc_status": {"status": "booted", "image": "registry.example.com/my-os:latest"},
+        "cloud_provider": "aws",
+        "conversions": {"converted_from": "centos", "converted_to": "rhel", "conversion_date": "2024-01-15"},
+        "cores_per_socket": 8,
+        "cpu_model": "Intel(R) Xeon(R) Platinum 8272CL CPU @ 2.60GHz",
+        "disk_devices": [{"device": "/dev/vda", "label": "boot", "mount_point": "/boot", "type": "xfs"}],
+        "dnf_modules": [{"name": "postgresql", "stream": "13", "status": ["default", "enabled", "installed"]}],
+        "enabled_services": ["sshd", "crond", "tuned"],
+        "gpg_pubkeys": ["fd431d51-4ae04760", "c105b9de-4e023a35"],
+        "greenboot_fallback_detected": False,
+        "greenboot_status": "pass",
+        "host_type": "sap",
+        "image_builder": {"composer_version": "2.0.0", "build_type": "iso"},
+        "infrastructure_type": "virtual",
+        "infrastructure_vendor": "KVM",
+        "insights_client_version": "3.1.5",
+        "installed_packages_delta": ["openssl-3.0.1-1.el9"],
+        "installed_services": ["sshd", "crond", "tuned", "firewalld"],
+        "is_marketplace": True,
+        "katello_agent_running": False,
+        "number_of_cpus": 16,
+        "number_of_sockets": 2,
+        "operating_system": {"name": "RedHat", "major": 9, "minor": 3},
+        "os_kernel_version": "5.14.0-362.8.1.el9_3.x86_64",
+        "os_release": "Red Hat Enterprise Linux 9.3 (Plow)",
+        "owner_id": str(uuid.uuid4()),
+        "public_dns": ["ec2-54-12-34-56.compute-1.amazonaws.com"],
+        "public_ipv4_addresses": ["54.12.34.56"],
+        "releasever": "9.3",
+        "rhc_client_id": str(uuid.uuid4()),
+        "rhc_config_state": str(uuid.uuid4()),
+        "rhsm": {"version": "8.1", "environment_ids": ["262e621d10ae4475ab5732b39a9160b2"]},
+        "rpm_ostree_deployments": [
+            {
+                "id": "rhel-9.3-1",
+                "osname": "rhel",
+                "checksum": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+            }
+        ],
+        "satellite_managed": True,
+        "selinux_config_file": "/etc/selinux/config",
+        "selinux_current_mode": "enforcing",
+        "subscription_auto_attach": "enabled",
+        "subscription_status": "Subscribed",
+        "system_purpose": {"role": "Production", "usage": "Database Server", "sla": "Premium"},
+        "system_update_method": "dnf",
+        "third_party_services": {"crowdstrike": "running", "splunk": "stopped"},
+        "threads_per_core": 2,
+        "tuned_profile": "virtual-host",
+        "virtual_host_uuid": str(uuid.uuid4()),
+        "yum_repos": [YUM_REPO1],
     }

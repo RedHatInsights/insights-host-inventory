@@ -134,7 +134,7 @@ def test_handle_message_failure_invalid_message_format(mocker, ingress_message_c
 def test_handle_message_happy_path(
     identity, kessel_migration, existing_ungrouped, mocker, ingress_message_consumer_mock, db_create_group
 ):
-    mocker.patch("app.queue.host_mq.get_flag_value", return_value=kessel_migration)
+    mocker.patch("lib.host_repository.get_flag_value", return_value=kessel_migration)
     expected_insights_id = generate_uuid()
     host = minimal_host(org_id=identity["org_id"], insights_id=expected_insights_id)
     existing_group_name = "test group"
@@ -222,7 +222,7 @@ def test_handle_message_update_reporter_from_rhsm(db_get_host, ingress_message_c
 @pytest.mark.parametrize("identity", (SYSTEM_IDENTITY, SATELLITE_IDENTITY, USER_IDENTITY))
 def test_handle_message_kessel_private_endpoint(identity, mocker, ingress_message_consumer_mock):
     mock_psk = "1234567890"
-    mocker.patch("app.queue.host_mq.get_flag_value", return_value=True)
+    mocker.patch("lib.host_repository.get_flag_value", return_value=True)
     get_rbac_mock = mocker.patch(
         "lib.middleware.rbac_get_request_using_endpoint_and_headers", return_value={"id": str(generate_uuid())}
     )
@@ -250,7 +250,7 @@ def test_handle_message_kessel_private_endpoint(identity, mocker, ingress_messag
 
 @pytest.mark.usefixtures("flask_app")
 def test_handle_message_existing_ungrouped_workspace(mocker, db_create_group):
-    with mocker.patch("app.queue.host_mq.get_flag_value", return_value=True):
+    with mocker.patch("lib.host_repository.get_flag_value", return_value=True):
         expected_insights_id = generate_uuid()
         host = minimal_host(account=SYSTEM_IDENTITY["account_number"], insights_id=expected_insights_id)
         group_id = db_create_group("kessel-test", ungrouped=True).id
@@ -264,6 +264,7 @@ def test_handle_message_existing_ungrouped_workspace(mocker, db_create_group):
 
         assert result.event_type == EventType.created
         assert result.row.canonical_facts["insights_id"] == expected_insights_id
+
         assert result.row.groups[0]["name"] == "kessel-test"
         assert result.row.groups[0]["id"] == str(group_id)
 
@@ -468,6 +469,7 @@ def test_add_host_simple(mq_create_or_update_host):
     host = minimal_host(
         account=SYSTEM_IDENTITY["account_number"],
         insights_id=expected_insights_id,
+        display_name=generate_random_string(),
         system_profile={"owner_id": OWNER_ID},
     )
 
@@ -492,6 +494,7 @@ def test_add_host_with_system_profile(mq_create_or_update_host):
     host = minimal_host(
         account=SYSTEM_IDENTITY["account_number"],
         insights_id=expected_insights_id,
+        display_name=generate_random_string(),
         system_profile=expected_system_profile,
     )
 
@@ -727,7 +730,10 @@ def test_add_host_with_tags(mq_create_or_update_host):
     ]
 
     host = minimal_host(
-        account=SYSTEM_IDENTITY["account_number"], insights_id=expected_insights_id, tags=expected_tags
+        account=SYSTEM_IDENTITY["account_number"],
+        insights_id=expected_insights_id,
+        display_name=generate_random_string(),
+        tags=expected_tags,
     )
 
     expected_results = {"host": {**host.data()}}
@@ -958,7 +964,10 @@ def test_add_host_with_sap_system(mq_create_or_update_host):
     system_profile["owner_id"] = OWNER_ID
 
     host = minimal_host(
-        account=SYSTEM_IDENTITY["account_number"], insights_id=expected_insights_id, system_profile=system_profile
+        account=SYSTEM_IDENTITY["account_number"],
+        display_name=generate_random_string(),
+        insights_id=expected_insights_id,
+        system_profile=system_profile,
     )
 
     expected_results = {"host": {**host.data()}}
@@ -2229,7 +2238,8 @@ def test_batch_mq_graceful_rollback(mocker, flask_app):
 
     # Make it so the commit raises a StaleDataError
     mocker.patch(
-        "app.queue.host_mq.db.session.commit", side_effect=[StaleDataError("Stale data"), None, None, None, None, None]
+        "app.queue.host_mq.db.session.commit",
+        side_effect=[StaleDataError("Stale data"), None, None, None, None, None],
     )
     write_batch_patch = mocker.patch("app.queue.host_mq.write_message_batch")
 
@@ -2250,6 +2260,7 @@ def test_batch_mq_graceful_rollback(mocker, flask_app):
     # Assert that the hosts that came in after the error were still processed
     # Since batch size is 3 and we're sending 5 messages,the first batch (3 messages) will get dropped,
     # but the second batch (2 messages) should have events produced.
+
     assert write_batch_patch.call_count == 1
 
 
@@ -2555,7 +2566,7 @@ def test_write_add_update_event_message(mocker):
     mock_success_logger = mocker.Mock()
     mocker.patch("app.queue.host_mq.PayloadTrackerProcessingContext")
     mocker.patch("app.queue.host_mq.get_payload_tracker", return_value=mocker.Mock())
-    mocker.patch("app.queue.host_mq.get_flag_value", return_value=True)
+    mocker.patch("lib.host_repository.get_flag_value", return_value=True)
     mocker.patch(
         "app.serialization.get_staleness_timestamps",
         return_value={

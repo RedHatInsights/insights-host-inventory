@@ -474,9 +474,8 @@ $defs:
         x-dynamic: true
       captured_date:
         type: string
-        maxLength: 32
-        example: "ex1, ex2, ex3"
-        x-dynamic: true
+        format: date-time
+        maxLength: 50
       installed_packages:
         type: array  # technically a set, ordered by RPM sorting algorithm
         items:
