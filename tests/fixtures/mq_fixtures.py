@@ -187,24 +187,24 @@ def notification_event_producer_mock(flask_app: FlaskApp, mocker: MockFixture) -
 
 
 @pytest.fixture(scope="function")
-def ingress_message_consumer_mock(mocker):
-    yield IngressMessageConsumer(mocker.Mock(), mocker.Mock(), mocker.Mock(), mocker.Mock())
+def ingress_message_consumer_mock(flask_app: FlaskApp, mocker: MockFixture):
+    yield IngressMessageConsumer(mocker.Mock(), flask_app, mocker.Mock(), mocker.Mock())
 
 
 @pytest.fixture(scope="function")
-def system_profile_consumer_mock(mocker):
-    yield SystemProfileMessageConsumer(mocker.Mock(), mocker.Mock(), mocker.Mock(), mocker.Mock())
+def system_profile_consumer_mock(flask_app: FlaskApp, mocker: MockFixture):
+    yield SystemProfileMessageConsumer(mocker.Mock(), flask_app, mocker.Mock(), mocker.Mock())
 
 
 @pytest.fixture(scope="function")
-def export_service_consumer_mock(mocker):
-    yield ExportServiceConsumer(mocker.Mock(), mocker.Mock(), mocker.Mock(), mocker.Mock())
+def export_service_consumer_mock(flask_app: FlaskApp, mocker: MockFixture):
+    yield ExportServiceConsumer(mocker.Mock(), flask_app, mocker.Mock(), mocker.Mock())
 
 
 @pytest.fixture(scope="function")
-def workspace_message_consumer_mock(mocker):
+def workspace_message_consumer_mock(flask_app: FlaskApp, mocker: MockFixture):
     mocker.patch("app.queue.host_mq._pg_notify_workspace")
-    yield WorkspaceMessageConsumer(mocker.Mock(), mocker.Mock(), mocker.Mock(), mocker.Mock())
+    yield WorkspaceMessageConsumer(mocker.Mock(), flask_app, mocker.Mock(), mocker.Mock())
 
 
 @pytest.fixture(scope="function")
