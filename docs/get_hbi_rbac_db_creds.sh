@@ -49,3 +49,23 @@ if kubectl get secret "$RBAC_DATABASE_SECRET_NAME" -n "$PROJECT_NAME" &> /dev/nu
 else
   echo "$RBAC_DATABASE_SECRET_NAME secret not found"
 fi
+
+# kessel-inventory-db
+KESSEL_DATABASE_SECRET_NAME="kessel-inventory-db"
+if kubectl get secret "$KESSEL_DATABASE_SECRET_NAME" -n "$PROJECT_NAME" &> /dev/null; then
+  KESSEL_USER=$(kubectl -n "$PROJECT_NAME" get secret/"$KESSEL_DATABASE_SECRET_NAME" -o custom-columns=:data.username | base64 -d)
+  KESSEL_PASSWORD=$(kubectl -n "$PROJECT_NAME" get secret/"$KESSEL_DATABASE_SECRET_NAME" -o custom-columns=:data.password | base64 -d)
+  KESSEL_NAME=$(kubectl -n "$PROJECT_NAME" get secret/"$KESSEL_DATABASE_SECRET_NAME" -o custom-columns=:data.name | base64 -d)
+  KESSEL_HOSTNAME=$(kubectl -n "$PROJECT_NAME" get secret/"$KESSEL_DATABASE_SECRET_NAME" -o custom-columns=:data.hostname | base64 -d)
+  echo "KESSEL_USER: $KESSEL_USER"
+  echo "KESSEL_PASSWORD: $KESSEL_PASSWORD"
+  echo "KESSEL_NAME: $KESSEL_NAME"
+  echo "KESSEL_HOSTNAME: $KESSEL_HOSTNAME"
+  echo -e ""
+  export KESSEL_USER
+  export KESSEL_PASSWORD
+  export KESSEL_NAME
+  export KESSEL_HOSTNAME
+else
+  echo "$KESSEL_DATABASE_SECRET_NAME secret not found"
+fi
