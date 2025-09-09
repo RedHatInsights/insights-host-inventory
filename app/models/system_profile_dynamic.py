@@ -2,6 +2,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
 
 from app.models.constants import INVENTORY_SCHEMA
 from app.models.database import db
@@ -21,18 +22,10 @@ class HostDynamicSystemProfile(db.Model):
             ["org_id", "host_id"],
             [f"{INVENTORY_SCHEMA}.hosts.org_id", f"{INVENTORY_SCHEMA}.hosts.id"],
             name="fk_system_profiles_dynamic_hosts",
+            ondelete="CASCADE",
         ),
         {"schema": INVENTORY_SCHEMA},
     )
-
-    def __init__(self, org_id, host_id, **kwargs):
-        if not org_id or not host_id:
-            raise ValueError("org_id and host_id are required")
-
-        self.org_id = org_id
-        self.host_id = host_id
-
-        super().__init__(**kwargs)
 
     org_id = sa.Column(sa.String(36), primary_key=True)
     host_id = sa.Column(UUID(as_uuid=True), primary_key=True)
@@ -48,3 +41,5 @@ class HostDynamicSystemProfile(db.Model):
     system_memory_bytes = sa.Column(sa.BigInteger, nullable=True)
     systemd = sa.Column(JSONB(astext_type=sa.Text()), nullable=True)
     workloads = db.Column(JSONB(astext_type=db.Text()), nullable=True)
+
+    host = relationship("Host", back_populates="dynamic_system_profile")

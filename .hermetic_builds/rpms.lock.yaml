@@ -74,13 +74,13 @@ arches:
     name: glibc-headers
     evr: 2.34-168.el9_6.23
     sourcerpm: glibc-2.34-168.el9_6.23.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/x86_64/appstream/os/Packages/k/kernel-headers-5.14.0-570.32.1.el9_6.x86_64.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/x86_64/appstream/os/Packages/k/kernel-headers-5.14.0-570.39.1.el9_6.x86_64.rpm
     repoid: ubi-9-for-x86_64-appstream-rpms
-    size: 3697753
-    checksum: sha256:13ee355b274f7e716e31827aa999087692342195b1bd8f10960cf46103b9d18b
+    size: 3709997
+    checksum: sha256:12a765d31b1e0bccdb47c29f6ca0586a46e3f40392d01f99e9c2116607b40511
     name: kernel-headers
-    evr: 5.14.0-570.32.1.el9_6
-    sourcerpm: kernel-5.14.0-570.32.1.el9_6.src.rpm
+    evr: 5.14.0-570.39.1.el9_6
+    sourcerpm: kernel-5.14.0-570.39.1.el9_6.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/x86_64/appstream/os/Packages/k/keyutils-libs-devel-1.6.3-1.el9.x86_64.rpm
     repoid: ubi-9-for-x86_64-appstream-rpms
     size: 66082
@@ -662,27 +662,27 @@ arches:
     name: perl-vars
     evr: 1.05-481.1.el9_6
     sourcerpm: perl-5.32.1-481.1.el9_6.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/x86_64/appstream/os/Packages/p/python3.12-3.12.9-1.el9_6.1.x86_64.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/x86_64/appstream/os/Packages/p/python3.12-3.12.9-1.el9_6.2.x86_64.rpm
     repoid: ubi-9-for-x86_64-appstream-rpms
-    size: 28355
-    checksum: sha256:eb44657699d8ed5ae4098dd4bd38c38a4ecdd66b4ad09de2e0076a13a56d4631
+    size: 27351
+    checksum: sha256:cccf7261d10246f581f2aa9986b8d4b5f26710e01e21d2b41e3a834dc5449f78
     name: python3.12
-    evr: 3.12.9-1.el9_6.1
-    sourcerpm: python3.12-3.12.9-1.el9_6.1.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/x86_64/appstream/os/Packages/p/python3.12-devel-3.12.9-1.el9_6.1.x86_64.rpm
+    evr: 3.12.9-1.el9_6.2
+    sourcerpm: python3.12-3.12.9-1.el9_6.2.src.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/x86_64/appstream/os/Packages/p/python3.12-devel-3.12.9-1.el9_6.2.x86_64.rpm
     repoid: ubi-9-for-x86_64-appstream-rpms
-    size: 332454
-    checksum: sha256:164e5a4d4eede4ef7429043a518887b3dbd6396ec6a6e3833b5c8d83f30b1db0
+    size: 332410
+    checksum: sha256:104985aaec17e321e5d9becda8df17eb995c851195d5808cf6bc162a38081999
     name: python3.12-devel
-    evr: 3.12.9-1.el9_6.1
-    sourcerpm: python3.12-3.12.9-1.el9_6.1.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/x86_64/appstream/os/Packages/p/python3.12-libs-3.12.9-1.el9_6.1.x86_64.rpm
+    evr: 3.12.9-1.el9_6.2
+    sourcerpm: python3.12-3.12.9-1.el9_6.2.src.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/x86_64/appstream/os/Packages/p/python3.12-libs-3.12.9-1.el9_6.2.x86_64.rpm
     repoid: ubi-9-for-x86_64-appstream-rpms
-    size: 10193226
-    checksum: sha256:434090060e8337dfc5dea3d03f68486cd3e4a2c7efff21ebcf2066578646cfb8
+    size: 10192692
+    checksum: sha256:bfd013072d128a7773cbd3c3ce5317b74a964120bece8dc6234129694792a9a4
     name: python3.12-libs
-    evr: 3.12.9-1.el9_6.1
-    sourcerpm: python3.12-3.12.9-1.el9_6.1.src.rpm
+    evr: 3.12.9-1.el9_6.2
+    sourcerpm: python3.12-3.12.9-1.el9_6.2.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/x86_64/appstream/os/Packages/p/python3.12-pip-23.2.1-4.el9.noarch.rpm
     repoid: ubi-9-for-x86_64-appstream-rpms
     size: 3377244
@@ -977,13 +977,13 @@ arches:
     name: openssl
     evr: 1:3.2.2-6.el9_5.1
     sourcerpm: openssl-3.2.2-6.el9_5.1.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/x86_64/baseos/os/Packages/p/pam-1.5.1-25.el9_6.x86_64.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/x86_64/baseos/os/Packages/p/pam-1.5.1-26.el9_6.x86_64.rpm
     repoid: ubi-9-for-x86_64-baseos-rpms
-    size: 635820
-    checksum: sha256:9094077ad952dd3d65543ebec57cbf52213cb3b17cdd180531652218c2282187
+    size: 636788
+    checksum: sha256:247027fa7a2236c1fb46756ed372637f85cf85886603a2ad5ba918e4231324bc
     name: pam
-    evr: 1.5.1-25.el9_6
-    sourcerpm: pam-1.5.1-25.el9_6.src.rpm
+    evr: 1.5.1-26.el9_6
+    sourcerpm: pam-1.5.1-26.el9_6.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/x86_64/baseos/os/Packages/p/pkgconf-1.7.3-10.el9.x86_64.rpm
     repoid: ubi-9-for-x86_64-baseos-rpms
     size: 45675
@@ -1075,20 +1075,20 @@ arches:
     name: which
     evr: 2.21-30.el9_6
     sourcerpm: which-2.21-30.el9_6.src.rpm
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/p/postgresql-16.8-1.module+el9.6.0+22880+6b241eec.x86_64.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/p/postgresql-16.10-1.module+el9.6.0+23420+848a4539.x86_64.rpm
     repoid: rhel-9-for-x86_64-appstream-rpms
-    size: 2033380
-    checksum: sha256:2c75b930166c6961cbbc1ac8dd0eeb89fa0c71cdd972f0ec868fcbcc252bd14c
+    size: 2036469
+    checksum: sha256:f93bcf25e1164dc911a28de0c7945b1e270c9f63bf2f35f47ac8330589c15f0e
     name: postgresql
-    evr: 16.8-1.module+el9.6.0+22880+6b241eec
-    sourcerpm: postgresql-16.8-1.module+el9.6.0+22880+6b241eec.src.rpm
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/p/postgresql-private-libs-16.8-1.module+el9.6.0+22880+6b241eec.x86_64.rpm
+    evr: 16.10-1.module+el9.6.0+23420+848a4539
+    sourcerpm: postgresql-16.10-1.module+el9.6.0+23420+848a4539.src.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/p/postgresql-private-libs-16.10-1.module+el9.6.0+23420+848a4539.x86_64.rpm
     repoid: rhel-9-for-x86_64-appstream-rpms
-    size: 148387
-    checksum: sha256:a9b966ea83157a165024875ca6b075b8b3c941027c4af85a1605ff536f41dc33
+    size: 145972
+    checksum: sha256:2e46adc000000d86a017756a0e9c4cca7b541407ba5777464096a4f59c8a17a2
     name: postgresql-private-libs
-    evr: 16.8-1.module+el9.6.0+22880+6b241eec
-    sourcerpm: postgresql-16.8-1.module+el9.6.0+22880+6b241eec.src.rpm
+    evr: 16.10-1.module+el9.6.0+23420+848a4539
+    sourcerpm: postgresql-16.10-1.module+el9.6.0+23420+848a4539.src.rpm
   source:
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/x86_64/appstream/source/SRPMS/Packages/e/emacs-27.2-14.el9_6.2.src.rpm
     repoid: ubi-9-for-x86_64-appstream-source-rpms
@@ -1348,12 +1348,12 @@ arches:
     checksum: sha256:71e7c3e0eb8d62e314cf45b89d5be318ddb507399a96018079dd5fffe2b18de9
     name: perl-podlators
     evr: 1:4.14-460.el9
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/x86_64/appstream/source/SRPMS/Packages/p/python3.12-3.12.9-1.el9_6.1.src.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/x86_64/appstream/source/SRPMS/Packages/p/python3.12-3.12.9-1.el9_6.2.src.rpm
     repoid: ubi-9-for-x86_64-appstream-source-rpms
-    size: 20584376
-    checksum: sha256:a1e32832bed57cd40d962a77c3985978c660da57768afd176ac2996b4ec9680c
+    size: 20585738
+    checksum: sha256:88372b67518db04abcc9f65b7dffcca6f7b8d2cb6dfd1dbd07afa248dac02611
     name: python3.12
-    evr: 3.12.9-1.el9_6.1
+    evr: 3.12.9-1.el9_6.2
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/x86_64/appstream/source/SRPMS/Packages/p/python3.12-pip-23.2.1-4.el9.src.rpm
     repoid: ubi-9-for-x86_64-appstream-source-rpms
     size: 9386420
@@ -1582,12 +1582,12 @@ arches:
     checksum: sha256:56c0b951be3e5ad6a1da594f9d4f09b8b752e2fb3d6827bcc03892f22f622b22
     name: openssl
     evr: 1:3.2.2-6.el9_5.1
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/x86_64/baseos/source/SRPMS/Packages/p/pam-1.5.1-25.el9_6.src.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/x86_64/baseos/source/SRPMS/Packages/p/pam-1.5.1-26.el9_6.src.rpm
     repoid: ubi-9-for-x86_64-baseos-source-rpms
-    size: 1121432
-    checksum: sha256:2024d0a5bee19e1582f49d455422ce70e297f728bb0c119dd05be7e35f2d6df8
+    size: 1130406
+    checksum: sha256:9a351f0455da788ff63026af9a8ee30e744017941c82283f970d1ed066000bb6
     name: pam
-    evr: 1.5.1-25.el9_6
+    evr: 1.5.1-26.el9_6
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/x86_64/baseos/source/SRPMS/Packages/p/pcre2-10.40-6.el9.src.rpm
     repoid: ubi-9-for-x86_64-baseos-source-rpms
     size: 1789790
@@ -1654,20 +1654,20 @@ arches:
     checksum: sha256:922957570bae59b0a45bd9d96ce804c65c6c3260f50198f40804d95ffb0db65e
     name: zstd
     evr: 1.5.5-1.el9
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/source/SRPMS/Packages/p/postgresql-16.8-1.module+el9.6.0+22880+6b241eec.src.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/source/SRPMS/Packages/p/postgresql-16.10-1.module+el9.6.0+23420+848a4539.src.rpm
     repoid: rhel-9-for-x86_64-appstream-source-rpms
-    size: 48057580
-    checksum: sha256:0cccf0d5308502f6acf6924cb9a77e0eb8c3392ef5662cbccf75b3e97e7e3084
+    size: 48170813
+    checksum: sha256:6c27063e75601b0ed05fbe0afb4625e02515513809cd59b251bec8b7c5d2bc5c
     name: postgresql
-    evr: 16.8-1.module+el9.6.0+22880+6b241eec
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/source/SRPMS/Packages/k/kernel-5.14.0-570.32.1.el9_6.src.rpm
+    evr: 16.10-1.module+el9.6.0+23420+848a4539
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/source/SRPMS/Packages/k/kernel-5.14.0-570.39.1.el9_6.src.rpm
     repoid: rhel-9-for-x86_64-baseos-source-rpms
-    size: 149318464
-    checksum: sha256:4dcc6331d7308d00f7a3a698da55129d9344f1be385296cca16816b4b8ee2e03
+    size: 149341640
+    checksum: sha256:41c577fade0a5bbc8419dcc95ea9653b87d350e61f0c210b8e300ac901dff242
     name: kernel
-    evr: 5.14.0-570.32.1.el9_6
+    evr: 5.14.0-570.39.1.el9_6
   module_metadata:
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/repodata/d6413620b70da3e46e9b36c02e417bde9683ed06cb88014d5b68ba313a54b892-modules.yaml.gz
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/repodata/eb2bd482b0272c9a5a0e36ac9345fcd89fc88efee2153a0643b760a1068deb5d-modules.yaml.gz
     repoid: rhel-9-for-x86_64-appstream-rpms
-    size: 32671
-    checksum: sha256:d6413620b70da3e46e9b36c02e417bde9683ed06cb88014d5b68ba313a54b892
+    size: 33551
+    checksum: sha256:eb2bd482b0272c9a5a0e36ac9345fcd89fc88efee2153a0643b760a1068deb5d

@@ -31,6 +31,7 @@ from app.auth import get_current_identity
 from app.auth.identity import IdentityType
 from app.auth.identity import to_auth_header
 from app.common import inventory_config
+from app.exceptions import OutboxSaveException
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_get_host_exists_succeeded
 from app.instrumentation import log_get_host_list_failed
@@ -58,6 +59,7 @@ from lib.host_repository import find_existing_host
 from lib.host_repository import find_non_culled_hosts
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.middleware import rbac
+from lib.outbox_repository import write_event_to_outbox
 
 FactOperations = Enum("FactOperations", ("merge", "replace"))
 TAG_OPERATIONS = ("apply", "remove")
@@ -78,6 +80,8 @@ def get_host_list(
     provider_type=None,
     updated_start=None,
     updated_end=None,
+    last_check_in_start=None,
+    last_check_in_end=None,
     group_name=None,
     tags=None,
     page=1,
@@ -104,6 +108,8 @@ def get_host_list(
             provider_type,
             updated_start,
             updated_end,
+            last_check_in_start,
+            last_check_in_end,
             group_name,
             tags,
             order_by,
@@ -143,6 +149,8 @@ def get_host_list(
             provider_type,
             updated_start,
             updated_end,
+            last_check_in_start,
+            last_check_in_end,
             group_name,
             tags,
             page,
@@ -185,6 +193,8 @@ def delete_hosts_by_filter(
     provider_type=None,
     updated_start=None,
     updated_end=None,
+    last_check_in_start=None,
+    last_check_in_end=None,
     group_name=None,
     registered_with=None,
     system_type=None,
@@ -204,6 +214,8 @@ def delete_hosts_by_filter(
             provider_type,
             updated_start,
             updated_end,
+            last_check_in_start,
+            last_check_in_end,
             group_name,
             registered_with,
             system_type,
@@ -226,6 +238,8 @@ def delete_hosts_by_filter(
             provider_type,
             updated_start,
             updated_end,
+            last_check_in_start,
+            last_check_in_end,
             group_name,
             registered_with,
             system_type,
@@ -400,6 +414,16 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
         host.patch(validated_patch_host_data)
 
         if db.session.is_modified(host):
+            try:
+                # write to the outbox table for synchronization with Kessel
+                result = write_event_to_outbox(EventType.updated, str(host.id), host)
+                if not result:
+                    logger.error("Failed to write updated event to outbox")
+                    raise OutboxSaveException("Failed to write updated host event to outbox")
+            except OutboxSaveException as ose:
+                logger.error("Failed to write updated event to outbox: %s", str(ose))
+                raise ose
+
             db.session.commit()
             serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
             _emit_patch_event(serialized_host, host)
@@ -481,6 +505,16 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
             host.merge_facts_in_namespace(namespace, fact_dict)
 
         if db.session.is_modified(host):
+            try:
+                # write to the outbox table for synchronization with Kessel
+                result = write_event_to_outbox(EventType.updated, str(host.id), host)
+                if not result:
+                    logger.error("Failed to write updated event to outbox")
+                    raise OutboxSaveException("Failed to write updated host event to outbox")
+            except OutboxSaveException as ose:
+                logger.error("Failed to write updated event to outbox: %s", str(ose))
+                raise ose
+
             db.session.commit()
             serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
             _emit_patch_event(serialized_host, host)
