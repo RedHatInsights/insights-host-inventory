@@ -1,0 +1,806 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  name: insights-host-inventory-replica
+objects:
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdApp
+  metadata:
+    name: ${CLOWDAPP_NAME}
+  spec:
+    envName: ${ENV_NAME}
+    featureFlags: true
+    inMemoryDb: true
+    testing:
+      iqePlugin: host-inventory
+    jobs:
+    - name: syndicator
+      schedule: ${SYNDICATOR_CRON_SCHEDULE}
+      concurrencyPolicy: "Forbid"
+      suspend: ${{SYNDICATOR_SUSPEND}}
+      restartPolicy: Never
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: ["./jobs/inv_publish_hosts.py"]
+        env:
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+          - name: CREATE_PUBLICATIONS
+            value: ${SYNDICATOR_CREATE_PUBLICATIONS}
+          - name: DROP_PUBLICATIONS
+            value: ${SYNDICATOR_DROP_PUBLICATIONS}
+          - name: DROP_REPLICATION_SLOTS
+            value: ${SYNDICATOR_DROP_REPLICATION_SLOTS}
+          - name: REPLICA_IDENTITY_MODE
+            value: ${SYNDICATOR_REPLICA_IDENTITY_MODE}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_SYNDICATOR}
+            memory: ${MEMORY_LIMIT_SYNDICATOR}
+          requests:
+            cpu: ${CPU_REQUEST_SYNDICATOR}
+            memory: ${MEMORY_REQUEST_SYNDICATOR}
+    - name: sp-migration-prepare
+      restartPolicy: OnFailure
+      suspend: ${{SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_PREPARE}}
+      podSpec: &baseMigrationPodSpec
+        image: ${IMAGE}:${IMAGE_TAG}
+        args:
+          - "./jobs/system_profile_tables_migration_data_copy.py"
+          - "--mode"
+          - "prepare"
+          - "--suspend"
+          - "${SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_PREPARE}"
+        env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: SP_TABLES_MIGRATION_BATCH_SIZE
+            value: ${SP_TABLES_MIGRATION_BATCH_SIZE}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_SP_TABLES_MIGRATION_DATA_COPY}
+            memory: ${MEMORY_LIMIT_SP_TABLES_MIGRATION_DATA_COPY}
+          requests:
+            cpu: ${CPU_REQUEST_SP_TABLES_MIGRATION_DATA_COPY}
+            memory: ${MEMORY_REQUEST_SP_TABLES_MIGRATION_DATA_COPY}
+
+    # --- Jobs for the PARALLEL MIGRATE stage ---
+    - name: sp-migration-worker-1
+      restartPolicy: OnFailure
+      suspend: ${{SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_1}}
+      podSpec:
+        <<: *baseMigrationPodSpec
+        args:
+          - "./jobs/system_profile_tables_migration_data_copy.py"
+          - "--mode"
+          - "migrate"
+          - "--partitions"
+          - "${SP_TABLES_MIGRATION_WORKER_1_PARTITIONS}"
+          - "--suspend"
+          - "${SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_1}"
+    - name: sp-migration-worker-2
+      restartPolicy: OnFailure
+      suspend: ${{SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_2}}
+      podSpec:
+        <<: *baseMigrationPodSpec
+        args:
+          - "./jobs/system_profile_tables_migration_data_copy.py"
+          - "--mode"
+          - "migrate"
+          - "--partitions"
+          - "${SP_TABLES_MIGRATION_WORKER_2_PARTITIONS}"
+          - "--suspend"
+          - "${SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_2}"
+    - name: sp-migration-worker-3
+      restartPolicy: OnFailure
+      suspend: ${{SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_3}}
+      podSpec:
+        <<: *baseMigrationPodSpec
+        args:
+          - "./jobs/system_profile_tables_migration_data_copy.py"
+          - "--mode"
+          - "migrate"
+          - "--partitions"
+          - "${SP_TABLES_MIGRATION_WORKER_3_PARTITIONS}"
+          - "--suspend"
+          - "${SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_3}"
+    - name: sp-migration-worker-4
+      restartPolicy: OnFailure
+      suspend: ${{SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_4}}
+      podSpec:
+        <<: *baseMigrationPodSpec
+        args:
+          - "./jobs/system_profile_tables_migration_data_copy.py"
+          - "--mode"
+          - "migrate"
+          - "--partitions"
+          - "${SP_TABLES_MIGRATION_WORKER_4_PARTITIONS}"
+          - "--suspend"
+          - "${SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_4}"
+
+    # --- Job for the FINALIZE stage ---
+    - name: sp-migration-finalize
+      restartPolicy: OnFailure
+      suspend: ${{SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_FINALIZE}}
+      podSpec:
+        <<: *baseMigrationPodSpec
+        args:
+          - "./jobs/system_profile_tables_migration_data_copy.py"
+          - "--mode"
+          - "finalize"
+          - "--suspend"
+          - "${SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_FINALIZE}"
+    database:
+      name: ${DB_NAME}
+      version: 16
+    kafkaTopics: # The number of Kafka partitions variables provided are the Ephemeral environments.
+      - topicName: ${KAFKA_SYSTEM_PROFILE_TOPIC}
+        partitions: ${{NUMBER_OF_KAFKA_SYSTEM_PROFILE_TOPIC_PARTITIONS}}
+      - topicName: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
+        partitions: ${{NUMBER_OF_PAYLOAD_TRACKER_KAFKA_TOPIC_PARTITIONS}}
+      - topicName: ${KAFKA_EVENT_TOPIC}
+        partitions: ${{NUMBER_OF_KAFKA_EVENT_TOPIC_PARTITIONS}}
+      - topicName: ${KAFKA_NOTIFICATION_TOPIC}
+        partitions: ${{NUMBER_OF_KAFKA_NOTIFICATION_TOPIC_PARTITIONS}}
+      - topicName: ${KAFKA_HOST_INGRESS_TOPIC}
+        partitions: ${{NUMBER_OF_KAFKA_HOST_INGRESS_TOPIC_PARTITIONS}}
+      - topicName: ${KAFKA_HOST_INGRESS_P1_TOPIC}
+        partitions: ${{NUMBER_OF_KAFKA_HOST_INGRESS_P1_TOPIC_PARTITIONS}}
+      - topicName: ${KAFKA_EXPORT_SERVICE_TOPIC}
+        partitions: ${{NUMBER_OF_KAFKA_EXPORT_SERVICE_TOPIC_PARTITIONS}}
+      - topicName: ${KAFKA_KESSEL_WORKSPACES_TOPIC}
+        partitions: ${{NUMBER_OF_KAFKA_KESSEL_WORKSPACES_TOPIC_PARTITIONS}}
+# this service proxies requests for the old URL (insights-inventory:8080) to the clowderized service (host-inventory-service:8000)
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      app: insights-inventory
+    name: insights-inventory
+  spec:
+    ports:
+    - name: port-8080
+      port: 8080
+      protocol: TCP
+      targetPort: 8000
+    selector:
+      pod: host-inventory-service
+- apiVersion: v1
+  data:
+    nginx.conf: |-
+      worker_processes  1;
+      error_log  /dev/stderr warn;
+      pid        /run/nginx.pid;
+
+      events {
+        worker_connections  1024;
+      }
+      http {
+        log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_proto" "$http_x_forwarded_for"';
+
+        access_log  /dev/stdout  main;
+
+        sendfile            on;
+        tcp_nopush          on;
+        tcp_nodelay         on;
+        keepalive_timeout   65;
+        server_tokens       off;
+
+        upstream host-inventory-service-reads {
+          server host-inventory-service-reads:8000;
+          server host-inventory-service-secondary-reads:8000;
+        }
+        upstream host-inventory-service-writes {
+          server host-inventory-service-writes:8000;
+        }
+        map $request_method $upstream_location {
+                    GET     host-inventory-service-reads;
+                    HEAD    host-inventory-service-reads;
+                    POST    host-inventory-service-writes;
+                    PUT     host-inventory-service-writes;
+                    DELETE  host-inventory-service-writes;
+                    default host-inventory-service-writes;
+        }
+        server {
+          error_log  stderr;
+          listen 8000;
+          listen 9000;
+
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
+          proxy_set_header Host $http_host;
+          proxy_redirect off;
+
+          client_max_body_size 500M;
+          client_header_buffer_size 46k;
+          location /healthz {
+              auth_basic          off;
+              allow               all;
+              return              200;
+          }
+          location /metrics {
+              auth_basic          off;
+              allow               all;
+              return              200;
+          }
+          location / {
+            proxy_pass http://$upstream_location;
+            proxy_read_timeout 600s;
+          }
+        }
+      }
+  kind: ConfigMap
+  metadata:
+    name: inventory-nginx-conf
+
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    name: rbac-psks
+  data:
+    psks.json: >-
+      ewogICJhZHZpc29yIjogewogICAgImFsdC1zZWNyZXQiOiAiMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTEiCiAgfSwKICAiYXBwcm92YWwiOiB7CiAgICAiYWx0LXNlY3JldCI6ICIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMiIKICB9LAogICJub3RpZmljYXRpb25zIjogewogICAgImFsdC1zZWNyZXQiOiAiMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMiCiAgfSwKICAiaW52ZW50b3J5IjogewogICAgInNlY3JldCI6ICI0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQiCiAgfQp9
+  type: Opaque
+
+parameters:
+- name: LOG_LEVEL
+  value: INFO
+
+- name: CPU_REQUEST_SERVICE
+  value: 250m
+- name: CPU_LIMIT_SERVICE
+  value: 500m
+- name: MEMORY_REQUEST_SERVICE
+  value: 256Mi
+- name: MEMORY_LIMIT_SERVICE
+  value: 512Mi
+
+- name: CPU_REQUEST_MQ_PMIN
+  value: 250m
+- name: CPU_LIMIT_MQ_PMIN
+  value: 500m
+- name: MEMORY_REQUEST_MQ_PMIN
+  value: 256Mi
+- name: MEMORY_LIMIT_MQ_PMIN
+  value: 512Mi
+
+- name: CPU_REQUEST_MQ_P1
+  value: 250m
+- name: CPU_LIMIT_MQ_P1
+  value: 500m
+- name: MEMORY_REQUEST_MQ_P1
+  value: 256Mi
+- name: MEMORY_LIMIT_MQ_P1
+  value: 512Mi
+
+- name: CPU_REQUEST_MQ_SP
+  value: 250m
+- name: CPU_LIMIT_MQ_SP
+  value: 500m
+- name: MEMORY_REQUEST_MQ_SP
+  value: 256Mi
+- name: MEMORY_LIMIT_MQ_SP
+  value: 512Mi
+
+- name: CPU_REQUEST_WORKSPACES_MQ
+  value: 250m
+- name: CPU_LIMIT_WORKSPACES_MQ
+  value: 500m
+- name: MEMORY_REQUEST_WORKSPACES_MQ
+  value: 512Mi
+- name: MEMORY_LIMIT_WORKSPACES_MQ
+  value: 1Gi
+
+- name: CPU_REQUEST_REAPER
+  value: 250m
+- name: CPU_LIMIT_REAPER
+  value: 500m
+- name: MEMORY_REQUEST_REAPER
+  value: 256Mi
+- name: MEMORY_LIMIT_REAPER
+  value: 512Mi
+- name: HOST_DELETE_CHUNK_SIZE
+  value: "1000"
+
+- name: CPU_REQUEST_STALE_HOST_NOTIFICAION
+  value: 250m
+- name: CPU_LIMIT_STALE_HOST_NOTIFICAION
+  value: 500m
+- name: MEMORY_REQUEST_STALE_HOST_NOTIFICAION
+  value: 256Mi
+- name: MEMORY_LIMIT_STALE_HOST_NOTIFICAION
+  value: 512Mi
+
+- name: CPU_REQUEST_SP_VALIDATOR
+  value: 250m
+- name: CPU_LIMIT_SP_VALIDATOR
+  value: 500m
+- name: MEMORY_REQUEST_SP_VALIDATOR
+  value: 256Mi
+- name: MEMORY_LIMIT_SP_VALIDATOR
+  value: 512Mi
+
+- name: CPU_REQUEST_PENDO_SYNCHER
+  value: 250m
+- name: CPU_LIMIT_PENDO_SYNCHER
+  value: 500m
+- name: MEMORY_REQUEST_PENDO_SYNCHER
+  value: 256Mi
+- name: MEMORY_LIMIT_PENDO_SYNCHER
+  value: 512Mi
+
+- name: CPU_REQUEST_SYNCHRONIZER
+  value: 250m
+- name: CPU_LIMIT_SYNCHRONIZER
+  value: 500m
+- name: MEMORY_REQUEST_SYNCHRONIZER
+  value: 256Mi
+- name: MEMORY_LIMIT_SYNCHRONIZER
+  value: 512Mi
+
+- name: CPU_REQUEST_DELETE_HOSTS_S3
+  value: 250m
+- name: CPU_LIMIT_DELETE_HOSTS_S3
+  value: 500m
+- name: MEMORY_REQUEST_DELETE_HOSTS_S3
+  value: 0.5Gi
+- name: MEMORY_LIMIT_DELETE_HOSTS_S3
+  value: 1Gi
+
+- name: CPU_REQUEST_SYNDICATOR
+  value: 250m
+- name: CPU_LIMIT_SYNDICATOR
+  value: 500m
+- name: MEMORY_REQUEST_SYNDICATOR
+  value: 256Mi
+- name: MEMORY_LIMIT_SYNDICATOR
+  value: 512Mi
+
+- name: CPU_REQUEST_EXPORT_SVC
+  value: 250m
+- name: CPU_LIMIT_EXPORT_SVC
+  value: 500m
+- name: MEMORY_REQUEST_EXPORT_SVC
+  value: 256Mi
+- name: MEMORY_LIMIT_EXPORT_SVC
+  value: 512Mi
+
+- name: CPU_REQUEST_DUPLICATE_HOSTS_REMOVER_JOB
+  value: 250m
+- name: CPU_LIMIT_DUPLICATE_HOSTS_REMOVER_JOB
+  value: 500m
+- name: MEMORY_REQUEST_DUPLICATE_HOSTS_REMOVER_JOB
+  value: 256Mi
+- name: MEMORY_LIMIT_DUPLICATE_HOSTS_REMOVER_JOB
+  value: 512Mi
+- name: REMOVE_DUPLICATES_DRY_RUN
+  description: Whether the duplicate hosts remover script should run in dry-run mode
+  value: 'true'
+
+- name: CPU_REQUEST_HOSTS_TABLE_MIGRATION_DATA_COPY
+  value: 250m
+- name: CPU_LIMIT_HOSTS_TABLE_MIGRATION_DATA_COPY
+  value: 500m
+- name: MEMORY_REQUEST_HOSTS_TABLE_MIGRATION_DATA_COPY
+  value: 256Mi
+- name: MEMORY_LIMIT_HOSTS_TABLE_MIGRATION_DATA_COPY
+  value: 512Mi
+
+- name: CPU_REQUEST_HOSTS_TABLE_MIGRATION_SWITCH
+  value: 250m
+- name: CPU_LIMIT_HOSTS_TABLE_MIGRATION_SWITCH
+  value: 500m
+- name: MEMORY_REQUEST_HOSTS_TABLE_MIGRATION_SWITCH
+  value: 256Mi
+- name: MEMORY_LIMIT_HOSTS_TABLE_MIGRATION_SWITCH
+  value: 512Mi
+
+- name: CPU_REQUEST_SP_TABLES_MIGRATION_DATA_COPY
+  value: 250m
+- name: CPU_LIMIT_SP_TABLES_MIGRATION_DATA_COPY
+  value: 500m
+- name: MEMORY_REQUEST_SP_TABLES_MIGRATION_DATA_COPY
+  value: 256Mi
+- name: MEMORY_LIMIT_SP_TABLES_MIGRATION_DATA_COPY
+  value: 512Mi
+
+- name: CPU_REQUEST_SYNC_WORKLOADS_FIELDS
+  value: 250m
+- name: CPU_LIMIT_SYNC_WORKLOADS_FIELDS
+  value: 500m
+- name: MEMORY_REQUEST_SYNC_WORKLOADS_FIELDS
+  value: 256Mi
+- name: MEMORY_LIMIT_SYNC_WORKLOADS_FIELDS
+  value: 512Mi
+
+- description: Replica count for p1 consumer
+  name: REPLICAS_P1
+  value: "5"
+- description: Replica count for pmin consumer
+  name: REPLICAS_PMIN
+  value: "3"
+- description: Replica count for sp consumer
+  name: REPLICAS_SP
+  value: "2"
+- description: Replica count for webservice
+  name: REPLICAS_SVC_READS
+  value: "7"
+- description: Replica count for webservice
+  name: REPLICAS_SVC_SECONDARY_READS
+  value: "1"
+- description: Replica count for webservice
+  name: REPLICAS_SVC_WRITES
+  value: "3"
+- description: Replica count for export-service
+  name: REPLICAS_EXPORT_SVC
+  value: "2"
+- description: Replica count for mq-workspaces consumer
+  name: REPLICAS_WORKSPACES
+  value: "1"
+- description: Image tag
+  name: IMAGE_TAG
+  required: true
+- description: Image NAME
+  name: IMAGE
+  required: true
+  value: quay.io/redhat-services-prod/insights-management-tenant/insights-host-inventory/insights-host-inventory
+- description : ClowdEnvironment name
+  name: ENV_NAME
+  value: stage
+- name: APP_NAME
+  value: inventory
+- description: ClowdApp name
+  name: CLOWDAPP_NAME
+  value: host-inventory-replica
+- description: Database name
+  name: DB_NAME
+  value: host-inventory
+- name: PATH_PREFIX
+  value: api
+- name: CONSOLEDOT_HOSTNAME
+  value: localhost
+- name: URLLIB3_LOG_LEVEL
+  value: WARNING
+- name: CONNEXION_LOG_LEVEL
+  value: WARNING
+- description: SSL validation mode for the DB
+  name: INVENTORY_DB_SSL_MODE
+  value: prefer
+- description: disable RBAC middleware
+  name: BYPASS_RBAC
+  value: 'false'
+- description: disable account-to-org_id translation, defaulting to None where org_id is not provided
+  name: BYPASS_TENANT_TRANSLATION
+  value: 'false'
+- name: KAFKA_PRODUCER_ACKS
+  value: '1'
+- name: KAFKA_PRODUCER_RETRIES
+  value: '0'
+- name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+  value: '100'
+- name: KAFKA_HOST_INGRESS_TOPIC
+  description: The topic containing Host data sent by reporters
+  value: platform.inventory.host-ingress
+- name: NUMBER_OF_KAFKA_HOST_INGRESS_TOPIC_PARTITIONS
+  description: Number of partitions for the Kafka host ingress topic
+  value: '1'
+- name: KAFKA_HOST_INGRESS_P1_TOPIC
+  description: The TOP-PRIORITY topic containing Host data sent by reporters
+  value: platform.inventory.host-ingress-p1
+- name: NUMBER_OF_KAFKA_HOST_INGRESS_P1_TOPIC_PARTITIONS
+  description: Number of partitions for the Kafka host ingress P1 topic
+  value: '1'
+- name: KAFKA_KESSEL_WORKSPACES_TOPIC
+  description: The Kafka topic for Kessel Workspace data
+  value: outbox.event.workspace
+- name: NUMBER_OF_KAFKA_KESSEL_WORKSPACES_TOPIC_PARTITIONS
+  description: Number of partitions for the Kafka kessel workspaces topic
+  value: '1'
+- name: KAFKA_EVENT_TOPIC
+  description: The topic for Host data that were processed by Inventory
+  value: platform.inventory.events
+- name: NUMBER_OF_KAFKA_EVENT_TOPIC_PARTITIONS
+  description: Number of partitions for the Kafka event topic
+  value: '1'
+- name: KAFKA_NOTIFICATION_TOPIC
+  description: The topic containing messages to be sent as notifications
+  value: platform.notifications.ingress
+- name: NUMBER_OF_KAFKA_NOTIFICATION_TOPIC_PARTITIONS
+  description: Number of partitions for the Kafka notification topic
+  value: '1'
+- name: KAFKA_ADDITIONAL_VALIDATION_TOPIC
+  description: Used by system_profile_validator
+  value: platform.inventory.host-ingress-p1
+- name: KAFKA_SYSTEM_PROFILE_TOPIC
+  description: The topic containing Host data for System Profile updates
+  value: platform.inventory.system-profile
+- name: NUMBER_OF_KAFKA_SYSTEM_PROFILE_TOPIC_PARTITIONS
+  description: Number of partitions for the Kafka system-profile topic
+  value: '1'
+- name: PAYLOAD_TRACKER_KAFKA_TOPIC
+  description: The topic for payload tracker
+  value: platform.payload-status
+- name: NUMBER_OF_PAYLOAD_TRACKER_KAFKA_TOPIC_PARTITIONS
+  description: Number of partitions for the payload tracker topic.
+  value: '1'
+- name: KAFKA_EXPORT_SERVICE_TOPIC
+  description: The topic used to consume Export Service data
+  value: platform.export.requests
+- name: NUMBER_OF_KAFKA_EXPORT_SERVICE_TOPIC_PARTITIONS
+  description: Number of partitions for the export-service topic
+  value: '1'
+- name: KAFKA_HOST_INGRESS_GROUP
+  description: The Kafka consumer group name
+  value: inventory-mq
+- name: KAFKA_SECURITY_PROTOCOL
+  description: The Kafka Security Protocol
+  value: PLAINTEXT
+- name: KAFKA_SASL_MECHANISM
+  value: 'PLAIN'
+- name: CONSUMER_MQ_BROKER
+  value: ''
+- name: PROMETHEUS_PUSHGATEWAY
+  value: 'localhost:9091'
+- name: KAFKA_BOOTSTRAP_HOST
+  value: 'localhost'
+- name: KAFKA_BOOTSTRAP_PORT
+  value: '29092'
+- name: INVENTORY_DB_SSL_CERT
+  value: ''
+- name: PENDO_SYNCHER_SUSPEND
+  value: 'true'
+- name: PENDO_CRON_SCHEDULE
+  value: '@daily'
+- name: PENDO_SYNC_ACTIVE
+  value: 'false'
+- name: SP_VALIDATOR_SUSPEND
+  value: 'true'
+- name: REAPER_SUSPEND
+  value: 'true'
+- name: STALE_HOST_NOTIFICATION_SUSPEND
+  value: 'true'
+- name: STALE_HOST_NOTIFICATION_SCHEDULE
+  value: '*/1 * * * *'
+- name: SYNDICATOR_SUSPEND
+  value: 'false'
+- name: SYNDICATOR_CRON_SCHEDULE
+  value: '*/5 * * * *'
+- name: KAFKA_SP_VALIDATOR_MAX_MESSAGES
+  value: '10000'
+- name: TENANT_TRANSLATOR_HOST
+  value: 'gateway.3scale-dev.svc.cluster.local'
+- name: TENANT_TRANSLATOR_PORT
+  value: '8892'
+- name: GUNICORN_WORKERS
+  value: '4'
+- name: GUNICORN_THREADS
+  value: '8'
+- name: GUNICORN_REQUEST_FIELD_LIMIT
+  value: '16380'
+- name: GUNICORN_REQUEST_LINE_LIMIT
+  value: '8190'
+- name: SCRIPT_CHUNK_SIZE
+  value: '500'
+- name: REBUILD_EVENTS_TIME_LIMIT
+  value: '3600'
+- name: INVENTORY_DB_STATEMENT_TIMEOUT
+  value: '30000'
+- name: INVENTORY_DB_LOCK_TIMEOUT
+  value: '30000'
+- name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
+  value: '0'
+- name: INVENTORY_API_CACHE_TYPE
+  value: 'NullCache'
+- name: MQ_DB_BATCH_MAX_MESSAGES
+  value: '1'
+- name: MQ_WORKSPACES_DB_BATCH_MAX_MESSAGES
+  value: '1'
+- name: MQ_DB_BATCH_MAX_SECONDS
+  value: '0.5'
+- name: INVENTORY_API_USE_READREPLICA
+  value: 'false'
+- name: INVENTORY_API_READREPLICA_SECRET
+  value: 'host-inventory-read-only-db'
+- name: INVENTORY_API_SECONDARY_READREPLICA_SECRET
+  value: 'host-inventory-read-only-db'
+- name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
+  value: '129600'
+- name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
+  value: '5'
+- name: KAFKA_CONSUMER_SESSION_TIMEOUT_MS
+  value: '10000'
+- name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
+  value: '3000'
+- name: INVENTORY_API_WRITES_LIVENESS_PROBE_PERIOD_SECONDS
+  value: '30'
+- name: INVENTORY_API_WRITES_LIVENESS_PROBE_TIMEOUT_SECONDS
+  value: '60'
+- name: INVENTORY_API_READS_LIVENESS_PROBE_PERIOD_SECONDS
+  value: '30'
+- name: INVENTORY_API_READS_LIVENESS_PROBE_TIMEOUT_SECONDS
+  value: '60'
+- name: INVENTORY_API_WRITES_READINESS_PROBE_PERIOD_SECONDS
+  value: '30'
+- name: INVENTORY_API_WRITES_READINESS_PROBE_TIMEOUT_SECONDS
+  value: '60'
+- name: INVENTORY_API_READS_READINESS_PROBE_PERIOD_SECONDS
+  value: '30'
+- name: INVENTORY_API_READS_READINESS_PROBE_TIMEOUT_SECONDS
+  value: '60'
+- name: INVENTORY_DB_SCHEMA
+  value: 'hbi'
+- name: DELETE_HOSTS_S3_AWS_SECRET
+  description: The AWS secret for the delete-hosts S3 bucket
+  value: 'hbi-delete-host-ids-s3'
+- name: DELETE_HOSTS_DRY_RUN
+  description: Whether the delete_hosts_s3 script should run in dry-run mode
+  value: 'true'
+- name: DELETE_HOSTS_S3_BATCH_SIZE
+  description: The batch size to use for the delete-hosts-s3 script.
+  value: '500'
+- name: HOSTS_TABLE_NUM_PARTITIONS
+  description: The number of partitions for the hosts table
+  value: '1'
+- name: SUSPEND_DELETE_HOSTS_S3
+  description: If set to true, the delete-hosts-s3 job will immediately exit upon running.
+  value: 'true'
+- name: SUSPEND_DUPLICATE_HOSTS_REMOVER
+  description: If set to true, the duplicate-hosts-remover job will immediately exit upon running.
+  value: 'true'
+- name: HOSTS_TABLE_MIGRATION_BATCH_SIZE
+  description: The batch size to use for the hosts partitioned table migration.
+  value: '10000'
+- name: HOSTS_TABLE_MIGRATION_DATA_COPY_SUSPEND
+  value: 'true'
+- name: HOSTS_TABLE_MIGRATION_SWITCH_SUSPEND
+  value: 'true'
+- name: HOSTS_TABLE_MIGRATION_SWITCH_MODE
+  description: switch or rollback to revert the hosts table switch.
+  value: 'switch'
+- name: SP_TABLES_MIGRATION_DATA_COPY_SUSPEND
+  value: 'true'
+- name: SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_PREPARE
+  value: 'true'
+- name: SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_FINALIZE
+  value: 'true'
+- name: SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_1
+  value: 'true'
+- name: SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_2
+  value: 'true'
+- name: SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_3
+  value: 'true'
+- name: SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_4
+  value: 'true'
+- name: SP_TABLES_MIGRATION_WORKER_1_PARTITIONS
+  description: "Partition range for the first worker (e.g., 0-7)"
+  value: "0"
+- name: SP_TABLES_MIGRATION_WORKER_2_PARTITIONS
+  description: "Partition range for the second worker (e.g., 8-15)"
+  value: "1"
+- name: SP_TABLES_MIGRATION_WORKER_3_PARTITIONS
+  description: "Partition range for the third worker (e.g., 16-23)"
+  value: "2"
+- name: SP_TABLES_MIGRATION_WORKER_4_PARTITIONS
+  description: "Partition range for the fourth worker (e.g., 24-31)"
+  value: "3"
+- name: SP_TABLES_MIGRATION_BATCH_SIZE
+  description: The batch size to use for the system profile partitioned tables migration.
+  value: '10000'
+
+# NGINX
+- displayName: Minimum replicas
+  name: NGINX_REPLICAS
+  required: true
+  value: "1"
+- displayName: Memory Request
+  name: NGINX_MEMORY_REQUEST
+  required: true
+  value: 100Mi
+- displayName: Memory Limit
+  name: NGINX_MEMORY_LIMIT
+  required: true
+  value: 200Mi
+- displayName: CPU Request
+  name: NGINX_CPU_REQUEST
+  required: true
+  value: 100m
+- displayName: CPU Limit
+  name: NGINX_CPU_LIMIT
+  required: true
+  value: 200m
+
+# Feature flags
+- description: Unleash secret name
+  name: UNLEASH_SECRET_NAME
+  value: bypass
+- description: Unleash API url
+  name: UNLEASH_URL
+- description: disable Unleash (feature flags), defaulting to fallback values
+  name: BYPASS_UNLEASH
+  value: 'false'
+- description: How frequently the Unleash client refreshes data from the server (in seconds)
+  name: UNLEASH_REFRESH_INTERVAL
+  value: "15"
+
+#floorist
+- name: FLOORIST_SUSPEND
+  description: Disable Floorist cronjob execution
+  required: true
+  value: 'true'
+- description: bucket secret name
+  name: FLOORIST_BUCKET_SECRET_NAME
+  required: true
+  value: dummy-secret
+- description: bucket secret name
+  name: FLOORIST_HMS_BUCKET_SECRET_NAME
+  required: true
+  value: dummy-hms-secret
+- name: FLOORIST_LOGLEVEL
+  description: Floorist loglevel config
+  value: 'INFO'
+- name: FLOORIST_DB_SECRET_NAME
+  description: database secret name
+  value: host-inventory-db
+
+  # Logical replication
+- name: SYNDICATOR_CREATE_PUBLICATIONS
+  description: Publications to create
+  value: ''
+- name: SYNDICATOR_DROP_PUBLICATIONS
+  description: Publications to drop
+  value: ''
+- name: SYNDICATOR_DROP_REPLICATION_SLOTS
+  description: Replication slots to drop
+  value: ''
+- name: SYNDICATOR_REPLICA_IDENTITY_MODE
+  description: Replica Identity Mode to set in the published tables (and their partitions)
+  value: ''
+
+# Replica namespace
+- name: REPLICA_NAMESPACE
+  description: Disable Kafka operations in the replica namespace
+  value: 'false'
+
+# DB refactoring
+- name: MIGRATION_MODE
+  description: Choose migration mode to run DB refactoring tables transition
+  required: true
+  value: automated

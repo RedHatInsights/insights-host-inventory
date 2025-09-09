@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: insights-host-inventory-cjis-replica
+objects:
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    name: sp-migration-prepare-${SP_TABLES_MIGRATION_DATA_COPY_PREPARE_RUN_NUMBER}
+  spec:
+    appName: host-inventory-replica
+    jobs:
+      - sp-migration-prepare
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    name: sp-migration-migrate-${SP_TABLES_MIGRATION_DATA_COPY_WORKERS_RUN_NUMBER}
+  spec:
+    appName: host-inventory-replica
+    jobs:
+      - sp-migration-worker-1
+      - sp-migration-worker-2
+      - sp-migration-worker-3
+      - sp-migration-worker-4
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    name: sp-migration-finalize-${SP_TABLES_MIGRATION_DATA_COPY_FINALIZE_RUN_NUMBER}
+  spec:
+    appName: host-inventory-replica
+    jobs:
+      - sp-migration-finalize
+parameters:
+- name: SP_TABLES_MIGRATION_DATA_COPY_PREPARE_RUN_NUMBER
+  value: '1'
+- name: SP_TABLES_MIGRATION_DATA_COPY_WORKERS_RUN_NUMBER
+  value: '1'
+- name: SP_TABLES_MIGRATION_DATA_COPY_FINALIZE_RUN_NUMBER
+  value: '1'
