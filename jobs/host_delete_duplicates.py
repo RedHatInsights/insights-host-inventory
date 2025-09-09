@@ -184,6 +184,9 @@ def run(
 
             return num_deleted
 
+        except InterruptedError:
+            logger.info(f"{PROMETHEUS_JOB} was interrupted.")
+            return None
         except Exception as e:
             logger.exception(e)
             return None
