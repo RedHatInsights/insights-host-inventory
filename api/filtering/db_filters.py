@@ -40,28 +40,18 @@ from lib.feature_flags import FLAG_INVENTORY_FILTER_STALENESS_USING_COLUMNS
 from lib.feature_flags import get_flag_value
 
 __all__ = (
-    "canonical_fact_filter",
     "query_filters",
     "host_id_list_filter",
     "rbac_permissions_filter",
     "stale_timestamp_filter",
     "staleness_to_conditions",
     "update_query_for_owner_id",
+    "insights_id_filter",
 )
 
 logger = get_logger(__name__)
 DEFAULT_STALENESS_VALUES = ["not_culled"]
-
-# Maps host columns -> is_array?
-CANONICAL_FACT_MAP: dict[str, bool] = {
-    "insights_id": False,
-    "subscription_manager_id": False,
-    "satellite_id": False,
-    "fqdn": False,
-    "bios_uuid": False,
-    "ip_addresses": True,
-    "mac_addresses": True,
-}
+DEFAULT_INSIGHTS_ID = "00000000-0000-0000-0000-000000000000"
 
 # Static system type filter mappings
 SYSTEM_TYPE_FILTERS: dict[str, Any] = {
@@ -85,25 +75,37 @@ SYSTEM_TYPE_FILTERS: dict[str, Any] = {
 }
 
 
-def canonical_fact_filter(name: str, value, case_insensitive: bool = False) -> list:
-    is_array = CANONICAL_FACT_MAP.get(name)
-    if is_array is not None:
+def _hosts_field_filter(name: str, value, case_insensitive: bool = False) -> list:
+    """Builds a database filter for a Host model attribute."""
+    try:
         field = getattr(Host, name)
-        val = value.lower() if case_insensitive else value
-        if is_array:
-            return [field.contains([val])]
-        else:
-            if case_insensitive:
-                return [func.lower(field) == val]
-            else:
-                return [field == val]
-    else:
-        # Fallback to canonical_facts JSON field for unknown facts
-        expr = Host.canonical_facts[name].astext
-        if case_insensitive:
-            expr = func.lower(expr)
-            value = value.lower()
-        return [expr == value]
+    except AttributeError as e:
+        raise ValidationException(f"Filter key '{name}' is invalid.") from e
+
+    final_value = value.lower() if case_insensitive else value
+
+    expression = func.lower(field) if case_insensitive else field
+    return [expression == final_value]
+
+
+def insights_id_filter(insights_id: str, case_insensitive: bool = False) -> list:
+    return _hosts_field_filter("insights_id", insights_id, case_insensitive)
+
+
+def _subscription_manager_id_filter(subscription_manager_id: str, case_insensitive: bool = False) -> list:
+    return _hosts_field_filter("subscription_manager_id", subscription_manager_id, case_insensitive)
+
+
+def _fqdn_filter(fqdn: str, case_insensitive: bool = False) -> list:
+    return _hosts_field_filter("fqdn", fqdn, case_insensitive)
+
+
+def _provider_id_filter(provider_id: str, case_insensitive: bool = False) -> list:
+    return _hosts_field_filter("provider_id", provider_id, case_insensitive)
+
+
+def _provider_type_filter(provider_type: str, case_insensitive: bool = False) -> list:
+    return _hosts_field_filter("provider_type", provider_type, case_insensitive)
 
 
 def _display_name_filter(display_name: str) -> list:
@@ -257,6 +259,11 @@ def _registered_with_filter(registered_with: list[str], host_type_filter: set[st
     if not registered_with:
         return _query_filter
     reg_with_copy = deepcopy(registered_with)
+    if "insights" in registered_with:
+        _query_filter.append(Host.insights_id != DEFAULT_INSIGHTS_ID)
+        reg_with_copy.remove("insights")
+    if not reg_with_copy:
+        return _query_filter
 
     # Get the per_report_staleness check_in value for the reporter
     # and build the filter based on it
@@ -408,22 +415,22 @@ def query_filters(
 
     filters = []
     if fqdn:
-        filters += canonical_fact_filter("fqdn", fqdn, case_insensitive=True)
+        filters += _fqdn_filter(fqdn, case_insensitive=True)
     elif display_name:
         filters += _display_name_filter(display_name)
     elif hostname_or_id:
         filters += _hostname_or_id_filter(hostname_or_id)
     elif insights_id:
-        filters += canonical_fact_filter("insights_id", insights_id.lower())
+        filters += insights_id_filter(insights_id.lower())
     elif subscription_manager_id:
-        filters += canonical_fact_filter("subscription_manager_id", subscription_manager_id.lower())
+        filters += _subscription_manager_id_filter(subscription_manager_id.lower())
 
     if system_type:
         filters += _system_type_filter(system_type)
     if provider_id:
-        filters += canonical_fact_filter("provider_id", provider_id, case_insensitive=True)
+        filters += _provider_id_filter(provider_id, case_insensitive=True)
     if provider_type:
-        filters += canonical_fact_filter("provider_type", provider_type)
+        filters += _provider_type_filter(provider_type)
     if updated_start or updated_end:
         filters += _modified_on_filter(updated_start, updated_end)
     if last_check_in_start or last_check_in_end:
