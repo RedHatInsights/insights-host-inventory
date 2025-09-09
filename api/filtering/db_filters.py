@@ -148,9 +148,7 @@ def per_reporter_staleness_filter(staleness, reporter, host_type_filter, org_id)
             *staleness_to_conditions(
                 staleness_obj,
                 staleness,
-                host_type,
                 partial(_stale_timestamp_per_reporter_filter, reporter=reporter),
-                True,
             )
         )
         if len(host_type_filter) > 1:
@@ -176,44 +174,23 @@ def _staleness_filter_using_columns(staleness: list[str]) -> list:
     return [or_(*filters)]
 
 
-def _staleness_filter(staleness: list[str] | tuple[str, ...], host_type_filter: set[str | None], org_id) -> list:
+def _staleness_filter(staleness: list[str] | tuple[str, ...], org_id) -> list:
     staleness_obj = serialize_staleness_to_dict(get_staleness_obj(org_id))
-    staleness_conditions = []
-    for host_type in host_type_filter:
-        conditions = or_(*staleness_to_conditions(staleness_obj, staleness, host_type, stale_timestamp_filter, True))
-        if len(host_type_filter) > 1:
-            staleness_conditions.append(
-                and_(
-                    _host_type_filter(host_type),
-                    conditions,
-                )
-            )
-        else:
-            staleness_conditions.append(conditions)
+    staleness_conditions = [or_(*staleness_to_conditions(staleness_obj, staleness, stale_timestamp_filter))]
 
     return [or_(*staleness_conditions)]
 
 
-def staleness_to_conditions(
-    staleness, staleness_states, host_type, timestamp_filter_func, omit_host_type_filter: bool = False
-):
-    def _timestamp_and_host_type_filter(condition, state):
-        filter_ = timestamp_filter_func(*getattr(condition, state)())
-        if omit_host_type_filter:
-            return filter_
-        else:
-            return and_(filter_, _host_type_filter(host_type))
-
-    condition = Conditions(staleness, host_type)
+def staleness_to_conditions(staleness, staleness_states, timestamp_filter_func):
+    condition = Conditions(staleness)
     filtered_states = (state for state in staleness_states if state != "unknown")
-    return (_timestamp_and_host_type_filter(condition, state) for state in filtered_states)
+    return (timestamp_filter_func(*getattr(condition, state)()) for state in filtered_states)
 
 
-def find_stale_host_in_window(staleness, host_type, last_run_secs, job_start_time):
+def find_stale_host_in_window(staleness, last_run_secs, job_start_time):
     logger.debug("finding hosts that went stale in the last %s seconds", last_run_secs)
     end_date = job_start_time
-    prefix = "immutable" if host_type == "edge" else "conventional"
-    stale_timestamp = end_date - timedelta(seconds=staleness[f"{prefix}_time_to_stale"])
+    stale_timestamp = end_date - timedelta(seconds=staleness["conventional_time_to_stale"])
     return (
         stale_timestamp_filter(
             stale_timestamp - timedelta(seconds=last_run_secs),
@@ -292,18 +269,34 @@ def _modified_on_filter(updated_start: str | None, updated_end: str | None) -> l
     if updated_end_date and updated_end_date.year > 1970:
         modified_on_filter += [Host.modified_on <= updated_end_date]
 
-    return [and_(*modified_on_filter)]
+    return [and_(*modified_on_filter)] if modified_on_filter else []
 
 
-def _get_staleness_filter(all_staleness_states: list[str], host_type_filter: set[str | None], org_id: str) -> list:
+def _last_check_in_filter(last_check_in_start: str | None, last_check_in_end: str | None) -> list:
+    last_check_in_filter = []
+    last_check_in_start_date = parser.isoparse(last_check_in_start) if last_check_in_start else None
+    last_check_in_end_date = parser.isoparse(last_check_in_end) if last_check_in_end else None
+
+    if last_check_in_start_date and last_check_in_end_date and last_check_in_start_date > last_check_in_end_date:
+        raise ValueError("last_check_in_start cannot be after last_check_in_end.")
+
+    if last_check_in_start_date and last_check_in_start_date.year > 1970:
+        last_check_in_filter += [Host.last_check_in >= last_check_in_start_date]
+    if last_check_in_end_date and last_check_in_end_date.year > 1970:
+        last_check_in_filter += [Host.last_check_in <= last_check_in_end_date]
+
+    return [and_(*last_check_in_filter)] if last_check_in_filter else []
+
+
+def _get_staleness_filter(all_staleness_states: list[str], org_id: str) -> list:
     if get_flag_value(FLAG_INVENTORY_FILTER_STALENESS_USING_COLUMNS):
         return _staleness_filter_using_columns(all_staleness_states)
-    return _staleness_filter(all_staleness_states, host_type_filter, org_id)
+    return _staleness_filter(all_staleness_states, org_id)
 
 
 def host_id_list_filter(host_id_list: list[str], org_id: str) -> list:
     all_filters = [Host.id.in_(host_id_list)]
-    all_filters += _get_staleness_filter(ALL_STALENESS_STATES, set(HOST_TYPES.copy()), org_id)
+    all_filters += _get_staleness_filter(ALL_STALENESS_STATES, org_id)
     return all_filters
 
 
@@ -358,6 +351,8 @@ def query_filters(
     provider_type: str | None = None,
     updated_start: str | None = None,
     updated_end: str | None = None,
+    last_check_in_start: str | None = None,
+    last_check_in_end: str | None = None,
     group_name: list[str] | None = None,
     group_ids: list[str] | None = None,
     tags: list[str] | None = None,
@@ -400,6 +395,8 @@ def query_filters(
         filters += canonical_fact_filter("provider_type", provider_type)
     if updated_start or updated_end:
         filters += _modified_on_filter(updated_start, updated_end)
+    if last_check_in_start or last_check_in_end:
+        filters += _last_check_in_filter(last_check_in_start, last_check_in_end)
     if group_ids:
         filters += _group_ids_filter(group_ids)
     if group_name:
@@ -410,11 +407,13 @@ def query_filters(
         sp_filter, host_type_filter = _system_profile_filter(filter)
         filters += sp_filter
     if staleness:
-        filters += _get_staleness_filter(staleness, host_type_filter, identity.org_id)
+        filters += _get_staleness_filter(staleness, identity.org_id)
     if registered_with:
         filters += _registered_with_filter(registered_with, host_type_filter, identity.org_id)
     if rbac_filter:
         filters += rbac_permissions_filter(rbac_filter)
+
+    filters = [and_(Host.org_id == identity.org_id, *filters)]
 
     # Determine query_base
     if group_name or group_ids or rbac_filter or order_by == "group_name":

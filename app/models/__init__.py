@@ -23,6 +23,7 @@ from app.models.host import Host
 from app.models.host import LimitedHost
 from app.models.host_group_assoc import HostGroupAssoc
 from app.models.host_inventory_metadata import HostInventoryMetadata
+from app.models.outbox import Outbox
 from app.models.schemas import CanonicalFactsSchema
 from app.models.schemas import DiskDeviceSchema
 from app.models.schemas import DnfModuleSchema
@@ -39,8 +40,8 @@ from app.models.schemas import StalenessSchema
 from app.models.schemas import TagsSchema
 from app.models.schemas import YumRepoSchema
 from app.models.staleness import Staleness
+from app.models.system_profile_dynamic import HostDynamicSystemProfile
 from app.models.system_profile_normalizer import SystemProfileNormalizer
-from app.models.system_profiles_dynamic import HostDynamicSystemProfile
 from app.models.utils import _create_staleness_timestamps_values
 from app.models.utils import _get_staleness_obj
 from app.models.utils import _set_display_name_on_save
@@ -72,6 +73,7 @@ __all__ = [
     "Host",
     "Group",
     "HostGroupAssoc",
+    "Outbox",
     "Staleness",
     "HostInventoryMetadata",
     "DiskDeviceSchema",
