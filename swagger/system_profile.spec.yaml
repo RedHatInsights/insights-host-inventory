@@ -377,7 +377,7 @@ $defs:
         example: "7.4, 8.2, 7.5"
       os_kernel_version:
         type: string
-        maxLength: 20
+        maxLength: 50
         pattern: '^\d+\.\d+\.\d+(\.\d+)?$'
         description: The kernel version represented with a three, optionally four, number scheme.
         example: '4.18.2, 4.5.0, 5.1.0'
@@ -476,6 +476,7 @@ $defs:
         type: string
         format: date-time
         maxLength: 50
+        x-dynamic: true
       installed_packages:
         type: array  # technically a set, ordered by RPM sorting algorithm
         items:
@@ -586,7 +587,7 @@ $defs:
         enum: [edge]
         maxLength: 4
         description: Indicates the type of host.
-        example: 'edge, None'
+        example: 'edge'
       greenboot_status:
         type: string
         enum: [red, green]
