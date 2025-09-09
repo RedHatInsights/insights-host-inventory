@@ -190,6 +190,8 @@ def run(
         except Exception as e:
             logger.exception(e)
             return None
+        finally:
+            session.close()
 
 
 if __name__ == "__main__":
