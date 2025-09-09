@@ -413,7 +413,6 @@ def get_sample_static_profile_data():
         "insights_client_version": "3.1.5",
         "installed_packages_delta": ["openssl-3.0.1-1.el9"],
         "installed_services": ["sshd", "crond", "tuned", "firewalld"],
-        "intersystems": {"is_intersystems": True, "version": "2023.1"},
         "is_marketplace": True,
         "katello_agent_running": False,
         "number_of_cpus": 16,
@@ -427,10 +426,6 @@ def get_sample_static_profile_data():
         "releasever": "9.3",
         "rhc_client_id": str(uuid.uuid4()),
         "rhc_config_state": str(uuid.uuid4()),
-        "rhel_ai": {
-            "variant": "RHEL AI",
-            "gpu_models": [{"name": "NVIDIA A100 80GB PCIe", "vendor": "Nvidia", "count": 2}],
-        },
         "rhsm": {"version": "8.1", "environment_ids": ["262e621d10ae4475ab5732b39a9160b2"]},
         "rpm_ostree_deployments": [
             {
