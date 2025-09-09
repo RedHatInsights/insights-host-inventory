@@ -2443,18 +2443,6 @@ parameters:
 - name: MEMORY_LIMIT_EXPORT_SVC
   value: 512Mi
 
-- name: CPU_REQUEST_DUPLICATE_HOSTS_REMOVER_JOB
-  value: 250m
-- name: CPU_LIMIT_DUPLICATE_HOSTS_REMOVER_JOB
-  value: 500m
-- name: MEMORY_REQUEST_DUPLICATE_HOSTS_REMOVER_JOB
-  value: 256Mi
-- name: MEMORY_LIMIT_DUPLICATE_HOSTS_REMOVER_JOB
-  value: 512Mi
-- name: REMOVE_DUPLICATES_DRY_RUN
-  description: Whether the duplicate hosts remover script should run in dry-run mode
-  value: 'true'
-
 - name: CPU_REQUEST_SYNC_WORKLOADS_FIELDS
   value: 250m
 - name: CPU_LIMIT_SYNC_WORKLOADS_FIELDS
@@ -2722,9 +2710,6 @@ parameters:
 - name: SUSPEND_DELETE_HOSTS_S3
   description: If set to true, the delete-hosts-s3 job will immediately exit upon running.
   value: 'true'
-- name: SUSPEND_DUPLICATE_HOSTS_REMOVER
-  description: If set to true, the duplicate-hosts-remover job will immediately exit upon running.
-  value: 'true'
 - name: HOSTS_TABLE_MIGRATION_BATCH_SIZE
   description: The batch size to use for the hosts partitioned table migration.
   value: '10000'
@@ -2878,3 +2863,19 @@ parameters:
 - name: CANONICAL_FACTS_MIGRATION_BATCH_SIZE
   description: The batch size to use for the canonical facts migration.
   value: '5000'
+
+# Duplicate Hosts Remover Job
+- name: CPU_REQUEST_DUPLICATE_HOSTS_REMOVER_JOB
+  value: 250m
+- name: CPU_LIMIT_DUPLICATE_HOSTS_REMOVER_JOB
+  value: 500m
+- name: MEMORY_REQUEST_DUPLICATE_HOSTS_REMOVER_JOB
+  value: 256Mi
+- name: MEMORY_LIMIT_DUPLICATE_HOSTS_REMOVER_JOB
+  value: 512Mi
+- name: REMOVE_DUPLICATES_DRY_RUN
+  description: Whether the duplicate hosts remover script should run in dry-run mode
+  value: 'true'
+- name: SUSPEND_DUPLICATE_HOSTS_REMOVER
+  description: If set to true, the duplicate-hosts-remover job will immediately exit upon running.
+  value: 'true'
