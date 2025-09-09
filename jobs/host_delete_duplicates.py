@@ -1,26 +1,33 @@
 #!/usr/bin/python3
+
+# mypy: disallow-untyped-defs
+
 from __future__ import annotations
 
 import os
 import sys
+from collections.abc import Callable
 from functools import partial
 from logging import Logger
+from typing import Any
 
 from connexion import FlaskApp
+from flask_sqlalchemy.query import Query
 from sqlalchemy.orm import Session
 
 from app.config import Config
 from app.environment import RuntimeEnvironment
 from app.logging import get_logger
 from app.logging import threadctx
+from app.models import Host
 from app.queue.event_producer import EventProducer
 from jobs.common import excepthook
-from jobs.common import init_db
 from jobs.common import job_setup
-from lib.db import multi_session_guard
 from lib.handlers import ShutdownHandler
-from lib.handlers import register_shutdown
-from lib.host_remove_duplicates import delete_duplicate_hosts
+from lib.host_delete import delete_hosts
+from lib.host_repository import contains_no_incorrect_facts_filter
+from lib.host_repository import extract_immutable_and_id_facts
+from lib.host_repository import matches_at_least_one_canonical_fact_filter
 from lib.metrics import delete_duplicate_host_count
 
 __all__ = ("run",)
@@ -32,37 +39,141 @@ RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
 SUSPEND_JOB = os.environ.get("SUSPEND_JOB", "true").lower() == "true"
 
 
+def find_matching_hosts(canonical_facts: dict[str, Any], query: Query) -> list[Host]:
+    immutable_facts, id_facts = extract_immutable_and_id_facts(canonical_facts)
+
+    # First search based on immutable ID facts.
+    if immutable_facts and (existing_hosts := find_hosts_by_multiple_facts(immutable_facts, query)):
+        return existing_hosts
+
+    # Now search based on other ID facts
+    # Dicts have been ordered since Python 3.7, so the priority ordering will be respected
+    for target_key, target_value in id_facts.items():
+        # Keep immutable facts in the search to prevent matching if they are different.
+        target_facts = dict(immutable_facts, **{target_key: target_value})
+
+        if existing_hosts := find_hosts_by_multiple_facts(target_facts, query):
+            return existing_hosts
+
+    return []  # This should never happen as we are searching by facts of existing host
+
+
+def find_hosts_by_multiple_facts(canonical_facts: dict[str, str], query: Query) -> list[Host]:
+    return (
+        query.filter(
+            (contains_no_incorrect_facts_filter(canonical_facts))
+            & (matches_at_least_one_canonical_fact_filter(canonical_facts))
+        )
+        .order_by(Host.last_check_in.desc())
+        .all()
+    )
+
+
+def delete_batch(
+    host_ids: set[str],
+    *,
+    session: Session,
+    dry_run: bool,
+    logger: Logger,
+    event_producer: EventProducer,
+    notifications_event_producer: EventProducer,
+    chunk_size: int,
+    interrupt: Callable[[], bool],
+) -> int:
+    if dry_run:
+        logger.info(f"Found {len(host_ids)} duplicates in the current batch")
+        return len(host_ids)
+
+    hosts_by_ids_query = session.query(Host).filter(Host.id.in_(host_ids))
+    deleted_count = sum(
+        1
+        for _ in delete_hosts(
+            hosts_by_ids_query,
+            event_producer,
+            notifications_event_producer,
+            chunk_size,
+            interrupt,
+            control_rule="DEDUP",
+        )
+    )
+    logger.info(f"Deleted {deleted_count} duplicates in the current batch")
+    return deleted_count
+
+
+def delete_duplicate_hosts(
+    session: Session,
+    chunk_size: int,
+    logger: Logger,
+    event_producer: EventProducer,
+    notifications_event_producer: EventProducer,
+    interrupt: Callable[[], bool] = lambda: False,
+    dry_run: bool = True,
+) -> int:
+    total_deleted = 0
+    hosts_query = session.query(Host)
+
+    logger.info(f"Total number of hosts in inventory: {hosts_query.count()}")
+
+    host_list = hosts_query.order_by(Host.id).limit(chunk_size).all()
+    while len(host_list) > 0 and not interrupt():
+        # Process a batch of hosts
+        duplicate_host_ids = set()
+        last_host_id = host_list[-1].id  # Needed in case this host gets deleted
+
+        for host in host_list:
+            canonical_facts = host.canonical_facts
+            misc_query = hosts_query.filter(Host.org_id == host.org_id)
+            logger.info(f"Find by canonical facts: {canonical_facts}")
+            matching_hosts = find_matching_hosts(canonical_facts, misc_query)
+
+            logger.info(f"Found {len(matching_hosts)} matching hosts ({len(matching_hosts) - 1} duplicates)")
+            if len(matching_hosts) > 1:
+                duplicate_host_ids.update([host.id for host in matching_hosts[1:]])
+
+        if duplicate_host_ids:
+            total_deleted += delete_batch(
+                duplicate_host_ids,
+                session=session,
+                dry_run=dry_run,
+                logger=logger,
+                event_producer=event_producer,
+                notifications_event_producer=notifications_event_producer,
+                chunk_size=chunk_size,
+                interrupt=interrupt,
+            )
+
+        session.expunge_all()
+        host_list = hosts_query.filter(Host.id > last_host_id).order_by(Host.id).limit(chunk_size).all()
+
+    return total_deleted
+
+
 def run(
     config: Config,
     logger: Logger,
-    org_ids_session: Session,
-    hosts_session: Session,
-    misc_session: Session,
+    session: Session,
     event_producer: EventProducer,
     notifications_event_producer: EventProducer,
     shutdown_handler: ShutdownHandler,
     application: FlaskApp,
 ) -> int | None:
     if config.dry_run:
-        logger.info(f"Running {PROMETHEUS_JOB} in dry-run mode. No hosts will be deleted.")
+        logger.info(f"Running {PROMETHEUS_JOB} in dry-run mode. Duplicate hosts will NOT be deleted.")
     else:
-        logger.info(f"Running {PROMETHEUS_JOB} without dry-run. Duplicate hosts will be deleted.")
+        logger.info(f"Running {PROMETHEUS_JOB} without dry-run. Duplicate hosts WILL be deleted.")
 
     with application.app.app_context():
         threadctx.request_id = None
         try:
-            with multi_session_guard([org_ids_session, hosts_session, misc_session]):
-                num_deleted = delete_duplicate_hosts(
-                    org_ids_session,
-                    hosts_session,
-                    misc_session,
-                    config.script_chunk_size,
-                    logger,
-                    event_producer,
-                    notifications_event_producer,
-                    shutdown_handler.shut_down,
-                    dry_run=config.dry_run,
-                )
+            num_deleted = delete_duplicate_hosts(
+                session,
+                config.script_chunk_size,
+                logger,
+                event_producer,
+                notifications_event_producer,
+                shutdown_handler.shut_down,
+                dry_run=config.dry_run,
+            )
 
             if config.dry_run:
                 logger.info(
@@ -73,8 +184,8 @@ def run(
 
             return num_deleted
 
-        except InterruptedError:
-            logger.info(f"{PROMETHEUS_JOB} was interrupted.")
+        except Exception as e:
+            logger.exception(e)
             return None
 
 
@@ -87,24 +198,14 @@ if __name__ == "__main__":
     job_type = "Delete duplicate hosts"
     sys.excepthook = partial(excepthook, logger, job_type)
 
-    config, _, event_producer, notifications_event_producer, shutdown_handler, application = job_setup(
+    config, session, event_producer, notifications_event_producer, shutdown_handler, application = job_setup(
         COLLECTED_METRICS, PROMETHEUS_JOB
     )
-
-    SessionMaker = init_db(config)
-    org_ids_session = SessionMaker()
-    hosts_session = SessionMaker()
-    misc_session = SessionMaker()
-    register_shutdown(org_ids_session.get_bind().dispose, "Closing database")
-    register_shutdown(hosts_session.get_bind().dispose, "Closing database")
-    register_shutdown(misc_session.get_bind().dispose, "Closing database")
 
     run(
         config,
         logger,
-        org_ids_session,
-        hosts_session,
-        misc_session,
+        session,
         event_producer,
         notifications_event_producer,
         shutdown_handler,
