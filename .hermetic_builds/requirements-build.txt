@@ -309,7 +309,7 @@ flit-scm==1.7.0 \
     --hash=sha256:961bd6fb24f31bba75333c234145fff88e6de0a90fc0f7e5e7c79deca69f6bb2 \
     --hash=sha256:9e864caa8a63f708f5bb2f1b5b53eedcd4da75ec2cc6221a64cea7aa5c9eae1a
     # via -r /__w/insights-host-inventory/insights-host-inventory/.hermetic_builds/requirements-build.in
-greenlet==3.2.3 \
+greenlet==3.2.4 \
     --hash=sha256:003c930e0e074db83559edc8705f3a2d066d4aa8c2f198aff1e454946efd0f26 \
     --hash=sha256:024571bbce5f2c1cfff08bf3fbaa43bbc7444f580ae13b0099e95d0e6e67ed36 \
     --hash=sha256:02b0df6f63cd15012bed5401b47829cfd2e97052dc89da3cfaf2c779124eb892 \
