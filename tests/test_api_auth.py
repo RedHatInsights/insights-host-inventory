@@ -14,8 +14,10 @@ from app import process_identity_header
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
 from app.models import Host
+from app.utils import HostWrapper
 from tests.helpers.api_utils import HOST_URL
 from tests.helpers.api_utils import SYSTEM_PROFILE_URL
+from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import build_token_auth_header
 from tests.helpers.test_utils import RHSM_ERRATA_IDENTITY_PROD
 from tests.helpers.test_utils import RHSM_ERRATA_IDENTITY_STAGE
@@ -24,6 +26,8 @@ from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import X509_IDENTITY
 from tests.helpers.test_utils import generate_uuid
+from tests.helpers.test_utils import minimal_host
+from tests.helpers.test_utils import valid_system_profile
 
 
 def invalid_identities(identity_type: IdentityType) -> list[dict[str, Any]]:
@@ -373,3 +377,26 @@ def test_access_rhsm_identity_with_org_id_header(
         if response_host["id"] == host_id:
             found = True
     assert found
+
+
+def test_get_hosts_with_system_identity(
+    mq_create_or_update_host: Callable[..., HostWrapper], api_get: Callable[..., tuple[int, dict]]
+):
+    # Test that API grants access only to hosts that have owner_id == identity.system.cn if we use system identity
+    hosts_data = [minimal_host() for _ in range(3)]
+    hosts_data[0].system_profile = valid_system_profile(owner_id=SYSTEM_IDENTITY["system"]["cn"])  # correct owner_id
+    hosts_data[1].system_profile = valid_system_profile(owner_id=generate_uuid())  # incorrect owner_id
+    hosts_data[2].system_profile = valid_system_profile()  # no owner_id
+    hosts_data[2].system_profile.pop("owner_id", None)
+
+    hosts = []
+    for host_data in hosts_data:
+        hosts.append(
+            mq_create_or_update_host(host_data, identity=USER_IDENTITY)  # User can create hosts with any owner_id
+        )
+
+    response_status, response_data = api_get(build_hosts_url(), SYSTEM_IDENTITY)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["id"] == hosts[0].id
