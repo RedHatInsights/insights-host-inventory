@@ -1819,7 +1819,6 @@ data:
               "range": true
             }
           ],
-          "maxDataPoints": 100,
           "datasource": {
             "uid": "$datasource"
           },
@@ -1901,7 +1900,6 @@ data:
               "range": true
             }
           ],
-          "maxDataPoints": 100,
           "datasource": {
             "uid": "$datasource"
           },
