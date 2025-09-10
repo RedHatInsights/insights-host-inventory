@@ -20,6 +20,8 @@ from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import Staleness
 from app.models import db
+from app.models.system_profile_dynamic import HostDynamicSystemProfile
+from app.models.system_profile_static import HostStaticSystemProfile
 from lib.group_repository import serialize_group
 from lib.host_repository import host_query
 from tests.helpers.db_utils import db_group
@@ -337,3 +339,23 @@ def db_get_staleness_culling(flask_app):  # noqa: ARG001
         return Staleness.query.filter(Staleness.org_id == org_id).first()
 
     return _db_get_staleness_culling
+
+
+@pytest.fixture(scope="function")
+def db_get_static_system_profile(flask_app):  # noqa: ARG001
+    def _get_static_system_profile(org_id, host_id):
+        return HostStaticSystemProfile.query.filter(
+            HostStaticSystemProfile.org_id == org_id, HostStaticSystemProfile.host_id == host_id
+        ).first()
+
+    return _get_static_system_profile
+
+
+@pytest.fixture(scope="function")
+def db_get_dynamic_system_profile(flask_app):  # noqa: ARG001
+    def _get_dynamic_system_profile(org_id, host_id):
+        return HostDynamicSystemProfile.query.filter(
+            HostDynamicSystemProfile.org_id == org_id, HostDynamicSystemProfile.host_id == host_id
+        ).first()
+
+    return _get_dynamic_system_profile

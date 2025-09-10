@@ -1,3 +1,5 @@
+# mypy: disallow-untyped-defs
+
 from __future__ import annotations
 
 import json
@@ -13,9 +15,9 @@ from app.config import Config
 from app.logging import get_logger
 from app.models import Host
 from app.models import ProviderType
+from app.queue.host_mq import IngressMessageConsumer
 from jobs.common import init_db
 from jobs.host_delete_duplicates import run as host_delete_duplicates_run
-from lib.db import multi_session_guard
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.mq_utils import MockEventProducer
 from tests.helpers.mq_utils import wrap_message
@@ -45,7 +47,7 @@ def test_delete_duplicate_host(
     db_create_host: Callable[..., Host],
     db_get_host: Callable[[UUID], Host | None],
     dry_run: bool,
-):
+) -> None:
     inventory_config.dry_run = dry_run
 
     # make two hosts that are the same
@@ -66,22 +68,17 @@ def test_delete_duplicate_host(
     assert created_old_host.canonical_facts["provider_id"] == created_new_host.canonical_facts["provider_id"]
 
     Session = init_db(inventory_config)
-    org_ids_session = Session()
-    hosts_session = Session()
-    misc_session = Session()
+    session = Session()
 
-    with multi_session_guard([org_ids_session, hosts_session, misc_session]):
-        num_deleted = host_delete_duplicates_run(
-            inventory_config,
-            logger,
-            org_ids_session,
-            hosts_session,
-            misc_session,
-            event_producer_mock,  # type: ignore[arg-type]
-            notification_event_producer_mock,  # type: ignore[arg-type]
-            shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
-            application=flask_app,
-        )
+    num_deleted = host_delete_duplicates_run(
+        inventory_config,
+        logger,
+        session,
+        event_producer_mock,  # type: ignore[arg-type]
+        notification_event_producer_mock,  # type: ignore[arg-type]
+        shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
+        application=flask_app,
+    )
 
     logger.info(f"Deleted this many hosts: {num_deleted}")
 
@@ -103,7 +100,7 @@ def test_delete_duplicate_host_more_hosts_than_chunk_size(
     db_create_host: Callable[..., Host],
     db_create_multiple_hosts: Callable[..., list[Host]],
     db_get_host: Callable[[UUID], Host | None],
-):
+) -> None:
     canonical_facts_1 = {
         "provider_id": generate_uuid(),
         "provider_type": ProviderType.AWS.value,
@@ -141,22 +138,17 @@ def test_delete_duplicate_host_more_hosts_than_chunk_size(
     assert created_old_host_2.id != created_new_host_2.id
 
     Session = init_db(mocked_config)
-    org_ids_session = Session()
-    hosts_session = Session()
-    misc_session = Session()
+    session = Session()
 
-    with multi_session_guard([org_ids_session, hosts_session, misc_session]):
-        num_deleted = host_delete_duplicates_run(
-            mocked_config,
-            logger,
-            org_ids_session,
-            hosts_session,
-            misc_session,
-            event_producer_mock,  # type: ignore[arg-type]
-            notification_event_producer_mock,  # type: ignore[arg-type]
-            shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
-            application=flask_app,
-        )
+    num_deleted = host_delete_duplicates_run(
+        mocked_config,
+        logger,
+        session,
+        event_producer_mock,  # type: ignore[arg-type]
+        notification_event_producer_mock,  # type: ignore[arg-type]
+        shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
+        application=flask_app,
+    )
     assert num_deleted == 2
 
     assert db_get_host(created_new_host_1.id)
@@ -174,28 +166,23 @@ def test_no_hosts_delete_when_no_dupes(
     notification_event_producer_mock: MockEventProducer,
     db_create_multiple_hosts: Callable[..., list[Host]],
     db_get_host: Callable[[UUID], Host | None],
-):
+) -> None:
     num_hosts = 100
     created_hosts = db_create_multiple_hosts(how_many=num_hosts)
     created_host_ids = [host.id for host in created_hosts]
 
     Session = init_db(mocked_config)
-    org_ids_session = Session()
-    hosts_session = Session()
-    misc_session = Session()
+    session = Session()
 
-    with multi_session_guard([org_ids_session, hosts_session, misc_session]):
-        num_deleted = host_delete_duplicates_run(
-            mocked_config,
-            logger,
-            org_ids_session,
-            hosts_session,
-            misc_session,
-            event_producer_mock,  # type: ignore[arg-type]
-            notification_event_producer_mock,  # type: ignore[arg-type]
-            shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
-            application=flask_app,
-        )
+    num_deleted = host_delete_duplicates_run(
+        mocked_config,
+        logger,
+        session,
+        event_producer_mock,  # type: ignore[arg-type]
+        notification_event_producer_mock,  # type: ignore[arg-type]
+        shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
+        application=flask_app,
+    )
     assert num_deleted == 0
 
     for host_id in created_host_ids:
@@ -212,8 +199,8 @@ def test_delete_duplicates_id_facts_matching(
     db_create_host: Callable[..., Host],
     db_get_host: Callable[[UUID], Host | None],
     tested_id: str,
-):
-    def _gen_canonical_facts():
+) -> None:
+    def _gen_canonical_facts() -> dict[str, str | list[str]]:
         facts = {
             "provider_id": generate_uuid(),
             "insights_id": generate_uuid(),
@@ -262,22 +249,17 @@ def test_delete_duplicates_id_facts_matching(
         assert db_get_host(host.id)
 
     Session = init_db(mocked_config)
-    org_ids_session = Session()
-    hosts_session = Session()
-    misc_session = Session()
+    session = Session()
 
-    with multi_session_guard([org_ids_session, hosts_session, misc_session]):
-        deleted_hosts_count = host_delete_duplicates_run(
-            mocked_config,
-            logger,
-            org_ids_session,
-            hosts_session,
-            misc_session,
-            event_producer_mock,  # type: ignore[arg-type]
-            notification_event_producer_mock,  # type: ignore[arg-type]
-            shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
-            application=flask_app,
-        )
+    deleted_hosts_count = host_delete_duplicates_run(
+        mocked_config,
+        logger,
+        session,
+        event_producer_mock,  # type: ignore[arg-type]
+        notification_event_producer_mock,  # type: ignore[arg-type]
+        shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
+        application=flask_app,
+    )
 
     assert deleted_hosts_count == host_count * 3 - 1
     for i in range(len(created_hosts) - 1):
@@ -295,7 +277,7 @@ def test_delete_duplicates_id_facts_not_matching(
     db_create_host: Callable[..., Host],
     db_get_host: Callable[[UUID], Host | None],
     tested_id: str,
-):
+) -> None:
     canonical_facts = {
         "provider_id": generate_uuid(),
         "insights_id": generate_uuid(),
@@ -337,22 +319,17 @@ def test_delete_duplicates_id_facts_not_matching(
         assert db_get_host(host.id)
 
     Session = init_db(mocked_config)
-    org_ids_session = Session()
-    hosts_session = Session()
-    misc_session = Session()
+    session = Session()
 
-    with multi_session_guard([org_ids_session, hosts_session, misc_session]):
-        deleted_hosts_count = host_delete_duplicates_run(
-            mocked_config,
-            logger,
-            org_ids_session,
-            hosts_session,
-            misc_session,
-            event_producer_mock,  # type: ignore[arg-type]
-            notification_event_producer_mock,  # type: ignore[arg-type]
-            shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
-            application=flask_app,
-        )
+    deleted_hosts_count = host_delete_duplicates_run(
+        mocked_config,
+        logger,
+        session,
+        event_producer_mock,  # type: ignore[arg-type]
+        notification_event_producer_mock,  # type: ignore[arg-type]
+        shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
+        application=flask_app,
+    )
 
     assert deleted_hosts_count == 0
     for host in created_hosts:
@@ -368,7 +345,7 @@ def test_delete_duplicates_last_checked_in(
     db_create_host: Callable[..., Host],
     db_create_multiple_hosts: Callable[..., list[Host]],
     db_get_host: Callable[[UUID], Host | None],
-):
+) -> None:
     """Test that the deletion script always keeps host with the latest 'last_check_in' date"""
     canonical_facts = {
         "provider_id": generate_uuid(),
@@ -391,22 +368,17 @@ def test_delete_duplicates_last_checked_in(
         assert db_get_host(host_id)
 
     Session = init_db(mocked_config)
-    org_ids_session = Session()
-    hosts_session = Session()
-    misc_session = Session()
+    session = Session()
 
-    with multi_session_guard([org_ids_session, hosts_session, misc_session]):
-        deleted_hosts_count = host_delete_duplicates_run(
-            mocked_config,
-            logger,
-            org_ids_session,
-            hosts_session,
-            misc_session,
-            event_producer_mock,  # type: ignore[arg-type]
-            notification_event_producer_mock,  # type: ignore[arg-type]
-            shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
-            application=flask_app,
-        )
+    deleted_hosts_count = host_delete_duplicates_run(
+        mocked_config,
+        logger,
+        session,
+        event_producer_mock,  # type: ignore[arg-type]
+        notification_event_producer_mock,  # type: ignore[arg-type]
+        shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
+        application=flask_app,
+    )
 
     assert deleted_hosts_count == host_count - 1
     for host_id in host_ids:
@@ -424,7 +396,7 @@ def test_delete_duplicates_multiple_org_ids(
     notification_event_producer_mock: MockEventProducer,
     db_create_host: Callable[..., Host],
     db_get_host: Callable[[UUID, str], Host | None],
-):
+) -> None:
     canonical_facts = {
         "insights_id": generate_uuid(),
         "subscription_manager_id": generate_uuid(),
@@ -438,22 +410,17 @@ def test_delete_duplicates_multiple_org_ids(
     created_host2 = db_create_host(host=host2).id
 
     Session = init_db(mocked_config)
-    org_ids_session = Session()
-    hosts_session = Session()
-    misc_session = Session()
+    session = Session()
 
-    with multi_session_guard([org_ids_session, hosts_session, misc_session]):
-        deleted_hosts_count = host_delete_duplicates_run(
-            mocked_config,
-            logger,
-            org_ids_session,
-            hosts_session,
-            misc_session,
-            event_producer_mock,  # type: ignore[arg-type]
-            notification_event_producer_mock,  # type: ignore[arg-type]
-            shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
-            application=flask_app,
-        )
+    deleted_hosts_count = host_delete_duplicates_run(
+        mocked_config,
+        logger,
+        session,
+        event_producer_mock,  # type: ignore[arg-type]
+        notification_event_producer_mock,  # type: ignore[arg-type]
+        shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
+        application=flask_app,
+    )
     assert deleted_hosts_count == 0
     assert db_get_host(created_host1, "111111")
     assert db_get_host(created_host2, "222222")
@@ -462,8 +429,8 @@ def test_delete_duplicates_multiple_org_ids(
 @pytest.mark.usefixtures("flask_app")
 def test_canonical_facts_column_updates_via_mq(
     db_get_host: Callable[[UUID], Host | None],
-    ingress_message_consumer_mock,
-):
+    ingress_message_consumer_mock: IngressMessageConsumer,
+) -> None:
     initial_bios_uuid = generate_uuid()
     expected_insights_id = generate_uuid()
 
