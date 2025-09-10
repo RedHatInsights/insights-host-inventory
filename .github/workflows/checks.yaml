@@ -1,0 +1,72 @@
+name: Checks
+
+on:
+  pull_request:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  lints:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+            fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: pre-commit/action@v3.0.1
+
+  tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: postgres
+        # Set health checks to wait until postgres has started
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          # Maps tcp port 5432 on service container to the host
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+            fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pipenv'
+      - name: Install pipenv
+        run: curl https://raw.githubusercontent.com/pypa/pipenv/master/get-pipenv.py | python
+      - run: pipenv install --dev
+
+      - name: Run tests
+        env:
+          INVENTORY_DB_NAME: postgres
+          INVENTORY_DB_HOST: localhost
+          INVENTORY_DB_PORT: 5432
+          INVENTORY_DB_USER: postgres
+          INVENTORY_DB_PASS: postgres
+          FLASK_APP: manage.py
+        run: |
+          pipenv run flask db upgrade
+          pipenv run pytest --cov=. --cov-report=xml
+      # - name: Upload coverage to Codecov
+      #   uses: codecov/codecov-action@v4
+      #   with:
+      #     files: ./coverage.xml
+      #     fail_ci_if_error: true
+      #     verbose: true
+      #     flags: unittests
+      #     name: codecov-umbrella
+      #     token: ${{ secrets.CODECOV_TOKEN }}
