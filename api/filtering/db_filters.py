@@ -368,7 +368,9 @@ def update_query_for_owner_id(identity: Identity, query: Query) -> Query:
     if identity:
         logger.debug("identity auth type: %s", identity.auth_type)
         if identity.identity_type == IdentityType.SYSTEM:
-            return query.filter(and_(HostStaticSystemProfile.owner_id == identity.system["cn"]))
+            # Ensure HostStaticSystemProfile is joined before filtering
+            query = query.join(HostStaticSystemProfile, isouter=True)
+            return query.filter(HostStaticSystemProfile.owner_id == identity.system["cn"])
     return query
 
 
