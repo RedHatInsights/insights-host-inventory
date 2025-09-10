@@ -170,6 +170,7 @@ def _async_update_host_staleness(identity: Identity, created_staleness: Stalenes
 
 @api_operation
 @access(KesselResourceTypes.STALENESS.view)
+@access(KesselResourceTypes.HOST.view)
 @metrics.api_request_time.time()
 def get_staleness(rbac_filter=None):  # noqa: ARG001, 'rbac_filter' is required for all API endpoints
     try:
