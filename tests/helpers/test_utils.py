@@ -418,7 +418,7 @@ def get_sample_static_profile_data():
         "number_of_cpus": 16,
         "number_of_sockets": 2,
         "operating_system": {"name": "RedHat", "major": 9, "minor": 3},
-        "os_kernel_version": "5.14.0-362.8.1.el9_3.x86_64",
+        "os_kernel_version": "5.14.0",
         "os_release": "Red Hat Enterprise Linux 9.3 (Plow)",
         "owner_id": str(uuid.uuid4()),
         "public_dns": ["ec2-54-12-34-56.compute-1.amazonaws.com"],

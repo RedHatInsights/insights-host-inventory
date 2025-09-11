@@ -70,7 +70,7 @@ class HostStaticSystemProfile(db.Model):
     number_of_cpus = db.Column(db.Integer, nullable=True)
     number_of_sockets = db.Column(db.Integer, nullable=True)
     operating_system = db.Column(JSONB(astext_type=db.Text()), nullable=True)
-    os_kernel_version = db.Column(db.String(50), nullable=True)
+    os_kernel_version = db.Column(db.String(20), nullable=True)
     os_release = db.Column(db.String(100), nullable=True)
     owner_id = db.Column(UUID(as_uuid=True), nullable=True)
     public_dns = db.Column(ARRAY(String(100)), nullable=True)
