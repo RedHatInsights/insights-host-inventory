@@ -1761,6 +1761,168 @@ data:
           "valueName": "current"
         },
         {
+          "id": 93,
+          "type": "stat",
+          "title": "Outbox successes",
+          "gridPos": {
+            "x": 12,
+            "y": 18,
+            "h": 2,
+            "w": 3
+          },
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null",
+                    "result": {
+                      "text": "0",
+                      "index": 0
+                    }
+                  }
+                }
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "value": null,
+                    "color": "#299c46"
+                  },
+                  {
+                    "value": 0.1,
+                    "color": "rgba(237, 129, 40, 0.89)"
+                  },
+                  {
+                    "color": "#d44a3a"
+                  }
+                ]
+              },
+              "unit": "locale",
+              "decimals": 0,
+              "noValue": "0"
+            },
+            "overrides": []
+          },
+          "pluginVersion": "11.6.3",
+          "targets": [
+            {
+              "expr": "sum(increase(inventory_outbox_save_successes_total[$__range]))",
+              "interval": "5m",
+              "refId": "A",
+              "datasource": {
+                "uid": "$datasource"
+              },
+              "editorMode": "code",
+              "range": true
+            }
+          ],
+          "datasource": {
+            "uid": "$datasource"
+          },
+          "options": {
+            "reduceOptions": {
+              "values": false,
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": ""
+            },
+            "orientation": "horizontal",
+            "textMode": "auto",
+            "wideLayout": true,
+            "colorMode": "background",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "showPercentChange": false,
+            "percentChangeColorMode": "standard"
+          },
+          "links": []
+        },
+        {
+          "id": 94,
+          "type": "stat",
+          "title": "Outbox failures",
+          "gridPos": {
+            "x": 15,
+            "y": 18,
+            "h": 2,
+            "w": 3
+          },
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null",
+                    "result": {
+                      "text": "0",
+                      "index": 0
+                    }
+                  }
+                }
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "value": null,
+                    "color": "#299c46"
+                  },
+                  {
+                    "value": 0.1,
+                    "color": "rgba(237, 129, 40, 0.89)"
+                  },
+                  {
+                    "color": "#d44a3a"
+                  }
+                ]
+              },
+              "unit": "locale",
+              "decimals": 0,
+              "noValue": "0"
+            },
+            "overrides": []
+          },
+          "pluginVersion": "11.6.3",
+          "targets": [
+            {
+              "expr": "sum(increase(inventory_outbox_save_failures_total[$__range]))",
+              "interval": "5m",
+              "refId": "A",
+              "datasource": {
+                "uid": "$datasource"
+              },
+              "editorMode": "code",
+              "range": true
+            }
+          ],
+          "datasource": {
+            "uid": "$datasource"
+          },
+          "options": {
+            "reduceOptions": {
+              "values": false,
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": ""
+            },
+            "orientation": "horizontal",
+            "textMode": "auto",
+            "wideLayout": true,
+            "colorMode": "background",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "showPercentChange": false,
+            "percentChangeColorMode": "standard"
+          },
+          "links": []
+        },
+        {
           "cacheTimeout": null,
           "colorBackground": false,
           "colorValue": false,
