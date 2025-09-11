@@ -400,3 +400,22 @@ def test_get_hosts_with_system_identity(
     assert response_status == 200
     assert len(response_data["results"]) == 1
     assert response_data["results"][0]["id"] == hosts[0].id
+
+
+def test_get_host_with_implicit_owner_id_with_system_identity(
+    mq_create_or_update_host: Callable[..., HostWrapper], api_get: Callable[..., tuple[int, dict]]
+):
+    # Test that API grants access only to hosts that have owner_id == identity.system.cn if we use system identity
+    host_data = minimal_host()
+    host_data.system_profile = valid_system_profile()  # no owner_id
+    host_data.system_profile.pop("owner_id", None)
+
+    # Create a host with SYSTEM_IDENTITY, it will implicitly set the owner_id to SYSTEM_IDENTITY["system"]["cn"]
+    host = mq_create_or_update_host(host_data, identity=SYSTEM_IDENTITY)
+    assert host.system_profile["owner_id"] == SYSTEM_IDENTITY["system"]["cn"]
+
+    response_status, response_data = api_get(build_hosts_url(), SYSTEM_IDENTITY)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["id"] == host.id
