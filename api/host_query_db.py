@@ -474,10 +474,8 @@ def get_sap_system_info(
     rbac_filter: dict,
     identity: Identity,
 ):
-    host_sap_system = Host.system_profile_facts["workloads"]["sap"]["sap_system"]
-
     columns = [
-        host_sap_system.label("value"),
+        Host.system_profile_facts["sap_system"].label("value"),
     ]
 
     filters, query_base = query_filters(
@@ -490,8 +488,8 @@ def get_sap_system_info(
     )
     sap_query = _find_hosts_entities_query(query=query_base, columns=columns)
     sap_filter = [
-        func.jsonb_typeof(host_sap_system) == "boolean",
-        host_sap_system.astext.cast(Boolean) != None,  # noqa:E711
+        func.jsonb_typeof(Host.system_profile_facts["sap_system"]) == "boolean",
+        Host.system_profile_facts["sap_system"].astext.cast(Boolean) != None,  # noqa:E711
     ]
     sap_query = sap_query.filter(*filters).filter(*sap_filter)
 
@@ -514,11 +512,9 @@ def get_sap_sids_info(
     search: str,
     identity: Identity,
 ):
-    host_sap_sids = Host.system_profile_facts["workloads"]["sap"]["sids"]
-
     columns = [
         Host.id,
-        func.jsonb_array_elements_text(host_sap_sids).label("sap_sids"),
+        func.jsonb_array_elements_text(Host.system_profile_facts["sap_sids"]).label("sap_sids"),
     ]
     filters, query_base = query_filters(
         tags=tags,
