@@ -25,8 +25,7 @@ from api.host_query_db import get_host_list_by_id_list
 from api.host_query_db import get_host_tags_list_by_id_list
 from api.host_query_db import get_sparse_system_profile
 from api.staleness_query import get_staleness_obj
-from app import RbacPermission
-from app import RbacResourceType
+from app import KesselResourceTypes
 from app.auth import get_current_identity
 from app.auth.identity import IdentityType
 from app.auth.identity import to_auth_header
@@ -58,7 +57,7 @@ from lib.host_delete import delete_hosts
 from lib.host_repository import find_existing_host
 from lib.host_repository import find_non_culled_hosts
 from lib.host_repository import get_host_list_by_id_list_from_db
-from lib.middleware import rbac
+from lib.middleware import access
 from lib.outbox_repository import write_event_to_outbox
 
 FactOperations = Enum("FactOperations", ("merge", "replace"))
@@ -68,7 +67,7 @@ logger = get_logger(__name__)
 
 
 @api_operation
-@rbac(RbacResourceType.HOSTS, RbacPermission.READ)
+@access(KesselResourceTypes.HOST.view)
 @metrics.api_request_time.time()
 def get_host_list(
     display_name=None,
@@ -181,7 +180,7 @@ def get_host_list(
 
 
 @api_operation
-@rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
+@access(KesselResourceTypes.HOST.delete, writeOperation=True)
 @metrics.api_request_time.time()
 def delete_hosts_by_filter(
     display_name=None,
@@ -302,7 +301,7 @@ def _delete_host_list(host_id_list, rbac_filter):
 
 
 @api_operation
-@rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
+@access(KesselResourceTypes.HOST.delete, writeOperation=True)
 @metrics.api_request_time.time()
 def delete_all_hosts(confirm_delete_all=None, rbac_filter=None):
     if not confirm_delete_all:
@@ -327,7 +326,7 @@ def delete_all_hosts(confirm_delete_all=None, rbac_filter=None):
 
 
 @api_operation
-@rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
+@access(KesselResourceTypes.HOST.delete, id_param="host_id_list", writeOperation=True)
 @metrics.api_request_time.time()
 def delete_host_by_id(host_id_list, rbac_filter=None):
     delete_count = _delete_host_list(host_id_list, rbac_filter)
@@ -339,7 +338,7 @@ def delete_host_by_id(host_id_list, rbac_filter=None):
 
 
 @api_operation
-@rbac(RbacResourceType.HOSTS, RbacPermission.READ)
+@access(KesselResourceTypes.HOST.view, id_param="host_id_list")
 @metrics.api_request_time.time()
 def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None, fields=None, rbac_filter=None):
     try:
@@ -359,7 +358,7 @@ def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=
 
 
 @api_operation
-@rbac(RbacResourceType.HOSTS, RbacPermission.READ)
+@access(KesselResourceTypes.HOST.view, id_param="host_id_list")
 @metrics.api_request_time.time()
 def get_host_system_profile_by_id(
     host_id_list, page=1, per_page=100, order_by=None, order_how=None, fields=None, rbac_filter=None
@@ -391,7 +390,7 @@ def _emit_patch_event(serialized_host, host):
 
 
 @api_operation
-@rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
+@access(KesselResourceTypes.HOST.update, id_param="host_id_list", writeOperation=True)
 @metrics.api_request_time.time()
 def patch_host_by_id(host_id_list, body, rbac_filter=None):
     try:
@@ -437,14 +436,14 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
 
 
 @api_operation
-@rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
+@access(KesselResourceTypes.HOST.update, id_param="host_id_list", writeOperation=True)
 @metrics.api_request_time.time()
 def replace_facts(host_id_list, namespace, body, rbac_filter=None):
     return update_facts_by_namespace(FactOperations.replace, host_id_list, namespace, body, rbac_filter)
 
 
 @api_operation
-@rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
+@access(KesselResourceTypes.HOST.update, id_param="host_id_list", writeOperation=True)
 @metrics.api_request_time.time()
 def merge_facts(host_id_list, namespace, body, rbac_filter=None):
     if not body:
@@ -529,7 +528,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
 
 
 @api_operation
-@rbac(RbacResourceType.HOSTS, RbacPermission.READ)
+@access(KesselResourceTypes.HOST.view, id_param="host_id_list")
 @metrics.api_request_time.time()
 def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_how=None, rbac_filter=None):
     limit, offset = pagination_params(page, per_page)
@@ -540,7 +539,7 @@ def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_
 
 
 @api_operation
-@rbac(RbacResourceType.HOSTS, RbacPermission.READ)
+@access(KesselResourceTypes.HOST.view, id_param="host_id_list")
 @metrics.api_request_time.time()
 def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=None, search=None, rbac_filter=None):
     limit, offset = pagination_params(page, per_page)
@@ -557,7 +556,7 @@ def _build_paginated_host_tags_response(total, page, per_page, tags_list):
 
 
 @api_operation
-@rbac(RbacResourceType.HOSTS, RbacPermission.WRITE)
+@access(KesselResourceTypes.HOST.update, writeOperation=True)
 @metrics.api_request_time.time()
 def host_checkin(body, rbac_filter=None):  # noqa: ARG001, required for all API endpoints, not needed for host checkins
     current_identity = get_current_identity()
@@ -580,7 +579,7 @@ def host_checkin(body, rbac_filter=None):  # noqa: ARG001, required for all API 
 
 
 @api_operation
-@rbac(RbacResourceType.HOSTS, RbacPermission.READ)
+@access(KesselResourceTypes.HOST.view)
 @metrics.api_request_time.time()
 def get_host_exists(insights_id, rbac_filter=None):
     host_id = get_host_id_by_insights_id(insights_id, rbac_filter)
