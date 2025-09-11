@@ -270,10 +270,11 @@ class SystemProfileNormalizer:
             validators.append(marshmallow_validate.Length(min=field_def["minLength"]))
 
         # Add pattern validation for UUIDs
-        if "pattern" in field_def and (
-            "uuid" in field_def.get("description", "").lower() or field_def["pattern"].startswith("[0-9a-f]{8}-")
-        ):
-            validators.append(verify_uuid_format)
+        if "pattern" in field_def:
+            if field_def["pattern"].startswith("[0-9a-f]{8}-"):
+                validators.append(verify_uuid_format)
+            else:
+                validators.append(marshmallow_validate.Regexp(field_def["pattern"]))
 
         # Handle enum validation with nullable support
         if "enum" in field_def:
