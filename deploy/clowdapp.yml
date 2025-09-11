@@ -99,6 +99,8 @@ objects:
           "run:app"
         ]
         env:
+        - name: HBI_DB_REFACTORING_USE_OLD_TABLE
+          value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
         - name: APP_NAME
           value: ${APP_NAME}
         - name: PATH_PREFIX
@@ -113,8 +115,6 @@ objects:
           value: ${LOG_LEVEL}
         - name: URLLIB3_LOG_LEVEL
           value: ${URLLIB3_LOG_LEVEL}
-        - name: CONNEXION_LOG_LEVEL
-          value: ${CONNEXION_LOG_LEVEL}
         - name: INVENTORY_DB_SSL_MODE
           value: ${INVENTORY_DB_SSL_MODE}
         - name: PAYLOAD_TRACKER_SERVICE_NAME
@@ -124,7 +124,7 @@ objects:
         - name: BYPASS_RBAC
           value: ${BYPASS_RBAC}
         - name: KESSEL_TARGET_URL
-          value: ${KESSEL_TARGET_URL}
+          value: ${KESSEL_TARGET_URL}          
         - name: KAFKA_PRODUCER_ACKS
           value: ${KAFKA_PRODUCER_ACKS}
         - name: KAFKA_PRODUCER_RETRIES
@@ -171,6 +171,8 @@ objects:
               optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
+        - name: FF_LAST_CHECKIN
+          value: ${FF_LAST_CHECKIN}
         - name: UNLEASH_REFRESH_INTERVAL
           value: ${UNLEASH_REFRESH_INTERVAL}
         - name: SEGMENTIO_WRITE_KEY
@@ -261,6 +263,8 @@ objects:
           "run:app"
         ]
         env:
+        - name: HBI_DB_REFACTORING_USE_OLD_TABLE
+          value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
         - name: APP_NAME
           value: ${APP_NAME}
         - name: PATH_PREFIX
@@ -275,8 +279,6 @@ objects:
           value: ${LOG_LEVEL}
         - name: URLLIB3_LOG_LEVEL
           value: ${URLLIB3_LOG_LEVEL}
-        - name: CONNEXION_LOG_LEVEL
-          value: ${CONNEXION_LOG_LEVEL}
         - name: INVENTORY_DB_SSL_MODE
           value: ${INVENTORY_DB_SSL_MODE}
         - name: PAYLOAD_TRACKER_SERVICE_NAME
@@ -286,7 +288,7 @@ objects:
         - name: BYPASS_RBAC
           value: ${BYPASS_RBAC}
         - name: KESSEL_TARGET_URL
-          value: ${KESSEL_TARGET_URL}
+          value: ${KESSEL_TARGET_URL}          
         - name: KAFKA_PRODUCER_ACKS
           value: ${KAFKA_PRODUCER_ACKS}
         - name: KAFKA_PRODUCER_RETRIES
@@ -333,6 +335,8 @@ objects:
               optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
+        - name: FF_LAST_CHECKIN
+          value: ${FF_LAST_CHECKIN}
         - name: UNLEASH_REFRESH_INTERVAL
           value: ${UNLEASH_REFRESH_INTERVAL}
         - name: SEGMENTIO_WRITE_KEY
@@ -423,6 +427,8 @@ objects:
           "run:app"
         ]
         env:
+        - name: HBI_DB_REFACTORING_USE_OLD_TABLE
+          value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
         - name: APP_NAME
           value: ${APP_NAME}
         - name: PATH_PREFIX
@@ -437,8 +443,6 @@ objects:
           value: ${LOG_LEVEL}
         - name: URLLIB3_LOG_LEVEL
           value: ${URLLIB3_LOG_LEVEL}
-        - name: CONNEXION_LOG_LEVEL
-          value: ${CONNEXION_LOG_LEVEL}
         - name: INVENTORY_DB_SSL_MODE
           value: ${INVENTORY_DB_SSL_MODE}
         - name: PAYLOAD_TRACKER_SERVICE_NAME
@@ -446,7 +450,7 @@ objects:
         - name: PAYLOAD_TRACKER_ENABLED
           value: 'true'
         - name: KESSEL_TARGET_URL
-          value: ${KESSEL_TARGET_URL}
+          value: ${KESSEL_TARGET_URL}          
         - name: BYPASS_RBAC
           value: ${BYPASS_RBAC}
         - name: KAFKA_PRODUCER_ACKS
@@ -493,6 +497,8 @@ objects:
               optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
+        - name: FF_LAST_CHECKIN
+          value: ${FF_LAST_CHECKIN}
         - name: UNLEASH_REFRESH_INTERVAL
           value: ${UNLEASH_REFRESH_INTERVAL}
         - name: SEGMENTIO_WRITE_KEY
@@ -550,12 +556,12 @@ objects:
       podSpec:
         args: ["./inv_mq_service.py"]
         env:
+        - name: HBI_DB_REFACTORING_USE_OLD_TABLE
+          value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
         - name: CONSOLEDOT_HOSTNAME
           value: ${CONSOLEDOT_HOSTNAME}
         - name: INVENTORY_LOG_LEVEL
           value: ${LOG_LEVEL}
-        - name: CONNEXION_LOG_LEVEL
-          value: ${CONNEXION_LOG_LEVEL}
         - name: INVENTORY_DB_SSL_MODE
           value: ${INVENTORY_DB_SSL_MODE}
         - name: INVENTORY_DB_SSL_CERT
@@ -577,7 +583,7 @@ objects:
         - name: PAYLOAD_TRACKER_ENABLED
           value: 'true'
         - name: KESSEL_TARGET_URL
-          value: ${KESSEL_TARGET_URL}
+          value: ${KESSEL_TARGET_URL}          
         - name: KAFKA_PRODUCER_ACKS
           value: ${KAFKA_PRODUCER_ACKS}
         - name: KAFKA_PRODUCER_RETRIES
@@ -618,6 +624,8 @@ objects:
               optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
+        - name: FF_LAST_CHECKIN
+          value: ${FF_LAST_CHECKIN}
         - name: UNLEASH_REFRESH_INTERVAL
           value: ${UNLEASH_REFRESH_INTERVAL}
         - name: MQ_DB_BATCH_MAX_MESSAGES
@@ -661,14 +669,14 @@ objects:
           inheritEnv: true
         args: ["./inv_mq_service.py"]
         env:
+        - name: HBI_DB_REFACTORING_USE_OLD_TABLE
+          value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
         - name: MIGRATION_MODE
           value: ${MIGRATION_MODE}
         - name: CONSOLEDOT_HOSTNAME
           value: ${CONSOLEDOT_HOSTNAME}
         - name: INVENTORY_LOG_LEVEL
           value: ${LOG_LEVEL}
-        - name: CONNEXION_LOG_LEVEL
-          value: ${CONNEXION_LOG_LEVEL}
         - name: INVENTORY_DB_SSL_MODE
           value: ${INVENTORY_DB_SSL_MODE}
         - name: INVENTORY_DB_SSL_CERT
@@ -690,7 +698,7 @@ objects:
         - name: PAYLOAD_TRACKER_ENABLED
           value: 'true'
         - name: KESSEL_TARGET_URL
-          value: ${KESSEL_TARGET_URL}
+          value: ${KESSEL_TARGET_URL}          
         - name: KAFKA_PRODUCER_ACKS
           value: ${KAFKA_PRODUCER_ACKS}
         - name: KAFKA_PRODUCER_RETRIES
@@ -731,6 +739,8 @@ objects:
               optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
+        - name: FF_LAST_CHECKIN
+          value: ${FF_LAST_CHECKIN}
         - name: UNLEASH_REFRESH_INTERVAL
           value: ${UNLEASH_REFRESH_INTERVAL}
         - name: MQ_DB_BATCH_MAX_MESSAGES
@@ -773,12 +783,12 @@ objects:
       podSpec:
         args: ["./inv_mq_service.py"]
         env:
+        - name: HBI_DB_REFACTORING_USE_OLD_TABLE
+          value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
         - name: CONSOLEDOT_HOSTNAME
           value: ${CONSOLEDOT_HOSTNAME}
         - name: INVENTORY_LOG_LEVEL
           value: ${LOG_LEVEL}
-        - name: CONNEXION_LOG_LEVEL
-          value: ${CONNEXION_LOG_LEVEL}
         - name: INVENTORY_DB_SSL_MODE
           value: ${INVENTORY_DB_SSL_MODE}
         - name: INVENTORY_DB_SSL_CERT
@@ -800,7 +810,7 @@ objects:
         - name: PAYLOAD_TRACKER_ENABLED
           value: 'true'
         - name: KESSEL_TARGET_URL
-          value: ${KESSEL_TARGET_URL}
+          value: ${KESSEL_TARGET_URL}          
         - name: KAFKA_PRODUCER_ACKS
           value: ${KAFKA_PRODUCER_ACKS}
         - name: KAFKA_PRODUCER_RETRIES
@@ -837,6 +847,8 @@ objects:
               optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
+        - name: FF_LAST_CHECKIN
+          value: ${FF_LAST_CHECKIN}
         - name: UNLEASH_REFRESH_INTERVAL
           value: ${UNLEASH_REFRESH_INTERVAL}
         - name: MQ_DB_BATCH_MAX_MESSAGES
@@ -871,12 +883,12 @@ objects:
       podSpec:
         args: ["./inv_mq_service.py"]
         env:
+        - name: HBI_DB_REFACTORING_USE_OLD_TABLE
+          value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
         - name: CONSOLEDOT_HOSTNAME
           value: ${CONSOLEDOT_HOSTNAME}
         - name: INVENTORY_LOG_LEVEL
           value: ${LOG_LEVEL}
-        - name: CONNEXION_LOG_LEVEL
-          value: ${CONNEXION_LOG_LEVEL}
         - name: INVENTORY_DB_SSL_MODE
           value: ${INVENTORY_DB_SSL_MODE}
         - name: INVENTORY_DB_SSL_CERT
@@ -929,6 +941,8 @@ objects:
               optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
+        - name: FF_LAST_CHECKIN
+          value: ${FF_LAST_CHECKIN}
         - name: UNLEASH_REFRESH_INTERVAL
           value: ${UNLEASH_REFRESH_INTERVAL}
         - name: MQ_DB_BATCH_MAX_MESSAGES
@@ -976,6 +990,8 @@ objects:
       podSpec:
         args: ["./inv_export_service.py"]
         env:
+        - name: HBI_DB_REFACTORING_USE_OLD_TABLE
+          value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
         - name: INVENTORY_LOG_LEVEL
           value: DEBUG
         - name: INVENTORY_DB_SSL_MODE
@@ -1012,6 +1028,8 @@ objects:
               optional: true
         - name: BYPASS_UNLEASH
           value: ${BYPASS_UNLEASH}
+        - name: FF_LAST_CHECKIN
+          value: ${FF_LAST_CHECKIN}
         - name: UNLEASH_REFRESH_INTERVAL
           value: ${UNLEASH_REFRESH_INTERVAL}
         - name: REPLICA_NAMESPACE
@@ -1046,8 +1064,10 @@ objects:
       restartPolicy: Never
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        args: ["./jobs/host_reaper.py"]
+        args: ["./host_reaper.py"]
         env:
+          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
+            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
           - name: INVENTORY_DB_SSL_MODE
@@ -1057,7 +1077,7 @@ objects:
           - name: KAFKA_BOOTSTRAP_SERVERS
             value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
           - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
+            value: ${KESSEL_TARGET_URL}            
           - name: PAYLOAD_TRACKER_KAFKA_TOPIC
             value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
           - name: PAYLOAD_TRACKER_SERVICE_NAME
@@ -1076,8 +1096,6 @@ objects:
             value: ${KAFKA_PRODUCER_RETRIES}
           - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
             value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
           - name: NAMESPACE
             valueFrom:
               fieldRef:
@@ -1110,6 +1128,8 @@ objects:
                 optional: true
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
+          - name: FF_LAST_CHECKIN
+            value: ${FF_LAST_CHECKIN}
           - name: UNLEASH_REFRESH_INTERVAL
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: RBAC_PSKS
@@ -1134,12 +1154,12 @@ objects:
       restartPolicy: Never
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        args: ["./jobs/generate_stale_host_notifications.py"]
+        args: ["./generate_stale_host_notifications.py"]
         env:
+          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
+            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
-          - name: CONNEXION_LOG_LEVEL
-            value: ${CONNEXION_LOG_LEVEL}
           - name: INVENTORY_DB_SSL_MODE
             value: ${INVENTORY_DB_SSL_MODE}
           - name: INVENTORY_DB_SSL_CERT
@@ -1147,7 +1167,7 @@ objects:
           - name: KAFKA_BOOTSTRAP_SERVERS
             value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
           - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
+            value: ${KESSEL_TARGET_URL}            
           - name: PROMETHEUS_PUSHGATEWAY
             value: ${PROMETHEUS_PUSHGATEWAY}
           - name: KAFKA_EVENT_TOPIC
@@ -1160,8 +1180,6 @@ objects:
             value: ${KAFKA_PRODUCER_RETRIES}
           - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
             value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
           - name: NAMESPACE
             valueFrom:
               fieldRef:
@@ -1184,6 +1202,8 @@ objects:
                 optional: true
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
+          - name: FF_LAST_CHECKIN
+            value: ${FF_LAST_CHECKIN}
           - name: UNLEASH_REFRESH_INTERVAL
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: CONSOLEDOT_HOSTNAME
@@ -1204,16 +1224,16 @@ objects:
       restartPolicy: Never
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        args: ["./jobs/inv_publish_hosts.py"]
+        args: ["./inv_publish_hosts.py"]
         env:
+          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
+            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
           - name: INVENTORY_DB_SSL_MODE
             value: ${INVENTORY_DB_SSL_MODE}
           - name: INVENTORY_DB_SSL_CERT
             value: ${INVENTORY_DB_SSL_CERT}
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
           - name: NAMESPACE
             valueFrom:
               fieldRef:
@@ -1226,14 +1246,6 @@ objects:
             value: ${PROMETHEUS_PUSHGATEWAY}
           - name: REPLICA_NAMESPACE
             value: ${REPLICA_NAMESPACE}
-          - name: CREATE_PUBLICATIONS
-            value: ${SYNDICATOR_CREATE_PUBLICATIONS}
-          - name: DROP_PUBLICATIONS
-            value: ${SYNDICATOR_DROP_PUBLICATIONS}
-          - name: DROP_REPLICATION_SLOTS
-            value: ${SYNDICATOR_DROP_REPLICATION_SLOTS}
-          - name: REPLICA_IDENTITY_MODE
-            value: ${SYNDICATOR_REPLICA_IDENTITY_MODE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_SYNDICATOR}
@@ -1248,10 +1260,10 @@ objects:
       restartPolicy: Never
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        args: ["./jobs/system_profile_validator.py"]
+        args: ["./system_profile_validator.py"]
         env:
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
+          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
+            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
           - name: GIT_TOKEN
@@ -1271,7 +1283,7 @@ objects:
           - name: KAFKA_BOOTSTRAP_SERVERS
             value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
           - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
+            value: ${KESSEL_TARGET_URL}            
           - name: PAYLOAD_TRACKER_KAFKA_TOPIC
             value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
           - name: PAYLOAD_TRACKER_SERVICE_NAME
@@ -1322,6 +1334,8 @@ objects:
                 optional: true
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
+          - name: FF_LAST_CHECKIN
+            value: ${FF_LAST_CHECKIN}
           - name: UNLEASH_REFRESH_INTERVAL
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: REPLICA_NAMESPACE
@@ -1339,10 +1353,10 @@ objects:
       restartPolicy: Never
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        args: ["./jobs/pendo_syncher.py"]
+        args: ["./pendo_syncher.py"]
         env:
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
+          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
+            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
           - name: INVENTORY_DB_SSL_MODE
@@ -1376,6 +1390,8 @@ objects:
                 optional: true
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
+          - name: FF_LAST_CHECKIN
+            value: ${FF_LAST_CHECKIN}
           - name: UNLEASH_REFRESH_INTERVAL
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: REPLICA_NAMESPACE
@@ -1391,10 +1407,10 @@ objects:
       restartPolicy: OnFailure
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        args: ["./jobs/rebuild_events_topic.py", "&&", "./jobs/host_synchronizer.py"]
+        args: ["./rebuild_events_topic.py", "&&", "./host_synchronizer.py"]
         env:
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
+          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
+            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
           - name: INVENTORY_DB_SSL_MODE
@@ -1406,7 +1422,7 @@ objects:
           - name: KAFKA_BOOTSTRAP_SERVERS
             value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
           - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
+            value: ${KESSEL_TARGET_URL}            
           - name: KAFKA_EVENT_TOPIC
             value: ${KAFKA_EVENT_TOPIC}
           - name: KAFKA_NOTIFICATION_TOPIC
@@ -1447,6 +1463,8 @@ objects:
                 optional: true
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
+          - name: FF_LAST_CHECKIN
+            value: ${FF_LAST_CHECKIN}
           - name: UNLEASH_REFRESH_INTERVAL
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: REBUILD_EVENTS_TIME_LIMIT
@@ -1464,10 +1482,10 @@ objects:
       restartPolicy: OnFailure
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        args: ["./jobs/host_synchronizer.py"]
+        args: ["./host_synchronizer.py"]
         env:
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
+          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
+            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
           - name: INVENTORY_DB_SSL_MODE
@@ -1518,6 +1536,8 @@ objects:
                 optional: true
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
+          - name: FF_LAST_CHECKIN
+            value: ${FF_LAST_CHECKIN}
           - name: UNLEASH_REFRESH_INTERVAL
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: REBUILD_EVENTS_TIME_LIMIT
@@ -1535,10 +1555,10 @@ objects:
       restartPolicy: OnFailure
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        args: ["./jobs/host_sync_group_data.py"]
+        args: ["./host_sync_group_data.py"]
         env:
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
+          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
+            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
           - name: INVENTORY_DB_SSL_MODE
@@ -1589,6 +1609,8 @@ objects:
                 optional: true
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
+          - name: FF_LAST_CHECKIN
+            value: ${FF_LAST_CHECKIN}
           - name: UNLEASH_REFRESH_INTERVAL
             value: ${UNLEASH_REFRESH_INTERVAL}
           - name: REBUILD_EVENTS_TIME_LIMIT
@@ -1602,14 +1624,188 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_SYNCHRONIZER}
             memory: ${MEMORY_REQUEST_SYNCHRONIZER}
+    - name: create-ungrouped-host-groups
+      restartPolicy: OnFailure
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: ["./create_ungrouped_host_groups.py"]
+        env:
+          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
+            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - name: UNLEASH_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: ${UNLEASH_SECRET_NAME}
+                key: CLIENT_ACCESS_TOKEN
+                optional: true
+          - name: BYPASS_UNLEASH
+            value: ${BYPASS_UNLEASH}
+          - name: FF_LAST_CHECKIN
+            value: ${FF_LAST_CHECKIN}
+          - name: UNLEASH_REFRESH_INTERVAL
+            value: ${UNLEASH_REFRESH_INTERVAL}
+          - name: BYPASS_KESSEL_JOBS
+            value: ${BYPASS_KESSEL_JOBS}
+          - name: CREATE_UNGROUPED_GROUPS_BATCH_SIZE
+            value: ${CREATE_UNGROUPED_GROUPS_BATCH_SIZE}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_UNGROUPED_HOSTS_JOB}
+            memory: ${MEMORY_LIMIT_UNGROUPED_HOSTS_JOB}
+          requests:
+            cpu: ${CPU_REQUEST_UNGROUPED_HOSTS_JOB}
+            memory: ${MEMORY_REQUEST_UNGROUPED_HOSTS_JOB}
+    - name: delete-ungrouped-host-groups
+      restartPolicy: OnFailure
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: ["./delete_ungrouped_host_groups.py"]
+        env:
+          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
+            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: KAFKA_BOOTSTRAP_SERVERS
+            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: KESSEL_TARGET_URL
+            value: ${KESSEL_TARGET_URL}            
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
+            value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory-mq-service
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'true'
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - name: UNLEASH_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: ${UNLEASH_SECRET_NAME}
+                key: CLIENT_ACCESS_TOKEN
+                optional: true
+          - name: BYPASS_UNLEASH
+            value: ${BYPASS_UNLEASH}
+          - name: FF_LAST_CHECKIN
+            value: ${FF_LAST_CHECKIN}
+          - name: UNLEASH_REFRESH_INTERVAL
+            value: ${UNLEASH_REFRESH_INTERVAL}
+          - name: BYPASS_KESSEL_JOBS
+            value: ${BYPASS_KESSEL_JOBS}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_UNGROUPED_HOSTS_JOB}
+            memory: ${MEMORY_LIMIT_UNGROUPED_HOSTS_JOB}
+          requests:
+            cpu: ${CPU_REQUEST_UNGROUPED_HOSTS_JOB}
+            memory: ${MEMORY_REQUEST_UNGROUPED_HOSTS_JOB}
+    - name: export-group-data-s3
+      restartPolicy: OnFailure
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: ["./export_group_data_s3.py"]
+        env:
+          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
+            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: S3_AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${KESSEL_S3_AWS_SECRET}
+                key: aws_access_key_id
+          - name: S3_AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${KESSEL_S3_AWS_SECRET}
+                key: aws_secret_access_key
+          - name: S3_AWS_BUCKET
+            valueFrom:
+              secretKeyRef:
+                name: ${KESSEL_S3_AWS_SECRET}
+                key: bucket
+          - name: BYPASS_KESSEL_JOBS
+            value: ${BYPASS_KESSEL_JOBS}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_GROUPS_S3_EXPORT}
+            memory: ${MEMORY_LIMIT_GROUPS_S3_EXPORT}
+          requests:
+            cpu: ${CPU_REQUEST_GROUPS_S3_EXPORT}
+            memory: ${MEMORY_REQUEST_GROUPS_S3_EXPORT}
     - name: delete-hosts-s3
       restartPolicy: OnFailure
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        args: ["./jobs/delete_hosts_s3.py"]
+        args: ["./delete_hosts_s3.py"]
         env:
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
+          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
+            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
           - name: INVENTORY_DB_SSL_MODE
@@ -1672,14 +1868,14 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_DELETE_HOSTS_S3}
             memory: ${MEMORY_REQUEST_DELETE_HOSTS_S3}
-    - name: duplicate-hosts-remover
-      restartPolicy: Never
+    - name: assign-ungrouped-host-groups
+      restartPolicy: OnFailure
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        args: [ "./jobs/host_delete_duplicates.py" ]
+        args: ["./assign_ungrouped_hosts_to_groups.py"]
         env:
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
+          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
+            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
           - name: INVENTORY_DB_SSL_MODE
@@ -1691,7 +1887,226 @@ objects:
           - name: KAFKA_BOOTSTRAP_SERVERS
             value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
           - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
+            value: ${KESSEL_TARGET_URL}            
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
+            value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory-mq-service
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'true'
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - name: UNLEASH_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: ${UNLEASH_SECRET_NAME}
+                key: CLIENT_ACCESS_TOKEN
+                optional: true
+          - name: BYPASS_UNLEASH
+            value: ${BYPASS_UNLEASH}
+          - name: FF_LAST_CHECKIN
+            value: ${FF_LAST_CHECKIN}
+          - name: UNLEASH_REFRESH_INTERVAL
+            value: ${UNLEASH_REFRESH_INTERVAL}
+          - name: BYPASS_KESSEL_JOBS
+            value: ${BYPASS_KESSEL_JOBS}
+          - name: ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE
+            value: ${ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_UNGROUPED_HOSTS_JOB}
+            memory: ${MEMORY_LIMIT_UNGROUPED_HOSTS_JOB}
+          requests:
+            cpu: ${CPU_REQUEST_UNGROUPED_HOSTS_JOB}
+            memory: ${MEMORY_REQUEST_UNGROUPED_HOSTS_JOB}
+    - name: update-hosts-last-check-in
+      schedule: ${{HOSTS_LAST_CHECK_IN_SCHEDULE}}
+      restartPolicy: Never
+      suspend: ${{HOSTS_LAST_CHECK_IN_SUSPEND}}
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: ["./update_hosts_last_check_in.py"]
+        env:
+          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
+            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
+          - name: HOST_UPDATE_LIMIT
+            value: ${HOST_UPDATE_LIMIT}
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_HOSTS_LAST_CHECK_IN}
+            memory: ${MEMORY_LIMIT_HOSTS_LAST_CHECK_IN}
+          requests:
+            cpu: ${CPU_REQUEST_HOSTS_LAST_CHECK_IN}
+            memory: ${MEMORY_REQUEST_HOSTS_LAST_CHECK_IN}
+    - name: update-staleness-columns
+      schedule: ${{UPDATE_STALENESS_COLUMNS_SCHEDULE}}
+      restartPolicy: Never
+      concurrencyPolicy: "Forbid"
+      suspend: ${{UPDATE_STALENESS_COLUMNS_SUSPEND}}
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: ["./update_staleness_columns.py"]
+        env:
+          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
+            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_UPDATE_STALENESS_COLUMNS}
+            memory: ${MEMORY_LIMIT_UPDATE_STALENESS_COLUMNS}
+          requests:
+            cpu: ${CPU_REQUEST_UPDATE_STALENESS_COLUMNS}
+            memory: ${MEMORY_REQUEST_UPDATE_STALENESS_COLUMNS}
+    - name: delete-hosts-without-id-facts
+      restartPolicy: OnFailure
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: [ "./delete_hosts_without_id_facts.py" ]
+        env:
+          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
+            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: KAFKA_BOOTSTRAP_SERVERS
+            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
+            value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory-mq-service
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'true'
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - name: UNLEASH_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: ${UNLEASH_SECRET_NAME}
+                key: CLIENT_ACCESS_TOKEN
+                optional: true
+          - name: BYPASS_UNLEASH
+            value: ${BYPASS_UNLEASH}
+          - name: FF_LAST_CHECKIN
+            value: ${FF_LAST_CHECKIN}
+          - name: UNLEASH_REFRESH_INTERVAL
+            value: ${UNLEASH_REFRESH_INTERVAL}
+          - name: HOST_DELETE_CHUNK_SIZE
+            value: ${HOST_DELETE_CHUNK_SIZE}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_HOSTS_WITHOUT_ID_FACTS_JOB}
+            memory: ${MEMORY_LIMIT_HOSTS_WITHOUT_ID_FACTS_JOB}
+          requests:
+            cpu: ${CPU_REQUEST_HOSTS_WITHOUT_ID_FACTS_JOB}
+            memory: ${MEMORY_REQUEST_HOSTS_WITHOUT_ID_FACTS_JOB}
+    - name: duplicate-hosts-remover
+      restartPolicy: Never
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: [ "./host_delete_duplicates.py" ]
+        env:
+          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
+            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: KAFKA_BOOTSTRAP_SERVERS
+            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
           - name: KAFKA_EVENT_TOPIC
             value: ${KAFKA_EVENT_TOPIC}
           - name: KAFKA_NOTIFICATION_TOPIC
@@ -1735,51 +2150,15 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_DUPLICATE_HOSTS_REMOVER_JOB}
             memory: ${MEMORY_REQUEST_DUPLICATE_HOSTS_REMOVER_JOB}
-    - name: sync-workloads-fields-data
-      restartPolicy: OnFailure
-      suspend: ${{SYNC_WORKLOADS_FIELDS_SUSPEND}}
-      podSpec:
-        image: ${IMAGE}:${IMAGE_TAG}
-        args: [ "./jobs/sync_workloads_fields_data.py" ]
-        env:
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
-          - name: INVENTORY_LOG_LEVEL
-            value: ${LOG_LEVEL}
-          - name: INVENTORY_DB_SSL_MODE
-            value: ${INVENTORY_DB_SSL_MODE}
-          - name: INVENTORY_DB_SSL_CERT
-            value: ${INVENTORY_DB_SSL_CERT}
-          - name: INVENTORY_DB_SCHEMA
-            value: "${INVENTORY_DB_SCHEMA}"
-          - name: PROMETHEUS_PUSHGATEWAY
-            value: ${PROMETHEUS_PUSHGATEWAY}
-          - name: NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
-          - name: CLOWDER_ENABLED
-            value: "true"
-          - name: REPLICA_NAMESPACE
-            value: ${REPLICA_NAMESPACE}
-          - name: SUSPEND_JOB
-            value: ${SYNC_WORKLOADS_FIELDS_SUSPEND}
-        resources:
-          limits:
-            cpu: ${CPU_REQUEST_SYNC_WORKLOADS_FIELDS}
-            memory: ${MEMORY_LIMIT_SYNC_WORKLOADS_FIELDS}
-          requests:
-            cpu: ${CPU_REQUEST_SYNC_WORKLOADS_FIELDS}
-            memory: ${MEMORY_REQUEST_SYNC_WORKLOADS_FIELDS}
     - name: hosts-table-migration-data-copy
       restartPolicy: OnFailure
       suspend: ${{HOSTS_TABLE_MIGRATION_DATA_COPY_SUSPEND}}
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        args: [ "./jobs/hosts_table_migration_data_copy.py" ]
+        args: [ "./hosts_table_migration_data_copy.py" ]
         env:
+          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
+            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
           - name: PYTHONPATH
             value: '/opt/app-root/src'
           - name: INVENTORY_LOG_LEVEL
@@ -1816,8 +2195,10 @@ objects:
       suspend: ${{HOSTS_TABLE_MIGRATION_SWITCH_SUSPEND}}
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        args: [ "./jobs/hosts_table_migration_switch.py" ]
+        args: [ "./hosts_table_migration_switch.py" ]
         env:
+          - name: HBI_DB_REFACTORING_USE_OLD_TABLE
+            value: ${HBI_DB_REFACTORING_USE_OLD_TABLE}
           - name: PYTHONPATH
             value: '/opt/app-root/src'
           - name: INVENTORY_LOG_LEVEL
@@ -1849,184 +2230,6 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_HOSTS_TABLE_MIGRATION_SWITCH}
             memory: ${MEMORY_REQUEST_HOSTS_TABLE_MIGRATION_SWITCH}
-    - name: delete-host-bios-uuid
-      restartPolicy: Never
-      suspend: ${{SUSPEND_DELETE_HOST_BIOS_UUID}}
-      podSpec:
-        image: ${IMAGE}:${IMAGE_TAG}
-        args: [ "./jobs/delete_host_bios_uuid.py" ]
-        env:
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
-          - name: INVENTORY_LOG_LEVEL
-            value: ${LOG_LEVEL}
-          - name: INVENTORY_DB_SSL_MODE
-            value: ${INVENTORY_DB_SSL_MODE}
-          - name: INVENTORY_DB_SSL_CERT
-            value: ${INVENTORY_DB_SSL_CERT}
-          - name: INVENTORY_DB_SCHEMA
-            value: "${INVENTORY_DB_SCHEMA}"
-          - name: TARGET_HOST_ID
-            value: ${TARGET_HOST_ID}
-          - name: NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
-          - name: CLOWDER_ENABLED
-            value: "true"
-          - name: SUSPEND_JOB
-            value: ${SUSPEND_DELETE_HOST_BIOS_UUID}
-          - name: REPLICA_NAMESPACE
-            value: ${REPLICA_NAMESPACE}
-        resources:
-          limits:
-            cpu: ${CPU_LIMIT_DELETE_HOST_BIOS_UUID_JOB}
-            memory: ${MEMORY_LIMIT_DELETE_HOST_BIOS_UUID_JOB}
-          requests:
-            cpu: ${CPU_REQUEST_DELETE_HOST_BIOS_UUID_JOB}
-            memory: ${MEMORY_REQUEST_DELETE_HOST_BIOS_UUID_JOB}
-    - name: canonical-facts-migration
-      restartPolicy: Never
-      suspend: ${{SUSPEND_CANONICAL_FACTS_MIGRATION}}
-      podSpec:
-        image: ${IMAGE}:${IMAGE_TAG}
-        args: [ "./jobs/canonical_facts_migration.py" ]
-        env:
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
-          - name: INVENTORY_LOG_LEVEL
-            value: ${LOG_LEVEL}
-          - name: INVENTORY_DB_SSL_MODE
-            value: ${INVENTORY_DB_SSL_MODE}
-          - name: INVENTORY_DB_SSL_CERT
-            value: ${INVENTORY_DB_SSL_CERT}
-          - name: INVENTORY_DB_SCHEMA
-            value: "${INVENTORY_DB_SCHEMA}"
-          - name: PROMETHEUS_PUSHGATEWAY
-            value: ${PROMETHEUS_PUSHGATEWAY}
-          - name: NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
-          - name: CLOWDER_ENABLED
-            value: "true"
-          - name: CANONICAL_FACTS_MIGRATION_BATCH_SIZE
-            value: ${CANONICAL_FACTS_MIGRATION_BATCH_SIZE}
-          - name: REPLICA_NAMESPACE
-            value: ${REPLICA_NAMESPACE}
-          - name: SUSPEND_CANONICAL_FACTS_MIGRATION
-            value: ${SUSPEND_CANONICAL_FACTS_MIGRATION}
-        resources:
-          limits:
-            cpu: ${CPU_LIMIT_CANONICAL_FACTS_MIGRATION}
-            memory: ${MEMORY_LIMIT_CANONICAL_FACTS_MIGRATION}
-          requests:
-            cpu: ${CPU_REQUEST_CANONICAL_FACTS_MIGRATION}
-            memory: ${MEMORY_REQUEST_CANONICAL_FACTS_MIGRATION}
-    - name: sp-tables-migration-prepare
-      restartPolicy: OnFailure
-      suspend: ${{SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_PREPARE}}
-      podSpec: &baseMigrationPodSpec
-        image: ${IMAGE}:${IMAGE_TAG}
-        args:
-          - "./jobs/system_profile_tables_migration_data_copy.py"
-          - "--mode"
-          - "prepare"
-          - "--suspend"
-          - "${SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_PREPARE}"
-        env:
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
-          - name: INVENTORY_LOG_LEVEL
-            value: ${LOG_LEVEL}
-          - name: INVENTORY_DB_SSL_MODE
-            value: ${INVENTORY_DB_SSL_MODE}
-          - name: INVENTORY_DB_SSL_CERT
-            value: ${INVENTORY_DB_SSL_CERT}
-          - name: INVENTORY_DB_SCHEMA
-            value: "${INVENTORY_DB_SCHEMA}"
-          - name: PROMETHEUS_PUSHGATEWAY
-            value: ${PROMETHEUS_PUSHGATEWAY}
-          - name: NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
-          - name: CLOWDER_ENABLED
-            value: "true"
-          - name: SP_TABLES_MIGRATION_BATCH_SIZE
-            value: ${SP_TABLES_MIGRATION_BATCH_SIZE}
-          - name: REPLICA_NAMESPACE
-            value: ${REPLICA_NAMESPACE}
-        resources:
-          limits:
-            cpu: ${CPU_LIMIT_SP_TABLES_MIGRATION_DATA_COPY}
-            memory: ${MEMORY_LIMIT_SP_TABLES_MIGRATION_DATA_COPY}
-          requests:
-            cpu: ${CPU_REQUEST_SP_TABLES_MIGRATION_DATA_COPY}
-            memory: ${MEMORY_REQUEST_SP_TABLES_MIGRATION_DATA_COPY}
-    - name: sp-tables-migration-worker-1
-      restartPolicy: OnFailure
-      suspend: ${{SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_1}}
-      podSpec:
-        <<: *baseMigrationPodSpec
-        args:
-          - "./jobs/system_profile_tables_migration_data_copy.py"
-          - "--mode"
-          - "migrate"
-          - "--partitions"
-          - "${SP_TABLES_MIGRATION_WORKER_1_PARTITIONS}"
-          - "--suspend"
-          - "${SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_1}"
-    - name: sp-tables-migration-worker-2
-      restartPolicy: OnFailure
-      suspend: ${{SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_2}}
-      podSpec:
-        <<: *baseMigrationPodSpec
-        args:
-          - "./jobs/system_profile_tables_migration_data_copy.py"
-          - "--mode"
-          - "migrate"
-          - "--partitions"
-          - "${SP_TABLES_MIGRATION_WORKER_2_PARTITIONS}"
-          - "--suspend"
-          - "${SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_2}"
-    - name: sp-tables-migration-worker-3
-      restartPolicy: OnFailure
-      suspend: ${{SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_3}}
-      podSpec:
-        <<: *baseMigrationPodSpec
-        args:
-          - "./jobs/system_profile_tables_migration_data_copy.py"
-          - "--mode"
-          - "migrate"
-          - "--partitions"
-          - "${SP_TABLES_MIGRATION_WORKER_3_PARTITIONS}"
-          - "--suspend"
-          - "${SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_3}"
-    - name: sp-tables-migration-worker-4
-      restartPolicy: OnFailure
-      suspend: ${{SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_4}}
-      podSpec:
-        <<: *baseMigrationPodSpec
-        args:
-          - "./jobs/system_profile_tables_migration_data_copy.py"
-          - "--mode"
-          - "migrate"
-          - "--partitions"
-          - "${SP_TABLES_MIGRATION_WORKER_4_PARTITIONS}"
-          - "--suspend"
-          - "${SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_4}"
-    - name: sp-tables-migration-finalize
-      restartPolicy: OnFailure
-      suspend: ${{SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_FINALIZE}}
-      podSpec:
-        <<: *baseMigrationPodSpec
-        args:
-          - "./jobs/system_profile_tables_migration_data_copy.py"
-          - "--mode"
-          - "finalize"
-          - "--suspend"
-          - "${SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_FINALIZE}"
     database:
       name: ${DB_NAME}
       version: 16
@@ -2176,24 +2379,6 @@ objects:
             COUNT(*) AS "host_count"
           FROM "hbi"."hosts"
           GROUP BY "canonical_facts"->>'provider_type';
-      - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/org_id_by_system_update_method
-        chunksize: 10000
-        query: >-
-          SELECT
-            "org_id",
-            COUNT(*) FILTER (WHERE
-              "system_profile_facts"->'bootc_status'->>'image_digest' IS NOT NULL
-              AND "system_profile_facts"->'bootc_status'->>'image_digest' <> ''
-            ) AS "image_mode_count",
-            COUNT(*) FILTER (WHERE
-              "system_profile_facts"->'bootc_status'->>'image_digest' IS NULL
-              AND "system_profile_facts"->>'host_type' IS NULL
-            ) AS "package_mode_count",
-            COUNT(*) FILTER (WHERE
-              "system_profile_facts"->>'host_type' = 'edge'
-            ) AS "edge_count"
-          FROM "hbi"."hosts"
-          GROUP BY "org_id";
       - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/duplicated_hosts_by_org
         chunksize: 10000
         query: >-
@@ -2438,6 +2623,24 @@ parameters:
 - name: MEMORY_LIMIT_SYNCHRONIZER
   value: 512Mi
 
+- name: CPU_REQUEST_UNGROUPED_HOSTS_JOB
+  value: 250m
+- name: CPU_LIMIT_UNGROUPED_HOSTS_JOB
+  value: 500m
+- name: MEMORY_REQUEST_UNGROUPED_HOSTS_JOB
+  value: 256Mi
+- name: MEMORY_LIMIT_UNGROUPED_HOSTS_JOB
+  value: 512Mi
+
+- name: CPU_REQUEST_GROUPS_S3_EXPORT
+  value: 250m
+- name: CPU_LIMIT_GROUPS_S3_EXPORT
+  value: 500m
+- name: MEMORY_REQUEST_GROUPS_S3_EXPORT
+  value: 256Mi
+- name: MEMORY_LIMIT_GROUPS_S3_EXPORT
+  value: 512Mi
+
 - name: CPU_REQUEST_DELETE_HOSTS_S3
   value: 250m
 - name: CPU_LIMIT_DELETE_HOSTS_S3
@@ -2465,14 +2668,46 @@ parameters:
 - name: MEMORY_LIMIT_EXPORT_SVC
   value: 512Mi
 
-- name: CPU_REQUEST_SYNC_WORKLOADS_FIELDS
+- name: CPU_REQUEST_HOSTS_LAST_CHECK_IN
   value: 250m
-- name: CPU_LIMIT_SYNC_WORKLOADS_FIELDS
+- name: CPU_LIMIT_HOSTS_LAST_CHECK_IN
   value: 500m
-- name: MEMORY_REQUEST_SYNC_WORKLOADS_FIELDS
+- name: MEMORY_REQUEST_HOSTS_LAST_CHECK_IN
   value: 256Mi
-- name: MEMORY_LIMIT_SYNC_WORKLOADS_FIELDS
+- name: MEMORY_LIMIT_HOSTS_LAST_CHECK_IN
   value: 512Mi
+- name: HOST_UPDATE_LIMIT
+  value: "50000"
+
+- name: CPU_REQUEST_UPDATE_STALENESS_COLUMNS
+  value: 250m
+- name: CPU_LIMIT_UPDATE_STALENESS_COLUMNS
+  value: 500m
+- name: MEMORY_REQUEST_UPDATE_STALENESS_COLUMNS
+  value: 256Mi
+- name: MEMORY_LIMIT_UPDATE_STALENESS_COLUMNS
+  value: 512Mi
+
+- name: CPU_REQUEST_HOSTS_WITHOUT_ID_FACTS_JOB
+  value: 250m
+- name: CPU_LIMIT_HOSTS_WITHOUT_ID_FACTS_JOB
+  value: 500m
+- name: MEMORY_REQUEST_HOSTS_WITHOUT_ID_FACTS_JOB
+  value: 256Mi
+- name: MEMORY_LIMIT_HOSTS_WITHOUT_ID_FACTS_JOB
+  value: 512Mi
+
+- name: CPU_REQUEST_DUPLICATE_HOSTS_REMOVER_JOB
+  value: 250m
+- name: CPU_LIMIT_DUPLICATE_HOSTS_REMOVER_JOB
+  value: 500m
+- name: MEMORY_REQUEST_DUPLICATE_HOSTS_REMOVER_JOB
+  value: 256Mi
+- name: MEMORY_LIMIT_DUPLICATE_HOSTS_REMOVER_JOB
+  value: 512Mi
+- name: REMOVE_DUPLICATES_DRY_RUN
+  description: Whether the duplicate hosts remover script should run in dry-run mode
+  value: 'true'
 
 - name: CPU_REQUEST_HOSTS_TABLE_MIGRATION_DATA_COPY
   value: 250m
@@ -2490,15 +2725,6 @@ parameters:
 - name: MEMORY_REQUEST_HOSTS_TABLE_MIGRATION_SWITCH
   value: 256Mi
 - name: MEMORY_LIMIT_HOSTS_TABLE_MIGRATION_SWITCH
-  value: 512Mi
-
-- name: CPU_REQUEST_SP_TABLES_MIGRATION_DATA_COPY
-  value: 250m
-- name: CPU_LIMIT_SP_TABLES_MIGRATION_DATA_COPY
-  value: 500m
-- name: MEMORY_REQUEST_SP_TABLES_MIGRATION_DATA_COPY
-  value: 256Mi
-- name: MEMORY_LIMIT_SP_TABLES_MIGRATION_DATA_COPY
   value: 512Mi
 
 - description: Replica count for p1 consumer
@@ -2548,8 +2774,6 @@ parameters:
 - name: CONSOLEDOT_HOSTNAME
   value: localhost
 - name: URLLIB3_LOG_LEVEL
-  value: WARNING
-- name: CONNEXION_LOG_LEVEL
   value: WARNING
 - description: SSL validation mode for the DB
   name: INVENTORY_DB_SSL_MODE
@@ -2634,7 +2858,7 @@ parameters:
 - name: KAFKA_BOOTSTRAP_PORT
   value: '29092'
 - name: KESSEL_TARGET_URL
-  value: 'localhost:20000'
+  value: 'localhost:20000'  
 - name: INVENTORY_DB_SSL_CERT
   value: ''
 - name: PENDO_SYNCHER_SUSPEND
@@ -2655,6 +2879,14 @@ parameters:
   value: 'false'
 - name: SYNDICATOR_CRON_SCHEDULE
   value: '*/5 * * * *'
+- name: HOSTS_LAST_CHECK_IN_SCHEDULE
+  value: '@hourly'
+- name: HOSTS_LAST_CHECK_IN_SUSPEND
+  value: 'false'
+- name: UPDATE_STALENESS_COLUMNS_SCHEDULE
+  value: '@hourly'
+- name: UPDATE_STALENESS_COLUMNS_SUSPEND
+  value: 'false'
 - name: KAFKA_SP_VALIDATOR_MAX_MESSAGES
   value: '10000'
 - name: TENANT_TRANSLATOR_HOST
@@ -2719,6 +2951,9 @@ parameters:
   value: '60'
 - name: INVENTORY_DB_SCHEMA
   value: 'hbi'
+- name: KESSEL_S3_AWS_SECRET
+  description: The AWS secret for the Kessel S3 bucket
+  value: 'hbi-kessel-s3'
 - name: DELETE_HOSTS_S3_AWS_SECRET
   description: The AWS secret for the delete-hosts S3 bucket
   value: 'hbi-delete-host-ids-s3'
@@ -2728,11 +2963,23 @@ parameters:
 - name: DELETE_HOSTS_S3_BATCH_SIZE
   description: The batch size to use for the delete-hosts-s3 script.
   value: '500'
+- name: BYPASS_KESSEL_JOBS
+  description: Whether to bypass Kessel-related jobs, even when triggered via CJI
+  value: 'false'
+- name: CREATE_UNGROUPED_GROUPS_BATCH_SIZE
+  description: The batch size to use for the create-ungrouped-groups script.
+  value: '100'
+- name: ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE
+  description: The batch size to use for the assign-ungrouped-hosts script.
+  value: '10'
 - name: HOSTS_TABLE_NUM_PARTITIONS
   description: The number of partitions for the hosts table
   value: '1'
 - name: SUSPEND_DELETE_HOSTS_S3
   description: If set to true, the delete-hosts-s3 job will immediately exit upon running.
+  value: 'true'
+- name: SUSPEND_DUPLICATE_HOSTS_REMOVER
+  description: If set to true, the duplicate-hosts-remover job will immediately exit upon running.
   value: 'true'
 - name: HOSTS_TABLE_MIGRATION_BATCH_SIZE
   description: The batch size to use for the hosts partitioned table migration.
@@ -2744,37 +2991,6 @@ parameters:
 - name: HOSTS_TABLE_MIGRATION_SWITCH_MODE
   description: switch or rollback to revert the hosts table switch.
   value: 'switch'
-- name: SP_TABLES_MIGRATION_DATA_COPY_SUSPEND
-  value: 'true'
-- name: SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_PREPARE
-  value: 'true'
-- name: SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_FINALIZE
-  value: 'true'
-- name: SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_1
-  value: 'true'
-- name: SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_2
-  value: 'true'
-- name: SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_3
-  value: 'true'
-- name: SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_4
-  value: 'true'
-- name: SP_TABLES_MIGRATION_WORKER_1_PARTITIONS
-  description: "Partition range for the first worker (e.g., 0-7)"
-  value: "0"
-- name: SP_TABLES_MIGRATION_WORKER_2_PARTITIONS
-  description: "Partition range for the second worker (e.g., 8-15)"
-  value: "1"
-- name: SP_TABLES_MIGRATION_WORKER_3_PARTITIONS
-  description: "Partition range for the third worker (e.g., 16-23)"
-  value: "2"
-- name: SP_TABLES_MIGRATION_WORKER_4_PARTITIONS
-  description: "Partition range for the fourth worker (e.g., 24-31)"
-  value: "3"
-- name: SP_TABLES_MIGRATION_BATCH_SIZE
-  description: The batch size to use for the system profile partitioned tables migration.
-  value: '10000'
-- name: SYNC_WORKLOADS_FIELDS_SUSPEND
-  value: 'true'
 
 # NGINX
 - displayName: Minimum replicas
@@ -2810,6 +3026,9 @@ parameters:
 - description: How frequently the Unleash client refreshes data from the server (in seconds)
   name: UNLEASH_REFRESH_INTERVAL
   value: "15"
+- name: FF_LAST_CHECKIN
+  description: Env var used to enable last checkin feature flag
+  value: 'false'
 
 #floorist
 - name: FLOORIST_SUSPEND
@@ -2831,20 +3050,6 @@ parameters:
   description: database secret name
   value: host-inventory-db
 
-  # Logical replication
-- name: SYNDICATOR_CREATE_PUBLICATIONS
-  description: Publications to create
-  value: ''
-- name: SYNDICATOR_DROP_PUBLICATIONS
-  description: Publications to drop
-  value: ''
-- name: SYNDICATOR_DROP_REPLICATION_SLOTS
-  description: Replication slots to drop
-  value: ''
-- name: SYNDICATOR_REPLICA_IDENTITY_MODE
-  description: Replica Identity Mode to set in the published tables (and their partitions)
-  value: ''
-
 # Replica namespace
 - name: REPLICA_NAMESPACE
   description: Disable Kafka operations in the replica namespace
@@ -2856,50 +3061,7 @@ parameters:
   required: true
   value: automated
 
-# Delete Host BIOS UUID Job
-- name: CPU_REQUEST_DELETE_HOST_BIOS_UUID_JOB
-  value: 100m
-- name: CPU_LIMIT_DELETE_HOST_BIOS_UUID_JOB
-  value: 200m
-- name: MEMORY_REQUEST_DELETE_HOST_BIOS_UUID_JOB
-  value: 128Mi
-- name: MEMORY_LIMIT_DELETE_HOST_BIOS_UUID_JOB
-  value: 256Mi
-- name: SUSPEND_DELETE_HOST_BIOS_UUID
-  description: If set to true, the delete-host-bios-uuid job will immediately exit upon running.
-  value: 'true'
-- name: TARGET_HOST_ID
-  description: The host ID to target for bios_uuid deletion
-  value: ''
-
-# Canonical Facts Migration Job
-- name: CPU_REQUEST_CANONICAL_FACTS_MIGRATION
-  value: 250m
-- name: CPU_LIMIT_CANONICAL_FACTS_MIGRATION
-  value: 500m
-- name: MEMORY_REQUEST_CANONICAL_FACTS_MIGRATION
-  value: 256Mi
-- name: MEMORY_LIMIT_CANONICAL_FACTS_MIGRATION
-  value: 512Mi
-- name: SUSPEND_CANONICAL_FACTS_MIGRATION
-  description: If set to true, the canonical-facts-migration job will immediately exit upon running.
-  value: 'true'
-- name: CANONICAL_FACTS_MIGRATION_BATCH_SIZE
-  description: The batch size to use for the canonical facts migration.
-  value: '5000'
-
-# Duplicate Hosts Remover Job
-- name: CPU_REQUEST_DUPLICATE_HOSTS_REMOVER_JOB
-  value: 250m
-- name: CPU_LIMIT_DUPLICATE_HOSTS_REMOVER_JOB
-  value: 500m
-- name: MEMORY_REQUEST_DUPLICATE_HOSTS_REMOVER_JOB
-  value: 256Mi
-- name: MEMORY_LIMIT_DUPLICATE_HOSTS_REMOVER_JOB
-  value: 512Mi
-- name: REMOVE_DUPLICATES_DRY_RUN
-  description: Whether the duplicate hosts remover script should run in dry-run mode
-  value: 'true'
-- name: SUSPEND_DUPLICATE_HOSTS_REMOVER
-  description: If set to true, the duplicate-hosts-remover job will immediately exit upon running.
-  value: 'true'
+# Skip DB refactoring changes in prod
+- name: HBI_DB_REFACTORING_USE_OLD_TABLE
+  description: Skip DB refactoring changes in prod
+  value: 'false'

@@ -63,7 +63,7 @@
             ],
             "variants": [],
             "createdAt": "2025-04-17T21:21:08Z"
-        },
+        },        
         {
             "name": "hbi.api.read-only",
             "description": "When turned ON, HBI's write endpoints (PUT/POST/PATCH) are disabled.",
@@ -118,7 +118,7 @@
             "type": "release",
             "project": "default",
             "stale": false,
-            "enabled": true,
+            "enabled": false,
             "createdAt": "2025-05-05T22:31:19.466Z",
             "strategies": [
                 {
@@ -127,23 +127,7 @@
                 }
             ],
             "variants": []
-          },
-          {
-            "name": "hbi.use_new_system_profile_tables",
-            "description": "When turned ON, HBI will use the new system profile tables.",
-            "type": "release",
-            "project": "default",
-            "stale": false,
-            "enabled": false,
-            "strategies": [
-                {
-                    "name": "default",
-                    "parameters": {}
-                }
-            ],
-            "variants": [],
-            "createdAt": "2025-08-14T16:29:19.146Z"
-        }
+          }
     ],
     "strategies": [
         {

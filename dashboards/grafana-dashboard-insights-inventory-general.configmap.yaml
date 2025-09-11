@@ -579,7 +579,7 @@ data:
           ],
           "targets": [
             {
-              "expr": "sum(increase(inventory_ingress_add_host_successes_total[5m])) + sum(increase(inventory_ingress_add_host_failures_total[5m]))",
+              "expr": "sum(increase(kafka_consumergroup_group_offset{topic=~'(platform-mq-stage.|platform-mq-prod)?platform.inventory.host-ingress.*'}[5m])) by (topic)",
               "instant": true,
               "interval": "1s",
               "legendFormat": "{{topic}}",
@@ -1370,6 +1370,103 @@ data:
           "valueName": "current"
         },
         {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "$datasource",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {},
+              "links": []
+            },
+            "overrides": []
+          },
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 4,
+            "w": 12,
+            "x": 12,
+            "y": 6
+          },
+          "hiddenSeries": false,
+          "id": 4,
+          "legend": {
+            "avg": true,
+            "current": true,
+            "max": true,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
+          "percentage": false,
+          "pluginVersion": "7.2.1",
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "sum(kafka_consumergroup_group_lag{topic=~'(platform-mq-stage.|platform-mq-prod)?platform.inventory.host-ingress.*'}) by (topic)",
+              "interval": "1m",
+              "legendFormat": "{{topic}}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "ingress consumer lag (ingress)",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": "0",
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
           "cacheTimeout": null,
           "colorBackground": true,
           "colorValue": false,
@@ -1761,168 +1858,6 @@ data:
           "valueName": "current"
         },
         {
-          "id": 93,
-          "type": "stat",
-          "title": "Outbox successes",
-          "gridPos": {
-            "x": 12,
-            "y": 18,
-            "h": 2,
-            "w": 3
-          },
-          "fieldConfig": {
-            "defaults": {
-              "mappings": [
-                {
-                  "type": "special",
-                  "options": {
-                    "match": "null",
-                    "result": {
-                      "text": "0",
-                      "index": 0
-                    }
-                  }
-                }
-              ],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "value": null,
-                    "color": "#299c46"
-                  },
-                  {
-                    "value": 0.1,
-                    "color": "rgba(237, 129, 40, 0.89)"
-                  },
-                  {
-                    "color": "#d44a3a"
-                  }
-                ]
-              },
-              "unit": "locale",
-              "decimals": 0,
-              "noValue": "0"
-            },
-            "overrides": []
-          },
-          "pluginVersion": "11.6.3",
-          "targets": [
-            {
-              "expr": "sum(increase(inventory_outbox_save_successes_total[$__range]))",
-              "interval": "5m",
-              "refId": "A",
-              "datasource": {
-                "uid": "$datasource"
-              },
-              "editorMode": "code",
-              "range": true
-            }
-          ],
-          "datasource": {
-            "uid": "$datasource"
-          },
-          "options": {
-            "reduceOptions": {
-              "values": false,
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": ""
-            },
-            "orientation": "horizontal",
-            "textMode": "auto",
-            "wideLayout": true,
-            "colorMode": "background",
-            "graphMode": "none",
-            "justifyMode": "auto",
-            "showPercentChange": false,
-            "percentChangeColorMode": "standard"
-          },
-          "links": []
-        },
-        {
-          "id": 94,
-          "type": "stat",
-          "title": "Outbox failures",
-          "gridPos": {
-            "x": 15,
-            "y": 18,
-            "h": 2,
-            "w": 3
-          },
-          "fieldConfig": {
-            "defaults": {
-              "mappings": [
-                {
-                  "type": "special",
-                  "options": {
-                    "match": "null",
-                    "result": {
-                      "text": "0",
-                      "index": 0
-                    }
-                  }
-                }
-              ],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "value": null,
-                    "color": "#299c46"
-                  },
-                  {
-                    "value": 0.1,
-                    "color": "rgba(237, 129, 40, 0.89)"
-                  },
-                  {
-                    "color": "#d44a3a"
-                  }
-                ]
-              },
-              "unit": "locale",
-              "decimals": 0,
-              "noValue": "0"
-            },
-            "overrides": []
-          },
-          "pluginVersion": "11.6.3",
-          "targets": [
-            {
-              "expr": "sum(increase(inventory_outbox_save_failures_total[$__range]))",
-              "interval": "5m",
-              "refId": "A",
-              "datasource": {
-                "uid": "$datasource"
-              },
-              "editorMode": "code",
-              "range": true
-            }
-          ],
-          "datasource": {
-            "uid": "$datasource"
-          },
-          "options": {
-            "reduceOptions": {
-              "values": false,
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": ""
-            },
-            "orientation": "horizontal",
-            "textMode": "auto",
-            "wideLayout": true,
-            "colorMode": "background",
-            "graphMode": "none",
-            "justifyMode": "auto",
-            "showPercentChange": false,
-            "percentChangeColorMode": "standard"
-          },
-          "links": []
-        },
-        {
           "cacheTimeout": null,
           "colorBackground": false,
           "colorValue": false,
@@ -2286,10 +2221,10 @@ data:
           },
           "fontSize": "100%",
           "gridPos": {
-            "h": 8,
+            "h": 5,
             "w": 12,
             "x": 12,
-            "y": 10
+            "y": 14
           },
           "hideTimeOverride": false,
           "id": 68,
@@ -2598,240 +2533,100 @@ data:
           "yBucketSize": null
         },
         {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "$datasource_appsre",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {},
+              "links": []
+            },
+            "overrides": []
+          },
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 23
+          },
+          "hiddenSeries": false,
           "id": 18,
-          "type": "timeseries",
-          "title": "TransactionLogsDiskUsage (Prod RDS)",
-          "gridPos": {
-            "x": 0,
-            "y": 23,
-            "h": 7,
-            "w": 12
+          "legend": {
+            "avg": true,
+            "current": true,
+            "max": true,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": true
           },
-          "fieldConfig": {
-            "defaults": {
-              "custom": {
-                "drawStyle": "line",
-                "lineInterpolation": "linear",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "lineWidth": 1,
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "spanNulls": false,
-                "insertNulls": false,
-                "showPoints": "never",
-                "pointSize": 5,
-                "stacking": {
-                  "mode": "none",
-                  "group": "A"
-                },
-                "axisPlacement": "auto",
-                "axisLabel": "",
-                "axisColorMode": "text",
-                "axisBorderShow": false,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "axisCenteredZero": false,
-                "hideFrom": {
-                  "tooltip": false,
-                  "viz": false,
-                  "legend": false
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "color": {
-                "mode": "palette-classic"
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "value": null,
-                    "color": "green"
-                  },
-                  {
-                    "value": 80,
-                    "color": "red"
-                  }
-                ]
-              },
-              "links": [],
-              "unit": "bytes"
-            },
-            "overrides": []
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
           },
-          "pluginVersion": "11.6.3",
+          "percentage": false,
+          "pluginVersion": "7.2.1",
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
           "targets": [
             {
-              "id": "",
-              "region": "default",
-              "logGroups": [],
-              "queryLanguage": "CWLI",
-              "queryMode": "Metrics",
-              "namespace": "AWS/RDS",
-              "metricName": "TransactionLogsDiskUsage",
-              "expression": "",
-              "dimensions": {
-                "DBInstanceIdentifier": "host-inventory-prod"
-              },
-              "statistic": "Average",
-              "period": "",
-              "metricQueryType": 0,
-              "metricEditorMode": 0,
-              "sqlExpression": "",
-              "matchExact": true,
-              "datasource": {
-                "uid": "PD4288CE6A02EB473",
-                "type": "cloudwatch"
-              },
-              "refId": "A",
-              "hide": false,
-              "label": ""
+              "expr": "sum(aws_kafka_bytes_in_per_sec_average{topic=~'(platform-mq-stage.|platform-mq-prod)?platform.inventory.host-ingress.*'}) by (topic)",
+              "interval": "1m",
+              "legendFormat": "{{topic}}",
+              "refId": "A"
             }
           ],
-          "datasource": {
-            "uid": "PD4288CE6A02EB473",
-            "type": "cloudwatch"
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Incoming byte rate (ingress)",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
           },
-          "options": {
-            "tooltip": {
-              "mode": "multi",
-              "sort": "none",
-              "hideZeros": false
-            },
-            "legend": {
-              "showLegend": true,
-              "displayMode": "list",
-              "placement": "bottom",
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ]
-            },
-            "alertThreshold": true
-          }
-        },
-        {
-          "id": 92,
-          "type": "timeseries",
-          "title": "OldestReplicationSlotLag (Prod RDS)",
-          "gridPos": {
-            "x": 0,
-            "y": 30,
-            "h": 7,
-            "w": 12
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
           },
-          "fieldConfig": {
-            "defaults": {
-              "custom": {
-                "drawStyle": "line",
-                "lineInterpolation": "linear",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "lineWidth": 1,
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "spanNulls": false,
-                "insertNulls": false,
-                "showPoints": "never",
-                "pointSize": 5,
-                "stacking": {
-                  "mode": "none",
-                  "group": "A"
-                },
-                "axisPlacement": "auto",
-                "axisLabel": "",
-                "axisColorMode": "text",
-                "axisBorderShow": false,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "axisCenteredZero": false,
-                "hideFrom": {
-                  "tooltip": false,
-                  "viz": false,
-                  "legend": false
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "color": {
-                "mode": "palette-classic"
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "value": null,
-                    "color": "green"
-                  },
-                  {
-                    "value": 80,
-                    "color": "red"
-                  }
-                ]
-              },
-              "links": [],
-              "unit": "bytes"
-            },
-            "overrides": []
-          },
-          "pluginVersion": "11.6.3",
-          "targets": [
+          "yaxes": [
             {
-              "id": "",
-              "region": "default",
-              "logGroups": [],
-              "queryLanguage": "CWLI",
-              "queryMode": "Metrics",
-              "namespace": "AWS/RDS",
-              "metricName": "OldestReplicationSlotLag",
-              "expression": "",
-              "dimensions": {
-                "DBInstanceIdentifier": "host-inventory-prod"
-              },
-              "statistic": "Average",
-              "period": "",
-              "metricQueryType": 0,
-              "metricEditorMode": 0,
-              "sqlExpression": "",
-              "matchExact": true,
-              "datasource": {
-                "type": "cloudwatch",
-                "uid": "PD4288CE6A02EB473"
-              },
-              "refId": "A",
-              "label": ""
+              "format": "binBps",
+              "label": "",
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
             }
           ],
-          "datasource": {
-            "uid": "PD4288CE6A02EB473",
-            "type": "cloudwatch"
-          },
-          "options": {
-            "tooltip": {
-              "mode": "multi",
-              "sort": "none",
-              "hideZeros": false
-            },
-            "legend": {
-              "showLegend": true,
-              "displayMode": "list",
-              "placement": "bottom",
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ]
-            },
-            "alertThreshold": true
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
           }
         },
         {
@@ -2839,7 +2634,104 @@ data:
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$datasource_awskafka",
+          "datasource": "$datasource_appsre",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {},
+              "links": []
+            },
+            "overrides": []
+          },
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 30
+          },
+          "hiddenSeries": false,
+          "id": 92,
+          "legend": {
+            "avg": true,
+            "current": true,
+            "max": true,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
+          "percentage": false,
+          "pluginVersion": "7.2.1",
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "sum(aws_kafka_bytes_out_per_sec_average{topic=~'(platform-mq-stage.|platform-mq-prod)?platform.inventory.host-ingress.*'}) by (topic)",
+              "interval": "1m",
+              "legendFormat": "{{topic}}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Outgoing byte rate (ingress)",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "binBps",
+              "label": "",
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "$datasource",
           "fieldConfig": {
             "defaults": {
               "custom": {},
@@ -2884,7 +2776,7 @@ data:
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(aws_kafka_sum_offset_lag_sum{consumer_group='inventory-mq'}) by (topic)",
+              "expr": "sum(kafka_consumergroup_group_lag{topic=~'(platform-mq-stage.|platform-mq-prod)?platform.inventory.host-ingress.*'}) by (topic)",
               "interval": "1m",
               "legendFormat": "{{topic}}",
               "refId": "A"
@@ -2981,7 +2873,7 @@ data:
           "steppedLine": false,
           "targets": [
             {
-              "expr": "(sum(increase(inventory_ingress_add_host_successes_total[1m])) by (container) + sum(increase(inventory_ingress_add_host_failures_total[1m])) by (container))",
+              "expr": "sum(increase(kafka_consumergroup_group_offset{topic=~'(platform-mq-stage.|platform-mq-prod)?platform.inventory.host-ingress.*'}[1m])) by (topic)",
               "interval": "1m",
               "legendFormat": "{{topic}}",
               "refId": "A"
@@ -4399,24 +4291,6 @@ data:
             "query": "prometheus",
             "refresh": 1,
             "regex": "/.*appsre.*/",
-            "skipUrlSync": false,
-            "type": "datasource"
-          },
-          {
-            "current": {
-              "selected": false,
-              "text": "appsrep11ue1-prometheus",
-              "value": "appsrep11ue1-prometheus"
-            },
-            "hide": 0,
-            "includeAll": false,
-            "label": "Datasource - AWS Kafka",
-            "multi": false,
-            "name": "datasource_awskafka",
-            "options": [],
-            "query": "prometheus",
-            "refresh": 1,
-            "regex": "(appsrep11ue1-prometheus|appsres11ue1-prometheus)",
             "skipUrlSync": false,
             "type": "datasource"
           },

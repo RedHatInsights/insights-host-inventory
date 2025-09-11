@@ -1,3 +1,5 @@
+from typing import Optional
+
 import flask
 from confluent_kafka import Consumer as KafkaConsumer
 
@@ -10,7 +12,8 @@ from api import pagination_params
 from api.host_query_db import get_os_info
 from api.host_query_db import get_sap_sids_info
 from api.host_query_db import get_sap_system_info
-from app import KesselResourceTypes
+from app import KesselResourceTypes, RbacPermission
+from app import RbacResourceType
 from app.auth import get_current_identity
 from app.config import Config
 from app.environment import RuntimeEnvironment
@@ -18,7 +21,7 @@ from app.instrumentation import log_get_operating_system_succeeded
 from app.instrumentation import log_get_sap_sids_succeeded
 from app.instrumentation import log_get_sap_system_succeeded
 from app.logging import get_logger
-from lib.middleware import access
+from lib.middleware import access, rbac
 from lib.system_profile_validate import validate_sp_for_branch
 
 logger = get_logger(__name__)
@@ -83,10 +86,10 @@ def get_sap_sids(
 @metrics.api_request_time.time()
 def get_operating_system(
     tags=None,
-    page: int | None = None,
-    per_page: int | None = None,
-    staleness: list[str] | None = None,
-    registered_with: list[str] | None = None,
+    page: Optional[int] = None,
+    per_page: Optional[int] = None,
+    staleness: Optional[list[str]] = None,
+    registered_with: Optional[list[str]] = None,
     filter=None,
     rbac_filter=None,
 ):

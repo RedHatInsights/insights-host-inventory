@@ -64,17 +64,6 @@ def test_host_tags_via_db_invalid_updated_params(api_get):
     assert response_status == 400
 
 
-def test_host_tags_via_db_invalid_last_check_in_params(api_get):
-    """
-    Test using an last_check_in_start that's later than last_check_in_end
-    """
-
-    query_params = "?last_check_in_start=2024-01-19T15:00:00.000Z&last_check_in_end=2024-01-15T09:00:00.000Z"
-    url = build_tags_url(query=query_params)
-    response_status, _ = api_get(url)
-    assert response_status == 400
-
-
 def test_get_tags_of_hosts_that_does_not_exist_via_db(api_get):
     """
     send a request for some host that doesn't exist
@@ -148,6 +137,18 @@ def test_get_list_of_tags_with_host_filters_via_db(db_create_multiple_hosts, api
                 assert response_data["results"][0]["tag"]["key"] == tag_key
                 assert response_data["results"][0]["tag"]["value"] == tag_value
                 assert response_data["results"][0]["count"] == 1
+
+
+@pytest.mark.usefixtures("subtests")
+def test_get_tags_invalid_start_end(api_get):
+    """
+    Validate that the /tags endpoint properly handles updated_start and updated_end validation errors.
+    """
+
+    url = build_tags_url(query="?updated_start=2022-01-19T15:00:00.000Z&updated_end=2020-01-19T15:00:00.000Z")
+    response_status, _ = api_get(url)
+
+    assert_response_status(response_status, 400)
 
 
 def test_get_tags_count_of_host_that_does_not_exist(api_get):

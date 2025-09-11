@@ -2,8 +2,8 @@ from datetime import datetime
 
 from app.common import inventory_config
 from app.culling import Timestamps
-from app.culling import should_host_stay_fresh_forever
-from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
+from lib.feature_flags import FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS
+from lib.feature_flags import get_flag_value
 
 __all__ = ("get_staleness_timestamps",)
 
@@ -14,10 +14,23 @@ class AttrDict(dict):
         self.__dict__ = self
 
 
+def _find_host_type(host) -> str:
+    return (
+        "immutable"
+        if host.host_type == "edge"
+        or (
+            hasattr(host, "system_profile_facts")
+            and host.system_profile_facts
+            and host.system_profile_facts.get("host_type") == "edge"
+        )
+        else "conventional"
+    )
+
+
 # Determine staleness timestamps
 def get_staleness_timestamps(host, staleness_timestamps: Timestamps, staleness: AttrDict) -> dict:
     """
-    Calculates staleness timestamps for a host based on its configuration.
+    Calculates staleness timestamps for a host based on its type and configuration.
     Returns a dictionary containing the stale, stale warning, and culled timestamps for the host.
 
     Args:
@@ -28,23 +41,23 @@ def get_staleness_timestamps(host, staleness_timestamps: Timestamps, staleness: 
     Returns:
         dict: A dictionary with keys 'stale_timestamp', 'stale_warning_timestamp', and 'culled_timestamp'.
     """
-    # Check if host should stay fresh forever (e.g., rhsm-only hosts)
-    if should_host_stay_fresh_forever(host):
-        return {
-            "stale_timestamp": FAR_FUTURE_STALE_TIMESTAMP,
-            "stale_warning_timestamp": FAR_FUTURE_STALE_TIMESTAMP,
-            "culled_timestamp": FAR_FUTURE_STALE_TIMESTAMP,
-        }
 
+    staleness_type = _find_host_type(host)
+
+    date_to_use = (
+        host.last_check_in
+        if get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS)
+        else host.modified_on
+    )
     return {
         "stale_timestamp": staleness_timestamps.stale_timestamp(
-            host.last_check_in, staleness["conventional_time_to_stale"]
+            date_to_use, staleness[f"{staleness_type}_time_to_stale"]
         ),
         "stale_warning_timestamp": staleness_timestamps.stale_warning_timestamp(
-            host.last_check_in, staleness["conventional_time_to_stale_warning"]
+            date_to_use, staleness[f"{staleness_type}_time_to_stale_warning"]
         ),
         "culled_timestamp": staleness_timestamps.culled_timestamp(
-            host.last_check_in, staleness["conventional_time_to_delete"]
+            date_to_use, staleness[f"{staleness_type}_time_to_delete"]
         ),
     }
 
@@ -65,23 +78,23 @@ def get_reporter_staleness_timestamps(
     Returns:
         dict: A dictionary with keys 'stale_timestamp', 'stale_warning_timestamp', and 'culled_timestamp'.
     """
-    # Check if host should stay fresh forever (e.g., rhsm-only hosts)
-    if should_host_stay_fresh_forever(host):
-        return {
-            "stale_timestamp": FAR_FUTURE_STALE_TIMESTAMP,
-            "stale_warning_timestamp": FAR_FUTURE_STALE_TIMESTAMP,
-            "culled_timestamp": FAR_FUTURE_STALE_TIMESTAMP,
-        }
 
-    date_to_use = datetime.fromisoformat(host.per_reporter_staleness[reporter]["last_check_in"])
+    staleness_type = _find_host_type(host)
 
+    date_to_use = (
+        datetime.fromisoformat(host.per_reporter_staleness[reporter]["last_check_in"])
+        if get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS)
+        else host.modified_on
+    )
     return {
-        "stale_timestamp": staleness_timestamps.stale_timestamp(date_to_use, staleness["conventional_time_to_stale"]),
+        "stale_timestamp": staleness_timestamps.stale_timestamp(
+            date_to_use, staleness[f"{staleness_type}_time_to_stale"]
+        ),
         "stale_warning_timestamp": staleness_timestamps.stale_warning_timestamp(
-            date_to_use, staleness["conventional_time_to_stale_warning"]
+            date_to_use, staleness[f"{staleness_type}_time_to_stale_warning"]
         ),
         "culled_timestamp": staleness_timestamps.culled_timestamp(
-            date_to_use, staleness["conventional_time_to_delete"]
+            date_to_use, staleness[f"{staleness_type}_time_to_delete"]
         ),
     }
 
@@ -106,9 +119,9 @@ def build_staleness_sys_default(org_id, config=None):
             "conventional_time_to_stale": config.conventional_time_to_stale_seconds,
             "conventional_time_to_stale_warning": config.conventional_time_to_stale_warning_seconds,
             "conventional_time_to_delete": config.conventional_time_to_delete_seconds,
-            "immutable_time_to_stale": config.conventional_time_to_stale_seconds,
-            "immutable_time_to_stale_warning": config.conventional_time_to_stale_warning_seconds,
-            "immutable_time_to_delete": config.conventional_time_to_delete_seconds,
+            "immutable_time_to_stale": config.immutable_time_to_stale_seconds,
+            "immutable_time_to_stale_warning": config.immutable_time_to_stale_warning_seconds,
+            "immutable_time_to_delete": config.immutable_time_to_delete_seconds,
             "created_on": None,
             "modified_on": None,
         }
@@ -126,9 +139,9 @@ def build_serialized_acc_staleness_obj(staleness):
             "conventional_time_to_stale": staleness.conventional_time_to_stale,
             "conventional_time_to_stale_warning": staleness.conventional_time_to_stale_warning,
             "conventional_time_to_delete": staleness.conventional_time_to_delete,
-            "immutable_time_to_stale": staleness.conventional_time_to_stale,
-            "immutable_time_to_stale_warning": staleness.conventional_time_to_stale_warning,
-            "immutable_time_to_delete": staleness.conventional_time_to_delete,
+            "immutable_time_to_stale": staleness.immutable_time_to_stale,
+            "immutable_time_to_stale_warning": staleness.immutable_time_to_stale_warning,
+            "immutable_time_to_delete": staleness.immutable_time_to_delete,
             "created_on": staleness.created_on,
             "modified_on": staleness.modified_on,
         }

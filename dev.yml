@@ -3,7 +3,6 @@ services:
     db:
       container_name: hbi-db
       image: docker.io/library/postgres:16.4
-      command: postgres -c wal_level=logical
       restart: always
       environment:
           POSTGRES_PASSWORD: insights

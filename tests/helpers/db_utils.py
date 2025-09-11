@@ -129,6 +129,18 @@ def db_staleness_culling(**values):
     return Staleness(**data)
 
 
+def update_host_in_db(host_id, **data_to_update):
+    host = Host.query.get(host_id)
+
+    for attribute, new_value in data_to_update.items():
+        setattr(host, attribute, new_value)
+
+    db.session.add(host)
+    db.session.commit()
+
+    return host
+
+
 def create_reference_host_in_db(insights_id, reporter, system_profile, stale_timestamp):
     host = Host(
         org_id=SYSTEM_IDENTITY["org_id"],

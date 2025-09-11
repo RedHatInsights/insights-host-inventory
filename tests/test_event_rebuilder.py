@@ -7,7 +7,7 @@ from app.logging import threadctx
 from app.models import db
 from app.queue.events import EventType
 from app.queue.events import build_event
-from jobs.rebuild_events_topic import run as rebuild_events_run
+from rebuild_events_topic import run as rebuild_events_run
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.mq_utils import create_kafka_consumer_mock
 from tests.helpers.test_utils import generate_uuid

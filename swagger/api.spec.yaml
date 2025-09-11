@@ -30,8 +30,6 @@ paths:
         - $ref: '#/components/parameters/providerType'
         - $ref: '#/components/parameters/updatedStart'
         - $ref: '#/components/parameters/updatedEnd'
-        - $ref: '#/components/parameters/lastCheckInStart'
-        - $ref: '#/components/parameters/lastCheckInEnd'
         - $ref: '#/components/parameters/groupNameListParam'
         - $ref: '#/components/parameters/branchId'
         - $ref: '#/components/parameters/perPageParam'
@@ -71,8 +69,6 @@ paths:
         - $ref: '#/components/parameters/providerType'
         - $ref: '#/components/parameters/updatedStart'
         - $ref: '#/components/parameters/updatedEnd'
-        - $ref: '#/components/parameters/lastCheckInStart'
-        - $ref: '#/components/parameters/lastCheckInEnd'
         - $ref: '#/components/parameters/groupNameListParam'
         - $ref: '#/components/parameters/registered_with'
         - $ref: '#/components/parameters/systemTypeParam'
@@ -678,8 +674,6 @@ paths:
         - $ref: '#/components/parameters/providerType'
         - $ref: '#/components/parameters/updatedStart'
         - $ref: '#/components/parameters/updatedEnd'
-        - $ref: '#/components/parameters/lastCheckInStart'
-        - $ref: '#/components/parameters/lastCheckInEnd'
         - $ref: '#/components/parameters/groupNameListParam'
         - $ref: '#/components/parameters/registered_with'
         - $ref: '#/components/parameters/systemTypeParam'
@@ -1062,20 +1056,6 @@ components:
         type: string
         format: date-time
       description: Only show hosts last modified before the given date
-    lastCheckInStart:
-      in: query
-      name: last_check_in_start
-      schema:
-        type: string
-        format: date-time
-      description: Only show hosts last checked in after the given date
-    lastCheckInEnd:
-      in: query
-      name: last_check_in_end
-      schema:
-        type: string
-        format: date-time
-      description: Only show hosts last checked in before the given date
     factsNamespace:
       in: path
       name: namespace
@@ -1173,7 +1153,7 @@ components:
     tagsParam:
       name: tags
       in: query
-      description: 'Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).'
+      description: filters out hosts not tagged by the given tags
       required: false
       schema:
         type: array

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 from flask_unleash import Unleash
 from UnleashClient.strategies import Strategy
 
@@ -12,18 +14,21 @@ FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION = "hbi.api.kessel-workspace-migration"
 FLAG_INVENTORY_KESSEL_HOST_MIGRATION = "hbi.api.kessel-host-migration"
 FLAG_INVENTORY_API_READ_ONLY = "hbi.api.read-only"
 FLAG_INVENTORY_KESSEL_PHASE_1 = "hbi.api.kessel-phase-1"
+FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS = (
+    "hbi.create_last_check_in_update_per_reporter_staleness"
+)
 FLAG_INVENTORY_FILTER_STALENESS_USING_COLUMNS = "hbi.filter_staleness_using_columns"
-FLAG_INVENTORY_USE_NEW_SYSTEM_PROFILE_TABLES = "hbi.use_new_system_profile_tables"
 
+ENV_FLAG_LAST_CHECKIN_PER_REPORTER_STALENESS = os.getenv("FF_LAST_CHECKIN", "false").lower() == "true"
 
 FLAG_FALLBACK_VALUES = {
     FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION: False,
     FLAG_INVENTORY_KESSEL_HOST_MIGRATION: False,
     FLAG_INVENTORY_API_READ_ONLY: False,
     FLAG_INVENTORY_KESSEL_PHASE_1: False,
+    FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS: ENV_FLAG_LAST_CHECKIN_PER_REPORTER_STALENESS,
     # Use when all hosts are populated with stale_warning/deletion_timestamps
-    FLAG_INVENTORY_FILTER_STALENESS_USING_COLUMNS: True,
-    FLAG_INVENTORY_USE_NEW_SYSTEM_PROFILE_TABLES: False,
+    FLAG_INVENTORY_FILTER_STALENESS_USING_COLUMNS: False,
 }
 
 

@@ -50,7 +50,7 @@ the [Inventory section in our Platform Docs site](https://consoledot.pages.redha
 Before starting, ensure you have the following installed on your system:
 
 - **Docker**: For running containers and services.
-- **Python 3.12.x**: The recommended version for this project.
+- **Python 3.9.x**: The recommended version for this project.
 - **pipenv**: For managing Python dependencies.
 
 ### Environment setup
@@ -63,13 +63,13 @@ To install this, use the command appropriate for your system:
 ##### Fedora/Centos
 
 ```bash
-sudo dnf install libpq-devel postgresql python3.12-devel
+sudo dnf install libpq-devel postgresql
 ```
 
 ##### Debian/Ubuntu
 
 ```bash
-sudo apt-get install libpq-dev postgresql python3.12-dev
+sudo apt-get install libpq-dev postgresql
 ```
 
 ##### MacOS (using Homebrew)
@@ -414,9 +414,7 @@ app-interface [here](https://gitlab.cee.redhat.com/service/app-interface/-/blob/
     * [database migrations](#database-migrations)
     * [code style checks](#contributing)
     * unit tests
-    * smoke (the most important) IQE tests
-* `ci.ext.devshift.net PR build - All tests` runs _all_ the IQE tests (with disabled RBAC) on the PR's code.
-* `ci.ext.devshift.net PR build - RBAC tests` runs RBAC integration IQE tests on the PR's code.
+* `ci.ext.devshift.net PR build - All tests` runs _all_ the IQE tests on the PR's code.
 * [host-inventory build-master](https://ci.ext.devshift.net/job/RedHatInsights-insights-host-inventory-gh-build-master/)
   builds the container image, and pushes it to Quay, where it is scanned for vulnerabilities.
 
@@ -426,7 +424,7 @@ When all of these checks pass and a reviewer approves the changes the pull reque
 the [@RedHatInsights/host-based-inventory-committers](https://github.com/orgs/RedHatInsights/teams/host-based-inventory-committers)
 team.
 
-### 2. Latest image and Stage deployment
+### 2. Latest image and smoke tests
 
 When a pull request is merged to master, a new container image is built and tagged
 as [insights-inventory:latest](https://quay.io/repository/cloudservices/insights-inventory?tab=tags).
@@ -439,9 +437,6 @@ Once the image lands in the Stage environment, the QE testing can begin.
 People in [@team-inventory-dev](https://redhat.enterprise.slack.com/admin/user_groups/S04F8720GKG) run
 the full IQE test suite against Stage, and then report the results in
 the [#team-insights-inventory channel](https://app.slack.com/client/T026NJJ6Z/CQFKM031T).
-Everything that needs to be done before we can do a Prod release is mentioned in the
-"Promoting deployments to Prod" section of the
-[iqe-host-inventory-plugin README](https://gitlab.cee.redhat.com/insights-qe/iqe-host-inventory-plugin/-/blob/master/README.md#promoting-deployments-to-prod)
 
 ### 4. Promoting the image to the production environment
 
@@ -449,48 +444,18 @@ In order to promote a new image to the production environment, it is necessary t
 the [deploy-clowder.yml](https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/data/services/insights/host-inventory/deploy-clowder.yml)
 file.
 The `ref` parameter on the `prod-host-inventory-prod` namespace needs to be updated to the SHA of the validated image.
-Also, if there are new commits in [cyndi-operator](https://github.com/RedHatInsights/cyndi-operator) or
-[xjoin-kafka-connect](https://github.com/RedHatInsights/xjoin-kafka-connect) repositories,
-those should be deployed together with HBI as well.
 
-#### Using app-interface-bot
-
-If xjoin-kafka-connect doesn't have new commits that need to be deployed (it's a very stable repo,
-so deploying new version of it to Prod is very rare), and we don't need to make any app-interface
-config changes, it is preferred to use
-[app-interface-bot](https://gitlab.cee.redhat.com/osbuild/app-interface-bot) to create the
-release MR. This bot automatically scans the repositories and creates a release MR with the latest
-commits. It also adds all released PRs and linked Jira cards to the description of the MR.
-
-To run the app-interface-bot go to
-[pipelines](https://gitlab.cee.redhat.com/osbuild/app-interface-bot/-/pipelines) and click
-"New pipeline" in the top right corner of the page. Now select "host-inventory" as `HMS_SERVICE`,
-and put "master" (to release the latest commit) to `HOST_INVENTORY_BACKEND` and `CYNDI_OPERATOR`
-variables. If the CI is failing in GitHub on the latest commit for an irrelevant reason, and you are
-sure that it is OK, also choose "--force" on the `FORCE` variable. Now you can click "New pipeline"
-and the bot will create the release MR for you in a few seconds. When it's done, it will send a
-Slack message to `#insights-experiences-release` channel with the link to the MR
-([example](https://redhat-internal.slack.com/archives/C061D8JQ8BE/p1756802843458909)).
-
-The bot is configured to automatically create these release MRs on Mondays. Every time
-it does so, carefully check if the release doesn't need any config change. For example, if the
-release includes a DB migration, then there is a high chance that we want to reduce the number of
-MQ replicas during this migration. In that case, feel free to close the MR either manually, or by
-creating a new [pipeline](https://gitlab.cee.redhat.com/osbuild/app-interface-bot/-/pipelines) and
-adding the MR ID to the `CLOSE_MR` variable. Then you can create a new release MR manually with
-everything that's needed, and you can copy the description from the bot's release MR.
-
-For the CI pipeline to run tests on your fork, you'll need to add
-[@devtools-bot](https://gitlab.cee.redhat.com/devtools-bot) as a Maintainer. See this
-[guide](https://docs.gitlab.com/ee/user/project/members/share_project_with_groups.html#sharing-a-project-with-a-group-of-users)
+Once the change has been made, submit a merge request
+to [app-interface](https://gitlab.cee.redhat.com/service/app-interface).
+For the CI pipeline to run tests on your fork, you'll need to
+add [@devtools-bot](https://gitlab.cee.redhat.com/devtools-bot) as a Maintainer.
+See
+this [guide](https://docs.gitlab.com/ee/user/project/members/share_project_with_groups.html#sharing-a-project-with-a-group-of-users)
 on how to do that.
 
-[Example release MR](https://gitlab.cee.redhat.com/service/app-interface/-/merge_requests/155681)
-
-After the MR has been opened, carefully check all PRs that are going to be released and if everything is
-OK and well tested (all Jira cards that are being released are in "Release pending" state, there is
-no "On QA" Jira), then ask someone else from the Inventory team to also check the release MR and
-approve it by adding a `/lgtm` comment.
+After the MR has been opened, somebody
+from `AppSRE/insights-host-inventory` will review and
+approve the MR by adding a `/lgtm` comment.
 Afterward, the MR will be merged automatically and the changes will be deployed to the production environment.
 The engineer who approved the MR is then **responsible for monitoring of the rollout of the new image**.
 
@@ -520,7 +485,7 @@ A non-exhaustive list of things to watch includes:
       here</a>
         - for any error-level log entries
 
-### Rollback process
+## Rollback process
 
 Should unexpected problems occur during the deployment,
 it is possible to do a rollback.

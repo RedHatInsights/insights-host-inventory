@@ -1,0 +1,16 @@
+{
+    "name": "Example Export Request - JSON",
+    "format": "json",
+    "expires_at": "2025-01-01T00:00:00Z",
+    "sources": [
+        {
+            "application": "urn:redhat:application:inventory",
+            "resource": "urn:redhat:application:inventory:export:systems",
+            "filters": {
+                "startDate": "2022-02-01T00:00:00Z",
+                "endDate": "2022-04-01T00:00:00Z",
+                "productId": "RHEL"
+            }
+        }
+    ]
+}

@@ -1,5 +1,5 @@
-from datetime import UTC
 from datetime import datetime
+from datetime import timezone
 
 from sqlalchemy import and_
 
@@ -8,7 +8,7 @@ from app.models import Host
 
 class HostStalenessStatesDbFilters:
     def __init__(self):
-        self.now = datetime.now(tz=UTC)
+        self.now = datetime.now(tz=timezone.utc)
 
     def fresh(self):
         return self.now < Host.stale_timestamp

@@ -52,12 +52,6 @@
             "$ref": "#/components/parameters/updatedEnd"
           },
           {
-            "$ref": "#/components/parameters/lastCheckInStart"
-          },
-          {
-            "$ref": "#/components/parameters/lastCheckInEnd"
-          },
-          {
             "$ref": "#/components/parameters/groupNameListParam"
           },
           {
@@ -143,12 +137,6 @@
           },
           {
             "$ref": "#/components/parameters/updatedEnd"
-          },
-          {
-            "$ref": "#/components/parameters/lastCheckInStart"
-          },
-          {
-            "$ref": "#/components/parameters/lastCheckInEnd"
           },
           {
             "$ref": "#/components/parameters/groupNameListParam"
@@ -1143,12 +1131,6 @@
             "$ref": "#/components/parameters/updatedEnd"
           },
           {
-            "$ref": "#/components/parameters/lastCheckInStart"
-          },
-          {
-            "$ref": "#/components/parameters/lastCheckInEnd"
-          },
-          {
             "$ref": "#/components/parameters/groupNameListParam"
           },
           {
@@ -1758,24 +1740,6 @@
         },
         "description": "Only show hosts last modified before the given date"
       },
-      "lastCheckInStart": {
-        "in": "query",
-        "name": "last_check_in_start",
-        "schema": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "description": "Only show hosts last checked in after the given date"
-      },
-      "lastCheckInEnd": {
-        "in": "query",
-        "name": "last_check_in_end",
-        "schema": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "description": "Only show hosts last checked in before the given date"
-      },
       "factsNamespace": {
         "in": "path",
         "name": "namespace",
@@ -1892,7 +1856,7 @@
       "tagsParam": {
         "name": "tags",
         "in": "query",
-        "description": "Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).",
+        "description": "filters out hosts not tagged by the given tags",
         "required": false,
         "schema": {
           "type": "array",
@@ -3107,8 +3071,7 @@
             "type": "integer",
             "format": "int64",
             "minimum": 0,
-            "maximum": 9007199254740991,
-            "x-dynamic": true
+            "maximum": 9007199254740991
           },
           "infrastructure_type": {
             "type": "string",
@@ -3124,8 +3087,7 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/SystemProfileNetworkInterface"
-            },
-            "x-dynamic": true
+            }
           },
           "disk_devices": {
             "type": "array",
@@ -3155,13 +3117,11 @@
               "type": "string",
               "maxLength": 30,
               "example": "ex1, ex2, ex3"
-            },
-            "x-dynamic": true
+            }
           },
           "systemd": {
             "description": "Object for whole system systemd state, as reported by systemctl status --all",
             "type": "object",
-            "x-dynamic": true,
             "required": [
               "state",
               "jobs_queued",
@@ -3279,14 +3239,12 @@
               "type": "string",
               "maxLength": 255,
               "example": "ex1, ex2, ex3"
-            },
-            "x-dynamic": true
+            }
           },
           "last_boot_time": {
             "type": "string",
             "format": "date-time",
-            "maxLength": 50,
-            "x-dynamic": true
+            "maxLength": 50
           },
           "running_processes": {
             "type": "array",
@@ -3295,8 +3253,7 @@
               "type": "string",
               "maxLength": 1000,
               "example": "ex1, ex2, ex3"
-            },
-            "x-dynamic": true
+            }
           },
           "subscription_status": {
             "type": "string",
@@ -3355,8 +3312,7 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/SystemProfileInstalledProduct"
-            },
-            "x-dynamic": true
+            }
           },
           "insights_client_version": {
             "type": "string",
@@ -3368,14 +3324,12 @@
           "insights_egg_version": {
             "type": "string",
             "maxLength": 50,
-            "example": "2.3, 4.4, 5.1",
-            "x-dynamic": true
+            "example": "2.3, 4.4, 5.1"
           },
           "captured_date": {
             "type": "string",
-            "format": "date-time",
-            "maxLength": 50,
-            "x-dynamic": true
+            "maxLength": 32,
+            "example": "ex1, ex2, ex3"
           },
           "installed_packages": {
             "type": "array",
@@ -3384,8 +3338,7 @@
               "example": "krb5-libs-0:-1.16.1-23.fc29.i686, arb5-libs-0:-1.16.1-23.fc29.i686, brb5-libs-0:-1.16.1-23.fc29.i686",
               "type": "string",
               "maxLength": 512
-            },
-            "x-dynamic": true
+            }
           },
           "installed_packages_delta": {
             "type": "array",
@@ -3519,7 +3472,7 @@
             ],
             "maxLength": 4,
             "description": "Indicates the type of host.",
-            "example": "edge"
+            "example": "edge, None"
           },
           "greenboot_status": {
             "type": "string",
@@ -3949,7 +3902,6 @@
           "workloads": {
             "description": "Object containing information about system workloads",
             "type": "object",
-            "x-dynamic": true,
             "properties": {
               "ansible": {
                 "description": "Object containing data specific to Ansible Automation Platform",

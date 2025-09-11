@@ -73,7 +73,6 @@ class EventProducer:
                 self._kafka_producer.flush()
             else:
                 self._kafka_producer.poll()
-
         except KafkaException as error:
             message_not_produced(logger, error, topic, event=v, key=k, headers=h)
             raise error

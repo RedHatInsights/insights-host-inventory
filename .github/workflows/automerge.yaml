@@ -1,9 +1,5 @@
 name: Dependabot Auto-merge
-on:
-  pull_request_target:
-    paths:
-      - 'Pipfile'
-      - 'Pipfile.lock'
+on: pull_request_target
 
 jobs:
   dependabot-automerge:
@@ -11,7 +7,7 @@ jobs:
     if: ${{ github.actor == 'dependabot[bot]' }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
       - name: Metadata for PR
         id: metadata
         uses: dependabot/fetch-metadata@v2

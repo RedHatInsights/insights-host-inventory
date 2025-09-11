@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
 from copy import deepcopy
 from typing import Any
+from typing import Callable
 from unittest import mock
 from unittest.mock import patch
 
@@ -506,8 +506,7 @@ def test_delete_host_that_belongs_to_group_fail(
     # Delete the first host
     api_delete_host(host_id_list[0])
 
-    # Confirm that the group contains at least 2 hosts, as the first host is deleted before
-    # the kafka event is produced.
+    # Confirm that the group contains all 3 hosts
     hosts_after = db_get_hosts_for_group(group_id)
     assert len(hosts_after) == 3
     assert host_id_list[0] in [host.id for host in hosts_after]
@@ -692,13 +691,7 @@ def test_log_create_delete(
     )
 
     assert not db_get_host(host.id)
-    # Loops and complex code is discouraged in tests, so we're using a simple assert here.
-    # The logged messages before the deleted_host message are:
-    # caplog.records[0]: inventory.lib.outbox_repository, "Adding the event to outbox"
-    # caplog.records[1]: inventory.lib.outbox_repository, "out_box_entry_db object"
-    # caplog.records[2]: inventory.lib.outbox_repository, "Added event to outbox"
-    # caplog.records[3]: inventory.lib.host_delete, "Deleted_host"
-    assert caplog.records[3].system_profile == "{}"
+    assert caplog.records[0].system_profile == "{}"
 
 
 @pytest.mark.usefixtures("notification_event_producer_mock")

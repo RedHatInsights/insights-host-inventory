@@ -3,26 +3,23 @@ from __future__ import annotations
 import json
 import math
 from base64 import b64encode
-from collections.abc import Callable
 from datetime import timedelta
 from enum import Enum
 from http import HTTPStatus
 from itertools import product
 from struct import unpack
 from typing import Any
+from typing import Callable
 from urllib.parse import parse_qs
 from urllib.parse import quote_plus as url_quote
 from urllib.parse import urlencode
 from urllib.parse import urlsplit
 from urllib.parse import urlunsplit
-from uuid import UUID
 
 import dateutil.parser
 from requests import Response
 
 from app.auth.identity import IdentityType
-from app.models import Host
-from app.utils import HostWrapper
 from tests.helpers.test_utils import now
 
 BASE_URL = "/api/inventory/v1"
@@ -175,18 +172,13 @@ RBAC_ADMIN_PROHIBITED_RBAC_RESPONSE_FILES = (
     "tests/helpers/rbac-mock-data/inv-groups-splat.json",
 )
 
-DEFAULT_STALENESS_SETTINGS = {
-    "stale": 104400,
-    "stale_warning": 604800,
-    "delete": 1209600,
-}
 _INPUT_DATA = {
-    "conventional_time_to_stale": DEFAULT_STALENESS_SETTINGS["stale"],
-    "conventional_time_to_stale_warning": DEFAULT_STALENESS_SETTINGS["stale_warning"],
-    "conventional_time_to_delete": DEFAULT_STALENESS_SETTINGS["delete"],
-    "immutable_time_to_stale": DEFAULT_STALENESS_SETTINGS["stale"],
-    "immutable_time_to_stale_warning": DEFAULT_STALENESS_SETTINGS["stale_warning"],
-    "immutable_time_to_delete": DEFAULT_STALENESS_SETTINGS["delete"],
+    "conventional_time_to_stale": 104400,
+    "conventional_time_to_stale_warning": 604800,
+    "conventional_time_to_delete": 1209600,
+    "immutable_time_to_stale": 172800,
+    "immutable_time_to_stale_warning": 15552000,
+    "immutable_time_to_delete": 63072000,
 }
 
 
@@ -463,9 +455,7 @@ def build_fields_query_parameters(fields=None):
     return query_parameters
 
 
-def _build_url(
-    base_url: str = HOST_URL, path: str | None = None, id_list: str | None = None, query: str | None = None
-) -> str:
+def _build_url(base_url=HOST_URL, path=None, id_list=None, query=None):
     url = base_url
 
     if id_list:
@@ -480,12 +470,8 @@ def _build_url(
     return url
 
 
-def build_hosts_url(
-    host_list_or_id: list[str] | list[HostWrapper | Host] | str | UUID | None = None,
-    path: str | None = None,
-    query: str | None = None,
-) -> str:
-    if host_list_or_id is not None:
+def build_hosts_url(host_list_or_id=None, path=None, query=None):
+    if host_list_or_id:
         host_list_or_id = build_id_list_for_url(host_list_or_id)
 
     return _build_url(id_list=host_list_or_id, path=path, query=query)
@@ -531,13 +517,16 @@ def build_facts_url(host_list_or_id, namespace, query=None):
     return build_hosts_url(path=f"/facts/{namespace}", host_list_or_id=host_list_or_id, query=query)
 
 
-def build_id_list_for_url(id_or_id_list: list[str] | list[HostWrapper | Host] | str | UUID) -> str:
+def build_id_list_for_url(id_or_id_list):
+    if isinstance(id_or_id_list, dict):
+        id_or_id_list = list(id_or_id_list.values())
+
     if isinstance(id_or_id_list, list):
         # check if the list contains hosts or strings
         if not any(isinstance(item, str) for item in id_or_id_list):
-            return ",".join(get_id_list_from_hosts(id_or_id_list))  # type: ignore[arg-type]
+            return ",".join(get_id_list_from_hosts(id_or_id_list))
         else:
-            return ",".join(id_or_id_list)  # type: ignore[arg-type]
+            return ",".join(id_or_id_list)
 
     return str(id_or_id_list)
 
@@ -554,7 +543,7 @@ def build_resource_types_groups_url(query=None):
     return _build_url(base_url=RESOURCE_TYPES_URL + "/inventory-groups", query=query)
 
 
-def get_id_list_from_hosts(host_list: list[HostWrapper | Host]) -> list[str]:
+def get_id_list_from_hosts(host_list):
     return [str(h.id) for h in host_list]
 
 

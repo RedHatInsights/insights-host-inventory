@@ -7,11 +7,12 @@ from api import flask_json_response
 from api import metrics
 from api import pagination_params
 from api.host_query_db import get_tag_list as get_tag_list_db
-from app import KesselResourceTypes
+from app import KesselResourceTypes, RbacPermission
+from app import RbacResourceType
 from app.instrumentation import log_get_tags_failed
 from app.instrumentation import log_get_tags_succeeded
 from app.logging import get_logger
-from lib.middleware import access
+from lib.middleware import access, rbac
 
 logger = get_logger(__name__)
 
@@ -31,8 +32,6 @@ def get_tags(
     provider_type=None,
     updated_start=None,
     updated_end=None,
-    last_check_in_start=None,
-    last_check_in_end=None,
     group_name=None,
     order_by=None,
     order_how=None,
@@ -65,8 +64,6 @@ def get_tags(
             provider_type=provider_type,
             updated_start=updated_start,
             updated_end=updated_end,
-            last_check_in_start=last_check_in_start,
-            last_check_in_end=last_check_in_end,
             group_name=group_name,
             order_by=order_by,
             order_how=order_how,

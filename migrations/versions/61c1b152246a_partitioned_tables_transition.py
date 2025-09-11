@@ -125,61 +125,61 @@ def upgrade():
 
     # This safety check verifies that the table migration was successful before stamping.
     # It runs for ALL modes to ensure consistency.
-    op.execute("""
-        DO $$
-        BEGIN
-            -- Check if the hosts table is partitioned by HASH
-            IF NOT EXISTS (
-                SELECT 1
-                FROM pg_partitioned_table pt
-                JOIN pg_class c ON c.oid = pt.partrelid
-                JOIN pg_namespace n ON n.oid = c.relnamespace
-                WHERE n.nspname = 'hbi' AND c.relname = 'hosts' AND pt.partstrat = 'h'
-            ) THEN
-                RAISE EXCEPTION
-                'MIGRATION ERROR: The hosts table is not partitioned as expected. Aborting.';
-            END IF;
+    # op.execute("""
+    #        DO $$
+    #        BEGIN
+    #            -- Check if the hosts table is partitioned by HASH
+    #            IF NOT EXISTS (
+    #                SELECT 1
+    #                FROM pg_partitioned_table pt
+    #                JOIN pg_class c ON c.oid = pt.partrelid
+    #                JOIN pg_namespace n ON n.oid = c.relnamespace
+    #                WHERE n.nspname = 'hbi' AND c.relname = 'hosts' AND pt.partstrat = 'h'
+    #            ) THEN
+    #                RAISE EXCEPTION 'MIGRATION ERROR: The hosts table is not partitioned as expected. Aborting.';
+    #            END IF;
 
-            -- Check if the hosts primary key is composite (has 2 columns)
-            IF NOT EXISTS (
-                SELECT 1
-                FROM pg_constraint con
-                JOIN pg_class rel ON rel.oid = con.conrelid
-                JOIN pg_namespace n ON n.oid = rel.relnamespace
-                WHERE n.nspname = 'hbi' AND rel.relname = 'hosts'
-                  AND con.contype = 'p' AND array_length(con.conkey, 1) = 2
-            ) THEN
-                RAISE EXCEPTION
-                'MIGRATION ERROR: Expected a composite primary key on the hosts table. Aborting.';
-            END IF;
 
-            -- Check if the hosts_groups table is partitioned by HASH
-            IF NOT EXISTS (
-                SELECT 1
-                FROM pg_partitioned_table pt
-                JOIN pg_class c ON c.oid = pt.partrelid
-                JOIN pg_namespace n ON n.oid = c.relnamespace
-                WHERE n.nspname = 'hbi' AND c.relname = 'hosts_groups' AND pt.partstrat = 'h'
-            ) THEN
-                RAISE EXCEPTION
-                'MIGRATION ERROR: The hosts_groups table is not partitioned as expected. Aborting.';
-            END IF;
-
-            -- Check if the hosts_groups primary key is composite (has 3 columns)
-            IF NOT EXISTS (
-                SELECT 1
-                FROM pg_constraint con
-                JOIN pg_class rel ON rel.oid = con.conrelid
-                JOIN pg_namespace n ON n.oid = rel.relnamespace
-                WHERE n.nspname = 'hbi' AND rel.relname = 'hosts_groups'
-                  AND con.contype = 'p' AND array_length(con.conkey, 1) = 3
-            ) THEN
-                RAISE EXCEPTION
-                'MIGRATION ERROR: Expected a composite primary key on the hosts_groups table. Aborting.';
-            END IF;
-        END;
-        $$;
-    """)
+#
+#            -- Check if the hosts primary key is composite (has 2 columns)
+#            IF NOT EXISTS (
+#                SELECT 1
+#                FROM pg_constraint con
+#                JOIN pg_class rel ON rel.oid = con.conrelid
+#                JOIN pg_namespace n ON n.oid = rel.relnamespace
+#                WHERE n.nspname = 'hbi' AND rel.relname = 'hosts'
+#                AND con.contype = 'p' AND array_length(con.conkey, 1) = 2
+#            ) THEN
+#                RAISE EXCEPTION 'MIGRATION ERROR: Expected a composite primary key on the hosts table. Aborting.';
+#            END IF;
+#
+#            -- Check if the hosts_groups table is partitioned by HASH
+#            IF NOT EXISTS (
+#                SELECT 1
+#                FROM pg_partitioned_table pt
+#                JOIN pg_class c ON c.oid = pt.partrelid
+#                JOIN pg_namespace n ON n.oid = c.relnamespace
+#                WHERE n.nspname = 'hbi' AND c.relname = 'hosts_groups' AND pt.partstrat = 'h'
+#            ) THEN
+#                RAISE EXCEPTION
+#                'MIGRATION ERROR: The hosts_groups table is not partitioned as expected. Aborting.';
+#            END IF;
+#
+#            -- Check if the hosts_groups primary key is composite (has 3 columns)
+#            IF NOT EXISTS (
+#                SELECT 1
+#                FROM pg_constraint con
+#                JOIN pg_class rel ON rel.oid = con.conrelid
+#                JOIN pg_namespace n ON n.oid = rel.relnamespace
+#                WHERE n.nspname = 'hbi' AND rel.relname = 'hosts_groups'
+#                AND con.contype = 'p' AND array_length(con.conkey, 1) = 3
+#            ) THEN
+#                RAISE EXCEPTION
+#                'MIGRATION ERROR: Expected a composite primary key on the hosts_groups table. Aborting.';
+#            END IF;
+#        END;
+#        $$;
+#    """)
 
 
 def downgrade():

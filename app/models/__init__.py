@@ -3,7 +3,7 @@ from datetime import datetime
 from jsonschema import validate as jsonschema_validate
 
 from app.logging import get_logger
-from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
+from app.models.constants import EDGE_HOST_STALE_TIMESTAMP
 from app.models.constants import INVENTORY_SCHEMA
 from app.models.constants import MAX_CANONICAL_FACTS_VERSION
 from app.models.constants import MIN_CANONICAL_FACTS_VERSION
@@ -23,7 +23,6 @@ from app.models.host import Host
 from app.models.host import LimitedHost
 from app.models.host_group_assoc import HostGroupAssoc
 from app.models.host_inventory_metadata import HostInventoryMetadata
-from app.models.outbox import Outbox
 from app.models.schemas import CanonicalFactsSchema
 from app.models.schemas import DiskDeviceSchema
 from app.models.schemas import DnfModuleSchema
@@ -40,8 +39,8 @@ from app.models.schemas import StalenessSchema
 from app.models.schemas import TagsSchema
 from app.models.schemas import YumRepoSchema
 from app.models.staleness import Staleness
-from app.models.system_profile_dynamic import HostDynamicSystemProfile
 from app.models.system_profile_normalizer import SystemProfileNormalizer
+from app.models.system_profiles_dynamic import HostDynamicSystemProfile
 from app.models.utils import _create_staleness_timestamps_values
 from app.models.utils import _get_staleness_obj
 from app.models.utils import _set_display_name_on_save
@@ -61,7 +60,7 @@ __all__ = [
     "TAG_VALUE_VALIDATION",
     "SPECIFICATION_DIR",
     "SYSTEM_PROFILE_SPECIFICATION_FILE",
-    "FAR_FUTURE_STALE_TIMESTAMP",
+    "EDGE_HOST_STALE_TIMESTAMP",
     "NEW_TO_OLD_REPORTER_MAP",
     "OLD_TO_NEW_REPORTER_MAP",
     "MIN_CANONICAL_FACTS_VERSION",
@@ -73,7 +72,6 @@ __all__ = [
     "Host",
     "Group",
     "HostGroupAssoc",
-    "Outbox",
     "Staleness",
     "HostInventoryMetadata",
     "DiskDeviceSchema",

@@ -1,4 +1,5 @@
 import time
+from typing import Optional
 from uuid import UUID
 
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
@@ -13,7 +14,6 @@ from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
 from app.common import inventory_config
 from app.exceptions import InventoryException
-from app.exceptions import OutboxSaveException
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_get_group_list_failed
 from app.instrumentation import log_group_delete_failed
@@ -40,13 +40,11 @@ from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.feature_flags import get_flag_value
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.host_repository import get_non_culled_hosts_count_in_group
-from lib.host_repository import host_query
 from lib.metrics import delete_group_count
 from lib.metrics import delete_group_processing_time
 from lib.metrics import delete_host_group_count
 from lib.metrics import delete_host_group_processing_time
 from lib.middleware import rbac_create_ungrouped_hosts_workspace
-from lib.outbox_repository import write_event_to_outbox
 
 logger = get_logger(__name__)
 
@@ -60,9 +58,16 @@ def _update_hosts_for_group_changes(host_id_list: list[str], group_id_list: list
     ]
 
     # Update groups data on each host record
-    db.session.query(Host).filter(Host.id.in_(host_id_list), Host.org_id == identity.org_id).update(
-        {"groups": serialized_groups}, synchronize_session="fetch"
-    )
+    if inventory_config().hbi_db_refactoring_use_old_table:
+        # Old code: filter by ID only
+        db.session.query(Host).filter(Host.id.in_(host_id_list)).update(
+            {"groups": serialized_groups}, synchronize_session="fetch"
+        )
+    else:
+        # New code: filter by ID and org_id
+        db.session.query(Host).filter(Host.id.in_(host_id_list), Host.org_id == identity.org_id).update(
+            {"groups": serialized_groups}, synchronize_session="fetch"
+        )
     db.session.commit()
 
     return serialized_groups, host_id_list
@@ -97,8 +102,8 @@ def _invalidate_system_cache(host_list: list[Host], identity: Identity):
 
 def validate_add_host_list_to_group_for_group_create(host_id_list: list[str], group_name: str, org_id: str):
     # Check if the hosts exist in Inventory and have correct org_id
-    query = host_query(org_id).filter(Host.id.in_(host_id_list)).all()
-    found_ids_set = {str(host.id) for host in query}
+    host_query = Host.query.filter((Host.org_id == org_id) & Host.id.in_(host_id_list)).all()
+    found_ids_set = {str(host.id) for host in host_query}
     if found_ids_set != set(host_id_list):
         nonexistent_hosts = set(host_id_list) - found_ids_set
         log_host_group_add_failed(logger, host_id_list, group_name)
@@ -163,11 +168,20 @@ def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str):
         synchronize_session="fetch"
     )
 
-    host_group_assoc = [
-        HostGroupAssoc(host_id=host_id, group_id=group_id, org_id=org_id)
-        for host_id in host_id_list
-        if host_id not in ids_already_in_this_group
-    ]
+    if inventory_config().hbi_db_refactoring_use_old_table:
+        # Old code: constructor without org_id
+        host_group_assoc = [
+            HostGroupAssoc(host_id=host_id, group_id=group_id)
+            for host_id in host_id_list
+            if host_id not in ids_already_in_this_group
+        ]
+    else:
+        # New code: constructor with org_id
+        host_group_assoc = [
+            HostGroupAssoc(host_id=host_id, group_id=group_id, org_id=org_id)
+            for host_id in host_id_list
+            if host_id not in ids_already_in_this_group
+        ]
     db.session.add_all(host_group_assoc)
 
     _update_group_update_time(group_id, org_id)
@@ -211,17 +225,6 @@ def _process_host_changes(
 
         # Process each batch
         host_list = get_host_list_by_id_list_from_db(batch, identity)
-        for host in host_list:
-            try:
-                # write to the outbox table for synchronization with Kessel
-                result = write_event_to_outbox(EventType.updated, str(host.id), host)
-                if not result:
-                    logger.error("Failed to write updated event to outbox")
-                    raise OutboxSaveException("Failed to write update event to outbox")
-            except OutboxSaveException as ose:
-                logger.error("Failed to write updated event to outbox: %s", str(ose))
-                raise ose
-
         _produce_host_update_events(event_producer, serialized_groups, host_list, identity, staleness=staleness)
         _invalidate_system_cache(host_list, identity)
 
@@ -244,12 +247,12 @@ def add_hosts_to_group(
 
 
 def add_group(
-    group_name: str | None,
+    group_name: Optional[str],
     org_id: str,
-    account: str | None = None,
-    group_id: UUID | None = None,
+    account: Optional[str] = None,
+    group_id: Optional[UUID] = None,
     ungrouped: bool = False,
-    session: Session | None = None,
+    session: Optional[Session] = None,
 ) -> Group:
     session = session or db.session
     new_group = Group(org_id=org_id, name=group_name, account=account, id=group_id, ungrouped=ungrouped)
@@ -257,15 +260,15 @@ def add_group(
     session.flush()
 
     # gets the ID of the group after it has been committed
-    return new_group
+    return session.query(Group).filter((Group.name == group_name) & (Group.org_id == org_id)).one_or_none()
 
 
 def add_group_with_hosts(
-    group_name: str | None,
+    group_name: Optional[str],
     host_id_list: list[str],
     identity: Identity,
     account: str,
-    group_id: UUID | None,
+    group_id: Optional[UUID],
     ungrouped: bool,
     staleness: AttrDict,
     event_producer: EventProducer,
@@ -273,14 +276,13 @@ def add_group_with_hosts(
     with session_guard(db.session):
         # Create group
         created_group = add_group(group_name, identity.org_id, account, group_id, ungrouped)
-        created_group_id = created_group.id
 
         # Add hosts to group
         if host_id_list:
             _add_hosts_to_group(created_group.id, host_id_list, identity.org_id)
 
     # gets the ID of the group after it has been committed
-    created_group = get_group_by_id_from_db(created_group_id, identity.org_id)
+    created_group = Group.query.filter((Group.name == group_name) & (Group.org_id == identity.org_id)).one_or_none()
 
     # Produce update messages once the DB session has been closed
     serialized_groups, host_id_list = _update_hosts_for_group_changes(
@@ -422,7 +424,7 @@ def _remove_hosts_from_group(group_id, host_id_list, org_id):
     return removed_host_ids
 
 
-def get_group_by_id_from_db(group_id: str, org_id: str, session: Session | None = None) -> Group:
+def get_group_by_id_from_db(group_id: str, org_id: str, session: Optional[Session] = None) -> Group:
     session = session or db.session
     query = session.query(Group).filter(Group.org_id == org_id, Group.id == group_id)
     return query.one_or_none()
@@ -482,11 +484,16 @@ def _update_group_update_time(group_id: str, org_id: str):
 
 
 def get_group_using_host_id(host_id: str, org_id: str):
-    assoc = (
-        db.session.query(HostGroupAssoc)
-        .filter(HostGroupAssoc.org_id == org_id, HostGroupAssoc.host_id == host_id)
-        .one_or_none()
-    )
+    if inventory_config().hbi_db_refactoring_use_old_table:
+        # Old code: filter by host_id only
+        assoc = db.session.query(HostGroupAssoc).filter(HostGroupAssoc.host_id == host_id).one_or_none()
+    else:
+        # New code: filter by org_id and host_id
+        assoc = (
+            db.session.query(HostGroupAssoc)
+            .filter(HostGroupAssoc.org_id == org_id, HostGroupAssoc.host_id == host_id)
+            .one_or_none()
+        )
     return get_group_by_id_from_db(str(assoc.group_id), org_id) if assoc else None
 
 

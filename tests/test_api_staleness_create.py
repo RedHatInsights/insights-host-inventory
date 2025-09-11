@@ -20,7 +20,7 @@ def test_create_staleness(api_create_staleness, db_get_staleness_culling):
     saved_data = db_get_staleness_culling(saved_org_id)
 
     assert saved_data.conventional_time_to_stale == _INPUT_DATA["conventional_time_to_stale"]
-    assert saved_data.conventional_time_to_stale_warning == _INPUT_DATA["conventional_time_to_stale_warning"]
+    assert saved_data.immutable_time_to_delete == _INPUT_DATA["immutable_time_to_delete"]
     assert saved_data.conventional_time_to_delete == _INPUT_DATA["conventional_time_to_delete"]
     assert saved_data.immutable_time_to_stale == _INPUT_DATA["immutable_time_to_stale"]
     assert saved_data.immutable_time_to_stale_warning == _INPUT_DATA["immutable_time_to_stale_warning"]
@@ -40,10 +40,9 @@ def test_create_staleness_with_only_one_data(api_create_staleness, db_get_stalen
     assert saved_data.conventional_time_to_stale == input_data["conventional_time_to_stale"]
     assert saved_data.conventional_time_to_stale_warning == _days_to_seconds(7)
     assert saved_data.conventional_time_to_delete == _days_to_seconds(14)
-    # immutable settings set automaticaly to conventional settings
-    assert saved_data.immutable_time_to_stale == saved_data.conventional_time_to_stale
-    assert saved_data.immutable_time_to_stale_warning == saved_data.conventional_time_to_stale_warning
-    assert saved_data.immutable_time_to_delete == saved_data.conventional_time_to_delete
+    assert saved_data.immutable_time_to_stale == _days_to_seconds(2)
+    assert saved_data.immutable_time_to_stale_warning == _days_to_seconds(180)
+    assert saved_data.immutable_time_to_delete == _days_to_seconds(730)
 
 
 def test_create_same_staleness(api_create_staleness):

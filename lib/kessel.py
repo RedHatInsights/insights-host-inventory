@@ -1,54 +1,61 @@
-import grpc
+from typing import Optional
+from app.models import (
+    Host,
+    HostGroupAssoc
+)
+from app import Config, KesselPermission
 from flask import current_app
-from google.protobuf import struct_pb2
-from grpc import StatusCode
-from kessel.inventory.v1beta2 import allowed_pb2
-from kessel.inventory.v1beta2 import check_request_pb2
-from kessel.inventory.v1beta2 import delete_resource_request_pb2
-from kessel.inventory.v1beta2 import inventory_service_pb2_grpc
-from kessel.inventory.v1beta2 import report_resource_request_pb2
-from kessel.inventory.v1beta2 import reporter_reference_pb2
-from kessel.inventory.v1beta2 import representation_metadata_pb2
-from kessel.inventory.v1beta2 import representation_type_pb2
-from kessel.inventory.v1beta2 import resource_reference_pb2
-from kessel.inventory.v1beta2 import resource_representations_pb2
-from kessel.inventory.v1beta2 import streamed_list_objects_request_pb2
-from kessel.inventory.v1beta2 import subject_reference_pb2
 from sqlalchemy import event
 from sqlalchemy.orm import Session
 
-from app import KesselPermission
 from app.auth.identity import Identity
-from app.config import Config
-from app.logging import get_logger
-from app.models import Host
 
+from app.logging import get_logger
 logger = get_logger(__name__)
 
+import grpc
+from grpc import StatusCode
+from kessel.inventory.v1beta2 import (
+    check_request_pb2,
+    representation_metadata_pb2,
+    resource_representations_pb2,
+    inventory_service_pb2_grpc,
+    report_resource_request_pb2,
+    delete_resource_request_pb2,
+    resource_reference_pb2,
+    reporter_reference_pb2,
+    streamed_list_objects_request_pb2,
+    representation_type_pb2,
+    subject_reference_pb2,
+    allowed_pb2
+)
+from google.protobuf import struct_pb2
 
-def after_flush(session: Session, flush_context):  # noqa: ARG001 - flush_context is not used
+def after_flush(session: Session, flush_context):
     if "kessel_items" not in session.info:
-        session.info["kessel_items"] = {"upsert": {}, "remove": {}}
-
+        session.info["kessel_items"] = {
+            "upsert": {},
+            "remove": {}
+        }
+    
     items = session.info["kessel_items"]
     upsert = items["upsert"]
     remove = items["remove"]
 
     for obj in session.new:
         if isinstance(obj, Host):
-            new_host: Host = obj
-            upsert[new_host.id] = new_host
+            host: Host = obj
+            upsert[host.id] = host
 
     for obj in session.dirty:
         if isinstance(obj, Host):
-            dirty_host: Host = obj
-            upsert[dirty_host.id] = dirty_host
+            host: Host = obj
+            upsert[host.id] = host
 
     for obj in session.deleted:
         if isinstance(obj, Host):
-            deleted_host: Host = obj
-            remove[deleted_host.id] = deleted_host
-
+            host: Host = obj
+            remove[host.id] = host
 
 def before_commit(session: Session):
     if "kessel_items" in session.info:
@@ -65,14 +72,13 @@ def before_commit(session: Session):
             client.DeleteHost(to_remove)
         remove.clear()
 
-
 class Kessel:
     def __init__(self, config: Config):
         # Configure gRPC channel with proper timeout and retry settings
         self.channel = grpc.insecure_channel(config.kessel_target_url)
         self.inventory_svc = inventory_service_pb2_grpc.KesselInventoryServiceStub(self.channel)
-        self.timeout = getattr(config, "kessel_timeout", 10.0)  # Default 10 second timeout
-
+        self.timeout = getattr(config, 'kessel_timeout', 10.0)  # Default 10 second timeout
+        
     def _handle_grpc_error(self, e: grpc.RpcError, operation: str) -> bool:
         """Handle gRPC errors with appropriate logging and fallback behavior."""
         if e.code() == StatusCode.UNAVAILABLE:
@@ -86,7 +92,7 @@ class Kessel:
             logger.error(f"Kessel authentication failed for {operation}: {e.details()}")
         else:
             logger.error(f"Kessel gRPC error for {operation}: {e.code()} - {e.details()}")
-
+        
         return False  # Fail closed by default
 
     def Check(self, current_identity: Identity, permission: KesselPermission, ids: list[str]) -> bool:
@@ -97,7 +103,7 @@ class Kessel:
         try:
             # Build the subject reference (the user making the request)
             subject_ref = self._build_subject_reference(current_identity)
-
+            
             if len(ids) == 1:
                 # Single resource check
                 return self._check_single_resource(subject_ref, permission, str(ids[0]))
@@ -108,7 +114,7 @@ class Kessel:
                 # No specific IDs - this shouldn't happen in normal Check flow
                 logger.warning("Check called with empty ID list")
                 return False
-
+                
         except grpc.RpcError as e:
             return self._handle_grpc_error(e, "Check")
         except Exception as e:
@@ -123,7 +129,7 @@ class Kessel:
         try:
             # Build the subject reference (the user making the request)
             subject_ref = self._build_subject_reference(current_identity)
-
+            
             if len(ids) == 1:
                 # Single resource update check
                 return self._check_single_resource_for_update(subject_ref, permission, ids[0])
@@ -134,7 +140,7 @@ class Kessel:
                 # No specific IDs - this shouldn't happen in normal CheckForUpdate flow
                 logger.warning("CheckForUpdate called with empty ID list")
                 return False
-
+                
         except grpc.RpcError as e:
             return self._handle_grpc_error(e, "CheckForUpdate")
         except Exception as e:
@@ -144,83 +150,79 @@ class Kessel:
     def _build_subject_reference(self, current_identity: Identity) -> subject_reference_pb2.SubjectReference:
         """Build a subject reference for the current user."""
         # Get user ID, falling back to username if user_id not available
-        user_id = current_identity.user.get("user_id") if current_identity.user else None
+        user_id = current_identity.user.get('user_id') if current_identity.user else None
         if not user_id:
-            user_id = current_identity.user.get("username") if current_identity.user else None
-
+            user_id = current_identity.user.get('username') if current_identity.user else None
+        
         if not user_id:
             raise ValueError("Unable to determine user ID from identity")
-
+            
         subject_ref = resource_reference_pb2.ResourceReference(
             resource_type="principal",
             resource_id=f"redhat/{user_id}",  # Platform/IdP prefix
-            reporter=reporter_reference_pb2.ReporterReference(type="rbac"),
+            reporter=reporter_reference_pb2.ReporterReference(
+                type="rbac"
+            ),
         )
-
+        
         return subject_reference_pb2.SubjectReference(resource=subject_ref)
 
-    def _check_single_resource(
-        self, subject_ref: subject_reference_pb2.SubjectReference, permission: KesselPermission, resource_id: str
-    ) -> bool:
+    def _check_single_resource(self, subject_ref: subject_reference_pb2.SubjectReference, 
+                             permission: KesselPermission, resource_id: str) -> bool:
         """Check permission for a single resource."""
         object_ref = resource_reference_pb2.ResourceReference(
             resource_type=permission.resource_type.name,  # e.g., "host"
             resource_id=resource_id,
             reporter=reporter_reference_pb2.ReporterReference(
                 type=permission.resource_type.namespace,  # e.g., "hbi"
-                instance_id="3c4e2382-26c1-11f0-8e5c-ce0194e9e144",
+                instance_id= "3c4e2382-26c1-11f0-8e5c-ce0194e9e144"
             ),
         )
-
+        
         request = check_request_pb2.CheckRequest(
             subject=subject_ref,
             relation=permission.resource_permission,  # e.g., "view"
             object=object_ref,
         )
-
+        
         response = self.inventory_svc.Check(request, timeout=self.timeout)
         return response.allowed == allowed_pb2.Allowed.ALLOWED_TRUE
 
-    def _check_bulk_resources(
-        self,
-        subject_ref: subject_reference_pb2.SubjectReference,
-        permission: KesselPermission,
-        resource_ids: list[str],
-    ) -> bool:
+    def _check_bulk_resources(self, subject_ref: subject_reference_pb2.SubjectReference,
+                            permission: KesselPermission, resource_ids: list[str]) -> bool:
         """Check permissions for multiple resources. All must be accessible."""
-        return all(self._check_single_resource(subject_ref, permission, resource_id) for resource_id in resource_ids)
+        for resource_id in resource_ids:
+            if not self._check_single_resource(subject_ref, permission, resource_id):
+                return False
+        return True
 
-    def _check_single_resource_for_update(
-        self, subject_ref: subject_reference_pb2.SubjectReference, permission: KesselPermission, resource_id: str
-    ) -> bool:
+    def _check_single_resource_for_update(self, subject_ref: subject_reference_pb2.SubjectReference,
+                                        permission: KesselPermission, resource_id: str) -> bool:
         """Check update permission for a single resource."""
         # For updates, we might need a different relation like "edit" or "write"
         # This depends on how permissions are modeled in Kessel
         update_permission = permission.resource_permission.replace("view", "edit")
-
+        
         object_ref = resource_reference_pb2.ResourceReference(
             resource_type=permission.resource_type.name,
             resource_id=resource_id,
             reporter=reporter_reference_pb2.ReporterReference(
-                type=permission.resource_type.namespace, instance_id="3c4e2382-26c1-11f0-8e5c-ce0194e9e144"
+                type=permission.resource_type.namespace,
+                instance_id= "3c4e2382-26c1-11f0-8e5c-ce0194e9e144"
             ),
         )
-
+        
         request = check_request_pb2.CheckRequest(
             subject=subject_ref,
             relation=update_permission,
             object=object_ref,
         )
-
+        
         response = self.inventory_svc.CheckForUpdate(request, timeout=self.timeout)
         return response.allowed == allowed_pb2.Allowed.ALLOWED_TRUE
 
-    def _check_bulk_resources_for_update(
-        self,
-        subject_ref: subject_reference_pb2.SubjectReference,
-        permission: KesselPermission,
-        resource_ids: list[str],
-    ) -> bool:
+    def _check_bulk_resources_for_update(self, subject_ref: subject_reference_pb2.SubjectReference,
+                                       permission: KesselPermission, resource_ids: list[str]) -> bool:
         """Check update permissions for multiple resources. All must be updatable."""
         for resource_id in resource_ids:
             if not self._check_single_resource_for_update(subject_ref, permission, resource_id):
@@ -228,65 +230,71 @@ class Kessel:
         return True
 
     def ListAllowedWorkspaces(self, current_identity: Identity, relation) -> list[str]:
-        object_type = representation_type_pb2.RepresentationType(
-            resource_type="workspace",
-            reporter_type="rbac",
-        )
+            object_type = representation_type_pb2.RepresentationType(
+                resource_type="workspace",
+                reporter_type="rbac",
+            )
 
-        # logger.info(f"user identity that reached the kessel lib: {current_identity.user}")
-        user_id = (
-            current_identity.user["user_id"] if current_identity.user["user_id"] else current_identity.user["username"]
-        )  # HACK: this is ONLY to continue testing while waiting for the user_id bits to start working
-        # logger.info(f"user_id resolved from the identity: {user_id}")
-        subject_ref = resource_reference_pb2.ResourceReference(
-            resource_type="principal",
-            resource_id=f"redhat/{user_id}",  # Platform/IdP/whatever 'redhat' is, probably needs to be parameterized
-            reporter=reporter_reference_pb2.ReporterReference(type="rbac"),
-        )
+            #logger.info(f"user identity that reached the kessel lib: {current_identity.user}")
+            user_id = current_identity.user['user_id'] if current_identity.user['user_id'] else current_identity.user['username'] #HACK: this is ONLY to continue testing while waiting for the user_id bits to start working
+            #logger.info(f"user_id resolved from the identity: {user_id}")
+            subject_ref = resource_reference_pb2.ResourceReference(
+                resource_type="principal",
+                resource_id=f"redhat/{user_id}", #Platform/IdP/whatever 'redhat' is, probably needs to be parameterized
+                reporter=reporter_reference_pb2.ReporterReference(
+                    type="rbac"
+                ),
+            )
 
-        subject = subject_reference_pb2.SubjectReference(
-            resource=subject_ref,
-        )
+            subject = subject_reference_pb2.SubjectReference(
+                resource=subject_ref,
+            )
 
-        request = streamed_list_objects_request_pb2.StreamedListObjectsRequest(
-            object_type=object_type,
-            relation=relation,
-            subject=subject,
-        )
+            request = streamed_list_objects_request_pb2.StreamedListObjectsRequest(
+                object_type=object_type,
+                relation=relation,
+                subject=subject,
+            )
 
-        workspaces = list()
-        stream = self.inventory_svc.StreamedListObjects(request)
-        for workspace in stream:
-            workspaces.append(workspace.object.resource_id)
+            workspaces = list()
+            stream = self.inventory_svc.StreamedListObjects(request)
+            for workspace in stream:
+                workspaces.append(workspace.object.resource_id)
 
-        return workspaces
+            return workspaces
+
 
     def ReportHost(self, host: Host):
         common_struct = struct_pb2.Struct()
         if host.groups:
             group = host.groups[0]
-            common_struct.update({"workspace_id": str(group["id"])})
+            common_struct.update({
+                "workspace_id": str(group["id"])
+            })
 
         reporter_struct = struct_pb2.Struct()
-        reporter_struct.update(
-            {
-                "insights_inventory_id": str(host.id),  # Actually, should probably come from canonical_facts
-            }
-        )
+        reporter_struct.update({
+            "insights_inventory_id": str(host.id), #Actually, should probably come from canonical_facts
+        })
 
         metadata = representation_metadata_pb2.RepresentationMetadata(
             local_resource_id=str(host.id),
             api_href="https://apiHref.com/",
             console_href="https://www.consoleHref.com/",
-            reporter_version="0.1",
+            reporter_version="0.1"
         )
 
         representations = resource_representations_pb2.ResourceRepresentations(
-            metadata=metadata, common=common_struct, reporter=reporter_struct
+            metadata=metadata,
+            common=common_struct,
+            reporter=reporter_struct
         )
 
         request = report_resource_request_pb2.ReportResourceRequest(
-            type="host", reporter_type="hbi", reporter_instance_id="redhat", representations=representations
+            type="host",
+            reporter_type="hbi",
+            reporter_instance_id= "redhat",
+            representations=representations
         )
 
         self.inventory_svc.ReportResource(request)
@@ -297,8 +305,9 @@ class Kessel:
                 resource_type="host",
                 resource_id=id,
                 reporter=reporter_reference_pb2.ReporterReference(
-                    type="hbi", instance_id="3c4e2382-26c1-11f0-8e5c-ce0194e9e144"
-                ),
+                    type="hbi",
+                    instance_id= "3c4e2382-26c1-11f0-8e5c-ce0194e9e144"
+                )
             )
         )
 
@@ -306,10 +315,9 @@ class Kessel:
 
     def close(self):
         """Close the gRPC channel."""
-        if hasattr(self, "channel"):
+        if hasattr(self, 'channel'):
             self.channel.close()
             logger.info("Kessel gRPC channel closed")
-
 
 def init_kessel(config: Config, app):
     kessel_client = Kessel(config)
@@ -317,7 +325,6 @@ def init_kessel(config: Config, app):
 
     event.listen(Session, "after_flush", after_flush)
     event.listen(Session, "before_commit", before_commit)
-
 
 def get_kessel_client(app) -> Kessel:
     return app.extensions["Kessel"]

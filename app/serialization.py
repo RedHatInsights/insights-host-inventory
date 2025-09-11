@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC
+from datetime import timezone
 
 from dateutil.parser import isoparse
 from marshmallow import ValidationError
@@ -10,7 +10,6 @@ from app.auth import get_current_identity
 from app.common import inventory_config
 from app.culling import Conditions
 from app.culling import Timestamps
-from app.culling import should_host_stay_fresh_forever
 from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
 from app.logging import get_logger
@@ -20,9 +19,10 @@ from app.models import Host
 from app.models import HostSchema
 from app.models import LimitedHost
 from app.models import LimitedHostSchema
-from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 from app.staleness_serialization import get_staleness_timestamps
 from app.utils import Tag
+from lib.feature_flags import FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS
+from lib.feature_flags import get_flag_value
 
 logger = get_logger(__name__)
 
@@ -76,7 +76,6 @@ DEFAULT_FIELDS = (
     "created",
     "updated",
     "groups",
-    "last_check_in",
 )
 
 ADDITIONAL_HOST_MQ_FIELDS = (
@@ -140,7 +139,10 @@ def serialize_host(
 
     timestamps = get_staleness_timestamps(host, staleness_timestamps, staleness)
 
-    fields = DEFAULT_FIELDS + additional_fields
+    if get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS):
+        fields = DEFAULT_FIELDS + ("last_check_in",) + additional_fields
+    else:
+        fields = DEFAULT_FIELDS + additional_fields
 
     if for_mq:
         fields += ADDITIONAL_HOST_MQ_FIELDS
@@ -294,7 +296,7 @@ def serialize_facts(facts):
 
 
 def _serialize_datetime(dt):
-    return dt.astimezone(UTC).isoformat()
+    return dt.astimezone(timezone.utc).isoformat()
 
 
 def _serialize_staleness_to_string(dt) -> str:
@@ -304,14 +306,14 @@ def _serialize_staleness_to_string(dt) -> str:
     """
     if isinstance(dt, str):
         return dt
-    return dt.astimezone(UTC).isoformat()
+    return dt.astimezone(timezone.utc).isoformat()
 
 
 def _deserialize_datetime(s):
     dt = isoparse(s)
     if not dt.tzinfo:
         raise ValueError(f'Timezone not specified in "{s}".')
-    return dt.astimezone(UTC)
+    return dt.astimezone(timezone.utc)
 
 
 def _serialize_uuid(u):
@@ -392,9 +394,9 @@ def serialize_staleness_response(staleness):
         "conventional_time_to_stale": staleness.conventional_time_to_stale,
         "conventional_time_to_stale_warning": staleness.conventional_time_to_stale_warning,
         "conventional_time_to_delete": staleness.conventional_time_to_delete,
-        "immutable_time_to_stale": staleness.conventional_time_to_stale,
-        "immutable_time_to_stale_warning": staleness.conventional_time_to_stale_warning,
-        "immutable_time_to_delete": staleness.conventional_time_to_delete,
+        "immutable_time_to_stale": staleness.immutable_time_to_stale,
+        "immutable_time_to_stale_warning": staleness.immutable_time_to_stale_warning,
+        "immutable_time_to_delete": staleness.immutable_time_to_delete,
         "created": _serialize_datetime(staleness.created_on) if staleness.created_on is not None else None,
         "updated": _serialize_datetime(staleness.modified_on) if staleness.modified_on is not None else None,
     }
@@ -409,19 +411,31 @@ def serialize_staleness_to_dict(staleness_obj) -> dict:
         "conventional_time_to_stale": staleness_obj.conventional_time_to_stale,
         "conventional_time_to_stale_warning": staleness_obj.conventional_time_to_stale_warning,
         "conventional_time_to_delete": staleness_obj.conventional_time_to_delete,
-        "immutable_time_to_stale": staleness_obj.conventional_time_to_stale,
-        "immutable_time_to_stale_warning": staleness_obj.conventional_time_to_stale_warning,
-        "immutable_time_to_delete": staleness_obj.conventional_time_to_delete,
+        "immutable_time_to_stale": staleness_obj.immutable_time_to_stale,
+        "immutable_time_to_stale_warning": staleness_obj.immutable_time_to_stale_warning,
+        "immutable_time_to_delete": staleness_obj.immutable_time_to_delete,
     }
 
 
 def _serialize_per_reporter_staleness(host, staleness, staleness_timestamps):
     for reporter in host.per_reporter_staleness:
-        # For hosts that should stay fresh forever, use far-future timestamps
-        if should_host_stay_fresh_forever(host):
-            stale_timestamp = FAR_FUTURE_STALE_TIMESTAMP
-            stale_warning_timestamp = FAR_FUTURE_STALE_TIMESTAMP
-            delete_timestamp = FAR_FUTURE_STALE_TIMESTAMP
+        if host.host_type == "edge" or (
+            hasattr(host, "system_profile_facts")
+            and host.system_profile_facts
+            and host.system_profile_facts.get("host_type") == "edge"
+        ):
+            stale_timestamp = staleness_timestamps.stale_timestamp(
+                _deserialize_datetime(host.per_reporter_staleness[reporter]["last_check_in"]),
+                staleness["immutable_time_to_stale"],
+            )
+            stale_warning_timestamp = staleness_timestamps.stale_timestamp(
+                _deserialize_datetime(host.per_reporter_staleness[reporter]["last_check_in"]),
+                staleness["immutable_time_to_stale_warning"],
+            )
+            delete_timestamp = staleness_timestamps.stale_timestamp(
+                _deserialize_datetime(host.per_reporter_staleness[reporter]["last_check_in"]),
+                staleness["immutable_time_to_delete"],
+            )
         else:
             stale_timestamp = staleness_timestamps.stale_timestamp(
                 _deserialize_datetime(host.per_reporter_staleness[reporter]["last_check_in"]),

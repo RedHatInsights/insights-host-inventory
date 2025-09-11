@@ -8,7 +8,8 @@ from api import api_operation
 from api import flask_json_response
 from api import metrics
 from api.group_query import build_group_response
-from app import KesselResourceTypes
+from app import KesselResourceTypes, RbacPermission
+from app import RbacResourceType
 from app.auth import get_current_identity
 from app.instrumentation import log_host_group_add_succeeded
 from app.instrumentation import log_patch_group_failed
@@ -19,7 +20,7 @@ from lib.group_repository import add_hosts_to_group
 from lib.group_repository import get_group_by_id_from_db
 from lib.group_repository import remove_hosts_from_group
 from lib.host_repository import get_host_list_by_id_list_from_db
-from lib.middleware import access
+from lib.middleware import access, rbac
 from lib.middleware import rbac_group_id_check
 
 logger = get_logger(__name__)
