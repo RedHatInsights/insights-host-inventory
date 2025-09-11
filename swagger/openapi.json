@@ -3250,7 +3250,7 @@
           },
           "os_kernel_version": {
             "type": "string",
-            "maxLength": 50,
+            "maxLength": 20,
             "pattern": "^\\d+\\.\\d+\\.\\d+(\\.\\d+)?$",
             "description": "The kernel version represented with a three, optionally four, number scheme.",
             "example": "4.18.2, 4.5.0, 5.1.0",
