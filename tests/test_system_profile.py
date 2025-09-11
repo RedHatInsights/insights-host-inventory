@@ -4,15 +4,16 @@ from yaml.parser import ParserError
 from app.config import Config
 from app.environment import RuntimeEnvironment
 from app.exceptions import ValidationException
+from jobs.system_profile_validator import _validate_schema_for_pr_and_generate_comment
 from lib.host_repository import find_hosts_by_staleness
 from lib.system_profile_validate import validate_sp_for_branch
-from system_profile_validator import _validate_schema_for_pr_and_generate_comment
 from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_URL
 from tests.helpers.api_utils import SYSTEM_PROFILE_URL
 from tests.helpers.api_utils import assert_error_response
 from tests.helpers.api_utils import assert_response_status
+from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import build_system_profile_operating_system_url
 from tests.helpers.api_utils import build_system_profile_sap_sids_url
 from tests.helpers.api_utils import build_system_profile_sap_system_url
@@ -299,7 +300,7 @@ def test_system_profile_operating_system(mq_create_or_update_host, api_get):
     ]
     ordered_insights_ids = [generate_uuid() for _ in range(len(ordered_sp_data))]
     # Create an association between the insights IDs
-    ordered_host_data = dict(zip(ordered_insights_ids, ordered_sp_data))
+    ordered_host_data = dict(zip(ordered_insights_ids, ordered_sp_data, strict=False))
 
     # Create hosts for the above host data (in shuffled order)
     _ = [
@@ -337,7 +338,7 @@ def test_system_profile_sap_system(mq_create_or_update_host, api_get):
     ordered_insights_ids = [generate_uuid() for _ in range(len(ordered_sap_system_data))]
 
     # Create an association between the insights IDs
-    ordered_host_data = dict(zip(ordered_insights_ids, ordered_sap_system_data))
+    ordered_host_data = dict(zip(ordered_insights_ids, ordered_sap_system_data, strict=False))
 
     # Create hosts for the above host data
     _ = [
@@ -375,7 +376,7 @@ def test_system_profile_sap_sids(mq_create_or_update_host, api_get):
     ordered_sap_sids_data = [["ABC", "HZO", "XYZ"], ["ABC"], [], [], ["XYZ"], []]
     ordered_insights_ids = [generate_uuid() for _ in range(len(ordered_sap_sids_data))]
 
-    ordered_host_data = dict(zip(ordered_insights_ids, ordered_sap_sids_data))
+    ordered_host_data = dict(zip(ordered_insights_ids, ordered_sap_sids_data, strict=False))
 
     # Create hosts for the above host data
     _ = [
@@ -405,7 +406,7 @@ def test_system_profile_sap_sids_with_search(mq_create_or_update_host, api_get):
     ordered_sap_sids_data = [["ABC", "HZO", "XYZ"], ["ABC"], [], [], ["XYZ"], []]
     ordered_insights_ids = [generate_uuid() for _ in range(len(ordered_sap_sids_data))]
 
-    ordered_host_data = dict(zip(ordered_insights_ids, ordered_sap_sids_data))
+    ordered_host_data = dict(zip(ordered_insights_ids, ordered_sap_sids_data, strict=False))
 
     # Create hosts for the above host data
     _ = [
@@ -428,3 +429,86 @@ def test_system_profile_sap_sids_with_search(mq_create_or_update_host, api_get):
         item_count = item["count"]
         if item["value"]:
             assert {item["value"]: item_count} == {item["value"]: expected_counts[item["value"]]}
+
+
+def test_create_empty_update_system_profile(
+    mq_create_or_update_host, api_get, db_get_static_system_profile, db_get_dynamic_system_profile
+):
+    host_minimal = minimal_host(system_profile={})
+    host = mq_create_or_update_host(host_minimal)
+    url = build_hosts_url(host_list_or_id=host.id)
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
+    assert db_get_static_system_profile(host.org_id, host.id) is None
+    assert db_get_dynamic_system_profile(host.org_id, host.id) is None
+
+    system_profile = {
+        "network_interfaces": [
+            {
+                "mtu": 1500,
+                "name": "eth0",
+                "type": "loopback",
+                "state": "UP",
+                "mac_address": "aa:bb:cc:dd:ee:ff",
+                "ipv4_addresses": ["10.10.10.1"],
+                "ipv6_addresses": ["2001:0db8:85a3:0000:0000:8a2e:0370:7334"],
+            }
+        ],
+        "running_processes": ["vim", "gcc", "python"],
+        "cores_per_socket": 3,
+        "installed_services": ["ndb", "krb5"],
+    }
+
+    host_minimal.system_profile = system_profile
+
+    host = mq_create_or_update_host(host_minimal)
+
+    url = build_hosts_url(host_list_or_id=host.id)
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
+    static_system_profile = db_get_static_system_profile(host.org_id, host.id)
+    assert static_system_profile is not None
+    assert static_system_profile.cores_per_socket == system_profile["cores_per_socket"]
+    assert static_system_profile.installed_services == system_profile["installed_services"]
+
+    dynamic_system_profile = db_get_dynamic_system_profile(host.org_id, host.id)
+    assert dynamic_system_profile is not None
+    assert dynamic_system_profile.network_interfaces == system_profile["network_interfaces"]
+    assert dynamic_system_profile.running_processes == system_profile["running_processes"]
+
+
+def test_create_empty_update_failing_system_profile(
+    mq_create_or_update_host, api_get, db_get_static_system_profile, db_get_dynamic_system_profile
+):
+    host_minimal = minimal_host(system_profile={})
+    host = mq_create_or_update_host(host_minimal)
+    url = build_hosts_url(host_list_or_id=host.id)
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
+    assert db_get_static_system_profile(host.org_id, host.id) is None
+    assert db_get_dynamic_system_profile(host.org_id, host.id) is None
+
+    system_profile = {
+        "network_interfaces": [
+            {
+                "mtu": 1500,
+                "name": "eth0",
+                "type": "loopback",
+                "state": "UP",
+                "mac_address": "aa:bb:cc:dd:ee:ff",
+                "ipv4_addresses": ["10.10.10.1"],
+                "ipv6_addresses": ["2001:0db8:85a3:0000:0000:8a2e:0370:7334"],
+            }
+        ],
+        "running_processes": ["vim", "gcc", "python"],
+        "cores_per_socket": 3,
+        "installed_services": 4,  # This is invalid
+    }
+
+    host_minimal.system_profile = system_profile
+
+    with pytest.raises(ValidationException):
+        mq_create_or_update_host(host_minimal)  # This should raise a ValidationException

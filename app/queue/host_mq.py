@@ -3,10 +3,11 @@ from __future__ import annotations
 import base64
 import json
 import sys
+import uuid
+from collections.abc import Callable
 from copy import deepcopy
 from functools import partial
 from typing import Any
-from typing import Callable
 from uuid import UUID
 
 from confluent_kafka import Consumer
@@ -31,6 +32,7 @@ from app.auth.identity import create_mock_identity_with_org_id
 from app.common import inventory_config
 from app.culling import Timestamps
 from app.exceptions import InventoryException
+from app.exceptions import OutboxSaveException
 from app.exceptions import ValidationException
 from app.instrumentation import log_add_host_attempt
 from app.instrumentation import log_add_host_failure
@@ -408,6 +410,9 @@ class IngressMessageConsumer(HostMessageConsumer):
             identity = _get_identity(host_data, platform_metadata)
             input_host = deserialize_host(host_data)
 
+            # New hosts don't have an id, so create one
+            input_host.id = uuid.uuid4() if input_host.id is None else input_host.id
+
             # basic-auth does not need owner_id
             if identity.identity_type == IdentityType.SYSTEM:
                 input_host = _set_owner(input_host, identity)
@@ -443,13 +448,16 @@ class IngressMessageConsumer(HostMessageConsumer):
         except ValidationException:
             metrics.add_host_failure.labels("ValidationException", host_data.get("reporter", "null")).inc()
             raise
+        except OutboxSaveException as ose:
+            log_add_host_failure(logger, str(ose.detail), host_data, sp_fields_to_log)
+            raise
         except InventoryException as ie:
             log_add_host_failure(logger, str(ie.detail), host_data, sp_fields_to_log)
             raise
         except OperationalError as oe:
             log_db_access_failure(logger, f"Could not access DB {str(oe)}", host_data)
             raise oe
-        except Exception as e:
+        except Exception:
             logger.exception("Error while adding host", extra={"host": host_data, "system_profile": sp_fields_to_log})
             metrics.add_host_failure.labels("Exception", host_data.get("reporter", "null")).inc()
             raise

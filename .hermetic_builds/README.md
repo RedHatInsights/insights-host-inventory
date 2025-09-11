@@ -2,42 +2,55 @@
 
 This document outlines the steps to create a hermetic build environment by generating RPM lock files and Python requirements files using the provided Makefile targets. The process ensures reproducible builds by locking dependencies for both system (RPM) and Python packages. Follow the steps below, committing changes to `git` after each section to track progress.
 
+## Generate all Lock Files at once
+
+To generate all lock files at once you can run just a single target.
+You need to be on a RHEL 9 subscribed machine for this to be successful.
+
+```bash
+make generate-hermetic-lockfiles
+```
+
 ## Generating RPM Lock Files
 
-To generate the RPM lock file (`rpms.lock.yaml`), follow these steps to create the necessary repository configuration and package lists.
+To generate the RPM lock file (`rpms.lock.yaml`), you need to run following target on a RHEL 9 machine.
 
-### Step 1: Generate the `ubi.repo` File
-Run the `generate-repo-file` target to create the `ubi.repo` file, which configures the UBI (Universal Base Image) repositories for RPM packages.
+### Prerequisites
 
-```bash
-make generate-repo-file
-```
-
-- **Input**: Uses `BASE_IMAGE` (default: `registry.access.redhat.com/ubi9/ubi-minimal:latest`).
-- **Output**: Creates `ubi.repo` with enabled x86_64 repositories.
-- **Optional**: Specify a custom image with `BASE_IMAGE`, e.g., `make generate-repo-file BASE_IMAGE=registry.access.redhat.com/ubi9/ubi:latest`.
-
-### Step 2: Generate the `rpms.in.yaml` File
-Run the `generate-rpms-in-yaml` target to extract RPM packages from the `CONTAINERFILE` and create `rpms.in.yaml`.
+To depsolve the RPM to generate lockfile you need to install `rpm-lockfile-prototype` utility.
 
 ```bash
-make generate-rpms-in-yaml
+python3 -m pip install --user https://github.com/konflux-ci/rpm-lockfile-prototype/archive/refs/heads/main.zip
 ```
 
-- **Input**: Uses `CONTAINERFILE` (default: `Dockerfile`) to parse `yum`, `dnf`, or `microdnf install` commands.
-- **Output**: Creates `rpms.in.yaml` listing RPM packages, repository files, and architecture.
-- **Optional**: Specify a custom file with `CONTAINERFILE`, e.g., `make generate-rpms-in-yaml CONTAINERFILE=Containerfile`.
+See its [documentation](https://github.com/konflux-ci/rpm-lockfile-prototype/?tab=readme-ov-file#running-in-a-container) for details.
 
-### Step 3: Generate the `rpms.lock.yaml` File
-Run the `generate-rpm-lockfile` target to create the locked RPM dependency file using the `rpm-lockfile-prototype` tool.
+### Generate the lockfile
 
 ```bash
-make generate-rpm-lockfile
+make generate-rpms-lockfile
 ```
 
-- **Input**: Requires `rpms.in.yaml` and `BASE_IMAGE`.
+- **Input**: Requires `rpms.in.yaml` (creates it automatically) and `BASE_IMAGE` (default: `registry.access.redhat.com/ubi9/ubi-minimal:latest`).
 - **Output**: Creates `rpms.lock.yaml` with locked RPM versions.
-- **Optional**: Use a custom `BASE_IMAGE` as in Step 1.
+- **Optional**: Use a custom `BASE_IMAGE`.
+
+It will do these steps to generate the lock file:
+* Step 1: Generates the `ubi.repo` file
+  Creates the `ubi.repo` file, which configures the UBI (Universal Base Image) repositories for RPM packages we want.
+  **Input**: Uses `BASE_IMAGE` (default: `registry.access.redhat.com/ubi9/ubi-minimal:latest`).
+  **Output**: Creates `ubi.repo` with enabled x86_64 repositories.
+  **Optional**: Specify a custom image with `BASE_IMAGE`, e.g., `make generate-repo-file BASE_IMAGE=registry.access.redhat.com/ubi9/ubi:latest`.
+* Step 2: Generates the `rpms.in.yaml` File
+  Extracts RPM packages from the `CONTAINERFILE` and creates `rpms.in.yaml`.
+  **Input**: Uses `CONTAINERFILE` (default: `Dockerfile`) to parse `yum`, `dnf`, or `microdnf install` commands.
+  **Output**: Creates `rpms.in.yaml` listing RPM packages, repository files, and architecture.
+  **Optional**: Specify a custom file with `CONTAINERFILE`, e.g., `make generate-rpms-lockfile CONTAINERFILE=Containerfile`.
+* Step 3: Generate the `rpms.lock.yaml` File
+  Run the `generate-rpm-lockfile` target to create the locked RPM dependency file using the `rpm-lockfile-prototype` tool.
+  **Input**: Requires `rpms.in.yaml` and `BASE_IMAGE`.
+  **Output**: Creates `rpms.lock.yaml` with locked RPM versions.
+  **Optional**: Use a custom `BASE_IMAGE` as in Step 1.
 
 ### Commit Changes
 After completing the RPM lock file steps, commit the generated files to `git`:
@@ -62,39 +75,35 @@ make generate-requirements-txt
 - **Output**: Creates `requirements.txt` with application dependencies.
 - **Error**: Fails if no lock file is found and `requirements.txt` is missing.
 
-### Step 2: Generate the `requirements-build.in` and `requirements-extras.in` File
-Run the `generate-requirements-build-in` target to create `requirements-build.in` and `requirements-extras.in` files.
-
-```bash
-make generate-requirements-build-in
-```
-- **Output**: Creates `requirements-build.in` with build dependencies (e.g., `pipenv==2025.0.3`).
-- **Manual Step**: If additional build dependencies are discovered (e.g., during testing), update `.hermetic_builds/add_manual_build_dependencies.sh` (if it exists) to append them. Each entry should be:
-
-  ```bash
-  echo "<package>==<version>" >> requirements-build.in
-  ```
-
-  Example:
-  ```bash
-  echo "setuptools==68.2.2" >> requirements-build.in
-  ```
-
-  If this script doesn’t exist, manually edit `requirements-build.in` or create the script in `.hermetic_builds`.
-
-### Step 3: Generate the `requirements-build.txt` and `requirements-extras.txt` files
+### Step 2: Generate the `requirements-build.txt` and `requirements-extras.txt` files
 Run the `generate-requirements-build-txt` target to create `requirements-build.txt` and `requirements-extras.txt` with locked build dependencies using a containerized environment.
 
 ```bash
 make generate-requirements-build-txt
 ```
 
-- **Input**: Requires `requirements-build.in`, `requirements-extras.in` and scripts `.hermetic_builds/prep_python_build_container_dependencies.sh` and `.hermetic_builds/generate_requirements_build.sh`.
+- **Input**: This automatically prepares `requirements-build.in`, `requirements-extras.in` more on those in Prerequisites section. It also uses scripts `.hermetic_builds/prep_python_build_container_dependencies.sh` and `.hermetic_builds/generate_requirements_build.sh`.
 - **Output**: Creates `requirements-build.txt` and `requirements-extras.txt` with locked dependencies and hashes.
 - **Customization**:
   - Ensure `.hermetic_builds/prep_python_build_container_dependencies.sh` installs `wget` and sets up `pip/pip3` and `python/python3` commands. If the `BASE_IMAGE` or environment changes.
   - Verify both scripts are executable (`chmod +x .hermetic_builds/*.sh`).
 - **Optional**: Specify a custom `BASE_IMAGE`, e.g., `make generate-requirements-build-txt BASE_IMAGE=registry.access.redhat.com/ubi9/ubi:latest`.
+
+#### Prerequisites
+
+Files `requirements-build.in` and `requirements-extras.in` are autogenerated during this make target.
+You can manually prepare them by running `generate-requirements-build-in` target.
+
+```bash
+# Optional
+make generate-requirements-build-in
+```
+- **Output**: Creates `requirements-build.in` with build dependencies (e.g., `pipenv==2025.0.3`).
+- **Manual Step**: If additional build dependencies are discovered (e.g., during testing), update `.hermetic_builds/add_manual_build_dependencies.sh` to append them. Each entry should be:
+
+  ```bash
+  <package>==<version>
+  ```
 
 ### Commit Changes
 After completing the Python requirements steps, commit the generated files and any script updates to `git`:

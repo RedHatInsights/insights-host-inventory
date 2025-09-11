@@ -304,17 +304,6 @@ class Config:
             "CONVENTIONAL_TIME_TO_DELETE_SECONDS", days_to_seconds(14)
         )
 
-        self.immutable_time_to_stale_seconds = os.environ.get("IMMUTABLE_TIME_TO_STALE_SECONDS", days_to_seconds(2))
-
-        self.immutable_time_to_stale_warning_seconds = os.environ.get(
-            "IMMUTABLE_TIME_TO_STALE_WARNING_SECONDS", days_to_seconds(180)
-        )
-
-        self.immutable_time_to_delete_seconds = os.environ.get(
-            "IMMUTABLE_TIME_TO_DELETE_SECONDS", days_to_seconds(730)
-        )
-
-        self.bypass_kessel_jobs = os.getenv("BYPASS_KESSEL_JOBS", "false").lower() == "true"
         self.use_sub_man_id_for_host_id = os.environ.get("USE_SUBMAN_ID", "false").lower() == "true"
         self.host_delete_chunk_size = int(os.getenv("HOST_DELETE_CHUNK_SIZE", "1000"))
         self.script_chunk_size = int(os.getenv("SCRIPT_CHUNK_SIZE", "500"))
@@ -323,7 +312,7 @@ class Config:
         self.sp_authorized_users = os.getenv("SP_AUTHORIZED_USERS", "tuser@redhat.com").split()
         self.mq_db_batch_max_messages = int(os.getenv("MQ_DB_BATCH_MAX_MESSAGES", "1"))
         self.mq_db_batch_max_seconds = float(os.getenv("MQ_DB_BATCH_MAX_SECONDS", "0.5"))
-        self.kessel_target_url = os.getenv("KESSEL_TARGET_URL", "localhost:9000")        
+        self.kessel_target_url = os.getenv("KESSEL_TARGET_URL", "localhost:9000")
 
         self.s3_access_key_id = os.getenv("S3_AWS_ACCESS_KEY_ID")
         self.s3_secret_access_key = os.getenv("S3_AWS_SECRET_ACCESS_KEY")
@@ -367,10 +356,6 @@ class Config:
         self.replica_namespace = os.environ.get("REPLICA_NAMESPACE", "false").lower() == "true"
         if self.replica_namespace:
             self.logger.info("***PROD REPLICA NAMESPACE DETECTED - Kafka operations will be disabled ***")
-
-        self.hbi_db_refactoring_use_old_table = (
-            os.environ.get("HBI_DB_REFACTORING_USE_OLD_TABLE", "false").lower() == "true"
-        )
 
     def _build_base_url_path(self):
         app_name = os.getenv("APP_NAME", "inventory")

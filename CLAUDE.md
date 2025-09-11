@@ -1,0 +1,76 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Development Commands
+
+### Database Operations
+- `make upgrade_db` - Run database migrations to upgrade to the latest schema
+- `make migrate_db message="Description"` - Generate a new database migration
+- `make gen_hbi_schema_dump` - Create a schema dump for replication subscribers
+
+### Testing and Quality
+- `pytest --cov=.` - Run all tests with coverage
+- `pytest tests/test_api_auth.py` - Run tests in a specific file
+- `pytest tests/test_api_auth.py::test_validate_valid_identity` - Run a specific test
+- `make style` - Run pre-commit hooks for code formatting
+
+### Local Development Services
+- `make run_inv_mq_service` - Start the message queue service for processing Kafka messages
+- `make run_inv_export_service` - Start the export service for data exports
+- `make run_inv_web_service` - Start the web API service
+- `make run_inv_mq_service_test_producer NUM_HOSTS=800` - Generate test host data
+- `honcho start` - Run both MQ and web services simultaneously
+
+### Environment Setup
+- `pipenv install --dev` - Install dependencies
+- `pipenv shell` - Activate virtual environment
+- `docker compose -f dev.yml up -d` - Start dependent services (PostgreSQL, Kafka, etc.)
+
+### Schema Management
+- `make update-schema` - Update system profile schema from inventory-schemas repo
+
+## Architecture Overview
+
+### Core Components
+This is the Red Hat Insights Host Based Inventory (HBI) service, which manages system inventory data for Red Hat's cloud platform.
+
+**Application Structure:**
+- `app/` - Main Flask application with models, auth, configuration
+- `api/` - REST API endpoints for hosts, groups, system profiles, staleness
+- `lib/` - Core business logic and repository patterns
+- `jobs/` - Background job processing
+- `migrations/` - Alembic database migrations
+- `utils/` - Utility scripts and tools
+
+**Key Services:**
+- **Web Service** (`run.py`): Flask REST API for inventory operations
+- **MQ Service** (`inv_mq_service.py`): Kafka consumer for host updates
+- **Export Service** (`inv_export_service.py`): Data export functionality
+- **Reaper** (`jobs/host_reaper.py`): Cleanup of stale hosts
+
+### Data Flow
+1. Host data arrives via Kafka messages (processed by MQ service)
+2. Data is validated and stored in PostgreSQL with partitioned tables
+3. REST API provides access to host data with RBAC and filtering
+4. Export service handles bulk data extraction requests
+5. Background jobs handle staleness tracking and cleanup
+
+### Key Technologies
+- **Flask** with **Gunicorn** for web service
+- **PostgreSQL** with partitioned tables for scalability
+- **Kafka** for event-driven host updates
+- **Redis** for caching (via Clowder)
+- **SQLAlchemy** with **Alembic** for database ORM and migrations
+- **Prometheus** for metrics and monitoring
+
+### Authentication & Authorization
+- Uses Red Hat Identity headers (`x-rh-identity`) for authentication
+- RBAC (Role-Based Access Control) for authorization
+- Org ID isolation ensures tenant data separation
+
+### Testing Strategy
+- Unit tests cover business logic and API endpoints
+
+### Code Quality
+- Run `make style` to ensure code is formartted

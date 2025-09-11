@@ -19,8 +19,7 @@ from api import metrics
 from api.cache import delete_cached_system_keys
 from api.host_query import staleness_timestamps
 from api.staleness_query import get_staleness_obj
-from app import KesselResourceTypes, RbacPermission
-from app import RbacResourceType
+from app import KesselResourceTypes
 from app.auth import get_current_identity
 from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
@@ -39,9 +38,9 @@ from app.serialization import serialize_host
 from app.serialization import serialize_staleness_response
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness_api
-from lib.feature_flags import FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS
-from lib.feature_flags import get_flag_value
-from lib.middleware import access, rbac
+from lib.db import session_guard
+from lib.host_repository import host_query
+from lib.middleware import access
 from lib.staleness import add_staleness
 from lib.staleness import patch_staleness
 from lib.staleness import remove_staleness
@@ -93,29 +92,43 @@ def _update_hosts_staleness_async(identity: Identity, app: Flask, staleness: Sta
         logger.debug("Starting host staleness update thread")
         try:
             logger.debug(f"Querying hosts for org_id: {identity.org_id}")
-            hosts_query = Host.query.filter(Host.org_id == identity.org_id)
+            hosts_query = host_query(identity.org_id)
             num_hosts = hosts_query.count()
             st = staleness_timestamps()
             staleness_dict = serialize_staleness_to_dict(staleness)
-            list_of_events_params = []
             if num_hosts > 0:
                 logger.debug(f"Found {num_hosts} hosts for org_id: {identity.org_id}")
-                for host in hosts_query.yield_per(500):
-                    host._update_all_per_reporter_staleness(staleness_dict, st)
-                    host._update_staleness_timestamps()
-                    serialized_host = serialize_host(
-                        host, for_mq=True, staleness_timestamps=st, staleness=staleness_dict
-                    )
 
-                    # Create host update event and append it to an array
-                    event, headers = _build_host_updated_event_params(serialized_host, host, identity)
-                    list_of_events_params.append((event, headers, str(host.id)))
-                hosts_query.session.commit()
+                # Process hosts in batches to avoid memory issues with large datasets
+                processed_hosts = 0
 
-                # After a successful commit to the db
-                # call all the events in the list
-                for event, headers, host_id in list_of_events_params:
-                    app.event_producer.write_event(event, host_id, headers, wait=True)
+                while processed_hosts < num_hosts:
+                    list_of_events_params = []
+
+                    # Get a batch of hosts
+                    batch_hosts = hosts_query.offset(processed_hosts).limit(500).all()
+                    if not batch_hosts:
+                        break
+
+                    with session_guard(hosts_query.session):
+                        for host in batch_hosts:
+                            host._update_all_per_reporter_staleness(staleness_dict, st)
+                            host._update_staleness_timestamps()
+                            serialized_host = serialize_host(
+                                host, for_mq=True, staleness_timestamps=st, staleness=staleness_dict
+                            )
+
+                            # Create host update event and append it to an array
+                            event, headers = _build_host_updated_event_params(serialized_host, host, identity)
+                            list_of_events_params.append((event, headers, str(host.id)))
+
+                        processed_hosts += len(batch_hosts)
+                        logger.debug(f"Updated staleness asynchronously for {processed_hosts}/{num_hosts} hosts")
+
+                    # After a successful commit to the db
+                    # call all the events in the list
+                    for event, headers, host_id in list_of_events_params:
+                        app.event_producer.write_event(event, host_id, headers, wait=True)
 
                 delete_cached_system_keys(org_id=identity.org_id, spawn=True)
             logger.debug("Leaving host staleness update thread")
@@ -137,26 +150,21 @@ def _build_host_updated_event_params(serialized_host: dict, host: Host, identity
     return event, headers
 
 
-def _validate_flag_and_async_update_host(identity: Identity, created_staleness: Staleness, request_id):
+def _async_update_host_staleness(identity: Identity, created_staleness: Staleness, request_id):
     """
-    This method validates if feature flag is enabled,
-    is it is, call the async host staleness update,
-    otherwise, just delete the cache as usual
+    This method starts a new thread to update the host staleness.
     """
-    if get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS):
-        update_hosts_thread = Thread(
-            target=_update_hosts_staleness_async,
-            daemon=True,
-            args=(
-                identity,
-                current_app._get_current_object(),
-                created_staleness,
-                request_id,
-            ),
-        )
-        update_hosts_thread.start()
-    else:
-        delete_cached_system_keys(org_id=identity.org_id, spawn=True)
+    update_hosts_thread = Thread(
+        target=_update_hosts_staleness_async,
+        daemon=True,
+        args=(
+            identity,
+            current_app._get_current_object(),
+            created_staleness,
+            request_id,
+        ),
+    )
+    update_hosts_thread.start()
 
 
 @api_operation
@@ -205,7 +213,7 @@ def create_staleness(body):
     try:
         # Create account staleness with validated data
         created_staleness = add_staleness(validated_data)
-        _validate_flag_and_async_update_host(identity, created_staleness, request_id)
+        _async_update_host_staleness(identity, created_staleness, request_id)
         log_create_staleness_succeeded(logger, created_staleness.id)
     except IntegrityError:
         error_message = f"Staleness record for org_id {org_id} already exists."
@@ -228,7 +236,7 @@ def delete_staleness():
     try:
         remove_staleness()
         staleness = get_sys_default_staleness_api(identity)
-        _validate_flag_and_async_update_host(identity, staleness, request_id)
+        _async_update_host_staleness(identity, staleness, request_id)
         return flask_json_response(None, HTTPStatus.NO_CONTENT)
     except NoResultFound:
         abort(
@@ -258,7 +266,7 @@ def update_staleness(body):
             # since update only return None with no record instead of exception.
             raise NoResultFound
 
-        _validate_flag_and_async_update_host(identity, updated_staleness, request_id)
+        _async_update_host_staleness(identity, updated_staleness, request_id)
 
         log_patch_staleness_succeeded(logger, updated_staleness.id)
 

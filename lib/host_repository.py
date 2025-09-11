@@ -1,9 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from enum import Enum
 from typing import Any
-from typing import Callable
-from uuid import UUID
 
 from flask import current_app
 from flask_sqlalchemy.query import Query
@@ -19,24 +18,27 @@ from api.filtering.db_filters import staleness_to_conditions
 from api.filtering.db_filters import update_query_for_owner_id
 from api.staleness_query import get_staleness_obj
 from app.auth.identity import Identity
-from app.common import inventory_config
 from app.config import ALL_STALENESS_STATES
 from app.config import COMPOUND_ID_FACTS
 from app.config import COMPOUND_ID_FACTS_MAP
-from app.config import HOST_TYPES
 from app.config import ID_FACTS
 from app.config import ID_FACTS_USE_SUBMAN_ID
 from app.config import IMMUTABLE_ID_FACTS
 from app.exceptions import InventoryException
+from app.exceptions import OutboxSaveException
 from app.logging import get_logger
 from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import LimitedHost
 from app.models import db
+from app.queue.events import EventType
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness
 from lib import metrics
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
+from lib.feature_flags import get_flag_value
+from lib.outbox_repository import write_event_to_outbox
 
 __all__ = (
     "AddHostResult",
@@ -48,6 +50,7 @@ __all__ = (
     "find_hosts_by_staleness",
     "find_non_culled_hosts",
     "update_existing_host",
+    "host_query",
 )
 
 AddHostResult = Enum("AddHostResult", ("created", "updated"))
@@ -66,8 +69,8 @@ def add_host(
     Add or update a host
 
     Required parameters:
-     - at least one of the canonical facts fields is required
-     - org_id
+    - at least one of the canonical facts fields is required
+    - org_id
 
      The only supported argument in the operation_args for now is "defer_to_reporter".
      It is documented here:
@@ -94,6 +97,18 @@ def add_host(
 
         return update_existing_host(matched_host, input_host, update_system_profile)
     else:
+        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
+            # Import here to avoid circular import
+            from lib.group_repository import get_or_create_ungrouped_hosts_group_for_identity
+            from lib.group_repository import serialize_group
+
+            group = get_or_create_ungrouped_hosts_group_for_identity(identity)
+            input_host.groups = [serialize_group(group)]
+
+            # create a new host group association for the host
+            assoc = HostGroupAssoc(input_host.id, group.id, identity.org_id)
+            db.session.add(assoc)
+
         return create_new_host(input_host)
 
 
@@ -159,7 +174,7 @@ def find_existing_host(
 
 
 def find_existing_host_by_id(identity: Identity, host_id: str) -> Host | None:
-    query = Host.query.filter((Host.org_id == identity.org_id) & (Host.id == UUID(host_id)))
+    query = host_query(identity.org_id).filter(Host.id == host_id)
     query = update_query_for_owner_id(identity, query)
     return find_non_culled_hosts(query, identity.org_id).order_by(Host.modified_on.desc()).first()
 
@@ -196,10 +211,10 @@ def multiple_canonical_facts_host_query(
 ) -> Query:
     _check_compound_id_facts(canonical_facts)
 
-    query = Host.query.filter(
-        (Host.org_id == identity.org_id)
-        & (contains_no_incorrect_facts_filter(canonical_facts))
-        & (matches_at_least_one_canonical_fact_filter(canonical_facts))
+    base_query = host_query(identity.org_id)
+    query = base_query.filter(
+        contains_no_incorrect_facts_filter(canonical_facts),
+        matches_at_least_one_canonical_fact_filter(canonical_facts),
     )
     if restrict_to_owner_id:
         query = update_query_for_owner_id(identity, query)
@@ -222,10 +237,7 @@ def multiple_canonical_facts_host_query_in_memory(
 def find_hosts_by_staleness(staleness_types: list[str], query: Query, org_id: str) -> Query:
     logger.debug("find_hosts_by_staleness(%s)", staleness_types)
     staleness_obj = serialize_staleness_to_dict(get_staleness_obj(org_id))
-    staleness_conditions = [
-        or_(False, *staleness_to_conditions(staleness_obj, staleness_types, host_type, stale_timestamp_filter))
-        for host_type in HOST_TYPES
-    ]
+    staleness_conditions = staleness_to_conditions(staleness_obj, staleness_types, stale_timestamp_filter)
 
     return query.filter(or_(False, *staleness_conditions))
 
@@ -233,13 +245,7 @@ def find_hosts_by_staleness(staleness_types: list[str], query: Query, org_id: st
 def find_hosts_by_staleness_job(staleness_types, org_id):
     logger.debug("find_hosts_by_staleness(%s)", staleness_types)
     staleness_obj = serialize_staleness_to_dict(get_staleness_obj(org_id))
-    staleness_conditions = [
-        or_(
-            False,
-            *staleness_to_conditions(staleness_obj, staleness_types, host_type, stale_timestamp_filter),
-        )
-        for host_type in HOST_TYPES
-    ]
+    staleness_conditions = staleness_to_conditions(staleness_obj, staleness_types, stale_timestamp_filter)
 
     return or_(False, *staleness_conditions)
 
@@ -247,13 +253,7 @@ def find_hosts_by_staleness_job(staleness_types, org_id):
 def find_stale_hosts(org_id, last_run_secs, job_start_time):
     logger.debug("finding stale hosts with custom staleness")
     staleness_obj = serialize_staleness_to_dict(get_staleness_obj(org_id))
-    staleness_conditions = [
-        or_(
-            False,
-            *find_stale_host_in_window(staleness_obj, host_type, last_run_secs, job_start_time),
-        )
-        for host_type in HOST_TYPES
-    ]
+    staleness_conditions = find_stale_host_in_window(staleness_obj, last_run_secs, job_start_time)
 
     return or_(False, *staleness_conditions)
 
@@ -261,13 +261,7 @@ def find_stale_hosts(org_id, last_run_secs, job_start_time):
 def find_stale_host_sys_default_staleness(last_run_secs, job_start_time):
     logger.debug("finding stale hosts with system default staleness")
     sys_default_staleness = serialize_staleness_to_dict(get_sys_default_staleness())
-    staleness_conditions = [
-        or_(
-            False,
-            *find_stale_host_in_window(sys_default_staleness, host_type, last_run_secs, job_start_time),
-        )
-        for host_type in HOST_TYPES
-    ]
+    staleness_conditions = find_stale_host_in_window(sys_default_staleness, last_run_secs, job_start_time)
 
     return or_(False, *staleness_conditions)
 
@@ -275,13 +269,7 @@ def find_stale_host_sys_default_staleness(last_run_secs, job_start_time):
 def find_hosts_sys_default_staleness(staleness_types):
     logger.debug("find hosts with system default staleness")
     sys_default_staleness = serialize_staleness_to_dict(get_sys_default_staleness())
-    staleness_conditions = [
-        or_(
-            False,
-            *staleness_to_conditions(sys_default_staleness, staleness_types, host_type, stale_timestamp_filter),
-        )
-        for host_type in HOST_TYPES
-    ]
+    staleness_conditions = staleness_to_conditions(sys_default_staleness, staleness_types, stale_timestamp_filter)
 
     return or_(False, *staleness_conditions)
 
@@ -295,6 +283,16 @@ def create_new_host(input_host: Host) -> tuple[Host, AddHostResult]:
     logger.debug("Creating a new host")
 
     input_host.save()
+
+    try:
+        # write to the outbox table for synchronization with Kessel
+        result = write_event_to_outbox(EventType.created, (input_host.id), input_host)
+        if not result:
+            logger.error("Failed to write created event to outbox")
+            raise OutboxSaveException("Failed to write created host event to outbox")
+    except OutboxSaveException as ose:
+        logger.error("Failed to write created event to outbox: %s", str(ose))
+        raise ose
 
     metrics.create_host_count.inc()
     logger.debug("Created host (uncommitted):%s", input_host)
@@ -310,6 +308,16 @@ def update_existing_host(
     logger.debug(f"existing host = {existing_host}")
 
     existing_host.update(input_host, update_system_profile)
+
+    try:
+        # write to the outbox table for synchronization with Kessel
+        result = write_event_to_outbox(EventType.updated, str(input_host.id), input_host)
+        if not result:
+            logger.error("Failed to write updated event to outbox")
+            raise OutboxSaveException("Failed to write update event to outbox")
+    except OutboxSaveException as ose:
+        logger.error("Failed to write updated event to outbox: %s", str(ose))
+        raise ose
 
     metrics.update_host_count.inc()
     logger.debug("Updated host (uncommitted):%s", existing_host)
@@ -398,37 +406,30 @@ def get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter=None, c
 
         filters += (or_(*rbac_group_filters),)
 
-    if inventory_config().hbi_db_refactoring_use_old_table:
-        # Old code: use single column GROUP BY
-        query = (
-            Host.query.join(HostGroupAssoc, isouter=True).join(Group, isouter=True).filter(*filters).group_by(Host.id)
-        )
-    else:
-        # New code: use composite GROUP BY
-        query = (
-            Host.query.join(HostGroupAssoc, isouter=True)
-            .join(Group, isouter=True)
-            .filter(*filters)
-            .group_by(Host.id, Host.org_id)
-        )
+    query = (
+        Host.query.join(HostGroupAssoc, isouter=True)
+        .join(Group, isouter=True)
+        .filter(*filters)
+        .group_by(Host.id, Host.org_id)
+    )
     if columns:
         query = query.with_entities(*columns)
     return find_non_culled_hosts(update_query_for_owner_id(identity, query), identity.org_id)
 
 
 def get_non_culled_hosts_count_in_group(group: Group, org_id: str) -> int:
-    if inventory_config().hbi_db_refactoring_use_old_table:
-        # Old code: use single column GROUP BY
-        query = (
-            db.session.query(Host).join(HostGroupAssoc).filter(HostGroupAssoc.group_id == group.id).group_by(Host.id)
-        )
-    else:
-        # New code: use composite GROUP BY
-        query = (
-            db.session.query(Host)
-            .join(HostGroupAssoc)
-            .filter(HostGroupAssoc.group_id == group.id, HostGroupAssoc.org_id == org_id)
-            .group_by(Host.id, Host.org_id)
-        )
+    query = (
+        db.session.query(Host)
+        .join(HostGroupAssoc)
+        .filter(HostGroupAssoc.group_id == group.id, HostGroupAssoc.org_id == org_id)
+        .group_by(Host.id, Host.org_id)
+    )
 
     return find_non_culled_hosts(query, org_id).count()
+
+
+# Ensures that the query is filtered by org_id
+def host_query(
+    org_id: str,
+) -> Query:
+    return Host.query.filter(Host.org_id == org_id)

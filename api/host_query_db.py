@@ -6,7 +6,6 @@ from itertools import islice
 from typing import Any
 
 from sqlalchemy import Boolean
-from sqlalchemy import String
 from sqlalchemy import case
 from sqlalchemy import func
 from sqlalchemy import select
@@ -16,7 +15,6 @@ from sqlalchemy.orm import Query
 from sqlalchemy.orm import load_only
 from sqlalchemy.sql import expression
 from sqlalchemy.sql.expression import ColumnElement
-from sqlalchemy.sql.expression import cast
 
 from api.filtering.db_filters import canonical_fact_filter
 from api.filtering.db_filters import host_id_list_filter
@@ -36,7 +34,6 @@ from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import db
 from app.serialization import serialize_host_for_export_svc
-from lib.feature_flags import FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.feature_flags import get_flag_value
 
@@ -88,8 +85,6 @@ def _get_host_list_using_filters(
     fields: dict,
 ) -> tuple[list[Host], int, tuple[str], list[str]]:
     columns = DEFAULT_COLUMNS.copy()
-    if not get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS):
-        columns.pop()
 
     system_profile_fields = ["host_type"]
     if fields and fields.get("system_profile"):
@@ -98,9 +93,9 @@ def _get_host_list_using_filters(
         columns = list(columns)
         columns.append(Host.system_profile_facts)
     else:
-        additional_fields = tuple()
+        additional_fields = ()
 
-    base_query = _find_hosts_entities_query(query_base=query_base, columns=columns).filter(*all_filters)
+    base_query = _find_hosts_entities_query(query=query_base, columns=columns).filter(*all_filters)
     host_query = base_query.order_by(*params_to_order_by(param_order_by, param_order_how))
 
     # Count separately because the COUNT done by .paginate() is inefficient
@@ -122,6 +117,8 @@ def get_host_list(
     provider_type: str,
     updated_start: str,
     updated_end: str,
+    last_check_in_start: str,
+    last_check_in_end: str,
     group_name: list[str],
     tags: list[str],
     page: int,
@@ -145,6 +142,8 @@ def get_host_list(
         provider_type,
         updated_start,
         updated_end,
+        last_check_in_start,
+        last_check_in_end,
         group_name,
         None,
         tags,
@@ -218,32 +217,20 @@ def params_to_order_by(order_by: str | None = None, order_how: str | None = None
     elif order_by == "operating_system":
         ordering = (_order_how(Host.operating_system, order_how),) if order_how else (Host.operating_system.desc(),)  # type: ignore [attr-defined]
 
-    elif order_by == "last_check_in" and get_flag_value(
-        FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS
-    ):
+    elif order_by == "last_check_in":
         ordering = (_order_how(Host.last_check_in, order_how),) if order_how else (Host.last_check_in.desc(),)
 
     elif order_by:
-        if get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS):
-            raise ValueError(
-                'Unsupported ordering column: use "updated", "display_name",'
-                ' "group_name", "operating_system" or "last_check_in"'
-            )
-        else:
-            raise ValueError(
-                'Unsupported ordering column: use "updated", "display_name", "group_name", "operating_system"'
-            )
+        raise ValueError(
+            'Unsupported ordering column: use "updated", "display_name",'
+            ' "group_name", "operating_system" or "last_check_in"'
+        )
     elif order_how:
-        if get_flag_value(FLAG_INVENTORY_CREATE_LAST_CHECK_IN_UPDATE_PER_REPORTER_STALENESS):
-            raise ValueError(
-                "Providing ordering direction without a column is not supported."
-                " Provide order_by={updated,display_name,group_name,operating_system,last_check_in}."
-            )
-        else:
-            raise ValueError(
-                "Providing ordering direction without a column is not supported."
-                " Provide order_by={updated,display_name,group_name,operating_system}."
-            )
+        raise ValueError(
+            "Providing ordering direction without a column is not supported."
+            " Provide order_by={updated,display_name,group_name,operating_system,last_check_in}."
+        )
+
     return ordering + modified_on_ordering + (Host.id.desc(),)
 
 
@@ -256,24 +243,21 @@ def _order_how(column, order_how: str):
         raise ValueError('Unsupported ordering direction, use "ASC" or "DESC".')
 
 
-def _find_hosts_entities_query(
-    query_base=None, columns: list[ColumnElement] | None = None, identity: Any = None
-) -> Query:
-    if query_base is None:
-        query_base = db.session.query(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
-
+def _find_hosts_entities_query(query=None, columns: list[ColumnElement] | None = None, identity: Any = None) -> Query:
     if not identity:
         identity = get_current_identity()
 
-    query = query_base.filter(Host.org_id == identity.org_id)
+    if query is None:
+        query = db.session.query(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
+        query = query.filter(Host.org_id == identity.org_id)
+
     if columns:
         query = query.with_entities(*columns)
     return update_query_for_owner_id(identity, query)
 
 
 def _find_hosts_model_query(columns: list[ColumnElement] | None = None, identity: Any = None) -> Query:
-    query_base = db.session.query(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
-    query = query_base.filter(Host.org_id == identity.org_id)
+    query = db.session.query(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
 
     # In this case, return a list of Hosts
     # wih the requested columns.
@@ -354,6 +338,8 @@ def get_tag_list(
     provider_type: str,
     updated_start: str,
     updated_end: str,
+    last_check_in_start: str,
+    last_check_in_end: str,
     group_name: list[str],
     tags: list[str],
     limit: int,
@@ -385,6 +371,8 @@ def get_tag_list(
         provider_type,
         updated_start,
         updated_end,
+        last_check_in_start,
+        last_check_in_end,
         group_name,
         None,
         tags,
@@ -396,7 +384,7 @@ def get_tag_list(
         order_by,
         get_current_identity(),
     )
-    query = _find_hosts_entities_query(query_base=query_base, columns=columns)
+    query = _find_hosts_entities_query(query=query_base, columns=columns)
 
     query_results = query.filter(*all_filters).all()
     db.session.close()
@@ -442,8 +430,9 @@ def get_os_info(
 ):
     columns = [
         Host.system_profile_facts["operating_system"]["name"].label("name"),
-        cast(Host.system_profile_facts["operating_system"]["major"], String).label("major"),
-        cast(Host.system_profile_facts["operating_system"]["minor"], String).label("minor"),
+        Host.system_profile_facts["operating_system"]["major"].label("major"),
+        Host.system_profile_facts["operating_system"]["minor"].label("minor"),
+        func.count().label("count"),
     ]
 
     filters, query_base = query_filters(
@@ -454,30 +443,22 @@ def get_os_info(
         rbac_filter=rbac_filter,
         identity=identity,
     )
-    os_query = _find_hosts_entities_query(query_base=query_base, columns=columns)
+    os_query = _find_hosts_entities_query(query=query_base, columns=columns, identity=identity)
 
     # Only include records that have set an operating_system.name
     filters += (columns[0].isnot(None),)
 
-    query_results = os_query.filter(*filters).all()
+    query_results = os_query.filter(*filters).group_by(*columns[:-1]).order_by(func.count().desc()).all()
     db.session.close()
-    os_dict = {}
-    for result in query_results:
-        if not result or None in result:
-            continue
-        operating_system = ".".join(result)
-        if operating_system not in os_dict:
-            os_dict[operating_system] = 1
-        else:
-            os_dict[operating_system] += 1
 
     os_count_list = []
-    for os_joined, count in os_dict.items():
-        os = os_joined.split(".")
-        os_count_item = {"value": {"name": os[0], "major": int(os[1]), "minor": int(os[2])}, "count": count}
+    for result in query_results:
+        os_count_item = {
+            "value": {"name": result[0], "major": int(result[1]), "minor": int(result[2])},
+            "count": result[3],
+        }
         os_count_list.append(os_count_item)
 
-    os_count_list = sorted(os_count_list, reverse=True, key=lambda item: item["count"])  # type: ignore [arg-type, return-value]
     query_count = len(os_count_list)
     os_list = list(islice(islice(os_count_list, offset, None), limit))
     return os_list, query_count
@@ -505,7 +486,7 @@ def get_sap_system_info(
         rbac_filter=rbac_filter,
         identity=identity,
     )
-    sap_query = _find_hosts_entities_query(query_base=query_base, columns=columns)
+    sap_query = _find_hosts_entities_query(query=query_base, columns=columns)
     sap_filter = [
         func.jsonb_typeof(Host.system_profile_facts["sap_system"]) == "boolean",
         Host.system_profile_facts["sap_system"].astext.cast(Boolean) != None,  # noqa:E711
@@ -543,7 +524,7 @@ def get_sap_sids_info(
         rbac_filter=rbac_filter,
         identity=identity,
     )
-    sap_sids_query = _find_hosts_entities_query(query_base=query_base, columns=columns)
+    sap_sids_query = _find_hosts_entities_query(query=query_base, columns=columns)
     query_results = sap_sids_query.filter(*filters).all()
     db.session.close()
     sap_sids = {}
@@ -625,6 +606,8 @@ def get_host_ids_list(
     provider_type: str,
     updated_start: str,
     updated_end: str,
+    last_check_in_start: str,
+    last_check_in_end: str,
     group_name: list[str],
     registered_with: list[str],
     system_type: list[str] | None,
@@ -644,6 +627,8 @@ def get_host_ids_list(
         provider_type,
         updated_start,
         updated_end,
+        last_check_in_start,
+        last_check_in_end,
         group_name,
         None,
         tags,

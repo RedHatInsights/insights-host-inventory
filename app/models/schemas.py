@@ -1,3 +1,4 @@
+import contextlib
 from copy import deepcopy
 
 from jsonschema import ValidationError as JsonSchemaValidationError
@@ -13,7 +14,6 @@ from marshmallow import validate as marshmallow_validate
 from marshmallow import validates
 from marshmallow import validates_schema
 
-from app.common import inventory_config
 from app.models.constants import MAX_CANONICAL_FACTS_VERSION
 from app.models.constants import MIN_CANONICAL_FACTS_VERSION
 from app.models.constants import TAG_KEY_VALIDATION
@@ -40,13 +40,14 @@ class DiskDeviceSchema(MarshmallowSchema):
 
 
 class RhsmSchema(MarshmallowSchema):
-    version = fields.Str(validate=marshmallow_validate.Length(max=255))
+    version = fields.Str(validate=marshmallow_validate.Length(max=256))
+    environment_ids = fields.List(fields.Str(validate=marshmallow_validate.Length(max=256)))
 
 
 class OperatingSystemSchema(MarshmallowSchema):
     major = fields.Int()
     minor = fields.Int()
-    name = fields.Str(validate=marshmallow_validate.Length(max=4))
+    name = fields.Str(validate=marshmallow_validate.Length(max=256))
 
 
 class YumRepoSchema(MarshmallowSchema):
@@ -55,11 +56,13 @@ class YumRepoSchema(MarshmallowSchema):
     gpgcheck = fields.Bool()
     enabled = fields.Bool()
     base_url = fields.Str(validate=marshmallow_validate.Length(max=2048))
+    mirrorlist = fields.Str(validate=marshmallow_validate.Length(max=2048))
 
 
 class DnfModuleSchema(MarshmallowSchema):
     name = fields.Str(validate=marshmallow_validate.Length(max=128))
-    stream = fields.Str(validate=marshmallow_validate.Length(max=128))
+    stream = fields.Str(validate=marshmallow_validate.Length(max=2048))
+    status = fields.List(fields.Str(validate=marshmallow_validate.Length(max=64)))
 
 
 class InstalledProductSchema(MarshmallowSchema):
@@ -75,6 +78,7 @@ class NetworkInterfaceSchema(MarshmallowSchema):
     mtu = fields.Int()
     mac_address = fields.Str(validate=marshmallow_validate.Length(max=59))
     name = fields.Str(validate=marshmallow_validate.Length(min=1, max=50))
+    state = fields.Str(validate=marshmallow_validate.Length(max=25))
     type = fields.Str(validate=marshmallow_validate.Length(max=18))
 
 
@@ -235,43 +239,27 @@ class LimitedHostSchema(CanonicalFactsSchema):
 
     @staticmethod
     def build_model(data, canonical_facts, facts, tags, tags_alt=None):
-        if inventory_config().hbi_db_refactoring_use_old_table:
-            # Old code: constructor without canonical facts parameters
-            return LimitedHost(
-                canonical_facts=canonical_facts,
-                display_name=data.get("display_name"),
-                ansible_host=data.get("ansible_host"),
-                account=data.get("account"),
-                org_id=data.get("org_id"),
-                facts=facts,
-                tags=tags,
-                tags_alt=tags_alt if tags_alt else [],
-                system_profile_facts=data.get("system_profile", {}),
-                groups=data.get("groups", []),
-            )
-        else:
-            # New code: constructor with canonical facts parameters
-            return LimitedHost(
-                canonical_facts=canonical_facts,
-                display_name=data.get("display_name"),
-                ansible_host=data.get("ansible_host"),
-                account=data.get("account"),
-                org_id=data.get("org_id"),
-                facts=facts,
-                tags=tags,
-                tags_alt=tags_alt if tags_alt else [],
-                system_profile_facts=data.get("system_profile", {}),
-                groups=data.get("groups", []),
-                insights_id=canonical_facts.get("insights_id"),
-                subscription_manager_id=canonical_facts.get("subscription_manager_id"),
-                satellite_id=canonical_facts.get("satellite_id"),
-                fqdn=canonical_facts.get("fqdn"),
-                bios_uuid=canonical_facts.get("bios_uuid"),
-                ip_addresses=canonical_facts.get("ip_addresses"),
-                mac_addresses=canonical_facts.get("mac_addresses"),
-                provider_id=canonical_facts.get("provider_id"),
-                provider_type=canonical_facts.get("provider_type"),
-            )
+        return LimitedHost(
+            canonical_facts=canonical_facts,
+            display_name=data.get("display_name"),
+            ansible_host=data.get("ansible_host"),
+            account=data.get("account"),
+            org_id=data.get("org_id"),
+            facts=facts,
+            tags=tags,
+            tags_alt=tags_alt if tags_alt else [],
+            system_profile_facts=data.get("system_profile", {}),
+            groups=data.get("groups", []),
+            insights_id=canonical_facts.get("insights_id"),
+            subscription_manager_id=canonical_facts.get("subscription_manager_id"),
+            satellite_id=canonical_facts.get("satellite_id"),
+            fqdn=canonical_facts.get("fqdn"),
+            bios_uuid=canonical_facts.get("bios_uuid"),
+            ip_addresses=canonical_facts.get("ip_addresses"),
+            mac_addresses=canonical_facts.get("mac_addresses"),
+            provider_id=canonical_facts.get("provider_id"),
+            provider_type=canonical_facts.get("provider_type"),
+        )
 
     @pre_load
     def coerce_system_profile_types(self, data, **kwargs):
@@ -306,47 +294,29 @@ class HostSchema(LimitedHostSchema):
     def build_model(data, canonical_facts, facts, tags, tags_alt=None):
         if tags_alt is None:
             tags_alt = []
-        if inventory_config().hbi_db_refactoring_use_old_table:
-            # Old code: constructor without canonical facts parameters
-            return Host(
-                canonical_facts,
-                data.get("display_name"),
-                data.get("ansible_host"),
-                data.get("account"),
-                data.get("org_id"),
-                facts,
-                tags,
-                tags_alt,
-                data.get("system_profile", {}),
-                data["stale_timestamp"],
-                data["reporter"],
-                data.get("groups", []),
-            )
-        else:
-            # New code: constructor with canonical facts parameters
-            return Host(
-                canonical_facts,
-                data.get("display_name"),
-                data.get("ansible_host"),
-                data.get("account"),
-                data.get("org_id"),
-                facts,
-                tags,
-                tags_alt,
-                data.get("system_profile", {}),
-                data["stale_timestamp"],
-                data["reporter"],
-                data.get("groups", []),
-                insights_id=canonical_facts.get("insights_id"),
-                subscription_manager_id=canonical_facts.get("subscription_manager_id"),
-                satellite_id=canonical_facts.get("satellite_id"),
-                fqdn=canonical_facts.get("fqdn"),
-                bios_uuid=canonical_facts.get("bios_uuid"),
-                ip_addresses=canonical_facts.get("ip_addresses"),
-                mac_addresses=canonical_facts.get("mac_addresses"),
-                provider_id=canonical_facts.get("provider_id"),
-                provider_type=canonical_facts.get("provider_type"),
-            )
+        return Host(
+            canonical_facts,
+            data.get("display_name"),
+            data.get("ansible_host"),
+            data.get("account"),
+            data.get("org_id"),
+            facts,
+            tags,
+            tags_alt,
+            data.get("system_profile", {}),
+            data["stale_timestamp"],
+            data["reporter"],
+            data.get("groups", []),
+            insights_id=canonical_facts.get("insights_id"),
+            subscription_manager_id=canonical_facts.get("subscription_manager_id"),
+            satellite_id=canonical_facts.get("satellite_id"),
+            fqdn=canonical_facts.get("fqdn"),
+            bios_uuid=canonical_facts.get("bios_uuid"),
+            ip_addresses=canonical_facts.get("ip_addresses"),
+            mac_addresses=canonical_facts.get("mac_addresses"),
+            provider_id=canonical_facts.get("provider_id"),
+            provider_type=canonical_facts.get("provider_type"),
+        )
 
 
 class PatchHostSchema(MarshmallowSchema):
@@ -397,3 +367,113 @@ class StalenessSchema(MarshmallowSchema):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+
+class OutboxEventMetadataSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    local_resource_id = fields.Raw(validate=verify_uuid_format, required=True)
+    api_href = fields.Str(validate=marshmallow_validate.Length(min=1, max=2048), required=True)
+    console_href = fields.Str(validate=marshmallow_validate.Length(min=1, max=2048), required=True)
+    reporter_version = fields.Str(validate=marshmallow_validate.Length(min=1, max=50), required=True)
+
+
+class OutboxEventCommonSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    workspace_id = fields.Raw(validate=verify_uuid_format, allow_none=True)
+
+
+class OutboxEventReporterSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    satellite_id = fields.Str(validate=verify_satellite_id, allow_none=True)
+    subscription_manager_id = fields.Str(validate=verify_uuid_format, allow_none=True)
+    insights_id = fields.Raw(validate=verify_uuid_format, allow_none=True)
+    ansible_host = fields.Str(validate=marshmallow_validate.Length(max=255), allow_none=True)
+
+
+class OutboxEventRepresentationsSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    metadata = fields.Nested(OutboxEventMetadataSchema, required=True)
+    common = fields.Nested(OutboxEventCommonSchema, required=True)
+    reporter = fields.Nested(OutboxEventReporterSchema, required=True)
+
+
+class OutboxCreateUpdatePayloadSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    type = fields.Str(validate=marshmallow_validate.OneOf(["host"]), required=True)
+    reporter_type = fields.Str(validate=marshmallow_validate.OneOf(["hbi"]), required=True)
+    reporter_instance_id = fields.Str(validate=marshmallow_validate.Length(min=1, max=255), required=True)
+    representations = fields.Nested(OutboxEventRepresentationsSchema, required=True)
+
+
+class OutboxDeleteReporterSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    type = fields.Str(validate=marshmallow_validate.OneOf(["HBI"]), required=True)
+
+
+class OutboxDeleteReferenceSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    resource_type = fields.Str(validate=marshmallow_validate.OneOf(["host"]), required=True)
+    resource_id = fields.Raw(validate=verify_uuid_format, allow_none=True)
+    reporter = fields.Nested(OutboxDeleteReporterSchema, required=True)
+
+
+class OutboxDeletePayloadSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    reference = fields.Nested(OutboxDeleteReferenceSchema, required=True)
+
+
+class OutboxSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    id = fields.Raw(validate=verify_uuid_format, dump_only=True)
+    aggregatetype = fields.Str(validate=marshmallow_validate.Length(min=1, max=255), load_default="hbi.hosts")
+    aggregateid = fields.Raw(validate=verify_uuid_format, required=True)
+    operation = fields.Str(validate=marshmallow_validate.Length(min=1, max=255), required=True)
+    version = fields.Str(validate=marshmallow_validate.Length(min=1, max=50), required=True)
+    payload = fields.Raw(required=True)
+
+    @validates_schema
+    def validate_payload_with_operation(self, data, **kwargs):
+        operation = data.get("operation")
+        payload = data.get("payload")
+
+        if operation and payload:
+            if operation in ["created", "updated"]:
+                OutboxCreateUpdatePayloadSchema().load(payload)
+            elif operation == "deleted":
+                OutboxDeletePayloadSchema().load(payload)
+            else:
+                # Allow other operation types but still validate payload structure if it matches known patterns
+                with contextlib.suppress(MarshmallowValidationError):
+                    OutboxCreateUpdatePayloadSchema().load(payload)
+                with contextlib.suppress(MarshmallowValidationError):
+                    OutboxDeletePayloadSchema().load(payload)
+                # If payload doesn't match either schema, that's okay for unknown operations
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
+# Generate HostStaticSystemProfileSchema dynamically from x-dynamic markers
+_normalizer = SystemProfileNormalizer()
+HostStaticSystemProfileSchema = _normalizer.create_static_schema()
+
+# Generate HostDynamicSystemProfileSchema dynamically from x-dynamic markers
+HostDynamicSystemProfileSchema = _normalizer.create_dynamic_schema()
