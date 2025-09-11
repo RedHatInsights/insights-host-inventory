@@ -5,6 +5,7 @@ from functools import partial
 from functools import wraps
 from http import HTTPStatus
 from json import JSONDecodeError
+from typing import Any
 from uuid import UUID
 
 from app_common_python import LoadedConfig
@@ -257,7 +258,7 @@ def kessel_verb(perm) -> str:
 
 def get_kessel_filter(
     kessel_client: Kessel, current_identity: Identity, permission: KesselPermission, ids: list[str], write: bool
-) -> tuple[bool, dict[str, Any]]:
+) -> tuple[bool, dict[str, Any] | None]:
     if current_identity.identity_type not in CHECKED_TYPES:
         if permission.resource_type == KesselResourceTypes.HOST:
             return True, None
@@ -276,15 +277,15 @@ def get_kessel_filter(
             if kessel_client.Check(current_identity, permission, ids):
                 return True, None  # No need to apply a filter - the objects are authorized
             else:
-                return (
-                    False,
-                    None,
-                )  # The objects are not authorized - reject the request. Note: this is a potential departure from current behavior where an attempt to request multiple objects by id will return all accessible objects, ignoring inaccessible ones.
+                return False, None  # The objects are not authorized - reject the request.
+                # Note: this is a potential departure from current behavior where an attempt to
+                # request multiple objects by id will return all accessible objects, ignoring inaccessible ones.
 
     # No ids passed, operate on many objects not by ids
     relation = permission.workspace_permission
     workspaces = kessel_client.ListAllowedWorkspaces(current_identity, relation)
-    # TODO: this won't work for org-level permissions OR permissions like add group (which we may not need to handle) that require a permission to be unfiltered
+    # NOTE: this won't work for checks that require a permission to be unfiltered
+    # Ex: some org-level permissions OR permissions like add group (which we may not need to handle)
     if len(workspaces) == 0:
         return False, None
     else:

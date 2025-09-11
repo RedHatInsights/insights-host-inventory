@@ -21,7 +21,6 @@ from api.mgmt import monitoring_blueprint
 from api.parsing import customURIParser
 from api.spec import spec_blueprint
 from app import payload_tracker
-from app.auth.identity import Identity
 from app.config import Config
 from app.custom_validator import build_validator_map
 from app.exceptions import InventoryException
@@ -165,7 +164,7 @@ class GroupKesselResourceType(KesselResourceType):
 
 
 class StalenessKesselResourceType(KesselResourceType):
-    def get_resource_id(self, kwargs: dict[str, Any], id_param: str) -> list[str]:
+    def get_resource_id(self, kwargs: dict[str, Any], id_param: str) -> list[str]:  # noqa: ARG002, overrides get_resource_id from KesselResourceType
         from lib.middleware import get_rbac_default_workspace
 
         workspace_id = get_rbac_default_workspace()
@@ -416,7 +415,8 @@ def create_app(runtime_environment) -> connexion.FlaskApp:
 
     if get_flag_value(
         FLAG_INVENTORY_KESSEL_HOST_MIGRATION
-    ):  # Note: this won't work if we want to enable the flag while running or otherwise selectively, but it does allow us to completely disable the feature
+    ):  # Note: this won't work if we want to enable the flag while running or otherwise selectively,
+        # but it does allow us to completely disable the feature
         from lib.kessel import init_kessel
 
         init_kessel(app_config, flask_app)

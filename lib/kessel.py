@@ -1,10 +1,3 @@
-from app import Config
-from app import KesselPermission
-from app.auth.identity import Identity
-from app.logging import get_logger
-
-logger = get_logger(__name__)
-
 import grpc
 from grpc import StatusCode
 from kessel.inventory.v1beta2 import allowed_pb2
@@ -15,6 +8,13 @@ from kessel.inventory.v1beta2 import representation_type_pb2
 from kessel.inventory.v1beta2 import resource_reference_pb2
 from kessel.inventory.v1beta2 import streamed_list_objects_request_pb2
 from kessel.inventory.v1beta2 import subject_reference_pb2
+
+from app import KesselPermission
+from app.auth.identity import Identity
+from app.config import Config
+from app.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class Kessel:
@@ -139,10 +139,7 @@ class Kessel:
         resource_ids: list[str],
     ) -> bool:
         """Check permissions for multiple resources. All must be accessible."""
-        for resource_id in resource_ids:
-            if not self._check_single_resource(subject_ref, permission, resource_id):
-                return False
-        return True
+        return all(self._check_single_resource(subject_ref, permission, resource_id) for resource_id in resource_ids)
 
     def _check_single_resource_for_update(
         self, subject_ref: subject_reference_pb2.SubjectReference, permission: KesselPermission, resource_id: str
