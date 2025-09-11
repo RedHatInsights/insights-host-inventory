@@ -556,6 +556,26 @@ def _set_owner(host: Host, identity: Identity) -> Host:
         else:
             if host.system_profile_facts["owner_id"] != cn:
                 raise ValidationException("The owner in host does not match the owner in identity")
+
+    # Also set the owner_id in static_system_profile
+    if host.static_system_profile is None:
+        # Create static system profile if it doesn't exist
+        from app.models.system_profile_static import HostStaticSystemProfile
+
+        host.static_system_profile = HostStaticSystemProfile(org_id=host.org_id, host_id=host.id, owner_id=cn)
+    elif not host.static_system_profile.owner_id:
+        host.static_system_profile.owner_id = cn
+    else:
+        reporter = host.reporter
+        if (
+            reporter in ["rhsm-conduit", "rhsm-system-profile-bridge"]
+            and "subscription_manager_id" in host.canonical_facts
+        ):
+            host.static_system_profile.owner_id = _formatted_uuid(host.canonical_facts["subscription_manager_id"])
+        else:
+            if str(host.static_system_profile.owner_id) != cn:
+                raise ValidationException("The owner in host does not match the owner in identity")
+
     return host
 
 
