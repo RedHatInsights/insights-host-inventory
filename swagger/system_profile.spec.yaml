@@ -476,6 +476,7 @@ $defs:
         type: string
         format: date-time
         maxLength: 50
+        x-dynamic: true
       installed_packages:
         type: array  # technically a set, ordered by RPM sorting algorithm
         items:
@@ -586,7 +587,7 @@ $defs:
         enum: [edge]
         maxLength: 4
         description: Indicates the type of host.
-        example: 'edge, None'
+        example: 'edge'
       greenboot_status:
         type: string
         enum: [red, green]
