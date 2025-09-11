@@ -591,15 +591,14 @@ def get_host_exists(insights_id, rbac_filter=None):
 
     if not host_id:
         flask.abort(404, f"No host found for Insights ID '{insights_id}'.")
-
-    if not inventory_config().bypass_rbac:  # Duplicated - I wonder if this could be factored back into middleware.py
-        if get_flag_value(FLAG_INVENTORY_KESSEL_HOST_MIGRATION):
-            kessel_client = get_kessel_client(current_app)
-            allowed, _ = get_kessel_filter(  # Kind of a duplicate Kessel call too
-                kessel_client, current_identity, KesselResourceTypes.HOST.view, [host_id], False
-            )
-            if not allowed:
-                flask.abort(HTTPStatus.NOT_FOUND)
+    # Duplicated - I wonder if this could be factored back into middleware.py
+    if (not inventory_config().bypass_rbac) and get_flag_value(FLAG_INVENTORY_KESSEL_HOST_MIGRATION):
+        kessel_client = get_kessel_client(current_app)
+        allowed, _ = get_kessel_filter(  # Kind of a duplicate Kessel call too
+            kessel_client, current_identity, KesselResourceTypes.HOST.view, [host_id], False
+        )
+        if not allowed:
+            flask.abort(HTTPStatus.NOT_FOUND)
 
     log_get_host_exists_succeeded(logger, host_id)
     return flask_json_response({"id": host_id})
