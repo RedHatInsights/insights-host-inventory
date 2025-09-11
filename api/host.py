@@ -26,8 +26,6 @@ from api.host_query_db import get_host_tags_list_by_id_list
 from api.host_query_db import get_sparse_system_profile
 from api.staleness_query import get_staleness_obj
 from app import KesselResourceTypes
-from app import IDENTITY_HEADER, REQUEST_ID_HEADER
-from app import RbacPermission, RbacResourceType
 from app.auth import get_current_identity
 from app.auth.identity import IdentityType
 from app.auth.identity import to_auth_header
@@ -55,14 +53,15 @@ from app.serialization import deserialize_canonical_facts
 from app.serialization import serialize_host
 from app.serialization import serialize_host_with_params
 from app.utils import Tag
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_HOST_MIGRATION
+from lib.feature_flags import get_flag_value
 from lib.host_delete import delete_hosts
 from lib.host_repository import find_existing_host
 from lib.host_repository import find_non_culled_hosts
 from lib.host_repository import get_host_list_by_id_list_from_db
-from lib.middleware import access, rbac
-from lib.middleware import get_rbac_filter, get_kessel_filter
 from lib.kessel import get_kessel_client
-from lib.feature_flags import get_flag_value, FLAG_INVENTORY_KESSEL_HOST_MIGRATION
+from lib.middleware import access
+from lib.middleware import get_kessel_filter
 from lib.outbox_repository import write_event_to_outbox
 
 FactOperations = Enum("FactOperations", ("merge", "replace"))
@@ -593,10 +592,10 @@ def get_host_exists(insights_id, rbac_filter=None):
     if not host_id:
         flask.abort(404, f"No host found for Insights ID '{insights_id}'.")
 
-    if not inventory_config().bypass_rbac: # Duplicated - I wonder if this could be factored back into middleware.py
+    if not inventory_config().bypass_rbac:  # Duplicated - I wonder if this could be factored back into middleware.py
         if get_flag_value(FLAG_INVENTORY_KESSEL_HOST_MIGRATION):
             kessel_client = get_kessel_client(current_app)
-            allowed, _ = get_kessel_filter( # Kind of a duplicate Kessel call too
+            allowed, _ = get_kessel_filter(  # Kind of a duplicate Kessel call too
                 kessel_client, current_identity, KesselResourceTypes.HOST.view, [host_id], False
             )
             if not allowed:

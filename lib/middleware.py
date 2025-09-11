@@ -1,27 +1,27 @@
 from __future__ import annotations
 
+import inspect
 from functools import partial
 from functools import wraps
 from http import HTTPStatus
-import inspect
 from json import JSONDecodeError
 from uuid import UUID
-from typing import Dict, Tuple
 
 from app_common_python import LoadedConfig
 from flask import abort
+from flask import current_app
 from flask import g
 from flask import request
-from flask import current_app
 from requests import Session
 from requests.adapters import HTTPAdapter
 from requests.exceptions import HTTPError
 from requests.packages.urllib3.util.retry import Retry
 
-
 from api.metrics import outbound_http_response_time
-from app import IDENTITY_HEADER, KesselPermission, KesselResourceTypes
+from app import IDENTITY_HEADER
 from app import REQUEST_ID_HEADER
+from app import KesselPermission
+from app import KesselResourceTypes
 from app import RbacPermission
 from app import RbacResourceType
 from app.auth import get_current_identity
@@ -34,10 +34,11 @@ from app.instrumentation import rbac_group_permission_denied
 from app.instrumentation import rbac_permission_denied
 from app.logging import get_logger
 from app.logging import threadctx
-from lib.feature_flags import FLAG_INVENTORY_API_READ_ONLY, FLAG_INVENTORY_KESSEL_HOST_MIGRATION
 from lib.feature_flags import FLAG_INVENTORY_API_READ_ONLY
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_HOST_MIGRATION
 from lib.feature_flags import get_flag_value
-from lib.kessel import get_kessel_client, Kessel
+from lib.kessel import Kessel
+from lib.kessel import get_kessel_client
 
 logger = get_logger(__name__)
 
@@ -72,7 +73,9 @@ def _build_rbac_request_headers(identity_header: str | None = None, request_id_h
     return request_headers
 
 
-def rbac_get_request_using_endpoint_and_headers(rbac_endpoint: str, request_headers: dict, request_params: dict | None = None):
+def rbac_get_request_using_endpoint_and_headers(
+    rbac_endpoint: str, request_headers: dict, request_params: dict | None = None
+):
     if inventory_config().bypass_rbac:
         return None
 
@@ -229,6 +232,7 @@ def get_rbac_filter(
         rbac_permission_denied(logger, required_permission.value, rbac_data)
         return False, None
 
+
 def kessel_type(type) -> str:
     if type == RbacResourceType.HOSTS:
         return "host"
@@ -238,6 +242,7 @@ def kessel_type(type) -> str:
         return "all"
     else:
         return type
+
 
 def kessel_verb(perm) -> str:
     if perm == RbacPermission.READ:
@@ -249,13 +254,10 @@ def kessel_verb(perm) -> str:
     else:
         return perm
 
+
 def get_kessel_filter(
-    kessel_client: Kessel,
-    current_identity: Identity,
-    permission: KesselPermission,
-    ids: list[str],
-    write: bool
-) -> Tuple[bool, Dict[str, Any]]:
+    kessel_client: Kessel, current_identity: Identity, permission: KesselPermission, ids: list[str], write: bool
+) -> tuple[bool, dict[str, Any]]:
     if current_identity.identity_type not in CHECKED_TYPES:
         if permission.resource_type == KesselResourceTypes.HOST:
             return True, None
@@ -268,13 +270,16 @@ def get_kessel_filter(
             if kessel_client.CheckForUpdate(current_identity, permission, ids):
                 return True, None
             else:
-                return False, None #The objects are not authorized - reject the request.
+                return False, None  # The objects are not authorized - reject the request.
         else:
             # Read specific object(s) by id(s)
             if kessel_client.Check(current_identity, permission, ids):
-                return True, None #No need to apply a filter - the objects are authorized
+                return True, None  # No need to apply a filter - the objects are authorized
             else:
-                return False, None #The objects are not authorized - reject the request. Note: this is a potential departure from current behavior where an attempt to request multiple objects by id will return all accessible objects, ignoring inaccessible ones.
+                return (
+                    False,
+                    None,
+                )  # The objects are not authorized - reject the request. Note: this is a potential departure from current behavior where an attempt to request multiple objects by id will return all accessible objects, ignoring inaccessible ones.
 
     # No ids passed, operate on many objects not by ids
     relation = permission.workspace_permission
@@ -284,7 +289,8 @@ def get_kessel_filter(
         return False, None
     else:
         return True, {"groups": workspaces}
-    
+
+
 def rbac(resource_type: RbacResourceType, required_permission: RbacPermission, permission_base: str = "inventory"):
     def other_func(func):
         @wraps(func)
@@ -305,8 +311,8 @@ def rbac(resource_type: RbacResourceType, required_permission: RbacPermission, p
 
             allowed, rbac_filter = get_rbac_filter(
                 resource_type, required_permission, current_identity, request_headers, permission_base
-            )            
-            
+            )
+
             if allowed:
                 if rbac_filter:
                     return partial(func, rbac_filter=rbac_filter)(*args, **kwargs)
@@ -319,10 +325,11 @@ def rbac(resource_type: RbacResourceType, required_permission: RbacPermission, p
 
     return other_func
 
-def access(permission: KesselPermission, id_param: str = "", writeOperation: bool=False):
+
+def access(permission: KesselPermission, id_param: str = "", writeOperation: bool = False):
     def other_func(func):
         sig = inspect.signature(func)
-        
+
         @wraps(func)
         def modified_func(*args, **kwargs):
             # If the API is in read-only mode and this is a Write endpoint, abort with HTTP 503.
@@ -338,16 +345,24 @@ def access(permission: KesselPermission, id_param: str = "", writeOperation: boo
 
             allowed = None
             rbac_filter = None
-            if get_flag_value(FLAG_INVENTORY_KESSEL_HOST_MIGRATION): # Workspace permissions aren't part of HBI in V2, fallback to rbac for now.
+            if get_flag_value(
+                FLAG_INVENTORY_KESSEL_HOST_MIGRATION
+            ):  # Workspace permissions aren't part of HBI in V2, fallback to rbac for now.
                 kessel_client = get_kessel_client(current_app)
                 ids = permission.resource_type.get_resource_id(kwargs, id_param)
 
-                allowed, rbac_filter = get_kessel_filter(kessel_client, current_identity, permission, ids, writeOperation)
+                allowed, rbac_filter = get_kessel_filter(
+                    kessel_client, current_identity, permission, ids, writeOperation
+                )
             else:
                 allowed, rbac_filter = get_rbac_filter(
-                    permission.resource_type.v1_type, permission.v1_permission, current_identity, request_headers, permission.resource_type.v1_app
-                )            
-            
+                    permission.resource_type.v1_type,
+                    permission.v1_permission,
+                    current_identity,
+                    request_headers,
+                    permission.resource_type.v1_app,
+                )
+
             if allowed:
                 if rbac_filter and "rbac_filter" in sig.parameters:
                     kwargs["rbac_filter"] = rbac_filter
@@ -511,7 +526,6 @@ def delete_rbac_workspace(workspace_id: str) -> bool:
         request_session.close()
 
 
-
 def patch_rbac_workspace(workspace_id: str, name: str | None = None) -> None:
     if inventory_config().bypass_rbac:
         return None
@@ -546,10 +560,11 @@ def get_rbac_default_workspace() -> UUID | None:
     if inventory_config().bypass_rbac:
         return None
 
-    response = rbac_get_request_using_endpoint_and_headers(get_rbac_v2_url(endpoint="workspaces/"), _build_rbac_request_headers(), {"limit": 1, "type": "default"})
+    response = rbac_get_request_using_endpoint_and_headers(
+        get_rbac_v2_url(endpoint="workspaces/"), _build_rbac_request_headers(), {"limit": 1, "type": "default"}
+    )
     data = response["data"] if response else None
     if data and len(data) > 0:
         return data[0]["id"]
     else:
         return None
-        

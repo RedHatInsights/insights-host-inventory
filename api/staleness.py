@@ -19,8 +19,7 @@ from api import metrics
 from api.cache import delete_cached_system_keys
 from api.host_query import staleness_timestamps
 from api.staleness_query import get_staleness_obj
-from app import KesselResourceTypes, RbacPermission
-from app import RbacResourceType
+from app import KesselResourceTypes
 from app.auth import get_current_identity
 from app.auth.identity import Identity
 from app.auth.identity import to_auth_header

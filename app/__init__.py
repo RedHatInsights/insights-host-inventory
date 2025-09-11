@@ -40,9 +40,10 @@ from app.queue.metrics import rbac_access_denied
 from app.queue.notifications import NotificationType
 from app.tags_blueprint import tags_bp
 from lib.check_org import check_org_id
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_HOST_MIGRATION
 from lib.feature_flags import SchemaStrategy
+from lib.feature_flags import get_flag_value
 from lib.feature_flags import init_unleash_app
-from lib.feature_flags import init_unleash_app, get_flag_value, FLAG_INVENTORY_KESSEL_HOST_MIGRATION
 from lib.handlers import register_shutdown
 
 logger = get_logger(__name__)
@@ -95,6 +96,7 @@ class RbacResourceType(Enum):
     STALENESS = "staleness"
     ALL = "*"
 
+
 class KesselResourceType:
     namespace: str
     name: str
@@ -104,7 +106,7 @@ class KesselResourceType:
     def get_resource_id(self, kwargs: dict[str, Any], id_param: str) -> list[str]:
         if id_param == "":
             return []
-        
+
         value = kwargs.get(id_param)
 
         if isinstance(value, list):
@@ -118,17 +120,25 @@ class KesselResourceType:
         self.v1_type = v1_type
         self.v1_app = v1_app
 
+
 class KesselPermission:
     resource_type: KesselResourceType
     workspace_permission: str
     resource_permission: str
     v1_permission: RbacPermission
 
-    def __init__(self, resourceType: KesselResourceType, workspacePermission: str, resourcePermission: str, v1Permission: RbacPermission) -> None:
+    def __init__(
+        self,
+        resourceType: KesselResourceType,
+        workspacePermission: str,
+        resourcePermission: str,
+        v1Permission: RbacPermission,
+    ) -> None:
         self.resource_type = resourceType
         self.workspace_permission = workspacePermission
         self.resource_permission = resourcePermission
         self.v1_permission = v1Permission
+
 
 class HostKesselResourceType(KesselResourceType):
     def __init__(self) -> None:
@@ -138,10 +148,12 @@ class HostKesselResourceType(KesselResourceType):
         self.move = KesselPermission(self, "inventory_host_move", "move", RbacPermission.WRITE)
         self.delete = KesselPermission(self, "inventory_host_delete", "delete", RbacPermission.WRITE)
 
+
 class WorkspaceKesselResourceType(KesselResourceType):
     def __init__(self) -> None:
         super().__init__("rbac", "workspace", RbacResourceType.GROUPS, "inventory")
         self.move_host = KesselPermission(self, "inventory_host_move", "inventory_host_move", RbacPermission.WRITE)
+
 
 class GroupKesselResourceType(KesselResourceType):
     def __init__(self) -> None:
@@ -151,9 +163,11 @@ class GroupKesselResourceType(KesselResourceType):
         self.delete = KesselPermission(self, "inventory_groups_update", "delete", RbacPermission.WRITE)
         self.create = KesselPermission(self, "inventory_groups_update", "create", RbacPermission.WRITE)
 
+
 class StalenessKesselResourceType(KesselResourceType):
     def get_resource_id(self, kwargs: dict[str, Any], id_param: str) -> list[str]:
         from lib.middleware import get_rbac_default_workspace
+
         workspace_id = get_rbac_default_workspace()
         if workspace_id:
             return [str(workspace_id)]
@@ -163,14 +177,19 @@ class StalenessKesselResourceType(KesselResourceType):
     def __init__(self) -> None:
         super().__init__("rbac", "workspace", RbacResourceType.STALENESS, "staleness")
         self.view = KesselPermission(self, "staleness_staleness_view", "staleness_staleness_view", RbacPermission.READ)
-        self.update = KesselPermission(self, "staleness_staleness_update", "staleness_staleness_update", RbacPermission.WRITE)
+        self.update = KesselPermission(
+            self, "staleness_staleness_update", "staleness_staleness_update", RbacPermission.WRITE
+        )
+
 
 class AllKesselResourceType(KesselResourceType):
     def __init__(self) -> None:
         super().__init__("hbi", "all", RbacResourceType.ALL, "inventory")
         self.admin = KesselPermission(self, "inventory_admin", "admin", RbacPermission.ADMIN)
 
-#Add more resource types as subclasses of KesselResourceType
+
+# Add more resource types as subclasses of KesselResourceType
+
 
 class KesselResourceTypes:
     HOST = HostKesselResourceType()
@@ -180,7 +199,6 @@ class KesselResourceTypes:
     ALL = AllKesselResourceType()
     # Expose resource type specific subclasses here
 
-    
 
 def initialize_metrics(config):
     event_topic_name = config.event_topic
@@ -396,8 +414,11 @@ def create_app(runtime_environment) -> connexion.FlaskApp:
 
     db.init_app(flask_app)
 
-    if get_flag_value(FLAG_INVENTORY_KESSEL_HOST_MIGRATION): #Note: this won't work if we want to enable the flag while running or otherwise selectively, but it does allow us to completely disable the feature
+    if get_flag_value(
+        FLAG_INVENTORY_KESSEL_HOST_MIGRATION
+    ):  # Note: this won't work if we want to enable the flag while running or otherwise selectively, but it does allow us to completely disable the feature
         from lib.kessel import init_kessel
+
         init_kessel(app_config, flask_app)
 
     flask_app.register_blueprint(monitoring_blueprint, url_prefix=app_config.mgmt_url_path_prefix)

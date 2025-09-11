@@ -63,7 +63,7 @@
             ],
             "variants": [],
             "createdAt": "2025-04-17T21:21:08Z"
-        },        
+        },
         {
             "name": "hbi.api.read-only",
             "description": "When turned ON, HBI's write endpoints (PUT/POST/PATCH) are disabled.",

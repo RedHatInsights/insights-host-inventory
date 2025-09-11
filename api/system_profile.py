@@ -10,8 +10,7 @@ from api import pagination_params
 from api.host_query_db import get_os_info
 from api.host_query_db import get_sap_sids_info
 from api.host_query_db import get_sap_system_info
-from app import KesselResourceTypes, RbacPermission
-from app import RbacResourceType
+from app import KesselResourceTypes
 from app.auth import get_current_identity
 from app.config import Config
 from app.environment import RuntimeEnvironment
@@ -19,7 +18,7 @@ from app.instrumentation import log_get_operating_system_succeeded
 from app.instrumentation import log_get_sap_sids_succeeded
 from app.instrumentation import log_get_sap_system_succeeded
 from app.logging import get_logger
-from lib.middleware import access, rbac
+from lib.middleware import access
 from lib.system_profile_validate import validate_sp_for_branch
 
 logger = get_logger(__name__)
