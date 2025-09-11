@@ -1,4 +1,4 @@
-#!/usr//bin/python3
+#!/usr/bin/python3
 # ruff: noqa: E501
 import argparse
 import os
@@ -100,8 +100,82 @@ def recreate_indexes(session: Session, logger: Logger):
 
 def copy_profile_data_in_batches(session: Session, logger: Logger, partitions_to_process: list[int]):
     """
-    Copies data from the hosts partitions into the two new partitioned tables.
+    Copies data from the hosts partitions into the two new partitioned tables,
+    creating records only when relevant data exists.
     """
+    # Define the keys that correspond to columns in each target table.
+    dynamic_keys = [
+        "captured_date",
+        "running_processes",
+        "last_boot_time",
+        "installed_packages",
+        "installed_products",
+        "network_interfaces",
+        "cpu_flags",
+        "insights_egg_version",
+        "kernel_modules",
+        "system_memory_bytes",
+        "systemd",
+        "workloads",
+    ]
+
+    static_keys = [
+        "arch",
+        "basearch",
+        "bios_release_date",
+        "bios_vendor",
+        "bios_version",
+        "bootc_status",
+        "cloud_provider",
+        "conversions",
+        "cores_per_socket",
+        "cpu_model",
+        "disk_devices",
+        "dnf_modules",
+        "enabled_services",
+        "gpg_pubkeys",
+        "greenboot_fallback_detected",
+        "greenboot_status",
+        "host_type",
+        "image_builder",
+        "infrastructure_type",
+        "infrastructure_vendor",
+        "insights_client_version",
+        "installed_packages_delta",
+        "installed_services",
+        "is_marketplace",
+        "katello_agent_running",
+        "number_of_cpus",
+        "number_of_sockets",
+        "operating_system",
+        "os_kernel_version",
+        "os_release",
+        "owner_id",
+        "public_dns",
+        "public_ipv4_addresses",
+        "releasever",
+        "rhc_client_id",
+        "rhc_config_state",
+        "rhsm",
+        "rpm_ostree_deployments",
+        "satellite_managed",
+        "selinux_config_file",
+        "selinux_current_mode",
+        "subscription_auto_attach",
+        "subscription_status",
+        "system_purpose",
+        "system_update_method",
+        "third_party_services",
+        "threads_per_core",
+        "tuned_profile",
+        "virtual_host_uuid",
+        "yum_repos",
+    ]
+
+    # Format the key lists for use in the SQL ARRAY constructor.
+    dynamic_keys_sql_array = "ARRAY['" + "','".join(dynamic_keys) + "']"
+    static_keys_sql_array = "ARRAY['" + "','".join(static_keys) + "']"
+
     batch_size = int(os.getenv("SP_TABLES_MIGRATION_BATCH_SIZE", 10000))
     grand_total_rows_copied = 0
 
@@ -167,6 +241,7 @@ def copy_profile_data_in_batches(session: Session, logger: Logger, partitions_to
                         b.system_profile_facts -> 'systemd',
                         b.system_profile_facts -> 'workloads'
                     FROM batch b
+                    WHERE b.system_profile_facts ?| {dynamic_keys_sql_array}
                     ON CONFLICT (org_id, host_id) DO NOTHING
                 )
                 INSERT INTO {INVENTORY_SCHEMA}.system_profiles_static (
@@ -219,6 +294,7 @@ def copy_profile_data_in_batches(session: Session, logger: Logger, partitions_to
                     (b.system_profile_facts ->> 'virtual_host_uuid')::uuid,
                     (SELECT array_agg(value) FROM jsonb_array_elements(b.system_profile_facts -> 'yum_repos'))
                 FROM batch b
+                WHERE b.system_profile_facts ?| {static_keys_sql_array}
                 ON CONFLICT (org_id, host_id) DO NOTHING;
             """
             session.execute(text(combined_sql), {"id_list": id_list})
