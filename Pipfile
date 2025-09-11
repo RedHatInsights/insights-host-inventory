@@ -40,7 +40,6 @@ ratelimit = "*"
 confluent-kafka = "==2.10.1"
 rpds-py = "==0.23.1"
 tomli = "==2.0.2"
-unleashclient = "==5.12.2"
 inventory-grpc-clients-python-kessel-project = "*"
 googleapis-common-protos = "*"
 
