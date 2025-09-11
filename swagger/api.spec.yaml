@@ -1249,7 +1249,7 @@ components:
       description: >-
         Filters hosts based on system_profile fields. For example:
         <br /><br />
-        &nbsp;&nbsp;&nbsp;&nbsp;{"system_profile": {"sap_system": {"eq": "true"}}}
+        &nbsp;&nbsp;&nbsp;&nbsp;{"system_profile": {"workloads": {"sap": {"sap_system": {"eq": "true"}}}}}
         <br /><br />
         which equates to the URL param:
         <br /><br />
