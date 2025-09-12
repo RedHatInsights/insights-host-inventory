@@ -48,6 +48,7 @@ from app.logging import threadctx
 from app.models import Host
 from app.models import LimitedHostSchema
 from app.models import db
+from app.models.system_profile_static import HostStaticSystemProfile
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
 from app.payload_tracker import get_payload_tracker
@@ -560,8 +561,6 @@ def _set_owner(host: Host, identity: Identity) -> Host:
     # Also set the owner_id in static_system_profile
     if host.static_system_profile is None:
         # Create static system profile if it doesn't exist
-        from app.models.system_profile_static import HostStaticSystemProfile
-
         host.static_system_profile = HostStaticSystemProfile(org_id=host.org_id, host_id=host.id, owner_id=cn)
     elif not host.static_system_profile.owner_id:
         host.static_system_profile.owner_id = cn

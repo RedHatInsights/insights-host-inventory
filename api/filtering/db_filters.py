@@ -46,7 +46,7 @@ __all__ = (
     "stale_timestamp_filter",
     "staleness_to_conditions",
     "update_query_for_owner_id",
-    "insights_id_filter",
+    "hosts_field_filter",
 )
 
 logger = get_logger(__name__)
@@ -75,7 +75,7 @@ SYSTEM_TYPE_FILTERS: dict[str, Any] = {
 }
 
 
-def _hosts_field_filter(name: str, value, case_insensitive: bool = False) -> list:
+def hosts_field_filter(name: str, value, case_insensitive: bool = False) -> list:
     """Builds a database filter for a Host model attribute."""
     try:
         field = getattr(Host, name)
@@ -86,26 +86,6 @@ def _hosts_field_filter(name: str, value, case_insensitive: bool = False) -> lis
 
     expression = func.lower(field) if case_insensitive else field
     return [expression == final_value]
-
-
-def insights_id_filter(insights_id: str, case_insensitive: bool = False) -> list:
-    return _hosts_field_filter("insights_id", insights_id, case_insensitive)
-
-
-def _subscription_manager_id_filter(subscription_manager_id: str, case_insensitive: bool = False) -> list:
-    return _hosts_field_filter("subscription_manager_id", subscription_manager_id, case_insensitive)
-
-
-def _fqdn_filter(fqdn: str, case_insensitive: bool = False) -> list:
-    return _hosts_field_filter("fqdn", fqdn, case_insensitive)
-
-
-def _provider_id_filter(provider_id: str, case_insensitive: bool = False) -> list:
-    return _hosts_field_filter("provider_id", provider_id, case_insensitive)
-
-
-def _provider_type_filter(provider_type: str, case_insensitive: bool = False) -> list:
-    return _hosts_field_filter("provider_type", provider_type, case_insensitive)
 
 
 def _display_name_filter(display_name: str) -> list:
@@ -417,22 +397,22 @@ def query_filters(
 
     filters = []
     if fqdn:
-        filters += _fqdn_filter(fqdn, case_insensitive=True)
+        filters += hosts_field_filter("fqdn", fqdn, True)
     elif display_name:
         filters += _display_name_filter(display_name)
     elif hostname_or_id:
         filters += _hostname_or_id_filter(hostname_or_id)
     elif insights_id:
-        filters += insights_id_filter(insights_id.lower())
+        filters += hosts_field_filter("insights_id", insights_id.lower())
     elif subscription_manager_id:
-        filters += _subscription_manager_id_filter(subscription_manager_id.lower())
+        filters += hosts_field_filter("subscription_manager_id", subscription_manager_id.lower())
 
     if system_type:
         filters += _system_type_filter(system_type)
     if provider_id:
-        filters += _provider_id_filter(provider_id, case_insensitive=True)
+        filters += hosts_field_filter("provider_id", provider_id, True)
     if provider_type:
-        filters += _provider_type_filter(provider_type)
+        filters += hosts_field_filter("provider_type", provider_type)
     if updated_start or updated_end:
         filters += _modified_on_filter(updated_start, updated_end)
     if last_check_in_start or last_check_in_end:
