@@ -39,7 +39,7 @@ from app.queue.metrics import rbac_access_denied
 from app.queue.notifications import NotificationType
 from app.tags_blueprint import tags_bp
 from lib.check_org import check_org_id
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_HOST_MIGRATION
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
 from lib.feature_flags import SchemaStrategy
 from lib.feature_flags import get_flag_value
 from lib.feature_flags import init_unleash_app
@@ -413,7 +413,7 @@ def create_app(runtime_environment) -> connexion.FlaskApp:
 
     db.init_app(flask_app)
 
-    if get_flag_value(FLAG_INVENTORY_KESSEL_HOST_MIGRATION):
+    if get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1):
         # Note: this won't work if we want to enable the flag while running or otherwise selectively,
         # but it does allow us to completely disable the feature
         from lib.kessel import init_kessel
