@@ -124,12 +124,13 @@ def delete_duplicate_hosts_by_org_id(
 
         for host in host_list:
             canonical_facts = host.canonical_facts
-            misc_query = hosts_query.filter(Host.org_id == host.org_id)
-            logger.info(f"Processing host: {host.id}")
             logger.info(f"Find by canonical facts: {canonical_facts}")
-            matching_hosts = find_matching_hosts(canonical_facts, misc_query)
+            matching_hosts = find_matching_hosts(canonical_facts, hosts_query)
 
-            logger.info(f"Found {len(matching_hosts)} matching hosts ({len(matching_hosts) - 1} duplicates)")
+            logger.info(
+                f"Found {len(matching_hosts)} matching hosts ({len(matching_hosts) - 1} duplicates) "
+                f"for host: {host.id}"
+            )
             if len(matching_hosts) > 1:
                 duplicate_host_ids.update([host.id for host in matching_hosts[1:]])
 
@@ -146,7 +147,6 @@ def delete_duplicate_hosts_by_org_id(
                 interrupt=interrupt,
             )
 
-        session.expunge_all()
         host_list = hosts_query.filter(Host.id > last_host_id).order_by(Host.id).limit(chunk_size).all()
 
     if dry_run:
@@ -188,6 +188,7 @@ def delete_duplicate_hosts(
             )
 
         last_org_id = org_id_list[-1][0]
+        session.expunge_all()
         org_id_list = (
             org_ids_query.filter(Host.org_id > last_org_id).distinct().order_by(Host.org_id).limit(chunk_size).all()
         )
