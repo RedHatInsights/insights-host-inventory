@@ -565,7 +565,4 @@ def get_rbac_default_workspace() -> UUID | None:
         get_rbac_v2_url(endpoint="workspaces/"), _build_rbac_request_headers(), {"limit": 1, "type": "default"}
     )
     data = response["data"] if response else None
-    if data and len(data) > 0:
-        return data[0]["id"]
-    else:
-        return None
+    return data[0]["id"] if data and len(data) > 0 else None
