@@ -1789,11 +1789,11 @@ data:
                 "steps": [
                   {
                     "value": null,
-                    "color": "#299c46"
+                    "color": "rgba(237, 129, 40, 0.89)"
                   },
                   {
                     "value": 0.1,
-                    "color": "rgba(237, 129, 40, 0.89)"
+                    "color": "#299c46"
                   },
                   {
                     "color": "#d44a3a"
