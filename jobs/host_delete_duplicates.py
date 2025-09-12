@@ -172,26 +172,21 @@ def delete_duplicate_hosts(
     logger.info(f"Total number of hosts in inventory: {session.query(Host).count()}")
     logger.info(f"Total number of org_ids in inventory: {org_ids_query.distinct().count()}")
 
-    org_id_list = org_ids_query.distinct().order_by(Host.org_id).limit(chunk_size).all()
-    while len(org_id_list) > 0 and not interrupt():
-        for org_id in org_id_list:
-            actual_org_id = org_id[0]  # query.distinct() returns a tuple of all queried columns
-            total_deleted += delete_duplicate_hosts_by_org_id(
-                actual_org_id,
-                session=session,
-                chunk_size=chunk_size,
-                logger=logger,
-                event_producer=event_producer,
-                notifications_event_producer=notifications_event_producer,
-                interrupt=interrupt,
-                dry_run=dry_run,
-            )
-
-        last_org_id = org_id_list[-1][0]
-        session.expunge_all()
-        org_id_list = (
-            org_ids_query.filter(Host.org_id > last_org_id).distinct().order_by(Host.org_id).limit(chunk_size).all()
+    org_id_list = org_ids_query.distinct().order_by(Host.org_id).all()
+    for org_id in org_id_list:
+        actual_org_id = org_id[0]  # query.distinct() returns a tuple of all queried columns
+        total_deleted += delete_duplicate_hosts_by_org_id(
+            actual_org_id,
+            session=session,
+            chunk_size=chunk_size,
+            logger=logger,
+            event_producer=event_producer,
+            notifications_event_producer=notifications_event_producer,
+            interrupt=interrupt,
+            dry_run=dry_run,
         )
+
+        session.expunge_all()
 
     return total_deleted
 
