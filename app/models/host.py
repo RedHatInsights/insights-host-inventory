@@ -98,7 +98,7 @@ class LimitedHost(db.Model):
         self.tags = tags
         self.tags_alt = tags_alt
         self.system_profile_facts = system_profile_facts or {}
-        self._update_normalized_system_profiles(system_profile_facts)
+        self._add_or_update_normalized_system_profiles(system_profile_facts)
         self.groups = groups or []
         self.last_check_in = _time_now()
         # canonical facts
@@ -156,7 +156,7 @@ class LimitedHost(db.Model):
             else_=" 000.000",
         )
 
-    def _update_normalized_system_profiles(self, input_system_profile: dict):
+    def _add_or_update_normalized_system_profiles(self, input_system_profile: dict):
         """Update the normalized system profile tables."""
         from app.models.system_profile_transformer import validate_and_transform
 
@@ -563,7 +563,7 @@ class Host(LimitedHost):
 
         # Update the normalized system profile tables
         try:
-            self._update_normalized_system_profiles(input_system_profile)
+            self._add_or_update_normalized_system_profiles(input_system_profile)
         except ValidationException as e:
             logger.warning("Failed to update normalized system profile tables for host %s: %s", self.id, str(e))
         except Exception as e:

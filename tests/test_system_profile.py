@@ -21,6 +21,7 @@ from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.mq_utils import create_kafka_consumer_mock
 from tests.helpers.system_profile_utils import system_profile_specification
 from tests.helpers.test_utils import SYSTEM_IDENTITY
+from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import valid_system_profile
@@ -435,7 +436,7 @@ def test_create_empty_update_system_profile(
     mq_create_or_update_host, api_get, db_get_static_system_profile, db_get_dynamic_system_profile
 ):
     host_minimal = minimal_host(system_profile={})
-    host = mq_create_or_update_host(host_minimal)
+    host = mq_create_or_update_host(host_minimal, identity=USER_IDENTITY)
     url = build_hosts_url(host_list_or_id=host.id)
     response_status, response_data = api_get(url)
     assert response_status == 200
@@ -462,7 +463,7 @@ def test_create_empty_update_system_profile(
 
     host_minimal.system_profile = system_profile
 
-    host = mq_create_or_update_host(host_minimal)
+    host = mq_create_or_update_host(host_minimal, identity=USER_IDENTITY)
 
     url = build_hosts_url(host_list_or_id=host.id)
     response_status, response_data = api_get(url)
@@ -483,7 +484,7 @@ def test_create_empty_update_failing_system_profile(
     mq_create_or_update_host, api_get, db_get_static_system_profile, db_get_dynamic_system_profile
 ):
     host_minimal = minimal_host(system_profile={})
-    host = mq_create_or_update_host(host_minimal)
+    host = mq_create_or_update_host(host_minimal, identity=USER_IDENTITY)
     url = build_hosts_url(host_list_or_id=host.id)
     response_status, response_data = api_get(url)
     assert response_status == 200
