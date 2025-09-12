@@ -72,6 +72,7 @@ def find_hosts_by_multiple_facts(canonical_facts: dict[str, str], query: Query) 
 def delete_batch(
     host_ids: set[str],
     *,
+    org_id: str,
     session: Session,
     dry_run: bool,
     logger: Logger,
@@ -84,7 +85,7 @@ def delete_batch(
         logger.info(f"Found {len(host_ids)} duplicates in the current batch")
         return len(host_ids)
 
-    hosts_by_ids_query = session.query(Host).filter(Host.id.in_(host_ids))
+    hosts_by_ids_query = session.query(Host).filter(Host.org_id == org_id, Host.id.in_(host_ids))
     deleted_count = sum(
         1
         for _ in delete_hosts(
@@ -100,7 +101,9 @@ def delete_batch(
     return deleted_count
 
 
-def delete_duplicate_hosts(
+def delete_duplicate_hosts_by_org_id(
+    org_id: str,
+    *,
     session: Session,
     chunk_size: int,
     logger: Logger,
@@ -109,12 +112,11 @@ def delete_duplicate_hosts(
     interrupt: Callable[[], bool] = lambda: False,
     dry_run: bool = True,
 ) -> int:
-    total_deleted = 0
-    hosts_query = session.query(Host)
-
-    logger.info(f"Total number of hosts in inventory: {hosts_query.count()}")
-
+    logger.info(f"Processing org: {org_id}")
+    deleted_per_org = 0
+    hosts_query = session.query(Host).filter(Host.org_id == org_id)
     host_list = hosts_query.order_by(Host.id).limit(chunk_size).all()
+
     while len(host_list) > 0 and not interrupt():
         # Process a batch of hosts
         duplicate_host_ids = set()
@@ -123,6 +125,7 @@ def delete_duplicate_hosts(
         for host in host_list:
             canonical_facts = host.canonical_facts
             misc_query = hosts_query.filter(Host.org_id == host.org_id)
+            logger.info(f"Processing host: {host.id}")
             logger.info(f"Find by canonical facts: {canonical_facts}")
             matching_hosts = find_matching_hosts(canonical_facts, misc_query)
 
@@ -131,8 +134,9 @@ def delete_duplicate_hosts(
                 duplicate_host_ids.update([host.id for host in matching_hosts[1:]])
 
         if duplicate_host_ids:
-            total_deleted += delete_batch(
+            deleted_per_org += delete_batch(
                 duplicate_host_ids,
+                org_id=org_id,
                 session=session,
                 dry_run=dry_run,
                 logger=logger,
@@ -144,6 +148,49 @@ def delete_duplicate_hosts(
 
         session.expunge_all()
         host_list = hosts_query.filter(Host.id > last_host_id).order_by(Host.id).limit(chunk_size).all()
+
+    if dry_run:
+        logger.info(f"Found {deleted_per_org} duplicates in org: {org_id}")
+    else:
+        logger.info(f"Deleted {deleted_per_org} duplicates in org: {org_id}")
+
+    return deleted_per_org
+
+
+def delete_duplicate_hosts(
+    session: Session,
+    chunk_size: int,
+    logger: Logger,
+    event_producer: EventProducer,
+    notifications_event_producer: EventProducer,
+    interrupt: Callable[[], bool] = lambda: False,
+    dry_run: bool = True,
+) -> int:
+    total_deleted = 0
+    org_ids_query = session.query(Host.org_id)
+
+    logger.info(f"Total number of hosts in inventory: {session.query(Host).count()}")
+    logger.info(f"Total number of org_ids in inventory: {org_ids_query.distinct().count()}")
+
+    org_id_list = org_ids_query.distinct().order_by(Host.org_id).limit(chunk_size).all()
+    while len(org_id_list) > 0 and not interrupt():
+        for org_id in org_id_list:
+            actual_org_id = org_id[0]  # query.distinct() returns a tuple of all queried columns
+            total_deleted += delete_duplicate_hosts_by_org_id(
+                actual_org_id,
+                session=session,
+                chunk_size=chunk_size,
+                logger=logger,
+                event_producer=event_producer,
+                notifications_event_producer=notifications_event_producer,
+                interrupt=interrupt,
+                dry_run=dry_run,
+            )
+
+        last_org_id = org_id_list[-1][0]
+        org_id_list = (
+            org_ids_query.filter(Host.org_id > last_org_id).distinct().order_by(Host.org_id).limit(chunk_size).all()
+        )
 
     return total_deleted
 
