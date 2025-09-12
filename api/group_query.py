@@ -155,3 +155,6 @@ def build_paginated_workspace_list_response(total, page, per_page, group_list):
 
 def build_group_response(group):
     return serialize_group(group)
+
+def get_host_count_by_group_id(group_id: str):
+    return HostGroupAssoc.query.filter(HostGroupAssoc.group_id == group_id, HostGroupAssoc.org_id == get_current_identity().org_id).count()

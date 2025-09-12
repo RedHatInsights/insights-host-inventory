@@ -10,7 +10,7 @@ from api import api_operation
 from api import flask_json_response
 from api import json_error_response
 from api import metrics
-from api.group_query import build_group_response
+from api.group_query import build_group_response, get_host_count_by_group_id
 from api.group_query import build_paginated_group_list_response
 from api.group_query import build_paginated_workspace_list_response
 from api.group_query import does_group_with_name_exist
@@ -71,6 +71,8 @@ def get_workspaces_list(
 ):
     try:
         group_list, total = get_rbac_workspace(name)
+        for group in group_list:
+            group["host_count"] = get_host_count_by_group_id(group["id"])
     except ValueError as e:
         log_get_group_list_failed(logger)
         abort(400, str(e))
