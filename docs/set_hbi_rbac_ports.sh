@@ -3,14 +3,14 @@
 # Function to check and kill existing kubectl port-forwards
 check_and_kill_port_forwards() {
     echo "Checking for existing kubectl port-forwards..."
-    
+
     # Get all kubectl port-forward processes
     local port_forward_pids=$(pgrep -f "kubectl port-forward" 2>/dev/null)
-    
+
     if [ -n "$port_forward_pids" ]; then
         echo "Found existing kubectl port-forward processes: $port_forward_pids"
         echo "Killing existing port-forward processes..."
-        
+
         # Kill each process
         for pid in $port_forward_pids; do
             if kill -0 "$pid" 2>/dev/null; then
@@ -18,10 +18,10 @@ check_and_kill_port_forwards() {
                 echo "Killed process $pid"
             fi
         done
-        
+
         # Wait a moment for processes to terminate
         sleep 2
-        
+
         # Force kill any remaining processes
         local remaining_pids=$(pgrep -f "kubectl port-forward" 2>/dev/null)
         if [ -n "$remaining_pids" ]; then
@@ -29,19 +29,19 @@ check_and_kill_port_forwards() {
             pkill -9 -f "kubectl port-forward"
             sleep 1
         fi
-        
+
         echo "All existing port-forward processes have been terminated."
     else
         echo "No existing kubectl port-forward processes found."
     fi
-    
+
     echo "----------------------------------------"
 }
 
 # Function to start port-forwarding
 start_port_forwards() {
     echo "Starting new kubectl port-forwards..."
-    
+
     # kafka
     ENV_EPHEM_KAFKA_NAME=$(kubectl get kafka -o custom-columns=:metadata.name -n "$PROJECT_NAME" | grep env-ephem |xargs)
     ENV_EPHEM_KAFKA_SVC="svc/$ENV_EPHEM_KAFKA_NAME-kafka-bootstrap"
@@ -82,7 +82,7 @@ start_port_forwards() {
 
     echo "Port-forwarding started. Waiting for processes to initialize..."
     sleep 3
-    
+
     # Show active port-forward processes
     echo "Active kubectl port-forward processes:"
     pgrep -fla "kubectl port-forward"
