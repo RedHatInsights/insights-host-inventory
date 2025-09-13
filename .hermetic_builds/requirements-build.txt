@@ -4,7 +4,7 @@
 #
 #    pip-compile --allow-unsafe --generate-hashes /__w/insights-host-inventory/insights-host-inventory/.hermetic_builds/requirements-build.in
 #
-alembic==1.16.3 \
+alembic==1.16.5 \
     --hash=sha256:18ad13c1f40a5796deee4b2346d1a9c382f44b8af98053897484fa6cf88025e4 \
     --hash=sha256:70a7c7829b792de52d08ca0e3aefaf060687cb8ed6bebfa557e597a1a5e5a481
     # via -r /__w/insights-host-inventory/insights-host-inventory/.hermetic_builds/requirements-build.in

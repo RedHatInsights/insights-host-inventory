@@ -1,6 +1,6 @@
 -i https://pypi.python.org/simple
 a2wsgi==1.10.10; python_full_version >= '3.8.0'
-alembic==1.16.4; python_version >= '3.9'
+alembic==1.16.5; python_version >= '3.9'
 anyio==4.10.0; python_version >= '3.9'
 app-common-python==0.2.8
 apscheduler==3.11.0; python_version >= '3.8'
