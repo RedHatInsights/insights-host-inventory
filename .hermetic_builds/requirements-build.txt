@@ -172,7 +172,7 @@ coverage[toml]==7.9.2 \
     # via
     #   -r /__w/insights-host-inventory/insights-host-inventory/.hermetic_builds/requirements-build.in
     #   pytest-cov
-cryptography==45.0.5 \
+cryptography==45.0.7 \
     --hash=sha256:0027d566d65a38497bc37e0dd7c2f8ceda73597d2ac9ba93810204f56f52ebc7 \
     --hash=sha256:101ee65078f6dd3e5a028d4f19c07ffa4dd22cce6a20eaa160f8b5219911e7d8 \
     --hash=sha256:12e55281d993a793b0e883066f590c1ae1e802e3acb67f8b442e721e475e6463 \
