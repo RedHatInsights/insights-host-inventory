@@ -72,6 +72,9 @@ def get_group_list(
         if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION) or get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1):
             group_list = get_rbac_workspaces(name, group_type)
             total = len(group_list)
+            group_list, total = get_rbac_workspaces(
+                name, page, per_page, order_by, order_how, rbac_filter, group_type
+            )
         else:
             group_list, total = get_filtered_group_list_db(
                 name, page, per_page, order_by, order_how, rbac_filter, group_type
