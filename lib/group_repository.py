@@ -37,7 +37,8 @@ from app.serialization import serialize_host
 from app.serialization import serialize_workspace_with_host_count
 from app.staleness_serialization import AttrDict
 from lib.db import session_guard
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1, FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.feature_flags import get_flag_value
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.host_repository import get_non_culled_hosts_count_in_group

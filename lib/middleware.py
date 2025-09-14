@@ -4,6 +4,7 @@ from functools import partial
 from functools import wraps
 from http import HTTPStatus
 from json import JSONDecodeError
+from typing import Any
 from uuid import UUID
 
 from app_common_python import LoadedConfig
@@ -435,9 +436,7 @@ def patch_rbac_workspace(workspace_id: str, name: str | None = None) -> None:
         request_session.close()
 
 
-def get_rbac_workspace(
-    name, page, per_page, order_by, order_how, rbac_filter, group_type
-) -> UUID | None:
+def get_rbac_workspaces(name, group_type) -> list[dict] | None:
     if inventory_config().bypass_rbac:
         return None
 
@@ -450,7 +449,7 @@ def get_rbac_workspace(
 
 def get_rbac_workspace_using_endpoint_and_headers(
     request_data: dict | None, rbac_endpoint: str, request_headers: dict
-) -> UUID | None:
+) -> list[dict[Any, Any]] | None:
     if inventory_config().bypass_rbac:
         return None
 

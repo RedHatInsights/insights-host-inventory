@@ -246,13 +246,13 @@ def serialize_group_without_host_count(group: Group) -> dict:
 
 def serialize_workspace_without_host_count(group: dict) -> dict:
     return {
-        "name": group['name'],
-        "id": _serialize_uuid(group['id']),
+        "name": group["name"],
+        "id": _serialize_uuid(group["id"]),
         "org_id": get_current_identity().org_id,
-        "description": group['description'],
-        "type": group['type'],
-        "created": group['created'],
-        "updated": group['modified'],
+        "description": group["description"],
+        "type": group["type"],
+        "created": group["created"],
+        "updated": group["modified"],
     }
 
 
