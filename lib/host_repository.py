@@ -36,6 +36,7 @@ from app.queue.events import EventType
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness
 from lib import metrics
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.feature_flags import get_flag_value
 from lib.outbox_repository import write_event_to_outbox
@@ -418,10 +419,11 @@ def get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter=None, c
 
 
 def get_non_culled_hosts_count_in_group(group: Group, org_id: str) -> int:
+    group_id = group['id'] if get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1) else group.id
     query = (
         db.session.query(Host)
         .join(HostGroupAssoc)
-        .filter(HostGroupAssoc.group_id == group.id, HostGroupAssoc.org_id == org_id)
+        .filter(HostGroupAssoc.group_id == group_id, HostGroupAssoc.org_id == org_id)
         .group_by(Host.id, Host.org_id)
     )
 
