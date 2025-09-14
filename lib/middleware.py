@@ -496,4 +496,4 @@ def get_rbac_workspace_using_endpoint_and_headers(
     finally:
         request_session.close()
 
-    return workspaces_list, len(workspaces_list)
+    return workspaces_list
