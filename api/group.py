@@ -47,7 +47,11 @@ from lib.group_repository import validate_add_host_list_to_group_for_group_creat
 from lib.group_repository import wait_for_workspace_event
 from lib.metrics import create_group_count
 from lib.middleware import delete_rbac_workspace
+<<<<<<< HEAD
 from lib.middleware import get_rbac_workspaces
+=======
+from lib.middleware import get_rbac_workspace
+>>>>>>> 033ccc3c (Add get_gropus using rbac V2)
 from lib.middleware import patch_rbac_workspace
 from lib.middleware import post_rbac_workspace
 from lib.middleware import rbac
