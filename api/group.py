@@ -71,8 +71,8 @@ def get_workspaces_list(
 ):
     try:
         group_list, total = get_rbac_workspace(name)
-        for group in group_list:
-            group["host_count"] = get_host_count_by_group_id(group["id"])
+        # for group in group_list:
+        #     group["host_count"] = get_host_count_by_group_id(group["id"])
     except ValueError as e:
         log_get_group_list_failed(logger)
         abort(400, str(e))

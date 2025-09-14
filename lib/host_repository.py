@@ -418,10 +418,11 @@ def get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter=None, c
 
 
 def get_non_culled_hosts_count_in_group(group: Group, org_id: str) -> int:
+    # TODO: define a group_id value set its value using the group object type(list or dict)
     query = (
         db.session.query(Host)
         .join(HostGroupAssoc)
-        .filter(HostGroupAssoc.group_id == group.id, HostGroupAssoc.org_id == org_id)
+        .filter(HostGroupAssoc.group_id == group["id"], HostGroupAssoc.org_id == org_id)
         .group_by(Host.id, Host.org_id)
     )
 
