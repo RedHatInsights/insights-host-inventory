@@ -627,9 +627,7 @@ def get_rbac_default_workspace() -> UUID | None:
     return data[0]["id"] if data and len(data) > 0 else None
 
 
-def get_rbac_workspaces(
-    name, page, per_page, order_by, order_how, rbac_filter, group_type
-) -> UUID | None:
+def get_rbac_workspaces(name, group_type) -> list[dict] | None:
     if inventory_config().bypass_rbac:
         return None
 
@@ -642,7 +640,7 @@ def get_rbac_workspaces(
 
 def get_rbac_workspace_using_endpoint_and_headers(
     request_data: dict | None, rbac_endpoint: str, request_headers: dict
-) -> UUID | None:
+) -> list[dict[Any, Any]] | None:
     if inventory_config().bypass_rbac:
         return None
 
