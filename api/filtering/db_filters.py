@@ -136,7 +136,7 @@ def stale_timestamp_filter(gt=None, lte=None):
 
 
 def _host_type_filter(host_type: str | None):
-    return Host.system_profile_facts["host_type"].as_string() == host_type
+    return HostStaticSystemProfile.host_type == host_type
 
 
 def _stale_timestamp_per_reporter_filter(gt=None, lte=None, reporter=None):
@@ -438,7 +438,7 @@ def query_filters(
     # Determine query_base
     if group_name or group_ids or rbac_filter or order_by == "group_name":
         query_base = db.session.query(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
-    elif filter or system_type:
+    elif filter or system_type or registered_with:
         query_base = (
             db.session.query(Host)
             .join(HostStaticSystemProfile, isouter=True)
