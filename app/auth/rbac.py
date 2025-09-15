@@ -44,18 +44,20 @@ class KesselPermission:
     workspace_permission: str
     resource_permission: str
     v1_permission: RbacPermission
+    write_operation: bool
 
     def __init__(
         self,
-        resourceType: KesselResourceType,
-        workspacePermission: str,
-        resourcePermission: str,
-        v1Permission: RbacPermission,
+        resource_type: KesselResourceType,
+        workspace_permission: str,
+        resource_permission: str,
+        v1_permission: RbacPermission,
     ) -> None:
-        self.resource_type = resourceType
-        self.workspace_permission = workspacePermission
-        self.resource_permission = resourcePermission
-        self.v1_permission = v1Permission
+        self.resource_type = resource_type
+        self.workspace_permission = workspace_permission
+        self.resource_permission = resource_permission
+        self.v1_permission = v1_permission
+        self.write_operation = v1_permission == RbacPermission.WRITE
 
 
 class HostKesselResourceType(KesselResourceType):

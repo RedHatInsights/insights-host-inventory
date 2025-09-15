@@ -257,7 +257,7 @@ def kessel_verb(perm) -> str:
 
 
 def get_kessel_filter(
-    kessel_client: Kessel, current_identity: Identity, permission: KesselPermission, ids: list[str], write: bool
+    kessel_client: Kessel, current_identity: Identity, permission: KesselPermission, ids: list[str]
 ) -> tuple[bool, dict[str, Any] | None]:
     if current_identity.identity_type not in CHECKED_TYPES:
         if permission.resource_type == KesselResourceTypes.HOST:
@@ -266,7 +266,7 @@ def get_kessel_filter(
             return False, None
 
     if len(ids) > 0:
-        if write:
+        if permission.write_operation:
             # Write specific object(s) by id(s)
             if kessel_client.CheckForUpdate(current_identity, permission, ids):
                 return True, None
@@ -327,14 +327,14 @@ def rbac(resource_type: RbacResourceType, required_permission: RbacPermission, p
     return other_func
 
 
-def access(permission: KesselPermission, id_param: str = "", writeOperation: bool = False):
+def access(permission: KesselPermission, id_param: str = ""):
     def other_func(func):
         sig = inspect.signature(func)
 
         @wraps(func)
         def modified_func(*args, **kwargs):
             # If the API is in read-only mode and this is a Write endpoint, abort with HTTP 503.
-            if writeOperation and get_flag_value(FLAG_INVENTORY_API_READ_ONLY):
+            if permission.write_operation and get_flag_value(FLAG_INVENTORY_API_READ_ONLY):
                 abort(503, "Inventory API is currently in read-only mode.")
 
             if inventory_config().bypass_rbac:
@@ -353,7 +353,7 @@ def access(permission: KesselPermission, id_param: str = "", writeOperation: boo
                 ids = permission.resource_type.get_resource_id(kwargs, id_param)
 
                 allowed, rbac_filter = get_kessel_filter(
-                    kessel_client, current_identity, permission, ids, writeOperation
+                    kessel_client, current_identity, permission, ids, permission.write_operation
                 )
             else:
                 allowed, rbac_filter = get_rbac_filter(
