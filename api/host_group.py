@@ -8,8 +8,8 @@ from api import api_operation
 from api import flask_json_response
 from api import metrics
 from api.group_query import build_group_response
-from app import KesselResourceTypes
 from app.auth import get_current_identity
+from app.auth.rbac import KesselResourceTypes
 from app.instrumentation import log_host_group_add_succeeded
 from app.instrumentation import log_patch_group_failed
 from app.logging import get_logger

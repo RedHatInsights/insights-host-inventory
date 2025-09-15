@@ -15,9 +15,9 @@ from api.group_query import build_paginated_group_list_response
 from api.group_query import does_group_with_name_exist
 from api.group_query import get_filtered_group_list_db
 from api.group_query import get_group_list_by_id_list_db
-from app import RbacPermission
-from app import RbacResourceType
 from app.auth import get_current_identity
+from app.auth.rbac import RbacPermission
+from app.auth.rbac import RbacResourceType
 from app.common import inventory_config
 from app.exceptions import InventoryException
 from app.exceptions import ResourceNotFoundException

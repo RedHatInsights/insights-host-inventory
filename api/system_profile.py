@@ -10,8 +10,8 @@ from api import pagination_params
 from api.host_query_db import get_os_info
 from api.host_query_db import get_sap_sids_info
 from api.host_query_db import get_sap_system_info
-from app import KesselResourceTypes
 from app.auth import get_current_identity
+from app.auth.rbac import KesselResourceTypes
 from app.config import Config
 from app.environment import RuntimeEnvironment
 from app.instrumentation import log_get_operating_system_succeeded

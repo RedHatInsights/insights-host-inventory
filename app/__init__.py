@@ -1,9 +1,7 @@
 import base64
 import json
 import os
-from enum import Enum
 from os.path import join
-from typing import Any
 
 import connexion
 import segment.analytics as analytics
@@ -21,6 +19,8 @@ from api.mgmt import monitoring_blueprint
 from api.parsing import customURIParser
 from api.spec import spec_blueprint
 from app import payload_tracker
+from app.auth.rbac import RbacPermission
+from app.auth.rbac import RbacResourceType
 from app.config import Config
 from app.custom_validator import build_validator_map
 from app.exceptions import InventoryException
@@ -39,11 +39,10 @@ from app.queue.metrics import rbac_access_denied
 from app.queue.notifications import NotificationType
 from app.tags_blueprint import tags_bp
 from lib.check_org import check_org_id
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_HOST_MIGRATION
 from lib.feature_flags import SchemaStrategy
-from lib.feature_flags import get_flag_value
 from lib.feature_flags import init_unleash_app
 from lib.handlers import register_shutdown
+from lib.kessel import init_kessel
 
 logger = get_logger(__name__)
 
@@ -81,122 +80,6 @@ ORG_ID_CHECK_ENDPOINTS = [
     "api_group_delete_hosts_from_group",
     "api_group_delete_hosts_from_different_groups",
 ]
-
-
-class RbacPermission(Enum):
-    READ = "read"
-    WRITE = "write"
-    ADMIN = "*"
-
-
-class RbacResourceType(Enum):
-    HOSTS = "hosts"
-    GROUPS = "groups"
-    STALENESS = "staleness"
-    ALL = "*"
-
-
-class KesselResourceType:
-    namespace: str
-    name: str
-    v1_type: RbacResourceType
-    v1_app: str
-
-    def get_resource_id(self, kwargs: dict[str, Any], id_param: str) -> list[str]:
-        if id_param == "":
-            return []
-
-        value = kwargs.get(id_param)
-
-        if isinstance(value, list):
-            return list(value)
-
-        return [str(value)]
-
-    def __init__(self, namespace: str, name: str, v1_type: RbacResourceType, v1_app: str) -> None:
-        self.namespace = namespace
-        self.name = name
-        self.v1_type = v1_type
-        self.v1_app = v1_app
-
-
-class KesselPermission:
-    resource_type: KesselResourceType
-    workspace_permission: str
-    resource_permission: str
-    v1_permission: RbacPermission
-
-    def __init__(
-        self,
-        resourceType: KesselResourceType,
-        workspacePermission: str,
-        resourcePermission: str,
-        v1Permission: RbacPermission,
-    ) -> None:
-        self.resource_type = resourceType
-        self.workspace_permission = workspacePermission
-        self.resource_permission = resourcePermission
-        self.v1_permission = v1Permission
-
-
-class HostKesselResourceType(KesselResourceType):
-    def __init__(self) -> None:
-        super().__init__("hbi", "host", RbacResourceType.HOSTS, "inventory")
-        self.view = KesselPermission(self, "inventory_host_view", "view", RbacPermission.READ)
-        self.update = KesselPermission(self, "inventory_host_update", "update", RbacPermission.WRITE)
-        self.move = KesselPermission(self, "inventory_host_move", "move", RbacPermission.WRITE)
-        self.delete = KesselPermission(self, "inventory_host_delete", "delete", RbacPermission.WRITE)
-
-
-class WorkspaceKesselResourceType(KesselResourceType):
-    def __init__(self) -> None:
-        super().__init__("rbac", "workspace", RbacResourceType.GROUPS, "inventory")
-        self.move_host = KesselPermission(self, "inventory_host_move", "inventory_host_move", RbacPermission.WRITE)
-
-
-class GroupKesselResourceType(KesselResourceType):
-    def __init__(self) -> None:
-        super().__init__("hbi", "group", RbacResourceType.GROUPS, "inventory")
-        self.view = KesselPermission(self, "inventory_groups_view", "view", RbacPermission.READ)
-        self.write = KesselPermission(self, "inventory_groups_update", "edit", RbacPermission.WRITE)
-        self.delete = KesselPermission(self, "inventory_groups_update", "delete", RbacPermission.WRITE)
-        self.create = KesselPermission(self, "inventory_groups_update", "create", RbacPermission.WRITE)
-
-
-class StalenessKesselResourceType(KesselResourceType):
-    def get_resource_id(self, kwargs: dict[str, Any], id_param: str) -> list[str]:  # noqa: ARG002, overrides get_resource_id from KesselResourceType
-        from lib.middleware import get_rbac_default_workspace
-
-        workspace_id = get_rbac_default_workspace()
-        if workspace_id:
-            return [str(workspace_id)]
-        else:
-            return []
-
-    def __init__(self) -> None:
-        super().__init__("rbac", "workspace", RbacResourceType.STALENESS, "staleness")
-        self.view = KesselPermission(self, "staleness_staleness_view", "staleness_staleness_view", RbacPermission.READ)
-        self.update = KesselPermission(
-            self, "staleness_staleness_update", "staleness_staleness_update", RbacPermission.WRITE
-        )
-
-
-class AllKesselResourceType(KesselResourceType):
-    def __init__(self) -> None:
-        super().__init__("hbi", "all", RbacResourceType.ALL, "inventory")
-        self.admin = KesselPermission(self, "inventory_admin", "admin", RbacPermission.ADMIN)
-
-
-# Add more resource types as subclasses of KesselResourceType
-
-
-class KesselResourceTypes:
-    HOST = HostKesselResourceType()
-    WORKSPACE = WorkspaceKesselResourceType()
-    GROUP = GroupKesselResourceType()
-    STALENESS = StalenessKesselResourceType()
-    ALL = AllKesselResourceType()
-    # Expose resource type specific subclasses here
 
 
 def initialize_metrics(config):
@@ -412,14 +295,7 @@ def create_app(runtime_environment) -> connexion.FlaskApp:
         logger.warning(unleash_fallback_msg)
 
     db.init_app(flask_app)
-
-    if get_flag_value(
-        FLAG_INVENTORY_KESSEL_HOST_MIGRATION
-    ):  # Note: this won't work if we want to enable the flag while running or otherwise selectively,
-        # but it does allow us to completely disable the feature
-        from lib.kessel import init_kessel
-
-        init_kessel(app_config, flask_app)
+    init_kessel(app_config, flask_app)
 
     flask_app.register_blueprint(monitoring_blueprint, url_prefix=app_config.mgmt_url_path_prefix)
     for api_url in app_config.api_urls:

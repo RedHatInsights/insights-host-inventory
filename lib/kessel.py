@@ -9,8 +9,8 @@ from kessel.inventory.v1beta2 import resource_reference_pb2
 from kessel.inventory.v1beta2 import streamed_list_objects_request_pb2
 from kessel.inventory.v1beta2 import subject_reference_pb2
 
-from app import KesselPermission
 from app.auth.identity import Identity
+from app.auth.rbac import KesselPermission
 from app.config import Config
 from app.logging import get_logger
 

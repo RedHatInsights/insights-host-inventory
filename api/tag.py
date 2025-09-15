@@ -7,7 +7,7 @@ from api import flask_json_response
 from api import metrics
 from api import pagination_params
 from api.host_query_db import get_tag_list as get_tag_list_db
-from app import KesselResourceTypes
+from app.auth.rbac import KesselResourceTypes
 from app.instrumentation import log_get_tags_failed
 from app.instrumentation import log_get_tags_succeeded
 from app.logging import get_logger

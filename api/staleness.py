@@ -19,10 +19,10 @@ from api import metrics
 from api.cache import delete_cached_system_keys
 from api.host_query import staleness_timestamps
 from api.staleness_query import get_staleness_obj
-from app import KesselResourceTypes
 from app.auth import get_current_identity
 from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
+from app.auth.rbac import KesselResourceTypes
 from app.instrumentation import log_create_staleness_failed
 from app.instrumentation import log_create_staleness_succeeded
 from app.instrumentation import log_patch_staleness_succeeded

@@ -21,13 +21,13 @@ from requests.packages.urllib3.util.retry import Retry
 from api.metrics import outbound_http_response_time
 from app import IDENTITY_HEADER
 from app import REQUEST_ID_HEADER
-from app import KesselPermission
-from app import KesselResourceTypes
-from app import RbacPermission
-from app import RbacResourceType
 from app.auth import get_current_identity
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
+from app.auth.rbac import KesselPermission
+from app.auth.rbac import KesselResourceTypes
+from app.auth.rbac import RbacPermission
+from app.auth.rbac import RbacResourceType
 from app.common import inventory_config
 from app.exceptions import ResourceNotFoundException
 from app.instrumentation import rbac_failure
