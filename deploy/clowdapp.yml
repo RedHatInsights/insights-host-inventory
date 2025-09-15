@@ -2076,7 +2076,7 @@ objects:
             "spd"."workloads"->'sap' AS "sap_workload",
             "sps"."rhc_client_id" AS "rhc_client_id"
           FROM "hbi"."hosts" AS "h"
-          JOIN "hbi"."system_profiles_static" AS "sps"
+          LEFT JOIN "hbi"."system_profiles_static" AS "sps"
             ON "h"."org_id" = "sps"."org_id" AND "h"."id" = "sps"."host_id"
           LEFT JOIN "hbi"."system_profiles_dynamic" AS "spd"
             ON "h"."org_id" = "spd"."org_id" AND "h"."id" = "spd"."host_id"
