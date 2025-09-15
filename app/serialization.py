@@ -245,15 +245,21 @@ def serialize_group_without_host_count(group: Group) -> dict:
 
 
 def serialize_workspace_without_host_count(group: dict) -> dict:
-    return {
-        "name": group["name"],
-        "id": _serialize_uuid(group["id"]),
-        "org_id": get_current_identity().org_id,
-        "description": group["description"],
-        "type": group["type"],
-        "created": group["created"],
-        "updated": group["modified"],
-    }
+    if isinstance(group, dict):
+        serialized_group = {
+            "name": group["name"],
+            "id": _serialize_uuid(group["id"]),
+            "parent_id": group["parent_id"] or None,
+            "org_id": get_current_identity().org_id,
+            "description": group["description"],
+            "type": group["type"],
+            "created": group["created"],
+            "updated": group["modified"],
+        }
+    else:  # group object created by rbac_v1 is of type "app.models.group.Group"
+        serialized_group = serialize_group_without_host_count(group)
+
+    return serialized_group
 
 
 def serialize_group_with_host_count(group: Group, host_count: int) -> dict:

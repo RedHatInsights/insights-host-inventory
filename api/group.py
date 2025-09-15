@@ -69,7 +69,7 @@ def get_group_list(
     rbac_filter=None,
 ):
     try:
-        if get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1):
+        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION) or get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1):
             group_list = get_rbac_workspaces(name, group_type)
             total = len(group_list)
         else:

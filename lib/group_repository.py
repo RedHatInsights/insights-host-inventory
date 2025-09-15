@@ -518,8 +518,9 @@ def get_ungrouped_group(identity: Identity) -> Group:
 
 
 def serialize_group(group: Group) -> dict:
-    host_count = get_non_culled_hosts_count_in_group(group, get_current_identity().org_id)
-    if get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1):
+    org_id = group.org_id or get_current_identity().org_id
+    host_count = get_non_culled_hosts_count_in_group(group, org_id)
+    if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION) or get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1):
         serialized_group = serialize_workspace_with_host_count(group, host_count)
     else:
         serialized_group = serialize_group_with_host_count(group, host_count)
