@@ -75,15 +75,6 @@ class WorkspaceKesselResourceType(KesselResourceType):
         self.move_host = KesselPermission(self, "inventory_host_move", "inventory_host_move", RbacPermission.WRITE)
 
 
-class GroupKesselResourceType(KesselResourceType):
-    def __init__(self) -> None:
-        super().__init__("hbi", "group", RbacResourceType.GROUPS, "inventory")
-        self.view = KesselPermission(self, "inventory_groups_view", "view", RbacPermission.READ)
-        self.write = KesselPermission(self, "inventory_groups_update", "edit", RbacPermission.WRITE)
-        self.delete = KesselPermission(self, "inventory_groups_update", "delete", RbacPermission.WRITE)
-        self.create = KesselPermission(self, "inventory_groups_update", "create", RbacPermission.WRITE)
-
-
 class StalenessKesselResourceType(KesselResourceType):
     def get_resource_id(self, kwargs: dict[str, Any], id_param: str) -> list[str]:  # noqa: ARG002, overrides get_resource_id from KesselResourceType
         from lib.middleware import get_rbac_default_workspace
@@ -114,7 +105,6 @@ class AllKesselResourceType(KesselResourceType):
 class KesselResourceTypes:
     HOST = HostKesselResourceType()
     WORKSPACE = WorkspaceKesselResourceType()
-    GROUP = GroupKesselResourceType()
     STALENESS = StalenessKesselResourceType()
     ALL = AllKesselResourceType()
     # Expose resource type specific subclasses here
