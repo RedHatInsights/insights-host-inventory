@@ -38,7 +38,7 @@ def create_partitioned_table_index(
     Args:
         table_name: Name of the parent table (without schema prefix)
         index_name: Name for the index (will be prefixed for partitions)
-        index_definition: The column definition for the index (e.g., "(column1, column2)")
+        index_definition: The column definition for the index (e.g., "(column1, column2)" or "((jsonb_col -> 'key'))")
         num_partitions: Number of partitions (0 to num_partitions-1). Defaults to HOSTS_TABLE_NUM_PARTITIONS env var
         schema: Database schema name. Defaults to INVENTORY_SCHEMA
         unique: Create an UNIQUE index. Defaults to False
@@ -71,16 +71,13 @@ def create_partitioned_table_index(
         # For automated mode (local, ephemeral, on-premise), create index directly on parent table
         logger.info(f"Creating index '{index_name}' directly on parent table '{schema}.{table_name}'")
 
-        # Parse index definition to extract columns for op.create_index
-        columns_str = index_definition.strip("()")
-        columns = [col.strip() for col in columns_str.split(",")]
+        unique_clause = "UNIQUE" if unique else ""
 
-        op.create_index(
-            index_name,
-            table_name,
-            columns,
-            unique=unique,
-            schema=schema,
+        op.execute(
+            text(f"""
+                CREATE {unique_clause} INDEX IF NOT EXISTS {index_name}
+                ON {schema}.{table_name} {index_definition};
+            """)
         )
 
         logger.info(f"Successfully created index '{index_name}' on parent table")
