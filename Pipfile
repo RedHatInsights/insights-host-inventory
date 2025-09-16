@@ -38,9 +38,12 @@ setuptools = "~=80.9.0"
 certifi = "~=2025.7.14"
 ratelimit = "*"
 confluent-kafka = "==2.10.1"
-unleashclient = "==5.12.2"
 inventory-grpc-clients-python-kessel-project = "*"
 googleapis-common-protos = "*"
+# pinning versions of transitive dependencies to avoid hermetic build issues
+unleashclient = "==5.12.2"
+rpds-py = "==0.23.1"
+
 
 [dev-packages]
 pytest = "~=8.4.1"
