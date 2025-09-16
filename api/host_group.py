@@ -33,11 +33,13 @@ logger = get_logger(__name__)
 # (V1 doesn't require any host permissions to move a host but does require write group permission on the origin
 # and destination, which this preserves)
 @metrics.api_request_time.time()
-def add_host_list_to_group(group_id, body, rbac_filter=None):
-    if type(body) is not list:
-        return abort(HTTPStatus.BAD_REQUEST, f"Body content must be an array with system UUIDs, not {type(body)}")
+def add_host_list_to_group(group_id, host_id_list, rbac_filter=None):
+    if type(host_id_list) is not list:
+        return abort(
+            HTTPStatus.BAD_REQUEST, f"Body content must be an array with system UUIDs, not {type(host_id_list)}"
+        )
 
-    if len(body) == 0:
+    if len(host_id_list) == 0:
         return abort(HTTPStatus.BAD_REQUEST, "Body content must be an array with system UUIDs, not an empty array")
 
     rbac_group_id_check(rbac_filter, {group_id})
@@ -49,13 +51,13 @@ def add_host_list_to_group(group_id, body, rbac_filter=None):
         log_patch_group_failed(logger, group_id)
         return abort(HTTPStatus.NOT_FOUND)
 
-    host_id_list = body
+    host_id_list = host_id_list
     if not get_host_list_by_id_list_from_db(host_id_list, identity):
         return abort(HTTPStatus.NOT_FOUND)
 
     # Next, add the host-group associations
     if host_id_list is not None:
-        add_hosts_to_group(group_id, body, identity, current_app.event_producer)
+        add_hosts_to_group(group_id, host_id_list, identity, current_app.event_producer)
 
     updated_group = get_group_by_id_from_db(group_id, identity.org_id)
     log_host_group_add_succeeded(logger, host_id_list, group_id)
