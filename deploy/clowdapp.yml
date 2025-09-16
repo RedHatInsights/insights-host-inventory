@@ -2061,21 +2061,25 @@ objects:
             "created_on" AS "created_at",
             "modified_on" AS "updated_at",
             "ansible_host" AS "ansible_host",
-            CONCAT_WS('.',"system_profile_facts"->'operating_system'->>'name',"system_profile_facts"->'operating_system'->'major',"system_profile_facts"->'operating_system'->'minor') AS "os_version",
-            "system_profile_facts"->'host_type' AS "host_type",
-            "system_profile_facts"->'ansible'->'controller_version' AS "ansible_controller_version",
-            "system_profile_facts"->'ansible'->'hub_version' AS "ansible_hub_version",
-            "system_profile_facts"->'rhsm'->'version' AS "rhsm_version",
-            "system_profile_facts"->'is_marketplace' AS "is_marketplace_installation",
-            "system_profile_facts"->'insights_client_version' AS "insights_client_version",
-            "system_profile_facts"->'insights_egg_version' AS "insights_egg_version",
-            "system_profile_facts"->'satellite_managed' AS "is_satellite_managed",
-            "system_profile_facts"->'subscription_status' AS "subscription_status",
-            "system_profile_facts"->'ansible' AS "ansible_workload",
-            "system_profile_facts"->'mssql' AS "mssql_workload",
-            "system_profile_facts"->'sap' AS "sap_workload",
-            "system_profile_facts"->'rhc_client_id' AS "rhc_client_id"
-          FROM "hbi"."hosts"
+            CONCAT_WS('.',"sps"."operating_system"->>'name',"sps"."operating_system"->'major',"sps"."operating_system"->'minor') AS "os_version",
+            "sps"."host_type" AS "host_type",
+            "spd"."workloads"->'ansible'->'controller_version' AS "ansible_controller_version",
+            "spd"."workloads"->'ansible'->'hub_version' AS "ansible_hub_version",
+            "sps"."rhsm"->'version' AS "rhsm_version",
+            "sps"."is_marketplace" AS "is_marketplace_installation",
+            "sps"."insights_client_version" AS "insights_client_version",
+            "spd"."insights_egg_version" AS "insights_egg_version",
+            "sps"."satellite_managed" AS "is_satellite_managed",
+            "sps"."subscription_status" AS "subscription_status",
+            "spd"."workloads"->'ansible' AS "ansible_workload",
+            "spd"."workloads"->'mssql' AS "mssql_workload",
+            "spd"."workloads"->'sap' AS "sap_workload",
+            "sps"."rhc_client_id" AS "rhc_client_id"
+          FROM "hbi"."hosts" AS "h"
+          LEFT JOIN "hbi"."system_profiles_static" AS "sps"
+            ON "h"."org_id" = "sps"."org_id" AND "h"."id" = "sps"."host_id"
+          LEFT JOIN "hbi"."system_profiles_dynamic" AS "spd"
+            ON "h"."org_id" = "spd"."org_id" AND "h"."id" = "spd"."host_id"
 - apiVersion: metrics.console.redhat.com/v1alpha1
   kind: FloorPlan
   metadata:
