@@ -268,13 +268,13 @@ def get_kessel_filter(
     if len(ids) > 0:
         if permission.write_operation:
             # Write specific object(s) by id(s)
-            if kessel_client.CheckForUpdate(current_identity, permission, ids):
+            if kessel_client.check_for_update(current_identity, permission, ids):
                 return True, None
             else:
                 return False, None  # The objects are not authorized - reject the request.
         else:
             # Read specific object(s) by id(s)
-            if kessel_client.Check(current_identity, permission, ids):
+            if kessel_client.check(current_identity, permission, ids):
                 return True, None  # No need to apply a filter - the objects are authorized
             else:
                 return False, None  # The objects are not authorized - reject the request.

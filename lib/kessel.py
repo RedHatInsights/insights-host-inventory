@@ -40,7 +40,7 @@ class Kessel:
 
         return False  # Fail closed by default
 
-    def Check(self, current_identity: Identity, permission: KesselPermission, ids: list[str]) -> bool:
+    def check(self, current_identity: Identity, permission: KesselPermission, ids: list[str]) -> bool:
         """
         Check if the current user has permission to access the specified resources.
         Automatically handles single or bulk checks based on the number of IDs provided.
@@ -66,7 +66,7 @@ class Kessel:
             logger.error(f"Kessel Check failed: {str(e)}", exc_info=True)
             return False
 
-    def CheckForUpdate(self, current_identity: Identity, permission: KesselPermission, ids: list[str]) -> bool:
+    def check_for_update(self, current_identity: Identity, permission: KesselPermission, ids: list[str]) -> bool:
         """
         Check if the current user has permission to update the specified resources.
         Automatically handles single or bulk checks based on the number of IDs provided.
@@ -82,14 +82,14 @@ class Kessel:
                 # Bulk update check - all resources must be updatable
                 return self._check_bulk_resources_for_update(subject_ref, permission, ids)
             else:
-                # No specific IDs - this shouldn't happen in normal CheckForUpdate flow
-                logger.warning("CheckForUpdate called with empty ID list")
+                # No specific IDs - this shouldn't happen in normal check_for_update flow
+                logger.warning("check_for_update called with empty ID list")
                 return False
 
         except grpc.RpcError as e:
-            return self._handle_grpc_error(e, "CheckForUpdate")
+            return self._handle_grpc_error(e, "check_for_update")
         except Exception as e:
-            logger.error(f"Kessel CheckForUpdate failed: {str(e)}", exc_info=True)
+            logger.error(f"Kessel check_for_update failed: {str(e)}", exc_info=True)
             return False
 
     def _build_subject_reference(self, current_identity: Identity) -> subject_reference_pb2.SubjectReference:
@@ -163,7 +163,7 @@ class Kessel:
             object=object_ref,
         )
 
-        response = self.inventory_svc.CheckForUpdate(request, timeout=self.timeout)
+        response = self.inventory_svc.check_for_update(request, timeout=self.timeout)
         return response.allowed == allowed_pb2.Allowed.ALLOWED_TRUE
 
     def _check_bulk_resources_for_update(
