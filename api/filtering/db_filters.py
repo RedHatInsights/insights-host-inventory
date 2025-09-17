@@ -547,7 +547,7 @@ def query_filters(
         query_base = query_base.join(HostDynamicSystemProfile, isouter=True)
 
     # Add system profile table joins if system profile filters are used
-    if filter and filter.get("system_profile"):
+    if (filter and filter.get("system_profile")) or system_type:
         query_base = query_base.join(
             HostStaticSystemProfile,
             and_(Host.org_id == HostStaticSystemProfile.org_id, Host.id == HostStaticSystemProfile.host_id),
