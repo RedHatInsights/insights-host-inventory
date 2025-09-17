@@ -8,6 +8,7 @@ from app.models import Group
 from app.models import HostGroupAssoc
 from app.models import db
 from lib.group_repository import serialize_group
+from lib.group_repository import serialize_workspace
 
 logger = get_logger(__name__)
 
@@ -141,5 +142,19 @@ def build_paginated_group_list_response(total, page, per_page, group_list):
     }
 
 
+def build_paginated_workspace_list_response(total, page, per_page, group_list):
+    json_group_list = [serialize_workspace(group) for group in group_list]
+    return {
+        "total": total,
+        "count": len(json_group_list),
+        "page": page,
+        "per_page": per_page,
+        "results": json_group_list,
+    }
+
+
 def build_group_response(group):
     return serialize_group(group)
+
+def get_host_count_by_group_id(group_id: str):
+    return HostGroupAssoc.query.filter(HostGroupAssoc.group_id == group_id, HostGroupAssoc.org_id == get_current_identity().org_id).count()

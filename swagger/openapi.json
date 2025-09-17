@@ -673,6 +673,56 @@
         }
       }
     },
+    "/workspaces": {
+      "get": {
+        "operationId": "api.group.get_workspaces_list",
+        "tags": [
+          "groups"
+        ],
+        "summary": "Read the entire list of groups",
+        "description": "Read the entire list of all groups available to the account. <br /><br /> Required permissions: inventory:groups:read",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/groupName"
+          },
+          {
+            "$ref": "#/components/parameters/perPageParam"
+          },
+          {
+            "$ref": "#/components/parameters/pageParam"
+          },
+          {
+            "$ref": "#/components/parameters/groupOrderByParam"
+          },
+          {
+            "$ref": "#/components/parameters/groupOrderHowParam"
+          },
+          {
+            "$ref": "#/components/parameters/workspaceTypeParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully read the groups list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupQueryOutput"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Groups not found."
+          }
+        }
+      }
+    },
     "/groups": {
       "get": {
         "operationId": "api.group.get_group_list",
