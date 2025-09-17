@@ -72,6 +72,7 @@ def _convert_dict_to_column_jsonb_path_pg_op_value(filter: dict) -> tuple[Any, t
             getattr(HostDynamicSystemProfile, key) if key in DYNAMIC_FIELDS else getattr(HostStaticSystemProfile, key)
         )
     except AttributeError as e:
+        logger.error(f"Field {key} not found in system profile. Exception: {e}")
         raise ValidationException(f"Field {key} not found in system profile.") from e
 
     jsonb_path, pg_op, value = _convert_dict_to_json_path_and_value(filter)
