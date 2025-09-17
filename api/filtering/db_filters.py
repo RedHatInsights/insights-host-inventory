@@ -546,16 +546,4 @@ def query_filters(
     if needs_dynamic_join:
         query_base = query_base.join(HostDynamicSystemProfile, isouter=True)
 
-    # Add system profile table joins if system profile filters are used
-    if (filter and filter.get("system_profile")) or system_type:
-        query_base = query_base.join(
-            HostStaticSystemProfile,
-            and_(Host.org_id == HostStaticSystemProfile.org_id, Host.id == HostStaticSystemProfile.host_id),
-            isouter=True,
-        ).join(
-            HostDynamicSystemProfile,
-            and_(Host.org_id == HostDynamicSystemProfile.org_id, Host.id == HostDynamicSystemProfile.host_id),
-            isouter=True,
-        )
-
     return filters, query_base
