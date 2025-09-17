@@ -352,9 +352,7 @@ def access(permission: KesselPermission, id_param: str = ""):
                 kessel_client = get_kessel_client(current_app)
                 ids = permission.resource_type.get_resource_id(kwargs, id_param)
 
-                allowed, rbac_filter = get_kessel_filter(
-                    kessel_client, current_identity, permission, ids, permission.write_operation
-                )
+                allowed, rbac_filter = get_kessel_filter(kessel_client, current_identity, permission, ids)
             else:
                 allowed, rbac_filter = get_rbac_filter(
                     permission.resource_type.v1_type,

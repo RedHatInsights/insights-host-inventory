@@ -595,7 +595,7 @@ def get_host_exists(insights_id, rbac_filter=None):
     if (not inventory_config().bypass_rbac) and get_flag_value(FLAG_INVENTORY_KESSEL_HOST_MIGRATION):
         kessel_client = get_kessel_client(current_app)
         allowed, _ = get_kessel_filter(  # Kind of a duplicate Kessel call too
-            kessel_client, current_identity, KesselResourceTypes.HOST.view, [host_id], False
+            kessel_client, current_identity, KesselResourceTypes.HOST.view, [host_id]
         )
         if not allowed:
             flask.abort(HTTPStatus.NOT_FOUND)
