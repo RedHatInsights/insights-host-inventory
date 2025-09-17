@@ -8,9 +8,8 @@ from api import api_operation
 from api import flask_json_response
 from api import metrics
 from api.group_query import build_group_response
-from app import RbacPermission
-from app import RbacResourceType
 from app.auth import get_current_identity
+from app.auth.rbac import KesselResourceTypes
 from app.instrumentation import log_host_group_add_succeeded
 from app.instrumentation import log_patch_group_failed
 from app.logging import get_logger
@@ -20,20 +19,27 @@ from lib.group_repository import add_hosts_to_group
 from lib.group_repository import get_group_by_id_from_db
 from lib.group_repository import remove_hosts_from_group
 from lib.host_repository import get_host_list_by_id_list_from_db
-from lib.middleware import rbac
+from lib.middleware import access
 from lib.middleware import rbac_group_id_check
 
 logger = get_logger(__name__)
 
 
 @api_operation
-@rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
+@access(
+    KesselResourceTypes.WORKSPACE.move_host
+)  # NOTE: this -could- use the group_id param to check the group and the body to check the hosts by id instead
+# of doing a lookupresources, but it's being kept this way for now for backward comaptibility
+# (V1 doesn't require any host permissions to move a host but does require write group permission on the origin
+# and destination, which this preserves)
 @metrics.api_request_time.time()
-def add_host_list_to_group(group_id, body, rbac_filter=None):
-    if type(body) is not list:
-        return abort(HTTPStatus.BAD_REQUEST, f"Body content must be an array with system UUIDs, not {type(body)}")
+def add_host_list_to_group(group_id, host_id_list, rbac_filter=None):
+    if type(host_id_list) is not list:
+        return abort(
+            HTTPStatus.BAD_REQUEST, f"Body content must be an array with system UUIDs, not {type(host_id_list)}"
+        )
 
-    if len(body) == 0:
+    if len(host_id_list) == 0:
         return abort(HTTPStatus.BAD_REQUEST, "Body content must be an array with system UUIDs, not an empty array")
 
     rbac_group_id_check(rbac_filter, {group_id})
@@ -45,13 +51,13 @@ def add_host_list_to_group(group_id, body, rbac_filter=None):
         log_patch_group_failed(logger, group_id)
         return abort(HTTPStatus.NOT_FOUND)
 
-    host_id_list = body
+    host_id_list = host_id_list
     if not get_host_list_by_id_list_from_db(host_id_list, identity):
         return abort(HTTPStatus.NOT_FOUND)
 
     # Next, add the host-group associations
     if host_id_list is not None:
-        add_hosts_to_group(group_id, body, identity, current_app.event_producer)
+        add_hosts_to_group(group_id, host_id_list, identity, current_app.event_producer)
 
     updated_group = get_group_by_id_from_db(group_id, identity.org_id)
     log_host_group_add_succeeded(logger, host_id_list, group_id)
@@ -59,7 +65,12 @@ def add_host_list_to_group(group_id, body, rbac_filter=None):
 
 
 @api_operation
-@rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
+@access(
+    KesselResourceTypes.WORKSPACE.move_host
+)  # NOTE: this -could- use the group_id param to check the group and the body to check the hosts by id instead
+# of doing a lookupresources, but it's being kept this way for now for backward comaptibility
+# (V1 doesn't require any host permissions to move a host but does require write group permission on the
+# origin and destination, which this preserves)
 @metrics.api_request_time.time()
 def delete_hosts_from_group(group_id, host_id_list, rbac_filter=None):
     rbac_group_id_check(rbac_filter, {group_id})
