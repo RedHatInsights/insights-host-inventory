@@ -6,8 +6,8 @@ from api import metrics
 from api.group_query import get_filtered_group_list_db
 from api.resource_query import build_paginated_resource_list_response
 from api.resource_query import get_resources_types
-from app import RbacPermission
-from app import RbacResourceType
+from app.auth.rbac import RbacPermission
+from app.auth.rbac import RbacResourceType
 from app.instrumentation import log_get_group_list_failed
 from app.instrumentation import log_get_group_list_succeeded
 from app.instrumentation import log_get_resource_type_list_failed
