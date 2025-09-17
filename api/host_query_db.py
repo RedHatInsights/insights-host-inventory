@@ -16,8 +16,8 @@ from sqlalchemy.orm import load_only
 from sqlalchemy.sql import expression
 from sqlalchemy.sql.expression import ColumnElement
 
-from api.filtering.db_filters import canonical_fact_filter
 from api.filtering.db_filters import host_id_list_filter
+from api.filtering.db_filters import hosts_field_filter
 from api.filtering.db_filters import query_filters
 from api.filtering.db_filters import rbac_permissions_filter
 from api.filtering.db_filters import update_query_for_owner_id
@@ -182,7 +182,7 @@ def get_host_list_by_id_list(
 
 def get_host_id_by_insights_id(insights_id: str, rbac_filter=None) -> str | None:
     identity = get_current_identity()
-    all_filters = canonical_fact_filter("insights_id", insights_id) + rbac_permissions_filter(rbac_filter)
+    all_filters = hosts_field_filter("insights_id", insights_id, False) + rbac_permissions_filter(rbac_filter)
     query = _find_hosts_entities_query(columns=[Host.id], identity=identity).filter(*all_filters)
 
     try:
