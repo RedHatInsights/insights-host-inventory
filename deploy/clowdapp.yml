@@ -2094,7 +2094,7 @@ objects:
             "spd"."workloads"->'ansible' AS "ansible_workload",
             "spd"."workloads"->'mssql' AS "mssql_workload",
             "spd"."workloads"->'sap' AS "sap_workload",
-            "sps"."rhc_client_id" AS "rhc_client_id"
+            "sps"."rhc_client_id"::text AS "rhc_client_id"
           FROM "hbi"."hosts" AS "h"
           LEFT JOIN "hbi"."system_profiles_static" AS "sps"
             ON "h"."org_id" = "sps"."org_id" AND "h"."id" = "sps"."host_id"
