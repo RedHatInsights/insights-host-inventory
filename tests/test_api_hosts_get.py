@@ -278,15 +278,18 @@ def test_get_hosts_with_RBAC_bypassed_as_system(db_create_host, api_get):
     assert_response_status(response_status, 200)
 
 
-def test_get_hosts_sap_system_bad_parameter_values(api_get):
-    implicit_url = build_hosts_url(query="?filter[system_profile][sap_system]=Garfield")
-    eq_url = build_hosts_url(query="?filter[system_profile][sap_system][eq]=Garfield")
+@pytest.mark.parametrize(
+    "query",
+    (
+        "?filter[system_profile][workloads][sap_system]=Garfield",
+        "?filter[system_profile][workloads][sap_system][eq]=Garfield",
+    ),
+)
+def test_get_hosts_sap_system_bad_parameter_values(api_get, query):
+    implicit_url = build_hosts_url(query=query)
+    status, _ = api_get(implicit_url)
 
-    implicit_response_status, _ = api_get(implicit_url)
-    eq_response_status, _ = api_get(eq_url)
-
-    assert_response_status(implicit_response_status, 400)
-    assert_response_status(eq_response_status, 400)
+    assert_response_status(status, 400)
 
 
 @pytest.mark.parametrize(
@@ -1251,9 +1254,9 @@ def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
         "[insights_client_version]=3.0.1-2.el4_2",
         "[insights_client_version]=3.0.*",
         "[host_type]=edge",
-        "[sap][sap_system]=true",
-        "[sap][sap_system]=True",
-        "[sap][sap_system]=TRUE",
+        "[workloads][sap][sap_system]=true",
+        "[workloads][sap][sap_system]=True",
+        "[workloads][sap][sap_system]=TRUE",
         "[is_marketplace]=false",
         "[is_marketplace]=False",
         "[is_marketplace]=FALSE",
@@ -1264,14 +1267,12 @@ def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
         "[greenboot_status][is][]=nil",
         "[host_type][]=not_nil",
         "[bootc_status][booted][image]=quay.io*",
-        "[sap_sids][contains][]=ABC",
-        "[sap_sids][contains][]=ABC&filter[system_profile][sap_sids][contains][]=DEF",
-        "[sap_sids][contains]=ABC",
-        "[sap_sids][]=ABC",
-        "[sap][sids][contains][]=ABC&filter[system_profile][sap][sids][contains][]=DEF",
-        "[sap][sids][contains][]=ABC",
-        "[sap][sids][contains]=ABC",
-        "[sap][sids][]=ABC",
+        "[workloads][sap][sids][contains][]=ABC",
+        "[workloads][sap][sids][contains][]=ABC&filter[system_profile][workloads][sap][sids][contains][]=DEF",
+        "[workloads][sap][sids][contains]=ABC",
+        "[workloads][sap][sids][]=ABC",
+        "[workloads][sap][sids][contains][]=ABC&filter[system_profile][workloads][sap][sids][contains][]=DEF",
+        "[workloads][sap][sids][]=not_nil",
         "[systemd][failed_services][contains][]=foo",
         "[system_memory_bytes][lte]=9000000000000000",
         "[system_memory_bytes][eq]=8292048963606259",
@@ -1279,8 +1280,6 @@ def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
         "[number_of_cpus]=nil",
         "[bios_version]=2.0/3.5A",
         "[cpu_flags][]=nil",
-        "[sap_sids][]=not_nil",
-        "[sap][sids][]=not_nil",
     ),
 )
 def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
@@ -1290,9 +1289,8 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
             "arch": "x86_64",
             "insights_client_version": "3.0.1-2.el4_2",
             "host_type": "edge",
-            "sap": {"sap_system": True, "sids": ["ABC", "DEF"]},
             "bootc_status": {"booted": {"image": "quay.io/centos-bootc/fedora-bootc-cloud:eln"}},
-            "sap_sids": ["ABC", "DEF"],
+            "workloads": {"sap": {"sap_system": True, "sids": ["ABC", "DEF"]}},
             "is_marketplace": False,
             "systemd": {"failed_services": ["foo", "bar"]},
             "system_memory_bytes": 8292048963606259,
@@ -1308,7 +1306,7 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
             "cpu_flags": ["ex1", "ex2"],
             "insights_client_version": "1.2.3",
             "greenboot_status": "green",
-            "sap": {"sap_system": False},
+            "workloads": {"sap": {"sap_system": False}},
             "bootc_status": {"booted": {"image": "192.168.0.1:5000/foo/foo:latest"}},
             "is_marketplace": True,
             "number_of_cpus": 8,
@@ -1376,7 +1374,7 @@ def test_query_host_fuzzy_match(db_create_host, api_get, query_filter_param, mat
         "[arch]=x86",  # EQ field, no wildcard
         "[host_type]=",  # Valid bc it's a string field, but no match
         "[host_type][eq]=",  # Same for this one
-        "[sap][sids][contains][]=ABC&filter[system_profile][sap][sids][contains][]=GHI",
+        "[workloads][sap][sids][contains][]=ABC&filter[system_profile][workloads][sap][sids][contains][]=GHI",
     ),
 )
 def test_query_all_sp_filters_not_found(db_create_host, api_get, sp_filter_param):
@@ -1385,7 +1383,7 @@ def test_query_all_sp_filters_not_found(db_create_host, api_get, sp_filter_param
         "system_profile_facts": {
             "arch": "x86_64",
             "host_type": "edge",
-            "sap_sids": ["ABC", "DEF"],
+            "workloads": {"sap": {"sap_system": True, "sids": ["ABC", "DEF"]}},
             "system_memory_bytes": 8192,
         }
     }
@@ -1597,6 +1595,7 @@ def test_query_all_operating_system_nil(
         str(db_create_host(extra_data={"system_profile_facts": {"operating_system": os_data}}).id)
         for os_data in os_match_data_list
     ]
+
     if os_nomatch_data_list:
         nomatch_host_id_list = [
             str(db_create_host(extra_data={"system_profile_facts": {"operating_system": os_data}}).id)

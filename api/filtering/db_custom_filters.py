@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from sqlalchemy import Integer
 from sqlalchemy import and_
 from sqlalchemy import func
@@ -16,7 +18,9 @@ from api.filtering.filtering_common import get_valid_os_names
 from app import system_profile_spec
 from app.exceptions import ValidationException
 from app.logging import get_logger
-from app.models import Host
+from app.models.system_profile_dynamic import HostDynamicSystemProfile
+from app.models.system_profile_static import HostStaticSystemProfile
+from app.models.system_profile_transformer import DYNAMIC_FIELDS
 
 logger = get_logger(__name__)
 
@@ -56,7 +60,27 @@ def _check_field_in_spec(spec: dict, field_name: str, parent_node: str) -> None:
 
 
 # Takes a filter dict and converts it into:
-#   jsonb_path: The jsonb path, i.e. (system_profile_facts, sap, sap_system,)
+#   column: The target column
+#   jsonb_path: The jsonb path, i.e. (operating_system, cpu_flags) (first element omitted)
+#   pg_op: The comparison to use (e.g. =, >, <)
+#   value: The filter's value
+def _convert_dict_to_column_jsonb_path_pg_op_value(filter: dict) -> tuple[Any, tuple[str, ...], str | None, str]:
+    key: str = next(iter(filter.keys()))
+    try:
+        column = (
+            getattr(HostDynamicSystemProfile, key) if key in DYNAMIC_FIELDS else getattr(HostStaticSystemProfile, key)
+        )
+    except AttributeError as e:
+        raise ValidationException(f"Field {key} not found in system profile.") from e
+
+    jsonb_path, pg_op, value = _convert_dict_to_json_path_and_value(filter)
+    # Omit the first element from the jsonb_path tuple
+    omitted_jsonb_path = jsonb_path[1:] if jsonb_path else ()
+    return column, omitted_jsonb_path, pg_op, value
+
+
+# Takes a filter dict and converts it into:
+#   jsonb_path: The jsonb path, i.e. (system_profile_facts, sap, sap_system)
 #   pg_op: The comparison to use (e.g. =, >, <)
 #   value: The filter's value
 def _convert_dict_to_json_path_and_value(
@@ -154,7 +178,8 @@ def separate_operating_system_filters(filter_url_params) -> list[OsFilter]:
 def build_operating_system_filter(filter_param: dict) -> tuple:
     os_filter_list = []  # Top-level filter
     os_range_filter_list = []  # Contains the OS filters that use range operations
-    os_field = Host.system_profile_facts["operating_system"]
+
+    os_field = HostStaticSystemProfile.operating_system
 
     separated_filters = separate_operating_system_filters(filter_param["operating_system"])
 
@@ -163,7 +188,7 @@ def build_operating_system_filter(filter_param: dict) -> tuple:
 
         if os_filter.comparator in ["nil", "not_nil"]:
             # Uses the comparator with None, resulting in either is_(None) or is_not(None)
-            os_filter_list.append(os_field.astext.operate(comparator, None))
+            os_filter_list.append(os_field.operate(comparator, None))
 
         elif os_filter.comparator in ["eq", "neq"]:
             os_filters = [
@@ -282,13 +307,11 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
         logger.debug(f"generating filter: field: {field_name}, type: {field_filter}, field_input: {field_input}")
 
         value: str | None
-        jsonb_path, pg_op, value = _convert_dict_to_json_path_and_value(filter_param)
-        # For single-level paths, use ->> operator; for nested paths, use #>> operator
-        # This ensures we match the indexes which use ->> for single-level fields
-        if len(jsonb_path) == 1:
-            target_field = Host.system_profile_facts[jsonb_path[0]].astext
-        else:
-            target_field = Host.system_profile_facts[(jsonb_path)].astext
+        column, jsonb_path, pg_op, value = _convert_dict_to_column_jsonb_path_pg_op_value(filter_param)
+
+        # Use the new SP table
+        # The first node in jsonb_path is the column name
+        target_field = column[(jsonb_path)].astext if jsonb_path else column
         _validate_pg_op_and_value(pg_op, value, field_filter, field_name)
 
         # Use the default comparator for the field type, if not provided
