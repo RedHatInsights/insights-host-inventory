@@ -1,14 +1,22 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["github>konflux-ci/mintmaker//config/renovate/renovate.json"],
+  "extends": [
+    "github>konflux-ci/mintmaker//config/renovate/renovate.json"
+  ],
   "ignorePaths": [
     "Pipfile",
     ".hermetic_builds/**"
   ],
-  "baseBranches": ["master"],
+  "baseBranchPatterns": [
+    "master"
+  ],
   "tekton": {
-    "includePaths": ["pipelines/**"],
-    "schedule": ["at any time"]
+    "includePaths": [
+      "pipelines/**"
+    ],
+    "schedule": [
+      "at any time"
+    ]
   },
   "pip_requirements": {
     "enabled": false
