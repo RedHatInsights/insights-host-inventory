@@ -566,7 +566,7 @@ def get_rbac_default_workspace() -> UUID | None:
     return data[0]["id"] if data and len(data) > 0 else None
 
 
-def get_rbac_workspaces(name, group_type) -> list[dict] | None:
+def get_rbac_workspaces(name: str, group_type: str) -> list[dict] | None:
     if inventory_config().bypass_rbac:
         return None
 
