@@ -163,7 +163,7 @@ class Kessel:
             object=object_ref,
         )
 
-        response = self.inventory_svc.check_for_update(request, timeout=self.timeout)
+        response = self.inventory_svc.CheckForUpdate(request, timeout=self.timeout)
         return response.allowed == allowed_pb2.Allowed.ALLOWED_TRUE
 
     def _check_bulk_resources_for_update(
