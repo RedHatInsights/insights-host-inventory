@@ -26,9 +26,9 @@ class Staleness(db.Model):
         conventional_time_to_stale_warning=None,
         conventional_time_to_delete=None,
         # The following immutable arguments are no longer used and will be removed in a follow-up PR.
-        immutable_time_to_stale=None,  # noqa: ARG002
-        immutable_time_to_stale_warning=None,  # noqa: ARG002
-        immutable_time_to_delete=None,  # noqa: ARG002
+        # immutable_time_to_stale=None,  # noqa: ARG002
+        # immutable_time_to_stale_warning=None,  # noqa: ARG002
+        # immutable_time_to_delete=None,  # noqa: ARG002
     ):
         if not org_id:
             raise ValidationException("Staleness org_id cannot be null.")
@@ -38,28 +38,28 @@ class Staleness(db.Model):
         self.conventional_time_to_stale_warning = conventional_time_to_stale_warning
         self.conventional_time_to_delete = conventional_time_to_delete
         # immutable settings will automatically be set to conventional
-        self.immutable_time_to_stale = self.conventional_time_to_stale
-        self.immutable_time_to_stale_warning = self.conventional_time_to_stale_warning
-        self.immutable_time_to_delete = self.conventional_time_to_delete
+        # self.immutable_time_to_stale = self.conventional_time_to_stale
+        # self.immutable_time_to_stale_warning = self.conventional_time_to_stale_warning
+        # self.immutable_time_to_delete = self.conventional_time_to_delete
 
     def update(self, input_acc):
         if input_acc.conventional_time_to_stale:
             self.conventional_time_to_stale = input_acc.conventional_time_to_stale
-            self.immutable_time_to_stale = self.conventional_time_to_stale
+            # self.immutable_time_to_stale = self.conventional_time_to_stale
         if input_acc.conventional_time_to_stale_warning:
             self.conventional_time_to_stale_warning = input_acc.conventional_time_to_stale_warning
-            self.immutable_time_to_stale_warning = self.conventional_time_to_stale_warning
+            # self.immutable_time_to_stale_warning = self.conventional_time_to_stale_warning
         if input_acc.conventional_time_to_delete:
             self.conventional_time_to_delete = input_acc.conventional_time_to_delete
-            self.immutable_time_to_delete = self.conventional_time_to_delete
+            # self.immutable_time_to_delete = self.conventional_time_to_delete
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     org_id = db.Column(db.String(36), nullable=False)
     conventional_time_to_stale = db.Column(db.Integer, default=104400, nullable=False)
     conventional_time_to_stale_warning = db.Column(db.Integer, default=days_to_seconds(7), nullable=False)
     conventional_time_to_delete = db.Column(db.Integer, default=days_to_seconds(14), nullable=False)
-    immutable_time_to_stale = db.Column(db.Integer, default=104400, nullable=False)
-    immutable_time_to_stale_warning = db.Column(db.Integer, default=days_to_seconds(7), nullable=False)
-    immutable_time_to_delete = db.Column(db.Integer, default=days_to_seconds(14), nullable=False)
+    # immutable_time_to_stale = db.Column(db.Integer, default=104400, nullable=False)
+    # immutable_time_to_stale_warning = db.Column(db.Integer, default=days_to_seconds(7), nullable=False)
+    # immutable_time_to_delete = db.Column(db.Integer, default=days_to_seconds(14), nullable=False)
     created_on = db.Column(db.DateTime(timezone=True), default=_time_now)
     modified_on = db.Column(db.DateTime(timezone=True), default=_time_now, onupdate=_time_now)

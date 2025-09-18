@@ -184,9 +184,6 @@ _INPUT_DATA = {
     "conventional_time_to_stale": DEFAULT_STALENESS_SETTINGS["stale"],
     "conventional_time_to_stale_warning": DEFAULT_STALENESS_SETTINGS["stale_warning"],
     "conventional_time_to_delete": DEFAULT_STALENESS_SETTINGS["delete"],
-    "immutable_time_to_stale": DEFAULT_STALENESS_SETTINGS["stale"],
-    "immutable_time_to_stale_warning": DEFAULT_STALENESS_SETTINGS["stale_warning"],
-    "immutable_time_to_delete": DEFAULT_STALENESS_SETTINGS["delete"],
 }
 
 
