@@ -244,29 +244,40 @@ def serialize_group_without_host_count(group: Group) -> dict:
     }
 
 
-def serialize_workspace_without_host_count(group: dict) -> dict:
+def serialize_workspace_without_host_count(group: dict | Group) -> dict:
+    """
+    Serialize a workspace/group object to a dictionary format.
+
+    Args:
+        group: Either a dictionary (from RBAC v2) or a Group SQLAlchemy model (from RBAC v1)
+
+    Returns:
+        Dictionary containing serialized group/workspace data
+    """
     if isinstance(group, dict):
-        serialized_group = {
+        # Handle RBAC v2 workspace data (dict format)
+        return {
             "name": group["name"],
             "id": _serialize_uuid(group["id"]),
-            "parent_id": group["parent_id"] or None,
+            "parent_id": group.get("parent_id") or None,
             "org_id": get_current_identity().org_id,
-            "description": group["description"],
-            "type": group["type"],
-            "created": group["created"],
-            "updated": group["modified"],
+            "description": group.get("description", ""),
+            "type": group.get("type", ""),
+            "created": group.get("created", ""),
+            "updated": group.get("modified", ""),
         }
-    else:  # group object created by rbac_v1 is of type "app.models.group.Group"
-        serialized_group = serialize_group_without_host_count(group)
-
-    return serialized_group
+    elif isinstance(group, Group):
+        # Handle RBAC v1 group data (SQLAlchemy Group model)
+        return serialize_group_without_host_count(group)
+    else:
+        raise TypeError(f"Expected dict or Group, got {type(group).__name__}")
 
 
 def serialize_group_with_host_count(group: Group, host_count: int) -> dict:
     return {**serialize_group_without_host_count(group), "host_count": host_count}
 
 
-def serialize_workspace_with_host_count(group: Group, host_count: int) -> dict:
+def serialize_workspace_with_host_count(group: dict | Group, host_count: int) -> dict:
     return {**serialize_workspace_without_host_count(group), "host_count": host_count}
 
 
