@@ -11,10 +11,10 @@ from requests.adapters import HTTPAdapter
 from api.host_query_db import get_hosts_to_export
 from app import IDENTITY_HEADER
 from app import REQUEST_ID_HEADER
-from app import RbacPermission
-from app import RbacResourceType
 from app.auth.identity import Identity
 from app.auth.identity import from_auth_header
+from app.auth.rbac import RbacPermission
+from app.auth.rbac import RbacResourceType
 from app.config import Config
 from app.exceptions import InventoryException
 from app.logging import get_logger

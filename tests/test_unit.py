@@ -470,7 +470,7 @@ class ConfigTestCase(TestCase):
 )
 class CreateAppConfigTestCase(TestCase):
     def test_config_is_assigned(self, config):
-        with patch("app.db.init_app"):
+        with patch("app.db.init_app"), patch("app.init_kessel"):
             application = create_app(RuntimeEnvironment.TEST)
             self.assertIn("INVENTORY_CONFIG", application.app.config)
             self.assertEqual(config.return_value, application.app.config["INVENTORY_CONFIG"])

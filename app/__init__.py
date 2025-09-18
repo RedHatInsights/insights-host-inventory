@@ -1,7 +1,6 @@
 import base64
 import json
 import os
-from enum import Enum
 from os.path import join
 
 import connexion
@@ -20,6 +19,8 @@ from api.mgmt import monitoring_blueprint
 from api.parsing import customURIParser
 from api.spec import spec_blueprint
 from app import payload_tracker
+from app.auth.rbac import RbacPermission
+from app.auth.rbac import RbacResourceType
 from app.config import Config
 from app.custom_validator import build_validator_map
 from app.exceptions import InventoryException
@@ -41,6 +42,7 @@ from lib.check_org import check_org_id
 from lib.feature_flags import SchemaStrategy
 from lib.feature_flags import init_unleash_app
 from lib.handlers import register_shutdown
+from lib.kessel import init_kessel
 
 logger = get_logger(__name__)
 
@@ -78,19 +80,6 @@ ORG_ID_CHECK_ENDPOINTS = [
     "api_group_delete_hosts_from_group",
     "api_group_delete_hosts_from_different_groups",
 ]
-
-
-class RbacPermission(Enum):
-    READ = "read"
-    WRITE = "write"
-    ADMIN = "*"
-
-
-class RbacResourceType(Enum):
-    HOSTS = "hosts"
-    GROUPS = "groups"
-    STALENESS = "staleness"
-    ALL = "*"
 
 
 def initialize_metrics(config):
@@ -306,6 +295,7 @@ def create_app(runtime_environment) -> connexion.FlaskApp:
         logger.warning(unleash_fallback_msg)
 
     db.init_app(flask_app)
+    init_kessel(app_config, flask_app)
 
     flask_app.register_blueprint(monitoring_blueprint, url_prefix=app_config.mgmt_url_path_prefix)
     for api_url in app_config.api_urls:

@@ -16,8 +16,8 @@ from sqlalchemy.orm import load_only
 from sqlalchemy.sql import expression
 from sqlalchemy.sql.expression import ColumnElement
 
-from api.filtering.db_filters import canonical_fact_filter
 from api.filtering.db_filters import host_id_list_filter
+from api.filtering.db_filters import hosts_field_filter
 from api.filtering.db_filters import query_filters
 from api.filtering.db_filters import rbac_permissions_filter
 from api.filtering.db_filters import update_query_for_owner_id
@@ -182,7 +182,7 @@ def get_host_list_by_id_list(
 
 def get_host_id_by_insights_id(insights_id: str, rbac_filter=None) -> str | None:
     identity = get_current_identity()
-    all_filters = canonical_fact_filter("insights_id", insights_id) + rbac_permissions_filter(rbac_filter)
+    all_filters = hosts_field_filter("insights_id", insights_id, False) + rbac_permissions_filter(rbac_filter)
     query = _find_hosts_entities_query(columns=[Host.id], identity=identity).filter(*all_filters)
 
     try:
@@ -474,8 +474,10 @@ def get_sap_system_info(
     rbac_filter: dict,
     identity: Identity,
 ):
+    host_sap_system = Host.system_profile_facts["workloads"]["sap"]["sap_system"]
+
     columns = [
-        Host.system_profile_facts["sap_system"].label("value"),
+        host_sap_system.label("value"),
     ]
 
     filters, query_base = query_filters(
@@ -488,8 +490,8 @@ def get_sap_system_info(
     )
     sap_query = _find_hosts_entities_query(query=query_base, columns=columns)
     sap_filter = [
-        func.jsonb_typeof(Host.system_profile_facts["sap_system"]) == "boolean",
-        Host.system_profile_facts["sap_system"].astext.cast(Boolean) != None,  # noqa:E711
+        func.jsonb_typeof(host_sap_system) == "boolean",
+        host_sap_system.astext.cast(Boolean) != None,  # noqa:E711
     ]
     sap_query = sap_query.filter(*filters).filter(*sap_filter)
 
@@ -512,9 +514,11 @@ def get_sap_sids_info(
     search: str,
     identity: Identity,
 ):
+    host_sap_sids = Host.system_profile_facts["workloads"]["sap"]["sids"]
+
     columns = [
         Host.id,
-        func.jsonb_array_elements_text(Host.system_profile_facts["sap_sids"]).label("sap_sids"),
+        func.jsonb_array_elements_text(host_sap_sids).label("sap_sids"),
     ]
     filters, query_base = query_filters(
         tags=tags,

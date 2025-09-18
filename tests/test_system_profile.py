@@ -21,6 +21,7 @@ from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.mq_utils import create_kafka_consumer_mock
 from tests.helpers.system_profile_utils import system_profile_specification
 from tests.helpers.test_utils import SYSTEM_IDENTITY
+from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import valid_system_profile
@@ -332,6 +333,47 @@ def test_system_profile_operating_system(mq_create_or_update_host, api_get):
         assert item_count == os_dict[item_key]["count"]
 
 
+def test_system_profile_sap_system_with_missing_workloads(mq_create_or_update_host, api_get):
+    # Create some sap systems
+    host = minimal_host(
+        insights_id=generate_uuid(),
+        system_profile={},  # Missing 'workloads' key
+    )
+    _ = mq_create_or_update_host(host)
+    url = build_system_profile_sap_system_url()
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    assert len(response_data["results"]) == 0
+
+
+def test_system_profile_sap_system_with_missing_sap(mq_create_or_update_host, api_get):
+    # Create some sap systems
+    host = minimal_host(
+        insights_id=generate_uuid(),
+        system_profile={"workloads": {}},  # Missing 'sap' key
+    )
+    _ = mq_create_or_update_host(host)
+    url = build_system_profile_sap_system_url()
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    assert len(response_data["results"]) == 0
+
+
+def test_system_profile_sap_system_with_missing_sap_system(mq_create_or_update_host, api_get):
+    # Create one host with workloads but missing sap_system key
+    host = minimal_host(
+        insights_id=generate_uuid(),
+        system_profile={"workloads": {"sap": {}}},  # Missing 'sap_system' key
+    )
+
+    _ = mq_create_or_update_host(host)
+    url = build_system_profile_sap_system_url()
+
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    assert len(response_data["results"]) == 0
+
+
 def test_system_profile_sap_system(mq_create_or_update_host, api_get):
     # Create some sap systems
     ordered_sap_system_data = [True, True, False, False, True, False]
@@ -343,7 +385,10 @@ def test_system_profile_sap_system(mq_create_or_update_host, api_get):
     # Create hosts for the above host data
     _ = [
         mq_create_or_update_host(
-            minimal_host(insights_id=insights_id, system_profile={"sap_system": ordered_host_data[insights_id]})
+            minimal_host(
+                insights_id=insights_id,
+                system_profile={"workloads": {"sap": {"sap_system": ordered_host_data[insights_id]}}},
+            ),
         )
         for insights_id in ordered_insights_ids
     ]
@@ -381,7 +426,10 @@ def test_system_profile_sap_sids(mq_create_or_update_host, api_get):
     # Create hosts for the above host data
     _ = [
         mq_create_or_update_host(
-            minimal_host(insights_id=insights_id, system_profile={"sap_sids": ordered_host_data[insights_id]})
+            minimal_host(
+                insights_id=insights_id,
+                system_profile={"workloads": {"sap": {"sids": ordered_host_data[insights_id]}}},
+            )
         )
         for insights_id in ordered_insights_ids
     ]
@@ -411,7 +459,10 @@ def test_system_profile_sap_sids_with_search(mq_create_or_update_host, api_get):
     # Create hosts for the above host data
     _ = [
         mq_create_or_update_host(
-            minimal_host(insights_id=insights_id, system_profile={"sap_sids": ordered_host_data[insights_id]})
+            minimal_host(
+                insights_id=insights_id,
+                system_profile={"workloads": {"sap": {"sids": ordered_host_data[insights_id]}}},
+            )
         )
         for insights_id in ordered_insights_ids
     ]
@@ -435,7 +486,7 @@ def test_create_empty_update_system_profile(
     mq_create_or_update_host, api_get, db_get_static_system_profile, db_get_dynamic_system_profile
 ):
     host_minimal = minimal_host(system_profile={})
-    host = mq_create_or_update_host(host_minimal)
+    host = mq_create_or_update_host(host_minimal, identity=USER_IDENTITY)
     url = build_hosts_url(host_list_or_id=host.id)
     response_status, response_data = api_get(url)
     assert response_status == 200
@@ -462,7 +513,7 @@ def test_create_empty_update_system_profile(
 
     host_minimal.system_profile = system_profile
 
-    host = mq_create_or_update_host(host_minimal)
+    host = mq_create_or_update_host(host_minimal, identity=USER_IDENTITY)
 
     url = build_hosts_url(host_list_or_id=host.id)
     response_status, response_data = api_get(url)
@@ -483,7 +534,7 @@ def test_create_empty_update_failing_system_profile(
     mq_create_or_update_host, api_get, db_get_static_system_profile, db_get_dynamic_system_profile
 ):
     host_minimal = minimal_host(system_profile={})
-    host = mq_create_or_update_host(host_minimal)
+    host = mq_create_or_update_host(host_minimal, identity=USER_IDENTITY)
     url = build_hosts_url(host_list_or_id=host.id)
     response_status, response_data = api_get(url)
     assert response_status == 200
