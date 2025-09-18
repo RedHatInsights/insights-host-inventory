@@ -945,6 +945,7 @@
         "requestBody": {
           "description": "A list of hosts IDs to associate with the provided group.",
           "required": true,
+          "x-body-name": "host_id_list",
           "content": {
             "application/json": {
               "schema": {

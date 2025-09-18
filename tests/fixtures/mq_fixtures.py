@@ -22,6 +22,7 @@ from tests.helpers.api_utils import TAGS
 from tests.helpers.mq_utils import MockEventProducer
 from tests.helpers.mq_utils import MockFuture
 from tests.helpers.mq_utils import wrap_message
+from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import base_host
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import get_platform_metadata
@@ -44,9 +45,10 @@ def mq_create_or_update_host(
         consumer_class=IngressMessageConsumer,
         operation_args=None,
         notification_event_producer=notification_event_producer_mock,
+        identity=SYSTEM_IDENTITY,
     ):
         if not platform_metadata:
-            platform_metadata = get_platform_metadata()
+            platform_metadata = get_platform_metadata(identity=identity)
 
         message = wrap_message(host_data.data(), platform_metadata=platform_metadata, operation_args=operation_args)
         consumer = consumer_class(None, flask_app, event_producer_mock, notification_event_producer)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from copy import deepcopy
 from datetime import timedelta
 from functools import partial
@@ -13,7 +14,6 @@ from sqlalchemy import and_
 from sqlalchemy import func
 from sqlalchemy import not_
 from sqlalchemy import or_
-from sqlalchemy.dialects.postgresql import JSON
 
 from api.filtering.db_custom_filters import build_system_profile_filter
 from api.filtering.db_custom_filters import get_host_types_from_filter
@@ -31,6 +31,8 @@ from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import db
 from app.models.constants import SystemType
+from app.models.system_profile_dynamic import HostDynamicSystemProfile
+from app.models.system_profile_static import HostStaticSystemProfile
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_states import HostStalenessStatesDbFilters
 from app.utils import Tag
@@ -38,23 +40,52 @@ from lib.feature_flags import FLAG_INVENTORY_FILTER_STALENESS_USING_COLUMNS
 from lib.feature_flags import get_flag_value
 
 __all__ = (
-    "canonical_fact_filter",
     "query_filters",
     "host_id_list_filter",
     "rbac_permissions_filter",
     "stale_timestamp_filter",
     "staleness_to_conditions",
     "update_query_for_owner_id",
+    "hosts_field_filter",
 )
 
 logger = get_logger(__name__)
 DEFAULT_STALENESS_VALUES = ["not_culled"]
+DEFAULT_INSIGHTS_ID = "00000000-0000-0000-0000-000000000000"
+
+# Static system type filter mappings
+SYSTEM_TYPE_FILTERS: dict[str, Any] = {
+    SystemType.CONVENTIONAL.value: and_(
+        or_(
+            HostStaticSystemProfile.bootc_status.is_(None),
+            HostStaticSystemProfile.bootc_status["booted"]["image_digest"].astext.is_(None),
+            HostStaticSystemProfile.bootc_status["booted"]["image_digest"].astext == "",
+        ),
+        or_(
+            HostStaticSystemProfile.host_type.is_(None),
+            HostStaticSystemProfile.host_type == "",
+        ),
+    ),
+    SystemType.BOOTC.value: and_(
+        HostStaticSystemProfile.bootc_status.isnot(None),
+        HostStaticSystemProfile.bootc_status["booted"]["image_digest"].astext.isnot(None),
+        HostStaticSystemProfile.bootc_status["booted"]["image_digest"].astext != "",
+    ),
+    SystemType.EDGE.value: HostStaticSystemProfile.host_type == SystemType.EDGE.value,
+}
 
 
-def canonical_fact_filter(canonical_fact: str, value, case_insensitive: bool = False) -> list:
-    if case_insensitive:
-        return [func.lower(Host.canonical_facts[canonical_fact].astext) == value.lower()]
-    return [Host.canonical_facts[canonical_fact].astext == value]
+def hosts_field_filter(name: str, value, case_insensitive: bool = False) -> list:
+    """Builds a database filter for a Host model attribute."""
+    try:
+        field = getattr(Host, name)
+    except AttributeError as e:
+        raise ValidationException(f"Filter key '{name}' is invalid.") from e
+
+    final_value = value.lower() if case_insensitive else value
+
+    expression = func.lower(field) if case_insensitive else field
+    return [expression == final_value]
 
 
 def _display_name_filter(display_name: str) -> list:
@@ -105,7 +136,7 @@ def stale_timestamp_filter(gt=None, lte=None):
 
 
 def _host_type_filter(host_type: str | None):
-    return Host.system_profile_facts["host_type"].as_string() == host_type
+    return HostStaticSystemProfile.host_type == host_type
 
 
 def _stale_timestamp_per_reporter_filter(gt=None, lte=None, reporter=None):
@@ -174,14 +205,18 @@ def _staleness_filter_using_columns(staleness: list[str]) -> list:
     return [or_(*filters)]
 
 
-def _staleness_filter(staleness: list[str] | tuple[str, ...], org_id) -> list:
+def _staleness_filter(staleness: list[str] | tuple[str, ...], org_id: str) -> list:
     staleness_obj = serialize_staleness_to_dict(get_staleness_obj(org_id))
     staleness_conditions = [or_(*staleness_to_conditions(staleness_obj, staleness, stale_timestamp_filter))]
 
     return [or_(*staleness_conditions)]
 
 
-def staleness_to_conditions(staleness, staleness_states, timestamp_filter_func):
+def staleness_to_conditions(
+    staleness: dict,
+    staleness_states: list[str] | tuple[str, ...],
+    timestamp_filter_func: Callable[..., Any],
+):
     condition = Conditions(staleness)
     filtered_states = (state for state in staleness_states if state != "unknown")
     return (timestamp_filter_func(*getattr(condition, state)()) for state in filtered_states)
@@ -205,7 +240,7 @@ def _registered_with_filter(registered_with: list[str], host_type_filter: set[st
         return _query_filter
     reg_with_copy = deepcopy(registered_with)
     if "insights" in registered_with:
-        _query_filter.append(Host.canonical_facts["insights_id"] != JSON.NULL)
+        _query_filter.append(Host.insights_id != DEFAULT_INSIGHTS_ID)
         reg_with_copy.remove("insights")
     if not reg_with_copy:
         return _query_filter
@@ -241,7 +276,7 @@ def _hostname_or_id_filter(hostname_or_id: str) -> tuple:
     wildcard_id = f"%{hostname_or_id.replace('*', '%')}%"
     filter_list = [
         Host.display_name.ilike(wildcard_id),
-        Host.canonical_facts["fqdn"].astext.ilike(wildcard_id),
+        Host.fqdn.ilike(wildcard_id),
     ]
 
     try:
@@ -313,32 +348,17 @@ def update_query_for_owner_id(identity: Identity, query: Query) -> Query:
     if identity:
         logger.debug("identity auth type: %s", identity.auth_type)
         if identity.identity_type == IdentityType.SYSTEM:
-            return query.filter(and_(Host.system_profile_facts["owner_id"].as_string() == identity.system["cn"]))
+            # Ensure HostStaticSystemProfile is joined before filtering
+            query = query.join(HostStaticSystemProfile, isouter=True)
+            return query.filter(HostStaticSystemProfile.owner_id == identity.system["cn"])
     return query
 
 
 def _system_type_filter(filters: list[str]) -> list:
-    PROFILE_FILTERS: dict[str, dict[str, Any]] = {
-        SystemType.CONVENTIONAL.value: {
-            "system_profile": {
-                "bootc_status": {"booted": {"image_digest": {"eq": "nil"}}},
-                "host_type": {"eq": "nil"},
-            }
-        },
-        SystemType.BOOTC.value: {"system_profile": {"bootc_status": {"booted": {"image_digest": {"eq": "not_nil"}}}}},
-        SystemType.EDGE.value: {"system_profile": {"host_type": {"eq": SystemType.EDGE.value}}},
-    }
-    valid_values = [st.value for st in SystemType]
-    query_filters: list = []
-    for system_type in filters:
-        if system_type not in valid_values:
-            raise ValidationException(f"Invalid system_type: {system_type}")
-
-        query_filter, _ = _system_profile_filter(PROFILE_FILTERS[system_type])
-        query_filters.append(and_(*query_filter))  # Using and_ here, because if system_type is "conventional",
-        # then we need both filters at the same time
-
-    return [or_(*query_filters)]
+    invalid = set(filters) - SYSTEM_TYPE_FILTERS.keys()
+    if invalid:
+        raise ValidationException(f"Invalid system_type: {invalid.pop()}")
+    return [or_(*(SYSTEM_TYPE_FILTERS[f] for f in filters))]
 
 
 def query_filters(
@@ -377,22 +397,22 @@ def query_filters(
 
     filters = []
     if fqdn:
-        filters += canonical_fact_filter("fqdn", fqdn, case_insensitive=True)
+        filters += hosts_field_filter("fqdn", fqdn, True)
     elif display_name:
         filters += _display_name_filter(display_name)
     elif hostname_or_id:
         filters += _hostname_or_id_filter(hostname_or_id)
     elif insights_id:
-        filters += canonical_fact_filter("insights_id", insights_id.lower())
+        filters += hosts_field_filter("insights_id", insights_id.lower())
     elif subscription_manager_id:
-        filters += canonical_fact_filter("subscription_manager_id", subscription_manager_id.lower())
+        filters += hosts_field_filter("subscription_manager_id", subscription_manager_id.lower())
 
     if system_type:
         filters += _system_type_filter(system_type)
     if provider_id:
-        filters += canonical_fact_filter("provider_id", provider_id, case_insensitive=True)
+        filters += hosts_field_filter("provider_id", provider_id, True)
     if provider_type:
-        filters += canonical_fact_filter("provider_type", provider_type)
+        filters += hosts_field_filter("provider_type", provider_type)
     if updated_start or updated_end:
         filters += _modified_on_filter(updated_start, updated_end)
     if last_check_in_start or last_check_in_end:
@@ -418,8 +438,12 @@ def query_filters(
     # Determine query_base
     if group_name or group_ids or rbac_filter or order_by == "group_name":
         query_base = db.session.query(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
-    elif group_ids:
-        query_base = db.session.query(Host).join(HostGroupAssoc, isouter=True)
+    elif filter or system_type or registered_with:
+        query_base = (
+            db.session.query(Host)
+            .join(HostStaticSystemProfile, isouter=True)
+            .join(HostDynamicSystemProfile, isouter=True)
+        )
     else:
         query_base = db.session.query(Host)
 

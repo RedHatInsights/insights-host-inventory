@@ -49,6 +49,22 @@
             "createdAt": "2025-02-14T16:26:57.428Z"
         },
         {
+            "name": "hbi.api.kessel-host-migration",
+            "description": "Gates the functionality for Phase 1 of the HBI Kessel migration (RHCLOUD-39540).",
+            "type": "release",
+            "project": "default",
+            "stale": false,
+            "enabled": false,
+            "strategies": [
+                {
+                    "name": "default",
+                    "parameters": {}
+                }
+            ],
+            "variants": [],
+            "createdAt": "2025-04-17T21:21:08Z"
+        },
+        {
             "name": "hbi.api.read-only",
             "description": "When turned ON, HBI's write endpoints (PUT/POST/PATCH) are disabled.",
             "type": "release",
