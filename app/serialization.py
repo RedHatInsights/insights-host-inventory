@@ -409,9 +409,6 @@ def serialize_staleness_to_dict(staleness_obj) -> dict:
         "conventional_time_to_stale": staleness_obj.conventional_time_to_stale,
         "conventional_time_to_stale_warning": staleness_obj.conventional_time_to_stale_warning,
         "conventional_time_to_delete": staleness_obj.conventional_time_to_delete,
-        "immutable_time_to_stale": staleness_obj.conventional_time_to_stale,
-        "immutable_time_to_stale_warning": staleness_obj.conventional_time_to_stale_warning,
-        "immutable_time_to_delete": staleness_obj.conventional_time_to_delete,
     }
 
 

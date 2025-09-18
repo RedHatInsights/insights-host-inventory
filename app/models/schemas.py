@@ -346,24 +346,17 @@ class StalenessSchema(MarshmallowSchema):
     conventional_time_to_stale = fields.Integer(validate=marshmallow_validate.Range(min=1, max=604800))
     conventional_time_to_stale_warning = fields.Integer(validate=marshmallow_validate.Range(min=1, max=15552000))
     conventional_time_to_delete = fields.Integer(validate=marshmallow_validate.Range(min=1, max=63072000))
-    immutable_time_to_stale = fields.Integer(validate=marshmallow_validate.Range(min=1, max=604800))
-    immutable_time_to_stale_warning = fields.Integer(validate=marshmallow_validate.Range(min=1, max=15552000))
-    immutable_time_to_delete = fields.Integer(validate=marshmallow_validate.Range(min=1, max=63072000))
 
     @validates_schema
     def validate_staleness(self, data, **kwargs):
         staleness_fields = ["time_to_stale", "time_to_stale_warning", "time_to_delete"]
-        for host_type in (
-            "conventional",
-            "immutable",
-        ):
-            for i in range(len(staleness_fields) - 1):
-                for j in range(i + 1, len(staleness_fields)):
-                    if (
-                        data[(field_1 := f"{host_type}_{staleness_fields[i]}")]
-                        >= data[(field_2 := f"{host_type}_{staleness_fields[j]}")]
-                    ):
-                        raise MarshmallowValidationError(f"{field_1} must be lower than {field_2}")
+        for i in range(len(staleness_fields) - 1):
+            for j in range(i + 1, len(staleness_fields)):
+                if (
+                    data[(field_1 := f"conventional_{staleness_fields[i]}")]
+                    >= data[(field_2 := f"conventional_{staleness_fields[j]}")]
+                ):
+                    raise MarshmallowValidationError(f"{field_1} must be lower than {field_2}")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
