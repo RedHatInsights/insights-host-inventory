@@ -12,9 +12,9 @@ def add_staleness(staleness_data) -> Staleness:
     conventional_time_to_stale = staleness_data.get("conventional_time_to_stale")
     conventional_time_to_stale_warning = staleness_data.get("conventional_time_to_stale_warning")
     conventional_time_to_delete = staleness_data.get("conventional_time_to_delete")
-    immutable_time_to_stale = staleness_data.get("immutable_time_to_stale")
-    immutable_time_to_stale_warning = staleness_data.get("immutable_time_to_stale_warning")
-    immutable_time_to_delete = staleness_data.get("immutable_time_to_delete")
+    # immutable_time_to_stale = staleness_data.get("immutable_time_to_stale")
+    # immutable_time_to_stale_warning = staleness_data.get("immutable_time_to_stale_warning")
+    # immutable_time_to_delete = staleness_data.get("immutable_time_to_delete")
     org_id = get_current_identity().org_id
 
     with session_guard(db.session):
@@ -23,9 +23,9 @@ def add_staleness(staleness_data) -> Staleness:
             conventional_time_to_stale=conventional_time_to_stale,
             conventional_time_to_stale_warning=conventional_time_to_stale_warning,
             conventional_time_to_delete=conventional_time_to_delete,
-            immutable_time_to_stale=immutable_time_to_stale,
-            immutable_time_to_stale_warning=immutable_time_to_stale_warning,
-            immutable_time_to_delete=immutable_time_to_delete,
+            # immutable_time_to_stale=immutable_time_to_stale,
+            # immutable_time_to_stale_warning=immutable_time_to_stale_warning,
+            # immutable_time_to_delete=immutable_time_to_delete,
         )
         db.session.add(new_staleness)
         db.session.flush()

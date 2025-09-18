@@ -194,18 +194,15 @@ def test_handle_rbac_prohibited(mock_post, subtests, flask_app, db_create_host, 
 
 def test_do_not_export_culled_hosts(flask_app, db_create_host, db_create_staleness_culling, inventory_config):
     with flask_app.app.app_context():
-        CUSTOM_STALENESS_DELETE_CONVENTIONAL_IMMUTABLE = {
+        CUSTOM_STALENESS_DELETE = {
             "conventional_time_to_stale": 1,
             "conventional_time_to_stale_warning": 1,
             "conventional_time_to_delete": 1,
-            "immutable_time_to_stale": 1,
-            "immutable_time_to_stale_warning": 1,
-            "immutable_time_to_delete": 1,
         }
 
         with mock.patch("app.models.utils.datetime") as mock_datetime:
             mock_datetime.now.return_value = datetime.now() - timedelta(minutes=1)
-            db_create_staleness_culling(**CUSTOM_STALENESS_DELETE_CONVENTIONAL_IMMUTABLE)
+            db_create_staleness_culling(**CUSTOM_STALENESS_DELETE)
             db_create_host()
 
         identity = Identity(USER_IDENTITY)

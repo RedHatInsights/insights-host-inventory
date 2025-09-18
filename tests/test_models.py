@@ -1228,9 +1228,6 @@ def test_create_default_staleness_culling(db_create_staleness_culling, db_get_st
     assert created_acc_st_cull.conventional_time_to_stale == acc_st_cull.conventional_time_to_stale
     assert created_acc_st_cull.conventional_time_to_stale_warning == acc_st_cull.conventional_time_to_stale_warning
     assert created_acc_st_cull.conventional_time_to_delete == acc_st_cull.conventional_time_to_delete
-    assert created_acc_st_cull.immutable_time_to_stale == acc_st_cull.immutable_time_to_stale
-    assert created_acc_st_cull.immutable_time_to_stale_warning == acc_st_cull.immutable_time_to_stale_warning
-    assert created_acc_st_cull.immutable_time_to_delete == acc_st_cull.immutable_time_to_delete
 
 
 def test_create_staleness_culling(db_create_staleness_culling, db_get_staleness_culling):

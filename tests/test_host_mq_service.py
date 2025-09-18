@@ -1973,9 +1973,9 @@ def test_batch_mq_add_host_operations(mocker, event_producer, flask_app):
             conventional_time_to_stale_seconds=1,
             conventional_time_to_stale_warning_seconds=1,
             conventional_time_to_delete_seconds=1,
-            immutable_time_to_stale_seconds=1,
-            immutable_time_to_stale_warning_seconds=1,
-            immutable_time_to_delete_seconds=1,
+            # immutable_time_to_stale_seconds=1,
+            # immutable_time_to_stale_warning_seconds=1,
+            # immutable_time_to_delete_seconds=1,
         ),
     )
     write_batch_patch = mocker.patch("app.queue.host_mq.write_message_batch")
@@ -2180,9 +2180,9 @@ def test_batch_mq_header_request_id_updates(mocker, flask_app):
             conventional_time_to_stale_seconds=1,
             conventional_time_to_stale_warning_seconds=1,
             conventional_time_to_delete_seconds=1,
-            immutable_time_to_stale_seconds=1,
-            immutable_time_to_stale_warning_seconds=1,
-            immutable_time_to_delete_seconds=1,
+            # immutable_time_to_stale_seconds=1,
+            # immutable_time_to_stale_warning_seconds=1,
+            # immutable_time_to_delete_seconds=1,
         ),
     )
 
@@ -2230,9 +2230,9 @@ def test_batch_mq_graceful_rollback(mocker, flask_app):
             conventional_time_to_stale_seconds=1,
             conventional_time_to_stale_warning_seconds=1,
             conventional_time_to_delete_seconds=1,
-            immutable_time_to_stale_seconds=1,
-            immutable_time_to_stale_warning_seconds=1,
-            immutable_time_to_delete_seconds=1,
+            # immutable_time_to_stale_seconds=1,
+            # immutable_time_to_stale_warning_seconds=1,
+            # immutable_time_to_delete_seconds=1,
         ),
     )
 
