@@ -1,7 +1,7 @@
 """Remove immutable_ fileds from staleness
 
 Revision ID: bf78431e36c3
-Revises: 7439696a760f
+Revises: 43a91b289b3e
 Create Date: 2025-09-18 14:28:37.426553
 
 """
@@ -13,7 +13,7 @@ from app.models.constants import INVENTORY_SCHEMA
 
 # revision identifiers, used by Alembic.
 revision = "bf78431e36c3"
-down_revision = "7439696a760f"
+down_revision = "43a91b289b3e"
 branch_labels = None
 depends_on = None
 
