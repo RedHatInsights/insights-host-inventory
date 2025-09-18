@@ -13,9 +13,8 @@ def test_update_existing_record(api_patch, db_create_staleness_culling):
     saved_staleness = db_create_staleness_culling(conventional_time_to_stale=1)
 
     url = build_staleness_url()
-    response_status, b = api_patch(url, host_data=_INPUT_DATA)
+    response_status, _ = api_patch(url, host_data=_INPUT_DATA)
     assert_response_status(response_status, 200)
-
     assert saved_staleness.conventional_time_to_stale == 99
 
 
