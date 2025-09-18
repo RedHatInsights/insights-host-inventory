@@ -555,67 +555,6 @@ def patch_rbac_workspace(workspace_id: str, name: str | None = None) -> None:
         request_session.close()
 
 
-def get_rbac_workspaces(name, group_type) -> list[dict] | None:
-    if inventory_config().bypass_rbac:
-        return None
-
-    rbac_endpoint = get_rbac_v2_url(endpoint=f"workspaces/?type={group_type}")
-    request_headers = _build_rbac_request_headers(request.headers[IDENTITY_HEADER], threadctx.request_id)
-    request_data = {"name": name}
-
-    return get_rbac_workspace_using_endpoint_and_headers(request_data, rbac_endpoint, request_headers)
-
-
-def get_rbac_workspace_using_endpoint_and_headers(
-    request_data: dict | None, rbac_endpoint: str, request_headers: dict
-) -> list[dict[Any, Any]] | None:
-    if inventory_config().bypass_rbac:
-        return None
-
-    request_session = Session()
-    retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
-    request_session.mount(rbac_endpoint, HTTPAdapter(max_retries=retry_config))
-
-    try:
-        with outbound_http_response_time.labels("rbac").time():
-            rbac_response = request_session.get(
-                url=rbac_endpoint,
-                headers=request_headers,
-                json=request_data,
-                timeout=inventory_config().rbac_timeout,
-                verify=LoadedConfig.tlsCAPath,
-            )
-            rbac_response.raise_for_status()
-    except HTTPError as e:
-        status_code = e.response.status_code
-        if 400 <= status_code < 500:
-            try:
-                detail = e.response.json().get("detail", e.response.text)
-            except Exception:
-                detail = e.response.text  # fallback if JSON can't be parsed
-            logger.warning(f"RBAC client error: {status_code} - {detail}")
-            abort(status_code, f"RBAC client error: {detail}")
-        else:
-            logger.error(f"RBAC server error: {status_code} - {e.response.text}")
-            abort(503, "RBAC server error, request cannot be fulfilled")
-    except Exception as e:
-        error_message = f"Unexpected error: {e.__class__.__name__}: {str(e)}"
-        logger.error(error_message)
-        abort(500, error_message)
-    finally:
-        request_session.close()
-
-    try:
-        resp_data = rbac_response.json()
-        workspaces_list = resp_data["data"]
-        logger.debug("POSTED RBAC Data", extra={"resp_data": resp_data})
-    except (JSONDecodeError, KeyError) as e:
-        rbac_failure(logger, e)
-        abort(503, "Failed to parse RBAC response, request cannot be fulfilled")
-    finally:
-        request_session.close()
-
-    return workspaces_list
 def get_rbac_default_workspace() -> UUID | None:
     if inventory_config().bypass_rbac:
         return None
@@ -687,4 +626,4 @@ def get_rbac_workspace_using_endpoint_and_headers(
     finally:
         request_session.close()
 
-    return workspaces_list, len(workspaces_list)
+    return workspaces_list
