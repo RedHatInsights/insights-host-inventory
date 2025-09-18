@@ -1541,15 +1541,17 @@ def test_query_sp_filters_operating_system_name(db_create_host, api_get, sp_filt
 
 
 @pytest.mark.parametrize(
-    "os_match_data_list,os_nomatch_data_list,sp_filter_param_list",
+    "sp_match_data_list,sp_nomatch_data_list,sp_filter_param_list",
     (
         (
-            [None],
+            [{}, {"operating_system": {}}, {"operating_system": None}],
             [
                 {
-                    "name": "RHEL",
-                    "major": "8",
-                    "minor": "1",
+                    "operating_system": {
+                        "name": "RHEL",
+                        "major": "8",
+                        "minor": "1",
+                    }
                 }
             ],
             [
@@ -1560,12 +1562,14 @@ def test_query_sp_filters_operating_system_name(db_create_host, api_get, sp_filt
         (
             [
                 {
-                    "name": "RHEL",
-                    "major": "8",
-                    "minor": "1",
+                    "operating_system": {
+                        "name": "RHEL",
+                        "major": "8",
+                        "minor": "1",
+                    }
                 }
             ],
-            [None],
+            [{}, {"operating_system": {}}, {"operating_system": None}],
             [
                 "[operating_system][]=not_nil",
                 "[operating_system]=not_nil",
@@ -1573,11 +1577,15 @@ def test_query_sp_filters_operating_system_name(db_create_host, api_get, sp_filt
         ),
         (
             [
-                None,
+                {},
+                {"operating_system": {}},
+                {"operating_system": None},
                 {
-                    "name": "RHEL",
-                    "major": "8",
-                    "minor": "1",
+                    "operating_system": {
+                        "name": "RHEL",
+                        "major": "8",
+                        "minor": "1",
+                    }
                 },
             ],
             None,
@@ -1588,18 +1596,16 @@ def test_query_sp_filters_operating_system_name(db_create_host, api_get, sp_filt
     ),
 )
 def test_query_all_operating_system_nil(
-    db_create_host, api_get, os_match_data_list, os_nomatch_data_list, sp_filter_param_list, subtests
+    db_create_host, api_get, sp_match_data_list, sp_nomatch_data_list, sp_filter_param_list, subtests
 ):
     # Create host with this system profile
     match_host_id_list = [
-        str(db_create_host(extra_data={"system_profile_facts": {"operating_system": os_data}}).id)
-        for os_data in os_match_data_list
+        str(db_create_host(extra_data={"system_profile_facts": sp_data}).id) for sp_data in sp_match_data_list
     ]
 
-    if os_nomatch_data_list:
+    if sp_nomatch_data_list:
         nomatch_host_id_list = [
-            str(db_create_host(extra_data={"system_profile_facts": {"operating_system": os_data}}).id)
-            for os_data in os_nomatch_data_list
+            str(db_create_host(extra_data={"system_profile_facts": sp_data}).id) for sp_data in sp_nomatch_data_list
         ]
 
     for sp_filter_param in sp_filter_param_list:
@@ -1615,7 +1621,7 @@ def test_query_all_operating_system_nil(
             for match_host_id in match_host_id_list:
                 assert match_host_id in response_ids
 
-            if os_nomatch_data_list:
+            if sp_nomatch_data_list:
                 for nomatch_host_id in nomatch_host_id_list:
                     assert nomatch_host_id not in response_ids
 
