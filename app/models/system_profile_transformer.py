@@ -35,7 +35,9 @@ def split_system_profile_data(system_profile_data: dict[str, Any]) -> tuple[dict
     dynamic_data = {}
 
     for key, value in system_profile_data.items():
-        if key in STATIC_FIELDS:
+        if not value:
+            pass
+        elif key in STATIC_FIELDS:
             static_data[key] = value
         elif key in DYNAMIC_FIELDS:
             dynamic_data[key] = value

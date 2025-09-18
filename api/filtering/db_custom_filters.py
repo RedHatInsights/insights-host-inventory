@@ -6,7 +6,6 @@ from sqlalchemy import Integer
 from sqlalchemy import and_
 from sqlalchemy import func
 from sqlalchemy import or_
-from sqlalchemy.sql import text
 from sqlalchemy.sql.expression import ColumnElement
 from sqlalchemy.sql.expression import ColumnOperators
 
@@ -188,22 +187,9 @@ def build_operating_system_filter(filter_param: dict) -> tuple:
     for os_filter in separated_filters:
         comparator = POSTGRES_COMPARATOR_LOOKUP.get(os_filter.comparator)
 
-        if os_filter.comparator == "nil":
-            # Check for JSON null: operating_system = 'null'::jsonb OR IS NULL
-            os_filter_list.append(
-                or_(
-                    os_field.is_(None),  # SQL NULL
-                    os_field == text("'null'::jsonb"),  # JSON null literal
-                )
-            )
-        elif os_filter.comparator == "not_nil":
-            # Check for NOT JSON null AND NOT SQL NULL
-            os_filter_list.append(
-                and_(
-                    os_field.is_not(None),  # NOT SQL NULL
-                    os_field != text("'null'::jsonb"),  # NOT JSON null literal
-                )
-            )
+        if os_filter.comparator in ["nil", "not_nil"]:
+            # Uses the comparator with None, resulting in either is_(None) or is_not(None)
+            os_filter_list.append(os_field.operate(comparator, None))
 
         elif os_filter.comparator in ["eq", "neq"]:
             os_filters = [
