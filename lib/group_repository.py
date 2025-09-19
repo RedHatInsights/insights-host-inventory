@@ -34,8 +34,10 @@ from app.queue.events import build_event
 from app.queue.events import message_headers
 from app.serialization import serialize_group_with_host_count
 from app.serialization import serialize_host
+from app.serialization import serialize_workspace_with_host_count
 from app.staleness_serialization import AttrDict
 from lib.db import session_guard
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.feature_flags import get_flag_value
 from lib.host_repository import get_host_list_by_id_list_from_db
@@ -516,5 +518,10 @@ def get_ungrouped_group(identity: Identity) -> Group:
 
 
 def serialize_group(group: Group) -> dict:
-    host_count = get_non_culled_hosts_count_in_group(group, group.org_id)
-    return serialize_group_with_host_count(group, host_count)
+    org_id = group.org_id or get_current_identity().org_id
+    host_count = get_non_culled_hosts_count_in_group(group, org_id)
+    if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION) or get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1):
+        serialized_group = serialize_workspace_with_host_count(group, host_count)
+    else:
+        serialized_group = serialize_group_with_host_count(group, host_count)
+    return serialized_group
