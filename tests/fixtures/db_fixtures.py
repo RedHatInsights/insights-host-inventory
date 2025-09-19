@@ -304,17 +304,11 @@ def db_create_staleness_culling(flask_app):  # noqa: ARG001
         conventional_time_to_stale=None,
         conventional_time_to_stale_warning=None,
         conventional_time_to_delete=None,
-        immutable_time_to_stale=None,
-        immutable_time_to_stale_warning=None,
-        immutable_time_to_delete=None,
     ):
         staleness_culling = db_staleness_culling(
             conventional_time_to_stale=conventional_time_to_stale,
             conventional_time_to_stale_warning=conventional_time_to_stale_warning,
             conventional_time_to_delete=conventional_time_to_delete,
-            immutable_time_to_stale=immutable_time_to_stale,
-            immutable_time_to_stale_warning=immutable_time_to_stale_warning,
-            immutable_time_to_delete=immutable_time_to_delete,
         )
         db.session.add(staleness_culling)
         db.session.commit()

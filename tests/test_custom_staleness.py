@@ -13,31 +13,22 @@ from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import build_staleness_url
 from tests.helpers.test_utils import now
 
-CUSTOM_STALENESS_DELETE_CONVENTIONAL_IMMUTABLE = {
+CUSTOM_STALENESS_DELETE = {
     "conventional_time_to_stale": 104400,
     "conventional_time_to_stale_warning": 604800,
     "conventional_time_to_delete": 1,
-    "immutable_time_to_stale": 172800,
-    "immutable_time_to_stale_warning": 10368000,
-    "immutable_time_to_delete": 1,
 }
 
 CUSTOM_STALENESS_NO_HOSTS_TO_DELETE = {
     "conventional_time_to_stale": 104400,
     "conventional_time_to_stale_warning": 604800,
     "conventional_time_to_delete": 1209600,
-    "immutable_time_to_stale": 172800,
-    "immutable_time_to_stale_warning": 10368000,
-    "immutable_time_to_delete": 15552000,
 }
 
 CUSTOM_STALENESS_HOST_BECAME_STALE = {
     "conventional_time_to_stale": 1,
     "conventional_time_to_stale_warning": 604800,
     "conventional_time_to_delete": 1209600,
-    "immutable_time_to_stale": 1,
-    "immutable_time_to_stale_warning": 10368000,
-    "immutable_time_to_delete": 15552000,
 }
 
 
@@ -50,7 +41,7 @@ def test_delete_all_type_of_hosts(
     notification_event_producer_mock,
     db_get_hosts,
 ):
-    db_create_staleness_culling(**CUSTOM_STALENESS_DELETE_CONVENTIONAL_IMMUTABLE)
+    db_create_staleness_culling(**CUSTOM_STALENESS_DELETE)
 
     with patch("app.models.utils.datetime") as mock_datetime:
         mock_datetime.now.return_value = datetime.now() - timedelta(minutes=1)
