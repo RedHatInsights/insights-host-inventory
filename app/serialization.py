@@ -244,12 +244,13 @@ def serialize_group_without_host_count(group: Group) -> dict:
     }
 
 
-def serialize_workspace_without_host_count(group: dict | Group) -> dict:
+def serialize_workspace_without_host_count(group: dict | Group, org_id: str) -> dict:
     """
     Serialize a workspace/group object to a dictionary format.
 
     Args:
         group: Either a dictionary (from RBAC v2) or a Group SQLAlchemy model (from RBAC v1)
+        org_id: Organization ID to use for serialization
 
     Returns:
         Dictionary containing serialized group/workspace data
@@ -260,7 +261,7 @@ def serialize_workspace_without_host_count(group: dict | Group) -> dict:
             "name": group["name"],
             "id": _serialize_uuid(group["id"]),
             "parent_id": group.get("parent_id") or None,
-            "org_id": get_current_identity().org_id,
+            "org_id": org_id,
             "description": group.get("description", ""),
             "type": group.get("type", ""),
             "created": group.get("created", ""),
@@ -277,8 +278,8 @@ def serialize_group_with_host_count(group: Group, host_count: int) -> dict:
     return {**serialize_group_without_host_count(group), "host_count": host_count}
 
 
-def serialize_workspace_with_host_count(group: dict | Group, host_count: int) -> dict:
-    return {**serialize_workspace_without_host_count(group), "host_count": host_count}
+def serialize_workspace_with_host_count(group: dict | Group, host_count: int, org_id: str) -> dict:
+    return {**serialize_workspace_without_host_count(group, org_id), "host_count": host_count}
 
 
 def serialize_host_system_profile(host):
