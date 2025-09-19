@@ -244,7 +244,6 @@ def serialize_group_without_host_count(group: Group) -> dict:
     }
 
 
-<<<<<<< HEAD
 def serialize_workspace_without_host_count(group: dict | Group) -> dict:
     """
     Serialize a workspace/group object to a dictionary format.
@@ -272,18 +271,6 @@ def serialize_workspace_without_host_count(group: dict | Group) -> dict:
         return serialize_group_without_host_count(group)
     else:
         raise TypeError(f"Expected dict or Group, got {type(group).__name__}")
-=======
-def serialize_workspace_without_host_count(group: dict) -> dict:
-    return {
-        "name": group["name"],
-        "id": _serialize_uuid(group["id"]),
-        "org_id": get_current_identity().org_id,
-        "description": group["description"],
-        "type": group["type"],
-        "created": group["created"],
-        "updated": group["modified"],
-    }
->>>>>>> 2a6da584 (fixed linter errors/recommendations)
 
 
 def serialize_group_with_host_count(group: Group, host_count: int) -> dict:
