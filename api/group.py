@@ -47,6 +47,7 @@ from lib.group_repository import validate_add_host_list_to_group_for_group_creat
 from lib.group_repository import wait_for_workspace_event
 from lib.metrics import create_group_count
 from lib.middleware import delete_rbac_workspace
+from lib.middleware import get_rbac_workspaces
 from lib.middleware import patch_rbac_workspace
 from lib.middleware import post_rbac_workspace
 from lib.middleware import rbac
@@ -68,9 +69,13 @@ def get_group_list(
     rbac_filter=None,
 ):
     try:
-        group_list, total = get_filtered_group_list_db(
-            name, page, per_page, order_by, order_how, rbac_filter, group_type
-        )
+        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION) or get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1):
+            group_list = get_rbac_workspaces(name, group_type)
+            total = len(group_list)
+        else:
+            group_list, total = get_filtered_group_list_db(
+                name, page, per_page, order_by, order_how, rbac_filter, group_type
+            )
     except ValueError as e:
         log_get_group_list_failed(logger)
         abort(400, str(e))
