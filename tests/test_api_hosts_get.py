@@ -281,8 +281,8 @@ def test_get_hosts_with_RBAC_bypassed_as_system(db_create_host, api_get):
 @pytest.mark.parametrize(
     "query",
     (
-        "?filter[system_profile][workloads][sap_system]=Garfield",
-        "?filter[system_profile][workloads][sap_system][eq]=Garfield",
+        "?filter[system_profile][workloads][sap][sap_system]=Garfield",
+        "?filter[system_profile][workloads][sap][sap_system][eq]=Garfield",
     ),
 )
 def test_get_hosts_sap_system_bad_parameter_values(api_get, query):
