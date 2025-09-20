@@ -517,12 +517,22 @@ def get_ungrouped_group(identity: Identity) -> Group:
     return ungrouped_group
 
 
-def serialize_group(group: Group) -> dict:
+def serialize_group(group: Group | dict) -> dict:
     # the group provided by rbac_v2 is a dict, so we need to get the org_id from the current identity
     org_id = group.org_id if isinstance(group, Group) else get_current_identity().org_id
     host_count = get_non_culled_hosts_count_in_group(group, org_id)
-    if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION) or get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1):
+
+    # If group is a dict (RBAC v2), use workspace serialization functions
+    # If group is a Group object, use the appropriate serialization based on feature flags
+    is_rbac_v2_group = isinstance(group, dict)
+    is_kessel_enabled = get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION) or get_flag_value(
+        FLAG_INVENTORY_KESSEL_PHASE_1
+    )
+
+    if is_rbac_v2_group or is_kessel_enabled:
         serialized_group = serialize_workspace_with_host_count(group, host_count, org_id)
     else:
+        # At this point, group is guaranteed to be a Group object, not a dict
+        assert isinstance(group, Group)
         serialized_group = serialize_group_with_host_count(group, host_count)
     return serialized_group
