@@ -14,7 +14,6 @@ from api.filtering.filtering_common import POSTGRES_COMPARATOR_NO_EQ_LOOKUP
 from api.filtering.filtering_common import POSTGRES_DEFAULT_COMPARATOR
 from api.filtering.filtering_common import get_valid_os_names
 from app import system_profile_spec
-from app.config import HostType
 from app.exceptions import ValidationException
 from app.logging import get_logger
 from app.models import Host
@@ -308,45 +307,6 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
             return target_field.contains(value)
 
         return target_field.operate(pg_op, value)
-
-
-# Standardize host_type SP filter and get its value(s)
-def get_host_types_from_filter(host_type_filter: dict) -> set[HostType]:
-    if host_type_filter:
-        host_types = set()
-
-        # Standardize the input in dict format
-        if not isinstance(host_type_filter, dict):
-            host_type_filter = {"eq": host_type_filter}
-        for key in host_type_filter.keys():
-            if key in POSTGRES_COMPARATOR_LOOKUP.keys():
-                comparator = key
-                value = host_type_filter[key]
-            else:
-                comparator = "eq"
-                value = key
-
-            # Convert single values to list format
-            if not isinstance(value, list):
-                value = [value]
-
-            for val in value:
-                if val == "not_nil":
-                    val = HostType.EDGE
-                elif val == "nil" or val == "":
-                    val = HostType.NONE
-
-                if comparator == "eq":
-                    host_types.add(val)
-                elif comparator == "neq":
-                    tmp_host_types = set(HostType.__members__.values())
-                    tmp_host_types.remove(HostType(val))
-                    host_types.update(tmp_host_types)
-
-    else:
-        host_types = set(HostType.__members__.values())
-
-    return host_types
 
 
 # Takes a System Profile filter param and turns it into sql filters.
