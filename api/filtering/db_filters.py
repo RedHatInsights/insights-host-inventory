@@ -16,12 +16,10 @@ from sqlalchemy import not_
 from sqlalchemy import or_
 
 from api.filtering.db_custom_filters import build_system_profile_filter
-from api.filtering.db_custom_filters import get_host_types_from_filter
 from api.staleness_query import get_staleness_obj
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
 from app.config import ALL_STALENESS_STATES
-from app.config import HostType
 from app.culling import Conditions
 from app.exceptions import ValidationException
 from app.logging import get_logger
@@ -244,21 +242,17 @@ def _registered_with_filter(registered_with: list[str], org_id: str) -> list:
     return [or_(*_query_filter)]
 
 
-def _system_profile_filter(filter: dict) -> tuple[list, set[HostType]]:
+def _system_profile_filter(filter: dict) -> list:
     query_filters: list = []
-    host_types = set(HostType.__members__.values())
 
     if filter:
         for key in filter:
             if key == "system_profile":
-                # Get the host_types we're filtering on, if any
-                host_types = get_host_types_from_filter(filter["system_profile"].get("host_type"))
-
                 query_filters += build_system_profile_filter(filter["system_profile"])
             else:
                 raise ValidationException("filter key is invalid")
 
-    return query_filters, host_types
+    return query_filters
 
 
 def _hostname_or_id_filter(hostname_or_id: str) -> tuple:
@@ -373,11 +367,7 @@ def query_filters(
     order_by: str | None = None,
     identity=None,
 ) -> tuple[list, Query]:
-    num_ids = 0
-    for id_param in [fqdn, display_name, hostname_or_id, insights_id]:
-        if id_param:
-            num_ids += 1
-
+    num_ids = sum(bool(id_param) for id_param in [fqdn, display_name, hostname_or_id, insights_id])
     if num_ids > 1:
         raise ValidationException(
             "Only one of [fqdn, display_name, hostname_or_id, insights_id] may be provided at a time."
@@ -412,7 +402,7 @@ def query_filters(
     if tags:
         filters += _tags_filter(tags)
     if filter:
-        sp_filter, _ = _system_profile_filter(filter)
+        sp_filter = _system_profile_filter(filter)
         filters += sp_filter
     if staleness:
         filters += _get_staleness_filter(staleness, identity.org_id)
