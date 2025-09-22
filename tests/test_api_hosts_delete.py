@@ -698,7 +698,11 @@ def test_log_create_delete(
     # caplog.records[1]: inventory.lib.outbox_repository, "out_box_entry_db object"
     # caplog.records[2]: inventory.lib.outbox_repository, "Added event to outbox"
     # caplog.records[3]: inventory.lib.host_delete, "Deleted_host"
-    assert caplog.records[3].system_profile == "{}"
+
+    # removing the system_profile from the log record as the host did not have a system_profile
+    # assert caplog.records[3].system_profile == "{}"
+
+    # Leaving the comments about caplog.records for communication and should be removed from the future PRs.
 
 
 @pytest.mark.usefixtures("notification_event_producer_mock")
