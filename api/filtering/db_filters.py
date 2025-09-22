@@ -134,10 +134,6 @@ def stale_timestamp_filter(gt=None, lte=None):
     return and_(*filters)
 
 
-def _host_type_filter(host_type: str | None):
-    return HostStaticSystemProfile.host_type == host_type
-
-
 def _stale_timestamp_per_reporter_filter(gt=None, lte=None, reporter=None):
     non_negative_reporter = reporter.replace("!", "")
     reporter_list = [non_negative_reporter]
