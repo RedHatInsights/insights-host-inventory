@@ -2286,7 +2286,7 @@ def test_query_by_staleness_using_columns(
                 assert {host["id"] for host in response_data["results"]} == expected_host_ids
 
 
-@pytest.mark.parametrize("system_type", ("conventional", "bootc", "edge"))
+@pytest.mark.parametrize("system_type", ("conventional", "bootc", "edge", "cluster"))
 def test_system_type_filter_valid_types(api_get, system_type):
     url = build_hosts_url(query=f"?system_type={system_type}")
     response_status, _ = api_get(url)

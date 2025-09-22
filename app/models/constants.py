@@ -38,3 +38,4 @@ class SystemType(str, Enum):
     CONVENTIONAL = "conventional"
     BOOTC = "bootc"
     EDGE = "edge"
+    CLUSTER = "cluster"

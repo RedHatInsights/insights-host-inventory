@@ -21,7 +21,7 @@ from api.staleness_query import get_staleness_obj
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
 from app.config import ALL_STALENESS_STATES
-from app.config import HOST_TYPES
+from app.config import HostType
 from app.culling import Conditions
 from app.exceptions import ValidationException
 from app.logging import get_logger
@@ -72,6 +72,7 @@ SYSTEM_TYPE_FILTERS: dict[str, Any] = {
         HostStaticSystemProfile.bootc_status["booted"]["image_digest"].astext != "",
     ),
     SystemType.EDGE.value: HostStaticSystemProfile.host_type == SystemType.EDGE.value,
+    SystemType.CLUSTER.value: HostStaticSystemProfile.host_type == SystemType.CLUSTER.value,
 }
 
 
@@ -171,28 +172,16 @@ def _stale_timestamp_per_reporter_filter(gt=None, lte=None, reporter=None):
         return or_(*or_filter)
 
 
-def per_reporter_staleness_filter(staleness, reporter, host_type_filter, org_id):
+def per_reporter_staleness_filter(staleness, reporter, org_id):
     staleness_obj = serialize_staleness_to_dict(get_staleness_obj(org_id))
-    staleness_conditions = []
-    for host_type in host_type_filter:
-        conditions = or_(
-            *staleness_to_conditions(
-                staleness_obj,
-                staleness,
-                partial(_stale_timestamp_per_reporter_filter, reporter=reporter),
-            )
+    conditions = or_(
+        *staleness_to_conditions(
+            staleness_obj,
+            staleness,
+            partial(_stale_timestamp_per_reporter_filter, reporter=reporter),
         )
-        if len(host_type_filter) > 1:
-            staleness_conditions.append(
-                and_(
-                    _host_type_filter(host_type),
-                    conditions,
-                )
-            )
-        else:
-            staleness_conditions.append(conditions)
-
-    return staleness_conditions
+    )
+    return [conditions]
 
 
 def _staleness_filter_using_columns(staleness: list[str]) -> list:
@@ -234,7 +223,7 @@ def find_stale_host_in_window(staleness, last_run_secs, job_start_time):
     )
 
 
-def _registered_with_filter(registered_with: list[str], host_type_filter: set[str | None], org_id: str) -> list:
+def _registered_with_filter(registered_with: list[str], org_id: str) -> list:
     _query_filter: list = []
     if not registered_with:
         return _query_filter
@@ -248,16 +237,16 @@ def _registered_with_filter(registered_with: list[str], host_type_filter: set[st
     # Get the per_report_staleness check_in value for the reporter
     # and build the filter based on it
     for reporter in reg_with_copy:
-        prs_item = per_reporter_staleness_filter(DEFAULT_STALENESS_VALUES, reporter, host_type_filter, org_id)
+        prs_item = per_reporter_staleness_filter(DEFAULT_STALENESS_VALUES, reporter, org_id)
 
         for n_items in prs_item:
             _query_filter.append(n_items)
     return [or_(*_query_filter)]
 
 
-def _system_profile_filter(filter: dict) -> tuple[list, set[str | None]]:
+def _system_profile_filter(filter: dict) -> tuple[list, set[HostType]]:
     query_filters: list = []
-    host_types = set(HOST_TYPES.copy())
+    host_types = set(HostType.__members__.values())
 
     if filter:
         for key in filter:
@@ -385,7 +374,6 @@ def query_filters(
     identity=None,
 ) -> tuple[list, Query]:
     num_ids = 0
-    host_type_filter = set(HOST_TYPES)
     for id_param in [fqdn, display_name, hostname_or_id, insights_id]:
         if id_param:
             num_ids += 1
@@ -424,12 +412,12 @@ def query_filters(
     if tags:
         filters += _tags_filter(tags)
     if filter:
-        sp_filter, host_type_filter = _system_profile_filter(filter)
+        sp_filter, _ = _system_profile_filter(filter)
         filters += sp_filter
     if staleness:
         filters += _get_staleness_filter(staleness, identity.org_id)
     if registered_with:
-        filters += _registered_with_filter(registered_with, host_type_filter, identity.org_id)
+        filters += _registered_with_filter(registered_with, identity.org_id)
     if rbac_filter:
         filters += rbac_permissions_filter(rbac_filter)
 
