@@ -2,11 +2,11 @@ from unittest import mock
 
 import pytest
 from connexion import FlaskApp
+from jobs.canonical_facts_migration import run as canonical_facts_migration_run
 from sqlalchemy import text
 
 from app.logging import get_logger
 from app.models import db
-from jobs.canonical_facts_migration import run as canonical_facts_migration_run
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.test_utils import generate_uuid
 
