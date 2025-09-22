@@ -14,7 +14,7 @@ from api.filtering.filtering_common import POSTGRES_COMPARATOR_NO_EQ_LOOKUP
 from api.filtering.filtering_common import POSTGRES_DEFAULT_COMPARATOR
 from api.filtering.filtering_common import get_valid_os_names
 from app import system_profile_spec
-from app.config import HOST_TYPES
+from app.config import HostType
 from app.exceptions import ValidationException
 from app.logging import get_logger
 from app.models import Host
@@ -311,7 +311,7 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
 
 
 # Standardize host_type SP filter and get its value(s)
-def get_host_types_from_filter(host_type_filter: dict) -> set[str | None]:
+def get_host_types_from_filter(host_type_filter: dict) -> set[HostType]:
     if host_type_filter:
         host_types = set()
 
@@ -332,19 +332,19 @@ def get_host_types_from_filter(host_type_filter: dict) -> set[str | None]:
 
             for val in value:
                 if val == "not_nil":
-                    val = HOST_TYPES[0]
+                    val = HostType.EDGE
                 elif val == "nil" or val == "":
-                    val = HOST_TYPES[1]
+                    val = HostType.NONE
 
                 if comparator == "eq":
                     host_types.add(val)
                 elif comparator == "neq":
-                    tmp_host_types = HOST_TYPES.copy()
-                    tmp_host_types.remove(val)
+                    tmp_host_types = set(HostType.__members__.values())
+                    tmp_host_types.remove(HostType(val))
                     host_types.update(tmp_host_types)
 
     else:
-        host_types = set(HOST_TYPES.copy())
+        host_types = set(HostType.__members__.values())
 
     return host_types
 
