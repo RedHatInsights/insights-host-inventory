@@ -2308,6 +2308,7 @@ def test_system_type_filter_invalid_types(api_get, invalid_system_type):
         "?system_type=conventional",
         "?system_type=bootc",
         "?system_type=edge",
+        "?system_type=cluster",
         "?system_type=bootc&system_type=edge",
     ),
 )
@@ -2324,6 +2325,7 @@ def test_system_type_happy_path(api_get, db_create_host, query_filter_param):
             }
         },
         {"system_profile_facts": {"host_type": "edge"}},
+        {"system_profile_facts": {"host_type": "cluster"}},
     ]
     host_ids = []
 
