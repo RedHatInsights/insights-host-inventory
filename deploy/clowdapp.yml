@@ -2565,6 +2565,12 @@ parameters:
 - name: SUSPEND_DELETE_HOSTS_S3
   description: If set to true, the delete-hosts-s3 job will immediately exit upon running.
   value: 'true'
+- name: CREATE_UNGROUPED_GROUPS_BATCH_SIZE
+  description: The batch size to use for the create-ungrouped-groups script.
+  value: '100'
+- name: ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE
+  description: The batch size to use for the assign-ungrouped-hosts script.
+  value: '10'
 
 # NGINX
 - displayName: Minimum replicas
