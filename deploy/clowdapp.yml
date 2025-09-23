@@ -1733,120 +1733,6 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_DUPLICATE_HOSTS_REMOVER_JOB}
             memory: ${MEMORY_REQUEST_DUPLICATE_HOSTS_REMOVER_JOB}
-    - name: sync-workloads-fields-data
-      restartPolicy: OnFailure
-      suspend: ${{SYNC_WORKLOADS_FIELDS_SUSPEND}}
-      podSpec:
-        image: ${IMAGE}:${IMAGE_TAG}
-        args: [ "./jobs/sync_workloads_fields_data.py" ]
-        env:
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
-          - name: INVENTORY_LOG_LEVEL
-            value: ${LOG_LEVEL}
-          - name: INVENTORY_DB_SSL_MODE
-            value: ${INVENTORY_DB_SSL_MODE}
-          - name: INVENTORY_DB_SSL_CERT
-            value: ${INVENTORY_DB_SSL_CERT}
-          - name: INVENTORY_DB_SCHEMA
-            value: "${INVENTORY_DB_SCHEMA}"
-          - name: PROMETHEUS_PUSHGATEWAY
-            value: ${PROMETHEUS_PUSHGATEWAY}
-          - name: NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
-          - name: CLOWDER_ENABLED
-            value: "true"
-          - name: REPLICA_NAMESPACE
-            value: ${REPLICA_NAMESPACE}
-          - name: SUSPEND_JOB
-            value: ${SYNC_WORKLOADS_FIELDS_SUSPEND}
-        resources:
-          limits:
-            cpu: ${CPU_REQUEST_SYNC_WORKLOADS_FIELDS}
-            memory: ${MEMORY_LIMIT_SYNC_WORKLOADS_FIELDS}
-          requests:
-            cpu: ${CPU_REQUEST_SYNC_WORKLOADS_FIELDS}
-            memory: ${MEMORY_REQUEST_SYNC_WORKLOADS_FIELDS}
-    - name: hosts-table-migration-data-copy
-      restartPolicy: OnFailure
-      suspend: ${{HOSTS_TABLE_MIGRATION_DATA_COPY_SUSPEND}}
-      podSpec:
-        image: ${IMAGE}:${IMAGE_TAG}
-        args: [ "./jobs/hosts_table_migration_data_copy.py" ]
-        env:
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
-          - name: INVENTORY_LOG_LEVEL
-            value: ${LOG_LEVEL}
-          - name: INVENTORY_DB_SSL_MODE
-            value: ${INVENTORY_DB_SSL_MODE}
-          - name: INVENTORY_DB_SSL_CERT
-            value: ${INVENTORY_DB_SSL_CERT}
-          - name: INVENTORY_DB_SCHEMA
-            value: "${INVENTORY_DB_SCHEMA}"
-          - name: PROMETHEUS_PUSHGATEWAY
-            value: ${PROMETHEUS_PUSHGATEWAY}
-          - name: NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
-          - name: CLOWDER_ENABLED
-            value: "true"
-          - name: HOSTS_TABLE_MIGRATION_BATCH_SIZE
-            value: ${HOSTS_TABLE_MIGRATION_BATCH_SIZE}
-          - name: REPLICA_NAMESPACE
-            value: ${REPLICA_NAMESPACE}
-          - name: SUSPEND_JOB
-            value: ${HOSTS_TABLE_MIGRATION_DATA_COPY_SUSPEND}
-        resources:
-          limits:
-            cpu: ${CPU_REQUEST_HOSTS_TABLE_MIGRATION_DATA_COPY}
-            memory: ${MEMORY_LIMIT_HOSTS_TABLE_MIGRATION_DATA_COPY}
-          requests:
-            cpu: ${CPU_REQUEST_HOSTS_TABLE_MIGRATION_DATA_COPY}
-            memory: ${MEMORY_REQUEST_HOSTS_TABLE_MIGRATION_DATA_COPY}
-    - name: hosts-table-migration-switch
-      restartPolicy: Never
-      suspend: ${{HOSTS_TABLE_MIGRATION_SWITCH_SUSPEND}}
-      podSpec:
-        image: ${IMAGE}:${IMAGE_TAG}
-        args: [ "./jobs/hosts_table_migration_switch.py" ]
-        env:
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
-          - name: INVENTORY_LOG_LEVEL
-            value: ${LOG_LEVEL}
-          - name: INVENTORY_DB_SSL_MODE
-            value: ${INVENTORY_DB_SSL_MODE}
-          - name: INVENTORY_DB_SSL_CERT
-            value: ${INVENTORY_DB_SSL_CERT}
-          - name: INVENTORY_DB_SCHEMA
-            value: "${INVENTORY_DB_SCHEMA}"
-          - name: PROMETHEUS_PUSHGATEWAY
-            value: ${PROMETHEUS_PUSHGATEWAY}
-          - name: NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
-          - name: CLOWDER_ENABLED
-            value: "true"
-          - name: HOSTS_TABLE_MIGRATION_SWITCH_MODE
-            value: ${HOSTS_TABLE_MIGRATION_SWITCH_MODE}
-          - name: REPLICA_NAMESPACE
-            value: ${REPLICA_NAMESPACE}
-          - name: SUSPEND_JOB
-            value: ${HOSTS_TABLE_MIGRATION_SWITCH_SUSPEND}
-        resources:
-          limits:
-            cpu: ${CPU_REQUEST_HOSTS_TABLE_MIGRATION_SWITCH}
-            memory: ${MEMORY_LIMIT_HOSTS_TABLE_MIGRATION_SWITCH}
-          requests:
-            cpu: ${CPU_REQUEST_HOSTS_TABLE_MIGRATION_SWITCH}
-            memory: ${MEMORY_REQUEST_HOSTS_TABLE_MIGRATION_SWITCH}
     - name: delete-host-bios-uuid
       restartPolicy: Never
       suspend: ${{SUSPEND_DELETE_HOST_BIOS_UUID}}
@@ -1883,148 +1769,6 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_DELETE_HOST_BIOS_UUID_JOB}
             memory: ${MEMORY_REQUEST_DELETE_HOST_BIOS_UUID_JOB}
-    - name: canonical-facts-migration
-      restartPolicy: Never
-      suspend: ${{SUSPEND_CANONICAL_FACTS_MIGRATION}}
-      podSpec:
-        image: ${IMAGE}:${IMAGE_TAG}
-        args: [ "./jobs/canonical_facts_migration.py" ]
-        env:
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
-          - name: INVENTORY_LOG_LEVEL
-            value: ${LOG_LEVEL}
-          - name: INVENTORY_DB_SSL_MODE
-            value: ${INVENTORY_DB_SSL_MODE}
-          - name: INVENTORY_DB_SSL_CERT
-            value: ${INVENTORY_DB_SSL_CERT}
-          - name: INVENTORY_DB_SCHEMA
-            value: "${INVENTORY_DB_SCHEMA}"
-          - name: PROMETHEUS_PUSHGATEWAY
-            value: ${PROMETHEUS_PUSHGATEWAY}
-          - name: NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
-          - name: CLOWDER_ENABLED
-            value: "true"
-          - name: CANONICAL_FACTS_MIGRATION_BATCH_SIZE
-            value: ${CANONICAL_FACTS_MIGRATION_BATCH_SIZE}
-          - name: REPLICA_NAMESPACE
-            value: ${REPLICA_NAMESPACE}
-          - name: SUSPEND_CANONICAL_FACTS_MIGRATION
-            value: ${SUSPEND_CANONICAL_FACTS_MIGRATION}
-        resources:
-          limits:
-            cpu: ${CPU_LIMIT_CANONICAL_FACTS_MIGRATION}
-            memory: ${MEMORY_LIMIT_CANONICAL_FACTS_MIGRATION}
-          requests:
-            cpu: ${CPU_REQUEST_CANONICAL_FACTS_MIGRATION}
-            memory: ${MEMORY_REQUEST_CANONICAL_FACTS_MIGRATION}
-    - name: sp-tables-migration-prepare
-      restartPolicy: OnFailure
-      suspend: ${{SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_PREPARE}}
-      podSpec: &baseMigrationPodSpec
-        image: ${IMAGE}:${IMAGE_TAG}
-        args:
-          - "./jobs/system_profile_tables_migration_data_copy.py"
-          - "--mode"
-          - "prepare"
-          - "--suspend"
-          - "${SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_PREPARE}"
-        env:
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
-          - name: INVENTORY_LOG_LEVEL
-            value: ${LOG_LEVEL}
-          - name: INVENTORY_DB_SSL_MODE
-            value: ${INVENTORY_DB_SSL_MODE}
-          - name: INVENTORY_DB_SSL_CERT
-            value: ${INVENTORY_DB_SSL_CERT}
-          - name: INVENTORY_DB_SCHEMA
-            value: "${INVENTORY_DB_SCHEMA}"
-          - name: PROMETHEUS_PUSHGATEWAY
-            value: ${PROMETHEUS_PUSHGATEWAY}
-          - name: NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
-          - name: CLOWDER_ENABLED
-            value: "true"
-          - name: SP_TABLES_MIGRATION_BATCH_SIZE
-            value: ${SP_TABLES_MIGRATION_BATCH_SIZE}
-          - name: REPLICA_NAMESPACE
-            value: ${REPLICA_NAMESPACE}
-        resources:
-          limits:
-            cpu: ${CPU_LIMIT_SP_TABLES_MIGRATION_DATA_COPY}
-            memory: ${MEMORY_LIMIT_SP_TABLES_MIGRATION_DATA_COPY}
-          requests:
-            cpu: ${CPU_REQUEST_SP_TABLES_MIGRATION_DATA_COPY}
-            memory: ${MEMORY_REQUEST_SP_TABLES_MIGRATION_DATA_COPY}
-    - name: sp-tables-migration-worker-1
-      restartPolicy: OnFailure
-      suspend: ${{SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_1}}
-      podSpec:
-        <<: *baseMigrationPodSpec
-        args:
-          - "./jobs/system_profile_tables_migration_data_copy.py"
-          - "--mode"
-          - "migrate"
-          - "--partitions"
-          - "${SP_TABLES_MIGRATION_WORKER_1_PARTITIONS}"
-          - "--suspend"
-          - "${SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_1}"
-    - name: sp-tables-migration-worker-2
-      restartPolicy: OnFailure
-      suspend: ${{SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_2}}
-      podSpec:
-        <<: *baseMigrationPodSpec
-        args:
-          - "./jobs/system_profile_tables_migration_data_copy.py"
-          - "--mode"
-          - "migrate"
-          - "--partitions"
-          - "${SP_TABLES_MIGRATION_WORKER_2_PARTITIONS}"
-          - "--suspend"
-          - "${SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_2}"
-    - name: sp-tables-migration-worker-3
-      restartPolicy: OnFailure
-      suspend: ${{SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_3}}
-      podSpec:
-        <<: *baseMigrationPodSpec
-        args:
-          - "./jobs/system_profile_tables_migration_data_copy.py"
-          - "--mode"
-          - "migrate"
-          - "--partitions"
-          - "${SP_TABLES_MIGRATION_WORKER_3_PARTITIONS}"
-          - "--suspend"
-          - "${SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_3}"
-    - name: sp-tables-migration-worker-4
-      restartPolicy: OnFailure
-      suspend: ${{SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_4}}
-      podSpec:
-        <<: *baseMigrationPodSpec
-        args:
-          - "./jobs/system_profile_tables_migration_data_copy.py"
-          - "--mode"
-          - "migrate"
-          - "--partitions"
-          - "${SP_TABLES_MIGRATION_WORKER_4_PARTITIONS}"
-          - "--suspend"
-          - "${SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_4}"
-    - name: sp-tables-migration-finalize
-      restartPolicy: OnFailure
-      suspend: ${{SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_FINALIZE}}
-      podSpec:
-        <<: *baseMigrationPodSpec
-        args:
-          - "./jobs/system_profile_tables_migration_data_copy.py"
-          - "--mode"
-          - "finalize"
-          - "--suspend"
-          - "${SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_FINALIZE}"
     database:
       name: ${DB_NAME}
       version: 16
@@ -2467,42 +2211,6 @@ parameters:
 - name: MEMORY_LIMIT_EXPORT_SVC
   value: 512Mi
 
-- name: CPU_REQUEST_SYNC_WORKLOADS_FIELDS
-  value: 250m
-- name: CPU_LIMIT_SYNC_WORKLOADS_FIELDS
-  value: 500m
-- name: MEMORY_REQUEST_SYNC_WORKLOADS_FIELDS
-  value: 256Mi
-- name: MEMORY_LIMIT_SYNC_WORKLOADS_FIELDS
-  value: 512Mi
-
-- name: CPU_REQUEST_HOSTS_TABLE_MIGRATION_DATA_COPY
-  value: 250m
-- name: CPU_LIMIT_HOSTS_TABLE_MIGRATION_DATA_COPY
-  value: 500m
-- name: MEMORY_REQUEST_HOSTS_TABLE_MIGRATION_DATA_COPY
-  value: 256Mi
-- name: MEMORY_LIMIT_HOSTS_TABLE_MIGRATION_DATA_COPY
-  value: 512Mi
-
-- name: CPU_REQUEST_HOSTS_TABLE_MIGRATION_SWITCH
-  value: 250m
-- name: CPU_LIMIT_HOSTS_TABLE_MIGRATION_SWITCH
-  value: 500m
-- name: MEMORY_REQUEST_HOSTS_TABLE_MIGRATION_SWITCH
-  value: 256Mi
-- name: MEMORY_LIMIT_HOSTS_TABLE_MIGRATION_SWITCH
-  value: 512Mi
-
-- name: CPU_REQUEST_SP_TABLES_MIGRATION_DATA_COPY
-  value: 250m
-- name: CPU_LIMIT_SP_TABLES_MIGRATION_DATA_COPY
-  value: 500m
-- name: MEMORY_REQUEST_SP_TABLES_MIGRATION_DATA_COPY
-  value: 256Mi
-- name: MEMORY_LIMIT_SP_TABLES_MIGRATION_DATA_COPY
-  value: 512Mi
-
 - description: Replica count for p1 consumer
   name: REPLICAS_P1
   value: "5"
@@ -2653,10 +2361,6 @@ parameters:
   value: 'true'
 - name: STALE_HOST_NOTIFICATION_SCHEDULE
   value: '*/1 * * * *'
-- name: SYNDICATOR_SUSPEND
-  value: 'false'
-- name: SYNDICATOR_CRON_SCHEDULE
-  value: '*/5 * * * *'
 - name: KAFKA_SP_VALIDATOR_MAX_MESSAGES
   value: '10000'
 - name: TENANT_TRANSLATOR_HOST
@@ -2736,47 +2440,6 @@ parameters:
 - name: SUSPEND_DELETE_HOSTS_S3
   description: If set to true, the delete-hosts-s3 job will immediately exit upon running.
   value: 'true'
-- name: HOSTS_TABLE_MIGRATION_BATCH_SIZE
-  description: The batch size to use for the hosts partitioned table migration.
-  value: '10000'
-- name: HOSTS_TABLE_MIGRATION_DATA_COPY_SUSPEND
-  value: 'true'
-- name: HOSTS_TABLE_MIGRATION_SWITCH_SUSPEND
-  value: 'true'
-- name: HOSTS_TABLE_MIGRATION_SWITCH_MODE
-  description: switch or rollback to revert the hosts table switch.
-  value: 'switch'
-- name: SP_TABLES_MIGRATION_DATA_COPY_SUSPEND
-  value: 'true'
-- name: SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_PREPARE
-  value: 'true'
-- name: SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_FINALIZE
-  value: 'true'
-- name: SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_1
-  value: 'true'
-- name: SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_2
-  value: 'true'
-- name: SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_3
-  value: 'true'
-- name: SP_TABLES_MIGRATION_DATA_COPY_SUSPEND_WORKER_4
-  value: 'true'
-- name: SP_TABLES_MIGRATION_WORKER_1_PARTITIONS
-  description: "Partition range for the first worker (e.g., 0-7)"
-  value: "0"
-- name: SP_TABLES_MIGRATION_WORKER_2_PARTITIONS
-  description: "Partition range for the second worker (e.g., 8-15)"
-  value: "1"
-- name: SP_TABLES_MIGRATION_WORKER_3_PARTITIONS
-  description: "Partition range for the third worker (e.g., 16-23)"
-  value: "2"
-- name: SP_TABLES_MIGRATION_WORKER_4_PARTITIONS
-  description: "Partition range for the fourth worker (e.g., 24-31)"
-  value: "3"
-- name: SP_TABLES_MIGRATION_BATCH_SIZE
-  description: The batch size to use for the system profile partitioned tables migration.
-  value: '10000'
-- name: SYNC_WORKLOADS_FIELDS_SUSPEND
-  value: 'true'
 
 # NGINX
 - displayName: Minimum replicas
@@ -2813,7 +2476,7 @@ parameters:
   name: UNLEASH_REFRESH_INTERVAL
   value: "15"
 
-#floorist
+# Floorist
 - name: FLOORIST_SUSPEND
   description: Disable Floorist cronjob execution
   required: true
@@ -2834,6 +2497,10 @@ parameters:
   value: host-inventory-db
 
   # Logical replication
+- name: SYNDICATOR_SUSPEND
+  value: 'false'
+- name: SYNDICATOR_CRON_SCHEDULE
+  value: '*/5 * * * *'
 - name: SYNDICATOR_CREATE_PUBLICATIONS
   description: Publications to create
   value: ''
@@ -2854,7 +2521,7 @@ parameters:
 
 # DB refactoring
 - name: MIGRATION_MODE
-  description: Choose migration mode to run DB refactoring tables transition
+  description: Choose migration mode to run DB migrations
   required: true
   value: automated
 
@@ -2873,22 +2540,6 @@ parameters:
 - name: TARGET_HOST_ID
   description: The host ID to target for bios_uuid deletion
   value: ''
-
-# Canonical Facts Migration Job
-- name: CPU_REQUEST_CANONICAL_FACTS_MIGRATION
-  value: 250m
-- name: CPU_LIMIT_CANONICAL_FACTS_MIGRATION
-  value: 500m
-- name: MEMORY_REQUEST_CANONICAL_FACTS_MIGRATION
-  value: 256Mi
-- name: MEMORY_LIMIT_CANONICAL_FACTS_MIGRATION
-  value: 512Mi
-- name: SUSPEND_CANONICAL_FACTS_MIGRATION
-  description: If set to true, the canonical-facts-migration job will immediately exit upon running.
-  value: 'true'
-- name: CANONICAL_FACTS_MIGRATION_BATCH_SIZE
-  description: The batch size to use for the canonical facts migration.
-  value: '5000'
 
 # Duplicate Hosts Remover Job
 - name: CPU_REQUEST_DUPLICATE_HOSTS_REMOVER_JOB
