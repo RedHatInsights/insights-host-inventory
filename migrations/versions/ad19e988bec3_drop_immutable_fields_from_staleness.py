@@ -1,8 +1,8 @@
-"""Remove immutable_ fields from staleness
+"""Drop immutable fields from staleness
 
-Revision ID: bf78431e36c3
-Revises: 0d4ee3bf6b94
-Create Date: 2025-09-18 14:28:37.426553
+Revision ID: ad19e988bec3
+Revises: 94a16dd3106c
+Create Date: 2025-09-23 15:05:34.314328
 
 """
 
@@ -12,8 +12,8 @@ from alembic import op
 from app.models.constants import INVENTORY_SCHEMA
 
 # revision identifiers, used by Alembic.
-revision = "bf78431e36c3"
-down_revision = "0d4ee3bf6b94"
+revision = "ad19e988bec3"
+down_revision = "94a16dd3106c"
 branch_labels = None
 depends_on = None
 
