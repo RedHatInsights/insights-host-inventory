@@ -63,6 +63,26 @@ objects:
     appName: host-inventory
     jobs:
       - delete-host-bios-uuid
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    labels:
+      app: host-inventory
+    name: create-ungrouped-groups-${CREATE_UNGROUPED_GROUPS_RUN_NUMBER}
+  spec:
+    appName: host-inventory
+    jobs:
+      - create-ungrouped-host-groups
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    labels:
+      app: host-inventory
+    name: assign-ungrouped-hosts-${ASSIGN_UNGROUPED_HOSTS_RUN_NUMBER}
+  spec:
+    appName: host-inventory
+    jobs:
+      - assign-ungrouped-host-groups
 parameters:
 - name: SYNCHRONIZER_RUN_NUMBER
   value: '1'
@@ -75,4 +95,8 @@ parameters:
 - name: HOST_SYNC_GROUP_DATA_RUN_NUMBER
   value: '1'
 - name: DELETE_HOST_BIOS_UUID_RUN_NUMBER
+  value: '1'
+- name: CREATE_UNGROUPED_GROUPS_RUN_NUMBER
+  value: '1'
+- name: ASSIGN_UNGROUPED_HOSTS_RUN_NUMBER
   value: '1'
