@@ -2327,6 +2327,15 @@ parameters:
 - name: MEMORY_LIMIT_EXPORT_SVC
   value: 512Mi
 
+- name: CPU_REQUEST_UNGROUPED_HOSTS_JOB
+  value: 250m
+- name: CPU_LIMIT_UNGROUPED_HOSTS_JOB
+  value: 500m
+- name: MEMORY_REQUEST_UNGROUPED_HOSTS_JOB
+  value: 256Mi
+- name: MEMORY_LIMIT_UNGROUPED_HOSTS_JOB
+  value: 512Mi
+
 - description: Replica count for p1 consumer
   name: REPLICAS_P1
   value: "5"
