@@ -186,7 +186,8 @@ class Kessel:
 
         # logger.info(f"user identity that reached the kessel lib: {current_identity.user}")
         user_id = (
-            current_identity.user["user_id"] if current_identity.user["user_id"] else current_identity.user["username"]
+            # current_identity.user["user_id"] if current_identity.user["user_id"] else current_identity.user["username"]
+            current_identity.user["user_id"] if "user_id" in current_identity.user.keys() else current_identity.user["username"]
         )  # HACK: this is ONLY to continue testing while waiting for the user_id bits to start working
         # logger.info(f"user_id resolved from the identity: {user_id}")
         subject_ref = resource_reference_pb2.ResourceReference(

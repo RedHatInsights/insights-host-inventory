@@ -267,11 +267,8 @@ def serialize_workspace_without_host_count(group: dict | Group, org_id: str) -> 
             "created": group.get("created", ""),
             "updated": group.get("modified", ""),
         }
-    elif isinstance(group, Group):
-        # Handle RBAC v1 group data (SQLAlchemy Group model)
-        return serialize_group_without_host_count(group)
     else:
-        raise TypeError(f"Expected dict or Group, got {type(group).__name__}")
+        return serialize_group_without_host_count(group)
 
 
 def serialize_group_with_host_count(group: Group, host_count: int) -> dict:

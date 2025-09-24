@@ -162,8 +162,8 @@ def _make_rbac_request(
         resp_data = rbac_response.json()
         logger.debug("RBAC Data", extra={"resp_data": resp_data})
 
-        if response_data_key:
-            return resp_data[response_data_key]
+        # if response_data_key:
+        #     return resp_data[response_data_key]
         return resp_data
     except (JSONDecodeError, KeyError) as e:
         rbac_failure(logger, e)
@@ -612,7 +612,9 @@ def get_rbac_workspaces(name: str, group_type: str) -> list[dict] | None:
     request_headers = _build_rbac_request_headers(request.headers[IDENTITY_HEADER], threadctx.request_id)
     request_data = {"name": name}
 
-    return get_rbac_workspace_using_endpoint_and_headers(request_data, rbac_endpoint, request_headers)
+    response = get_rbac_workspace_using_endpoint_and_headers(request_data, rbac_endpoint, request_headers)
+    # TODO: improve the following link directly using keys may run into key error
+    return response["data"], response["meta"]["count"]
 
 
 def get_rbac_workspace_using_endpoint_and_headers(
@@ -623,5 +625,5 @@ def get_rbac_workspace_using_endpoint_and_headers(
         rbac_endpoint=rbac_endpoint,
         request_headers=request_headers,
         request_data=request_data,
-        response_data_key="data",
+        # response_data_key="data",
     )
