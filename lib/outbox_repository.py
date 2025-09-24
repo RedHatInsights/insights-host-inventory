@@ -148,8 +148,8 @@ def write_event_to_outbox(event: EventType, host_id: str, host: Host | None = No
             payload=validated_outbox_entry["payload"],
         )
 
-        logger.info("Adding the event to outbox:")
-        logger.info(validated_outbox_entry)
+        logger.debug("Adding the event to outbox:")
+        logger.debug(validated_outbox_entry)
 
         # Save the outbox entry to record the event in the write-ahead log.
         db.session.add(outbox_entry_db)
@@ -160,7 +160,7 @@ def write_event_to_outbox(event: EventType, host_id: str, host: Host | None = No
 
         outbox_save_success.inc()
         logger.debug("Added outbox entry to session: aggregateid=%s", validated_outbox_entry["aggregateid"])
-        logger.info("Successfully added event to outbox for aggregateid=%s", validated_outbox_entry["aggregateid"])
+        logger.debug("Successfully added event to outbox for aggregateid=%s", validated_outbox_entry["aggregateid"])
 
         return True
 
