@@ -62,10 +62,6 @@ def get_rbac_private_url() -> str:
     return inventory_config().rbac_endpoint + RBAC_PRIVATE_UNGROUPED_ROUTE
 
 
-def tenant_translator_url() -> str:
-    return inventory_config().tenant_translator_url
-
-
 def _build_rbac_request_headers(identity_header: str | None = None, request_id_header: str | None = None) -> dict:
     request_headers = {
         IDENTITY_HEADER: identity_header or request.headers[IDENTITY_HEADER],
