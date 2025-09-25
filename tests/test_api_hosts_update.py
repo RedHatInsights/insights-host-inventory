@@ -454,9 +454,6 @@ def test_add_facts_to_multiple_culled_hosts(db_create_multiple_hosts, api_patch,
             conventional_time_to_stale=1,
             conventional_time_to_stale_warning=1,
             conventional_time_to_delete=1,
-            immutable_time_to_stale=1,
-            immutable_time_to_stale_warning=1,
-            immutable_time_to_delete=1,
         )
 
         staleness_timestamps = get_staleness_timestamps()
