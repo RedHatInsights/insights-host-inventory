@@ -2663,3 +2663,101 @@ def test_add_host_with_invalid_provider_type(
 
     # Verify that notification event was sent for the validation failure
     mock_notification_event_producer.write_event.assert_called_once()
+
+
+@pytest.mark.usefixtures("flask_app")
+@pytest.mark.parametrize("identity", (SYSTEM_IDENTITY, SATELLITE_IDENTITY, USER_IDENTITY))
+def test_kessel_migration_assigns_ungrouped_hosts_group(identity, mocker, ingress_message_consumer_mock):
+    """
+    Test that when Kessel workspace migration feature flag is enabled,
+    hosts without groups are automatically assigned to an "Ungrouped Hosts" group.
+    """
+    # Enable the Kessel workspace migration feature flag
+    mocker.patch("app.queue.host_mq.get_flag_value", return_value=True)
+
+    # Mock RBAC calls to avoid connection errors
+    mocker.patch(
+        "lib.middleware.rbac_get_request_using_endpoint_and_headers", return_value={"id": str(generate_uuid())}
+    )
+
+    expected_insights_id = generate_uuid()
+    host = minimal_host(org_id=identity["org_id"], insights_id=expected_insights_id)
+    # Explicitly set groups to empty to test the ungrouped assignment
+    host.groups = []
+
+    message = wrap_message(host.data(), "add_host", get_platform_metadata(identity))
+    result = ingress_message_consumer_mock.handle_message(json.dumps(message))
+
+    assert result.event_type == EventType.created
+    assert result.row.canonical_facts["insights_id"] == expected_insights_id
+
+    # Verify that the host was assigned to an ungrouped group
+    assert len(result.row.groups) == 1
+    assert result.row.groups[0]["name"] == "Ungrouped Hosts"
+    assert result.row.groups[0]["ungrouped"] is True
+    assert "id" in result.row.groups[0]
+    assert "account" in result.row.groups[0]
+    assert "created" in result.row.groups[0]
+
+
+@pytest.mark.usefixtures("flask_app")
+@pytest.mark.parametrize("identity", (SYSTEM_IDENTITY, SATELLITE_IDENTITY, USER_IDENTITY))
+def test_kessel_migration_disabled_no_ungrouped_assignment(identity, mocker, ingress_message_consumer_mock):
+    """
+    Test that when Kessel workspace migration feature flag is disabled,
+    hosts without groups remain without groups (empty groups list).
+    """
+    # Disable the Kessel workspace migration feature flag
+    mocker.patch("app.queue.host_mq.get_flag_value", return_value=False)
+
+    expected_insights_id = generate_uuid()
+    host = minimal_host(org_id=identity["org_id"], insights_id=expected_insights_id)
+    # Explicitly set groups to empty to test that no assignment happens
+    host.groups = []
+
+    message = wrap_message(host.data(), "add_host", get_platform_metadata(identity))
+    result = ingress_message_consumer_mock.handle_message(json.dumps(message))
+
+    assert result.event_type == EventType.created
+    assert result.row.canonical_facts["insights_id"] == expected_insights_id
+
+    # Verify that the host was NOT assigned to any group
+    assert result.row.groups == []
+
+
+@pytest.mark.usefixtures("flask_app")
+@pytest.mark.parametrize("identity", (SYSTEM_IDENTITY, SATELLITE_IDENTITY, USER_IDENTITY))
+def test_kessel_migration_with_existing_ungrouped_group(
+    identity, mocker, ingress_message_consumer_mock, db_create_group
+):
+    """
+    Test that when Kessel workspace migration feature flag is enabled,
+    hosts are assigned to an existing ungrouped group if one exists.
+    """
+    # Enable the Kessel workspace migration feature flag
+    mocker.patch("app.queue.host_mq.get_flag_value", return_value=True)
+
+    # Mock RBAC calls to avoid connection errors
+    mocker.patch(
+        "lib.middleware.rbac_get_request_using_endpoint_and_headers", return_value={"id": str(generate_uuid())}
+    )
+
+    # Create an existing ungrouped group
+    existing_ungrouped_group = db_create_group("Ungrouped Hosts", identity=identity, ungrouped=True)
+
+    expected_insights_id = generate_uuid()
+    host = minimal_host(org_id=identity["org_id"], insights_id=expected_insights_id)
+    # Explicitly set groups to empty to test the ungrouped assignment
+    host.groups = []
+
+    message = wrap_message(host.data(), "add_host", get_platform_metadata(identity))
+    result = ingress_message_consumer_mock.handle_message(json.dumps(message))
+
+    assert result.event_type == EventType.created
+    assert result.row.canonical_facts["insights_id"] == expected_insights_id
+
+    # Verify that the host was assigned to the existing ungrouped group
+    assert len(result.row.groups) == 1
+    assert result.row.groups[0]["name"] == "Ungrouped Hosts"
+    assert result.row.groups[0]["ungrouped"] is True
+    assert result.row.groups[0]["id"] == str(existing_ungrouped_group.id)
