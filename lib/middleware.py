@@ -36,7 +36,7 @@ from app.instrumentation import rbac_permission_denied
 from app.logging import get_logger
 from app.logging import threadctx
 from lib.feature_flags import FLAG_INVENTORY_API_READ_ONLY
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_HOST_MIGRATION
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
 from lib.feature_flags import get_flag_value
 from lib.kessel import Kessel
 from lib.kessel import get_kessel_client
@@ -424,7 +424,7 @@ def access(permission: KesselPermission, id_param: str = ""):
             allowed = None
             rbac_filter = None
             if get_flag_value(
-                FLAG_INVENTORY_KESSEL_HOST_MIGRATION
+                FLAG_INVENTORY_KESSEL_PHASE_1
             ):  # Workspace permissions aren't part of HBI in V2, fallback to rbac for now.
                 kessel_client = get_kessel_client(current_app)
                 ids = permission.resource_type.get_resource_id(kwargs, id_param)
