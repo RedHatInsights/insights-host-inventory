@@ -64,6 +64,7 @@ from app.queue.notifications import NotificationType
 from app.queue.notifications import send_notification
 from app.serialization import deserialize_host
 from app.serialization import remove_null_canonical_facts
+from app.serialization import serialize_group_without_host_count
 from app.serialization import serialize_host
 from app.staleness_serialization import AttrDict
 from lib import group_repository
@@ -408,6 +409,11 @@ class IngressMessageConsumer(HostMessageConsumer):
 
             # New hosts don't have an id, so create one
             input_host.id = uuid.uuid4() if input_host.id is None else input_host.id
+
+            # New hosts don't have a group, so create one as it is needed for rbac_v2 (workspaces)
+            if input_host.groups is None or len(input_host.groups) == 0:
+                group = group_repository.get_or_create_ungrouped_hosts_group_for_identity(identity)
+                input_host.groups = [serialize_group_without_host_count(group)]
 
             # basic-auth does not need owner_id
             if identity.identity_type == IdentityType.SYSTEM:
