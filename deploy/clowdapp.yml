@@ -139,10 +139,6 @@ objects:
           value: ${KAFKA_EVENT_TOPIC}
         - name: KAFKA_NOTIFICATION_TOPIC
           value: ${KAFKA_NOTIFICATION_TOPIC}
-        - name: TENANT_TRANSLATOR_URL
-          value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
-        - name: BYPASS_TENANT_TRANSLATION
-          value: ${BYPASS_TENANT_TRANSLATION}
         - name: CLOWDER_ENABLED
           value: "true"
         - name: INVENTORY_DB_STATEMENT_TIMEOUT
@@ -301,10 +297,6 @@ objects:
           value: ${KAFKA_EVENT_TOPIC}
         - name: KAFKA_NOTIFICATION_TOPIC
           value: ${KAFKA_NOTIFICATION_TOPIC}
-        - name: TENANT_TRANSLATOR_URL
-          value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
-        - name: BYPASS_TENANT_TRANSLATION
-          value: ${BYPASS_TENANT_TRANSLATION}
         - name: CLOWDER_ENABLED
           value: "true"
         - name: INVENTORY_DB_STATEMENT_TIMEOUT
@@ -463,10 +455,6 @@ objects:
           value: ${KAFKA_EVENT_TOPIC}
         - name: KAFKA_NOTIFICATION_TOPIC
           value: ${KAFKA_NOTIFICATION_TOPIC}
-        - name: TENANT_TRANSLATOR_URL
-          value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
-        - name: BYPASS_TENANT_TRANSLATION
-          value: ${BYPASS_TENANT_TRANSLATION}
         - name: CLOWDER_ENABLED
           value: "true"
         - name: INVENTORY_DB_STATEMENT_TIMEOUT
@@ -588,10 +576,6 @@ objects:
           value: ${KAFKA_SECURITY_PROTOCOL}
         - name: KAFKA_SASL_MECHANISM
           value: ${KAFKA_SASL_MECHANISM}
-        - name: TENANT_TRANSLATOR_URL
-          value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
-        - name: BYPASS_TENANT_TRANSLATION
-          value: ${BYPASS_TENANT_TRANSLATION}
         - name: CLOWDER_ENABLED
           value: "true"
         - name: INVENTORY_DB_SCHEMA
@@ -701,10 +685,6 @@ objects:
           value: ${KAFKA_SECURITY_PROTOCOL}
         - name: KAFKA_SASL_MECHANISM
           value: ${KAFKA_SASL_MECHANISM}
-        - name: TENANT_TRANSLATOR_URL
-          value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
-        - name: BYPASS_TENANT_TRANSLATION
-          value: ${BYPASS_TENANT_TRANSLATION}
         - name: CLOWDER_ENABLED
           value: "true"
         - name: INVENTORY_DB_SCHEMA
@@ -811,10 +791,6 @@ objects:
           value: ${KAFKA_SECURITY_PROTOCOL}
         - name: KAFKA_SASL_MECHANISM
           value: ${KAFKA_SASL_MECHANISM}
-        - name: TENANT_TRANSLATOR_URL
-          value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
-        - name: BYPASS_TENANT_TRANSLATION
-          value: ${BYPASS_TENANT_TRANSLATION}
         - name: CLOWDER_ENABLED
           value: "true"
         - name: INVENTORY_DB_SCHEMA
@@ -988,10 +964,6 @@ objects:
           value: ${KAFKA_SECURITY_PROTOCOL}
         - name: KAFKA_SASL_MECHANISM
           value: ${KAFKA_SASL_MECHANISM}
-        - name: TENANT_TRANSLATOR_URL
-          value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
-        - name: BYPASS_TENANT_TRANSLATION
-          value: ${BYPASS_TENANT_TRANSLATION}
         - name: CLOWDER_ENABLED
           value: "true"
         - name: INVENTORY_DB_SCHEMA
@@ -2392,9 +2364,6 @@ parameters:
 - description: disable RBAC middleware
   name: BYPASS_RBAC
   value: 'false'
-- description: disable account-to-org_id translation, defaulting to None where org_id is not provided
-  name: BYPASS_TENANT_TRANSLATION
-  value: 'false'
 - name: KAFKA_PRODUCER_ACKS
   value: '1'
 - name: KAFKA_PRODUCER_RETRIES
@@ -2488,10 +2457,6 @@ parameters:
   value: '*/1 * * * *'
 - name: KAFKA_SP_VALIDATOR_MAX_MESSAGES
   value: '10000'
-- name: TENANT_TRANSLATOR_HOST
-  value: 'gateway.3scale-dev.svc.cluster.local'
-- name: TENANT_TRANSLATOR_PORT
-  value: '8892'
 - name: GUNICORN_WORKERS
   value: '4'
 - name: GUNICORN_THREADS
