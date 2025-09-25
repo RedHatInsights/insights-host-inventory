@@ -6,6 +6,7 @@ from app.models import ProviderType
 from app.serialization import _deserialize_tags_dict
 from lib.host_repository import find_hosts_by_staleness
 from lib.host_repository import find_non_culled_hosts
+from tests.helpers.api_utils import FACTS
 from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import assert_response_status
@@ -223,10 +224,27 @@ def test_get_host_tags_with_RBAC_denied(subtests, mocker, api_get):
 
 
 @pytest.mark.usefixtures("enable_rbac")
-def test_get_host_tag_count_RBAC_allowed(mocker, api_get, subtests, mq_create_three_specific_hosts):
+def test_get_host_tag_count_RBAC_allowed(mocker, api_get, subtests, db_create_host):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
-    host_list = mq_create_three_specific_hosts
+    # Create hosts directly in the database instead of through MQ
+    host_list = []
+    for i in range(1, 4):
+        fqdn = f"host{i}.domain.test"
+        host = db_create_host(
+            extra_data={
+                "canonical_facts": {
+                    "insights_id": generate_uuid(),
+                    "subscription_manager_id": generate_uuid(),
+                    "fqdn": fqdn,
+                },
+                "display_name": f"host{i}",
+                "facts": FACTS,
+                "tags": {"ns1": {"key1": ["val1", "val2"], "key2": ["val1"]}, "SPECIAL": {"tag": ["ToFind"]}},
+            }
+        )
+        host_list.append(host)
+
     expected_response = {host.id: len(host.tags) for host in host_list}
 
     for response_file in HOST_READ_ALLOWED_RBAC_RESPONSE_FILES:
@@ -242,11 +260,27 @@ def test_get_host_tag_count_RBAC_allowed(mocker, api_get, subtests, mq_create_th
 
 
 @pytest.mark.usefixtures("enable_rbac")
-def test_get_host_tag_count_RBAC_denied(mq_create_four_specific_hosts, mocker, api_get, subtests):
+def test_get_host_tag_count_RBAC_denied(mocker, api_get, subtests, db_create_host):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     find_non_culled_hosts_mock = mocker.patch("lib.host_repository.find_non_culled_hosts", wraps=find_non_culled_hosts)
 
-    created_hosts = mq_create_four_specific_hosts
+    # Create hosts directly in the database instead of through MQ
+    created_hosts = []
+    for i in range(1, 5):
+        fqdn = f"host{i}.domain.test"
+        host = db_create_host(
+            extra_data={
+                "canonical_facts": {
+                    "insights_id": generate_uuid(),
+                    "subscription_manager_id": generate_uuid(),
+                    "fqdn": fqdn,
+                },
+                "display_name": f"host{i}",
+                "facts": FACTS,
+                "tags": {"ns1": {"key1": ["val1", "val2"], "key2": ["val1"]}, "SPECIAL": {"tag": ["ToFind"]}},
+            }
+        )
+        created_hosts.append(host)
 
     for response_file in HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)

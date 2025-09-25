@@ -429,10 +429,38 @@ def api_query_test(api_get, subtests, url, expected_host_list):
 
 def build_expected_host_list(host_list):
     host_list.reverse()
-    return [
-        {key: value for key, value in host.data().items() if key not in ("tags", "system_profile")}
-        for host in host_list
-    ]
+    expected_hosts = []
+    for host in host_list:
+        host_data = {key: value for key, value in host.data().items() if key not in ("tags", "system_profile")}
+
+        # Convert minimal group data to full group data for API response
+        if "groups" in host_data and host_data["groups"]:
+            full_groups = []
+            for group in host_data["groups"]:
+                # Get the full group data from the database
+                from app.models.database import db
+                from app.models.group import Group
+
+                db_group = db.session.query(Group).filter(Group.id == group["id"]).first()
+                if db_group:
+                    full_group = {
+                        "id": str(db_group.id),
+                        "name": db_group.name,
+                        "org_id": db_group.org_id,
+                        "account": db_group.account,
+                        "created": db_group.created_on.isoformat(),
+                        "updated": db_group.modified_on.isoformat(),
+                        "ungrouped": db_group.ungrouped,
+                    }
+                    full_groups.append(full_group)
+                else:
+                    # Fallback to minimal group data if not found in DB
+                    full_groups.append(group)
+            host_data["groups"] = full_groups
+
+        expected_hosts.append(host_data)
+
+    return expected_hosts
 
 
 # Since python3.6, dicts retain key order, so asserting that a list of dicts is equal

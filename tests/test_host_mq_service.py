@@ -147,12 +147,10 @@ def test_handle_message_happy_path(
 
     assert result.event_type == EventType.created
     assert result.row.canonical_facts["insights_id"] == expected_insights_id
-    if kessel_migration:
-        assert len(result.row.groups) == 1
-        assert result.row.groups[0]["name"] == existing_group_name if existing_ungrouped else "Ungrouped Hosts"
-        assert result.row.groups[0]["ungrouped"] is True
-    else:
-        assert result.row.groups == []
+    # Hosts are always assigned to ungrouped groups now
+    assert len(result.row.groups) == 1
+    assert result.row.groups[0]["name"] == existing_group_name if existing_ungrouped else "Ungrouped Hosts"
+    assert result.row.groups[0]["ungrouped"] is True
 
     mock_notification_event_producer.write_event.assert_not_called()
 
@@ -1901,8 +1899,13 @@ def test_groups_empty_for_new_host(mq_create_or_update_host, db_get_host):
     host = minimal_host(insights_id=expected_insights_id)
 
     created_key, created_event, _ = mq_create_or_update_host(host, return_all_data=True)
-    assert db_get_host(created_key).groups == []
-    assert created_event["host"]["groups"] == []
+    # Hosts are always assigned to ungrouped groups now
+    assert len(db_get_host(created_key).groups) == 1
+    assert db_get_host(created_key).groups[0]["name"] == "Ungrouped Hosts"
+    assert db_get_host(created_key).groups[0]["ungrouped"] is True
+    assert len(created_event["host"]["groups"]) == 1
+    assert created_event["host"]["groups"][0]["name"] == "Ungrouped Hosts"
+    assert created_event["host"]["groups"][0]["ungrouped"] is True
 
 
 def test_groups_not_overwritten_for_existing_hosts(
@@ -2667,13 +2670,10 @@ def test_add_host_with_invalid_provider_type(
 
 @pytest.mark.usefixtures("flask_app")
 @pytest.mark.parametrize("identity", (SYSTEM_IDENTITY, SATELLITE_IDENTITY, USER_IDENTITY))
-def test_kessel_migration_assigns_ungrouped_hosts_group(identity, mocker, ingress_message_consumer_mock):
+def test_hosts_always_assigned_to_ungrouped_group(identity, mocker, ingress_message_consumer_mock):
     """
-    Test that when Kessel workspace migration feature flag is enabled,
-    hosts without groups are automatically assigned to an "Ungrouped Hosts" group.
+    Test that hosts without groups are always automatically assigned to an "Ungrouped Hosts" group.
     """
-    # Enable the Kessel workspace migration feature flag
-    mocker.patch("app.queue.host_mq.get_flag_value", return_value=True)
 
     # Mock RBAC calls to avoid connection errors
     mocker.patch(
@@ -2702,17 +2702,18 @@ def test_kessel_migration_assigns_ungrouped_hosts_group(identity, mocker, ingres
 
 @pytest.mark.usefixtures("flask_app")
 @pytest.mark.parametrize("identity", (SYSTEM_IDENTITY, SATELLITE_IDENTITY, USER_IDENTITY))
-def test_kessel_migration_disabled_no_ungrouped_assignment(identity, mocker, ingress_message_consumer_mock):
+def test_hosts_with_existing_ungrouped_group_assigned_to_existing_group(
+    identity, ingress_message_consumer_mock, db_create_group
+):
     """
-    Test that when Kessel workspace migration feature flag is disabled,
-    hosts without groups remain without groups (empty groups list).
+    Test that hosts without groups are assigned to an existing ungrouped group if one exists.
     """
-    # Disable the Kessel workspace migration feature flag
-    mocker.patch("app.queue.host_mq.get_flag_value", return_value=False)
+    # Create an existing ungrouped group
+    existing_ungrouped_group = db_create_group("Ungrouped Hosts", identity=identity, ungrouped=True)
 
     expected_insights_id = generate_uuid()
     host = minimal_host(org_id=identity["org_id"], insights_id=expected_insights_id)
-    # Explicitly set groups to empty to test that no assignment happens
+    # Explicitly set groups to empty to test the assignment
     host.groups = []
 
     message = wrap_message(host.data(), "add_host", get_platform_metadata(identity))
@@ -2721,21 +2722,19 @@ def test_kessel_migration_disabled_no_ungrouped_assignment(identity, mocker, ing
     assert result.event_type == EventType.created
     assert result.row.canonical_facts["insights_id"] == expected_insights_id
 
-    # Verify that the host was NOT assigned to any group
-    assert result.row.groups == []
+    # Verify that the host was assigned to the existing ungrouped group
+    assert len(result.row.groups) == 1
+    assert result.row.groups[0]["name"] == "Ungrouped Hosts"
+    assert result.row.groups[0]["ungrouped"] is True
+    assert result.row.groups[0]["id"] == str(existing_ungrouped_group.id)
 
 
 @pytest.mark.usefixtures("flask_app")
 @pytest.mark.parametrize("identity", (SYSTEM_IDENTITY, SATELLITE_IDENTITY, USER_IDENTITY))
-def test_kessel_migration_with_existing_ungrouped_group(
-    identity, mocker, ingress_message_consumer_mock, db_create_group
-):
+def test_hosts_always_get_ungrouped_group_assignment(identity, mocker, ingress_message_consumer_mock, db_create_group):
     """
-    Test that when Kessel workspace migration feature flag is enabled,
-    hosts are assigned to an existing ungrouped group if one exists.
+    Test that hosts are always assigned to ungrouped groups regardless of existing groups.
     """
-    # Enable the Kessel workspace migration feature flag
-    mocker.patch("app.queue.host_mq.get_flag_value", return_value=True)
 
     # Mock RBAC calls to avoid connection errors
     mocker.patch(
