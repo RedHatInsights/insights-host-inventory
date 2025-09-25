@@ -1,7 +1,7 @@
 """Elongate host_type to 7 characters
 
 Revision ID: 2e14a2172246
-Revises: 94a16dd3106c
+Revises: ad19e988bec3
 Create Date: 2025-09-23 10:40:57.887088
 
 """
@@ -11,7 +11,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "2e14a2172246"
-down_revision = "94a16dd3106c"
+down_revision = "ad19e988bec3"
 branch_labels = None
 depends_on = None
 
