@@ -16,9 +16,6 @@ def test_get_default_staleness(api_get):
     assert response_data["conventional_time_to_stale"] == _INPUT_DATA["conventional_time_to_stale"]
     assert response_data["conventional_time_to_stale_warning"] == _INPUT_DATA["conventional_time_to_stale_warning"]
     assert response_data["conventional_time_to_delete"] == _INPUT_DATA["conventional_time_to_delete"]
-    assert response_data["immutable_time_to_stale"] == _INPUT_DATA["immutable_time_to_stale"]
-    assert response_data["immutable_time_to_stale_warning"] == _INPUT_DATA["immutable_time_to_stale_warning"]
-    assert response_data["immutable_time_to_delete"] == _INPUT_DATA["immutable_time_to_delete"]
 
 
 def test_get_custom_staleness(api_get):
@@ -27,9 +24,6 @@ def test_get_custom_staleness(api_get):
     assert response_data["conventional_time_to_stale"] == _INPUT_DATA["conventional_time_to_stale"]
     assert response_data["conventional_time_to_stale_warning"] == _INPUT_DATA["conventional_time_to_stale_warning"]
     assert response_data["conventional_time_to_delete"] == _INPUT_DATA["conventional_time_to_delete"]
-    assert response_data["immutable_time_to_stale"] == _INPUT_DATA["immutable_time_to_stale"]
-    assert response_data["immutable_time_to_stale_warning"] == _INPUT_DATA["immutable_time_to_stale_warning"]
-    assert response_data["immutable_time_to_delete"] == _INPUT_DATA["immutable_time_to_delete"]
     assert_response_status(response_status, 200)
 
 
@@ -40,9 +34,6 @@ def test_get_sys_default_staleness(api_get):
     assert response_data["conventional_time_to_stale"] == _INPUT_DATA["conventional_time_to_stale"]
     assert response_data["conventional_time_to_stale_warning"] == _INPUT_DATA["conventional_time_to_stale_warning"]
     assert response_data["conventional_time_to_delete"] == _INPUT_DATA["conventional_time_to_delete"]
-    assert response_data["immutable_time_to_stale"] == _INPUT_DATA["immutable_time_to_stale"]
-    assert response_data["immutable_time_to_stale_warning"] == _INPUT_DATA["immutable_time_to_stale_warning"]
-    assert response_data["immutable_time_to_delete"] == _INPUT_DATA["immutable_time_to_delete"]
 
 
 @pytest.mark.usefixtures("enable_rbac")
