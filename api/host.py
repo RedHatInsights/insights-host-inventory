@@ -53,7 +53,7 @@ from app.serialization import deserialize_canonical_facts
 from app.serialization import serialize_host
 from app.serialization import serialize_host_with_params
 from app.utils import Tag
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_HOST_MIGRATION
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
 from lib.feature_flags import get_flag_value
 from lib.host_delete import delete_hosts
 from lib.host_repository import find_existing_host
@@ -592,7 +592,7 @@ def get_host_exists(insights_id, rbac_filter=None):
     if not host_id:
         flask.abort(404, f"No host found for Insights ID '{insights_id}'.")
     # Duplicated - I wonder if this could be factored back into middleware.py
-    if (not inventory_config().bypass_rbac) and get_flag_value(FLAG_INVENTORY_KESSEL_HOST_MIGRATION):
+    if (not inventory_config().bypass_rbac) and get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1):
         kessel_client = get_kessel_client(current_app)
         allowed, _ = get_kessel_filter(  # Kind of a duplicate Kessel call too
             kessel_client, current_identity, KesselResourceTypes.HOST.view, [host_id]
