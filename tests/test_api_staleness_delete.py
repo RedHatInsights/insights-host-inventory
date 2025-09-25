@@ -11,9 +11,6 @@ def test_delete_existing_staleness(db_create_staleness_culling, api_delete_stale
         conventional_time_to_stale=1,
         conventional_time_to_stale_warning=7,
         conventional_time_to_delete=14,
-        immutable_time_to_stale=7,
-        immutable_time_to_stale_warning=120,
-        immutable_time_to_delete=120,
     )
 
     response_status, _ = api_delete_staleness()
@@ -43,9 +40,6 @@ def test_delete_staleness_rbac_allowed(subtests, mocker, api_delete_staleness, d
                 conventional_time_to_stale=1,
                 conventional_time_to_stale_warning=7,
                 conventional_time_to_delete=14,
-                immutable_time_to_stale=7,
-                immutable_time_to_stale_warning=120,
-                immutable_time_to_delete=120,
             )
 
             response_status, _ = api_delete_staleness()
