@@ -166,6 +166,37 @@ def test_delete_hosts_filtered_by_subscription_manager_id(
     assert_delete_event_is_valid(event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock)
 
 
+@pytest.mark.parametrize(
+    "host_type,system_type,nomatch_host_type",
+    (
+        (None, "conventional", "edge"),
+        ("edge", "edge", "cluster"),
+        ("cluster", "cluster", "edge"),
+    ),
+)
+@pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
+def test_delete_hosts_filtered_by_system_type(
+    host_type,
+    system_type,
+    nomatch_host_type,
+    db_create_host,
+    db_get_host,
+    api_delete_filtered_hosts,
+):
+    host_to_keep_id = db_create_host(extra_data={"system_profile_facts": {"host_type": nomatch_host_type}}).id
+    host_to_delete_id = db_create_host(extra_data={"system_profile_facts": {"host_type": host_type}}).id
+
+    response_status, response_data = api_delete_filtered_hosts(query_parameters={"system_type": system_type})
+
+    assert response_data["hosts_found"] == 1
+    assert response_data["hosts_deleted"] == 1
+    assert_response_status(response_status, expected_status=202)
+
+    # Check that the host to delete was deleted and the host to keep was not
+    assert not db_get_host(host_to_delete_id)
+    assert db_get_host(host_to_keep_id)
+
+
 @pytest.mark.usefixtures("notification_event_producer_mock")
 def test_delete_all_hosts(
     event_producer_mock,
