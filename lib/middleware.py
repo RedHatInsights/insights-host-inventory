@@ -95,7 +95,6 @@ def _make_rbac_request(
     request_headers: dict,
     request_data: dict | None = None,
     request_params: dict | None = None,
-    response_data_key: str | None = None,
 ) -> Any:
     """
     Generic RBAC request handler that consolidates common functionality.
@@ -106,7 +105,6 @@ def _make_rbac_request(
         request_headers: Headers for the request
         request_data: JSON data for POST requests
         request_params: Query parameters for GET requests
-        response_data_key: Key to extract from response JSON (e.g., 'data', 'id')
 
     Returns:
         Parsed response data or None if RBAC is bypassed
@@ -161,9 +159,6 @@ def _make_rbac_request(
     try:
         resp_data = rbac_response.json()
         logger.debug("RBAC Data", extra={"resp_data": resp_data})
-
-        # if response_data_key:
-        #     return resp_data[response_data_key]
         return resp_data
     except (JSONDecodeError, KeyError) as e:
         rbac_failure(logger, e)
@@ -478,7 +473,6 @@ def post_rbac_workspace_using_endpoint_and_headers(
         rbac_endpoint=rbac_endpoint,
         request_headers=request_headers,
         request_data=request_data,
-        response_data_key="id",
     )
 
 
@@ -618,28 +612,27 @@ def get_rbac_workspaces(name: str, group_type: str) -> tuple[list[dict], int] | 
     if not response:
         logger.warning("Empty response received from RBAC workspace endpoint")
         return [], 0
-    
+
     # Extract data with safe key access and type validation
     data = response.get("data", [])
     if not isinstance(data, list):
         logger.warning(f"Expected 'data' to be a list, got {type(data)}. Returning empty list.")
         data = []
-    
+
     count = response.get("meta", {}).get("count", 0)
     if not isinstance(count, int):
         logger.warning(f"Expected 'count' to be an integer, got {type(count)}. Using 0.")
         count = 0
-    
+
     return data, count
 
 
 def get_rbac_workspace_using_endpoint_and_headers(
     request_data: dict | None, rbac_endpoint: str, request_headers: dict
-) -> list[dict[Any, Any]] | None:
+) -> dict[Any, Any] | None:
     return _make_rbac_request(
         method="GET",
         rbac_endpoint=rbac_endpoint,
         request_headers=request_headers,
         request_data=request_data,
-        # response_data_key="data",
     )
