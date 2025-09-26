@@ -16,7 +16,9 @@ from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 
 
-def test_create_group_with_empty_host_list(api_create_group, db_get_group_by_name, event_producer, mocker):
+def test_create_group_with_empty_host_list(
+    api_create_group, db_get_group_by_name, event_producer, mocker, mock_rbac_v1
+):
     mocker.patch.object(event_producer, "write_event")
     mocker.patch("lib.host_repository.get_flag_value")
     group_data = {"name": "my_awesome_group", "host_ids": []}
@@ -32,7 +34,9 @@ def test_create_group_with_empty_host_list(api_create_group, db_get_group_by_nam
     assert event_producer.write_event.call_count == 0
 
 
-def test_create_group_without_hosts_in_request_body(api_create_group, db_get_group_by_name, event_producer, mocker):
+def test_create_group_without_hosts_in_request_body(
+    api_create_group, db_get_group_by_name, event_producer, mocker, mock_rbac_v1
+):
     mocker.patch.object(event_producer, "write_event")
     group_data = {"name": "my_awesome_group"}
 
@@ -48,7 +52,7 @@ def test_create_group_without_hosts_in_request_body(api_create_group, db_get_gro
 
 
 def test_create_group_with_hosts(
-    db_create_host, api_create_group, db_get_group_by_name, db_get_host, mocker, event_producer
+    db_create_host, api_create_group, db_get_group_by_name, db_get_host, mocker, event_producer, mock_rbac_v1
 ):
     mocker.patch.object(event_producer, "write_event")
     host1 = db_create_host()

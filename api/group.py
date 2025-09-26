@@ -57,8 +57,7 @@ logger = get_logger(__name__)
 
 
 @api_operation
-# @rbac(RbacResourceType.GROUPS, RbacPermission.READ)
-# @access(RbacResourceType.GROUPS, RbacPermission.READ)
+@rbac(RbacResourceType.GROUPS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_group_list(
     name=None,
@@ -72,7 +71,6 @@ def get_group_list(
     try:
         if get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1):
             group_list, total = get_rbac_workspaces(name, group_type)
-            # total = len(group_list)
         else:
             group_list, total = get_filtered_group_list_db(
                 name, page, per_page, order_by, order_how, rbac_filter, group_type

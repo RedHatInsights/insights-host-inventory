@@ -604,7 +604,7 @@ def get_rbac_default_workspace() -> UUID | None:
     return data[0]["id"] if data and len(data) > 0 else None
 
 
-def get_rbac_workspaces(name: str, group_type: str) -> list[dict] | None:
+def get_rbac_workspaces(name: str, group_type: str) -> tuple[list[dict], int] | None:
     if inventory_config().bypass_rbac:
         return None
 
@@ -613,8 +613,24 @@ def get_rbac_workspaces(name: str, group_type: str) -> list[dict] | None:
     request_data = {"name": name}
 
     response = get_rbac_workspace_using_endpoint_and_headers(request_data, rbac_endpoint, request_headers)
-    # TODO: improve the following link directly using keys may run into key error
-    return response["data"], response["meta"]["count"]
+
+    # Handle missing keys safely with type validation
+    if not response:
+        logger.warning("Empty response received from RBAC workspace endpoint")
+        return [], 0
+    
+    # Extract data with safe key access and type validation
+    data = response.get("data", [])
+    if not isinstance(data, list):
+        logger.warning(f"Expected 'data' to be a list, got {type(data)}. Returning empty list.")
+        data = []
+    
+    count = response.get("meta", {}).get("count", 0)
+    if not isinstance(count, int):
+        logger.warning(f"Expected 'count' to be an integer, got {type(count)}. Using 0.")
+        count = 0
+    
+    return data, count
 
 
 def get_rbac_workspace_using_endpoint_and_headers(
