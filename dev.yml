@@ -143,3 +143,61 @@ services:
         /usr/bin/mc policy set public myminio/exports-bucket;
         exit 0;
         "
+
+    hbi-web:
+      container_name: hbi-web
+      build: .
+      ports:
+        - "8080:8080"
+      environment:
+        - LISTEN_PORT=${LISTEN_PORT:-8080}
+        - FLASK_ENV=${FLASK_ENV:-development}
+        - FLASK_DEBUG=${FLASK_DEBUG:-1}
+        - CLOWDER_ENABLED=${CLOWDER_ENABLED:-false}
+        - INVENTORY_LOG_LEVEL=${INVENTORY_LOG_LEVEL:-DEBUG}
+        - INVENTORY_DB_HOST=db
+        - INVENTORY_DB_NAME=${INVENTORY_DB_NAME:-insights}
+        - INVENTORY_DB_USER=${INVENTORY_DB_USER:-insights}
+        - INVENTORY_DB_PASS=${INVENTORY_DB_PASS:-insights}
+        - INVENTORY_DB_POOL_TIMEOUT=${INVENTORY_DB_POOL_TIMEOUT:-5}
+        - INVENTORY_DB_POOL_SIZE=${INVENTORY_DB_POOL_SIZE:-5}
+        - INVENTORY_DB_SSL_MODE=${INVENTORY_DB_SSL_MODE}
+        - INVENTORY_DB_SSL_CERT=${INVENTORY_DB_SSL_CERT}
+        - UNLEASH_TOKEN=${UNLEASH_TOKEN}
+        - UNLEASH_CACHE_DIR=${UNLEASH_CACHE_DIR}
+        - UNLEASH_URL=${UNLEASH_URL}
+        - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+        - KAFKA_EVENT_TOPIC=platform.inventory.events
+        - KAFKA_EXPORT_SERVICE_TOPIC=${KAFKA_EXPORT_SERVICE_TOPIC}
+        - PROMETHEUS_MULTIPROC_DIR=${PROMETHEUS_MULTIPROC_DIR}
+        - BYPASS_RBAC=${BYPASS_RBAC:-false}
+        - BYPASS_UNLEASH=${BYPASS_UNLEASH}
+      depends_on:
+        db:
+          condition: service_healthy
+        kafka:
+          condition: service_started
+      volumes:
+        - .:/opt/app-root/src
+      command: python3 dev_server.py
+
+    hbi-mq:
+      container_name: hbi-mq
+      build: .
+      environment:
+        - INVENTORY_LOG_LEVEL=${INVENTORY_LOG_LEVEL:-DEBUG}
+        - INVENTORY_DB_HOST=db
+        - INVENTORY_DB_NAME=${INVENTORY_DB_NAME:-insights}
+        - INVENTORY_DB_USER=${INVENTORY_DB_USER:-insights}
+        - INVENTORY_DB_PASS=${INVENTORY_DB_PASS:-insights}
+        - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+        - KAFKA_EVENT_TOPIC=platform.inventory.events
+        - PAYLOAD_TRACKER_SERVICE_NAME=inventory-mq-service
+      depends_on:
+        db:
+          condition: service_healthy
+        kafka:
+          condition: service_started
+      volumes:
+        - .:/opt/app-root/src
+      command: python3 inv_mq_service.py
