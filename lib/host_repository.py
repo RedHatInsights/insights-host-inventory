@@ -103,7 +103,10 @@ def add_host(
             from lib.group_repository import serialize_group
 
             group = get_or_create_ungrouped_hosts_group_for_identity(identity)
+            logger.info(f"group from RBAC before adding to the input host: {group}")
+
             input_host.groups = [serialize_group(group)]
+            logger.info(f"input_host.groups[0]['id'] after adding the group from RBAC: {input_host.groups}")
 
             # create a new host group association for the host
             assoc = HostGroupAssoc(input_host.id, group.id, identity.org_id)

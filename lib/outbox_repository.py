@@ -39,7 +39,11 @@ def _create_update_event_payload(host: Host) -> dict:
     }
 
     groups = host.groups
-    common = {"workspace_id": groups[0]["id"]} if len(groups) > 0 else {}
+    try:
+        common = {"workspace_id": groups[0]["id"]}
+    except IndexError:
+        _report_error("Reported by Outbox: Missing required field 'workspace_id' in host data")
+    
 
     reporter = {
         "satellite_id": str(host.satellite_id) if host.satellite_id else None,
