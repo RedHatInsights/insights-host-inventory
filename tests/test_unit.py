@@ -449,10 +449,10 @@ class ConfigTestCase(TestCase):
         config = self._config()
 
         for param, expected_value in (
-            ("acks", 1),
-            ("retries", 0),
-            ("batch.size", 16384),
-            ("linger.ms", 0),
+            ("acks", "all"),
+            ("retries", 8),
+            ("batch.size", 65536),
+            ("linger.ms", 5),
             ("retry.backoff.ms", 100),
             ("max.in.flight.requests.per.connection", 5),
         ):
