@@ -95,6 +95,17 @@ def add_host(
                 logger.debug("host_repository.add_host: setting update_system_profile = False")
                 update_system_profile = False
 
+        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
+            # Import here to avoid circular import
+            from lib.group_repository import get_or_create_ungrouped_hosts_group_for_identity
+            from lib.group_repository import serialize_group
+
+            group = get_or_create_ungrouped_hosts_group_for_identity(identity)
+            logger.info(f"group from RBAC before adding to the input host: {group}")
+            input_host.groups = [serialize_group(group)]
+            logger.info(f"input_host_id after adding the group from RBAC: {input_host.id}")
+            logger.info(f"input_host.groups[0]['id'] after adding the group from RBAC: {input_host.groups}")
+
         return update_existing_host(matched_host, input_host, update_system_profile)
     else:
         if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
