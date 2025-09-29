@@ -106,6 +106,7 @@ def add_host(
             logger.info(f"group from RBAC before adding to the input host: {group}")
 
             input_host.groups = [serialize_group(group)]
+            logger.info(f"input_host_id after adding the group from RBAC: {input_host.id}")
             logger.info(f"input_host.groups[0]['id'] after adding the group from RBAC: {input_host.groups}")
 
             # create a new host group association for the host
