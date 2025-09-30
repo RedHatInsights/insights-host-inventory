@@ -1792,15 +1792,17 @@ class TestOutboxE2ECases:
             outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
             assert len(outbox_entries) == 0  # Entry is immediately deleted after flush
 
-    def test_workspace_id_in_created_event_e2e(self, db_create_host, db_get_host, db_create_group, db_create_host_group_assoc, db_create_staleness_culling):
+    def test_workspace_id_in_created_event_e2e(
+        self, db_create_host, db_get_host, db_create_group, db_create_host_group_assoc, db_create_staleness_culling
+    ):
         """Test that workspace_id is present in created events."""
         # Create staleness configuration for the org
         db_create_staleness_culling()
-        
+
         # Create a group
         group = db_create_group("Test Workspace Group", identity=SYSTEM_IDENTITY)
         group_id = str(group.id)
-        
+
         # Create a host with all required fields
         host_data = {
             "canonical_facts": {
@@ -1813,10 +1815,10 @@ class TestOutboxE2ECases:
 
         created_host = db_create_host(SYSTEM_IDENTITY, extra_data=host_data)
         host_id = str(created_host.id)
-        
+
         # Associate the host with the group
         db_create_host_group_assoc(created_host.id, group.id)
-        
+
         # Retrieve the host to ensure it has the group association
         host = db_get_host(created_host.id)
         assert len(host.groups) == 1
@@ -1826,20 +1828,22 @@ class TestOutboxE2ECases:
         with patch("lib.outbox_repository.outbox_save_success") as mock_success_metric:
             # Write created event to outbox
             result = write_event_to_outbox(EventType.created, host_id, host)
-            
+
             # Verify the operation succeeded
             assert result is True
             mock_success_metric.inc.assert_called_once()
 
-    def test_workspace_id_in_updated_event_e2e(self, db_create_host, db_get_host, db_create_group, db_create_host_group_assoc, db_create_staleness_culling):
+    def test_workspace_id_in_updated_event_e2e(
+        self, db_create_host, db_get_host, db_create_group, db_create_host_group_assoc, db_create_staleness_culling
+    ):
         """Test that workspace_id is present in updated events."""
         # Create staleness configuration for the org
         db_create_staleness_culling()
-        
+
         # Create a group
         group = db_create_group("Test Workspace Group", identity=SYSTEM_IDENTITY)
         group_id = str(group.id)
-        
+
         # Create a host with all required fields
         host_data = {
             "canonical_facts": {
@@ -1852,10 +1856,10 @@ class TestOutboxE2ECases:
 
         created_host = db_create_host(SYSTEM_IDENTITY, extra_data=host_data)
         host_id = str(created_host.id)
-        
+
         # Associate the host with the group
         db_create_host_group_assoc(created_host.id, group.id)
-        
+
         # Retrieve the host to ensure it has the group association
         host = db_get_host(created_host.id)
         assert len(host.groups) == 1
@@ -1864,25 +1868,27 @@ class TestOutboxE2ECases:
         # Update the host to trigger an updated event
         host.display_name = "Updated Workspace Test Host"
         host.save()
-        
+
         # Verify workspace_id in updated event
         with patch("lib.outbox_repository.outbox_save_success") as mock_success_metric:
             # Write updated event to outbox
             result = write_event_to_outbox(EventType.updated, host_id, host)
-            
+
             # Verify the operation succeeded
             assert result is True
             mock_success_metric.inc.assert_called_once()
 
-    def test_workspace_id_in_outbox_payload_structure_e2e(self, db_create_host, db_get_host, db_create_group, db_create_host_group_assoc, db_create_staleness_culling):
+    def test_workspace_id_in_outbox_payload_structure_e2e(
+        self, db_create_host, db_get_host, db_create_group, db_create_host_group_assoc, db_create_staleness_culling
+    ):
         """Test that workspace_id is correctly structured in outbox payload."""
         # Create staleness configuration for the org
         db_create_staleness_culling()
-        
+
         # Create a group
         group = db_create_group("Test Workspace Group", identity=SYSTEM_IDENTITY)
         group_id = str(group.id)
-        
+
         # Create a host with all required fields
         host_data = {
             "canonical_facts": {
@@ -1895,10 +1901,10 @@ class TestOutboxE2ECases:
 
         created_host = db_create_host(SYSTEM_IDENTITY, extra_data=host_data)
         host_id = str(created_host.id)
-        
+
         # Associate the host with the group
         db_create_host_group_assoc(created_host.id, group.id)
-        
+
         # Retrieve the host to ensure it has the group association
         host = db_get_host(created_host.id)
         assert len(host.groups) == 1
@@ -1917,26 +1923,24 @@ class TestOutboxE2ECases:
                         "console_href": "https://www.console.com/",
                         "reporter_version": "1.0",
                     },
-                    "common": {
-                        "workspace_id": group_id
-                    },
+                    "common": {"workspace_id": group_id},
                     "reporter": {
                         "satellite_id": None,
                         "subscription_manager_id": str(host.subscription_manager_id),
                         "insights_id": str(host.insights_id),
                         "ansible_host": None,
-                    }
-                }
+                    },
+                },
             }
-            
+
             # Write event to outbox to trigger payload creation
             result = write_event_to_outbox(EventType.updated, host_id, host)
             assert result is True
-            
+
             # Verify the payload was created with workspace_id
             mock_payload.assert_called_once_with(host)
             captured_payload = mock_payload.return_value
-            
+
             # Verify workspace_id is present in the common field
             assert "representations" in captured_payload
             representations = captured_payload["representations"]
@@ -1945,14 +1949,16 @@ class TestOutboxE2ECases:
             assert "workspace_id" in common
             assert common["workspace_id"] == group_id
 
-    def test_workspace_id_with_ungrouped_hosts_e2e(self, db_create_host, db_get_host, db_create_group, db_create_host_group_assoc, db_create_staleness_culling):
+    def test_workspace_id_with_ungrouped_hosts_e2e(
+        self, db_create_host, db_get_host, db_create_group, db_create_host_group_assoc, db_create_staleness_culling
+    ):
         """Test that workspace_id is present for hosts in ungrouped hosts group."""
         # Create staleness configuration for the org
         db_create_staleness_culling()
-        
+
         # Create a group
         group = db_create_group("Test Workspace Group", identity=SYSTEM_IDENTITY)
-        
+
         # Create a host with all required fields
         host_data = {
             "canonical_facts": {
@@ -1965,46 +1971,49 @@ class TestOutboxE2ECases:
 
         created_host = db_create_host(SYSTEM_IDENTITY, extra_data=host_data)
         host_id = str(created_host.id)
-        
+
         # Associate the host with the group initially
         db_create_host_group_assoc(created_host.id, group.id)
-        
+
         # Remove the host from the current group
         db.session.query(HostGroupAssoc).filter_by(host_id=created_host.id).delete()
-        
+
         # Create an ungrouped hosts group and associate the host with it
-        from lib.group_repository import get_or_create_ungrouped_hosts_group_for_identity
         from app.auth.identity import Identity
+        from lib.group_repository import get_or_create_ungrouped_hosts_group_for_identity
+
         identity = Identity(SYSTEM_IDENTITY)
         ungrouped_group = get_or_create_ungrouped_hosts_group_for_identity(identity)
-        
+
         # Associate the host with the ungrouped group
         db_create_host_group_assoc(created_host.id, ungrouped_group.id)
         db.session.commit()
-        
+
         # The host should now be in the ungrouped hosts group
         updated_host = db_get_host(created_host.id)
         assert len(updated_host.groups) == 1
-        ungrouped_group_id = updated_host.groups[0]["id"]
+        # ungrouped_group_id = updated_host.groups[0]["id"]
         assert updated_host.groups[0]["name"] == "Ungrouped Hosts"
-        
+
         # Verify workspace_id in updated event for ungrouped host
         with patch("lib.outbox_repository.outbox_save_success") as mock_success_metric:
             # Write updated event to outbox for ungrouped host
             result = write_event_to_outbox(EventType.updated, host_id, updated_host)
-            
+
             # Verify the operation succeeded
             assert result is True
             mock_success_metric.inc.assert_called_once()
 
-    def test_workspace_id_ungrouped_hosts_payload_structure_e2e(self, db_create_host, db_get_host, db_create_group, db_create_host_group_assoc, db_create_staleness_culling):
+    def test_workspace_id_ungrouped_hosts_payload_structure_e2e(
+        self, db_create_host, db_get_host, db_create_group, db_create_host_group_assoc, db_create_staleness_culling
+    ):
         """Test that workspace_id payload structure is correct for ungrouped hosts."""
         # Create staleness configuration for the org
         db_create_staleness_culling()
-        
+
         # Create a group
         group = db_create_group("Test Workspace Group", identity=SYSTEM_IDENTITY)
-        
+
         # Create a host with all required fields
         host_data = {
             "canonical_facts": {
@@ -2017,23 +2026,24 @@ class TestOutboxE2ECases:
 
         created_host = db_create_host(SYSTEM_IDENTITY, extra_data=host_data)
         host_id = str(created_host.id)
-        
+
         # Associate the host with the group initially
         db_create_host_group_assoc(created_host.id, group.id)
-        
+
         # Remove the host from the current group
         db.session.query(HostGroupAssoc).filter_by(host_id=created_host.id).delete()
-        
+
         # Create an ungrouped hosts group and associate the host with it
-        from lib.group_repository import get_or_create_ungrouped_hosts_group_for_identity
         from app.auth.identity import Identity
+        from lib.group_repository import get_or_create_ungrouped_hosts_group_for_identity
+
         identity = Identity(SYSTEM_IDENTITY)
         ungrouped_group = get_or_create_ungrouped_hosts_group_for_identity(identity)
-        
+
         # Associate the host with the ungrouped group
         db_create_host_group_assoc(created_host.id, ungrouped_group.id)
         db.session.commit()
-        
+
         # The host should now be in the ungrouped hosts group
         updated_host = db_get_host(created_host.id)
         assert len(updated_host.groups) == 1
@@ -2053,26 +2063,24 @@ class TestOutboxE2ECases:
                         "console_href": "https://www.console.com/",
                         "reporter_version": "1.0",
                     },
-                    "common": {
-                        "workspace_id": ungrouped_group_id
-                    },
+                    "common": {"workspace_id": ungrouped_group_id},
                     "reporter": {
                         "satellite_id": None,
                         "subscription_manager_id": str(updated_host.subscription_manager_id),
                         "insights_id": str(updated_host.insights_id),
                         "ansible_host": None,
-                    }
-                }
+                    },
+                },
             }
-            
+
             # Write event to outbox to trigger payload creation
             result = write_event_to_outbox(EventType.updated, host_id, updated_host)
             assert result is True
-            
+
             # Verify the payload was created with workspace_id for ungrouped group
             mock_payload.assert_called_once_with(updated_host)
             captured_payload = mock_payload.return_value
-            
+
             # Verify workspace_id is present in the common field
             assert "representations" in captured_payload
             representations = captured_payload["representations"]
@@ -2085,7 +2093,7 @@ class TestOutboxE2ECases:
         """Test that workspace_id is empty when host has no groups."""
         # Create staleness configuration for the org
         db_create_staleness_culling()
-        
+
         # Create a host without any group associations
         host_data_no_groups = {
             "canonical_facts": {
@@ -2098,11 +2106,11 @@ class TestOutboxE2ECases:
 
         host_no_groups = db_create_host(SYSTEM_IDENTITY, extra_data=host_data_no_groups)
         host_no_groups_id = str(host_no_groups.id)
-        
+
         # Ensure the host has no groups (bypass Kessel migration for this test)
         host_no_groups.groups = []
         host_no_groups.save()
-        
+
         # Mock the outbox payload creation to capture the payload
         with patch("lib.outbox_repository._create_update_event_payload") as mock_payload:
             mock_payload.return_value = {
@@ -2122,18 +2130,18 @@ class TestOutboxE2ECases:
                         "subscription_manager_id": str(host_no_groups.subscription_manager_id),
                         "insights_id": str(host_no_groups.insights_id),
                         "ansible_host": None,
-                    }
-                }
+                    },
+                },
             }
-            
+
             # Write event to outbox to trigger payload creation
             result = write_event_to_outbox(EventType.created, host_no_groups_id, host_no_groups)
             assert result is True
-            
+
             # Verify the payload was created without workspace_id
             mock_payload.assert_called_once_with(host_no_groups)
             captured_payload = mock_payload.return_value
-            
+
             # Verify workspace_id is not present when host has no groups
             assert "representations" in captured_payload
             representations = captured_payload["representations"]
