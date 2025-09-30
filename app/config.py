@@ -268,14 +268,16 @@ class Config:
         }
 
         self.kafka_producer = {
-            "acks": self._from_dict(PRODUCER_ACKS, "KAFKA_PRODUCER_ACKS", "1"),
-            "retries": int(os.environ.get("KAFKA_PRODUCER_RETRIES", "0")),
-            "batch.size": int(os.environ.get("KAFKA_PRODUCER_BATCH.SIZE", "16384")),
-            "linger.ms": int(os.environ.get("KAFKA_PRODUCER_LINGER.MS", "0")),
+            "acks": self._from_dict(PRODUCER_ACKS, "KAFKA_PRODUCER_ACKS", "all"),
+            "retries": int(os.environ.get("KAFKA_PRODUCER_RETRIES", "8")),
+            "batch.size": int(os.environ.get("KAFKA_PRODUCER_BATCH.SIZE", "65536")),
+            "linger.ms": int(os.environ.get("KAFKA_PRODUCER_LINGER.MS", "5")),
             "retry.backoff.ms": int(os.environ.get("KAFKA_PRODUCER_RETRY.BACKOFF.MS", "100")),
             "max.in.flight.requests.per.connection": int(
                 os.environ.get("KAFKA_PRODUCER_MAX.IN.FLIGHT.REQUESTS.PER.CONNECTION", "5")
             ),
+            "enable.idempotence": os.environ.get("KAFKA_PRODUCER_ENABLE_IDEMPOTENCE", "true").lower() == "true",
+            "compression.type": os.environ.get("KAFKA_PRODUCER_COMPRESSION_TYPE", "lz4"),
             **self.kafka_ssl_configs,
         }
 
