@@ -2365,9 +2365,9 @@ parameters:
   name: BYPASS_RBAC
   value: 'false'
 - name: KAFKA_PRODUCER_ACKS
-  value: '1'
+  value: 'all'
 - name: KAFKA_PRODUCER_RETRIES
-  value: '0'
+  value: '8'
 - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
   value: '100'
 - name: KAFKA_HOST_INGRESS_TOPIC
