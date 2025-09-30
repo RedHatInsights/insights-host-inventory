@@ -1791,4 +1791,3 @@ class TestOutboxE2ECases:
             # The write_event_to_outbox should have been called automatically during host creation
             outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
             assert len(outbox_entries) == 0  # Entry is immediately deleted after flush
-
