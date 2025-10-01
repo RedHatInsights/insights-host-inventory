@@ -171,14 +171,55 @@ make upgrade_db
 echo "127.0.0.1   kafka" | sudo tee -a /etc/hosts
 ```
 
+To create one host(s), run the following command:
+
 ```bash
 make run_inv_mq_service_test_producer NUM_HOSTS=800
 ```
 
 - By default, it creates one host if `NUM_HOSTS` is not specified.
 - Optionally, you may need to pass `INVENTORY_HOST_ACCOUNT=5894300` to the command above to override the default `org_id` (`321`)
+- Optionally, you may want to create different types of hosts by passing `HOST_TYPE=[sap|rhsm|qpc]`. By default, it will create standard hosts with basic system profile data.
 
-### Run the export service
+#### Using the Enhanced Kafka Producer
+
+The new Kafka producer supports creating different types of hosts with various configurations:
+
+```bash
+# Create default hosts
+python utils/kafka_producer.py --num-hosts 10
+
+# Create RHSM hosts
+python utils/kafka_producer.py --host-type rhsm --num-hosts 5
+
+# Create QPC hosts
+python utils/kafka_producer.py --host-type qpc --num-hosts 3
+
+# Create SAP hosts
+python utils/kafka_producer.py --host-type sap --num-hosts 2
+
+# List available host types
+python utils/kafka_producer.py --list-types
+
+# Use custom Kafka settings
+python utils/kafka_producer.py --host-type sap --num-hosts 5 \
+  --bootstrap-servers localhost:29092 \
+  --topic platform.inventory.host-ingress
+```
+
+**Available Host Types:**
+- `default`: Standard hosts with basic system profile data
+- `rhsm`: Red Hat Subscription Manager hosts with RHSM-specific facts and metadata
+- `qpc`: Quipucords Product Catalog hosts with discovery-specific data
+- `sap`: SAP hosts with SAP workloads data in the dynamic system profile
+
+**Environment Variables:**
+- `NUM_HOSTS`: Number of hosts to create (default: 1)
+- `HOST_TYPE`: Default host type (default: "default")
+- `KAFKA_BOOTSTRAP_SERVERS`: Kafka bootstrap servers (default: "localhost:29092")
+- `KAFKA_HOST_INGRESS_TOPIC`: Kafka topic for host ingress (default: "platform.inventory.host-ingress")
+
+#### Run the Export Service
 
 ```bash
 pipenv shell
