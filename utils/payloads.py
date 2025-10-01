@@ -576,13 +576,19 @@ def create_system_profile():
                 "ai_models": ["granite-7b-redhat-lab"],
                 "free_disk_storage": "698GB",
             },
+            "crowdstrike": {
+                "falcon_aid": "44e3b7d20b434a2bb2815d9808fa3a8b",
+                "falcon_backend": "kernel",
+                "falcon_version": "7.14.16703.0",
+            },
         },
     }
 
 
 def build_rhsm_payload():
+    """Red Hat Subscription Manager hosts with RHSM-specific facts and metadata"""
     return {
-        "org_id": "rhsorgid",
+        "org_id": org_id,
         "bios_uuid": "e56890e3-9ce5-4fb2-b677-3d84e3e4d4a9",
         "facts": [
             {
@@ -618,12 +624,15 @@ def build_rhsm_payload():
         ],
         "subscription_manager_id": "77ecf4c6-ab06-405c-844c-d815973de7f2",
         "reporter": "rhsm-conduit",
+        "stale_timestamp": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
         "system_profile": create_system_profile(),
     }
 
 
 def build_qpc_payload():
+    """Quipucords Product Catalog (QPC) hosts with discovery-specific data"""
     return {
+        "org_id": org_id,
         "display_name": "dhcp-8-29-119.lab.eng.rdu2.redhat.com",
         "bios_uuid": "7E681E42-FCBE-2831-E9E2-78983C7FA869",
         "ip_addresses": ["10.8.29.119"],
@@ -652,6 +661,7 @@ def build_qpc_payload():
             "cores_per_socket": 1,
         },
         "reporter": "yupana",
+        "stale_timestamp": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
     }
 
 
@@ -664,6 +674,7 @@ USE_RANDOMNESS = os.environ.get("USE_RANDOMNESS", "True").lower() == "true"
 
 
 def build_host_chunk():
+    """Standard hosts with basic system profile data"""
     fqdn = random_uuid()[:6] + ".foo.redhat.com"
     system_profile = create_system_profile()
 
@@ -728,3 +739,83 @@ def build_mq_payload(payload_builder=build_host_chunk):
 
 def build_http_payload(payload_builder=build_host_chunk):
     return build_host_payload(payload_builder)
+
+
+# SAP-specific payload builders
+def build_sap_host_chunk():
+    """Build a host chunk with SAP workloads data for testing SAP endpoints."""
+    payload = build_host_chunk()
+    system_profile = payload["system_profile"]
+
+    # Randomly determine if this is a SAP system or not
+    is_sap_system = random.choice([True, False]) if USE_RANDOMNESS else True
+
+    # Only add SAP workloads if this is actually a SAP system
+    if is_sap_system:
+        sap_sids_options = [
+            ["ABC", "XYZ"],
+            ["DEV", "QAS", "PRD"],
+            ["T01", "S02"],
+            ["ERP", "CRM"],
+            ["BW1", "BI2"],
+            [],  # Some SAP systems might have no SIDS
+        ]
+
+        # Randomly choose SIDS for SAP systems
+        sap_sids = random.choice(sap_sids_options) if USE_RANDOMNESS else ["PRD", "QAS"]
+
+        # Add SAP workloads data (goes to system_profiles_dynamic table)
+        system_profile["workloads"]["sap"] = {
+            "sap_system": True,  # Only True for actual SAP systems
+            "sids": sap_sids,
+        }
+
+        # Add SAP-specific tags only for SAP systems
+        sap_tags = [
+            {"namespace": "SAP", "key": "environment", "value": random.choice(["production", "development", "test"])},
+            {"namespace": "SAP", "key": "landscape", "value": random.choice(["ERP", "BW", "CRM"])},
+        ]
+
+        if USE_RANDOMNESS:
+            payload["tags"].extend(random.sample(sap_tags, random.randint(0, len(sap_tags))))
+        else:
+            payload["tags"].extend(sap_tags)
+
+    # Non-SAP systems get no SAP workloads structure at all
+
+    return payload
+
+
+def build_multiple_sap_hosts(num_hosts=3):
+    """Build multiple SAP host payloads for testing."""
+    return [build_sap_host_chunk() for _ in range(num_hosts)]
+
+
+def build_rhsm_mq_payload():
+    """Build an MQ payload with RHSM host data."""
+    return build_mq_payload(payload_builder=build_rhsm_payload)
+
+
+def build_qpc_mq_payload():
+    """Build an MQ payload with QPC host data."""
+    return build_mq_payload(payload_builder=build_qpc_payload)
+
+
+def build_sap_mq_payload():
+    """Build an MQ payload with SAP host data."""
+    return build_mq_payload(payload_builder=build_sap_host_chunk)
+
+
+def build_rhsm_http_payload():
+    """Build an HTTP payload with RHSM host data."""
+    return build_http_payload(payload_builder=build_rhsm_payload)
+
+
+def build_qpc_http_payload():
+    """Build an HTTP payload with QPC host data."""
+    return build_http_payload(payload_builder=build_qpc_payload)
+
+
+def build_sap_http_payload():
+    """Build an HTTP payload with SAP host data."""
+    return build_http_payload(payload_builder=build_sap_host_chunk)
