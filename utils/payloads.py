@@ -468,7 +468,7 @@ def create_system_profile():
         "cpu_flags": ["flag1", "flag2"],
         "os_release": "Red Hat EL 7.0.1",
         "os_kernel_version": "3.10.0",
-        "arch": "x86-64",
+        "arch": "x86_64",
         "last_boot_time": "2020-02-13T12:08:55Z",
         "kernel_modules": ["i915", "e1000e"],
         "running_processes": ["vim", "gcc", "python"],
@@ -477,7 +477,15 @@ def create_system_profile():
         "katello_agent_running": False,
         "satellite_managed": False,
         "is_marketplace": False,
-        "yum_repos": [{"name": "repo1", "gpgcheck": True, "enabled": True, "base_url": "http://rpms.redhat.com"}],
+        "yum_repos": [
+            {
+                "id": "repo1",
+                "name": "repo1",
+                "gpgcheck": True,
+                "enabled": True,
+                "base_url": "http://rpms.redhat.com",
+            }
+        ],
         "installed_products": [
             {"name": "eap", "id": "123", "status": "UP"},
             {"name": "jbws", "id": "321", "status": "DOWN"},
@@ -485,21 +493,102 @@ def create_system_profile():
         "insights_client_version": "12.0.12",
         "insights_egg_version": "120.0.1",
         "captured_date": "2020-02-13T12:16:00Z",
-        # "installed_packages": ["rpm1", "rpm2"],
-        # "installed_packages": subprocess.getoutput("rpm -qa").split("\n"),
-        # "installed_packages": rpm_list(),
         "installed_services": ["ndb", "krb5"],
         "enabled_services": ["ndb", "krb5"],
         "selinux_current_mode": "enforcing",
         "selinux_config_file": "enforcing",
         "operating_system": {"name": "RHEL", "major": 8, "minor": 1},
         "system_update_method": "yum",  # "dnf, rpm-ostree, yum"
+        # Static system profile extras
+        "basearch": "x86_64",
+        "bootc_status": {
+            "booted": {
+                "image": "quay.io/centos-bootc/fedora-bootc-cloud:eln",
+                "image_digest": "sha256:806d77394f96e47cf99b1233561ce970c94521244a2d8f2affa12c3261961223",
+                "cached_image": "quay.io/centos-bootc/fedora-bootc-cloud:eln",
+                "cached_image_digest": "sha256:92e476435ced1c148350c660b09c744717defbd300a15d33deda5b50ad6b21a0",
+            }
+        },
+        "cloud_provider": "aws",
+        "conversions": {"activity": True},
+        "dnf_modules": [{"name": "postgresql", "stream": "13", "status": ["default", "enabled", "installed"]}],
+        "gpg_pubkeys": ["gpg-pubkey-2fa658e0-45700c69", "gpg-pubkey-fd431d51-4ae0493b"],
+        "greenboot_fallback_detected": False,
+        "greenboot_status": "green",
+        "image_builder": {
+            "compliance_policy_id": "89b52baa-9912-4edc-9ed5-be15c06eaaa9",
+            "compliance_profile_id": "xccdf_org.ssgproject.content_profile_cis",
+        },
+        "installed_packages_delta": [
+            "openssl-0:3.0.1-1.el9.x86_64",
+            "krb5-libs-0:1.16.1-23.fc29.i686",
+        ],
+        "public_dns": ["ec2-203-0-113-12.compute-1.amazonaws.com"],
+        "public_ipv4_addresses": ["203.0.113.12"],
+        "releasever": "8",
+        "rhsm": {
+            "version": "8.1",
+            "environment_ids": ["262e621d10ae4475ab5732b39a9160b2"],
+        },
+        "rpm_ostree_deployments": [
+            {
+                "id": "rhel-9.3-1",
+                "osname": "rhel",
+                "checksum": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+                "origin": "rhel/9/x86_64/edge",
+                "booted": False,
+                "pinned": False,
+            }
+        ],
+        "system_purpose": {"role": "server", "sla": "premium", "usage": "production"},
+        "third_party_services": {
+            "crowdstrike": {
+                "falcon_aid": "44e3b7d20b434a2bb2815d9808fa3a8b",
+                "falcon_backend": "kernel",
+                "falcon_version": "7.14.16703.0",
+            }
+        },
+        "threads_per_core": 2,
+        "tuned_profile": "throughput-performance",
+        "virtual_host_uuid": "4b9a9b9c-aaaa-bbbb-cccc-2f2f2f2f2f2f",
+        # Dynamic system profile extras
+        "installed_packages": [
+            "bash-0:5.2.15-1.el9.x86_64",
+            "coreutils-0:9.1-1.el9.x86_64",
+        ],
+        "systemd": {
+            "state": "running",
+            "jobs_queued": 0,
+            "failed": 0,
+            "failed_services": [],
+        },
+        "workloads": {
+            "ansible": {
+                "controller_version": "1.2.3",
+                "hub_version": "1.2.3",
+                "catalog_worker_version": "1.2.3",
+                "sso_version": "1.2.3",
+            },
+            "rhel_ai": {
+                "variant": "RHEL AI",
+                "rhel_ai_version_id": "v1.1.3",
+                "gpu_models": [{"name": "NVIDIA A100 80GB PCIe", "vendor": "Nvidia", "memory": "80GB", "count": 1}],
+                "ai_models": ["granite-7b-redhat-lab"],
+                "free_disk_storage": "698GB",
+            },
+            "crowdstrike": {
+                "falcon_aid": "44e3b7d20b434a2bb2815d9808fa3a8b",
+                "falcon_backend": "kernel",
+                "falcon_version": "7.14.16703.0",
+            },
+        },
     }
 
 
 def build_rhsm_payload():
+    """Red Hat Subscription Manager hosts with RHSM-specific facts and metadata"""
     return {
-        "org_id": "rhsorgid",
+        "org_id": org_id,
         "bios_uuid": "e56890e3-9ce5-4fb2-b677-3d84e3e4d4a9",
         "facts": [
             {
@@ -535,12 +624,15 @@ def build_rhsm_payload():
         ],
         "subscription_manager_id": "77ecf4c6-ab06-405c-844c-d815973de7f2",
         "reporter": "rhsm-conduit",
+        "stale_timestamp": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
         "system_profile": create_system_profile(),
     }
 
 
 def build_qpc_payload():
+    """Quipucords Product Catalog (QPC) hosts with discovery-specific data"""
     return {
+        "org_id": org_id,
         "display_name": "dhcp-8-29-119.lab.eng.rdu2.redhat.com",
         "bios_uuid": "7E681E42-FCBE-2831-E9E2-78983C7FA869",
         "ip_addresses": ["10.8.29.119"],
@@ -569,6 +661,7 @@ def build_qpc_payload():
             "cores_per_socket": 1,
         },
         "reporter": "yupana",
+        "stale_timestamp": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
     }
 
 
@@ -581,6 +674,7 @@ USE_RANDOMNESS = os.environ.get("USE_RANDOMNESS", "True").lower() == "true"
 
 
 def build_host_chunk():
+    """Standard hosts with basic system profile data"""
     fqdn = random_uuid()[:6] + ".foo.redhat.com"
     system_profile = create_system_profile()
 
@@ -645,3 +739,83 @@ def build_mq_payload(payload_builder=build_host_chunk):
 
 def build_http_payload(payload_builder=build_host_chunk):
     return build_host_payload(payload_builder)
+
+
+# SAP-specific payload builders
+def build_sap_host_chunk():
+    """Build a host chunk with SAP workloads data for testing SAP endpoints."""
+    payload = build_host_chunk()
+    system_profile = payload["system_profile"]
+
+    # Randomly determine if this is a SAP system or not
+    is_sap_system = random.choice([True, False]) if USE_RANDOMNESS else True
+
+    # Only add SAP workloads if this is actually a SAP system
+    if is_sap_system:
+        sap_sids_options = [
+            ["ABC", "XYZ"],
+            ["DEV", "QAS", "PRD"],
+            ["T01", "S02"],
+            ["ERP", "CRM"],
+            ["BW1", "BI2"],
+            [],  # Some SAP systems might have no SIDS
+        ]
+
+        # Randomly choose SIDS for SAP systems
+        sap_sids = random.choice(sap_sids_options) if USE_RANDOMNESS else ["PRD", "QAS"]
+
+        # Add SAP workloads data (goes to system_profiles_dynamic table)
+        system_profile["workloads"]["sap"] = {
+            "sap_system": True,  # Only True for actual SAP systems
+            "sids": sap_sids,
+        }
+
+        # Add SAP-specific tags only for SAP systems
+        sap_tags = [
+            {"namespace": "SAP", "key": "environment", "value": random.choice(["production", "development", "test"])},
+            {"namespace": "SAP", "key": "landscape", "value": random.choice(["ERP", "BW", "CRM"])},
+        ]
+
+        if USE_RANDOMNESS:
+            payload["tags"].extend(random.sample(sap_tags, random.randint(0, len(sap_tags))))
+        else:
+            payload["tags"].extend(sap_tags)
+
+    # Non-SAP systems get no SAP workloads structure at all
+
+    return payload
+
+
+def build_multiple_sap_hosts(num_hosts=3):
+    """Build multiple SAP host payloads for testing."""
+    return [build_sap_host_chunk() for _ in range(num_hosts)]
+
+
+def build_rhsm_mq_payload():
+    """Build an MQ payload with RHSM host data."""
+    return build_mq_payload(payload_builder=build_rhsm_payload)
+
+
+def build_qpc_mq_payload():
+    """Build an MQ payload with QPC host data."""
+    return build_mq_payload(payload_builder=build_qpc_payload)
+
+
+def build_sap_mq_payload():
+    """Build an MQ payload with SAP host data."""
+    return build_mq_payload(payload_builder=build_sap_host_chunk)
+
+
+def build_rhsm_http_payload():
+    """Build an HTTP payload with RHSM host data."""
+    return build_http_payload(payload_builder=build_rhsm_payload)
+
+
+def build_qpc_http_payload():
+    """Build an HTTP payload with QPC host data."""
+    return build_http_payload(payload_builder=build_qpc_payload)
+
+
+def build_sap_http_payload():
+    """Build an HTTP payload with SAP host data."""
+    return build_http_payload(payload_builder=build_sap_host_chunk)

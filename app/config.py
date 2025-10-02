@@ -277,7 +277,6 @@ class Config:
                 os.environ.get("KAFKA_PRODUCER_MAX.IN.FLIGHT.REQUESTS.PER.CONNECTION", "5")
             ),
             "enable.idempotence": os.environ.get("KAFKA_PRODUCER_ENABLE_IDEMPOTENCE", "true").lower() == "true",
-            "compression.type": os.environ.get("KAFKA_PRODUCER_COMPRESSION_TYPE", "lz4"),
             **self.kafka_ssl_configs,
         }
 
