@@ -101,7 +101,7 @@ def add_host(
             from lib.group_repository import serialize_group
 
             group = get_or_create_ungrouped_hosts_group_for_identity(identity)
-            input_host.groups = [serialize_group(group)]
+            input_host.groups = [serialize_group(group, identity.org_id)]
 
         return update_existing_host(matched_host, input_host, update_system_profile)
     else:
@@ -111,7 +111,7 @@ def add_host(
             from lib.group_repository import serialize_group
 
             group = get_or_create_ungrouped_hosts_group_for_identity(identity)
-            input_host.groups = [serialize_group(group)]
+            input_host.groups = [serialize_group(group, identity.org_id)]
 
             # create a new host group association for the host
             assoc = HostGroupAssoc(input_host.id, group.id, identity.org_id)
