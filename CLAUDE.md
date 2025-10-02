@@ -16,11 +16,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `make style` - Run pre-commit hooks for code formatting
 
 ### Local Development Services
-- `make run_inv_mq_service` - Start the message queue service for processing Kafka messages
 - `make run_inv_export_service` - Start the export service for data exports
-- `make run_inv_web_service` - Start the web API service
 - `make run_inv_mq_service_test_producer NUM_HOSTS=800` - Generate test host data
-- `honcho start` - Run both MQ and web services simultaneously
+
+### Containerized Development Environment
+- `docker compose -f dev.yml up -d` - Start all services (PostgreSQL, Kafka, Redis, etc.) with auto-reloading
+- `docker compose -f dev.yml down` - Stop all services
+
+**Auto-Reloading Web Service**: The `hbi-web` container includes automatic code reloading for development:
+- **File Watcher**: `dev_server.py` monitors Python, YAML, and JSON files for changes
+- **Smart Restart**: Automatically restarts Flask when code changes are detected
+- **Debouncing**: Prevents rapid restarts during bulk file operations
+- **Clean Logs**: Provides clear feedback when files change and server restarts
+- **Volume Mount**: Local repository is mounted at `/opt/app-root/src` for real-time file sync
+
+This eliminates the need to manually restart containers during development. Simply save your files and the web service will automatically reload.
 
 ### Environment Setup
 - `pipenv install --dev` - Install dependencies
