@@ -1,4 +1,5 @@
 import json
+import uuid
 
 from marshmallow import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
@@ -36,6 +37,7 @@ def _create_update_event_payload(host: Host) -> dict:
         "api_href": "https://apihref.com/",
         "console_href": "https://www.console.com/",
         "reporter_version": "1.0",
+        "transaction_id": str(uuid.uuid4()),
     }
 
     groups = host.groups

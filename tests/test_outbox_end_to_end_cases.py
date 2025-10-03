@@ -331,7 +331,7 @@ class TestOutboxE2ECases:
         created_payload = {
             "aggregatetype": "hbi.hosts",
             "aggregateid": str(uuid.uuid4()),
-            "operation": "ReportResource",
+            "operation": "created",  # Use 'created' to trigger payload validation
             "version": "v1beta2",
             "payload": {
                 "type": "host",
@@ -343,6 +343,7 @@ class TestOutboxE2ECases:
                         "api_href": "https://apihref.com/",
                         "console_href": "https://www.console.com/",
                         "reporter_version": "1.0",
+                        "transaction_id": str(uuid.uuid4()),
                     },
                     "common": {},
                     "reporter": {
@@ -372,6 +373,123 @@ class TestOutboxE2ECases:
 
         validated_delete_data = schema.load(delete_payload)
         assert validated_delete_data is not None
+
+    def test_outbox_schema_validation_fails_without_transaction_id(self):
+        """Test that outbox entries without transaction_id fail schema validation."""
+        # Test created/updated payload without transaction_id
+        created_payload_missing_transaction_id = {
+            "aggregatetype": "hbi.hosts",
+            "aggregateid": str(uuid.uuid4()),
+            "operation": "created",  # Use 'created' to trigger payload validation
+            "version": "v1beta2",
+            "payload": {
+                "type": "host",
+                "reporter_type": "hbi",
+                "reporter_instance_id": "redhat.com",
+                "representations": {
+                    "metadata": {
+                        "local_resource_id": str(uuid.uuid4()),
+                        "api_href": "https://apihref.com/",
+                        "console_href": "https://www.console.com/",
+                        "reporter_version": "1.0",
+                        # transaction_id is missing - this should cause validation to fail
+                    },
+                    "common": {},
+                    "reporter": {
+                        "satellite_id": None,
+                        "subscription_manager_id": str(uuid.uuid4()),
+                        "insights_id": str(uuid.uuid4()),
+                        "ansible_host": None,
+                    },
+                },
+            },
+        }
+
+        schema = OutboxSchema()
+
+        # This should raise a validation error because transaction_id is missing
+        with pytest.raises(MarshmallowValidationError) as exc_info:
+            schema.load(created_payload_missing_transaction_id)
+
+        # Verify the error message mentions the missing transaction_id field
+        error_message = str(exc_info.value)
+        assert "transaction_id" in error_message or "Missing data for required field" in error_message
+
+    def test_outbox_schema_validation_success_updated_operation(self):
+        """Test that valid outbox entries with 'updated' operation pass schema validation."""
+        # Test updated payload
+        updated_payload = {
+            "aggregatetype": "hbi.hosts",
+            "aggregateid": str(uuid.uuid4()),
+            "operation": "updated",  # Use 'updated' to trigger payload validation
+            "version": "v1beta2",
+            "payload": {
+                "type": "host",
+                "reporter_type": "hbi",
+                "reporter_instance_id": "redhat.com",
+                "representations": {
+                    "metadata": {
+                        "local_resource_id": str(uuid.uuid4()),
+                        "api_href": "https://apihref.com/",
+                        "console_href": "https://www.console.com/",
+                        "reporter_version": "1.0",
+                        "transaction_id": str(uuid.uuid4()),
+                    },
+                    "common": {},
+                    "reporter": {
+                        "satellite_id": None,
+                        "subscription_manager_id": str(uuid.uuid4()),
+                        "insights_id": str(uuid.uuid4()),
+                        "ansible_host": None,
+                    },
+                },
+            },
+        }
+
+        schema = OutboxSchema()
+        validated_data = schema.load(updated_payload)
+        assert validated_data is not None
+
+    def test_outbox_schema_validation_fails_without_transaction_id_updated_operation(self):
+        """Test that outbox entries with 'updated' operation without transaction_id fail schema validation."""
+        # Test updated payload without transaction_id
+        updated_payload_missing_transaction_id = {
+            "aggregatetype": "hbi.hosts",
+            "aggregateid": str(uuid.uuid4()),
+            "operation": "updated",  # Use 'updated' to trigger payload validation
+            "version": "v1beta2",
+            "payload": {
+                "type": "host",
+                "reporter_type": "hbi",
+                "reporter_instance_id": "redhat.com",
+                "representations": {
+                    "metadata": {
+                        "local_resource_id": str(uuid.uuid4()),
+                        "api_href": "https://apihref.com/",
+                        "console_href": "https://www.console.com/",
+                        "reporter_version": "1.0",
+                        # transaction_id is missing - this should cause validation to fail
+                    },
+                    "common": {},
+                    "reporter": {
+                        "satellite_id": None,
+                        "subscription_manager_id": str(uuid.uuid4()),
+                        "insights_id": str(uuid.uuid4()),
+                        "ansible_host": None,
+                    },
+                },
+            },
+        }
+
+        schema = OutboxSchema()
+
+        # This should raise a validation error because transaction_id is missing
+        with pytest.raises(MarshmallowValidationError) as exc_info:
+            schema.load(updated_payload_missing_transaction_id)
+
+        # Verify the error message mentions the missing transaction_id field
+        error_message = str(exc_info.value)
+        assert "transaction_id" in error_message or "Missing data for required field" in error_message
 
     def test_outbox_entry_with_groups(self, db_create_host, db_create_group, db_get_host, db_create_host_group_assoc):
         """Test outbox entry creation when host has groups."""
@@ -1066,6 +1184,12 @@ class TestOutboxE2ECases:
             metadata = representations["metadata"]
             # Note: metadata structure may vary - just verify it exists and contains expected fields
             assert metadata is not None
+            # Verify transaction_id is present in metadata
+            assert "transaction_id" in metadata
+            assert metadata["transaction_id"] is not None
+
+            # Verify transaction_id is a valid UUID format
+            uuid.UUID(metadata["transaction_id"])  # This will raise ValueError if not a valid UUID
             # Check if host-specific fields are in metadata or somewhere else in the payload
             # Some fields might be in different parts of the representations
 
@@ -1259,6 +1383,12 @@ class TestOutboxE2ECases:
                 # Verify host metadata in payload exists
                 metadata = representations["metadata"]
                 assert metadata is not None
+                # Verify transaction_id is present in metadata
+                assert "transaction_id" in metadata
+                assert metadata["transaction_id"] is not None
+
+                # Verify transaction_id is a valid UUID format
+                uuid.UUID(metadata["transaction_id"])  # This will raise ValueError if not a valid UUID
 
                 # Verify the host was actually removed from the original group in the database
                 hosts_in_group_after = db_get_hosts_for_group(group_id)
@@ -1431,6 +1561,11 @@ class TestOutboxE2ECases:
             assert metadata["api_href"] == "https://apihref.com/"
             assert metadata["console_href"] == "https://www.console.com/"
             assert metadata["reporter_version"] == "1.0"
+            assert "transaction_id" in metadata
+            assert metadata["transaction_id"] is not None
+
+            # Verify transaction_id is a valid UUID format
+            uuid.UUID(metadata["transaction_id"])  # This will raise ValueError if not a valid UUID
 
             # Verify reporter structure
             reporter = representations["reporter"]

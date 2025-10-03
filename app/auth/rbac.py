@@ -72,6 +72,7 @@ class HostKesselResourceType(KesselResourceType):
 class WorkspaceKesselResourceType(KesselResourceType):
     def __init__(self) -> None:
         super().__init__("rbac", "workspace", RbacResourceType.GROUPS, "inventory")
+        self.view = KesselPermission(self, "inventory_groups_view", "inventory_groups_view", RbacPermission.READ)
         self.move_host = KesselPermission(self, "inventory_host_move", "inventory_host_move", RbacPermission.WRITE)
 
 
