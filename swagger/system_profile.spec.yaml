@@ -585,7 +585,7 @@ $defs:
       host_type:
         type: string
         enum: [edge, cluster]
-        maxLength: 7
+        maxLength: 12
         description: Indicates the type of host.
         example: 'edge, cluster'
       greenboot_status:

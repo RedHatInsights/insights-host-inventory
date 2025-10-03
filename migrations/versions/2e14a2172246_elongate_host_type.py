@@ -22,7 +22,7 @@ def upgrade():
         column_name="host_type",
         schema="hbi",
         existing_type=sa.String(length=4),
-        type_=sa.String(length=7),
+        type_=sa.String(length=12),
     )
 
 
@@ -31,6 +31,6 @@ def downgrade():
         table_name="system_profiles_static",
         column_name="host_type",
         schema="hbi",
-        existing_type=sa.String(length=7),
+        existing_type=sa.String(length=12),
         type_=sa.String(length=4),
     )

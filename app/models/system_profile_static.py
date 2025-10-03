@@ -58,7 +58,7 @@ class HostStaticSystemProfile(db.Model):
     gpg_pubkeys = db.Column(ARRAY(String(512)), nullable=True)
     greenboot_fallback_detected = db.Column(db.Boolean, default=False, nullable=True)
     greenboot_status = db.Column(db.String(5), nullable=True)
-    host_type = db.Column(db.String(7), nullable=True)
+    host_type = db.Column(db.String(12), nullable=True)
     image_builder = db.Column(JSONB(astext_type=db.Text()), nullable=True)
     infrastructure_type = db.Column(db.String(100), nullable=True)
     infrastructure_vendor = db.Column(db.String(100), nullable=True)
