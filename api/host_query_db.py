@@ -31,6 +31,7 @@ from app.instrumentation import log_get_host_list_succeeded
 from app.logging import get_logger
 from app.models import Group
 from app.models import Host
+from app.models import HostDynamicSystemProfile
 from app.models import HostGroupAssoc
 from app.models import db
 from app.serialization import serialize_host_for_export_svc
@@ -474,10 +475,11 @@ def get_sap_system_info(
     rbac_filter: dict,
     identity: Identity,
 ):
-    host_sap_system = Host.system_profile_facts["workloads"]["sap"]["sap_system"]
+    # Use the new system_profiles_dynamic table for SAP data
+    dynamic_sap_system = HostDynamicSystemProfile.workloads["sap"]["sap_system"]
 
     columns = [
-        host_sap_system.label("value"),
+        dynamic_sap_system.label("value"),
     ]
 
     filters, query_base = query_filters(
@@ -488,11 +490,20 @@ def get_sap_system_info(
         rbac_filter=rbac_filter,
         identity=identity,
     )
+
+    # Join with the dynamic system profile table if not already joined by query_filters
+    # query_filters adds an implicit JOIN when filter or registered_with is present
+    if not filter and not registered_with:
+        query_base = query_base.join(HostDynamicSystemProfile)
+
     sap_query = _find_hosts_entities_query(query=query_base, columns=columns)
+
+    # Filter for existing SAP system data
     sap_filter = [
-        func.jsonb_typeof(host_sap_system) == "boolean",
-        host_sap_system.astext.cast(Boolean) != None,  # noqa:E711
+        func.jsonb_typeof(dynamic_sap_system) == "boolean",
+        dynamic_sap_system.astext.cast(Boolean) != None,  # noqa:E711
     ]
+
     sap_query = sap_query.filter(*filters).filter(*sap_filter)
 
     subquery = sap_query.subquery()
@@ -514,12 +525,14 @@ def get_sap_sids_info(
     search: str,
     identity: Identity,
 ):
-    host_sap_sids = Host.system_profile_facts["workloads"]["sap"]["sids"]
+    # Use the new system_profiles_dynamic table for SAP SIDS data
+    dynamic_sap_sids = HostDynamicSystemProfile.workloads["sap"]["sids"]
 
     columns = [
         Host.id,
-        func.jsonb_array_elements_text(host_sap_sids).label("sap_sids"),
+        func.jsonb_array_elements_text(dynamic_sap_sids).label("sap_sids"),
     ]
+
     filters, query_base = query_filters(
         tags=tags,
         staleness=staleness,
@@ -528,7 +541,14 @@ def get_sap_sids_info(
         rbac_filter=rbac_filter,
         identity=identity,
     )
-    sap_sids_query = _find_hosts_entities_query(query=query_base, columns=columns)
+
+    # Join with the dynamic system profile table if not already joined by query_filters
+    # query_filters adds an implicit JOIN when filter or registered_with is present
+    if not filter and not registered_with:
+        query_base = query_base.join(HostDynamicSystemProfile)
+
+    sap_sids_query = _find_hosts_entities_query(query_base, columns)
+
     query_results = sap_sids_query.filter(*filters).all()
     db.session.close()
     sap_sids = {}
