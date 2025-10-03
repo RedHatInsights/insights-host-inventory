@@ -147,12 +147,10 @@ def test_handle_message_happy_path(
 
     assert result.event_type == EventType.created
     assert result.row.canonical_facts["insights_id"] == expected_insights_id
-    if kessel_migration:
-        assert len(result.row.groups) == 1
-        assert result.row.groups[0]["name"] == existing_group_name if existing_ungrouped else "Ungrouped Hosts"
-        assert result.row.groups[0]["ungrouped"] is True
-    else:
-        assert result.row.groups == []
+    # Hosts are always assigned to ungrouped groups now
+    assert len(result.row.groups) == 1
+    assert result.row.groups[0]["name"] == existing_group_name if existing_ungrouped else "Ungrouped Hosts"
+    assert result.row.groups[0]["ungrouped"] is True
 
     mock_notification_event_producer.write_event.assert_not_called()
 
@@ -1901,8 +1899,13 @@ def test_groups_empty_for_new_host(mq_create_or_update_host, db_get_host):
     host = minimal_host(insights_id=expected_insights_id)
 
     created_key, created_event, _ = mq_create_or_update_host(host, return_all_data=True)
-    assert db_get_host(created_key).groups == []
-    assert created_event["host"]["groups"] == []
+    # Hosts are always assigned to ungrouped groups now
+    assert len(db_get_host(created_key).groups) == 1
+    assert db_get_host(created_key).groups[0]["name"] == "Ungrouped Hosts"
+    assert db_get_host(created_key).groups[0]["ungrouped"] is True
+    assert len(created_event["host"]["groups"]) == 1
+    assert created_event["host"]["groups"][0]["name"] == "Ungrouped Hosts"
+    assert created_event["host"]["groups"][0]["ungrouped"] is True
 
 
 def test_groups_not_overwritten_for_existing_hosts(
@@ -2663,3 +2666,97 @@ def test_add_host_with_invalid_provider_type(
 
     # Verify that notification event was sent for the validation failure
     mock_notification_event_producer.write_event.assert_called_once()
+
+
+@pytest.mark.usefixtures("flask_app")
+@pytest.mark.parametrize("identity", (SYSTEM_IDENTITY, SATELLITE_IDENTITY, USER_IDENTITY))
+def test_hosts_always_assigned_to_ungrouped_group(identity, mocker, ingress_message_consumer_mock):
+    """
+    Test that hosts without groups are always automatically assigned to an "Ungrouped Hosts" group.
+    """
+
+    # Mock RBAC calls to avoid connection errors
+    mocker.patch(
+        "lib.middleware.rbac_get_request_using_endpoint_and_headers", return_value={"id": str(generate_uuid())}
+    )
+
+    expected_insights_id = generate_uuid()
+    host = minimal_host(org_id=identity["org_id"], insights_id=expected_insights_id)
+    # Explicitly set groups to empty to test the ungrouped assignment
+    host.groups = []
+
+    message = wrap_message(host.data(), "add_host", get_platform_metadata(identity))
+    result = ingress_message_consumer_mock.handle_message(json.dumps(message))
+
+    assert result.event_type == EventType.created
+    assert result.row.canonical_facts["insights_id"] == expected_insights_id
+
+    # Verify that the host was assigned to an ungrouped group
+    assert len(result.row.groups) == 1
+    assert result.row.groups[0]["name"] == "Ungrouped Hosts"
+    assert result.row.groups[0]["ungrouped"] is True
+    assert "id" in result.row.groups[0]
+    assert "account" in result.row.groups[0]
+    assert "created" in result.row.groups[0]
+
+
+@pytest.mark.usefixtures("flask_app")
+@pytest.mark.parametrize("identity", (SYSTEM_IDENTITY, SATELLITE_IDENTITY, USER_IDENTITY))
+def test_hosts_with_existing_ungrouped_group_assigned_to_existing_group(
+    identity, ingress_message_consumer_mock, db_create_group
+):
+    """
+    Test that hosts without groups are assigned to an existing ungrouped group if one exists.
+    """
+    # Create an existing ungrouped group
+    existing_ungrouped_group = db_create_group("Ungrouped Hosts", identity=identity, ungrouped=True)
+
+    expected_insights_id = generate_uuid()
+    host = minimal_host(org_id=identity["org_id"], insights_id=expected_insights_id)
+    # Explicitly set groups to empty to test the assignment
+    host.groups = []
+
+    message = wrap_message(host.data(), "add_host", get_platform_metadata(identity))
+    result = ingress_message_consumer_mock.handle_message(json.dumps(message))
+
+    assert result.event_type == EventType.created
+    assert result.row.canonical_facts["insights_id"] == expected_insights_id
+
+    # Verify that the host was assigned to the existing ungrouped group
+    assert len(result.row.groups) == 1
+    assert result.row.groups[0]["name"] == "Ungrouped Hosts"
+    assert result.row.groups[0]["ungrouped"] is True
+    assert result.row.groups[0]["id"] == str(existing_ungrouped_group.id)
+
+
+@pytest.mark.usefixtures("flask_app")
+@pytest.mark.parametrize("identity", (SYSTEM_IDENTITY, SATELLITE_IDENTITY, USER_IDENTITY))
+def test_hosts_always_get_ungrouped_group_assignment(identity, mocker, ingress_message_consumer_mock, db_create_group):
+    """
+    Test that hosts are always assigned to ungrouped groups regardless of existing groups.
+    """
+
+    # Mock RBAC calls to avoid connection errors
+    mocker.patch(
+        "lib.middleware.rbac_get_request_using_endpoint_and_headers", return_value={"id": str(generate_uuid())}
+    )
+
+    # Create an existing ungrouped group
+    existing_ungrouped_group = db_create_group("Ungrouped Hosts", identity=identity, ungrouped=True)
+
+    expected_insights_id = generate_uuid()
+    host = minimal_host(org_id=identity["org_id"], insights_id=expected_insights_id)
+    # Explicitly set groups to empty to test the ungrouped assignment
+    host.groups = []
+
+    message = wrap_message(host.data(), "add_host", get_platform_metadata(identity))
+    result = ingress_message_consumer_mock.handle_message(json.dumps(message))
+
+    assert result.event_type == EventType.created
+    assert result.row.canonical_facts["insights_id"] == expected_insights_id
+
+    # Verify that the host was assigned to the existing ungrouped group
+    assert len(result.row.groups) == 1
+    assert result.row.groups[0]["name"] == "Ungrouped Hosts"
+    assert result.row.groups[0]["ungrouped"] is True
+    assert result.row.groups[0]["id"] == str(existing_ungrouped_group.id)
