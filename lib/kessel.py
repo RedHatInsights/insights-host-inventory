@@ -1,3 +1,5 @@
+import time
+
 import grpc
 from grpc import StatusCode
 from kessel.inventory.v1beta2 import allowed_pb2
@@ -23,6 +25,18 @@ class Kessel:
         self.channel = grpc.insecure_channel(config.kessel_target_url)
         self.inventory_svc = inventory_service_pb2_grpc.KesselInventoryServiceStub(self.channel)
         self.timeout = getattr(config, "kessel_timeout", 10.0)  # Default 10 second timeout
+        self.max_retries = getattr(config, "kessel_max_retries", 3)  # Default 3 retries
+        self.retry_delay = getattr(config, "kessel_retry_delay", 1.0)  # Default 1 second delay
+
+    def _is_retryable_error(self, e: grpc.RpcError) -> bool:
+        """Determine if a gRPC error is retryable."""
+        retryable_codes = {
+            StatusCode.UNAVAILABLE,
+            StatusCode.DEADLINE_EXCEEDED,
+            StatusCode.INTERNAL,
+            StatusCode.UNKNOWN,
+        }
+        return e.code() in retryable_codes
 
     def _handle_grpc_error(self, e: grpc.RpcError, operation: str) -> bool:
         """Handle gRPC errors with appropriate logging and fallback behavior."""
@@ -32,13 +46,49 @@ class Kessel:
             logger.error(f"Kessel timeout for {operation}: {e.details()}")
         elif e.code() == StatusCode.PERMISSION_DENIED:
             logger.warning(f"Kessel permission denied for {operation}: {e.details()}")
-            return False  # Explicit denial
+            return False  # Explicit denial - not retryable
         elif e.code() == StatusCode.UNAUTHENTICATED:
             logger.error(f"Kessel authentication failed for {operation}: {e.details()}")
+            return False  # Authentication errors are not retryable
         else:
             logger.error(f"Kessel gRPC error for {operation}: {e.code()} - {e.details()}")
 
         return False  # Fail closed by default
+
+    def _retry_grpc_call(self, operation_name: str, operation_func, *args, **kwargs):
+        """Execute a gRPC operation with retry logic."""
+        last_exception = None
+
+        for attempt in range(self.max_retries + 1):
+            try:
+                return operation_func(*args, **kwargs)
+            except grpc.RpcError as e:
+                last_exception = e
+
+                if not self._is_retryable_error(e):
+                    # Non-retryable error, fail immediately
+                    return self._handle_grpc_error(e, operation_name)
+
+                if attempt < self.max_retries:
+                    # Retryable error, wait and retry
+                    wait_time = self.retry_delay * (2**attempt)  # Exponential backoff
+                    logger.warning(
+                        f"Kessel {operation_name} failed (attempt {attempt + 1}/{self.max_retries + 1}): "
+                        f"{e.details()}. Retrying in {wait_time}s..."
+                    )
+                    time.sleep(wait_time)
+                else:
+                    # Max retries exceeded
+                    logger.error(f"Kessel {operation_name} failed after {self.max_retries + 1} attempts")
+                    return self._handle_grpc_error(e, operation_name)
+            except Exception as e:
+                logger.error(f"Kessel {operation_name} failed with unexpected error: {str(e)}", exc_info=True)
+                return False
+
+        # This should never be reached, but just in case
+        if last_exception:
+            return self._handle_grpc_error(last_exception, operation_name)
+        return False
 
     def check(self, current_identity: Identity, permission: KesselPermission, ids: list[str]) -> bool:
         """
@@ -50,8 +100,10 @@ class Kessel:
             subject_ref = self._build_subject_reference(current_identity)
 
             if len(ids) == 1:
-                # Single resource check
-                return self._check_single_resource(subject_ref, permission, str(ids[0]))
+                # Single resource check with retry
+                return self._retry_grpc_call(
+                    "Check", self._check_single_resource, subject_ref, permission, str(ids[0])
+                )
             elif len(ids) > 1:
                 # Bulk check - all resources must be accessible
                 return self._check_bulk_resources(subject_ref, permission, [str(id) for id in ids])
@@ -60,8 +112,6 @@ class Kessel:
                 logger.warning("Check called with empty ID list")
                 return False
 
-        except grpc.RpcError as e:
-            return self._handle_grpc_error(e, "Check")
         except Exception as e:
             logger.error(f"Kessel Check failed: {str(e)}", exc_info=True)
             return False
@@ -86,21 +136,26 @@ class Kessel:
                 logger.warning("check_for_update called with empty ID list")
                 return False
 
-        except grpc.RpcError as e:
-            return self._handle_grpc_error(e, "check_for_update")
         except Exception as e:
             logger.error(f"Kessel check_for_update failed: {str(e)}", exc_info=True)
             return False
 
-    def _build_subject_reference(self, current_identity: Identity) -> subject_reference_pb2.SubjectReference:
-        """Build a subject reference for the current user."""
-        # Get user ID, falling back to username if user_id not available
-        user_id = current_identity.user.get("user_id") if current_identity.user else None
-        if not user_id:
-            user_id = current_identity.user.get("username") if current_identity.user else None
+    def _get_user_id_from_identity(self, current_identity: Identity) -> str:
+        """Extract user ID from identity with proper fallback logic."""
+        if not current_identity.user:
+            raise ValueError("No user information available in identity")
+
+        # Prefer user_id if available, fallback to username
+        user_id = current_identity.user.get("user_id") or current_identity.user.get("username")
 
         if not user_id:
-            raise ValueError("Unable to determine user ID from identity")
+            raise ValueError("Unable to determine user ID from identity - neither user_id nor username available")
+
+        return str(user_id)
+
+    def _build_subject_reference(self, current_identity: Identity) -> subject_reference_pb2.SubjectReference:
+        """Build a subject reference for the current user."""
+        user_id = self._get_user_id_from_identity(current_identity)
 
         subject_ref = resource_reference_pb2.ResourceReference(
             resource_type="principal",
@@ -184,14 +239,12 @@ class Kessel:
             reporter_type="rbac",
         )
 
-        # logger.info(f"user identity that reached the kessel lib: {current_identity.user}")
-        user_id = (
-            current_identity.user["user_id"] if current_identity.user["user_id"] else current_identity.user["username"]
-        )  # HACK: this is ONLY to continue testing while waiting for the user_id bits to start working
-        # logger.info(f"user_id resolved from the identity: {user_id}")
+        # Get user ID with proper fallback logic
+        user_id = self._get_user_id_from_identity(current_identity)
+
         subject_ref = resource_reference_pb2.ResourceReference(
             resource_type="principal",
-            resource_id=f"redhat/{user_id}",  # Platform/IdP/whatever 'redhat' is, probably needs to be parameterized
+            resource_id=f"redhat/{user_id}",  # Platform/IdP prefix - should be configurable
             reporter=reporter_reference_pb2.ReporterReference(type="rbac"),
         )
 
