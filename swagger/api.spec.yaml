@@ -1245,6 +1245,7 @@ components:
             - conventional
             - bootc
             - edge
+            - cluster
     filter_param:
       in: query
       name: filter
