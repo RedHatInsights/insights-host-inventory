@@ -24,6 +24,7 @@ the [Inventory section in our Platform Docs site](https://consoledot.pages.redha
 - [Legacy Support](#legacy-support)
 - [Identity](#identity)
     - [API requests](#api-requests)
+    - [Using the local Swagger UI to test the API](#using-the-local-swagger-ui-to-test-the-api)
     - [Kafka messages](#kafka-messages)
     - [Identity enforcement](#identity-enforcement)
 - [Payload Tracker integration](#payload-tracker-integration)
@@ -360,6 +361,62 @@ If you want to encode other JSON documents, you can use the following command:
 ```bash
 echo -n '{"identity": {"org_id": "0000001", "type": "System"}}' | base64 -w0
 ```
+
+### Using the local Swagger UI to test the API
+
+The Swagger UI provides an interactive interface for testing the API endpoints locally.
+
+**Prerequisites:**
+- Ensure the web service is running (via `docker compose -f dev.yml up -d`)
+- The service should be accessible at `http://localhost:8080/api/inventory/v1/ui/`
+
+**Access Swagger UI:**
+
+1. Open your browser and navigate to: `http://localhost:8080/api/inventory/v1/ui/`
+
+2. The Swagger UI will display all available API endpoints with their documentation.
+
+**Testing API Requests:**
+
+By default, RBAC is bypassed in local development (via `BYPASS_RBAC="true"` in
+`.env`), so you can make requests without authentication. However, you still
+need to provide a valid identity header for some endpoints.
+
+**Option 1: Using the Swagger UI Interface**
+
+1. Add the identity header:
+   - Click on "Authorize" (On the top right of the page)
+   - Header name: `x-rh-identity`
+   - Header value: `eyJpZGVudGl0eSI6eyJvcmdfaWQiOiJ0ZXN0IiwidHlwZSI6IlVzZXIiLCJhdXRoX3R5cGUiOiJiYXNpYy1hdXRoIiwidXNlciI6eyJ1c2VybmFtZSI6InR1c2VyQHJlZGhhdC5jb20iLCJlbWFpbCI6InR1c2VyQHJlZGhhdC5jb20iLCJmaXJzdF9uYW1lIjoidGVzdCIsImxhc3RfbmFtZSI6InVzZXIiLCJpc19hY3RpdmUiOnRydWUsImlzX29yZ19hZG1pbiI6ZmFsc2UsImlzX2ludGVybmFsIjp0cnVlLCJsb2NhbGUiOiJlbl9VUyJ9fX0=`
+2. Click on an endpoint (e.g., `GET /hosts`)
+3. Click the "Try it out" button
+4. Fill in any required parameters
+5. Click "Execute"
+
+**Option 2: Using curl (from Swagger UI)**
+
+After configuring your request in the Swagger UI, you can copy the generated curl command and run it directly from your terminal.
+
+**Common Test Identity Headers:**
+
+User identity (for general API testing):
+```
+x-rh-identity: eyJpZGVudGl0eSI6eyJvcmdfaWQiOiJ0ZXN0IiwidHlwZSI6IlVzZXIiLCJhdXRoX3R5cGUiOiJiYXNpYy1hdXRoIiwidXNlciI6eyJ1c2VybmFtZSI6InR1c2VyQHJlZGhhdC5jb20iLCJlbWFpbCI6InR1c2VyQHJlZGhhdC5jb20iLCJmaXJzdF9uYW1lIjoidGVzdCIsImxhc3RfbmFtZSI6InVzZXIiLCJpc19hY3RpdmUiOnRydWUsImlzX29yZ19hZG1pbiI6ZmFsc2UsImlzX2ludGVybmFsIjp0cnVlLCJsb2NhbGUiOiJlbl9VUyJ9fX0=
+```
+
+System identity (for system-level operations):
+```
+x-rh-identity: eyJpZGVudGl0eSI6eyJvcmdfaWQiOiAidGVzdCIsICJhdXRoX3R5cGUiOiAiY2VydC1hdXRoIiwgInN5c3RlbSI6IHsiY2VydF90eXBlIjogInN5c3RlbSIsICJjbiI6ICJwbHhpMTN5MS05OXV0LTNyZGYtYmMxMC04NG9wZjkwNGxmYWQifSwidHlwZSI6ICJTeXN0ZW0ifX0=
+```
+
+**Example: Listing Hosts**
+
+1. Add the `x-rh-identity` header (see above)
+2. Navigate to `GET /hosts` endpoint in Swagger UI
+3. Click "Try it out"
+4. Set query parameters as needed (e.g., `per_page: 10`)
+5. Click "Execute"
+6. View the response in the "Responses" section
 
 ### Kafka Messages
 
