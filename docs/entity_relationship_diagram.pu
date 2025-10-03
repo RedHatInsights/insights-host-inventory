@@ -1,0 +1,143 @@
+# Architecture
+
+## Data diagram
+
+```plantuml
+@startuml hosts_table
+
+!define table(x) entity x << (T,#FFAAAA) >>
+!define primary_key(x) <b><color:#b8861b><&key></color> x</b>
+!define foreign_key(x) <color:#aaaaaa><&key></color> x
+!define column(x) <color:#efefef><&media-record></color> x
+!define jsonb(x) <color:#80cbc4><&code></color> x
+
+table(hbi.hosts) {
+  primary_key(id): uuid <<PK>>
+  primary_key(org_id): varchar(36) <<PK>>
+  column(account): varchar(10)
+  column(display_name): varchar(200)
+  column(created_on): timestamp with time zone <<not null>>
+  column(modified_on): timestamp with time zone <<not null>>
+  jsonb(facts): jsonb
+  jsonb(tags): jsonb
+  jsonb(canonical_facts): jsonb <<not null>>
+  jsonb(system_profile_facts): jsonb
+  column(ansible_host): varchar(255)
+  column(stale_timestamp): timestamp with time zone
+  column(stale_warning_timestamp): timestamp with time zone
+  column(deletion_timestamp): timestamp with time zone
+  column(reporter): varchar(255) <<not null>>
+  column(display_name_reporter): varchar(255)
+  jsonb(per_reporter_staleness): jsonb <<not null>>
+  jsonb(groups): jsonb <<not null>>
+  jsonb(tags_alt): jsonb
+  column(last_check_in): timestamp with time zone
+  --canonical fact columns--
+  column(insights_id): uuid <<not null>>
+  column(subscription_manager_id): varchar(36)
+  column(satellite_id): varchar(255)
+  column(fqdn): varchar(255)
+  column(bios_uuid): varchar(36)
+  jsonb(ip_addresses): jsonb
+  jsonb(mac_addresses): jsonb
+  column(provider_id): varchar(500)
+  column(provider_type): varchar(50)
+}
+
+table(hbi.groups) {
+  primary_key(id): uuid <<PK>>
+  column(account): varchar(10)
+  column(org_id): varchar(36) <<not null>>
+  column(name): varchar(255) <<not null>>
+  column(ungrouped): boolean <<not null>>
+  column(created_on): timestamp with time zone <<not null>>
+  column(modified_on): timestamp with time zone <<not null>>
+}
+
+table(hbi.hosts_groups) {
+  primary_key(host_id): uuid <<PK>>
+  primary_key(org_id): varchar(36) <<PK>>
+  primary_key(group_id): uuid <<PK>>
+}
+
+table(hbi.system_profiles_static) {
+  primary_key(org_id): varchar(36) <<PK>>
+  primary_key(host_id): uuid <<PK>>
+  column(arch): varchar(50)
+  column(basearch): varchar(50)
+  column(bios_release_date): varchar(50)
+  column(bios_vendor): varchar(100)
+  column(bios_version): varchar(100)
+  jsonb(bootc_status): jsonb
+  column(cloud_provider): varchar(100)
+  jsonb(conversions): jsonb
+  column(cores_per_socket): integer
+  column(cpu_model): varchar(100)
+  jsonb(disk_devices): jsonb[]
+  jsonb(dnf_modules): jsonb[]
+  column(enabled_services): varchar(512)[]
+  column(gpg_pubkeys): varchar(512)[]
+  column(greenboot_fallback_detected): boolean
+  column(greenboot_status): varchar(5)
+  column(host_type): varchar(4)
+  jsonb(image_builder): jsonb
+  column(infrastructure_type): varchar(100)
+  column(infrastructure_vendor): varchar(100)
+  column(insights_client_version): varchar(50)
+  column(installed_packages_delta): varchar(512)[]
+  column(installed_services): varchar(512)[]
+  column(is_marketplace): boolean
+  column(katello_agent_running): boolean
+  column(number_of_cpus): integer
+  column(number_of_sockets): integer
+  jsonb(operating_system): jsonb
+  column(os_kernel_version): varchar(20)
+  column(os_release): varchar(100)
+  column(owner_id): uuid
+  column(public_dns): varchar(100)[]
+  column(public_ipv4_addresses): varchar(15)[]
+  column(releasever): varchar(100)
+  column(rhc_client_id): uuid
+  column(rhc_config_state): uuid
+  jsonb(rhsm): jsonb
+  jsonb(rpm_ostree_deployments): jsonb[]
+  column(satellite_managed): boolean
+  column(selinux_config_file): varchar(128)
+  column(selinux_current_mode): varchar(10)
+  column(subscription_auto_attach): varchar(100)
+  column(subscription_status): varchar(100)
+  jsonb(system_purpose): jsonb
+  column(system_update_method): varchar(10)
+  jsonb(third_party_services): jsonb
+  column(threads_per_core): integer
+  column(tuned_profile): varchar(256)
+  column(virtual_host_uuid): uuid
+  jsonb(yum_repos): jsonb[]
+}
+
+table(hbi.system_profiles_dynamic) {
+  primary_key(org_id): varchar(36) <<PK>>
+  primary_key(host_id): uuid <<PK>>
+  column(captured_date): timestamp with time zone
+  column(running_processes): varchar[]
+  column(last_boot_time): timestamp with time zone
+  column(installed_packages): varchar[]
+  jsonb(network_interfaces): jsonb
+  jsonb(installed_products): jsonb
+  column(cpu_flags): varchar[]
+  column(insights_egg_version): varchar(50)
+  column(kernel_modules): varchar[]
+  column(system_memory_bytes): bigint
+  jsonb(systemd): jsonb
+  jsonb(workloads): jsonb
+}
+
+
+' Relationships
+hbi.hosts ||--o{ hbi.hosts_groups : "host_id, org_id"
+hbi.groups ||--o{ hbi.hosts_groups : "group_id"
+hbi.hosts ||--|| hbi.system_profiles_static : "host_id, org_id"
+hbi.hosts ||--|| hbi.system_profiles_dynamic : "host_id, org_id"
+
+@enduml
+```

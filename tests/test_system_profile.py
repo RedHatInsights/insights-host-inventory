@@ -334,10 +334,10 @@ def test_system_profile_operating_system(mq_create_or_update_host, api_get):
 
 
 def test_system_profile_sap_system_with_missing_workloads(mq_create_or_update_host, api_get):
-    # Create some sap systems
+    # Create host without dynamic system profile workloads - should return no results
     host = minimal_host(
         insights_id=generate_uuid(),
-        system_profile={},  # Missing 'workloads' key
+        system_profile={},  # Missing 'workloads' key - no dynamic system profile created
     )
     _ = mq_create_or_update_host(host)
     url = build_system_profile_sap_system_url()
@@ -347,10 +347,10 @@ def test_system_profile_sap_system_with_missing_workloads(mq_create_or_update_ho
 
 
 def test_system_profile_sap_system_with_missing_sap(mq_create_or_update_host, api_get):
-    # Create some sap systems
+    # Create host with workloads but missing SAP data in dynamic system profile
     host = minimal_host(
         insights_id=generate_uuid(),
-        system_profile={"workloads": {}},  # Missing 'sap' key
+        system_profile={"workloads": {}},  # Missing 'sap' key in dynamic system profile
     )
     _ = mq_create_or_update_host(host)
     url = build_system_profile_sap_system_url()
@@ -360,10 +360,10 @@ def test_system_profile_sap_system_with_missing_sap(mq_create_or_update_host, ap
 
 
 def test_system_profile_sap_system_with_missing_sap_system(mq_create_or_update_host, api_get):
-    # Create one host with workloads but missing sap_system key
+    # Create one host with SAP workloads but missing sap_system key in dynamic system profile
     host = minimal_host(
         insights_id=generate_uuid(),
-        system_profile={"workloads": {"sap": {}}},  # Missing 'sap_system' key
+        system_profile={"workloads": {"sap": {}}},  # Missing 'sap_system' key in dynamic system profile
     )
 
     _ = mq_create_or_update_host(host)
@@ -375,14 +375,14 @@ def test_system_profile_sap_system_with_missing_sap_system(mq_create_or_update_h
 
 
 def test_system_profile_sap_system(mq_create_or_update_host, api_get):
-    # Create some sap systems
+    # Create some SAP systems - workloads data goes to system_profiles_dynamic table
     ordered_sap_system_data = [True, True, False, False, True, False]
     ordered_insights_ids = [generate_uuid() for _ in range(len(ordered_sap_system_data))]
 
     # Create an association between the insights IDs
     ordered_host_data = dict(zip(ordered_insights_ids, ordered_sap_system_data, strict=False))
 
-    # Create hosts for the above host data
+    # Create hosts with SAP data - this will be stored in system_profiles_dynamic table
     _ = [
         mq_create_or_update_host(
             minimal_host(
@@ -417,13 +417,13 @@ def test_system_profile_sap_system(mq_create_or_update_host, api_get):
 
 
 def test_system_profile_sap_sids(mq_create_or_update_host, api_get):
-    # Create some sap systems
+    # Create some SAP systems with SIDS - workloads data goes to system_profiles_dynamic table
     ordered_sap_sids_data = [["ABC", "HZO", "XYZ"], ["ABC"], [], [], ["XYZ"], []]
     ordered_insights_ids = [generate_uuid() for _ in range(len(ordered_sap_sids_data))]
 
     ordered_host_data = dict(zip(ordered_insights_ids, ordered_sap_sids_data, strict=False))
 
-    # Create hosts for the above host data
+    # Create hosts with SAP SIDS data - this will be stored in system_profiles_dynamic table
     _ = [
         mq_create_or_update_host(
             minimal_host(
@@ -450,13 +450,13 @@ def test_system_profile_sap_sids(mq_create_or_update_host, api_get):
 
 
 def test_system_profile_sap_sids_with_search(mq_create_or_update_host, api_get):
-    # Create some sap systems
+    # Create some SAP systems with search functionality - workloads data goes to system_profiles_dynamic table
     ordered_sap_sids_data = [["ABC", "HZO", "XYZ"], ["ABC"], [], [], ["XYZ"], []]
     ordered_insights_ids = [generate_uuid() for _ in range(len(ordered_sap_sids_data))]
 
     ordered_host_data = dict(zip(ordered_insights_ids, ordered_sap_sids_data, strict=False))
 
-    # Create hosts for the above host data
+    # Create hosts with SAP SIDS data - this will be stored in system_profiles_dynamic table
     _ = [
         mq_create_or_update_host(
             minimal_host(

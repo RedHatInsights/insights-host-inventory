@@ -1,0 +1,22 @@
+
+```plantuml
+@startuml
+actor Kafka as "Kafka Broker"
+participant SystemProfileMessageConsumer as "Consumer"
+participant HostRepository as "Host Repository"
+participant Database as "DB"
+
+Kafka -> SystemProfileMessageConsumer: Kafka Event (Host Data)
+SystemProfileMessageConsumer -> SystemProfileMessageConsumer: Deserialize Host Data
+SystemProfileMessageConsumer -> SystemProfileMessageConsumer: Extract Identity (org_id)
+SystemProfileMessageConsumer -> HostRepository: update_system_profile(host, identity)
+HostRepository -> Database: Query for Existing Host
+alt Host Found
+    HostRepository -> Database: Insert/Update Host/System Profile
+    HostRepository -> SystemProfileMessageConsumer: Return Inserted/Updated Host
+else Host Not Found
+    HostRepository -> SystemProfileMessageConsumer: Raise InventoryException
+end
+SystemProfileMessageConsumer -> Kafka: Log Success or Failure
+@enduml
+```

@@ -960,7 +960,8 @@ def test_add_host_with_sap_system(mq_create_or_update_host):
     expected_insights_id = generate_uuid()
 
     system_profile = valid_system_profile()
-    system_profile["sap_system"] = True
+    # Update to use workloads structure for SAP data (stored in system_profiles_dynamic)
+    system_profile["workloads"] = {"sap": {"sap_system": True}}
     system_profile["owner_id"] = OWNER_ID
 
     host = minimal_host(
