@@ -1,0 +1,92 @@
+# Architecture
+
+## Architecture diagram
+
+```plantuml
+@startuml architecture
+
+top to bottom direction
+skinparam componentStyle rectangle
+skinparam ArrowColor #7a7a7a
+skinparam rectangleFontColor #1a1a1a
+skinparam componentFontColor #1a1a1a
+skinparam noteBackgroundColor #fffde7
+skinparam noteBorderColor #fbc02d
+
+title Host-Based Inventory (HBI) — Data Flow and API Interactions
+
+actor "User" as user
+
+package "ConsoleDot" {
+  [Web API\n(Flask/Gunicorn)\nrun.py] as api
+  [Auth & RBAC\n(x-rh-identity, roles)] as auth
+}
+
+cloud "Kafka" {
+  [Topic: host-ingress] as topic
+}
+
+package "HBI Services" {
+  [MQ Service\n(inv_mq_service.py)] as mq
+  [Validation & Normalization\n(schema, canonical facts)] as validate
+  [Business Logic & Repository\n(lib/*, repositories)] as lib
+}
+
+database "PostgreSQL (hbi schema)" as db
+
+frame "DB tables (logical)" {
+  [hbi.hosts] as t_hosts
+  [hbi.system_profiles_static] as t_sps
+  [hbi.system_profiles_dynamic] as t_spd
+}
+
+db -down- t_hosts
+db -down- t_sps
+db -down- t_spd
+
+' -------------------------
+' User → API path (synchronous)
+' -------------------------
+user -> api : HTTPS requests
+api -> auth : validate x-rh-identity / RBAC
+auth --> api : identity, permissions
+api -> lib : CRUD operations, queries
+lib -[#43A047]-> db : SELECT (reads)
+lib -[#1976D2]-> db : INSERT/UPDATE/DELETE (writes)
+
+note right of api
+  - REST endpoints in `api/`
+  - RBAC + org isolation
+end note
+
+' ----------------------------------------
+' MQ → DB path (asynchronous upsert highlight)
+' ----------------------------------------
+topic ..> mq : consume messages
+mq ..> validate : decode, basic checks
+validate ..> lib : build canonical host
+lib -[#FF5722]-> db : upsert host and profiles
+
+note right of validate
+  - Schema validation (inventory-schemas)
+  - Canonicalization and merging
+  - Staleness and group mapping
+end note
+
+note bottom of db
+  Upserts affect:
+  - `hbi.hosts`
+  - `hbi.system_profiles_static`
+  - `hbi.system_profiles_dynamic`
+end note
+
+legend right
+  Solid arrows = synchronous calls (API path)
+  Dashed arrows = asynchronous processing (MQ path)
+  Orange arrow = insert/update highlight
+  Green arrow = API reads
+  Blue arrow = API writes
+endlegend
+
+@enduml
+```
