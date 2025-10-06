@@ -32,8 +32,8 @@ from app.queue.event_producer import EventProducer
 from app.queue.events import EventType
 from app.queue.events import build_event
 from app.queue.events import message_headers
+from app.serialization import serialize_group_with_host_count
 from app.serialization import serialize_host
-from app.serialization import serialize_workspace_with_host_count
 from app.staleness_serialization import AttrDict
 from lib.db import session_guard
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
@@ -517,9 +517,14 @@ def get_ungrouped_group(identity: Identity) -> Group:
 
 
 def serialize_group(group: Group | dict, org_id: str | None = None) -> dict:
-    # the group provided by rbac_v2 is a dict, so we need to get the org_id from the current identity
+    # If org_id is not provided, try to get it from the group object
     if org_id is None:
-        org_id = group.org_id if isinstance(group, Group) else get_current_identity().org_id
-    host_count = get_non_culled_hosts_count_in_group(group, org_id)
+        if hasattr(group, "org_id"):
+            org_id = group.org_id
+        elif isinstance(group, dict) and "org_id" in group:
+            org_id = group["org_id"]
+        else:
+            raise ValueError("org_id must be provided when group object doesn't contain org_id")
 
-    return serialize_workspace_with_host_count(group, host_count, org_id)
+    host_count = get_non_culled_hosts_count_in_group(group, org_id)
+    return serialize_group_with_host_count(group, host_count, org_id)

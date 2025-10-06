@@ -16,8 +16,6 @@ from random import choice
 from random import randint
 from typing import Any
 
-import pytest
-
 from app.config import COMPOUND_ID_FACTS_MAP
 from app.config import ID_FACTS
 from app.models import ProviderType
@@ -539,23 +537,3 @@ def mock_kessel_client(mocker, allow_all=True):
     mocker.patch("lib.kessel.get_kessel_client", return_value=kessel_instance)
 
     return kessel_instance
-
-
-@pytest.fixture
-def kessel_allow_all(mocker):
-    """
-    Pytest fixture that mocks Kessel to allow all operations.
-
-    Use this fixture in tests that need Kessel enabled but want to allow all operations.
-    """
-    return setup_kessel_mocking(mocker, allow_all=True)
-
-
-@pytest.fixture
-def kessel_deny_all(mocker):
-    """
-    Pytest fixture that mocks Kessel to deny all operations.
-
-    Use this fixture in tests that need Kessel enabled but want to deny all operations.
-    """
-    return setup_kessel_mocking(mocker, allow_all=False)
