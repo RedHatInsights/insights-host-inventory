@@ -2,6 +2,7 @@ import pytest
 
 from tests.helpers.test_utils import setup_kessel_mocking
 
+
 @pytest.fixture(autouse=True)
 def disable_kessel_for_tests(mocker):
     """
