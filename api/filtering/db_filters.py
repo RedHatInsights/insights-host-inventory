@@ -129,13 +129,12 @@ def _group_ids_filter(group_id_list: list) -> list:
 
 
 def stale_timestamp_filter(gt=None, lte=None):
+    filters = []
     if lte is None:
         lte = datetime.now(UTC)
-    filters = []
+    filters.append(Host.last_check_in <= lte)
     if gt:
         filters.append(Host.last_check_in > gt)
-    if lte:
-        filters.append(Host.last_check_in <= lte)
     return and_(*filters)
 
 
