@@ -5,6 +5,12 @@
     "version": "1.0.0",
     "title": "Insights Host Inventory REST Interface"
   },
+  "servers": [
+    {
+      "url": "/api/inventory/v1",
+      "description": "API server"
+    }
+  ],
   "externalDocs": {
     "description": "How to use the Red Hat Insights API",
     "url": "https://docs.redhat.com/en/documentation/red_hat_insights/1-latest/html/using_the_red_hat_insights_api/index"
