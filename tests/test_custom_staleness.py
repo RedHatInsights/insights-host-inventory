@@ -1,4 +1,5 @@
 import time
+from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from unittest import mock
@@ -6,6 +7,9 @@ from unittest.mock import patch
 
 import pytest
 
+from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
+from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
+from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
 from app.logging import threadctx
 from app.models import db
 from jobs.host_reaper import run as host_reaper_run
@@ -14,21 +18,21 @@ from tests.helpers.api_utils import build_staleness_url
 from tests.helpers.test_utils import now
 
 CUSTOM_STALENESS_DELETE = {
-    "conventional_time_to_stale": 104400,
-    "conventional_time_to_stale_warning": 604800,
+    "conventional_time_to_stale": CONVENTIONAL_TIME_TO_STALE_SECONDS,
+    "conventional_time_to_stale_warning": CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS,
     "conventional_time_to_delete": 1,
 }
 
 CUSTOM_STALENESS_NO_HOSTS_TO_DELETE = {
-    "conventional_time_to_stale": 104400,
-    "conventional_time_to_stale_warning": 604800,
-    "conventional_time_to_delete": 1209600,
+    "conventional_time_to_stale": CONVENTIONAL_TIME_TO_STALE_SECONDS,
+    "conventional_time_to_stale_warning": CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS,
+    "conventional_time_to_delete": CONVENTIONAL_TIME_TO_DELETE_SECONDS,
 }
 
 CUSTOM_STALENESS_HOST_BECAME_STALE = {
     "conventional_time_to_stale": 1,
-    "conventional_time_to_stale_warning": 604800,
-    "conventional_time_to_delete": 1209600,
+    "conventional_time_to_stale_warning": CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS,
+    "conventional_time_to_delete": CONVENTIONAL_TIME_TO_DELETE_SECONDS,
 }
 
 
@@ -44,7 +48,7 @@ def test_delete_all_type_of_hosts(
     db_create_staleness_culling(**CUSTOM_STALENESS_DELETE)
 
     with patch("app.models.utils.datetime") as mock_datetime:
-        mock_datetime.now.return_value = datetime.now() - timedelta(minutes=1)
+        mock_datetime.now.return_value = datetime.now(UTC) - timedelta(minutes=1)
         immutable_hosts = db_create_multiple_hosts(
             how_many=2, extra_data={"system_profile_facts": {"host_type": "edge"}, "reporter": "puptoo"}
         )
