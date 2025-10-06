@@ -413,7 +413,7 @@ class TestOutboxE2ECases:
 
         # Verify the error message mentions the missing transaction_id field
         error_message = str(exc_info.value)
-        assert "transaction_id" in error_message or "Missing data for required field" in error_message
+        assert "transaction_id" in error_message
 
     def test_outbox_schema_validation_success_updated_operation(self):
         """Test that valid outbox entries with 'updated' operation pass schema validation."""
@@ -489,7 +489,7 @@ class TestOutboxE2ECases:
 
         # Verify the error message mentions the missing transaction_id field
         error_message = str(exc_info.value)
-        assert "transaction_id" in error_message or "Missing data for required field" in error_message
+        assert "transaction_id" in error_message
 
     def test_outbox_entry_with_groups(self, db_create_host, db_create_group, db_get_host, db_create_host_group_assoc):
         """Test outbox entry creation when host has groups."""

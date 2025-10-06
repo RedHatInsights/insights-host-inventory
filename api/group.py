@@ -16,7 +16,6 @@ from api.group_query import does_group_with_name_exist
 from api.group_query import get_filtered_group_list_db
 from api.group_query import get_group_list_by_id_list_db
 from app.auth import get_current_identity
-from app.auth.rbac import KesselResourceTypes
 from app.auth.rbac import RbacPermission
 from app.auth.rbac import RbacResourceType
 from app.common import inventory_config
@@ -47,7 +46,6 @@ from lib.group_repository import remove_hosts_from_group
 from lib.group_repository import validate_add_host_list_to_group_for_group_create
 from lib.group_repository import wait_for_workspace_event
 from lib.metrics import create_group_count
-from lib.middleware import access
 from lib.middleware import delete_rbac_workspace
 from lib.middleware import patch_rbac_workspace
 from lib.middleware import post_rbac_workspace
@@ -58,7 +56,7 @@ logger = get_logger(__name__)
 
 
 @api_operation
-@access(KesselResourceTypes.WORKSPACE.view)
+@rbac(RbacResourceType.GROUPS, RbacPermission.READ)
 @metrics.api_request_time.time()
 def get_group_list(
     name=None,
