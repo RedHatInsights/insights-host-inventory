@@ -370,6 +370,7 @@ class OutboxEventMetadataSchema(MarshmallowSchema):
     api_href = fields.Str(validate=marshmallow_validate.Length(min=1, max=2048), required=True)
     console_href = fields.Str(validate=marshmallow_validate.Length(min=1, max=2048), required=True)
     reporter_version = fields.Str(validate=marshmallow_validate.Length(min=1, max=50), required=True)
+    transaction_id = fields.UUID(required=True)
 
 
 class OutboxEventCommonSchema(MarshmallowSchema):
