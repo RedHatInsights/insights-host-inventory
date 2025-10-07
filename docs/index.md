@@ -15,12 +15,12 @@ Information stored by HBI can be accessed in multiple ways:
 
 Below is the HBI architecture, highlighting core components, user-to-API interactions, and the data flow from Kafka through the MQ service to PostgreSQL.
 
-![HBI Architecture](./images/hbi-architecture.png)
+![HBI Architecture](./images/architecture.png)
 
 ## Entity Relationship Diagram
 Below you find the ERD for the HBI table:
 
-![HBI EDR](./images/hbi-entity-relationship-diagram.png)
+![HBI EDR](./images/entity-relationship-diagram.png)
 
 ## Host Insertion
 
