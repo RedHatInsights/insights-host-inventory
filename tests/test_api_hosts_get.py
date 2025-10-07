@@ -2286,7 +2286,7 @@ def test_query_by_staleness_using_columns(
                 assert {host["id"] for host in response_data["results"]} == expected_host_ids
 
 
-@pytest.mark.parametrize("system_type", ("conventional", "bootc", "edge"))
+@pytest.mark.parametrize("system_type", ("conventional", "bootc", "edge", "cluster"))
 def test_system_type_filter_valid_types(api_get, system_type):
     url = build_hosts_url(query=f"?system_type={system_type}")
     response_status, _ = api_get(url)
@@ -2303,15 +2303,16 @@ def test_system_type_filter_invalid_types(api_get, invalid_system_type):
 
 
 @pytest.mark.parametrize(
-    "query_filter_param",
+    "query_filter_param,matching_host_indexes",
     (
-        "?system_type=conventional",
-        "?system_type=bootc",
-        "?system_type=edge",
-        "?system_type=bootc&system_type=edge",
+        ("?system_type=conventional", [0]),
+        ("?system_type=bootc", [1, 4]),
+        ("?system_type=edge", [2, 4]),
+        ("?system_type=cluster", [3]),
+        ("?system_type=bootc&system_type=edge", [1, 2, 4]),
     ),
 )
-def test_system_type_happy_path(api_get, db_create_host, query_filter_param):
+def test_system_type_happy_path(api_get, db_create_host, query_filter_param, matching_host_indexes):
     sp_facts = [
         {},
         {
@@ -2324,22 +2325,27 @@ def test_system_type_happy_path(api_get, db_create_host, query_filter_param):
             }
         },
         {"system_profile_facts": {"host_type": "edge"}},
+        {"system_profile_facts": {"host_type": "cluster"}},
+        {
+            "system_profile_facts": {
+                "host_type": "edge",
+                "bootc_status": {
+                    "booted": {
+                        "image_digest": "sha256:806d77394f96e47cf99b1233561ce970c94521244a2d8f2affa12c3261961223"
+                    }
+                },
+            }
+        },
     ]
-    host_ids = []
+    host_ids = [str(db_create_host(extra_data=sp_fact).id) for sp_fact in sp_facts]
 
-    for sp_fact in sp_facts:
-        host_id = str(db_create_host(extra_data=sp_fact).id)
-        host_ids.append(host_id)
-
-    # Count the number of times "system_type" appears in the query
-    matching_hosts = query_filter_param.count("system_type=")
     url = build_hosts_url(query=query_filter_param)
     response_status, response_data = api_get(url)
 
     assert response_status == 200
-    assert len(response_data["results"]) == matching_hosts
-    for result in response_data["results"]:
-        assert result["id"] in host_ids
+    assert len(response_data["results"]) == len(matching_host_indexes)
+    for matching_host_index in matching_host_indexes:
+        assert host_ids[matching_host_index] in [result["id"] for result in response_data["results"]]
 
 
 def test_fresh_staleness_with_only_rhsm_system_profile_bridge(api_get, db_create_host):
