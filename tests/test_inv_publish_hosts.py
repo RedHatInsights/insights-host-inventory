@@ -611,20 +611,6 @@ class TestPublicationIntegration:
         except Exception:
             db.session.rollback()
 
-    def cleanup_all_replication_slots(self):
-        """Helper to clean up all replication slots."""
-        try:
-            # Get all replication slots
-            slots = db.session.execute(sa_text("SELECT slot_name FROM pg_replication_slots")).fetchall()
-            for (slot_name,) in slots:
-                try:
-                    db.session.execute(sa_text(f"SELECT pg_drop_replication_slot('{slot_name}')"))
-                    db.session.commit()
-                except Exception:
-                    db.session.rollback()
-        except Exception:
-            db.session.rollback()
-
     def replication_slot_exists(self, slot_name):
         """Helper to check if replication slot exists."""
         result = db.session.execute(
@@ -863,8 +849,8 @@ class TestPublicationIntegration:
                     patch("jobs.inv_publish_hosts.CREATE_PUBLICATIONS", []),
                     patch("jobs.inv_publish_hosts.DROP_PUBLICATIONS", []),
                 ):
-                    # Clean up all existing slots first to avoid conflicts
-                    self.cleanup_all_replication_slots()
+                    # Clean up any existing slot first
+                    self.cleanup_replication_slot(slot_name)
 
                     # Create an inactive replication slot
                     self.create_replication_slot(slot_name)
@@ -902,8 +888,9 @@ class TestPublicationIntegration:
                     patch("jobs.inv_publish_hosts.CREATE_PUBLICATIONS", []),
                     patch("jobs.inv_publish_hosts.DROP_PUBLICATIONS", []),
                 ):
-                    # Clean up all existing slots first to avoid conflicts
-                    self.cleanup_all_replication_slots()
+                    # Clean up any existing slots first
+                    self.cleanup_replication_slot(wanted_slot)
+                    self.cleanup_replication_slot(unwanted_slot)
 
                     # Create the unwanted inactive replication slot
                     self.create_replication_slot(unwanted_slot)
@@ -937,8 +924,9 @@ class TestPublicationIntegration:
                     patch("jobs.inv_publish_hosts.CREATE_PUBLICATIONS", []),
                     patch("jobs.inv_publish_hosts.DROP_PUBLICATIONS", []),
                 ):
-                    # Clean up all existing slots first to avoid conflicts
-                    self.cleanup_all_replication_slots()
+                    # Clean up any existing slots first
+                    for slot in slot_names + [unwanted_slot]:
+                        self.cleanup_replication_slot(slot)
 
                     # Create slots configured for cleanup
                     for slot in slot_names:
@@ -977,8 +965,8 @@ class TestPublicationIntegration:
                     patch("jobs.inv_publish_hosts.CREATE_PUBLICATIONS", []),
                     patch("jobs.inv_publish_hosts.DROP_PUBLICATIONS", []),
                 ):
-                    # Clean up all existing slots first to avoid conflicts
-                    self.cleanup_all_replication_slots()
+                    # Clean up any existing slot first
+                    self.cleanup_replication_slot(slot_name)
 
                     # For this test, we'll simulate what happens when there are active slots
                     # by not creating any slots at all - if there are no inactive slots,
