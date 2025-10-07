@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from copy import deepcopy
+from datetime import UTC
+from datetime import datetime
 from datetime import timedelta
 from functools import partial
 from typing import Any
@@ -127,10 +129,11 @@ def _group_ids_filter(group_id_list: list) -> list:
 
 def stale_timestamp_filter(gt=None, lte=None):
     filters = []
+    if lte is None:
+        lte = datetime.now(UTC)
+    filters.append(Host.last_check_in <= lte)
     if gt:
         filters.append(Host.last_check_in > gt)
-    if lte:
-        filters.append(Host.last_check_in <= lte)
     return and_(*filters)
 
 
@@ -140,28 +143,56 @@ def _stale_timestamp_per_reporter_filter(gt=None, lte=None, reporter=None):
     if non_negative_reporter in OLD_TO_NEW_REPORTER_MAP.keys():
         reporter_list.extend(OLD_TO_NEW_REPORTER_MAP[non_negative_reporter])
 
+    current_time = datetime.now(UTC)
+
     if reporter.startswith("!"):
+        # For negation: include hosts that do NOT have ANY fresh reporter from the reporter_list
+        # This means: for ALL reporters in the list, the host either doesn't have them OR they're culled
         time_filter_ = stale_timestamp_filter(gt=gt, lte=lte)
-        return and_(
-            and_(
-                not_(Host.per_reporter_staleness.has_key(rep)),
-                time_filter_,
-            )
-            for rep in reporter_list
-        )
-    else:
-        or_filter = []
+
+        and_conditions = []  # All conditions must be true (host lacks ALL fresh reporters)
+
         for rep in reporter_list:
-            if gt:
-                time_filter_ = Host.per_reporter_staleness[rep]["last_check_in"].astext.cast(DateTime) > gt
-            if lte:
-                time_filter_ = Host.per_reporter_staleness[rep]["last_check_in"].astext.cast(DateTime) <= lte
-            or_filter.append(
+            # For each reporter, the host must either:
+            # 1. Not have this reporter at all, OR
+            # 2. Have this reporter but it's culled (culled_timestamp < now)
+            rep_condition = or_(
+                # Doesn't have this reporter
+                not_(Host.per_reporter_staleness.has_key(rep)),
+                # Has this reporter but it's culled (only if culled_timestamp exists)
                 and_(
                     Host.per_reporter_staleness.has_key(rep),
-                    time_filter_,
-                )
+                    Host.per_reporter_staleness[rep].has_key("culled_timestamp"),
+                    Host.per_reporter_staleness[rep]["culled_timestamp"].astext.cast(DateTime) < current_time,
+                ),
             )
+            and_conditions.append(rep_condition)
+
+        return and_(
+            and_(*and_conditions),  # Must satisfy condition for ALL reporters in the list
+            time_filter_,
+        )
+    else:
+        # For positive: include hosts that have the reporter AND are not culled (if culled_timestamp exists)
+        or_filter = []
+        for rep in reporter_list:
+            conditions = [Host.per_reporter_staleness.has_key(rep)]
+
+            # Only check culled status if culled_timestamp exists
+            # If it doesn't exist, include the host (backward compatibility)
+            culled_condition = or_(
+                # No culled_timestamp field (backward compatibility)
+                not_(Host.per_reporter_staleness[rep].has_key("culled_timestamp")),
+                # Has culled_timestamp and it's not culled (culled_timestamp >= now)
+                Host.per_reporter_staleness[rep]["culled_timestamp"].astext.cast(DateTime) >= current_time,
+            )
+            conditions.append(culled_condition)
+
+            if gt:
+                conditions.append(Host.per_reporter_staleness[rep]["last_check_in"].astext.cast(DateTime) > gt)
+            if lte:
+                conditions.append(Host.per_reporter_staleness[rep]["last_check_in"].astext.cast(DateTime) <= lte)
+            or_filter.append(and_(*conditions))
 
         return or_(*or_filter)
 
