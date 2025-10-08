@@ -115,6 +115,7 @@ def _make_rbac_request(
     request_session = Session()
     retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
     request_session.mount(rbac_endpoint, HTTPAdapter(max_retries=retry_config))
+    timeout = inventory_config().rbac_timeout
 
     try:
         with outbound_http_response_time.labels("rbac").time():
@@ -123,7 +124,7 @@ def _make_rbac_request(
                     url=rbac_endpoint,
                     params=request_params,
                     headers=request_headers,
-                    timeout=inventory_config().rbac_timeout,
+                    timeout=timeout,
                     verify=LoadedConfig.tlsCAPath,
                 )
             elif method.upper() == "POST":
@@ -131,7 +132,22 @@ def _make_rbac_request(
                     url=rbac_endpoint,
                     headers=request_headers,
                     json=request_data,
-                    timeout=inventory_config().rbac_timeout,
+                    timeout=timeout,
+                    verify=LoadedConfig.tlsCAPath,
+                )
+            elif method.upper() == "DELETE":
+                rbac_response = request_session.delete(
+                    url=rbac_endpoint,
+                    headers=request_headers,
+                    timeout=timeout,
+                    verify=LoadedConfig.tlsCAPath,
+                )
+            elif method.upper() == "PATCH":
+                rbac_response = request_session.patch(
+                    url=rbac_endpoint,
+                    headers=request_headers,
+                    json=request_data,
+                    timeout=timeout,
                     verify=LoadedConfig.tlsCAPath,
                 )
             else:
@@ -140,7 +156,16 @@ def _make_rbac_request(
             rbac_response.raise_for_status()
     except HTTPError as e:
         status_code = e.response.status_code
-        if 400 <= status_code < 500:
+        if status_code == 404:
+            # For 404 errors, raise ResourceNotFoundException instead of aborting
+            # This allows the calling code to handle missing resources gracefully
+            try:
+                detail = e.response.json().get("detail", e.response.text)
+            except Exception:
+                detail = e.response.text  # fallback if JSON can't be parsed
+            logger.warning(f"RBAC client error: {status_code} - {detail}")
+            raise ResourceNotFoundException(detail) from e
+        elif 400 <= status_code < 500:
             try:
                 detail = e.response.json().get("detail", e.response.text)
             except Exception:
@@ -476,6 +501,26 @@ def post_rbac_workspace_using_endpoint_and_headers(
     )
 
 
+def delete_rbac_workspace_using_endpoint_and_headers(rbac_endpoint: str, request_headers: dict) -> UUID | None:
+    return _make_rbac_request(
+        method="DELETE",
+        rbac_endpoint=rbac_endpoint,
+        request_headers=request_headers,
+        # request_data=request_data,
+    )
+
+
+def patch_rbac_workspace_using_endpoint_and_headers(
+    request_data: dict | None, rbac_endpoint: str, request_headers: dict
+) -> UUID | None:
+    return _make_rbac_request(
+        method="PATCH",
+        rbac_endpoint=rbac_endpoint,
+        request_headers=request_headers,
+        request_data=request_data,
+    )
+
+
 def rbac_create_ungrouped_hosts_workspace(identity: Identity) -> UUID | None:
     # Creates a new "ungrouped" workspace via the RBAC API, and returns its ID.
     # If not using RBAC, returns None, so the DB will automatically generate the group ID.
@@ -533,24 +578,8 @@ def delete_rbac_workspace(workspace_id: str) -> bool:
     retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
     request_session.mount(rbac_endpoint, HTTPAdapter(max_retries=retry_config))
 
-    try:
-        with outbound_http_response_time.labels("rbac").time():
-            rbac_response = request_session.delete(
-                url=rbac_endpoint,
-                headers=request_headers,
-                timeout=inventory_config().rbac_timeout,
-                verify=LoadedConfig.tlsCAPath,
-            )
-            rbac_response.raise_for_status()
-            return True
-    except HTTPError as e:
-        return _handle_delete_error(e, workspace_id)
-    except Exception as e:
-        rbac_failure(logger, e)
-        abort(503, "Failed to reach RBAC endpoint, request cannot be fulfilled")
-        return False
-    finally:
-        request_session.close()
+    delete_rbac_workspace_using_endpoint_and_headers(rbac_endpoint, request_headers)
+    return True
 
 
 def patch_rbac_workspace(workspace_id: str, name: str | None = None) -> None:
@@ -562,27 +591,14 @@ def patch_rbac_workspace(workspace_id: str, name: str | None = None) -> None:
 
     request_data = {}
     if name is not None:
-        request_data.update({"name": name})
+        request_data["name"] = name
 
     # For PATCH operations, we need custom handling since _make_rbac_request doesn't support PATCH yet
     request_session = Session()
     retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
     request_session.mount(rbac_endpoint, HTTPAdapter(max_retries=retry_config))
 
-    try:
-        with outbound_http_response_time.labels("rbac").time():
-            request_session.patch(
-                url=rbac_endpoint,
-                headers=request_headers,
-                json=request_data,
-                timeout=inventory_config().rbac_timeout,
-                verify=LoadedConfig.tlsCAPath,
-            )
-    except Exception as e:
-        rbac_failure(logger, e)
-        abort(503, "Failed to reach RBAC endpoint, request cannot be fulfilled")
-    finally:
-        request_session.close()
+    patch_rbac_workspace_using_endpoint_and_headers(request_data, rbac_endpoint, request_headers)
 
 
 def get_rbac_default_workspace() -> UUID | None:
@@ -598,11 +614,27 @@ def get_rbac_default_workspace() -> UUID | None:
     return data[0]["id"] if data and len(data) > 0 else None
 
 
-def get_rbac_workspaces(name: str, group_type: str) -> tuple[list[dict], int] | None:
+def get_rbac_workspaces(
+    name: str | None, page: int, per_page: int, group_type: str | None
+) -> tuple[list[dict], int] | None:
     if inventory_config().bypass_rbac:
         return None
 
-    rbac_endpoint = _get_rbac_workspace_url(query_params={"type": group_type})
+    # sample RBAC request: console.redhat.com/api/rbac/v2/workspaces/?limit=10&offset=0&type=standard&name=my_group
+
+    query_params = {}
+    if name:
+        query_params["name"] = name
+    if group_type:
+        query_params["type"] = group_type
+    if page and per_page:
+        # Convert page to offset (page is 1-based, offset is 0-based)
+        offset = (page - 1) * per_page
+        query_params["offset"] = str(offset)
+        query_params["limit"] = str(per_page)
+
+    # rbac_endpoint = _get_rbac_workspace_url(query_params={"type": group_type})
+    rbac_endpoint = _get_rbac_workspace_url(query_params=query_params)
     request_headers = _build_rbac_request_headers(request.headers[IDENTITY_HEADER], threadctx.request_id)
     request_data = {"name": name}
 
@@ -634,5 +666,5 @@ def get_rbac_workspace_using_endpoint_and_headers(
         method="GET",
         rbac_endpoint=rbac_endpoint,
         request_headers=request_headers,
-        request_data=request_data,
+        request_params=request_data,  # For GET requests, use request_params instead of request_data
     )

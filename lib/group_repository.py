@@ -516,15 +516,6 @@ def get_ungrouped_group(identity: Identity) -> Group:
     return ungrouped_group
 
 
-def serialize_group(group: Group | dict, org_id: str | None = None) -> dict:
-    # If org_id is not provided, try to get it from the group object
-    if org_id is None:
-        if hasattr(group, "org_id"):
-            org_id = group.org_id
-        elif isinstance(group, dict) and "org_id" in group:
-            org_id = group["org_id"]
-        else:
-            raise ValueError("org_id must be provided when group object doesn't contain org_id")
-
+def serialize_group(group: Group | dict, org_id: str) -> dict:
     host_count = get_non_culled_hosts_count_in_group(group, org_id)
     return serialize_group_with_host_count(group, host_count, org_id)

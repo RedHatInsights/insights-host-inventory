@@ -70,7 +70,9 @@ def get_group_list(
 ):
     try:
         if get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1):
-            group_list, total = get_rbac_workspaces(name, group_type)
+            # In RBAC_V2, order_by and order_how to be implemented by RHCLOUD-42653
+            # TODO: Quesetion: does rbac_filter apply here?
+            group_list, total = get_rbac_workspaces(name, page, per_page, group_type)
         else:
             group_list, total = get_filtered_group_list_db(
                 name, page, per_page, order_by, order_how, rbac_filter, group_type

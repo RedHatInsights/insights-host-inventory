@@ -512,8 +512,8 @@ def test_delete_existing_group_missing_workspace(api_delete_groups_kessel, db_cr
     )
     get_rbac_permissions_mock.return_value = mock_rbac_response
 
-    # Turn on the Kessel flag
-    mocker.patch("api.group.get_flag_value", return_value=True)
+    # Turn on the Kessel workspace migration flag
+    mocker.patch("api.group.get_flag_value", side_effect=lambda flag: flag == "hbi.api.kessel-workspace-migration")
 
     # Mock the metrics context manager bc we don't care about it here
     with mock.patch("lib.middleware.outbound_http_response_time") as mock_metric:
