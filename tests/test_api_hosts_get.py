@@ -876,10 +876,10 @@ def test_query_hosts_filter_last_check_in_both_same(mq_create_or_update_host, ap
     match_host = mq_create_or_update_host(minimal_host())
     nomatch_host = mq_create_or_update_host(minimal_host())
     url = build_hosts_url(
-        query=f"""
-        ?last_check_in_start={match_host.last_check_in.replace("+00:00", "Z")}
-        &last_check_in_end={match_host.last_check_in.replace("+00:00", "Z")}
-        """
+        query=(
+            f"?last_check_in_start={match_host.last_check_in.replace('+00:00', 'Z')}"
+            f"&last_check_in_end={match_host.last_check_in.replace('+00:00', 'Z')}"
+        )
     )
     response_status, response_data = api_get(url)
     assert response_status == 200
