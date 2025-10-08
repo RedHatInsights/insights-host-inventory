@@ -399,35 +399,6 @@ def update_system_profile(input_host: Host | LimitedHost, identity: Identity):
         )
 
 
-def _build_host_group_query_with_joins(use_outer_joins=False):
-    """
-    Build a base query for Host with HostGroupAssoc joins.
-
-    Args:
-        use_outer_joins: If True, use outer joins; if False, use inner joins
-
-    Returns:
-        Base query with appropriate joins
-    """
-    if use_outer_joins:
-        return Host.query.join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
-    else:
-        return db.session.query(Host).join(HostGroupAssoc)
-
-
-def _apply_standard_grouping(query):
-    """
-    Apply standard grouping to a host query.
-
-    Args:
-        query: SQLAlchemy query object
-
-    Returns:
-        Query with standard grouping applied
-    """
-    return query.group_by(Host.id, Host.org_id)
-
-
 def get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter=None, columns=None):
     filters = (
         Host.org_id == identity.org_id,
@@ -443,10 +414,12 @@ def get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter=None, c
 
         filters += (or_(*rbac_group_filters),)
 
-    query = _build_host_group_query_with_joins(use_outer_joins=True)
-    query = query.filter(*filters)
-    query = _apply_standard_grouping(query)
-
+    query = (
+        Host.query.join(HostGroupAssoc, isouter=True)
+        .join(Group, isouter=True)
+        .filter(*filters)
+        .group_by(Host.id, Host.org_id)
+    )
     if columns:
         query = query.with_entities(*columns)
     return find_non_culled_hosts(update_query_for_owner_id(identity, query), identity.org_id)
@@ -456,10 +429,12 @@ def get_non_culled_hosts_count_in_group(group: Group | dict, org_id: str) -> int
     # rbac_v2 returns a dict, rbac_v1 returns a Group object
     group_id = group["id"] if isinstance(group, dict) else group.id
 
-    query = _build_host_group_query_with_joins(use_outer_joins=False)
-    query = query.filter(HostGroupAssoc.group_id == group_id, HostGroupAssoc.org_id == org_id)
-    query = _apply_standard_grouping(query)
-
+    query = (
+        db.session.query(Host)
+        .join(HostGroupAssoc)
+        .filter(HostGroupAssoc.group_id == group_id, HostGroupAssoc.org_id == org_id)
+        .group_by(Host.id, Host.org_id)
+    )
     return find_non_culled_hosts(query, org_id).count()
 
 
