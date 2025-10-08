@@ -3,6 +3,8 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from copy import deepcopy
+from datetime import datetime
+from datetime import timedelta
 from typing import Any
 from unittest import mock
 from unittest.mock import patch
@@ -740,6 +742,46 @@ def test_delete_with_ui_host(db_create_host, api_delete_host, event_datetime_moc
     assert_delete_event_is_valid(
         event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock, initiated_by_frontend=True
     )
+
+
+@pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
+def test_delete_hosts_filter_last_check_in_both_same(db_create_host, db_get_host, api_delete_filtered_hosts):
+    match_host = db_create_host()
+    match_host_id = str(match_host.id)
+    nomatch_host_id = str(db_create_host().id)
+    response_status, _ = api_delete_filtered_hosts(
+        query_parameters={
+            "last_check_in_start": match_host.last_check_in,
+            "last_check_in_end": match_host.last_check_in,
+        }
+    )
+    assert response_status == 202
+    assert not db_get_host(match_host_id)
+    assert db_get_host(nomatch_host_id)
+
+
+def test_delete_hosts_filter_last_check_in_invalid_format(api_delete_filtered_hosts, subtests):
+    invalid_formats = ("foobar", "{}", "[]", generate_uuid(), [datetime.now(), datetime.now() - timedelta(days=7)])
+    for invalid_format in invalid_formats:
+        for param in ("last_check_in_start", "last_check_in_end"):
+            with subtests.test(invalid_format=invalid_format, param=param):
+                response_status, response_data = api_delete_filtered_hosts(
+                    query_parameters={param: str(invalid_format)}
+                )
+                assert response_status == 400
+                assert "is not a 'date-time'" in response_data["detail"]
+
+
+@pytest.mark.parametrize("param_prefix", ("updated", "last_check_in"))
+def test_delete_hosts_filter_updated_last_check_in_start_after_end(api_delete_filtered_hosts, param_prefix):
+    response_status, response_data = api_delete_filtered_hosts(
+        query_parameters={
+            f"{param_prefix}_start": datetime.now(),
+            f"{param_prefix}_end": datetime.now() - timedelta(days=1),
+        }
+    )
+    assert response_status == 400
+    assert f"{param_prefix}_start cannot be after {param_prefix}_end." in response_data["detail"]
 
 
 class DeleteHostsMock:

@@ -1,6 +1,7 @@
 import logging
 import random
 from collections.abc import Callable
+from datetime import datetime
 from datetime import timedelta
 from itertools import chain
 from itertools import combinations
@@ -869,6 +870,43 @@ def test_query_hosts_filter_last_check_in_start_end(mq_create_or_update_host, ap
     assert response_status == 200
     # This query should return all 3 hosts
     assert len(response_data["results"]) == 3
+
+
+def test_query_hosts_filter_last_check_in_both_same(mq_create_or_update_host, api_get):
+    match_host = mq_create_or_update_host(minimal_host())
+    nomatch_host = mq_create_or_update_host(minimal_host())
+    url = build_hosts_url(
+        query=(
+            f"?last_check_in_start={match_host.last_check_in.replace('+00:00', 'Z')}"
+            f"&last_check_in_end={match_host.last_check_in.replace('+00:00', 'Z')}"
+        )
+    )
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["id"] == match_host.id
+    assert response_data["results"][0]["id"] != nomatch_host.id
+
+
+def test_query_hosts_filter_last_check_in_invalid_format(api_get, subtests):
+    invalid_formats = ("foobar", "{}", "[]", generate_uuid(), [datetime.now(), datetime.now() - timedelta(days=7)])
+    for invalid_format in invalid_formats:
+        for param in ("last_check_in_start", "last_check_in_end"):
+            with subtests.test(invalid_format=invalid_format, param=param):
+                url = build_hosts_url(query=f"?{param}={invalid_format}")
+                response_status, response_data = api_get(url)
+                assert response_status == 400
+                assert "is not a 'date-time'" in response_data["detail"]
+
+
+@pytest.mark.parametrize("param_prefix", ("updated", "last_check_in"))
+def test_query_hosts_filter_updated_last_check_in_start_after_end(api_get, param_prefix):
+    url = build_hosts_url(
+        query=f"?{param_prefix}_start={datetime.now()}&{param_prefix}_end={datetime.now() - timedelta(days=1)}"
+    )
+    response_status, response_data = api_get(url)
+    assert response_status == 400
+    assert f"{param_prefix}_start cannot be after {param_prefix}_end." in response_data["detail"]
 
 
 @pytest.mark.parametrize("order_how", ("ASC", "DESC"))
