@@ -79,7 +79,7 @@ def _check_field_in_spec(spec: dict, field_name: str, parent_node: str) -> None:
 
 # Takes a filter dict and converts it into:
 #   column: The target column
-#   jsonb_path: The jsonb path, i.e. (operating_system, cpu_flags) (first element omitted)
+#   jsonb_path: The jsonb path, i.e. (system_profile_facts, sap, sap_system,)
 #   pg_op: The comparison to use (e.g. =, >, <)
 #   value: The filter's value
 def _convert_dict_to_column_jsonb_path_pg_op_value(
