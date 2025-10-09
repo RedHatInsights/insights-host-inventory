@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
-
+from sqlalchemy import Column
 from sqlalchemy import Integer
 from sqlalchemy import and_
 from sqlalchemy import func
@@ -54,6 +53,25 @@ class OsFilter:
         self.minor = minor
 
 
+def _get_system_profile_column_and_filter(filter_param: dict) -> tuple[Column, dict]:
+    field_name = next(iter(filter_param.keys()))
+
+    # handle workloads fields
+    if field_name == "sap_system":
+        filter_param = {"workloads": {"sap": filter_param}}
+        field_name = "workloads"
+    elif field_name == "sap_sids":
+        filter_param = {"workloads": {"sap": {"sids": filter_param.get("sap_sids")}}}
+        field_name = "workloads"
+    elif field_name in {"sap", "ansible", "mssql"}:
+        filter_param = {"workloads": filter_param}
+        field_name = "workloads"
+
+    return getattr(HostDynamicSystemProfile, field_name) if field_name in DYNAMIC_FIELDS else getattr(
+        HostStaticSystemProfile, field_name
+    ), filter_param
+
+
 def _check_field_in_spec(spec: dict, field_name: str, parent_node: str) -> None:
     if field_name not in spec.keys():
         raise ValidationException(f"Invalid operation or child node for {parent_node}: {field_name}")
@@ -64,17 +82,17 @@ def _check_field_in_spec(spec: dict, field_name: str, parent_node: str) -> None:
 #   jsonb_path: The jsonb path, i.e. (operating_system, cpu_flags) (first element omitted)
 #   pg_op: The comparison to use (e.g. =, >, <)
 #   value: The filter's value
-def _convert_dict_to_column_jsonb_path_pg_op_value(filter: dict) -> tuple[Any, tuple[str, ...], str | None, str]:
-    key: str = next(iter(filter.keys()))
+def _convert_dict_to_column_jsonb_path_pg_op_value(
+    filter_param: dict,
+) -> tuple[Column, tuple[str, ...], str | None, str]:
     try:
-        column = (
-            getattr(HostDynamicSystemProfile, key) if key in DYNAMIC_FIELDS else getattr(HostStaticSystemProfile, key)
-        )
+        column, filter_param = _get_system_profile_column_and_filter(filter_param)
     except AttributeError as e:
+        key: str = next(iter(filter_param.keys()))
         logger.error(f"Field {key} not found in system profile. Exception: {e}")
         raise ValidationException(f"Field {key} not found in system profile.") from e
 
-    jsonb_path, pg_op, value = _convert_dict_to_json_path_and_value(filter)
+    jsonb_path, pg_op, value = _convert_dict_to_json_path_and_value(filter_param)
     # Omit the first element from the jsonb_path tuple
     omitted_jsonb_path = jsonb_path[1:] if jsonb_path else ()
     return column, omitted_jsonb_path, pg_op, value
