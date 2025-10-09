@@ -98,10 +98,6 @@ def _convert_dict_to_column_jsonb_path_pg_op_value(
     return column, omitted_jsonb_path, pg_op, value
 
 
-# Takes a filter dict and converts it into:
-#   jsonb_path: The jsonb path, i.e. (system_profile_facts, sap, sap_system)
-#   pg_op: The comparison to use (e.g. =, >, <)
-#   value: The filter's value
 def _convert_dict_to_json_path_and_value(
     filter: dict,
 ) -> tuple[tuple[str], str | None, str]:  # Tuple of keys for the json path; pg_op; leaf node
