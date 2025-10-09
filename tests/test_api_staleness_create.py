@@ -92,26 +92,28 @@ def test_create_staleness_rbac_denied(subtests, mocker, api_create_staleness):
             "conventional_time_to_stale": 104400,
             "conventional_time_to_stale_warning": 1,
             "conventional_time_to_delete": 1209600,
-            "immutable_time_to_stale": 172800,
-            "immutable_time_to_stale_warning": 15552000,
-            "immutable_time_to_delete": 63072000,
         },
         {
             "conventional_time_to_stale": 104400,
             "conventional_time_to_stale_warning": 604800,
             "conventional_time_to_delete": 1,
-            "immutable_time_to_stale": 172800,
-            "immutable_time_to_stale_warning": 15552000,
-            "immutable_time_to_delete": 63072000,
         },
         {
             "conventional_time_to_stale": 104400,
             "conventional_time_to_stale_warning": 2000000,
             "conventional_time_to_delete": 1209600,
-            "immutable_time_to_stale": 172800,
-            "immutable_time_to_stale_warning": 15552000,
-            "immutable_time_to_delete": 63072000,
         },
+    ),
+)
+def test_create_improper_staleness(api_create_staleness, input_data):
+    """Test that invalid conventional staleness values are rejected."""
+    response_status, _ = api_create_staleness(input_data)
+    assert_response_status(response_status, 400)
+
+
+@pytest.mark.parametrize(
+    "input_data",
+    (
         {
             "conventional_time_to_stale": 104400,
             "conventional_time_to_stale_warning": 604800,
@@ -138,6 +140,16 @@ def test_create_staleness_rbac_denied(subtests, mocker, api_create_staleness):
         },
     ),
 )
-def test_create_improper_staleness(api_create_staleness, input_data):
-    response_status, _ = api_create_staleness(input_data)
-    assert_response_status(response_status, 400)
+def test_create_staleness_ignores_immutable_fields(api_create_staleness, db_get_staleness_culling, input_data):
+    """Test that immutable staleness fields are ignored even when they have invalid values."""
+    response_status, response_data = api_create_staleness(input_data)
+    # Should succeed even with invalid immutable field values, as they are filtered out
+    assert_response_status(response_status, 201)
+
+    saved_org_id = response_data["org_id"]
+    saved_data = db_get_staleness_culling(saved_org_id)
+
+    # Verify only conventional fields were saved, immutable fields were ignored
+    assert saved_data.conventional_time_to_stale == input_data["conventional_time_to_stale"]
+    assert saved_data.conventional_time_to_stale_warning == input_data["conventional_time_to_stale_warning"]
+    assert saved_data.conventional_time_to_delete == input_data["conventional_time_to_delete"]

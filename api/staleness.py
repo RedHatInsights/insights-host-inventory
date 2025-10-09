@@ -51,9 +51,19 @@ logger = get_logger(__name__)
 def _validate_input_data(body):
     # Validate account staleness input data
     try:
+        # TODO(gchamoul): Remove this filtering when the immutable fields are
+        # fully deprecated and removed from the API spec.
+        # Filter out immutable staleness fields that are no longer supported
+        immutable_fields = {
+            "immutable_time_to_delete",
+            "immutable_time_to_stale",
+            "immutable_time_to_stale_warning",
+        }
+        filtered_body = {k: v for k, v in body.items() if k not in immutable_fields}
+
         identity = get_current_identity()
         staleness_obj = serialize_staleness_to_dict(get_staleness_obj(identity.org_id))
-        validated_data = StalenessSchema().load({**staleness_obj, **body})
+        validated_data = StalenessSchema().load({**staleness_obj, **filtered_body})
 
         return validated_data
 
