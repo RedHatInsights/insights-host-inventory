@@ -419,7 +419,7 @@ def test_patch_group_RBAC_post_kessel_migration(
     # Check that the removed hosts were assigned to the ungrouped group
     for host in db_get_hosts_for_group(ungrouped_group_id):
         assert str(host.id) in original_host_id_list
-        assert host.groups[0]["id"] == str(ungrouped_group_id)
+        assert host.groups[0]["id"] == ungrouped_group_id
 
     assert str(db_get_hosts_for_group(group_id)[0].id) == new_host_id_list[0]
 
