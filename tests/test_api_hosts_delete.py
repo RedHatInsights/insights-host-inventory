@@ -33,6 +33,7 @@ from tests.helpers.test_utils import RHSM_ERRATA_IDENTITY_STAGE
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
+from tests.helpers.test_utils import minimal_host
 
 
 @pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
@@ -181,12 +182,16 @@ def test_delete_hosts_filtered_by_system_type(
     host_type,
     system_type,
     nomatch_host_type,
-    db_create_host,
+    mq_create_or_update_host,
     db_get_host,
     api_delete_filtered_hosts,
 ):
-    host_to_keep_id = db_create_host(extra_data={"system_profile_facts": {"host_type": nomatch_host_type}}).id
-    host_to_delete_id = db_create_host(extra_data={"system_profile_facts": {"host_type": host_type}}).id
+    host_to_keep_id = mq_create_or_update_host(
+        minimal_host(system_profile={"host_type": nomatch_host_type} if nomatch_host_type else {})
+    ).id
+    host_to_delete_id = mq_create_or_update_host(
+        minimal_host(system_profile={"host_type": host_type} if host_type else {})
+    ).id
 
     response_status, response_data = api_delete_filtered_hosts(query_parameters={"system_type": system_type})
 
