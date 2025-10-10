@@ -425,7 +425,8 @@ def get_group_by_id_from_db(group_id: str, org_id: str, session: Session | None 
 def patch_group(group: Group, patch_data: dict, identity: Identity, event_producer: EventProducer):
     group_id = group.id
     host_id_data = patch_data.get("host_ids")
-    new_host_ids = {host_id for host_id in host_id_data} if host_id_data is not None else None
+    new_host_ids = set(host_id_data) if host_id_data is not None else None
+    removed_group_id_list = []
 
     existing_host_uuids = db.session.query(HostGroupAssoc.host_id).filter(HostGroupAssoc.group_id == group_id).all()
     existing_host_ids = {str(host_id[0]) for host_id in existing_host_uuids}
@@ -441,6 +442,7 @@ def patch_group(group: Group, patch_data: dict, identity: Identity, event_produc
             _add_hosts_to_group(group_id, list(new_host_ids - existing_host_ids), identity.org_id)
             # Add hosts to the "ungrouped" group
             ungrouped_group = get_or_create_ungrouped_hosts_group_for_identity(identity)
+            removed_group_id_list = [str(ungrouped_group.id)]
             _add_hosts_to_group(str(ungrouped_group.id), list(existing_host_ids - new_host_ids), identity.org_id)
 
     # Send MQ messages
@@ -458,10 +460,14 @@ def patch_group(group: Group, patch_data: dict, identity: Identity, event_produc
         group.update_modified_on()
         db.session.add(group)
 
-        deleted_host_uuids = [str(host_id) for host_id in (existing_host_ids - new_host_ids)]
-        serialized_groups, host_id_list = _update_hosts_for_group_changes(deleted_host_uuids, [], identity)
+        # Handle removed hosts
+        removed_host_uuids = [str(host_id) for host_id in (existing_host_ids - new_host_ids)]
+        serialized_groups, host_id_list = _update_hosts_for_group_changes(
+            removed_host_uuids, removed_group_id_list, identity
+        )
         _process_host_changes(host_id_list, serialized_groups, staleness, identity, event_producer)
 
+        # Handle added and existing hosts
         added_host_uuids = [str(host_id) for host_id in new_host_ids]
         serialized_groups, host_id_list = _update_hosts_for_group_changes(added_host_uuids, [group_id], identity)
         _process_host_changes(host_id_list, serialized_groups, staleness, identity, event_producer)
