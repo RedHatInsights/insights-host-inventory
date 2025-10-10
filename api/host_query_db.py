@@ -6,6 +6,7 @@ from itertools import islice
 from typing import Any
 
 from sqlalchemy import Boolean
+from sqlalchemy import Integer
 from sqlalchemy import case
 from sqlalchemy import func
 from sqlalchemy import select
@@ -34,6 +35,7 @@ from app.models import Host
 from app.models import HostDynamicSystemProfile
 from app.models import HostGroupAssoc
 from app.models import db
+from app.models.system_profile_static import HostStaticSystemProfile
 from app.serialization import serialize_host_for_export_svc
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.feature_flags import get_flag_value
@@ -429,10 +431,12 @@ def get_os_info(
     rbac_filter: dict,
     identity: Identity,
 ):
+    os_field = HostStaticSystemProfile.operating_system
+
     columns = [
-        Host.system_profile_facts["operating_system"]["name"].label("name"),
-        Host.system_profile_facts["operating_system"]["major"].label("major"),
-        Host.system_profile_facts["operating_system"]["minor"].label("minor"),
+        os_field["name"].astext.label("name"),
+        os_field["major"].astext.cast(Integer).label("major"),
+        os_field["minor"].astext.cast(Integer).label("minor"),
         func.count().label("count"),
     ]
 
@@ -443,6 +447,7 @@ def get_os_info(
         filter=filter,
         rbac_filter=rbac_filter,
         identity=identity,
+        join_static_profile=True,
     )
     os_query = _find_hosts_entities_query(query=query_base, columns=columns, identity=identity)
 
