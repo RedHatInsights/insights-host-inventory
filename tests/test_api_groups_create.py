@@ -123,26 +123,6 @@ def test_create_group_taken_name(api_create_group, new_name, mocker):
     assert group_data["name"] in response_data["detail"]
 
 
-@pytest.mark.usefixtures("event_producer")
-@pytest.mark.parametrize(
-    "new_name",
-    ["test_Group", " Test_Group", "test_group ", " test_group "],
-)
-def test_create_group_taken_name_kessel(api_create_group, new_name, mocker):
-    group_data = {"name": "test_group", "host_ids": []}
-
-    api_create_group(group_data)
-    group_data["name"] = new_name
-
-    # Mock FLAG_INVENTORY_KESSEL_PHASE_1 to be False,
-    # since we should only enforce group name uniqueness before Phase 1
-    with mocker.patch("api.group.get_flag_value", return_value=False):
-        response_status, response_data = api_create_group(group_data)
-
-    assert_response_status(response_status, expected_status=400)
-    assert group_data["name"] in response_data["detail"]
-
-
 @pytest.mark.usefixtures("event_producer", "enable_kessel")
 def test_create_group_taken_name_in_kessel_rbac(api_create_group, mocker):
     group_data = {"name": "test_group", "host_ids": []}

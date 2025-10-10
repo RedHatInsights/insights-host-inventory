@@ -193,16 +193,6 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
             log_patch_group_failed(logger, group_id)
             abort(HTTPStatus.BAD_REQUEST, "The 'ungrouped' group can not be modified.")
 
-        # only enforce uniqueness pre-Phase1
-        if (
-            new_name
-            and not get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1)
-            and (new_name != group_to_update.name and does_group_with_name_exist(new_name, identity.org_id))
-        ):
-            log_patch_group_failed(logger, group_id)
-            abort(HTTPStatus.BAD_REQUEST, f"Group with name '{new_name}' already exists.")
-
-        # merge both flag_paths into a single RBAC call
         if new_name and new_name != group_to_update.name and not inventory_config().bypass_kessel:
             patch_rbac_workspace(group_id, name=new_name)
 
