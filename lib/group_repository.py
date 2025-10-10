@@ -213,6 +213,10 @@ def _process_host_changes(
         host_list = get_host_list_by_id_list_from_db(batch, identity)
         for host in host_list:
             try:
+                # If the host has no groups, set it to the 'Ungrouped Hosts' group.
+                # This can happen when a host is being removed from a group.
+                if len(host.groups) == 0:
+                    host.groups = [serialize_group(get_ungrouped_group(identity))]
                 # write to the outbox table for synchronization with Kessel
                 result = write_event_to_outbox(EventType.updated, str(host.id), host)
                 if not result:
