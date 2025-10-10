@@ -41,7 +41,7 @@ def _create_update_event_payload(host: Host) -> dict:
     }
 
     groups = host.groups
-    common = {"workspace_id": groups[0]["id"]} if len(groups) > 0 else {}
+    common = {"workspace_id": groups[0]["id"]}
 
     reporter = {
         "satellite_id": str(host.satellite_id) if host.satellite_id else None,
