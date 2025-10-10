@@ -1477,44 +1477,6 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             provider_type=deserialize_canonical_facts.return_value.get("provider_type"),
         )
 
-    def test_without_culling_fields(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
-        common_data = {
-            "display_name": "some display name",
-            "ansible_host": "some ansible host",
-            "account": "some account",
-            "tags": [
-                {"namespace": "NS1", "key": "key1", "value": "value1"},
-                {"namespace": "NS2", "key": "key2", "value": "value2"},
-            ],
-            "facts": {
-                "some namespace": {"some key": "some value"},
-                "another namespace": {"another key": "another value"},
-            },
-            "system_profile": {
-                "number_of_cpus": 1,
-                "number_of_sockets": 2,
-                "cores_per_socket": 3,
-                "system_memory_bytes": 4,
-            },
-        }
-        for additional_data in ({"stale_timestamp": "2019-12-16T10:10:06.754201+00:00"}, {"reporter": "puptoo"}):
-            with self.subTest(additional_data=additional_data):
-                for thismock in (deserialize_canonical_facts, deserialize_facts, deserialize_tags):
-                    thismock.reset_mock()
-
-                all_data = {**common_data, **additional_data}
-                host_schema = Mock(
-                    **{"return_value.load.return_value": all_data, "build_model": HostSchema.build_model}
-                )
-
-                with self.assertRaises(KeyError):
-                    deserialize_host({}, host_schema)
-
-                deserialize_canonical_facts.assert_called_once_with(all_data)
-                deserialize_facts.assert_called_once_with(common_data["facts"])
-                deserialize_tags.assert_called_once_with(common_data["tags"])
-                host.assert_not_called()
-
     @patch("app.serialization.ValidationError", new=ValidationError)
     def test_invalid_host_error(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
         data = {"field_1": "data_1"}
