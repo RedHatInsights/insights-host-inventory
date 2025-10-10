@@ -343,7 +343,13 @@ def test_patch_group_same_hosts(
 
 
 def test_patch_group_both_add_and_remove_hosts(
-    db_create_group_with_hosts, db_get_hosts_for_group, db_create_host, api_patch_group, event_producer, mocker
+    db_create_group_with_hosts,
+    db_get_hosts_for_group,
+    db_create_host,
+    db_get_ungrouped_group,
+    api_patch_group,
+    event_producer,
+    mocker,
 ):
     # Create a group with hosts
     mocker.patch.object(event_producer, "write_event")
@@ -367,7 +373,8 @@ def test_patch_group_both_add_and_remove_hosts(
             assert host["id"] in new_host_id_list
             assert host["groups"][0]["id"] == str(group_id)
         else:
-            assert host["groups"] == []
+            assert host["groups"][0]["id"] == str(db_get_ungrouped_group(USER_IDENTITY["org_id"]).id)
+            assert host["groups"][0]["ungrouped"] is True
 
 
 @pytest.mark.usefixtures("enable_kessel")
@@ -395,8 +402,6 @@ def test_patch_group_RBAC_post_kessel_migration(
     if update_name:
         new_group_data["name"] = "new_name"
 
-    mocker.patch("api.group.get_flag_value", return_value=True)
-    mocker.patch("lib.group_repository.get_flag_value", return_value=True)
     response_status, _ = api_patch_group(group_id, new_group_data)
 
     # If group name was updated, it should have made a request to RBAC

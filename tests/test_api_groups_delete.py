@@ -466,10 +466,8 @@ def test_delete_existing_group_missing_workspace(api_delete_groups_kessel, db_cr
 
 
 def test_delete_ungrouped_host_from_group(
-    mocker, db_create_group_with_hosts, db_get_hosts_for_group, api_remove_hosts_from_diff_groups
+    db_create_group_with_hosts, db_get_hosts_for_group, api_remove_hosts_from_diff_groups
 ):
-    mocker.patch("api.host_group.get_flag_value", return_value=True)
-
     ungrouped_group = db_create_group_with_hosts("ungrouped", 1, ungrouped=True)
     host_id_to_delete = str(db_get_hosts_for_group(ungrouped_group.id)[0].id)
 
@@ -479,10 +477,8 @@ def test_delete_ungrouped_host_from_group(
 
 
 def test_delete_host_from_ungrouped_group(
-    mocker, db_create_group_with_hosts, db_get_hosts_for_group, api_remove_hosts_from_group
+    db_create_group_with_hosts, db_get_hosts_for_group, api_remove_hosts_from_group
 ):
-    mocker.patch("api.host_group.get_flag_value", return_value=True)
-
     ungrouped_group = db_create_group_with_hosts("ungrouped", 1, ungrouped=True)
     host_id_to_delete = str(db_get_hosts_for_group(ungrouped_group.id)[0].id)
 
@@ -494,10 +490,8 @@ def test_delete_host_from_ungrouped_group(
 
 @pytest.mark.usefixtures("event_producer")
 def test_delete_host_from_group_no_ungrouped(
-    mocker, db_create_group_with_hosts, db_get_hosts_for_group, api_remove_hosts_from_group
+    db_create_group_with_hosts, db_get_hosts_for_group, api_remove_hosts_from_group
 ):
-    mocker.patch("api.host_group.get_flag_value", return_value=True)
-
     ungrouped_group = db_create_group_with_hosts("ungrouped", 1, ungrouped=False)
     host_id_to_delete = str(db_get_hosts_for_group(ungrouped_group.id)[0].id)
 
@@ -509,10 +503,8 @@ def test_delete_host_from_group_no_ungrouped(
 @pytest.mark.parametrize("ungrouped", [True, False])
 @pytest.mark.usefixtures("event_producer")
 def test_delete_host_from_nonexistent_group(
-    ungrouped, mocker, db_create_group_with_hosts, db_get_hosts_for_group, api_remove_hosts_from_group
+    ungrouped, db_create_group_with_hosts, db_get_hosts_for_group, api_remove_hosts_from_group
 ):
-    mocker.patch("api.host_group.get_flag_value", return_value=True)
-
     group = db_create_group_with_hosts("test group", 1, ungrouped=ungrouped)
     host_id = str(db_get_hosts_for_group(group.id)[0].id)
 

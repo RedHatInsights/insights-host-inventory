@@ -244,25 +244,22 @@ def test_handle_message_kessel_private_endpoint(identity, mocker, ingress_messag
 
 @pytest.mark.usefixtures("flask_app")
 def test_handle_message_existing_ungrouped_workspace(mocker, db_create_group):
-    with mocker.patch("lib.host_repository.get_flag_value", return_value=True):
-        expected_insights_id = generate_uuid()
-        host = minimal_host(account=SYSTEM_IDENTITY["account_number"], insights_id=expected_insights_id)
-        group_id = db_create_group("kessel-test", ungrouped=True).id
-        mock_notification_event_producer = mocker.Mock()
-        consumer = IngressMessageConsumer(
-            mocker.Mock(), mocker.Mock(), mocker.Mock(), mock_notification_event_producer
-        )
+    expected_insights_id = generate_uuid()
+    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], insights_id=expected_insights_id)
+    group_id = db_create_group("kessel-test", ungrouped=True).id
+    mock_notification_event_producer = mocker.Mock()
+    consumer = IngressMessageConsumer(mocker.Mock(), mocker.Mock(), mocker.Mock(), mock_notification_event_producer)
 
-        message = wrap_message(host.data(), "add_host", get_platform_metadata(SYSTEM_IDENTITY))
-        result = consumer.handle_message(json.dumps(message))
+    message = wrap_message(host.data(), "add_host", get_platform_metadata(SYSTEM_IDENTITY))
+    result = consumer.handle_message(json.dumps(message))
 
-        assert result.event_type == EventType.created
-        assert result.row.canonical_facts["insights_id"] == expected_insights_id
+    assert result.event_type == EventType.created
+    assert result.row.canonical_facts["insights_id"] == expected_insights_id
 
-        assert result.row.groups[0]["name"] == "kessel-test"
-        assert result.row.groups[0]["id"] == str(group_id)
+    assert result.row.groups[0]["name"] == "kessel-test"
+    assert result.row.groups[0]["id"] == str(group_id)
 
-        mock_notification_event_producer.write_event.assert_not_called()
+    mock_notification_event_producer.write_event.assert_not_called()
 
 
 def test_request_id_is_reset(mocker, flask_app, ingress_message_consumer_mock):
@@ -2434,7 +2431,6 @@ def test_workspace_mq_update(
 def test_workspace_mq_delete(
     db_create_group_with_hosts, db_get_group_by_id, db_get_hosts_for_group, num_hosts, flask_app, mocker
 ):
-    mocker.patch("lib.group_repository.get_flag_value", return_value=True)
     mock_event_producer = mocker.Mock()
     consumer = WorkspaceMessageConsumer(mocker.Mock(), flask_app, mock_event_producer, mocker.Mock())
 
@@ -2464,24 +2460,22 @@ def test_workspace_mq_delete_non_empty(
     db_get_group_by_id,
     db_get_hosts_for_group,
     db_get_groups_for_host,
-    mocker,
 ):
-    with mocker.patch("lib.group_repository.get_flag_value", return_value=True):
-        workspace_name = "kessel-deletable-workspace"
-        group = db_create_group_with_hosts(workspace_name, 3)
-        workspace_id = str(group.id)
-        host_id_list = [host.id for host in db_get_hosts_for_group(workspace_id)]
+    workspace_name = "kessel-deletable-workspace"
+    group = db_create_group_with_hosts(workspace_name, 3)
+    workspace_id = str(group.id)
+    host_id_list = [host.id for host in db_get_hosts_for_group(workspace_id)]
 
-        message = generate_kessel_workspace_message("delete", workspace_id, workspace_name)
-        workspace_message_consumer_mock.handle_message(json.dumps(message))
+    message = generate_kessel_workspace_message("delete", workspace_id, workspace_name)
+    workspace_message_consumer_mock.handle_message(json.dumps(message))
 
-        # The group should no longer exist
-        assert not db_get_group_by_id(workspace_id)
+    # The group should no longer exist
+    assert not db_get_group_by_id(workspace_id)
 
-        # The hosts should now be in the "ungrouped" group
-        assert db_get_groups_for_host(host_id_list[0])[0].ungrouped
-        assert db_get_groups_for_host(host_id_list[1])[0].ungrouped
-        assert db_get_groups_for_host(host_id_list[2])[0].ungrouped
+    # The hosts should now be in the "ungrouped" group
+    assert db_get_groups_for_host(host_id_list[0])[0].ungrouped
+    assert db_get_groups_for_host(host_id_list[1])[0].ungrouped
+    assert db_get_groups_for_host(host_id_list[2])[0].ungrouped
 
 
 @pytest.mark.parametrize(
@@ -2543,7 +2537,6 @@ def test_write_add_update_event_message(mocker):
     mock_success_logger = mocker.Mock()
     mocker.patch("app.queue.host_mq.PayloadTrackerProcessingContext")
     mocker.patch("app.queue.host_mq.get_payload_tracker", return_value=mocker.Mock())
-    mocker.patch("lib.host_repository.get_flag_value", return_value=True)
     mocker.patch(
         "app.serialization.get_staleness_timestamps",
         return_value={

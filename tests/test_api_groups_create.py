@@ -18,7 +18,6 @@ from tests.helpers.test_utils import generate_uuid
 
 def test_create_group_with_empty_host_list(api_create_group, db_get_group_by_name, event_producer, mocker):
     mocker.patch.object(event_producer, "write_event")
-    mocker.patch("lib.host_repository.get_flag_value")
     group_data = {"name": "my_awesome_group", "host_ids": []}
 
     response_status, response_data = api_create_group(group_data)
