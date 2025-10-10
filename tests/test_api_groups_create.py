@@ -134,7 +134,10 @@ def test_create_group_taken_name_kessel(api_create_group, new_name, mocker):
 
     api_create_group(group_data)
     group_data["name"] = new_name
-    with mocker.patch("api.group.get_flag_value", return_value=True):
+
+    # Mock FLAG_INVENTORY_KESSEL_PHASE_1 to be False,
+    # since we should only enforce group name uniqueness before Phase 1
+    with mocker.patch("api.group.get_flag_value", return_value=False):
         response_status, response_data = api_create_group(group_data)
 
     assert_response_status(response_status, expected_status=400)
@@ -257,7 +260,7 @@ def test_create_group_RBAC_denied_attribute_filter(mocker, api_create_group):
 @pytest.mark.usefixtures("event_producer")
 def test_create_group_same_name_kessel_phase1_enabled(api_create_group, db_get_group_by_name, mocker):
     """Test that groups with the same name can be created when FLAG_INVENTORY_KESSEL_PHASE_1 is True."""
-    # Mock FLAG_INVENTORY_KESSEL_PHASE_1 to be True and FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION to be False
+    # Mock FLAG_INVENTORY_KESSEL_PHASE_1 to be True
     mocker.patch(
         "api.group.get_flag_value",
         side_effect=lambda flag_name: flag_name == FLAG_INVENTORY_KESSEL_PHASE_1,

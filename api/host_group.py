@@ -13,8 +13,6 @@ from app.auth.rbac import KesselResourceTypes
 from app.instrumentation import log_host_group_add_succeeded
 from app.instrumentation import log_patch_group_failed
 from app.logging import get_logger
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
-from lib.feature_flags import get_flag_value
 from lib.group_repository import add_hosts_to_group
 from lib.group_repository import get_group_by_id_from_db
 from lib.group_repository import remove_hosts_from_group
@@ -78,7 +76,7 @@ def delete_hosts_from_group(group_id, host_id_list, rbac_filter=None):
     if (group := get_group_by_id_from_db(group_id, identity.org_id)) is None:
         abort(HTTPStatus.NOT_FOUND, "Group not found.")
 
-    if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION) and group.ungrouped is True:
+    if group.ungrouped is True:
         abort(HTTPStatus.BAD_REQUEST, f"Cannot remove hosts from ungrouped workspace {group_id}")
 
     if remove_hosts_from_group(group_id, host_id_list, identity, current_app.event_producer) == 0:

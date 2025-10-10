@@ -129,12 +129,10 @@ def test_handle_message_failure_invalid_message_format(mocker, ingress_message_c
 
 @pytest.mark.usefixtures("flask_app")
 @pytest.mark.parametrize("identity", (SYSTEM_IDENTITY, SATELLITE_IDENTITY, USER_IDENTITY))
-@pytest.mark.parametrize("kessel_migration", (True, False))
 @pytest.mark.parametrize("existing_ungrouped", (True, False))
 def test_handle_message_happy_path(
-    identity, kessel_migration, existing_ungrouped, mocker, ingress_message_consumer_mock, db_create_group
+    identity, existing_ungrouped, mocker, ingress_message_consumer_mock, db_create_group
 ):
-    mocker.patch("lib.host_repository.get_flag_value", return_value=kessel_migration)
     expected_insights_id = generate_uuid()
     host = minimal_host(org_id=identity["org_id"], insights_id=expected_insights_id)
     existing_group_name = "test group"
@@ -147,12 +145,9 @@ def test_handle_message_happy_path(
 
     assert result.event_type == EventType.created
     assert result.row.canonical_facts["insights_id"] == expected_insights_id
-    if kessel_migration:
-        assert len(result.row.groups) == 1
-        assert result.row.groups[0]["name"] == existing_group_name if existing_ungrouped else "Ungrouped Hosts"
-        assert result.row.groups[0]["ungrouped"] is True
-    else:
-        assert result.row.groups == []
+    assert len(result.row.groups) == 1
+    assert result.row.groups[0]["name"] == existing_group_name if existing_ungrouped else "Ungrouped Hosts"
+    assert result.row.groups[0]["ungrouped"] is True
 
     mock_notification_event_producer.write_event.assert_not_called()
 

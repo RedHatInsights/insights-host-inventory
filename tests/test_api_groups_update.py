@@ -451,7 +451,7 @@ def test_patch_group_existing_name_same_org_kessel_phase1_enabled(
     Test that groups can be updated to have the same name as another group when
     FLAG_INVENTORY_KESSEL_PHASE_1 is True.
     """
-    # Mock FLAG_INVENTORY_KESSEL_PHASE_1 to be True and FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION to be False
+    # Mock FLAG_INVENTORY_KESSEL_PHASE_1 to be True
     mocker.patch(
         "api.group.get_flag_value",
         side_effect=lambda flag_name: flag_name == FLAG_INVENTORY_KESSEL_PHASE_1,

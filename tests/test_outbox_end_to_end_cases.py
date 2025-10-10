@@ -1255,34 +1255,34 @@ class TestOutboxE2ECases:
             outbox_calls.append({"event_type": event_type, "host_id": host_id_param, "host": host_obj})
             return True
 
-        # Mock the Kessel workspace migration flag to be False to avoid ungrouped group behavior
-        with patch("lib.group_repository.get_flag_value", return_value=False):
-            with patch("lib.group_repository.write_event_to_outbox", side_effect=mock_write_outbox):
-                # Make DELETE request to remove host from group
-                response_status, response_data = api_remove_hosts_from_group(group_id, [host_id])
+        with patch("lib.group_repository.write_event_to_outbox", side_effect=mock_write_outbox):
+            # Make DELETE request to remove host from group
+            response_status, _ = api_remove_hosts_from_group(group_id, [host_id])
 
-                # Verify the API request was successful
-                assert response_status == 204  # No Content
+            # Verify the API request was successful
+            assert response_status == 204  # No Content
 
-                # Verify outbox entry was created
-                assert len(outbox_calls) == 1
+            # Verify outbox entry was created
+            assert len(outbox_calls) == 1
 
-                call = outbox_calls[0]
-                assert call["event_type"] == EventType.updated
-                assert call["host_id"] == host_id
+            call = outbox_calls[0]
+            assert call["event_type"] == EventType.updated
+            assert call["host_id"] == host_id
 
-                # Verify the host object in the outbox call has NO group information
-                host_obj = call["host"]
-                assert host_obj is not None
-                assert len(host_obj.groups) == 0  # Host should have no groups after removal
+            # Verify the host object in the outbox call has the ungrouped group information
+            host_obj = call["host"]
+            assert host_obj is not None
+            assert len(host_obj.groups) == 1  # Host should have the ungrouped group information
+            assert host_obj.groups[0]["ungrouped"] is True
 
-                # Verify the host was actually removed from the group in the database
-                hosts_in_group_after = db_get_hosts_for_group(group_id)
-                assert len(hosts_in_group_after) == 0  # Group should be empty
+            # Verify the host was actually removed from the group in the database
+            hosts_in_group_after = db_get_hosts_for_group(group_id)
+            assert len(hosts_in_group_after) == 0  # Group should be empty
 
-                # Verify the host no longer has any group information
-                updated_host = db_get_host(host_id)
-                assert len(updated_host.groups) == 0  # Host should have no groups
+            # Verify the host no longer has any group information
+            updated_host = db_get_host(host_id)
+            assert len(updated_host.groups) == 1  # Host should have the ungrouped group information
+            assert updated_host.groups[0]["ungrouped"] is True
 
     @pytest.mark.usefixtures("event_producer_mock")
     def test_host_remove_from_group_via_api_endpoint_with_actual_outbox_validation(
@@ -1864,7 +1864,7 @@ class TestOutboxE2ECases:
     def test_host_creation_with_kessel_workspace_migration_enabled(
         self, flask_app, event_producer_mock, notification_event_producer_mock
     ):
-        """Test host creation with FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION enabled using MQ flow.
+        """Test post-Kessel host creation using MQ flow.
 
         Verifies:
         1. Host creation event is written to the outbox table automatically
@@ -1886,8 +1886,6 @@ class TestOutboxE2ECases:
         # Mock the Kessel migration flag to enable group assignment
         # Mock the RBAC workspace creation to avoid making actual API calls
         with (
-            patch("lib.host_repository.get_flag_value", return_value=True),
-            patch("lib.group_repository.get_flag_value", return_value=True),
             patch("lib.middleware.rbac_create_ungrouped_hosts_workspace", return_value=generate_uuid()),
         ):
             # Create MQ consumer and process message
