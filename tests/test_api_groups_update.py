@@ -6,7 +6,6 @@ from dateutil import parser
 
 from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
 from tests.helpers.api_utils import assert_group_response
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
@@ -138,23 +137,6 @@ def test_patch_group_existing_name_different_org(
 
     # It can't find a group with that ID within the user's org, so it should return 404
     assert_response_status(response_status, 404)
-
-
-@pytest.mark.parametrize("patch_name", ["existing_group", "EXISTING_GROUP"])
-def test_patch_group_existing_name_same_org(db_create_group, api_patch_group, patch_name, mocker):
-    # Mock the specific modules that might be importing the flag
-    mocker.patch("api.group.get_flag_value", side_effect=lambda name: name != FLAG_INVENTORY_KESSEL_PHASE_1)
-
-    # Create 2 groups
-    db_create_group("existing_group")
-    new_id = db_create_group("another_group").id
-
-    response_status, response_body = api_patch_group(new_id, {"name": patch_name})
-
-    # There's already a group with that name (case-insensitive), so we should get an HTTP 400.
-    # Make sure the group name is mentioned in the response.
-    assert_response_status(response_status, 400)
-    assert patch_name in response_body["detail"]
 
 
 def test_patch_group_hosts_from_different_group(
@@ -343,7 +325,13 @@ def test_patch_group_same_hosts(
 
 
 def test_patch_group_both_add_and_remove_hosts(
-    db_create_group_with_hosts, db_get_hosts_for_group, db_create_host, api_patch_group, event_producer, mocker
+    db_create_group_with_hosts,
+    db_get_hosts_for_group,
+    db_create_host,
+    db_get_ungrouped_group,
+    api_patch_group,
+    event_producer,
+    mocker,
 ):
     # Create a group with hosts
     mocker.patch.object(event_producer, "write_event")
@@ -367,10 +355,11 @@ def test_patch_group_both_add_and_remove_hosts(
             assert host["id"] in new_host_id_list
             assert host["groups"][0]["id"] == str(group_id)
         else:
-            assert host["groups"] == []
+            assert host["groups"][0]["id"] == str(db_get_ungrouped_group(USER_IDENTITY["org_id"]).id)
+            assert host["groups"][0]["ungrouped"] is True
 
 
-@pytest.mark.usefixtures("enable_rbac")
+@pytest.mark.usefixtures("enable_kessel")
 @pytest.mark.parametrize("update_name", [True, False])
 def test_patch_group_RBAC_post_kessel_migration(
     update_name,
@@ -383,12 +372,6 @@ def test_patch_group_RBAC_post_kessel_migration(
     db_get_hosts_for_group,
 ):
     mocker.patch.object(event_producer, "write_event")
-    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
-    mock_rbac_response = create_mock_rbac_response(
-        "tests/helpers/rbac-mock-data/inv-groups-write-resource-defs-template.json"
-    )
-    get_rbac_permissions_mock.return_value = mock_rbac_response
-
     patch_rbac_workspace_mock = mocker.patch("api.group.patch_rbac_workspace")
 
     group = db_create_group_with_hosts("old_name", 2)
@@ -401,8 +384,6 @@ def test_patch_group_RBAC_post_kessel_migration(
     if update_name:
         new_group_data["name"] = "new_name"
 
-    mocker.patch("api.group.get_flag_value", return_value=True)
-    mocker.patch("lib.group_repository.get_flag_value", return_value=True)
     response_status, _ = api_patch_group(group_id, new_group_data)
 
     # If group name was updated, it should have made a request to RBAC
@@ -453,18 +434,12 @@ def test_patch_ungrouped_name_is_denied(db_create_group, db_get_group_by_id, api
 @pytest.mark.usefixtures("event_producer")
 @pytest.mark.parametrize("patch_name", ["existing_group", "EXISTING_GROUP"])
 def test_patch_group_existing_name_same_org_kessel_phase1_enabled(
-    db_create_group, db_get_group_by_id, api_patch_group, patch_name, mocker
+    db_create_group, db_get_group_by_id, api_patch_group, patch_name
 ):
     """
-    Test that groups can be updated to have the same name as another group when
-    FLAG_INVENTORY_KESSEL_PHASE_1 is True.
+    Test that groups can be updated to have the same name as another group
+    after the Kessel Phase 0 migration is complete.
     """
-    # Mock FLAG_INVENTORY_KESSEL_PHASE_1 to be True and FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION to be False
-    mocker.patch(
-        "api.group.get_flag_value",
-        side_effect=lambda flag_name: flag_name == FLAG_INVENTORY_KESSEL_PHASE_1,
-    )
-
     # Create 2 groups
     existing_group = db_create_group("existing_group")
     existing_group_id = existing_group.id
@@ -475,7 +450,7 @@ def test_patch_group_existing_name_same_org_kessel_phase1_enabled(
     # Update the second group to have the same name as the first group
     response_status, response_data = api_patch_group(group_to_update_id, {"name": patch_name})
 
-    # Should succeed when Kessel Phase 1 is enabled
+    # Should succeed when Kessel Phase 0 migration is complete
     assert_response_status(response_status, 200)
 
     # Verify the group was updated successfully
