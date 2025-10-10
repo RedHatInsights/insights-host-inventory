@@ -31,6 +31,9 @@ from app.auth.identity import Identity
 from app.auth.identity import from_auth_header
 from app.auth.identity import from_bearer_token
 from app.config import Config
+from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
+from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
+from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
 from app.culling import Timestamps
 from app.culling import _Config as CullingConfig
 from app.environment import RuntimeEnvironment
@@ -400,8 +403,10 @@ class ConfigTestCase(TestCase):
             self.assertEqual(conf.mgmt_url_path_prefix, expected_mgmt_url_path_prefix)
             self.assertEqual(conf.db_pool_timeout, 5)
             self.assertEqual(conf.db_pool_size, 5)
-            self.assertEqual(conf.culling_stale_warning_offset_delta, timedelta(days=7))
-            self.assertEqual(conf.culling_culled_offset_delta, timedelta(days=14))
+            self.assertEqual(
+                conf.culling_stale_warning_offset_delta, timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS)
+            )
+            self.assertEqual(conf.culling_culled_offset_delta, timedelta(seconds=CONVENTIONAL_TIME_TO_DELETE_SECONDS))
 
     def test_config_development_settings(self):
         with set_environment({"INVENTORY_DB_POOL_TIMEOUT": "3"}):
@@ -1614,11 +1619,15 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "created": self._timestamp_to_str(host_attr_data["created_on"]),
             "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
             "last_check_in": self._timestamp_to_str(host_attr_data["last_check_in"]),
-            "stale_timestamp": self._timestamp_to_str(self._add_seconds(host_attr_data["last_check_in"], 104400)),
-            "stale_warning_timestamp": self._timestamp_to_str(
-                self._add_seconds(host_attr_data["last_check_in"], 604800)
+            "stale_timestamp": self._timestamp_to_str(
+                self._add_seconds(host_attr_data["last_check_in"], CONVENTIONAL_TIME_TO_STALE_SECONDS)
             ),
-            "culled_timestamp": self._timestamp_to_str(self._add_seconds(host_attr_data["last_check_in"], 1209600)),
+            "stale_warning_timestamp": self._timestamp_to_str(
+                self._add_seconds(host_attr_data["last_check_in"], CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS)
+            ),
+            "culled_timestamp": self._timestamp_to_str(
+                self._add_seconds(host_attr_data["last_check_in"], CONVENTIONAL_TIME_TO_DELETE_SECONDS)
+            ),
             "per_reporter_staleness": host_attr_data["per_reporter_staleness"],
         }
 
@@ -1675,13 +1684,13 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                     "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
                     "last_check_in": self._timestamp_to_str(host_attr_data["last_check_in"]),
                     "stale_timestamp": self._timestamp_to_str(
-                        self._add_seconds(host_attr_data["last_check_in"], 104400)
+                        self._add_seconds(host_attr_data["last_check_in"], CONVENTIONAL_TIME_TO_STALE_SECONDS)
                     ),
                     "stale_warning_timestamp": self._timestamp_to_str(
-                        self._add_seconds(host_attr_data["last_check_in"], 604800)
+                        self._add_seconds(host_attr_data["last_check_in"], CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS)
                     ),
                     "culled_timestamp": self._timestamp_to_str(
-                        self._add_seconds(host_attr_data["last_check_in"], 1209600)
+                        self._add_seconds(host_attr_data["last_check_in"], CONVENTIONAL_TIME_TO_DELETE_SECONDS)
                     ),
                     "per_reporter_staleness": host_attr_data["per_reporter_staleness"],
                 }
@@ -1689,7 +1698,12 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                 self.assertEqual(expected, actual)
 
     def test_stale_timestamp_config(self):
-        for stale_warning_offset_seconds, culled_offset_seconds in ((604800, 1209600),):
+        for stale_warning_offset_seconds, culled_offset_seconds in (
+            (
+                CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS,
+                CONVENTIONAL_TIME_TO_DELETE_SECONDS,
+            ),
+        ):
             with (
                 self.subTest(
                     stale_warning_offset_seconds=stale_warning_offset_seconds,
@@ -1786,11 +1800,15 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
             "created": self._timestamp_to_str(host_attr_data["created_on"]),
             "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
             "last_check_in": self._timestamp_to_str(host_attr_data["last_check_in"]),
-            "stale_timestamp": self._timestamp_to_str(host_attr_data["last_check_in"] + timedelta(seconds=104400)),
-            "stale_warning_timestamp": self._timestamp_to_str(
-                host_attr_data["last_check_in"] + timedelta(seconds=604800)
+            "stale_timestamp": self._timestamp_to_str(
+                host_attr_data["last_check_in"] + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_SECONDS)
             ),
-            "culled_timestamp": self._timestamp_to_str(host_attr_data["last_check_in"] + timedelta(seconds=1209600)),
+            "stale_warning_timestamp": self._timestamp_to_str(
+                host_attr_data["last_check_in"] + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS)
+            ),
+            "culled_timestamp": self._timestamp_to_str(
+                host_attr_data["last_check_in"] + timedelta(seconds=CONVENTIONAL_TIME_TO_DELETE_SECONDS)
+            ),
             "per_reporter_staleness": host_attr_data["per_reporter_staleness"],
         }
 

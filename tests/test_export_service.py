@@ -1,5 +1,6 @@
 import io
 import json
+from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from unittest import mock
@@ -201,7 +202,7 @@ def test_do_not_export_culled_hosts(flask_app, db_create_host, db_create_stalene
         }
 
         with mock.patch("app.models.utils.datetime") as mock_datetime:
-            mock_datetime.now.return_value = datetime.now() - timedelta(minutes=1)
+            mock_datetime.now.return_value = datetime.now(UTC) - timedelta(minutes=1)
             db_create_staleness_culling(**CUSTOM_STALENESS_DELETE)
             db_create_host()
 
