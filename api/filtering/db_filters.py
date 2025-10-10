@@ -112,6 +112,11 @@ def _needs_system_profile_joins(filter, system_type, registered_with):
     # Extract all fields referenced in the filter
     filter_fields = _extract_filter_fields(filter)
 
+    # Handle workloads fields (temporary)
+    # Only needed until we stop supporting the old filter paths
+    if filter_fields & {"sap", "sap_sids", "sap_system", "ansible", "mssql"}:
+        filter_fields.add("workloads")
+
     # Check if any filter fields match system profile fields
     needs_static = bool(filter_fields & static_fields)
     needs_dynamic = bool(filter_fields & dynamic_fields)
