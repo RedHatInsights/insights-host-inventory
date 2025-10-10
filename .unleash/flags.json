@@ -23,7 +23,7 @@
             "type": "release",
             "project": "default",
             "stale": false,
-            "enabled": false,
+            "enabled": true,
             "strategies": [
                 {
                     "name": "default",

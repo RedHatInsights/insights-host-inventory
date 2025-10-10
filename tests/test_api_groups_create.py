@@ -141,7 +141,7 @@ def test_create_group_taken_name_kessel(api_create_group, new_name, mocker):
     assert group_data["name"] in response_data["detail"]
 
 
-@pytest.mark.usefixtures("event_producer")
+@pytest.mark.usefixtures("event_producer", "enable_kessel")
 def test_create_group_taken_name_in_kessel_rbac(api_create_group, mocker):
     group_data = {"name": "test_group", "host_ids": []}
 

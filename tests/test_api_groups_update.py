@@ -370,7 +370,7 @@ def test_patch_group_both_add_and_remove_hosts(
             assert host["groups"] == []
 
 
-@pytest.mark.usefixtures("enable_rbac")
+@pytest.mark.usefixtures("enable_kessel")
 @pytest.mark.parametrize("update_name", [True, False])
 def test_patch_group_RBAC_post_kessel_migration(
     update_name,
@@ -383,12 +383,6 @@ def test_patch_group_RBAC_post_kessel_migration(
     db_get_hosts_for_group,
 ):
     mocker.patch.object(event_producer, "write_event")
-    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
-    mock_rbac_response = create_mock_rbac_response(
-        "tests/helpers/rbac-mock-data/inv-groups-write-resource-defs-template.json"
-    )
-    get_rbac_permissions_mock.return_value = mock_rbac_response
-
     patch_rbac_workspace_mock = mocker.patch("api.group.patch_rbac_workspace")
 
     group = db_create_group_with_hosts("old_name", 2)

@@ -218,11 +218,10 @@ def test_handle_message_update_reporter_from_rhsm(db_get_host, ingress_message_c
 
 
 @pytest.mark.usefixtures("flask_app")
-@pytest.mark.usefixtures("enable_rbac")
+@pytest.mark.usefixtures("enable_kessel")
 @pytest.mark.parametrize("identity", (SYSTEM_IDENTITY, SATELLITE_IDENTITY, USER_IDENTITY))
 def test_handle_message_kessel_private_endpoint(identity, mocker, ingress_message_consumer_mock):
     mock_psk = "1234567890"
-    mocker.patch("lib.host_repository.get_flag_value", return_value=True)
     get_rbac_mock = mocker.patch(
         "lib.middleware.rbac_get_request_using_endpoint_and_headers", return_value={"id": str(generate_uuid())}
     )
@@ -230,7 +229,7 @@ def test_handle_message_kessel_private_endpoint(identity, mocker, ingress_messag
         "lib.middleware.inventory_config",
         return_value=SimpleNamespace(
             rbac_psk=mock_psk,
-            bypass_rbac=False,
+            bypass_kessel=False,
             rbac_endpoint="fake-rbac-endpoint:8080",
         ),
     )
@@ -1895,15 +1894,6 @@ def test_create_invalid_host_produces_message(mocker, mq_create_or_update_host):
     with pytest.raises(ValidationException):
         mq_create_or_update_host(host, notification_event_producer=mock_notification_event_producer)
     mock_notification_event_producer.write_event.assert_called_once()
-
-
-def test_groups_empty_for_new_host(mq_create_or_update_host, db_get_host):
-    expected_insights_id = generate_uuid()
-    host = minimal_host(insights_id=expected_insights_id)
-
-    created_key, created_event, _ = mq_create_or_update_host(host, return_all_data=True)
-    assert db_get_host(created_key).groups == []
-    assert created_event["host"]["groups"] == []
 
 
 def test_groups_not_overwritten_for_existing_hosts(

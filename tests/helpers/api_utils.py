@@ -439,6 +439,13 @@ def build_expected_host_list(host_list):
 # doesn't work unless we're certain that the keys are going to be in the same order.
 def assert_host_lists_equal(expected_host_list, actual_host_list):
     for i in range(len(expected_host_list)):
+        # Don't compare host.groups, as serialized output will be different
+        if expected_host_list[i].get("groups"):
+            assert expected_host_list[i]["groups"][0]["id"] == actual_host_list[i]["groups"][0]["id"]
+            assert expected_host_list[i]["groups"][0]["ungrouped"] == actual_host_list[i]["groups"][0]["ungrouped"]
+            assert expected_host_list[i]["groups"][0]["name"] == actual_host_list[i]["groups"][0]["name"]
+        expected_host_list[i].pop("groups")
+        actual_host_list[i].pop("groups")
         assert expected_host_list[i] == actual_host_list[i]
 
 

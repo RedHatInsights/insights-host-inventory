@@ -16,7 +16,7 @@ FLAG_INVENTORY_USE_NEW_SYSTEM_PROFILE_TABLES = "hbi.use_new_system_profile_table
 
 
 FLAG_FALLBACK_VALUES = {
-    FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION: False,
+    FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION: True,
     FLAG_INVENTORY_API_READ_ONLY: False,
     FLAG_INVENTORY_KESSEL_PHASE_1: False,
     # Use when all hosts are populated with stale_warning/deletion_timestamps

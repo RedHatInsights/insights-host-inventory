@@ -909,48 +909,9 @@ def test_query_hosts_filter_updated_last_check_in_start_after_end(api_get, param
     assert f"{param_prefix}_start cannot be after {param_prefix}_end." in response_data["detail"]
 
 
+@pytest.mark.usefixtures("enable_kessel")
 @pytest.mark.parametrize("order_how", ("ASC", "DESC"))
-def test_get_hosts_order_by_group_name(db_create_group_with_hosts, db_create_multiple_hosts, api_get, order_how):
-    hosts_per_group = 3
-    num_ungrouped_hosts = 5
-    names = ["ABC Group", "BCD Group", "CDE Group", "DEF Group"]
-
-    # Shuffle the list so the groups aren't created in alphabetical order
-    # Just to make sure it's actually ordering by name and not date
-    shuffled_group_names = names.copy()
-    random.shuffle(shuffled_group_names)
-    [db_create_group_with_hosts(group_name, hosts_per_group) for group_name in shuffled_group_names]
-
-    # Create some ungrouped hosts
-    db_create_multiple_hosts(how_many=num_ungrouped_hosts)
-
-    url = build_hosts_url(query=f"?order_by=group_name&order_how={order_how}")
-
-    response_status, response_data = api_get(url)
-
-    assert response_status == 200
-    assert len(names) * hosts_per_group + num_ungrouped_hosts == len(response_data["results"])
-
-    if order_how == "DESC":
-        # If DESC, reverse the expected order of group names
-        names.reverse()
-        ungrouped_buffer = 0
-    else:
-        # If ASC, set a buffer for the ungrouped hosts (which should show first)
-        ungrouped_buffer = num_ungrouped_hosts
-
-    for group_index in range(len(names)):
-        # Ungrouped hosts should show at the top for order_how=ASC
-        for host_index in range(ungrouped_buffer, ungrouped_buffer + hosts_per_group):
-            assert (
-                response_data["results"][group_index * hosts_per_group + host_index]["groups"][0]["name"]
-                == names[group_index]
-            )
-
-
-@pytest.mark.usefixtures("enable_rbac")
-@pytest.mark.parametrize("order_how", ("ASC", "DESC"))
-def test_get_hosts_order_by_group_name_post_kessel(mocker, db_create_group_with_hosts, api_get, order_how):
+def test_get_hosts_order_by_group_name(mocker, db_create_group_with_hosts, api_get, order_how):
     hosts_per_group = 3
     num_ungrouped_hosts = 5
     names = ["ABC Group", "BCD Group", "CDE Group", "DEF Group"]
@@ -963,12 +924,6 @@ def test_get_hosts_order_by_group_name_post_kessel(mocker, db_create_group_with_
     [db_create_group_with_hosts(group_name, hosts_per_group) for group_name in shuffled_group_names]
 
     mocker.patch("api.host_query_db.get_flag_value", return_value=True)
-
-    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
-    mock_rbac_response = create_mock_rbac_response(
-        "tests/helpers/rbac-mock-data/inv-hosts-read-resource-defs-template.json"
-    )
-    get_rbac_permissions_mock.return_value = mock_rbac_response
 
     # Create some ungrouped hosts
     db_create_group_with_hosts("ungrouped", num_ungrouped_hosts, True)
