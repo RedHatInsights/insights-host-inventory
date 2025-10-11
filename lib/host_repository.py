@@ -101,7 +101,7 @@ def add_host(
             from lib.group_repository import serialize_group
 
             group = get_or_create_ungrouped_hosts_group_for_identity(identity)
-            input_host.groups = [serialize_group(group)]
+            input_host.groups = [serialize_group(group, identity.org_id)]
 
         return update_existing_host(matched_host, input_host, update_system_profile)
     else:
@@ -111,7 +111,7 @@ def add_host(
             from lib.group_repository import serialize_group
 
             group = get_or_create_ungrouped_hosts_group_for_identity(identity)
-            input_host.groups = [serialize_group(group)]
+            input_host.groups = [serialize_group(group, identity.org_id)]
 
             # create a new host group association for the host
             assoc = HostGroupAssoc(input_host.id, group.id, identity.org_id)
@@ -425,14 +425,16 @@ def get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter=None, c
     return find_non_culled_hosts(update_query_for_owner_id(identity, query), identity.org_id)
 
 
-def get_non_culled_hosts_count_in_group(group: Group, org_id: str) -> int:
+def get_non_culled_hosts_count_in_group(group: Group | dict, org_id: str) -> int:
+    # rbac_v2 returns a dict, rbac_v1 returns a Group object
+    group_id = group["id"] if isinstance(group, dict) else group.id
+
     query = (
         db.session.query(Host)
         .join(HostGroupAssoc)
-        .filter(HostGroupAssoc.group_id == group.id, HostGroupAssoc.org_id == org_id)
+        .filter(HostGroupAssoc.group_id == group_id, HostGroupAssoc.org_id == org_id)
         .group_by(Host.id, Host.org_id)
     )
-
     return find_non_culled_hosts(query, org_id).count()
 
 
