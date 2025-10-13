@@ -59,7 +59,6 @@ HBI expects the host ingress messages to comply with the following format:
    "data": {
       "display_name": "<display_name>",
       "ansible_host": "<ansible_host>",
-      "account": "<account>",
       "org_id": "<org_id>",
       "insights_id": "<insights_id>",
       "subscription_manager_id": "<subscription_manager_id>",
@@ -85,7 +84,6 @@ HBI expects the host ingress messages to comply with the following format:
 In the host data, the following fields are required:
 
 * `org_id`
-* `stale_timestamp`
 * `reporter`
 
 In addition, at least one ID fact must be present to locate a host. However, if using "provider-id",
@@ -162,10 +160,10 @@ Profile changes against the data from any release environment.
 ## Inventory Groups
 
 Inventory groups provide a way to organize systems (or any Inventory objects) and restrict access based on organizational or technical needs.
-It is not mandatory for a host to be in a group, but it can be added to a group and/or removed anytime.
+All hosts need to belong to a group. If a group is not specified, new hosts will be added to the Ungrouped Hosts group.
 
 Groups can be created, modified, and deleted using the user interface or API.
-It is possible to select one or more systems that are going to be assigned to a group one by one or in bulk.  A system can be a member of only one group at a time.
+It is possible to select one or more systems that are going to be assigned to a group one by one or in bulk. A system can be a member of only one group at a time.
 
 ### Group permissions
 
@@ -210,7 +208,6 @@ The RBAC API returns the user's permissions in the following format:
                   "value": [
                      "<UUID value 1>", # Group 1
                      "<UUID value 2>", # Group 2
-                     null # No group (ungrouped hosts)
                   ],
                   "operation": "in"
                }
@@ -288,6 +285,7 @@ The `created` event is produced any time a new host record is created.
       "provider_type": "<provider_type>",
       "created": "<created_date>",
       "updated": "<updated_date>",
+      "last_check_in": "<last_check_in_date>",
       "stale_timestamp": "<stale_timestamp>",
       "stale_warning_timestamp": "<stale_warning_timestamp>",
       "culled_timestamp": "<culled_timestamp>",
@@ -314,47 +312,6 @@ Host `tags` are formatted in the [structured representation](#structured-represe
 
 The `updated` event is produced any time changes are made to an existing host record.
 
-```json
-{
-   "type": "updated",
-   "timestamp": "<timestamp>",
-   "platform_metadata": "<metadata_json_doc>",
-   "metadata": {
-       "request_id": "<request_id>",
-   },
-   "host": {
-      "id": "<id>",
-      "account": "<account_number>",
-      "org_id": "<org_id>",
-      "display_name": "<display_name>",
-      "ansible_host": "<ansible_host>",
-      "fqdn": "<fqdn>",
-      "insights_id": "<insights_id>",
-      "subscription_manager_id": "<subscription_manager_id>",
-      "satellite_id": "<satellite_id>",
-      "bios_uuid": "<bios_uuid>",
-      "ip_addresses": [<ip_addresses>],
-      "mac_addresses": [<mac_addresses>],
-      "facts": [<facts>],
-      "provider_id": "<provider_id>",
-      "provider_type": "<provider_type>",
-      "created": "<created_date>",
-      "updated": "<updated_date>",
-      "stale_timestamp": "<stale_timestamp>",
-      "stale_warning_timestamp": "<stale_warning_timestamp>",
-      "culled_timestamp": "<culled_timestamp>",
-      "reporter": "<reporter>",
-      "tags": [<tags>],
-      "system_profile": {<system_profile>},
-      "per_reporter_staleness": {<per_reporter_staleness>},
-      "groups": [{
-        "id": <group_id>,
-        "name": <group_name>
-      }]
-   }
-}
-```
-
 The full representation of the updated host (even fields that did not change) is sent always.
 The format is identical to the [Created event](#created-event).
 The only difference is the event type.
@@ -372,6 +329,8 @@ The `delete` event is produced when a host record is removed from HBI.
   "org_id": "<org_id>",
   "insights_id": "<insights id>",
   "request_id": "<request id>",
+  "subscription_manager_id": "<subscription_manager_id>",
+  "initiated_by_frontend": "<initiated_by_frontend>",
   "platform_metadata": "<metadata_json_doc>",
   "metadata": {
        "request_id": "<request_id>",
@@ -386,33 +345,35 @@ The `delete` event is produced when a host record is removed from HBI.
 * `org_id`: the org_id associated with the host that was deleted
 * `insights_id`: the insights_id of the host that was deleted
 * `request_id`: the identifier of the request that removed the host record (if applicable)
+* `subscription_manager_id`: the subscription manager id of the host that was deleted
+* `initiated_by_frontend`: indicates whether the delete operation was initiated by the frontend
 * `platform_metadata`: contains the `b64_identity` field. Only provided when the host was deleted via API request.
 
 ## REST Interface
 
 The REST Interface allows host records to be read and altered using HTTP.
-The interface is described by an [OpenAPI specification file](https://console.redhat.com/docs/api/inventory).
+The interface is described by an [OpenAPI specification file](https://console.redhat.com/docs/api/inventory/v1).
 
 ### Host Patching
 
-The `ansible_host` and `display_name` fields can be updated by sending a [PATCH request](https://console.redhat.com/docs/api/inventory#operations-hosts-api\\.host\\.patch_by_id) to the inventory REST API.
+The `ansible_host` and `display_name` fields can be updated by sending a [PATCH request](https://console.redhat.com/docs/api/inventory/v1) to the inventory REST API.
 
 When an update is performed, the inventory service produces an [updated event](#updated-event)
 Note that in this case, the event's `platform_metadata` field only contains `b64_identity` (the request identity, base64-encoded).
 There is also a `metadata` field that includes the `request_id`.
 
-NOTE: When using PATCH endpoints, the API responds with HTTP 200 because the operation has been completed. However, the data must be propagated to Cyndi, so it may take a short while for it to be reflected in subsequent GET requests.
+NOTE: When using PATCH endpoints, the API responds with HTTP 200 because the operation has been completed. However, the data must be propagated, so it may take a short while for it to be reflected in subsequent GET requests.
 
 ### Host Deletion
 
-Hosts can be deleted by using the [DELETE HTTP method](https://console.redhat.com/docs/api/inventory#operations-hosts-api\\.host\\.delete_by_id) resource.
+Hosts can be deleted by using the [DELETE HTTP method resource](https://console.redhat.com/docs/api/inventory/v1).
 When a host is deleted, the inventory service produces a [delete event](#delete-event).
 
-NOTE: When using DELETE endpoints, the API responds with HTTP 200 because the operation has been completed. However, the data must be propagated to Cyndi, so it may take a short while for it to be reflected in subsequent GET requests.
+NOTE: When using DELETE endpoints, the API responds with HTTP 200 because the operation has been completed. However, the data must be propagated, so it may take a short while for it to be reflected in subsequent GET requests.
 
 ### Group Fetching
 
-The Groups API is documented [here](https://console.redhat.com/docs/api/inventory/v1#operations-tag-groups).
+The Groups API is documented [here](https://console.redhat.com/docs/api/inventory/v1).
 Use the GET /groups API to populate a list of groups for an account.
 Use the Cyndi table to filter application data joined with hosts that are in a given group.
 The groups column in the Cyndi table is a JSONB column with the following structure:
@@ -423,6 +384,7 @@ The groups column in the Cyndi table is a JSONB column with the following struct
     "name": "a-group-name",
     "org_id": "12345",
     "account": null,
+    "host_count": 5,
     "ungrouped": false,
     "created": "2023-04-18T13:28:57.536664+00:00",
     "updated": "2023-04-18T13:28:57.536669+00:00"
@@ -441,21 +403,20 @@ WHERE inventory.hosts.groups @> '[{"name": "group1"}]';
 
 ### Group Creation
 
-Inventory groups can be created by sending a [group POST request](https://console.redhat.com/docs/api/inventory/v1#operations-groups-api\\.group\\.create_group) to the inventory REST API.
+Inventory groups can be created by sending a [group POST request](https://console.redhat.com/docs/api/inventory/v1) to the inventory REST API.
 When a group is created and a host list is provided, the inventory service produces an [updated event](#updated-event) for each host added to the group.
 
 ### Group Patching
 
-Inventory groups can be patched by sending a [group PATCH request](https://console.redhat.com/docs/api/inventory/v1#operations-groups-api\\.group\\.patch_group_by_id) to the inventory REST API.
+Inventory groups can be patched by sending a [group PATCH request](https://console.redhat.com/docs/api/inventory/v1) to the inventory REST API.
 Providing a list of host IDs in the request will replace the previous list of hosts associated with the group.
-Additionally, new systems can be added to a group by sending a [POST request](https://console.redhat.com/docs/api/inventory/v1#operations-groups-api\\.host_group\\.add_host_list_to_group)
-or deleted from it by sending a [DELETE request](https://console.redhat.com/docs/api/inventory/v1#operations-groups-api\\.host_group\\.delete_hosts_from_group).
+Additionally, new systems can be added to a group by sending a POST request, or deleted from it by sending a DELETE request.
 When a group is patched, but no host ID list is provided, the inventory service produces an [updated event](#updated-event) for each of the hosts that belong to that group.
 If a host ID list is provided, updated events will be produced for the removed hosts as well as for the newly added ones.
 
 ### Group Deletion
 
-Inventory groups can be deleted by using the [DELETE HTTP method](https://console.redhat.com/docs/api/inventory/v1#operations-groups-api\\.group\\.delete_groups) resource.
+Inventory groups can be deleted by using the [DELETE HTTP method](https://console.redhat.com/docs/api/inventory/v1) resource.
 When a group is deleted, the inventory service produces an [updated event](#updated-event) for each host that belonged to the group.
 
 ### Testing API Calls
@@ -502,12 +463,13 @@ Staleness determines the lifespan of a host. A staleness object contains the fol
 ```
     • conventional_time_to_stale          # Time period of inactivity before the system becomes stale. Default 29 hours (Hosts are expected to check in nightly, but to accommodate for potential delays like a randomized check-in window and overnight Kafka lag, the extra 5 hours beyond the standard 24 hours provide a buffer).
     • conventional_time_to_stale_warning  # Time period of inactivity before the system is in "stale_warning" state. Default 7 days.
-    • conventional_time_to_delete         # Time period of inactivity before the system is deleted from the database. Default 14 days.
+    • conventional_time_to_delete         # Time period of inactivity before the system is deleted from the database. Default 30 days.
 ```
 
 The API also returns three additional properties - `immutable_time_to_stale`, `immutable_time_to_stale_warning`, and `immutable_time_to_delete`. However, these are deprecated and are no longer in use.
 
-A staleness object is created by providing the “org_id” of an account and at least one of the properties with its value in seconds.  When values are not provided for these fields, default values are used.  For example, using "conventional_time_to_stale": 1, produced:
+A staleness object is created by providing the “org_id” of an account and at least one of the properties with its value in seconds.
+When values are not provided for these fields, default values are used. For example, using "conventional_time_to_stale": 1, produced:
 
 ```json
 {
@@ -515,7 +477,7 @@ A staleness object is created by providing the “org_id” of an account and at
     "org_id": "test",
     "conventional_time_to_stale": 1,               # System becomes stale in one second
     "conventional_time_to_stale_warning": 604800,  # 7 days
-    "conventional_time_to_delete": 1209600,        # 14 days
+    "conventional_time_to_delete": 2592000,        # 30 days
     "created": "2023-11-20T18:31:32.681398+00:00",
     "updated": "2023-11-20T18:31:32.681416+00:00"
 }
@@ -523,22 +485,14 @@ A staleness object is created by providing the “org_id” of an account and at
 
 Users can set custom staleness settings to suit their needs and requirements.  If the account does not have any custom staleness values set, then the default values are used to determine whether the host is stale or should be automatically deleted.
 
-HBI may at any time stop receiving updates about a given host (e.g.  a virtual machine may be removed).
+HBI may at any time stop receiving updates about a given host (e.g. a virtual machine may be removed).
 
 Depending on its timestamp, each host is in one of these staleness states:
 
 * _fresh_ if the _stale_timestamp_ is in the future
 * _stale_ if the _stale_timestamp_ has already lapsed, but no longer than 7 days ago
 * _stale_warning_ if the host has been stale for at least 7 days, but has not yet been culled
-* _culled_ if the host has been stale for at least 14 days
-
-For each host, HBI defines 3 timestamps:
-
-* _stale_timestamp_
-* _stale_warning_timestamp_
-* _culled_timestamp_
-
-These timestamps mark the boundaries of staleness states of a host.
+* _culled_ if the host has been stale for at least 30 days
 
 ![Inventory Staleness](./images/inventory-staleness.png)
 
@@ -708,7 +662,7 @@ A host is considered to match the requested tag if and only if an available tag 
 It is possible to filter by multiple tags at the same time.
 In that case, a host must match all the requested tags.
 
-See [/hosts](https://console.redhat.com/docs/api/inventory#operations-hosts-api\.host\.get_host_list) for the reference implementation of host filtering based on tags.
+See [/hosts](https://console.redhat.com/docs/api/inventory/v1) for the reference implementation of host filtering based on tags.
 
 #### Examples
 
@@ -875,7 +829,7 @@ Host update messages received over `platform.inventory.system-profile` topic do 
 The following must be true for `add_host` messages received over `platform.inventory.host-ingress` and `platform.inventory.host-ingress-p1`.
 
 * they must contain `platform_metadata` and the `b64_identity` field must be encoded within the `platform_metadata`, except when the reporter is `rhsm-conduit`
-* for an existing host, the `owner_id` of the host must match the value in `system.cn` of the identity
+* for an existing host, the `owner_id` of the host must match the value in `system.cn` of the system identity
 
 If the reporter is `rhsm-conduit` and an identity is not provided, adding or updating hosts over `platform.inventory.host-ingress` and `platform.inventory.host-ingress-p1` will follow this logic:
 
@@ -896,11 +850,7 @@ The inventory schema is completely managed by the Inventory workstream.
 
 ### Onboarding process
 
-The onboarding process varies based on the environment.
-For self-managed (legacy CI and QA) environments, follow the steps in the next section.
-For environments managed by AppSRE via app-interface, skip ahead to [Onboarding process (App-Interface)](#onboarding-process-app-interface)
-
-IMPORTANT: The cyndi-init script is currently broken. The manual (self-managed) onboarding steps must be used.
+The onboarding process described below is used for all types of environments.
 
 #### Onboarding process (Self-managed environment)
 
@@ -908,7 +858,7 @@ In order to integrate an application with Project Cyndi the following steps need
 
 1. Ensure that the application database matches the following criteria:
     * AWS RDS instance of type _large_ or better
-    * PostgreSQL version 10.6 or higher
+    * PostgreSQL version 16.4 or higher
     * At least 200 GiB of free storage capacity
 2. Determine the type of host syndication needed by the application, either:
     1. _all_ - all inventory hosts are syndicated, or
@@ -947,90 +897,13 @@ In order to integrate an application with Project Cyndi the following steps need
       * `<application username>` is the username used by the application when accessing the database
       * `<password>` is a newly generated secure password
 
-5. Contact [@project-cindy-dev](https://app.slack.com/client/T026NJJ6Z/browse-user-groups/user_groups/S014H1A3AH0) and provide the following information
+5. Contact `@team-inventory-dev` on the Slack channel `#team-insights-inventory` and provide the following information
 
       * application name (e.g. _advisor_)
       * desired host syndication type (_all_ or _insights only_)
       * database hostname
       * database name
       * database password for the _cyndi_ user
-
-#### Onboarding process (App-Interface)
-
-IMPORTANT: This is currently broken. Please follow the manual steps above. See https://issues.redhat.com/browse/ESSNTL-2368
-
-In order to integrate an application with Project Cyndi the following steps need to be followed:
-
-1. Ensure that the application database matches the following criteria:
-
-      * AWS RDS instance of type _large_ or better
-      * PostgreSQL version 10.6 or higher
-      * At least 200 GiB of free storage capacity
-
-2. Determine the type of host syndication needed by the application, either:
-
-      1. _all_ - all inventory hosts are syndicated, or
-      2. _insights only_ - only Insights hosts are syndicated (i.e. only hosts reporting through insights-client)
-
-      The latter option should be preferred unless the application also processes data related to hosts other than the Insights ones
-
-3. Configure the `cyndi-init` job that sets up the application database to be managed by Cyndi.
-
-      1. Locate the application's `app.yml` file (`data/services/insights/<application name>/app.yml`) and add the `inventory-syndication` entry into the `codeComponents` list:
-
-            codeComponents:
-            - name: inventory-syndication
-            resource: upstream
-            url: https://github.com/redhatinsights/inventory-syndication
-
-      2. Locate the application's `deploy.yml` file (`data/services/insights/<application name>/deploy.yml`) and make sure that the `managedResourceTypes` list contains `Job` and `ConfigMap`. Add the missing resource type(s) if needed.
-
-            managedResourceTypes:
-            - ConfigMap
-            - Job
-
-      3. In the `deploy.yml` ensure that `github-app-sre-bot` is defined in the `authentication.code` section.
-
-            authentication:
-            code:
-               path: app-sre/creds/github-app-sre-bot
-               field: openshift-saas-deploy
-
-      4. Finally, add a `cyndi-init` resource template definition to the application's `deploy.yml` file.
-
-            resourceTemplates:
-            - name: cyndi-init
-            path: /openshift/cyndi-init.yml
-            url: https://github.com/redhatinsights/inventory-syndication
-            targets:
-            - namespace:
-                  $ref: /services/insights/<application name>/namespaces/<namespace>.yml
-               ref: 165cd33c70fd50be977a5584ab13b4f28502a442
-               parameters:
-                  APP_NAME: <application name>
-                  APP_ROLE: <application username>
-                  DB_SECRET: <db secret>
-                  IMAGE_TAG: "3a34b0c"
-
-         Where
-
-         ____
-         * `<application name>` is the name of the application (e.g. advisor)
-         * `<namespace>` is the target OpenShift namespace
-         * `<application username>` is the username used by the application when accessing the database (this user will be granted access to `inventory.hosts` view)
-         * `<db secret>` is the name of the OpenShift secret containing superuser credentials for the application database
-         ____
-
-         Submit these changes as a merge request to [app-interface](https://gitlab.cee.redhat.com/service/app-interface). After the merge request has been merged, a Pod named `cyndi-init-<application-name>-1-<id>` will be started automatically to set up the database. As part of the set up:
-
-         * the `inventory` schema is created - syndicated host data is stored here
-         * `cyndi_reader` and `cyndi_admin` roles are created
-         * `cyndi` user is created and granted the `cyndi_admin` role - Project Cyndi will use this user to log into the application database
-
-4. Once the application database has been set up, contact [@project-cyndi-dev](https://app.slack.com/client/T026NJJ6Z/browse-user-groups/user_groups/S014H1A3AH0) and provide the following information
-* application name (e.g. _advisor_)
-* desired host syndication type (_all_ or _insights only_)
-* database identifier
 
 ### Usage
 
@@ -1179,4 +1052,4 @@ This [seed script](https://github.com/RedHatInsights/inventory-syndication/blob/
 
 ## Contributing
 
-If you're interested in contributing, check out the [Github repo](https://github.com/RedHatInsights/insights-host-inventory).
+If you're interested in contributing, check out the [Github repository](https://github.com/RedHatInsights/insights-host-inventory).
