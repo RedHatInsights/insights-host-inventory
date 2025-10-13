@@ -335,7 +335,12 @@ class HostMessageConsumer(HBIMessageConsumerBase):
                 if host.get("reporter") in ["rhsm-conduit", "rhsm-system-profile-bridge"] and get_flag_value(
                     FLAG_INVENTORY_REJECT_RHSM_PAYLOADS
                 ):
-                    raise ValidationException("RHSM payloads are not currently allowed.")
+                    raise ValidationException(
+                        """
+                        RHSM payloads are not currently allowed,
+                        as the hbi.api.reject-rhsm-payloads feature flag is enabled.
+                        """
+                    )
                 host_row, operation_result, identity, success_logger = self.process_message(
                     host, platform_metadata, validated_operation_msg.get("operation_args", {})
                 )

@@ -2732,7 +2732,7 @@ def test_add_host_with_rhsm_payloads_rejected(mocker, mq_create_or_update_host, 
     host = minimal_host(insights_id=generate_uuid(), reporter=reporter)
     with pytest.raises(ValidationException) as excinfo:
         mq_create_or_update_host(host)
-    assert "RHSM payloads are not currently allowed." in str(excinfo.value)
+    assert "RHSM payloads are not currently allowed" in str(excinfo.value)
 
 
 @pytest.mark.parametrize("reporter", ["puptoo", "satellite", "cloud-connector", "yuptoo"])
