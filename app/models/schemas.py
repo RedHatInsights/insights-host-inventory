@@ -287,7 +287,7 @@ class HostSchema(LimitedHostSchema):
     class Meta:
         unknown = EXCLUDE
 
-    stale_timestamp = fields.AwareDateTime(required=True)
+    stale_timestamp = fields.AwareDateTime(required=False)
     reporter = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=255))
 
     @staticmethod
@@ -304,7 +304,7 @@ class HostSchema(LimitedHostSchema):
             tags,
             tags_alt,
             data.get("system_profile", {}),
-            data["stale_timestamp"],
+            data.get("stale_timestamp"),
             data["reporter"],
             data.get("groups", []),
             insights_id=canonical_facts.get("insights_id"),
