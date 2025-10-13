@@ -123,6 +123,8 @@ objects:
           value: 'true'
         - name: BYPASS_RBAC
           value: ${BYPASS_RBAC}
+        - name: BYPASS_KESSEL
+          value: ${BYPASS_KESSEL}
         - name: KESSEL_TARGET_URL
           value: ${KESSEL_TARGET_URL}
         - name: KAFKA_PRODUCER_ACKS
@@ -281,6 +283,8 @@ objects:
           value: 'true'
         - name: BYPASS_RBAC
           value: ${BYPASS_RBAC}
+        - name: BYPASS_KESSEL
+          value: ${BYPASS_KESSEL}
         - name: KESSEL_TARGET_URL
           value: ${KESSEL_TARGET_URL}
         - name: KAFKA_PRODUCER_ACKS
@@ -441,6 +445,8 @@ objects:
           value: ${KESSEL_TARGET_URL}
         - name: BYPASS_RBAC
           value: ${BYPASS_RBAC}
+        - name: BYPASS_KESSEL
+          value: ${BYPASS_KESSEL}
         - name: KAFKA_PRODUCER_ACKS
           value: ${KAFKA_PRODUCER_ACKS}
         - name: KAFKA_PRODUCER_RETRIES
@@ -2363,6 +2369,9 @@ parameters:
   value: prefer
 - description: disable RBAC middleware
   name: BYPASS_RBAC
+  value: 'false'
+- description: disable Kessel middleware
+  name: BYPASS_KESSEL
   value: 'false'
 - name: KAFKA_PRODUCER_ACKS
   value: 'all'
