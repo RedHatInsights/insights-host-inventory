@@ -570,6 +570,8 @@ objects:
           value: inventory-mq-service
         - name: PAYLOAD_TRACKER_ENABLED
           value: 'true'
+        - name: BYPASS_KESSEL
+          value: ${BYPASS_KESSEL}
         - name: KESSEL_TARGET_URL
           value: ${KESSEL_TARGET_URL}
         - name: KAFKA_PRODUCER_ACKS
@@ -679,6 +681,8 @@ objects:
           value: inventory-mq-service
         - name: PAYLOAD_TRACKER_ENABLED
           value: 'true'
+        - name: BYPASS_KESSEL
+          value: ${BYPASS_KESSEL}
         - name: KESSEL_TARGET_URL
           value: ${KESSEL_TARGET_URL}
         - name: KAFKA_PRODUCER_ACKS
@@ -785,6 +789,8 @@ objects:
           value: inventory-mq-service
         - name: PAYLOAD_TRACKER_ENABLED
           value: 'true'
+        - name: BYPASS_KESSEL
+          value: ${BYPASS_KESSEL}
         - name: KESSEL_TARGET_URL
           value: ${KESSEL_TARGET_URL}
         - name: KAFKA_PRODUCER_ACKS
