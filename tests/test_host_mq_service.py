@@ -2739,11 +2739,11 @@ def test_add_host_with_rhsm_payloads_rejected(mocker, mq_create_or_update_host, 
 def test_add_non_rhsm_host_with_rhsm_payloads_rejected(mocker, mq_create_or_update_host, reporter):
     mocker.patch("app.queue.host_mq.get_flag_value", return_value=True)
     host = minimal_host(insights_id=generate_uuid(), reporter=reporter)
-    mq_create_or_update_host(host)
+    assert mq_create_or_update_host(host) is not None
 
 
 @pytest.mark.parametrize("reporter", ["rhsm-conduit", "rhsm-system-profile-bridge"])
 def test_add_host_with_rhsm_payloads_allowed_rhsm_payloads_not_rejected(mocker, mq_create_or_update_host, reporter):
     mocker.patch("app.queue.host_mq.get_flag_value", return_value=False)
     host = minimal_host(insights_id=generate_uuid(), reporter=reporter)
-    mq_create_or_update_host(host)
+    assert mq_create_or_update_host(host) is not None
