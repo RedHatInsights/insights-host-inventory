@@ -2724,3 +2724,18 @@ def test_add_host_with_invalid_provider_type(
 
     # Verify that notification event was sent for the validation failure
     mock_notification_event_producer.write_event.assert_called_once()
+
+
+@pytest.mark.parametrize("reporter", ["rhsm-conduit", "rhsm-system-profile-bridge"])
+def test_add_host_with_rhsm_payloads_rejected(mocker, mq_create_or_update_host, reporter):
+    mocker.patch("app.queue.host_mq.get_flag_value", return_value=True)
+    host = minimal_host(insights_id=generate_uuid(), reporter=reporter)
+    with pytest.raises(ValidationException):
+        mq_create_or_update_host(host)
+
+
+@pytest.mark.parametrize("reporter", ["rhsm-conduit", "rhsm-system-profile-bridge"])
+def test_add_host_with_rhsm_payloads_allowed(mocker, mq_create_or_update_host, reporter):
+    mocker.patch("app.queue.host_mq.get_flag_value", return_value=False)
+    host = minimal_host(insights_id=generate_uuid(), reporter=reporter)
+    mq_create_or_update_host(host)
