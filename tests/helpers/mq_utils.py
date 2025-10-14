@@ -11,6 +11,9 @@ from confluent_kafka import TopicPartition
 
 from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
+from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
+from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
+from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
 from app.serialization import serialize_facts
 from app.utils import Tag
 from tests.helpers.test_utils import SYSTEM_IDENTITY
@@ -239,9 +242,15 @@ def assert_patch_event_is_valid(
     reporter=None,
     identity=USER_IDENTITY,
 ):
-    stale_timestamp = (host.last_check_in.astimezone(UTC) + timedelta(seconds=104400)).isoformat()
-    stale_warning_timestamp = (host.last_check_in.astimezone(UTC) + timedelta(seconds=604800)).isoformat()
-    culled_timestamp = (host.last_check_in.astimezone(UTC) + timedelta(seconds=1209600)).isoformat()
+    stale_timestamp = (
+        host.last_check_in.astimezone(UTC) + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_SECONDS)
+    ).isoformat()
+    stale_warning_timestamp = (
+        host.last_check_in.astimezone(UTC) + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS)
+    ).isoformat()
+    culled_timestamp = (
+        host.last_check_in.astimezone(UTC) + timedelta(seconds=CONVENTIONAL_TIME_TO_DELETE_SECONDS)
+    ).isoformat()
 
     reporter = reporter or host.reporter
 
