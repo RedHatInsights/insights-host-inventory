@@ -18,7 +18,6 @@ from api.filtering.db_filters import staleness_to_conditions
 from api.filtering.db_filters import update_query_for_owner_id
 from api.staleness_query import get_staleness_obj
 from app.auth.identity import Identity
-from app.config import ALL_STALENESS_STATES
 from app.config import COMPOUND_ID_FACTS
 from app.config import COMPOUND_ID_FACTS_MAP
 from app.config import ID_FACTS
@@ -35,6 +34,7 @@ from app.models import db
 from app.queue.events import EventType
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness
+from app.staleness_states import HostStalenessStatesDbFilters
 from lib import metrics
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.feature_flags import get_flag_value
@@ -184,7 +184,7 @@ def find_existing_host(
 def find_existing_host_by_id(identity: Identity, host_id: str) -> Host | None:
     query = host_query(identity.org_id).filter(Host.id == host_id)
     query = update_query_for_owner_id(identity, query)
-    return find_non_culled_hosts(query, identity.org_id).order_by(Host.modified_on.desc()).first()
+    return find_non_culled_hosts(query).order_by(Host.modified_on.desc()).first()
 
 
 def _find_host_by_multiple_facts_in_db_or_in_memory(
@@ -226,7 +226,7 @@ def multiple_canonical_facts_host_query(
     )
     if restrict_to_owner_id:
         query = update_query_for_owner_id(identity, query)
-    return find_non_culled_hosts(query, identity.org_id)
+    return find_non_culled_hosts(query)
 
 
 def multiple_canonical_facts_host_query_in_memory(
@@ -282,8 +282,9 @@ def find_hosts_sys_default_staleness(staleness_types):
     return or_(False, *staleness_conditions)
 
 
-def find_non_culled_hosts(query: Query, org_id: str) -> Query:
-    return find_hosts_by_staleness(ALL_STALENESS_STATES, query, org_id)
+def find_non_culled_hosts(query: Query) -> Query:
+    host_staleness_states_filters = HostStalenessStatesDbFilters()
+    return query.filter(not_(host_staleness_states_filters.culled()))
 
 
 @metrics.new_host_commit_processing_time.time()
@@ -422,7 +423,7 @@ def get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter=None, c
     )
     if columns:
         query = query.with_entities(*columns)
-    return find_non_culled_hosts(update_query_for_owner_id(identity, query), identity.org_id)
+    return find_non_culled_hosts(update_query_for_owner_id(identity, query))
 
 
 def get_non_culled_hosts_count_in_group(group: Group, org_id: str) -> int:
@@ -433,7 +434,7 @@ def get_non_culled_hosts_count_in_group(group: Group, org_id: str) -> int:
         .group_by(Host.id, Host.org_id)
     )
 
-    return find_non_culled_hosts(query, org_id).count()
+    return find_non_culled_hosts(query).count()
 
 
 # Ensures that the query is filtered by org_id
