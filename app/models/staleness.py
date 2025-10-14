@@ -4,7 +4,9 @@ from sqlalchemy import Index
 from sqlalchemy import UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 
-from app.culling import days_to_seconds
+from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
+from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
+from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
 from app.exceptions import ValidationException
 from app.models.constants import INVENTORY_SCHEMA
 from app.models.database import db
@@ -44,8 +46,10 @@ class Staleness(db.Model):
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     org_id = db.Column(db.String(36), nullable=False)
-    conventional_time_to_stale = db.Column(db.Integer, default=104400, nullable=False)
-    conventional_time_to_stale_warning = db.Column(db.Integer, default=days_to_seconds(7), nullable=False)
-    conventional_time_to_delete = db.Column(db.Integer, default=days_to_seconds(14), nullable=False)
+    conventional_time_to_stale = db.Column(db.Integer, default=CONVENTIONAL_TIME_TO_STALE_SECONDS, nullable=False)
+    conventional_time_to_stale_warning = db.Column(
+        db.Integer, default=CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS, nullable=False
+    )
+    conventional_time_to_delete = db.Column(db.Integer, default=CONVENTIONAL_TIME_TO_DELETE_SECONDS, nullable=False)
     created_on = db.Column(db.DateTime(timezone=True), default=_time_now)
     modified_on = db.Column(db.DateTime(timezone=True), default=_time_now, onupdate=_time_now)

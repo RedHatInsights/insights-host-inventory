@@ -2272,7 +2272,7 @@ def test_query_by_staleness_using_columns(
         "fresh": now(),
         "stale": now() - timedelta(days=3),
         "stale_warning": now() - timedelta(days=10),
-        "culled": now() - timedelta(days=20),
+        "culled": now() - timedelta(days=35),
     }
     staleness_to_host_ids_map = dict()
 

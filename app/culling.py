@@ -7,7 +7,30 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from app.models.host import Host
 
-__all__ = ("Conditions", "Timestamps", "days_to_seconds")
+__all__ = (
+    "Conditions",
+    "Timestamps",
+    "days_to_seconds",
+    "seconds_to_days",
+    "CONVENTIONAL_TIME_TO_STALE_SECONDS",
+    "CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS",
+    "CONVENTIONAL_TIME_TO_DELETE_SECONDS",
+)
+
+# Time period of inactivity before the system becomes stale. (Hosts are
+# expected to check in nightly, but to accommodate for potential delays like a
+# randomized check-in window and overnight Kafka lag, the extra 5 hours beyond
+# the standard 24 hours provide a buffer).
+# Default: 104400 seconds (29 hours)
+CONVENTIONAL_TIME_TO_STALE_SECONDS = 104400
+
+# Time period of inactivity before the system is in "stale_warning" state.
+# Default: 604800 seconds (7 days).
+CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS = 604800
+
+# Time period of inactivity before the system is deleted from the database.
+# Default: 2592000 seconds (30 days).
+CONVENTIONAL_TIME_TO_DELETE_SECONDS = 2592000
 
 
 class _Config(namedtuple("_Config", ("stale_warning_offset_delta", "culled_offset_delta"))):
@@ -91,6 +114,11 @@ class Conditions:
 def days_to_seconds(n_days: int) -> int:
     factor = 86400
     return n_days * factor
+
+
+def seconds_to_days(n_seconds: int) -> int:
+    factor = 86400
+    return n_seconds // factor
 
 
 def should_host_stay_fresh_forever(host: "Host") -> bool:
