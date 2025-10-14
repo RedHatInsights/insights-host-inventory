@@ -37,7 +37,7 @@ The following table summarizes available host ingress topics:
 |Topic |Description |Reporters using this topic
 |--|--|--
 |`platform.inventory.host-ingress-p1` |High priority topic. Reserved for host messages where minimal latency is required. |puptoo
-|`platform.inventory.host-ingress` |Messages are processed with default priority. Suitable for reporters that produce host messages in batches or where real-time processing is not necessary. |rhsm-conduit, yupana, cloud-connector
+|`platform.inventory.host-ingress` |Messages are processed with default priority. Suitable for reporters that produce host messages in batches or where real-time processing is not necessary. |rhsm-conduit, rhsm-system-profile-bridge, satellite, discovery, yupana, cloud-connector
 
 For each host ingress message, HBI:
 
