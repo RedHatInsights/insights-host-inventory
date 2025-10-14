@@ -12,7 +12,6 @@ from pytest_mock import MockerFixture
 from pytest_subtests import SubTests
 
 from app.models.host import Host
-from lib.host_repository import find_hosts_by_staleness
 from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_URL
@@ -254,9 +253,7 @@ def test_get_hosts_with_RBAC_allowed(subtests, mocker, db_create_host, api_get):
 @pytest.mark.usefixtures("enable_rbac")
 def test_get_hosts_with_RBAC_denied(subtests, mocker, db_create_host, api_get):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
-    find_hosts_by_staleness_mock = mocker.patch(
-        "lib.host_repository.find_hosts_by_staleness", wraps=find_hosts_by_staleness
-    )
+    get_host_list_mock = mocker.patch("api.host.get_host_list_by_id_list")
 
     for response_file in HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
@@ -270,7 +267,7 @@ def test_get_hosts_with_RBAC_denied(subtests, mocker, db_create_host, api_get):
 
             assert_response_status(response_status, 403)
 
-            find_hosts_by_staleness_mock.assert_not_called()
+            get_host_list_mock.assert_not_called()
 
 
 @pytest.mark.usefixtures("enable_rbac")
