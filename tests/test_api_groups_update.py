@@ -342,6 +342,22 @@ def test_patch_group_same_hosts(
         assert host["groups"][0]["id"] == str(group_id)
 
 
+def test_patch_group_with_a_nonexistent_host_id(
+    db_create_group_with_hosts, db_get_hosts_for_group, api_patch_group, event_producer, mocker
+):
+    # Create a group with hosts
+    mocker.patch.object(event_producer, "write_event")
+    group = db_create_group_with_hosts("test_group", 5)
+    group_id = group.id
+    host_id_list = [str(host.id) for host in db_get_hosts_for_group(group_id)]
+
+    host_id_list.append(generate_uuid())
+
+    patch_doc = {"name": "modified_group", "host_ids": host_id_list}
+    response_status, _ = api_patch_group(group_id, patch_doc)
+    assert_response_status(response_status, 400)
+
+
 def test_patch_group_both_add_and_remove_hosts(
     db_create_group_with_hosts, db_get_hosts_for_group, db_create_host, api_patch_group, event_producer, mocker
 ):

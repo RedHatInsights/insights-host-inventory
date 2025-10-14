@@ -288,8 +288,12 @@ def log_patch_group_success(logger, group_id):
     logger.info(f"Patched group: {group_id}")
 
 
-def log_patch_group_failed(logger, group_id):
-    logger.debug(f"Failed to find group during patch operation: {group_id}")
+def log_patch_group_failed(logger, group_id, message="Group not found."):
+    logger.error(f"Failed to patch group with id {group_id}: {message}")
+
+
+def log_remove_hosts_from_group_failed(logger, group_id, message="Hosts in the group not found."):
+    logger.error(f"Failed to remove hosts from group with id {group_id}: {message}")
 
 
 def rbac_failure(logger, error_message=None):
