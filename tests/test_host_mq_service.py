@@ -20,6 +20,9 @@ from sqlalchemy.orm.exc import StaleDataError
 
 from app.auth.identity import Identity
 from app.auth.identity import create_mock_identity_with_org_id
+from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
+from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
+from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import threadctx
@@ -1343,12 +1346,16 @@ def test_add_host_stale_timestamp(mq_create_or_update_host):
     key, event, _ = mq_create_or_update_host(host, return_all_data=True)
     updated_timestamp = datetime.fromisoformat(event["host"]["last_check_in"])
 
-    host.stale_timestamp = (updated_timestamp + timedelta(seconds=104400)).isoformat()
+    host.stale_timestamp = (updated_timestamp + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_SECONDS)).isoformat()
     expected_results = {
         "host": {
             **host.data(),
-            "stale_warning_timestamp": (updated_timestamp + timedelta(seconds=604800)).isoformat(),
-            "culled_timestamp": (updated_timestamp + timedelta(seconds=1209600)).isoformat(),
+            "stale_warning_timestamp": (
+                updated_timestamp + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS)
+            ).isoformat(),
+            "culled_timestamp": (
+                updated_timestamp + timedelta(seconds=CONVENTIONAL_TIME_TO_DELETE_SECONDS)
+            ).isoformat(),
         }
     }
 
@@ -1375,9 +1382,13 @@ def test_add_host_without_stale_timestamp(mq_create_or_update_host):
     expected_results = {
         "host": {
             **host.data(),
-            "stale_timestamp": (updated_timestamp + timedelta(seconds=104400)).isoformat(),
-            "stale_warning_timestamp": (updated_timestamp + timedelta(seconds=604800)).isoformat(),
-            "culled_timestamp": (updated_timestamp + timedelta(seconds=1209600)).isoformat(),
+            "stale_timestamp": (updated_timestamp + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_SECONDS)).isoformat(),
+            "stale_warning_timestamp": (
+                updated_timestamp + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS)
+            ).isoformat(),
+            "culled_timestamp": (
+                updated_timestamp + timedelta(seconds=CONVENTIONAL_TIME_TO_DELETE_SECONDS)
+            ).isoformat(),
         }
     }
 
@@ -1406,9 +1417,13 @@ def test_add_host_with_stale_timestamp_ignore(mq_create_or_update_host):
     expected_results = {
         "host": {
             **host.data(),
-            "stale_timestamp": (updated_timestamp + timedelta(seconds=104400)).isoformat(),  # default stale_timestamp
-            "stale_warning_timestamp": (updated_timestamp + timedelta(seconds=604800)).isoformat(),
-            "culled_timestamp": (updated_timestamp + timedelta(seconds=1209600)).isoformat(),
+            "stale_timestamp": (updated_timestamp + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_SECONDS)).isoformat(),
+            "stale_warning_timestamp": (
+                updated_timestamp + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS)
+            ).isoformat(),
+            "culled_timestamp": (
+                updated_timestamp + timedelta(seconds=CONVENTIONAL_TIME_TO_DELETE_SECONDS)
+            ).isoformat(),
         }
     }
 
@@ -2702,3 +2717,26 @@ def test_add_host_with_invalid_provider_type(
 
     # Verify that notification event was sent for the validation failure
     mock_notification_event_producer.write_event.assert_called_once()
+
+
+@pytest.mark.parametrize("reporter", ["rhsm-conduit", "rhsm-system-profile-bridge"])
+def test_add_host_with_rhsm_payloads_rejected(mocker, mq_create_or_update_host, reporter):
+    mocker.patch("app.queue.host_mq.get_flag_value", return_value=True)
+    host = minimal_host(insights_id=generate_uuid(), reporter=reporter)
+    with pytest.raises(ValidationException) as excinfo:
+        mq_create_or_update_host(host)
+    assert "RHSM payloads are not currently allowed" in str(excinfo.value)
+
+
+@pytest.mark.parametrize("reporter", ["puptoo", "satellite", "cloud-connector", "yuptoo"])
+def test_add_non_rhsm_host_with_rhsm_payloads_rejected(mocker, mq_create_or_update_host, reporter):
+    mocker.patch("app.queue.host_mq.get_flag_value", return_value=True)
+    host = minimal_host(insights_id=generate_uuid(), reporter=reporter)
+    assert mq_create_or_update_host(host) is not None
+
+
+@pytest.mark.parametrize("reporter", ["rhsm-conduit", "rhsm-system-profile-bridge"])
+def test_add_host_with_rhsm_payloads_allowed_rhsm_payloads_not_rejected(mocker, mq_create_or_update_host, reporter):
+    mocker.patch("app.queue.host_mq.get_flag_value", return_value=False)
+    host = minimal_host(insights_id=generate_uuid(), reporter=reporter)
+    assert mq_create_or_update_host(host) is not None

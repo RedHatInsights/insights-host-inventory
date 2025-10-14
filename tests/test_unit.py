@@ -31,6 +31,9 @@ from app.auth.identity import Identity
 from app.auth.identity import from_auth_header
 from app.auth.identity import from_bearer_token
 from app.config import Config
+from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
+from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
+from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
 from app.culling import Timestamps
 from app.culling import _Config as CullingConfig
 from app.environment import RuntimeEnvironment
@@ -400,8 +403,10 @@ class ConfigTestCase(TestCase):
             self.assertEqual(conf.mgmt_url_path_prefix, expected_mgmt_url_path_prefix)
             self.assertEqual(conf.db_pool_timeout, 5)
             self.assertEqual(conf.db_pool_size, 5)
-            self.assertEqual(conf.culling_stale_warning_offset_delta, timedelta(days=7))
-            self.assertEqual(conf.culling_culled_offset_delta, timedelta(days=14))
+            self.assertEqual(
+                conf.culling_stale_warning_offset_delta, timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS)
+            )
+            self.assertEqual(conf.culling_culled_offset_delta, timedelta(seconds=CONVENTIONAL_TIME_TO_DELETE_SECONDS))
 
     def test_config_development_settings(self):
         with set_environment({"INVENTORY_DB_POOL_TIMEOUT": "3"}):
@@ -1576,11 +1581,15 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "created": self._timestamp_to_str(host_attr_data["created_on"]),
             "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
             "last_check_in": self._timestamp_to_str(host_attr_data["last_check_in"]),
-            "stale_timestamp": self._timestamp_to_str(self._add_seconds(host_attr_data["last_check_in"], 104400)),
-            "stale_warning_timestamp": self._timestamp_to_str(
-                self._add_seconds(host_attr_data["last_check_in"], 604800)
+            "stale_timestamp": self._timestamp_to_str(
+                self._add_seconds(host_attr_data["last_check_in"], CONVENTIONAL_TIME_TO_STALE_SECONDS)
             ),
-            "culled_timestamp": self._timestamp_to_str(self._add_seconds(host_attr_data["last_check_in"], 1209600)),
+            "stale_warning_timestamp": self._timestamp_to_str(
+                self._add_seconds(host_attr_data["last_check_in"], CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS)
+            ),
+            "culled_timestamp": self._timestamp_to_str(
+                self._add_seconds(host_attr_data["last_check_in"], CONVENTIONAL_TIME_TO_DELETE_SECONDS)
+            ),
             "per_reporter_staleness": host_attr_data["per_reporter_staleness"],
         }
 
@@ -1637,13 +1646,13 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                     "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
                     "last_check_in": self._timestamp_to_str(host_attr_data["last_check_in"]),
                     "stale_timestamp": self._timestamp_to_str(
-                        self._add_seconds(host_attr_data["last_check_in"], 104400)
+                        self._add_seconds(host_attr_data["last_check_in"], CONVENTIONAL_TIME_TO_STALE_SECONDS)
                     ),
                     "stale_warning_timestamp": self._timestamp_to_str(
-                        self._add_seconds(host_attr_data["last_check_in"], 604800)
+                        self._add_seconds(host_attr_data["last_check_in"], CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS)
                     ),
                     "culled_timestamp": self._timestamp_to_str(
-                        self._add_seconds(host_attr_data["last_check_in"], 1209600)
+                        self._add_seconds(host_attr_data["last_check_in"], CONVENTIONAL_TIME_TO_DELETE_SECONDS)
                     ),
                     "per_reporter_staleness": host_attr_data["per_reporter_staleness"],
                 }
@@ -1651,7 +1660,12 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                 self.assertEqual(expected, actual)
 
     def test_stale_timestamp_config(self):
-        for stale_warning_offset_seconds, culled_offset_seconds in ((604800, 1209600),):
+        for stale_warning_offset_seconds, culled_offset_seconds in (
+            (
+                CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS,
+                CONVENTIONAL_TIME_TO_DELETE_SECONDS,
+            ),
+        ):
             with (
                 self.subTest(
                     stale_warning_offset_seconds=stale_warning_offset_seconds,
@@ -1748,11 +1762,15 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
             "created": self._timestamp_to_str(host_attr_data["created_on"]),
             "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
             "last_check_in": self._timestamp_to_str(host_attr_data["last_check_in"]),
-            "stale_timestamp": self._timestamp_to_str(host_attr_data["last_check_in"] + timedelta(seconds=104400)),
-            "stale_warning_timestamp": self._timestamp_to_str(
-                host_attr_data["last_check_in"] + timedelta(seconds=604800)
+            "stale_timestamp": self._timestamp_to_str(
+                host_attr_data["last_check_in"] + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_SECONDS)
             ),
-            "culled_timestamp": self._timestamp_to_str(host_attr_data["last_check_in"] + timedelta(seconds=1209600)),
+            "stale_warning_timestamp": self._timestamp_to_str(
+                host_attr_data["last_check_in"] + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS)
+            ),
+            "culled_timestamp": self._timestamp_to_str(
+                host_attr_data["last_check_in"] + timedelta(seconds=CONVENTIONAL_TIME_TO_DELETE_SECONDS)
+            ),
             "per_reporter_staleness": host_attr_data["per_reporter_staleness"],
         }
 
@@ -2495,6 +2513,102 @@ class KafkaAvailabilityTests(TestCase):
         kafka_servers = ["localhost:54321"]
         assert host_kafka.kafka_available(kafka_servers) is False
         connect_ex.assert_called_once()
+
+
+class CullingUtilityFunctionsTestCase(TestCase):
+    """Tests for time conversion utility functions in app.culling module."""
+
+    def test_days_to_seconds_standard_conversions(self):
+        """Test standard day to second conversions."""
+        from app.culling import days_to_seconds
+
+        test_cases = [
+            (0, 0),
+            (1, 86400),
+            (2, 172800),
+            (7, 604800),
+            (30, 2592000),
+            (365, 31536000),
+        ]
+
+        for days, expected_seconds in test_cases:
+            with self.subTest(days=days):
+                self.assertEqual(days_to_seconds(days), expected_seconds)
+
+    def test_seconds_to_days_exact_conversions(self):
+        """Test exact second to day conversions (no truncation needed)."""
+        from app.culling import seconds_to_days
+
+        test_cases = [
+            (0, 0),
+            (86400, 1),
+            (172800, 2),
+            (604800, 7),
+            (2592000, 30),
+            (31536000, 365),
+        ]
+
+        for seconds, expected_days in test_cases:
+            with self.subTest(seconds=seconds):
+                self.assertEqual(seconds_to_days(seconds), expected_days)
+
+    def test_seconds_to_days_truncation(self):
+        """Test that seconds_to_days correctly truncates partial days."""
+        from app.culling import seconds_to_days
+
+        # Test cases where seconds include partial days
+        test_cases = [
+            (1, 0),  # Less than a day
+            (43200, 0),  # 12 hours (half a day)
+            (86399, 0),  # Just under 1 day
+            (86401, 1),  # Just over 1 day - should truncate to 1
+            (129600, 1),  # 1.5 days - should truncate to 1
+            (172799, 1),  # Just under 2 days - should truncate to 1
+            (172801, 2),  # Just over 2 days - should truncate to 2
+            (604799, 6),  # Just under 7 days - should truncate to 6
+            (604801, 7),  # Just over 7 days - should truncate to 7
+        ]
+
+        for seconds, expected_days in test_cases:
+            with self.subTest(seconds=seconds):
+                result = seconds_to_days(seconds)
+                self.assertEqual(result, expected_days)
+                # Verify truncation (result should always be floor division)
+                self.assertEqual(result, seconds // 86400)
+
+    def test_days_to_seconds_round_trip(self):
+        """Test that converting days to seconds and back yields the original value."""
+        from app.culling import days_to_seconds
+        from app.culling import seconds_to_days
+
+        test_days = [0, 1, 7, 29, 30, 100, 365]
+
+        for days in test_days:
+            with self.subTest(days=days):
+                seconds = days_to_seconds(days)
+                converted_back = seconds_to_days(seconds)
+                self.assertEqual(converted_back, days)
+
+    def test_seconds_to_days_with_conventional_constants(self):
+        """Test seconds_to_days with the conventional staleness constants."""
+        from app.culling import seconds_to_days
+
+        # CONVENTIONAL_TIME_TO_STALE_SECONDS = 104400 (29 hours)
+        self.assertEqual(seconds_to_days(104400), 1)  # 29 hours = 1 day (truncated)
+
+        # CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS = 604800 (7 days)
+        self.assertEqual(seconds_to_days(604800), 7)
+
+        # CONVENTIONAL_TIME_TO_DELETE_SECONDS = 2592000 (30 days)
+        self.assertEqual(seconds_to_days(2592000), 30)
+
+    def test_days_to_seconds_with_conventional_days(self):
+        """Test days_to_seconds with common staleness period values."""
+        from app.culling import days_to_seconds
+
+        # These should match the inverse of the conventional constants (for whole days)
+        self.assertEqual(days_to_seconds(7), 604800)  # 7 days = CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
+        self.assertEqual(days_to_seconds(30), 2592000)  # 30 days = CONVENTIONAL_TIME_TO_DELETE_SECONDS
 
 
 if __name__ == "__main__":
