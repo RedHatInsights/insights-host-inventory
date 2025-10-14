@@ -21,6 +21,9 @@ import dateutil.parser
 from requests import Response
 
 from app.auth.identity import IdentityType
+from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
+from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
+from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
 from app.models import Host
 from app.utils import HostWrapper
 from tests.helpers.test_utils import now
@@ -176,9 +179,9 @@ RBAC_ADMIN_PROHIBITED_RBAC_RESPONSE_FILES = (
 )
 
 DEFAULT_STALENESS_SETTINGS = {
-    "stale": 104400,
-    "stale_warning": 604800,
-    "delete": 1209600,
+    "stale": CONVENTIONAL_TIME_TO_STALE_SECONDS,
+    "stale_warning": CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS,
+    "delete": CONVENTIONAL_TIME_TO_DELETE_SECONDS,
 }
 _INPUT_DATA = {
     "conventional_time_to_stale": DEFAULT_STALENESS_SETTINGS["stale"],

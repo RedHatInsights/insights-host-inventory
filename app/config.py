@@ -4,15 +4,18 @@ import json
 import os
 import tempfile
 from datetime import timedelta
+from enum import Enum
 
 from app.common import get_build_version
-from app.culling import days_to_seconds
+from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
+from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
+from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
+from app.culling import seconds_to_days
 from app.environment import RuntimeEnvironment
 from app.logging import get_logger
 
 PRODUCER_ACKS = {"0": 0, "1": 1, "all": "all"}
 
-HOST_TYPES = ["edge", None]
 ALL_STALENESS_STATES = ["fresh", "stale", "stale_warning"]
 
 # NOTE: The order of this tuple is important. The order defines the priority.
@@ -23,6 +26,12 @@ ID_FACTS_USE_SUBMAN_ID = ("subscription_manager_id",)
 COMPOUND_ID_FACTS_MAP = {"provider_id": "provider_type"}
 COMPOUND_ID_FACTS = tuple(COMPOUND_ID_FACTS_MAP.values())
 IMMUTABLE_ID_FACTS = ("provider_id",)
+
+
+class HostType(str, Enum):
+    EDGE = "edge"
+    CLUSTER = "cluster"
+    NONE = None
 
 
 class Config:
@@ -282,24 +291,31 @@ class Config:
         self.payload_tracker_enabled = payload_tracker_enabled.lower() == "true"
 
         self.culling_stale_warning_offset_delta = timedelta(
-            days=int(os.environ.get("CULLING_STALE_WARNING_OFFSET_DAYS", "7")),
+            days=int(
+                os.environ.get(
+                    "CULLING_STALE_WARNING_OFFSET_DAYS",
+                    str(seconds_to_days(CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS)),
+                )
+            ),
             minutes=int(os.environ.get("CULLING_STALE_WARNING_OFFSET_MINUTES", "0")),
         )
         self.culling_culled_offset_delta = timedelta(
-            days=int(os.environ.get("CULLING_CULLED_OFFSET_DAYS", "14")),
+            days=int(
+                os.environ.get("CULLING_CULLED_OFFSET_DAYS", str(seconds_to_days(CONVENTIONAL_TIME_TO_DELETE_SECONDS)))
+            ),
             minutes=int(os.environ.get("CULLING_CULLED_OFFSET_MINUTES", "0")),
         )
 
         self.conventional_time_to_stale_seconds = int(
-            os.environ.get("CONVENTIONAL_TIME_TO_STALE_SECONDS", 104400)
+            os.environ.get("CONVENTIONAL_TIME_TO_STALE_SECONDS", CONVENTIONAL_TIME_TO_STALE_SECONDS)
         )  # 29 hours
 
-        self.conventional_time_to_stale_warning_seconds = os.environ.get(
-            "CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS", days_to_seconds(7)
+        self.conventional_time_to_stale_warning_seconds = int(
+            os.environ.get("CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS", CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS)
         )
 
-        self.conventional_time_to_delete_seconds = os.environ.get(
-            "CONVENTIONAL_TIME_TO_DELETE_SECONDS", days_to_seconds(14)
+        self.conventional_time_to_delete_seconds = int(
+            os.environ.get("CONVENTIONAL_TIME_TO_DELETE_SECONDS", CONVENTIONAL_TIME_TO_DELETE_SECONDS)
         )
 
         self.use_sub_man_id_for_host_id = os.environ.get("USE_SUBMAN_ID", "false").lower() == "true"

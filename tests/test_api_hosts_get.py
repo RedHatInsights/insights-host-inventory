@@ -1,6 +1,7 @@
 import logging
 import random
 from collections.abc import Callable
+from datetime import datetime
 from datetime import timedelta
 from itertools import chain
 from itertools import combinations
@@ -869,6 +870,43 @@ def test_query_hosts_filter_last_check_in_start_end(mq_create_or_update_host, ap
     assert response_status == 200
     # This query should return all 3 hosts
     assert len(response_data["results"]) == 3
+
+
+def test_query_hosts_filter_last_check_in_both_same(mq_create_or_update_host, api_get):
+    match_host = mq_create_or_update_host(minimal_host())
+    nomatch_host = mq_create_or_update_host(minimal_host())
+    url = build_hosts_url(
+        query=(
+            f"?last_check_in_start={match_host.last_check_in.replace('+00:00', 'Z')}"
+            f"&last_check_in_end={match_host.last_check_in.replace('+00:00', 'Z')}"
+        )
+    )
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["id"] == match_host.id
+    assert response_data["results"][0]["id"] != nomatch_host.id
+
+
+def test_query_hosts_filter_last_check_in_invalid_format(api_get, subtests):
+    invalid_formats = ("foobar", "{}", "[]", generate_uuid(), [datetime.now(), datetime.now() - timedelta(days=7)])
+    for invalid_format in invalid_formats:
+        for param in ("last_check_in_start", "last_check_in_end"):
+            with subtests.test(invalid_format=invalid_format, param=param):
+                url = build_hosts_url(query=f"?{param}={invalid_format}")
+                response_status, response_data = api_get(url)
+                assert response_status == 400
+                assert "is not a 'date-time'" in response_data["detail"]
+
+
+@pytest.mark.parametrize("param_prefix", ("updated", "last_check_in"))
+def test_query_hosts_filter_updated_last_check_in_start_after_end(api_get, param_prefix):
+    url = build_hosts_url(
+        query=f"?{param_prefix}_start={datetime.now()}&{param_prefix}_end={datetime.now() - timedelta(days=1)}"
+    )
+    response_status, response_data = api_get(url)
+    assert response_status == 400
+    assert f"{param_prefix}_start cannot be after {param_prefix}_end." in response_data["detail"]
 
 
 @pytest.mark.parametrize("order_how", ("ASC", "DESC"))
@@ -2234,7 +2272,7 @@ def test_query_by_staleness_using_columns(
         "fresh": now(),
         "stale": now() - timedelta(days=3),
         "stale_warning": now() - timedelta(days=10),
-        "culled": now() - timedelta(days=20),
+        "culled": now() - timedelta(days=35),
     }
     staleness_to_host_ids_map = dict()
 
@@ -2286,7 +2324,7 @@ def test_query_by_staleness_using_columns(
                 assert {host["id"] for host in response_data["results"]} == expected_host_ids
 
 
-@pytest.mark.parametrize("system_type", ("conventional", "bootc", "edge"))
+@pytest.mark.parametrize("system_type", ("conventional", "bootc", "edge", "cluster"))
 def test_system_type_filter_valid_types(api_get, system_type):
     url = build_hosts_url(query=f"?system_type={system_type}")
     response_status, _ = api_get(url)
@@ -2303,15 +2341,16 @@ def test_system_type_filter_invalid_types(api_get, invalid_system_type):
 
 
 @pytest.mark.parametrize(
-    "query_filter_param",
+    "query_filter_param,matching_host_indexes",
     (
-        "?system_type=conventional",
-        "?system_type=bootc",
-        "?system_type=edge",
-        "?system_type=bootc&system_type=edge",
+        ("?system_type=conventional", [0]),
+        ("?system_type=bootc", [1, 4]),
+        ("?system_type=edge", [2, 4]),
+        ("?system_type=cluster", [3]),
+        ("?system_type=bootc&system_type=edge", [1, 2, 4]),
     ),
 )
-def test_system_type_happy_path(api_get, db_create_host, query_filter_param):
+def test_system_type_happy_path(api_get, db_create_host, query_filter_param, matching_host_indexes):
     sp_facts = [
         {},
         {
@@ -2324,22 +2363,27 @@ def test_system_type_happy_path(api_get, db_create_host, query_filter_param):
             }
         },
         {"system_profile_facts": {"host_type": "edge"}},
+        {"system_profile_facts": {"host_type": "cluster"}},
+        {
+            "system_profile_facts": {
+                "host_type": "edge",
+                "bootc_status": {
+                    "booted": {
+                        "image_digest": "sha256:806d77394f96e47cf99b1233561ce970c94521244a2d8f2affa12c3261961223"
+                    }
+                },
+            }
+        },
     ]
-    host_ids = []
+    host_ids = [str(db_create_host(extra_data=sp_fact).id) for sp_fact in sp_facts]
 
-    for sp_fact in sp_facts:
-        host_id = str(db_create_host(extra_data=sp_fact).id)
-        host_ids.append(host_id)
-
-    # Count the number of times "system_type" appears in the query
-    matching_hosts = query_filter_param.count("system_type=")
     url = build_hosts_url(query=query_filter_param)
     response_status, response_data = api_get(url)
 
     assert response_status == 200
-    assert len(response_data["results"]) == matching_hosts
-    for result in response_data["results"]:
-        assert result["id"] in host_ids
+    assert len(response_data["results"]) == len(matching_host_indexes)
+    for matching_host_index in matching_host_indexes:
+        assert host_ids[matching_host_index] in [result["id"] for result in response_data["results"]]
 
 
 def test_fresh_staleness_with_only_rhsm_system_profile_bridge(api_get, db_create_host):

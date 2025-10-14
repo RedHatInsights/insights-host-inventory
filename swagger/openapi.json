@@ -1980,7 +1980,8 @@
             "enum": [
               "conventional",
               "bootc",
-              "edge"
+              "edge",
+              "cluster"
             ]
           }
         }
@@ -3522,11 +3523,12 @@
           "host_type": {
             "type": "string",
             "enum": [
-              "edge"
+              "edge",
+              "cluster"
             ],
-            "maxLength": 4,
+            "maxLength": 12,
             "description": "Indicates the type of host.",
-            "example": "edge"
+            "example": "edge, cluster"
           },
           "greenboot_status": {
             "type": "string",

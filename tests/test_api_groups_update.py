@@ -402,6 +402,7 @@ def test_patch_group_RBAC_post_kessel_migration(
         new_group_data["name"] = "new_name"
 
     mocker.patch("api.group.get_flag_value", return_value=True)
+    mocker.patch("lib.group_repository.get_flag_value", return_value=True)
     response_status, _ = api_patch_group(group_id, new_group_data)
 
     # If group name was updated, it should have made a request to RBAC
@@ -418,6 +419,7 @@ def test_patch_group_RBAC_post_kessel_migration(
     # Check that the removed hosts were assigned to the ungrouped group
     for host in db_get_hosts_for_group(ungrouped_group_id):
         assert str(host.id) in original_host_id_list
+        assert host.groups[0]["id"] == ungrouped_group_id
 
     assert str(db_get_hosts_for_group(group_id)[0].id) == new_host_id_list[0]
 

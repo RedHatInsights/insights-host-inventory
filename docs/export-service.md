@@ -3,4 +3,4 @@
 ## Sequence Diagram
 Below is the sequence diagram on how the HBI export service works:
 
-![HBI Export Service sequence diagram](./export-service.png)
+![HBI Export Service sequence diagram](./images/export-service.png)

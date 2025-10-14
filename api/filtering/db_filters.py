@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from copy import deepcopy
+from datetime import UTC
+from datetime import datetime
 from datetime import timedelta
 from functools import partial
 from typing import Any
@@ -16,12 +18,10 @@ from sqlalchemy import not_
 from sqlalchemy import or_
 
 from api.filtering.db_custom_filters import build_system_profile_filter
-from api.filtering.db_custom_filters import get_host_types_from_filter
 from api.staleness_query import get_staleness_obj
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
 from app.config import ALL_STALENESS_STATES
-from app.config import HOST_TYPES
 from app.culling import Conditions
 from app.exceptions import ValidationException
 from app.logging import get_logger
@@ -53,6 +53,74 @@ logger = get_logger(__name__)
 DEFAULT_STALENESS_VALUES = ["not_culled"]
 DEFAULT_INSIGHTS_ID = "00000000-0000-0000-0000-000000000000"
 
+
+# Cache the column names from system profile tables for performance
+_DYNAMIC_PROFILE_FIELDS = None
+_STATIC_PROFILE_FIELDS = None
+
+
+def _get_system_profile_fields():
+    """Get the field names from system profile tables by introspecting the models."""
+    global _DYNAMIC_PROFILE_FIELDS, _STATIC_PROFILE_FIELDS
+
+    if _DYNAMIC_PROFILE_FIELDS is None:
+        # Get column names from HostDynamicSystemProfile (excluding primary keys)
+        _DYNAMIC_PROFILE_FIELDS = {
+            col.name for col in HostDynamicSystemProfile.__table__.columns if col.name not in ("org_id", "host_id")
+        }
+
+    if _STATIC_PROFILE_FIELDS is None:
+        # Get column names from HostStaticSystemProfile (excluding primary keys)
+        _STATIC_PROFILE_FIELDS = {
+            col.name for col in HostStaticSystemProfile.__table__.columns if col.name not in ("org_id", "host_id")
+        }
+
+    return _DYNAMIC_PROFILE_FIELDS, _STATIC_PROFILE_FIELDS
+
+
+def _extract_filter_fields(filter_dict):
+    """Extract all field names from a nested filter dictionary."""
+    if not filter_dict:
+        return set()
+
+    fields = set()
+    for key, value in filter_dict.items():
+        # Add the top-level key
+        fields.add(key)
+        # If the value is a dict with nested structure, recurse
+        if isinstance(value, dict):
+            fields.update(_extract_filter_fields(value))
+
+    return fields
+
+
+def _needs_system_profile_joins(filter, system_type, registered_with):
+    """
+    Dynamically determine if system profile table joins are needed based on
+    which fields are being filtered.
+
+    Returns: (needs_static_join, needs_dynamic_join)
+    """
+    # system_type and registered_with always use static profile fields
+    if system_type or registered_with:
+        return True, False
+
+    if not filter:
+        return False, False
+
+    # Get the system profile field sets
+    dynamic_fields, static_fields = _get_system_profile_fields()
+
+    # Extract all fields referenced in the filter
+    filter_fields = _extract_filter_fields(filter)
+
+    # Check if any filter fields match system profile fields
+    needs_static = bool(filter_fields & static_fields)
+    needs_dynamic = bool(filter_fields & dynamic_fields)
+
+    return needs_static, needs_dynamic
+
+
 # Static system type filter mappings
 SYSTEM_TYPE_FILTERS: dict[str, Any] = {
     SystemType.CONVENTIONAL.value: and_(
@@ -72,6 +140,7 @@ SYSTEM_TYPE_FILTERS: dict[str, Any] = {
         HostStaticSystemProfile.bootc_status["booted"]["image_digest"].astext != "",
     ),
     SystemType.EDGE.value: HostStaticSystemProfile.host_type == SystemType.EDGE.value,
+    SystemType.CLUSTER.value: HostStaticSystemProfile.host_type == SystemType.CLUSTER.value,
 }
 
 
@@ -128,15 +197,12 @@ def _group_ids_filter(group_id_list: list) -> list:
 
 def stale_timestamp_filter(gt=None, lte=None):
     filters = []
+    if lte is None:
+        lte = datetime.now(UTC)
+    filters.append(Host.last_check_in <= lte)
     if gt:
         filters.append(Host.last_check_in > gt)
-    if lte:
-        filters.append(Host.last_check_in <= lte)
     return and_(*filters)
-
-
-def _host_type_filter(host_type: str | None):
-    return HostStaticSystemProfile.host_type == host_type
 
 
 def _stale_timestamp_per_reporter_filter(gt=None, lte=None, reporter=None):
@@ -145,54 +211,70 @@ def _stale_timestamp_per_reporter_filter(gt=None, lte=None, reporter=None):
     if non_negative_reporter in OLD_TO_NEW_REPORTER_MAP.keys():
         reporter_list.extend(OLD_TO_NEW_REPORTER_MAP[non_negative_reporter])
 
+    current_time = datetime.now(UTC)
+
     if reporter.startswith("!"):
+        # For negation: include hosts that do NOT have ANY fresh reporter from the reporter_list
+        # This means: for ALL reporters in the list, the host either doesn't have them OR they're culled
         time_filter_ = stale_timestamp_filter(gt=gt, lte=lte)
-        return and_(
-            and_(
-                not_(Host.per_reporter_staleness.has_key(rep)),
-                time_filter_,
-            )
-            for rep in reporter_list
-        )
-    else:
-        or_filter = []
+
+        and_conditions = []  # All conditions must be true (host lacks ALL fresh reporters)
+
         for rep in reporter_list:
-            if gt:
-                time_filter_ = Host.per_reporter_staleness[rep]["last_check_in"].astext.cast(DateTime) > gt
-            if lte:
-                time_filter_ = Host.per_reporter_staleness[rep]["last_check_in"].astext.cast(DateTime) <= lte
-            or_filter.append(
+            # For each reporter, the host must either:
+            # 1. Not have this reporter at all, OR
+            # 2. Have this reporter but it's culled (culled_timestamp < now)
+            rep_condition = or_(
+                # Doesn't have this reporter
+                not_(Host.per_reporter_staleness.has_key(rep)),
+                # Has this reporter but it's culled (only if culled_timestamp exists)
                 and_(
                     Host.per_reporter_staleness.has_key(rep),
-                    time_filter_,
-                )
+                    Host.per_reporter_staleness[rep].has_key("culled_timestamp"),
+                    Host.per_reporter_staleness[rep]["culled_timestamp"].astext.cast(DateTime) < current_time,
+                ),
             )
+            and_conditions.append(rep_condition)
+
+        return and_(
+            and_(*and_conditions),  # Must satisfy condition for ALL reporters in the list
+            time_filter_,
+        )
+    else:
+        # For positive: include hosts that have the reporter AND are not culled (if culled_timestamp exists)
+        or_filter = []
+        for rep in reporter_list:
+            conditions = [Host.per_reporter_staleness.has_key(rep)]
+
+            # Only check culled status if culled_timestamp exists
+            # If it doesn't exist, include the host (backward compatibility)
+            culled_condition = or_(
+                # No culled_timestamp field (backward compatibility)
+                not_(Host.per_reporter_staleness[rep].has_key("culled_timestamp")),
+                # Has culled_timestamp and it's not culled (culled_timestamp >= now)
+                Host.per_reporter_staleness[rep]["culled_timestamp"].astext.cast(DateTime) >= current_time,
+            )
+            conditions.append(culled_condition)
+
+            if gt:
+                conditions.append(Host.per_reporter_staleness[rep]["last_check_in"].astext.cast(DateTime) > gt)
+            if lte:
+                conditions.append(Host.per_reporter_staleness[rep]["last_check_in"].astext.cast(DateTime) <= lte)
+            or_filter.append(and_(*conditions))
 
         return or_(*or_filter)
 
 
-def per_reporter_staleness_filter(staleness, reporter, host_type_filter, org_id):
+def per_reporter_staleness_filter(staleness, reporter, org_id):
     staleness_obj = serialize_staleness_to_dict(get_staleness_obj(org_id))
-    staleness_conditions = []
-    for host_type in host_type_filter:
-        conditions = or_(
-            *staleness_to_conditions(
-                staleness_obj,
-                staleness,
-                partial(_stale_timestamp_per_reporter_filter, reporter=reporter),
-            )
+    conditions = or_(
+        *staleness_to_conditions(
+            staleness_obj,
+            staleness,
+            partial(_stale_timestamp_per_reporter_filter, reporter=reporter),
         )
-        if len(host_type_filter) > 1:
-            staleness_conditions.append(
-                and_(
-                    _host_type_filter(host_type),
-                    conditions,
-                )
-            )
-        else:
-            staleness_conditions.append(conditions)
-
-    return staleness_conditions
+    )
+    return [conditions]
 
 
 def _staleness_filter_using_columns(staleness: list[str]) -> list:
@@ -234,7 +316,7 @@ def find_stale_host_in_window(staleness, last_run_secs, job_start_time):
     )
 
 
-def _registered_with_filter(registered_with: list[str], host_type_filter: set[str | None], org_id: str) -> list:
+def _registered_with_filter(registered_with: list[str], org_id: str) -> list:
     _query_filter: list = []
     if not registered_with:
         return _query_filter
@@ -248,28 +330,24 @@ def _registered_with_filter(registered_with: list[str], host_type_filter: set[st
     # Get the per_report_staleness check_in value for the reporter
     # and build the filter based on it
     for reporter in reg_with_copy:
-        prs_item = per_reporter_staleness_filter(DEFAULT_STALENESS_VALUES, reporter, host_type_filter, org_id)
+        prs_item = per_reporter_staleness_filter(DEFAULT_STALENESS_VALUES, reporter, org_id)
 
         for n_items in prs_item:
             _query_filter.append(n_items)
     return [or_(*_query_filter)]
 
 
-def _system_profile_filter(filter: dict) -> tuple[list, set[str | None]]:
+def _system_profile_filter(filter: dict) -> list:
     query_filters: list = []
-    host_types = set(HOST_TYPES.copy())
 
     if filter:
         for key in filter:
             if key == "system_profile":
-                # Get the host_types we're filtering on, if any
-                host_types = get_host_types_from_filter(filter["system_profile"].get("host_type"))
-
                 query_filters += build_system_profile_filter(filter["system_profile"])
             else:
                 raise ValidationException("filter key is invalid")
 
-    return query_filters, host_types
+    return query_filters
 
 
 def _hostname_or_id_filter(hostname_or_id: str) -> tuple:
@@ -383,13 +461,10 @@ def query_filters(
     rbac_filter: dict | None = None,
     order_by: str | None = None,
     identity=None,
+    join_static_profile: bool = False,
+    join_dynamic_profile: bool = False,
 ) -> tuple[list, Query]:
-    num_ids = 0
-    host_type_filter = set(HOST_TYPES)
-    for id_param in [fqdn, display_name, hostname_or_id, insights_id]:
-        if id_param:
-            num_ids += 1
-
+    num_ids = sum(bool(id_param) for id_param in [fqdn, display_name, hostname_or_id, insights_id])
     if num_ids > 1:
         raise ValidationException(
             "Only one of [fqdn, display_name, hostname_or_id, insights_id] may be provided at a time."
@@ -424,27 +499,34 @@ def query_filters(
     if tags:
         filters += _tags_filter(tags)
     if filter:
-        sp_filter, host_type_filter = _system_profile_filter(filter)
+        sp_filter = _system_profile_filter(filter)
         filters += sp_filter
     if staleness:
         filters += _get_staleness_filter(staleness, identity.org_id)
     if registered_with:
-        filters += _registered_with_filter(registered_with, host_type_filter, identity.org_id)
+        filters += _registered_with_filter(registered_with, identity.org_id)
     if rbac_filter:
         filters += rbac_permissions_filter(rbac_filter)
 
     filters = [and_(Host.org_id == identity.org_id, *filters)]
 
-    # Determine query_base
+    # Dynamically determine if we need system profile joins based on what fields are being filtered
+    needs_static_join, needs_dynamic_join = _needs_system_profile_joins(filter, system_type, registered_with)
+
+    # Allow explicit join requests to override dynamic detection
+    needs_static_join = needs_static_join or join_static_profile
+    needs_dynamic_join = needs_dynamic_join or join_dynamic_profile
+
+    query_base = db.session.query(Host)
+
+    # Determine base query - start with Host and add group joins if needed
     if group_name or group_ids or rbac_filter or order_by == "group_name":
-        query_base = db.session.query(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
-    elif filter or system_type or registered_with:
-        query_base = (
-            db.session.query(Host)
-            .join(HostStaticSystemProfile, isouter=True)
-            .join(HostDynamicSystemProfile, isouter=True)
-        )
-    else:
-        query_base = db.session.query(Host)
+        query_base = query_base.join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
+
+    # Add system profile joins if needed (dynamic detection or explicit request)
+    if needs_static_join:
+        query_base = query_base.join(HostStaticSystemProfile, isouter=True)
+    if needs_dynamic_join:
+        query_base = query_base.join(HostDynamicSystemProfile, isouter=True)
 
     return filters, query_base
