@@ -47,7 +47,6 @@ __all__ = (
     "multiple_canonical_facts_host_query",
     "create_new_host",
     "find_existing_host",
-    "find_hosts_by_staleness",
     "find_non_culled_hosts",
     "update_existing_host",
     "host_query",
@@ -240,14 +239,6 @@ def multiple_canonical_facts_host_query_in_memory(
         )
 
     return _query
-
-
-def find_hosts_by_staleness(staleness_types: list[str], query: Query, org_id: str) -> Query:
-    logger.debug("find_hosts_by_staleness(%s)", staleness_types)
-    staleness_obj = serialize_staleness_to_dict(get_staleness_obj(org_id))
-    staleness_conditions = staleness_to_conditions(staleness_obj, staleness_types, stale_timestamp_filter)
-
-    return query.filter(or_(False, *staleness_conditions))
 
 
 def find_hosts_by_staleness_job(staleness_types, org_id):
