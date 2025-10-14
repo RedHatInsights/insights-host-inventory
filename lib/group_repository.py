@@ -164,7 +164,7 @@ def _add_hosts_to_group(group_id: str, host_id_list: list[str], identity: Identi
         raise InventoryException(
             status=HTTPStatus.BAD_REQUEST,
             title="Hosts not found",
-            detail=f"IDs of hosts not found: '{invalid_host_ids}' not found",
+            detail=f"IDs of hosts not found: {invalid_host_ids}",
         )
 
     # Then, validate that the hosts can even be added to the group
@@ -487,7 +487,7 @@ def patch_group(group: Group, patch_data: dict, identity: Identity, event_produc
                     removed_group_id_list = [str(ungrouped_group.id)]
                     _add_hosts_to_group(str(ungrouped_group.id), list(existing_host_ids - new_host_ids), identity)
             except InventoryException as e:
-                log_patch_group_failed(logger, group_id, f"patch_group() failed: '{e.detail}'")
+                log_patch_group_failed(logger, group_id, f"patch_group() failed: {e.detail}")
                 abort(HTTPStatus.BAD_REQUEST, e.detail)
 
     # Send MQ messages

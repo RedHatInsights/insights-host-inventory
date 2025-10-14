@@ -508,3 +508,47 @@ def test_patch_group_existing_name_same_org_kessel_phase1_enabled(
 
     # Both groups should now have the same name (case-insensitive match)
     assert updated_group.name.lower() == original_group.name.lower()
+
+
+def test_e2e_patch_group_using_non_existent_host(
+    db_create_group_with_hosts,
+    db_get_hosts_for_group,
+    db_get_group_by_id,
+    api_patch_group,
+    event_producer,
+    mocker,
+):
+    """
+    Test that patching a group with a non-existent host ID fails and leaves the group unchanged.
+    """
+    # Mock the event producer
+    mocker.patch.object(event_producer, "write_event")
+
+    # Create 3 hosts and add them to a new group
+    group = db_create_group_with_hosts("test_group", 3)
+    group_id = group.id
+    orig_modified_on = group.modified_on
+
+    # Verify the group has 3 hosts initially
+    assert len(db_get_hosts_for_group(group_id)) == 3
+
+    # Create a valid UUID that doesn't correspond to any existing host
+    non_existent_host_id = generate_uuid()
+
+    # Attempt to patch the group with the non-existent host ID
+    patch_doc = {"host_ids": [non_existent_host_id]}
+    response_status, response_data = api_patch_group(group_id, patch_doc)
+
+    # The patch should fail with a 400 error
+    assert_response_status(response_status, 400)
+    assert str(non_existent_host_id) in response_data["detail"]
+
+    # Verify that the group still has the original 3 hosts
+    assert len(db_get_hosts_for_group(group_id)) == 3
+
+    # Verify that the group's modified_on timestamp hasn't changed
+    retrieved_group = db_get_group_by_id(group_id)
+    assert retrieved_group.modified_on == orig_modified_on
+
+    # Verify that no events were produced
+    assert event_producer.write_event.call_count == 0
