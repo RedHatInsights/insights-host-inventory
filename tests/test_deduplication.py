@@ -1,4 +1,8 @@
 from collections.abc import Callable
+from datetime import UTC
+from datetime import datetime
+from datetime import timedelta
+from unittest.mock import patch
 
 import pytest
 from pytest import mark
@@ -7,8 +11,10 @@ from app.auth.identity import Identity
 from app.config import IMMUTABLE_ID_FACTS
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
+from app.logging import get_logger
 from app.models import Host
 from app.models import ProviderType
+from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 from app.utils import HostWrapper
 from lib.host_repository import find_existing_host
 from tests.helpers.db_utils import assert_host_exists_in_db
@@ -22,6 +28,8 @@ from tests.helpers.test_utils import generate_fact
 from tests.helpers.test_utils import generate_fact_dict
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
+
+logger = get_logger(__name__)
 
 ID_FACTS = ("provider_id", "subscription_manager_id", "insights_id")
 
@@ -486,3 +494,50 @@ def test_find_correct_host_varying_provider_type(db_create_host, mq_create_or_up
     assert ibm_found_host.id == str(ibm_host_id)
 
     assert aws_found_host.id != ibm_found_host.id
+
+
+def test_deduplication_match_old_rhsm_host(
+    db_create_host: Callable[..., Host], mq_create_or_update_host: Callable[..., HostWrapper]
+):
+    """
+    https://issues.redhat.com/browse/RHINENG-20847
+
+    Test that deduplication uses staleness timestamps from DB and matches RHSM-only host even if it
+    would be already culled by the custom staleness configuration.
+    """
+    canonical_facts = {"subscription_manager_id": generate_uuid()}
+
+    with patch(
+        "app.models.utils.datetime",
+        **{"now.return_value": datetime.now(tz=UTC) - timedelta(days=100)},
+    ):  # type: ignore [call-overload]
+        host = minimal_db_host(canonical_facts=canonical_facts, reporter="rhsm-system-profile-bridge")
+        created_host = db_create_host(host=host)
+
+    assert_host_exists_in_db(created_host.id, canonical_facts)
+    assert created_host.last_check_in < datetime.now(tz=UTC) - timedelta(days=99)
+    assert created_host.modified_on < datetime.now(tz=UTC) - timedelta(days=99)
+    assert created_host.stale_timestamp == FAR_FUTURE_STALE_TIMESTAMP
+    assert created_host.stale_warning_timestamp == FAR_FUTURE_STALE_TIMESTAMP
+    assert created_host.deletion_timestamp == FAR_FUTURE_STALE_TIMESTAMP
+
+    updated_host = mq_create_or_update_host(minimal_host(**canonical_facts, reporter="rhsm-system-profile-bridge"))
+    assert str(updated_host.id) == str(created_host.id)
+
+
+def test_deduplication_culled_host(
+    db_create_host: Callable[..., Host], mq_create_or_update_host: Callable[..., HostWrapper]
+):
+    """Test that Inventory won't match a culled host and it will create a new host instead."""
+    canonical_facts = {"subscription_manager_id": generate_uuid()}
+
+    with patch(
+        "app.models.utils.datetime",
+        **{"now.return_value": datetime.now(tz=UTC) - timedelta(days=100)},
+    ):  # type: ignore [call-overload]
+        host = minimal_db_host(canonical_facts=canonical_facts, reporter="puptoo")
+        created_host = db_create_host(host=host)
+
+    updated_host = mq_create_or_update_host(minimal_host(**canonical_facts, reporter="puptoo"))
+    assert str(updated_host.id) != str(created_host.id)
+    assert_host_exists_in_db(updated_host.id, canonical_facts)
