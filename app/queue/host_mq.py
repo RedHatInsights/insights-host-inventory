@@ -69,6 +69,8 @@ from app.staleness_serialization import AttrDict
 from lib import group_repository
 from lib import host_repository
 from lib.db import session_guard
+from lib.feature_flags import FLAG_INVENTORY_REJECT_RHSM_PAYLOADS
+from lib.feature_flags import get_flag_value
 from utils.system_profile_log import extract_host_dict_sp_to_log
 
 logger = get_logger(__name__)
@@ -330,6 +332,15 @@ class HostMessageConsumer(HBIMessageConsumerBase):
         ):
             try:
                 host = validated_operation_msg["data"]
+                if host.get("reporter") in ["rhsm-conduit", "rhsm-system-profile-bridge"] and get_flag_value(
+                    FLAG_INVENTORY_REJECT_RHSM_PAYLOADS
+                ):
+                    raise ValidationException(
+                        """
+                        RHSM payloads are not currently allowed,
+                        as the hbi.api.reject-rhsm-payloads feature flag is enabled.
+                        """
+                    )
                 host_row, operation_result, identity, success_logger = self.process_message(
                     host, platform_metadata, validated_operation_msg.get("operation_args", {})
                 )

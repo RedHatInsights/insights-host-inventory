@@ -2724,3 +2724,26 @@ def test_add_host_with_invalid_provider_type(
 
     # Verify that notification event was sent for the validation failure
     mock_notification_event_producer.write_event.assert_called_once()
+
+
+@pytest.mark.parametrize("reporter", ["rhsm-conduit", "rhsm-system-profile-bridge"])
+def test_add_host_with_rhsm_payloads_rejected(mocker, mq_create_or_update_host, reporter):
+    mocker.patch("app.queue.host_mq.get_flag_value", return_value=True)
+    host = minimal_host(insights_id=generate_uuid(), reporter=reporter)
+    with pytest.raises(ValidationException) as excinfo:
+        mq_create_or_update_host(host)
+    assert "RHSM payloads are not currently allowed" in str(excinfo.value)
+
+
+@pytest.mark.parametrize("reporter", ["puptoo", "satellite", "cloud-connector", "yuptoo"])
+def test_add_non_rhsm_host_with_rhsm_payloads_rejected(mocker, mq_create_or_update_host, reporter):
+    mocker.patch("app.queue.host_mq.get_flag_value", return_value=True)
+    host = minimal_host(insights_id=generate_uuid(), reporter=reporter)
+    assert mq_create_or_update_host(host) is not None
+
+
+@pytest.mark.parametrize("reporter", ["rhsm-conduit", "rhsm-system-profile-bridge"])
+def test_add_host_with_rhsm_payloads_allowed_rhsm_payloads_not_rejected(mocker, mq_create_or_update_host, reporter):
+    mocker.patch("app.queue.host_mq.get_flag_value", return_value=False)
+    host = minimal_host(insights_id=generate_uuid(), reporter=reporter)
+    assert mq_create_or_update_host(host) is not None
