@@ -47,7 +47,7 @@ rpds-py = "==0.27.1"
 
 [dev-packages]
 pytest = "~=8.4.1"
-pytest-cov = "~=6.2.1"
+pytest-cov = "~=7.0.0"
 pytest-mock = "~=3.14.1"
 pytest-subtests = "~=0.14.2"
 coverage = "*"
