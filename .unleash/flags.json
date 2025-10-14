@@ -96,6 +96,22 @@
             ],
             "variants": [],
             "createdAt": "2025-08-14T16:29:19.146Z"
+        },
+        {
+            "name": "hbi.api.reject-rhsm-payloads",
+            "description": "While this toggle is enabled, MQ payloads from rhsm-conduit and rhsm-system-profile-bridge will be rejected. This exists as a preventative measure.",
+            "type": "release",
+            "project": "default",
+            "stale": false,
+            "enabled": false,
+            "strategies": [
+                {
+                    "name": "default",
+                    "parameters": {}
+                }
+            ],
+            "variants": [],
+            "createdAt": "2025-10-12T16:29:19.146Z"
         }
     ],
     "strategies": [
