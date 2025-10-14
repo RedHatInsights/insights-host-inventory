@@ -53,6 +53,74 @@ logger = get_logger(__name__)
 DEFAULT_STALENESS_VALUES = ["not_culled"]
 DEFAULT_INSIGHTS_ID = "00000000-0000-0000-0000-000000000000"
 
+
+# Cache the column names from system profile tables for performance
+_DYNAMIC_PROFILE_FIELDS = None
+_STATIC_PROFILE_FIELDS = None
+
+
+def _get_system_profile_fields():
+    """Get the field names from system profile tables by introspecting the models."""
+    global _DYNAMIC_PROFILE_FIELDS, _STATIC_PROFILE_FIELDS
+
+    if _DYNAMIC_PROFILE_FIELDS is None:
+        # Get column names from HostDynamicSystemProfile (excluding primary keys)
+        _DYNAMIC_PROFILE_FIELDS = {
+            col.name for col in HostDynamicSystemProfile.__table__.columns if col.name not in ("org_id", "host_id")
+        }
+
+    if _STATIC_PROFILE_FIELDS is None:
+        # Get column names from HostStaticSystemProfile (excluding primary keys)
+        _STATIC_PROFILE_FIELDS = {
+            col.name for col in HostStaticSystemProfile.__table__.columns if col.name not in ("org_id", "host_id")
+        }
+
+    return _DYNAMIC_PROFILE_FIELDS, _STATIC_PROFILE_FIELDS
+
+
+def _extract_filter_fields(filter_dict):
+    """Extract all field names from a nested filter dictionary."""
+    if not filter_dict:
+        return set()
+
+    fields = set()
+    for key, value in filter_dict.items():
+        # Add the top-level key
+        fields.add(key)
+        # If the value is a dict with nested structure, recurse
+        if isinstance(value, dict):
+            fields.update(_extract_filter_fields(value))
+
+    return fields
+
+
+def _needs_system_profile_joins(filter, system_type, registered_with):
+    """
+    Dynamically determine if system profile table joins are needed based on
+    which fields are being filtered.
+
+    Returns: (needs_static_join, needs_dynamic_join)
+    """
+    # system_type and registered_with always use static profile fields
+    if system_type or registered_with:
+        return True, False
+
+    if not filter:
+        return False, False
+
+    # Get the system profile field sets
+    dynamic_fields, static_fields = _get_system_profile_fields()
+
+    # Extract all fields referenced in the filter
+    filter_fields = _extract_filter_fields(filter)
+
+    # Check if any filter fields match system profile fields
+    needs_static = bool(filter_fields & static_fields)
+    needs_dynamic = bool(filter_fields & dynamic_fields)
+
+    return needs_static, needs_dynamic
+
+
 # Static system type filter mappings
 SYSTEM_TYPE_FILTERS: dict[str, Any] = {
     SystemType.CONVENTIONAL.value: and_(
@@ -393,6 +461,8 @@ def query_filters(
     rbac_filter: dict | None = None,
     order_by: str | None = None,
     identity=None,
+    join_static_profile: bool = False,
+    join_dynamic_profile: bool = False,
 ) -> tuple[list, Query]:
     num_ids = sum(bool(id_param) for id_param in [fqdn, display_name, hostname_or_id, insights_id])
     if num_ids > 1:
@@ -440,16 +510,23 @@ def query_filters(
 
     filters = [and_(Host.org_id == identity.org_id, *filters)]
 
-    # Determine query_base
+    # Dynamically determine if we need system profile joins based on what fields are being filtered
+    needs_static_join, needs_dynamic_join = _needs_system_profile_joins(filter, system_type, registered_with)
+
+    # Allow explicit join requests to override dynamic detection
+    needs_static_join = needs_static_join or join_static_profile
+    needs_dynamic_join = needs_dynamic_join or join_dynamic_profile
+
+    query_base = db.session.query(Host)
+
+    # Determine base query - start with Host and add group joins if needed
     if group_name or group_ids or rbac_filter or order_by == "group_name":
-        query_base = db.session.query(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
-    elif filter or system_type or registered_with:
-        query_base = (
-            db.session.query(Host)
-            .join(HostStaticSystemProfile, isouter=True)
-            .join(HostDynamicSystemProfile, isouter=True)
-        )
-    else:
-        query_base = db.session.query(Host)
+        query_base = query_base.join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
+
+    # Add system profile joins if needed (dynamic detection or explicit request)
+    if needs_static_join:
+        query_base = query_base.join(HostStaticSystemProfile, isouter=True)
+    if needs_dynamic_join:
+        query_base = query_base.join(HostDynamicSystemProfile, isouter=True)
 
     return filters, query_base

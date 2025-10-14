@@ -13,7 +13,6 @@ from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from random import choice
-from random import randint
 from typing import Any
 
 from app.config import COMPOUND_ID_FACTS_MAP
@@ -129,7 +128,6 @@ def set_environment(new_env=None):
 def _base_host_data(**values) -> dict[str, Any]:
     return {
         "org_id": USER_IDENTITY["org_id"],
-        "stale_timestamp": (now() + timedelta(days=randint(1, 7))).isoformat(),
         "reporter": "test" + generate_random_string(),
         **values,
     }

@@ -14,6 +14,7 @@ from marshmallow import validate as marshmallow_validate
 from marshmallow import validates
 from marshmallow import validates_schema
 
+from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
 from app.models.constants import MAX_CANONICAL_FACTS_VERSION
 from app.models.constants import MIN_CANONICAL_FACTS_VERSION
 from app.models.constants import TAG_KEY_VALIDATION
@@ -287,7 +288,7 @@ class HostSchema(LimitedHostSchema):
     class Meta:
         unknown = EXCLUDE
 
-    stale_timestamp = fields.AwareDateTime(required=True)
+    stale_timestamp = fields.AwareDateTime(required=False)
     reporter = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=255))
 
     @staticmethod
@@ -304,7 +305,7 @@ class HostSchema(LimitedHostSchema):
             tags,
             tags_alt,
             data.get("system_profile", {}),
-            data["stale_timestamp"],
+            data.get("stale_timestamp"),
             data["reporter"],
             data.get("groups", []),
             insights_id=canonical_facts.get("insights_id"),
@@ -343,7 +344,9 @@ class InputGroupSchema(MarshmallowSchema):
 
 
 class StalenessSchema(MarshmallowSchema):
-    conventional_time_to_stale = fields.Integer(validate=marshmallow_validate.Range(min=1, max=604800))
+    conventional_time_to_stale = fields.Integer(
+        validate=marshmallow_validate.Range(min=1, max=CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS)
+    )
     conventional_time_to_stale_warning = fields.Integer(validate=marshmallow_validate.Range(min=1, max=15552000))
     conventional_time_to_delete = fields.Integer(validate=marshmallow_validate.Range(min=1, max=63072000))
 

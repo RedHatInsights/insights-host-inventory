@@ -1,3 +1,4 @@
+from datetime import datetime
 from datetime import timedelta
 
 import pytest
@@ -356,3 +357,49 @@ def test_get_tags_with_dollar_signs_via_db(api_get, db_create_host, tag, flatten
 
     assert response_status == 200
     assert flattened_tag == response_data["results"][0]["tag"]
+
+
+def test_query_tags_filter_last_check_in_both_same(db_create_host, api_get):
+    match_namespace = "ns1"
+    match_key = "key1"
+    match_value = "value1"
+    match_host = db_create_host(
+        extra_data={
+            "tags": _deserialize_tags_dict({match_namespace: {match_key: [match_value]}}),
+        },
+    )
+    db_create_host(
+        extra_data={
+            "tags": _deserialize_tags_dict({"ns2": {"nomatch_key": ["nomatch_value"]}}),
+        },
+    )
+    last_check_in = str(match_host.last_check_in).replace("+00:00", "Z")
+    response_status, response_data = api_get(
+        build_tags_url(query=f"?last_check_in_start={last_check_in}&last_check_in_end={last_check_in}")
+    )
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["tag"]["namespace"] == match_namespace
+    assert response_data["results"][0]["tag"]["key"] == match_key
+    assert response_data["results"][0]["tag"]["value"] == match_value
+
+
+def test_query_tags_filter_last_check_in_invalid_format(api_get, subtests):
+    invalid_formats = ("foobar", "{}", "[]", generate_uuid(), [datetime.now(), datetime.now() - timedelta(days=7)])
+    for invalid_format in invalid_formats:
+        for param in ("last_check_in_start", "last_check_in_end"):
+            with subtests.test(invalid_format=invalid_format, param=param):
+                url = build_tags_url(query=f"?{param}={invalid_format}")
+                response_status, response_data = api_get(url)
+                assert response_status == 400
+                assert "is not a 'date-time'" in response_data["detail"]
+
+
+@pytest.mark.parametrize("param_prefix", ("updated", "last_check_in"))
+def test_query_tags_filter_updated_last_check_in_start_after_end(api_get, param_prefix):
+    url = build_tags_url(
+        query=f"?{param_prefix}_start={datetime.now()}&{param_prefix}_end={datetime.now() - timedelta(days=1)}"
+    )
+    response_status, response_data = api_get(url)
+    assert response_status == 400
+    assert f"{param_prefix}_start cannot be after {param_prefix}_end." in response_data["detail"]

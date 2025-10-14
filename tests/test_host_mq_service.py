@@ -20,6 +20,9 @@ from sqlalchemy.orm.exc import StaleDataError
 
 from app.auth.identity import Identity
 from app.auth.identity import create_mock_identity_with_org_id
+from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
+from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
+from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import threadctx
@@ -1352,24 +1355,96 @@ def test_add_host_stale_timestamp(mq_create_or_update_host):
     key, event, _ = mq_create_or_update_host(host, return_all_data=True)
     updated_timestamp = datetime.fromisoformat(event["host"]["last_check_in"])
 
-    host.stale_timestamp = (updated_timestamp + timedelta(seconds=104400)).isoformat()
+    host.stale_timestamp = (updated_timestamp + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_SECONDS)).isoformat()
     expected_results = {
         "host": {
             **host.data(),
-            "stale_warning_timestamp": (updated_timestamp + timedelta(seconds=604800)).isoformat(),
-            "culled_timestamp": (updated_timestamp + timedelta(seconds=1209600)).isoformat(),
+            "stale_warning_timestamp": (
+                updated_timestamp + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS)
+            ).isoformat(),
+            "culled_timestamp": (
+                updated_timestamp + timedelta(seconds=CONVENTIONAL_TIME_TO_DELETE_SECONDS)
+            ).isoformat(),
         }
     }
 
     assert_mq_host_data(key, event, expected_results, host_keys_to_check)
 
 
-@pytest.mark.parametrize("field_to_remove", ["stale_timestamp", "reporter"])
-def test_add_host_stale_timestamp_missing_culling_fields(mocker, field_to_remove, mq_create_or_update_host):
+@pytest.mark.usefixtures("event_datetime_mock")
+def test_add_host_without_stale_timestamp(mq_create_or_update_host):
+    """
+    Tests to see if the host is successfully created without stale_timestamp.
+    """
+    expected_insights_id = generate_uuid()
+
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"],
+        insights_id=expected_insights_id,
+    )
+
+    host_keys_to_check = ["reporter", "stale_timestamp", "culled_timestamp"]
+
+    key, event, _ = mq_create_or_update_host(host, return_all_data=True)
+    updated_timestamp = datetime.fromisoformat(event["host"]["last_check_in"])
+
+    expected_results = {
+        "host": {
+            **host.data(),
+            "stale_timestamp": (updated_timestamp + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_SECONDS)).isoformat(),
+            "stale_warning_timestamp": (
+                updated_timestamp + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS)
+            ).isoformat(),
+            "culled_timestamp": (
+                updated_timestamp + timedelta(seconds=CONVENTIONAL_TIME_TO_DELETE_SECONDS)
+            ).isoformat(),
+        }
+    }
+
+    assert_mq_host_data(key, event, expected_results, host_keys_to_check)
+
+
+@pytest.mark.usefixtures("event_datetime_mock")
+def test_add_host_with_stale_timestamp_ignore(mq_create_or_update_host):
+    """
+    Tests to see if the host is successfully created with stale_timestamp
+    but ignore it. It should use the default stale_timestamp.
+    """
+    expected_insights_id = generate_uuid()
+
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"],
+        insights_id=expected_insights_id,
+        stale_timestamp="2025-01-01T00:00:00Z",
+    )
+
+    host_keys_to_check = ["reporter", "stale_timestamp", "culled_timestamp"]
+
+    key, event, _ = mq_create_or_update_host(host, return_all_data=True)
+    updated_timestamp = datetime.fromisoformat(event["host"]["last_check_in"])
+
+    expected_results = {
+        "host": {
+            **host.data(),
+            "stale_timestamp": (updated_timestamp + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_SECONDS)).isoformat(),
+            "stale_warning_timestamp": (
+                updated_timestamp + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS)
+            ).isoformat(),
+            "culled_timestamp": (
+                updated_timestamp + timedelta(seconds=CONVENTIONAL_TIME_TO_DELETE_SECONDS)
+            ).isoformat(),
+        }
+    }
+
+    assert_mq_host_data(key, event, expected_results, host_keys_to_check)
+
+
+def test_add_host_missing_reporter_field(mocker, mq_create_or_update_host):
     """
     tests to check the API will reject a host if it doesn't have both
     culling fields. This should raise InventoryException.
     """
+    field_to_remove = "reporter"
     mock_notification_event_producer = mocker.Mock()
     host = minimal_host(account=SYSTEM_IDENTITY["account_number"])
     delattr(host, field_to_remove)
@@ -2664,3 +2739,26 @@ def test_add_host_with_invalid_provider_type(
 
     # Verify that notification event was sent for the validation failure
     mock_notification_event_producer.write_event.assert_called_once()
+
+
+@pytest.mark.parametrize("reporter", ["rhsm-conduit", "rhsm-system-profile-bridge"])
+def test_add_host_with_rhsm_payloads_rejected(mocker, mq_create_or_update_host, reporter):
+    mocker.patch("app.queue.host_mq.get_flag_value", return_value=True)
+    host = minimal_host(insights_id=generate_uuid(), reporter=reporter)
+    with pytest.raises(ValidationException) as excinfo:
+        mq_create_or_update_host(host)
+    assert "RHSM payloads are not currently allowed" in str(excinfo.value)
+
+
+@pytest.mark.parametrize("reporter", ["puptoo", "satellite", "cloud-connector", "yuptoo"])
+def test_add_non_rhsm_host_with_rhsm_payloads_rejected(mocker, mq_create_or_update_host, reporter):
+    mocker.patch("app.queue.host_mq.get_flag_value", return_value=True)
+    host = minimal_host(insights_id=generate_uuid(), reporter=reporter)
+    assert mq_create_or_update_host(host) is not None
+
+
+@pytest.mark.parametrize("reporter", ["rhsm-conduit", "rhsm-system-profile-bridge"])
+def test_add_host_with_rhsm_payloads_allowed_rhsm_payloads_not_rejected(mocker, mq_create_or_update_host, reporter):
+    mocker.patch("app.queue.host_mq.get_flag_value", return_value=False)
+    host = minimal_host(insights_id=generate_uuid(), reporter=reporter)
+    assert mq_create_or_update_host(host) is not None
