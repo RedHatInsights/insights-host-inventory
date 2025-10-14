@@ -351,11 +351,13 @@ def test_patch_group_with_a_nonexistent_host_id(
     group_id = group.id
     host_id_list = [str(host.id) for host in db_get_hosts_for_group(group_id)]
 
-    host_id_list.append(generate_uuid())
+    nonexistent_host_id = generate_uuid()
+    host_id_list.append(nonexistent_host_id)
 
     patch_doc = {"name": "modified_group", "host_ids": host_id_list}
-    response_status, _ = api_patch_group(group_id, patch_doc)
+    response_status, response_data = api_patch_group(group_id, patch_doc)
     assert_response_status(response_status, 400)
+    assert str(nonexistent_host_id) in response_data["detail"]
 
 
 def test_patch_group_both_add_and_remove_hosts(
