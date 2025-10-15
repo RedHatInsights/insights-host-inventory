@@ -1589,6 +1589,63 @@ objects:
           - name: ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE
             value: ${ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE}
         resources: *ungroupedHostResources
+    - name: update-rhsm-host-timestamps
+      restartPolicy: Never
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: [ "./jobs/update_rhsm_host_timestamps.py" ]
+        env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: KAFKA_BOOTSTRAP_SERVERS
+            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
+            value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory-mq-service
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'true'
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - <<: *namespaceFieldRef
+            name: NAMESPACE
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: SCRIPT_CHUNK_SIZE
+            value: ${SCRIPT_CHUNK_SIZE}
+          - name: DRY_RUN
+            value: ${UPDATE_RHSM_HOST_TIMESTAMPS_DRY_RUN}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_UPDATE_RHSM_HOST_TIMESTAMPS_JOB}
+            memory: ${MEMORY_LIMIT_UPDATE_RHSM_HOST_TIMESTAMPS_JOB}
+          requests:
+            cpu: ${CPU_REQUEST_UPDATE_RHSM_HOST_TIMESTAMPS_JOB}
+            memory: ${MEMORY_REQUEST_UPDATE_RHSM_HOST_TIMESTAMPS_JOB}
     database:
       name: ${DB_NAME}
       version: 16
@@ -2102,6 +2159,14 @@ parameters:
   value: 256Mi
 - name: MEMORY_LIMIT_DUPLICATE_HOSTS_REMOVER_JOB
   value: 512Mi
+- name: CPU_REQUEST_UPDATE_RHSM_HOST_TIMESTAMPS_JOB
+  value: 250m
+- name: CPU_LIMIT_UPDATE_RHSM_HOST_TIMESTAMPS_JOB
+  value: 500m
+- name: MEMORY_REQUEST_UPDATE_RHSM_HOST_TIMESTAMPS_JOB
+  value: 256Mi
+- name: MEMORY_LIMIT_UPDATE_RHSM_HOST_TIMESTAMPS_JOB
+  value: 512Mi
 
 # =================================================================================
 # III. External Services & Dependencies
@@ -2381,6 +2446,11 @@ parameters:
 - name: ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE
   description: The batch size to use for the assign-ungrouped-hosts script.
   value: '10'
+
+# -- Update RHSM host timestamps Job --
+- name: UPDATE_RHSM_HOST_TIMESTAMPS_DRY_RUN
+  description: Whether the update-rhsm-host-timestamps script should run in dry-run mode
+  value: 'true'
 
 # =================================================================================
 # VI. Floorist Configuration
