@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from sqlalchemy import Boolean
 from sqlalchemy import Column
 from sqlalchemy import Integer
 from sqlalchemy import String
 from sqlalchemy import and_
 from sqlalchemy import func
 from sqlalchemy import or_
+from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql.expression import ColumnElement
 from sqlalchemy.sql.expression import ColumnOperators
@@ -26,9 +29,9 @@ from app.models.system_profile_transformer import DYNAMIC_FIELDS
 logger = get_logger(__name__)
 
 
-def _is_uuid_column(column: Column) -> bool:
-    """Check if a column is a UUID type."""
-    return isinstance(column.type, UUID)
+def _needs_empty_string_cast(column: Column) -> bool:
+    """Check if a column needs special handling for empty string values."""
+    return isinstance(column.type, (UUID, Boolean, Integer, ARRAY, JSONB))
 
 
 # Utility class to facilitate OS filter comparison
@@ -310,9 +313,14 @@ def _validate_pg_op_and_value(pg_op: str | None, value: str, field_filter: str, 
     if field_filter != "array" and pg_op == "contains":
         raise ValidationException(f"'contains' is an invalid operation for non-array field {field_name}")
 
-    if (field_filter == "integer" and (not value.isdigit() and value not in ["nil", "not_nil"])) or (
+    # Allow empty strings for all field types to handle "no match" scenarios
+    if not value:
+        return
+
+    invalid_value = (field_filter == "integer" and not value.isdigit() and value not in ["nil", "not_nil"]) or (
         field_filter == "boolean" and value.lower() not in ["true", "false", "nil", "not_nil"]
-    ):
+    )
+    if invalid_value:
         raise ValidationException(f"'{value}' is an invalid value for field {field_name}")
 
 
@@ -338,23 +346,26 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
 
         # Use the default comparator for the field type, if not provided
         if not pg_op or not value:
-            pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter)
+            pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter) or ColumnOperators.__eq__
 
         # Handle wildcard fields (use ILIKE, replace * with %)
         if pg_op == ColumnOperators.ilike:
             value = value.replace("*", "%")
 
+        # Handle special values and casting
         if value in ["nil", "not_nil"]:
             pg_op = POSTGRES_COMPARATOR_LOOKUP[value]
             value = None
+        elif value == "":
+            # For empty strings, cast problematic columns to text to avoid PostgreSQL errors
+            if not eval_jsonb_path and _needs_empty_string_cast(column):
+                target_field = target_field.cast(String)
+            # Use equality comparison for empty strings
+            pg_op = ColumnOperators.__eq__
         elif pg_cast := FIELD_FILTER_TO_POSTGRES_CAST.get(field_filter):
-            # Cast column and value, if using an applicable type
+            # Cast column and value for normal (non-empty) values
             target_field = target_field.cast(pg_cast)
             value = FIELD_FILTER_TO_PYTHON_CAST[field_filter](value)
-        elif not eval_jsonb_path and _is_uuid_column(column) and value == "":
-            # Special handling for UUID columns with empty string values
-            # Convert to text comparison to avoid PostgreSQL UUID casting errors
-            target_field = target_field.cast(String)
 
         # "contains" is not a column operator, so we have to do it manually
         if pg_op == "contains":
