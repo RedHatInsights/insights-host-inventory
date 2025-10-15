@@ -83,6 +83,16 @@ objects:
     appName: host-inventory
     jobs:
       - assign-ungrouped-host-groups
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    labels:
+      app: host-inventory
+    name: update-rhsm-host-timestamps-${UPDATE_RHSM_HOST_TIMESTAMPS_RUN_NUMBER}
+  spec:
+    appName: host-inventory
+    jobs:
+      - update-rhsm-host-timestamps
 parameters:
 - name: SYNCHRONIZER_RUN_NUMBER
   value: '1'
@@ -99,4 +109,6 @@ parameters:
 - name: CREATE_UNGROUPED_GROUPS_RUN_NUMBER
   value: '1'
 - name: ASSIGN_UNGROUPED_HOSTS_RUN_NUMBER
+  value: '1'
+- name: UPDATE_RHSM_HOST_TIMESTAMPS_RUN_NUMBER
   value: '1'
