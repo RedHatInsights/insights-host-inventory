@@ -42,12 +42,12 @@ inventory-grpc-clients-python-kessel-project = "*"
 googleapis-common-protos = "*"
 # pinning versions of transitive dependencies to avoid hermetic build issues
 unleashclient = "==5.12.2"
-rpds-py = "==0.23.1"
+rpds-py = "==0.27.1"
 
 
 [dev-packages]
 pytest = "~=8.4.1"
-pytest-cov = "~=6.2.1"
+pytest-cov = "~=7.0.0"
 pytest-mock = "~=3.14.1"
 pytest-subtests = "~=0.14.2"
 coverage = "*"
