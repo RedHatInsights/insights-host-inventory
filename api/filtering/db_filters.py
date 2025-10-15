@@ -223,15 +223,25 @@ def _stale_timestamp_per_reporter_filter(gt=None, lte=None, reporter=None):
         for rep in reporter_list:
             # For each reporter, the host must either:
             # 1. Not have this reporter at all, OR
-            # 2. Have this reporter but it's culled (culled_timestamp < now)
+            # 2. Have this reporter but it's culled (culled_timestamp < now OR no culled_timestamp and stale)
             rep_condition = or_(
                 # Doesn't have this reporter
                 not_(Host.per_reporter_staleness.has_key(rep)),
-                # Has this reporter but it's culled (only if culled_timestamp exists)
+                # Has this reporter but it's culled
                 and_(
                     Host.per_reporter_staleness.has_key(rep),
-                    Host.per_reporter_staleness[rep].has_key("culled_timestamp"),
-                    Host.per_reporter_staleness[rep]["culled_timestamp"].astext.cast(DateTime) < current_time,
+                    or_(
+                        # Has culled_timestamp and it's in the past (culled)
+                        and_(
+                            Host.per_reporter_staleness[rep].has_key("culled_timestamp"),
+                            Host.per_reporter_staleness[rep]["culled_timestamp"].astext.cast(DateTime) < current_time,
+                        ),
+                        # No culled_timestamp but reporter is stale (legacy data)
+                        and_(
+                            not_(Host.per_reporter_staleness[rep].has_key("culled_timestamp")),
+                            Host.per_reporter_staleness[rep]["stale_timestamp"].astext.cast(DateTime) < current_time,
+                        ),
+                    ),
                 ),
             )
             and_conditions.append(rep_condition)
