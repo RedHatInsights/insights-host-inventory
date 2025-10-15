@@ -384,11 +384,11 @@ def remove_hosts_from_group(group_id, host_id_list, identity, event_producer):
     group_id_list = []
     with session_guard(db.session):
         removed_host_ids = _remove_hosts_from_group(group_id, host_id_list, identity.org_id)
-        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
-            # Add hosts to the "ungrouped" group
-            ungrouped_group_id = str(get_or_create_ungrouped_hosts_group_for_identity(identity).id)
-            _add_hosts_to_group(ungrouped_group_id, [str(host_id) for host_id in removed_host_ids], identity.org_id)
-            group_id_list = [ungrouped_group_id]
+        # if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
+        # Add hosts to the "ungrouped" group
+        ungrouped_group_id = str(get_or_create_ungrouped_hosts_group_for_identity(identity).id)
+        _add_hosts_to_group(ungrouped_group_id, [str(host_id) for host_id in removed_host_ids], identity.org_id)
+        group_id_list = [ungrouped_group_id]
 
     serialized_groups, host_id_list = _update_hosts_for_group_changes(removed_host_ids, group_id_list, identity)
     _process_host_changes(host_id_list, serialized_groups, staleness, identity, event_producer)
