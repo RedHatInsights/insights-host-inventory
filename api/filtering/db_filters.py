@@ -421,13 +421,45 @@ def rbac_permissions_filter(rbac_filter: dict) -> list:
     return _query_filter
 
 
+def _is_table_already_joined(query: Query, model) -> bool:
+    """
+    Check if a model's table is already part of the query's FROM clause.
+    Recursively checks all tables and joins in the query.
+
+    Args:
+        query: SQLAlchemy Query object
+        model: SQLAlchemy model class
+
+    Returns:
+        True if the model's table is already joined, False otherwise
+    """
+    table_name = model.__table__.name
+
+    def check_from_clause(from_clause):
+        if hasattr(from_clause, "name") and from_clause.name == table_name:
+            return True
+        if hasattr(from_clause, "left") and check_from_clause(from_clause.left):
+            return True
+        return hasattr(from_clause, "right") and check_from_clause(from_clause.right)
+
+    stmt = query.statement if hasattr(query, "statement") else query
+    if hasattr(stmt, "get_final_froms"):
+        froms = stmt.get_final_froms()
+    else:
+        return False
+
+    return any(check_from_clause(from_clause) for from_clause in froms)
+
+
 def update_query_for_owner_id(identity: Identity, query: Query) -> Query:
     # kafka based requests have dummy identity for working around the identity requirement for CRUD operations
     if identity:
         logger.debug("identity auth type: %s", identity.auth_type)
         if identity.identity_type == IdentityType.SYSTEM:
-            # Ensure HostStaticSystemProfile is joined before filtering
-            query = query.join(HostStaticSystemProfile, isouter=True)
+            # Check if HostStaticSystemProfile is already joined to avoid duplicate joins
+            if not _is_table_already_joined(query, HostStaticSystemProfile):
+                query = query.join(HostStaticSystemProfile, isouter=True)
+
             return query.filter(HostStaticSystemProfile.owner_id == identity.system["cn"])
     return query
 
