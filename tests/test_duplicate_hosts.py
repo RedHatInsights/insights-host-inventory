@@ -31,12 +31,6 @@ ID_FACTS = ("provider_id", "subscription_manager_id", "insights_id")
 logger = get_logger(__name__)
 
 
-@pytest.fixture()
-def mocked_config(inventory_config: Config) -> Config:
-    inventory_config.dry_run = False
-    return inventory_config
-
-
 @pytest.mark.host_delete_duplicates
 @pytest.mark.parametrize("dry_run", (True, False))
 def test_delete_duplicate_host(
@@ -93,7 +87,7 @@ def test_delete_duplicate_host(
 
 @pytest.mark.host_delete_duplicates
 def test_delete_duplicate_host_more_hosts_than_chunk_size(
-    mocked_config: Config,
+    no_dry_run_config: Config,
     flask_app: FlaskApp,
     event_producer_mock: MockEventProducer,
     notification_event_producer_mock: MockEventProducer,
@@ -114,7 +108,7 @@ def test_delete_duplicate_host_more_hosts_than_chunk_size(
         "subscription_manager_id": generate_uuid(),
     }
 
-    chunk_size = mocked_config.script_chunk_size
+    chunk_size = no_dry_run_config.script_chunk_size
     num_hosts = chunk_size * 3 + 15
 
     # create host before big chunk. Hosts are ordered by modified date so creation
@@ -137,11 +131,11 @@ def test_delete_duplicate_host_more_hosts_than_chunk_size(
     assert created_old_host_1.id != created_new_host_1.id
     assert created_old_host_2.id != created_new_host_2.id
 
-    Session = init_db(mocked_config)
+    Session = init_db(no_dry_run_config)
     session = Session()
 
     num_deleted = host_delete_duplicates_run(
-        mocked_config,
+        no_dry_run_config,
         logger,
         session,
         event_producer_mock,  # type: ignore[arg-type]
@@ -160,7 +154,7 @@ def test_delete_duplicate_host_more_hosts_than_chunk_size(
 
 @pytest.mark.host_delete_duplicates
 def test_no_hosts_delete_when_no_dupes(
-    mocked_config: Config,
+    no_dry_run_config: Config,
     flask_app: FlaskApp,
     event_producer_mock: MockEventProducer,
     notification_event_producer_mock: MockEventProducer,
@@ -171,11 +165,11 @@ def test_no_hosts_delete_when_no_dupes(
     created_hosts = db_create_multiple_hosts(how_many=num_hosts)
     created_host_ids = [host.id for host in created_hosts]
 
-    Session = init_db(mocked_config)
+    Session = init_db(no_dry_run_config)
     session = Session()
 
     num_deleted = host_delete_duplicates_run(
-        mocked_config,
+        no_dry_run_config,
         logger,
         session,
         event_producer_mock,  # type: ignore[arg-type]
@@ -192,7 +186,7 @@ def test_no_hosts_delete_when_no_dupes(
 @pytest.mark.host_delete_duplicates
 @pytest.mark.parametrize("tested_id", ID_FACTS)
 def test_delete_duplicates_id_facts_matching(
-    mocked_config: Config,
+    no_dry_run_config: Config,
     flask_app: FlaskApp,
     event_producer_mock: MockEventProducer,
     notification_event_producer_mock: MockEventProducer,
@@ -248,11 +242,11 @@ def test_delete_duplicates_id_facts_matching(
     for host in created_hosts:
         assert db_get_host(host.id)
 
-    Session = init_db(mocked_config)
+    Session = init_db(no_dry_run_config)
     session = Session()
 
     deleted_hosts_count = host_delete_duplicates_run(
-        mocked_config,
+        no_dry_run_config,
         logger,
         session,
         event_producer_mock,  # type: ignore[arg-type]
@@ -270,7 +264,7 @@ def test_delete_duplicates_id_facts_matching(
 @pytest.mark.host_delete_duplicates
 @pytest.mark.parametrize("tested_id", ID_FACTS)
 def test_delete_duplicates_id_facts_not_matching(
-    mocked_config: Config,
+    no_dry_run_config: Config,
     flask_app: FlaskApp,
     event_producer_mock: MockEventProducer,
     notification_event_producer_mock: MockEventProducer,
@@ -318,11 +312,11 @@ def test_delete_duplicates_id_facts_not_matching(
     for host in created_hosts:
         assert db_get_host(host.id)
 
-    Session = init_db(mocked_config)
+    Session = init_db(no_dry_run_config)
     session = Session()
 
     deleted_hosts_count = host_delete_duplicates_run(
-        mocked_config,
+        no_dry_run_config,
         logger,
         session,
         event_producer_mock,  # type: ignore[arg-type]
@@ -338,7 +332,7 @@ def test_delete_duplicates_id_facts_not_matching(
 
 @pytest.mark.host_delete_duplicates
 def test_delete_duplicates_last_checked_in(
-    mocked_config: Config,
+    no_dry_run_config: Config,
     flask_app: FlaskApp,
     event_producer_mock: MockEventProducer,
     notification_event_producer_mock: MockEventProducer,
@@ -367,11 +361,11 @@ def test_delete_duplicates_last_checked_in(
     for host_id in host_ids:
         assert db_get_host(host_id)
 
-    Session = init_db(mocked_config)
+    Session = init_db(no_dry_run_config)
     session = Session()
 
     deleted_hosts_count = host_delete_duplicates_run(
-        mocked_config,
+        no_dry_run_config,
         logger,
         session,
         event_producer_mock,  # type: ignore[arg-type]
@@ -390,7 +384,7 @@ def test_delete_duplicates_last_checked_in(
 
 @pytest.mark.host_delete_duplicates
 def test_delete_duplicates_multiple_org_ids(
-    mocked_config: Config,
+    no_dry_run_config: Config,
     flask_app: FlaskApp,
     event_producer_mock: MockEventProducer,
     notification_event_producer_mock: MockEventProducer,
@@ -409,11 +403,11 @@ def test_delete_duplicates_multiple_org_ids(
     host2 = minimal_db_host(canonical_facts=canonical_facts, org_id="222222")
     created_host2 = db_create_host(host=host2).id
 
-    Session = init_db(mocked_config)
+    Session = init_db(no_dry_run_config)
     session = Session()
 
     deleted_hosts_count = host_delete_duplicates_run(
-        mocked_config,
+        no_dry_run_config,
         logger,
         session,
         event_producer_mock,  # type: ignore[arg-type]

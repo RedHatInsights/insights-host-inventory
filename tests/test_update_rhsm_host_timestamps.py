@@ -17,48 +17,12 @@ from app.models import db
 from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 from jobs.common import init_db
 from jobs.update_rhsm_host_timestamps import run as run_update_rhsm_host_timestamps
+from tests.helpers.db_utils import create_rhsm_only_host
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import now
 
 logger = get_logger(__name__)
-
-
-@pytest.fixture()
-def mocked_config(inventory_config: Config) -> Config:
-    inventory_config.dry_run = False
-    return inventory_config
-
-
-def create_rhsm_only_host(
-    stale_timestamp: datetime | None = None,
-    stale_warning_timestamp: datetime | None = None,
-    deletion_timestamp: datetime | None = None,
-) -> Host:
-    """Create a host that is RHSM-only (only has rhsm-system-profile-bridge reporter)"""
-    # Use the far future timestamp as default if not specified
-    stale_ts = stale_timestamp if stale_timestamp is not None else FAR_FUTURE_STALE_TIMESTAMP
-    stale_warning_ts = stale_warning_timestamp if stale_warning_timestamp is not None else FAR_FUTURE_STALE_TIMESTAMP
-    deletion_ts = deletion_timestamp if deletion_timestamp is not None else FAR_FUTURE_STALE_TIMESTAMP
-
-    host = minimal_db_host(
-        canonical_facts={"subscription_manager_id": generate_uuid()},
-        reporter="rhsm-system-profile-bridge",
-        per_reporter_staleness={
-            "rhsm-system-profile-bridge": {
-                "last_check_in": now().isoformat(),
-                "stale_timestamp": stale_ts.isoformat(),
-                "stale_warning_timestamp": stale_warning_ts.isoformat(),
-                "culled_timestamp": deletion_ts.isoformat(),
-                "check_in_succeeded": True,
-            }
-        },
-    )
-    # Set timestamps directly as properties after object creation
-    host.stale_timestamp = stale_ts
-    host.stale_warning_timestamp = stale_warning_ts
-    host.deletion_timestamp = deletion_ts
-    return host
 
 
 def create_multi_reporter_host(
@@ -79,11 +43,15 @@ def create_multi_reporter_host(
             "puptoo": {
                 "last_check_in": now().isoformat(),
                 "stale_timestamp": stale_ts.isoformat(),
+                "stale_warning_timestamp": stale_warning_ts.isoformat(),
+                "culled_timestamp": deletion_ts.isoformat(),
                 "check_in_succeeded": True,
             },
             "rhsm-system-profile-bridge": {
                 "last_check_in": now().isoformat(),
                 "stale_timestamp": stale_ts.isoformat(),
+                "stale_warning_timestamp": stale_warning_ts.isoformat(),
+                "culled_timestamp": deletion_ts.isoformat(),
                 "check_in_succeeded": True,
             },
         },
@@ -100,7 +68,7 @@ def create_multi_reporter_host(
     ["stale_timestamp", "stale_warning_timestamp", "deletion_timestamp"],
 )
 def test_rhsm_job_updates_rhsm_only_host(
-    mocked_config: Config,
+    no_dry_run_config: Config,
     flask_app: FlaskApp,
     db_create_host: Callable[..., Host],
     db_get_host: Callable[[UUID], Host | None],
@@ -120,10 +88,10 @@ def test_rhsm_job_updates_rhsm_only_host(
     assert getattr(created_host, incorrect_timestamp_field) == incorrect_timestamp
 
     # Run the update job
-    Session = init_db(mocked_config)
+    Session = init_db(no_dry_run_config)
     session = Session()
 
-    run_update_rhsm_host_timestamps(mocked_config, logger, session, flask_app)
+    run_update_rhsm_host_timestamps(no_dry_run_config, logger, session, flask_app)
 
     # Expire all cached objects in the Flask app's session to ensure we get fresh data
     db.session.expire_all()
@@ -145,7 +113,7 @@ def test_rhsm_job_updates_rhsm_only_host(
 
 
 def test_rhsm_job_does_not_update_non_rhsm_only_host(
-    mocked_config: Config,
+    no_dry_run_config: Config,
     flask_app: FlaskApp,
     db_create_host: Callable[..., Host],
     db_get_host: Callable[[UUID], Host | None],
@@ -170,10 +138,10 @@ def test_rhsm_job_does_not_update_non_rhsm_only_host(
     assert created_host.deletion_timestamp == incorrect_deletion_timestamp
 
     # Run the update job
-    Session = init_db(mocked_config)
+    Session = init_db(no_dry_run_config)
     session = Session()
 
-    run_update_rhsm_host_timestamps(mocked_config, logger, session, flask_app)
+    run_update_rhsm_host_timestamps(no_dry_run_config, logger, session, flask_app)
 
     # Expire all cached objects in the Flask app's session to ensure we get fresh data
     db.session.expire_all()
