@@ -153,6 +153,15 @@ def test_rhsm_job_does_not_update_non_rhsm_only_host(
     assert retrieved_host.stale_warning_timestamp == incorrect_stale_warning_timestamp
     assert retrieved_host.deletion_timestamp == incorrect_deletion_timestamp
 
+    # Verify per_reporter_staleness was also NOT updated
+    assert len(retrieved_host.per_reporter_staleness) == 2
+    assert "puptoo" in retrieved_host.per_reporter_staleness
+    assert "rhsm-system-profile-bridge" in retrieved_host.per_reporter_staleness
+    for prs in retrieved_host.per_reporter_staleness.values():
+        assert prs["stale_timestamp"] == incorrect_stale_timestamp.isoformat()
+        assert prs["stale_warning_timestamp"] == incorrect_stale_warning_timestamp.isoformat()
+        assert prs["culled_timestamp"] == incorrect_deletion_timestamp.isoformat()
+
 
 def test_rhsm_job_does_not_update_hosts_in_dry_run_mode(
     inventory_config: Config,
@@ -197,3 +206,11 @@ def test_rhsm_job_does_not_update_hosts_in_dry_run_mode(
     assert retrieved_host.stale_timestamp == incorrect_stale_timestamp
     assert retrieved_host.stale_warning_timestamp == incorrect_stale_warning_timestamp
     assert retrieved_host.deletion_timestamp == incorrect_deletion_timestamp
+
+    # Verify per_reporter_staleness was also NOT updated
+    assert len(retrieved_host.per_reporter_staleness) == 1
+    assert "rhsm-system-profile-bridge" in retrieved_host.per_reporter_staleness
+    rhsm_staleness = retrieved_host.per_reporter_staleness["rhsm-system-profile-bridge"]
+    assert rhsm_staleness["stale_timestamp"] == incorrect_stale_timestamp.isoformat()
+    assert rhsm_staleness["stale_warning_timestamp"] == incorrect_stale_warning_timestamp.isoformat()
+    assert rhsm_staleness["culled_timestamp"] == incorrect_deletion_timestamp.isoformat()

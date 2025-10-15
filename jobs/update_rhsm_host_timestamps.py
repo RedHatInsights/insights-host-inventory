@@ -7,8 +7,10 @@ from functools import partial
 from logging import Logger
 
 from connexion import FlaskApp
+from sqlalchemy import cast
 from sqlalchemy import func
 from sqlalchemy import or_
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Session
 
 from app.config import Config
@@ -35,13 +37,12 @@ def run(config: Config, logger: Logger, session: Session, application: FlaskApp)
     with application.app.app_context():
         threadctx.request_id = None
 
-        # Count total hosts to update
         query = session.query(Host).filter(
-            # Filter for RHSM-only hosts
-            Host.per_reporter_staleness
-            == func.jsonb_build_object(
-                "rhsm-system-profile-bridge", Host.per_reporter_staleness["rhsm-system-profile-bridge"]
-            ),
+            # Filter for RHSM-only hosts: per_reporter_staleness has exactly one key,
+            # and that key is "rhsm-system-profile-bridge"
+            # Check that the key exists and that removing it results in an empty object
+            func.jsonb_exists(Host.per_reporter_staleness, "rhsm-system-profile-bridge"),
+            Host.per_reporter_staleness.op("-")("rhsm-system-profile-bridge") == cast({}, JSONB),
             # Filter for hosts where any of the timestamps is not FAR_FUTURE_STALE_TIMESTAMP
             or_(
                 Host.stale_timestamp != FAR_FUTURE_STALE_TIMESTAMP,
