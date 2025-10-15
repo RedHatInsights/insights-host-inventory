@@ -7,6 +7,144 @@ objects:
   kind: ClowdApp
   metadata:
     name: ${CLOWDAPP_NAME}
+  x-anchors:
+    # Base podSpec for gunicorn-based deployments (service-reads/writes)
+    gunicornPodSpec: &gunicornPodSpec
+      image: ${IMAGE}:${IMAGE_TAG}
+      args: [
+        "gunicorn",
+        "--workers=${GUNICORN_WORKERS}",
+        "--threads=${GUNICORN_THREADS}",
+        "--limit-request-field_size=${GUNICORN_REQUEST_FIELD_LIMIT}",
+        "--limit-request-line=${GUNICORN_REQUEST_LINE_LIMIT}",
+        "--worker-tmp-dir=/gunicorn",
+        "--log-file=-",
+        "--access-logfile=-",
+        "-c",
+        "gunicorn.conf.py",
+        "-b",
+        "0.0.0.0:8000",
+        "-t",
+        "60",
+        "--worker-class=uvicorn.workers.UvicornWorker",
+        "run:app"
+      ]
+      resources:
+        limits:
+          cpu: ${CPU_LIMIT_SERVICE}
+          memory: ${MEMORY_LIMIT_SERVICE}
+        requests:
+          cpu: ${CPU_REQUEST_SERVICE}
+          memory: ${MEMORY_REQUEST_SERVICE}
+    # Base podSpec for message queue consumer deployments
+    mqPodSpec: &mqPodSpec
+      image: ${IMAGE}:${IMAGE_TAG}
+      args: ["./inv_mq_service.py"]
+      livenessProbe: &mqLivenessProbe
+        failureThreshold: 3
+        httpGet:
+          path: /
+          port: 9000
+          scheme: HTTP
+        initialDelaySeconds: 10
+        periodSeconds: 10
+        successThreshold: 1
+        timeoutSeconds: 5
+      readinessProbe: &mqReadinessProbe
+        tcpSocket:
+          port: 9000
+    # Probes for read services
+    readProbes: &readProbes
+      livenessProbe:
+        failureThreshold: 3
+        httpGet:
+          path: /health
+          port: 8000
+          scheme: HTTP
+        periodSeconds: ${{INVENTORY_API_READS_LIVENESS_PROBE_PERIOD_SECONDS}}
+        successThreshold: 1
+        timeoutSeconds: ${{INVENTORY_API_READS_LIVENESS_PROBE_TIMEOUT_SECONDS}}
+      readinessProbe:
+        failureThreshold: 3
+        httpGet:
+          path: /health
+          port: 8000
+          scheme: HTTP
+        periodSeconds: ${{INVENTORY_API_READS_READINESS_PROBE_PERIOD_SECONDS}}
+        successThreshold: 1
+        timeoutSeconds: ${{INVENTORY_API_READS_READINESS_PROBE_TIMEOUT_SECONDS}}
+    # Volume mounts and volumes for read-replica services
+    readReplicaVolumeMounts: &readReplicaVolumeMounts
+      - mountPath: /tmp/inventory/prometheus
+        name: prometheus-volume
+      - mountPath: /gunicorn
+        name: gunicorn-worker-dir
+      - mountPath: /etc/db/readreplica
+        name: host-inventory-read-only-db
+        readOnly: true
+    # Common volumes for read-replica services
+    readReplicaVolumes: &readReplicaVolumes
+      - emptyDir: {}
+        name: prometheus-volume
+      - emptyDir:
+          medium: Memory
+        name: gunicorn-worker-dir
+      - name: host-inventory-read-only-db
+        secret:
+          optional: true
+          items:
+          - key: db.host
+            path: db_host
+          - key: db.name
+            path: db_name
+          - key: db.password
+            path: db_password
+          - key: db.port
+            path: db_port
+          - key: db.user
+            path: db_user
+    # Common volumes for write services
+    writeServiceVolumes: &writeServiceVolumes
+      - emptyDir: {}
+        name: prometheus-volume
+      - emptyDir:
+            medium: Memory
+        name: gunicorn-worker-dir
+    # Common volume mounts for write services
+    writeServiceVolumeMounts: &writeServiceVolumeMounts
+      - mountPath: /tmp/inventory/prometheus
+        name: prometheus-volume
+      - mountPath: /gunicorn
+        name: gunicorn-worker-dir
+    # Common token definition
+    unleashToken: &unleashToken
+      valueFrom:
+        secretKeyRef:
+          name: ${UNLEASH_SECRET_NAME}
+          key: CLIENT_ACCESS_TOKEN
+          optional: true
+    # Common RBAC PSK secret reference
+    rbacPsks: &rbacPsks
+      valueFrom:
+        secretKeyRef:
+          key: psks.json
+          name: rbac-psks
+          optional: false
+    # Common namespace field reference
+    namespaceFieldRef: &namespaceFieldRef
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.namespace
+    # Common Segmentio write key
+    segmentioWriteKey: &segmentioWriteKey
+      valueFrom:
+        secretKeyRef:
+          name: segmentio
+          key: WRITE_KEY
+          optional: true
+    # Base image and args for jobs
+    jobPodSpecBase: &jobPodSpecBase
+      image: ${IMAGE}:${IMAGE_TAG}
   spec:
     envName: ${ENV_NAME}
     featureFlags: true
@@ -79,431 +217,278 @@ objects:
         public:
           enabled: true
       podSpec:
-        image: ${IMAGE}:${IMAGE_TAG}
-        args: [
-          "gunicorn",
-          "--workers=${GUNICORN_WORKERS}",
-          "--threads=${GUNICORN_THREADS}",
-          "--limit-request-field_size=${GUNICORN_REQUEST_FIELD_LIMIT}",
-          "--limit-request-line=${GUNICORN_REQUEST_LINE_LIMIT}",
-          "--worker-tmp-dir=/gunicorn",
-          "--log-file=-",
-          "--access-logfile=-",
-          "-c",
-          "gunicorn.conf.py",
-          "-b",
-          "0.0.0.0:8000",
-          "-t",
-          "60",
-          "--worker-class=uvicorn.workers.UvicornWorker",
-          "run:app"
-        ]
+        <<: [ *gunicornPodSpec, *readProbes ]
         env:
-        - name: APP_NAME
-          value: ${APP_NAME}
-        - name: PATH_PREFIX
-          value: ${PATH_PREFIX}
-        - name: CONSOLEDOT_HOSTNAME
-          value: ${CONSOLEDOT_HOSTNAME}
-        - name: INVENTORY_LEGACY_API_URL
-          value: /r/insights/platform/inventory/v1
-        - name: PROMETHEUS_MULTIPROC_DIR
-          value: /tmp/inventory/prometheus
-        - name: INVENTORY_LOG_LEVEL
-          value: ${LOG_LEVEL}
-        - name: URLLIB3_LOG_LEVEL
-          value: ${URLLIB3_LOG_LEVEL}
-        - name: CONNEXION_LOG_LEVEL
-          value: ${CONNEXION_LOG_LEVEL}
-        - name: INVENTORY_DB_SSL_MODE
-          value: ${INVENTORY_DB_SSL_MODE}
-        - name: PAYLOAD_TRACKER_SERVICE_NAME
-          value: inventory
-        - name: PAYLOAD_TRACKER_ENABLED
-          value: 'true'
-        - name: BYPASS_RBAC
-          value: ${BYPASS_RBAC}
-        - name: KESSEL_TARGET_URL
-          value: ${KESSEL_TARGET_URL}
-        - name: KAFKA_PRODUCER_ACKS
-          value: ${KAFKA_PRODUCER_ACKS}
-        - name: KAFKA_PRODUCER_RETRIES
-          value: ${KAFKA_PRODUCER_RETRIES}
-        - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
-          value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
-        - name: KAFKA_SECURITY_PROTOCOL
-          value: ${KAFKA_SECURITY_PROTOCOL}
-        - name: KAFKA_SASL_MECHANISM
-          value: ${KAFKA_SASL_MECHANISM}
-        - name: KAFKA_EVENT_TOPIC
-          value: ${KAFKA_EVENT_TOPIC}
-        - name: KAFKA_NOTIFICATION_TOPIC
-          value: ${KAFKA_NOTIFICATION_TOPIC}
-        - name: CLOWDER_ENABLED
-          value: "true"
-        - name: INVENTORY_DB_STATEMENT_TIMEOUT
-          value: "${INVENTORY_DB_STATEMENT_TIMEOUT}"
-        - name: INVENTORY_DB_LOCK_TIMEOUT
-          value: "${INVENTORY_DB_LOCK_TIMEOUT}"
-        - name: INVENTORY_DB_SCHEMA
-          value: "${INVENTORY_DB_SCHEMA}"
-        - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
-          value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
-        - name: INVENTORY_API_CACHE_TYPE
-          value: "${INVENTORY_API_CACHE_TYPE}"
-        - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
-          value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
-        - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
-          value: "${INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS}"
-        - name: INVENTORY_API_USE_READREPLICA
-          value: "${INVENTORY_API_USE_READREPLICA}"
-        - name: UNLEASH_URL
-          value: ${UNLEASH_URL}
-        - name: UNLEASH_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: ${UNLEASH_SECRET_NAME}
-              key: CLIENT_ACCESS_TOKEN
-              optional: true
-        - name: BYPASS_UNLEASH
-          value: ${BYPASS_UNLEASH}
-        - name: UNLEASH_REFRESH_INTERVAL
-          value: ${UNLEASH_REFRESH_INTERVAL}
-        - name: SEGMENTIO_WRITE_KEY
-          valueFrom:
-            secretKeyRef:
-              name: segmentio
-              key: WRITE_KEY
-              optional: true
-        - name: REPLICA_NAMESPACE
-          value: ${REPLICA_NAMESPACE}
-        resources:
-          limits:
-            cpu: ${CPU_LIMIT_SERVICE}
-            memory: ${MEMORY_LIMIT_SERVICE}
-          requests:
-            cpu: ${CPU_REQUEST_SERVICE}
-            memory: ${MEMORY_REQUEST_SERVICE}
-        livenessProbe:
-          failureThreshold: 3
-          httpGet:
-            path: /health
-            port: 8000
-            scheme: HTTP
-          periodSeconds: ${{INVENTORY_API_READS_LIVENESS_PROBE_PERIOD_SECONDS}}
-          successThreshold: 1
-          timeoutSeconds: ${{INVENTORY_API_READS_LIVENESS_PROBE_TIMEOUT_SECONDS}}
-        readinessProbe:
-          failureThreshold: 3
-          httpGet:
-            path: /health
-            port: 8000
-            scheme: HTTP
-          periodSeconds: ${{INVENTORY_API_READS_READINESS_PROBE_PERIOD_SECONDS}}
-          successThreshold: 1
-          timeoutSeconds: ${{INVENTORY_API_READS_READINESS_PROBE_TIMEOUT_SECONDS}}
-        volumeMounts:
-        - mountPath: /tmp/inventory/prometheus
-          name: prometheus-volume
-        - mountPath: /gunicorn
-          name: gunicorn-worker-dir
-        - mountPath: /etc/db/readreplica
-          name: host-inventory-read-only-db
-          readOnly: true
+          - name: APP_NAME
+            value: ${APP_NAME}
+          - name: PATH_PREFIX
+            value: ${PATH_PREFIX}
+          - name: CONSOLEDOT_HOSTNAME
+            value: ${CONSOLEDOT_HOSTNAME}
+          - name: INVENTORY_LEGACY_API_URL
+            value: /r/insights/platform/inventory/v1
+          - name: PROMETHEUS_MULTIPROC_DIR
+            value: /tmp/inventory/prometheus
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: URLLIB3_LOG_LEVEL
+            value: ${URLLIB3_LOG_LEVEL}
+          - name: CONNEXION_LOG_LEVEL
+            value: ${CONNEXION_LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'true'
+          - name: BYPASS_RBAC
+            value: ${BYPASS_RBAC}
+          - name: KESSEL_TARGET_URL
+            value: ${KESSEL_TARGET_URL}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: INVENTORY_DB_STATEMENT_TIMEOUT
+            value: "${INVENTORY_DB_STATEMENT_TIMEOUT}"
+          - name: INVENTORY_DB_LOCK_TIMEOUT
+            value: "${INVENTORY_DB_LOCK_TIMEOUT}"
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
+            value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
+          - name: INVENTORY_API_CACHE_TYPE
+            value: "${INVENTORY_API_CACHE_TYPE}"
+          - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
+            value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
+          - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
+            value: "${INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS}"
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - <<: *unleashToken
+            name: UNLEASH_TOKEN
+          - name: BYPASS_UNLEASH
+            value: ${BYPASS_UNLEASH}
+          - name: UNLEASH_REFRESH_INTERVAL
+            value: ${UNLEASH_REFRESH_INTERVAL}
+          - <<: *segmentioWriteKey
+            name: SEGMENTIO_WRITE_KEY
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+          - name: INVENTORY_API_USE_READREPLICA
+            value: "${INVENTORY_API_USE_READREPLICA}"
+        volumeMounts: *readReplicaVolumeMounts
         volumes:
-        - emptyDir: {}
-          name: prometheus-volume
-        - emptyDir:
-            medium: Memory
-          name: gunicorn-worker-dir
-        - name: host-inventory-read-only-db
-          secret:
-            items:
-            - key: db.host
-              path: db_host
-            - key: db.name
-              path: db_name
-            - key: db.password
-              path: db_password
-            - key: db.port
-              path: db_port
-            - key: db.user
-              path: db_user
-            secretName: ${INVENTORY_API_READREPLICA_SECRET}
-            optional: true
+          - emptyDir: {}
+            name: prometheus-volume
+          - emptyDir:
+              medium: Memory
+            name: gunicorn-worker-dir
+          - name: host-inventory-read-only-db
+            secret:
+              secretName: ${INVENTORY_API_READREPLICA_SECRET}
+              optional: true
+              items:
+              - key: db.host
+                path: db_host
+              - key: db.name
+                path: db_name
+              - key: db.password
+                path: db_password
+              - key: db.port
+                path: db_port
+              - key: db.user
+                path: db_user
     - name: service-secondary-reads
       replicas: ${{REPLICAS_SVC_SECONDARY_READS}}
       webServices:
         public:
           enabled: true
       podSpec:
-        image: ${IMAGE}:${IMAGE_TAG}
-        args: [
-          "gunicorn",
-          "--workers=${GUNICORN_WORKERS}",
-          "--threads=${GUNICORN_THREADS}",
-          "--limit-request-field_size=${GUNICORN_REQUEST_FIELD_LIMIT}",
-          "--limit-request-line=${GUNICORN_REQUEST_LINE_LIMIT}",
-          "--worker-tmp-dir=/gunicorn",
-          "--log-file=-",
-          "--access-logfile=-",
-          "-c",
-          "gunicorn.conf.py",
-          "-b",
-          "0.0.0.0:8000",
-          "-t",
-          "60",
-          "--worker-class=uvicorn.workers.UvicornWorker",
-          "run:app"
-        ]
+        <<: [ *gunicornPodSpec, *readProbes ]
         env:
-        - name: APP_NAME
-          value: ${APP_NAME}
-        - name: PATH_PREFIX
-          value: ${PATH_PREFIX}
-        - name: CONSOLEDOT_HOSTNAME
-          value: ${CONSOLEDOT_HOSTNAME}
-        - name: INVENTORY_LEGACY_API_URL
-          value: /r/insights/platform/inventory/v1
-        - name: PROMETHEUS_MULTIPROC_DIR
-          value: /tmp/inventory/prometheus
-        - name: INVENTORY_LOG_LEVEL
-          value: ${LOG_LEVEL}
-        - name: URLLIB3_LOG_LEVEL
-          value: ${URLLIB3_LOG_LEVEL}
-        - name: CONNEXION_LOG_LEVEL
-          value: ${CONNEXION_LOG_LEVEL}
-        - name: INVENTORY_DB_SSL_MODE
-          value: ${INVENTORY_DB_SSL_MODE}
-        - name: PAYLOAD_TRACKER_SERVICE_NAME
-          value: inventory
-        - name: PAYLOAD_TRACKER_ENABLED
-          value: 'true'
-        - name: BYPASS_RBAC
-          value: ${BYPASS_RBAC}
-        - name: KESSEL_TARGET_URL
-          value: ${KESSEL_TARGET_URL}
-        - name: KAFKA_PRODUCER_ACKS
-          value: ${KAFKA_PRODUCER_ACKS}
-        - name: KAFKA_PRODUCER_RETRIES
-          value: ${KAFKA_PRODUCER_RETRIES}
-        - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
-          value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
-        - name: KAFKA_SECURITY_PROTOCOL
-          value: ${KAFKA_SECURITY_PROTOCOL}
-        - name: KAFKA_SASL_MECHANISM
-          value: ${KAFKA_SASL_MECHANISM}
-        - name: KAFKA_EVENT_TOPIC
-          value: ${KAFKA_EVENT_TOPIC}
-        - name: KAFKA_NOTIFICATION_TOPIC
-          value: ${KAFKA_NOTIFICATION_TOPIC}
-        - name: CLOWDER_ENABLED
-          value: "true"
-        - name: INVENTORY_DB_STATEMENT_TIMEOUT
-          value: "${INVENTORY_DB_STATEMENT_TIMEOUT}"
-        - name: INVENTORY_DB_LOCK_TIMEOUT
-          value: "${INVENTORY_DB_LOCK_TIMEOUT}"
-        - name: INVENTORY_DB_SCHEMA
-          value: "${INVENTORY_DB_SCHEMA}"
-        - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
-          value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
-        - name: INVENTORY_API_CACHE_TYPE
-          value: "${INVENTORY_API_CACHE_TYPE}"
-        - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
-          value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
-        - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
-          value: "${INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS}"
-        - name: INVENTORY_API_USE_READREPLICA
-          value: "${INVENTORY_API_USE_READREPLICA}"
-        - name: UNLEASH_URL
-          value: ${UNLEASH_URL}
-        - name: UNLEASH_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: ${UNLEASH_SECRET_NAME}
-              key: CLIENT_ACCESS_TOKEN
-              optional: true
-        - name: BYPASS_UNLEASH
-          value: ${BYPASS_UNLEASH}
-        - name: UNLEASH_REFRESH_INTERVAL
-          value: ${UNLEASH_REFRESH_INTERVAL}
-        - name: SEGMENTIO_WRITE_KEY
-          valueFrom:
-            secretKeyRef:
-              name: segmentio
-              key: WRITE_KEY
-              optional: true
-        - name: REPLICA_NAMESPACE
-          value: ${REPLICA_NAMESPACE}
-        resources:
-          limits:
-            cpu: ${CPU_LIMIT_SERVICE}
-            memory: ${MEMORY_LIMIT_SERVICE}
-          requests:
-            cpu: ${CPU_REQUEST_SERVICE}
-            memory: ${MEMORY_REQUEST_SERVICE}
-        livenessProbe:
-          failureThreshold: 3
-          httpGet:
-            path: /health
-            port: 8000
-            scheme: HTTP
-          periodSeconds: ${{INVENTORY_API_READS_LIVENESS_PROBE_PERIOD_SECONDS}}
-          successThreshold: 1
-          timeoutSeconds: ${{INVENTORY_API_READS_LIVENESS_PROBE_TIMEOUT_SECONDS}}
-        readinessProbe:
-          failureThreshold: 3
-          httpGet:
-            path: /health
-            port: 8000
-            scheme: HTTP
-          periodSeconds: ${{INVENTORY_API_READS_READINESS_PROBE_PERIOD_SECONDS}}
-          successThreshold: 1
-          timeoutSeconds: ${{INVENTORY_API_READS_READINESS_PROBE_TIMEOUT_SECONDS}}
-        volumeMounts:
-        - mountPath: /tmp/inventory/prometheus
-          name: prometheus-volume
-        - mountPath: /gunicorn
-          name: gunicorn-worker-dir
-        - mountPath: /etc/db/readreplica
-          name: host-inventory-read-only-db
-          readOnly: true
+          - name: APP_NAME
+            value: ${APP_NAME}
+          - name: PATH_PREFIX
+            value: ${PATH_PREFIX}
+          - name: CONSOLEDOT_HOSTNAME
+            value: ${CONSOLEDOT_HOSTNAME}
+          - name: INVENTORY_LEGACY_API_URL
+            value: /r/insights/platform/inventory/v1
+          - name: PROMETHEUS_MULTIPROC_DIR
+            value: /tmp/inventory/prometheus
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: URLLIB3_LOG_LEVEL
+            value: ${URLLIB3_LOG_LEVEL}
+          - name: CONNEXION_LOG_LEVEL
+            value: ${CONNEXION_LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'true'
+          - name: BYPASS_RBAC
+            value: ${BYPASS_RBAC}
+          - name: KESSEL_TARGET_URL
+            value: ${KESSEL_TARGET_URL}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: INVENTORY_DB_STATEMENT_TIMEOUT
+            value: "${INVENTORY_DB_STATEMENT_TIMEOUT}"
+          - name: INVENTORY_DB_LOCK_TIMEOUT
+            value: "${INVENTORY_DB_LOCK_TIMEOUT}"
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
+            value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
+          - name: INVENTORY_API_CACHE_TYPE
+            value: "${INVENTORY_API_CACHE_TYPE}"
+          - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
+            value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
+          - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
+            value: "${INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS}"
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - <<: *unleashToken
+            name: UNLEASH_TOKEN
+          - name: BYPASS_UNLEASH
+            value: ${BYPASS_UNLEASH}
+          - name: UNLEASH_REFRESH_INTERVAL
+            value: ${UNLEASH_REFRESH_INTERVAL}
+          - <<: *segmentioWriteKey
+            name: SEGMENTIO_WRITE_KEY
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+          - name: INVENTORY_API_USE_READREPLICA
+            value: "${INVENTORY_API_USE_READREPLICA}"
+        volumeMounts: *readReplicaVolumeMounts
         volumes:
-        - emptyDir: {}
-          name: prometheus-volume
-        - emptyDir:
-            medium: Memory
-          name: gunicorn-worker-dir
-        - name: host-inventory-read-only-db
-          secret:
-            items:
-            - key: db.host
-              path: db_host
-            - key: db.name
-              path: db_name
-            - key: db.password
-              path: db_password
-            - key: db.port
-              path: db_port
-            - key: db.user
-              path: db_user
-            secretName: ${INVENTORY_API_SECONDARY_READREPLICA_SECRET}
-            optional: true
+          - emptyDir: {}
+            name: prometheus-volume
+          - emptyDir:
+              medium: Memory
+            name: gunicorn-worker-dir
+          - name: host-inventory-read-only-db
+            secret:
+              secretName: ${INVENTORY_API_SECONDARY_READREPLICA_SECRET}
+              optional: true
+              items:
+              - key: db.host
+                path: db_host
+              - key: db.name
+                path: db_name
+              - key: db.password
+                path: db_password
+              - key: db.port
+                path: db_port
+              - key: db.user
+                path: db_user
     - name: service-writes
       replicas: ${{REPLICAS_SVC_WRITES}}
       webServices:
         public:
           enabled: true
       podSpec:
-        image: ${IMAGE}:${IMAGE_TAG}
-        args: [
-          "gunicorn",
-          "--workers=${GUNICORN_WORKERS}",
-          "--threads=${GUNICORN_THREADS}",
-          "--limit-request-field_size=${GUNICORN_REQUEST_FIELD_LIMIT}",
-          "--limit-request-line=${GUNICORN_REQUEST_LINE_LIMIT}",
-          "--worker-tmp-dir=/gunicorn",
-          "--log-file=-",
-          "--access-logfile=-",
-          "-c",
-          "gunicorn.conf.py",
-          "-b",
-          "0.0.0.0:8000",
-          "-t",
-          "60",
-          "--worker-class=uvicorn.workers.UvicornWorker",
-          "run:app"
-        ]
+        <<: *gunicornPodSpec
         env:
-        - name: APP_NAME
-          value: ${APP_NAME}
-        - name: PATH_PREFIX
-          value: ${PATH_PREFIX}
-        - name: CONSOLEDOT_HOSTNAME
-          value: ${CONSOLEDOT_HOSTNAME}
-        - name: INVENTORY_LEGACY_API_URL
-          value: /r/insights/platform/inventory/v1
-        - name: PROMETHEUS_MULTIPROC_DIR
-          value: /tmp/inventory/prometheus
-        - name: INVENTORY_LOG_LEVEL
-          value: ${LOG_LEVEL}
-        - name: URLLIB3_LOG_LEVEL
-          value: ${URLLIB3_LOG_LEVEL}
-        - name: CONNEXION_LOG_LEVEL
-          value: ${CONNEXION_LOG_LEVEL}
-        - name: INVENTORY_DB_SSL_MODE
-          value: ${INVENTORY_DB_SSL_MODE}
-        - name: PAYLOAD_TRACKER_SERVICE_NAME
-          value: inventory
-        - name: PAYLOAD_TRACKER_ENABLED
-          value: 'true'
-        - name: KESSEL_TARGET_URL
-          value: ${KESSEL_TARGET_URL}
-        - name: BYPASS_RBAC
-          value: ${BYPASS_RBAC}
-        - name: KAFKA_PRODUCER_ACKS
-          value: ${KAFKA_PRODUCER_ACKS}
-        - name: KAFKA_PRODUCER_RETRIES
-          value: ${KAFKA_PRODUCER_RETRIES}
-        - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
-          value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
-        - name: KAFKA_SECURITY_PROTOCOL
-          value: ${KAFKA_SECURITY_PROTOCOL}
-        - name: KAFKA_SASL_MECHANISM
-          value: ${KAFKA_SASL_MECHANISM}
-        - name: KAFKA_EVENT_TOPIC
-          value: ${KAFKA_EVENT_TOPIC}
-        - name: KAFKA_NOTIFICATION_TOPIC
-          value: ${KAFKA_NOTIFICATION_TOPIC}
-        - name: CLOWDER_ENABLED
-          value: "true"
-        - name: INVENTORY_DB_STATEMENT_TIMEOUT
-          value: "${INVENTORY_DB_STATEMENT_TIMEOUT}"
-        - name: INVENTORY_DB_LOCK_TIMEOUT
-          value: "${INVENTORY_DB_LOCK_TIMEOUT}"
-        - name: INVENTORY_DB_SCHEMA
-          value: "${INVENTORY_DB_SCHEMA}"
-        - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
-          value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
-        - name: INVENTORY_API_CACHE_TYPE
-          value: "${INVENTORY_API_CACHE_TYPE}"
-        - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
-          value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
-        - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
-          value: "${INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS}"
-        - name: UNLEASH_URL
-          value: ${UNLEASH_URL}
-        - name: UNLEASH_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: ${UNLEASH_SECRET_NAME}
-              key: CLIENT_ACCESS_TOKEN
-              optional: true
-        - name: BYPASS_UNLEASH
-          value: ${BYPASS_UNLEASH}
-        - name: UNLEASH_REFRESH_INTERVAL
-          value: ${UNLEASH_REFRESH_INTERVAL}
-        - name: SEGMENTIO_WRITE_KEY
-          valueFrom:
-            secretKeyRef:
-              name: segmentio
-              key: WRITE_KEY
-              optional: true
-        - name: REPLICA_NAMESPACE
-          value: ${REPLICA_NAMESPACE}
-        - name: RBAC_PSKS
-          valueFrom:
-            secretKeyRef:
-              key: psks.json
-              name: rbac-psks
-              optional: false
-        resources:
-          limits:
-            cpu: ${CPU_LIMIT_SERVICE}
-            memory: ${MEMORY_LIMIT_SERVICE}
-          requests:
-            cpu: ${CPU_REQUEST_SERVICE}
-            memory: ${MEMORY_REQUEST_SERVICE}
+          - name: APP_NAME
+            value: ${APP_NAME}
+          - name: PATH_PREFIX
+            value: ${PATH_PREFIX}
+          - name: CONSOLEDOT_HOSTNAME
+            value: ${CONSOLEDOT_HOSTNAME}
+          - name: INVENTORY_LEGACY_API_URL
+            value: /r/insights/platform/inventory/v1
+          - name: PROMETHEUS_MULTIPROC_DIR
+            value: /tmp/inventory/prometheus
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: URLLIB3_LOG_LEVEL
+            value: ${URLLIB3_LOG_LEVEL}
+          - name: CONNEXION_LOG_LEVEL
+            value: ${CONNEXION_LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'true'
+          - name: BYPASS_RBAC
+            value: ${BYPASS_RBAC}
+          - name: KESSEL_TARGET_URL
+            value: ${KESSEL_TARGET_URL}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: INVENTORY_DB_STATEMENT_TIMEOUT
+            value: "${INVENTORY_DB_STATEMENT_TIMEOUT}"
+          - name: INVENTORY_DB_LOCK_TIMEOUT
+            value: "${INVENTORY_DB_LOCK_TIMEOUT}"
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
+            value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
+          - name: INVENTORY_API_CACHE_TYPE
+            value: "${INVENTORY_API_CACHE_TYPE}"
+          - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
+            value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
+          - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
+            value: "${INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS}"
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - <<: *unleashToken
+            name: UNLEASH_TOKEN
+          - name: BYPASS_UNLEASH
+            value: ${BYPASS_UNLEASH}
+          - name: UNLEASH_REFRESH_INTERVAL
+            value: ${UNLEASH_REFRESH_INTERVAL}
+          - <<: *segmentioWriteKey
+            name: SEGMENTIO_WRITE_KEY
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+          - <<: *rbacPsks
+            name: RBAC_PSKS
         livenessProbe:
           failureThreshold: 3
           httpGet:
@@ -522,114 +507,83 @@ objects:
           periodSeconds: ${{INVENTORY_API_WRITES_READINESS_PROBE_PERIOD_SECONDS}}
           successThreshold: 1
           timeoutSeconds: ${{INVENTORY_API_WRITES_READINESS_PROBE_TIMEOUT_SECONDS}}
-        volumeMounts:
-        - mountPath: /tmp/inventory/prometheus
-          name: prometheus-volume
-        - mountPath: /gunicorn
-          name: gunicorn-worker-dir
-        volumes:
-        - emptyDir: {}
-          name: prometheus-volume
-        - emptyDir:
-            medium: Memory
-          name: gunicorn-worker-dir
+        volumeMounts: *writeServiceVolumeMounts
+        volumes: *writeServiceVolumes
     - name: mq-pmin
       replicas: ${{REPLICAS_PMIN}}
       podSpec:
-        args: ["./inv_mq_service.py"]
+        <<: *mqPodSpec
         env:
-        - name: CONSOLEDOT_HOSTNAME
-          value: ${CONSOLEDOT_HOSTNAME}
-        - name: INVENTORY_LOG_LEVEL
-          value: ${LOG_LEVEL}
-        - name: CONNEXION_LOG_LEVEL
-          value: ${CONNEXION_LOG_LEVEL}
-        - name: INVENTORY_DB_SSL_MODE
-          value: ${INVENTORY_DB_SSL_MODE}
-        - name: INVENTORY_DB_SSL_CERT
-          value: ${INVENTORY_DB_SSL_CERT}
-        - name: KAFKA_CONSUMER_TOPIC
-          value: ${KAFKA_HOST_INGRESS_TOPIC}
-        - name: KAFKA_HOST_INGRESS_TOPIC
-          value: ${KAFKA_HOST_INGRESS_TOPIC}
-        - name: KAFKA_EVENT_TOPIC
-          value: ${KAFKA_EVENT_TOPIC}
-        - name: KAFKA_NOTIFICATION_TOPIC
-          value: ${KAFKA_NOTIFICATION_TOPIC}
-        - name: KAFKA_SYSTEM_PROFILE_TOPIC
-          value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
-        - name: KAFKA_HOST_INGRESS_GROUP
-          value: ${KAFKA_HOST_INGRESS_GROUP}
-        - name: PAYLOAD_TRACKER_SERVICE_NAME
-          value: inventory-mq-service
-        - name: PAYLOAD_TRACKER_ENABLED
-          value: 'true'
-        - name: KESSEL_TARGET_URL
-          value: ${KESSEL_TARGET_URL}
-        - name: KAFKA_PRODUCER_ACKS
-          value: ${KAFKA_PRODUCER_ACKS}
-        - name: KAFKA_PRODUCER_RETRIES
-          value: ${KAFKA_PRODUCER_RETRIES}
-        - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
-          value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
-        - name: KAFKA_SECURITY_PROTOCOL
-          value: ${KAFKA_SECURITY_PROTOCOL}
-        - name: KAFKA_SASL_MECHANISM
-          value: ${KAFKA_SASL_MECHANISM}
-        - name: CLOWDER_ENABLED
-          value: "true"
-        - name: INVENTORY_DB_SCHEMA
-          value: "${INVENTORY_DB_SCHEMA}"
-        - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
-          value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
-        - name: INVENTORY_API_CACHE_TYPE
-          value: "${INVENTORY_API_CACHE_TYPE}"
-        - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
-          value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
-        - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
-          value: "${INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS}"
-        - name: KAFKA_CONSUMER_SESSION_TIMEOUT_MS
-          value: "${KAFKA_CONSUMER_SESSION_TIMEOUT_MS}"
-        - name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
-          value: "${KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS}"
-        - name: UNLEASH_URL
-          value: ${UNLEASH_URL}
-        - name: UNLEASH_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: ${UNLEASH_SECRET_NAME}
-              key: CLIENT_ACCESS_TOKEN
-              optional: true
-        - name: BYPASS_UNLEASH
-          value: ${BYPASS_UNLEASH}
-        - name: UNLEASH_REFRESH_INTERVAL
-          value: ${UNLEASH_REFRESH_INTERVAL}
-        - name: MQ_DB_BATCH_MAX_MESSAGES
-          value: ${MQ_DB_BATCH_MAX_MESSAGES}
-        - name: MQ_DB_BATCH_MAX_SECONDS
-          value: ${MQ_DB_BATCH_MAX_SECONDS}
-        - name: RBAC_PSKS
-          valueFrom:
-            secretKeyRef:
-              key: psks.json
-              name: rbac-psks
-              optional: false
-        - name: REPLICA_NAMESPACE
-          value: ${REPLICA_NAMESPACE}
-        image: ${IMAGE}:${IMAGE_TAG}
-        livenessProbe:
-          failureThreshold: 3
-          httpGet:
-            path: /
-            port: 9000
-            scheme: HTTP
-          initialDelaySeconds: 10
-          periodSeconds: 10
-          successThreshold: 1
-          timeoutSeconds: 5
-        readinessProbe:
-          tcpSocket:
-            port: 9000
+          - name: CONSOLEDOT_HOSTNAME
+            value: ${CONSOLEDOT_HOSTNAME}
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: CONNEXION_LOG_LEVEL
+            value: ${CONNEXION_LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: KAFKA_HOST_INGRESS_GROUP
+            value: ${KAFKA_HOST_INGRESS_GROUP}
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: KAFKA_SYSTEM_PROFILE_TOPIC
+            value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
+            value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
+          - name: INVENTORY_API_CACHE_TYPE
+            value: "${INVENTORY_API_CACHE_TYPE}"
+          - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
+            value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
+          - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
+            value: "${INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS}"
+          - name: KAFKA_CONSUMER_SESSION_TIMEOUT_MS
+            value: "${KAFKA_CONSUMER_SESSION_TIMEOUT_MS}"
+          - name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
+            value: "${KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS}"
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - <<: *unleashToken
+            name: UNLEASH_TOKEN
+          - name: BYPASS_UNLEASH
+            value: ${BYPASS_UNLEASH}
+          - name: UNLEASH_REFRESH_INTERVAL
+            value: ${UNLEASH_REFRESH_INTERVAL}
+          - name: MQ_DB_BATCH_MAX_SECONDS
+            value: ${MQ_DB_BATCH_MAX_SECONDS}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory-mq-service
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'true'
+          - name: KESSEL_TARGET_URL
+            value: ${KESSEL_TARGET_URL}
+          - name: MQ_DB_BATCH_MAX_MESSAGES
+            value: ${MQ_DB_BATCH_MAX_MESSAGES}
+          - name: KAFKA_CONSUMER_TOPIC
+            value: ${KAFKA_HOST_INGRESS_TOPIC}
+          - name: KAFKA_HOST_INGRESS_TOPIC
+            value: ${KAFKA_HOST_INGRESS_TOPIC}
+          - <<: *rbacPsks
+            name: RBAC_PSKS
         resources:
           limits:
             cpu: ${CPU_LIMIT_MQ_PMIN}
@@ -640,107 +594,85 @@ objects:
     - name: mq-p1
       replicas: ${{REPLICAS_P1}}
       podSpec:
+        <<: *mqPodSpec
         initContainers:
         - args: ["FLASK_APP=./manage.py", "flask", "db", "upgrade"]
           inheritEnv: true
-        args: ["./inv_mq_service.py"]
         env:
-        - name: MIGRATION_MODE
-          value: ${MIGRATION_MODE}
-        - name: CONSOLEDOT_HOSTNAME
-          value: ${CONSOLEDOT_HOSTNAME}
-        - name: INVENTORY_LOG_LEVEL
-          value: ${LOG_LEVEL}
-        - name: CONNEXION_LOG_LEVEL
-          value: ${CONNEXION_LOG_LEVEL}
-        - name: INVENTORY_DB_SSL_MODE
-          value: ${INVENTORY_DB_SSL_MODE}
-        - name: INVENTORY_DB_SSL_CERT
-          value: ${INVENTORY_DB_SSL_CERT}
-        - name: KAFKA_CONSUMER_TOPIC
-          value: ${KAFKA_HOST_INGRESS_P1_TOPIC}
-        - name: KAFKA_HOST_INGRESS_TOPIC
-          value: ${KAFKA_HOST_INGRESS_P1_TOPIC}
-        - name: KAFKA_EVENT_TOPIC
-          value: ${KAFKA_EVENT_TOPIC}
-        - name: KAFKA_NOTIFICATION_TOPIC
-          value: ${KAFKA_NOTIFICATION_TOPIC}
-        - name: KAFKA_SYSTEM_PROFILE_TOPIC
-          value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
-        - name: KAFKA_HOST_INGRESS_GROUP
-          value: ${KAFKA_HOST_INGRESS_GROUP}
-        - name: PAYLOAD_TRACKER_SERVICE_NAME
-          value: inventory-mq-service
-        - name: PAYLOAD_TRACKER_ENABLED
-          value: 'true'
-        - name: KESSEL_TARGET_URL
-          value: ${KESSEL_TARGET_URL}
-        - name: KAFKA_PRODUCER_ACKS
-          value: ${KAFKA_PRODUCER_ACKS}
-        - name: KAFKA_PRODUCER_RETRIES
-          value: ${KAFKA_PRODUCER_RETRIES}
-        - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
-          value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
-        - name: KAFKA_SECURITY_PROTOCOL
-          value: ${KAFKA_SECURITY_PROTOCOL}
-        - name: KAFKA_SASL_MECHANISM
-          value: ${KAFKA_SASL_MECHANISM}
-        - name: CLOWDER_ENABLED
-          value: "true"
-        - name: INVENTORY_DB_SCHEMA
-          value: "${INVENTORY_DB_SCHEMA}"
-        - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
-          value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
-        - name: INVENTORY_API_CACHE_TYPE
-          value: "${INVENTORY_API_CACHE_TYPE}"
-        - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
-          value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
-        - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
-          value: "${INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS}"
-        - name: KAFKA_CONSUMER_SESSION_TIMEOUT_MS
-          value: "${KAFKA_CONSUMER_SESSION_TIMEOUT_MS}"
-        - name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
-          value: "${KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS}"
-        - name: UNLEASH_URL
-          value: ${UNLEASH_URL}
-        - name: UNLEASH_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: ${UNLEASH_SECRET_NAME}
-              key: CLIENT_ACCESS_TOKEN
-              optional: true
-        - name: BYPASS_UNLEASH
-          value: ${BYPASS_UNLEASH}
-        - name: UNLEASH_REFRESH_INTERVAL
-          value: ${UNLEASH_REFRESH_INTERVAL}
-        - name: MQ_DB_BATCH_MAX_MESSAGES
-          value: ${MQ_DB_BATCH_MAX_MESSAGES}
-        - name: MQ_DB_BATCH_MAX_SECONDS
-          value: ${MQ_DB_BATCH_MAX_SECONDS}
-        - name: RBAC_PSKS
-          valueFrom:
-            secretKeyRef:
-              key: psks.json
-              name: rbac-psks
-              optional: false
-        - name: HOSTS_TABLE_NUM_PARTITIONS
-          value: ${HOSTS_TABLE_NUM_PARTITIONS}
-        - name: REPLICA_NAMESPACE
-          value: ${REPLICA_NAMESPACE}
-        image: ${IMAGE}:${IMAGE_TAG}
-        livenessProbe:
-          failureThreshold: 3
-          httpGet:
-            path: /
-            port: 9000
-            scheme: HTTP
-          initialDelaySeconds: 10
-          periodSeconds: 10
-          successThreshold: 1
-          timeoutSeconds: 5
-        readinessProbe:
-          tcpSocket:
-            port: 9000
+          - name: CONSOLEDOT_HOSTNAME
+            value: ${CONSOLEDOT_HOSTNAME}
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: CONNEXION_LOG_LEVEL
+            value: ${CONNEXION_LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: KAFKA_HOST_INGRESS_GROUP
+            value: ${KAFKA_HOST_INGRESS_GROUP}
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: KAFKA_SYSTEM_PROFILE_TOPIC
+            value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
+            value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
+          - name: INVENTORY_API_CACHE_TYPE
+            value: "${INVENTORY_API_CACHE_TYPE}"
+          - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
+            value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
+          - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
+            value: "${INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS}"
+          - name: KAFKA_CONSUMER_SESSION_TIMEOUT_MS
+            value: "${KAFKA_CONSUMER_SESSION_TIMEOUT_MS}"
+          - name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
+            value: "${KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS}"
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - <<: *unleashToken
+            name: UNLEASH_TOKEN
+          - name: BYPASS_UNLEASH
+            value: ${BYPASS_UNLEASH}
+          - name: UNLEASH_REFRESH_INTERVAL
+            value: ${UNLEASH_REFRESH_INTERVAL}
+          - name: MQ_DB_BATCH_MAX_SECONDS
+            value: ${MQ_DB_BATCH_MAX_SECONDS}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+          - name: MIGRATION_MODE
+            value: ${MIGRATION_MODE}
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory-mq-service
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'true'
+          - name: KESSEL_TARGET_URL
+            value: ${KESSEL_TARGET_URL}
+          - name: MQ_DB_BATCH_MAX_MESSAGES
+            value: ${MQ_DB_BATCH_MAX_MESSAGES}
+          - name: KAFKA_CONSUMER_TOPIC
+            value: ${KAFKA_HOST_INGRESS_P1_TOPIC}
+          - name: KAFKA_HOST_INGRESS_TOPIC
+            value: ${KAFKA_HOST_INGRESS_P1_TOPIC}
+          - name: HOSTS_TABLE_NUM_PARTITIONS
+            value: ${HOSTS_TABLE_NUM_PARTITIONS}
+          - <<: *rbacPsks
+            name: RBAC_PSKS
         resources:
           limits:
             cpu: ${CPU_LIMIT_MQ_P1}
@@ -751,90 +683,76 @@ objects:
     - name: mq-sp
       replicas: ${{REPLICAS_SP}}
       podSpec:
-        args: ["./inv_mq_service.py"]
+        <<: *mqPodSpec
         env:
-        - name: CONSOLEDOT_HOSTNAME
-          value: ${CONSOLEDOT_HOSTNAME}
-        - name: INVENTORY_LOG_LEVEL
-          value: ${LOG_LEVEL}
-        - name: CONNEXION_LOG_LEVEL
-          value: ${CONNEXION_LOG_LEVEL}
-        - name: INVENTORY_DB_SSL_MODE
-          value: ${INVENTORY_DB_SSL_MODE}
-        - name: INVENTORY_DB_SSL_CERT
-          value: ${INVENTORY_DB_SSL_CERT}
-        - name: KAFKA_CONSUMER_TOPIC
-          value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
-        - name: KAFKA_HOST_INGRESS_TOPIC
-          value: ${KAFKA_HOST_INGRESS_TOPIC}
-        - name: KAFKA_EVENT_TOPIC
-          value: ${KAFKA_EVENT_TOPIC}
-        - name: KAFKA_NOTIFICATION_TOPIC
-          value: ${KAFKA_NOTIFICATION_TOPIC}
-        - name: KAFKA_SYSTEM_PROFILE_TOPIC
-          value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
-        - name: KAFKA_HOST_INGRESS_GROUP
-          value: ${KAFKA_HOST_INGRESS_GROUP}
-        - name: PAYLOAD_TRACKER_SERVICE_NAME
-          value: inventory-mq-service
-        - name: PAYLOAD_TRACKER_ENABLED
-          value: 'true'
-        - name: KESSEL_TARGET_URL
-          value: ${KESSEL_TARGET_URL}
-        - name: KAFKA_PRODUCER_ACKS
-          value: ${KAFKA_PRODUCER_ACKS}
-        - name: KAFKA_PRODUCER_RETRIES
-          value: ${KAFKA_PRODUCER_RETRIES}
-        - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
-          value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
-        - name: KAFKA_SECURITY_PROTOCOL
-          value: ${KAFKA_SECURITY_PROTOCOL}
-        - name: KAFKA_SASL_MECHANISM
-          value: ${KAFKA_SASL_MECHANISM}
-        - name: CLOWDER_ENABLED
-          value: "true"
-        - name: INVENTORY_DB_SCHEMA
-          value: "${INVENTORY_DB_SCHEMA}"
-        - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
-          value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
-        - name: INVENTORY_API_CACHE_TYPE
-          value: "${INVENTORY_API_CACHE_TYPE}"
-        - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
-          value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
-        - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
-          value: "${INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS}"
-        - name: UNLEASH_URL
-          value: ${UNLEASH_URL}
-        - name: UNLEASH_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: ${UNLEASH_SECRET_NAME}
-              key: CLIENT_ACCESS_TOKEN
-              optional: true
-        - name: BYPASS_UNLEASH
-          value: ${BYPASS_UNLEASH}
-        - name: UNLEASH_REFRESH_INTERVAL
-          value: ${UNLEASH_REFRESH_INTERVAL}
-        - name: MQ_DB_BATCH_MAX_MESSAGES
-          value: ${MQ_DB_BATCH_MAX_MESSAGES}
-        - name: MQ_DB_BATCH_MAX_SECONDS
-          value: ${MQ_DB_BATCH_MAX_SECONDS}
-        - name: REPLICA_NAMESPACE
-          value: ${REPLICA_NAMESPACE}
-        image: ${IMAGE}:${IMAGE_TAG}
-        livenessProbe:
-          failureThreshold: 3
-          httpGet:
-            path: /
-            port: 9000
-            scheme: HTTP
-          initialDelaySeconds: 10
-          periodSeconds: 10
-          successThreshold: 1
-          timeoutSeconds: 5
-        readinessProbe:
-          tcpSocket:
-            port: 9000
+          - name: CONSOLEDOT_HOSTNAME
+            value: ${CONSOLEDOT_HOSTNAME}
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: CONNEXION_LOG_LEVEL
+            value: ${CONNEXION_LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: KAFKA_HOST_INGRESS_GROUP
+            value: ${KAFKA_HOST_INGRESS_GROUP}
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: KAFKA_SYSTEM_PROFILE_TOPIC
+            value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
+            value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
+          - name: INVENTORY_API_CACHE_TYPE
+            value: "${INVENTORY_API_CACHE_TYPE}"
+          - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
+            value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
+          - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
+            value: "${INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS}"
+          - name: KAFKA_CONSUMER_SESSION_TIMEOUT_MS
+            value: "${KAFKA_CONSUMER_SESSION_TIMEOUT_MS}"
+          - name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
+            value: "${KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS}"
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - <<: *unleashToken
+            name: UNLEASH_TOKEN
+          - name: BYPASS_UNLEASH
+            value: ${BYPASS_UNLEASH}
+          - name: UNLEASH_REFRESH_INTERVAL
+            value: ${UNLEASH_REFRESH_INTERVAL}
+          - name: MQ_DB_BATCH_MAX_SECONDS
+            value: ${MQ_DB_BATCH_MAX_SECONDS}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory-mq-service
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'true'
+          - name: KESSEL_TARGET_URL
+            value: ${KESSEL_TARGET_URL}
+          - name: MQ_DB_BATCH_MAX_MESSAGES
+            value: ${MQ_DB_BATCH_MAX_MESSAGES}
+          - name: KAFKA_CONSUMER_TOPIC
+            value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
+          - name: KAFKA_HOST_INGRESS_TOPIC
+            value: ${KAFKA_HOST_INGRESS_TOPIC}
         resources:
           limits:
             cpu: ${CPU_LIMIT_MQ_SP}
@@ -845,101 +763,85 @@ objects:
     - name: mq-workspaces
       replicas: ${{REPLICAS_WORKSPACES}}
       podSpec:
-        args: ["./inv_mq_service.py"]
+        <<: *mqPodSpec
         env:
-        - name: CONSOLEDOT_HOSTNAME
-          value: ${CONSOLEDOT_HOSTNAME}
-        - name: INVENTORY_LOG_LEVEL
-          value: ${LOG_LEVEL}
-        - name: CONNEXION_LOG_LEVEL
-          value: ${CONNEXION_LOG_LEVEL}
-        - name: INVENTORY_DB_SSL_MODE
-          value: ${INVENTORY_DB_SSL_MODE}
-        - name: INVENTORY_DB_SSL_CERT
-          value: ${INVENTORY_DB_SSL_CERT}
-        - name: KAFKA_CONSUMER_TOPIC
-          value: ${KAFKA_KESSEL_WORKSPACES_TOPIC}
-        - name: KAFKA_WORKSPACES_TOPIC
-          value: ${KAFKA_KESSEL_WORKSPACES_TOPIC}
-        - name: KAFKA_EVENT_TOPIC
-          value: ${KAFKA_EVENT_TOPIC}
-        - name: KAFKA_NOTIFICATION_TOPIC
-          value: ${KAFKA_NOTIFICATION_TOPIC}
-        - name: KAFKA_SYSTEM_PROFILE_TOPIC
-          value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
-        - name: KAFKA_HOST_INGRESS_GROUP
-          value: ${KAFKA_HOST_INGRESS_GROUP}
-        - name: KAFKA_PRODUCER_ACKS
-          value: ${KAFKA_PRODUCER_ACKS}
-        - name: KAFKA_PRODUCER_RETRIES
-          value: ${KAFKA_PRODUCER_RETRIES}
-        - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
-          value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
-        - name: KAFKA_SECURITY_PROTOCOL
-          value: ${KAFKA_SECURITY_PROTOCOL}
-        - name: KAFKA_SASL_MECHANISM
-          value: ${KAFKA_SASL_MECHANISM}
-        - name: CLOWDER_ENABLED
-          value: "true"
-        - name: INVENTORY_DB_SCHEMA
-          value: "${INVENTORY_DB_SCHEMA}"
-        - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
-          value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
-        - name: INVENTORY_API_CACHE_TYPE
-          value: "${INVENTORY_API_CACHE_TYPE}"
-        - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
-          value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
-        - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
-          value: "${INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS}"
-        - name: KAFKA_CONSUMER_SESSION_TIMEOUT_MS
-          value: "${KAFKA_CONSUMER_SESSION_TIMEOUT_MS}"
-        - name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
-          value: "${KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS}"
-        - name: UNLEASH_URL
-          value: ${UNLEASH_URL}
-        - name: UNLEASH_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: ${UNLEASH_SECRET_NAME}
-              key: CLIENT_ACCESS_TOKEN
-              optional: true
-        - name: BYPASS_UNLEASH
-          value: ${BYPASS_UNLEASH}
-        - name: UNLEASH_REFRESH_INTERVAL
-          value: ${UNLEASH_REFRESH_INTERVAL}
-        - name: MQ_DB_BATCH_MAX_MESSAGES
-          value: ${MQ_WORKSPACES_DB_BATCH_MAX_MESSAGES}
-        - name: MQ_DB_BATCH_MAX_SECONDS
-          value: ${MQ_DB_BATCH_MAX_SECONDS}
-        - name: CONSUMER_MQ_BROKER
-          value: ${CONSUMER_MQ_BROKER}
-        - name: RBAC_PSKS
-          valueFrom:
-            secretKeyRef:
-              key: psks.json
-              name: rbac-psks
-              optional: false
-        - name: REPLICA_NAMESPACE
-          value: ${REPLICA_NAMESPACE}
-        image: ${IMAGE}:${IMAGE_TAG}
+          - name: CONSOLEDOT_HOSTNAME
+            value: ${CONSOLEDOT_HOSTNAME}
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: CONNEXION_LOG_LEVEL
+            value: ${CONNEXION_LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: KAFKA_HOST_INGRESS_GROUP
+            value: ${KAFKA_HOST_INGRESS_GROUP}
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: KAFKA_SYSTEM_PROFILE_TOPIC
+            value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
+            value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
+          - name: INVENTORY_API_CACHE_TYPE
+            value: "${INVENTORY_API_CACHE_TYPE}"
+          - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
+            value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
+          - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
+            value: "${INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS}"
+          - name: KAFKA_CONSUMER_SESSION_TIMEOUT_MS
+            value: "${KAFKA_CONSUMER_SESSION_TIMEOUT_MS}"
+          - name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
+            value: "${KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS}"
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - <<: *unleashToken
+            name: UNLEASH_TOKEN
+          - name: BYPASS_UNLEASH
+            value: ${BYPASS_UNLEASH}
+          - name: UNLEASH_REFRESH_INTERVAL
+            value: ${UNLEASH_REFRESH_INTERVAL}
+          - name: MQ_DB_BATCH_MAX_SECONDS
+            value: ${MQ_DB_BATCH_MAX_SECONDS}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+          - name: KAFKA_CONSUMER_TOPIC
+            value: ${KAFKA_KESSEL_WORKSPACES_TOPIC}
+          - name: KAFKA_WORKSPACES_TOPIC
+            value: ${KAFKA_KESSEL_WORKSPACES_TOPIC}
+          - name: MQ_DB_BATCH_MAX_MESSAGES
+            value: ${MQ_WORKSPACES_DB_BATCH_MAX_MESSAGES}
+          - name: CONSUMER_MQ_BROKER
+            value: ${CONSUMER_MQ_BROKER}
+          - <<: *rbacPsks
+            name: RBAC_PSKS
         livenessProbe:
-          failureThreshold: 3
-          httpGet:
-            path: /
-            port: 9000
-            scheme: HTTP
+          <<: *mqLivenessProbe
           initialDelaySeconds: 20
           periodSeconds: 20
-          successThreshold: 1
-          timeoutSeconds: 5
         readinessProbe:
+          <<: *mqReadinessProbe
           failureThreshold: 3
           initialDelaySeconds: 10
           periodSeconds: 10
           successThreshold: 1
           timeoutSeconds: 5
-          tcpSocket:
-            port: 9000
         resources:
           limits:
             cpu: ${CPU_LIMIT_WORKSPACES_MQ}
@@ -950,6 +852,7 @@ objects:
     - name: export-service
       minReplicas: ${{REPLICAS_EXPORT_SVC}}
       podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
         args: ["./inv_export_service.py"]
         env:
         - name: INVENTORY_LOG_LEVEL
@@ -970,12 +873,8 @@ objects:
           value: "${INVENTORY_DB_SCHEMA}"
         - name: UNLEASH_URL
           value: ${UNLEASH_URL}
-        - name: UNLEASH_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: ${UNLEASH_SECRET_NAME}
-              key: CLIENT_ACCESS_TOKEN
-              optional: true
+        - <<: *unleashToken
+          name: UNLEASH_TOKEN
         - name: EXPORT_SERVICE_TOKEN
           valueFrom:
             secretKeyRef:
@@ -988,20 +887,8 @@ objects:
           value: ${UNLEASH_REFRESH_INTERVAL}
         - name: REPLICA_NAMESPACE
           value: ${REPLICA_NAMESPACE}
-        image: ${IMAGE}:${IMAGE_TAG}
-        livenessProbe:
-          failureThreshold: 3
-          httpGet:
-            path: /
-            port: 9000
-            scheme: HTTP
-          initialDelaySeconds: 10
-          periodSeconds: 10
-          successThreshold: 1
-          timeoutSeconds: 5
-        readinessProbe:
-          tcpSocket:
-            port: 9000
+        livenessProbe: *mqLivenessProbe
+        readinessProbe: *mqReadinessProbe
         resources:
           limits:
             cpu: ${CPU_LIMIT_EXPORT_SVC}
@@ -1020,24 +907,18 @@ objects:
         image: ${IMAGE}:${IMAGE_TAG}
         args: ["./jobs/host_reaper.py"]
         env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
           - name: INVENTORY_DB_SSL_MODE
             value: ${INVENTORY_DB_SSL_MODE}
           - name: INVENTORY_DB_SSL_CERT
             value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
           - name: KAFKA_BOOTSTRAP_SERVERS
             value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
-          - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
-          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
-            value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
-          - name: PAYLOAD_TRACKER_SERVICE_NAME
-            value: inventory-mq-service
-          - name: PAYLOAD_TRACKER_ENABLED
-            value: 'true'
-          - name: PROMETHEUS_PUSHGATEWAY
-            value: ${PROMETHEUS_PUSHGATEWAY}
           - name: KAFKA_EVENT_TOPIC
             value: ${KAFKA_EVENT_TOPIC}
           - name: KAFKA_NOTIFICATION_TOPIC
@@ -1048,20 +929,34 @@ objects:
             value: ${KAFKA_PRODUCER_RETRIES}
           - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
             value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
-          - name: NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
           - name: KAFKA_SECURITY_PROTOCOL
             value: ${KAFKA_SECURITY_PROTOCOL}
           - name: KAFKA_SASL_MECHANISM
             value: ${KAFKA_SASL_MECHANISM}
+          - <<: *namespaceFieldRef
+            name: NAMESPACE
           - name: CLOWDER_ENABLED
             value: "true"
-          - name: INVENTORY_DB_SCHEMA
-            value: "${INVENTORY_DB_SCHEMA}"
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - <<: *unleashToken
+            name: UNLEASH_TOKEN
+          - name: BYPASS_UNLEASH
+            value: ${BYPASS_UNLEASH}
+          - name: UNLEASH_REFRESH_INTERVAL
+            value: ${UNLEASH_REFRESH_INTERVAL}
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+          - name: KESSEL_TARGET_URL
+            value: ${KESSEL_TARGET_URL}
+          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
+            value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory-mq-service
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'true'
           - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
             value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
           - name: INVENTORY_API_CACHE_TYPE
@@ -1072,26 +967,8 @@ objects:
             value: "${INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS}"
           - name: HOST_DELETE_CHUNK_SIZE
             value: ${HOST_DELETE_CHUNK_SIZE}
-          - name: UNLEASH_URL
-            value: ${UNLEASH_URL}
-          - name: UNLEASH_TOKEN
-            valueFrom:
-              secretKeyRef:
-                name: ${UNLEASH_SECRET_NAME}
-                key: CLIENT_ACCESS_TOKEN
-                optional: true
-          - name: BYPASS_UNLEASH
-            value: ${BYPASS_UNLEASH}
-          - name: UNLEASH_REFRESH_INTERVAL
-            value: ${UNLEASH_REFRESH_INTERVAL}
-          - name: RBAC_PSKS
-            valueFrom:
-              secretKeyRef:
-                key: psks.json
-                name: rbac-psks
-                optional: false
-          - name: REPLICA_NAMESPACE
-            value: ${REPLICA_NAMESPACE}
+          - <<: *rbacPsks
+            name: RBAC_PSKS
         resources:
           limits:
             cpu: ${CPU_LIMIT_REAPER}
@@ -1108,20 +985,18 @@ objects:
         image: ${IMAGE}:${IMAGE_TAG}
         args: ["./jobs/generate_stale_host_notifications.py"]
         env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
-          - name: CONNEXION_LOG_LEVEL
-            value: ${CONNEXION_LOG_LEVEL}
           - name: INVENTORY_DB_SSL_MODE
             value: ${INVENTORY_DB_SSL_MODE}
           - name: INVENTORY_DB_SSL_CERT
             value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
           - name: KAFKA_BOOTSTRAP_SERVERS
             value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
-          - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
-          - name: PROMETHEUS_PUSHGATEWAY
-            value: ${PROMETHEUS_PUSHGATEWAY}
           - name: KAFKA_EVENT_TOPIC
             value: ${KAFKA_EVENT_TOPIC}
           - name: KAFKA_NOTIFICATION_TOPIC
@@ -1132,36 +1007,32 @@ objects:
             value: ${KAFKA_PRODUCER_RETRIES}
           - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
             value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
-          - name: NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
           - name: KAFKA_SECURITY_PROTOCOL
             value: ${KAFKA_SECURITY_PROTOCOL}
           - name: KAFKA_SASL_MECHANISM
             value: ${KAFKA_SASL_MECHANISM}
+          - <<: *namespaceFieldRef
+            name: NAMESPACE
           - name: CLOWDER_ENABLED
             value: "true"
-          - name: INVENTORY_DB_SCHEMA
-            value: "${INVENTORY_DB_SCHEMA}"
           - name: UNLEASH_URL
             value: ${UNLEASH_URL}
-          - name: UNLEASH_TOKEN
-            valueFrom:
-              secretKeyRef:
-                name: ${UNLEASH_SECRET_NAME}
-                key: CLIENT_ACCESS_TOKEN
-                optional: true
+          - <<: *unleashToken
+            name: UNLEASH_TOKEN
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
           - name: UNLEASH_REFRESH_INTERVAL
             value: ${UNLEASH_REFRESH_INTERVAL}
-          - name: CONSOLEDOT_HOSTNAME
-            value: ${CONSOLEDOT_HOSTNAME}
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
           - name: REPLICA_NAMESPACE
             value: ${REPLICA_NAMESPACE}
+          - name: CONNEXION_LOG_LEVEL
+            value: ${CONNEXION_LOG_LEVEL}
+          - name: KESSEL_TARGET_URL
+            value: ${KESSEL_TARGET_URL}
+          - name: CONSOLEDOT_HOSTNAME
+            value: ${CONSOLEDOT_HOSTNAME}
         resources:
           limits:
             cpu: ${CPU_LIMIT_STALE_HOST_NOTIFICAION}
@@ -1178,22 +1049,44 @@ objects:
         image: ${IMAGE}:${IMAGE_TAG}
         args: ["./jobs/inv_publish_hosts.py"]
         env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
           - name: INVENTORY_DB_SSL_MODE
             value: ${INVENTORY_DB_SSL_MODE}
           - name: INVENTORY_DB_SSL_CERT
             value: ${INVENTORY_DB_SSL_CERT}
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
-          - name: NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
-          - name: CLOWDER_ENABLED
-            value: "true"
           - name: INVENTORY_DB_SCHEMA
             value: "${INVENTORY_DB_SCHEMA}"
+          - name: KAFKA_BOOTSTRAP_SERVERS
+            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - <<: *namespaceFieldRef
+            name: NAMESPACE
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - <<: *unleashToken
+            name: UNLEASH_TOKEN
+          - name: BYPASS_UNLEASH
+            value: ${BYPASS_UNLEASH}
+          - name: UNLEASH_REFRESH_INTERVAL
+            value: ${UNLEASH_REFRESH_INTERVAL}
           - name: PROMETHEUS_PUSHGATEWAY
             value: ${PROMETHEUS_PUSHGATEWAY}
           - name: REPLICA_NAMESPACE
@@ -1213,7 +1106,6 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_SYNDICATOR}
             memory: ${MEMORY_REQUEST_SYNDICATOR}
-
     - name: sp-validator
       schedule: '@hourly'
       suspend: ${{SP_VALIDATOR_SUSPEND}}
@@ -1226,6 +1118,44 @@ objects:
             value: '/opt/app-root/src'
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: KAFKA_BOOTSTRAP_SERVERS
+            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - <<: *namespaceFieldRef
+            name: NAMESPACE
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - <<: *unleashToken
+            name: UNLEASH_TOKEN
+          - name: BYPASS_UNLEASH
+            value: ${BYPASS_UNLEASH}
+          - name: UNLEASH_REFRESH_INTERVAL
+            value: ${UNLEASH_REFRESH_INTERVAL}
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
           - name: GIT_TOKEN
             valueFrom:
               secretKeyRef:
@@ -1236,12 +1166,6 @@ objects:
               secretKeyRef:
                 key: user
                 name: dippy-bot
-          - name: INVENTORY_DB_SSL_MODE
-            value: ${INVENTORY_DB_SSL_MODE}
-          - name: INVENTORY_DB_SSL_CERT
-            value: ${INVENTORY_DB_SSL_CERT}
-          - name: KAFKA_BOOTSTRAP_SERVERS
-            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
           - name: KESSEL_TARGET_URL
             value: ${KESSEL_TARGET_URL}
           - name: PAYLOAD_TRACKER_KAFKA_TOPIC
@@ -1250,54 +1174,16 @@ objects:
             value: inventory-mq-service
           - name: PAYLOAD_TRACKER_ENABLED
             value: 'true'
-          - name: PROMETHEUS_PUSHGATEWAY
-            value: ${PROMETHEUS_PUSHGATEWAY}
-          - name: KAFKA_PRODUCER_ACKS
-            value: ${KAFKA_PRODUCER_ACKS}
-          - name: KAFKA_PRODUCER_RETRIES
-            value: ${KAFKA_PRODUCER_RETRIES}
-          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
-            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
-          - name: NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
           - name: KAFKA_CONSUMER_TOPIC
             value: ${KAFKA_HOST_INGRESS_TOPIC}
           - name: KAFKA_HOST_INGRESS_TOPIC
             value: ${KAFKA_HOST_INGRESS_TOPIC}
-          - name: KAFKA_EVENT_TOPIC
-            value: ${KAFKA_EVENT_TOPIC}
-          - name: KAFKA_NOTIFICATION_TOPIC
-            value: ${KAFKA_NOTIFICATION_TOPIC}
           - name: KAFKA_SYSTEM_PROFILE_TOPIC
             value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
           - name: KAFKA_ADDITIONAL_VALIDATION_TOPIC
             value: ${KAFKA_ADDITIONAL_VALIDATION_TOPIC}
           - name: KAFKA_SP_VALIDATOR_MAX_MESSAGES
             value: ${KAFKA_SP_VALIDATOR_MAX_MESSAGES}
-          - name: KAFKA_SECURITY_PROTOCOL
-            value: ${KAFKA_SECURITY_PROTOCOL}
-          - name: KAFKA_SASL_MECHANISM
-            value: ${KAFKA_SASL_MECHANISM}
-          - name: CLOWDER_ENABLED
-            value: "true"
-          - name: INVENTORY_DB_SCHEMA
-            value: "${INVENTORY_DB_SCHEMA}"
-          - name: UNLEASH_URL
-            value: ${UNLEASH_URL}
-          - name: UNLEASH_TOKEN
-            valueFrom:
-              secretKeyRef:
-                name: ${UNLEASH_SECRET_NAME}
-                key: CLIENT_ACCESS_TOKEN
-                optional: true
-          - name: BYPASS_UNLEASH
-            value: ${BYPASS_UNLEASH}
-          - name: UNLEASH_REFRESH_INTERVAL
-            value: ${UNLEASH_REFRESH_INTERVAL}
-          - name: REPLICA_NAMESPACE
-            value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_SP_VALIDATOR}
@@ -1323,8 +1209,38 @@ objects:
             value: ${INVENTORY_DB_SSL_CERT}
           - name: INVENTORY_DB_SCHEMA
             value: "${INVENTORY_DB_SCHEMA}"
+          - name: KAFKA_BOOTSTRAP_SERVERS
+            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - <<: *namespaceFieldRef
+            name: NAMESPACE
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - <<: *unleashToken
+            name: UNLEASH_TOKEN
+          - name: BYPASS_UNLEASH
+            value: ${BYPASS_UNLEASH}
+          - name: UNLEASH_REFRESH_INTERVAL
+            value: ${UNLEASH_REFRESH_INTERVAL}
           - name: PROMETHEUS_PUSHGATEWAY
             value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
           - name: PENDO_SYNC_ACTIVE
             value: ${PENDO_SYNC_ACTIVE}
           - name: PENDO_INTEGRATION_KEY
@@ -1332,26 +1248,6 @@ objects:
               secretKeyRef:
                 key: apikey
                 name: pendo-creds
-          - name: NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
-          - name: CLOWDER_ENABLED
-            value: "true"
-          - name: UNLEASH_URL
-            value: ${UNLEASH_URL}
-          - name: UNLEASH_TOKEN
-            valueFrom:
-              secretKeyRef:
-                name: ${UNLEASH_SECRET_NAME}
-                key: CLIENT_ACCESS_TOKEN
-                optional: true
-          - name: BYPASS_UNLEASH
-            value: ${BYPASS_UNLEASH}
-          - name: UNLEASH_REFRESH_INTERVAL
-            value: ${UNLEASH_REFRESH_INTERVAL}
-          - name: REPLICA_NAMESPACE
-            value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_PENDO_SYNCHER}
@@ -1361,7 +1257,7 @@ objects:
             memory: ${MEMORY_REQUEST_PENDO_SYNCHER}
     - name: synchronizer
       restartPolicy: OnFailure
-      podSpec:
+      podSpec: &synchronizerPodSpec
         image: ${IMAGE}:${IMAGE_TAG}
         args: ["./jobs/rebuild_events_topic.py", "&&", "./jobs/host_synchronizer.py"]
         env:
@@ -1377,55 +1273,49 @@ objects:
             value: "${INVENTORY_DB_SCHEMA}"
           - name: KAFKA_BOOTSTRAP_SERVERS
             value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
-          - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
           - name: KAFKA_EVENT_TOPIC
             value: ${KAFKA_EVENT_TOPIC}
           - name: KAFKA_NOTIFICATION_TOPIC
             value: ${KAFKA_NOTIFICATION_TOPIC}
-          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
-            value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
-          - name: PAYLOAD_TRACKER_SERVICE_NAME
-            value: inventory-mq-service
-          - name: PAYLOAD_TRACKER_ENABLED
-            value: 'true'
-          - name: PROMETHEUS_PUSHGATEWAY
-            value: ${PROMETHEUS_PUSHGATEWAY}
           - name: KAFKA_PRODUCER_ACKS
             value: ${KAFKA_PRODUCER_ACKS}
           - name: KAFKA_PRODUCER_RETRIES
             value: ${KAFKA_PRODUCER_RETRIES}
           - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
             value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
-          - name: NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
           - name: KAFKA_SECURITY_PROTOCOL
             value: ${KAFKA_SECURITY_PROTOCOL}
           - name: KAFKA_SASL_MECHANISM
             value: ${KAFKA_SASL_MECHANISM}
+          - <<: *namespaceFieldRef
+            name: NAMESPACE
           - name: CLOWDER_ENABLED
             value: "true"
-          - name: SCRIPT_CHUNK_SIZE
-            value: ${SCRIPT_CHUNK_SIZE}
           - name: UNLEASH_URL
             value: ${UNLEASH_URL}
-          - name: UNLEASH_TOKEN
-            valueFrom:
-              secretKeyRef:
-                name: ${UNLEASH_SECRET_NAME}
-                key: CLIENT_ACCESS_TOKEN
-                optional: true
+          - <<: *unleashToken
+            name: UNLEASH_TOKEN
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
           - name: UNLEASH_REFRESH_INTERVAL
             value: ${UNLEASH_REFRESH_INTERVAL}
-          - name: REBUILD_EVENTS_TIME_LIMIT
-            value: ${REBUILD_EVENTS_TIME_LIMIT}
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
           - name: REPLICA_NAMESPACE
             value: ${REPLICA_NAMESPACE}
-        resources:
+          - name: KESSEL_TARGET_URL
+            value: ${KESSEL_TARGET_URL}
+          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
+            value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory-mq-service
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'true'
+          - name: SCRIPT_CHUNK_SIZE
+            value: ${SCRIPT_CHUNK_SIZE}
+          - name: REBUILD_EVENTS_TIME_LIMIT
+            value: ${REBUILD_EVENTS_TIME_LIMIT}
+        resources: &synchronizerResources
           limits:
             cpu: ${CPU_LIMIT_SYNCHRONIZER}
             memory: ${MEMORY_LIMIT_SYNCHRONIZER}
@@ -1435,145 +1325,13 @@ objects:
     - name: synchronizer-only
       restartPolicy: OnFailure
       podSpec:
-        image: ${IMAGE}:${IMAGE_TAG}
+        <<: *synchronizerPodSpec
         args: ["./jobs/host_synchronizer.py"]
-        env:
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
-          - name: INVENTORY_LOG_LEVEL
-            value: ${LOG_LEVEL}
-          - name: INVENTORY_DB_SSL_MODE
-            value: ${INVENTORY_DB_SSL_MODE}
-          - name: INVENTORY_DB_SSL_CERT
-            value: ${INVENTORY_DB_SSL_CERT}
-          - name: INVENTORY_DB_SCHEMA
-            value: "${INVENTORY_DB_SCHEMA}"
-          - name: KAFKA_BOOTSTRAP_SERVERS
-            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
-          - name: KAFKA_EVENT_TOPIC
-            value: ${KAFKA_EVENT_TOPIC}
-          - name: KAFKA_NOTIFICATION_TOPIC
-            value: ${KAFKA_NOTIFICATION_TOPIC}
-          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
-            value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
-          - name: PAYLOAD_TRACKER_SERVICE_NAME
-            value: inventory-mq-service
-          - name: PAYLOAD_TRACKER_ENABLED
-            value: 'true'
-          - name: PROMETHEUS_PUSHGATEWAY
-            value: ${PROMETHEUS_PUSHGATEWAY}
-          - name: KAFKA_PRODUCER_ACKS
-            value: ${KAFKA_PRODUCER_ACKS}
-          - name: KAFKA_PRODUCER_RETRIES
-            value: ${KAFKA_PRODUCER_RETRIES}
-          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
-            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
-          - name: NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
-          - name: KAFKA_SECURITY_PROTOCOL
-            value: ${KAFKA_SECURITY_PROTOCOL}
-          - name: KAFKA_SASL_MECHANISM
-            value: ${KAFKA_SASL_MECHANISM}
-          - name: CLOWDER_ENABLED
-            value: "true"
-          - name: SCRIPT_CHUNK_SIZE
-            value: ${SCRIPT_CHUNK_SIZE}
-          - name: UNLEASH_URL
-            value: ${UNLEASH_URL}
-          - name: UNLEASH_TOKEN
-            valueFrom:
-              secretKeyRef:
-                name: ${UNLEASH_SECRET_NAME}
-                key: CLIENT_ACCESS_TOKEN
-                optional: true
-          - name: BYPASS_UNLEASH
-            value: ${BYPASS_UNLEASH}
-          - name: UNLEASH_REFRESH_INTERVAL
-            value: ${UNLEASH_REFRESH_INTERVAL}
-          - name: REBUILD_EVENTS_TIME_LIMIT
-            value: ${REBUILD_EVENTS_TIME_LIMIT}
-          - name: REPLICA_NAMESPACE
-            value: ${REPLICA_NAMESPACE}
-        resources:
-          limits:
-            cpu: ${CPU_LIMIT_SYNCHRONIZER}
-            memory: ${MEMORY_LIMIT_SYNCHRONIZER}
-          requests:
-            cpu: ${CPU_REQUEST_SYNCHRONIZER}
-            memory: ${MEMORY_REQUEST_SYNCHRONIZER}
     - name: sync-host-groups
       restartPolicy: OnFailure
       podSpec:
-        image: ${IMAGE}:${IMAGE_TAG}
+        <<: *synchronizerPodSpec
         args: ["./jobs/host_sync_group_data.py"]
-        env:
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
-          - name: INVENTORY_LOG_LEVEL
-            value: ${LOG_LEVEL}
-          - name: INVENTORY_DB_SSL_MODE
-            value: ${INVENTORY_DB_SSL_MODE}
-          - name: INVENTORY_DB_SSL_CERT
-            value: ${INVENTORY_DB_SSL_CERT}
-          - name: INVENTORY_DB_SCHEMA
-            value: "${INVENTORY_DB_SCHEMA}"
-          - name: KAFKA_BOOTSTRAP_SERVERS
-            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
-          - name: KAFKA_EVENT_TOPIC
-            value: ${KAFKA_EVENT_TOPIC}
-          - name: KAFKA_NOTIFICATION_TOPIC
-            value: ${KAFKA_NOTIFICATION_TOPIC}
-          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
-            value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
-          - name: PAYLOAD_TRACKER_SERVICE_NAME
-            value: inventory-mq-service
-          - name: PAYLOAD_TRACKER_ENABLED
-            value: 'true'
-          - name: PROMETHEUS_PUSHGATEWAY
-            value: ${PROMETHEUS_PUSHGATEWAY}
-          - name: KAFKA_PRODUCER_ACKS
-            value: ${KAFKA_PRODUCER_ACKS}
-          - name: KAFKA_PRODUCER_RETRIES
-            value: ${KAFKA_PRODUCER_RETRIES}
-          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
-            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
-          - name: NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
-          - name: KAFKA_SECURITY_PROTOCOL
-            value: ${KAFKA_SECURITY_PROTOCOL}
-          - name: KAFKA_SASL_MECHANISM
-            value: ${KAFKA_SASL_MECHANISM}
-          - name: CLOWDER_ENABLED
-            value: "true"
-          - name: SCRIPT_CHUNK_SIZE
-            value: ${SCRIPT_CHUNK_SIZE}
-          - name: UNLEASH_URL
-            value: ${UNLEASH_URL}
-          - name: UNLEASH_TOKEN
-            valueFrom:
-              secretKeyRef:
-                name: ${UNLEASH_SECRET_NAME}
-                key: CLIENT_ACCESS_TOKEN
-                optional: true
-          - name: BYPASS_UNLEASH
-            value: ${BYPASS_UNLEASH}
-          - name: UNLEASH_REFRESH_INTERVAL
-            value: ${UNLEASH_REFRESH_INTERVAL}
-          - name: REBUILD_EVENTS_TIME_LIMIT
-            value: ${REBUILD_EVENTS_TIME_LIMIT}
-          - name: REPLICA_NAMESPACE
-            value: ${REPLICA_NAMESPACE}
-        resources:
-          limits:
-            cpu: ${CPU_LIMIT_SYNCHRONIZER}
-            memory: ${MEMORY_LIMIT_SYNCHRONIZER}
-          requests:
-            cpu: ${CPU_REQUEST_SYNCHRONIZER}
-            memory: ${MEMORY_REQUEST_SYNCHRONIZER}
     - name: delete-hosts-s3
       restartPolicy: OnFailure
       podSpec:
@@ -1590,8 +1348,6 @@ objects:
             value: ${INVENTORY_DB_SSL_CERT}
           - name: INVENTORY_DB_SCHEMA
             value: "${INVENTORY_DB_SCHEMA}"
-          - name: PROMETHEUS_PUSHGATEWAY
-            value: ${PROMETHEUS_PUSHGATEWAY}
           - name: KAFKA_BOOTSTRAP_SERVERS
             value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
           - name: KAFKA_EVENT_TOPIC
@@ -1608,16 +1364,26 @@ objects:
             value: ${KAFKA_SECURITY_PROTOCOL}
           - name: KAFKA_SASL_MECHANISM
             value: ${KAFKA_SASL_MECHANISM}
+          - <<: *namespaceFieldRef
+            name: NAMESPACE
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - <<: *unleashToken
+            name: UNLEASH_TOKEN
+          - name: BYPASS_UNLEASH
+            value: ${BYPASS_UNLEASH}
+          - name: UNLEASH_REFRESH_INTERVAL
+            value: ${UNLEASH_REFRESH_INTERVAL}
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
           - name: DRY_RUN
             value: ${DELETE_HOSTS_DRY_RUN}
           - name: DELETE_HOSTS_S3_BATCH_SIZE
             value: ${DELETE_HOSTS_S3_BATCH_SIZE}
-          - name: NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
-          - name: CLOWDER_ENABLED
-            value: "true"
           - name: S3_AWS_ACCESS_KEY_ID
             valueFrom:
               secretKeyRef:
@@ -1633,8 +1399,6 @@ objects:
               secretKeyRef:
                 name: ${DELETE_HOSTS_S3_AWS_SECRET}
                 key: bucket
-          - name: REPLICA_NAMESPACE
-            value: ${REPLICA_NAMESPACE}
           - name: SUSPEND_JOB
             value: ${SUSPEND_DELETE_HOSTS_S3}
         resources:
@@ -1666,38 +1430,44 @@ objects:
             value: ${KAFKA_EVENT_TOPIC}
           - name: KAFKA_NOTIFICATION_TOPIC
             value: ${KAFKA_NOTIFICATION_TOPIC}
-          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
-            value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
-          - name: PAYLOAD_TRACKER_SERVICE_NAME
-            value: inventory-mq-service
-          - name: PAYLOAD_TRACKER_ENABLED
-            value: 'true'
-          - name: PROMETHEUS_PUSHGATEWAY
-            value: ${PROMETHEUS_PUSHGATEWAY}
           - name: KAFKA_PRODUCER_ACKS
             value: ${KAFKA_PRODUCER_ACKS}
           - name: KAFKA_PRODUCER_RETRIES
             value: ${KAFKA_PRODUCER_RETRIES}
           - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
             value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
-          - name: NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
           - name: KAFKA_SECURITY_PROTOCOL
             value: ${KAFKA_SECURITY_PROTOCOL}
           - name: KAFKA_SASL_MECHANISM
             value: ${KAFKA_SASL_MECHANISM}
+          - <<: *namespaceFieldRef
+            name: NAMESPACE
           - name: CLOWDER_ENABLED
             value: "true"
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - <<: *unleashToken
+            name: UNLEASH_TOKEN
+          - name: BYPASS_UNLEASH
+            value: ${BYPASS_UNLEASH}
+          - name: UNLEASH_REFRESH_INTERVAL
+            value: ${UNLEASH_REFRESH_INTERVAL}
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
+            value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory-mq-service
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'true'
           - name: SCRIPT_CHUNK_SIZE
             value: ${SCRIPT_CHUNK_SIZE}
           - name: DRY_RUN
             value: ${REMOVE_DUPLICATES_DRY_RUN}
           - name: SUSPEND_JOB
             value: ${SUSPEND_DUPLICATE_HOSTS_REMOVER}
-          - name: REPLICA_NAMESPACE
-            value: ${REPLICA_NAMESPACE}
         resources:
           limits:
             cpu: ${CPU_LIMIT_DUPLICATE_HOSTS_REMOVER_JOB}
@@ -1705,42 +1475,6 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_DUPLICATE_HOSTS_REMOVER_JOB}
             memory: ${MEMORY_REQUEST_DUPLICATE_HOSTS_REMOVER_JOB}
-    - name: delete-host-bios-uuid
-      restartPolicy: Never
-      suspend: ${{SUSPEND_DELETE_HOST_BIOS_UUID}}
-      podSpec:
-        image: ${IMAGE}:${IMAGE_TAG}
-        args: [ "./jobs/delete_host_bios_uuid.py" ]
-        env:
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
-          - name: INVENTORY_LOG_LEVEL
-            value: ${LOG_LEVEL}
-          - name: INVENTORY_DB_SSL_MODE
-            value: ${INVENTORY_DB_SSL_MODE}
-          - name: INVENTORY_DB_SSL_CERT
-            value: ${INVENTORY_DB_SSL_CERT}
-          - name: INVENTORY_DB_SCHEMA
-            value: "${INVENTORY_DB_SCHEMA}"
-          - name: TARGET_HOST_ID
-            value: ${TARGET_HOST_ID}
-          - name: NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
-          - name: CLOWDER_ENABLED
-            value: "true"
-          - name: SUSPEND_JOB
-            value: ${SUSPEND_DELETE_HOST_BIOS_UUID}
-          - name: REPLICA_NAMESPACE
-            value: ${REPLICA_NAMESPACE}
-        resources:
-          limits:
-            cpu: ${CPU_LIMIT_DELETE_HOST_BIOS_UUID_JOB}
-            memory: ${MEMORY_LIMIT_DELETE_HOST_BIOS_UUID_JOB}
-          requests:
-            cpu: ${CPU_REQUEST_DELETE_HOST_BIOS_UUID_JOB}
-            memory: ${MEMORY_REQUEST_DELETE_HOST_BIOS_UUID_JOB}
     - name: create-ungrouped-host-groups
       restartPolicy: OnFailure
       podSpec:
@@ -1757,31 +1491,41 @@ objects:
             value: ${INVENTORY_DB_SSL_CERT}
           - name: INVENTORY_DB_SCHEMA
             value: "${INVENTORY_DB_SCHEMA}"
-          - name: PROMETHEUS_PUSHGATEWAY
-            value: ${PROMETHEUS_PUSHGATEWAY}
-          - name: NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
+          - name: KAFKA_BOOTSTRAP_SERVERS
+            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - <<: *namespaceFieldRef
+            name: NAMESPACE
           - name: CLOWDER_ENABLED
             value: "true"
           - name: UNLEASH_URL
             value: ${UNLEASH_URL}
-          - name: UNLEASH_TOKEN
-            valueFrom:
-              secretKeyRef:
-                name: ${UNLEASH_SECRET_NAME}
-                key: CLIENT_ACCESS_TOKEN
-                optional: true
+          - <<: *unleashToken
+            name: UNLEASH_TOKEN
           - name: BYPASS_UNLEASH
             value: ${BYPASS_UNLEASH}
           - name: UNLEASH_REFRESH_INTERVAL
             value: ${UNLEASH_REFRESH_INTERVAL}
-          - name: CREATE_UNGROUPED_GROUPS_BATCH_SIZE
-            value: ${CREATE_UNGROUPED_GROUPS_BATCH_SIZE}
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
           - name: REPLICA_NAMESPACE
             value: ${REPLICA_NAMESPACE}
-        resources:
+          - name: CREATE_UNGROUPED_GROUPS_BATCH_SIZE
+            value: ${CREATE_UNGROUPED_GROUPS_BATCH_SIZE}
+        resources: &ungroupedHostResources
           limits:
             cpu: ${CPU_LIMIT_UNGROUPED_HOSTS_JOB}
             memory: ${MEMORY_LIMIT_UNGROUPED_HOSTS_JOB}
@@ -1793,6 +1537,63 @@ objects:
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
         args: ["./jobs/assign_ungrouped_hosts_to_groups.py"]
+        env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: KAFKA_BOOTSTRAP_SERVERS
+            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - <<: *namespaceFieldRef
+            name: NAMESPACE
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - <<: *unleashToken
+            name: UNLEASH_TOKEN
+          - name: BYPASS_UNLEASH
+            value: ${BYPASS_UNLEASH}
+          - name: UNLEASH_REFRESH_INTERVAL
+            value: ${UNLEASH_REFRESH_INTERVAL}
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
+            value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory-mq-service
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'true'
+          - name: ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE
+            value: ${ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE}
+        resources: *ungroupedHostResources
+    - name: update-rhsm-host-timestamps
+      restartPolicy: Never
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: [ "./jobs/update_rhsm_host_timestamps.py" ]
         env:
           - name: PYTHONPATH
             value: '/opt/app-root/src'
@@ -1824,39 +1625,27 @@ objects:
             value: ${KAFKA_PRODUCER_RETRIES}
           - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
             value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
-          - name: NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
           - name: KAFKA_SECURITY_PROTOCOL
             value: ${KAFKA_SECURITY_PROTOCOL}
           - name: KAFKA_SASL_MECHANISM
             value: ${KAFKA_SASL_MECHANISM}
+          - <<: *namespaceFieldRef
+            name: NAMESPACE
           - name: CLOWDER_ENABLED
             value: "true"
-          - name: UNLEASH_URL
-            value: ${UNLEASH_URL}
-          - name: UNLEASH_TOKEN
-            valueFrom:
-              secretKeyRef:
-                name: ${UNLEASH_SECRET_NAME}
-                key: CLIENT_ACCESS_TOKEN
-                optional: true
-          - name: BYPASS_UNLEASH
-            value: ${BYPASS_UNLEASH}
-          - name: UNLEASH_REFRESH_INTERVAL
-            value: ${UNLEASH_REFRESH_INTERVAL}
-          - name: ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE
-            value: ${ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE}
+          - name: SCRIPT_CHUNK_SIZE
+            value: ${SCRIPT_CHUNK_SIZE}
+          - name: DRY_RUN
+            value: ${UPDATE_RHSM_HOST_TIMESTAMPS_DRY_RUN}
           - name: REPLICA_NAMESPACE
             value: ${REPLICA_NAMESPACE}
         resources:
           limits:
-            cpu: ${CPU_LIMIT_UNGROUPED_HOSTS_JOB}
-            memory: ${MEMORY_LIMIT_UNGROUPED_HOSTS_JOB}
+            cpu: ${CPU_LIMIT_UPDATE_RHSM_HOST_TIMESTAMPS_JOB}
+            memory: ${MEMORY_LIMIT_UPDATE_RHSM_HOST_TIMESTAMPS_JOB}
           requests:
-            cpu: ${CPU_REQUEST_UNGROUPED_HOSTS_JOB}
-            memory: ${MEMORY_REQUEST_UNGROUPED_HOSTS_JOB}
+            cpu: ${CPU_REQUEST_UPDATE_RHSM_HOST_TIMESTAMPS_JOB}
+            memory: ${MEMORY_REQUEST_UPDATE_RHSM_HOST_TIMESTAMPS_JOB}
     database:
       name: ${DB_NAME}
       version: 16
@@ -2177,9 +1966,75 @@ objects:
   type: Opaque
 
 parameters:
+# =================================================================================
+# I. Core Application Configuration
+# =================================================================================
+# High-level settings defining the application's identity, image, and environment.
+
+- description: ClowdApp name
+  name: CLOWDAPP_NAME
+  value: host-inventory
+- description: ClowdEnvironment name
+  name: ENV_NAME
+  value: stage
+- description: Image NAME
+  name: IMAGE
+  required: true
+  value: quay.io/redhat-services-prod/insights-management-tenant/insights-host-inventory/insights-host-inventory
+- description: Image tag
+  name: IMAGE_TAG
+  required: true
+- name: APP_NAME
+  value: inventory
 - name: LOG_LEVEL
   value: INFO
 
+# =================================================================================
+# II. Deployment Replicas & Resources
+# =================================================================================
+# Controls scaling and resource allocation for each component.
+
+# -- Replica Counts --
+- description: Replica count for webservice reads
+  name: REPLICAS_SVC_READS
+  value: "7"
+- description: Replica count for secondary webservice reads
+  name: REPLICAS_SVC_SECONDARY_READS
+  value: "1"
+- description: Replica count for webservice writes
+  name: REPLICAS_SVC_WRITES
+  value: "3"
+- description: Replica count for pmin Kafka consumer
+  name: REPLICAS_PMIN
+  value: "3"
+- description: Replica count for p1 Kafka consumer
+  name: REPLICAS_P1
+  value: "5"
+- description: Replica count for sp Kafka consumer
+  name: REPLICAS_SP
+  value: "2"
+- description: Replica count for mq-workspaces consumer
+  name: REPLICAS_WORKSPACES
+  value: "1"
+- description: Replica count for export-service
+  name: REPLICAS_EXPORT_SVC
+  value: "2"
+
+# -- NGINX Resources --
+- displayName: Minimum replicas for NGINX
+  name: NGINX_REPLICAS
+  required: true
+  value: "1"
+- name: NGINX_CPU_REQUEST
+  value: 100m
+- name: NGINX_CPU_LIMIT
+  value: 200m
+- name: NGINX_MEMORY_REQUEST
+  value: 100Mi
+- name: NGINX_MEMORY_LIMIT
+  value: 200Mi
+
+# -- API Service Resources (service-reads/writes) --
 - name: CPU_REQUEST_SERVICE
   value: 250m
 - name: CPU_LIMIT_SERVICE
@@ -2189,6 +2044,7 @@ parameters:
 - name: MEMORY_LIMIT_SERVICE
   value: 512Mi
 
+# -- MQ Consumer Resources --
 - name: CPU_REQUEST_MQ_PMIN
   value: 250m
 - name: CPU_LIMIT_MQ_PMIN
@@ -2197,7 +2053,6 @@ parameters:
   value: 256Mi
 - name: MEMORY_LIMIT_MQ_PMIN
   value: 512Mi
-
 - name: CPU_REQUEST_MQ_P1
   value: 250m
 - name: CPU_LIMIT_MQ_P1
@@ -2206,7 +2061,6 @@ parameters:
   value: 256Mi
 - name: MEMORY_LIMIT_MQ_P1
   value: 512Mi
-
 - name: CPU_REQUEST_MQ_SP
   value: 250m
 - name: CPU_LIMIT_MQ_SP
@@ -2215,7 +2069,6 @@ parameters:
   value: 256Mi
 - name: MEMORY_LIMIT_MQ_SP
   value: 512Mi
-
 - name: CPU_REQUEST_WORKSPACES_MQ
   value: 250m
 - name: CPU_LIMIT_WORKSPACES_MQ
@@ -2224,72 +2077,6 @@ parameters:
   value: 512Mi
 - name: MEMORY_LIMIT_WORKSPACES_MQ
   value: 1Gi
-
-- name: CPU_REQUEST_REAPER
-  value: 250m
-- name: CPU_LIMIT_REAPER
-  value: 500m
-- name: MEMORY_REQUEST_REAPER
-  value: 256Mi
-- name: MEMORY_LIMIT_REAPER
-  value: 512Mi
-- name: HOST_DELETE_CHUNK_SIZE
-  value: "1000"
-
-- name: CPU_REQUEST_STALE_HOST_NOTIFICAION
-  value: 250m
-- name: CPU_LIMIT_STALE_HOST_NOTIFICAION
-  value: 500m
-- name: MEMORY_REQUEST_STALE_HOST_NOTIFICAION
-  value: 256Mi
-- name: MEMORY_LIMIT_STALE_HOST_NOTIFICAION
-  value: 512Mi
-
-- name: CPU_REQUEST_SP_VALIDATOR
-  value: 250m
-- name: CPU_LIMIT_SP_VALIDATOR
-  value: 500m
-- name: MEMORY_REQUEST_SP_VALIDATOR
-  value: 256Mi
-- name: MEMORY_LIMIT_SP_VALIDATOR
-  value: 512Mi
-
-- name: CPU_REQUEST_PENDO_SYNCHER
-  value: 250m
-- name: CPU_LIMIT_PENDO_SYNCHER
-  value: 500m
-- name: MEMORY_REQUEST_PENDO_SYNCHER
-  value: 256Mi
-- name: MEMORY_LIMIT_PENDO_SYNCHER
-  value: 512Mi
-
-- name: CPU_REQUEST_SYNCHRONIZER
-  value: 250m
-- name: CPU_LIMIT_SYNCHRONIZER
-  value: 500m
-- name: MEMORY_REQUEST_SYNCHRONIZER
-  value: 256Mi
-- name: MEMORY_LIMIT_SYNCHRONIZER
-  value: 512Mi
-
-- name: CPU_REQUEST_DELETE_HOSTS_S3
-  value: 250m
-- name: CPU_LIMIT_DELETE_HOSTS_S3
-  value: 500m
-- name: MEMORY_REQUEST_DELETE_HOSTS_S3
-  value: 0.5Gi
-- name: MEMORY_LIMIT_DELETE_HOSTS_S3
-  value: 1Gi
-
-- name: CPU_REQUEST_SYNDICATOR
-  value: 250m
-- name: CPU_LIMIT_SYNDICATOR
-  value: 500m
-- name: MEMORY_REQUEST_SYNDICATOR
-  value: 256Mi
-- name: MEMORY_LIMIT_SYNDICATOR
-  value: 512Mi
-
 - name: CPU_REQUEST_EXPORT_SVC
   value: 250m
 - name: CPU_LIMIT_EXPORT_SVC
@@ -2299,6 +2086,63 @@ parameters:
 - name: MEMORY_LIMIT_EXPORT_SVC
   value: 512Mi
 
+# -- Job Resources --
+- name: CPU_REQUEST_REAPER
+  value: 250m
+- name: CPU_LIMIT_REAPER
+  value: 500m
+- name: MEMORY_REQUEST_REAPER
+  value: 256Mi
+- name: MEMORY_LIMIT_REAPER
+  value: 512Mi
+- name: CPU_REQUEST_STALE_HOST_NOTIFICAION
+  value: 250m
+- name: CPU_LIMIT_STALE_HOST_NOTIFICAION
+  value: 500m
+- name: MEMORY_REQUEST_STALE_HOST_NOTIFICAION
+  value: 256Mi
+- name: MEMORY_LIMIT_STALE_HOST_NOTIFICAION
+  value: 512Mi
+- name: CPU_REQUEST_SP_VALIDATOR
+  value: 250m
+- name: CPU_LIMIT_SP_VALIDATOR
+  value: 500m
+- name: MEMORY_REQUEST_SP_VALIDATOR
+  value: 256Mi
+- name: MEMORY_LIMIT_SP_VALIDATOR
+  value: 512Mi
+- name: CPU_REQUEST_PENDO_SYNCHER
+  value: 250m
+- name: CPU_LIMIT_PENDO_SYNCHER
+  value: 500m
+- name: MEMORY_REQUEST_PENDO_SYNCHER
+  value: 256Mi
+- name: MEMORY_LIMIT_PENDO_SYNCHER
+  value: 512Mi
+- name: CPU_REQUEST_SYNCHRONIZER
+  value: 250m
+- name: CPU_LIMIT_SYNCHRONIZER
+  value: 500m
+- name: MEMORY_REQUEST_SYNCHRONIZER
+  value: 256Mi
+- name: MEMORY_LIMIT_SYNCHRONIZER
+  value: 512Mi
+- name: CPU_REQUEST_DELETE_HOSTS_S3
+  value: 250m
+- name: CPU_LIMIT_DELETE_HOSTS_S3
+  value: 500m
+- name: MEMORY_REQUEST_DELETE_HOSTS_S3
+  value: 0.5Gi
+- name: MEMORY_LIMIT_DELETE_HOSTS_S3
+  value: 1Gi
+- name: CPU_REQUEST_SYNDICATOR
+  value: 250m
+- name: CPU_LIMIT_SYNDICATOR
+  value: 500m
+- name: MEMORY_REQUEST_SYNDICATOR
+  value: 256Mi
+- name: MEMORY_LIMIT_SYNDICATOR
+  value: 512Mi
 - name: CPU_REQUEST_UNGROUPED_HOSTS_JOB
   value: 250m
 - name: CPU_LIMIT_UNGROUPED_HOSTS_JOB
@@ -2307,69 +2151,50 @@ parameters:
   value: 256Mi
 - name: MEMORY_LIMIT_UNGROUPED_HOSTS_JOB
   value: 512Mi
+- name: CPU_REQUEST_DUPLICATE_HOSTS_REMOVER_JOB
+  value: 250m
+- name: CPU_LIMIT_DUPLICATE_HOSTS_REMOVER_JOB
+  value: 500m
+- name: MEMORY_REQUEST_DUPLICATE_HOSTS_REMOVER_JOB
+  value: 256Mi
+- name: MEMORY_LIMIT_DUPLICATE_HOSTS_REMOVER_JOB
+  value: 512Mi
+- name: CPU_REQUEST_UPDATE_RHSM_HOST_TIMESTAMPS_JOB
+  value: 250m
+- name: CPU_LIMIT_UPDATE_RHSM_HOST_TIMESTAMPS_JOB
+  value: 500m
+- name: MEMORY_REQUEST_UPDATE_RHSM_HOST_TIMESTAMPS_JOB
+  value: 256Mi
+- name: MEMORY_LIMIT_UPDATE_RHSM_HOST_TIMESTAMPS_JOB
+  value: 512Mi
 
-- description: Replica count for p1 consumer
-  name: REPLICAS_P1
-  value: "5"
-- description: Replica count for pmin consumer
-  name: REPLICAS_PMIN
-  value: "3"
-- description: Replica count for sp consumer
-  name: REPLICAS_SP
-  value: "2"
-- description: Replica count for webservice
-  name: REPLICAS_SVC_READS
-  value: "7"
-- description: Replica count for webservice
-  name: REPLICAS_SVC_SECONDARY_READS
-  value: "1"
-- description: Replica count for webservice
-  name: REPLICAS_SVC_WRITES
-  value: "3"
-- description: Replica count for export-service
-  name: REPLICAS_EXPORT_SVC
-  value: "2"
-- description: Replica count for mq-workspaces consumer
-  name: REPLICAS_WORKSPACES
-  value: "1"
-- description: Image tag
-  name: IMAGE_TAG
-  required: true
-- description: Image NAME
-  name: IMAGE
-  required: true
-  value: quay.io/redhat-services-prod/insights-management-tenant/insights-host-inventory/insights-host-inventory
-- description : ClowdEnvironment name
-  name: ENV_NAME
-  value: stage
-- name: APP_NAME
-  value: inventory
-- description: ClowdApp name
-  name: CLOWDAPP_NAME
-  value: host-inventory
-- description: Database name
-  name: DB_NAME
-  value: host-inventory
-- name: PATH_PREFIX
-  value: api
-- name: CONSOLEDOT_HOSTNAME
-  value: localhost
-- name: URLLIB3_LOG_LEVEL
-  value: WARNING
-- name: CONNEXION_LOG_LEVEL
-  value: WARNING
-- description: SSL validation mode for the DB
-  name: INVENTORY_DB_SSL_MODE
-  value: prefer
-- description: disable RBAC middleware
-  name: BYPASS_RBAC
-  value: 'false'
+# =================================================================================
+# III. External Services & Dependencies
+# =================================================================================
+
+# -- Kafka Configuration --
+- name: KAFKA_BOOTSTRAP_HOST
+  value: 'localhost'
+- name: KAFKA_BOOTSTRAP_PORT
+  value: '29092'
+- name: KAFKA_SECURITY_PROTOCOL
+  description: The Kafka Security Protocol
+  value: PLAINTEXT
+- name: KAFKA_SASL_MECHANISM
+  value: 'PLAIN'
 - name: KAFKA_PRODUCER_ACKS
   value: 'all'
 - name: KAFKA_PRODUCER_RETRIES
   value: '8'
 - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
   value: '100'
+- name: KAFKA_CONSUMER_SESSION_TIMEOUT_MS
+  value: '10000'
+- name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
+  value: '3000'
+- name: KAFKA_HOST_INGRESS_GROUP
+  description: The Kafka consumer group name
+  value: inventory-mq
 - name: KAFKA_HOST_INGRESS_TOPIC
   description: The topic containing Host data sent by reporters
   value: platform.inventory.host-ingress
@@ -2381,12 +2206,6 @@ parameters:
   value: platform.inventory.host-ingress-p1
 - name: NUMBER_OF_KAFKA_HOST_INGRESS_P1_TOPIC_PARTITIONS
   description: Number of partitions for the Kafka host ingress P1 topic
-  value: '1'
-- name: KAFKA_KESSEL_WORKSPACES_TOPIC
-  description: The Kafka topic for Kessel Workspace data
-  value: outbox.event.workspace
-- name: NUMBER_OF_KAFKA_KESSEL_WORKSPACES_TOPIC_PARTITIONS
-  description: Number of partitions for the Kafka kessel workspaces topic
   value: '1'
 - name: KAFKA_EVENT_TOPIC
   description: The topic for Host data that were processed by Inventory
@@ -2400,14 +2219,17 @@ parameters:
 - name: NUMBER_OF_KAFKA_NOTIFICATION_TOPIC_PARTITIONS
   description: Number of partitions for the Kafka notification topic
   value: '1'
-- name: KAFKA_ADDITIONAL_VALIDATION_TOPIC
-  description: Used by system_profile_validator
-  value: platform.inventory.host-ingress-p1
 - name: KAFKA_SYSTEM_PROFILE_TOPIC
   description: The topic containing Host data for System Profile updates
   value: platform.inventory.system-profile
 - name: NUMBER_OF_KAFKA_SYSTEM_PROFILE_TOPIC_PARTITIONS
   description: Number of partitions for the Kafka system-profile topic
+  value: '1'
+- name: KAFKA_KESSEL_WORKSPACES_TOPIC
+  description: The Kafka topic for Kessel Workspace data
+  value: outbox.event.workspace
+- name: NUMBER_OF_KAFKA_KESSEL_WORKSPACES_TOPIC_PARTITIONS
+  description: Number of partitions for the Kafka kessel workspaces topic
   value: '1'
 - name: PAYLOAD_TRACKER_KAFKA_TOPIC
   description: The topic for payload tracker
@@ -2421,145 +2243,34 @@ parameters:
 - name: NUMBER_OF_KAFKA_EXPORT_SERVICE_TOPIC_PARTITIONS
   description: Number of partitions for the export-service topic
   value: '1'
-- name: KAFKA_HOST_INGRESS_GROUP
-  description: The Kafka consumer group name
-  value: inventory-mq
-- name: KAFKA_SECURITY_PROTOCOL
-  description: The Kafka Security Protocol
-  value: PLAINTEXT
-- name: KAFKA_SASL_MECHANISM
-  value: 'PLAIN'
-- name: CONSUMER_MQ_BROKER
-  value: ''
-- name: PROMETHEUS_PUSHGATEWAY
-  value: 'localhost:9091'
-- name: KAFKA_BOOTSTRAP_HOST
-  value: 'localhost'
-- name: KAFKA_BOOTSTRAP_PORT
-  value: '29092'
-- name: KESSEL_TARGET_URL
-  value: 'localhost:20000'
+- name: KAFKA_ADDITIONAL_VALIDATION_TOPIC
+  description: Used by system_profile_validator
+  value: platform.inventory.host-ingress-p1
+
+# -- Database Configuration --
+- description: Database name
+  name: DB_NAME
+  value: host-inventory
+- description: SSL validation mode for the DB
+  name: INVENTORY_DB_SSL_MODE
+  value: prefer
 - name: INVENTORY_DB_SSL_CERT
   value: ''
-- name: PENDO_SYNCHER_SUSPEND
-  value: 'true'
-- name: PENDO_CRON_SCHEDULE
-  value: '@daily'
-- name: PENDO_SYNC_ACTIVE
-  value: 'false'
-- name: SP_VALIDATOR_SUSPEND
-  value: 'true'
-- name: REAPER_SUSPEND
-  value: 'true'
-- name: STALE_HOST_NOTIFICATION_SUSPEND
-  value: 'true'
-- name: STALE_HOST_NOTIFICATION_SCHEDULE
-  value: '*/1 * * * *'
-- name: KAFKA_SP_VALIDATOR_MAX_MESSAGES
-  value: '10000'
-- name: GUNICORN_WORKERS
-  value: '4'
-- name: GUNICORN_THREADS
-  value: '8'
-- name: GUNICORN_REQUEST_FIELD_LIMIT
-  value: '16380'
-- name: GUNICORN_REQUEST_LINE_LIMIT
-  value: '8190'
-- name: SCRIPT_CHUNK_SIZE
-  value: '500'
-- name: REBUILD_EVENTS_TIME_LIMIT
-  value: '3600'
+- name: INVENTORY_DB_SCHEMA
+  value: 'hbi'
 - name: INVENTORY_DB_STATEMENT_TIMEOUT
   value: '30000'
 - name: INVENTORY_DB_LOCK_TIMEOUT
   value: '30000'
-- name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
-  value: '0'
-- name: INVENTORY_API_CACHE_TYPE
-  value: 'NullCache'
-- name: MQ_DB_BATCH_MAX_MESSAGES
-  value: '1'
-- name: MQ_WORKSPACES_DB_BATCH_MAX_MESSAGES
-  value: '1'
-- name: MQ_DB_BATCH_MAX_SECONDS
-  value: '0.5'
-- name: INVENTORY_API_USE_READREPLICA
-  value: 'false'
-- name: INVENTORY_API_READREPLICA_SECRET
-  value: 'host-inventory-read-only-db'
-- name: INVENTORY_API_SECONDARY_READREPLICA_SECRET
-  value: 'host-inventory-read-only-db'
-- name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
-  value: '129600'
-- name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
-  value: '5'
-- name: KAFKA_CONSUMER_SESSION_TIMEOUT_MS
-  value: '10000'
-- name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
-  value: '3000'
-- name: INVENTORY_API_WRITES_LIVENESS_PROBE_PERIOD_SECONDS
-  value: '30'
-- name: INVENTORY_API_WRITES_LIVENESS_PROBE_TIMEOUT_SECONDS
-  value: '60'
-- name: INVENTORY_API_READS_LIVENESS_PROBE_PERIOD_SECONDS
-  value: '30'
-- name: INVENTORY_API_READS_LIVENESS_PROBE_TIMEOUT_SECONDS
-  value: '60'
-- name: INVENTORY_API_WRITES_READINESS_PROBE_PERIOD_SECONDS
-  value: '30'
-- name: INVENTORY_API_WRITES_READINESS_PROBE_TIMEOUT_SECONDS
-  value: '60'
-- name: INVENTORY_API_READS_READINESS_PROBE_PERIOD_SECONDS
-  value: '30'
-- name: INVENTORY_API_READS_READINESS_PROBE_TIMEOUT_SECONDS
-  value: '60'
-- name: INVENTORY_DB_SCHEMA
-  value: 'hbi'
-- name: DELETE_HOSTS_S3_AWS_SECRET
-  description: The AWS secret for the delete-hosts S3 bucket
-  value: 'hbi-delete-host-ids-s3'
-- name: DELETE_HOSTS_DRY_RUN
-  description: Whether the delete_hosts_s3 script should run in dry-run mode
-  value: 'true'
-- name: DELETE_HOSTS_S3_BATCH_SIZE
-  description: The batch size to use for the delete-hosts-s3 script.
-  value: '500'
 - name: HOSTS_TABLE_NUM_PARTITIONS
   description: The number of partitions for the hosts table
   value: '1'
-- name: SUSPEND_DELETE_HOSTS_S3
-  description: If set to true, the delete-hosts-s3 job will immediately exit upon running.
-  value: 'true'
-- name: CREATE_UNGROUPED_GROUPS_BATCH_SIZE
-  description: The batch size to use for the create-ungrouped-groups script.
-  value: '100'
-- name: ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE
-  description: The batch size to use for the assign-ungrouped-hosts script.
-  value: '10'
+- name: MIGRATION_MODE
+  description: Choose migration mode to run DB migrations
+  required: true
+  value: automated
 
-# NGINX
-- displayName: Minimum replicas
-  name: NGINX_REPLICAS
-  required: true
-  value: "1"
-- displayName: Memory Request
-  name: NGINX_MEMORY_REQUEST
-  required: true
-  value: 100Mi
-- displayName: Memory Limit
-  name: NGINX_MEMORY_LIMIT
-  required: true
-  value: 200Mi
-- displayName: CPU Request
-  name: NGINX_CPU_REQUEST
-  required: true
-  value: 100m
-- displayName: CPU Limit
-  name: NGINX_CPU_LIMIT
-  required: true
-  value: 200m
-
-# Feature flags
+# -- Feature Flags (Unleash) --
 - description: Unleash secret name
   name: UNLEASH_SECRET_NAME
   value: bypass
@@ -2572,27 +2283,123 @@ parameters:
   name: UNLEASH_REFRESH_INTERVAL
   value: "15"
 
-# Floorist
-- name: FLOORIST_SUSPEND
-  description: Disable Floorist cronjob execution
-  required: true
-  value: 'true'
-- description: bucket secret name
-  name: FLOORIST_BUCKET_SECRET_NAME
-  required: true
-  value: dummy-secret
-- description: bucket secret name
-  name: FLOORIST_HMS_BUCKET_SECRET_NAME
-  required: true
-  value: dummy-hms-secret
-- name: FLOORIST_LOGLEVEL
-  description: Floorist loglevel config
-  value: 'INFO'
-- name: FLOORIST_DB_SECRET_NAME
-  description: database secret name
-  value: host-inventory-db
+# -- Other Services & General Config --
+- name: PATH_PREFIX
+  value: api
+- name: CONSOLEDOT_HOSTNAME
+  value: localhost
+- name: PROMETHEUS_PUSHGATEWAY
+  value: 'localhost:9091'
+- name: KESSEL_TARGET_URL
+  value: 'localhost:20000'
+- name: URLLIB3_LOG_LEVEL
+  value: WARNING
+- name: CONNEXION_LOG_LEVEL
+  value: WARNING
+- description: disable RBAC middleware
+  name: BYPASS_RBAC
+  value: 'false'
 
-  # Logical replication
+# =================================================================================
+# IV. Application Behavior & Tuning
+# =================================================================================
+
+# -- Gunicorn Web Server --
+- name: GUNICORN_WORKERS
+  value: '4'
+- name: GUNICORN_THREADS
+  value: '8'
+- name: GUNICORN_REQUEST_FIELD_LIMIT
+  value: '16380'
+- name: GUNICORN_REQUEST_LINE_LIMIT
+  value: '8190'
+
+# -- API Probes --
+- name: INVENTORY_API_WRITES_LIVENESS_PROBE_PERIOD_SECONDS
+  value: '30'
+- name: INVENTORY_API_WRITES_LIVENESS_PROBE_TIMEOUT_SECONDS
+  value: '60'
+- name: INVENTORY_API_WRITES_READINESS_PROBE_PERIOD_SECONDS
+  value: '30'
+- name: INVENTORY_API_WRITES_READINESS_PROBE_TIMEOUT_SECONDS
+  value: '60'
+- name: INVENTORY_API_READS_LIVENESS_PROBE_PERIOD_SECONDS
+  value: '30'
+- name: INVENTORY_API_READS_LIVENESS_PROBE_TIMEOUT_SECONDS
+  value: '60'
+- name: INVENTORY_API_READS_READINESS_PROBE_PERIOD_SECONDS
+  value: '30'
+- name: INVENTORY_API_READS_READINESS_PROBE_TIMEOUT_SECONDS
+  value: '60'
+
+# -- Caching --
+- name: INVENTORY_API_CACHE_TYPE
+  value: 'NullCache'
+- name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
+  value: '0'
+- name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
+  value: '129600'
+- name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
+  value: '5'
+
+# -- Read Replicas --
+- name: INVENTORY_API_USE_READREPLICA
+  value: 'false'
+- name: INVENTORY_API_READREPLICA_SECRET
+  value: 'host-inventory-read-only-db'
+- name: INVENTORY_API_SECONDARY_READREPLICA_SECRET
+  value: 'host-inventory-read-only-db'
+
+# -- Batch & Processing Sizes --
+- name: MQ_DB_BATCH_MAX_MESSAGES
+  value: '1'
+- name: MQ_WORKSPACES_DB_BATCH_MAX_MESSAGES
+  value: '1'
+- name: MQ_DB_BATCH_MAX_SECONDS
+  value: '0.5'
+- name: SCRIPT_CHUNK_SIZE
+  value: '500'
+
+# -- General Behavior --
+- name: REBUILD_EVENTS_TIME_LIMIT
+  value: '3600'
+- name: CONSUMER_MQ_BROKER
+  value: ''
+- name: REPLICA_NAMESPACE
+  description: Disable Kafka operations in the replica namespace
+  value: 'false'
+
+# =================================================================================
+# V. Job-Specific Configuration
+# =================================================================================
+
+# -- Reaper Job --
+- name: REAPER_SUSPEND
+  value: 'true'
+- name: HOST_DELETE_CHUNK_SIZE
+  value: "1000"
+
+# -- Stale Host Notification Job --
+- name: STALE_HOST_NOTIFICATION_SUSPEND
+  value: 'true'
+- name: STALE_HOST_NOTIFICATION_SCHEDULE
+  value: '*/1 * * * *'
+
+# -- System Profile Validator Job --
+- name: SP_VALIDATOR_SUSPEND
+  value: 'true'
+- name: KAFKA_SP_VALIDATOR_MAX_MESSAGES
+  value: '10000'
+
+# -- Pendo Syncher Job --
+- name: PENDO_SYNCHER_SUSPEND
+  value: 'true'
+- name: PENDO_CRON_SCHEDULE
+  value: '@daily'
+- name: PENDO_SYNC_ACTIVE
+  value: 'false'
+
+# -- Syndicator Job (Logical Replication) --
 - name: SYNDICATOR_SUSPEND
   value: 'false'
 - name: SYNDICATOR_CRON_SCHEDULE
@@ -2610,45 +2417,61 @@ parameters:
   description: Replica Identity Mode to set in the published tables (and their partitions)
   value: ''
 
-# Replica namespace
-- name: REPLICA_NAMESPACE
-  description: Disable Kafka operations in the replica namespace
-  value: 'false'
-
-# DB refactoring
-- name: MIGRATION_MODE
-  description: Choose migration mode to run DB migrations
-  required: true
-  value: automated
-
-# Delete Host BIOS UUID Job
-- name: CPU_REQUEST_DELETE_HOST_BIOS_UUID_JOB
-  value: 100m
-- name: CPU_LIMIT_DELETE_HOST_BIOS_UUID_JOB
-  value: 200m
-- name: MEMORY_REQUEST_DELETE_HOST_BIOS_UUID_JOB
-  value: 128Mi
-- name: MEMORY_LIMIT_DELETE_HOST_BIOS_UUID_JOB
-  value: 256Mi
-- name: SUSPEND_DELETE_HOST_BIOS_UUID
-  description: If set to true, the delete-host-bios-uuid job will immediately exit upon running.
+# -- Delete Hosts from S3 Job --
+- name: DELETE_HOSTS_S3_AWS_SECRET
+  description: The AWS secret for the delete-hosts S3 bucket
+  value: 'hbi-delete-host-ids-s3'
+- name: DELETE_HOSTS_DRY_RUN
+  description: Whether the delete_hosts_s3 script should run in dry-run mode
   value: 'true'
-- name: TARGET_HOST_ID
-  description: The host ID to target for bios_uuid deletion
-  value: ''
+- name: DELETE_HOSTS_S3_BATCH_SIZE
+  description: The batch size to use for the delete-hosts-s3 script.
+  value: '500'
+- name: SUSPEND_DELETE_HOSTS_S3
+  description: If set to true, the delete-hosts-s3 job will immediately exit upon running.
+  value: 'true'
 
-# Duplicate Hosts Remover Job
-- name: CPU_REQUEST_DUPLICATE_HOSTS_REMOVER_JOB
-  value: 250m
-- name: CPU_LIMIT_DUPLICATE_HOSTS_REMOVER_JOB
-  value: 500m
-- name: MEMORY_REQUEST_DUPLICATE_HOSTS_REMOVER_JOB
-  value: 256Mi
-- name: MEMORY_LIMIT_DUPLICATE_HOSTS_REMOVER_JOB
-  value: 512Mi
+# -- Duplicate Hosts Remover Job --
 - name: REMOVE_DUPLICATES_DRY_RUN
   description: Whether the duplicate hosts remover script should run in dry-run mode
   value: 'true'
 - name: SUSPEND_DUPLICATE_HOSTS_REMOVER
   description: If set to true, the duplicate-hosts-remover job will immediately exit upon running.
   value: 'true'
+
+# -- Ungrouped Hosts Jobs --
+- name: CREATE_UNGROUPED_GROUPS_BATCH_SIZE
+  description: The batch size to use for the create-ungrouped-groups script.
+  value: '100'
+- name: ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE
+  description: The batch size to use for the assign-ungrouped-hosts script.
+  value: '10'
+
+# -- Update RHSM host timestamps Job --
+- name: UPDATE_RHSM_HOST_TIMESTAMPS_DRY_RUN
+  description: Whether the update-rhsm-host-timestamps script should run in dry-run mode
+  value: 'true'
+
+# =================================================================================
+# VI. Floorist Configuration
+# =================================================================================
+# Settings for the Floorist metrics exporter.
+
+- name: FLOORIST_SUSPEND
+  description: Disable Floorist cronjob execution
+  required: true
+  value: 'true'
+- description: bucket secret name
+  name: FLOORIST_BUCKET_SECRET_NAME
+  required: true
+  value: dummy-secret
+- description: bucket secret name for hms
+  name: FLOORIST_HMS_BUCKET_SECRET_NAME
+  required: true
+  value: dummy-hms-secret
+- name: FLOORIST_LOGLEVEL
+  description: Floorist loglevel config
+  value: 'INFO'
+- name: FLOORIST_DB_SECRET_NAME
+  description: database secret name
+  value: host-inventory-db

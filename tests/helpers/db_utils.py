@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from datetime import timedelta
 from random import randint
 from typing import Any
@@ -10,6 +11,7 @@ from app.models import Group
 from app.models import Host
 from app.models import Staleness
 from app.models import db
+from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 from lib.host_repository import find_existing_host
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
@@ -163,3 +165,34 @@ def assert_host_exists_in_db(host_id, search_canonical_facts, identity=USER_IDEN
 
     assert found_host
     assert str(host_id) == str(found_host.id)
+
+
+def create_rhsm_only_host(
+    stale_timestamp: datetime | None = None,
+    stale_warning_timestamp: datetime | None = None,
+    deletion_timestamp: datetime | None = None,
+) -> Host:
+    """Create a host that is RHSM-only (only has rhsm-system-profile-bridge reporter)"""
+    # Use the far future timestamp as default if not specified
+    stale_ts = stale_timestamp if stale_timestamp is not None else FAR_FUTURE_STALE_TIMESTAMP
+    stale_warning_ts = stale_warning_timestamp if stale_warning_timestamp is not None else FAR_FUTURE_STALE_TIMESTAMP
+    deletion_ts = deletion_timestamp if deletion_timestamp is not None else FAR_FUTURE_STALE_TIMESTAMP
+
+    host = minimal_db_host(
+        canonical_facts={"subscription_manager_id": generate_uuid()},
+        reporter="rhsm-system-profile-bridge",
+        per_reporter_staleness={
+            "rhsm-system-profile-bridge": {
+                "last_check_in": now().isoformat(),
+                "stale_timestamp": stale_ts.isoformat(),
+                "stale_warning_timestamp": stale_warning_ts.isoformat(),
+                "culled_timestamp": deletion_ts.isoformat(),
+                "check_in_succeeded": True,
+            }
+        },
+    )
+    # Set timestamps directly as properties after object creation
+    host.stale_timestamp = stale_ts
+    host.stale_warning_timestamp = stale_warning_ts
+    host.deletion_timestamp = deletion_ts
+    return host

@@ -1,3 +1,5 @@
+# mypy: disallow-untyped-defs
+
 from collections.abc import Generator
 
 import pytest
@@ -36,3 +38,9 @@ def flask_app(new_flask_app: FlaskApp) -> Generator[FlaskApp]:
 def inventory_config(flask_app: FlaskApp) -> Generator[Config]:
     yield flask_app.app.config["INVENTORY_CONFIG"]
     flask_app.app.config["INVENTORY_CONFIG"] = Config(RuntimeEnvironment.TEST)
+
+
+@pytest.fixture(scope="function")
+def no_dry_run_config(inventory_config: Config) -> Config:
+    inventory_config.dry_run = False
+    return inventory_config
