@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from sqlalchemy import Column
 from sqlalchemy import Integer
+from sqlalchemy import String
 from sqlalchemy import and_
 from sqlalchemy import func
 from sqlalchemy import or_
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql.expression import ColumnElement
 from sqlalchemy.sql.expression import ColumnOperators
 
@@ -22,6 +24,11 @@ from app.models.system_profile_static import HostStaticSystemProfile
 from app.models.system_profile_transformer import DYNAMIC_FIELDS
 
 logger = get_logger(__name__)
+
+
+def _is_uuid_column(column: Column) -> bool:
+    """Check if a column is a UUID type."""
+    return isinstance(column.type, UUID)
 
 
 # Utility class to facilitate OS filter comparison
@@ -344,6 +351,10 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
             # Cast column and value, if using an applicable type
             target_field = target_field.cast(pg_cast)
             value = FIELD_FILTER_TO_PYTHON_CAST[field_filter](value)
+        elif not eval_jsonb_path and _is_uuid_column(column) and value == "":
+            # Special handling for UUID columns with empty string values
+            # Convert to text comparison to avoid PostgreSQL UUID casting errors
+            target_field = target_field.cast(String)
 
         # "contains" is not a column operator, so we have to do it manually
         if pg_op == "contains":

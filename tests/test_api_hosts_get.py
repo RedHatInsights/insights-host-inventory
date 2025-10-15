@@ -1389,6 +1389,9 @@ def test_query_host_fuzzy_match(db_create_host, api_get, query_filter_param, mat
         "[host_type]=",  # Valid bc it's a string field, but no match
         "[host_type][eq]=",  # Same for this one
         "[workloads][sap][sids][contains][]=ABC&filter[system_profile][workloads][sap][sids][contains][]=GHI",
+        "[sap][sids][contains][]=ABC&filter[system_profile][sap][sids][contains][]=GHI",
+        "[virtual_host_uuid]=",  # Valid field, but no match
+        "[arch]=",  # Valid field, but no match
     ),
 )
 def test_query_all_sp_filters_not_found(db_create_host, api_get, sp_filter_param):
