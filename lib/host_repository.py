@@ -36,8 +36,6 @@ from app.queue.events import EventType
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness
 from lib import metrics
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
-from lib.feature_flags import get_flag_value
 from lib.outbox_repository import write_event_to_outbox
 
 __all__ = (
@@ -76,6 +74,10 @@ def add_host(
      It is documented here:
      https://inscope.corp.redhat.com/docs/default/Component/consoledot-pages/services/inventory/#expected-message-format
     """
+    # Import here to avoid circular import
+    from lib.group_repository import get_or_create_ungrouped_hosts_group_for_identity
+    from lib.group_repository import serialize_group
+
     if operation_args is None:
         operation_args = {}
 
@@ -87,6 +89,9 @@ def add_host(
         # If the list of existing hosts was not provided, or the match was not found, try querying DB
         matched_host = find_existing_host(identity, input_host.canonical_facts)
 
+    group = get_or_create_ungrouped_hosts_group_for_identity(identity)
+    input_host.groups = [serialize_group(group)]
+
     if matched_host:
         defer_to_reporter = operation_args.get("defer_to_reporter")
         if defer_to_reporter is not None:
@@ -95,27 +100,11 @@ def add_host(
                 logger.debug("host_repository.add_host: setting update_system_profile = False")
                 update_system_profile = False
 
-        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
-            # Import here to avoid circular import
-            from lib.group_repository import get_or_create_ungrouped_hosts_group_for_identity
-            from lib.group_repository import serialize_group
-
-            group = get_or_create_ungrouped_hosts_group_for_identity(identity)
-            input_host.groups = [serialize_group(group)]
-
         return update_existing_host(matched_host, input_host, update_system_profile)
     else:
-        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
-            # Import here to avoid circular import
-            from lib.group_repository import get_or_create_ungrouped_hosts_group_for_identity
-            from lib.group_repository import serialize_group
-
-            group = get_or_create_ungrouped_hosts_group_for_identity(identity)
-            input_host.groups = [serialize_group(group)]
-
-            # create a new host group association for the host
-            assoc = HostGroupAssoc(input_host.id, group.id, identity.org_id)
-            db.session.add(assoc)
+        # create a new host group association for the host
+        assoc = HostGroupAssoc(input_host.id, group.id, identity.org_id)
+        db.session.add(assoc)
 
         return create_new_host(input_host)
 

@@ -140,9 +140,22 @@ def api_create_group_kessel(flask_client, mocker):
 
 @pytest.fixture(scope="function")
 def api_delete_groups(flask_client, mocker):
-    def _api_delete_group(group_id_list, identity=USER_IDENTITY, query_parameters=None, extra_headers=None):
+    def _api_delete_group(
+        group_id_list,
+        identity=USER_IDENTITY,
+        query_parameters=None,
+        extra_headers=None,
+        abort_status=None,
+        abort_detail=None,
+    ):
         delete_rbac_group_mock = mocker.patch("api.group.delete_rbac_workspace")
-        delete_rbac_group_mock.return_value = True
+        if abort_status:
+            delete_rbac_group_mock.side_effect = lambda *args, **kwargs: abort(
+                abort_status, description=abort_detail or "Unexpected error"
+            )
+        else:
+            delete_rbac_group_mock.return_value = True
+
         url = f"{GROUP_URL}/{','.join([str(group_id) for group_id in group_id_list])}"
         return do_request(
             flask_client.delete, url, identity, query_parameters=query_parameters, extra_headers=extra_headers
@@ -218,6 +231,11 @@ def api_remove_hosts_from_diff_groups(flask_client):
 @pytest.fixture(scope="function")
 def enable_rbac(inventory_config):
     inventory_config.bypass_rbac = False
+
+
+@pytest.fixture(scope="function")
+def enable_kessel(inventory_config):
+    inventory_config.bypass_kessel = False
 
 
 @pytest.fixture(scope="function")
