@@ -88,7 +88,7 @@ services:
 
     unleash:
       container_name: unleash
-      image: docker.io/unleashorg/unleash-server:4.21.0
+      image: docker.io/unleashorg/unleash-server:5.11.3
       environment:
         - INIT_ADMIN_API_TOKENS=${UNLEASH_TOKEN:?}
         - CHECK_VERSION=false
@@ -97,7 +97,6 @@ services:
         - DATABASE_USERNAME=${DATABASE_USER-insights}
         - DATABASE_PASSWORD=${DATABASE_PASSWORD-insights}
         - DATABASE_SSL=false
-        - IMPORT_DROP_BEFORE_IMPORT=false
         - IMPORT_FILE=/.unleash/flags.json
         - IMPORT_DROP_BEFORE_IMPORT=true
         - LOG_LEVEL=INFO
