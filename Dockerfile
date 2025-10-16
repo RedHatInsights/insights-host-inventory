@@ -59,7 +59,7 @@ RUN python3 -m pip install --upgrade pip setuptools wheel && \
     pipenv install --system
 
 # remove devel packages that were only necessary for psycopg2 to compile
-RUN microdnf remove  -y  libpq-devel python3.12-devel gcc libatomic cargo rust rust-std-static gcc-c++ && \
+RUN microdnf remove  -y  libpq-devel python3.12-devel gcc cargo rust rust-std-static gcc-c++ && \
     microdnf clean all
 
 ENV LD_LIBRARY_PATH=/usr/lib64:/usr/lib
