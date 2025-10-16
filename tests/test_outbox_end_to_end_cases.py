@@ -1057,7 +1057,13 @@ class TestOutboxE2ECases:
         outbox_calls = []
 
         def mock_write_outbox(event_type, host_id_param, host_obj):
-            outbox_calls.append({"event_type": event_type, "host_id": host_id_param, "host": host_obj})
+            # Capture groups information while host is still attached to session
+            groups_info = None
+            if host_obj is not None:
+                groups_info = host_obj.groups
+            outbox_calls.append(
+                {"event_type": event_type, "host_id": host_id_param, "host": host_obj, "groups": groups_info}
+            )
             return True
 
         with patch("lib.group_repository.write_event_to_outbox", side_effect=mock_write_outbox):
@@ -1077,9 +1083,13 @@ class TestOutboxE2ECases:
             # Verify the host object in the outbox call has updated group information
             host_obj = call["host"]
             assert host_obj is not None
-            assert len(host_obj.groups) == 1
-            assert host_obj.groups[0]["id"] == group_id
-            assert host_obj.groups[0]["name"] == "test-outbox-group"
+
+            # Use the captured groups information instead of accessing the detached host object
+            groups_info = call["groups"]
+            assert groups_info is not None
+            assert len(groups_info) == 1
+            assert groups_info[0]["id"] == group_id
+            assert groups_info[0]["name"] == "test-outbox-group"
 
             # Verify the host was actually added to the group in the database
             # Use group_id (string) instead of group.id to avoid session issues
@@ -1129,6 +1139,11 @@ class TestOutboxE2ECases:
         original_write_event_to_outbox = write_event_to_outbox
 
         def capture_outbox_payload(event_type, host_id_param, host_obj):
+            # Capture groups information while host is still attached to session
+            groups_info = None
+            if host_obj is not None:
+                groups_info = host_obj.groups
+
             # Call the original function to ensure real outbox functionality
             result = original_write_event_to_outbox(event_type, host_id_param, host_obj)
 
@@ -1138,7 +1153,13 @@ class TestOutboxE2ECases:
 
                 payload = _create_update_event_payload(host_obj)
                 outbox_payloads.append(
-                    {"event_type": event_type, "host_id": host_id_param, "payload": payload, "host": host_obj}
+                    {
+                        "event_type": event_type,
+                        "host_id": host_id_param,
+                        "payload": payload,
+                        "host": host_obj,
+                        "groups": groups_info,
+                    }
                 )
 
             return result
@@ -1160,9 +1181,13 @@ class TestOutboxE2ECases:
             # Verify the host object has updated group information
             host_obj = captured["host"]
             assert host_obj is not None
-            assert len(host_obj.groups) == 1
-            assert host_obj.groups[0]["id"] == group_id
-            assert host_obj.groups[0]["name"] == "test-actual-outbox-group"
+
+            # Use the captured groups information instead of accessing the detached host object
+            groups_info = captured["groups"]
+            assert groups_info is not None
+            assert len(groups_info) == 1
+            assert groups_info[0]["id"] == group_id
+            assert groups_info[0]["name"] == "test-actual-outbox-group"
 
             # Verify the outbox payload structure (what gets sent to Kessel)
             payload = captured["payload"]
