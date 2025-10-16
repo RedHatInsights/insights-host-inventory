@@ -63,7 +63,7 @@ def _update_hosts_for_group_changes(host_id_list: list[str], group_id_list: list
     db.session.query(Host).filter(Host.id.in_(host_id_list), Host.org_id == identity.org_id).update(
         {"groups": serialized_groups}, synchronize_session="fetch"
     )
-    db.session.commit()
+    db.session.flush()
 
     return serialized_groups, host_id_list
 
@@ -197,14 +197,23 @@ def wait_for_workspace_event(workspace_id: str, event_type: EventType, timeout: 
     raise TimeoutError("No workspace creation message consumed in time.")
 
 
-def _process_host_changes(
-    host_id_list: list[str],
+def _complete_host_changes(
+    host_list: list[Host],
     serialized_groups: list[str],
     staleness: AttrDict,
     identity: Identity,
     event_producer: EventProducer,
 ):
+    _produce_host_update_events(event_producer, serialized_groups, host_list, identity, staleness=staleness)
+    _invalidate_system_cache(host_list, identity)
+
+
+def _process_host_changes(
+    host_id_list: list[str],
+    identity: Identity,
+) -> list[Host]:
     batch_size = inventory_config().mq_db_batch_max_messages
+    host_list = []
     # Split host_id_list into batches
     for i in range(0, len(host_id_list), batch_size):
         batch = host_id_list[i : i + batch_size]
@@ -222,8 +231,7 @@ def _process_host_changes(
                 logger.error("Failed to write updated event to outbox: %s", str(ose))
                 raise ose
 
-        _produce_host_update_events(event_producer, serialized_groups, host_list, identity, staleness=staleness)
-        _invalidate_system_cache(host_list, identity)
+    return host_list
 
 
 def add_hosts_to_group(
@@ -233,14 +241,17 @@ def add_hosts_to_group(
     event_producer: EventProducer,
 ):
     staleness = get_staleness_obj(identity.org_id)
+    host_list = []
     with session_guard(db.session):
         _add_hosts_to_group(group_id, host_id_list, identity.org_id)
 
-    # Produce update messages once the DB session has been closed
-    serialized_groups, host_id_list = _update_hosts_for_group_changes(
-        host_id_list, group_id_list=[group_id], identity=identity
-    )
-    _process_host_changes(host_id_list, serialized_groups, staleness, identity, event_producer)
+        # Produce update messages once the DB session has been closed
+        serialized_groups, host_id_list = _update_hosts_for_group_changes(
+            host_id_list, group_id_list=[group_id], identity=identity
+        )
+        host_list = _process_host_changes(host_id_list, identity)
+
+    _complete_host_changes(host_list, serialized_groups, staleness, identity, event_producer)
 
 
 def add_group(
@@ -286,7 +297,9 @@ def add_group_with_hosts(
     serialized_groups, host_id_list = _update_hosts_for_group_changes(
         host_id_list, group_id_list=[created_group.id], identity=identity
     )
-    _process_host_changes(host_id_list, serialized_groups, staleness, identity, event_producer)
+
+    host_list = _process_host_changes(host_id_list, identity)
+    _complete_host_changes(host_list, serialized_groups, staleness, identity, event_producer)
 
     return created_group
 
@@ -370,7 +383,8 @@ def delete_group_list(group_id_list: list[str], identity: Identity, event_produc
             new_group_list = [str(get_or_create_ungrouped_hosts_group_for_identity(identity).id)]
 
         serialized_groups, host_id_list = _update_hosts_for_group_changes(deleted_host_ids, new_group_list, identity)
-        _process_host_changes(host_id_list, serialized_groups, staleness, identity, event_producer)
+        host_list = _process_host_changes(host_id_list, identity)
+        _complete_host_changes(host_list, serialized_groups, staleness, identity, event_producer)
 
         db.session.commit()
         db.session.expunge_all()
@@ -384,14 +398,16 @@ def remove_hosts_from_group(group_id, host_id_list, identity, event_producer):
     group_id_list = []
     with session_guard(db.session):
         removed_host_ids = _remove_hosts_from_group(group_id, host_id_list, identity.org_id)
-        # if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
-        # Add hosts to the "ungrouped" group
-        ungrouped_group_id = str(get_or_create_ungrouped_hosts_group_for_identity(identity).id)
-        _add_hosts_to_group(ungrouped_group_id, [str(host_id) for host_id in removed_host_ids], identity.org_id)
-        group_id_list = [ungrouped_group_id]
+        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
+            # Add hosts to the "ungrouped" group
+            ungrouped_group_id = str(get_or_create_ungrouped_hosts_group_for_identity(identity).id)
+            _add_hosts_to_group(ungrouped_group_id, [str(host_id) for host_id in removed_host_ids], identity.org_id)
+            group_id_list = [ungrouped_group_id]
 
     serialized_groups, host_id_list = _update_hosts_for_group_changes(removed_host_ids, group_id_list, identity)
-    _process_host_changes(host_id_list, serialized_groups, staleness, identity, event_producer)
+    host_list = _process_host_changes(host_id_list, identity)
+    _complete_host_changes(host_list, serialized_groups, staleness, identity, event_producer)
+
     return len(removed_host_ids)
 
 
@@ -438,6 +454,9 @@ def patch_group(group: Group, patch_data: dict, identity: Identity, event_produc
     existing_host_ids = {str(host_id[0]) for host_id in existing_host_uuids}
     staleness = get_staleness_obj(identity.org_id)
 
+    host_list = []
+    serialized_groups = []
+
     with session_guard(db.session):
         # Patch Group data, if provided
         group_patched = group.patch(patch_data)
@@ -460,7 +479,7 @@ def patch_group(group: Group, patch_data: dict, identity: Identity, event_produc
         serialized_groups, host_id_list = _update_hosts_for_group_changes(
             list(existing_host_ids), [group_id], identity
         )
-        _process_host_changes(host_id_list, serialized_groups, staleness, identity, event_producer)
+        host_list = _process_host_changes(host_id_list, identity)
     elif new_host_ids is not None:
         # If host IDs were provided, we need to update the host list.
         # First, update the modified date for the group
@@ -472,12 +491,15 @@ def patch_group(group: Group, patch_data: dict, identity: Identity, event_produc
         serialized_groups, host_id_list = _update_hosts_for_group_changes(
             removed_host_uuids, removed_group_id_list, identity
         )
-        _process_host_changes(host_id_list, serialized_groups, staleness, identity, event_producer)
+        host_list = _process_host_changes(host_id_list, identity)
 
         # Handle added and existing hosts
         added_host_uuids = [str(host_id) for host_id in new_host_ids]
         serialized_groups, host_id_list = _update_hosts_for_group_changes(added_host_uuids, [group_id], identity)
-        _process_host_changes(host_id_list, serialized_groups, staleness, identity, event_producer)
+        host_list = _process_host_changes(host_id_list, identity)
+
+    # send the update messages and clear the system cache
+    _complete_host_changes(host_list, serialized_groups, staleness, identity, event_producer)
 
 
 def _update_group_update_time(group_id: str, org_id: str):
