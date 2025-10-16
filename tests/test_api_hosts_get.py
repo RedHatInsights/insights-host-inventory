@@ -1392,10 +1392,6 @@ def test_query_host_fuzzy_match(db_create_host, api_get, query_filter_param, mat
         "[sap][sids][contains][]=ABC&filter[system_profile][sap][sids][contains][]=GHI",
         "[virtual_host_uuid]=",  # Valid field, but no match
         "[arch]=",
-        "[is_marketplace]=",
-        "[installed_services]=",
-        "[image_builder]=",
-        "[number_of_cpus]=",
     ),
 )
 def test_query_all_sp_filters_not_found(db_create_host, api_get, sp_filter_param):

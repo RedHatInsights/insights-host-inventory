@@ -9,7 +9,6 @@ from sqlalchemy import func
 from sqlalchemy import or_
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql.expression import ColumnElement
 from sqlalchemy.sql.expression import ColumnOperators
 
@@ -29,9 +28,12 @@ from app.models.system_profile_transformer import DYNAMIC_FIELDS
 logger = get_logger(__name__)
 
 
-def _needs_empty_string_cast(column: Column) -> bool:
-    """Check if a column needs special handling for empty string values."""
-    return isinstance(column.type, (UUID, Boolean, Integer, ARRAY, JSONB))
+def _handle_empty_string_cast(target_field: ColumnElement, column: Column) -> ColumnElement:
+    """Handle empty string values for columns that don't support them."""
+    if isinstance(column.type, (Boolean, Integer, ARRAY, JSONB)):
+        raise ValidationException(f"'' is an invalid value for field {column.name}")
+
+    return target_field.cast(String)
 
 
 # Utility class to facilitate OS filter comparison
@@ -358,9 +360,7 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
             value = None
         elif value == "":
             # For empty strings, cast problematic columns to text to avoid PostgreSQL errors
-            if not eval_jsonb_path and _needs_empty_string_cast(column):
-                target_field = target_field.cast(String)
-            # Use equality comparison for empty strings
+            target_field = _handle_empty_string_cast(target_field, column)
             pg_op = ColumnOperators.__eq__
         elif pg_cast := FIELD_FILTER_TO_POSTGRES_CAST.get(field_filter):
             # Cast column and value for normal (non-empty) values
