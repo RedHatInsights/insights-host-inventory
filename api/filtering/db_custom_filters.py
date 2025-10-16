@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+from sqlalchemy import Boolean
+from sqlalchemy import Column
 from sqlalchemy import Integer
+from sqlalchemy import String
 from sqlalchemy import and_
 from sqlalchemy import func
 from sqlalchemy import or_
+from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql.expression import ColumnElement
 from sqlalchemy.sql.expression import ColumnOperators
 
@@ -16,9 +21,19 @@ from api.filtering.filtering_common import get_valid_os_names
 from app import system_profile_spec
 from app.exceptions import ValidationException
 from app.logging import get_logger
-from app.models import Host
+from app.models.system_profile_dynamic import HostDynamicSystemProfile
+from app.models.system_profile_static import HostStaticSystemProfile
+from app.models.system_profile_transformer import DYNAMIC_FIELDS
 
 logger = get_logger(__name__)
+
+
+def _handle_empty_string_cast(target_field: ColumnElement, column: Column) -> ColumnElement:
+    """Handle empty string values for columns that don't support them."""
+    if isinstance(column.type, (Boolean, Integer, ARRAY, JSONB)):
+        raise ValidationException(f"'' is an invalid value for field {column.name}")
+
+    return target_field.cast(String)
 
 
 # Utility class to facilitate OS filter comparison
@@ -50,15 +65,51 @@ class OsFilter:
         self.minor = minor
 
 
+def _get_system_profile_column_and_filter(filter_param: dict) -> tuple[Column, dict]:
+    field_name = next(iter(filter_param.keys()))
+
+    # handle workloads fields
+    if field_name == "sap_system":
+        filter_param = {"workloads": {"sap": filter_param}}
+        field_name = "workloads"
+    elif field_name == "sap_sids":
+        filter_param = {"workloads": {"sap": {"sids": filter_param.get("sap_sids")}}}
+        field_name = "workloads"
+    elif field_name in {"sap", "ansible", "mssql"}:
+        filter_param = {"workloads": filter_param}
+        field_name = "workloads"
+
+    return getattr(HostDynamicSystemProfile, field_name) if field_name in DYNAMIC_FIELDS else getattr(
+        HostStaticSystemProfile, field_name
+    ), filter_param
+
+
 def _check_field_in_spec(spec: dict, field_name: str, parent_node: str) -> None:
     if field_name not in spec.keys():
         raise ValidationException(f"Invalid operation or child node for {parent_node}: {field_name}")
 
 
 # Takes a filter dict and converts it into:
+#   column: The target column
 #   jsonb_path: The jsonb path, i.e. (system_profile_facts, sap, sap_system,)
 #   pg_op: The comparison to use (e.g. =, >, <)
 #   value: The filter's value
+def _convert_dict_to_column_jsonb_path_pg_op_value(
+    filter_param: dict,
+) -> tuple[Column, tuple[str, ...], str | None, str]:
+    try:
+        column, filter_param = _get_system_profile_column_and_filter(filter_param)
+    except AttributeError as e:
+        key: str = next(iter(filter_param.keys()))
+        logger.error(f"Field {key} not found in system profile. Exception: {e}")
+        raise ValidationException(f"Field {key} not found in system profile.") from e
+
+    jsonb_path, pg_op, value = _convert_dict_to_json_path_and_value(filter_param)
+    # Omit the first element from the jsonb_path tuple
+    omitted_jsonb_path = jsonb_path[1:] if jsonb_path else ()
+    return column, omitted_jsonb_path, pg_op, value
+
+
 def _convert_dict_to_json_path_and_value(
     filter: dict,
 ) -> tuple[tuple[str], str | None, str]:  # Tuple of keys for the json path; pg_op; leaf node
@@ -154,7 +205,8 @@ def separate_operating_system_filters(filter_url_params) -> list[OsFilter]:
 def build_operating_system_filter(filter_param: dict) -> tuple:
     os_filter_list = []  # Top-level filter
     os_range_filter_list = []  # Contains the OS filters that use range operations
-    os_field = Host.system_profile_facts["operating_system"]
+
+    os_field = HostStaticSystemProfile.operating_system
 
     separated_filters = separate_operating_system_filters(filter_param["operating_system"])
 
@@ -163,7 +215,7 @@ def build_operating_system_filter(filter_param: dict) -> tuple:
 
         if os_filter.comparator in ["nil", "not_nil"]:
             # Uses the comparator with None, resulting in either is_(None) or is_not(None)
-            os_filter_list.append(os_field.astext.operate(comparator, None))
+            os_filter_list.append(os_field.operate(comparator, None))
 
         elif os_filter.comparator in ["eq", "neq"]:
             os_filters = [
@@ -263,9 +315,14 @@ def _validate_pg_op_and_value(pg_op: str | None, value: str, field_filter: str, 
     if field_filter != "array" and pg_op == "contains":
         raise ValidationException(f"'contains' is an invalid operation for non-array field {field_name}")
 
-    if (field_filter == "integer" and (not value.isdigit() and value not in ["nil", "not_nil"])) or (
+    # Allow empty strings for all field types to handle "no match" scenarios
+    if not value:
+        return
+
+    invalid_value = (field_filter == "integer" and not value.isdigit() and value not in ["nil", "not_nil"]) or (
         field_filter == "boolean" and value.lower() not in ["true", "false", "nil", "not_nil"]
-    ):
+    )
+    if invalid_value:
         raise ValidationException(f"'{value}' is an invalid value for field {field_name}")
 
 
@@ -282,28 +339,36 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
         logger.debug(f"generating filter: field: {field_name}, type: {field_filter}, field_input: {field_input}")
 
         value: str | None
-        jsonb_path, pg_op, value = _convert_dict_to_json_path_and_value(filter_param)
+        column, jsonb_path, pg_op, value = _convert_dict_to_column_jsonb_path_pg_op_value(filter_param)
+
         # For single-level paths, use ->> operator; for nested paths, use #>> operator
         # This ensures we match the indexes which use ->> for single-level fields
-        if len(jsonb_path) == 1:
-            target_field = Host.system_profile_facts[jsonb_path[0]].astext
-        else:
-            target_field = Host.system_profile_facts[(jsonb_path)].astext
+        eval_jsonb_path = jsonb_path[0] if len(jsonb_path) == 1 else (jsonb_path)
+
+        # Use the new SP table
+        # The first node in jsonb_path is the column name
+        target_field = column[eval_jsonb_path].astext if eval_jsonb_path else column
+
         _validate_pg_op_and_value(pg_op, value, field_filter, field_name)
 
         # Use the default comparator for the field type, if not provided
         if not pg_op or not value:
-            pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter)
+            pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter) or ColumnOperators.__eq__
 
         # Handle wildcard fields (use ILIKE, replace * with %)
         if pg_op == ColumnOperators.ilike:
             value = value.replace("*", "%")
 
+        # Handle special values and casting
         if value in ["nil", "not_nil"]:
             pg_op = POSTGRES_COMPARATOR_LOOKUP[value]
             value = None
+        elif value == "":
+            # For empty strings, cast problematic columns to text to avoid PostgreSQL errors
+            target_field = _handle_empty_string_cast(target_field, column)
+            pg_op = ColumnOperators.__eq__
         elif pg_cast := FIELD_FILTER_TO_POSTGRES_CAST.get(field_filter):
-            # Cast column and value, if using an applicable type
+            # Cast column and value for normal (non-empty) values
             target_field = target_field.cast(pg_cast)
             value = FIELD_FILTER_TO_PYTHON_CAST[field_filter](value)
 
