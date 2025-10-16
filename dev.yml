@@ -88,7 +88,7 @@ services:
 
     unleash:
       container_name: unleash
-      image: quay.io/cloudservices/unleash-server:4.21.0
+      image: docker.io/unleashorg/unleash-server:4.21.0
       environment:
         - INIT_ADMIN_API_TOKENS=${UNLEASH_TOKEN:?}
         - CHECK_VERSION=false
