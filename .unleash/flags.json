@@ -66,22 +66,6 @@
             "createdAt": "2025-04-25T16:32:16.409Z"
         },
         {
-            "name": "hbi.filter_staleness_using_columns",
-            "description": "Enable GET /hosts to use table columns to filter hosts.",
-            "type": "release",
-            "project": "default",
-            "stale": false,
-            "enabled": true,
-            "createdAt": "2025-05-05T22:31:19.466Z",
-            "strategies": [
-                {
-                    "name": "default",
-                    "parameters": {}
-                }
-            ],
-            "variants": []
-          },
-          {
             "name": "hbi.use_new_system_profile_tables",
             "description": "When turned ON, HBI will use the new system profile tables.",
             "type": "release",
