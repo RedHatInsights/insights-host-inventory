@@ -1012,7 +1012,7 @@ class TestOutboxE2ECases:
             ),
         ):
             # Make POST request to add host to group
-            response_status, response_data = api_add_hosts_to_group(group_id, [host_id])
+            response_status, _ = api_add_hosts_to_group(group_id, [host_id])
 
             # Verify the API request was successful
             assert response_status == 200
@@ -1110,7 +1110,7 @@ class TestOutboxE2ECases:
 
         with patch("lib.group_repository.write_event_to_outbox", side_effect=capture_outbox_payload):
             # Make POST request to add host to group
-            response_status, response_data = api_add_hosts_to_group(group_id, [host_id])
+            response_status, _ = api_add_hosts_to_group(group_id, [host_id])
 
             # Verify the API request was successful
             assert response_status == 200
@@ -1229,7 +1229,7 @@ class TestOutboxE2ECases:
                 ),
             ):
                 # Make DELETE request to remove host from group
-                response_status, response_data = api_remove_hosts_from_group(group_id, [host_id])
+                response_status, _ = api_remove_hosts_from_group(group_id, [host_id])
 
                 # Verify the API request was successful
                 assert response_status == 204  # No Content
@@ -1325,7 +1325,7 @@ class TestOutboxE2ECases:
         with patch("lib.group_repository.get_flag_value", return_value=True):
             with patch("lib.group_repository.write_event_to_outbox", side_effect=capture_outbox_payload):
                 # Make DELETE request to remove host from group
-                response_status, response_data = api_remove_hosts_from_group(group_id, [host_id])
+                response_status, _ = api_remove_hosts_from_group(group_id, [host_id])
 
                 # Verify the API request was successful
                 assert response_status == 204  # No Content
@@ -1740,7 +1740,7 @@ class TestOutboxE2ECases:
                 ),
             ):
                 # Remove 2 hosts from the group via API
-                response_status, response_data = api_remove_hosts_from_group(group_id, hosts_to_remove)
+                response_status, _ = api_remove_hosts_from_group(group_id, hosts_to_remove)
 
                 # Verify the API request was successful
                 assert response_status == 204  # No Content
