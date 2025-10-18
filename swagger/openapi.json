@@ -1535,8 +1535,8 @@
         "tags": [
           "accounts_staleness"
         ],
-        "summary": "Delete an account staleness",
-        "description": "Delete an account staleness <br /><br /> Required permissions: staleness:staleness:write",
+        "summary": "Delete custom account staleness (reset to defaults)",
+        "description": "Delete custom account staleness configuration, reverting to system defaults. This endpoint returns 204 No Content on success. <br /><br /> Required permissions: staleness:staleness:write",
         "security": [
           {
             "ApiKeyAuth": []
