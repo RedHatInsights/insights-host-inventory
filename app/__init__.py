@@ -72,6 +72,7 @@ ORG_ID_CHECK_ENDPOINTS = [
     "api_staleness_create_staleness",
     "api_staleness_delete_staleness",
     "api_staleness_update_staleness",
+    "api_staleness_reset_staleness",
     "api_group_get_group_list",
     "api_group_create_group",
     "api_group_patch_group_by_id",

@@ -239,3 +239,11 @@ def api_delete_staleness(flask_client):
         return do_request(flask_client.delete, STALENESS_URL, identity)
 
     return _api_delete_staleness
+
+
+@pytest.fixture(scope="function")
+def api_reset_staleness(flask_client):
+    def _api_reset_staleness(identity=USER_IDENTITY):
+        return do_request(flask_client.post, f"{STALENESS_URL}/reset", identity)
+
+    return _api_reset_staleness

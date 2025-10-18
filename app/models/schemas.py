@@ -1,5 +1,7 @@
 import contextlib
 from copy import deepcopy
+from typing import Any
+from typing import TypedDict
 
 from jsonschema import ValidationError as JsonSchemaValidationError
 from jsonschema import validate as jsonschema_validate
@@ -343,6 +345,19 @@ class InputGroupSchema(MarshmallowSchema):
         super().__init__(*args, **kwargs)
 
 
+class StalenessData(TypedDict, total=False):
+    """Type definition for validated staleness data.
+
+    This mirrors the StalenessSchema fields and represents the structure
+    returned by StalenessSchema.load(). All fields are optional (total=False)
+    to support partial updates via PATCH requests.
+    """
+
+    conventional_time_to_stale: int
+    conventional_time_to_stale_warning: int
+    conventional_time_to_delete: int
+
+
 class StalenessSchema(MarshmallowSchema):
     conventional_time_to_stale = fields.Integer(
         validate=marshmallow_validate.Range(min=1, max=CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS)
@@ -360,6 +375,15 @@ class StalenessSchema(MarshmallowSchema):
                     >= data[(field_2 := f"conventional_{staleness_fields[j]}")]
                 ):
                     raise MarshmallowValidationError(f"{field_1} must be lower than {field_2}")
+
+    def load(self, data: dict[str, Any], **kwargs: Any) -> StalenessData:  # pyright: ignore[reportIncompatibleMethodOverride]
+        """Load and validate staleness data, returning typed StalenessData.
+
+        Overrides parent to provide concrete return type for better IDE support.
+        TypedDict is a structural type - the dict returned by parent load() already
+        has the correct structure, this just annotates it properly for type checkers.
+        """
+        return super().load(data, **kwargs)  # pyright: ignore[reportReturnType]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

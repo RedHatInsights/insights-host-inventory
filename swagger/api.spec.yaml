@@ -911,9 +911,11 @@ paths:
       operationId: api.staleness.delete_staleness
       tags:
         - accounts_staleness
-      summary: Delete an account staleness
+      summary: Delete custom account staleness (reset to defaults)
       description: >-
-        Delete an account staleness
+        Delete custom account staleness configuration, reverting to system defaults.
+        This endpoint returns 204 No Content on success. For a more RESTful approach that returns
+        the default values, use POST /account/staleness/reset instead.
         <br /><br />
         Required permissions: staleness:staleness:write
       security:
@@ -926,6 +928,32 @@ paths:
           description: Invalid request.
         '404':
           description: Account Staleness not found.
+
+  /account/staleness/reset:
+    post:
+      operationId: api.staleness.reset_staleness
+      tags:
+        - accounts_staleness
+      summary: Reset account staleness to system defaults
+      description: >-
+        Reset custom account staleness configuration to system defaults.
+        This endpoint removes any custom staleness configuration and returns the system defaults.
+        This is functionally equivalent to DELETE /account/staleness, but follows a more RESTful
+        pattern by returning the resulting default values (200 OK) instead of 204 No Content.
+        <br /><br />
+        Required permissions: staleness:staleness:write
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Successfully reset account staleness to defaults.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StalenessOutput'
+        '400':
+          description: "Invalid request."
 
   /account/staleness/defaults:
     get:
