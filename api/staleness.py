@@ -1,5 +1,6 @@
 from http import HTTPStatus
 from threading import Thread
+from typing import Any
 
 import sqlalchemy as sa
 from flask import Flask
@@ -30,6 +31,7 @@ from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
 from app.models import Staleness
+from app.models import StalenessData
 from app.models import StalenessSchema
 from app.queue.events import EventType
 from app.queue.events import build_event
@@ -47,29 +49,32 @@ from lib.staleness import remove_staleness
 
 logger = get_logger(__name__)
 
+# Deprecated immutable staleness fields that are filtered from input
+_IMMUTABLE_STALENESS_FIELDS = frozenset(
+    {
+        "immutable_time_to_delete",
+        "immutable_time_to_stale",
+        "immutable_time_to_stale_warning",
+    }
+)
 
-def _validate_input_data(body):
-    # Validate account staleness input data
+
+def _validate_input_data(body: dict[str, Any]) -> StalenessData:
     try:
         # TODO(gchamoul): Remove this filtering when the immutable fields are
         # fully deprecated and removed from the API spec.
         # Filter out immutable staleness fields that are no longer supported
-        immutable_fields = {
-            "immutable_time_to_delete",
-            "immutable_time_to_stale",
-            "immutable_time_to_stale_warning",
-        }
-        filtered_body = {k: v for k, v in body.items() if k not in immutable_fields}
+        filtered_body = {k: v for k, v in body.items() if k not in _IMMUTABLE_STALENESS_FIELDS}
 
         identity = get_current_identity()
         staleness_obj = serialize_staleness_to_dict(get_staleness_obj(identity.org_id))
-        validated_data = StalenessSchema().load({**staleness_obj, **filtered_body})
 
-        return validated_data
+        return StalenessSchema().load({**staleness_obj, **filtered_body})
 
     except ValidationError as e:
         logger.exception(f'Input validation error, "{str(e.messages)}", while creating account staleness: {body}')
         abort(HTTPStatus.BAD_REQUEST, f"Validation Error: {str(e.messages)}")
+        raise  # This line is never reached, but helps type checkers understand the function doesn't return here
 
 
 @sa.event.listens_for(Host, "before_update")
