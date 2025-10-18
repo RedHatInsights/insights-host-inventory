@@ -1,5 +1,8 @@
 import pytest
 
+from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
+from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
+from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
 from tests.helpers.api_utils import STALENESS_WRITE_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import STALENESS_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import assert_response_status
@@ -58,5 +61,75 @@ def test_delete_staleness_rbac_denied(subtests, mocker, api_delete_staleness):
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
             response_status, _ = api_delete_staleness()
+
+            assert_response_status(response_status, 403)
+
+
+def test_reset_existing_staleness(db_create_staleness_culling, api_reset_staleness, db_get_staleness_culling):
+    """Test resetting custom staleness configuration to system defaults."""
+    saved_staleness = db_create_staleness_culling(
+        conventional_time_to_stale=100,
+        conventional_time_to_stale_warning=200,
+        conventional_time_to_delete=300,
+    )
+
+    response_status, response_data = api_reset_staleness()
+    assert_response_status(response_status, 200)
+
+    # Verify the response contains system defaults
+    assert response_data["conventional_time_to_stale"] == CONVENTIONAL_TIME_TO_STALE_SECONDS
+    assert response_data["conventional_time_to_stale_warning"] == CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
+    assert response_data["conventional_time_to_delete"] == CONVENTIONAL_TIME_TO_DELETE_SECONDS
+
+    # Verify the custom staleness record was actually removed from the database
+    deleted_staleness = db_get_staleness_culling(saved_staleness.org_id)
+    assert deleted_staleness is None
+
+
+def test_reset_non_existing_staleness(api_reset_staleness):
+    """Test resetting when no custom staleness exists - should just return defaults."""
+    response_status, response_data = api_reset_staleness()
+    assert_response_status(response_status, 200)
+
+    # Should return system defaults even when no custom staleness exists
+    assert response_data["conventional_time_to_stale"] == CONVENTIONAL_TIME_TO_STALE_SECONDS
+    assert response_data["conventional_time_to_stale_warning"] == CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
+    assert response_data["conventional_time_to_delete"] == CONVENTIONAL_TIME_TO_DELETE_SECONDS
+
+
+@pytest.mark.usefixtures("enable_rbac")
+def test_reset_staleness_rbac_allowed(subtests, mocker, api_reset_staleness, db_create_staleness_culling):
+    """Test that users with proper RBAC permissions can reset staleness."""
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+
+    for response_file in STALENESS_WRITE_ALLOWED_RBAC_RESPONSE_FILES:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+
+            db_create_staleness_culling(
+                conventional_time_to_stale=100,
+                conventional_time_to_stale_warning=200,
+                conventional_time_to_delete=300,
+            )
+
+            response_status, _ = api_reset_staleness()
+
+            assert_response_status(response_status, 200)
+
+
+@pytest.mark.usefixtures("enable_rbac")
+def test_reset_staleness_rbac_denied(subtests, mocker, api_reset_staleness):
+    """Test that users without proper RBAC permissions cannot reset staleness."""
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+
+    for response_file in STALENESS_WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+
+            response_status, _ = api_reset_staleness()
 
             assert_response_status(response_status, 403)
