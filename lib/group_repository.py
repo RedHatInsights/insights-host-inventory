@@ -363,6 +363,7 @@ def delete_group_list(group_id_list: list[str], identity: Identity, event_produc
     deletion_count = 0
     deleted_host_ids = []
 
+    refreshed_host_id_list = []
     with session_guard(db.session):
         staleness = get_staleness_obj(identity.org_id)
         query = (
@@ -393,11 +394,11 @@ def delete_group_list(group_id_list: list[str], identity: Identity, event_produc
 
         serialized_groups, host_id_list = _update_hosts_for_group_changes(deleted_host_ids, new_group_list, identity)
         refreshed_host_id_list = _process_host_changes(host_id_list, identity)
-        _produce_event_clear_cache(refreshed_host_id_list, serialized_groups, staleness, identity, event_producer)
 
         db.session.commit()
         db.session.expunge_all()
 
+    _produce_event_clear_cache(refreshed_host_id_list, serialized_groups, staleness, identity, event_producer)
     return deletion_count
 
 
