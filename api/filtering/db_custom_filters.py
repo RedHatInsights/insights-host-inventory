@@ -360,8 +360,9 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
             value = None
         elif value == "":
             # For empty strings, cast problematic columns to text to avoid PostgreSQL errors
-            target_field = _handle_empty_string_cast(target_field, column)
-            pg_op = ColumnOperators.__eq__
+            if not eval_jsonb_path:
+                target_field = _handle_empty_string_cast(target_field, column)
+                pg_op = ColumnOperators.__eq__
         elif pg_cast := FIELD_FILTER_TO_POSTGRES_CAST.get(field_filter):
             # Cast column and value for normal (non-empty) values
             target_field = target_field.cast(pg_cast)
