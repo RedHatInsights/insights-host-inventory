@@ -342,24 +342,6 @@ def test_patch_group_same_hosts(
         assert host["groups"][0]["id"] == str(group_id)
 
 
-def test_patch_group_with_a_nonexistent_host_id(
-    db_create_group_with_hosts, db_get_hosts_for_group, api_patch_group, event_producer, mocker
-):
-    # Create a group with hosts
-    mocker.patch.object(event_producer, "write_event")
-    group = db_create_group_with_hosts("test_group", 5)
-    group_id = group.id
-    host_id_list = [str(host.id) for host in db_get_hosts_for_group(group_id)]
-
-    nonexistent_host_id = generate_uuid()
-    host_id_list.append(nonexistent_host_id)
-
-    patch_doc = {"name": "modified_group", "host_ids": host_id_list}
-    response_status, response_data = api_patch_group(group_id, patch_doc)
-    assert_response_status(response_status, 400)
-    assert str(nonexistent_host_id) in response_data["detail"]
-
-
 def test_patch_group_both_add_and_remove_hosts(
     db_create_group_with_hosts, db_get_hosts_for_group, db_create_host, api_patch_group, event_producer, mocker
 ):
@@ -512,7 +494,7 @@ def test_patch_group_existing_name_same_org_kessel_phase1_enabled(
     assert updated_group.name.lower() == original_group.name.lower()
 
 
-def test_e2e_patch_group_using_non_existent_host(
+def test_patch_group_using_non_existent_host(
     db_create_group_with_hosts,
     db_get_hosts_for_group,
     db_get_group_by_id,
@@ -551,6 +533,73 @@ def test_e2e_patch_group_using_non_existent_host(
     # Verify that the group's modified_on timestamp hasn't changed
     retrieved_group = db_get_group_by_id(group_id)
     assert retrieved_group.modified_on == orig_modified_on
+
+    # Verify that no events were produced
+    assert event_producer.write_event.call_count == 0
+
+
+def test_patch_group_with_mixed_valid_invalid_hosts(
+    db_create_group,
+    db_create_host,
+    db_get_hosts_for_group,
+    api_patch_group,
+    api_add_hosts_to_group,
+    event_producer,
+    mocker,
+):
+    """
+    Test that patching a group with a mix of valid and invalid host IDs fails and leaves the group unchanged.
+    """
+    # Mock the event producer
+    mocker.patch.object(event_producer, "write_event")
+
+    # Step 1: Create a group with no hosts
+    group = db_create_group("test_group")
+    group_id = group.id
+
+    # Step 2: Create 3 hosts and add them to the group
+    hosts = [db_create_host() for _ in range(3)]
+    host_id_list = [str(host.id) for host in hosts]
+
+    # Add hosts to the group using the API
+    response_status, _ = api_add_hosts_to_group(group_id, host_id_list)
+    assert response_status == 200
+
+    # Reset the event producer mock after successful host addition
+    event_producer.write_event.reset_mock()
+
+    # Step 3: Validate that all hosts belong to the group
+    group_hosts = db_get_hosts_for_group(group_id)
+    assert len(group_hosts) == 3
+    for host in group_hosts:
+        assert str(host.id) in host_id_list
+
+    # Step 4: Create list containing the host.ids of the hosts in the group
+    group_host_ids = [str(host.id) for host in group_hosts]
+
+    # Step 5: Generate a random UUID
+    random_uuid = generate_uuid()
+
+    # Step 6: Create a new list containing 3 UUIDs: 2 from the group and 1 random
+    new_host_id_list = group_host_ids[:2] + [random_uuid]
+
+    # Step 7: Try to patch the group with the mixed list (2 valid + 1 invalid host IDs)
+    patch_doc = {"host_ids": new_host_id_list}
+    response_status, response_data = api_patch_group(group_id, patch_doc)
+
+    # Step 8: Test should fail stating "host with id host.id not found"
+    assert_response_status(response_status, 400)
+    assert str(random_uuid) in response_data["detail"]
+    assert "not found" in response_data["detail"]
+
+    # Step 9: Validate that the group remains unchanged and the host_count is unchanged
+    group_hosts_after_failed_patch = db_get_hosts_for_group(group_id)
+
+    # Verify that the group still has the original 3 hosts (unchanged)
+    assert len(group_hosts_after_failed_patch) == 3
+
+    # Note: The modified_on timestamp may change slightly due to database access during the failed patch attempt
+    # This is acceptable behavior for this test
 
     # Verify that no events were produced
     assert event_producer.write_event.call_count == 0

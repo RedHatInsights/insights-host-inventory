@@ -1,13 +1,25 @@
+from __future__ import annotations
+
+from http import HTTPStatus
+from typing import Any
+
+from flask import abort
+from marshmallow import ValidationError
 from sqlalchemy import asc
 from sqlalchemy import desc
 from sqlalchemy import func
 
 from app.auth import get_current_identity
+from app.exceptions import InventoryException
+from app.instrumentation import log_patch_group_failed
 from app.logging import get_logger
 from app.models import Group
 from app.models import HostGroupAssoc
+from app.models import InputGroupSchema
 from app.models import db
+from lib.group_repository import get_group_by_id_from_db
 from lib.group_repository import serialize_group
+from lib.host_repository import get_host_list_by_id_list_from_db
 
 logger = get_logger(__name__)
 
@@ -143,3 +155,69 @@ def build_paginated_group_list_response(total, page, per_page, group_list):
 
 def build_group_response(group):
     return serialize_group(group)
+
+
+def validate_patch_group_inputs(group_id: str, body: dict[str, Any], identity: Any) -> tuple[dict[str, Any], Any]:
+    """
+    Validate inputs for group patching:
+    - Group exists
+    - Request body is valid
+    - Host IDs (if provided) exist
+
+    Args:
+        group_id: The ID of the group to patch
+        body: The request body containing patch data
+        identity: The current user's identity object
+
+    Returns:
+        tuple: (validated_patch_group_data, group_to_update)
+    """
+
+    # First, get the group and update it
+    group_to_update = get_group_by_id_from_db(group_id, identity.org_id)
+
+    if not group_to_update:
+        log_patch_group_failed(logger, group_id)
+        abort(HTTPStatus.NOT_FOUND)
+
+    try:
+        validated_patch_group_data = InputGroupSchema().load(body)
+    except ValidationError as e:
+        logger.exception(f"Input validation error while patching group: {group_id} - {body}")
+        abort(HTTPStatus.BAD_REQUEST, str(e.messages))
+
+    host_id_list = validated_patch_group_data.get("host_ids")
+
+    # Only validate hosts if host_ids are provided
+    if host_id_list is not None:
+        # get_host_list_by_id_list_from_db returns a Query object, so we need to call all() to get the list of hosts
+        found_hosts = get_host_list_by_id_list_from_db(host_id_list, identity).all()
+        found_host_ids = [str(host.id) for host in found_hosts]
+
+        # now check if all the hosts in the host_id_list are found in the found_hosts list.
+        # if not then abort with a 400 error
+        for host_id in host_id_list:
+            if host_id not in found_host_ids:
+                log_patch_group_failed(logger, group_id)
+                abort(HTTPStatus.BAD_REQUEST, f"Host with ID {host_id} not found.")
+
+        # Check if the hosts are already associated with another (ungrouped) group
+
+        if assoc_query := (
+            db.session.query(HostGroupAssoc)
+            .join(Group)
+            .filter(
+                HostGroupAssoc.host_id.in_(host_id_list),
+                HostGroupAssoc.group_id != group_id,
+                Group.ungrouped.is_(False),
+            )
+            .all()
+        ):
+            taken_hosts = [str(assoc.host_id) for assoc in assoc_query]
+            log_patch_group_failed(logger, group_id)
+            raise InventoryException(
+                title="Invalid request",
+                detail=f"The following subset of hosts are already associated with another group: {taken_hosts}.",
+            )
+
+    return validated_patch_group_data, group_to_update

@@ -399,20 +399,22 @@ def update_system_profile(input_host: Host | LimitedHost, identity: Identity):
         )
 
 
-def get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter=None, columns=None):
-    filters = (
+def get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter=None, columns=None) -> Query:
+    filters = [
         Host.org_id == identity.org_id,
         Host.id.in_(host_id_list),
-    )
+    ]
     if rbac_filter and "groups" in rbac_filter:
-        rbac_group_filters = (HostGroupAssoc.group_id.in_(rbac_filter["groups"]),)
+        rbac_group_filters = [HostGroupAssoc.group_id.in_(rbac_filter["groups"])]
         if None in rbac_filter["groups"]:
-            rbac_group_filters += (
-                HostGroupAssoc.group_id.is_(None),
-                Group.ungrouped.is_(True),
+            rbac_group_filters.extend(
+                [
+                    HostGroupAssoc.group_id.is_(None),
+                    Group.ungrouped.is_(True),
+                ]
             )
 
-        filters += (or_(*rbac_group_filters),)
+        filters.append(or_(*rbac_group_filters))
 
     query = (
         Host.query.join(HostGroupAssoc, isouter=True)

@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from http import HTTPStatus
+from typing import Any
 
 from flask import Response
 from flask import abort
@@ -15,6 +18,7 @@ from api.group_query import build_paginated_group_list_response
 from api.group_query import does_group_with_name_exist
 from api.group_query import get_filtered_group_list_db
 from api.group_query import get_group_list_by_id_list_db
+from api.group_query import validate_patch_group_inputs
 from app.auth import get_current_identity
 from app.auth.rbac import RbacPermission
 from app.auth.rbac import RbacResourceType
@@ -170,24 +174,16 @@ def create_group(body, rbac_filter=None):
 @api_operation
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def patch_group_by_id(group_id, body, rbac_filter=None):
-    rbac_group_id_check(rbac_filter, {group_id})
-
-    try:
-        validated_patch_group_data = InputGroupSchema().load(body)
-    except ValidationError as e:
-        logger.exception(f"Input validation error while patching group: {group_id} - {body}")
-        return ({"status": 400, "title": "Bad Request", "detail": str(e.messages), "type": "unknown"}, 400)
+def patch_group_by_id(group_id: str, body: dict[str, Any], rbac_filter: dict[str, Any] | None = None) -> Response:
+    rbac_group_id_check(rbac_filter or {}, {group_id})
 
     identity = get_current_identity()
+
+    # Validate all inputs
+    validated_patch_group_data, group_to_update = validate_patch_group_inputs(group_id, body, identity)
+
+    # Extract validated data
     new_name = validated_patch_group_data.get("name")
-
-    # First, get the group and update it
-    group_to_update = get_group_by_id_from_db(group_id, identity.org_id)
-
-    if not group_to_update:
-        log_patch_group_failed(logger, group_id)
-        abort(HTTPStatus.NOT_FOUND)
 
     try:
         # never allow renaming ungrouped

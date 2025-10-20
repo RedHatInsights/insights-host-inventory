@@ -2,7 +2,6 @@ import time
 from http import HTTPStatus
 from uuid import UUID
 
-from flask import abort
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -24,8 +23,6 @@ from app.instrumentation import log_host_group_add_failed
 from app.instrumentation import log_host_group_add_succeeded
 from app.instrumentation import log_host_group_delete_failed
 from app.instrumentation import log_host_group_delete_succeeded
-from app.instrumentation import log_patch_group_failed
-from app.instrumentation import log_remove_hosts_from_group_failed
 from app.logging import get_logger
 from app.models import Group
 from app.models import Host
@@ -252,11 +249,11 @@ def add_hosts_to_group(
 ):
     staleness = get_staleness_obj(identity.org_id)
     with session_guard(db.session):
-        try:
-            _add_hosts_to_group(group_id, host_id_list, identity)
-        except InventoryException as e:
-            log_host_group_add_failed(logger, host_id_list, group_id)
-            abort(HTTPStatus.BAD_REQUEST, e.detail)
+        # try:
+        _add_hosts_to_group(group_id, host_id_list, identity)
+        # except InventoryException as e:
+        #     log_host_group_add_failed(logger, host_id_list, group_id)
+        #     abort(HTTPStatus.BAD_REQUEST, e.detail)
 
     # Produce update messages once the DB session has been closed
     serialized_groups, host_id_list = _update_hosts_for_group_changes(
@@ -299,11 +296,11 @@ def add_group_with_hosts(
 
         # Add hosts to group
         if host_id_list:
-            try:
-                _add_hosts_to_group(created_group.id, host_id_list, identity)
-            except InventoryException as e:
-                log_host_group_add_failed(logger, host_id_list, str(created_group.id))
-                abort(HTTPStatus.BAD_REQUEST, e.detail)
+            # try:
+            _add_hosts_to_group(created_group.id, host_id_list, identity)
+            # except InventoryException as e:
+            #     log_host_group_add_failed(logger, host_id_list, str(created_group.id))
+            #     abort(HTTPStatus.BAD_REQUEST, e.detail)
 
     # gets the ID of the group after it has been committed
     created_group = get_group_by_id_from_db(created_group_id, identity.org_id)
@@ -340,11 +337,7 @@ def _remove_all_hosts_from_group(group: Group, identity: Identity):
     # If Kessel flag is on, assign hosts to "ungrouped" group
     if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
         ungrouped_id = get_or_create_ungrouped_hosts_group_for_identity(identity).id
-        try:
-            _add_hosts_to_group(ungrouped_id, [str(host_id) for host_id in host_ids], identity)
-        except InventoryException as e:
-            log_remove_hosts_from_group_failed(logger, group.id, f"remove_all_hosts_from_group() failed: '{e.detail}'")
-            abort(HTTPStatus.BAD_REQUEST, e.detail)
+        _add_hosts_to_group(ungrouped_id, [str(host_id) for host_id in host_ids], identity)
 
 
 def _delete_host_group_assoc(session, assoc):
@@ -417,11 +410,7 @@ def remove_hosts_from_group(group_id, host_id_list, identity, event_producer):
         if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
             # Add hosts to the "ungrouped" group
             ungrouped_group_id = str(get_or_create_ungrouped_hosts_group_for_identity(identity).id)
-            try:
-                _add_hosts_to_group(ungrouped_group_id, [str(host_id) for host_id in removed_host_ids], identity)
-            except InventoryException as e:
-                log_remove_hosts_from_group_failed(logger, group_id, f"remove_hosts_from_group() failed: '{e.detail}'")
-                abort(HTTPStatus.BAD_REQUEST, e.detail)
+            _add_hosts_to_group(ungrouped_group_id, [str(host_id) for host_id in removed_host_ids], identity)
             group_id_list = [ungrouped_group_id]
 
     serialized_groups, host_id_list = _update_hosts_for_group_changes(removed_host_ids, group_id_list, identity)
@@ -479,16 +468,12 @@ def patch_group(group: Group, patch_data: dict, identity: Identity, event_produc
         # Update host list, if provided
         if new_host_ids is not None:
             _remove_hosts_from_group(group_id, list(existing_host_ids - new_host_ids), identity.org_id)
-            try:
-                _add_hosts_to_group(group_id, list(new_host_ids - existing_host_ids), identity)
-                if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
-                    # Add hosts to the "ungrouped" group
-                    ungrouped_group = get_or_create_ungrouped_hosts_group_for_identity(identity)
-                    removed_group_id_list = [str(ungrouped_group.id)]
-                    _add_hosts_to_group(str(ungrouped_group.id), list(existing_host_ids - new_host_ids), identity)
-            except InventoryException as e:
-                log_patch_group_failed(logger, group_id, f"patch_group() failed: {e.detail}")
-                abort(HTTPStatus.BAD_REQUEST, e.detail)
+            _add_hosts_to_group(group_id, list(new_host_ids - existing_host_ids), identity)
+            if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
+                # Add hosts to the "ungrouped" group
+                ungrouped_group = get_or_create_ungrouped_hosts_group_for_identity(identity)
+                removed_group_id_list = [str(ungrouped_group.id)]
+                _add_hosts_to_group(str(ungrouped_group.id), list(existing_host_ids - new_host_ids), identity)
 
     # Send MQ messages
     if group_patched and host_id_data is None:
