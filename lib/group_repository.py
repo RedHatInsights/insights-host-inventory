@@ -249,11 +249,7 @@ def add_hosts_to_group(
 ):
     staleness = get_staleness_obj(identity.org_id)
     with session_guard(db.session):
-        # try:
         _add_hosts_to_group(group_id, host_id_list, identity)
-        # except InventoryException as e:
-        #     log_host_group_add_failed(logger, host_id_list, group_id)
-        #     abort(HTTPStatus.BAD_REQUEST, e.detail)
 
     # Produce update messages once the DB session has been closed
     serialized_groups, host_id_list = _update_hosts_for_group_changes(
@@ -296,11 +292,7 @@ def add_group_with_hosts(
 
         # Add hosts to group
         if host_id_list:
-            # try:
             _add_hosts_to_group(created_group.id, host_id_list, identity)
-            # except InventoryException as e:
-            #     log_host_group_add_failed(logger, host_id_list, str(created_group.id))
-            #     abort(HTTPStatus.BAD_REQUEST, e.detail)
 
     # gets the ID of the group after it has been committed
     created_group = get_group_by_id_from_db(created_group_id, identity.org_id)
