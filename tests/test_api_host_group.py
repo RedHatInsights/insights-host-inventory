@@ -1,10 +1,13 @@
 import uuid
+from collections.abc import Callable
 from datetime import UTC
 from datetime import datetime
+from datetime import timedelta
 
 import pytest
 from dateutil.parser import parse
 
+from app.models import Host
 from tests.helpers.api_utils import GROUP_URL
 from tests.helpers.api_utils import GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import assert_response_status
@@ -282,17 +285,13 @@ def test_group_with_culled_hosts(
     db_create_host,
     db_get_hosts_for_group,
     api_add_hosts_to_group,
-    db_get_host,
+    db_get_host: Callable[..., Host],
     api_get,
 ):
     # Create a group and 3 hosts
     group_id = db_create_group("test_group").id
-    current_time = datetime.now(tz=UTC)
-    if current_time.day > 28:
-        current_time = current_time.replace(day=28)
-    culling_time = current_time.replace(year=2022)
 
-    host_id_list = [db_create_host(extra_data={"stale_timestamp": current_time}).id for _ in range(3)]
+    host_id_list = [db_create_host().id for _ in range(3)]
 
     response_status, _ = api_add_hosts_to_group(group_id, [str(host) for host in host_id_list[0:3]])
     assert response_status == 200
@@ -306,7 +305,7 @@ def test_group_with_culled_hosts(
     assert len(hosts_after) == 3
     culled_host = db_get_host(hosts_after[0].id)
 
-    culled_host.last_check_in = culling_time
+    culled_host.deletion_timestamp = datetime.now(tz=UTC) - timedelta(minutes=5)
 
     _, response_data = api_get(GROUP_URL + "/" + ",".join([str(group_id)]))
     host_count = response_data["results"][0]["host_count"]
