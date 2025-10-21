@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "c965e36e253004f5f208834ca87289ff3b3a4cab3b7aee6afd176254441f7f0b"
+            "sha256": "bdaab079666bfce5b9913907d753d70b4de0aa3285239b1f10b90c1e54b3ade9"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -118,6 +118,7 @@
                 "sha256:8ea99dbdfaaf2ba2f9bac77b9249ef62ec5218e7c2b2e903378ed5fccf765995"
             ],
             "index": "pypi",
+            "markers": "python_version >= '3.7'",
             "version": "==2025.7.14"
         },
         "chardet": {
@@ -971,11 +972,12 @@
         },
         "prance": {
             "hashes": [
-                "sha256:6a4276fa07ed9f22feda4331097d7503c4adc3097e46ffae97425f2c1026bd9f",
-                "sha256:d8c15f8ac34019751cc4945f866d8d964d7888016d10de3592e339567177cabe"
+                "sha256:2f72d2983d0474b6f53fd604eb21690c1ebdb00d79a6331b7ec95fb4f25a1f65",
+                "sha256:d3c362036d625b12aeee495621cb1555fd50b2af3632af3d825176bfb50e073b"
             ],
             "index": "pypi",
-            "version": "==23.6.21.0"
+            "markers": "python_version >= '3.10'",
+            "version": "==25.4.8.0"
         },
         "prometheus-client": {
             "hashes": [
@@ -1162,6 +1164,7 @@
                 "sha256:dbba0bac56e100853db0ea71b82b4dfd5fe2bf6d3754a8893c3af500cec7d7cf"
             ],
             "index": "pypi",
+            "markers": "python_version >= '3.9'",
             "version": "==2.32.5"
         },
         "rfc3339-validator": {
@@ -1399,7 +1402,7 @@
                 "sha256:fbc08c02e9b147a11dfcaa1ac8a83168b699863493e183f7c0c8b12850b7d259",
                 "sha256:ff86876889ea478b1381089e55cf9e345707b312beda4986f823e1d95e8c0f59"
             ],
-            "markers": "python_version < '3.14' and platform_python_implementation == 'CPython'",
+            "markers": "python_version >= '3.9'",
             "version": "==0.2.14"
         },
         "s3transfer": {
@@ -1691,6 +1694,7 @@
                 "sha256:e6b01673c0fa6a13e374b50871808eb3bf7046c4b125b216f6bf1cc604cff0dc"
             ],
             "index": "pypi",
+            "markers": "python_version >= '3.9'",
             "version": "==2.5.0"
         },
         "uvicorn": {
