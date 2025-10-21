@@ -5,7 +5,6 @@ from app.config import Config
 from app.environment import RuntimeEnvironment
 from app.exceptions import ValidationException
 from jobs.system_profile_validator import _validate_schema_for_pr_and_generate_comment
-from lib.host_repository import find_hosts_by_staleness
 from lib.system_profile_validate import validate_sp_for_branch
 from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
@@ -157,9 +156,7 @@ def test_get_system_profile_RBAC_allowed(mocker, subtests, api_get):
 @pytest.mark.usefixtures("enable_rbac")
 def test_get_system_profile_RBAC_denied(mocker, subtests, api_get):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
-    find_hosts_by_staleness_mock = mocker.patch(
-        "lib.host_repository.find_hosts_by_staleness", wraps=find_hosts_by_staleness
-    )
+    get_sparse_system_profile_mock = mocker.patch("api.host.get_sparse_system_profile")
 
     host_id = generate_uuid()
 
@@ -171,7 +168,7 @@ def test_get_system_profile_RBAC_denied(mocker, subtests, api_get):
             response_status, _ = api_get(f"{HOST_URL}/{host_id}/system_profile")
 
             assert_response_status(response_status, 403)
-            find_hosts_by_staleness_mock.assert_not_called()
+            get_sparse_system_profile_mock.assert_not_called()
 
 
 def test_get_system_profile_of_host_that_does_not_exist(api_get):

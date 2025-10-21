@@ -36,8 +36,6 @@ from app.models.system_profile_static import HostStaticSystemProfile
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_states import HostStalenessStatesDbFilters
 from app.utils import Tag
-from lib.feature_flags import FLAG_INVENTORY_FILTER_STALENESS_USING_COLUMNS
-from lib.feature_flags import get_flag_value
 
 __all__ = (
     "query_filters",
@@ -277,7 +275,7 @@ def per_reporter_staleness_filter(staleness, reporter, org_id):
     return [conditions]
 
 
-def _staleness_filter_using_columns(staleness: list[str]) -> list:
+def _staleness_filter(staleness: list[str]) -> list:
     host_staleness_states_filters = HostStalenessStatesDbFilters()
     if staleness == ["unknown"]:
         # "unknown" filter should be ignored, but shouldn't return culled hosts
@@ -285,13 +283,6 @@ def _staleness_filter_using_columns(staleness: list[str]) -> list:
     else:
         filters = [getattr(host_staleness_states_filters, state)() for state in staleness if state != "unknown"]
     return [or_(*filters)]
-
-
-def _staleness_filter(staleness: list[str] | tuple[str, ...], org_id: str) -> list:
-    staleness_obj = serialize_staleness_to_dict(get_staleness_obj(org_id))
-    staleness_conditions = [or_(*staleness_to_conditions(staleness_obj, staleness, stale_timestamp_filter))]
-
-    return [or_(*staleness_conditions)]
 
 
 def staleness_to_conditions(
@@ -401,15 +392,9 @@ def _last_check_in_filter(last_check_in_start: str | None, last_check_in_end: st
     return [and_(*last_check_in_filter)] if last_check_in_filter else []
 
 
-def _get_staleness_filter(all_staleness_states: list[str], org_id: str) -> list:
-    if get_flag_value(FLAG_INVENTORY_FILTER_STALENESS_USING_COLUMNS):
-        return _staleness_filter_using_columns(all_staleness_states)
-    return _staleness_filter(all_staleness_states, org_id)
-
-
-def host_id_list_filter(host_id_list: list[str], org_id: str) -> list:
+def host_id_list_filter(host_id_list: list[str]) -> list:
     all_filters = [Host.id.in_(host_id_list)]
-    all_filters += _get_staleness_filter(ALL_STALENESS_STATES, org_id)
+    all_filters += _staleness_filter(ALL_STALENESS_STATES)
     return all_filters
 
 
@@ -534,7 +519,7 @@ def query_filters(
         sp_filter = _system_profile_filter(filter)
         filters += sp_filter
     if staleness:
-        filters += _get_staleness_filter(staleness, identity.org_id)
+        filters += _staleness_filter(staleness)
     if registered_with:
         filters += _registered_with_filter(registered_with, identity.org_id)
     if rbac_filter:

@@ -5,8 +5,6 @@ import pytest
 
 from app.models import ProviderType
 from app.serialization import _deserialize_tags_dict
-from lib.host_repository import find_hosts_by_staleness
-from lib.host_repository import find_non_culled_hosts
 from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import assert_response_status
@@ -206,9 +204,7 @@ def test_get_host_tags_with_RBAC_allowed(subtests, mocker, api_get):
 @pytest.mark.usefixtures("enable_rbac")
 def test_get_host_tags_with_RBAC_denied(subtests, mocker, api_get):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
-    find_hosts_by_staleness_mock = mocker.patch(
-        "lib.host_repository.find_hosts_by_staleness", wraps=find_hosts_by_staleness
-    )
+    get_host_tags_list_mock = mocker.patch("api.host.get_host_tags_list_by_id_list")
 
     for response_file in HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
@@ -220,7 +216,7 @@ def test_get_host_tags_with_RBAC_denied(subtests, mocker, api_get):
 
             assert_response_status(response_status, 403)
 
-            find_hosts_by_staleness_mock.assert_not_called()
+            get_host_tags_list_mock.assert_not_called()
 
 
 @pytest.mark.usefixtures("enable_rbac")
@@ -245,7 +241,7 @@ def test_get_host_tag_count_RBAC_allowed(mocker, api_get, subtests, mq_create_th
 @pytest.mark.usefixtures("enable_rbac")
 def test_get_host_tag_count_RBAC_denied(mq_create_four_specific_hosts, mocker, api_get, subtests):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
-    find_non_culled_hosts_mock = mocker.patch("lib.host_repository.find_non_culled_hosts", wraps=find_non_culled_hosts)
+    get_host_tags_list_mock = mocker.patch("api.host.get_host_tags_list_by_id_list")
 
     created_hosts = mq_create_four_specific_hosts
 
@@ -259,7 +255,7 @@ def test_get_host_tag_count_RBAC_denied(mq_create_four_specific_hosts, mocker, a
 
             assert response_status == 403
 
-            find_non_culled_hosts_mock.assert_not_called()
+            get_host_tags_list_mock.assert_not_called()
 
 
 def test_get_tags_count_of_host_that_does_not_exist_via_db(api_get):
