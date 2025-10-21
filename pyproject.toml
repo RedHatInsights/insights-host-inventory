@@ -80,3 +80,7 @@ no_implicit_reexport = true
 # missing in the stub
 module = ["requests.packages.urllib3.*"]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "tabulate"
+ignore_missing_imports = true
