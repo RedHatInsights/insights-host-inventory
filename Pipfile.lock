@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "d30569b40166277f1e688a529473f03ab926191c88baccbb54e59415dc3a1137"
+            "sha256": "aa2c6f8e82f16b4f0ba29762e1200faac8c14b25093d1500886cb3277070c6a2"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -91,20 +91,19 @@
         },
         "boto3": {
             "hashes": [
-                "sha256:27e35b4fa9edd414ce06c1a748bf57cacd8203271847d93fc1053e4a4ec6e1a9",
-                "sha256:2e30f5a0d49e107b8a5c0c487891afd300bfa410e1d918bf187ae45ac3839332"
+                "sha256:8985a840d57671aa3c6124b0c178e79be97e3447de4b5819156071793f82ee5c"
             ],
             "index": "pypi",
             "markers": "python_version >= '3.9'",
-            "version": "==1.40.55"
+            "version": "==1.40.56"
         },
         "botocore": {
             "hashes": [
-                "sha256:79b6472e2de92b3519d44fc1eec8c5feced7f99a0d10fdea6dc93133426057c1",
-                "sha256:cdc38f7a4ddb30a2cd1cdd4fabde2a5a16e41b5a642292e1c30de5c4e46f5d44"
+                "sha256:0962dfc9bfb0afa1855042a88a72cc722cc7f9c08f51d2c5c88181d525a59a27",
+                "sha256:b29df3418a299609632cab240ee79275463b176ebeb3adc841ba367a3fa0c4db"
             ],
             "markers": "python_version >= '3.9'",
-            "version": "==1.40.55"
+            "version": "==1.40.56"
         },
         "cachelib": {
             "hashes": [
@@ -987,12 +986,12 @@
         },
         "prance": {
             "hashes": [
-                "sha256:6a4276fa07ed9f22feda4331097d7503c4adc3097e46ffae97425f2c1026bd9f",
-                "sha256:d8c15f8ac34019751cc4945f866d8d964d7888016d10de3592e339567177cabe"
+                "sha256:2f72d2983d0474b6f53fd604eb21690c1ebdb00d79a6331b7ec95fb4f25a1f65",
+                "sha256:d3c362036d625b12aeee495621cb1555fd50b2af3632af3d825176bfb50e073b"
             ],
             "index": "pypi",
-            "markers": "python_version >= '3.8'",
-            "version": "==23.6.21.0"
+            "markers": "python_version >= '3.10'",
+            "version": "==25.4.8.0"
         },
         "prometheus-client": {
             "hashes": [
