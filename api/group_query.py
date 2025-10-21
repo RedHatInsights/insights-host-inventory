@@ -190,19 +190,17 @@ def validate_patch_group_inputs(group_id: str, body: dict[str, Any], identity: A
 
     # Only validate hosts if host_ids are provided
     if host_id_list is not None:
-        # get_host_list_by_id_list_from_db returns a Query object, so we need to call all() to get the list of hosts
+        # Reuse existing validation logic from lib/group_repository.py
+        # Check if the hosts exist in Inventory and have correct org_id
         found_hosts = get_host_list_by_id_list_from_db(host_id_list, identity).all()
-        found_host_ids = [str(host.id) for host in found_hosts]
+        found_host_ids = {str(host.id) for host in found_hosts}
 
-        # now check if all the hosts in the host_id_list are found in the found_hosts list.
-        # if not then abort with a 400 error
-        for host_id in host_id_list:
-            if host_id not in found_host_ids:
-                log_patch_group_failed(logger, group_id)
-                abort(HTTPStatus.BAD_REQUEST, f"Host with ID {host_id} not found.")
+        if found_host_ids != set(host_id_list):
+            nonexistent_hosts = set(host_id_list) - found_host_ids
+            log_patch_group_failed(logger, group_id)
+            abort(HTTPStatus.BAD_REQUEST, f"Host with ID {list(nonexistent_hosts)[0]} not found.")
 
         # Check if the hosts are already associated with another (ungrouped) group
-
         if assoc_query := (
             db.session.query(HostGroupAssoc)
             .join(Group)
