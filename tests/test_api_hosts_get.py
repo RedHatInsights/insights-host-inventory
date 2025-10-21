@@ -12,7 +12,6 @@ from pytest_mock import MockerFixture
 from pytest_subtests import SubTests
 
 from app.models.host import Host
-from lib.host_repository import find_hosts_by_staleness
 from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_URL
@@ -252,9 +251,7 @@ def test_get_hosts_with_RBAC_allowed(subtests, mocker, db_create_host, api_get):
 @pytest.mark.usefixtures("enable_rbac")
 def test_get_hosts_with_RBAC_denied(subtests, mocker, db_create_host, api_get):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
-    find_hosts_by_staleness_mock = mocker.patch(
-        "lib.host_repository.find_hosts_by_staleness", wraps=find_hosts_by_staleness
-    )
+    get_host_list_mock = mocker.patch("api.host.get_host_list_by_id_list")
 
     for response_file in HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
@@ -268,7 +265,7 @@ def test_get_hosts_with_RBAC_denied(subtests, mocker, db_create_host, api_get):
 
             assert_response_status(response_status, 403)
 
-            find_hosts_by_staleness_mock.assert_not_called()
+            get_host_list_mock.assert_not_called()
 
 
 @pytest.mark.usefixtures("enable_rbac")
@@ -1234,34 +1231,6 @@ def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
             assert count == len(response_data["results"])
 
 
-def test_query_by_staleness(db_create_multiple_hosts, api_get, subtests):
-    expected_staleness_results_map = {
-        "fresh": 3,
-        "stale": 4,
-        "stale_warning": 2,
-    }
-    staleness_timestamp_map = {
-        "fresh": now(),
-        "stale": now() - timedelta(days=3),
-        "stale_warning": now() - timedelta(days=10),
-    }
-    staleness_to_host_ids_map = dict()
-
-    # Create the hosts in each state
-    for staleness, num_hosts in expected_staleness_results_map.items():
-        # Patch the "now" function so the hosts are created in the desired state
-        with patch("app.models.utils.datetime", **{"now.return_value": staleness_timestamp_map[staleness]}):
-            staleness_to_host_ids_map[staleness] = [str(h.id) for h in db_create_multiple_hosts(how_many=num_hosts)]
-
-    for staleness, count in expected_staleness_results_map.items():
-        with subtests.test():
-            url = build_hosts_url(query=f"?staleness={staleness}")
-            # Validate the basics, i.e. response code and results size
-            response_status, response_data = api_get(url)
-            assert response_status == 200
-            assert count == len(response_data["results"])
-
-
 @pytest.mark.parametrize(
     "sp_filter_param",
     (
@@ -2204,7 +2173,7 @@ def test_get_host_from_different_org(mocker, api_get):
     assert_response_status(response_status, 403)
 
 
-def test_query_by_staleness_using_columns(
+def test_query_by_staleness(
     db_create_multiple_hosts: Callable[..., list[Host]],
     api_get: Callable[..., tuple[int, dict]],
     mocker: MockerFixture,

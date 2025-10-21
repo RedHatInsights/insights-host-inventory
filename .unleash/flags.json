@@ -50,22 +50,6 @@
             "createdAt": "2025-04-25T16:32:16.409Z"
         },
         {
-            "name": "hbi.filter_staleness_using_columns",
-            "description": "Enable GET /hosts to use table columns to filter hosts.",
-            "type": "release",
-            "project": "default",
-            "stale": false,
-            "enabled": true,
-            "createdAt": "2025-05-05T22:31:19.466Z",
-            "strategies": [
-                {
-                    "name": "default",
-                    "parameters": {}
-                }
-            ],
-            "variants": []
-          },
-          {
             "name": "hbi.use_new_system_profile_tables",
             "description": "When turned ON, HBI will use the new system profile tables.",
             "type": "release",
@@ -96,6 +80,22 @@
             ],
             "variants": [],
             "createdAt": "2025-10-12T16:29:19.146Z"
+          },
+          {
+            "name": "hbi.workloads_fields_backward_compatibilty",
+            "description": "When turned ON, HBI will expose the legacy fields now present in the workloads fields in the kafka events (RHINENG-21211).",
+            "type": "release",
+            "project": "default",
+            "stale": false,
+            "enabled": false,
+            "strategies": [
+                {
+                    "name": "default",
+                    "parameters": {}
+                }
+            ],
+            "variants": [],
+            "createdAt": "2025-10-14T08:30:19.146Z"
         }
     ],
     "strategies": [

@@ -469,24 +469,18 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
     query = Host.query.join(HostGroupAssoc, isouter=True).filter(*filters).group_by(Host.org_id, Host.id)
 
     if rbac_filter and "groups" in rbac_filter:
-        count_before_rbac_filter = find_non_culled_hosts(
-            update_query_for_owner_id(current_identity, query), current_identity.org_id
-        ).count()
+        count_before_rbac_filter = find_non_culled_hosts(update_query_for_owner_id(current_identity, query)).count()
         filters += (HostGroupAssoc.group_id.in_(rbac_filter["groups"]),)
 
         query = Host.query.join(HostGroupAssoc, isouter=True).filter(*filters).group_by(Host.org_id, Host.id)
 
         if (
             count_before_rbac_filter
-            != find_non_culled_hosts(
-                update_query_for_owner_id(current_identity, query), current_identity.org_id
-            ).count()
+            != find_non_culled_hosts(update_query_for_owner_id(current_identity, query)).count()
         ):
             flask.abort(HTTPStatus.FORBIDDEN, "You do not have access to all of the requested hosts.")
 
-    hosts_to_update = find_non_culled_hosts(
-        update_query_for_owner_id(current_identity, query), current_identity.org_id
-    ).all()
+    hosts_to_update = find_non_culled_hosts(update_query_for_owner_id(current_identity, query)).all()
 
     logger.debug("hosts_to_update:%s", hosts_to_update)
 
