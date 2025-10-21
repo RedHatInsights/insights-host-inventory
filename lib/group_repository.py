@@ -271,7 +271,8 @@ def add_hosts_to_group(
     serialized_groups, host_id_list = _update_hosts_for_group_changes(
         host_id_list, group_id_list=[group_id], identity=identity
     )
-    _process_host_changes(host_id_list, serialized_groups, staleness, identity, event_producer)
+    refreshed_host_id_list = _process_host_changes(host_id_list, identity)
+    _produce_event_clear_cache(refreshed_host_id_list, serialized_groups, staleness, identity, event_producer)
 
 
 def add_group(
