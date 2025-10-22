@@ -28,6 +28,22 @@ IDENTITY = {
     },
 }
 
+# handle missing or non-numeric NUM_OF_DIFF_ORG_IDS
+env_num = os.environ.get("NUM_OF_DIFF_ORG_IDS", "")
+try:
+    NUM_OF_DIFF_ORG_IDS = int(env_num)
+except (TypeError, ValueError):
+    NUM_OF_DIFF_ORG_IDS = 0
+
+# complete system identity
+IDENTITY = {
+    "org_id": f"test{NUM_OF_DIFF_ORG_IDS}",
+    "type": "System",
+    "auth_type": "cert-auth",
+    "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
+    "internal": {"auth_time": 6300},
+}
+
 # complete system identity
 # IDENTITY = {
 #     "org_id": "test",
