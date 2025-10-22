@@ -7,13 +7,16 @@ from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 
-org_id = os.environ.get("INVENTORY_HOST_ACCOUNT", "321")
+org_id = os.environ.get("INVENTORY_HOST_ACCOUNT", "test")
+
+NUM_OF_DIFF_ORG_ID = os.environ.get("NUM_OF_DIFF_ORG_ID", "")
+
 # kessel user identity known to rbac deployed by bonfire in Ephemeral cluster
 IDENTITY = {
-    "account_number": "123",
+    "account_number": "test0",
     "auth_type": "jwt-auth",
-    "internal": {"auth_time": 0, "cross_access": "false", "org_id": org_id},
-    "org_id": org_id,
+    "internal": {"auth_time": 0, "cross_access": "false", "org_id": org_id + f"{NUM_OF_DIFF_ORG_ID}"},
+    "org_id": org_id + f"{NUM_OF_DIFF_ORG_ID}",
     "type": "User",
     "user": {
         "email": "Jane.Doe@example.com",
@@ -28,29 +31,13 @@ IDENTITY = {
     },
 }
 
-# handle missing or non-numeric NUM_OF_DIFF_ORG_IDS
-env_num = os.environ.get("NUM_OF_DIFF_ORG_IDS", "")
-try:
-    NUM_OF_DIFF_ORG_IDS = int(env_num)
-except (TypeError, ValueError):
-    NUM_OF_DIFF_ORG_IDS = 0
-
-# complete system identity
-IDENTITY = {
-    "org_id": f"test{NUM_OF_DIFF_ORG_IDS}",
-    "type": "System",
-    "auth_type": "cert-auth",
-    "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
-    "internal": {"auth_time": 6300},
-}
-
 # complete system identity
 # IDENTITY = {
-#     "org_id": "test",
-#     "type": "System",
-#     "auth_type": "cert-auth",
-#     "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
-#     "internal": {"auth_time": 6300},
+#    "org_id": org_id + f"{NUM_OF_DIFF_ORG_ID}",
+#    "type": "System",
+#    "auth_type": "cert-auth",
+#    "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
+#    "internal": {"auth_time": 6300},
 # }
 
 # system identity: invalid or incomplete for testing
@@ -604,8 +591,8 @@ def create_system_profile():
 def build_rhsm_payload():
     """Red Hat Subscription Manager hosts with RHSM-specific facts and metadata"""
     return {
-        "org_id": org_id,
-        "bios_uuid": "e56890e3-9ce5-4fb2-b677-3d84e3e4d4a9",
+        "org_id": org_id + f"{NUM_OF_DIFF_ORG_ID}",
+        "bios_uuid": random_uuid(),
         "facts": [
             {
                 "facts": {
@@ -619,9 +606,18 @@ def build_rhsm_payload():
                     "orgId": "5389686",
                 },
                 "namespace": "rhsm",
-            }
+            },
+            {
+                "facts": {
+                    "virtual_host_uuid": "4b9a9b9c-aaaa-bbbb-cccc-2f2f2f2f2f2f",
+                    "system_purpose_role": "testing",
+                    "system_purpose_sla": "testing",
+                    "system_purpose_usage": "testing",
+                },
+                "namespace": "satellite",
+            },
         ],
-        "fqdn": "node01.ose.skunkfu.org",
+        "fqdn": random_uuid() + ".foo.redhat.com",
         "ip_addresses": [
             "fe80::46:6bff:fe06:c0f0",
             "10.129.0.1",
@@ -638,7 +634,7 @@ def build_rhsm_payload():
             "02:46:6B:06:C0:F0",
             "D6:58:86:AA:AA:40",
         ],
-        "subscription_manager_id": "77ecf4c6-ab06-405c-844c-d815973de7f2",
+        "subscription_manager_id": random_uuid(),
         "reporter": "rhsm-conduit",
         "stale_timestamp": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
         "system_profile": create_system_profile(),
@@ -648,7 +644,7 @@ def build_rhsm_payload():
 def build_qpc_payload():
     """Quipucords Product Catalog (QPC) hosts with discovery-specific data"""
     return {
-        "org_id": org_id,
+        "org_id": org_id + f"{NUM_OF_DIFF_ORG_ID}",
         "display_name": "dhcp-8-29-119.lab.eng.rdu2.redhat.com",
         "bios_uuid": "7E681E42-FCBE-2831-E9E2-78983C7FA869",
         "ip_addresses": ["10.8.29.119"],
@@ -699,7 +695,7 @@ def build_host_chunk():
 
     payload = {
         "insights_id": random_uuid(),
-        "org_id": org_id,
+        "org_id": org_id + f"{NUM_OF_DIFF_ORG_ID}",
         "display_name": fqdn,
         "tags": [
             {"namespace": "SPECIAL", "key": "key", "value": "val"},
