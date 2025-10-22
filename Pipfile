@@ -38,7 +38,7 @@ setuptools = "~=80.9.0"
 certifi = "~=2025.7.14"
 ratelimit = "*"
 confluent-kafka = "==2.12.0"
-inventory-grpc-clients-python-kessel-project = "*"
+kessel-sdk = "~=2.0.0"
 googleapis-common-protos = "*"
 # pinning versions of transitive dependencies to avoid hermetic build issues
 unleashclient = "==5.12.2"
