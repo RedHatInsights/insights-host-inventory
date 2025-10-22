@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC
+from typing import TypedDict
 
 from dateutil.parser import isoparse
 from marshmallow import ValidationError
@@ -23,6 +24,8 @@ from app.models import LimitedHostSchema
 from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 from app.staleness_serialization import get_staleness_timestamps
 from app.utils import Tag
+from lib.feature_flags import FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY
+from lib.feature_flags import get_flag_value
 
 logger = get_logger(__name__)
 
@@ -184,6 +187,17 @@ def serialize_host(
             if host.system_profile_facts and system_profile_fields
             else host.system_profile_facts or {}
         )
+
+        # Add backward compatibility for workload fields (only for Kafka events)
+        if (
+            for_mq
+            and serialized_host["system_profile"]
+            and get_flag_value(FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY)
+        ):
+            serialized_host["system_profile"] = _add_workloads_backward_compatibility(
+                serialized_host["system_profile"]
+            )
+
         if (
             system_profile_fields
             and system_profile_fields.count("host_type") < 2
@@ -438,6 +452,103 @@ def serialize_staleness_to_dict(staleness_obj) -> dict:
         "conventional_time_to_stale_warning": staleness_obj.conventional_time_to_stale_warning,
         "conventional_time_to_delete": staleness_obj.conventional_time_to_delete,
     }
+
+
+class _WorkloadCompatConfig(TypedDict, total=False):
+    """Type definition for workload backward compatibility configuration."""
+
+    path: list[str]
+    fields: dict[str, str]
+    flat_fields: dict[str, str]
+
+
+def _add_workloads_backward_compatibility(system_profile: dict) -> dict:
+    """
+    Populate legacy workload fields with data from workloads.* for backward compatibility.
+
+    This ensures subscribers can transition from legacy root-level fields to the new
+    workloads structure for SAP, Ansible, InterSystems, MSSQL, and CrowdStrike.
+
+    Args:
+        system_profile: The system profile dictionary
+
+    Returns:
+        Modified system_profile with populated legacy workload fields
+    """
+    workloads = system_profile.get("workloads", {})
+    if not workloads:
+        return system_profile
+
+    # define every workload's nested‐path + field mappings (and any flat mappings)
+    COMPAT_CONFIG: dict[str, _WorkloadCompatConfig] = {
+        "sap": {
+            "path": ["sap"],
+            "fields": {
+                "sap_system": "sap_system",
+                "sids": "sids",
+                "instance_number": "instance_number",
+                "version": "version",
+            },
+            "flat_fields": {
+                "sap_system": "sap_system",
+                "sids": "sap_sids",
+                "instance_number": "sap_instance_number",
+                "version": "sap_version",
+            },
+        },
+        "ansible": {
+            "path": ["ansible"],
+            "fields": {
+                "controller_version": "controller_version",
+                "hub_version": "hub_version",
+                "catalog_worker_version": "catalog_worker_version",
+                "sso_version": "sso_version",
+            },
+        },
+        "intersystems": {
+            "path": ["intersystems"],
+            "fields": {
+                "is_intersystems": "is_intersystems",
+                "running_instances": "running_instances",
+            },
+        },
+        "mssql": {
+            "path": ["mssql"],
+            "fields": {
+                "version": "version",
+            },
+        },
+        "crowdstrike": {
+            "path": ["third_party_services", "crowdstrike"],
+            "fields": {
+                "falcon_aid": "falcon_aid",
+                "falcon_backend": "falcon_backend",
+                "falcon_version": "falcon_version",
+            },
+        },
+    }
+
+    for wl_key, cfg in COMPAT_CONFIG.items():
+        data = workloads.get(wl_key)
+        if not data:
+            continue
+
+        # ensure nested path exists
+        target = system_profile
+        for p in cfg["path"]:
+            target = target.setdefault(p, {})
+
+        # copy each mapped field
+        for new_field, out_key in cfg["fields"].items():
+            if new_field in data:
+                target[out_key] = data[new_field]
+
+        # handle any top‐level “flat” mappings
+        for new_field, out_key in cfg.get("flat_fields", {}).items():
+            if new_field in data:
+                system_profile[out_key] = data[new_field]
+
+    return system_profile
 
 
 def _serialize_per_reporter_staleness(host, staleness, staleness_timestamps):

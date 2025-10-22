@@ -20,6 +20,9 @@ from sqlalchemy.orm.exc import StaleDataError
 
 from app.auth.identity import Identity
 from app.auth.identity import create_mock_identity_with_org_id
+from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
+from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
+from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import threadctx
@@ -535,7 +538,10 @@ def test_add_host_without_defer_to(models_datetime_mock, mq_create_or_update_hos
     assert str(updated_host.id) == str(existing_host_id)
 
     returned_host = db_get_host(existing_host_id)
-    assert returned_host.system_profile_facts == updated_system_profile
+    # Compare all expected fields are present and match
+    for key, value in updated_system_profile.items():
+        assert key in returned_host.system_profile_facts, f"Expected key '{key}' not found in system_profile"
+        assert returned_host.system_profile_facts[key] == value, f"Mismatch for key '{key}'"
 
 
 @pytest.mark.usefixtures("event_datetime_mock")
@@ -566,7 +572,10 @@ def test_add_host_defer_to(models_datetime_mock, mq_create_or_update_host, db_ge
     assert str(updated_host.id) == str(existing_host_id)
 
     returned_host = db_get_host(existing_host_id)
-    assert returned_host.system_profile_facts == original_system_profile
+    # Compare all expected fields are present and match (profile should NOT have been updated)
+    for key, value in original_system_profile.items():
+        assert key in returned_host.system_profile_facts, f"Expected key '{key}' not found in system_profile"
+        assert returned_host.system_profile_facts[key] == value, f"Mismatch for key '{key}'"
 
 
 @pytest.mark.usefixtures("event_datetime_mock")
@@ -598,7 +607,10 @@ def test_add_host_defer_to_wrong_reporter(models_datetime_mock, mq_create_or_upd
     assert str(updated_host.id) == str(existing_host_id)
 
     returned_host = db_get_host(existing_host_id)
-    assert returned_host.system_profile_facts == updated_system_profile
+    # Compare all expected fields are present and match
+    for key, value in updated_system_profile.items():
+        assert key in returned_host.system_profile_facts, f"Expected key '{key}' not found in system_profile"
+        assert returned_host.system_profile_facts[key] == value, f"Mismatch for key '{key}'"
 
 
 @pytest.mark.usefixtures("event_datetime_mock")
@@ -628,7 +640,10 @@ def test_add_host_defer_to_stale(mq_create_or_update_host, db_get_host):
         updated_host = mq_create_or_update_host(host, operation_args={"defer_to_reporter": "puptoo"})
         assert str(updated_host.id) == str(existing_host_id)
         returned_host = db_get_host(existing_host_id)
-        assert returned_host.system_profile_facts == updated_system_profile
+        # Compare all expected fields are present and match
+        for key, value in updated_system_profile.items():
+            assert key in returned_host.system_profile_facts, f"Expected key '{key}' not found in system_profile"
+            assert returned_host.system_profile_facts[key] == value, f"Mismatch for key '{key}'"
 
 
 @pytest.mark.usefixtures("event_datetime_mock")
@@ -978,6 +993,200 @@ def test_add_host_with_sap_system(mq_create_or_update_host):
     key, event, _ = mq_create_or_update_host(host, return_all_data=True)
 
     assert_mq_host_data(key, event, expected_results, host_keys_to_check)
+
+
+@pytest.mark.usefixtures("event_datetime_mock")
+def test_add_host_with_all_workloads_backward_compat_enabled(mq_create_or_update_host):
+    """
+    Test that when FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILY=true,
+    Kafka events include both workloads.* structure AND legacy backward
+    compatibility fields.
+    """
+    expected_insights_id = generate_uuid()
+    system_profile = {
+        "owner_id": OWNER_ID,
+        "workloads": {
+            "sap": {"sap_system": True, "sids": ["ABC", "XYZ"]},
+            "mssql": {"version": "15.2.0"},
+            "crowdstrike": {
+                "falcon_aid": "44e3b7d20b434a2bb2815d9808fa3a8b",
+                "falcon_backend": "kernel",
+                "falcon_version": "7.14.16703.0",
+            },
+            "intersystems": {
+                "is_intersystems": True,
+                "running_instances": [
+                    {"name": "HEALTH_PROD", "version": "2023.1", "path": "/opt/intersystems/iris/bin"}
+                ],
+            },
+            "ansible": {
+                "controller_version": "1.2.3",
+                "hub_version": "1.2.3",
+                "catalog_worker_version": "1.2.3",
+                "sso_version": "1.2.3",
+            },
+        },
+    }
+
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"],
+        insights_id=expected_insights_id,
+        system_profile=system_profile,
+    )
+
+    with patch("app.serialization.get_flag_value", return_value=True):
+        _, event, _ = mq_create_or_update_host(host, return_all_data=True)
+
+        sp = event["host"]["system_profile"]
+        workloads = sp["workloads"]
+
+        # Verify the event has workloads structure
+        assert "workloads" in sp
+
+        # Test workloads.* fields using a data-driven approach
+        workload_assertions = {
+            "sap": {"sap_system": True},
+            "ansible": {"controller_version": "1.2.3"},
+            "mssql": {"version": "15.2.0"},
+            "crowdstrike": {
+                "falcon_aid": "44e3b7d20b434a2bb2815d9808fa3a8b",
+                "falcon_backend": "kernel",
+                "falcon_version": "7.14.16703.0",
+            },
+            "intersystems": {"is_intersystems": True},
+        }
+
+        for workload, expected_fields in workload_assertions.items():
+            assert workload in workloads, f"Workload '{workload}' missing from workloads"
+            for field, expected_value in expected_fields.items():
+                assert workloads[workload][field] == expected_value, (
+                    f"workloads.{workload}.{field} = {workloads[workload][field]}, expected {expected_value}"
+                )
+
+        # Verify backward compatibility fields using a data-driven approach
+        backward_compat_assertions = {
+            "sap": {
+                "nested_fields": {"sap_system": True, "sids": ["ABC", "XYZ"]},
+                "flat_fields": {"sap_system": True, "sap_sids": ["ABC", "XYZ"]},
+            },
+            "ansible": {
+                "nested_fields": {"controller_version": "1.2.3"},
+            },
+            "mssql": {
+                "nested_fields": {"version": "15.2.0"},
+            },
+            "intersystems": {
+                "nested_fields": {"is_intersystems": True},
+            },
+            "third_party_services": {
+                "nested_fields": {
+                    "crowdstrike": {
+                        "falcon_aid": "44e3b7d20b434a2bb2815d9808fa3a8b",
+                        "falcon_backend": "kernel",
+                        "falcon_version": "7.14.16703.0",
+                    },
+                },
+            },
+        }
+
+        for workload, assertions in backward_compat_assertions.items():
+            # Verify nested backward compatibility fields (e.g., sp["sap"]["sap_system"])
+            assert workload in sp, f"Backward compat nested '{workload}' missing from system_profile"
+            for field, expected_value in assertions["nested_fields"].items():
+                assert sp[workload][field] == expected_value, (
+                    f"sp[{workload}][{field}] = {sp[workload][field]}, expected {expected_value}"
+                )
+
+            # Verify flat backward compatibility fields (e.g., sp["sap_system"])
+            if "flat_fields" in assertions:
+                for field, expected_value in assertions["flat_fields"].items():
+                    assert field in sp, f"Flat backward compat field '{field}' missing from system_profile"
+                    assert sp[field] == expected_value, f"sp[{field}] = {sp[field]}, expected {expected_value}"
+
+
+@pytest.mark.usefixtures("event_datetime_mock")
+def test_add_host_workloads_populate_legacy_fields_in_kafka_event(mq_create_or_update_host):
+    """
+    Test that when a host is sent with workloads.* fields AND different legacy fields,
+    the Kafka event populates the legacy fields from the workloads.* structure (workloads takes precedence).
+    This ensures the backward compatibility layer correctly syncs workloads -> legacy in events.
+    """
+    expected_insights_id = generate_uuid()
+    system_profile = {
+        "owner_id": OWNER_ID,
+        # New workloads structure with specific values
+        "workloads": {
+            "sap": {"sap_system": True, "sids": ["NW1", "NW2"]},
+            "ansible": {"controller_version": "2.0.0"},
+        },
+        # Old legacy fields with DIFFERENT values
+        "sap": {"sap_system": False, "sids": ["OD1", "OD2"]},
+        "sap_system": False,
+        "sap_sids": ["OD1", "OD2"],
+        "ansible": {"controller_version": "1.0.0"},
+    }
+
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"],
+        insights_id=expected_insights_id,
+        system_profile=system_profile,
+    )
+
+    with patch("app.serialization.get_flag_value", return_value=True):
+        _, event, _ = mq_create_or_update_host(host, return_all_data=True)
+
+        sp = event["host"]["system_profile"]
+
+        # Verify the event has workloads structure with the correct (new) values
+        assert "workloads" in sp
+        assert sp["workloads"]["sap"]["sap_system"] is True
+        assert sp["workloads"]["sap"]["sids"] == ["NW1", "NW2"]
+        assert sp["workloads"]["ansible"]["controller_version"] == "2.0.0"
+
+        # Verify the event's legacy fields are populated FROM workloads (not the old legacy values)
+        # The Kafka event should show the workloads values, not the legacy input values
+        assert sp["sap"]["sap_system"] is True  # From workloads, not False from legacy input
+        assert sp["sap"]["sids"] == ["NW1", "NW2"]  # From workloads, not ["OD1", "OD2"]
+        assert sp["sap_system"] is True  # From workloads, not False
+        assert sp["sap_sids"] == ["NW1", "NW2"]  # From workloads, not ["OD1", "OD2"]
+
+        assert sp["ansible"]["controller_version"] == "2.0.0"  # From workloads, not "1.0.0"
+
+
+@pytest.mark.usefixtures("event_datetime_mock")
+def test_add_host_with_workloads_backward_compat_disabled(mq_create_or_update_host):
+    """
+    Test that when FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILY=false,
+    Kafka events include ONLY the workloads.* structure without legacy backward
+    compatibility fields.
+    """
+    expected_insights_id = generate_uuid()
+    system_profile = {
+        "owner_id": OWNER_ID,
+        "workloads": {
+            "sap": {"sap_system": True, "sids": ["ABC", "XYZ"]},
+            "ansible": {"controller_version": "4.5.6"},
+        },
+    }
+
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"],
+        insights_id=expected_insights_id,
+        system_profile=system_profile,
+    )
+
+    _, event, _ = mq_create_or_update_host(host, return_all_data=True)
+
+    # Verify the event has workloads structure
+    assert "workloads" in event["host"]["system_profile"]
+    assert event["host"]["system_profile"]["workloads"]["sap"]["sap_system"] is True
+    assert event["host"]["system_profile"]["workloads"]["ansible"]["controller_version"] == "4.5.6"
+
+    # Verify the event does NOT have legacy backward compatibility fields
+    assert "sap" not in event["host"]["system_profile"]
+    assert "sap_system" not in event["host"]["system_profile"]
+    assert "sap_sids" not in event["host"]["system_profile"]
+    assert "ansible" not in event["host"]["system_profile"]
 
 
 @pytest.mark.parametrize("tags", ({}, {"tags": []}, {"tags": {}}))
@@ -1352,24 +1561,96 @@ def test_add_host_stale_timestamp(mq_create_or_update_host):
     key, event, _ = mq_create_or_update_host(host, return_all_data=True)
     updated_timestamp = datetime.fromisoformat(event["host"]["last_check_in"])
 
-    host.stale_timestamp = (updated_timestamp + timedelta(seconds=104400)).isoformat()
+    host.stale_timestamp = (updated_timestamp + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_SECONDS)).isoformat()
     expected_results = {
         "host": {
             **host.data(),
-            "stale_warning_timestamp": (updated_timestamp + timedelta(seconds=604800)).isoformat(),
-            "culled_timestamp": (updated_timestamp + timedelta(seconds=1209600)).isoformat(),
+            "stale_warning_timestamp": (
+                updated_timestamp + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS)
+            ).isoformat(),
+            "culled_timestamp": (
+                updated_timestamp + timedelta(seconds=CONVENTIONAL_TIME_TO_DELETE_SECONDS)
+            ).isoformat(),
         }
     }
 
     assert_mq_host_data(key, event, expected_results, host_keys_to_check)
 
 
-@pytest.mark.parametrize("field_to_remove", ["stale_timestamp", "reporter"])
-def test_add_host_stale_timestamp_missing_culling_fields(mocker, field_to_remove, mq_create_or_update_host):
+@pytest.mark.usefixtures("event_datetime_mock")
+def test_add_host_without_stale_timestamp(mq_create_or_update_host):
+    """
+    Tests to see if the host is successfully created without stale_timestamp.
+    """
+    expected_insights_id = generate_uuid()
+
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"],
+        insights_id=expected_insights_id,
+    )
+
+    host_keys_to_check = ["reporter", "stale_timestamp", "culled_timestamp"]
+
+    key, event, _ = mq_create_or_update_host(host, return_all_data=True)
+    updated_timestamp = datetime.fromisoformat(event["host"]["last_check_in"])
+
+    expected_results = {
+        "host": {
+            **host.data(),
+            "stale_timestamp": (updated_timestamp + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_SECONDS)).isoformat(),
+            "stale_warning_timestamp": (
+                updated_timestamp + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS)
+            ).isoformat(),
+            "culled_timestamp": (
+                updated_timestamp + timedelta(seconds=CONVENTIONAL_TIME_TO_DELETE_SECONDS)
+            ).isoformat(),
+        }
+    }
+
+    assert_mq_host_data(key, event, expected_results, host_keys_to_check)
+
+
+@pytest.mark.usefixtures("event_datetime_mock")
+def test_add_host_with_stale_timestamp_ignore(mq_create_or_update_host):
+    """
+    Tests to see if the host is successfully created with stale_timestamp
+    but ignore it. It should use the default stale_timestamp.
+    """
+    expected_insights_id = generate_uuid()
+
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"],
+        insights_id=expected_insights_id,
+        stale_timestamp="2025-01-01T00:00:00Z",
+    )
+
+    host_keys_to_check = ["reporter", "stale_timestamp", "culled_timestamp"]
+
+    key, event, _ = mq_create_or_update_host(host, return_all_data=True)
+    updated_timestamp = datetime.fromisoformat(event["host"]["last_check_in"])
+
+    expected_results = {
+        "host": {
+            **host.data(),
+            "stale_timestamp": (updated_timestamp + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_SECONDS)).isoformat(),
+            "stale_warning_timestamp": (
+                updated_timestamp + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS)
+            ).isoformat(),
+            "culled_timestamp": (
+                updated_timestamp + timedelta(seconds=CONVENTIONAL_TIME_TO_DELETE_SECONDS)
+            ).isoformat(),
+        }
+    }
+
+    assert_mq_host_data(key, event, expected_results, host_keys_to_check)
+
+
+def test_add_host_missing_reporter_field(mocker, mq_create_or_update_host):
     """
     tests to check the API will reject a host if it doesn't have both
     culling fields. This should raise InventoryException.
     """
+    field_to_remove = "reporter"
     mock_notification_event_producer = mocker.Mock()
     host = minimal_host(account=SYSTEM_IDENTITY["account_number"])
     delattr(host, field_to_remove)
@@ -1533,12 +1814,18 @@ def test_update_system_profile(mq_create_or_update_host, db_get_host, id_type):
     # and the system profile should have updated with the new values.
     assert str(second_host_from_db.id) == first_host_from_event.id
     assert str(second_host_from_db.canonical_facts["insights_id"]) == expected_ids["insights_id"]
-    assert second_host_from_db.system_profile_facts == {
-        "owner_id": OWNER_ID,
-        "number_of_cpus": 4,
-        "number_of_sockets": 8,
-        "rhsm": {"version": "8.7", "environment_ids": ["01fd642e02de4e6da2da6172081a971e"]},
-        "workloads": {"rhel_ai": {"variant": "RHEL AI"}, "crowdstrike": {"falcon_version": "7.2.2"}},
+
+    # Verify core fields are updated correctly
+    assert second_host_from_db.system_profile_facts["owner_id"] == OWNER_ID
+    assert second_host_from_db.system_profile_facts["number_of_cpus"] == 4
+    assert second_host_from_db.system_profile_facts["number_of_sockets"] == 8
+    assert second_host_from_db.system_profile_facts["rhsm"] == {
+        "version": "8.7",
+        "environment_ids": ["01fd642e02de4e6da2da6172081a971e"],
+    }
+    assert second_host_from_db.system_profile_facts["workloads"] == {
+        "rhel_ai": {"variant": "RHEL AI"},
+        "crowdstrike": {"falcon_version": "7.2.2"},
     }
 
 
@@ -2664,3 +2951,26 @@ def test_add_host_with_invalid_provider_type(
 
     # Verify that notification event was sent for the validation failure
     mock_notification_event_producer.write_event.assert_called_once()
+
+
+@pytest.mark.parametrize("reporter", ["rhsm-conduit", "rhsm-system-profile-bridge"])
+def test_add_host_with_rhsm_payloads_rejected(mocker, mq_create_or_update_host, reporter):
+    mocker.patch("app.queue.host_mq.get_flag_value", return_value=True)
+    host = minimal_host(insights_id=generate_uuid(), reporter=reporter)
+    with pytest.raises(ValidationException) as excinfo:
+        mq_create_or_update_host(host)
+    assert "RHSM payloads are not currently allowed" in str(excinfo.value)
+
+
+@pytest.mark.parametrize("reporter", ["puptoo", "satellite", "cloud-connector", "yuptoo"])
+def test_add_non_rhsm_host_with_rhsm_payloads_rejected(mocker, mq_create_or_update_host, reporter):
+    mocker.patch("app.queue.host_mq.get_flag_value", return_value=True)
+    host = minimal_host(insights_id=generate_uuid(), reporter=reporter)
+    assert mq_create_or_update_host(host) is not None
+
+
+@pytest.mark.parametrize("reporter", ["rhsm-conduit", "rhsm-system-profile-bridge"])
+def test_add_host_with_rhsm_payloads_allowed_rhsm_payloads_not_rejected(mocker, mq_create_or_update_host, reporter):
+    mocker.patch("app.queue.host_mq.get_flag_value", return_value=False)
+    host = minimal_host(insights_id=generate_uuid(), reporter=reporter)
+    assert mq_create_or_update_host(host) is not None

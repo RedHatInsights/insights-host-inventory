@@ -1,15 +1,13 @@
 import pytest
 
+from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
+from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
+from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
 from tests.helpers.api_utils import _INPUT_DATA
 from tests.helpers.api_utils import STALENESS_WRITE_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import STALENESS_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
-
-
-def _days_to_seconds(n_days):
-    factor = 86400
-    return n_days * factor
 
 
 def test_create_staleness(api_create_staleness, db_get_staleness_culling):
@@ -35,8 +33,8 @@ def test_create_staleness_with_only_one_data(api_create_staleness, db_get_stalen
     saved_data = db_get_staleness_culling(saved_org_id)
 
     assert saved_data.conventional_time_to_stale == input_data["conventional_time_to_stale"]
-    assert saved_data.conventional_time_to_stale_warning == _days_to_seconds(7)
-    assert saved_data.conventional_time_to_delete == _days_to_seconds(14)
+    assert saved_data.conventional_time_to_stale_warning == CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
+    assert saved_data.conventional_time_to_delete == CONVENTIONAL_TIME_TO_DELETE_SECONDS
 
 
 def test_create_same_staleness(api_create_staleness):
@@ -89,19 +87,19 @@ def test_create_staleness_rbac_denied(subtests, mocker, api_create_staleness):
     "input_data",
     (
         {
-            "conventional_time_to_stale": 104400,
+            "conventional_time_to_stale": CONVENTIONAL_TIME_TO_STALE_SECONDS,
             "conventional_time_to_stale_warning": 1,
-            "conventional_time_to_delete": 1209600,
+            "conventional_time_to_delete": CONVENTIONAL_TIME_TO_DELETE_SECONDS,
         },
         {
-            "conventional_time_to_stale": 104400,
-            "conventional_time_to_stale_warning": 604800,
+            "conventional_time_to_stale": CONVENTIONAL_TIME_TO_STALE_SECONDS,
+            "conventional_time_to_stale_warning": CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS,
             "conventional_time_to_delete": 1,
         },
         {
-            "conventional_time_to_stale": 104400,
-            "conventional_time_to_stale_warning": 2000000,
-            "conventional_time_to_delete": 1209600,
+            "conventional_time_to_stale": CONVENTIONAL_TIME_TO_STALE_SECONDS,
+            "conventional_time_to_stale_warning": CONVENTIONAL_TIME_TO_DELETE_SECONDS + 1,
+            "conventional_time_to_delete": CONVENTIONAL_TIME_TO_DELETE_SECONDS,
         },
     ),
 )
@@ -115,25 +113,25 @@ def test_create_improper_staleness(api_create_staleness, input_data):
     "input_data",
     (
         {
-            "conventional_time_to_stale": 104400,
-            "conventional_time_to_stale_warning": 604800,
-            "conventional_time_to_delete": 1209600,
+            "conventional_time_to_stale": CONVENTIONAL_TIME_TO_STALE_SECONDS,
+            "conventional_time_to_stale_warning": CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS,
+            "conventional_time_to_delete": CONVENTIONAL_TIME_TO_DELETE_SECONDS,
             "immutable_time_to_stale": 172800,
             "immutable_time_to_stale_warning": 1,
             "immutable_time_to_delete": 63072000,
         },
         {
-            "conventional_time_to_stale": 104400,
-            "conventional_time_to_stale_warning": 604800,
-            "conventional_time_to_delete": 1209600,
+            "conventional_time_to_stale": CONVENTIONAL_TIME_TO_STALE_SECONDS,
+            "conventional_time_to_stale_warning": CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS,
+            "conventional_time_to_delete": CONVENTIONAL_TIME_TO_DELETE_SECONDS,
             "immutable_time_to_stale": 172800,
             "immutable_time_to_stale_warning": 15552000,
             "immutable_time_to_delete": 1,
         },
         {
-            "conventional_time_to_stale": 104400,
-            "conventional_time_to_stale_warning": 604800,
-            "conventional_time_to_delete": 1209600,
+            "conventional_time_to_stale": CONVENTIONAL_TIME_TO_STALE_SECONDS,
+            "conventional_time_to_stale_warning": CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS,
+            "conventional_time_to_delete": CONVENTIONAL_TIME_TO_DELETE_SECONDS,
             "immutable_time_to_stale": 172800,
             "immutable_time_to_stale_warning": 64000000,
             "immutable_time_to_delete": 63072000,

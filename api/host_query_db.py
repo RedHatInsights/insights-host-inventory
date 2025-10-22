@@ -6,6 +6,7 @@ from itertools import islice
 from typing import Any
 
 from sqlalchemy import Boolean
+from sqlalchemy import Integer
 from sqlalchemy import case
 from sqlalchemy import func
 from sqlalchemy import select
@@ -34,6 +35,7 @@ from app.models import Host
 from app.models import HostDynamicSystemProfile
 from app.models import HostGroupAssoc
 from app.models import db
+from app.models.system_profile_static import HostStaticSystemProfile
 from app.serialization import serialize_host_for_export_svc
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.feature_flags import get_flag_value
@@ -171,7 +173,7 @@ def get_host_list_by_id_list(
     fields=None,
     rbac_filter=None,
 ) -> tuple[list[Host], int, tuple[str], list[str]]:
-    all_filters = host_id_list_filter(host_id_list, get_current_identity().org_id)
+    all_filters = host_id_list_filter(host_id_list)
     all_filters += rbac_permissions_filter(rbac_filter)
 
     items, total, additional_fields, system_profile_fields = _get_host_list_using_filters(
@@ -277,7 +279,7 @@ def get_host_tags_list_by_id_list(
 ) -> tuple[dict, int]:
     columns = [Host.id, Host.tags]
     query = _find_hosts_entities_query(columns=columns)
-    all_filters = host_id_list_filter(host_id_list, get_current_identity().org_id)
+    all_filters = host_id_list_filter(host_id_list)
     all_filters += rbac_permissions_filter(rbac_filter)
     order = params_to_order_by(order_by, order_how)
     query_results = query.filter(*all_filters).order_by(*order).offset(offset).limit(limit).all()
@@ -429,10 +431,12 @@ def get_os_info(
     rbac_filter: dict,
     identity: Identity,
 ):
+    os_field = HostStaticSystemProfile.operating_system
+
     columns = [
-        Host.system_profile_facts["operating_system"]["name"].label("name"),
-        Host.system_profile_facts["operating_system"]["major"].label("major"),
-        Host.system_profile_facts["operating_system"]["minor"].label("minor"),
+        os_field["name"].astext.label("name"),
+        os_field["major"].astext.cast(Integer).label("major"),
+        os_field["minor"].astext.cast(Integer).label("minor"),
         func.count().label("count"),
     ]
 
@@ -443,6 +447,7 @@ def get_os_info(
         filter=filter,
         rbac_filter=rbac_filter,
         identity=identity,
+        join_static_profile=True,
     )
     os_query = _find_hosts_entities_query(query=query_base, columns=columns, identity=identity)
 
@@ -482,6 +487,8 @@ def get_sap_system_info(
         dynamic_sap_system.label("value"),
     ]
 
+    # Request dynamic profile join since we need workloads data
+    # query_filters will automatically add the join
     filters, query_base = query_filters(
         tags=tags,
         staleness=staleness,
@@ -489,12 +496,8 @@ def get_sap_system_info(
         filter=filter,
         rbac_filter=rbac_filter,
         identity=identity,
+        join_dynamic_profile=True,  # Explicitly request HostDynamicSystemProfile join
     )
-
-    # Join with the dynamic system profile table if not already joined by query_filters
-    # query_filters adds an implicit JOIN when filter or registered_with is present
-    if not filter and not registered_with:
-        query_base = query_base.join(HostDynamicSystemProfile)
 
     sap_query = _find_hosts_entities_query(query=query_base, columns=columns)
 
@@ -533,6 +536,8 @@ def get_sap_sids_info(
         func.jsonb_array_elements_text(dynamic_sap_sids).label("sap_sids"),
     ]
 
+    # Request dynamic profile join since we need workloads data
+    # query_filters will automatically add the join
     filters, query_base = query_filters(
         tags=tags,
         staleness=staleness,
@@ -540,12 +545,8 @@ def get_sap_sids_info(
         filter=filter,
         rbac_filter=rbac_filter,
         identity=identity,
+        join_dynamic_profile=True,  # Explicitly request HostDynamicSystemProfile join
     )
-
-    # Join with the dynamic system profile table if not already joined by query_filters
-    # query_filters adds an implicit JOIN when filter or registered_with is present
-    if not filter and not registered_with:
-        query_base = query_base.join(HostDynamicSystemProfile)
 
     sap_sids_query = _find_hosts_entities_query(query_base, columns)
 
@@ -605,9 +606,7 @@ def get_sparse_system_profile(
     else:
         columns = [Host.id, Host.system_profile_facts]
 
-    all_filters = host_id_list_filter(host_id_list, get_current_identity().org_id) + rbac_permissions_filter(
-        rbac_filter
-    )
+    all_filters = host_id_list_filter(host_id_list) + rbac_permissions_filter(rbac_filter)
     sp_query = (
         _find_hosts_entities_query(columns=columns)
         .filter(*all_filters)

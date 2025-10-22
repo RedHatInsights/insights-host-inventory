@@ -36,8 +36,6 @@ from app.models.system_profile_static import HostStaticSystemProfile
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_states import HostStalenessStatesDbFilters
 from app.utils import Tag
-from lib.feature_flags import FLAG_INVENTORY_FILTER_STALENESS_USING_COLUMNS
-from lib.feature_flags import get_flag_value
 
 __all__ = (
     "query_filters",
@@ -52,6 +50,74 @@ __all__ = (
 logger = get_logger(__name__)
 DEFAULT_STALENESS_VALUES = ["not_culled"]
 DEFAULT_INSIGHTS_ID = "00000000-0000-0000-0000-000000000000"
+
+
+# Cache the column names from system profile tables for performance
+_DYNAMIC_PROFILE_FIELDS = None
+_STATIC_PROFILE_FIELDS = None
+
+
+def _get_system_profile_fields():
+    """Get the field names from system profile tables by introspecting the models."""
+    global _DYNAMIC_PROFILE_FIELDS, _STATIC_PROFILE_FIELDS
+
+    if _DYNAMIC_PROFILE_FIELDS is None:
+        # Get column names from HostDynamicSystemProfile (excluding primary keys)
+        _DYNAMIC_PROFILE_FIELDS = {
+            col.name for col in HostDynamicSystemProfile.__table__.columns if col.name not in ("org_id", "host_id")
+        }
+
+    if _STATIC_PROFILE_FIELDS is None:
+        # Get column names from HostStaticSystemProfile (excluding primary keys)
+        _STATIC_PROFILE_FIELDS = {
+            col.name for col in HostStaticSystemProfile.__table__.columns if col.name not in ("org_id", "host_id")
+        }
+
+    return _DYNAMIC_PROFILE_FIELDS, _STATIC_PROFILE_FIELDS
+
+
+def _extract_filter_fields(filter_dict):
+    """Extract all field names from a nested filter dictionary."""
+    if not filter_dict:
+        return set()
+
+    fields = set()
+    for key, value in filter_dict.items():
+        # Add the top-level key
+        fields.add(key)
+        # If the value is a dict with nested structure, recurse
+        if isinstance(value, dict):
+            fields.update(_extract_filter_fields(value))
+
+    return fields
+
+
+def _needs_system_profile_joins(filter, system_type, registered_with):
+    """
+    Dynamically determine if system profile table joins are needed based on
+    which fields are being filtered.
+
+    Returns: (needs_static_join, needs_dynamic_join)
+    """
+    # system_type and registered_with always use static profile fields
+    if system_type or registered_with:
+        return True, False
+
+    if not filter:
+        return False, False
+
+    # Get the system profile field sets
+    dynamic_fields, static_fields = _get_system_profile_fields()
+
+    # Extract all fields referenced in the filter
+    filter_fields = _extract_filter_fields(filter)
+
+    # Check if any filter fields match system profile fields
+    needs_static = bool(filter_fields & static_fields)
+    needs_dynamic = bool(filter_fields & dynamic_fields)
+
+    return needs_static, needs_dynamic
+
 
 # Static system type filter mappings
 SYSTEM_TYPE_FILTERS: dict[str, Any] = {
@@ -209,7 +275,7 @@ def per_reporter_staleness_filter(staleness, reporter, org_id):
     return [conditions]
 
 
-def _staleness_filter_using_columns(staleness: list[str]) -> list:
+def _staleness_filter(staleness: list[str]) -> list:
     host_staleness_states_filters = HostStalenessStatesDbFilters()
     if staleness == ["unknown"]:
         # "unknown" filter should be ignored, but shouldn't return culled hosts
@@ -217,13 +283,6 @@ def _staleness_filter_using_columns(staleness: list[str]) -> list:
     else:
         filters = [getattr(host_staleness_states_filters, state)() for state in staleness if state != "unknown"]
     return [or_(*filters)]
-
-
-def _staleness_filter(staleness: list[str] | tuple[str, ...], org_id: str) -> list:
-    staleness_obj = serialize_staleness_to_dict(get_staleness_obj(org_id))
-    staleness_conditions = [or_(*staleness_to_conditions(staleness_obj, staleness, stale_timestamp_filter))]
-
-    return [or_(*staleness_conditions)]
 
 
 def staleness_to_conditions(
@@ -333,15 +392,9 @@ def _last_check_in_filter(last_check_in_start: str | None, last_check_in_end: st
     return [and_(*last_check_in_filter)] if last_check_in_filter else []
 
 
-def _get_staleness_filter(all_staleness_states: list[str], org_id: str) -> list:
-    if get_flag_value(FLAG_INVENTORY_FILTER_STALENESS_USING_COLUMNS):
-        return _staleness_filter_using_columns(all_staleness_states)
-    return _staleness_filter(all_staleness_states, org_id)
-
-
-def host_id_list_filter(host_id_list: list[str], org_id: str) -> list:
+def host_id_list_filter(host_id_list: list[str]) -> list:
     all_filters = [Host.id.in_(host_id_list)]
-    all_filters += _get_staleness_filter(ALL_STALENESS_STATES, org_id)
+    all_filters += _staleness_filter(ALL_STALENESS_STATES)
     return all_filters
 
 
@@ -353,13 +406,45 @@ def rbac_permissions_filter(rbac_filter: dict) -> list:
     return _query_filter
 
 
+def _is_table_already_joined(query: Query, model) -> bool:
+    """
+    Check if a model's table is already part of the query's FROM clause.
+    Recursively checks all tables and joins in the query.
+
+    Args:
+        query: SQLAlchemy Query object
+        model: SQLAlchemy model class
+
+    Returns:
+        True if the model's table is already joined, False otherwise
+    """
+    table_name = model.__table__.name
+
+    def check_from_clause(from_clause):
+        if hasattr(from_clause, "name") and from_clause.name == table_name:
+            return True
+        if hasattr(from_clause, "left") and check_from_clause(from_clause.left):
+            return True
+        return hasattr(from_clause, "right") and check_from_clause(from_clause.right)
+
+    stmt = query.statement if hasattr(query, "statement") else query
+    if hasattr(stmt, "get_final_froms"):
+        froms = stmt.get_final_froms()
+    else:
+        return False
+
+    return any(check_from_clause(from_clause) for from_clause in froms)
+
+
 def update_query_for_owner_id(identity: Identity, query: Query) -> Query:
     # kafka based requests have dummy identity for working around the identity requirement for CRUD operations
     if identity:
         logger.debug("identity auth type: %s", identity.auth_type)
         if identity.identity_type == IdentityType.SYSTEM:
-            # Ensure HostStaticSystemProfile is joined before filtering
-            query = query.join(HostStaticSystemProfile, isouter=True)
+            # Check if HostStaticSystemProfile is already joined to avoid duplicate joins
+            if not _is_table_already_joined(query, HostStaticSystemProfile):
+                query = query.join(HostStaticSystemProfile, isouter=True)
+
             return query.filter(HostStaticSystemProfile.owner_id == identity.system["cn"])
     return query
 
@@ -393,6 +478,8 @@ def query_filters(
     rbac_filter: dict | None = None,
     order_by: str | None = None,
     identity=None,
+    join_static_profile: bool = False,
+    join_dynamic_profile: bool = False,
 ) -> tuple[list, Query]:
     num_ids = sum(bool(id_param) for id_param in [fqdn, display_name, hostname_or_id, insights_id])
     if num_ids > 1:
@@ -432,7 +519,7 @@ def query_filters(
         sp_filter = _system_profile_filter(filter)
         filters += sp_filter
     if staleness:
-        filters += _get_staleness_filter(staleness, identity.org_id)
+        filters += _staleness_filter(staleness)
     if registered_with:
         filters += _registered_with_filter(registered_with, identity.org_id)
     if rbac_filter:
@@ -440,16 +527,23 @@ def query_filters(
 
     filters = [and_(Host.org_id == identity.org_id, *filters)]
 
-    # Determine query_base
+    # Dynamically determine if we need system profile joins based on what fields are being filtered
+    needs_static_join, needs_dynamic_join = _needs_system_profile_joins(filter, system_type, registered_with)
+
+    # Allow explicit join requests to override dynamic detection
+    needs_static_join = needs_static_join or join_static_profile
+    needs_dynamic_join = needs_dynamic_join or join_dynamic_profile
+
+    query_base = db.session.query(Host)
+
+    # Determine base query - start with Host and add group joins if needed
     if group_name or group_ids or rbac_filter or order_by == "group_name":
-        query_base = db.session.query(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
-    elif filter or system_type or registered_with:
-        query_base = (
-            db.session.query(Host)
-            .join(HostStaticSystemProfile, isouter=True)
-            .join(HostDynamicSystemProfile, isouter=True)
-        )
-    else:
-        query_base = db.session.query(Host)
+        query_base = query_base.join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
+
+    # Add system profile joins if needed (dynamic detection or explicit request)
+    if needs_static_join:
+        query_base = query_base.join(HostStaticSystemProfile, isouter=True)
+    if needs_dynamic_join:
+        query_base = query_base.join(HostDynamicSystemProfile, isouter=True)
 
     return filters, query_base

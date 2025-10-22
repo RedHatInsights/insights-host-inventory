@@ -11,8 +11,9 @@ logger = get_logger(__name__)
 FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION = "hbi.api.kessel-workspace-migration"
 FLAG_INVENTORY_API_READ_ONLY = "hbi.api.read-only"
 FLAG_INVENTORY_KESSEL_PHASE_1 = "hbi.api.kessel-phase-1"
-FLAG_INVENTORY_FILTER_STALENESS_USING_COLUMNS = "hbi.filter_staleness_using_columns"
 FLAG_INVENTORY_USE_NEW_SYSTEM_PROFILE_TABLES = "hbi.use_new_system_profile_tables"
+FLAG_INVENTORY_REJECT_RHSM_PAYLOADS = "hbi.api.reject-rhsm-payloads"
+FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY = "hbi.workloads_fields_backward_compatibility"
 
 
 FLAG_FALLBACK_VALUES = {
@@ -20,8 +21,9 @@ FLAG_FALLBACK_VALUES = {
     FLAG_INVENTORY_API_READ_ONLY: False,
     FLAG_INVENTORY_KESSEL_PHASE_1: False,
     # Use when all hosts are populated with stale_warning/deletion_timestamps
-    FLAG_INVENTORY_FILTER_STALENESS_USING_COLUMNS: True,
     FLAG_INVENTORY_USE_NEW_SYSTEM_PROFILE_TABLES: False,
+    FLAG_INVENTORY_REJECT_RHSM_PAYLOADS: False,
+    FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY: False,
 }
 
 

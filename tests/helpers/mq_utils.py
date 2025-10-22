@@ -11,6 +11,9 @@ from confluent_kafka import TopicPartition
 
 from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
+from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
+from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
+from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
 from app.serialization import serialize_facts
 from app.utils import Tag
 from tests.helpers.test_utils import SYSTEM_IDENTITY
@@ -122,10 +125,31 @@ def wrap_message(host_data, operation="add_host", platform_metadata=None, operat
 
 
 def assert_mq_host_data(actual_id: str, actual_event: dict, expected_results: dict, host_keys_to_check: list[str]):
+    """
+    Assert that MQ host data matches expected results.
+
+    Special handling for system_profile: When backward compatibility is enabled,
+    the actual event may contain legacy fields (e.g., 'ansible', 'sap_system') in addition
+    to the 'workloads' structure. This function compares the 'workloads' data specifically
+    and ignores legacy backward compatibility fields in the actual event.
+    """
     assert actual_event["host"]["id"] == actual_id
 
     for key in host_keys_to_check:
-        assert actual_event["host"][key] == expected_results["host"][key]
+        if key == "system_profile":
+            # Special comparison for system_profile to handle backward compatibility
+            actual_sp = actual_event["host"]["system_profile"]
+            expected_sp = expected_results["host"]["system_profile"]
+
+            # Compare all fields that exist in expected results
+            for expected_key, expected_value in expected_sp.items():
+                assert expected_key in actual_sp, f"Expected key '{expected_key}' not found in actual system_profile"
+                assert actual_sp[expected_key] == expected_value, (
+                    f"system_profile['{expected_key}'] mismatch: "
+                    f"expected {expected_value}, got {actual_sp[expected_key]}"
+                )
+        else:
+            assert actual_event["host"][key] == expected_results["host"][key]
 
 
 def assert_delete_event_is_valid(
@@ -239,9 +263,15 @@ def assert_patch_event_is_valid(
     reporter=None,
     identity=USER_IDENTITY,
 ):
-    stale_timestamp = (host.last_check_in.astimezone(UTC) + timedelta(seconds=104400)).isoformat()
-    stale_warning_timestamp = (host.last_check_in.astimezone(UTC) + timedelta(seconds=604800)).isoformat()
-    culled_timestamp = (host.last_check_in.astimezone(UTC) + timedelta(seconds=1209600)).isoformat()
+    stale_timestamp = (
+        host.last_check_in.astimezone(UTC) + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_SECONDS)
+    ).isoformat()
+    stale_warning_timestamp = (
+        host.last_check_in.astimezone(UTC) + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS)
+    ).isoformat()
+    culled_timestamp = (
+        host.last_check_in.astimezone(UTC) + timedelta(seconds=CONVENTIONAL_TIME_TO_DELETE_SECONDS)
+    ).isoformat()
 
     reporter = reporter or host.reporter
 
