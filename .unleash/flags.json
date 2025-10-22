@@ -98,7 +98,7 @@
             "createdAt": "2025-10-12T16:29:19.146Z"
           },
           {
-            "name": "hbi.workloads_fields_backward_compatibilty",
+            "name": "hbi.workloads_fields_backward_compatibility",
             "description": "When turned ON, HBI will expose the legacy fields now present in the workloads fields in the kafka events (RHINENG-21211).",
             "type": "release",
             "project": "default",
