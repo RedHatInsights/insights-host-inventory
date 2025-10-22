@@ -1258,7 +1258,11 @@ def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
         "[sap][sap_system]=true",
         "[sap_system]=true",
         "[workloads][mssql][version]=15.3",
+        "[workloads][mssql][version][]=15.3",
+        "[workloads][mssql][version][]=not_nil",
         "[mssql][version]=15.3",
+        "[mssql][version][]=15.3",
+        "[mssql][version][]=not_nil",
         "[workloads][ansible][controller_version]=1.0",
         "[ansible][controller_version]=1.0",
         "[workloads][sap][sap_system]=True",
@@ -1358,6 +1362,50 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
     # Assert that only the matching host is returned
     response_ids = [result["id"] for result in response_data["results"]]
     assert match_host_id in response_ids
+    assert nomatch_host_id not in response_ids
+
+
+@pytest.mark.parametrize(
+    "sp_filter_bool_field",
+    (
+        "katello_agent_running",
+        "satellite_managed",
+        "is_marketplace",
+        "greenboot_fallback_detected",
+    ),
+)
+def test_query_all_sp_filters_bools_use_or_logic(db_create_host, api_get, sp_filter_bool_field):
+    # Create host with true value for the boolean field
+    host_1_data = {
+        "system_profile_facts": {
+            sp_filter_bool_field: True,
+        }
+    }
+    host_1_id = str(db_create_host(extra_data=host_1_data).id)
+
+    # Create host with false value for the boolean field
+    host_2_data = {
+        "system_profile_facts": {
+            sp_filter_bool_field: False,
+        }
+    }
+    host_2_id = str(db_create_host(extra_data=host_2_data).id)
+
+    # Create host with no value for the boolean field
+    nomatch_host_data = {"system_profile_facts": {}}
+    nomatch_host_id = str(db_create_host(extra_data=nomatch_host_data).id)
+
+    url = build_hosts_url(
+        query=f"?filter[system_profile][{sp_filter_bool_field}][]=true"
+        + f"&filter[system_profile][{sp_filter_bool_field}][]=false"
+    )
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+
+    response_ids = [result["id"] for result in response_data["results"]]
+    assert len(response_ids) == 2
+    assert host_1_id in response_ids
+    assert host_2_id in response_ids
     assert nomatch_host_id not in response_ids
 
 
