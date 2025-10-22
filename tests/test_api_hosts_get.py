@@ -1294,6 +1294,12 @@ def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
         "[number_of_cpus]=nil",
         "[bios_version]=2.0/3.5A",
         "[cpu_flags][]=nil",
+        "[rhel_ai][rhel_ai_version_id][is]=not_nil",
+        "[rhel_ai][rhel_ai_version_id]=v1.1.2",
+        "[rhel_ai][rhel_ai_version_id][]=v1.1.2",
+        "[rhel_ai][rhel_ai_version_id][eq]=v1.1.2",
+        "[rhel_ai][rhel_ai_version_id][eq][]=v1.1.2",
+        "[rhel_ai][variant][is]=nil",
     ),
 )
 def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
@@ -1309,6 +1315,9 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
                 "mssql": {"version": "15.3"},
                 "ansible": {
                     "controller_version": "1.0",
+                },
+                "rhel_ai": {
+                    "rhel_ai_version_id": "v1.1.2",
                 },
             },
             "is_marketplace": False,
@@ -1326,7 +1335,12 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
             "cpu_flags": ["ex1", "ex2"],
             "insights_client_version": "1.2.3",
             "greenboot_status": "green",
-            "workloads": {"sap": {}},  # No sap_system field = nil
+            "workloads": {
+                "sap": {},
+                "rhel_ai": {
+                    "variant": "RHEL AI",
+                },
+            },  # No sap_system field = nil
             "bootc_status": {"booted": {"image": "192.168.0.1:5000/foo/foo:latest"}},
             "is_marketplace": True,
             "number_of_cpus": 8,

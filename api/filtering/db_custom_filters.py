@@ -21,6 +21,7 @@ from api.filtering.filtering_common import get_valid_os_names
 from app import system_profile_spec
 from app.exceptions import ValidationException
 from app.logging import get_logger
+from app.models.constants import WORKLOADS_FIELDS
 from app.models.system_profile_dynamic import HostDynamicSystemProfile
 from app.models.system_profile_static import HostStaticSystemProfile
 from app.models.system_profile_transformer import DYNAMIC_FIELDS
@@ -75,7 +76,7 @@ def _get_system_profile_column_and_filter(filter_param: dict) -> tuple[Column, d
     elif field_name == "sap_sids":
         filter_param = {"workloads": {"sap": {"sids": filter_param.get("sap_sids")}}}
         field_name = "workloads"
-    elif field_name in {"sap", "ansible", "mssql"}:
+    elif field_name in WORKLOADS_FIELDS:
         filter_param = {"workloads": filter_param}
         field_name = "workloads"
 

@@ -30,6 +30,7 @@ from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import db
+from app.models.constants import WORKLOADS_FIELDS
 from app.models.constants import SystemType
 from app.models.system_profile_dynamic import HostDynamicSystemProfile
 from app.models.system_profile_static import HostStaticSystemProfile
@@ -114,7 +115,7 @@ def _needs_system_profile_joins(filter, system_type, registered_with):
 
     # Handle workloads fields (temporary)
     # Only needed until we stop supporting the old filter paths
-    if filter_fields & {"sap", "sap_sids", "sap_system", "ansible", "mssql"}:
+    if filter_fields & WORKLOADS_FIELDS:
         filter_fields.add("workloads")
 
     # Check if any filter fields match system profile fields
