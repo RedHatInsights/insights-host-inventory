@@ -44,6 +44,8 @@ please see the
 - [Running ad hoc jobs using a different image](#running-ad-hoc-jobs-using-a-different-image)
 - [Debugging local code with services deployed into Kubernetes namespaces](#debugging-local-code-with-services-deployed-into-kubernetes-namespaces)
 - [Contributing](#contributing)
+ - [GABI Query Tool (interactive and non-interactive)](#gabi-query-tool-interactive-and-non-interactive)
+ - [Generate Hosts Across Multiple Org IDs](#generate-hosts-across-multiple-org-ids)
 
 ## Getting started
 
@@ -733,4 +735,29 @@ SELECT COUNT(*) FROM hbi.hosts;
 
 ```bash
 ./utils/run_gabi_interactive.py --env stage --file query.sql --format both
+```
+
+## Generate Hosts Across Multiple Org IDs
+
+Use `create_multiple_hosts_mutiple_org_ids.sh` to loop N times and invoke `make` on each iteration,
+injecting `NUM_OF_DIFF_ORG_ID=<i>` (1-based). This enables downstream logic to vary the org_id per run.
+
+### Usage
+
+```bash
+./create_multiple_hosts_mutiple_org_ids.sh <number_of_org_ids> [make_target] [VAR=VALUE ...]
+```
+
+### Examples
+
+```bash
+# Generate 4 org IDs using the test producer target
+./create_multiple_hosts_mutiple_org_ids.sh 4 run_inv_mq_service_test_producer
+
+# Pass additional make variables
+./create_multiple_hosts_mutiple_org_ids.sh 3 run_inv_mq_service_test_producer \
+  INVENTORY_HOST_ACCOUNT=5894300 HOST_TYPE=sap
+
+# Call make with no explicit target (variables only)
+./create_multiple_hosts_mutiple_org_ids.sh 2 INVENTORY_HOST_ACCOUNT=5894300
 ```
