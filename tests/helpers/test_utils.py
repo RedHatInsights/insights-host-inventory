@@ -445,3 +445,39 @@ def get_sample_static_profile_data():
         "virtual_host_uuid": str(uuid.uuid4()),
         "yum_repos": [YUM_REPO1],
     }
+
+
+def assert_system_profile_with_workloads_migration(returned_system_profile, expected_system_profile):
+    """
+    Assert system profile fields match, accounting for legacy workloads field migration.
+
+    This helper handles two specific migration scenarios:
+    1. Legacy sap_sids field migration to workloads.sap.sids
+    2. workloads field partial matching (may contain additional migrated data)
+
+    All other fields are compared for exact match.
+
+    Args:
+        returned_system_profile: The actual system profile from the database
+        expected_system_profile: The expected system profile (may contain legacy fields)
+    """
+    for key, value in expected_system_profile.items():
+        # Skip legacy sap_sids field as it's migrated to workloads.sap.sids
+        if key == "sap_sids":
+            # Verify it was migrated to workloads.sap.sids instead
+            assert "workloads" in returned_system_profile
+            assert "sap" in returned_system_profile["workloads"]
+            assert returned_system_profile["workloads"]["sap"]["sids"] == value
+            continue
+
+        # Special handling for workloads field - it may have additional migrated data
+        if key == "workloads":
+            # Verify all expected workload types are present
+            for workload_type, workload_data in value.items():
+                assert workload_type in returned_system_profile["workloads"]
+                assert returned_system_profile["workloads"][workload_type] == workload_data
+            continue
+
+        # Standard field comparison
+        assert key in returned_system_profile, f"Expected key '{key}' not found in system_profile"
+        assert returned_system_profile[key] == value, f"Mismatch for key '{key}'"

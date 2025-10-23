@@ -2138,3 +2138,473 @@ def test_delete_all_app_data_types_on_host_delete(db_create_host):
     assert db.session.query(HostAppDataCompliance).filter_by(org_id=host.org_id, host_id=host.id).first() is None
     assert db.session.query(HostAppDataMalware).filter_by(org_id=host.org_id, host_id=host.id).first() is None
     assert db.session.query(HostAppDataImageBuilder).filter_by(org_id=host.org_id, host_id=host.id).first() is None
+
+
+def test_host_schema_removes_legacy_sap_flat_fields():
+    """Test that legacy flat SAP fields are removed from incoming data."""
+    host_data = {
+        "fqdn": "test.example.com",
+        "reporter": "puptoo",
+        "org_id": "test_org",
+        "system_profile": {
+            "workloads": {
+                "sap": {
+                    "sap_system": True,
+                    "sids": ["H2O", "ABC"],
+                    "instance_number": "00",
+                    "version": "1.00.122.04.1478575636",
+                }
+            },
+            # Legacy flat fields that should be removed
+            "sap_system": True,
+            "sap_sids": ["H2O", "ABC"],
+            "sap_instance_number": "00",
+            "sap_version": "1.00.122.04.1478575636",
+        },
+    }
+
+    validated_host = HostSchema().load(host_data)
+    system_profile = validated_host.get("system_profile", {})
+
+    # Legacy flat fields should be removed
+    assert "sap_system" not in system_profile
+    assert "sap_sids" not in system_profile
+    assert "sap_instance_number" not in system_profile
+    assert "sap_version" not in system_profile
+
+    # New workloads structure should remain
+    assert "workloads" in system_profile
+    assert "sap" in system_profile["workloads"]
+    assert system_profile["workloads"]["sap"]["sap_system"] is True
+    assert system_profile["workloads"]["sap"]["sids"] == ["H2O", "ABC"]
+
+
+@pytest.mark.parametrize(
+    "workload_type,legacy_field,legacy_data,workloads_data",
+    [
+        (
+            "sap",
+            "sap",
+            {"sap_system": True, "sids": ["H2O"]},
+            {"sap": {"sap_system": True, "sids": ["H2O"]}},
+        ),
+        (
+            "ansible",
+            "ansible",
+            {"controller_version": "4.5.6", "hub_version": "1.2.3"},
+            {"ansible": {"controller_version": "4.5.6", "hub_version": "1.2.3"}},
+        ),
+        (
+            "mssql",
+            "mssql",
+            {"version": "15.2.0"},
+            {"mssql": {"version": "15.2.0"}},
+        ),
+        (
+            "intersystems",
+            "intersystems",
+            {"is_intersystems": True},
+            {"intersystems": {"is_intersystems": True}},
+        ),
+        (
+            "crowdstrike",
+            "third_party_services",
+            {"crowdstrike": {"falcon_aid": "abc123", "falcon_backend": "us-1", "falcon_version": "6.0.0"}},
+            {"crowdstrike": {"falcon_aid": "abc123", "falcon_backend": "us-1", "falcon_version": "6.0.0"}},
+        ),
+    ],
+)
+def test_host_schema_removes_legacy_workload_fields(workload_type, legacy_field, legacy_data, workloads_data):
+    """Test that legacy workload fields are removed when workloads.* exists."""
+    host_data = {
+        "fqdn": "test.example.com",
+        "reporter": "puptoo",
+        "org_id": "test_org",
+        "system_profile": {
+            "workloads": workloads_data,
+            legacy_field: legacy_data,
+        },
+    }
+
+    validated_host = HostSchema().load(host_data)
+    system_profile = validated_host.get("system_profile", {})
+
+    # Legacy field should be removed
+    assert legacy_field not in system_profile
+
+    # New workloads structure should remain
+    assert "workloads" in system_profile
+    assert workload_type in system_profile["workloads"]
+
+
+def test_host_schema_removes_legacy_workloads_multiple():
+    """Test that multiple legacy workloads fields are removed at once."""
+    host_data = {
+        "fqdn": "test.example.com",
+        "reporter": "puptoo",
+        "org_id": "test_org",
+        "system_profile": {
+            "workloads": {
+                "sap": {"sap_system": True, "sids": ["H2O"]},
+                "ansible": {"controller_version": "4.5.6"},
+                "mssql": {"version": "15.2.0"},
+            },
+            # Multiple legacy fields
+            "sap_system": True,
+            "sap_sids": ["H2O"],
+            "sap": {"sap_system": True},
+            "ansible": {"controller_version": "4.5.6"},
+            "mssql": {"version": "15.2.0"},
+        },
+    }
+
+    validated_host = HostSchema().load(host_data)
+    system_profile = validated_host.get("system_profile", {})
+
+    # All legacy fields should be removed
+    assert "sap_system" not in system_profile
+    assert "sap_sids" not in system_profile
+    assert "sap" not in system_profile
+    assert "ansible" not in system_profile
+    assert "mssql" not in system_profile
+
+    # New workloads structure should remain intact
+    assert "workloads" in system_profile
+    assert len(system_profile["workloads"]) == 3
+
+
+def test_host_schema_removes_only_crowdstrike_from_third_party_services():
+    """Test that only crowdstrike is removed from third_party_services if present."""
+    host_data = {
+        "fqdn": "test.example.com",
+        "reporter": "puptoo",
+        "org_id": "test_org",
+        "system_profile": {
+            "workloads": {"crowdstrike": {"falcon_aid": "abc123"}},
+            "third_party_services": {"crowdstrike": {"falcon_aid": "abc123"}},
+        },
+    }
+
+    validated_host = HostSchema().load(host_data)
+    system_profile = validated_host.get("system_profile", {})
+
+    # third_party_services.crowdstrike should be removed
+    # Since crowdstrike was the only service, third_party_services should be removed entirely
+    assert "third_party_services" not in system_profile
+
+    # New workloads structure should remain
+    assert "workloads" in system_profile
+    assert "crowdstrike" in system_profile["workloads"]
+
+
+def test_host_schema_migrates_legacy_sap_flat_fields_to_workloads():
+    """Test that legacy SAP flat fields are migrated to workloads when workloads.sap doesn't exist."""
+    host_data = {
+        "fqdn": "test.example.com",
+        "reporter": "puptoo",
+        "org_id": "test_org",
+        "system_profile": {
+            # Only legacy flat SAP fields, no workloads.sap
+            "sap_system": True,
+            "sap_sids": ["H2O", "ABC"],
+            "sap_instance_number": "00",
+            "sap_version": "1.00.122.04.1478575636",
+        },
+    }
+
+    validated_host = HostSchema().load(host_data)
+    system_profile = validated_host.get("system_profile", {})
+
+    # Legacy fields should be removed
+    assert "sap_system" not in system_profile
+    assert "sap_sids" not in system_profile
+    assert "sap_instance_number" not in system_profile
+    assert "sap_version" not in system_profile
+
+    # Data should be migrated to workloads.sap
+    assert "workloads" in system_profile
+    assert "sap" in system_profile["workloads"]
+    assert system_profile["workloads"]["sap"]["sap_system"] is True
+    assert system_profile["workloads"]["sap"]["sids"] == ["H2O", "ABC"]
+    assert system_profile["workloads"]["sap"]["instance_number"] == "00"
+    assert system_profile["workloads"]["sap"]["version"] == "1.00.122.04.1478575636"
+
+
+@pytest.mark.parametrize(
+    "workload_type,legacy_fields,expected_workloads_data",
+    [
+        (
+            "sap",
+            {
+                "sap": {
+                    "sap_system": True,
+                    "sids": ["H2O"],
+                    "instance_number": "00",
+                    "version": "1.00.122.04.1478575636",
+                }
+            },
+            {"sap_system": True, "sids": ["H2O"], "instance_number": "00", "version": "1.00.122.04.1478575636"},
+        ),
+        (
+            "ansible",
+            {"ansible": {"controller_version": "4.5.6", "hub_version": "1.2.3"}},
+            {"controller_version": "4.5.6", "hub_version": "1.2.3"},
+        ),
+        (
+            "crowdstrike",
+            {"third_party_services": {"crowdstrike": {"falcon_aid": "abc123", "falcon_backend": "us-1"}}},
+            {"falcon_aid": "abc123", "falcon_backend": "us-1"},
+        ),
+    ],
+)
+def test_host_schema_migrates_legacy_workload_to_workloads(workload_type, legacy_fields, expected_workloads_data):
+    """Test that legacy workload fields are migrated to workloads.* when workloads.* doesn't exist."""
+    host_data = {
+        "fqdn": "test.example.com",
+        "reporter": "puptoo",
+        "org_id": "test_org",
+        "system_profile": legacy_fields,
+    }
+
+    validated_host = HostSchema().load(host_data)
+    system_profile = validated_host.get("system_profile", {})
+
+    # All legacy fields should be removed
+    assert not any(legacy_field in system_profile for legacy_field in legacy_fields)
+
+    # Data should be migrated to workloads
+    assert "workloads" in system_profile
+    assert workload_type in system_profile["workloads"]
+
+    # Verify migrated data matches expected data
+    assert system_profile["workloads"][workload_type] == expected_workloads_data
+
+
+def test_host_schema_workloads_takes_precedence_over_legacy():
+    """Test that workloads.* data takes precedence when both workloads and legacy fields exist."""
+    host_data = {
+        "fqdn": "test.example.com",
+        "reporter": "puptoo",
+        "org_id": "test_org",
+        "system_profile": {
+            # New workloads structure (should take precedence)
+            "workloads": {"sap": {"sap_system": True, "sids": ["NEW"]}},
+            # Legacy fields (should be ignored)
+            "sap_system": False,
+            "sap_sids": ["OLD"],
+            "sap": {"sap_system": False, "sids": ["OLD2"]},
+        },
+    }
+
+    validated_host = HostSchema().load(host_data)
+    system_profile = validated_host.get("system_profile", {})
+
+    # Legacy fields should be removed
+    assert "sap_system" not in system_profile
+    assert "sap_sids" not in system_profile
+    assert "sap" not in system_profile
+
+    # Workloads data should remain unchanged (not overwritten by legacy)
+    assert "workloads" in system_profile
+    assert "sap" in system_profile["workloads"]
+    assert system_profile["workloads"]["sap"]["sap_system"] is True
+    assert system_profile["workloads"]["sap"]["sids"] == ["NEW"]
+
+
+def test_host_schema_migrates_multiple_legacy_workloads():
+    """Test that multiple legacy workload types are migrated together."""
+    host_data = {
+        "fqdn": "test.example.com",
+        "reporter": "puptoo",
+        "org_id": "test_org",
+        "system_profile": {
+            # Multiple legacy workloads, no workloads structure
+            "sap_system": True,
+            "sap_sids": ["H2O"],
+            "ansible": {"controller_version": "4.5.6"},
+            "mssql": {"version": "15.2.0"},
+        },
+    }
+
+    validated_host = HostSchema().load(host_data)
+    system_profile = validated_host.get("system_profile", {})
+
+    # All legacy fields should be removed
+    assert "sap_system" not in system_profile
+    assert "sap_sids" not in system_profile
+    assert "ansible" not in system_profile
+    assert "mssql" not in system_profile
+
+    # All should be migrated to workloads
+    assert "workloads" in system_profile
+    assert "sap" in system_profile["workloads"]
+    assert "ansible" in system_profile["workloads"]
+    assert "mssql" in system_profile["workloads"]
+    assert system_profile["workloads"]["sap"]["sap_system"] is True
+    assert system_profile["workloads"]["ansible"]["controller_version"] == "4.5.6"
+    assert system_profile["workloads"]["mssql"]["version"] == "15.2.0"
+
+
+def test_host_schema_logs_legacy_fields_without_workloads(mocker):
+    """Test that legacy fields are logged when no workloads.* structure exists."""
+    mock_logger_info = mocker.patch("app.models.schemas.logger.info")
+
+    host_data = {
+        "fqdn": "test.example.com",
+        "reporter": "puptoo",
+        "org_id": "test_org",
+        "display_name": "test_host",
+        "system_profile": {
+            # Only legacy fields, no workloads.*
+            "sap_system": True,
+            "sap_sids": ["H2O", "ABC"],
+            "ansible": {"controller_version": "4.5.6"},
+        },
+    }
+
+    HostSchema().load(host_data)
+
+    # Verify logging was called
+    assert mock_logger_info.called
+    call_args = mock_logger_info.call_args[0][0]
+
+    # Verify log message contains expected information
+    assert "Legacy workloads fields detected" in call_args
+    assert "reporter=puptoo" in call_args
+    assert "org_id=test_org" in call_args
+    assert "display_name=test_host" in call_args
+    assert "sap_system" in call_args
+    assert "sap_sids" in call_args
+    assert "ansible" in call_args
+    assert "legacy_count=3" in call_args
+    assert "workloads_present=[none]" in call_args
+    assert "sending_both_formats=False" in call_args
+
+
+def test_host_schema_logs_legacy_fields_with_workloads(mocker):
+    """Test that legacy fields are logged even when workloads.* exists (both formats)."""
+    mock_logger_info = mocker.patch("app.models.schemas.logger.info")
+
+    host_data = {
+        "fqdn": "test.example.com",
+        "reporter": "rhsm-conduit",
+        "org_id": "123456",
+        "display_name": "mixed_host",
+        "system_profile": {
+            # Both legacy and new formats
+            "workloads": {"sap": {"sap_system": True, "sids": ["NEW"]}},
+            "sap_system": False,
+            "sap_sids": ["OLD"],
+        },
+    }
+
+    HostSchema().load(host_data)
+
+    # Verify logging was called
+    assert mock_logger_info.called
+    call_args = mock_logger_info.call_args[0][0]
+
+    # Verify log message shows both formats present
+    assert "Legacy workloads fields detected" in call_args
+    assert "reporter=rhsm-conduit" in call_args
+    assert "org_id=123456" in call_args
+    assert "display_name=mixed_host" in call_args
+    assert "sap_system" in call_args
+    assert "sap_sids" in call_args
+    assert "legacy_count=2" in call_args
+    assert "workloads.sap" in call_args
+    assert "sending_both_formats=True" in call_args
+
+
+def test_host_schema_does_not_log_without_legacy_fields(mocker):
+    """Test that no logging occurs when only workloads.* structure is present."""
+    mock_logger_info = mocker.patch("app.models.schemas.logger.info")
+
+    host_data = {
+        "fqdn": "test.example.com",
+        "reporter": "puptoo",
+        "org_id": "test_org",
+        "system_profile": {
+            # Only new workloads structure, no legacy fields
+            "workloads": {"sap": {"sap_system": True, "sids": ["H2O"]}, "ansible": {"controller_version": "4.5.6"}},
+        },
+    }
+
+    HostSchema().load(host_data)
+
+    # Verify logging was NOT called (no legacy fields)
+    assert not mock_logger_info.called
+
+
+def test_host_schema_logs_all_legacy_field_types(mocker):
+    """Test that all types of legacy fields are detected and logged."""
+    mock_logger_info = mocker.patch("app.models.schemas.logger.info")
+
+    host_data = {
+        "fqdn": "test.example.com",
+        "reporter": "yupana",
+        "org_id": "org123",
+        "display_name": "all_legacy_host",
+        "system_profile": {
+            # Multiple legacy field types
+            "sap_system": True,
+            "sap_sids": ["H2O"],
+            "sap_instance_number": "00",
+            "sap_version": "1.00.122.04.1478575636",
+            "sap": {"sap_system": True},
+            "ansible": {"controller_version": "4.5.6"},
+            "mssql": {"version": "15.2.0"},
+            "intersystems": {"is_intersystems": True},
+            "third_party_services": {"crowdstrike": {"falcon_aid": "abc123"}},
+        },
+    }
+
+    HostSchema().load(host_data)
+
+    # Verify logging was called
+    assert mock_logger_info.called
+    call_args = mock_logger_info.call_args[0][0]
+
+    # Verify all legacy field types are in the log
+    assert "sap_system" in call_args
+    assert "sap_sids" in call_args
+    assert "sap_instance_number" in call_args
+    assert "sap_version" in call_args
+    assert "sap" in call_args
+    assert "ansible" in call_args
+    assert "mssql" in call_args
+    assert "intersystems" in call_args
+    assert "third_party_services.crowdstrike" in call_args
+    assert "legacy_count=9" in call_args
+
+
+def test_host_schema_logs_partial_migration_state(mocker):
+    """Test logging when some workload types are migrated but others are not."""
+    mock_logger_info = mocker.patch("app.models.schemas.logger.info")
+
+    host_data = {
+        "fqdn": "test.example.com",
+        "reporter": "satellite",
+        "org_id": "org789",
+        "display_name": "partial_migration_host",
+        "system_profile": {
+            # SAP migrated, but Ansible and MSSQL still in legacy format
+            "workloads": {"sap": {"sap_system": True, "sids": ["H2O"]}},
+            "ansible": {"controller_version": "4.5.6"},
+            "mssql": {"version": "15.2.0"},
+        },
+    }
+
+    HostSchema().load(host_data)
+
+    # Verify logging was called
+    assert mock_logger_info.called
+    call_args = mock_logger_info.call_args[0][0]
+
+    # Verify partial migration state is logged
+    assert "Legacy workloads fields detected" in call_args
+    assert "ansible" in call_args
+    assert "mssql" in call_args
+    assert "legacy_count=2" in call_args
+    assert "workloads.sap" in call_args  # Shows SAP is migrated
+    assert "sending_both_formats=True" in call_args  # Mixed state
