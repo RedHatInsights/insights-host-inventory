@@ -1,4 +1,5 @@
 import time
+from http import HTTPStatus
 from uuid import UUID
 
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
@@ -38,6 +39,7 @@ from app.staleness_serialization import AttrDict
 from lib.db import session_guard
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.feature_flags import get_flag_value
+from lib.host_repository import find_existing_host_by_id
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.host_repository import get_non_culled_hosts_count_in_group
 from lib.host_repository import host_query
@@ -148,9 +150,22 @@ def validate_add_host_list_to_group(host_id_list: list[str], group_id: str, org_
         )
 
 
-def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str):
-    # First, validate that the hosts can even be added to the group
-    validate_add_host_list_to_group(host_id_list, group_id, org_id)
+def _add_hosts_to_group(group_id: str, host_id_list: list[str], identity: Identity):
+    # First, validate that all host IDs exist using find_existing_host_by_id
+    invalid_host_ids = []
+    for host_id in host_id_list:
+        existing_host = find_existing_host_by_id(identity, host_id)
+        if not existing_host:
+            invalid_host_ids.append(host_id)
+    if len(invalid_host_ids) > 0:
+        raise InventoryException(
+            status=HTTPStatus.BAD_REQUEST,
+            title="Hosts not found",
+            detail=f"IDs of hosts not found: {invalid_host_ids}",
+        )
+
+    # Then, validate that the hosts can even be added to the group
+    validate_add_host_list_to_group(host_id_list, group_id, identity.org_id)
 
     # Filter out hosts that are already in the group
     assoc_query = HostGroupAssoc.query.filter(
@@ -164,13 +179,13 @@ def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str):
     )
 
     host_group_assoc = [
-        HostGroupAssoc(host_id=host_id, group_id=group_id, org_id=org_id)
+        HostGroupAssoc(host_id=host_id, group_id=group_id, org_id=identity.org_id)
         for host_id in host_id_list
         if host_id not in ids_already_in_this_group
     ]
     db.session.add_all(host_group_assoc)
 
-    _update_group_update_time(group_id, org_id)
+    _update_group_update_time(group_id, identity.org_id)
 
     log_host_group_add_succeeded(logger, host_id_list, group_id)
 
@@ -248,16 +263,15 @@ def add_hosts_to_group(
     event_producer: EventProducer,
 ):
     staleness = get_staleness_obj(identity.org_id)
-    refreshed_host_id_list = []
 
     with session_guard(db.session):
-        _add_hosts_to_group(group_id, host_id_list, identity.org_id)
-        serialized_groups, host_id_list = _update_hosts_for_group_changes(
-            host_id_list, group_id_list=[group_id], identity=identity
-        )
-        refreshed_host_id_list = _process_host_changes(host_id_list, identity)
+        _add_hosts_to_group(group_id, host_id_list, identity)
 
-    # Session is committed and closed here
+    # Produce update messages once the DB session has been closed
+    serialized_groups, host_id_list = _update_hosts_for_group_changes(
+        host_id_list, group_id_list=[group_id], identity=identity
+    )
+    refreshed_host_id_list = _process_host_changes(host_id_list, identity)
     _produce_event_clear_cache(refreshed_host_id_list, serialized_groups, staleness, identity, event_producer)
 
 
@@ -295,7 +309,7 @@ def add_group_with_hosts(
 
         # Add hosts to group
         if host_id_list:
-            _add_hosts_to_group(created_group.id, host_id_list, identity.org_id)
+            _add_hosts_to_group(created_group.id, host_id_list, identity)
 
         # gets the ID of the group after it has been committed
         created_group = get_group_by_id_from_db(created_group_id, identity.org_id)
@@ -336,7 +350,7 @@ def _remove_all_hosts_from_group(group: Group, identity: Identity):
     # If Kessel flag is on, assign hosts to "ungrouped" group
     if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
         ungrouped_id = get_or_create_ungrouped_hosts_group_for_identity(identity).id
-        _add_hosts_to_group(ungrouped_id, [str(host_id) for host_id in host_ids], identity.org_id)
+        _add_hosts_to_group(ungrouped_id, [str(host_id) for host_id in host_ids], identity)
 
 
 def _delete_host_group_assoc(session, assoc):
@@ -414,7 +428,7 @@ def remove_hosts_from_group(group_id, host_id_list, identity, event_producer):
         if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
             # Add hosts to the "ungrouped" group
             ungrouped_group_id = str(get_or_create_ungrouped_hosts_group_for_identity(identity).id)
-            _add_hosts_to_group(ungrouped_group_id, [str(host_id) for host_id in removed_host_ids], identity.org_id)
+            _add_hosts_to_group(ungrouped_group_id, [str(host_id) for host_id in removed_host_ids], identity)
             group_id_list = [ungrouped_group_id]
 
         serialized_groups, host_id_list = _update_hosts_for_group_changes(removed_host_ids, group_id_list, identity)
@@ -484,12 +498,12 @@ def patch_group(group: Group, patch_data: dict, identity: Identity, event_produc
         # Update host list, if provided
         if new_host_ids is not None:
             _remove_hosts_from_group(group_id, list(existing_host_ids - new_host_ids), identity.org_id)
-            _add_hosts_to_group(group_id, list(new_host_ids - existing_host_ids), identity.org_id)
+            _add_hosts_to_group(group_id, list(new_host_ids - existing_host_ids), identity)
             if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
                 # Add hosts to the "ungrouped" group
                 ungrouped_group = get_or_create_ungrouped_hosts_group_for_identity(identity)
                 removed_group_id_list = [str(ungrouped_group.id)]
-                _add_hosts_to_group(str(ungrouped_group.id), list(existing_host_ids - new_host_ids), identity.org_id)
+                _add_hosts_to_group(str(ungrouped_group.id), list(existing_host_ids - new_host_ids), identity)
 
         # Process host changes within the same session to ensure write_event_to_outbox works
         if group_patched and host_id_data is None:
