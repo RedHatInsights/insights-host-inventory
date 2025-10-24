@@ -105,6 +105,7 @@ def _delete_host(session: Session, host: Host, identity: Identity | None, contro
     host_delete_query.delete(synchronize_session="fetch")
 
     try:
+        # For delete operations, we always need an outbox entry since deletion is a significant event
         # write to the outbox table for synchronization with Kessel
         result = write_event_to_outbox(EventType.delete, str(host.id))
         if not result:

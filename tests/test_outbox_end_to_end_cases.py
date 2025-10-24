@@ -623,8 +623,12 @@ class TestOutboxE2ECases:
         message = wrap_message(test_host.data(), platform_metadata=platform_metadata)
 
         # Mock the outbox writing to capture the call without immediate deletion
-        with patch("lib.host_repository.write_event_to_outbox") as mock_write_outbox:
+        with (
+            patch("lib.host_repository.write_event_to_outbox") as mock_write_outbox,
+            patch("lib.host_repository.need_outbox_entry") as mock_need_outbox,
+        ):
             mock_write_outbox.return_value = True
+            mock_need_outbox.return_value = True  # Always return True for new host creation
 
             # Create MQ consumer and process message
             consumer = IngressMessageConsumer(None, flask_app, event_producer_mock, notification_event_producer_mock)
@@ -673,10 +677,14 @@ class TestOutboxE2ECases:
         message = wrap_message(test_host.data(), platform_metadata=platform_metadata)
 
         # Mock the outbox writing to capture the call without immediate deletion
-        with patch("lib.host_repository.write_event_to_outbox") as mock_write_outbox:
+        with (
+            patch("lib.host_repository.write_event_to_outbox") as mock_write_outbox,
+            patch("lib.host_repository.need_outbox_entry") as mock_need_outbox,
+        ):
             # Also mock the Kessel migration flag to enable group assignment
             with patch("lib.host_repository.get_flag_value", return_value=True):
                 mock_write_outbox.return_value = True
+                mock_need_outbox.return_value = True  # Always return True for new host creation
 
                 # Create MQ consumer and process message
                 consumer = IngressMessageConsumer(
@@ -726,7 +734,10 @@ class TestOutboxE2ECases:
         message = wrap_message(test_host.data(), platform_metadata=platform_metadata)
 
         # Track outbox success metrics to verify outbox operation succeeded
-        with patch("lib.outbox_repository.outbox_save_success") as mock_success_metric:
+        with (
+            patch("lib.outbox_repository.outbox_save_success") as mock_success_metric,
+            patch("lib.host_repository.need_outbox_entry", return_value=True),
+        ):
             # Create MQ consumer and process message
             consumer = IngressMessageConsumer(None, flask_app, event_producer_mock, notification_event_producer_mock)
             result = consumer.handle_message(json.dumps(message))
@@ -803,7 +814,10 @@ class TestOutboxE2ECases:
 
         original_write_outbox = write_event_to_outbox
 
-        with patch("lib.group_repository.write_event_to_outbox", side_effect=capture_outbox_payload):
+        with (
+            patch("lib.group_repository.write_event_to_outbox", side_effect=capture_outbox_payload),
+            patch("lib.group_repository.need_outbox_entry", return_value=True),
+        ):
             with patch("lib.outbox_repository.outbox_save_success") as mock_success_metric:
                 # Process the workspace update message
                 consumer = WorkspaceMessageConsumer(
@@ -862,11 +876,14 @@ class TestOutboxE2ECases:
         # Mock the outbox writing to capture the calls and validate payload
         outbox_calls = []
 
-        with patch(
-            "api.host.write_event_to_outbox",
-            side_effect=lambda event_type, host_id_param, host_obj: self.mock_write_outbox(
-                outbox_calls, event_type, host_id_param, host_obj
+        with (
+            patch(
+                "api.host.write_event_to_outbox",
+                side_effect=lambda event_type, host_id_param, host_obj: self.mock_write_outbox(
+                    outbox_calls, event_type, host_id_param, host_obj
+                ),
             ),
+            patch("api.host.need_outbox_entry", return_value=True),
         ):
             # Make PATCH request to update host
             response_status, response_data = api_patch(hosts_url, patch_data)
@@ -1005,11 +1022,14 @@ class TestOutboxE2ECases:
         # Mock the outbox writing to capture the calls and validate payload
         outbox_calls = []
 
-        with patch(
-            "lib.group_repository.write_event_to_outbox",
-            side_effect=lambda event_type, host_id_param, host_obj: self.mock_write_outbox(
-                outbox_calls, event_type, host_id_param, host_obj, capture_groups=True
+        with (
+            patch(
+                "lib.group_repository.write_event_to_outbox",
+                side_effect=lambda event_type, host_id_param, host_obj: self.mock_write_outbox(
+                    outbox_calls, event_type, host_id_param, host_obj, capture_groups=True
+                ),
             ),
+            patch("lib.group_repository.need_outbox_entry", return_value=True),
         ):
             # Make POST request to add host to group
             response_status, _ = api_add_hosts_to_group(group_id, [host_id])
@@ -1108,7 +1128,10 @@ class TestOutboxE2ECases:
 
             return result
 
-        with patch("lib.group_repository.write_event_to_outbox", side_effect=capture_outbox_payload):
+        with (
+            patch("lib.group_repository.write_event_to_outbox", side_effect=capture_outbox_payload),
+            patch("lib.group_repository.need_outbox_entry", return_value=True),
+        ):
             # Make POST request to add host to group
             response_status, _ = api_add_hosts_to_group(group_id, [host_id])
 
@@ -1222,11 +1245,14 @@ class TestOutboxE2ECases:
 
         # Mock the Kessel workspace migration flag to be False to avoid ungrouped group behavior
         with patch("lib.group_repository.get_flag_value", return_value=False):
-            with patch(
-                "lib.group_repository.write_event_to_outbox",
-                side_effect=lambda event_type, host_id_param, host_obj: self.mock_write_outbox(
-                    outbox_calls, event_type, host_id_param, host_obj, capture_groups=True
+            with (
+                patch(
+                    "lib.group_repository.write_event_to_outbox",
+                    side_effect=lambda event_type, host_id_param, host_obj: self.mock_write_outbox(
+                        outbox_calls, event_type, host_id_param, host_obj, capture_groups=True
+                    ),
                 ),
+                patch("lib.group_repository.need_outbox_entry", return_value=True),
             ):
                 # Make DELETE request to remove host from group
                 response_status, _ = api_remove_hosts_from_group(group_id, [host_id])
@@ -1323,7 +1349,10 @@ class TestOutboxE2ECases:
 
         # Enable the Kessel workspace migration flag to get ungrouped group behavior (as required by Kessel)
         with patch("lib.group_repository.get_flag_value", return_value=True):
-            with patch("lib.group_repository.write_event_to_outbox", side_effect=capture_outbox_payload):
+            with (
+                patch("lib.group_repository.write_event_to_outbox", side_effect=capture_outbox_payload),
+                patch("lib.group_repository.need_outbox_entry", return_value=True),
+            ):
                 # Make DELETE request to remove host from group
                 response_status, _ = api_remove_hosts_from_group(group_id, [host_id])
 
@@ -1417,11 +1446,14 @@ class TestOutboxE2ECases:
         # Mock the outbox writing to capture the calls and validate payload
         outbox_calls = []
 
-        with patch(
-            "api.host.write_event_to_outbox",
-            side_effect=lambda event_type, host_id_param, host_obj: self.mock_write_outbox(
-                outbox_calls, event_type, host_id_param, host_obj
+        with (
+            patch(
+                "api.host.write_event_to_outbox",
+                side_effect=lambda event_type, host_id_param, host_obj: self.mock_write_outbox(
+                    outbox_calls, event_type, host_id_param, host_obj
+                ),
             ),
+            patch("api.host.need_outbox_entry", return_value=True),
         ):
             # Make PUT request to replace facts in namespace
             response_status, response_data = api_put(facts_url, put_data)
@@ -1502,7 +1534,10 @@ class TestOutboxE2ECases:
 
             return result
 
-        with patch("api.host.write_event_to_outbox", side_effect=capture_outbox_payload):
+        with (
+            patch("api.host.write_event_to_outbox", side_effect=capture_outbox_payload),
+            patch("api.host.need_outbox_entry", return_value=True),
+        ):
             # Make PUT request to replace facts in namespace
             response_status, response_data = api_put(facts_url, put_data)
 
@@ -1733,11 +1768,14 @@ class TestOutboxE2ECases:
 
         # Enable the Kessel workspace migration flag to get ungrouped group behavior
         with patch("lib.group_repository.get_flag_value", return_value=True):
-            with patch(
-                "lib.group_repository.write_event_to_outbox",
-                side_effect=lambda event_type, host_id_param, host_obj: self.mock_write_outbox(
-                    outbox_calls, event_type, host_id_param, host_obj, capture_groups=True
+            with (
+                patch(
+                    "lib.group_repository.write_event_to_outbox",
+                    side_effect=lambda event_type, host_id_param, host_obj: self.mock_write_outbox(
+                        outbox_calls, event_type, host_id_param, host_obj, capture_groups=True
+                    ),
                 ),
+                patch("lib.group_repository.need_outbox_entry", return_value=True),
             ):
                 # Remove 2 hosts from the group via API
                 response_status, _ = api_remove_hosts_from_group(group_id, hosts_to_remove)
@@ -1909,3 +1947,184 @@ class TestOutboxE2ECases:
             # The write_event_to_outbox should have been called automatically during host creation
             outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
             assert len(outbox_entries) == 0  # Entry is immediately deleted after flush
+
+    def test_host_update_without_outbox_entry(self, api_patch, db_create_host, db_get_host, event_producer_mock):
+        """
+        Test that updating a host with parameters not tracked by need_outbox_entry()
+        does not trigger write_event_to_outbox() calls.
+
+        This test verifies that need_outbox_entry() correctly prevents unnecessary
+        outbox entries when only non-tracked parameters are changed.
+        """
+        # Create a host with initial data
+        host = db_create_host(
+            extra_data={"display_name": "original-host-name", "ansible_host": "original.ansible.host"}
+        )
+        host_id = str(host.id)
+
+        # Verify initial state
+        initial_host = db_get_host(host.id)
+        assert initial_host.display_name == "original-host-name"
+        assert initial_host.ansible_host == "original.ansible.host"
+
+        # Prepare patch data that changes only non-tracked parameters
+        # need_outbox_entry() tracks: satellite_id, subscription_manager_id, insights_id, ansible_host, group_id
+        # We'll change: display_name (not tracked parameter)
+        # Note: ansible_host IS tracked, but we're mocking need_outbox_entry to return False
+        patch_data = {"display_name": "updated-host-name"}
+        hosts_url = build_hosts_url(host_list_or_id=host.id)
+
+        # Mock the outbox writing to capture calls
+        outbox_calls = []
+
+        with (
+            patch(
+                "api.host.write_event_to_outbox",
+                side_effect=lambda event_type, host_id_param, host_obj: self.mock_write_outbox(
+                    outbox_calls, event_type, host_id_param, host_obj
+                ),
+            ),
+            patch("api.host.need_outbox_entry", return_value=False),
+        ):  # Mock need_outbox_entry to return False
+            # Make PATCH request to update host
+            response_status, _ = api_patch(hosts_url, patch_data)
+
+            # Verify the API request was successful
+            assert response_status == 200
+
+            # Verify the host was actually updated in the database
+            updated_host = db_get_host(host.id)
+            assert updated_host.display_name == "updated-host-name"
+
+            # Verify NO outbox entry was created because need_outbox_entry() returned False
+            assert len(outbox_calls) == 0
+
+            # Verify that event_producer.write_event WAS called
+            # (because _emit_patch_event is always called, regardless of outbox entry creation)
+            assert event_producer_mock.event is not None
+            assert event_producer_mock.key == host_id
+            assert event_producer_mock.wait is True
+
+    def test_host_update_with_outbox_entry(self, api_patch, db_create_host, db_get_host, event_producer_mock):
+        """
+        Test that updating a host with parameters tracked by need_outbox_entry()
+        DOES trigger write_event_to_outbox() calls.
+
+        This test verifies that need_outbox_entry() correctly allows
+        outbox entries when tracked parameters are changed.
+        """
+        # Create a host with initial data
+        host = db_create_host(
+            extra_data={"display_name": "original-host-name", "ansible_host": "original.ansible.host"}
+        )
+        host_id = str(host.id)
+
+        # Verify initial state
+        initial_host = db_get_host(host.id)
+        assert initial_host.display_name == "original-host-name"
+        assert initial_host.ansible_host == "original.ansible.host"
+
+        # Prepare patch data that changes tracked parameters
+        # need_outbox_entry() tracks: satellite_id, subscription_manager_id, insights_id, ansible_host, group_id
+        # We'll change: ansible_host (tracked parameter)
+        patch_data = {"ansible_host": "updated.ansible.host"}
+        hosts_url = build_hosts_url(host_list_or_id=host.id)
+
+        # Mock the outbox writing to capture calls
+        outbox_calls = []
+
+        with (
+            patch(
+                "api.host.write_event_to_outbox",
+                side_effect=lambda event_type, host_id_param, host_obj: self.mock_write_outbox(
+                    outbox_calls, event_type, host_id_param, host_obj
+                ),
+            ),
+            patch("api.host.need_outbox_entry", return_value=True),
+        ):  # Mock need_outbox_entry to return True
+            # Make PATCH request to update host
+            response_status, _ = api_patch(hosts_url, patch_data)
+
+            # Verify the API request was successful
+            assert response_status == 200
+
+            # Verify the host was actually updated in the database
+            updated_host = db_get_host(host.id)
+            assert updated_host.ansible_host == "updated.ansible.host"
+
+            # Verify outbox entry WAS created because need_outbox_entry() returned True
+            assert len(outbox_calls) == 1
+            call = outbox_calls[0]
+            assert call["event_type"] == EventType.updated
+            assert call["host_id"] == host_id
+
+            # Verify that event_producer.write_event WAS called
+            # (because _emit_patch_event is called and outbox entry is created)
+            assert event_producer_mock.event is not None
+            assert event_producer_mock.key == host_id
+            assert event_producer_mock.wait is True
+
+    def test_event_producer_called_regardless_of_outbox_entry_creation(
+        self, api_patch, db_create_host, event_producer_mock
+    ):
+        """
+        Test that event_producer.write_event is called for host operations
+        regardless of whether write_event_to_outbox is called or not.
+
+        This test verifies that the event_producer (Kafka) always sends events
+        for real-time processing, while outbox entries are conditional.
+        """
+        # Create a host
+        host = db_create_host(extra_data={"display_name": "test-host", "ansible_host": "test.ansible.host"})
+        host_id = str(host.id)
+
+        # Test 1: Update with need_outbox_entry returning False
+        # This should call event_producer.write_event but NOT write_event_to_outbox
+        patch_data_1 = {"display_name": "updated-name-1"}
+        hosts_url = build_hosts_url(host_list_or_id=host.id)
+
+        with patch("api.host.need_outbox_entry", return_value=False):
+            response_status, _ = api_patch(hosts_url, patch_data_1)
+            assert response_status == 200
+
+            # Verify event_producer was called (for real-time processing)
+            assert event_producer_mock.event is not None
+            assert event_producer_mock.key == host_id
+            assert event_producer_mock.wait is True
+
+            # Reset for next test
+            event_producer_mock.event = None
+            event_producer_mock.key = None
+
+        # Test 2: Update with need_outbox_entry returning True
+        # This should call BOTH event_producer.write_event AND write_event_to_outbox
+        patch_data_2 = {"ansible_host": "updated.ansible.host"}
+
+        outbox_calls = []
+        with (
+            patch(
+                "api.host.write_event_to_outbox",
+                side_effect=lambda event_type, host_id_param, host_obj: self.mock_write_outbox(
+                    outbox_calls, event_type, host_id_param, host_obj
+                ),
+            ),
+            patch("api.host.need_outbox_entry", return_value=True),
+        ):
+            response_status, response_data = api_patch(hosts_url, patch_data_2)
+            assert response_status == 200
+
+            # Verify event_producer was called (for real-time processing)
+            assert event_producer_mock.event is not None
+            assert event_producer_mock.key == host_id
+            assert event_producer_mock.wait is True
+
+            # Verify outbox entry was also created (for batch synchronization)
+            assert len(outbox_calls) == 1
+            call = outbox_calls[0]
+            assert call["event_type"] == EventType.updated
+            assert call["host_id"] == host_id
+
+        # Test 3: Verify the pattern holds for different scenarios
+        # The key insight is that event_producer.write_event is ALWAYS called
+        # for real-time event processing, while write_event_to_outbox is conditional
+        # for batch synchronization with Kessel

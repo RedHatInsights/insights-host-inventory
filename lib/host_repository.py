@@ -50,6 +50,7 @@ __all__ = (
     "find_non_culled_hosts",
     "update_existing_host",
     "host_query",
+    "need_outbox_entry",
 )
 
 AddHostResult = Enum("AddHostResult", ("created", "updated"))
@@ -285,11 +286,23 @@ def create_new_host(input_host: Host) -> tuple[Host, AddHostResult]:
     input_host.save()
 
     try:
-        # write to the outbox table for synchronization with Kessel
-        result = write_event_to_outbox(EventType.created, (input_host.id), input_host)
-        if not result:
-            logger.error("Failed to write created event to outbox")
-            raise OutboxSaveException("Failed to write created host event to outbox")
+        # Though create new host require outbox entry,
+        # the same host might have been created by another process running in parallel
+        if need_outbox_entry(
+            str(input_host.id),
+            getattr(input_host, "satellite_id", None),
+            getattr(input_host, "subscription_manager_id", None),
+            getattr(input_host, "insights_id", None),
+            getattr(input_host, "ansible_host", None),
+            input_host.groups[0].get("id") if input_host.groups and len(input_host.groups) > 0 else None,
+        ):
+            # write to the outbox table for synchronization with Kessel
+            result = write_event_to_outbox(EventType.created, (input_host.id), input_host)
+            if not result:
+                logger.error("Failed to write created event to outbox")
+                raise OutboxSaveException("Failed to write created host event to outbox")
+        else:
+            logger.debug("No outbox entry needed for created host %s", input_host.id)
     except OutboxSaveException as ose:
         logger.error("Failed to write created event to outbox: %s", str(ose))
         raise ose
@@ -310,11 +323,22 @@ def update_existing_host(
     existing_host.update(input_host, update_system_profile)
 
     try:
-        # write to the outbox table for synchronization with Kessel
-        result = write_event_to_outbox(EventType.updated, str(input_host.id), input_host)
-        if not result:
-            logger.error("Failed to write updated event to outbox")
-            raise OutboxSaveException("Failed to write update event to outbox")
+        # Check if outbox entry is needed before writing to outbox
+        if need_outbox_entry(
+            str(input_host.id),
+            getattr(input_host, "satellite_id", None),
+            getattr(input_host, "subscription_manager_id", None),
+            getattr(input_host, "insights_id", None),
+            getattr(input_host, "ansible_host", None),
+            input_host.groups[0].get("id") if input_host.groups and len(input_host.groups) > 0 else None,
+        ):
+            # write to the outbox table for synchronization with Kessel
+            result = write_event_to_outbox(EventType.updated, str(input_host.id), input_host)
+            if not result:
+                logger.error("Failed to write updated event to outbox")
+                raise OutboxSaveException("Failed to write update event to outbox")
+        else:
+            logger.debug("No outbox entry needed for updated host %s", input_host.id)
     except OutboxSaveException as ose:
         logger.error("Failed to write updated event to outbox: %s", str(ose))
         raise ose
@@ -433,3 +457,69 @@ def host_query(
     org_id: str,
 ) -> Query:
     return Host.query.filter(Host.org_id == org_id)
+
+
+def need_outbox_entry(
+    host_id: str,
+    satellite_id: str | None,
+    subscription_manager_id: str | None,
+    insights_id: str | None,
+    ansible_host: str | None,
+    group_id: str | None,
+) -> bool:
+    """
+    Check if an outbox entry is needed by comparing input parameters with the host's current values in the database.
+
+    Args:
+        host_id: The ID of the host to check
+        satellite_id: The satellite ID to compare
+        subscription_manager_id: The subscription manager ID to compare
+        insights_id: The insights ID to compare
+        ansible_host: The ansible host to compare
+        group_id: The group ID to compare (will be compared against groups[0].id)
+
+    Returns:
+        True if any of the parameters differ from the host's current values in the database
+    """
+    # Query the database directly to get the host's current values
+    # Use a fresh session to avoid any in-memory state
+    host = db.session.query(Host).filter(Host.id == host_id).first()
+
+    if not host:
+        logger.info(f"Host with id {host_id} not found in database, should be created and outbox entry needed")
+        return True
+
+    # Compare satellite_id
+    if satellite_id != host.satellite_id:
+        logger.debug(f"satellite_id differs: input={satellite_id}, db={host.satellite_id}")
+        return True
+
+    # Compare subscription_manager_id
+    if subscription_manager_id != host.subscription_manager_id:
+        logger.debug(
+            f"subscription_manager_id differs: input={subscription_manager_id}, db={host.subscription_manager_id}"
+        )
+        return True
+
+    # Compare insights_id
+    if insights_id != host.insights_id:
+        logger.debug(f"insights_id differs: input={insights_id}, db={host.insights_id}")
+        return True
+
+    # Compare ansible_host
+    if ansible_host != host.ansible_host:
+        logger.debug(f"ansible_host differs: input={ansible_host}, db={host.ansible_host}")
+        return True
+
+    # Compare group_id with groups[0].id
+    current_group_id = None
+    if host.groups and len(host.groups) > 0:
+        # groups is a list of serialized group objects, get the id from the first group
+        current_group_id = host.groups[0].get("id") if isinstance(host.groups[0], dict) else str(host.groups[0].id)
+
+    if group_id != current_group_id:
+        logger.debug(f"group_id differs: input={group_id}, db={current_group_id}")
+        return True
+
+    logger.debug(f"All outbox parameters match for host {host_id}, no outbox entry needed")
+    return False

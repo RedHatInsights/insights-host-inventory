@@ -41,6 +41,7 @@ from lib.feature_flags import get_flag_value
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.host_repository import get_non_culled_hosts_count_in_group
 from lib.host_repository import host_query
+from lib.host_repository import need_outbox_entry
 from lib.metrics import delete_group_count
 from lib.metrics import delete_group_processing_time
 from lib.metrics import delete_host_group_count
@@ -228,11 +229,22 @@ def _process_host_changes(
             try:
                 # Eagerly load the groups attribute to prevent DetachedInstanceError
                 _ = host.groups
-                # write to the outbox table for synchronization with Kessel
-                result = write_event_to_outbox(EventType.updated, str(host.id), host)
-                if not result:
-                    logger.error("Failed to write updated event to outbox")
-                    raise OutboxSaveException("Failed to write update event to outbox")
+                # Check if outbox entry is needed before writing to outbox
+                if need_outbox_entry(
+                    str(host.id),
+                    getattr(host, "satellite_id", None),
+                    getattr(host, "subscription_manager_id", None),
+                    getattr(host, "insights_id", None),
+                    getattr(host, "ansible_host", None),
+                    host.groups[0].get("id") if host.groups and len(host.groups) > 0 else None,
+                ):
+                    # write to the outbox table for synchronization with Kessel
+                    result = write_event_to_outbox(EventType.updated, str(host.id), host)
+                    if not result:
+                        logger.error("Failed to write updated event to outbox")
+                        raise OutboxSaveException("Failed to write update event to outbox")
+                else:
+                    logger.debug("No outbox entry needed for updated host %s", host.id)
             except OutboxSaveException as ose:
                 logger.error("Failed to write updated event to outbox: %s", str(ose))
                 raise ose
