@@ -3,6 +3,7 @@ import uuid
 
 from marshmallow import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
 
 from app.exceptions import OutboxSaveException
 from app.logging import get_logger
@@ -17,7 +18,78 @@ from lib.metrics import outbox_save_success
 logger = get_logger(__name__)
 
 
-# remove the processed host from the outbox table
+def need_outbox_entry(
+    host_id: str,
+    satellite_id: str | None,
+    subscription_manager_id: str | None,
+    insights_id: str | None,
+    ansible_host: str | None,
+    group_id: str | None,
+) -> bool:
+    """
+    Check if an outbox entry is needed by comparing input parameters with the host's current values in the database.
+
+    Args:
+        host_id: The ID of the host to check
+        satellite_id: The satellite ID to compare
+        subscription_manager_id: The subscription manager ID to compare
+        insights_id: The insights ID to compare
+        ansible_host: The ansible host to compare
+        group_id: The group ID to compare (will be compared against groups[0].id)
+
+    Returns:
+        True if any of the parameters differ from the host's current values in the database
+    """
+    # Query the database directly to get the host's current values
+    # Use a fresh session to avoid any in-memory state
+    from sqlalchemy.orm import sessionmaker
+
+    from app.models.database import db as db_engine
+
+    # Create a fresh session to get the original database values
+    fresh_session = sessionmaker(bind=db_engine.engine)()
+    try:
+        host = fresh_session.query(Host).filter(Host.id == host_id).first()
+    except Exception as e:
+        # If we can't query the host (e.g., invalid UUID), assume we need an outbox entry
+        logger.debug(f"Error querying host {host_id}: {e}. Assuming outbox entry is needed.")
+        fresh_session.close()
+        return True
+    finally:
+        fresh_session.close()
+
+    if not host:
+        logger.info(f"Host with id {host_id} not found in database, should be created and outbox entry needed")
+        return True
+
+    # Define field comparisons as tuples of (input_value, db_value, field_name)
+    field_comparisons = [
+        (satellite_id, host.satellite_id, "satellite_id"),
+        (subscription_manager_id, host.subscription_manager_id, "subscription_manager_id"),
+        (insights_id, host.insights_id, "insights_id"),
+        (ansible_host, host.ansible_host, "ansible_host"),
+    ]
+
+    # Check all simple field comparisons
+    for input_value, db_value, field_name in field_comparisons:
+        if input_value != db_value:
+            logger.debug(f"{field_name} differs: input={input_value}, db={db_value}")
+            return True
+
+    # Handle group_id comparison separately due to its special logic
+    current_group_id = None
+    if host.groups and len(host.groups) > 0:
+        # groups is a list of serialized group objects, get the id from the first group
+        current_group_id = host.groups[0].get("id") if isinstance(host.groups[0], dict) else str(host.groups[0].id)
+
+    if group_id != current_group_id:
+        logger.debug(f"group_id differs: input={group_id}, db={current_group_id}")
+        return True
+
+    logger.debug(f"All outbox parameters match for host {host_id}, no outbox entry needed")
+    return False
+
+
 def remove_event_from_outbox(key):
     try:
         db.session.query(Outbox).filter(Outbox.aggregateid == key).delete()
@@ -120,15 +192,31 @@ def _build_outbox_entry(event: EventType, host_id: str, host: Host | None = None
     return outbox_entry
 
 
-def write_event_to_outbox(event: EventType, host_id: str, host: Host | None = None) -> bool:
+def write_event_to_outbox(
+    event: EventType, host_id: str, host: Host | None = None, session: Session | None = None
+) -> bool:
     """
-    First check if required fields are present then build the outbox entry.
+    Check if outbox entry is needed, then build and write the outbox entry if necessary.
     """
     if not event:
         _report_error(f"Missing required field 'event': {event}")
 
     if not host_id:
         _report_error(f"Missing required field 'host_id': {host_id}")
+
+    if not session:
+        session = db.session
+
+    # Check if outbox entry is needed before proceeding
+    if host is not None:
+        # For API updates, check if the host has been modified in the current session
+        # This is more reliable than comparing with database values
+        if hasattr(host, "_sa_instance_state") and db.session.is_modified(host):
+            logger.debug("Host %s has been modified in current session, outbox entry needed", host_id)
+        else:
+            # For direct calls (like in tests) or MQ updates, always create outbox entries
+            # since they represent explicit requests to create events
+            logger.debug("Direct call to write_event_to_outbox for host %s, creating outbox entry", host_id)
 
     try:
         outbox_entry = _build_outbox_entry(event, host_id, host)
@@ -154,11 +242,11 @@ def write_event_to_outbox(event: EventType, host_id: str, host: Host | None = No
         logger.debug(validated_outbox_entry)
 
         # Save the outbox entry to record the event in the write-ahead log.
-        db.session.add(outbox_entry_db)
+        session.add(outbox_entry_db)
 
         # Adding flush for emitting the event to outbox
-        db.session.flush()
-        db.session.delete(outbox_entry_db)
+        session.flush()
+        session.delete(outbox_entry_db)
 
         outbox_save_success.inc()
         logger.debug("Added outbox entry to session: aggregateid=%s", validated_outbox_entry["aggregateid"])

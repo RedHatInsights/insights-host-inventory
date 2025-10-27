@@ -36,8 +36,6 @@ from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness
 from app.staleness_states import HostStalenessStatesDbFilters
 from lib import metrics
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
-from lib.feature_flags import get_flag_value
 from lib.outbox_repository import write_event_to_outbox
 
 __all__ = (
@@ -50,7 +48,6 @@ __all__ = (
     "find_non_culled_hosts",
     "update_existing_host",
     "host_query",
-    "need_outbox_entry",
 )
 
 AddHostResult = Enum("AddHostResult", ("created", "updated"))
@@ -76,6 +73,10 @@ def add_host(
      It is documented here:
      https://inscope.corp.redhat.com/docs/default/Component/consoledot-pages/services/inventory/#expected-message-format
     """
+    # Import here to avoid circular import
+    from lib.group_repository import get_or_create_ungrouped_hosts_group_for_identity
+    from lib.group_repository import serialize_group
+
     if operation_args is None:
         operation_args = {}
 
@@ -87,6 +88,9 @@ def add_host(
         # If the list of existing hosts was not provided, or the match was not found, try querying DB
         matched_host = find_existing_host(identity, input_host.canonical_facts)
 
+    group = get_or_create_ungrouped_hosts_group_for_identity(identity)
+    input_host.groups = [serialize_group(group)]
+
     if matched_host:
         defer_to_reporter = operation_args.get("defer_to_reporter")
         if defer_to_reporter is not None:
@@ -95,27 +99,11 @@ def add_host(
                 logger.debug("host_repository.add_host: setting update_system_profile = False")
                 update_system_profile = False
 
-        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
-            # Import here to avoid circular import
-            from lib.group_repository import get_or_create_ungrouped_hosts_group_for_identity
-            from lib.group_repository import serialize_group
-
-            group = get_or_create_ungrouped_hosts_group_for_identity(identity)
-            input_host.groups = [serialize_group(group)]
-
         return update_existing_host(matched_host, input_host, update_system_profile)
     else:
-        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
-            # Import here to avoid circular import
-            from lib.group_repository import get_or_create_ungrouped_hosts_group_for_identity
-            from lib.group_repository import serialize_group
-
-            group = get_or_create_ungrouped_hosts_group_for_identity(identity)
-            input_host.groups = [serialize_group(group)]
-
-            # create a new host group association for the host
-            assoc = HostGroupAssoc(input_host.id, group.id, identity.org_id)
-            db.session.add(assoc)
+        # create a new host group association for the host
+        assoc = HostGroupAssoc(input_host.id, group.id, identity.org_id)
+        db.session.add(assoc)
 
         return create_new_host(input_host)
 
@@ -286,22 +274,11 @@ def create_new_host(input_host: Host) -> tuple[Host, AddHostResult]:
     input_host.save()
 
     try:
-        # Check if outbox entry is needed before writing to outbox
-        if need_outbox_entry(
-            str(input_host.id),
-            getattr(input_host, "satellite_id", None),
-            getattr(input_host, "subscription_manager_id", None),
-            getattr(input_host, "insights_id", None),
-            getattr(input_host, "ansible_host", None),
-            input_host.groups[0].get("id") if input_host.groups and len(input_host.groups) > 0 else None,
-        ):
-            # write to the outbox table for synchronization with Kessel
-            result = write_event_to_outbox(EventType.created, str(input_host.id), input_host)
-            if not result:
-                logger.error("Failed to write created event to outbox")
-                raise OutboxSaveException("Failed to write created host event to outbox")
-        else:
-            logger.debug("No outbox entry needed for created host %s", input_host.id)
+        # write to the outbox table for synchronization with Kessel
+        result = write_event_to_outbox(EventType.created, str(input_host.id), input_host)
+        if not result:
+            logger.error("Failed to write created event to outbox")
+            raise OutboxSaveException("Failed to write created host event to outbox")
     except OutboxSaveException as ose:
         logger.error("Failed to write created event to outbox: %s", str(ose))
         raise ose
@@ -322,22 +299,11 @@ def update_existing_host(
     existing_host.update(input_host, update_system_profile)
 
     try:
-        # Check if outbox entry is needed before writing to outbox
-        if need_outbox_entry(
-            str(input_host.id),
-            getattr(input_host, "satellite_id", None),
-            getattr(input_host, "subscription_manager_id", None),
-            getattr(input_host, "insights_id", None),
-            getattr(input_host, "ansible_host", None),
-            input_host.groups[0].get("id") if input_host.groups and len(input_host.groups) > 0 else None,
-        ):
-            # write to the outbox table for synchronization with Kessel
-            result = write_event_to_outbox(EventType.updated, str(input_host.id), input_host)
-            if not result:
-                logger.error("Failed to write updated event to outbox")
-                raise OutboxSaveException("Failed to write update event to outbox")
-        else:
-            logger.debug("No outbox entry needed for updated host %s", input_host.id)
+        # write to the outbox table for synchronization with Kessel
+        result = write_event_to_outbox(EventType.updated, str(input_host.id), input_host)
+        if not result:
+            logger.error("Failed to write updated event to outbox")
+            raise OutboxSaveException("Failed to write update event to outbox")
     except OutboxSaveException as ose:
         logger.error("Failed to write updated event to outbox: %s", str(ose))
         raise ose
@@ -456,70 +422,3 @@ def host_query(
     org_id: str,
 ) -> Query:
     return Host.query.filter(Host.org_id == org_id)
-
-
-def need_outbox_entry(
-    host_id: str,
-    satellite_id: str | None,
-    subscription_manager_id: str | None,
-    insights_id: str | None,
-    ansible_host: str | None,
-    group_id: str | None,
-) -> bool:
-    """
-    Check if an outbox entry is needed by comparing input parameters with the host's current values in the database.
-
-    Args:
-        host_id: The ID of the host to check
-        satellite_id: The satellite ID to compare
-        subscription_manager_id: The subscription manager ID to compare
-        insights_id: The insights ID to compare
-        ansible_host: The ansible host to compare
-        group_id: The group ID to compare (will be compared against groups[0].id)
-
-    Returns:
-        True if any of the parameters differ from the host's current values in the database
-    """
-    # Query the database directly to get the host's current values
-    # Use a fresh session to avoid any in-memory state
-    from sqlalchemy.orm import sessionmaker
-
-    from app.models.database import db as db_engine
-
-    # Create a fresh session to get the original database values
-    fresh_session = sessionmaker(bind=db_engine.engine)()
-    try:
-        host = fresh_session.query(Host).filter(Host.id == host_id).first()
-    finally:
-        fresh_session.close()
-
-    if not host:
-        logger.info(f"Host with id {host_id} not found in database, should be created and outbox entry needed")
-        return True
-
-    # Define field comparisons as tuples of (input_value, db_value, field_name)
-    field_comparisons = [
-        (satellite_id, host.satellite_id, "satellite_id"),
-        (subscription_manager_id, host.subscription_manager_id, "subscription_manager_id"),
-        (insights_id, host.insights_id, "insights_id"),
-        (ansible_host, host.ansible_host, "ansible_host"),
-    ]
-
-    # Check all simple field comparisons
-    for input_value, db_value, field_name in field_comparisons:
-        if input_value != db_value:
-            logger.debug(f"{field_name} differs: input={input_value}, db={db_value}")
-            return True
-
-    # Handle group_id comparison separately due to its special logic
-    current_group_id = None
-    if host.groups and len(host.groups) > 0:
-        # groups is a list of serialized group objects, get the id from the first group
-        current_group_id = host.groups[0].get("id") if isinstance(host.groups[0], dict) else str(host.groups[0].id)
-
-    if group_id != current_group_id:
-        logger.debug(f"group_id differs: input={group_id}, db={current_group_id}")
-        return True
-
-    logger.debug(f"All outbox parameters match for host {host_id}, no outbox entry needed")
-    return False

@@ -36,12 +36,9 @@ from app.serialization import serialize_group_with_host_count
 from app.serialization import serialize_host
 from app.staleness_serialization import AttrDict
 from lib.db import session_guard
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
-from lib.feature_flags import get_flag_value
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.host_repository import get_non_culled_hosts_count_in_group
 from lib.host_repository import host_query
-from lib.host_repository import need_outbox_entry
 from lib.metrics import delete_group_count
 from lib.metrics import delete_group_processing_time
 from lib.metrics import delete_host_group_count
@@ -227,24 +224,11 @@ def _process_host_changes(
         host_list.extend(batch_host_list)
         for host in batch_host_list:
             try:
-                # Eagerly load the groups attribute to prevent DetachedInstanceError
-                _ = host.groups
-                # Check if outbox entry is needed before writing to outbox
-                if need_outbox_entry(
-                    str(host.id),
-                    getattr(host, "satellite_id", None),
-                    getattr(host, "subscription_manager_id", None),
-                    getattr(host, "insights_id", None),
-                    getattr(host, "ansible_host", None),
-                    host.groups[0].get("id") if host.groups and len(host.groups) > 0 else None,
-                ):
-                    # write to the outbox table for synchronization with Kessel
-                    result = write_event_to_outbox(EventType.updated, str(host.id), host)
-                    if not result:
-                        logger.error("Failed to write updated event to outbox")
-                        raise OutboxSaveException("Failed to write update event to outbox")
-                else:
-                    logger.debug("No outbox entry needed for updated host %s", host.id)
+                # write to the outbox table for synchronization with Kessel
+                result = write_event_to_outbox(EventType.updated, str(host.id), host)
+                if not result:
+                    logger.error("Failed to write updated event to outbox")
+                    raise OutboxSaveException("Failed to write update event to outbox")
             except OutboxSaveException as ose:
                 logger.error("Failed to write updated event to outbox: %s", str(ose))
                 raise ose
@@ -346,9 +330,8 @@ def _remove_all_hosts_from_group(group: Group, identity: Identity):
     ]
     _remove_hosts_from_group(group.id, host_ids, identity.org_id)
     # If Kessel flag is on, assign hosts to "ungrouped" group
-    if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
-        ungrouped_id = get_or_create_ungrouped_hosts_group_for_identity(identity).id
-        _add_hosts_to_group(ungrouped_id, [str(host_id) for host_id in host_ids], identity.org_id)
+    ungrouped_id = get_or_create_ungrouped_hosts_group_for_identity(identity).id
+    _add_hosts_to_group(ungrouped_id, [str(host_id) for host_id in host_ids], identity.org_id)
 
 
 def _delete_host_group_assoc(session, assoc):
@@ -400,9 +383,7 @@ def delete_group_list(group_id_list: list[str], identity: Identity, event_produc
                 else:
                     log_group_delete_failed(logger, group_id, get_control_rule())
 
-        new_group_list = []
-        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
-            new_group_list = [str(get_or_create_ungrouped_hosts_group_for_identity(identity).id)]
+        new_group_list = [str(get_or_create_ungrouped_hosts_group_for_identity(identity).id)]
 
         serialized_groups, host_id_list = _update_hosts_for_group_changes(deleted_host_ids, new_group_list, identity)
         refreshed_host_id_list = _process_host_changes(host_id_list, identity)
@@ -423,11 +404,10 @@ def remove_hosts_from_group(group_id, host_id_list, identity, event_producer):
 
     with session_guard(db.session):
         removed_host_ids = _remove_hosts_from_group(group_id, host_id_list, identity.org_id)
-        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
-            # Add hosts to the "ungrouped" group
-            ungrouped_group_id = str(get_or_create_ungrouped_hosts_group_for_identity(identity).id)
-            _add_hosts_to_group(ungrouped_group_id, [str(host_id) for host_id in removed_host_ids], identity.org_id)
-            group_id_list = [ungrouped_group_id]
+        # Add hosts to the "ungrouped" group
+        ungrouped_group_id = str(get_or_create_ungrouped_hosts_group_for_identity(identity).id)
+        _add_hosts_to_group(ungrouped_group_id, [str(host_id) for host_id in removed_host_ids], identity.org_id)
+        group_id_list = [ungrouped_group_id]
 
         serialized_groups, host_id_list = _update_hosts_for_group_changes(removed_host_ids, group_id_list, identity)
         refreshed_host_id_list = _process_host_changes(host_id_list, identity)
@@ -497,11 +477,10 @@ def patch_group(group: Group, patch_data: dict, identity: Identity, event_produc
         if new_host_ids is not None:
             _remove_hosts_from_group(group_id, list(existing_host_ids - new_host_ids), identity.org_id)
             _add_hosts_to_group(group_id, list(new_host_ids - existing_host_ids), identity.org_id)
-            if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
-                # Add hosts to the "ungrouped" group
-                ungrouped_group = get_or_create_ungrouped_hosts_group_for_identity(identity)
-                removed_group_id_list = [str(ungrouped_group.id)]
-                _add_hosts_to_group(str(ungrouped_group.id), list(existing_host_ids - new_host_ids), identity.org_id)
+            # Add hosts to the "ungrouped" group
+            ungrouped_group = get_or_create_ungrouped_hosts_group_for_identity(identity)
+            removed_group_id_list = [str(ungrouped_group.id)]
+            _add_hosts_to_group(str(ungrouped_group.id), list(existing_host_ids - new_host_ids), identity.org_id)
 
         # Process host changes within the same session to ensure write_event_to_outbox works
         if group_patched and host_id_data is None:

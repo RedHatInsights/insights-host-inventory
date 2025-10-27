@@ -59,7 +59,6 @@ from lib.host_delete import delete_hosts
 from lib.host_repository import find_existing_host
 from lib.host_repository import find_non_culled_hosts
 from lib.host_repository import get_host_list_by_id_list_from_db
-from lib.host_repository import need_outbox_entry
 from lib.kessel import get_kessel_client
 from lib.middleware import access
 from lib.middleware import get_kessel_filter
@@ -419,22 +418,11 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
 
         if db.session.is_modified(host):
             try:
-                # Check if outbox entry is needed before writing to outbox
-                if need_outbox_entry(
-                    str(host.id),
-                    getattr(host, "satellite_id", None),
-                    getattr(host, "subscription_manager_id", None),
-                    getattr(host, "insights_id", None),
-                    getattr(host, "ansible_host", None),
-                    host.groups[0].get("id") if host.groups and len(host.groups) > 0 else None,
-                ):
-                    # write to the outbox table for synchronization with Kessel
-                    result = write_event_to_outbox(EventType.updated, str(host.id), host)
-                    if not result:
-                        logger.error("Failed to write updated event to outbox")
-                        raise OutboxSaveException("Failed to write updated host event to outbox")
-                else:
-                    logger.debug("No outbox entry needed for updated host %s", host.id)
+                # write to the outbox table for synchronization with Kessel
+                result = write_event_to_outbox(EventType.updated, str(host.id), host)
+                if not result:
+                    logger.error("Failed to write updated event to outbox")
+                    raise OutboxSaveException("Failed to write updated host event to outbox")
             except OutboxSaveException as ose:
                 logger.error("Failed to write updated event to outbox: %s", str(ose))
                 raise ose
@@ -588,7 +576,7 @@ def get_host_exists(insights_id, rbac_filter=None):
     if not host_id:
         flask.abort(404, f"No host found for Insights ID '{insights_id}'.")
     # Duplicated - I wonder if this could be factored back into middleware.py
-    if (not inventory_config().bypass_rbac) and get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1):
+    if (not inventory_config().bypass_kessel) and get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1):
         kessel_client = get_kessel_client(current_app)
         allowed, _ = get_kessel_filter(  # Kind of a duplicate Kessel call too
             kessel_client, current_identity, KesselResourceTypes.HOST.view, [host_id]
