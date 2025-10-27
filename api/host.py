@@ -514,27 +514,6 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
             host.merge_facts_in_namespace(namespace, fact_dict)
 
         if db.session.is_modified(host):
-            try:
-                # Check if outbox entry is needed before writing to outbox
-                if need_outbox_entry(
-                    str(host.id),
-                    getattr(host, "satellite_id", None),
-                    getattr(host, "subscription_manager_id", None),
-                    getattr(host, "insights_id", None),
-                    getattr(host, "ansible_host", None),
-                    host.groups[0].get("id") if host.groups and len(host.groups) > 0 else None,
-                ):
-                    # write to the outbox table for synchronization with Kessel
-                    result = write_event_to_outbox(EventType.updated, str(host.id), host)
-                    if not result:
-                        logger.error("Failed to write updated event to outbox")
-                        raise OutboxSaveException("Failed to write updated host event to outbox")
-                else:
-                    logger.debug("No outbox entry needed for updated host %s", host.id)
-            except OutboxSaveException as ose:
-                logger.error("Failed to write updated event to outbox: %s", str(ose))
-                raise ose
-
             db.session.commit()
             serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
             _emit_patch_event(serialized_host, host)

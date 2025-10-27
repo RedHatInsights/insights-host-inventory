@@ -286,8 +286,7 @@ def create_new_host(input_host: Host) -> tuple[Host, AddHostResult]:
     input_host.save()
 
     try:
-        # Though create new host require outbox entry,
-        # the same host might have been created by another process running in parallel
+        # Check if outbox entry is needed before writing to outbox
         if need_outbox_entry(
             str(input_host.id),
             getattr(input_host, "satellite_id", None),
@@ -297,7 +296,7 @@ def create_new_host(input_host: Host) -> tuple[Host, AddHostResult]:
             input_host.groups[0].get("id") if input_host.groups and len(input_host.groups) > 0 else None,
         ):
             # write to the outbox table for synchronization with Kessel
-            result = write_event_to_outbox(EventType.created, (input_host.id), input_host)
+            result = write_event_to_outbox(EventType.created, str(input_host.id), input_host)
             if not result:
                 logger.error("Failed to write created event to outbox")
                 raise OutboxSaveException("Failed to write created host event to outbox")
@@ -483,35 +482,36 @@ def need_outbox_entry(
     """
     # Query the database directly to get the host's current values
     # Use a fresh session to avoid any in-memory state
-    host = db.session.query(Host).filter(Host.id == host_id).first()
+    from sqlalchemy.orm import sessionmaker
+
+    from app.models.database import db as db_engine
+
+    # Create a fresh session to get the original database values
+    fresh_session = sessionmaker(bind=db_engine.engine)()
+    try:
+        host = fresh_session.query(Host).filter(Host.id == host_id).first()
+    finally:
+        fresh_session.close()
 
     if not host:
         logger.info(f"Host with id {host_id} not found in database, should be created and outbox entry needed")
         return True
 
-    # Compare satellite_id
-    if satellite_id != host.satellite_id:
-        logger.debug(f"satellite_id differs: input={satellite_id}, db={host.satellite_id}")
-        return True
+    # Define field comparisons as tuples of (input_value, db_value, field_name)
+    field_comparisons = [
+        (satellite_id, host.satellite_id, "satellite_id"),
+        (subscription_manager_id, host.subscription_manager_id, "subscription_manager_id"),
+        (insights_id, host.insights_id, "insights_id"),
+        (ansible_host, host.ansible_host, "ansible_host"),
+    ]
 
-    # Compare subscription_manager_id
-    if subscription_manager_id != host.subscription_manager_id:
-        logger.debug(
-            f"subscription_manager_id differs: input={subscription_manager_id}, db={host.subscription_manager_id}"
-        )
-        return True
+    # Check all simple field comparisons
+    for input_value, db_value, field_name in field_comparisons:
+        if input_value != db_value:
+            logger.debug(f"{field_name} differs: input={input_value}, db={db_value}")
+            return True
 
-    # Compare insights_id
-    if insights_id != host.insights_id:
-        logger.debug(f"insights_id differs: input={insights_id}, db={host.insights_id}")
-        return True
-
-    # Compare ansible_host
-    if ansible_host != host.ansible_host:
-        logger.debug(f"ansible_host differs: input={ansible_host}, db={host.ansible_host}")
-        return True
-
-    # Compare group_id with groups[0].id
+    # Handle group_id comparison separately due to its special logic
     current_group_id = None
     if host.groups and len(host.groups) > 0:
         # groups is a list of serialized group objects, get the id from the first group

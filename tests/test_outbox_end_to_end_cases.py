@@ -614,21 +614,18 @@ class TestOutboxE2ECases:
     ):
         """Test that creating a host via MQ message triggers outbox entry creation."""
 
-        # Create test host data
+        # Create test host data with unique identifiers to ensure it's a new host
+        unique_id = str(uuid.uuid4())
         test_host = minimal_host(
-            insights_id=generate_uuid(), subscription_manager_id=generate_uuid(), fqdn="test-mq-host.example.com"
+            insights_id=unique_id, subscription_manager_id=unique_id, fqdn=f"test-mq-host-{unique_id}.example.com"
         )
 
         platform_metadata = get_platform_metadata(SYSTEM_IDENTITY)
         message = wrap_message(test_host.data(), platform_metadata=platform_metadata)
 
         # Mock the outbox writing to capture the call without immediate deletion
-        with (
-            patch("lib.host_repository.write_event_to_outbox") as mock_write_outbox,
-            patch("lib.host_repository.need_outbox_entry") as mock_need_outbox,
-        ):
+        with patch("lib.host_repository.write_event_to_outbox") as mock_write_outbox:
             mock_write_outbox.return_value = True
-            mock_need_outbox.return_value = True  # Always return True for new host creation
 
             # Create MQ consumer and process message
             consumer = IngressMessageConsumer(None, flask_app, event_producer_mock, notification_event_producer_mock)
@@ -640,7 +637,7 @@ class TestOutboxE2ECases:
             assert result.row is not None
             created_host = result.row
             assert str(created_host.insights_id) == test_host.insights_id
-            assert created_host.fqdn == "test-mq-host.example.com"
+            assert created_host.fqdn == f"test-mq-host-{unique_id}.example.com"
 
             # Verify outbox entry was written with correct parameters
             mock_write_outbox.assert_called_once()
@@ -677,14 +674,10 @@ class TestOutboxE2ECases:
         message = wrap_message(test_host.data(), platform_metadata=platform_metadata)
 
         # Mock the outbox writing to capture the call without immediate deletion
-        with (
-            patch("lib.host_repository.write_event_to_outbox") as mock_write_outbox,
-            patch("lib.host_repository.need_outbox_entry") as mock_need_outbox,
-        ):
+        with patch("lib.host_repository.write_event_to_outbox") as mock_write_outbox:
             # Also mock the Kessel migration flag to enable group assignment
             with patch("lib.host_repository.get_flag_value", return_value=True):
                 mock_write_outbox.return_value = True
-                mock_need_outbox.return_value = True  # Always return True for new host creation
 
                 # Create MQ consumer and process message
                 consumer = IngressMessageConsumer(
@@ -734,10 +727,7 @@ class TestOutboxE2ECases:
         message = wrap_message(test_host.data(), platform_metadata=platform_metadata)
 
         # Track outbox success metrics to verify outbox operation succeeded
-        with (
-            patch("lib.outbox_repository.outbox_save_success") as mock_success_metric,
-            patch("lib.host_repository.need_outbox_entry", return_value=True),
-        ):
+        with patch("lib.outbox_repository.outbox_save_success") as mock_success_metric:
             # Create MQ consumer and process message
             consumer = IngressMessageConsumer(None, flask_app, event_producer_mock, notification_event_producer_mock)
             result = consumer.handle_message(json.dumps(message))
@@ -759,7 +749,7 @@ class TestOutboxE2ECases:
 
             # The success metric increment proves the outbox entry was created, validated, and processed
 
-    def test_host_group_update_via_mq_with_actual_outbox_common_validation(
+    def test_host_group_update_via_mq_without_outbox_entry_for_name_change(
         self,
         flask_app,
         event_producer_mock,
@@ -768,7 +758,7 @@ class TestOutboxE2ECases:
         db_get_hosts_for_group,
         db_get_group_by_id,
     ):
-        """Test complete MQ group update flow with actual outbox entry validation of common field."""
+        """Test that updating only a group name via MQ does NOT trigger outbox entry creation."""
 
         # Create a group with one host for simpler validation
         group = db_create_group_with_hosts("test-workspace", 1)
@@ -814,10 +804,7 @@ class TestOutboxE2ECases:
 
         original_write_outbox = write_event_to_outbox
 
-        with (
-            patch("lib.group_repository.write_event_to_outbox", side_effect=capture_outbox_payload),
-            patch("lib.group_repository.need_outbox_entry", return_value=True),
-        ):
+        with patch("lib.outbox_repository.write_event_to_outbox", side_effect=capture_outbox_payload):
             with patch("lib.outbox_repository.outbox_save_success") as mock_success_metric:
                 # Process the workspace update message
                 consumer = WorkspaceMessageConsumer(
@@ -831,18 +818,10 @@ class TestOutboxE2ECases:
                 updated_group = db_get_group_by_id(group_id)
                 assert updated_group.name == new_name
 
-                # Verify outbox operation succeeded
-                mock_success_metric.inc.assert_called_once()
-
-                # Verify the captured payload has correct common field
-                assert len(captured_payloads) == 1
-                payload = captured_payloads[0]
-
-                assert payload["event_type"] == EventType.updated
-                assert payload["host_id"] == host_id
-                assert payload["common"] == {"workspace_id": group_id}
-                assert payload["group_name"] == new_name
-                assert payload["group_id"] == group_id
+                # Verify NO outbox operation occurred - group name changes don't trigger outbox entries
+                # when host IDs remain the same
+                mock_success_metric.inc.assert_not_called()
+                assert len(captured_payloads) == 0
 
                 # Verify outbox entry was created and immediately deleted (new behavior)
                 outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
@@ -876,14 +855,11 @@ class TestOutboxE2ECases:
         # Mock the outbox writing to capture the calls and validate payload
         outbox_calls = []
 
-        with (
-            patch(
-                "api.host.write_event_to_outbox",
-                side_effect=lambda event_type, host_id_param, host_obj: self.mock_write_outbox(
-                    outbox_calls, event_type, host_id_param, host_obj
-                ),
+        with patch(
+            "api.host.write_event_to_outbox",
+            side_effect=lambda event_type, host_id_param, host_obj: self.mock_write_outbox(
+                outbox_calls, event_type, host_id_param, host_obj
             ),
-            patch("api.host.need_outbox_entry", return_value=True),
         ):
             # Make PATCH request to update host
             response_status, response_data = api_patch(hosts_url, patch_data)
@@ -1029,7 +1005,6 @@ class TestOutboxE2ECases:
                     outbox_calls, event_type, host_id_param, host_obj, capture_groups=True
                 ),
             ),
-            patch("lib.group_repository.need_outbox_entry", return_value=True),
         ):
             # Make POST request to add host to group
             response_status, _ = api_add_hosts_to_group(group_id, [host_id])
@@ -1128,9 +1103,9 @@ class TestOutboxE2ECases:
 
             return result
 
-        with (
-            patch("lib.group_repository.write_event_to_outbox", side_effect=capture_outbox_payload),
-            patch("lib.group_repository.need_outbox_entry", return_value=True),
+        with patch(
+            "lib.group_repository.write_event_to_outbox",
+            side_effect=capture_outbox_payload,
         ):
             # Make POST request to add host to group
             response_status, _ = api_add_hosts_to_group(group_id, [host_id])
@@ -1252,7 +1227,6 @@ class TestOutboxE2ECases:
                         outbox_calls, event_type, host_id_param, host_obj, capture_groups=True
                     ),
                 ),
-                patch("lib.group_repository.need_outbox_entry", return_value=True),
             ):
                 # Make DELETE request to remove host from group
                 response_status, _ = api_remove_hosts_from_group(group_id, [host_id])
@@ -1351,7 +1325,6 @@ class TestOutboxE2ECases:
         with patch("lib.group_repository.get_flag_value", return_value=True):
             with (
                 patch("lib.group_repository.write_event_to_outbox", side_effect=capture_outbox_payload),
-                patch("lib.group_repository.need_outbox_entry", return_value=True),
             ):
                 # Make DELETE request to remove host from group
                 response_status, _ = api_remove_hosts_from_group(group_id, [host_id])
@@ -1416,13 +1389,13 @@ class TestOutboxE2ECases:
                 # The success of the operations indicates the outbox entries were created, validated, and processed
 
     @pytest.mark.usefixtures("event_producer_mock")
-    def test_host_facts_replace_via_put_endpoint_with_outbox_validation(
+    def test_host_facts_replace_via_put_endpoint_without_outbox_entry(
         self,
         api_put,
         db_create_host,
         db_get_host,
     ):
-        """Test that replacing host facts via PUT API endpoint triggers outbox entry creation."""
+        """Test that replacing host facts via PUT API endpoint does NOT trigger outbox entry creation."""
 
         # Create a host with initial facts
         host = db_create_host(
@@ -1432,7 +1405,7 @@ class TestOutboxE2ECases:
                 "facts": {"test_namespace": {"original_key": "original_value", "existing_key": "existing_value"}},
             }
         )
-        host_id = str(host.id)
+        # host_id = str(host.id)
 
         # Verify initial state
         initial_host = db_get_host(host.id)
@@ -1446,14 +1419,11 @@ class TestOutboxE2ECases:
         # Mock the outbox writing to capture the calls and validate payload
         outbox_calls = []
 
-        with (
-            patch(
-                "api.host.write_event_to_outbox",
-                side_effect=lambda event_type, host_id_param, host_obj: self.mock_write_outbox(
-                    outbox_calls, event_type, host_id_param, host_obj
-                ),
+        with patch(
+            "api.host.write_event_to_outbox",
+            side_effect=lambda event_type, host_id_param, host_obj: self.mock_write_outbox(
+                outbox_calls, event_type, host_id_param, host_obj
             ),
-            patch("api.host.need_outbox_entry", return_value=True),
         ):
             # Make PUT request to replace facts in namespace
             response_status, response_data = api_put(facts_url, put_data)
@@ -1461,21 +1431,8 @@ class TestOutboxE2ECases:
             # Verify the API request was successful
             assert response_status == 200
 
-            # Verify outbox entry was created
-            assert len(outbox_calls) == 1
-
-            call = outbox_calls[0]
-            assert call["event_type"] == EventType.updated
-            assert call["host_id"] == host_id
-
-            # Verify the host object in the outbox call has updated facts
-            host_obj = call["host"]
-            assert host_obj is not None
-            assert host_obj.facts["test_namespace"]["new_key"] == "new_value"
-            assert host_obj.facts["test_namespace"]["another_key"] == "another_value"
-            # Verify old facts were replaced (not merged)
-            assert "original_key" not in host_obj.facts["test_namespace"]
-            assert "existing_key" not in host_obj.facts["test_namespace"]
+            # Verify NO outbox entry was created - facts changes don't trigger outbox entries
+            assert len(outbox_calls) == 0
 
             # Verify the host was actually updated in the database
             updated_host = db_get_host(host.id)
@@ -1485,15 +1442,15 @@ class TestOutboxE2ECases:
             assert "existing_key" not in updated_host.facts["test_namespace"]
 
     @pytest.mark.usefixtures("event_producer_mock")
-    def test_host_facts_replace_via_put_endpoint_with_actual_outbox_validation(
+    def test_host_facts_replace_via_put_endpoint_without_actual_outbox_validation(
         self,
         api_put,
         db_create_host,
         db_get_host,
     ):
         """
-        Test that replacing host facts via PUT API endpoint creates actual outbox entries
-        with real functionality and validates the payload structure.
+        Test that replacing host facts via PUT API endpoint does NOT create actual outbox entries.
+        Facts changes are not tracked by need_outbox_entry().
         """
 
         # Create a host with initial facts
@@ -1504,7 +1461,7 @@ class TestOutboxE2ECases:
                 "facts": {"test_namespace": {"original_key": "original_value", "existing_key": "existing_value"}},
             }
         )
-        host_id = str(host.id)
+        # host_id = str(host.id)
 
         # Verify initial state
         initial_host = db_get_host(host.id)
@@ -1536,7 +1493,6 @@ class TestOutboxE2ECases:
 
         with (
             patch("api.host.write_event_to_outbox", side_effect=capture_outbox_payload),
-            patch("api.host.need_outbox_entry", return_value=True),
         ):
             # Make PUT request to replace facts in namespace
             response_status, response_data = api_put(facts_url, put_data)
@@ -1544,65 +1500,16 @@ class TestOutboxE2ECases:
             # Verify the API request was successful
             assert response_status == 200
 
-            # Verify outbox entry was created and processed
-            assert len(outbox_payloads) == 1
-
-            captured = outbox_payloads[0]
-            assert captured["event_type"] == EventType.updated
-            assert captured["host_id"] == host_id
-
-            # Verify the host object has updated facts
-            host_obj = captured["host"]
-            assert host_obj is not None
-            assert host_obj.facts["test_namespace"]["new_key"] == "new_value"
-            assert host_obj.facts["test_namespace"]["another_key"] == "another_value"
-            # Verify old facts were replaced (not merged)
-            assert "original_key" not in host_obj.facts["test_namespace"]
-            assert "existing_key" not in host_obj.facts["test_namespace"]
-
-            # Verify the outbox payload structure (what gets sent to Kessel)
-            payload = captured["payload"]
-            assert payload["type"] == "host"
-            assert payload["reporter_type"] == "hbi"
-            assert payload["reporter_instance_id"] == "redhat"
-
-            # Verify representations structure
-            representations = payload["representations"]
-            assert "metadata" in representations
-            assert "common" in representations
-            assert "reporter" in representations
-
-            # Verify metadata structure
-            metadata = representations["metadata"]
-            assert metadata["local_resource_id"] == host_id
-            assert metadata["api_href"] == "https://apihref.com/"
-            assert metadata["console_href"] == "https://www.console.com/"
-            assert metadata["reporter_version"] == "1.0"
-            assert "transaction_id" in metadata
-            assert metadata["transaction_id"] is not None
-
-            # Verify transaction_id is a valid UUID format
-            uuid.UUID(metadata["transaction_id"])  # This will raise ValueError if not a valid UUID
-
-            # Verify reporter structure
-            reporter = representations["reporter"]
-            assert "satellite_id" in reporter
-            assert "subscription_manager_id" in reporter
-            assert "insights_id" in reporter
-            assert "ansible_host" in reporter
+            # Verify NO outbox entry was created - facts changes don't trigger outbox entries
+            assert len(outbox_payloads) == 0
 
             # Verify the host was actually updated in the database
             updated_host = db_get_host(host.id)
             assert updated_host.facts["test_namespace"]["new_key"] == "new_value"
             assert updated_host.facts["test_namespace"]["another_key"] == "another_value"
+            # Verify old facts were replaced (not merged)
             assert "original_key" not in updated_host.facts["test_namespace"]
             assert "existing_key" not in updated_host.facts["test_namespace"]
-
-            # Verify outbox entry was created and immediately deleted (new behavior)
-            outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
-            assert len(outbox_entries) == 0  # Entry is immediately deleted after flush
-
-            # The success of the operation indicates the outbox entry was created, validated, and processed
 
     def test_host_creation_with_outbox_validation_and_cleanup(self, db_create_host, db_get_host):
         """
@@ -1775,7 +1682,6 @@ class TestOutboxE2ECases:
                         outbox_calls, event_type, host_id_param, host_obj, capture_groups=True
                     ),
                 ),
-                patch("lib.group_repository.need_outbox_entry", return_value=True),
             ):
                 # Remove 2 hosts from the group via API
                 response_status, _ = api_remove_hosts_from_group(group_id, hosts_to_remove)
@@ -1970,22 +1876,18 @@ class TestOutboxE2ECases:
         # Prepare patch data that changes only non-tracked parameters
         # need_outbox_entry() tracks: satellite_id, subscription_manager_id, insights_id, ansible_host, group_id
         # We'll change: display_name (not tracked parameter)
-        # Note: ansible_host IS tracked, but we're mocking need_outbox_entry to return False
         patch_data = {"display_name": "updated-host-name"}
         hosts_url = build_hosts_url(host_list_or_id=host.id)
 
         # Mock the outbox writing to capture calls
         outbox_calls = []
 
-        with (
-            patch(
-                "api.host.write_event_to_outbox",
-                side_effect=lambda event_type, host_id_param, host_obj: self.mock_write_outbox(
-                    outbox_calls, event_type, host_id_param, host_obj
-                ),
+        with patch(
+            "api.host.write_event_to_outbox",
+            side_effect=lambda event_type, host_id_param, host_obj: self.mock_write_outbox(
+                outbox_calls, event_type, host_id_param, host_obj
             ),
-            patch("api.host.need_outbox_entry", return_value=False),
-        ):  # Mock need_outbox_entry to return False
+        ):
             # Make PATCH request to update host
             response_status, _ = api_patch(hosts_url, patch_data)
 
@@ -2033,14 +1935,11 @@ class TestOutboxE2ECases:
         # Mock the outbox writing to capture calls
         outbox_calls = []
 
-        with (
-            patch(
-                "api.host.write_event_to_outbox",
-                side_effect=lambda event_type, host_id_param, host_obj: self.mock_write_outbox(
-                    outbox_calls, event_type, host_id_param, host_obj
-                ),
+        with patch(
+            "api.host.write_event_to_outbox",
+            side_effect=lambda event_type, host_id_param, host_obj: self.mock_write_outbox(
+                outbox_calls, event_type, host_id_param, host_obj
             ),
-            patch("api.host.need_outbox_entry", return_value=True),
         ):  # Mock need_outbox_entry to return True
             # Make PATCH request to update host
             response_status, _ = api_patch(hosts_url, patch_data)
@@ -2101,14 +2000,11 @@ class TestOutboxE2ECases:
         patch_data_2 = {"ansible_host": "updated.ansible.host"}
 
         outbox_calls = []
-        with (
-            patch(
-                "api.host.write_event_to_outbox",
-                side_effect=lambda event_type, host_id_param, host_obj: self.mock_write_outbox(
-                    outbox_calls, event_type, host_id_param, host_obj
-                ),
+        with patch(
+            "api.host.write_event_to_outbox",
+            side_effect=lambda event_type, host_id_param, host_obj: self.mock_write_outbox(
+                outbox_calls, event_type, host_id_param, host_obj
             ),
-            patch("api.host.need_outbox_entry", return_value=True),
         ):
             response_status, response_data = api_patch(hosts_url, patch_data_2)
             assert response_status == 200
