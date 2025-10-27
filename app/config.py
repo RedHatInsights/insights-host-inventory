@@ -217,6 +217,7 @@ class Config:
         self.api_urls = [self.api_url_path_prefix, self.legacy_api_url_path_prefix]
 
         self.bypass_rbac = os.environ.get("BYPASS_RBAC", "false").lower() == "true"
+        self.bypass_kessel = os.environ.get("BYPASS_KESSEL", "false").lower() == "true"
         self.rbac_retries = os.environ.get("RBAC_RETRIES", 2)
         self.rbac_timeout = os.environ.get("RBAC_TIMEOUT", 10)
 
@@ -364,6 +365,7 @@ class Config:
 
         if self._runtime_environment == RuntimeEnvironment.TEST:
             self.bypass_rbac = True
+            self.bypass_kessel = True
             self.bypass_unleash = True
 
         self.replica_namespace = os.environ.get("REPLICA_NAMESPACE", "false").lower() == "true"
@@ -457,6 +459,8 @@ class Config:
             self.logger.info("RBAC Endpoint: %s", self.rbac_endpoint)
             self.logger.info("RBAC Retry Times: %s", self.rbac_retries)
             self.logger.info("RBAC Timeout Seconds: %s", self.rbac_timeout)
+
+            self.logger.info("Kessel Bypassed: %s", self.bypass_kessel)
 
             self.logger.info("Unleash (feature flags) Bypassed by config: %s", self.bypass_unleash)
             self.logger.info("Unleash (feature flags) Bypassed by missing token: %s", self.unleash_token is None)

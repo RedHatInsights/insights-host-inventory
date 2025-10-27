@@ -37,8 +37,6 @@ from app.models import HostGroupAssoc
 from app.models import db
 from app.models.system_profile_static import HostStaticSystemProfile
 from app.serialization import serialize_host_for_export_svc
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
-from lib.feature_flags import get_flag_value
 
 __all__ = (
     "get_all_hosts",
@@ -201,7 +199,7 @@ def get_host_id_by_insights_id(insights_id: str, rbac_filter=None) -> str | None
 
 def params_to_order_by(order_by: str | None = None, order_how: str | None = None) -> tuple:
     modified_on_ordering = (Host.modified_on.desc(),)
-    ordering: tuple = tuple()
+    ordering: tuple = ()
 
     if order_by == "updated":
         if order_how:
@@ -209,14 +207,7 @@ def params_to_order_by(order_by: str | None = None, order_how: str | None = None
     elif order_by == "display_name":
         ordering = (_order_how(Host.display_name, order_how),) if order_how else (Host.display_name.asc(),)
     elif order_by == "group_name":
-        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
-            ordering = _get_group_name_order_post_kessel(order_how)
-        else:
-            base_ordering = _order_how(Group.name, order_how) if order_how else Group.name.asc()
-            # Override default sorting
-            # When sorting by group_name ASC, ungrouped hosts should show first
-            ordering = (base_ordering.nulls_last(),) if order_how == "DESC" else (base_ordering.nulls_first(),)
-        return ordering
+        return _get_group_name_order_post_kessel(order_how)
     elif order_by == "operating_system":
         ordering = (_order_how(Host.operating_system, order_how),) if order_how else (Host.operating_system.desc(),)  # type: ignore [attr-defined]
 

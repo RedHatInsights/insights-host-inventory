@@ -243,6 +243,8 @@ objects:
             value: 'true'
           - name: BYPASS_RBAC
             value: ${BYPASS_RBAC}
+          - name: BYPASS_KESSEL
+            value: ${BYPASS_KESSEL}
           - name: KESSEL_TARGET_URL
             value: ${KESSEL_TARGET_URL}
           - name: KAFKA_PRODUCER_ACKS
@@ -343,6 +345,8 @@ objects:
             value: 'true'
           - name: BYPASS_RBAC
             value: ${BYPASS_RBAC}
+          - name: BYPASS_KESSEL
+            value: ${BYPASS_KESSEL}
           - name: KESSEL_TARGET_URL
             value: ${KESSEL_TARGET_URL}
           - name: KAFKA_PRODUCER_ACKS
@@ -443,6 +447,8 @@ objects:
             value: 'true'
           - name: BYPASS_RBAC
             value: ${BYPASS_RBAC}
+          - name: BYPASS_KESSEL
+            value: ${BYPASS_KESSEL}
           - name: KESSEL_TARGET_URL
             value: ${KESSEL_TARGET_URL}
           - name: KAFKA_PRODUCER_ACKS
@@ -558,6 +564,8 @@ objects:
             value: "${KAFKA_CONSUMER_SESSION_TIMEOUT_MS}"
           - name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
             value: "${KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS}"
+          - name: BYPASS_KESSEL
+            value: ${BYPASS_KESSEL}
           - name: UNLEASH_URL
             value: ${UNLEASH_URL}
           - <<: *unleashToken
@@ -627,6 +635,8 @@ objects:
             value: ${KAFKA_SECURITY_PROTOCOL}
           - name: KAFKA_SASL_MECHANISM
             value: ${KAFKA_SASL_MECHANISM}
+          - name: BYPASS_KESSEL
+            value: ${BYPASS_KESSEL}
           - name: CLOWDER_ENABLED
             value: "true"
           - name: INVENTORY_DB_SCHEMA
@@ -729,6 +739,8 @@ objects:
             value: "${KAFKA_CONSUMER_SESSION_TIMEOUT_MS}"
           - name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
             value: "${KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS}"
+          - name: BYPASS_KESSEL
+            value: ${BYPASS_KESSEL}
           - name: UNLEASH_URL
             value: ${UNLEASH_URL}
           - <<: *unleashToken
@@ -2298,6 +2310,9 @@ parameters:
   value: WARNING
 - description: disable RBAC middleware
   name: BYPASS_RBAC
+  value: 'false'
+- description: disable Kessel middleware
+  name: BYPASS_KESSEL
   value: 'false'
 
 # =================================================================================
