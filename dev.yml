@@ -193,6 +193,7 @@ services:
         - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
         - KAFKA_EVENT_TOPIC=platform.inventory.events
         - PAYLOAD_TRACKER_SERVICE_NAME=inventory-mq-service
+        - BYPASS_KESSEL=${BYPASS_KESSEL:-false}
       depends_on:
         db:
           condition: service_healthy
