@@ -43,6 +43,26 @@ class TestOutboxE2ECases:
     """End-to-end test cases for outbox functionality."""
 
     @staticmethod
+    def create_host_with_group(db_create_host, db_create_group, db_create_host_group_assoc, db_get_host, host_data=None):
+        """Helper method to create a host and assign it to a group."""
+        # Create a group first
+        group = db_create_group("test-outbox-group")
+        
+        # Create a host
+        if host_data is None:
+            host_data = {}
+        created_host = db_create_host(SYSTEM_IDENTITY, extra_data=host_data)
+        host_id = str(created_host.id)
+        
+        # Assign the host to the group
+        db_create_host_group_assoc(host_id, group.id)
+        
+        # Retrieve the host to ensure it has groups
+        host = db_get_host(created_host.id)
+        
+        return host_id, host
+
+    @staticmethod
     def mock_write_outbox(outbox_calls, event_type, host_id, host_obj, capture_groups=False):
         """Mock function that simulates the real write_event_to_outbox behavior."""
         entry = {
@@ -65,7 +85,7 @@ class TestOutboxE2ECases:
         outbox_calls.append(entry)
         return True
 
-    def test_successful_created_event_e2e(self, db_create_host, db_get_host):
+    def test_successful_created_event_e2e(self, db_create_host, db_create_group, db_create_host_group_assoc, db_get_host):
         """Test complete flow for a successful 'created' event."""
         # Create a host with all required fields
         host_data = {
@@ -77,11 +97,7 @@ class TestOutboxE2ECases:
             "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]},
         }
 
-        created_host = db_create_host(SYSTEM_IDENTITY, extra_data=host_data)
-        host_id = str(created_host.id)
-
-        # Retrieve the host to ensure it has groups
-        host = db_get_host(created_host.id)
+        host_id, host = self.create_host_with_group(db_create_host, db_create_group, db_create_host_group_assoc, db_get_host, host_data)
 
         # Track outbox success metrics to verify outbox operation succeeded
         with patch("lib.outbox_repository.outbox_save_success") as mock_success_metric:
@@ -100,7 +116,7 @@ class TestOutboxE2ECases:
 
             # The success metric increment proves the outbox entry was created, validated, and processed
 
-    def test_successful_updated_event_e2e(self, db_create_host, db_get_host):
+    def test_successful_updated_event_e2e(self, db_create_host, db_create_group, db_create_host_group_assoc, db_get_host):
         """Test complete flow for a successful 'updated' event."""
         # Create a host
         host_data = {
@@ -111,9 +127,7 @@ class TestOutboxE2ECases:
             "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]},
         }
 
-        created_host = db_create_host(SYSTEM_IDENTITY, extra_data=host_data)
-        host_id = str(created_host.id)
-        host = db_get_host(created_host.id)
+        host_id, host = self.create_host_with_group(db_create_host, db_create_group, db_create_host_group_assoc, db_get_host, host_data)
 
         # Track outbox success metrics to verify outbox operation succeeded
         with patch("lib.outbox_repository.outbox_save_success") as mock_success_metric:
@@ -155,12 +169,9 @@ class TestOutboxE2ECases:
 
             # The success metric increment proves the outbox entry was created, validated, and processed
 
-    def test_multiple_events_same_host_e2e(self, db_create_host, db_get_host):
+    def test_multiple_events_same_host_e2e(self, db_create_host, db_create_group, db_create_host_group_assoc, db_get_host):
         """Test multiple events for the same host create separate outbox entries."""
-        # Create a host
-        created_host = db_create_host(SYSTEM_IDENTITY)
-        host_id = str(created_host.id)
-        host = db_get_host(created_host.id)
+        host_id, host = self.create_host_with_group(db_create_host, db_create_group, db_create_host_group_assoc, db_get_host)
 
         # Track outbox success metrics to verify outbox operations succeeded
         with patch("lib.outbox_repository.outbox_save_success") as mock_success_metric:
@@ -368,7 +379,9 @@ class TestOutboxE2ECases:
                         "reporter_version": "1.0",
                         "transaction_id": str(uuid.uuid4()),
                     },
-                    "common": {},
+                    "common": {
+                        "workspace_id": str(uuid.uuid4())
+                    },
                     "reporter": {
                         "satellite_id": None,
                         "subscription_manager_id": str(uuid.uuid4()),
@@ -458,7 +471,9 @@ class TestOutboxE2ECases:
                         "reporter_version": "1.0",
                         "transaction_id": str(uuid.uuid4()),
                     },
-                    "common": {},
+                    "common": {
+                        "workspace_id": str(uuid.uuid4())
+                    },
                     "reporter": {
                         "satellite_id": None,
                         "subscription_manager_id": str(uuid.uuid4()),
@@ -513,6 +528,96 @@ class TestOutboxE2ECases:
         # Verify the error message mentions the missing transaction_id field
         error_message = str(exc_info.value)
         assert "transaction_id" in error_message
+
+    def test_write_event_to_outbox_fails_when_all_reporter_fields_are_none(self, db_create_host):
+        """Test that write_event_to_outbox fails when all reporter fields are None."""
+        # Create a host first
+        created_host = db_create_host(SYSTEM_IDENTITY)
+        host_id = str(created_host.id)
+        
+        # Mock the _create_update_event_payload function to return a payload with all reporter fields as None
+        def mock_create_update_event_payload(host):
+            metadata = {
+                "local_resource_id": str(host.id),
+                "api_href": "https://apihref.com/",
+                "console_href": "https://www.console.com/",
+                "reporter_version": "1.0",
+                "transaction_id": str(uuid.uuid4()),
+            }
+            
+            common = {"workspace_id": str(uuid.uuid4())}
+            
+            # All reporter fields are None - this should cause validation to fail
+            reporter = {
+                "satellite_id": None,
+                "subscription_manager_id": None,
+                "insights_id": None,
+                "ansible_host": None,
+            }
+            
+            representations = {
+                "metadata": metadata,
+                "common": common,
+                "reporter": reporter,
+            }
+            
+            return {
+                "type": "host",
+                "reporter_type": "hbi",
+                "reporter_instance_id": "redhat",
+                "representations": representations,
+            }
+        
+        # Patch the _create_update_event_payload function
+        with patch('lib.outbox_repository._create_update_event_payload', side_effect=mock_create_update_event_payload):
+            # This should now pass since we removed the validation that required at least one reporter field
+            result = write_event_to_outbox(EventType.created, host_id, created_host)
+            assert result is True
+
+    def test_write_event_to_outbox_succeeds_when_at_least_one_reporter_field_has_value(self, db_create_host):
+        """Test that write_event_to_outbox succeeds when at least one reporter field has a value."""
+        # Create a host first
+        created_host = db_create_host(SYSTEM_IDENTITY)
+        host_id = str(created_host.id)
+        
+        # Mock the _create_update_event_payload function to return a payload with at least one reporter field having a value
+        def mock_create_update_event_payload(host):
+            metadata = {
+                "local_resource_id": str(host.id),
+                "api_href": "https://apihref.com/",
+                "console_href": "https://www.console.com/",
+                "reporter_version": "1.0",
+                "transaction_id": str(uuid.uuid4()),
+            }
+            
+            common = {"workspace_id": str(uuid.uuid4())}
+            
+            # At least one reporter field has a value - this should pass validation
+            reporter = {
+                "satellite_id": None,
+                "subscription_manager_id": str(uuid.uuid4()),  # This field has a value
+                "insights_id": None,
+                "ansible_host": None,
+            }
+            
+            representations = {
+                "metadata": metadata,
+                "common": common,
+                "reporter": reporter,
+            }
+            
+            return {
+                "type": "host",
+                "reporter_type": "hbi",
+                "reporter_instance_id": "redhat",
+                "representations": representations,
+            }
+        
+        # Patch the _create_update_event_payload function
+        with patch('lib.outbox_repository._create_update_event_payload', side_effect=mock_create_update_event_payload):
+            # This should succeed because at least one reporter field has a value
+            result = write_event_to_outbox(EventType.created, host_id, created_host)
+            assert result is True
 
     def test_outbox_entry_with_groups(self, db_create_host, db_create_group, db_get_host, db_create_host_group_assoc):
         """Test outbox entry creation when host has groups."""
