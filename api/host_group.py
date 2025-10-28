@@ -75,10 +75,6 @@ def add_host_list_to_group(group_id, host_id_list, rbac_filter=None):
 def delete_hosts_from_group(group_id, host_id_list, rbac_filter=None):
     # Validate host ID list input data
     try:
-        if type(host_id_list) is not list:
-            return abort(
-                HTTPStatus.BAD_REQUEST, f"Body content must be an array with system UUIDs, not {type(host_id_list)}"
-            )
         validated_data = RequiredHostIdListSchema().load({"host_ids": host_id_list})
         host_id_list = validated_data["host_ids"]
     except ValidationError as e:
