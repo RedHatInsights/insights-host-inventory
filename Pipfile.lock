@@ -1190,12 +1190,12 @@
         },
         "redis": {
             "hashes": [
-                "sha256:b01bc7282b8444e28ec36b261df5375183bb47a07eb9c603f284e89cbc5ef010",
-                "sha256:f0544fa9604264e9464cdf4814e7d4830f74b165d52f2a330a760a88dd248b7f"
+                "sha256:4977af3c7d67f8f0eb8b6fec0dafc9605db9343142f634041fb0235f67c0588a",
+                "sha256:c949df947dca995dc68fdf5a7863950bf6df24f8d6022394585acc98e81624f1"
             ],
             "index": "pypi",
             "markers": "python_version >= '3.9'",
-            "version": "==6.4.0"
+            "version": "==7.0.1"
         },
         "referencing": {
             "hashes": [
