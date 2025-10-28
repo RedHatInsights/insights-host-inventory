@@ -339,6 +339,11 @@ class InputGroupSchema(MarshmallowSchema):
 
         return in_data
 
+    @validates("host_ids")
+    def validate_host_ids(self, host_ids, data_key):  # noqa: ARG002, required for marshmallow validator functions
+        if len(host_ids) != len(set(host_ids)):
+            raise MarshmallowValidationError("Host IDs must be unique.")
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
