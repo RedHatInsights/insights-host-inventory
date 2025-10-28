@@ -20,3 +20,5 @@ sonarqube/
 .hermetic_builds/ubi.repo
 
 .claude/
+
+tools/simple-test/output.json
