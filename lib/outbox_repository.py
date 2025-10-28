@@ -3,6 +3,7 @@ import uuid
 
 from marshmallow import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
 
 from app.exceptions import OutboxSaveException
 from app.logging import get_logger
@@ -120,7 +121,9 @@ def _build_outbox_entry(event: EventType, host_id: str, host: Host | None = None
     return outbox_entry
 
 
-def write_event_to_outbox(event: EventType, host_id: str, host: Host | None = None) -> bool:
+def write_event_to_outbox(
+    event: EventType, host_id: str, host: Host | None = None, session: Session | None = None
+) -> bool:
     """
     First check if required fields are present then build the outbox entry.
     """
@@ -129,6 +132,9 @@ def write_event_to_outbox(event: EventType, host_id: str, host: Host | None = No
 
     if not host_id:
         _report_error(f"Missing required field 'host_id': {host_id}")
+
+    if not session:
+        session = db.session
 
     try:
         outbox_entry = _build_outbox_entry(event, host_id, host)
@@ -154,11 +160,11 @@ def write_event_to_outbox(event: EventType, host_id: str, host: Host | None = No
         logger.debug(validated_outbox_entry)
 
         # Save the outbox entry to record the event in the write-ahead log.
-        db.session.add(outbox_entry_db)
+        session.add(outbox_entry_db)
 
         # Adding flush for emitting the event to outbox
-        db.session.flush()
-        db.session.delete(outbox_entry_db)
+        session.flush()
+        session.delete(outbox_entry_db)
 
         outbox_save_success.inc()
         logger.debug("Added outbox entry to session: aggregateid=%s", validated_outbox_entry["aggregateid"])

@@ -106,7 +106,7 @@ def _delete_host(session: Session, host: Host, identity: Identity | None, contro
 
     try:
         # write to the outbox table for synchronization with Kessel
-        result = write_event_to_outbox(EventType.delete, str(host.id))
+        result = write_event_to_outbox(EventType.delete, str(host.id), session=session)
         if not result:
             logger.error("Failed to write delete event to outbox")
             raise OutboxSaveException("Failed to write delete event to outbox")

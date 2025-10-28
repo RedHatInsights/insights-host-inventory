@@ -91,6 +91,7 @@ cat > ${PWD}/.env<<EOF
 PROMETHEUS_MULTIPROC_DIR=/tmp
 BYPASS_RBAC="true"
 BYPASS_UNLEASH="true"
+BYPASS_KESSEL="true"
 # Optional legacy prefix configuration
 # PATH_PREFIX="/r/insights/platform"
 APP_NAME="inventory"

@@ -674,41 +674,37 @@ class TestOutboxE2ECases:
 
         # Mock the outbox writing to capture the call without immediate deletion
         with patch("lib.host_repository.write_event_to_outbox") as mock_write_outbox:
-            # Also mock the Kessel migration flag to enable group assignment
-            with patch("lib.host_repository.get_flag_value", return_value=True):
-                mock_write_outbox.return_value = True
+            mock_write_outbox.return_value = True
 
-                # Create MQ consumer and process message
-                consumer = IngressMessageConsumer(
-                    None, flask_app, event_producer_mock, notification_event_producer_mock
-                )
-                result = consumer.handle_message(json.dumps(message))
-                db.session.commit()
+            # Create MQ consumer and process message
+            consumer = IngressMessageConsumer(None, flask_app, event_producer_mock, notification_event_producer_mock)
+            result = consumer.handle_message(json.dumps(message))
+            db.session.commit()
 
-                # Verify the host was created successfully with group assignment
-                assert result.event_type == EventType.created
-                assert result.row is not None
-                created_host = result.row
-                assert str(created_host.insights_id) == test_host.insights_id
-                assert created_host.fqdn == "test-grouped-mq-host.example.com"
-                assert len(created_host.groups) == 1  # Should be assigned to ungrouped hosts group
+            # Verify the host was created successfully with group assignment
+            assert result.event_type == EventType.created
+            assert result.row is not None
+            created_host = result.row
+            assert str(created_host.insights_id) == test_host.insights_id
+            assert created_host.fqdn == "test-grouped-mq-host.example.com"
+            assert len(created_host.groups) == 1  # Should be assigned to ungrouped hosts group
 
-                # Verify outbox entry was written with correct parameters
-                mock_write_outbox.assert_called_once()
-                call_args = mock_write_outbox.call_args
+            # Verify outbox entry was written with correct parameters
+            mock_write_outbox.assert_called_once()
+            call_args = mock_write_outbox.call_args
 
-                # Check the event type (first argument)
-                assert call_args[0][0] == EventType.created
+            # Check the event type (first argument)
+            assert call_args[0][0] == EventType.created
 
-                # Check the host ID (second argument)
-                assert str(call_args[0][1]) == str(created_host.id)
+            # Check the host ID (second argument)
+            assert str(call_args[0][1]) == str(created_host.id)
 
-                # Check the host object (third argument)
-                outbox_host = call_args[0][2]
-                assert outbox_host.id == created_host.id
-                assert outbox_host.insights_id == created_host.insights_id
-                assert outbox_host.fqdn == created_host.fqdn
-                assert len(outbox_host.groups) == 1  # Verify groups are included in outbox payload
+            # Check the host object (third argument)
+            outbox_host = call_args[0][2]
+            assert outbox_host.id == created_host.id
+            assert outbox_host.insights_id == created_host.insights_id
+            assert outbox_host.fqdn == created_host.fqdn
+            assert len(outbox_host.groups) == 1  # Verify groups are included in outbox payload
 
     def test_mq_host_creation_with_actual_outbox_entry(
         self, flask_app, event_producer_mock, notification_event_producer_mock
@@ -1220,171 +1216,33 @@ class TestOutboxE2ECases:
         # Mock the outbox writing to capture the calls and validate payload
         outbox_calls = []
 
-        # Mock the Kessel workspace migration flag to be False to avoid ungrouped group behavior
-        with patch("lib.group_repository.get_flag_value", return_value=False):
-            with patch(
-                "lib.group_repository.write_event_to_outbox",
-                side_effect=lambda event_type, host_id_param, host_obj: self.mock_write_outbox(
-                    outbox_calls, event_type, host_id_param, host_obj, capture_groups=True
-                ),
-            ):
-                # Make DELETE request to remove host from group
-                response_status, _ = api_remove_hosts_from_group(group_id, [host_id])
+        with patch(
+            "lib.group_repository.write_event_to_outbox",
+            side_effect=lambda event_type, host_id_param, host_obj: self.mock_write_outbox(
+                outbox_calls, event_type, host_id_param, host_obj, capture_groups=True
+            ),
+        ):
+            # Make DELETE request to remove host from group
+            response_status, _ = api_remove_hosts_from_group(group_id, [host_id])
 
-                # Verify the API request was successful
-                assert response_status == 204  # No Content
+            # Verify the API request was successful
+            assert response_status == 204  # No Content
 
-                # Verify outbox entry was created
-                assert len(outbox_calls) == 1
+            # Verify outbox entry was created
+            assert len(outbox_calls) == 1
 
-                call = outbox_calls[0]
-                assert call["event_type"] == EventType.updated
-                assert call["host_id"] == host_id
+            call = outbox_calls[0]
+            assert call["event_type"] == EventType.updated
+            assert call["host_id"] == host_id
 
-                # Use the captured groups information instead of accessing the detached host object
-                groups_info = call["groups"]
-                assert groups_info is not None
-                assert len(groups_info) == 0  # Host should have no groups after removal
+            # Use the captured groups information instead of accessing the detached host object
+            groups_info = call["groups"]
+            assert groups_info is not None
+            assert groups_info[0].get("ungrouped") is True
 
-                # Verify the host was actually removed from the group in the database
-                hosts_in_group_after = db_get_hosts_for_group(group_id)
-                assert len(hosts_in_group_after) == 0  # Group should be empty
-
-                # Verify the host no longer has any group information
-                updated_host = db_get_host(host_id)
-                assert len(updated_host.groups) == 0  # Host should have no groups
-
-    @pytest.mark.usefixtures("event_producer_mock")
-    def test_host_remove_from_group_via_api_endpoint_with_actual_outbox_validation(
-        self,
-        api_remove_hosts_from_group,
-        api_add_hosts_to_group,
-        db_create_host,
-        db_create_group,
-        db_get_host,
-        db_get_hosts_for_group,
-    ):
-        """
-        Test that removing a host from a group via API endpoint creates actual outbox entries and
-        validates workspace removal.
-        """
-
-        # Create a group
-        group = db_create_group("test-actual-remove-outbox-group")
-        group_id = str(group.id)
-
-        # Create a host
-        host = db_create_host(
-            extra_data={"display_name": "host-for-actual-remove-outbox", "ansible_host": "actual.remove.outbox.host"}
-        )
-        host_id = str(host.id)
-
-        # First, add the host to the group so we can remove it later
-        response_status, _ = api_add_hosts_to_group(group_id, [host_id])
-        assert response_status == 200
-
-        # Verify the host is in the group initially
-        initial_hosts_in_group = db_get_hosts_for_group(group_id)
-        assert len(initial_hosts_in_group) == 1
-
-        initial_host = db_get_host(host_id)
-        assert len(initial_host.groups) == 1
-        assert initial_host.groups[0]["id"] == group_id
-
-        # Use patch to capture outbox payload and verify the actual content
-        outbox_payloads = []
-        original_write_event_to_outbox = write_event_to_outbox
-
-        def capture_outbox_payload(event_type, host_id_param, host_obj):
-            # Capture groups information while host is still attached to session
-            groups_info = None
-            if host_obj is not None:
-                groups_info = host_obj.groups
-
-            # Call the original function to ensure real outbox functionality
-            result = original_write_event_to_outbox(event_type, host_id_param, host_obj)
-
-            # Capture the payload for validation by building it the same way
-            if host_obj is not None:
-                from lib.outbox_repository import _create_update_event_payload
-
-                payload = _create_update_event_payload(host_obj)
-                outbox_payloads.append(
-                    {
-                        "event_type": event_type,
-                        "host_id": host_id_param,
-                        "payload": payload,
-                        "host": host_obj,
-                        "groups": groups_info,
-                    }
-                )
-
-            return result
-
-        # Enable the Kessel workspace migration flag to get ungrouped group behavior (as required by Kessel)
-        with patch("lib.group_repository.get_flag_value", return_value=True):
-            with patch("lib.group_repository.write_event_to_outbox", side_effect=capture_outbox_payload):
-                # Make DELETE request to remove host from group
-                response_status, _ = api_remove_hosts_from_group(group_id, [host_id])
-
-                # Verify the API request was successful
-                assert response_status == 204  # No Content
-
-                # Verify outbox entry was created and processed
-                assert len(outbox_payloads) == 1
-
-                captured = outbox_payloads[0]
-                assert captured["event_type"] == EventType.updated
-                assert captured["host_id"] == host_id
-
-                # Use the captured groups information instead of accessing the detached host object
-                groups_info = captured["groups"]
-                assert groups_info is not None
-                assert len(groups_info) == 1  # Host should be in "ungrouped hosts" group
-                assert groups_info[0]["name"] == "Ungrouped Hosts"  # Kessel requires ungrouped hosts group
-
-                # Verify the outbox payload structure (what gets sent to Kessel)
-                payload = captured["payload"]
-                assert payload["type"] == "host"
-                assert payload["reporter_type"] == "hbi"
-                assert payload["reporter_instance_id"] == "redhat"
-
-                # Verify representations structure
-                representations = payload["representations"]
-                assert "metadata" in representations
-                assert "common" in representations
-
-                # Verify the "common" field contains workspace_id for the ungrouped hosts group
-                common = representations["common"]
-                assert "workspace_id" in common
-                # The workspace_id should be the ungrouped hosts group ID
-                ungrouped_group_id = groups_info[0]["id"]
-                assert common["workspace_id"] == ungrouped_group_id
-
-                # Verify host metadata in payload exists
-                metadata = representations["metadata"]
-                assert metadata is not None
-                # Verify transaction_id is present in metadata
-                assert "transaction_id" in metadata
-                assert metadata["transaction_id"] is not None
-
-                # Verify transaction_id is a valid UUID format
-                uuid.UUID(metadata["transaction_id"])  # This will raise ValueError if not a valid UUID
-
-                # Verify the host was actually removed from the original group in the database
-                hosts_in_group_after = db_get_hosts_for_group(group_id)
-                assert len(hosts_in_group_after) == 0  # Original group should be empty
-
-                # Verify the host is now in the ungrouped hosts group
-                updated_host = db_get_host(host_id)
-                assert len(updated_host.groups) == 1  # Host should be in ungrouped group
-                assert updated_host.groups[0]["name"] == "Ungrouped Hosts"
-
-                # Verify outbox entries were created and immediately deleted (new behavior)
-                outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
-                assert len(outbox_entries) == 0  # All entries are immediately deleted after flush
-
-                # The success of the operations indicates the outbox entries were created, validated, and processed
+            # Verify the host is in the ungrouped hosts group
+            updated_host = db_get_host(host_id)
+            assert updated_host.groups[0].get("ungrouped") is True
 
     @pytest.mark.usefixtures("event_producer_mock")
     def test_host_facts_replace_via_put_endpoint_with_outbox_validation(
@@ -1731,33 +1589,31 @@ class TestOutboxE2ECases:
         # Mock the outbox writing to capture the calls for removal
         outbox_calls = []
 
-        # Enable the Kessel workspace migration flag to get ungrouped group behavior
-        with patch("lib.group_repository.get_flag_value", return_value=True):
-            with patch(
-                "lib.group_repository.write_event_to_outbox",
-                side_effect=lambda event_type, host_id_param, host_obj: self.mock_write_outbox(
-                    outbox_calls, event_type, host_id_param, host_obj, capture_groups=True
-                ),
-            ):
-                # Remove 2 hosts from the group via API
-                response_status, _ = api_remove_hosts_from_group(group_id, hosts_to_remove)
+        with patch(
+            "lib.group_repository.write_event_to_outbox",
+            side_effect=lambda event_type, host_id_param, host_obj: self.mock_write_outbox(
+                outbox_calls, event_type, host_id_param, host_obj, capture_groups=True
+            ),
+        ):
+            # Remove 2 hosts from the group via API
+            response_status, _ = api_remove_hosts_from_group(group_id, hosts_to_remove)
 
-                # Verify the API request was successful
-                assert response_status == 204  # No Content
+        # Verify the API request was successful
+        assert response_status == 204  # No Content
 
-                # Verify outbox entries were created for the 2 removed hosts
-                assert len(outbox_calls) == 2
+        # Verify outbox entries were created for the 2 removed hosts
+        assert len(outbox_calls) == 2
 
-                # Validate each outbox call for removed hosts
-                for call in outbox_calls:
-                    assert call["event_type"] == EventType.updated
-                    assert call["host_id"] in hosts_to_remove
+        # Validate each outbox call for removed hosts
+        for call in outbox_calls:
+            assert call["event_type"] == EventType.updated
+            assert call["host_id"] in hosts_to_remove
 
-                    # Use the captured groups information instead of accessing the detached host object
-                    groups_info = call["groups"]
-                    assert groups_info is not None
-                    assert len(groups_info) == 1  # Host should be in ungrouped hosts group
-                    assert groups_info[0]["name"] == "Ungrouped Hosts"  # Kessel requires ungrouped hosts group
+            # Use the captured groups information instead of accessing the detached host object
+            groups_info = call["groups"]
+            assert groups_info is not None
+            assert len(groups_info) == 1  # Host should be in ungrouped hosts group
+            assert groups_info[0]["name"] == "Ungrouped Hosts"  # Kessel requires ungrouped hosts group
 
         # Verify the group now contains only 1 host
         hosts_in_group_after_remove = db_get_hosts_for_group(group_id)
@@ -1847,7 +1703,7 @@ class TestOutboxE2ECases:
     def test_host_creation_with_kessel_workspace_migration_enabled(
         self, flask_app, event_producer_mock, notification_event_producer_mock
     ):
-        """Test host creation with FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION enabled using MQ flow.
+        """Test post-Kessel host creation using MQ flow.
 
         Verifies:
         1. Host creation event is written to the outbox table automatically
@@ -1869,8 +1725,6 @@ class TestOutboxE2ECases:
         # Mock the Kessel migration flag to enable group assignment
         # Mock the RBAC workspace creation to avoid making actual API calls
         with (
-            patch("lib.host_repository.get_flag_value", return_value=True),
-            patch("lib.group_repository.get_flag_value", return_value=True),
             patch("lib.middleware.rbac_create_ungrouped_hosts_workspace", return_value=generate_uuid()),
         ):
             # Create MQ consumer and process message
