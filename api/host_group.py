@@ -39,6 +39,8 @@ def add_host_list_to_group(group_id, host_id_list, rbac_filter=None):
 
     if len(host_id_list) == 0:
         return abort(HTTPStatus.BAD_REQUEST, "Body content must be an array with system UUIDs, not an empty array")
+    elif len(host_id_list) != len(set(host_id_list)):
+        return abort(HTTPStatus.BAD_REQUEST, "Host IDs must be unique.")
 
     rbac_group_id_check(rbac_filter, {group_id})
     identity = get_current_identity()
