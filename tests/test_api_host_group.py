@@ -310,3 +310,14 @@ def test_group_with_culled_hosts(
     _, response_data = api_get(GROUP_URL + "/" + ",".join([str(group_id)]))
     host_count = response_data["results"][0]["host_count"]
     assert host_count == 2
+
+
+@pytest.mark.parametrize(
+    "host_ids",
+    [[str(generate_uuid())] * 2, [str(generate_uuid())] + [str(generate_uuid())] * 2],
+)
+def test_add_host_list_with_duplicate_host_ids(db_create_group, api_add_hosts_to_group, host_ids):
+    group_id = db_create_group("test_group").id
+    response_status, response_data = api_add_hosts_to_group(group_id, host_ids)
+    assert response_status == 400
+    assert "Host IDs must be unique." in response_data["detail"]

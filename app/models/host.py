@@ -246,6 +246,7 @@ class Host(LimitedHost):
         reporter=None,
         per_reporter_staleness=None,
         groups=None,
+        id=None,
         insights_id=None,
         subscription_manager_id=None,
         satellite_id=None,
@@ -256,7 +257,6 @@ class Host(LimitedHost):
         provider_id=None,
         provider_type=None,
     ):
-        id = None
         if tags is None:
             tags = {}
 
