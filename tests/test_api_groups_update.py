@@ -324,6 +324,22 @@ def test_patch_group_same_hosts(
         assert host["groups"][0]["id"] == str(group_id)
 
 
+@pytest.mark.parametrize(
+    "host_ids",
+    [[str(generate_uuid())] * 2, [str(generate_uuid())] + [str(generate_uuid())] * 2],
+)
+def test_patch_group_duplicate_host_ids(db_create_group_with_hosts, api_patch_group, event_producer, mocker, host_ids):
+    # Create a group with hosts
+    mocker.patch.object(event_producer, "write_event")
+    group = db_create_group_with_hosts("test_group", 5)
+    group_id = group.id
+
+    patch_doc = {"name": "modified_group", "host_ids": host_ids}
+    response_status, response_data = api_patch_group(group_id, patch_doc)
+    assert_response_status(response_status, 400)
+    assert "Host IDs must be unique." in response_data["detail"]
+
+
 def test_patch_group_both_add_and_remove_hosts(
     db_create_group_with_hosts,
     db_get_hosts_for_group,
