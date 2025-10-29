@@ -4,7 +4,7 @@
     "github>RedHatInsights/konflux-pipelines//renovate/foreman_satellite/renovate.json"
   ],
   "ignorePaths": [
-    "Pipfile",
+    "Pipfile"
   ],
   "tekton": {
     "includePaths": [
