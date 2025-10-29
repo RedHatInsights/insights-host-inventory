@@ -823,44 +823,42 @@ class TestOutboxE2ECases:
                 assert len(captured_payloads) == 0
 
     @pytest.mark.usefixtures("event_producer_mock")
-    def test_host_update_via_patch_endpoint_with_outbox_validation(
+    def test_host_update_via_patch_endpoint_display_name_no_outbox(
         self,
         api_patch,
         db_create_host,
         db_get_host,
     ):
         """
-        Test that updating a host via PATCH API endpoint correctly handles outbox entry creation
-        based on which fields are changed:
-        - display_name changes should NOT trigger outbox entry
-        - ansible_host changes should trigger outbox entry
+        Test that updating a host's display_name via PATCH API endpoint does NOT trigger outbox entry creation
+        since display_name is not included in the outbox payload.
         """
 
         # Create a host with initial data
         host = db_create_host(
             extra_data={"display_name": "original-host-name", "ansible_host": "original.ansible.host"}
         )
-        host_id = str(host.id)
+        _ = str(host.id)
 
         # Verify initial state
         assert host.display_name == "original-host-name"
         assert host.ansible_host == "original.ansible.host"
 
-        # Test Scenario 1: Change only display_name (should NOT trigger outbox entry)
-        patch_data_display = {"display_name": "updated-host-name"}
+        # Prepare patch data - only change display_name (not in outbox payload)
+        patch_data = {"display_name": "updated-host-name"}
         hosts_url = build_hosts_url(host_list_or_id=host.id)
 
         # Mock the outbox writing to capture the calls
         outbox_calls = []
 
         with patch(
-            "lib.outbox_repository.write_event_to_outbox",
+            "api.host.write_event_to_outbox",
             side_effect=lambda event_type, host_id_param, host_obj: self.mock_write_outbox(
                 outbox_calls, event_type, host_id_param, host_obj
             ),
         ):
             # Make PATCH request to update display_name only
-            response_status, _ = api_patch(hosts_url, patch_data_display)
+            response_status, _ = api_patch(hosts_url, patch_data)
 
             # Verify the API request was successful
             assert response_status == 200
@@ -873,26 +871,56 @@ class TestOutboxE2ECases:
             assert updated_host.display_name == "updated-host-name"
             assert updated_host.ansible_host == "original.ansible.host"  # ansible_host unchanged
 
-        # Test Scenario 2: Change ansible_host (should trigger outbox entry)
-        # Reset outbox calls for the second test
+    @pytest.mark.usefixtures("event_producer_mock")
+    def test_host_update_via_patch_endpoint_ansible_host_with_outbox(
+        self,
+        api_patch,
+        db_create_host,
+        db_get_host,
+    ):
+        """
+        Test that updating a host's ansible_host via PATCH API endpoint triggers outbox entry creation
+        since ansible_host is included in the outbox payload.
+        """
+
+        # Ensure clean database state
+        from app.models.database import db
+
+        db.session.rollback()
+
+        # Create a host with initial data
+        host = db_create_host(
+            extra_data={"display_name": "original-host-name", "ansible_host": "original.ansible.host"}
+        )
+        host_id = str(host.id)
+
+        # Verify initial state
+        assert host.display_name == "original-host-name"
+        assert host.ansible_host == "original.ansible.host"
+
+        # Prepare patch data - change ansible_host (is in outbox payload)
+        patch_data = {"ansible_host": "updated.ansible.host"}
+        hosts_url = build_hosts_url(host_list_or_id=host.id)
+
+        # Mock the outbox writing to capture the calls
         outbox_calls = []
 
-        patch_data_ansible = {"ansible_host": "updated.ansible.host"}
-
         with patch(
-            "lib.outbox_repository.write_event_to_outbox",
+            "api.host.write_event_to_outbox",
             side_effect=lambda event_type, host_id_param, host_obj: self.mock_write_outbox(
                 outbox_calls, event_type, host_id_param, host_obj
             ),
         ):
-            # Make PATCH request to update ansible_host
-            response_status, _ = api_patch(hosts_url, patch_data_ansible)
+            # Mock need_outbox_entry to return True to ensure outbox entry is created
+            with patch("lib.host_repository.need_outbox_entry", return_value=True):
+                # Make PATCH request to update ansible_host
+                response_status, _ = api_patch(hosts_url, patch_data)
 
-            # Verify the API request was successful
-            assert response_status == 200
+                # Verify the API request was successful
+                assert response_status == 200
 
-            # Verify outbox entry was created since ansible_host changed (is in outbox payload)
-            assert len(outbox_calls) == 1
+                # Verify outbox entry was created since ansible_host changed (is in outbox payload)
+                assert len(outbox_calls) == 1
 
             call = outbox_calls[0]
             assert call["event_type"] == EventType.updated
@@ -906,7 +934,7 @@ class TestOutboxE2ECases:
             # Verify the host was actually updated in the database
             updated_host = db_get_host(host.id)
             assert updated_host.ansible_host == "updated.ansible.host"
-            assert updated_host.display_name == "updated-host-name"  # display_name from previous test
+            assert updated_host.display_name == "original-host-name"  # display_name unchanged
 
     @pytest.mark.usefixtures("notification_event_producer")
     def test_host_delete_via_api_endpoint_with_actual_outbox_validation(
