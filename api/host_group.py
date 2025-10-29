@@ -3,9 +3,11 @@ from http import HTTPStatus
 from flask import Response
 from flask import abort
 from flask import current_app
+from marshmallow import ValidationError
 
 from api import api_operation
 from api import flask_json_response
+from api import json_error_response
 from api import metrics
 from api.group_query import build_group_response
 from app.auth import get_current_identity
@@ -13,6 +15,7 @@ from app.auth.rbac import KesselResourceTypes
 from app.instrumentation import log_host_group_add_succeeded
 from app.instrumentation import log_patch_group_failed
 from app.logging import get_logger
+from app.models.schemas import RequiredHostIdListSchema
 from lib.group_repository import add_hosts_to_group
 from lib.group_repository import get_group_by_id_from_db
 from lib.group_repository import remove_hosts_from_group
@@ -32,13 +35,13 @@ logger = get_logger(__name__)
 # and destination, which this preserves)
 @metrics.api_request_time.time()
 def add_host_list_to_group(group_id, host_id_list, rbac_filter=None):
-    if type(host_id_list) is not list:
-        return abort(
-            HTTPStatus.BAD_REQUEST, f"Body content must be an array with system UUIDs, not {type(host_id_list)}"
-        )
-
-    if len(host_id_list) == 0:
-        return abort(HTTPStatus.BAD_REQUEST, "Body content must be an array with system UUIDs, not an empty array")
+    # Validate host ID list input data
+    try:
+        validated_data = RequiredHostIdListSchema().load({"host_ids": host_id_list})
+        host_id_list = validated_data["host_ids"]
+    except ValidationError as e:
+        logger.exception(f"Input validation error while adding hosts to group: {host_id_list}")
+        return json_error_response("Validation Error", str(e.messages), HTTPStatus.BAD_REQUEST)
 
     rbac_group_id_check(rbac_filter, {group_id})
     identity = get_current_identity()
@@ -49,7 +52,6 @@ def add_host_list_to_group(group_id, host_id_list, rbac_filter=None):
         log_patch_group_failed(logger, group_id)
         return abort(HTTPStatus.NOT_FOUND)
 
-    host_id_list = host_id_list
     if not get_host_list_by_id_list_from_db(host_id_list, identity):
         return abort(HTTPStatus.NOT_FOUND)
 
@@ -71,6 +73,14 @@ def add_host_list_to_group(group_id, host_id_list, rbac_filter=None):
 # origin and destination, which this preserves)
 @metrics.api_request_time.time()
 def delete_hosts_from_group(group_id, host_id_list, rbac_filter=None):
+    # Validate host ID list input data
+    try:
+        validated_data = RequiredHostIdListSchema().load({"host_ids": host_id_list})
+        host_id_list = validated_data["host_ids"]
+    except ValidationError as e:
+        logger.exception(f"Input validation error while removing hosts from group: {host_id_list}")
+        return json_error_response("Validation Error", str(e.messages), HTTPStatus.BAD_REQUEST)
+
     rbac_group_id_check(rbac_filter, {group_id})
     identity = get_current_identity()
     if (group := get_group_by_id_from_db(group_id, identity.org_id)) is None:
