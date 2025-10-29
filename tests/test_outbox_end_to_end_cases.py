@@ -876,7 +876,7 @@ class TestOutboxE2ECases:
         # Test Scenario 2: Change ansible_host (should trigger outbox entry)
         # Reset outbox calls for the second test
         outbox_calls = []
-        
+
         patch_data_ansible = {"ansible_host": "updated.ansible.host"}
 
         with patch(

@@ -56,9 +56,10 @@ from app.utils import Tag
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
 from lib.feature_flags import get_flag_value
 from lib.host_delete import delete_hosts
-from lib.host_repository import find_existing_host, need_outbox_entry
+from lib.host_repository import find_existing_host
 from lib.host_repository import find_non_culled_hosts
 from lib.host_repository import get_host_list_by_id_list_from_db
+from lib.host_repository import need_outbox_entry
 from lib.kessel import get_kessel_client
 from lib.middleware import access
 from lib.middleware import get_kessel_filter
