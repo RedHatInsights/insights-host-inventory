@@ -83,6 +83,16 @@ objects:
     appName: host-inventory
     jobs:
       - update-rhsm-host-timestamps
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    labels:
+      app: host-inventory
+    name: backfill-per-reporter-culled-timestamps-${BACKFILL_PER_REPORTER_CULLED_TIMESTAMPS_RUN_NUMBER}
+  spec:
+    appName: host-inventory
+    jobs:
+      - backfill-per-reporter-culled-timestamps
 parameters:
 - name: SYNCHRONIZER_RUN_NUMBER
   value: '1'
@@ -99,4 +109,6 @@ parameters:
 - name: ASSIGN_UNGROUPED_HOSTS_RUN_NUMBER
   value: '1'
 - name: UPDATE_RHSM_HOST_TIMESTAMPS_RUN_NUMBER
+  value: '1'
+- name: BACKFILL_PER_REPORTER_CULLED_TIMESTAMPS_RUN_NUMBER
   value: '1'

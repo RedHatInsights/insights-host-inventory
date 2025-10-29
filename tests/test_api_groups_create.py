@@ -1,8 +1,10 @@
+import contextlib
 import json
 from copy import deepcopy
 
 import pytest
 from dateutil import parser
+from sqlalchemy.exc import IntegrityError
 
 from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
@@ -147,6 +149,30 @@ def test_create_group_invalid_host_ids(api_create_group, host_ids, event_produce
 
     assert_response_status(response_status, expected_status=400)
     assert any(s in response_data["detail"] for s in host_ids)
+
+    # No hosts modified, so no events should be written.
+    assert event_producer.write_event.call_count == 0
+
+
+@pytest.mark.parametrize(
+    "host_ids",
+    [[str(generate_uuid())] * 2, [str(generate_uuid())] + [str(generate_uuid())] * 2],
+)
+def test_create_group_duplicate_host_ids(api_create_group, db_create_host, host_ids, event_producer, mocker):
+    mocker.patch.object(event_producer, "write_event")
+    group_data = {"name": "my_awesome_group", "host_ids": host_ids}
+
+    # Create hosts with the given host IDs, ignoring duplicates
+    from uuid import UUID
+
+    for host_id in host_ids:
+        with contextlib.suppress(IntegrityError):
+            db_create_host(extra_data={"id": UUID(host_id)})
+
+    response_status, response_data = api_create_group(group_data)
+
+    assert_response_status(response_status, expected_status=400)
+    assert "Host IDs must be unique." in response_data["detail"]
 
     # No hosts modified, so no events should be written.
     assert event_producer.write_event.call_count == 0
