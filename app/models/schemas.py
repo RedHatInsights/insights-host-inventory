@@ -404,7 +404,7 @@ class OutboxEventReporterSchema(MarshmallowSchema):
     @validates_schema
     def validate_at_least_one_field(self, data, **kwargs):
         """Ensure at least one field has a non-none value."""
-        fields_to_check = ['satellite_id', 'subscription_manager_id', 'insights_id', 'ansible_host']
+        fields_to_check = ["satellite_id", "subscription_manager_id", "insights_id", "ansible_host"]
         if not any(data.get(field) is not None for field in fields_to_check):
             raise MarshmallowValidationError("At least one field must have a non-none value")
 

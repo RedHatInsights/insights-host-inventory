@@ -28,7 +28,6 @@ from app.exceptions import OutboxSaveException
 from app.logging import get_logger
 from app.models import Group
 from app.models import Host
-from lib.db import get_independent_db_session
 from app.models import HostGroupAssoc
 from app.models import LimitedHost
 from app.models import db
@@ -37,6 +36,7 @@ from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness
 from app.staleness_states import HostStalenessStatesDbFilters
 from lib import metrics
+from lib.db import get_independent_db_session
 from lib.outbox_repository import write_event_to_outbox
 
 __all__ = (
@@ -437,12 +437,12 @@ def host_query(
 def _compare_field(input_value: Any, db_value: Any, field_name: str) -> bool:
     """
     Helper function to compare a field value and log differences.
-    
+
     Args:
         input_value: The input value to compare
         db_value: The database value to compare against
         field_name: The name of the field being compared (for logging)
-        
+
     Returns:
         True if the values differ, False if they match
     """
@@ -478,7 +478,9 @@ def need_outbox_entry(host: Host) -> bool:
 
         existing_group_id = None
         if db_host.groups and len(db_host.groups) > 0:
-            existing_group_id = db_host.groups[0].get("id") if isinstance(db_host.groups[0], dict) else str(db_host.groups[0].id)
+            existing_group_id = (
+                db_host.groups[0].get("id") if isinstance(db_host.groups[0], dict) else str(db_host.groups[0].id)
+            )
 
         # Compare all relevant fields using the helper function
         fields_to_compare = [
@@ -490,7 +492,8 @@ def need_outbox_entry(host: Host) -> bool:
         ]
 
         for field_name, input_value, db_value in fields_to_compare:
-            if _compare_field(input_value, db_value, field_name, host.id):
+            if _compare_field(input_value, db_value, field_name):
+                logger.debug(f"Outbox entry needed for host {host.id} due to {field_name} change")
                 return True
 
         logger.debug(f"All outbox parameters match for host {host.id}, no outbox entry needed")
