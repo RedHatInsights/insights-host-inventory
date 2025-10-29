@@ -11,7 +11,7 @@ flask-sqlalchemy = "~=3.1.1"
 psycopg2 = "~=2.9.10"
 flask-migrate = "~=4.1.0"
 gunicorn = "~=23.0.0"
-connexion = {version = "~=3.2.0",extras = ["swagger-ui", "flask", "uvicorn"]}
+connexion = {version = "~=3.3.0",extras = ["swagger-ui", "flask", "uvicorn"]}
 markupsafe = "==3.0.3"
 openapi-schema-validator = "==0.6.3"
 openapi-spec-validator = "==0.7.2"
