@@ -337,9 +337,28 @@ class PatchHostSchema(MarshmallowSchema):
         super().__init__(*args, **kwargs)
 
 
-class InputGroupSchema(MarshmallowSchema):
+class HostIdListSchema(MarshmallowSchema):
+    host_ids = fields.List(fields.Str(validate=verify_uuid_format), required=False)
+
+    @validates("host_ids")
+    def validate_host_ids(self, host_ids, data_key):  # noqa: ARG002, required for marshmallow validator functions
+        if host_ids is not None and len(host_ids) != len(set(host_ids)):
+            raise MarshmallowValidationError("Host IDs must be unique.")
+
+
+class RequiredHostIdListSchema(HostIdListSchema):
+    host_ids = fields.List(fields.Str(validate=verify_uuid_format), required=True)
+
+    @validates("host_ids")
+    def validate_host_ids(self, host_ids, data_key):  # noqa: ARG002, required for marshmallow validator functions
+        if len(host_ids) == 0:
+            raise MarshmallowValidationError("Body content must be an array with system UUIDs, not an empty array")
+        # Call parent validation for duplicate checking
+        super().validate_host_ids(host_ids, data_key)
+
+
+class InputGroupSchema(HostIdListSchema):
     name = fields.Str(validate=marshmallow_validate.Length(min=1, max=255))
-    host_ids = fields.List(fields.Str(validate=verify_uuid_format))
 
     @pre_load
     def strip_whitespace_from_name(self, in_data, **kwargs):
