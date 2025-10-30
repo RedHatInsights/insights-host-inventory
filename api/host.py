@@ -59,6 +59,7 @@ from lib.host_delete import delete_hosts
 from lib.host_repository import find_existing_host
 from lib.host_repository import find_non_culled_hosts
 from lib.host_repository import get_host_list_by_id_list_from_db
+from lib.host_repository import need_outbox_entry
 from lib.kessel import get_kessel_client
 from lib.middleware import access
 from lib.middleware import get_kessel_filter
@@ -417,15 +418,17 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
         host.patch(validated_patch_host_data)
 
         if db.session.is_modified(host):
-            try:
-                # write to the outbox table for synchronization with Kessel
-                result = write_event_to_outbox(EventType.updated, str(host.id), host)
-                if not result:
-                    logger.error("Failed to write updated event to outbox")
-                    raise OutboxSaveException("Failed to write updated host event to outbox")
-            except OutboxSaveException as ose:
-                logger.error("Failed to write updated event to outbox: %s", str(ose))
-                raise ose
+            # Check if outbox entry is needed before writing
+            if need_outbox_entry(host):
+                try:
+                    # write to the outbox table for synchronization with Kessel
+                    result = write_event_to_outbox(EventType.updated, str(host.id), host)
+                    if not result:
+                        logger.error("Failed to write updated event to outbox")
+                        raise OutboxSaveException("Failed to write updated host event to outbox")
+                except OutboxSaveException as ose:
+                    logger.error("Failed to write updated event to outbox: %s", str(ose))
+                    raise ose
 
             db.session.commit()
             serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
@@ -502,16 +505,6 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
             host.merge_facts_in_namespace(namespace, fact_dict)
 
         if db.session.is_modified(host):
-            try:
-                # write to the outbox table for synchronization with Kessel
-                result = write_event_to_outbox(EventType.updated, str(host.id), host)
-                if not result:
-                    logger.error("Failed to write updated event to outbox")
-                    raise OutboxSaveException("Failed to write updated host event to outbox")
-            except OutboxSaveException as ose:
-                logger.error("Failed to write updated event to outbox: %s", str(ose))
-                raise ose
-
             db.session.commit()
             serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
             _emit_patch_event(serialized_host, host)

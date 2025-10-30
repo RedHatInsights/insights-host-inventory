@@ -39,6 +39,7 @@ from lib.db import session_guard
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.host_repository import get_non_culled_hosts_count_in_group
 from lib.host_repository import host_query
+from lib.host_repository import need_outbox_entry
 from lib.metrics import delete_group_count
 from lib.metrics import delete_group_processing_time
 from lib.metrics import delete_host_group_count
@@ -223,17 +224,21 @@ def _process_host_changes(
         batch_host_list = get_host_list_by_id_list_from_db(batch, identity)
         host_list.extend(batch_host_list)
         for host in batch_host_list:
-            try:
-                # Eagerly load the groups attribute to prevent DetachedInstanceError
-                _ = host.groups
-                # write to the outbox table for synchronization with Kessel
-                result = write_event_to_outbox(EventType.updated, str(host.id), host)
-                if not result:
-                    logger.error("Failed to write updated event to outbox")
-                    raise OutboxSaveException("Failed to write update event to outbox")
-            except OutboxSaveException as ose:
-                logger.error("Failed to write updated event to outbox: %s", str(ose))
-                raise ose
+            # Eagerly load the groups attribute to prevent DetachedInstanceError
+            _ = host.groups
+            # Check if outbox entry is needed before writing to outbox
+            if need_outbox_entry(host):
+                try:
+                    # write to the outbox table for synchronization with Kessel
+                    result = write_event_to_outbox(EventType.updated, str(host.id), host)
+                    if not result:
+                        logger.error("Failed to write updated event to outbox")
+                        raise OutboxSaveException("Failed to write update event to outbox")
+                except OutboxSaveException as ose:
+                    logger.error("Failed to write updated event to outbox: %s", str(ose))
+                    raise ose
+            else:
+                logger.debug(f"Skipping outbox entry for host {host.id} as parameters have not changed")
 
     refreshed_host_id_list = [str(host.id) for host in host_list]
     return refreshed_host_id_list
