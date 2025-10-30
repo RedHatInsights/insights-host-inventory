@@ -28,11 +28,16 @@ from app.models.schemas import OutboxSchema
 from app.queue.events import EventType
 from app.queue.host_mq import IngressMessageConsumer
 from app.queue.host_mq import WorkspaceMessageConsumer
+from lib.outbox_repository import _create_update_event_payload
 from lib.outbox_repository import remove_event_from_outbox
 from lib.outbox_repository import write_event_to_outbox
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.mq_utils import generate_kessel_workspace_message
 from tests.helpers.mq_utils import wrap_message
+from tests.helpers.outbox_utils import assert_outbox_empty
+from tests.helpers.outbox_utils import build_delete_payload
+from tests.helpers.outbox_utils import build_updated_payload
+from tests.helpers.outbox_utils import capture_outbox_calls
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import get_platform_metadata
@@ -41,29 +46,6 @@ from tests.helpers.test_utils import minimal_host
 
 class TestOutboxE2ECases:
     """End-to-end test cases for outbox functionality."""
-
-    @staticmethod
-    def mock_write_outbox(outbox_calls, event_type, host_id, host_obj, capture_groups=False):
-        """Mock function that simulates the real write_event_to_outbox behavior."""
-        entry = {
-            "event_type": event_type,
-            "host_id": host_id,
-            "host": host_obj,
-            "outbox_entry": {
-                "aggregateid": host_id,
-                "aggregatetype": "Host",
-                "operation": event_type.value,
-                "version": "1.0",
-                "payload": {"host_id": host_id} if host_obj else None,
-            },
-        }
-
-        # Special case: capture groups information while host is still attached to session
-        if capture_groups and host_obj is not None:
-            entry["groups"] = host_obj.groups
-
-        outbox_calls.append(entry)
-        return True
 
     def test_successful_created_event_e2e(self, db_create_host, db_get_host):
         """Test complete flow for a successful 'created' event."""
@@ -95,8 +77,7 @@ class TestOutboxE2ECases:
             mock_success_metric.inc.assert_called_once()
 
             # Verify outbox entry was created and immediately deleted (new behavior)
-            outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
-            assert len(outbox_entries) == 0  # Entry is immediately deleted after flush
+            assert_outbox_empty(db, host_id)
 
             # The success metric increment proves the outbox entry was created, validated, and processed
 
@@ -127,8 +108,7 @@ class TestOutboxE2ECases:
             mock_success_metric.inc.assert_called_once()
 
             # Verify outbox entry was created and immediately deleted (new behavior)
-            outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
-            assert len(outbox_entries) == 0  # Entry is immediately deleted after flush
+            assert_outbox_empty(db, host_id)
 
             # The success metric increment proves the outbox entry was created, validated, and processed
 
@@ -150,8 +130,7 @@ class TestOutboxE2ECases:
             mock_success_metric.inc.assert_called_once()
 
             # Verify outbox entry was created and immediately deleted (new behavior)
-            outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
-            assert len(outbox_entries) == 0  # Entry is immediately deleted after flush
+            assert_outbox_empty(db, host_id)
 
             # The success metric increment proves the outbox entry was created, validated, and processed
 
@@ -173,8 +152,7 @@ class TestOutboxE2ECases:
             assert mock_success_metric.inc.call_count == 3
 
             # Verify outbox entries were created and immediately deleted (new behavior)
-            outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
-            assert len(outbox_entries) == 0  # All entries are immediately deleted after flush
+            assert_outbox_empty(db, host_id)
 
             # The success metric increments prove the outbox entries were created, validated, and processed
 
@@ -192,8 +170,7 @@ class TestOutboxE2ECases:
         assert "Missing required field 'event'" in str(exc_info.value)
 
         # Verify no outbox entry was created
-        outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
-        assert len(outbox_entries) == 0
+        assert_outbox_empty(db, host_id)
 
     def test_missing_event_parameter_error(self, db_create_host):
         """Test error handling for missing event parameter."""
@@ -384,15 +361,7 @@ class TestOutboxE2ECases:
         assert validated_data is not None
 
         # Test delete payload
-        delete_payload = {
-            "aggregatetype": "hbi.hosts",
-            "aggregateid": str(uuid.uuid4()),
-            "operation": "DeleteResource",
-            "version": "v1beta2",
-            "payload": {
-                "reference": {"resource_type": "host", "resource_id": str(uuid.uuid4()), "reporter": {"type": "HBI"}}
-            },
-        }
+        delete_payload = build_delete_payload()
 
         validated_delete_data = schema.load(delete_payload)
         assert validated_delete_data is not None
@@ -441,33 +410,7 @@ class TestOutboxE2ECases:
     def test_outbox_schema_validation_success_updated_operation(self):
         """Test that valid outbox entries with 'updated' operation pass schema validation."""
         # Test updated payload
-        updated_payload = {
-            "aggregatetype": "hbi.hosts",
-            "aggregateid": str(uuid.uuid4()),
-            "operation": "updated",  # Use 'updated' to trigger payload validation
-            "version": "v1beta2",
-            "payload": {
-                "type": "host",
-                "reporter_type": "hbi",
-                "reporter_instance_id": "redhat.com",
-                "representations": {
-                    "metadata": {
-                        "local_resource_id": str(uuid.uuid4()),
-                        "api_href": "https://apihref.com/",
-                        "console_href": "https://www.console.com/",
-                        "reporter_version": "1.0",
-                        "transaction_id": str(uuid.uuid4()),
-                    },
-                    "common": {"workspace_id": str(uuid.uuid4())},
-                    "reporter": {
-                        "satellite_id": None,
-                        "subscription_manager_id": str(uuid.uuid4()),
-                        "insights_id": str(uuid.uuid4()),
-                        "ansible_host": None,
-                    },
-                },
-            },
-        }
+        updated_payload = build_updated_payload()
 
         schema = OutboxSchema()
         validated_data = schema.load(updated_payload)
@@ -476,33 +419,9 @@ class TestOutboxE2ECases:
     def test_outbox_schema_validation_fails_without_transaction_id_updated_operation(self):
         """Test that outbox entries with 'updated' operation without transaction_id fail schema validation."""
         # Test updated payload without transaction_id
-        updated_payload_missing_transaction_id = {
-            "aggregatetype": "hbi.hosts",
-            "aggregateid": str(uuid.uuid4()),
-            "operation": "updated",  # Use 'updated' to trigger payload validation
-            "version": "v1beta2",
-            "payload": {
-                "type": "host",
-                "reporter_type": "hbi",
-                "reporter_instance_id": "redhat.com",
-                "representations": {
-                    "metadata": {
-                        "local_resource_id": str(uuid.uuid4()),
-                        "api_href": "https://apihref.com/",
-                        "console_href": "https://www.console.com/",
-                        "reporter_version": "1.0",
-                        # transaction_id is missing - this should cause validation to fail
-                    },
-                    "common": {"workspace_id": str(uuid.uuid4())},
-                    "reporter": {
-                        "satellite_id": None,
-                        "subscription_manager_id": str(uuid.uuid4()),
-                        "insights_id": str(uuid.uuid4()),
-                        "ansible_host": None,
-                    },
-                },
-            },
-        }
+        updated_payload_missing_transaction_id = build_updated_payload()
+        # Remove transaction_id to cause validation to fail
+        del updated_payload_missing_transaction_id["payload"]["representations"]["metadata"]["transaction_id"]
 
         schema = OutboxSchema()
 
@@ -535,8 +454,7 @@ class TestOutboxE2ECases:
         assert result is True
 
         # Verify outbox entry was created and immediately deleted (new behavior)
-        outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
-        assert len(outbox_entries) == 0  # Entry is immediately deleted after flush
+        assert_outbox_empty(db, host_id)
 
         # The success of the operation indicates the outbox entry was created, validated, and processed
 
@@ -552,8 +470,7 @@ class TestOutboxE2ECases:
         assert result is True
 
         # Verify entry was created and immediately deleted (new behavior)
-        outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
-        assert len(outbox_entries) == 0  # Entry is immediately deleted after flush
+        assert_outbox_empty(db, host_id)
 
         # The success of the operation indicates the outbox entry was created, validated, and processed
 
@@ -622,10 +539,8 @@ class TestOutboxE2ECases:
         platform_metadata = get_platform_metadata(SYSTEM_IDENTITY)
         message = wrap_message(test_host.data(), platform_metadata=platform_metadata)
 
-        # Mock the outbox writing to capture the call without immediate deletion
-        with patch("lib.host_repository.write_event_to_outbox") as mock_write_outbox:
-            mock_write_outbox.return_value = True
-
+        # Capture outbox calls using helper
+        with capture_outbox_calls("lib.host_repository.write_event_to_outbox") as outbox_calls:
             # Create MQ consumer and process message
             consumer = IngressMessageConsumer(None, flask_app, event_producer_mock, notification_event_producer_mock)
             result = consumer.handle_message(json.dumps(message))
@@ -639,17 +554,17 @@ class TestOutboxE2ECases:
             assert created_host.fqdn == "test-mq-host.example.com"
 
             # Verify outbox entry was written with correct parameters
-            mock_write_outbox.assert_called_once()
-            call_args = mock_write_outbox.call_args
+            assert len(outbox_calls) == 1
+            call = outbox_calls[0]
 
-            # Check the event type (first argument)
-            assert call_args[0][0] == EventType.created
+            # Check the event type
+            assert call["event_type"] == EventType.created
 
-            # Check the host ID (second argument)
-            assert str(call_args[0][1]) == str(created_host.id)
+            # Check the host ID
+            assert str(call["host_id"]) == str(created_host.id)
 
-            # Check the host object (third argument)
-            outbox_host = call_args[0][2]
+            # Check the host object
+            outbox_host = call["host"]
             assert outbox_host.id == created_host.id
             assert outbox_host.insights_id == created_host.insights_id
             assert outbox_host.fqdn == created_host.fqdn
@@ -672,10 +587,8 @@ class TestOutboxE2ECases:
         platform_metadata = get_platform_metadata(SYSTEM_IDENTITY)
         message = wrap_message(test_host.data(), platform_metadata=platform_metadata)
 
-        # Mock the outbox writing to capture the call without immediate deletion
-        with patch("lib.host_repository.write_event_to_outbox") as mock_write_outbox:
-            mock_write_outbox.return_value = True
-
+        # Capture outbox calls using helper with groups
+        with capture_outbox_calls("lib.host_repository.write_event_to_outbox", capture_groups=True) as outbox_calls:
             # Create MQ consumer and process message
             consumer = IngressMessageConsumer(None, flask_app, event_producer_mock, notification_event_producer_mock)
             result = consumer.handle_message(json.dumps(message))
@@ -690,21 +603,26 @@ class TestOutboxE2ECases:
             assert len(created_host.groups) == 1  # Should be assigned to ungrouped hosts group
 
             # Verify outbox entry was written with correct parameters
-            mock_write_outbox.assert_called_once()
-            call_args = mock_write_outbox.call_args
+            assert len(outbox_calls) == 1
+            call = outbox_calls[0]
 
-            # Check the event type (first argument)
-            assert call_args[0][0] == EventType.created
+            # Check the event type
+            assert call["event_type"] == EventType.created
 
-            # Check the host ID (second argument)
-            assert str(call_args[0][1]) == str(created_host.id)
+            # Check the host ID
+            assert str(call["host_id"]) == str(created_host.id)
 
-            # Check the host object (third argument)
-            outbox_host = call_args[0][2]
+            # Check the host object
+            outbox_host = call["host"]
             assert outbox_host.id == created_host.id
             assert outbox_host.insights_id == created_host.insights_id
             assert outbox_host.fqdn == created_host.fqdn
             assert len(outbox_host.groups) == 1  # Verify groups are included in outbox payload
+
+            # Verify groups information was captured
+            groups_info = call["groups"]
+            assert groups_info is not None
+            assert len(groups_info) == 1
 
     def test_mq_host_creation_with_actual_outbox_entry(
         self, flask_app, event_producer_mock, notification_event_producer_mock
@@ -739,8 +657,7 @@ class TestOutboxE2ECases:
             mock_success_metric.inc.assert_called_once()
 
             # Verify outbox entry was created and immediately deleted (new behavior)
-            outbox_entries = db.session.query(Outbox).filter_by(aggregateid=created_host.id).all()
-            assert len(outbox_entries) == 0  # Entry is immediately deleted after flush
+            assert_outbox_empty(db, str(created_host.id))
 
             # The success metric increment proves the outbox entry was created, validated, and processed
 
@@ -798,7 +715,6 @@ class TestOutboxE2ECases:
             return result
 
         # Import and patch the actual function
-        from lib.outbox_repository import write_event_to_outbox
 
         original_write_outbox = write_event_to_outbox
 
@@ -848,15 +764,9 @@ class TestOutboxE2ECases:
         patch_data = {"display_name": "updated-host-name"}
         hosts_url = build_hosts_url(host_list_or_id=host.id)
 
-        # Mock the outbox writing to capture the calls
-        outbox_calls = []
+        # Capture outbox calls via helper fixture
 
-        with patch(
-            "api.host.write_event_to_outbox",
-            side_effect=lambda event_type, host_id_param, host_obj: self.mock_write_outbox(
-                outbox_calls, event_type, host_id_param, host_obj
-            ),
-        ):
+        with capture_outbox_calls("api.host.write_event_to_outbox") as outbox_calls:
             # Make PATCH request to update display_name only
             response_status, _ = api_patch(hosts_url, patch_data)
 
@@ -884,7 +794,6 @@ class TestOutboxE2ECases:
         """
 
         # Ensure clean database state
-        from app.models.database import db
 
         db.session.rollback()
 
@@ -902,39 +811,26 @@ class TestOutboxE2ECases:
         patch_data = {"ansible_host": "updated.ansible.host"}
         hosts_url = build_hosts_url(host_list_or_id=host.id)
 
-        # Mock the outbox writing to capture the calls
-        outbox_calls = []
-
-        with patch(
-            "api.host.write_event_to_outbox",
-            side_effect=lambda event_type, host_id_param, host_obj: self.mock_write_outbox(
-                outbox_calls, event_type, host_id_param, host_obj
-            ),
-        ):
-            # Mock need_outbox_entry to return True to ensure outbox entry is created
-            with patch("lib.host_repository.need_outbox_entry", return_value=True):
-                # Make PATCH request to update ansible_host
+        with patch("lib.host_repository.need_outbox_entry", return_value=True):
+            with capture_outbox_calls("api.host.write_event_to_outbox") as outbox_calls:
+                # Force need_outbox_entry True to isolate outbox path
                 response_status, _ = api_patch(hosts_url, patch_data)
-
-                # Verify the API request was successful
                 assert response_status == 200
-
-                # Verify outbox entry was created since ansible_host changed (is in outbox payload)
                 assert len(outbox_calls) == 1
 
-            call = outbox_calls[0]
-            assert call["event_type"] == EventType.updated
-            assert call["host_id"] == host_id
+                call = outbox_calls[0]
+                assert call["event_type"] == EventType.updated
+                assert call["host_id"] == host_id
 
-            # Verify the host object in the outbox call has updated data
-            host_obj = call["host"]
-            assert host_obj is not None
-            assert host_obj.ansible_host == "updated.ansible.host"
+                # Verify the host object in the outbox call has updated data
+                host_obj = call["host"]
+                assert host_obj is not None
+                assert host_obj.ansible_host == "updated.ansible.host"
 
-            # Verify the host was actually updated in the database
-            updated_host = db_get_host(host.id)
-            assert updated_host.ansible_host == "updated.ansible.host"
-            assert updated_host.display_name == "original-host-name"  # display_name unchanged
+                # Verify the host was actually updated in the database
+                updated_host = db_get_host(host.id)
+                assert updated_host.ansible_host == "updated.ansible.host"
+                assert updated_host.display_name == "original-host-name"  # display_name unchanged
 
     @pytest.mark.usefixtures("notification_event_producer")
     def test_host_delete_via_api_endpoint_with_actual_outbox_validation(
@@ -986,8 +882,7 @@ class TestOutboxE2ECases:
             assert deleted_host is None
 
             # Verify that the outbox entry was created and immediately deleted (new behavior)
-            outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
-            assert len(outbox_entries) == 0  # Entry is immediately deleted after flush
+            assert_outbox_empty(db, host_id)
 
             # The success of the operation indicates the outbox entry was created, validated, and processed
 
@@ -1046,15 +941,8 @@ class TestOutboxE2ECases:
         initial_host = db_get_host(host_id)
         assert len(initial_host.groups) == 0  # Host not in any group initially
 
-        # Mock the outbox writing to capture the calls and validate payload
-        outbox_calls = []
-
-        with patch(
-            "lib.group_repository.write_event_to_outbox",
-            side_effect=lambda event_type, host_id_param, host_obj: self.mock_write_outbox(
-                outbox_calls, event_type, host_id_param, host_obj, capture_groups=True
-            ),
-        ):
+        # Capture outbox calls using helper with groups
+        with capture_outbox_calls("lib.group_repository.write_event_to_outbox", capture_groups=True) as outbox_calls:
             # Make POST request to add host to group
             response_status, _ = api_add_hosts_to_group(group_id, [host_id])
 
@@ -1137,8 +1025,6 @@ class TestOutboxE2ECases:
 
             # Capture the payload for validation by building it the same way
             if host_obj is not None:
-                from lib.outbox_repository import _create_update_event_payload
-
                 payload = _create_update_event_payload(host_obj)
                 outbox_payloads.append(
                     {
@@ -1218,8 +1104,7 @@ class TestOutboxE2ECases:
             assert updated_host.groups[0]["name"] == "test-actual-outbox-group"
 
             # Verify outbox entry was created and immediately deleted (new behavior)
-            outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
-            assert len(outbox_entries) == 0  # Entry is immediately deleted after flush
+            assert_outbox_empty(db, host_id)
 
             # The success of the operation indicates the outbox entry was created, validated, and processed
 
@@ -1261,15 +1146,8 @@ class TestOutboxE2ECases:
         assert len(initial_host.groups) == 1
         assert initial_host.groups[0]["id"] == group_id
 
-        # Mock the outbox writing to capture the calls and validate payload
-        outbox_calls = []
-
-        with patch(
-            "lib.group_repository.write_event_to_outbox",
-            side_effect=lambda event_type, host_id_param, host_obj: self.mock_write_outbox(
-                outbox_calls, event_type, host_id_param, host_obj, capture_groups=True
-            ),
-        ):
+        # Capture outbox calls using helper with groups
+        with capture_outbox_calls("lib.group_repository.write_event_to_outbox", capture_groups=True) as outbox_calls:
             # Make DELETE request to remove host from group
             response_status, _ = api_remove_hosts_from_group(group_id, [host_id])
 
@@ -1323,15 +1201,8 @@ class TestOutboxE2ECases:
         put_data = {"new_key": "new_value", "another_key": "another_value"}
         facts_url = build_hosts_url(host_list_or_id=host.id, path="/facts/test_namespace")
 
-        # Mock the outbox writing to capture the calls and validate payload
-        outbox_calls = []
-
-        with patch(
-            "lib.outbox_repository.write_event_to_outbox",
-            side_effect=lambda event_type, host_id_param, host_obj: self.mock_write_outbox(
-                outbox_calls, event_type, host_id_param, host_obj
-            ),
-        ):
+        # Capture outbox calls using helper
+        with capture_outbox_calls("lib.outbox_repository.write_event_to_outbox") as outbox_calls:
             # Make PUT request to replace facts in namespace
             response_status, _ = api_put(facts_url, put_data)
 
@@ -1389,8 +1260,6 @@ class TestOutboxE2ECases:
 
             # Capture the payload for validation by building it the same way
             if host_obj is not None:
-                from lib.outbox_repository import _create_update_event_payload
-
                 payload = _create_update_event_payload(host_obj)
                 outbox_payloads.append(
                     {"event_type": event_type, "host_id": host_id_param, "payload": payload, "host": host_obj}
@@ -1458,23 +1327,20 @@ class TestOutboxE2ECases:
         assert result is True
 
         # Verify outbox entry was created and immediately deleted (new behavior)
-        outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
-        assert len(outbox_entries) == 0  # Entry is immediately deleted after flush
+        assert_outbox_empty(db, host_id)
 
         # The success of the operation indicates the outbox entry was created, validated, and processed
 
         # Test outbox entry deletion by calling remove_event_from_outbox directly
 
         # Verify the outbox entry was created and immediately deleted (new behavior)
-        outbox_entries_before = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
-        assert len(outbox_entries_before) == 0  # Entry is immediately deleted after flush
+        assert_outbox_empty(db, host_id)
 
         # Call the remove_event_from_outbox function directly
         remove_event_from_outbox(host_id)
 
         # Verify the outbox entry has been deleted
-        outbox_entries_after_deletion = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
-        assert len(outbox_entries_after_deletion) == 0
+        assert_outbox_empty(db, host_id)
 
         # Final validation: ensure the host still exists in the database
         final_host = db_get_host(created_host.id)
@@ -1575,34 +1441,27 @@ class TestOutboxE2ECases:
         hosts_to_remove = host_ids[1:]  # Remove hosts 2 and 3
         host_to_keep = host_ids[0]  # Keep host 1
 
-        # Mock the outbox writing to capture the calls for removal
-        outbox_calls = []
-
-        with patch(
-            "lib.group_repository.write_event_to_outbox",
-            side_effect=lambda event_type, host_id_param, host_obj: self.mock_write_outbox(
-                outbox_calls, event_type, host_id_param, host_obj, capture_groups=True
-            ),
-        ):
+        # Capture outbox calls using helper with groups
+        with capture_outbox_calls("lib.group_repository.write_event_to_outbox", capture_groups=True) as outbox_calls:
             # Remove 2 hosts from the group via API
             response_status, _ = api_remove_hosts_from_group(group_id, hosts_to_remove)
 
-        # Verify the API request was successful
-        assert response_status == 204  # No Content
+            # Verify the API request was successful
+            assert response_status == 204  # No Content
 
-        # Verify outbox entries were created for the 2 removed hosts
-        assert len(outbox_calls) == 2
+            # Verify outbox entries were created for the 2 removed hosts
+            assert len(outbox_calls) == 2
 
-        # Validate each outbox call for removed hosts
-        for call in outbox_calls:
-            assert call["event_type"] == EventType.updated
-            assert call["host_id"] in hosts_to_remove
+            # Validate each outbox call for removed hosts
+            for call in outbox_calls:
+                assert call["event_type"] == EventType.updated
+                assert call["host_id"] in hosts_to_remove
 
-            # Use the captured groups information instead of accessing the detached host object
-            groups_info = call["groups"]
-            assert groups_info is not None
-            assert len(groups_info) == 1  # Host should be in ungrouped hosts group
-            assert groups_info[0]["name"] == "Ungrouped Hosts"  # Kessel requires ungrouped hosts group
+                # Use the captured groups information instead of accessing the detached host object
+                groups_info = call["groups"]
+                assert groups_info is not None
+                assert len(groups_info) == 1  # Host should be in ungrouped hosts group
+                assert groups_info[0]["name"] == "Ungrouped Hosts"  # Kessel requires ungrouped hosts group
 
         # Verify the group now contains only 1 host
         hosts_in_group_after_remove = db_get_hosts_for_group(group_id)
@@ -1644,8 +1503,7 @@ class TestOutboxE2ECases:
             assert result is True
 
             # Verify outbox entry was created and immediately deleted (new behavior)
-            outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
-            assert len(outbox_entries) == 0  # Entry is immediately deleted after flush
+            assert_outbox_empty(db, host_id)
 
             # The success of the operation indicates the outbox entry was created, validated, and processed
 
@@ -1653,8 +1511,7 @@ class TestOutboxE2ECases:
 
         # Verify all outbox entries were created and immediately deleted (new behavior)
         for host_id in all_host_ids:
-            outbox_entries_before = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
-            assert len(outbox_entries_before) == 0  # Entries are immediately deleted after flush
+            assert_outbox_empty(db, host_id)
 
         # Call the remove_event_from_outbox function for each host (simulating Kafka message production)
         for host_id in all_host_ids:
@@ -1662,8 +1519,7 @@ class TestOutboxE2ECases:
 
         # Verify all outbox entries have been deleted
         for host_id in all_host_ids:
-            outbox_entries_after_deletion = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
-            assert len(outbox_entries_after_deletion) == 0
+            assert_outbox_empty(db, host_id)
 
         # Final validation: ensure all hosts still exist in the database with correct group information
         for i, host_id in enumerate(all_host_ids):
@@ -1750,5 +1606,4 @@ class TestOutboxE2ECases:
 
             # Verify outbox entry was created and immediately deleted (new behavior)
             # The write_event_to_outbox should have been called automatically during host creation
-            outbox_entries = db.session.query(Outbox).filter_by(aggregateid=host_id).all()
-            assert len(outbox_entries) == 0  # Entry is immediately deleted after flush
+            assert_outbox_empty(db, host_id)
