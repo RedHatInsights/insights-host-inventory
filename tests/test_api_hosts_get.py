@@ -1410,6 +1410,37 @@ def test_query_all_sp_filters_bools_use_or_logic(db_create_host, api_get, sp_fil
 
 
 @pytest.mark.parametrize(
+    "sp_filter_bool_field",
+    (
+        "katello_agent_running",
+        "satellite_managed",
+        "is_marketplace",
+        "greenboot_fallback_detected",
+    ),
+)
+@pytest.mark.parametrize("filter_append", ("", "[]", "[is]"))
+def test_query_all_sp_filters_bools_nil(db_create_host, api_get, sp_filter_bool_field, filter_append):
+    # Create host with no value for the boolean field
+    host_data = {"system_profile_facts": {}}
+    host_id = str(db_create_host(extra_data=host_data).id)
+
+    nomatch_host_data_1 = {"system_profile_facts": {sp_filter_bool_field: True}}
+    nomatch_host_id_1 = str(db_create_host(extra_data=nomatch_host_data_1).id)
+    nomatch_host_data_2 = {"system_profile_facts": {sp_filter_bool_field: False}}
+    nomatch_host_id_2 = str(db_create_host(extra_data=nomatch_host_data_2).id)
+
+    url = build_hosts_url(query=f"?filter[system_profile][{sp_filter_bool_field}]{filter_append}=nil")
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+
+    response_ids = [result["id"] for result in response_data["results"]]
+    assert len(response_ids) == 1
+    assert host_id in response_ids
+    assert nomatch_host_id_1 not in response_ids
+    assert nomatch_host_id_2 not in response_ids
+
+
+@pytest.mark.parametrize(
     "query_filter_param,match_host_facts",
     (
         ("?display_name=1*m", [{"display_name": "HkqL12lmIW"}]),
