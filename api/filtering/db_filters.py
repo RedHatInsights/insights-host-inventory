@@ -206,7 +206,7 @@ def stale_timestamp_filter(gt=None, lte=None):
 def _stale_timestamp_per_reporter_filter(gt=None, lte=None, reporter=None):
     non_negative_reporter = reporter.replace("!", "")
     reporter_list = [non_negative_reporter]
-    if non_negative_reporter in OLD_TO_NEW_REPORTER_MAP.keys():
+    if non_negative_reporter in OLD_TO_NEW_REPORTER_MAP:
         reporter_list.extend(OLD_TO_NEW_REPORTER_MAP[non_negative_reporter])
 
     current_time = datetime.now(UTC)
@@ -216,16 +216,16 @@ def _stale_timestamp_per_reporter_filter(gt=None, lte=None, reporter=None):
         # This means: for ALL reporters in the list, the host either doesn't have them OR they're culled
         time_filter_ = stale_timestamp_filter(gt=gt, lte=lte)
 
-        and_conditions = []  # All conditions must be true (host lacks ALL fresh reporters)
+        and_conditions = []
 
         for rep in reporter_list:
             # For each reporter, the host must either:
-            # 1. Not have this reporter at all, OR
-            # 2. Have this reporter but it's culled (culled_timestamp < now)
+            # 1. Have NULL per_reporter_staleness, OR
+            # 2. Not have this reporter at all, OR
+            # 3. Have this reporter but it's culled (has culled_timestamp AND culled_timestamp < now)
             rep_condition = or_(
-                # Doesn't have this reporter
+                Host.per_reporter_staleness.is_(None),  # NULL explicitly matches negative
                 not_(Host.per_reporter_staleness.has_key(rep)),
-                # Has this reporter but it's culled (only if culled_timestamp exists)
                 and_(
                     Host.per_reporter_staleness.has_key(rep),
                     Host.per_reporter_staleness[rep].has_key("culled_timestamp"),
@@ -240,6 +240,7 @@ def _stale_timestamp_per_reporter_filter(gt=None, lte=None, reporter=None):
         )
     else:
         # For positive: include hosts that have the reporter AND are not culled (if culled_timestamp exists)
+        # If culled_timestamp is missing, include the host regardless of stale status
         or_filter = []
         for rep in reporter_list:
             conditions = [Host.per_reporter_staleness.has_key(rep)]
@@ -247,7 +248,6 @@ def _stale_timestamp_per_reporter_filter(gt=None, lte=None, reporter=None):
             # Only check culled status if culled_timestamp exists
             # If it doesn't exist, include the host (backward compatibility)
             culled_condition = or_(
-                # No culled_timestamp field (backward compatibility)
                 not_(Host.per_reporter_staleness[rep].has_key("culled_timestamp")),
                 # Has culled_timestamp and it's not culled (culled_timestamp >= now)
                 Host.per_reporter_staleness[rep]["culled_timestamp"].astext.cast(DateTime) >= current_time,
@@ -307,24 +307,31 @@ def find_stale_host_in_window(staleness, last_run_secs, job_start_time):
     )
 
 
-def _registered_with_filter(registered_with: list[str], org_id: str) -> list:
-    _query_filter: list = []
+def _registered_with_filter(registered_with: list[str], _org_id: str) -> list:
+    """
+    Build filters for registered_with:
+
+    Positive (X): host has reporter X AND (no culled_timestamp OR culled_timestamp >= now())
+    Negative (!X): host is NOT fresh or stale for reporter X
+    """
+    _query_filter: list[Any] = []
     if not registered_with:
         return _query_filter
+
     reg_with_copy = deepcopy(registered_with)
-    if "insights" in registered_with:
+
+    if "insights" in reg_with_copy:
         _query_filter.append(Host.insights_id != DEFAULT_INSIGHTS_ID)
         reg_with_copy.remove("insights")
+
     if not reg_with_copy:
         return _query_filter
 
-    # Get the per_report_staleness check_in value for the reporter
-    # and build the filter based on it
     for reporter in reg_with_copy:
-        prs_item = per_reporter_staleness_filter(DEFAULT_STALENESS_VALUES, reporter, org_id)
-
-        for n_items in prs_item:
+        prs_items = per_reporter_staleness_filter(DEFAULT_STALENESS_VALUES, reporter, _org_id)
+        for n_items in prs_items:
             _query_filter.append(n_items)
+
     return [or_(*_query_filter)]
 
 

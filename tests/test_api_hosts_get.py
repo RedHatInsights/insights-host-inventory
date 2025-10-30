@@ -1169,11 +1169,13 @@ def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
             "puptoo": {
                 "last_check_in": _now.isoformat(),
                 "stale_timestamp": (_now + timedelta(days=7)).isoformat(),
+                "culled_timestamp": (_now + timedelta(days=14)).isoformat(),
                 "check_in_succeeded": True,
             },
             "yupana": {
                 "last_check_in": (_now - timedelta(days=3)).isoformat(),
                 "stale_timestamp": (_now + timedelta(days=4)).isoformat(),
+                "culled_timestamp": (_now + timedelta(days=11)).isoformat(),
                 "check_in_succeeded": True,
             },
         },
@@ -1181,11 +1183,13 @@ def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
             "puptoo": {
                 "last_check_in": (_now - timedelta(days=1)).isoformat(),
                 "stale_timestamp": (_now + timedelta(days=6)).isoformat(),
+                "culled_timestamp": (_now + timedelta(days=13)).isoformat(),
                 "check_in_succeeded": True,
             },
             "satellite": {
                 "last_check_in": (_now - timedelta(days=3)).isoformat(),
                 "stale_timestamp": (_now + timedelta(days=4)).isoformat(),
+                "culled_timestamp": (_now + timedelta(days=11)).isoformat(),
                 "check_in_succeeded": True,
             },
         },
@@ -1193,11 +1197,13 @@ def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
             "puptoo": {
                 "last_check_in": (_now - timedelta(days=30)).isoformat(),
                 "stale_timestamp": (_now - timedelta(days=23)).isoformat(),
+                "culled_timestamp": (_now - timedelta(days=16)).isoformat(),
                 "check_in_succeeded": True,
             },
             "discovery": {
                 "last_check_in": (_now - timedelta(days=3)).isoformat(),
                 "stale_timestamp": (_now + timedelta(days=4)).isoformat(),
+                "culled_timestamp": (_now + timedelta(days=11)).isoformat(),
                 "check_in_succeeded": True,
             },
         },
@@ -1205,6 +1211,7 @@ def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
             "rhsm-conduit": {
                 "last_check_in": (_now - timedelta(days=1)).isoformat(),
                 "stale_timestamp": (_now + timedelta(days=6)).isoformat(),
+                "culled_timestamp": (_now + timedelta(days=13)).isoformat(),  # Fresh
                 "check_in_succeeded": True,
             },
         },
