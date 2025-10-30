@@ -275,7 +275,8 @@ def create_new_host(input_host: Host) -> tuple[Host, AddHostResult]:
 
     input_host.save()
 
-    # Check if outbox entry is needed before writing to outbox
+    # Theoretical possibility: Check if a host has been created by another user/pods/processes
+    # using the same host payload. If so, don't write to the outbox.
     if need_outbox_entry(input_host):
         try:
             # write to the outbox table for synchronization with Kessel

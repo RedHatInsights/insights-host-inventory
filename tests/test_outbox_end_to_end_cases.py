@@ -714,8 +714,6 @@ class TestOutboxE2ECases:
 
             return result
 
-        # Import and patch the actual function
-
         original_write_outbox = write_event_to_outbox
 
         with patch("lib.group_repository.write_event_to_outbox", side_effect=capture_outbox_payload):
