@@ -800,7 +800,7 @@ def test_add_host_with_invalid_system_update_method(mocker, mq_create_or_update_
 
 @pytest.mark.system_profile
 @pytest.mark.parametrize(("system_profile",), ((system_profile,) for system_profile in INVALID_SYSTEM_PROFILES))
-def test_add_host_long_strings_system_profile(mocker, mq_create_or_update_host, system_profile):
+def test_add_host_long_values_system_profile(mocker, mq_create_or_update_host, system_profile):
     mock_notification_event_producer = mocker.Mock()
     host = minimal_host(account=SYSTEM_IDENTITY["account_number"], system_profile=system_profile)
 

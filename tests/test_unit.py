@@ -2345,7 +2345,10 @@ class ModelsSystemProfileTestCase(TestCase):
     def _assert_system_profile_is_invalid(self, load_result):
         self.assertIn("system_profile", load_result)
         self.assertTrue(
-            any("System profile does not conform to schema." in message for message in load_result["system_profile"])
+            any(
+                "System profile does not conform to schema." in message or "Key may not be empty." in message
+                for message in load_result["system_profile"]
+            )
         )
 
     def test_invalid_values_are_rejected(self):
