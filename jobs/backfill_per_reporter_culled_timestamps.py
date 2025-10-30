@@ -57,7 +57,8 @@ def _count_hosts_missing_culled_timestamps(session: Session) -> int:
         session.query(Host)
         .filter(
             text("""
-            EXISTS (
+            per_reporter_staleness IS NOT NULL
+            AND EXISTS (
                 SELECT 1
                 FROM jsonb_each(per_reporter_staleness) AS reporter_entry
                 WHERE NOT (reporter_entry.value ? 'culled_timestamp')
@@ -85,7 +86,8 @@ def _get_hosts_missing_culled_timestamps(
     """
     query = session.query(Host).filter(
         text("""
-            EXISTS (
+            per_reporter_staleness IS NOT NULL
+            AND EXISTS (
                 SELECT 1
                 FROM jsonb_each(per_reporter_staleness) AS reporter_entry
                 WHERE NOT (reporter_entry.value ? 'culled_timestamp')
@@ -164,9 +166,18 @@ def run(config: Config, logger: Logger, session: Session, application: FlaskApp)
 
         # In dry-run mode, just count and exit immediately
         if dry_run:
+            logger.debug("Executing count query for hosts missing culled_timestamp...")
             total_hosts = _count_hosts_missing_culled_timestamps(session)
             logger.info(f"Dry-run complete. Found {total_hosts} hosts that would be updated.")
             logger.info("This was a dry run - no actual changes were made to the database.")
+
+            # Additional debug: check total hosts in table for context
+            total_hosts_in_table = session.query(Host).count()
+            logger.debug(f"Total hosts in table: {total_hosts_in_table}")
+
+            # Check how many have non-NULL per_reporter_staleness
+            hosts_with_prs = session.query(Host).filter(Host.per_reporter_staleness.isnot(None)).count()
+            logger.debug(f"Hosts with non-NULL per_reporter_staleness: {hosts_with_prs}")
             return
 
         total_hosts_processed = 0

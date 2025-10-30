@@ -231,6 +231,12 @@ def _stale_timestamp_per_reporter_filter(gt=None, lte=None, reporter=None):
                     Host.per_reporter_staleness[rep].has_key("culled_timestamp"),
                     Host.per_reporter_staleness[rep]["culled_timestamp"].astext.cast(DateTime) < current_time,
                 ),
+                # MINIMAL FIX: Handle missing culled_timestamp by checking if stale
+                and_(
+                    Host.per_reporter_staleness.has_key(rep),
+                    not_(Host.per_reporter_staleness[rep].has_key("culled_timestamp")),
+                    Host.per_reporter_staleness[rep]["stale_timestamp"].astext.cast(DateTime) < current_time,
+                ),
             )
             and_conditions.append(rep_condition)
 
@@ -307,25 +313,73 @@ def find_stale_host_in_window(staleness, last_run_secs, job_start_time):
     )
 
 
-def _registered_with_filter(registered_with: list[str], org_id: str) -> list:
-    _query_filter: list = []
+def _registered_with_filter(registered_with: list[str], _org_id: str) -> list:
+    """
+    Build filters for registered_with to mirror the pure SQL semantics:
+
+    Positive (X): host has reporter X AND (no culled_timestamp OR culled_timestamp >= now())
+    Negative (!X): host does NOT have any fresh X among the mapped reporters,
+                   i.e., for ALL reps in list: missing OR (has culled_timestamp AND culled_timestamp < now())
+
+    If reporter maps to multiple reporters via OLD_TO_NEW_REPORTER_MAP, apply the rule over the expanded list.
+    """
     if not registered_with:
-        return _query_filter
+        return []
+
+    clauses: list = []
     reg_with_copy = deepcopy(registered_with)
-    if "insights" in registered_with:
-        _query_filter.append(Host.insights_id != DEFAULT_INSIGHTS_ID)
+
+    # Special-case insights legacy behavior
+    if "insights" in reg_with_copy:
+        clauses.append(Host.insights_id != DEFAULT_INSIGHTS_ID)
         reg_with_copy.remove("insights")
+
     if not reg_with_copy:
-        return _query_filter
+        return clauses
 
-    # Get the per_report_staleness check_in value for the reporter
-    # and build the filter based on it
-    for reporter in reg_with_copy:
-        prs_item = per_reporter_staleness_filter(DEFAULT_STALENESS_VALUES, reporter, org_id)
+    for token in reg_with_copy:
+        is_negative = token.startswith("!")
+        base = token.replace("!", "")
 
-        for n_items in prs_item:
-            _query_filter.append(n_items)
-    return [or_(*_query_filter)]
+        # Expand to include mapped new reporters if present
+        reporter_list = [base]
+        if base in OLD_TO_NEW_REPORTER_MAP.keys():
+            reporter_list.extend(OLD_TO_NEW_REPORTER_MAP[base])
+
+        # Build per-reporter conditions using DB's notion of now()
+        # Positive per-reporter condition: has rep AND (no culled OR culled >= now())
+        positive_per_rep = [
+            and_(
+                Host.per_reporter_staleness.has_key(rep),
+                or_(
+                    not_(Host.per_reporter_staleness[rep].has_key("culled_timestamp")),
+                    Host.per_reporter_staleness[rep]["culled_timestamp"].astext.cast(DateTime) >= func.now(),
+                ),
+            )
+            for rep in reporter_list
+        ]
+
+        if is_negative:
+            # NONE fresh among the list: for ALL rep -> NULL OR missing OR (has culled AND culled < now())
+            # Explicitly handle NULL per_reporter_staleness to ensure complement property holds
+            none_fresh_per_rep = [
+                or_(
+                    Host.per_reporter_staleness.is_(None),  # NULL explicitly matches negative
+                    not_(Host.per_reporter_staleness.has_key(rep)),
+                    and_(
+                        Host.per_reporter_staleness[rep].has_key("culled_timestamp"),
+                        Host.per_reporter_staleness[rep]["culled_timestamp"].astext.cast(DateTime) < func.now(),
+                    ),
+                )
+                for rep in reporter_list
+            ]
+            clauses.append(and_(*none_fresh_per_rep))
+        else:
+            # Positive filter: use simple logic matching SQL queries exactly
+            # has rep AND (no culled_timestamp OR culled_timestamp >= now())
+            clauses.append(or_(*positive_per_rep))
+
+    return [or_(*clauses)] if clauses else []
 
 
 def _system_profile_filter(filter: dict) -> list:
