@@ -1416,6 +1416,7 @@ def test_query_all_sp_filters_bools_use_or_logic(db_create_host, api_get, sp_fil
         "satellite_managed",
         "is_marketplace",
         "greenboot_fallback_detected",
+        "sap_system",
     ),
 )
 @pytest.mark.parametrize("filter_append", ("", "[]", "[is]"))

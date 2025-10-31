@@ -22,6 +22,7 @@ from app import system_profile_spec
 from app.exceptions import ValidationException
 from app.logging import get_logger
 from app.models.constants import WORKLOADS_FIELDS
+from app.models.host import Host
 from app.models.system_profile_dynamic import HostDynamicSystemProfile
 from app.models.system_profile_static import HostStaticSystemProfile
 from app.models.system_profile_transformer import DYNAMIC_FIELDS
@@ -69,16 +70,14 @@ class OsFilter:
 def _get_system_profile_column_and_filter(filter_param: dict) -> tuple[Column, dict]:
     field_name = next(iter(filter_param.keys()))
 
-    # handle workloads fields
-    if field_name == "sap_system":
-        filter_param = {"workloads": {"sap": filter_param}}
-        field_name = "workloads"
-    elif field_name == "sap_sids":
-        filter_param = {"workloads": {"sap": {"sids": filter_param.get("sap_sids")}}}
-        field_name = "workloads"
-    elif field_name in WORKLOADS_FIELDS:
-        filter_param = {"workloads": filter_param}
-        field_name = "workloads"
+    # For workloads fields not in normalized tables, use the legacy JSONB column
+    if field_name in WORKLOADS_FIELDS:
+        # Check if field exists in normalized tables first
+        if field_name in DYNAMIC_FIELDS:
+            return getattr(HostDynamicSystemProfile, field_name), filter_param
+        else:
+            # Fall back to legacy JSONB column for workloads fields
+            return Host.system_profile_facts, filter_param
 
     return getattr(HostDynamicSystemProfile, field_name) if field_name in DYNAMIC_FIELDS else getattr(
         HostStaticSystemProfile, field_name
@@ -106,8 +105,9 @@ def _convert_dict_to_column_jsonb_path_pg_op_value(
         raise ValidationException(f"Field {key} not found in system profile.") from e
 
     jsonb_path, pg_op, value = _convert_dict_to_json_path_and_value(filter_param)
-    # Omit the first element from the jsonb_path tuple
-    omitted_jsonb_path = jsonb_path[1:] if jsonb_path else ()
+    # For normalized table columns, omit the first element (field name) since it's already in the column
+    # For Host.system_profile_facts JSONB column, keep all elements since we need the full path
+    omitted_jsonb_path = jsonb_path if column.key == "system_profile_facts" else jsonb_path[1:] if jsonb_path else ()
     return column, omitted_jsonb_path, pg_op, value
 
 
@@ -327,6 +327,54 @@ def _validate_pg_op_and_value(pg_op: str | None, value: str, field_filter: str, 
         raise ValidationException(f"'{value}' is an invalid value for field {field_name}")
 
 
+def _build_workloads_filter(filter_param: dict) -> ColumnElement:
+    # If it's a "workloads" field, we need to combine (OR) the original filter with the new filter.
+    field_name = next(iter(filter_param.keys()))
+    if field_name in WORKLOADS_FIELDS:
+        # Extract the filter value to check if it's a nil/not_nil query
+        _, _, filter_value = _convert_dict_to_json_path_and_value(filter_param)
+
+        # Special handling for nil/not_nil queries:
+        # - Root-level fields (sap_system, sap_sids): Check only legacy location
+        #   (workloads location would match all non-migrated hosts)
+        # - Nested paths (sap.sap_system, rhel_ai.variant, etc.): Check only workloads location
+        #   (legacy location would match all hosts without that nested structure)
+        if filter_value in ["nil", "not_nil"]:
+            if field_name in ["sap_system", "sap_sids"]:
+                # Root-level legacy field - check only legacy location
+                return build_single_filter(filter_param)
+            else:
+                # Nested workloads path - check only workloads location
+                workloads_filter_param = {"workloads": filter_param}
+                return build_single_filter(workloads_filter_param)
+
+        # For other values, check both legacy and workloads locations
+        # handle workloads fields
+        if field_name == "sap_system":
+            workloads_filter_param = {"workloads": {"sap": filter_param}}
+        elif field_name == "sap_sids":
+            workloads_filter_param = {"workloads": {"sap": {"sids": filter_param.get("sap_sids")}}}
+        else:
+            workloads_filter_param = {"workloads": filter_param}
+
+        # Try building both filters, collecting successes
+        results = []
+        last_exception = None
+
+        for param in [filter_param, workloads_filter_param]:
+            try:
+                results.append(build_single_filter(param))
+            except ValidationException as e:
+                last_exception = e
+
+        if last_exception:
+            raise last_exception
+
+        return or_(*results) if len(results) > 1 else results[0]
+
+    return build_single_filter(filter_param)
+
+
 def build_single_filter(filter_param: dict) -> ColumnElement:
     field_name = next(iter(filter_param.keys()))
 
@@ -391,9 +439,9 @@ def build_system_profile_filter(system_profile_param: dict) -> tuple:
                 if _get_field_filter_for_deepest_param(system_profile_spec(), grouped_filter_param[0]) == "array"
                 else or_
             )
-            filter = conjunction(build_single_filter(single_filter) for single_filter in grouped_filter_param)
+            filter = conjunction(_build_workloads_filter(single_filter) for single_filter in grouped_filter_param)
         else:
-            filter = build_single_filter(grouped_filter_param)
+            filter = _build_workloads_filter(grouped_filter_param)
 
         system_profile_filter += (filter,)
     return system_profile_filter
