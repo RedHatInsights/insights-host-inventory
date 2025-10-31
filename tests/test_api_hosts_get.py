@@ -1304,10 +1304,6 @@ def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
         "[rhel_ai][rhel_ai_version_id][eq]=v1.1.2",
         "[rhel_ai][rhel_ai_version_id][eq][]=v1.1.2",
         "[rhel_ai][variant][is]=nil",
-        "[rhel_ai][nvidia_gpu_models][]=NVIDIA T1000",
-        "[rhel_ai][intel_gaudi_hpu_models][]=Habana Labs Ltd. Device 10202",
-        "[rhel_ai][nvidia_gpu_models][]=not_nil",
-        "[rhel_ai][intel_gaudi_hpu_models][]=not_nil",
     ),
 )
 def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
@@ -1327,10 +1323,6 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
                 "rhel_ai": {
                     "rhel_ai_version_id": "v1.1.2",
                 },
-            },
-            "rhel_ai": {
-                "nvidia_gpu_models": ["NVIDIA T1000"],
-                "intel_gaudi_hpu_models": ["Habana Labs Ltd. Device 10202"],
             },
             "is_marketplace": False,
             "systemd": {"failed_services": ["foo", "bar"]},
@@ -1425,10 +1417,9 @@ def test_query_all_sp_filters_bools_use_or_logic(db_create_host, api_get, sp_fil
         "is_marketplace",
         "greenboot_fallback_detected",
         "sap_system",
-        "rhel_ai",
     ),
 )
-@pytest.mark.parametrize("filter_append", ("", "[]", "[is]", "[eq]"))
+@pytest.mark.parametrize("filter_append", ("", "[]", "[is]"))
 def test_query_all_sp_filters_bools_nil(db_create_host, api_get, sp_filter_bool_field, filter_append):
     # Create host with no value for the boolean field
     host_data = {"system_profile_facts": {}}
