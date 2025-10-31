@@ -332,31 +332,47 @@ def _build_workloads_filter(filter_param: dict) -> ColumnElement:
     field_name = next(iter(filter_param.keys()))
     if field_name in WORKLOADS_FIELDS:
         # Extract the filter value to check if it's a nil/not_nil query
-        jsonb_path, _, filter_value = _convert_dict_to_json_path_and_value(filter_param)
-        is_root_level = len(jsonb_path) == 1  # Root level has only one element in path
+        _, _, filter_value = _convert_dict_to_json_path_and_value(filter_param)
 
-        # Special handling for nil/not_nil queries
-        if filter_value in ["nil", "not_nil"]:
-            if is_root_level and field_name in ["sap_system", "sap_sids", "rhel_ai"]:
+        # Normalize filter_value to handle both string and list values
+        # When the filter is [field][]=nil or [field][]=not_nil, the value is a list
+        if isinstance(filter_value, list) and len(filter_value) > 0:
+            normalized_value = filter_value[0]
+        else:
+            normalized_value = filter_value
+
+        # Special handling for nil/not_nil queries:
+        # - Root-level fields (sap_system, sap_sids): Check only legacy location
+        #   (workloads location would match all non-migrated hosts)
+        # - Nested paths (sap.sap_system, rhel_ai.variant, etc.): Check only workloads location
+        #   (legacy location would match all hosts without that nested structure)
+        # - rhel_ai top-level fields (nvidia_gpu_models, intel_gaudi_hpu_models, amd_gpu_models):
+        #   Check only top-level location (these don't exist in workloads.rhel_ai)
+        if normalized_value in ["nil", "not_nil"]:
+            if field_name in ["sap_system", "sap_sids"]:
                 # Root-level legacy field - check only legacy location
                 return build_single_filter(filter_param)
-            elif not is_root_level:
-                # Nested path - need to determine if it's a workloads-only field or mixed
-                # Check if the nested field exists in the workloads spec
-                nested_field = jsonb_path[1] if len(jsonb_path) > 1 else None
-
-                # Certain rhel_ai fields like 'nvidia_gpu_models' only exist in legacy spec
-                # For now, if it's a nested path under a workloads field, check only workloads
-                # We can remove this after we've transitioned to the new spec.
-                if nested_field and nested_field not in [
-                    "nvidia_gpu_models",
-                    "intel_gaudi_hpu_models",
-                    "amd_gpu_models",
-                ]:
-                    # Regular nested workloads field - check only workloads location
+            elif field_name == "rhel_ai":
+                # For rhel_ai, check if we're filtering on fields that only exist at top-level
+                # nvidia_gpu_models, intel_gaudi_hpu_models, amd_gpu_models only exist at top-level
+                jsonb_path, _, _ = _convert_dict_to_json_path_and_value(filter_param)
+                # If there's no nested field (just [rhel_ai]), check top-level
+                # If the nested field is a GPU/HPU model field, check top-level
+                # Otherwise (variant, rhel_ai_version_id), check workloads location
+                if len(jsonb_path) == 1:
+                    # No nested field - check top-level rhel_ai (boolean or object field)
+                    return build_single_filter(filter_param)
+                elif jsonb_path[1] in ["nvidia_gpu_models", "intel_gaudi_hpu_models", "amd_gpu_models"]:
+                    # These fields only exist at top-level, not in workloads
+                    return build_single_filter(filter_param)
+                else:
+                    # Other rhel_ai fields (variant, rhel_ai_version_id) - check workloads location
                     workloads_filter_param = {"workloads": filter_param}
                     return build_single_filter(workloads_filter_param)
-                # else: GPU model fields - fall through to try both
+            else:
+                # Nested workloads path - check only workloads location
+                workloads_filter_param = {"workloads": filter_param}
+                return build_single_filter(workloads_filter_param)
 
         # For other values, check both legacy and workloads locations
         # handle workloads fields
@@ -412,6 +428,13 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
         # Handle wildcard fields (use ILIKE, replace * with %)
         if pg_op == ColumnOperators.ilike:
             value = value.replace("*", "%")
+
+        # Normalize value to handle both string and list values
+        # When the filter is [field][]=value, the value is a list
+        if isinstance(value, list) and len(value) > 0:
+            # For lists, extract the first element
+            # This handles cases like [field][]=nil or [field][]=not_nil
+            value = value[0]
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:
