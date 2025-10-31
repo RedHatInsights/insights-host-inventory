@@ -332,21 +332,31 @@ def _build_workloads_filter(filter_param: dict) -> ColumnElement:
     field_name = next(iter(filter_param.keys()))
     if field_name in WORKLOADS_FIELDS:
         # Extract the filter value to check if it's a nil/not_nil query
-        _, _, filter_value = _convert_dict_to_json_path_and_value(filter_param)
+        jsonb_path, _, filter_value = _convert_dict_to_json_path_and_value(filter_param)
+        is_root_level = len(jsonb_path) == 1  # Root level has only one element in path
 
-        # Special handling for nil/not_nil queries:
-        # - Root-level fields (sap_system, sap_sids): Check only legacy location
-        #   (workloads location would match all non-migrated hosts)
-        # - Nested paths (sap.sap_system, rhel_ai.variant, etc.): Check only workloads location
-        #   (legacy location would match all hosts without that nested structure)
+        # Special handling for nil/not_nil queries
         if filter_value in ["nil", "not_nil"]:
-            if field_name in ["sap_system", "sap_sids"]:
+            if is_root_level and field_name in ["sap_system", "sap_sids", "rhel_ai"]:
                 # Root-level legacy field - check only legacy location
                 return build_single_filter(filter_param)
-            else:
-                # Nested workloads path - check only workloads location
-                workloads_filter_param = {"workloads": filter_param}
-                return build_single_filter(workloads_filter_param)
+            elif not is_root_level:
+                # Nested path - need to determine if it's a workloads-only field or mixed
+                # Check if the nested field exists in the workloads spec
+                nested_field = jsonb_path[1] if len(jsonb_path) > 1 else None
+
+                # Certain rhel_ai fields like 'nvidia_gpu_models' only exist in legacy spec
+                # For now, if it's a nested path under a workloads field, check only workloads
+                # We can remove this after we've transitioned to the new spec.
+                if nested_field and nested_field not in [
+                    "nvidia_gpu_models",
+                    "intel_gaudi_hpu_models",
+                    "amd_gpu_models",
+                ]:
+                    # Regular nested workloads field - check only workloads location
+                    workloads_filter_param = {"workloads": filter_param}
+                    return build_single_filter(workloads_filter_param)
+                # else: GPU model fields - fall through to try both
 
         # For other values, check both legacy and workloads locations
         # handle workloads fields
@@ -367,7 +377,7 @@ def _build_workloads_filter(filter_param: dict) -> ColumnElement:
             except ValidationException as e:
                 last_exception = e
 
-        if last_exception:
+        if last_exception and not results:
             raise last_exception
 
         return or_(*results) if len(results) > 1 else results[0]
