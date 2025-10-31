@@ -33,7 +33,6 @@ from app.logging import get_logger
 from app.models import InputGroupSchema
 from app.queue.events import EventType
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.feature_flags import get_flag_value
 from lib.group_repository import add_hosts_to_group
 from lib.group_repository import create_group_from_payload
@@ -111,16 +110,15 @@ def create_group(body, rbac_filter=None):
         group_name = validated_create_group_data.get("name")
 
         # check the group's existence and for Kessel Phase 1
-        if (
-            not get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1)
-            or get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION)
-        ) and does_group_with_name_exist(group_name, get_current_identity().org_id):
+        if not get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1) and does_group_with_name_exist(
+            group_name, get_current_identity().org_id
+        ):
             log_create_group_failed(logger, group_name)
             return json_error_response(
                 "Integrity error", f"A group with name {group_name} already exists.", HTTPStatus.BAD_REQUEST
             )
 
-        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
+        if not inventory_config().bypass_kessel:
             # Validate whether the hosts can be added to the group
             if len(host_id_list := validated_create_group_data.get("host_ids", [])) > 0:
                 validate_add_host_list_to_group_for_group_create(
@@ -130,7 +128,7 @@ def create_group(body, rbac_filter=None):
                 )
 
             workspace_id = post_rbac_workspace(group_name)
-            if not workspace_id and not inventory_config().bypass_rbac:
+            if not workspace_id:
                 message = f"Error while creating workspace for {group_name}"
                 logger.exception(message)
                 return json_error_response("Workspace creation failure", message, HTTPStatus.BAD_REQUEST)
@@ -201,17 +199,7 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
             log_patch_group_failed(logger, group_id)
             abort(HTTPStatus.BAD_REQUEST, "The 'ungrouped' group can not be modified.")
 
-        # only enforce uniqueness pre-Phase1
-        if (
-            new_name
-            and not get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1)
-            and (new_name != group_to_update.name and does_group_with_name_exist(new_name, identity.org_id))
-        ):
-            log_patch_group_failed(logger, group_id)
-            abort(HTTPStatus.BAD_REQUEST, f"Group with name '{new_name}' already exists.")
-
-        # merge both flag_paths into a single RBAC call
-        if new_name and new_name != group_to_update.name and get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
+        if new_name and new_name != group_to_update.name and not inventory_config().bypass_kessel:
             patch_rbac_workspace(group_id, name=new_name)
 
         # Separate out the host IDs because they're not stored on the Group
@@ -238,7 +226,7 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
 def delete_groups(group_id_list, rbac_filter=None):
     rbac_group_id_check(rbac_filter, set(group_id_list))
 
-    if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
+    if not inventory_config().bypass_kessel:
         # Write is not allowed for the ungrouped through API requests
         ungrouped_group = get_ungrouped_group(get_current_identity())
         ungrouped_group_id = str(ungrouped_group.id) if ungrouped_group else None

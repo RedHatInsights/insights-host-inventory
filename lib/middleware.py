@@ -480,7 +480,7 @@ def rbac_group_id_check(rbac_filter: dict, requested_ids: set) -> None:
 
 
 def post_rbac_workspace(name) -> UUID | None:
-    if inventory_config().bypass_rbac:
+    if inventory_config().bypass_kessel:
         return None
 
     rbac_endpoint = _get_rbac_workspace_url()
@@ -523,8 +523,8 @@ def patch_rbac_workspace_using_endpoint_and_headers(
 
 def rbac_create_ungrouped_hosts_workspace(identity: Identity) -> UUID | None:
     # Creates a new "ungrouped" workspace via the RBAC API, and returns its ID.
-    # If not using RBAC, returns None, so the DB will automatically generate the group ID.
-    if inventory_config().bypass_rbac:
+    # If not using Kessel, returns None, so the DB will automatically generate the group ID.
+    if inventory_config().bypass_kessel:
         return None
 
     # Get HBI's RBAC PSK from the config
@@ -567,7 +567,7 @@ def _handle_delete_error(e: HTTPError, workspace_id: str) -> bool:
 
 
 def delete_rbac_workspace(workspace_id: str) -> bool:
-    if inventory_config().bypass_rbac:
+    if inventory_config().bypass_kessel:
         return True
 
     rbac_endpoint = _get_rbac_workspace_url(workspace_id)
@@ -583,7 +583,7 @@ def delete_rbac_workspace(workspace_id: str) -> bool:
 
 
 def patch_rbac_workspace(workspace_id: str, name: str | None = None) -> None:
-    if inventory_config().bypass_rbac:
+    if inventory_config().bypass_kessel:
         return None
 
     rbac_endpoint = _get_rbac_workspace_url(workspace_id)
@@ -602,7 +602,7 @@ def patch_rbac_workspace(workspace_id: str, name: str | None = None) -> None:
 
 
 def get_rbac_default_workspace() -> UUID | None:
-    if inventory_config().bypass_rbac:
+    if inventory_config().bypass_kessel:
         return None
 
     response = rbac_get_request_using_endpoint_and_headers(

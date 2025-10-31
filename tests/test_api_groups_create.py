@@ -1,8 +1,10 @@
+import contextlib
 import json
 from copy import deepcopy
 
 import pytest
 from dateutil import parser
+from sqlalchemy.exc import IntegrityError
 
 from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
@@ -18,7 +20,6 @@ from tests.helpers.test_utils import generate_uuid
 
 def test_create_group_with_empty_host_list(api_create_group, db_get_group_by_name, event_producer, mocker):
     mocker.patch.object(event_producer, "write_event")
-    mocker.patch("lib.host_repository.get_flag_value")
     group_data = {"name": "my_awesome_group", "host_ids": []}
 
     response_status, response_data = api_create_group(group_data)
@@ -124,24 +125,7 @@ def test_create_group_taken_name(api_create_group, new_name, mocker):
     assert group_data["name"] in response_data["detail"]
 
 
-@pytest.mark.usefixtures("event_producer")
-@pytest.mark.parametrize(
-    "new_name",
-    ["test_Group", " Test_Group", "test_group ", " test_group "],
-)
-def test_create_group_taken_name_kessel(api_create_group, new_name, mocker):
-    group_data = {"name": "test_group", "host_ids": []}
-
-    api_create_group(group_data)
-    group_data["name"] = new_name
-    with mocker.patch("api.group.get_flag_value", return_value=True):
-        response_status, response_data = api_create_group(group_data)
-
-    assert_response_status(response_status, expected_status=400)
-    assert group_data["name"] in response_data["detail"]
-
-
-@pytest.mark.usefixtures("event_producer")
+@pytest.mark.usefixtures("event_producer", "enable_kessel")
 def test_create_group_taken_name_in_kessel_rbac(api_create_group, mocker):
     group_data = {"name": "test_group", "host_ids": []}
 
@@ -165,6 +149,30 @@ def test_create_group_invalid_host_ids(api_create_group, host_ids, event_produce
 
     assert_response_status(response_status, expected_status=400)
     assert any(s in response_data["detail"] for s in host_ids)
+
+    # No hosts modified, so no events should be written.
+    assert event_producer.write_event.call_count == 0
+
+
+@pytest.mark.parametrize(
+    "host_ids",
+    [[str(generate_uuid())] * 2, [str(generate_uuid())] + [str(generate_uuid())] * 2],
+)
+def test_create_group_duplicate_host_ids(api_create_group, db_create_host, host_ids, event_producer, mocker):
+    mocker.patch.object(event_producer, "write_event")
+    group_data = {"name": "my_awesome_group", "host_ids": host_ids}
+
+    # Create hosts with the given host IDs, ignoring duplicates
+    from uuid import UUID
+
+    for host_id in host_ids:
+        with contextlib.suppress(IntegrityError):
+            db_create_host(extra_data={"id": UUID(host_id)})
+
+    response_status, response_data = api_create_group(group_data)
+
+    assert_response_status(response_status, expected_status=400)
+    assert "Host IDs must be unique." in response_data["detail"]
 
     # No hosts modified, so no events should be written.
     assert event_producer.write_event.call_count == 0
@@ -257,7 +265,7 @@ def test_create_group_RBAC_denied_attribute_filter(mocker, api_create_group):
 @pytest.mark.usefixtures("event_producer")
 def test_create_group_same_name_kessel_phase1_enabled(api_create_group, db_get_group_by_name, mocker):
     """Test that groups with the same name can be created when FLAG_INVENTORY_KESSEL_PHASE_1 is True."""
-    # Mock FLAG_INVENTORY_KESSEL_PHASE_1 to be True and FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION to be False
+    # Mock FLAG_INVENTORY_KESSEL_PHASE_1 to be True
     mocker.patch(
         "api.group.get_flag_value",
         side_effect=lambda flag_name: flag_name == FLAG_INVENTORY_KESSEL_PHASE_1,
