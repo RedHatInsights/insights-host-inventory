@@ -17,7 +17,9 @@ from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy.orm import column_property
 from sqlalchemy.orm import relationship
 
+from app.common import inventory_config
 from app.config import ID_FACTS
+from app.culling import Timestamps
 from app.culling import should_host_stay_fresh_forever
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
@@ -32,6 +34,8 @@ from app.models.utils import _create_staleness_timestamps_values
 from app.models.utils import _set_display_name_on_save
 from app.models.utils import _time_now
 from app.utils import Tag
+from lib.feature_flags import FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS
+from lib.feature_flags import get_flag_value
 
 logger = get_logger(__name__)
 
@@ -417,9 +421,6 @@ class Host(LimitedHost):
         pass
 
     def _update_per_reporter_staleness(self, reporter):
-        from lib.feature_flags import FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS
-        from lib.feature_flags import get_flag_value
-
         if not self.per_reporter_staleness:
             self.per_reporter_staleness = {}
 
@@ -591,9 +592,8 @@ class Host(LimitedHost):
         # Handle both flat and nested formats
         if isinstance(reporter_data, str):
             # Flat format: compute stale_timestamp on-the-fly from stored last_check_in
-            from app.config import inventory_config
-            from app.staleness_serialization import Timestamps
-            from app.staleness_serialization import get_staleness_obj
+            # Import here to avoid circular import (api.staleness_query imports from app.models)
+            from api.staleness_query import get_staleness_obj
 
             staleness_ts = Timestamps.from_config(inventory_config())
             staleness = get_staleness_obj(self.org_id)

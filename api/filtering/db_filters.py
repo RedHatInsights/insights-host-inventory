@@ -36,6 +36,8 @@ from app.models.system_profile_static import HostStaticSystemProfile
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_states import HostStalenessStatesDbFilters
 from app.utils import Tag
+from lib.feature_flags import FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS
+from lib.feature_flags import get_flag_value
 
 __all__ = (
     "query_filters",
@@ -211,9 +213,6 @@ def _stale_timestamp_per_reporter_filter(gt=None, lte=None, reporter=None, stale
     - Flag=True: Simple SQL for flat format {"reporter": "ISO timestamp"}
     - Flag=False: SQL for nested format {"reporter": {"last_check_in": "...", "culled_timestamp": "...", ...}}
     """
-    from lib.feature_flags import FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS
-    from lib.feature_flags import get_flag_value
-
     non_negative_reporter = reporter.replace("!", "")
     reporter_list = [non_negative_reporter]
     if non_negative_reporter in OLD_TO_NEW_REPORTER_MAP.keys():

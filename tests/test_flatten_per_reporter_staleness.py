@@ -218,7 +218,7 @@ def test_flatten_dry_run_mode(flask_app: FlaskApp, db_create_host):
     assert "stale_timestamp" in host.per_reporter_staleness["puptoo"]
 
 
-def test_count_hosts_with_nested_format(_flask_app: FlaskApp, db_create_host):
+def test_count_hosts_with_nested_format(db_create_host):
     """Test counting hosts with nested format."""
 
     now_time = datetime.now(UTC)
@@ -277,7 +277,7 @@ def test_count_hosts_with_nested_format(_flask_app: FlaskApp, db_create_host):
     assert count == 2
 
 
-def test_get_hosts_with_nested_format(_flask_app: FlaskApp, db_create_host):
+def test_get_hosts_with_nested_format(db_create_host):
     """Test querying hosts with nested format."""
 
     now_time = datetime.now(UTC)
@@ -323,7 +323,7 @@ def test_get_hosts_with_nested_format(_flask_app: FlaskApp, db_create_host):
     assert host_ids == {host1_id, host2_id}
 
 
-def test_flatten_host_function(_flask_app: FlaskApp, db_create_host):
+def test_flatten_host_function(db_create_host):
     """Test the _flatten_host_per_reporter_staleness function directly."""
 
     now_time = datetime.now(UTC)
@@ -354,7 +354,7 @@ def test_flatten_host_function(_flask_app: FlaskApp, db_create_host):
     assert host.per_reporter_staleness["puptoo"] == (now_time - timedelta(days=1)).isoformat()
 
 
-def test_flatten_host_function_already_flat(_flask_app: FlaskApp, db_create_host):
+def test_flatten_host_function_already_flat(db_create_host):
     """Test _flatten_host_per_reporter_staleness with already-flat host."""
 
     now_time = datetime.now(UTC)
@@ -373,7 +373,7 @@ def test_flatten_host_function_already_flat(_flask_app: FlaskApp, db_create_host
     assert result is False
 
 
-def test_flatten_host_function_dry_run(_flask_app: FlaskApp, db_create_host):
+def test_flatten_host_function_dry_run(db_create_host):
     """Test _flatten_host_per_reporter_staleness in dry-run mode."""
 
     now_time = datetime.now(UTC)
