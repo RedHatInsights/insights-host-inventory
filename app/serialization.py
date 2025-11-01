@@ -769,7 +769,7 @@ def _serialize_per_reporter_staleness(host, staleness, staleness_timestamps):
         }
         host.per_reporter_staleness[reporter] = serialized
 
-    return result
+    return host.per_reporter_staleness
 
 
 def build_rhel_version_str(system_profile: dict) -> str:

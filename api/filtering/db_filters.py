@@ -223,17 +223,13 @@ def _stale_timestamp_per_reporter_filter(
     Returns:
         SQLAlchemy filter expression
     """
+
     non_negative_reporter = reporter.replace("!", "")
     reporter_list = [non_negative_reporter]
     if non_negative_reporter in OLD_TO_NEW_REPORTER_MAP.keys():
         reporter_list.extend(OLD_TO_NEW_REPORTER_MAP[non_negative_reporter])
 
     current_time = datetime.now(UTC)
-    culled_seconds = staleness_config.get("conventional_time_to_delete", 0) if staleness_config else 0
-    culled_interval = timedelta(seconds=culled_seconds)
-
-    # Get staleness configuration for computing culled_timestamp
-    # culled_timestamp = last_check_in + conventional_time_to_delete
     culled_seconds = staleness_config.get("conventional_time_to_delete", 0) if staleness_config else 0
     culled_interval = timedelta(seconds=culled_seconds)
 
