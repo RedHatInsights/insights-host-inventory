@@ -458,7 +458,7 @@ def test_host_model_constraints(field, value, db_create_host):
 @pytest.mark.parametrize("use_flat_format", [True])
 def test_create_host_sets_per_reporter_staleness(db_create_host, models_datetime_mock, use_flat_format, mocker):
     # Mock feature flag
-    mocker.patch("lib.feature_flags.get_flag_value", return_value=use_flat_format)
+    mocker.patch("app.models.host.get_flag_value", return_value=use_flat_format)
 
     stale_timestamp = models_datetime_mock + timedelta(days=1)
 
@@ -477,7 +477,7 @@ def test_create_host_sets_per_reporter_staleness(db_create_host, models_datetime
 
 def test_update_per_reporter_staleness(db_create_host, models_datetime_mock, mocker):
     # Mock feature flag to use flat format
-    mocker.patch("lib.feature_flags.get_flag_value", return_value=True)
+    mocker.patch("app.models.host.get_flag_value", return_value=True)
 
     puptoo_stale_timestamp = models_datetime_mock + timedelta(days=1)
 
@@ -539,7 +539,7 @@ def test_update_per_reporter_staleness_yupana_replacement(
     db_create_host, models_datetime_mock, new_reporter, use_flat_format, mocker
 ):
     # Mock feature flag
-    mocker.patch("lib.feature_flags.get_flag_value", return_value=use_flat_format)
+    mocker.patch("app.models.host.get_flag_value", return_value=use_flat_format)
 
     yupana_stale_timestamp = models_datetime_mock + timedelta(days=1)
     subman_id = generate_uuid()

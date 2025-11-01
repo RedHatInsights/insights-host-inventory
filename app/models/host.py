@@ -416,9 +416,25 @@ class Host(LimitedHost):
                 self.replace_facts_in_namespace(input_namespace, input_facts)
 
     def _update_all_per_reporter_staleness(self, staleness, staleness_ts):
-        # No-op: staleness timestamps are now computed on-the-fly during serialization
-        # This method is kept for backward compatibility but does nothing
-        pass
+        use_flat_structure = get_flag_value(FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS)
+
+        if use_flat_structure:
+            # Flat format: timestamps are computed on-the-fly, nothing to update
+            return
+
+        # Legacy format: update stored timestamps for all reporters
+        from app.staleness_serialization import get_reporter_staleness_timestamps
+
+        for reporter in self.per_reporter_staleness:
+            st = get_reporter_staleness_timestamps(self, staleness_ts, staleness, reporter)
+            self.per_reporter_staleness[reporter].update(
+                stale_timestamp=st["stale_timestamp"].isoformat(),
+                culled_timestamp=st["culled_timestamp"].isoformat(),
+                stale_warning_timestamp=st["stale_warning_timestamp"].isoformat(),
+                last_check_in=self.per_reporter_staleness[reporter]["last_check_in"],
+                check_in_succeeded=True,
+            )
+        orm.attributes.flag_modified(self, "per_reporter_staleness")
 
     def _update_per_reporter_staleness(self, reporter):
         if not self.per_reporter_staleness:
