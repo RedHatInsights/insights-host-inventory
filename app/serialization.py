@@ -524,37 +524,68 @@ def _add_workloads_backward_compatibility(system_profile: dict) -> dict:
 
 
 def _serialize_per_reporter_staleness(host, staleness, staleness_timestamps):
-    # Build nested response structure from flat storage (reporter -> timestamp)
     result = {}
 
-    for reporter, last_check_in_str in host.per_reporter_staleness.items():
-        # For hosts that should stay fresh forever, use far-future timestamps
-        if should_host_stay_fresh_forever(host):
-            stale_timestamp = FAR_FUTURE_STALE_TIMESTAMP
-            stale_warning_timestamp = FAR_FUTURE_STALE_TIMESTAMP
-            delete_timestamp = FAR_FUTURE_STALE_TIMESTAMP
-        else:
-            last_check_in = _deserialize_datetime(last_check_in_str)
-            stale_timestamp = staleness_timestamps.stale_timestamp(
-                last_check_in,
-                staleness["conventional_time_to_stale"],
-            )
-            stale_warning_timestamp = staleness_timestamps.stale_timestamp(
-                last_check_in,
-                staleness["conventional_time_to_stale_warning"],
-            )
-            delete_timestamp = staleness_timestamps.stale_timestamp(
-                last_check_in,
-                staleness["conventional_time_to_delete"],
-            )
+    for reporter, value in host.per_reporter_staleness.items():
+        # Detect format: if value is a string, it's the flat format; if dict, it's legacy format
+        is_flat_format = isinstance(value, str)
 
-        result[reporter] = {
-            "last_check_in": last_check_in_str,
-            "stale_timestamp": _serialize_staleness_to_string(stale_timestamp),
-            "stale_warning_timestamp": _serialize_staleness_to_string(stale_warning_timestamp),
-            "culled_timestamp": _serialize_staleness_to_string(delete_timestamp),
-            "check_in_succeeded": True,
-        }
+        if is_flat_format:
+            # New flat format: value is the last_check_in timestamp string
+            last_check_in_str = value
+
+            # For hosts that should stay fresh forever, use far-future timestamps
+            if should_host_stay_fresh_forever(host):
+                stale_timestamp = FAR_FUTURE_STALE_TIMESTAMP
+                stale_warning_timestamp = FAR_FUTURE_STALE_TIMESTAMP
+                delete_timestamp = FAR_FUTURE_STALE_TIMESTAMP
+            else:
+                last_check_in = _deserialize_datetime(last_check_in_str)
+                stale_timestamp = staleness_timestamps.stale_timestamp(
+                    last_check_in,
+                    staleness["conventional_time_to_stale"],
+                )
+                stale_warning_timestamp = staleness_timestamps.stale_timestamp(
+                    last_check_in,
+                    staleness["conventional_time_to_stale_warning"],
+                )
+                delete_timestamp = staleness_timestamps.stale_timestamp(
+                    last_check_in,
+                    staleness["conventional_time_to_delete"],
+                )
+
+            result[reporter] = {
+                "last_check_in": last_check_in_str,
+                "stale_timestamp": _serialize_staleness_to_string(stale_timestamp),
+                "stale_warning_timestamp": _serialize_staleness_to_string(stale_warning_timestamp),
+                "culled_timestamp": _serialize_staleness_to_string(delete_timestamp),
+                "check_in_succeeded": True,
+            }
+        else:
+            # Legacy nested format: value already contains all fields, just update computed timestamps
+            # For hosts that should stay fresh forever, use far-future timestamps
+            if should_host_stay_fresh_forever(host):
+                stale_timestamp = FAR_FUTURE_STALE_TIMESTAMP
+                stale_warning_timestamp = FAR_FUTURE_STALE_TIMESTAMP
+                delete_timestamp = FAR_FUTURE_STALE_TIMESTAMP
+            else:
+                stale_timestamp = staleness_timestamps.stale_timestamp(
+                    _deserialize_datetime(value["last_check_in"]),
+                    staleness["conventional_time_to_stale"],
+                )
+                stale_warning_timestamp = staleness_timestamps.stale_timestamp(
+                    _deserialize_datetime(value["last_check_in"]),
+                    staleness["conventional_time_to_stale_warning"],
+                )
+                delete_timestamp = staleness_timestamps.stale_timestamp(
+                    _deserialize_datetime(value["last_check_in"]),
+                    staleness["conventional_time_to_delete"],
+                )
+
+            value["stale_timestamp"] = _serialize_staleness_to_string(stale_timestamp)
+            value["stale_warning_timestamp"] = _serialize_staleness_to_string(stale_warning_timestamp)
+            value["culled_timestamp"] = _serialize_staleness_to_string(delete_timestamp)
+            result[reporter] = value
 
     return result
 

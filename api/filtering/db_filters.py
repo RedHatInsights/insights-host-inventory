@@ -207,75 +207,105 @@ def _stale_timestamp_per_reporter_filter(gt=None, lte=None, reporter=None, stale
     """
     Filter hosts by reporter staleness.
 
-    Note: per_reporter_staleness now stores timestamp strings directly (reporter -> "ISO timestamp")
-    instead of nested dicts. Staleness timestamps are computed on-the-fly in SQL.
+    Uses feature flag to determine which SQL to build:
+    - Flag=True: Simple SQL for flat format {"reporter": "ISO timestamp"}
+    - Flag=False: SQL for nested format {"reporter": {"last_check_in": "...", "culled_timestamp": "...", ...}}
     """
+    from lib.feature_flags import FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS
+    from lib.feature_flags import get_flag_value
+
     non_negative_reporter = reporter.replace("!", "")
     reporter_list = [non_negative_reporter]
     if non_negative_reporter in OLD_TO_NEW_REPORTER_MAP.keys():
         reporter_list.extend(OLD_TO_NEW_REPORTER_MAP[non_negative_reporter])
 
     current_time = datetime.now(UTC)
+    use_flat_format = get_flag_value(FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS)
 
-    # Get staleness configuration for computing culled_timestamp
-    # culled_timestamp = last_check_in + conventional_time_to_delete
-    culled_seconds = staleness_config.get("conventional_time_to_delete", 0) if staleness_config else 0
-    culled_interval = timedelta(seconds=culled_seconds)
+    if use_flat_format:
+        # FLAT FORMAT: Simpler SQL - value is timestamp string
+        culled_seconds = staleness_config.get("conventional_time_to_delete", 0) if staleness_config else 0
+        culled_interval = timedelta(seconds=culled_seconds)
 
-    if reporter.startswith("!"):
-        # For negation: include hosts that do NOT have ANY fresh reporter from the reporter_list
-        # This means: for ALL reporters in the list, the host either doesn't have them OR they're culled
-        time_filter_ = stale_timestamp_filter(gt=gt, lte=lte)
+        if reporter.startswith("!"):
+            # Negation: exclude hosts with this reporter (or culled)
+            time_filter_ = stale_timestamp_filter(gt=gt, lte=lte)
+            and_conditions = []
 
-        and_conditions = []  # All conditions must be true (host lacks ALL fresh reporters)
+            for rep in reporter_list:
+                # Compute culled_timestamp: last_check_in + interval
+                last_check_in_expr = Host.per_reporter_staleness[rep].astext.cast(DateTime)
+                computed_culled = last_check_in_expr + culled_interval
 
-        for rep in reporter_list:
-            # For each reporter, the host must either:
-            # 1. Not have this reporter at all, OR
-            # 2. Have this reporter but it's culled (computed culled_timestamp < now)
+                rep_condition = or_(
+                    not_(Host.per_reporter_staleness.has_key(rep)),  # No reporter
+                    computed_culled < current_time,  # Reporter is culled
+                )
+                and_conditions.append(rep_condition)
 
-            # Compute culled_timestamp on-the-fly: last_check_in + interval
-            # per_reporter_staleness[rep] is now a string timestamp, not a dict
-            last_check_in_expr = Host.per_reporter_staleness[rep].astext.cast(DateTime)
-            computed_culled_timestamp = last_check_in_expr + culled_interval
+            return and_(and_(*and_conditions), time_filter_)
+        else:
+            # Positive: include hosts with this reporter (not culled)
+            or_filter = []
+            for rep in reporter_list:
+                conditions = [Host.per_reporter_staleness.has_key(rep)]
 
-            rep_condition = or_(
-                # Doesn't have this reporter
-                not_(Host.per_reporter_staleness.has_key(rep)),
-                # Has this reporter but it's culled (computed culled_timestamp < now)
-                and_(
-                    Host.per_reporter_staleness.has_key(rep),
-                    computed_culled_timestamp < current_time,
-                ),
-            )
-            and_conditions.append(rep_condition)
+                # Check not culled
+                last_check_in_expr = Host.per_reporter_staleness[rep].astext.cast(DateTime)
+                computed_culled = last_check_in_expr + culled_interval
+                conditions.append(computed_culled >= current_time)
 
-        return and_(
-            and_(*and_conditions),  # Must satisfy condition for ALL reporters in the list
-            time_filter_,
-        )
+                # Time range filters
+                if gt:
+                    conditions.append(last_check_in_expr > gt)
+                if lte:
+                    conditions.append(last_check_in_expr <= lte)
+
+                or_filter.append(and_(*conditions))
+
+            return or_(*or_filter)
     else:
-        # For positive: include hosts that have the reporter AND are not culled
-        or_filter = []
-        for rep in reporter_list:
-            conditions = [Host.per_reporter_staleness.has_key(rep)]
+        # NESTED FORMAT: Original SQL - value is dict with culled_timestamp
+        if reporter.startswith("!"):
+            # Negation: exclude hosts with this reporter (or culled)
+            time_filter_ = stale_timestamp_filter(gt=gt, lte=lte)
+            and_conditions = []
 
-            # Compute culled_timestamp on-the-fly and check if not culled
-            # per_reporter_staleness[rep] is now a string timestamp, not a dict
-            last_check_in_expr = Host.per_reporter_staleness[rep].astext.cast(DateTime)
-            computed_culled_timestamp = last_check_in_expr + culled_interval
+            for rep in reporter_list:
+                rep_condition = or_(
+                    not_(Host.per_reporter_staleness.has_key(rep)),  # No reporter
+                    # Has reporter but culled
+                    and_(
+                        Host.per_reporter_staleness.has_key(rep),
+                        Host.per_reporter_staleness[rep].has_key("culled_timestamp"),
+                        Host.per_reporter_staleness[rep]["culled_timestamp"].astext.cast(DateTime) < current_time,
+                    ),
+                )
+                and_conditions.append(rep_condition)
 
-            # Check that the host is not culled (culled_timestamp >= now)
-            culled_condition = computed_culled_timestamp >= current_time
-            conditions.append(culled_condition)
+            return and_(and_(*and_conditions), time_filter_)
+        else:
+            # Positive: include hosts with this reporter (not culled)
+            or_filter = []
+            for rep in reporter_list:
+                conditions = [Host.per_reporter_staleness.has_key(rep)]
 
-            if gt:
-                conditions.append(last_check_in_expr > gt)
-            if lte:
-                conditions.append(last_check_in_expr <= lte)
-            or_filter.append(and_(*conditions))
+                # Check not culled (backward compatible - if no culled_timestamp, include it)
+                culled_condition = or_(
+                    not_(Host.per_reporter_staleness[rep].has_key("culled_timestamp")),
+                    Host.per_reporter_staleness[rep]["culled_timestamp"].astext.cast(DateTime) >= current_time,
+                )
+                conditions.append(culled_condition)
 
-        return or_(*or_filter)
+                # Time range filters
+                if gt:
+                    conditions.append(Host.per_reporter_staleness[rep]["last_check_in"].astext.cast(DateTime) > gt)
+                if lte:
+                    conditions.append(Host.per_reporter_staleness[rep]["last_check_in"].astext.cast(DateTime) <= lte)
+
+                or_filter.append(and_(*conditions))
+
+            return or_(*or_filter)
 
 
 def per_reporter_staleness_filter(staleness, reporter, org_id):
