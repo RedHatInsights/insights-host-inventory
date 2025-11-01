@@ -490,10 +490,9 @@ def test_host_model_constraints(field, value, db_create_host):
         db_create_host(host=host)
 
 
-@pytest.mark.parametrize("use_flat_format", [True])
-def test_create_host_sets_per_reporter_staleness(db_create_host, models_datetime_mock, use_flat_format, mocker):
+def test_create_host_sets_per_reporter_staleness(db_create_host, models_datetime_mock, mocker):
     # Mock feature flag
-    mocker.patch("lib.feature_flags.get_flag_value", return_value=use_flat_format)
+    mocker.patch("lib.feature_flags.get_flag_value", return_value=True)
 
     stale_timestamp = models_datetime_mock + timedelta(days=1)
 
@@ -564,11 +563,11 @@ def test_update_per_reporter_staleness(db_create_host, models_datetime_mock, moc
 
 @pytest.mark.parametrize(
     "new_reporter,use_flat_format",
-    [
+    (
         ("satellite", True),
         ("discovery", True),
         ("satellite", False),  # Test legacy nested format
-    ],
+    ),
 )
 def test_update_per_reporter_staleness_yupana_replacement(
     db_create_host, models_datetime_mock, new_reporter, use_flat_format, mocker

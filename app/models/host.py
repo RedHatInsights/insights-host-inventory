@@ -34,6 +34,8 @@ from app.models.utils import _create_staleness_timestamps_values
 from app.models.utils import _set_display_name_on_save
 from app.models.utils import _time_now
 from app.utils import Tag
+from lib.feature_flags import FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS
+from lib.feature_flags import get_flag_value
 
 logger = get_logger(__name__)
 
@@ -456,12 +458,14 @@ class Host(LimitedHost):
 
     def _update_all_per_reporter_staleness(self, staleness, staleness_ts):
         from app.staleness_serialization import get_reporter_staleness_timestamps
-        from lib.feature_flags import FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS
-        from lib.feature_flags import get_flag_value
 
-        if get_flag_value(FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS):
+        use_flat_structure = get_flag_value(FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS)
+
+        if use_flat_structure:
             # Flat format: timestamps are computed on-the-fly, nothing to update
             return
+
+        # Legacy format: update stored timestamps for all reporters
         for reporter in self.per_reporter_staleness:
             if not isinstance(self.per_reporter_staleness[reporter], dict):
                 continue
@@ -517,7 +521,6 @@ class Host(LimitedHost):
                     last_check_in=self.last_check_in.isoformat(),
                     check_in_succeeded=True,
                 )
-
         orm.attributes.flag_modified(self, "per_reporter_staleness")
 
     def _update_last_check_in_date(self):
