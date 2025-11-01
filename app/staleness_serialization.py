@@ -73,7 +73,8 @@ def get_reporter_staleness_timestamps(
             "culled_timestamp": FAR_FUTURE_STALE_TIMESTAMP,
         }
 
-    date_to_use = datetime.fromisoformat(host.per_reporter_staleness[reporter]["last_check_in"])
+    # per_reporter_staleness now stores timestamp strings directly, not nested dicts
+    date_to_use = datetime.fromisoformat(host.per_reporter_staleness[reporter])
 
     return {
         "stale_timestamp": staleness_timestamps.stale_timestamp(date_to_use, staleness["conventional_time_to_stale"]),
