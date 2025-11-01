@@ -232,6 +232,11 @@ def _stale_timestamp_per_reporter_filter(
     culled_seconds = staleness_config.get("conventional_time_to_delete", 0) if staleness_config else 0
     culled_interval = timedelta(seconds=culled_seconds)
 
+    # Get staleness configuration for computing culled_timestamp
+    # culled_timestamp = last_check_in + conventional_time_to_delete
+    culled_seconds = staleness_config.get("conventional_time_to_delete", 0) if staleness_config else 0
+    culled_interval = timedelta(seconds=culled_seconds)
+
     if reporter.startswith("!"):
         # Negation: exclude hosts with this reporter (or culled)
         time_filter_ = stale_timestamp_filter(gt=gt, lte=lte)

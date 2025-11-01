@@ -80,6 +80,8 @@ def run(config, logger, session, event_producer, notification_event_producer, sh
         filter_hosts_to_delete = find_hosts_in_state(logger, session, ["culled"])
 
         # Apply the main filter and exclude hosts that should stay fresh forever
+        # per_reporter_staleness now stores timestamp strings directly (reporter -> "ISO timestamp")
+        # Check if host has more reporters than just rhsm-system-profile-bridge
         query = session.query(Host).filter(
             and_(
                 or_(False, *filter_hosts_to_delete),
