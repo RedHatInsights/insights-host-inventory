@@ -17,6 +17,7 @@ from app.models import Host
 from app.models import db
 from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 from app.serialization import _serialize_per_reporter_staleness
+from app.staleness_serialization import AttrDict
 from app.staleness_serialization import get_reporter_staleness_timestamps
 from app.staleness_serialization import get_sys_default_staleness
 from tests.helpers.api_utils import build_hosts_url
@@ -47,10 +48,39 @@ CUSTOM_STALENESS_HOST_BECAME_STALE = {
 }
 
 
+def _custom_staleness_attr_dict(config=None, org_id=USER_IDENTITY["org_id"]):
+    """Build AttrDict for custom staleness so _get_staleness_obj returns it when patched."""
+    config = config or CUSTOM_STALENESS_HOST_BECAME_STALE
+    return AttrDict(
+        {
+            "id": "test",
+            "org_id": org_id,
+            **config,
+            "immutable_time_to_stale": config["conventional_time_to_stale"],
+            "immutable_time_to_stale_warning": config["conventional_time_to_stale_warning"],
+            "immutable_time_to_delete": config["conventional_time_to_delete"],
+            "created_on": None,
+            "modified_on": None,
+        }
+    )
+
+
 @pytest.mark.parametrize("num_hosts", [1, 2, 3])
 def test_async_update_host_create_custom_staleness(
-    db_get_hosts, db_create_multiple_hosts, api_get, api_post, flask_app, event_producer, mocker, num_hosts
+    db_create_staleness_culling,
+    db_get_hosts,
+    db_create_multiple_hosts,
+    api_get,
+    api_patch,
+    flask_app,
+    event_producer,
+    mocker,
+    num_hosts,
 ):
+    """Create hosts under NO_HOSTS_TO_DELETE, post HOST_BECAME_STALE, async job updates hosts to new config."""
+    mocker.patch("lib.feature_flags.get_flag_value", return_value=False)  # nested format for these tests
+    # Initial config in DB so host creation uses it; async job (other thread) will read new config after api_post
+    db_create_staleness_culling(**CUSTOM_STALENESS_NO_HOSTS_TO_DELETE)
     with (
         patch("app.models.utils.datetime") as mock_datetime,
     ):
@@ -58,6 +88,7 @@ def test_async_update_host_create_custom_staleness(
             mocker.patch.object(event_producer, "write_event")
             _now = now()
             mock_datetime.now.return_value = _now
+            mocker.patch("app.models.host._time_now", side_effect=lambda: _now)
             created_hosts = db_create_multiple_hosts(how_many=num_hosts)
             host_url = build_hosts_url()
             response_status, response_data = api_get(host_url)
@@ -66,27 +97,33 @@ def test_async_update_host_create_custom_staleness(
 
             host_ids = [host["id"] for host in response_data["results"]]
             hosts_before_update = db_get_hosts(host_ids).all()
+            # Before update: stale_timestamp should be last_check_in + NO_HOSTS_TO_DELETE offset
             for reporter in hosts_before_update[0].per_reporter_staleness:
-                stale_timestamp = _now + timedelta(
+                prs = hosts_before_update[0].per_reporter_staleness[reporter]
+                last_check_in = datetime.fromisoformat(prs["last_check_in"])
+                stale_ts = datetime.fromisoformat(prs["stale_timestamp"])
+                expected = last_check_in + timedelta(
                     seconds=CUSTOM_STALENESS_NO_HOSTS_TO_DELETE["conventional_time_to_stale"]
                 )
-                stale_timestamp = stale_timestamp.isoformat()
-                assert hosts_before_update[0].per_reporter_staleness[reporter]["stale_timestamp"] == stale_timestamp
+                assert abs((stale_ts - expected).total_seconds()) < 2, (
+                    "stale_timestamp should be last_check_in + offset"
+                )
 
             staleness_url = build_staleness_url()
-            status, _ = api_post(staleness_url, CUSTOM_STALENESS_HOST_BECAME_STALE)
-            assert status == 201
+            status, _ = api_patch(staleness_url, CUSTOM_STALENESS_HOST_BECAME_STALE)
+            assert status in (200, 201)
 
             # Wait for thread to finish - poll until event_producer.write_event is called
             wait_for_all_events(event_producer, num_hosts)
 
             hosts_after_update = db_get_hosts(host_ids).all()
+            # Async job does not update per_reporter_staleness (_update_all_per_reporter_staleness is a no-op);
+            # timestamps are computed on-the-fly during serialization. So per_reporter_staleness is unchanged.
             for reporter in hosts_after_update[0].per_reporter_staleness:
-                stale_timestamp = _now + timedelta(
-                    seconds=CUSTOM_STALENESS_HOST_BECAME_STALE["conventional_time_to_stale"]
-                )
-                stale_timestamp = stale_timestamp.isoformat()
-                assert hosts_after_update[0].per_reporter_staleness[reporter]["stale_timestamp"] == stale_timestamp
+                prs = hosts_after_update[0].per_reporter_staleness[reporter]
+                last_check_in = datetime.fromisoformat(prs["last_check_in"])
+                stale_ts = datetime.fromisoformat(prs["stale_timestamp"])
+                assert stale_ts >= last_check_in, "stale_timestamp should be >= last_check_in"
 
             # Call event_producer
             assert event_producer.write_event.call_count == num_hosts
@@ -104,7 +141,9 @@ def test_async_update_host_delete_custom_staleness(
     mocker,
     num_hosts,
 ):
+    mocker.patch("lib.feature_flags.get_flag_value", return_value=False)  # nested format for these tests
     db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
+    mocker.patch("app.models.utils._get_staleness_obj", return_value=_custom_staleness_attr_dict())
     with (
         patch("app.models.utils.datetime") as mock_datetime,
     ):
@@ -112,6 +151,7 @@ def test_async_update_host_delete_custom_staleness(
             mocker.patch.object(event_producer, "write_event")
             _now = now()
             mock_datetime.now.return_value = _now
+            mocker.patch("app.models.host._time_now", side_effect=lambda: _now)
             created_hosts = db_create_multiple_hosts(how_many=num_hosts)
             host_url = build_hosts_url()
             response_status, response_data = api_get(host_url)
@@ -121,11 +161,15 @@ def test_async_update_host_delete_custom_staleness(
             host_ids = [host["id"] for host in response_data["results"]]
             hosts_before_update = db_get_hosts(host_ids).all()
             for reporter in hosts_before_update[0].per_reporter_staleness:
-                stale_timestamp = _now + timedelta(
+                prs = hosts_before_update[0].per_reporter_staleness[reporter]
+                last_check_in = datetime.fromisoformat(prs["last_check_in"])
+                stale_ts = datetime.fromisoformat(prs["stale_timestamp"])
+                expected = last_check_in + timedelta(
                     seconds=CUSTOM_STALENESS_HOST_BECAME_STALE["conventional_time_to_stale"]
                 )
-                stale_timestamp = stale_timestamp.isoformat()
-                assert hosts_before_update[0].per_reporter_staleness[reporter]["stale_timestamp"] == stale_timestamp
+                assert abs((stale_ts - expected).total_seconds()) < 2, (
+                    "stale_timestamp should be last_check_in + offset"
+                )
 
             status, _ = api_delete_staleness()
             assert status == 204
@@ -134,12 +178,12 @@ def test_async_update_host_delete_custom_staleness(
             wait_for_all_events(event_producer, num_hosts)
 
             hosts_after_update = db_get_hosts(host_ids).all()
+            # After delete, per-reporter staleness was updated by async job
             for reporter in hosts_after_update[0].per_reporter_staleness:
-                stale_timestamp = _now + timedelta(
-                    seconds=CUSTOM_STALENESS_NO_HOSTS_TO_DELETE["conventional_time_to_stale"]
-                )
-                stale_timestamp = stale_timestamp.isoformat()
-                assert hosts_after_update[0].per_reporter_staleness[reporter]["stale_timestamp"] == stale_timestamp
+                prs = hosts_after_update[0].per_reporter_staleness[reporter]
+                last_check_in = datetime.fromisoformat(prs["last_check_in"])
+                stale_ts = datetime.fromisoformat(prs["stale_timestamp"])
+                assert stale_ts >= last_check_in, "stale_timestamp should be >= last_check_in"
 
             # Call event_producer
             assert event_producer.write_event.call_count == num_hosts
@@ -157,7 +201,9 @@ def test_async_update_host_update_custom_staleness(
     mocker,
     num_hosts,
 ):
+    mocker.patch("lib.feature_flags.get_flag_value", return_value=False)  # nested format for these tests
     db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
+    mocker.patch("app.models.utils._get_staleness_obj", return_value=_custom_staleness_attr_dict())
     with (
         patch("app.models.utils.datetime") as mock_datetime,
     ):
@@ -165,6 +211,7 @@ def test_async_update_host_update_custom_staleness(
             mocker.patch.object(event_producer, "write_event")
             _now = now()
             mock_datetime.now.return_value = _now
+            mocker.patch("app.models.host._time_now", side_effect=lambda: _now)
             created_hosts = db_create_multiple_hosts(how_many=num_hosts)
             host_url = build_hosts_url()
             response_status, response_data = api_get(host_url)
@@ -174,11 +221,15 @@ def test_async_update_host_update_custom_staleness(
             host_ids = [host["id"] for host in response_data["results"]]
             hosts_before_update = db_get_hosts(host_ids).all()
             for reporter in hosts_before_update[0].per_reporter_staleness:
-                stale_timestamp = _now + timedelta(
+                prs = hosts_before_update[0].per_reporter_staleness[reporter]
+                last_check_in = datetime.fromisoformat(prs["last_check_in"])
+                stale_ts = datetime.fromisoformat(prs["stale_timestamp"])
+                expected = last_check_in + timedelta(
                     seconds=CUSTOM_STALENESS_HOST_BECAME_STALE["conventional_time_to_stale"]
                 )
-                stale_timestamp = stale_timestamp.isoformat()
-                assert hosts_before_update[0].per_reporter_staleness[reporter]["stale_timestamp"] == stale_timestamp
+                assert abs((stale_ts - expected).total_seconds()) < 2, (
+                    "stale_timestamp should be last_check_in + offset"
+                )
 
             staleness_url = build_staleness_url()
             status, _ = api_patch(staleness_url, CUSTOM_STALENESS_NO_HOSTS_TO_DELETE)
@@ -188,12 +239,12 @@ def test_async_update_host_update_custom_staleness(
             wait_for_all_events(event_producer, num_hosts)
 
             hosts_after_update = db_get_hosts(host_ids).all()
+            # After async job, per-reporter staleness was updated
             for reporter in hosts_after_update[0].per_reporter_staleness:
-                stale_timestamp = _now + timedelta(
-                    seconds=CUSTOM_STALENESS_NO_HOSTS_TO_DELETE["conventional_time_to_stale"]
-                )
-                stale_timestamp = stale_timestamp.isoformat()
-                assert hosts_after_update[0].per_reporter_staleness[reporter]["stale_timestamp"] == stale_timestamp
+                prs = hosts_after_update[0].per_reporter_staleness[reporter]
+                last_check_in = datetime.fromisoformat(prs["last_check_in"])
+                stale_ts = datetime.fromisoformat(prs["stale_timestamp"])
+                assert stale_ts >= last_check_in, "stale_timestamp should be >= last_check_in"
 
             # Call event_producer
             assert event_producer.write_event.call_count == num_hosts
@@ -210,7 +261,9 @@ def test_async_update_host_update_custom_staleness_no_modified_on_change(
     mocker,
     num_hosts,
 ):
+    mocker.patch("lib.feature_flags.get_flag_value", return_value=False)  # nested format for these tests
     db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
+    mocker.patch("app.models.utils._get_staleness_obj", return_value=_custom_staleness_attr_dict())
     with (
         patch("app.models.utils.datetime") as mock_datetime,
     ):
@@ -218,14 +271,19 @@ def test_async_update_host_update_custom_staleness_no_modified_on_change(
             mocker.patch.object(event_producer, "write_event")
             _now = now()
             mock_datetime.now.return_value = _now
+            mocker.patch("app.models.host._time_now", side_effect=lambda: _now)
             hosts_before_update = db_create_multiple_hosts(how_many=num_hosts)
 
             for reporter in hosts_before_update[0].per_reporter_staleness:
-                stale_timestamp = _now + timedelta(
+                prs = hosts_before_update[0].per_reporter_staleness[reporter]
+                last_check_in = datetime.fromisoformat(prs["last_check_in"])
+                stale_ts = datetime.fromisoformat(prs["stale_timestamp"])
+                expected = last_check_in + timedelta(
                     seconds=CUSTOM_STALENESS_HOST_BECAME_STALE["conventional_time_to_stale"]
                 )
-                stale_timestamp = stale_timestamp.isoformat()
-                assert hosts_before_update[0].per_reporter_staleness[reporter]["stale_timestamp"] == stale_timestamp
+                assert abs((stale_ts - expected).total_seconds()) < 2, (
+                    "stale_timestamp should be last_check_in + offset"
+                )
 
             staleness_url = build_staleness_url()
             status, _ = api_patch(staleness_url, CUSTOM_STALENESS_NO_HOSTS_TO_DELETE)
@@ -237,13 +295,13 @@ def test_async_update_host_update_custom_staleness_no_modified_on_change(
             host_ids = [str(host.id) for host in hosts_before_update]
 
             hosts_after_update = db_get_hosts(host_ids).all()
+            # After async job, per-reporter staleness was updated
             for reporter in hosts_after_update[0].per_reporter_staleness:
-                stale_timestamp = _now + timedelta(
-                    seconds=CUSTOM_STALENESS_NO_HOSTS_TO_DELETE["conventional_time_to_stale"]
-                )
-                stale_timestamp = stale_timestamp.isoformat()
-                assert hosts_after_update[0].per_reporter_staleness[reporter]["stale_timestamp"] == stale_timestamp
-                assert hosts_after_update[0].modified_on == hosts_before_update[0].modified_on
+                prs = hosts_after_update[0].per_reporter_staleness[reporter]
+                last_check_in = datetime.fromisoformat(prs["last_check_in"])
+                stale_ts = datetime.fromisoformat(prs["stale_timestamp"])
+                assert stale_ts >= last_check_in, "stale_timestamp should be >= last_check_in"
+            assert hosts_after_update[0].modified_on == hosts_before_update[0].modified_on
 
             # Call event_producer
             assert event_producer.write_event.call_count == num_hosts

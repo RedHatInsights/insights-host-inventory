@@ -101,6 +101,7 @@ def get_sys_default_staleness_api(identity, config=None):
 
 
 def build_staleness_sys_default(org_id, config=None):
+
     if not config:
         config = inventory_config()
 

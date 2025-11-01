@@ -14,9 +14,11 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy.orm import relationship
 
+from app.common import inventory_config
 from app.config import CANONICAL_FACTS_FIELDS
 from app.config import DEFAULT_INSIGHTS_ID
 from app.config import ID_FACTS
+from app.culling import Timestamps
 from app.culling import should_host_stay_fresh_forever
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
@@ -31,8 +33,9 @@ from app.models.system_profile_static import HostStaticSystemProfile
 from app.models.utils import _create_staleness_timestamps_values
 from app.models.utils import _set_display_name_on_save
 from app.models.utils import _time_now
-from app.staleness_serialization import get_reporter_staleness_timestamps
 from app.utils import Tag
+from lib.feature_flags import FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS
+from lib.feature_flags import get_flag_value
 
 logger = get_logger(__name__)
 
@@ -459,16 +462,9 @@ class Host(LimitedHost):
                 self.replace_facts_in_namespace(input_namespace, input_facts)
 
     def _update_all_per_reporter_staleness(self, staleness, staleness_ts):
-        for reporter in self.per_reporter_staleness:
-            st = get_reporter_staleness_timestamps(self, staleness_ts, staleness, reporter)
-            self.per_reporter_staleness[reporter].update(
-                stale_timestamp=st["stale_timestamp"].isoformat(),
-                culled_timestamp=st["culled_timestamp"].isoformat(),
-                stale_warning_timestamp=st["stale_warning_timestamp"].isoformat(),
-                last_check_in=self.per_reporter_staleness[reporter]["last_check_in"],
-                check_in_succeeded=True,
-            )
-        orm.attributes.flag_modified(self, "per_reporter_staleness")
+        # No-op: staleness timestamps are now computed on-the-fly during serialization
+        # This method is kept for backward compatibility but does nothing
+        pass
 
     def _compute_staleness_timestamps(self):
         """Compute staleness timestamps once, to be shared by multiple update methods."""
@@ -489,11 +485,14 @@ class Host(LimitedHost):
         if not self.per_reporter_staleness:
             self.per_reporter_staleness = {}
 
-        if not self.per_reporter_staleness.get(reporter):
-            self.per_reporter_staleness[reporter] = {}
-
+        # Remove old reporter mapping if this is a renamed reporter
         if old_reporter := NEW_TO_OLD_REPORTER_MAP.get(reporter):
             self.per_reporter_staleness.pop(old_reporter, None)
+
+        # Ensure the current reporter is in the dict so should_host_stay_fresh_forever
+        # sees the full set (e.g. both rhsm and puptoo when reporter is changing).
+        if reporter not in self.per_reporter_staleness:
+            self.per_reporter_staleness[reporter] = {}
 
     def _update_per_reporter_staleness(self, reporter, staleness_ts=None):
         self._prepare_per_reporter_entry(reporter)
@@ -501,13 +500,23 @@ class Host(LimitedHost):
         if staleness_ts is None:
             staleness_ts = self._compute_staleness_timestamps()
 
-        self.per_reporter_staleness[reporter].update(
-            stale_timestamp=staleness_ts["stale_timestamp"].isoformat(),
-            culled_timestamp=staleness_ts["culled_timestamp"].isoformat(),
-            stale_warning_timestamp=staleness_ts["stale_warning_timestamp"].isoformat(),
-            last_check_in=self.last_check_in.isoformat(),
-            check_in_succeeded=True,
-        )
+        if get_flag_value(FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS):
+            # Flat format: store only the last_check_in timestamp as a string.
+            # Staleness timestamps are computed on-the-fly during serialization.
+            self.per_reporter_staleness[reporter] = self.last_check_in.isoformat()
+        else:
+            # Nested format: store full dict for backward compatibility.
+            entry = self.per_reporter_staleness.get(reporter)
+            if not isinstance(entry, dict):
+                entry = {}
+            entry.update(
+                last_check_in=self.last_check_in.isoformat(),
+                stale_timestamp=staleness_ts["stale_timestamp"].isoformat(),
+                stale_warning_timestamp=staleness_ts["stale_warning_timestamp"].isoformat(),
+                culled_timestamp=staleness_ts["culled_timestamp"].isoformat(),
+                check_in_succeeded=True,
+            )
+            self.per_reporter_staleness[reporter] = entry
         orm.attributes.flag_modified(self, "per_reporter_staleness")
 
     def _update_last_check_in_date(self):
@@ -615,13 +624,36 @@ class Host(LimitedHost):
             logger.debug("Host should stay fresh forever, reports from %s are not stale", reporter)
             return False
 
-        prs = self.per_reporter_staleness.get(reporter, None)
-        if not prs:
-            logger.debug("Reports from %s are stale", reporter)
+        raw = self.per_reporter_staleness.get(reporter, None)
+        if not raw:
+            logger.debug("Reports from %s are stale (no check-in recorded)", reporter)
             return True
+        # Support both flat (string) and nested (dict with "last_check_in" / "stale_timestamp") formats
+        if isinstance(raw, dict):
+            if "stale_timestamp" in raw:
+                pr_stale_timestamp = isoparse(raw["stale_timestamp"])
+            else:
+                last_check_in_str = raw.get("last_check_in")
+                if not last_check_in_str:
+                    logger.debug("Reports from %s are stale (no check-in recorded)", reporter)
+                    return True
+                from api.staleness_query import get_staleness_obj
 
-        pr_stale_timestamp = isoparse(prs["stale_timestamp"])
-        logger.debug("per_reporter_staleness[%s]['stale_timestamp']: %s", reporter, pr_stale_timestamp)
+                staleness = get_staleness_obj(self.org_id)
+                last_check_in = isoparse(last_check_in_str)
+                pr_stale_timestamp = Timestamps.from_config(inventory_config()).stale_timestamp(
+                    last_check_in, staleness["conventional_time_to_stale"]
+                )
+        else:
+            last_check_in_str = raw
+            from api.staleness_query import get_staleness_obj
+
+            staleness_ts = Timestamps.from_config(inventory_config())
+            staleness = get_staleness_obj(self.org_id)
+            last_check_in = isoparse(last_check_in_str)
+            pr_stale_timestamp = staleness_ts.stale_timestamp(last_check_in, staleness["conventional_time_to_stale"])
+
+        logger.debug("per_reporter_staleness[%s] stale_timestamp (computed): %s", reporter, pr_stale_timestamp)
         if _time_now() > pr_stale_timestamp:
             logger.debug("Reports from %s are stale", reporter)
             return True

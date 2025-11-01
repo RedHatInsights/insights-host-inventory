@@ -265,7 +265,7 @@ def _stale_timestamp_per_reporter_filter(
 
         return and_(and_(*and_conditions), time_filter_)
     else:
-        # Positive: include hosts with this reporter (not culled)
+        # For positive: include hosts that have the reporter AND are not culled
         or_filter = []
         for rep in reporter_list:
             conditions = [Host.per_reporter_staleness.has_key(rep)]
