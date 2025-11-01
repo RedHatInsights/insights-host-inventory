@@ -51,6 +51,7 @@ CUSTOM_STALENESS_HOST_BECAME_STALE = {
 def test_async_update_host_create_custom_staleness(
     db_get_hosts, db_create_multiple_hosts, api_get, api_post, flask_app, event_producer, mocker, num_hosts
 ):
+    mocker.patch("lib.feature_flags.get_flag_value", return_value=False)  # nested format for these tests
     with (
         patch("app.models.utils.datetime") as mock_datetime,
     ):
@@ -104,6 +105,7 @@ def test_async_update_host_delete_custom_staleness(
     mocker,
     num_hosts,
 ):
+    mocker.patch("lib.feature_flags.get_flag_value", return_value=False)  # nested format for these tests
     db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
     with (
         patch("app.models.utils.datetime") as mock_datetime,
@@ -157,6 +159,7 @@ def test_async_update_host_update_custom_staleness(
     mocker,
     num_hosts,
 ):
+    mocker.patch("lib.feature_flags.get_flag_value", return_value=False)  # nested format for these tests
     db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
     with (
         patch("app.models.utils.datetime") as mock_datetime,
@@ -210,6 +213,7 @@ def test_async_update_host_update_custom_staleness_no_modified_on_change(
     mocker,
     num_hosts,
 ):
+    mocker.patch("lib.feature_flags.get_flag_value", return_value=False)  # nested format for these tests
     db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
     with (
         patch("app.models.utils.datetime") as mock_datetime,
