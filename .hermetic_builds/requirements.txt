@@ -1,6 +1,6 @@
 -i https://pypi.python.org/simple
 a2wsgi==1.10.10; python_full_version >= '3.8.0'
-alembic==1.17.0
+alembic==1.17.0; python_version >= '3.10'
 anyio==4.11.0; python_version >= '3.9'
 app-common-python==0.2.8
 apscheduler==3.11.0; python_version >= '3.8'
@@ -8,33 +8,32 @@ asgiref==3.10.0; python_version >= '3.9'
 attrs==25.4.0; python_version >= '3.9'
 backoff==2.2.1; python_version >= '3.7' and python_version < '4.0'
 blinker==1.9.0; python_version >= '3.9'
-boto3==1.40.55
-botocore==1.40.55; python_version >= '3.9'
+boto3==1.40.57; python_version >= '3.9'
+botocore==1.40.57; python_version >= '3.9'
 cachelib==0.13.0; python_version >= '3.8'
-certifi==2025.7.14
+certifi==2025.10.5; python_version >= '3.7'
 chardet==5.2.0; python_version >= '3.7'
 charset-normalizer==3.4.4; python_version >= '3.7'
 click==8.3.0; python_version >= '3.10'
 confluent-kafka==2.12.0; python_version >= '3.7'
-connexion[flask,swagger-ui,uvicorn]==3.2.0
+connexion[flask,swagger-ui,uvicorn]==3.3.0; python_version >= '3.9' and python_version < '4.0'
 fcache==0.6.0; python_version >= '3.9'
-flask[]==3.1.1
-flask-caching==2.3.1
-flask-migrate==4.1.0
-flask-sqlalchemy==3.1.1
+flask[async]==3.1.2; python_version >= '3.9'
+flask-caching==2.3.1; python_version >= '3.8'
+flask-migrate==4.1.0; python_version >= '3.6'
+flask-sqlalchemy==3.1.1; python_version >= '3.8'
 flask-unleash==2.1.0
-googleapis-common-protos==1.71.0
-greenlet==3.2.4; platform_machine == 'aarch64' or (platform_machine == 'ppc64le' or (platform_machine == 'x86_64' or (platform_machine == 'amd64' or (platform_machine == 'AMD64' or (platform_machine == 'win32' or platform_machine == 'WIN32')))))
-grpcio==1.75.1; python_version >= '3.9'
-gunicorn==23.0.0
+googleapis-common-protos==1.71.0; python_version >= '3.7'
+greenlet==3.2.4; python_version >= '3.9'
+grpcio==1.76.0; python_version >= '3.9'
+gunicorn==23.0.0; python_version >= '3.7'
 h11==0.16.0; python_version >= '3.8'
 httpcore==1.0.9; python_version >= '3.8'
-httptools==0.7.1; python_full_version >= '3.8.0'
+httptools==0.7.1; python_version >= '3.9'
 httpx==0.28.1; python_version >= '3.8'
 idna==3.11; python_version >= '3.8'
 importlib-metadata==8.7.0; python_version >= '3.9'
 inflection==0.5.1; python_version >= '3.5'
-inventory-grpc-clients-python-kessel-project==0.10.15
 itsdangerous==2.2.0; python_version >= '3.8'
 jinja2==3.1.6; python_version >= '3.7'
 jmespath==1.0.1; python_version >= '3.7'
@@ -42,55 +41,57 @@ jsonify==0.5
 jsonschema==4.25.1; python_version >= '3.9'
 jsonschema-path==0.3.4; python_full_version >= '3.8.0' and python_full_version < '4.0.0'
 jsonschema-specifications==2025.9.1; python_version >= '3.9'
+kessel-sdk==2.0.0; python_version >= '3.11'
 lazy-object-proxy==1.12.0; python_version >= '3.9'
 logstash-formatter==0.5.17
 mako==1.3.10; python_version >= '3.8'
-markupsafe==3.0.2
-marshmallow==4.0.1
+markupsafe==3.0.3; python_version >= '3.9'
+marshmallow==4.0.1; python_version >= '3.9'
 mmh3==5.2.0; python_version >= '3.9'
-openapi-schema-validator==0.6.3
-openapi-spec-validator==0.7.2
+openapi-schema-validator==0.6.3; python_full_version >= '3.8.0' and python_full_version < '4.0.0'
+openapi-spec-validator==0.7.2; python_full_version >= '3.8.0' and python_full_version < '4.0.0'
 packaging==25.0; python_version >= '3.8'
 pathable==0.4.4; python_full_version >= '3.7.0' and python_full_version < '4.0.0'
 platformdirs==3.11.0; python_version >= '3.7'
-prance==23.6.21.0
-prometheus-client==0.22.1
+prance==25.4.8.0; python_version >= '3.10'
+prometheus-client==0.22.1; python_version >= '3.9'
 prometheus-flask-exporter==0.23.2
-protobuf==6.33.0; python_version >= '3.9'
-psycopg2==2.9.11
+protobuf==6.31.1; python_version >= '3.9'
+psycopg2==2.9.11; python_version >= '3.9'
 pyjwt==2.10.1; python_version >= '3.9'
-python-dateutil==2.9.0.post0
-python-dotenv==1.1.1; python_version >= '3.9'
+python-dateutil==2.9.0.post0; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2'
+python-dotenv==1.2.1; python_version >= '3.9'
 python-multipart==0.0.20; python_version >= '3.8'
-pyyaml==6.0.3
+pyyaml==6.0.3; python_version >= '3.8'
 ratelimit==2.2.1
-redis==6.4.0
+redis==7.0.1; python_version >= '3.9'
 referencing==0.36.2; python_version >= '3.9'
-requests==2.32.5
+requests==2.32.5; python_version >= '3.9'
 rfc3339-validator==0.1.4; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
-rpds-py==0.27.1
+rpds-py==0.27.1; python_version >= '3.9'
 ruamel.yaml==0.18.15; python_version >= '3.8'
-ruamel.yaml.clib==0.2.14; python_version < '3.14' and platform_python_implementation == 'CPython'
+ruamel.yaml.clib==0.2.14; python_version >= '3.9'
 s3transfer==0.14.0; python_version >= '3.9'
-segment-analytics-python==2.3.4
+segment-analytics-python==2.3.4; python_full_version >= '3.9.0'
 semver==3.0.4; python_version >= '3.7'
-setuptools==80.9.0
-six==1.17.0; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
+setuptools==80.9.0; python_version >= '3.9'
+six==1.17.0; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2'
 sniffio==1.3.1; python_version >= '3.7'
-sqlalchemy==2.0.44
-starlette==0.48.0; python_version >= '3.9'
+sqlalchemy==2.0.44; python_version >= '3.7'
+starlette==0.49.1; python_version >= '3.9'
 swagger-ui-bundle==1.1.0; python_version >= '3.7'
 tomli==2.3.0; python_version >= '3.8'
+types-protobuf==6.32.1.20250918; python_version >= '3.9'
 typing-extensions==4.15.0; python_version >= '3.9'
 tzlocal==5.3.1; python_version >= '3.9'
-ujson==5.10.0
-unleashclient==5.12.2
-urllib3==2.5.0
+ujson==5.10.0; python_version >= '3.8'
+unleashclient==5.12.2; python_version >= '3.7'
+urllib3==2.5.0; python_version >= '3.9'
 uvicorn[standard]==0.38.0; python_version >= '3.9'
-uvloop==0.22.1; python_full_version >= '3.8.0'
-validators==0.35.0
+uvloop==0.22.1; python_full_version >= '3.8.1'
+validators==0.35.0; python_version >= '3.9'
 watchfiles==1.1.1; python_version >= '3.9'
-watchtower==3.4.0
+watchtower==3.4.0; python_version >= '3.8'
 websockets==15.0.1; python_version >= '3.9'
 werkzeug==3.1.3; python_version >= '3.9'
 zipp==3.23.0; python_version >= '3.9'
