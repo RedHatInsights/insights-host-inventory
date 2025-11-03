@@ -22,7 +22,7 @@ def capture_outbox_calls(target: str, *, capture_groups: bool = False) -> Genera
 
     calls: list[dict[str, Any]] = []
 
-    def side_effect(event_type, host_id, host_obj):
+    def side_effect(event_type, host_id, host_obj=None, session=None):  # noqa: ARG001
         entry: dict[str, Any] = {
             "event_type": event_type,
             "host_id": host_id,
