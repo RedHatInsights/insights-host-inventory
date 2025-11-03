@@ -129,6 +129,8 @@ def _convert_dict_to_json_path_and_value(
         return (key, *next_val), pg_op, deepest_value  # type: ignore [return-value]
     else:
         # Get the final jsonb path node and its value; no comparator was specified
+        if val == "":
+            return (key,), None, ""
         return (key,), None, val
 
 
@@ -316,15 +318,15 @@ def _validate_pg_op_and_value(pg_op: str | None, value: str, field_filter: str, 
     if field_filter != "array" and pg_op == "contains":
         raise ValidationException(f"'contains' is an invalid operation for non-array field {field_name}")
 
-    # Allow empty strings for all field types to handle "no match" scenarios
-    if not value:
-        return
-
     invalid_value = (field_filter == "integer" and not value.isdigit() and value not in ["nil", "not_nil"]) or (
         field_filter == "boolean" and value.lower() not in ["true", "false", "nil", "not_nil"]
     )
     if invalid_value:
         raise ValidationException(f"'{value}' is an invalid value for field {field_name}")
+
+    # Allow empty strings for all field types to handle "no match" scenarios
+    if not value:
+        return
 
 
 def _build_workloads_filter(filter_param: dict) -> ColumnElement:
@@ -412,6 +414,8 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
             if not eval_jsonb_path:
                 target_field = _handle_empty_string_cast(target_field, column)
                 pg_op = ColumnOperators.__eq__
+            else:
+                value = None
         elif pg_cast := FIELD_FILTER_TO_POSTGRES_CAST.get(field_filter):
             # Cast column and value for normal (non-empty) values
             target_field = target_field.cast(pg_cast)

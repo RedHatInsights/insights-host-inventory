@@ -2577,3 +2577,29 @@ def test_db_get_hosts_by_subman_id_multiple_in_same_org(db_get_hosts_by_subman_i
     assert len(hosts) == 2
     host_ids = {host.id for host in hosts}
     assert host_ids == {host1.id, host2.id}
+
+
+@pytest.mark.parametrize(
+    "field_key_level_1,field_key_level_2",
+    (
+        ("sap", "sap_system"),
+        ("ibm_db2", "is_running"),
+        ("intersystems", "is_intersystems"),
+        ("oracle_db", "is_running"),
+    ),
+)
+def test_api_hosts_get_empty_boolean_workloads_fields(db_create_host, api_get, field_key_level_1, field_key_level_2):
+    """Test that empty strings are not allowed for boolean and integer fields."""
+    db_create_host()
+
+    # Test with empty string without eq comparator
+    url = build_hosts_url(query=f"?filter[system_profile][{field_key_level_1}][{field_key_level_2}]=")
+    response_status, response_data = api_get(url)
+    assert response_status == 400
+    assert f" is an invalid value for field {field_key_level_1}.{field_key_level_2}" in response_data["detail"]
+
+    # Test with empty string with eq comparator
+    url = build_hosts_url(query=f"?filter[system_profile][{field_key_level_1}][{field_key_level_2}][eq]=")
+    response_status, response_data = api_get(url)
+    assert response_status == 400
+    assert f" is an invalid value for field {field_key_level_1}.{field_key_level_2}" in response_data["detail"]
