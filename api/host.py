@@ -30,7 +30,6 @@ from app.auth.identity import IdentityType
 from app.auth.identity import to_auth_header
 from app.auth.rbac import KesselResourceTypes
 from app.common import inventory_config
-from app.exceptions import OutboxSaveException
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_get_host_exists_succeeded
 from app.instrumentation import log_get_host_list_failed
@@ -59,11 +58,9 @@ from lib.host_delete import delete_hosts
 from lib.host_repository import find_existing_host
 from lib.host_repository import find_non_culled_hosts
 from lib.host_repository import get_host_list_by_id_list_from_db
-from lib.host_repository import need_outbox_entry
 from lib.kessel import get_kessel_client
 from lib.middleware import access
 from lib.middleware import get_kessel_filter
-from lib.outbox_repository import write_event_to_outbox
 
 FactOperations = Enum("FactOperations", ("merge", "replace"))
 TAG_OPERATIONS = ("apply", "remove")
@@ -418,18 +415,6 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
         host.patch(validated_patch_host_data)
 
         if db.session.is_modified(host):
-            # Check if outbox entry is needed before writing
-            if need_outbox_entry(host):
-                try:
-                    # write to the outbox table for synchronization with Kessel
-                    result = write_event_to_outbox(EventType.updated, str(host.id), host)
-                    if not result:
-                        logger.error("Failed to write updated event to outbox")
-                        raise OutboxSaveException("Failed to write updated host event to outbox")
-                except OutboxSaveException as ose:
-                    logger.error("Failed to write updated event to outbox: %s", str(ose))
-                    raise ose
-
             db.session.commit()
             serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
             _emit_patch_event(serialized_host, host)

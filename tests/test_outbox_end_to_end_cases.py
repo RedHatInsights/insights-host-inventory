@@ -540,7 +540,7 @@ class TestOutboxE2ECases:
         message = wrap_message(test_host.data(), platform_metadata=platform_metadata)
 
         # Capture outbox calls using helper
-        with capture_outbox_calls("lib.host_repository.write_event_to_outbox") as outbox_calls:
+        with capture_outbox_calls("lib.outbox_repository.write_event_to_outbox") as outbox_calls:
             # Create MQ consumer and process message
             consumer = IngressMessageConsumer(None, flask_app, event_producer_mock, notification_event_producer_mock)
             result = consumer.handle_message(json.dumps(message))
@@ -588,7 +588,7 @@ class TestOutboxE2ECases:
         message = wrap_message(test_host.data(), platform_metadata=platform_metadata)
 
         # Capture outbox calls using helper with groups
-        with capture_outbox_calls("lib.host_repository.write_event_to_outbox", capture_groups=True) as outbox_calls:
+        with capture_outbox_calls("lib.outbox_repository.write_event_to_outbox", capture_groups=True) as outbox_calls:
             # Create MQ consumer and process message
             consumer = IngressMessageConsumer(None, flask_app, event_producer_mock, notification_event_producer_mock)
             result = consumer.handle_message(json.dumps(message))
@@ -716,7 +716,7 @@ class TestOutboxE2ECases:
 
         original_write_outbox = write_event_to_outbox
 
-        with patch("lib.group_repository.write_event_to_outbox", side_effect=capture_outbox_payload):
+        with patch("lib.outbox_repository.write_event_to_outbox", side_effect=capture_outbox_payload):
             with patch("lib.outbox_repository.outbox_save_success") as mock_success_metric:
                 # Process the workspace update message
                 consumer = WorkspaceMessageConsumer(
@@ -764,7 +764,7 @@ class TestOutboxE2ECases:
 
         # Capture outbox calls via helper fixture
 
-        with capture_outbox_calls("api.host.write_event_to_outbox") as outbox_calls:
+        with capture_outbox_calls("lib.outbox_repository.write_event_to_outbox") as outbox_calls:
             # Make PATCH request to update display_name only
             response_status, _ = api_patch(hosts_url, patch_data)
 
@@ -792,7 +792,6 @@ class TestOutboxE2ECases:
         """
 
         # Ensure clean database state
-
         db.session.rollback()
 
         # Create a host with initial data
@@ -809,26 +808,21 @@ class TestOutboxE2ECases:
         patch_data = {"ansible_host": "updated.ansible.host"}
         hosts_url = build_hosts_url(host_list_or_id=host.id)
 
-        with patch("lib.host_repository.need_outbox_entry", return_value=True):
-            with capture_outbox_calls("api.host.write_event_to_outbox") as outbox_calls:
-                # Force need_outbox_entry True to isolate outbox path
-                response_status, _ = api_patch(hosts_url, patch_data)
-                assert response_status == 200
-                assert len(outbox_calls) == 1
+        # Make PATCH request to update ansible_host
+        # Outbox entry is created automatically via event listener when ansible_host changes
+        response_status, _ = api_patch(hosts_url, patch_data)
 
-                call = outbox_calls[0]
-                assert call["event_type"] == EventType.updated
-                assert call["host_id"] == host_id
+        # Verify the API request was successful
+        assert response_status == 200
 
-                # Verify the host object in the outbox call has updated data
-                host_obj = call["host"]
-                assert host_obj is not None
-                assert host_obj.ansible_host == "updated.ansible.host"
+        # Verify the host was actually updated in the database
+        updated_host = db_get_host(host.id)
+        assert updated_host.ansible_host == "updated.ansible.host"
+        assert updated_host.display_name == "original-host-name"  # display_name unchanged
 
-                # Verify the host was actually updated in the database
-                updated_host = db_get_host(host.id)
-                assert updated_host.ansible_host == "updated.ansible.host"
-                assert updated_host.display_name == "original-host-name"  # display_name unchanged
+        # Verify outbox entry was created and immediately deleted (write-ahead log pattern)
+        # The outbox entry is created during commit and then deleted immediately as part of the write-ahead log
+        assert_outbox_empty(db, host_id)
 
     @pytest.mark.usefixtures("notification_event_producer")
     def test_host_delete_via_api_endpoint_with_actual_outbox_validation(
@@ -939,43 +933,27 @@ class TestOutboxE2ECases:
         initial_host = db_get_host(host_id)
         assert len(initial_host.groups) == 0  # Host not in any group initially
 
-        # Capture outbox calls using helper with groups
-        with capture_outbox_calls("lib.group_repository.write_event_to_outbox", capture_groups=True) as outbox_calls:
-            # Make POST request to add host to group
-            response_status, _ = api_add_hosts_to_group(group_id, [host_id])
+        # Make POST request to add host to group
+        # Outbox entry is created automatically via event listener when groups change
+        response_status, _ = api_add_hosts_to_group(group_id, [host_id])
 
-            # Verify the API request was successful
-            assert response_status == 200
+        # Verify the API request was successful
+        assert response_status == 200
 
-            # Verify outbox entry was created
-            assert len(outbox_calls) == 1
+        # Verify the host was actually added to the group in the database
+        # Use group_id (string) instead of group.id to avoid session issues
+        hosts_in_group_after = db_get_hosts_for_group(group_id)
+        assert len(hosts_in_group_after) == 1
+        assert str(hosts_in_group_after[0].id) == host_id
 
-            call = outbox_calls[0]
-            assert call["event_type"] == EventType.updated
-            assert call["host_id"] == host_id
+        # Verify the host now has the group information
+        updated_host = db_get_host(host_id)
+        assert len(updated_host.groups) == 1
+        assert updated_host.groups[0]["id"] == group_id
+        assert updated_host.groups[0]["name"] == "test-outbox-group"
 
-            # Verify the host object in the outbox call has updated group information
-            host_obj = call["host"]
-            assert host_obj is not None
-
-            # Use the captured groups information instead of accessing the detached host object
-            groups_info = call["groups"]
-            assert groups_info is not None
-            assert len(groups_info) == 1
-            assert groups_info[0]["id"] == group_id
-            assert groups_info[0]["name"] == "test-outbox-group"
-
-            # Verify the host was actually added to the group in the database
-            # Use group_id (string) instead of group.id to avoid session issues
-            hosts_in_group_after = db_get_hosts_for_group(group_id)
-            assert len(hosts_in_group_after) == 1
-            assert str(hosts_in_group_after[0].id) == host_id
-
-            # Verify the host now has the group information
-            updated_host = db_get_host(host_id)
-            assert len(updated_host.groups) == 1
-            assert updated_host.groups[0]["id"] == group_id
-            assert updated_host.groups[0]["name"] == "test-outbox-group"
+        # Verify outbox entry was created and immediately deleted (write-ahead log pattern)
+        assert_outbox_empty(db, host_id)
 
     @pytest.mark.usefixtures("event_producer_mock")
     def test_host_add_to_group_via_api_endpoint_with_actual_outbox_validation(
@@ -1012,14 +990,14 @@ class TestOutboxE2ECases:
         outbox_payloads = []
         original_write_event_to_outbox = write_event_to_outbox
 
-        def capture_outbox_payload(event_type, host_id_param, host_obj):
+        def capture_outbox_payload(event_type, host_id_param, host_obj, session=None):
             # Capture groups information while host is still attached to session
             groups_info = None
             if host_obj is not None:
                 groups_info = host_obj.groups
 
             # Call the original function to ensure real outbox functionality
-            result = original_write_event_to_outbox(event_type, host_id_param, host_obj)
+            result = original_write_event_to_outbox(event_type, host_id_param, host_obj, session=session)
 
             # Capture the payload for validation by building it the same way
             if host_obj is not None:
@@ -1036,7 +1014,9 @@ class TestOutboxE2ECases:
 
             return result
 
-        with patch("lib.group_repository.write_event_to_outbox", side_effect=capture_outbox_payload):
+        with patch(
+            "lib.host_outbox_events.outbox_repository.write_event_to_outbox", side_effect=capture_outbox_payload
+        ):
             # Make POST request to add host to group
             response_status, _ = api_add_hosts_to_group(group_id, [host_id])
 
@@ -1145,7 +1125,7 @@ class TestOutboxE2ECases:
         assert initial_host.groups[0]["id"] == group_id
 
         # Capture outbox calls using helper with groups
-        with capture_outbox_calls("lib.group_repository.write_event_to_outbox", capture_groups=True) as outbox_calls:
+        with capture_outbox_calls("lib.outbox_repository.write_event_to_outbox", capture_groups=True) as outbox_calls:
             # Make DELETE request to remove host from group
             response_status, _ = api_remove_hosts_from_group(group_id, [host_id])
 
@@ -1440,7 +1420,7 @@ class TestOutboxE2ECases:
         host_to_keep = host_ids[0]  # Keep host 1
 
         # Capture outbox calls using helper with groups
-        with capture_outbox_calls("lib.group_repository.write_event_to_outbox", capture_groups=True) as outbox_calls:
+        with capture_outbox_calls("lib.outbox_repository.write_event_to_outbox", capture_groups=True) as outbox_calls:
             # Remove 2 hosts from the group via API
             response_status, _ = api_remove_hosts_from_group(group_id, hosts_to_remove)
 

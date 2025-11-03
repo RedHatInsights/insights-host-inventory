@@ -13,7 +13,6 @@ from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
 from app.common import inventory_config
 from app.exceptions import InventoryException
-from app.exceptions import OutboxSaveException
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_get_group_list_failed
 from app.instrumentation import log_group_delete_failed
@@ -39,13 +38,11 @@ from lib.db import session_guard
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.host_repository import get_non_culled_hosts_count_in_group
 from lib.host_repository import host_query
-from lib.host_repository import need_outbox_entry
 from lib.metrics import delete_group_count
 from lib.metrics import delete_group_processing_time
 from lib.metrics import delete_host_group_count
 from lib.metrics import delete_host_group_processing_time
 from lib.middleware import rbac_create_ungrouped_hosts_workspace
-from lib.outbox_repository import write_event_to_outbox
 
 logger = get_logger(__name__)
 
@@ -59,9 +56,10 @@ def _update_hosts_for_group_changes(host_id_list: list[str], group_id_list: list
     ]
 
     # Update groups data on each host record
-    db.session.query(Host).filter(Host.id.in_(host_id_list), Host.org_id == identity.org_id).update(
-        {"groups": serialized_groups}, synchronize_session="fetch"
-    )
+    # Use ORM update (not bulk update) to trigger event listeners
+    hosts = db.session.query(Host).filter(Host.id.in_(host_id_list), Host.org_id == identity.org_id).all()
+    for host in hosts:
+        host.groups = serialized_groups
     db.session.flush()
 
     return serialized_groups, host_id_list
@@ -226,19 +224,6 @@ def _process_host_changes(
         for host in batch_host_list:
             # Eagerly load the groups attribute to prevent DetachedInstanceError
             _ = host.groups
-            # Check if outbox entry is needed before writing to outbox
-            if need_outbox_entry(host):
-                try:
-                    # write to the outbox table for synchronization with Kessel
-                    result = write_event_to_outbox(EventType.updated, str(host.id), host)
-                    if not result:
-                        logger.error("Failed to write updated event to outbox")
-                        raise OutboxSaveException("Failed to write update event to outbox")
-                except OutboxSaveException as ose:
-                    logger.error("Failed to write updated event to outbox: %s", str(ose))
-                    raise ose
-            else:
-                logger.debug(f"Skipping outbox entry for host {host.id} as parameters have not changed")
 
     refreshed_host_id_list = [str(host.id) for host in host_list]
     return refreshed_host_id_list
