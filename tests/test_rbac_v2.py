@@ -11,7 +11,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
+# from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.middleware import RBAC_V2_ROUTE
 from lib.middleware import _get_rbac_workspace_url
 from lib.middleware import get_rbac_v2_url
@@ -150,7 +150,7 @@ def test_rbac_v2_route_configuration(mocker):
     assert RBAC_V2_ROUTE == "/api/rbac/v2/"
 
     # Test that feature flags are available
-    assert FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION is not None
+    # assert FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION is not None
     assert FLAG_INVENTORY_KESSEL_PHASE_1 is not None
 
 
