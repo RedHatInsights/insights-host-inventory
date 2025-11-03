@@ -395,7 +395,16 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
         # Use the new SP table
         # The first node in jsonb_path is the column name
         target_field = column[(jsonb_path)].astext if jsonb_path else column
-        _validate_pg_op_and_value(pg_op, value, field_filter, field_name)
+
+        # Construct full field name for error messages by getting the original path from filter_param
+        full_jsonb_path, _, _ = _convert_dict_to_json_path_and_value(filter_param)
+        # Skip "workloads" prefix if present for cleaner error messages
+        display_path = (
+            full_jsonb_path[1:] if full_jsonb_path and full_jsonb_path[0] == "workloads" else full_jsonb_path
+        )
+        full_field_name = ".".join(display_path) if display_path else field_name
+
+        _validate_pg_op_and_value(pg_op, value, field_filter, full_field_name)
 
         # Use the default comparator for the field type, if not provided
         if not pg_op or not value:
@@ -411,7 +420,7 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
             value = None
         elif value == "":
             # For empty strings, cast problematic columns to text to avoid PostgreSQL errors
-            if not eval_jsonb_path:
+            if not jsonb_path:
                 target_field = _handle_empty_string_cast(target_field, column)
                 pg_op = ColumnOperators.__eq__
             else:
