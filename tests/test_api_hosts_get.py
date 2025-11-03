@@ -2603,3 +2603,14 @@ def test_api_hosts_get_empty_boolean_workloads_fields(db_create_host, api_get, f
     response_status, response_data = api_get(url)
     assert response_status == 400
     assert f" is an invalid value for field {field_key_level_2}" in response_data["detail"]
+
+
+def test_api_hosts_get_system_profile_multiple_values_without_brackets(api_get):
+    """Test that multiple values are not allowed for a field without brackets."""
+    url = build_hosts_url(
+        query="?filter[system_profile][workloads][mssql][version]=value1"
+        + "&filter[system_profile][workloads][mssql][version]=value2"
+    )
+    response_status, response_data = api_get(url)
+    assert response_status == 400
+    assert "Param filter must be appended with [] to accept multiple values." in response_data["detail"]
