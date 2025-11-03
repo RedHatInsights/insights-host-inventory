@@ -178,12 +178,11 @@ def _process_pending_outbox_ops_before_commit(session):  # noqa: ARG001
     Note: With Flask-SQLAlchemy, before_commit may fire before commit's internal flush,
     so some ops may be added after this runs and will be cleared in after_commit.
     """
-    session_id = id(session)
-    logger.debug(f"before_commit for session {session_id}")
-
     ops_to_process, processed_session_ids = _collect_all_pending_ops()
 
     if ops_to_process:
+        session_id = id(session)
+        logger.debug(f"before_commit for session {session_id} with {len(ops_to_process)} pending ops")
         logger.info(f"Processing {len(ops_to_process)} pending outbox operations")
         try:
             _process_outbox_ops_list(session, ops_to_process)
