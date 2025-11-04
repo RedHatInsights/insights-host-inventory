@@ -36,15 +36,32 @@ OUTBOX_TRIGGER_FIELDS = {
     "groups",
 }
 
-# Track pending outbox operations per session using a dictionary keyed by session ID
-# Flask-SQLAlchemy's scoped session proxy doesn't reliably preserve attributes
+# Track pending outbox operations per session using a dictionary keyed by session.hash_key
+# Flask-SQLAlchemy's scoped session proxy doesn't reliably preserve attributes or id()
+# We use session.hash_key which is stable across proxy objects for the same logical session
 # We use weak references conceptually by only storing host_id strings, not Host objects
 _pending_outbox_ops = {}
 
 
+def _get_session_id(session):
+    """
+    Get a stable identifier for a session.
+
+    Handles both scoped_session proxies and regular Session objects.
+    For scoped_session, we need to call it as a function to get the actual session.
+    """
+    # Check if this is a scoped_session (has registry attribute)
+    if hasattr(session, "registry"):
+        # This is a scoped_session proxy, get the actual session
+        actual_session = session()
+        return actual_session.hash_key
+    # Regular Session object
+    return session.hash_key
+
+
 def _get_pending_ops(session):
     """Get or create pending outbox operations list for a session."""
-    session_id = id(session)
+    session_id = _get_session_id(session)
     if session_id not in _pending_outbox_ops:
         _pending_outbox_ops[session_id] = []
     return _pending_outbox_ops[session_id]
@@ -181,7 +198,7 @@ def _process_pending_outbox_ops_before_commit(session):  # noqa: ARG001
     ops_to_process, processed_session_ids = _collect_all_pending_ops()
 
     if ops_to_process:
-        session_id = id(session)
+        session_id = _get_session_id(session)
         logger.debug(f"before_commit for session {session_id} with {len(ops_to_process)} pending ops")
         logger.info(f"Processing {len(ops_to_process)} pending outbox operations")
         try:
@@ -199,7 +216,7 @@ def _verify_pending_outbox_ops_after_flush(session, flush_context):  # noqa: ARG
     Verify pending outbox operations after flush completes.
     Processing happens in before_commit to avoid "Session is already flushing" errors.
     """
-    session_id = id(session)
+    session_id = _get_session_id(session)
     if session_id in _pending_outbox_ops:
         ops = _pending_outbox_ops[session_id]
         logger.debug(f"Verified {len(ops)} pending outbox operations after flush for session {session_id}")
@@ -208,7 +225,7 @@ def _verify_pending_outbox_ops_after_flush(session, flush_context):  # noqa: ARG
 @event.listens_for(Session, "after_commit", propagate=True)
 def _clear_pending_outbox_ops_after_commit(session):  # noqa: ARG001
     """Clear pending outbox operations after commit."""
-    session_id = id(session)
+    session_id = _get_session_id(session)
 
     # Clear the processed flag
     if hasattr(session, "_outbox_ops_processed"):
@@ -231,7 +248,7 @@ def _clear_pending_outbox_ops_after_commit(session):  # noqa: ARG001
 @event.listens_for(Session, "after_rollback", propagate=True)
 def _clear_pending_outbox_ops_after_rollback(session):  # noqa: ARG001
     """Clear pending outbox operations after rollback to prevent memory leaks."""
-    session_id = id(session)
+    session_id = _get_session_id(session)
     _pending_outbox_ops.pop(session_id, None)
 
     # Safety net: if dict grows very large, clear all entries
