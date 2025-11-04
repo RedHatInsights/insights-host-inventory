@@ -192,8 +192,9 @@ def _collect_all_pending_ops():
 def _process_pending_outbox_ops_before_commit(session):  # noqa: ARG001
     """
     Process pending outbox operations before commit.
-    Note: With Flask-SQLAlchemy, before_commit may fire before commit's internal flush,
-    so some ops may be added after this runs and will be cleared in after_commit.
+
+    Note: With Flask-SQLAlchemy, operations may be tracked during commit's internal flush,
+    which happens AFTER this hook fires. Those ops will be processed in after_commit.
     """
     ops_to_process, processed_session_ids = _collect_all_pending_ops()
 
@@ -207,19 +208,20 @@ def _process_pending_outbox_ops_before_commit(session):  # noqa: ARG001
                 _pending_outbox_ops.pop(sid, None)
             session._outbox_ops_processed = True
         except Exception as e:
-            logger.error(f"Error processing outbox ops: {e}", exc_info=True)
+            logger.error(f"Error processing outbox ops in before_commit: {e}", exc_info=True)
 
 
 @event.listens_for(Session, "after_flush", propagate=True)
 def _verify_pending_outbox_ops_after_flush(session, flush_context):  # noqa: ARG001
     """
     Verify pending outbox operations after flush completes.
-    Processing happens in before_commit to avoid "Session is already flushing" errors.
+    Just logs for visibility - actual processing happens in before_commit.
     """
     session_id = _get_session_id(session)
     if session_id in _pending_outbox_ops:
         ops = _pending_outbox_ops[session_id]
-        logger.debug(f"Verified {len(ops)} pending outbox operations after flush for session {session_id}")
+        if ops:
+            logger.debug(f"Verified {len(ops)} pending outbox operations after flush for session {session_id}")
 
 
 @event.listens_for(Session, "after_commit", propagate=True)
@@ -231,15 +233,19 @@ def _clear_pending_outbox_ops_after_commit(session):  # noqa: ARG001
     if hasattr(session, "_outbox_ops_processed"):
         delattr(session, "_outbox_ops_processed")
 
-    # Check for unprocessed ops (added during commit's flush, after before_commit)
+    # Check for any remaining unprocessed ops (added during commit's flush, after before_commit)
     ops_to_clear, session_ids = _collect_all_pending_ops()
     if ops_to_clear:
-        logger.warning(
-            f"Found {len(ops_to_clear)} unprocessed outbox ops after commit - "
-            "these were added during commit's flush after before_commit fired"
-        )
-        for sid in session_ids:
-            _pending_outbox_ops.pop(sid, None)
+        logger.info(f"Found {len(ops_to_clear)} outbox ops added during commit's flush. Processing them now.")
+        # Process these ops that were added during the flush
+        try:
+            _process_outbox_ops_list(session, ops_to_clear)
+        except Exception as e:
+            logger.error(f"Error processing late outbox ops: {e}", exc_info=True)
+        finally:
+            # Clear them regardless of success/failure
+            for sid in session_ids:
+                _pending_outbox_ops.pop(sid, None)
 
     # Clear remaining ops for this session
     _pending_outbox_ops.pop(session_id, None)
