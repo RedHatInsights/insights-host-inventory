@@ -221,7 +221,7 @@ class HBIMessageConsumerBase:
                                 metrics.ingress_message_handler_failure.inc()
                                 logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
 
-                    self.post_process_rows()
+                self.post_process_rows()
 
 
 class WorkspaceMessageConsumer(HBIMessageConsumerBase):
@@ -295,9 +295,6 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
 
     def post_process_rows(self) -> None:
         try:
-            if len(self.processed_rows) > 0:
-                db.session.commit()
-
             for processed_row in self.processed_rows:
                 # Invoke OperationResult success logger for each processed row
                 if hasattr(processed_row, "success_logger") and callable(processed_row.success_logger):
@@ -379,20 +376,8 @@ class HostMessageConsumer(HBIMessageConsumerBase):
                 raise
 
     def post_process_rows(self) -> None:
-        try:
-            if len(self.processed_rows) > 0:
-                db.session.commit()
-                # The above session is automatically committed or rolled back.
-                # Now we need to send out messages for the batch of hosts we just processed.
-                write_message_batch(self.event_producer, self.notification_event_producer, self.processed_rows)
-
-        except StaleDataError as exc:
-            metrics.ingress_message_handler_failure.inc(amount=len(self.processed_rows))
-            logger.error(
-                f"Session data is stale; failed to commit data from {len(self.processed_rows)} payloads.",
-                exc_info=exc,
-            )
-            db.session.rollback()
+        if len(self.processed_rows) > 0:
+            write_message_batch(self.event_producer, self.notification_event_producer, self.processed_rows)
 
 
 class IngressMessageConsumer(HostMessageConsumer):
