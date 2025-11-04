@@ -1304,6 +1304,8 @@ def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
         "[rhel_ai][rhel_ai_version_id][eq]=v1.1.2",
         "[rhel_ai][rhel_ai_version_id][eq][]=v1.1.2",
         "[rhel_ai][variant][is]=nil",
+        "[rhel_ai][nvidia_gpu_models][]=NVIDIA T1000",
+        "[rhel_ai][amd_gpu_models][]=Advanced Micro Devices, Inc. [AMD/ATI] Device 0c31",
     ),
 )
 def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
@@ -1320,9 +1322,11 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
                 "ansible": {
                     "controller_version": "1.0",
                 },
-                "rhel_ai": {
-                    "rhel_ai_version_id": "v1.1.2",
-                },
+            },
+            "rhel_ai": {
+                "rhel_ai_version_id": "v1.1.2",
+                "nvidia_gpu_models": ["NVIDIA T1000"],
+                "amd_gpu_models": ["Advanced Micro Devices, Inc. [AMD/ATI] Device 0c31"],
             },
             "is_marketplace": False,
             "systemd": {"failed_services": ["foo", "bar"]},
@@ -1341,10 +1345,12 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
             "greenboot_status": "green",
             "workloads": {
                 "sap": {},
-                "rhel_ai": {
-                    "variant": "RHEL AI",
-                },
             },  # No sap_system field = nil
+            "rhel_ai": {
+                "variant": "RHEL AI",
+                "nvidia_gpu_models": ["NVIDIA T2000"],
+                "amd_gpu_models": ["Advanced Micro Devices, Inc. [AMD/ATI] Device 0c32"],
+            },
             "bootc_status": {"booted": {"image": "192.168.0.1:5000/foo/foo:latest"}},
             "is_marketplace": True,
             "number_of_cpus": 8,

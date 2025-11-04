@@ -332,7 +332,8 @@ def _validate_pg_op_and_value(pg_op: str | None, value: str, field_filter: str, 
 def _build_workloads_filter(filter_param: dict) -> ColumnElement:
     # If it's a "workloads" field, we need to combine (OR) the original filter with the new filter.
     field_name = next(iter(filter_param.keys()))
-    if field_name in WORKLOADS_FIELDS:
+    # TODO: Remove the rhel_ai check once the rhel_ai field is fully migrated to workloads
+    if field_name in WORKLOADS_FIELDS and field_name != "rhel_ai":
         # Extract the filter value to check if it's a nil/not_nil query
         _, _, filter_value = _convert_dict_to_json_path_and_value(filter_param)
 
