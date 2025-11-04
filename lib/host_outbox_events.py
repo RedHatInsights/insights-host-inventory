@@ -160,11 +160,11 @@ def _process_outbox_ops_list(session, ops):
                     logger.error(f"Could not reload host {host_id} for outbox entry: {str(e)}, skipping")
                     continue
 
-            logger.info(f"Processing outbox entry for {event_type_str} event: host {host_id}")
+            logger.debug(f"Processing outbox entry for {event_type_str} event: host {host_id}")
             result = outbox_repository.write_event_to_outbox(event_type, host_id, host, session=session)
             if not result:
                 raise OutboxSaveException(f"Failed to write {event_type_str} host event to outbox")
-            logger.info(f"Successfully created outbox entry for {event_type_str}: {host_id}")
+            logger.debug(f"Successfully created outbox entry for {event_type_str}: {host_id}")
         except OutboxSaveException:
             logger.error(f"Failed to write {event_type_str} event to outbox for host {host_id}")
             raise
@@ -201,7 +201,7 @@ def _process_pending_outbox_ops_before_commit(session):  # noqa: ARG001
     if ops_to_process:
         session_id = _get_session_id(session)
         logger.debug(f"before_commit for session {session_id} with {len(ops_to_process)} pending ops")
-        logger.info(f"Processing {len(ops_to_process)} pending outbox operations")
+        logger.debug(f"Processing {len(ops_to_process)} pending outbox operations")
         try:
             _process_outbox_ops_list(session, ops_to_process)
             for sid in processed_session_ids:
@@ -234,18 +234,18 @@ def _clear_pending_outbox_ops_after_commit(session):  # noqa: ARG001
         delattr(session, "_outbox_ops_processed")
 
     # Check for any remaining unprocessed ops (added during commit's flush, after before_commit)
+    # Note: We CANNOT process these here because the session is in 'committed' state
+    # and no further SQL can be emitted. These operations were tracked too late.
     ops_to_clear, session_ids = _collect_all_pending_ops()
     if ops_to_clear:
-        logger.info(f"Found {len(ops_to_clear)} outbox ops added during commit's flush. Processing them now.")
-        # Process these ops that were added during the flush
-        try:
-            _process_outbox_ops_list(session, ops_to_clear)
-        except Exception as e:
-            logger.error(f"Error processing late outbox ops: {e}", exc_info=True)
-        finally:
-            # Clear them regardless of success/failure
-            for sid in session_ids:
-                _pending_outbox_ops.pop(sid, None)
+        logger.warning(
+            f"Found {len(ops_to_clear)} outbox ops that were tracked during commit's flush. "
+            "These operations were tracked too late to be processed. "
+            "This typically happens when hosts are modified without an explicit flush before commit."
+        )
+        # Clear them to prevent memory leaks
+        for sid in session_ids:
+            _pending_outbox_ops.pop(sid, None)
 
     # Clear remaining ops for this session
     _pending_outbox_ops.pop(session_id, None)

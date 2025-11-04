@@ -415,6 +415,7 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
         host.patch(validated_patch_host_data)
 
         if db.session.is_modified(host):
+            db.session.flush()  # Trigger outbox event listeners before commit
             db.session.commit()
             serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
             _emit_patch_event(serialized_host, host)
@@ -490,6 +491,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
             host.merge_facts_in_namespace(namespace, fact_dict)
 
         if db.session.is_modified(host):
+            db.session.flush()  # Trigger outbox event listeners before commit
             db.session.commit()
             serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
             _emit_patch_event(serialized_host, host)
@@ -542,6 +544,7 @@ def host_checkin(body, rbac_filter=None):  # noqa: ARG001, required for all API 
     if existing_host:
         existing_host._update_last_check_in_date()
         existing_host._update_staleness_timestamps()
+        db.session.flush()  # Trigger outbox event listeners before commit
         db.session.commit()
         serialized_host = serialize_host(existing_host, staleness_timestamps(), staleness=staleness)
         _emit_patch_event(serialized_host, existing_host)

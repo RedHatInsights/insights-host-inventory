@@ -222,6 +222,8 @@ class HBIMessageConsumerBase:
                                         "Unable to process message", extra={"incoming_message": msg.value()}
                                     )
 
+                    # Flush to trigger outbox event listeners before commit
+                    db.session.flush()
                     # Commit before sending messages to ensure data consistency
                     db.session.commit()
                     self.post_process_rows()
