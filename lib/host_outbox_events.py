@@ -67,7 +67,7 @@ def _get_pending_ops(session):
     return _pending_outbox_ops[session_id]
 
 
-def _has_outbox_relevant_changes(host: Host, log_level="debug") -> bool:
+def _has_outbox_relevant_changes(host: Host) -> bool:
     """
     Check if any outbox-relevant fields have changed.
 
@@ -81,13 +81,14 @@ def _has_outbox_relevant_changes(host: Host, log_level="debug") -> bool:
         if field_name in inspected.attrs:
             history = inspected.attrs[field_name].history
             if history.has_changes():
-                log_msg = f"Field {field_name} changed for host {host.id}"
-                if log_level == "info":
-                    logger.info(log_msg)
-                else:
-                    logger.debug(log_msg)
+                logger.debug(f"Field {field_name} changed for host {host.id}")
                 return True
     return False
+
+
+def _get_session_for_instance(instance, connection):
+    """Get session for an instance, with fallback to creating one from connection."""
+    return object_session(instance) or Session(bind=connection)
 
 
 def _track_operation(session, event_type: str, host_id: str):
@@ -104,7 +105,7 @@ def _track_operation(session, event_type: str, host_id: str):
 @event.listens_for(Host, "after_insert", propagate=True)
 def _track_host_created(mapper, connection, host: Host):  # noqa: ARG001
     """Track that a host was created - will write outbox entry before commit."""
-    session = object_session(host) or Session(bind=connection)
+    session = _get_session_for_instance(host, connection)
     _track_operation(session, "created", str(host.id))
 
 
@@ -112,7 +113,7 @@ def _track_host_created(mapper, connection, host: Host):  # noqa: ARG001
 def _track_host_updated(mapper, connection, host: Host):  # noqa: ARG001
     """Track host updates when relevant fields change."""
     if _has_outbox_relevant_changes(host):
-        session = object_session(host) or Session(bind=connection)
+        session = _get_session_for_instance(host, connection)
         _track_operation(session, "updated", str(host.id))
 
 
@@ -123,14 +124,14 @@ def _check_host_changes_before_flush(session, flush_context, instances):  # noqa
     Ensures we capture changes even if after_update didn't fire.
     """
     for instance in session.dirty:
-        if isinstance(instance, Host) and _has_outbox_relevant_changes(instance, log_level="info"):
+        if isinstance(instance, Host) and _has_outbox_relevant_changes(instance):
             _track_operation(session, "updated", str(instance.id))
 
 
 @event.listens_for(Host, "before_delete", propagate=True)
 def _track_host_deleted(mapper, connection, host: Host):  # noqa: ARG001
     """Track that a host was deleted - will write outbox entry before commit."""
-    session = object_session(host) or Session(bind=connection)
+    session = _get_session_for_instance(host, connection)
     _track_operation(session, "delete", str(host.id))
 
 
@@ -138,7 +139,7 @@ def _process_outbox_ops_list(session, ops):
     """Process a list of pending outbox operations."""
     for event_type_str, host_id in ops:
         try:
-            event_type = EventType[event_type_str] if event_type_str != "delete" else EventType.delete
+            event_type = EventType[event_type_str]
 
             # For delete events, host is None which is expected
             # For create/update events, reload the host from the database
@@ -206,32 +207,14 @@ def _process_pending_outbox_ops_before_commit(session):  # noqa: ARG001
             _process_outbox_ops_list(session, ops_to_process)
             for sid in processed_session_ids:
                 _pending_outbox_ops.pop(sid, None)
-            session._outbox_ops_processed = True
         except Exception as e:
             logger.error(f"Error processing outbox ops in before_commit: {e}", exc_info=True)
-
-
-@event.listens_for(Session, "after_flush", propagate=True)
-def _verify_pending_outbox_ops_after_flush(session, flush_context):  # noqa: ARG001
-    """
-    Verify pending outbox operations after flush completes.
-    Just logs for visibility - actual processing happens in before_commit.
-    """
-    session_id = _get_session_id(session)
-    if session_id in _pending_outbox_ops:
-        ops = _pending_outbox_ops[session_id]
-        if ops:
-            logger.debug(f"Verified {len(ops)} pending outbox operations after flush for session {session_id}")
 
 
 @event.listens_for(Session, "after_commit", propagate=True)
 def _clear_pending_outbox_ops_after_commit(session):  # noqa: ARG001
     """Clear pending outbox operations after commit."""
     session_id = _get_session_id(session)
-
-    # Clear the processed flag
-    if hasattr(session, "_outbox_ops_processed"):
-        delattr(session, "_outbox_ops_processed")
 
     # Check for any remaining unprocessed ops (added during commit's flush, after before_commit)
     # Note: We CANNOT process these here because the session is in 'committed' state
