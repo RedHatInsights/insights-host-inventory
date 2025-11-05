@@ -289,9 +289,7 @@ def test_attempt_delete_group_read_only(api_delete_groups, mocker):
 
 
 @pytest.mark.usefixtures("event_producer")
-def test_delete_non_empty_group_workspace_enabled(api_delete_groups, db_create_group_with_hosts, mocker):
-    mocker.patch("api.group.get_flag_value", return_value=True)
-
+def test_delete_non_empty_group_workspace_enabled(api_delete_groups, db_create_group_with_hosts):
     group = db_create_group_with_hosts("non_empty_group", 3)
 
     response_status, rd = api_delete_groups([group.id])
@@ -299,12 +297,11 @@ def test_delete_non_empty_group_workspace_enabled(api_delete_groups, db_create_g
 
 
 @pytest.mark.usefixtures("event_producer")
-def test_delete_empty_group_workspace_enabled(api_delete_groups, db_create_group, mocker):
-    with mocker.patch("api.group.get_flag_value", return_value=True):
-        group_id = str(db_create_group("test_group").id)
+def test_delete_empty_group_workspace_enabled(api_delete_groups, db_create_group):
+    group_id = str(db_create_group("test_group").id)
 
-        response_status, _ = api_delete_groups([group_id])
-        assert_response_status(response_status, expected_status=204)
+    response_status, _ = api_delete_groups([group_id])
+    assert_response_status(response_status, expected_status=204)
 
 
 @pytest.mark.parametrize("num_hosts_to_remove", [1, 2, 3])
@@ -422,12 +419,11 @@ def test_delete_ungrouped_group_post_kessel_migration(
 
 
 @pytest.mark.usefixtures("event_producer")
-def test_delete_multiple_groups(db_create_group, db_create_group_with_hosts, api_delete_groups, mocker):
+def test_delete_multiple_groups(db_create_group, db_create_group_with_hosts, api_delete_groups):
     non_empty_group = db_create_group_with_hosts("non_empty_group", 3)
     empty_group = db_create_group("empty_group")
-    with mocker.patch("api.group.get_flag_value", return_value=True):
-        response_status, _ = api_delete_groups([non_empty_group.id, empty_group.id])
-        assert_response_status(response_status, expected_status=204)
+    response_status, _ = api_delete_groups([non_empty_group.id, empty_group.id])
+    assert_response_status(response_status, expected_status=204)
 
 
 @pytest.mark.usefixtures("enable_kessel", "event_producer")
@@ -453,9 +449,6 @@ def test_delete_existing_group_missing_workspace(api_delete_groups_kessel, db_cr
         "tests/helpers/rbac-mock-data/inv-groups-write-resource-defs-template.json"
     )
     get_rbac_permissions_mock.return_value = mock_rbac_response
-
-    # Turn on the Kessel flag
-    mocker.patch("api.group.get_flag_value", return_value=True)
 
     # Mock the metrics context manager bc we don't care about it here
     with mock.patch("lib.middleware.outbound_http_response_time") as mock_metric:
