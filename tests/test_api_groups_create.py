@@ -110,19 +110,15 @@ def test_create_group_read_only(api_create_group, mocker):
     "new_name",
     ["test_Group", " Test_Group", "test_group ", " test_group "],
 )
-def test_create_group_taken_name(api_create_group, new_name, mocker):
-    mocker.patch(
-        "lib.feature_flags.get_flag_value",
-        side_effect=lambda name: name == FLAG_INVENTORY_KESSEL_PHASE_1,
-    )
+def test_create_group_taken_name(api_create_group, new_name):
     group_data = {"name": "test_group", "host_ids": []}
 
     api_create_group(group_data)
     group_data["name"] = new_name
-    response_status, response_data = api_create_group(group_data)
+    response_status, _ = api_create_group(group_data)
 
-    assert_response_status(response_status, expected_status=400)
-    assert group_data["name"] in response_data["detail"]
+    # Post-Kessel Phase 0, the group should be created successfully.
+    assert_response_status(response_status, expected_status=201)
 
 
 @pytest.mark.usefixtures("event_producer", "enable_kessel")

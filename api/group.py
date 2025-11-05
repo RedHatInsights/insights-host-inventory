@@ -12,7 +12,6 @@ from api import json_error_response
 from api import metrics
 from api.group_query import build_group_response
 from api.group_query import build_paginated_group_list_response
-from api.group_query import does_group_with_name_exist
 from api.group_query import get_filtered_group_list_db
 from api.group_query import get_group_list_by_id_list_db
 from app.auth import get_current_identity
@@ -32,8 +31,6 @@ from app.instrumentation import log_patch_group_success
 from app.logging import get_logger
 from app.models import InputGroupSchema
 from app.queue.events import EventType
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
-from lib.feature_flags import get_flag_value
 from lib.group_repository import add_hosts_to_group
 from lib.group_repository import create_group_from_payload
 from lib.group_repository import delete_group_list
@@ -102,15 +99,6 @@ def create_group(body, rbac_filter=None):
     try:
         # Create group with validated data
         group_name = validated_create_group_data.get("name")
-
-        # check the group's existence and for Kessel Phase 1
-        if not get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1) and does_group_with_name_exist(
-            group_name, get_current_identity().org_id
-        ):
-            log_create_group_failed(logger, group_name)
-            return json_error_response(
-                "Integrity error", f"A group with name {group_name} already exists.", HTTPStatus.BAD_REQUEST
-            )
 
         if not inventory_config().bypass_kessel:
             # Validate whether the hosts can be added to the group
