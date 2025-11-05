@@ -38,6 +38,32 @@ jobs:
           # Maps tcp port 5432 on service container to the host
           - 5432:5432
 
+      zookeeper:
+        image: confluentinc/cp-zookeeper:7.4.4
+        env:
+          ZOOKEEPER_CLIENT_PORT: 32181
+          ZOOKEEPER_SERVER_ID: 1
+        ports:
+          - 32181:32181
+
+      kafka:
+        image: confluentinc/cp-kafka:7.4.4
+        env:
+          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:29092
+          KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+          KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+          KAFKA_BROKER_ID: 1
+          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+          KAFKA_ZOOKEEPER_CONNECT: zookeeper:32181
+          KAFKA_AUTO_CREATE_TOPICS_ENABLE: true
+        ports:
+          - 29092:29092
+        options: >-
+          --health-cmd "kafka-broker-api-versions --bootstrap-server localhost:29092"
+          --health-interval 10s
+          --health-timeout 10s
+          --health-retries 10
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -58,6 +84,7 @@ jobs:
           INVENTORY_DB_USER: postgres
           INVENTORY_DB_PASS: postgres
           FLASK_APP: manage.py
+          KAFKA_BOOTSTRAP_SERVERS: localhost:29092
         run: |
           pipenv run flask db upgrade
           pipenv run pytest --cov=. --cov-report=xml
