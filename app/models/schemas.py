@@ -33,9 +33,7 @@ from app.validators import verify_uuid_format
 
 
 def verify_uuid_format_not_empty_dict(value):
-    """Validate UUID format and reject None or empty dict."""
-    if value is None:
-        raise MarshmallowValidationError("Value cannot be None")
+    """Validate UUID format and reject empty dict."""
     if isinstance(value, dict) and len(value) == 0:
         raise MarshmallowValidationError("Value cannot be an empty dictionary")
     return verify_uuid_format(value)
@@ -489,7 +487,7 @@ class OutboxSchema(MarshmallowSchema):
         if operation and payload:
             if operation in ["created", "updated"]:
                 OutboxCreateUpdatePayloadSchema().load(payload)
-            elif operation in ["delete"]:
+            elif operation == "delete":
                 OutboxDeletePayloadSchema().load(payload)
             else:
                 # Allow other operation types but still validate payload structure if it matches known patterns

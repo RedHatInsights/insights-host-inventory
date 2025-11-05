@@ -34,7 +34,6 @@ from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness
 from app.staleness_states import HostStalenessStatesDbFilters
 from lib import metrics
-from lib.db import get_independent_db_session
 
 __all__ = (
     "AddHostResult",
@@ -44,7 +43,6 @@ __all__ = (
     "create_new_host",
     "find_existing_host",
     "find_non_culled_hosts",
-    "need_outbox_entry",
     "update_existing_host",
     "host_query",
 )
@@ -401,69 +399,3 @@ def host_query(
     org_id: str,
 ) -> Query:
     return Host.query.filter(Host.org_id == org_id)
-
-
-def _compare_field(input_value: Any, db_value: Any, field_name: str) -> bool:
-    """
-    Helper function to compare a field value and log differences.
-
-    Args:
-        input_value: The input value to compare
-        db_value: The database value to compare against
-        field_name: The name of the field being compared (for logging)
-
-    Returns:
-        True if the values differ, False if they match
-    """
-    if input_value != db_value:
-        logger.debug(f"{field_name} differs: input={input_value}, db={db_value}")
-        return True
-    return False
-
-
-def need_outbox_entry(host: Host) -> bool:
-    """
-    Check if an outbox entry is needed by comparing the input host with the host's current values in the database.
-
-    Args:
-        host: The Host object to check against the database
-
-    Returns:
-        True if any of the host's fields differ from the current values in the database
-    """
-    # Use a separate database session to ensure we get fresh data from the database
-    with get_independent_db_session() as session:
-        # Query the database directly to get the host's current values
-        db_host = session.query(Host).filter(Host.id == host.id).first()
-
-        if not db_host:
-            logger.info(f"Host with id {host.id} not found in database, should be created and outbox entry needed")
-            return True
-
-        # Extract group_id from groups[0].id for comparison
-        input_group_id = None
-        if host.groups and len(host.groups) > 0:
-            input_group_id = host.groups[0].get("id") if isinstance(host.groups[0], dict) else str(host.groups[0].id)
-
-        existing_group_id = None
-        if db_host.groups and len(db_host.groups) > 0:
-            existing_group_id = (
-                db_host.groups[0].get("id") if isinstance(db_host.groups[0], dict) else str(db_host.groups[0].id)
-            )
-
-        # Compare all relevant fields using the helper function
-        fields_to_compare = [
-            ("satellite_id", host.satellite_id, db_host.satellite_id),
-            ("subscription_manager_id", host.subscription_manager_id, db_host.subscription_manager_id),
-            ("insights_id", host.insights_id, db_host.insights_id),
-            ("ansible_host", host.ansible_host, db_host.ansible_host),
-            ("group_id", input_group_id, existing_group_id),
-        ]
-
-        for field_name, input_value, db_value in fields_to_compare:
-            if _compare_field(input_value, db_value, field_name):
-                logger.debug(f"Outbox entry needed for host {host.id} due to {field_name} change")
-                return True
-
-        logger.debug(f"All outbox parameters match for host {host.id}, no outbox entry needed")
-        return False
