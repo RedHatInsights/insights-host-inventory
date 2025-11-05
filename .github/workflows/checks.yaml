@@ -24,20 +24,6 @@ jobs:
   tests:
     runs-on: ubuntu-latest
     services:
-      postgres:
-        image: postgres
-        env:
-          POSTGRES_PASSWORD: postgres
-        # Set health checks to wait until postgres has started
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          # Maps tcp port 5432 on service container to the host
-          - 5432:5432
-
       zookeeper:
         image: confluentinc/cp-zookeeper:7.4.4
         env:
@@ -68,6 +54,31 @@ jobs:
       - uses: actions/checkout@v4
         with:
             fetch-depth: 0
+
+      # PostgreSQL must be run as a step instead of a service because we need to
+      # configure it with 'wal_level=logical' to support logical replication slots.
+      # GitHub Actions services don't support overriding the container command,
+      # only Docker runtime options via the 'options' field.
+      # Tests in test_inv_publish_hosts.py require logical replication for publication functionality.
+      - name: Start PostgreSQL with logical replication
+        run: |
+          docker run -d \
+            --name postgres \
+            -e POSTGRES_PASSWORD=postgres \
+            -e POSTGRES_USER=postgres \
+            -e PGUSER=postgres \
+            -e POSTGRES_DB=postgres \
+            -p 5432:5432 \
+            --health-cmd pg_isready \
+            --health-interval 10s \
+            --health-timeout 5s \
+            --health-retries 5 \
+            postgres:16.4 postgres -c wal_level=logical
+
+      - name: Wait for PostgreSQL to be ready
+        run: |
+          timeout 60 bash -c 'until docker exec postgres pg_isready; do sleep 1; done'
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
