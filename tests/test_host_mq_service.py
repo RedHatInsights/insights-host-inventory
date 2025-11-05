@@ -2956,3 +2956,69 @@ def test_add_host_with_rhsm_payloads_allowed_rhsm_payloads_not_rejected(mocker, 
     mocker.patch("app.queue.host_mq.get_flag_value", return_value=False)
     host = minimal_host(insights_id=generate_uuid(), reporter=reporter)
     assert mq_create_or_update_host(host) is not None
+
+
+def test_update_system_profile_bios_fields(mq_create_or_update_host, db_get_host):
+    # Create a host with bios_vendor set and no bios_version
+    input_host = base_host(
+        insights_id=generate_uuid(),
+        fqdn="foo.test.redhat.com",
+        system_profile={
+            "owner_id": OWNER_ID,
+            "bios_vendor": "old_vendor",
+            "workloads": {
+                "ansible": {
+                    "catalog_worker_version": "1.2.3",
+                    "controller_version": "1.2.3",
+                    "hub_version": "1.2.3",
+                    "sso_version": "1.2.3",
+                },
+                "crowdstrike": {
+                    "falcon_aid": "44e3b7d20b434a2bb2815d9808fa3a8b",
+                    "falcon_backend": "auto",
+                    "falcon_version": "7.14.16703.0",
+                },
+                "ibm_db2": {"is_running": True},
+                "intersystems": {"is_intersystems": True, "running_instances": []},
+                "mssql": {"version": "15.2.0"},
+                "oracle_db": {"is_running": True},
+                "rhel_ai": {
+                    "variant": "RHEL AI",
+                    "rhel_ai_version_id": "v1.1.3",
+                    "gpu_models": [],
+                    "ai_models": ["granite-7b-redhat-lab", "granite-7b-starter"],
+                    "free_disk_storage": "3TB",
+                },
+                "sap": {
+                    "sap_system": True,
+                    "sids": ["ABC", "XYZ"],
+                    "instance_number": "10",
+                    "version": "1.00.122.04.1478575636",
+                },
+            },
+        },
+    )
+    first_host_from_event = mq_create_or_update_host(input_host)
+    first_host_from_db = db_get_host(first_host_from_event.id)
+
+    assert first_host_from_db.system_profile_facts.get("bios_vendor") == "old_vendor"
+    assert "bios_version" not in first_host_from_db.system_profile_facts
+
+    # Update only system_profile with bios_vendor and bios_version
+    input_host = base_host(
+        id=str(first_host_from_db.id),
+        system_profile={
+            "bios_vendor": "new_vendor",
+            "bios_version": "1.23",
+        },
+    )
+    input_host.stale_timestamp = None
+    input_host.reporter = None
+    second_host_from_event = mq_create_or_update_host(input_host, consumer_class=SystemProfileMessageConsumer)
+    second_host_from_db = db_get_host(second_host_from_event.id)
+
+    # Verify same host and merged/updated system profile
+    assert str(second_host_from_db.id) == first_host_from_event.id
+    assert second_host_from_db.system_profile_facts["owner_id"] == OWNER_ID
+    assert second_host_from_db.system_profile_facts["bios_vendor"] == "new_vendor"
+    assert second_host_from_db.system_profile_facts["bios_version"] == "1.23"

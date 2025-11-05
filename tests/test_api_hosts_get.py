@@ -278,15 +278,18 @@ def test_get_hosts_with_RBAC_bypassed_as_system(db_create_host, api_get):
     assert_response_status(response_status, 200)
 
 
-def test_get_hosts_sap_system_bad_parameter_values(api_get):
-    implicit_url = build_hosts_url(query="?filter[system_profile][sap_system]=Garfield")
-    eq_url = build_hosts_url(query="?filter[system_profile][sap_system][eq]=Garfield")
+@pytest.mark.parametrize(
+    "query",
+    (
+        "?filter[system_profile][workloads][sap][sap_system]=Garfield",
+        "?filter[system_profile][workloads][sap][sap_system][eq]=Garfield",
+    ),
+)
+def test_get_hosts_sap_system_bad_parameter_values(api_get, query):
+    implicit_url = build_hosts_url(query=query)
+    status, _ = api_get(implicit_url)
 
-    implicit_response_status, _ = api_get(implicit_url)
-    eq_response_status, _ = api_get(eq_url)
-
-    assert_response_status(implicit_response_status, 400)
-    assert_response_status(eq_response_status, 400)
+    assert_response_status(status, 400)
 
 
 @pytest.mark.parametrize(
@@ -1251,9 +1254,25 @@ def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
         "[insights_client_version]=3.0.1-2.el4_2",
         "[insights_client_version]=3.0.*",
         "[host_type]=edge",
+        "[workloads][sap][sap_system]=true",
         "[sap][sap_system]=true",
+        "[sap_system]=true",
+        "[workloads][mssql][version]=15.3",
+        "[workloads][mssql][version][]=15.3",
+        "[workloads][mssql][version][]=not_nil",
+        "[mssql][version]=15.3",
+        "[mssql][version][]=15.3",
+        "[mssql][version][]=not_nil",
+        "[workloads][ansible][controller_version]=1.0",
+        "[ansible][controller_version]=1.0",
+        "[workloads][sap][sap_system]=True",
+        "[workloads][sap][sap_system]=TRUE",
+        "[workloads][sap][sap_system][is]=not_nil",
+        "[workloads][sap][sap_system][is][]=not_nil",
         "[sap][sap_system]=True",
         "[sap][sap_system]=TRUE",
+        "[sap][sap_system][is]=not_nil",
+        "[sap][sap_system][is][]=not_nil",
         "[is_marketplace]=false",
         "[is_marketplace]=False",
         "[is_marketplace]=FALSE",
@@ -1264,14 +1283,14 @@ def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
         "[greenboot_status][is][]=nil",
         "[host_type][]=not_nil",
         "[bootc_status][booted][image]=quay.io*",
-        "[sap_sids][contains][]=ABC",
-        "[sap_sids][contains][]=ABC&filter[system_profile][sap_sids][contains][]=DEF",
-        "[sap_sids][contains]=ABC",
-        "[sap_sids][]=ABC",
-        "[sap][sids][contains][]=ABC&filter[system_profile][sap][sids][contains][]=DEF",
+        "[workloads][sap][sids][contains][]=ABC",
         "[sap][sids][contains][]=ABC",
-        "[sap][sids][contains]=ABC",
-        "[sap][sids][]=ABC",
+        "[sap_sids][contains][]=ABC",
+        "[workloads][sap][sids][contains][]=ABC&filter[system_profile][workloads][sap][sids][contains][]=DEF",
+        "[workloads][sap][sids][contains]=ABC",
+        "[workloads][sap][sids][]=ABC",
+        "[workloads][sap][sids][contains][]=ABC&filter[system_profile][workloads][sap][sids][contains][]=DEF",
+        "[workloads][sap][sids][]=not_nil",
         "[systemd][failed_services][contains][]=foo",
         "[system_memory_bytes][lte]=9000000000000000",
         "[system_memory_bytes][eq]=8292048963606259",
@@ -1279,8 +1298,14 @@ def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
         "[number_of_cpus]=nil",
         "[bios_version]=2.0/3.5A",
         "[cpu_flags][]=nil",
-        "[sap_sids][]=not_nil",
-        "[sap][sids][]=not_nil",
+        "[rhel_ai][rhel_ai_version_id][is]=not_nil",
+        "[rhel_ai][rhel_ai_version_id]=v1.1.2",
+        "[rhel_ai][rhel_ai_version_id][]=v1.1.2",
+        "[rhel_ai][rhel_ai_version_id][eq]=v1.1.2",
+        "[rhel_ai][rhel_ai_version_id][eq][]=v1.1.2",
+        "[rhel_ai][variant][is]=nil",
+        "[rhel_ai][nvidia_gpu_models][]=NVIDIA T1000",
+        "[rhel_ai][amd_gpu_models][]=Advanced Micro Devices, Inc. [AMD/ATI] Device 0c31",
     ),
 )
 def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
@@ -1290,9 +1315,19 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
             "arch": "x86_64",
             "insights_client_version": "3.0.1-2.el4_2",
             "host_type": "edge",
-            "sap": {"sap_system": True, "sids": ["ABC", "DEF"]},
             "bootc_status": {"booted": {"image": "quay.io/centos-bootc/fedora-bootc-cloud:eln"}},
-            "sap_sids": ["ABC", "DEF"],
+            "workloads": {
+                "sap": {"sap_system": True, "sids": ["ABC", "DEF"]},
+                "mssql": {"version": "15.3"},
+                "ansible": {
+                    "controller_version": "1.0",
+                },
+            },
+            "rhel_ai": {
+                "rhel_ai_version_id": "v1.1.2",
+                "nvidia_gpu_models": ["NVIDIA T1000"],
+                "amd_gpu_models": ["Advanced Micro Devices, Inc. [AMD/ATI] Device 0c31"],
+            },
             "is_marketplace": False,
             "systemd": {"failed_services": ["foo", "bar"]},
             "system_memory_bytes": 8292048963606259,
@@ -1308,7 +1343,14 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
             "cpu_flags": ["ex1", "ex2"],
             "insights_client_version": "1.2.3",
             "greenboot_status": "green",
-            "sap": {"sap_system": False},
+            "workloads": {
+                "sap": {},
+            },  # No sap_system field = nil
+            "rhel_ai": {
+                "variant": "RHEL AI",
+                "nvidia_gpu_models": ["NVIDIA T2000"],
+                "amd_gpu_models": ["Advanced Micro Devices, Inc. [AMD/ATI] Device 0c32"],
+            },
             "bootc_status": {"booted": {"image": "192.168.0.1:5000/foo/foo:latest"}},
             "is_marketplace": True,
             "number_of_cpus": 8,
@@ -1327,6 +1369,82 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
     response_ids = [result["id"] for result in response_data["results"]]
     assert match_host_id in response_ids
     assert nomatch_host_id not in response_ids
+
+
+@pytest.mark.parametrize(
+    "sp_filter_bool_field",
+    (
+        "katello_agent_running",
+        "satellite_managed",
+        "is_marketplace",
+        "greenboot_fallback_detected",
+    ),
+)
+def test_query_all_sp_filters_bools_use_or_logic(db_create_host, api_get, sp_filter_bool_field):
+    # Create host with true value for the boolean field
+    host_1_data = {
+        "system_profile_facts": {
+            sp_filter_bool_field: True,
+        }
+    }
+    host_1_id = str(db_create_host(extra_data=host_1_data).id)
+
+    # Create host with false value for the boolean field
+    host_2_data = {
+        "system_profile_facts": {
+            sp_filter_bool_field: False,
+        }
+    }
+    host_2_id = str(db_create_host(extra_data=host_2_data).id)
+
+    # Create host with no value for the boolean field
+    nomatch_host_data = {"system_profile_facts": {}}
+    nomatch_host_id = str(db_create_host(extra_data=nomatch_host_data).id)
+
+    url = build_hosts_url(
+        query=f"?filter[system_profile][{sp_filter_bool_field}][]=true"
+        + f"&filter[system_profile][{sp_filter_bool_field}][]=false"
+    )
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+
+    response_ids = [result["id"] for result in response_data["results"]]
+    assert len(response_ids) == 2
+    assert host_1_id in response_ids
+    assert host_2_id in response_ids
+    assert nomatch_host_id not in response_ids
+
+
+@pytest.mark.parametrize(
+    "sp_filter_bool_field",
+    (
+        "katello_agent_running",
+        "satellite_managed",
+        "is_marketplace",
+        "greenboot_fallback_detected",
+        "sap_system",
+    ),
+)
+@pytest.mark.parametrize("filter_append", ("", "[]", "[is]"))
+def test_query_all_sp_filters_bools_nil(db_create_host, api_get, sp_filter_bool_field, filter_append):
+    # Create host with no value for the boolean field
+    host_data = {"system_profile_facts": {}}
+    host_id = str(db_create_host(extra_data=host_data).id)
+
+    nomatch_host_data_1 = {"system_profile_facts": {sp_filter_bool_field: True}}
+    nomatch_host_id_1 = str(db_create_host(extra_data=nomatch_host_data_1).id)
+    nomatch_host_data_2 = {"system_profile_facts": {sp_filter_bool_field: False}}
+    nomatch_host_id_2 = str(db_create_host(extra_data=nomatch_host_data_2).id)
+
+    url = build_hosts_url(query=f"?filter[system_profile][{sp_filter_bool_field}]{filter_append}=nil")
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+
+    response_ids = [result["id"] for result in response_data["results"]]
+    assert len(response_ids) == 1
+    assert host_id in response_ids
+    assert nomatch_host_id_1 not in response_ids
+    assert nomatch_host_id_2 not in response_ids
 
 
 @pytest.mark.parametrize(
@@ -1376,7 +1494,10 @@ def test_query_host_fuzzy_match(db_create_host, api_get, query_filter_param, mat
         "[arch]=x86",  # EQ field, no wildcard
         "[host_type]=",  # Valid bc it's a string field, but no match
         "[host_type][eq]=",  # Same for this one
+        "[workloads][sap][sids][contains][]=ABC&filter[system_profile][workloads][sap][sids][contains][]=GHI",
         "[sap][sids][contains][]=ABC&filter[system_profile][sap][sids][contains][]=GHI",
+        "[virtual_host_uuid]=",  # Valid field, but no match
+        "[arch]=",
     ),
 )
 def test_query_all_sp_filters_not_found(db_create_host, api_get, sp_filter_param):
@@ -1385,7 +1506,7 @@ def test_query_all_sp_filters_not_found(db_create_host, api_get, sp_filter_param
         "system_profile_facts": {
             "arch": "x86_64",
             "host_type": "edge",
-            "sap_sids": ["ABC", "DEF"],
+            "workloads": {"sap": {"sap_system": True, "sids": ["ABC", "DEF"]}},
             "system_memory_bytes": 8192,
         }
     }
@@ -1543,15 +1664,17 @@ def test_query_sp_filters_operating_system_name(db_create_host, api_get, sp_filt
 
 
 @pytest.mark.parametrize(
-    "os_match_data_list,os_nomatch_data_list,sp_filter_param_list",
+    "sp_match_data_list,sp_nomatch_data_list,sp_filter_param_list",
     (
         (
-            [None],
+            [{}, {"operating_system": {}}, {"operating_system": None}],
             [
                 {
-                    "name": "RHEL",
-                    "major": "8",
-                    "minor": "1",
+                    "operating_system": {
+                        "name": "RHEL",
+                        "major": "8",
+                        "minor": "1",
+                    }
                 }
             ],
             [
@@ -1562,12 +1685,14 @@ def test_query_sp_filters_operating_system_name(db_create_host, api_get, sp_filt
         (
             [
                 {
-                    "name": "RHEL",
-                    "major": "8",
-                    "minor": "1",
+                    "operating_system": {
+                        "name": "RHEL",
+                        "major": "8",
+                        "minor": "1",
+                    }
                 }
             ],
-            [None],
+            [{}, {"operating_system": {}}, {"operating_system": None}],
             [
                 "[operating_system][]=not_nil",
                 "[operating_system]=not_nil",
@@ -1575,11 +1700,15 @@ def test_query_sp_filters_operating_system_name(db_create_host, api_get, sp_filt
         ),
         (
             [
-                None,
+                {},
+                {"operating_system": {}},
+                {"operating_system": None},
                 {
-                    "name": "RHEL",
-                    "major": "8",
-                    "minor": "1",
+                    "operating_system": {
+                        "name": "RHEL",
+                        "major": "8",
+                        "minor": "1",
+                    }
                 },
             ],
             None,
@@ -1590,17 +1719,16 @@ def test_query_sp_filters_operating_system_name(db_create_host, api_get, sp_filt
     ),
 )
 def test_query_all_operating_system_nil(
-    db_create_host, api_get, os_match_data_list, os_nomatch_data_list, sp_filter_param_list, subtests
+    db_create_host, api_get, sp_match_data_list, sp_nomatch_data_list, sp_filter_param_list, subtests
 ):
     # Create host with this system profile
     match_host_id_list = [
-        str(db_create_host(extra_data={"system_profile_facts": {"operating_system": os_data}}).id)
-        for os_data in os_match_data_list
+        str(db_create_host(extra_data={"system_profile_facts": sp_data}).id) for sp_data in sp_match_data_list
     ]
-    if os_nomatch_data_list:
+
+    if sp_nomatch_data_list:
         nomatch_host_id_list = [
-            str(db_create_host(extra_data={"system_profile_facts": {"operating_system": os_data}}).id)
-            for os_data in os_nomatch_data_list
+            str(db_create_host(extra_data={"system_profile_facts": sp_data}).id) for sp_data in sp_nomatch_data_list
         ]
 
     for sp_filter_param in sp_filter_param_list:
@@ -1616,7 +1744,7 @@ def test_query_all_operating_system_nil(
             for match_host_id in match_host_id_list:
                 assert match_host_id in response_ids
 
-            if os_nomatch_data_list:
+            if sp_nomatch_data_list:
                 for nomatch_host_id in nomatch_host_id_list:
                     assert nomatch_host_id not in response_ids
 
@@ -2455,3 +2583,40 @@ def test_db_get_hosts_by_subman_id_multiple_in_same_org(db_get_hosts_by_subman_i
     assert len(hosts) == 2
     host_ids = {host.id for host in hosts}
     assert host_ids == {host1.id, host2.id}
+
+
+@pytest.mark.parametrize(
+    "field_key_level_1,field_key_level_2",
+    (
+        ("sap", "sap_system"),
+        ("ibm_db2", "is_running"),
+        ("intersystems", "is_intersystems"),
+        ("oracle_db", "is_running"),
+    ),
+)
+def test_api_hosts_get_empty_boolean_workloads_fields(db_create_host, api_get, field_key_level_1, field_key_level_2):
+    """Test that empty strings are not allowed for boolean and integer fields."""
+    db_create_host()
+
+    # Test with empty string without eq comparator
+    url = build_hosts_url(query=f"?filter[system_profile][{field_key_level_1}][{field_key_level_2}]=")
+    response_status, response_data = api_get(url)
+    assert response_status == 400
+    assert f" is an invalid value for field {field_key_level_2}" in response_data["detail"]
+
+    # Test with empty string with eq comparator
+    url = build_hosts_url(query=f"?filter[system_profile][{field_key_level_1}][{field_key_level_2}][eq]=")
+    response_status, response_data = api_get(url)
+    assert response_status == 400
+    assert f" is an invalid value for field {field_key_level_2}" in response_data["detail"]
+
+
+def test_api_hosts_get_system_profile_multiple_values_without_brackets(api_get):
+    """Test that multiple values are not allowed for a field without brackets."""
+    url = build_hosts_url(
+        query="?filter[system_profile][workloads][mssql][version]=value1"
+        + "&filter[system_profile][workloads][mssql][version]=value2"
+    )
+    response_status, response_data = api_get(url)
+    assert response_status == 400
+    assert "Param filter must be appended with [] to accept multiple values." in response_data["detail"]

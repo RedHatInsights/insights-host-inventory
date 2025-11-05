@@ -16,6 +16,18 @@ FAR_FUTURE_STALE_TIMESTAMP = datetime(2260, 1, 1, tzinfo=UTC)
 
 NEW_TO_OLD_REPORTER_MAP = {"satellite": "yupana", "discovery": "yupana"}
 OLD_TO_NEW_REPORTER_MAP = {"yupana": ("satellite", "discovery")}
+WORKLOADS_FIELDS = {
+    "ansible",
+    "crowdstrike",
+    "ibm_db2",
+    "intersystems",
+    "mssql",
+    "oracle_db",
+    "rhel_ai",
+    "sap",
+    "sap_sids",
+    "sap_system",
+}
 
 MIN_CANONICAL_FACTS_VERSION = 0
 MAX_CANONICAL_FACTS_VERSION = 1
