@@ -471,37 +471,27 @@ def rbac_create_ungrouped_hosts_workspace(identity: Identity) -> UUID | None:
     return workspace_id
 
 
-def _handle_delete_error(e: HTTPError, workspace_id: str):
+def _handle_rbac_error(
+    e: HTTPError,
+    workspace_id: str,
+    action: str,
+    skip_not_found: bool = False,
+):
     status = e.response.status_code
     try:
         detail = e.response.json().get("detail", e.response.text)
     except Exception:
         detail = e.response.text
 
-    if status == 404:
-        logger.info(f"404 deleting RBAC workspace {workspace_id}: {detail}")
+    if skip_not_found and status == 404:
+        logger.info(f"404 {action} RBAC workspace {workspace_id}: {detail}")
         raise ResourceNotFoundException(f"Workspace {workspace_id} not found in RBAC; skipping deletion")
 
     if 400 <= status < 500:
-        logger.warning(f"RBAC client error {status} deleting {workspace_id}: {detail}")
+        logger.warning(f"RBAC client error {status} {action} {workspace_id}: {detail}")
         abort(status, f"RBAC client error: {detail}")
 
-    logger.error(f"RBAC server error {status} deleting {workspace_id}: {detail}")
-    abort(503, "RBAC server error, request cannot be fulfilled")
-
-
-def _handle_patch_error(e: HTTPError, workspace_id: str):
-    status = e.response.status_code
-    try:
-        detail = e.response.json().get("detail", e.response.text)
-    except Exception:
-        detail = e.response.text
-
-    if 400 <= status < 500:
-        logger.warning(f"RBAC client error {status} patching {workspace_id}: {detail}")
-        abort(status, f"RBAC client error: {detail}")
-
-    logger.error(f"RBAC server error {status} patching {workspace_id}: {detail}")
+    logger.error(f"RBAC server error {status} {action} {workspace_id}: {detail}")
     abort(503, "RBAC server error, request cannot be fulfilled")
 
 
@@ -525,7 +515,7 @@ def delete_rbac_workspace(workspace_id: str):
             )
             rbac_response.raise_for_status()
     except HTTPError as e:
-        _handle_delete_error(e, workspace_id)
+        _handle_rbac_error(e, workspace_id, "deleting", skip_not_found=True)
     except Exception as e:
         rbac_failure(logger, e)
         abort(503, "Failed to reach RBAC endpoint, request cannot be fulfilled")
@@ -558,7 +548,7 @@ def patch_rbac_workspace(workspace_id: str, name: str | None = None) -> None:
             )
             rbac_response.raise_for_status()
     except HTTPError as e:
-        _handle_patch_error(e, workspace_id)
+        _handle_rbac_error(e, workspace_id, "patching")
     except Exception as e:
         rbac_failure(logger, e)
         abort(503, "Failed to reach RBAC endpoint, request cannot be fulfilled")
