@@ -630,14 +630,6 @@ class TestPublicationIntegration:
         ).scalar()
         return result
 
-    def logical_replication_enabled(self):
-        """Helper to check if logical replication is enabled."""
-        try:
-            result = db.session.execute(sa_text("SHOW wal_level")).scalar()
-            return result == "logical"
-        except Exception:
-            return False
-
     def test_create_publication(self, flask_app):
         """Test creating a publication in the real database."""
         publication_name = "test_hosts_publication"
@@ -857,10 +849,6 @@ class TestPublicationIntegration:
 
         try:
             with flask_app.app.app_context():
-                # Skip test if logical replication is not enabled (e.g., in ephemeral environments)
-                if not self.logical_replication_enabled():
-                    pytest.skip("Logical replication not enabled (wal_level != 'logical')")
-
                 with (
                     patch("jobs.inv_publish_hosts.DROP_REPLICATION_SLOTS", [slot_name]),
                     patch("jobs.inv_publish_hosts.CREATE_PUBLICATIONS", []),
@@ -903,10 +891,6 @@ class TestPublicationIntegration:
 
         try:
             with flask_app.app.app_context():
-                # Skip test if logical replication is not enabled (e.g., in ephemeral environments)
-                if not self.logical_replication_enabled():
-                    pytest.skip("Logical replication not enabled (wal_level != 'logical')")
-
                 # Configure one slot for cleanup, but create an additional unwanted slot
                 with (
                     patch("jobs.inv_publish_hosts.DROP_REPLICATION_SLOTS", [wanted_slot]),
@@ -953,10 +937,6 @@ class TestPublicationIntegration:
 
         try:
             with flask_app.app.app_context():
-                # Skip test if logical replication is not enabled (e.g., in ephemeral environments)
-                if not self.logical_replication_enabled():
-                    pytest.skip("Logical replication not enabled (wal_level != 'logical')")
-
                 with (
                     patch("jobs.inv_publish_hosts.DROP_REPLICATION_SLOTS", slot_names),
                     patch("jobs.inv_publish_hosts.CREATE_PUBLICATIONS", []),
@@ -1008,12 +988,6 @@ class TestPublicationIntegration:
 
         try:
             with flask_app.app.app_context():
-                # Skip test if logical replication is not enabled (e.g., in ephemeral environments)
-                # This test doesn't require creating slots, but it's testing replication slot behavior
-                # so we should skip if logical replication is not available
-                if not self.logical_replication_enabled():
-                    pytest.skip("Logical replication not enabled (wal_level != 'logical')")
-
                 with (
                     patch("jobs.inv_publish_hosts.DROP_REPLICATION_SLOTS", [slot_name]),
                     patch("jobs.inv_publish_hosts.CREATE_PUBLICATIONS", []),

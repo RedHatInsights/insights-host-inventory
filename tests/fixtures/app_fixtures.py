@@ -44,3 +44,26 @@ def inventory_config(flask_app: FlaskApp) -> Generator[Config]:
 def no_dry_run_config(inventory_config: Config) -> Config:
     inventory_config.dry_run = False
     return inventory_config
+
+
+@pytest.fixture(scope="function")
+def require_logical_replication(flask_app: FlaskApp) -> None:
+    """Fixture that skips the test if logical replication is not enabled.
+
+    This fixture checks if PostgreSQL has wal_level set to 'logical' and skips
+    the test if it's not enabled. This is useful for tests that require logical
+    replication features like replication slots.
+
+    Args:
+        flask_app: Flask application fixture (required dependency)
+
+    Raises:
+        pytest.skip: If logical replication is not enabled
+    """
+    with flask_app.app.app_context():
+        try:
+            result = db.session.execute(sa_text("SHOW wal_level")).scalar()
+            if result != "logical":
+                pytest.skip("Logical replication not enabled (wal_level != 'logical')")
+        except Exception:
+            pytest.skip("Could not check logical replication status")
