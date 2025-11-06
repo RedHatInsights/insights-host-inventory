@@ -396,7 +396,13 @@ class Host(LimitedHost):
     def update_canonical_facts_columns(self, canonical_facts):
         try:
             for key, value in canonical_facts.items():
-                if getattr(self, key) != value:
+                current_value = getattr(self, key)
+                # Handle type conversion for comparison (e.g., UUID vs string)
+                # Convert both to strings for comparison to avoid false positives
+                current_value_str = str(current_value) if current_value is not None else None
+                value_str = str(value) if value is not None else None
+
+                if current_value_str != value_str:
                     setattr(self, key, value)
                     orm.attributes.flag_modified(self, key)
         except AttributeError as e:
