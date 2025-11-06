@@ -356,4 +356,8 @@ def create_app(runtime_environment) -> connexion.FlaskApp:
 
     initialize_segmentio()
 
+    # Register automatic outbox event listeners for Host model
+    # This must be imported after db.init_app() is called
+    from lib import host_outbox_events  # noqa: F401
+
     return app

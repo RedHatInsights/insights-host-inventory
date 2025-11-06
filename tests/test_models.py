@@ -1794,3 +1794,44 @@ def test_create_host_with_workloads_in_top_level(db_create_host):
     system_profile_data = {**static_profile_data, **dynamic_profile_data, **workloads_data}
     host = db_create_host(extra_data={"system_profile_facts": system_profile_data})
     assert host.system_profile_facts["ansible"]["controller_version"] == "4.5.6"
+
+
+def test_update_canonical_facts_columns_uuid_comparison(db_create_host):
+    """
+    Test that updating a host with the same insights_id value doesn't incorrectly
+    flag the field as modified when comparing UUID object with string.
+
+    This test verifies the fix for a bug where update_canonical_facts_columns
+    was comparing a UUID object (from database) with a string (from input),
+    causing false positive change detection.
+    """
+    from sqlalchemy import inspect
+
+    # Create a host with an insights_id
+    insights_id_str = "8db0ffb4-ed3c-4376-968f-e4fdc734f193"
+    host = db_create_host(
+        extra_data={"canonical_facts": {"insights_id": insights_id_str}, "display_name": "test-host"}
+    )
+
+    # Commit to ensure the host is fully persisted
+    db.session.commit()
+
+    # Verify the insights_id is stored correctly
+    assert str(host.insights_id) == insights_id_str
+
+    # Get the inspection before update
+    _ = inspect(host)
+
+    # Update with the same canonical facts (insights_id as string)
+    # This should NOT mark insights_id as modified
+    host.update_canonical_facts_columns({"insights_id": insights_id_str})
+
+    # Get the inspection after update
+    inspected_after = inspect(host)
+
+    # Verify that insights_id was NOT marked as modified
+    history = inspected_after.attrs.insights_id.history
+    assert not history.has_changes(), "insights_id should not be marked as changed when value is the same"
+
+    # Verify the value is still the same
+    assert str(host.insights_id) == insights_id_str

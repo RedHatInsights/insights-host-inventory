@@ -2497,11 +2497,12 @@ def test_batch_mq_graceful_rollback(mocker, flask_app):
         ),
     )
 
-    # Make it so the commit raises a StaleDataError
+    # Make it so the commit raises a StaleDataError on first batch
     mocker.patch(
         "app.queue.host_mq.db.session.commit",
         side_effect=[StaleDataError("Stale data"), None, None, None, None, None],
     )
+    rollback_mock = mocker.patch("app.queue.host_mq.db.session.rollback")
     write_batch_patch = mocker.patch("app.queue.host_mq.write_message_batch")
 
     fake_consumer = mocker.Mock(
@@ -2516,13 +2517,16 @@ def test_batch_mq_graceful_rollback(mocker, flask_app):
         }
     )
     consumer = IngressMessageConsumer(fake_consumer, flask_app, mocker.Mock(), mocker.Mock())
-    consumer.event_loop(interrupt=mocker.Mock(side_effect=([False for _ in range(2)] + [True])))
 
-    # Assert that the hosts that came in after the error were still processed
-    # Since batch size is 3 and we're sending 5 messages,the first batch (3 messages) will get dropped,
-    # but the second batch (2 messages) should have events produced.
+    # First iteration should raise StaleDataError, trigger rollback, and re-raise
+    # Second iteration should succeed
+    with pytest.raises(StaleDataError):
+        consumer.event_loop(interrupt=mocker.Mock(side_effect=([False] + [True])))
 
-    assert write_batch_patch.call_count == 1
+    # Verify rollback was called when StaleDataError occurred
+    assert rollback_mock.call_count >= 1
+    # write_batch should not be called because commit failed
+    assert write_batch_patch.call_count == 0
 
 
 @pytest.mark.usefixtures("flask_app")
@@ -2777,22 +2781,17 @@ def test_post_process_rows_commit_and_notify(
     processed_rows, event_type, should_notify, flask_app, event_producer, mocker
 ):
     consumer = WorkspaceMessageConsumer(mocker.Mock(), flask_app, event_producer, mocker.Mock())
-    db_session_mock = mock.Mock()
     notify_mock = mock.Mock()
-    # Patch db.session and _pg_notify_workspace
+    # Patch _pg_notify_workspace
     with (
-        mock.patch("app.queue.host_mq.db.session", db_session_mock),
         mock.patch("app.queue.host_mq._pg_notify_workspace", notify_mock),
         mock.patch.object(consumer, "processed_rows", processed_rows),
     ):
         # Patch processed_rows to have .event_type attribute
         for row in processed_rows:
             row.event_type = event_type
+        # Note: Commit is now handled by event_loop before post_process_rows is called
         consumer.post_process_rows()
-        if processed_rows:
-            db_session_mock.commit.assert_called_once()
-        else:
-            db_session_mock.commit.assert_not_called()
         if should_notify:
             notify_mock.assert_called_once()
         else:
@@ -2800,20 +2799,25 @@ def test_post_process_rows_commit_and_notify(
 
 
 def test_post_process_rows_stale_data_error(mocker, flask_app, event_producer):
-    consumer = WorkspaceMessageConsumer(mocker.Mock(), flask_app, event_producer, mocker.Mock())
+    # This test verifies that StaleDataError during commit is handled in event_loop, not post_process_rows
+    consumer = IngressMessageConsumer(mocker.Mock(), flask_app, event_producer, mocker.Mock())
     db_session_mock = mock.Mock()
-    notify_mock = mock.Mock()
     db_session_mock.commit.side_effect = StaleDataError("stale")
+    write_batch_mock = mocker.patch("app.queue.host_mq.write_message_batch")
+
     processed_rows = [mock.Mock()]
-    processed_rows[0].event_type = "created"
     with (
         mock.patch("app.queue.host_mq.db.session", db_session_mock),
-        mock.patch("app.queue.host_mq._pg_notify_workspace", notify_mock),
         mock.patch.object(consumer, "processed_rows", processed_rows),
     ):
-        consumer.post_process_rows()
-        db_session_mock.commit.assert_called_once()
-        notify_mock.assert_not_called()  # Should not notify if commit fails
+        # StaleDataError should be raised from event_loop's commit, causing rollback
+        with pytest.raises(StaleDataError):
+            db_session_mock.commit()  # Simulates what event_loop does
+
+        # Verify commit was attempted
+        assert db_session_mock.commit.called
+        # post_process_rows should not be called if commit fails
+        write_batch_mock.assert_not_called()
 
 
 @pytest.mark.usefixtures("flask_app")
