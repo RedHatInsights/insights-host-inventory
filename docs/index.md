@@ -782,7 +782,7 @@ The following legacy fields are automatically migrated to the `workloads.*` stru
 
 To support downstream consumers during the migration period, HBI provides a feature flag to include legacy fields in Kafka events while keeping database storage clean.
 
-**Feature Flag**: `FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY` (default: `false`)
+**Feature Flag**: `FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY` (default: `true`)
 
 **When disabled (default)**:
 - Kafka events contain **only** the `workloads.*` structure
