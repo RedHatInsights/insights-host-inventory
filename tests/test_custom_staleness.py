@@ -134,8 +134,13 @@ def test_async_update_host_create_custom_staleness(
             status, _ = api_post(staleness_url, CUSTOM_STALENESS_HOST_BECAME_STALE)
             assert status == 201
 
-            # Wait for thread to finish
-            time.sleep(0.1)
+            # Wait for thread to finish - poll until event_producer.write_event is called
+            max_wait = 5.0  # Maximum wait time in seconds
+            wait_interval = 0.1  # Check every 100ms
+            elapsed = 0.0
+            while event_producer.write_event.call_count < num_hosts and elapsed < max_wait:
+                time.sleep(wait_interval)
+                elapsed += wait_interval
 
             hosts_after_update = db_get_hosts(host_ids).all()
             for reporter in hosts_after_update[0].per_reporter_staleness:
@@ -187,8 +192,13 @@ def test_async_update_host_delete_custom_staleness(
             status, _ = api_delete_staleness()
             assert status == 204
 
-            # Wait for thread to finish
-            time.sleep(0.1)
+            # Wait for thread to finish - poll until event_producer.write_event is called
+            max_wait = 5.0  # Maximum wait time in seconds
+            wait_interval = 0.1  # Check every 100ms
+            elapsed = 0.0
+            while event_producer.write_event.call_count < num_hosts and elapsed < max_wait:
+                time.sleep(wait_interval)
+                elapsed += wait_interval
 
             hosts_after_update = db_get_hosts(host_ids).all()
             for reporter in hosts_after_update[0].per_reporter_staleness:
@@ -241,8 +251,13 @@ def test_async_update_host_update_custom_staleness(
             status, _ = api_patch(staleness_url, CUSTOM_STALENESS_NO_HOSTS_TO_DELETE)
             assert status == 200
 
-            # Wait for thread to finish
-            time.sleep(0.1)
+            # Wait for thread to finish - poll until event_producer.write_event is called
+            max_wait = 5.0  # Maximum wait time in seconds
+            wait_interval = 0.1  # Check every 100ms
+            elapsed = 0.0
+            while event_producer.write_event.call_count < num_hosts and elapsed < max_wait:
+                time.sleep(wait_interval)
+                elapsed += wait_interval
 
             hosts_after_update = db_get_hosts(host_ids).all()
             for reporter in hosts_after_update[0].per_reporter_staleness:
@@ -288,8 +303,13 @@ def test_async_update_host_update_custom_staleness_no_modified_on_change(
             status, _ = api_patch(staleness_url, CUSTOM_STALENESS_NO_HOSTS_TO_DELETE)
             assert status == 200
 
-            # Wait for thread to finish
-            time.sleep(0.1)
+            # Wait for thread to finish - poll until event_producer.write_event is called
+            max_wait = 5.0  # Maximum wait time in seconds
+            wait_interval = 0.1  # Check every 100ms
+            elapsed = 0.0
+            while event_producer.write_event.call_count < num_hosts and elapsed < max_wait:
+                time.sleep(wait_interval)
+                elapsed += wait_interval
 
             host_ids = [str(host.id) for host in hosts_before_update]
 
