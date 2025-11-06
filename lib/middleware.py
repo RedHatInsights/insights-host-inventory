@@ -475,7 +475,6 @@ def _handle_rbac_error(
     e: HTTPError,
     workspace_id: str,
     action: str,
-    skip_not_found: bool = False,
 ):
     status = e.response.status_code
     try:
@@ -483,7 +482,7 @@ def _handle_rbac_error(
     except Exception:
         detail = e.response.text
 
-    if skip_not_found and status == 404:
+    if status == 404 and action == "deleting":
         logger.info(f"404 {action} RBAC workspace {workspace_id}: {detail}")
         raise ResourceNotFoundException(f"Workspace {workspace_id} not found in RBAC; skipping deletion")
 
@@ -515,7 +514,7 @@ def delete_rbac_workspace(workspace_id: str):
             )
             rbac_response.raise_for_status()
     except HTTPError as e:
-        _handle_rbac_error(e, workspace_id, "deleting", skip_not_found=True)
+        _handle_rbac_error(e, workspace_id, "deleting")
     except Exception as e:
         rbac_failure(logger, e)
         abort(503, "Failed to reach RBAC endpoint, request cannot be fulfilled")
