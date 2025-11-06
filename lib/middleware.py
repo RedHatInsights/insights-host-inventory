@@ -505,7 +505,7 @@ def _handle_patch_error(e: HTTPError, workspace_id: str):
     abort(503, "RBAC server error, request cannot be fulfilled")
 
 
-def delete_rbac_workspace(workspace_id: str) -> bool:
+def delete_rbac_workspace(workspace_id: str):
     if inventory_config().bypass_kessel:
         return True
 
@@ -524,14 +524,11 @@ def delete_rbac_workspace(workspace_id: str) -> bool:
                 verify=LoadedConfig.tlsCAPath,
             )
             rbac_response.raise_for_status()
-            return True
     except HTTPError as e:
         _handle_delete_error(e, workspace_id)
-        return False
     except Exception as e:
         rbac_failure(logger, e)
         abort(503, "Failed to reach RBAC endpoint, request cannot be fulfilled")
-        return False
     finally:
         request_session.close()
 

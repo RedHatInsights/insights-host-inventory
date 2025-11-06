@@ -223,8 +223,8 @@ def delete_groups(group_id_list, rbac_filter=None):
         # Attempt to delete the RBAC workspaces
         for group_id in group_id_list:
             try:
-                if delete_rbac_workspace(group_id):
-                    delete_count += 1
+                delete_rbac_workspace(group_id)
+                delete_count += 1
             except ResourceNotFoundException:
                 # For workspaces that are missing from RBAC,
                 # we'll attempt to delete the groups on our side

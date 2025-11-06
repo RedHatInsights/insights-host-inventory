@@ -486,10 +486,11 @@ def test_patch_group_existing_name_same_org(db_create_group, db_get_group_by_id,
     assert updated_group.name.lower() == original_group.name.lower()
 
 
-@mock.patch("requests.Session.patch", new=mocked_patch_workspace_name_exists)
-@pytest.mark.usefixtures("event_producer")
 @pytest.mark.usefixtures("enable_kessel")
-def test_patch_group_kessel_workspace_same_name_error(db_create_group, db_get_group_by_id, api_patch_group, mocker):
+@pytest.mark.parametrize("kessel_response_status", [400, 401, 403])
+def test_patch_group_kessel_workspace_same_name_error(
+    db_create_group, db_get_group_by_id, api_patch_group, kessel_response_status, mocker
+):
     """
     Test that patching a group fails when the Kessel API request returns a 400 error.
     """
@@ -505,18 +506,21 @@ def test_patch_group_kessel_workspace_same_name_error(db_create_group, db_get_gr
     )
     get_rbac_permissions_mock.return_value = mock_rbac_response
 
+    mocker.patch(
+        "requests.Session.patch",
+        new=lambda self, url, **kwargs: mocked_patch_workspace_name_exists(
+            kessel_response_status, self, url, **kwargs
+        ),
+    )
+
     # Mock the metrics context manager bc we don't care about it here
     with mock.patch("lib.middleware.outbound_http_response_time") as mock_metric:
         mock_metric.labels.return_value.time.return_value = contextlib.nullcontext()
 
         response_status, response_data = api_patch_group(existing_group_id, {"name": "new_group_name"})
 
-        # Should return a 400 error
-        assert_response_status(response_status, 400)
-        assert (
-            response_data["detail"]
-            == "RBAC client error: Can't patch workspace with same name within same parent workspace"
-        )
+        # Should return the expected error status
+        assert_response_status(response_status, kessel_response_status)
 
     # Verify the original group is unchanged
     original_group = db_get_group_by_id(existing_group_id)
