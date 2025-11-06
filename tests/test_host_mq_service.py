@@ -1319,7 +1319,7 @@ def test_add_host_workloads_populate_legacy_fields_in_kafka_event(mq_create_or_u
 @pytest.mark.usefixtures("event_datetime_mock")
 def test_add_host_with_workloads_backward_compat_disabled(mq_create_or_update_host):
     """
-    Test that when FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILY=false,
+    Test that when FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY=false,
     Kafka events include ONLY the workloads.* structure without legacy backward
     compatibility fields.
     """
@@ -1338,18 +1338,19 @@ def test_add_host_with_workloads_backward_compat_disabled(mq_create_or_update_ho
         system_profile=system_profile,
     )
 
-    _, event, _ = mq_create_or_update_host(host, return_all_data=True)
+    with patch("app.serialization.get_flag_value", return_value=False):
+        _, event, _ = mq_create_or_update_host(host, return_all_data=True)
 
-    # Verify the event has workloads structure
-    assert "workloads" in event["host"]["system_profile"]
-    assert event["host"]["system_profile"]["workloads"]["sap"]["sap_system"] is True
-    assert event["host"]["system_profile"]["workloads"]["ansible"]["controller_version"] == "4.5.6"
+        # Verify the event has workloads structure
+        assert "workloads" in event["host"]["system_profile"]
+        assert event["host"]["system_profile"]["workloads"]["sap"]["sap_system"] is True
+        assert event["host"]["system_profile"]["workloads"]["ansible"]["controller_version"] == "4.5.6"
 
-    # Verify the event does NOT have legacy backward compatibility fields
-    assert "sap" not in event["host"]["system_profile"]
-    assert "sap_system" not in event["host"]["system_profile"]
-    assert "sap_sids" not in event["host"]["system_profile"]
-    assert "ansible" not in event["host"]["system_profile"]
+        # Verify the event does NOT have legacy backward compatibility fields
+        assert "sap" not in event["host"]["system_profile"]
+        assert "sap_system" not in event["host"]["system_profile"]
+        assert "sap_sids" not in event["host"]["system_profile"]
+        assert "ansible" not in event["host"]["system_profile"]
 
 
 @pytest.mark.parametrize("tags", ({}, {"tags": []}, {"tags": {}}))
