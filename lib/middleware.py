@@ -471,7 +471,7 @@ def rbac_create_ungrouped_hosts_workspace(identity: Identity) -> UUID | None:
     return workspace_id
 
 
-def _handle_delete_error(e: HTTPError, workspace_id: str) -> bool:
+def _handle_delete_error(e: HTTPError, workspace_id: str):
     status = e.response.status_code
     try:
         detail = e.response.json().get("detail", e.response.text)
@@ -488,7 +488,21 @@ def _handle_delete_error(e: HTTPError, workspace_id: str) -> bool:
 
     logger.error(f"RBAC server error {status} deleting {workspace_id}: {detail}")
     abort(503, "RBAC server error, request cannot be fulfilled")
-    return False
+
+
+def _handle_patch_error(e: HTTPError, workspace_id: str):
+    status = e.response.status_code
+    try:
+        detail = e.response.json().get("detail", e.response.text)
+    except Exception:
+        detail = e.response.text
+
+    if 400 <= status < 500:
+        logger.warning(f"RBAC client error {status} patching {workspace_id}: {detail}")
+        abort(status, f"RBAC client error: {detail}")
+
+    logger.error(f"RBAC server error {status} patching {workspace_id}: {detail}")
+    abort(503, "RBAC server error, request cannot be fulfilled")
 
 
 def delete_rbac_workspace(workspace_id: str) -> bool:
@@ -512,7 +526,8 @@ def delete_rbac_workspace(workspace_id: str) -> bool:
             rbac_response.raise_for_status()
             return True
     except HTTPError as e:
-        return _handle_delete_error(e, workspace_id)
+        _handle_delete_error(e, workspace_id)
+        return False
     except Exception as e:
         rbac_failure(logger, e)
         abort(503, "Failed to reach RBAC endpoint, request cannot be fulfilled")
@@ -537,13 +552,16 @@ def patch_rbac_workspace(workspace_id: str, name: str | None = None) -> None:
 
     try:
         with outbound_http_response_time.labels("rbac").time():
-            request_session.patch(
+            rbac_response = request_session.patch(
                 url=get_rbac_v2_url(endpoint=workspace_endpoint),
                 headers=request_headers,
                 json=request_data,
                 timeout=inventory_config().rbac_timeout,
                 verify=LoadedConfig.tlsCAPath,
             )
+            rbac_response.raise_for_status()
+    except HTTPError as e:
+        _handle_patch_error(e, workspace_id)
     except Exception as e:
         rbac_failure(logger, e)
         abort(503, "Failed to reach RBAC endpoint, request cannot be fulfilled")

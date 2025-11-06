@@ -688,3 +688,11 @@ def mocked_post_workspace_not_found(_self: Any, url: str, **_: Any) -> Response:
     response.status_code = HTTPStatus.NOT_FOUND
     response._content = b"Workspace not found"
     return response
+
+
+def mocked_patch_workspace_name_exists(_self: Any, url: str, **_: Any) -> Response:
+    response = Response()
+    response.url = url
+    response.status_code = HTTPStatus.BAD_REQUEST
+    response._content = b"Can't patch workspace with same name within same parent workspace"
+    return response
