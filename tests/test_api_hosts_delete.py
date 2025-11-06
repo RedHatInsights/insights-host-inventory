@@ -731,8 +731,10 @@ def test_log_create_delete(
 
     assert not db_get_host(host.id)
     # The use of logger.info() logs more messages before the deleted_host message
-    # so we're checking the first message instead of the third as was done previously
-    assert caplog.records[0].system_profile == "{}"
+    # Find the first log record that has the system_profile attribute
+    deleted_host_record = next((r for r in caplog.records if hasattr(r, "system_profile")), None)
+    assert deleted_host_record is not None, "Could not find deleted_host log record"
+    assert deleted_host_record.system_profile == "{}"
 
 
 @pytest.mark.usefixtures("notification_event_producer_mock")

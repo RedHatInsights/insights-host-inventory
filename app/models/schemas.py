@@ -32,6 +32,13 @@ from app.validators import verify_satellite_id
 from app.validators import verify_uuid_format
 
 
+def verify_uuid_format_not_empty_dict(value):
+    """Validate UUID format and reject empty dict."""
+    if isinstance(value, dict) and len(value) == 0:
+        raise MarshmallowValidationError("Value cannot be an empty dictionary")
+    return verify_uuid_format(value)
+
+
 class DiskDeviceSchema(MarshmallowSchema):
     device = fields.Str(validate=marshmallow_validate.Length(max=2048))
     label = fields.Str(validate=marshmallow_validate.Length(max=1024))
@@ -399,7 +406,7 @@ class OutboxEventCommonSchema(MarshmallowSchema):
     class Meta:
         unknown = EXCLUDE
 
-    workspace_id = fields.Raw(validate=verify_uuid_format, allow_none=True)
+    workspace_id = fields.Raw(validate=verify_uuid_format_not_empty_dict, allow_none=False, required=True)
 
 
 class OutboxEventReporterSchema(MarshmallowSchema):
@@ -410,6 +417,13 @@ class OutboxEventReporterSchema(MarshmallowSchema):
     subscription_manager_id = fields.Str(validate=verify_uuid_format, allow_none=True)
     insights_id = fields.Raw(validate=verify_uuid_format, allow_none=True)
     ansible_host = fields.Str(validate=marshmallow_validate.Length(max=255), allow_none=True)
+
+    @validates_schema
+    def validate_at_least_one_field(self, data, **kwargs):
+        """Ensure at least one field has a non-none value."""
+        fields_to_check = ["satellite_id", "subscription_manager_id", "insights_id", "ansible_host"]
+        if all(data.get(field) is None for field in fields_to_check):
+            raise MarshmallowValidationError("At least one field must have a non-none value")
 
 
 class OutboxEventRepresentationsSchema(MarshmallowSchema):
@@ -473,7 +487,7 @@ class OutboxSchema(MarshmallowSchema):
         if operation and payload:
             if operation in ["created", "updated"]:
                 OutboxCreateUpdatePayloadSchema().load(payload)
-            elif operation == "deleted":
+            elif operation == "delete":
                 OutboxDeletePayloadSchema().load(payload)
             else:
                 # Allow other operation types but still validate payload structure if it matches known patterns

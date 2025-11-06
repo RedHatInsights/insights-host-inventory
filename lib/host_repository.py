@@ -24,19 +24,16 @@ from app.config import ID_FACTS
 from app.config import ID_FACTS_USE_SUBMAN_ID
 from app.config import IMMUTABLE_ID_FACTS
 from app.exceptions import InventoryException
-from app.exceptions import OutboxSaveException
 from app.logging import get_logger
 from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import LimitedHost
 from app.models import db
-from app.queue.events import EventType
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness
 from app.staleness_states import HostStalenessStatesDbFilters
 from lib import metrics
-from lib.outbox_repository import write_event_to_outbox
 
 __all__ = (
     "AddHostResult",
@@ -273,16 +270,6 @@ def create_new_host(input_host: Host) -> tuple[Host, AddHostResult]:
 
     input_host.save()
 
-    try:
-        # write to the outbox table for synchronization with Kessel
-        result = write_event_to_outbox(EventType.created, (input_host.id), input_host)
-        if not result:
-            logger.error("Failed to write created event to outbox")
-            raise OutboxSaveException("Failed to write created host event to outbox")
-    except OutboxSaveException as ose:
-        logger.error("Failed to write created event to outbox: %s", str(ose))
-        raise ose
-
     metrics.create_host_count.inc()
     logger.debug("Created host (uncommitted):%s", input_host)
 
@@ -297,16 +284,6 @@ def update_existing_host(
     logger.debug(f"existing host = {existing_host}")
 
     existing_host.update(input_host, update_system_profile)
-
-    try:
-        # write to the outbox table for synchronization with Kessel
-        result = write_event_to_outbox(EventType.updated, str(input_host.id), input_host)
-        if not result:
-            logger.error("Failed to write updated event to outbox")
-            raise OutboxSaveException("Failed to write update event to outbox")
-    except OutboxSaveException as ose:
-        logger.error("Failed to write updated event to outbox: %s", str(ose))
-        raise ose
 
     metrics.update_host_count.inc()
     logger.debug("Updated host (uncommitted):%s", existing_host)

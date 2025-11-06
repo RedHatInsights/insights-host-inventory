@@ -7,6 +7,7 @@ from app.models import db
 def session_guard(session):
     try:
         yield session
+        session.flush()
         session.commit()
     except Exception:
         session.rollback()
@@ -20,6 +21,7 @@ def multi_session_guard(session_list):
     yield session_list
     for session in session_list:
         try:
+            session.flush()
             session.commit()
         except Exception:
             session.rollback()
