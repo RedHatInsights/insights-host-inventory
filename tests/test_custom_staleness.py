@@ -1,4 +1,3 @@
-import time
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
@@ -15,6 +14,7 @@ from app.models import db
 from jobs.host_reaper import run as host_reaper_run
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import build_staleness_url
+from tests.helpers.outbox_utils import wait_for_all_events
 from tests.helpers.test_utils import now
 
 CUSTOM_STALENESS_DELETE = {
@@ -134,8 +134,8 @@ def test_async_update_host_create_custom_staleness(
             status, _ = api_post(staleness_url, CUSTOM_STALENESS_HOST_BECAME_STALE)
             assert status == 201
 
-            # Wait for thread to finish
-            time.sleep(0.1)
+            # Wait for thread to finish - poll until event_producer.write_event is called
+            wait_for_all_events(event_producer, num_hosts)
 
             hosts_after_update = db_get_hosts(host_ids).all()
             for reporter in hosts_after_update[0].per_reporter_staleness:
@@ -187,8 +187,8 @@ def test_async_update_host_delete_custom_staleness(
             status, _ = api_delete_staleness()
             assert status == 204
 
-            # Wait for thread to finish
-            time.sleep(0.1)
+            # Wait for thread to finish - poll until event_producer.write_event is called
+            wait_for_all_events(event_producer, num_hosts)
 
             hosts_after_update = db_get_hosts(host_ids).all()
             for reporter in hosts_after_update[0].per_reporter_staleness:
@@ -241,8 +241,8 @@ def test_async_update_host_update_custom_staleness(
             status, _ = api_patch(staleness_url, CUSTOM_STALENESS_NO_HOSTS_TO_DELETE)
             assert status == 200
 
-            # Wait for thread to finish
-            time.sleep(0.1)
+            # Wait for thread to finish - poll until event_producer.write_event is called
+            wait_for_all_events(event_producer, num_hosts)
 
             hosts_after_update = db_get_hosts(host_ids).all()
             for reporter in hosts_after_update[0].per_reporter_staleness:
@@ -288,8 +288,8 @@ def test_async_update_host_update_custom_staleness_no_modified_on_change(
             status, _ = api_patch(staleness_url, CUSTOM_STALENESS_NO_HOSTS_TO_DELETE)
             assert status == 200
 
-            # Wait for thread to finish
-            time.sleep(0.1)
+            # Wait for thread to finish - poll until event_producer.write_event is called
+            wait_for_all_events(event_producer, num_hosts)
 
             host_ids = [str(host.id) for host in hosts_before_update]
 
