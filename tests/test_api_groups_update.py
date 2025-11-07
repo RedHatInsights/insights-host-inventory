@@ -1,7 +1,5 @@
-import contextlib
 import json
 from copy import deepcopy
-from unittest import mock
 
 import pytest
 from dateutil import parser
@@ -11,7 +9,6 @@ from app.auth.identity import to_auth_header
 from tests.helpers.api_utils import assert_group_response
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
-from tests.helpers.api_utils import mocked_patch_workspace_name_exists
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
@@ -509,13 +506,13 @@ def test_patch_group_kessel_workspace_same_name_error(
     # Mock patch_rbac_workspace to abort with the expected status code
     # This simulates the behavior of _make_rbac_request which catches HTTPError and calls abort
     from flask import abort
-    
-    def mock_patch_rbac_workspace_error(workspace_id, name=None):
-        abort(kessel_response_status, f"RBAC client error: Can't patch workspace with same name")
-    
+
+    def mock_patch_rbac_workspace_error(_workspace_id, name=None):  # noqa: ARG001
+        abort(kessel_response_status, "RBAC client error: Can't patch workspace with same name")
+
     mocker.patch("api.group.patch_rbac_workspace", side_effect=mock_patch_rbac_workspace_error)
 
-    response_status, response_data = api_patch_group(existing_group_id, {"name": "new_group_name"})
+    response_status, _ = api_patch_group(existing_group_id, {"name": "new_group_name"})
 
     # Should return the expected error status
     assert_response_status(response_status, kessel_response_status)

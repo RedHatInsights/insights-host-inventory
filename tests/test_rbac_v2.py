@@ -11,6 +11,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
+
 # from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
 from lib.middleware import RBAC_V2_ROUTE
 from lib.middleware import _get_rbac_workspace_url
