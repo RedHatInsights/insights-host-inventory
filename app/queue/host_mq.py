@@ -226,7 +226,17 @@ class HBIMessageConsumerBase:
                     db.session.flush()
                     # Commit before sending messages to ensure data consistency
                     db.session.commit()
+
                     self.post_process_rows()
+                    # Commit Kafka offsets after successful batch processing
+                    # This ensures offsets are persisted immediately after DB commit and event production,
+                    # preventing duplicate message processing on service restart
+                    if len(messages) > 0:
+                        try:
+                            self.consumer.commit(asynchronous=False)
+                            logger.debug(f"Successfully committed offsets for {len(messages)} messages")
+                        except Exception as e:
+                            logger.exception(f"Failed to commit Kafka offsets: {e}")
                 except Exception:
                     db.session.rollback()
                     raise
