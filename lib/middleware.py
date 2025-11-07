@@ -506,7 +506,6 @@ def delete_rbac_workspace_using_endpoint_and_headers(rbac_endpoint: str, request
         method="DELETE",
         rbac_endpoint=rbac_endpoint,
         request_headers=request_headers,
-        # request_data=request_data,
     )
 
 
@@ -544,26 +543,6 @@ def rbac_create_ungrouped_hosts_workspace(identity: Identity) -> UUID | None:
         abort(503, "Failed to parse RBAC response, request cannot be fulfilled")
 
     return workspace_id
-
-
-def _handle_delete_error(e: HTTPError, workspace_id: str) -> bool:
-    status = e.response.status_code
-    try:
-        detail = e.response.json().get("detail", e.response.text)
-    except Exception:
-        detail = e.response.text
-
-    if status == 404:
-        logger.info(f"404 deleting RBAC workspace {workspace_id}: {detail}")
-        raise ResourceNotFoundException(f"Workspace {workspace_id} not found in RBAC; skipping deletion")
-
-    if 400 <= status < 500:
-        logger.warning(f"RBAC client error {status} deleting {workspace_id}: {detail}")
-        abort(status, f"RBAC client error: {detail}")
-
-    logger.error(f"RBAC server error {status} deleting {workspace_id}: {detail}")
-    abort(503, "RBAC server error, request cannot be fulfilled")
-    return False
 
 
 def delete_rbac_workspace(workspace_id: str) -> bool:
