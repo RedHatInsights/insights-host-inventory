@@ -3,6 +3,7 @@ from copy import deepcopy
 
 import pytest
 from dateutil import parser
+from flask import abort
 
 from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
@@ -505,8 +506,6 @@ def test_patch_group_kessel_workspace_same_name_error(
 
     # Mock patch_rbac_workspace to abort with the expected status code
     # This simulates the behavior of _make_rbac_request which catches HTTPError and calls abort
-    from flask import abort
-
     def mock_patch_rbac_workspace_error(_workspace_id, name=None):  # noqa: ARG001
         abort(kessel_response_status, "RBAC client error: Can't patch workspace with same name")
 

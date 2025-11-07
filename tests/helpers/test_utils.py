@@ -19,6 +19,8 @@ from app.config import COMPOUND_ID_FACTS_MAP
 from app.config import ID_FACTS
 from app.models import ProviderType
 from app.utils import HostWrapper
+from lib.feature_flags import FLAG_INVENTORY_API_READ_ONLY
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
 
 NS = "testns"
 ID = "whoabuddy"
@@ -460,9 +462,6 @@ def setup_rbac_mocking(mocker):
     Returns:
         Mock object for get_rbac_permissions
     """
-    from lib.feature_flags import FLAG_INVENTORY_API_READ_ONLY
-    from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
-
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     # Mock the flags to use old RBAC system and disable read-only mode
     mocker.patch(
@@ -485,9 +484,6 @@ def setup_kessel_mocking(mocker, allow_all=True):
     Returns:
         Tuple of (kessel_instance_mock, get_rbac_permissions_mock)
     """
-    from lib.feature_flags import FLAG_INVENTORY_API_READ_ONLY
-    from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
-
     # Mock the Kessel client
     kessel_instance = mock_kessel_client(mocker, allow_all)
 
