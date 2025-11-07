@@ -1,5 +1,7 @@
+import contextlib
 import json
 from copy import deepcopy
+from unittest import mock
 
 import pytest
 from dateutil import parser
@@ -9,6 +11,7 @@ from app.auth.identity import to_auth_header
 from tests.helpers.api_utils import assert_group_response
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
+from tests.helpers.api_utils import mocked_patch_workspace_name_exists
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
@@ -449,9 +452,7 @@ def test_patch_ungrouped_name_is_denied(db_create_group, db_get_group_by_id, api
 
 @pytest.mark.usefixtures("event_producer")
 @pytest.mark.parametrize("patch_name", ["existing_group", "EXISTING_GROUP"])
-def test_patch_group_existing_name_same_org_kessel_phase1_enabled(
-    db_create_group, db_get_group_by_id, api_patch_group, patch_name
-):
+def test_patch_group_existing_name_same_org(db_create_group, db_get_group_by_id, api_patch_group, patch_name):
     """
     Test that groups can be updated to have the same name as another group
     after the Kessel Phase 0 migration is complete.
@@ -483,3 +484,43 @@ def test_patch_group_existing_name_same_org_kessel_phase1_enabled(
 
     # Both groups should now have the same name (case-insensitive match)
     assert updated_group.name.lower() == original_group.name.lower()
+
+
+@pytest.mark.usefixtures("enable_kessel", "event_producer")
+@pytest.mark.parametrize("kessel_response_status", [400, 401, 403])
+def test_patch_group_kessel_workspace_same_name_error(
+    db_create_group, db_get_group_by_id, api_patch_group, kessel_response_status, mocker
+):
+    """
+    Test that patching a group fails when the Kessel API request returns a 400 error.
+    """
+    # Create 2 groups
+    existing_group = db_create_group("original_group_name")
+    existing_group_id = existing_group.id
+    original_modified_on = existing_group.modified_on
+
+    # Mock RBAC permissions to allow request
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-groups-write-resource-defs-template.json"
+    )
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    # Mock patch_rbac_workspace to abort with the expected status code
+    # This simulates the behavior of _make_rbac_request which catches HTTPError and calls abort
+    from flask import abort
+    
+    def mock_patch_rbac_workspace_error(workspace_id, name=None):
+        abort(kessel_response_status, f"RBAC client error: Can't patch workspace with same name")
+    
+    mocker.patch("api.group.patch_rbac_workspace", side_effect=mock_patch_rbac_workspace_error)
+
+    response_status, response_data = api_patch_group(existing_group_id, {"name": "new_group_name"})
+
+    # Should return the expected error status
+    assert_response_status(response_status, kessel_response_status)
+
+    # Verify the original group is unchanged
+    original_group = db_get_group_by_id(existing_group_id)
+    assert original_group.name == "original_group_name"
+    assert original_group.modified_on == original_modified_on

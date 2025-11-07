@@ -8,7 +8,6 @@ from sqlalchemy.exc import IntegrityError
 
 from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
 from tests.helpers.api_utils import GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import assert_group_response
 from tests.helpers.api_utils import assert_response_status
@@ -110,28 +109,23 @@ def test_create_group_read_only(api_create_group, mocker):
     "new_name",
     ["test_Group", " Test_Group", "test_group ", " test_group "],
 )
-def test_create_group_taken_name(api_create_group, new_name, mocker):
-    mocker.patch(
-        "lib.feature_flags.get_flag_value",
-        side_effect=lambda name: name == FLAG_INVENTORY_KESSEL_PHASE_1,
-    )
+def test_create_group_taken_name(api_create_group, new_name):
     group_data = {"name": "test_group", "host_ids": []}
 
     api_create_group(group_data)
     group_data["name"] = new_name
-    response_status, response_data = api_create_group(group_data)
+    response_status, _ = api_create_group(group_data)
 
-    assert_response_status(response_status, expected_status=400)
-    assert group_data["name"] in response_data["detail"]
+    # Post-Kessel Phase 0, the group should be created successfully.
+    assert_response_status(response_status, expected_status=201)
 
 
 @pytest.mark.usefixtures("event_producer", "enable_kessel")
-def test_create_group_taken_name_in_kessel_rbac(api_create_group, mocker):
+def test_create_group_taken_name_in_kessel_rbac(api_create_group):
     group_data = {"name": "test_group", "host_ids": []}
 
     error_message = "RBAC client error: Can't create workspace with same name within same parent workspace"
-    with mocker.patch("api.group.get_flag_value", return_value=True):
-        response_status, response_data = api_create_group(group_data, abort_status=400, abort_detail=error_message)
+    response_status, response_data = api_create_group(group_data, abort_status=400, abort_detail=error_message)
 
     assert_response_status(response_status, expected_status=400)
     assert_response_status(response_data["detail"], error_message)
@@ -263,14 +257,8 @@ def test_create_group_RBAC_denied_attribute_filter(mocker, api_create_group):
 
 
 @pytest.mark.usefixtures("event_producer")
-def test_create_group_same_name_kessel_phase1_enabled(api_create_group, db_get_group_by_name, mocker):
+def test_create_group_same_name_kessel_phase1_enabled(api_create_group, db_get_group_by_name):
     """Test that groups with the same name can be created when FLAG_INVENTORY_KESSEL_PHASE_1 is True."""
-    # Mock FLAG_INVENTORY_KESSEL_PHASE_1 to be True
-    mocker.patch(
-        "api.group.get_flag_value",
-        side_effect=lambda flag_name: flag_name == FLAG_INVENTORY_KESSEL_PHASE_1,
-    )
-
     group_data = {"name": "duplicate_group_name", "host_ids": []}
 
     # Create the first group

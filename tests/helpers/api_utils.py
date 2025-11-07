@@ -688,3 +688,15 @@ def mocked_post_workspace_not_found(_self: Any, url: str, **_: Any) -> Response:
     response.status_code = HTTPStatus.NOT_FOUND
     response._content = b"Workspace not found"
     return response
+
+
+def mocked_patch_workspace_name_exists(kessel_response_status: int, _self: Any, url: str, **_: Any) -> Response:
+    response = Response()
+    response.url = url
+    response.status_code = kessel_response_status
+    response._content = b'{"detail": "Can\'t patch workspace with same name within same parent workspace"}'
+    response.headers = {"content-type": "application/json"}
+    # Set the response.request attribute which is needed for raise_for_status
+    from requests import Request
+    response.request = Request('PATCH', url).prepare()
+    return response

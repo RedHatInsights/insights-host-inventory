@@ -1,6 +1,7 @@
 from typing import Any
 
 from app.logging import get_logger
+from app.models.constants import WORKLOADS_FIELDS
 from app.models.schemas import HostDynamicSystemProfileSchema
 from app.models.schemas import HostStaticSystemProfileSchema
 from app.models.system_profile_normalizer import SystemProfileNormalizer
@@ -14,8 +15,6 @@ PRIMARY_KEY_FIELDS = ["org_id", "host_id"]
 _normalizer = SystemProfileNormalizer()
 STATIC_FIELDS = list(_normalizer.get_static_fields())
 DYNAMIC_FIELDS = list(_normalizer.get_dynamic_fields())
-
-WORKLOADS_FIELDS = {"ansible", "crowdstrike", "ibm_db2", "intersystems", "mssql", "oracle_db", "rhel_ai", "sap"}
 
 
 def split_system_profile_data(system_profile_data: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -35,7 +34,9 @@ def split_system_profile_data(system_profile_data: dict[str, Any]) -> tuple[dict
     dynamic_data = {}
 
     for key, value in system_profile_data.items():
-        if key in STATIC_FIELDS:
+        if value is None or value == {} or value == []:
+            pass
+        elif key in STATIC_FIELDS:
             static_data[key] = value
         elif key in DYNAMIC_FIELDS:
             dynamic_data[key] = value

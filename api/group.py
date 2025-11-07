@@ -12,7 +12,6 @@ from api import json_error_response
 from api import metrics
 from api.group_query import build_group_response
 from api.group_query import build_paginated_group_list_response
-from api.group_query import does_group_with_name_exist
 from api.group_query import get_filtered_group_list_db
 from api.group_query import get_group_list_by_id_list_db
 from app.auth import get_current_identity
@@ -108,15 +107,6 @@ def create_group(body, rbac_filter=None):
     try:
         # Create group with validated data
         group_name = validated_create_group_data.get("name")
-
-        # check the group's existence and for Kessel Phase 1
-        if not get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1) and does_group_with_name_exist(
-            group_name, get_current_identity().org_id
-        ):
-            log_create_group_failed(logger, group_name)
-            return json_error_response(
-                "Integrity error", f"A group with name {group_name} already exists.", HTTPStatus.BAD_REQUEST
-            )
 
         if not inventory_config().bypass_kessel:
             # Validate whether the hosts can be added to the group
@@ -241,8 +231,8 @@ def delete_groups(group_id_list, rbac_filter=None):
         # Attempt to delete the RBAC workspaces
         for group_id in group_id_list:
             try:
-                if delete_rbac_workspace(group_id):
-                    delete_count += 1
+                delete_rbac_workspace(group_id)
+                delete_count += 1
             except ResourceNotFoundException:
                 # For workspaces that are missing from RBAC,
                 # we'll attempt to delete the groups on our side

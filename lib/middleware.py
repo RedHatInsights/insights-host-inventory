@@ -573,11 +573,6 @@ def delete_rbac_workspace(workspace_id: str) -> bool:
     rbac_endpoint = _get_rbac_workspace_url(workspace_id)
     request_headers = _build_rbac_request_headers()
 
-    # For DELETE operations, we need custom handling since _make_rbac_request doesn't support DELETE yet
-    request_session = Session()
-    retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
-    request_session.mount(rbac_endpoint, HTTPAdapter(max_retries=retry_config))
-
     delete_rbac_workspace_using_endpoint_and_headers(rbac_endpoint, request_headers)
     return True
 
@@ -592,11 +587,6 @@ def patch_rbac_workspace(workspace_id: str, name: str | None = None) -> None:
     request_data = {}
     if name is not None:
         request_data["name"] = name
-
-    # For PATCH operations, we need custom handling since _make_rbac_request doesn't support PATCH yet
-    request_session = Session()
-    retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
-    request_session.mount(rbac_endpoint, HTTPAdapter(max_retries=retry_config))
 
     patch_rbac_workspace_using_endpoint_and_headers(request_data, rbac_endpoint, request_headers)
 

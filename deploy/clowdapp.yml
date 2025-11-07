@@ -1874,11 +1874,11 @@ objects:
           SELECT
             "org_id",
             COUNT(*) FILTER (WHERE
-              "system_profile_facts"->'bootc_status'->>'image_digest' IS NOT NULL
-              AND "system_profile_facts"->'bootc_status'->>'image_digest' <> ''
+              "system_profile_facts"->'bootc_status'->'booted'->>'image_digest' IS NOT NULL
+              AND "system_profile_facts"->'bootc_status'->'booted'->>'image_digest' <> ''
             ) AS "image_mode_count",
             COUNT(*) FILTER (WHERE
-              "system_profile_facts"->'bootc_status'->>'image_digest' IS NULL
+              "system_profile_facts"->'bootc_status'->'booted'->>'image_digest' IS NULL
               AND "system_profile_facts"->>'host_type' IS NULL
             ) AS "package_mode_count",
             COUNT(*) FILTER (WHERE
