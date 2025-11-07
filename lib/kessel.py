@@ -15,6 +15,10 @@ from app.logging import get_logger
 
 logger = get_logger(__name__)
 
+# Constants
+PLATFORM_PREFIX = "redhat"
+REPORTER_TYPE_RBAC = "rbac"
+
 
 class Kessel:
     def __init__(self, config: Config):
@@ -96,8 +100,8 @@ class Kessel:
 
         subject_ref = resource_reference_pb2.ResourceReference(
             resource_type="principal",
-            resource_id=f"redhat/{user_id}",  # Platform/IdP prefix
-            reporter=reporter_reference_pb2.ReporterReference(type="rbac"),
+            resource_id=f"{PLATFORM_PREFIX}/{user_id}",
+            reporter=reporter_reference_pb2.ReporterReference(type=REPORTER_TYPE_RBAC),
         )
 
         return subject_reference_pb2.SubjectReference(resource=subject_ref)
@@ -111,7 +115,7 @@ class Kessel:
             resource_id=resource_id,
             reporter=reporter_reference_pb2.ReporterReference(
                 type=permission.resource_type.namespace,  # e.g., "hbi"
-                instance_id="redhat",
+                instance_id=PLATFORM_PREFIX,
             ),
         )
 
@@ -145,7 +149,7 @@ class Kessel:
             resource_type=permission.resource_type.name,
             resource_id=resource_id,
             reporter=reporter_reference_pb2.ReporterReference(
-                type=permission.resource_type.namespace, instance_id="redhat"
+                type=permission.resource_type.namespace, instance_id=PLATFORM_PREFIX
             ),
         )
 
@@ -170,37 +174,45 @@ class Kessel:
                 return False
         return True
 
-    def ListAllowedWorkspaces(self, current_identity: Identity, relation) -> list[str]:
-        object_type = representation_type_pb2.RepresentationType(
-            resource_type="workspace",
-            reporter_type="rbac",
-        )
+    def list_allowed_workspaces(self, current_identity: Identity, relation: str) -> list[str]:
+        """
+        List all workspaces the current user has the specified relation to.
 
-        # Get user ID with proper fallback logic
-        user_id = self._get_user_id_from_identity(current_identity)
+        Args:
+            current_identity: The identity of the user making the request
+            relation: The relation to check (e.g., "view", "edit")
 
-        subject_ref = resource_reference_pb2.ResourceReference(
-            resource_type="principal",
-            resource_id=f"redhat/{user_id}",  # Platform/IdP prefix - should be configurable
-            reporter=reporter_reference_pb2.ReporterReference(type="rbac"),
-        )
+        Returns:
+            List of workspace IDs the user has access to
+        """
+        try:
+            object_type = representation_type_pb2.RepresentationType(
+                resource_type="workspace",
+                reporter_type=REPORTER_TYPE_RBAC,
+            )
 
-        subject = subject_reference_pb2.SubjectReference(
-            resource=subject_ref,
-        )
+            # Use the shared subject reference builder
+            subject = self._build_subject_reference(current_identity)
 
-        request = streamed_list_objects_request_pb2.StreamedListObjectsRequest(
-            object_type=object_type,
-            relation=relation,
-            subject=subject,
-        )
+            request = streamed_list_objects_request_pb2.StreamedListObjectsRequest(
+                object_type=object_type,
+                relation=relation,
+                subject=subject,
+            )
 
-        workspaces = list()
-        stream = self.inventory_svc.StreamedListObjects(request)
-        for workspace in stream:
-            workspaces.append(workspace.object.resource_id)
+            workspaces = []
+            stream = self.inventory_svc.StreamedListObjects(request, timeout=self.timeout)
+            for workspace in stream:
+                workspaces.append(workspace.object.resource_id)
 
-        return workspaces
+            return workspaces
+
+        except grpc.RpcError as e:
+            logger.error(f"Kessel list_allowed_workspaces gRPC error: {e.code()} - {e.details()}")
+            return []
+        except Exception as e:
+            logger.error(f"Kessel list_allowed_workspaces failed: {str(e)}", exc_info=True)
+            return []
 
     def close(self):
         """Close the gRPC channel."""

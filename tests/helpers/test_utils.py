@@ -518,14 +518,14 @@ def mock_kessel_client(mocker, allow_all=True):
         # Mock Kessel to allow all operations
         kessel_instance.check.return_value = True
         kessel_instance.check_for_update.return_value = True
-        kessel_instance.ListAllowedWorkspaces.return_value = []
-        kessel_instance.ListAllowedResources.return_value = []
+        kessel_instance.list_allowed_workspaces.return_value = []
+        kessel_instance.list_allowed_resources.return_value = []
     else:
         # Mock Kessel to deny all operations
         kessel_instance.check.return_value = False
         kessel_instance.check_for_update.return_value = False
-        kessel_instance.ListAllowedWorkspaces.return_value = []
-        kessel_instance.ListAllowedResources.return_value = []
+        kessel_instance.list_allowed_workspaces.return_value = []
+        kessel_instance.list_allowed_resources.return_value = []
 
     # Mock the get_kessel_client function to return our mock instance
     mocker.patch("lib.kessel.get_kessel_client", return_value=kessel_instance)

@@ -376,7 +376,7 @@ def get_kessel_filter(
 
     # No ids passed, operate on many objects not by ids
     relation = permission.workspace_permission
-    workspaces = kessel_client.ListAllowedWorkspaces(current_identity, relation)
+    workspaces = kessel_client.list_allowed_workspaces(current_identity, relation)
     # NOTE: this won't work for checks that require a permission to be unfiltered
     # Ex: some org-level permissions OR permissions like add group (which we may not need to handle)
     if len(workspaces) == 0:
