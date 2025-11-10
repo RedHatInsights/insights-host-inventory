@@ -379,6 +379,17 @@ def test_host_model_invalid_openshift_cluster_id(db_create_host):
         db_create_host(host=host)
 
 
+def test_host_model_no_openshift_cluster_id_allowed(db_create_host):
+    host = Host(
+        account=USER_IDENTITY["account_number"],
+        canonical_facts={"subscription_manager_id": generate_uuid()},
+        reporter="yupana",
+        org_id=USER_IDENTITY["org_id"],
+        openshift_cluster_id=None,
+    )
+    db_create_host(host=host)
+
+
 def test_host_model_default_id(db_create_host):
     host = Host(
         account=USER_IDENTITY["account_number"],
