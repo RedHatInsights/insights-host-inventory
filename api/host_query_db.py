@@ -65,6 +65,7 @@ DEFAULT_COLUMNS = [
     Host.groups,
     Host.system_profile_facts["host_type"].label("host_type"),
     Host.last_check_in,
+    Host.openshift_cluster_id,
 ]
 
 
