@@ -349,6 +349,8 @@ The `delete` event is produced when a host record is removed from HBI.
 * `initiated_by_frontend`: indicates whether the delete operation was initiated by the frontend
 * `platform_metadata`: contains the `b64_identity` field. Only provided when the host was deleted via API request.
 
+The host events schema is documented [here](./../swagger/host_events.spec.yaml).
+
 ## REST Interface
 
 The REST Interface allows host records to be read and altered using HTTP.
