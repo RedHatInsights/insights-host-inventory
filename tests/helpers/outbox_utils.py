@@ -1,3 +1,4 @@
+import time
 from collections.abc import Generator
 from contextlib import contextmanager
 from typing import Any
@@ -36,6 +37,35 @@ def capture_outbox_calls(target: str, *, capture_groups: bool = False) -> Genera
 
     with patch(target, side_effect=side_effect):
         yield calls
+
+
+def wait_for_all_events(
+    event_producer: Any, expected_count: int, max_wait: float = 5.0, wait_interval: float = 0.1
+) -> None:
+    """Wait for event_producer.write_event to be called the expected number of times.
+
+    This helper function polls the event_producer.write_event.call_count until it
+    reaches the expected count or the maximum wait time is exceeded. This is useful
+    for waiting for async operations to complete in tests.
+
+    Args:
+        event_producer: Mock event producer with write_event.call_count attribute
+        expected_count: Expected number of times write_event should be called
+        max_wait: Maximum wait time in seconds (default: 5.0)
+        wait_interval: Time to wait between checks in seconds (default: 0.1)
+
+    Raises:
+        AssertionError: If the expected count is not reached within max_wait time
+    """
+    elapsed = 0.0
+    while event_producer.write_event.call_count < expected_count and elapsed < max_wait:
+        time.sleep(wait_interval)
+        elapsed += wait_interval
+
+    # Assert that we got the expected number of calls
+    assert event_producer.write_event.call_count >= expected_count, (
+        f"Expected {expected_count} events, but only got {event_producer.write_event.call_count} after {elapsed:.2f}s"
+    )
 
 
 def assert_outbox_empty(db, host_id: str) -> None:
