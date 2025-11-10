@@ -1705,7 +1705,8 @@ components:
             openshift_cluster_id:
               description: >-
                 The OpenShift cluster ID that the host belongs to, if any.
-              $ref: '#/components/schemas/HyphenatedUuid'
+              type: string
+              nullable: true
           required:
             - org_id
     HostIdOut:

@@ -1547,6 +1547,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "org_id": "3340851",
             "reporter": "insights",
             "groups": [],
+            "openshift_cluster_id": str(uuid4()),
         }
         host_init_data = {
             "canonical_facts": canonical_facts,
@@ -1615,6 +1616,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                     "org_id": "some org_id",
                     "account": None,
                     "reporter": "yupana",
+                    "openshift_cluster_id": str(uuid4()),
                 }
                 host_init_data = {
                     "stale_timestamp": now(),
@@ -1739,6 +1741,7 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
             "org_id": "3340851",
             "reporter": "some reporter",
             "groups": [],
+            "openshift_cluster_id": str(uuid4()),
         }
         host_init_data = {
             "canonical_facts": canonical_facts,
