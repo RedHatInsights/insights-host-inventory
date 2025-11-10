@@ -265,27 +265,37 @@ $defs:
         example: "created, updated, delete"
       request_id:
         description: Request ID that originated this event, or null if not from a request
-        type: string
+        oneOf:
+          - type: string
+          - type: "null"
         example: "550e8400-e29b-41d4-a716-446655440000"
       producer:
         description: Hostname of the pod that produced the message
         type: string
         example: "inventory-mq-pod-123, inventory-api-pod-456"
       insights_id:
-        description: Insights ID of the host, or empty string if not available
-        type: string
+        description: Insights ID of the host, or null if not available
+        oneOf:
+          - type: string
+          - type: "null"
         example: "22cd8e39-13bb-4d02-8316-84b850dc5136"
       os_name:
-        description: Name of the operating system
-        type: string
+        description: Name of the operating system, or null if not available
+        oneOf:
+          - type: string
+          - type: "null"
         example: "RHEL, CentOS, CentOS Linux"
       reporter:
-        description: Reporter that sent HBI the payload
-        type: string
+        description: Reporter that sent HBI the payload, or null if not available
+        oneOf:
+          - type: string
+          - type: "null"
         example: "puptoo, yupana, rhsm-conduit, cloud-connector"
       host_type:
         description: Set to 'edge' for immutable hosts, null otherwise
-        type: string
+        oneOf:
+          - type: string
+          - type: "null"
         example: "edge, cluster"
       is_bootc:
         description: Indicates whether the host uses bootc
