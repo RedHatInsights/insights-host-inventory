@@ -238,10 +238,7 @@ $defs:
           System profile data for the host.
 
           The structure conforms to the SystemProfile schema defined in system_profile.spec.yaml,
-          validated during ingestion. However, events may include additional backward compatibility
-          fields (e.g., legacy workload fields alongside workloads.*) depending on feature flags.
-
-          The event production code treats this as an opaque passthrough object without re-validation.
+          validated during ingestion.
 
           For detailed field definitions, see: system_profile.spec.yaml#/$defs/SystemProfile
         allOf:
@@ -457,7 +454,6 @@ description: |
   - Updated events contain the full host representation, not just changed fields
   - Platform metadata may vary depending on the source (API vs. message queue)
   - System profile structure references system_profile.spec.yaml
-  - System profile may include additional backward compatibility fields beyond the base schema
   - All timestamps are in ISO 8601 format with UTC timezone
 
 type: object
