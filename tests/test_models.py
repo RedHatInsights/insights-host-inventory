@@ -356,6 +356,7 @@ def test_host_model_assigned_values(db_create_host, db_get_host):
         "canonical_facts": {"subscription_manager_id": generate_uuid()},
         "system_profile_facts": {"number_of_cpus": 1},
         "reporter": "reporter",
+        "openshift_cluster_id": uuid.uuid4(),
     }
 
     inserted_host = Host(**values)
@@ -364,6 +365,18 @@ def test_host_model_assigned_values(db_create_host, db_get_host):
     selected_host = db_get_host(inserted_host.id)
     for key, value in values.items():
         assert getattr(selected_host, key) == value
+
+
+def test_host_model_invalid_openshift_cluster_id(db_create_host):
+    host = Host(
+        account=USER_IDENTITY["account_number"],
+        canonical_facts={"subscription_manager_id": generate_uuid()},
+        reporter="yupana",
+        org_id=USER_IDENTITY["org_id"],
+        openshift_cluster_id="invalid-uuid",
+    )
+    with pytest.raises(DataError):
+        db_create_host(host=host)
 
 
 def test_host_model_default_id(db_create_host):

@@ -188,6 +188,7 @@ class LimitedHostSchema(CanonicalFactsSchema):
     tags = fields.Raw()
     tags_alt = fields.Raw()
     groups = fields.List(fields.Dict())
+    openshift_cluster_id = fields.Raw(validate=verify_uuid_format, allow_none=True)
 
     def __init__(self, system_profile_schema=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -267,6 +268,7 @@ class LimitedHostSchema(CanonicalFactsSchema):
             mac_addresses=canonical_facts.get("mac_addresses"),
             provider_id=canonical_facts.get("provider_id"),
             provider_type=canonical_facts.get("provider_type"),
+            openshift_cluster_id=data.get("openshift_cluster_id"),
         )
 
     @pre_load
@@ -324,6 +326,7 @@ class HostSchema(LimitedHostSchema):
             mac_addresses=canonical_facts.get("mac_addresses"),
             provider_id=canonical_facts.get("provider_id"),
             provider_type=canonical_facts.get("provider_type"),
+            openshift_cluster_id=data.get("openshift_cluster_id"),
         )
 
 

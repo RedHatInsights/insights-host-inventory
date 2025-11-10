@@ -208,6 +208,14 @@ class HostWrapper:
     def to_json(self):
         return json.dumps(self.__data)
 
+    @property
+    def openshift_cluster_id(self):
+        return self.__data.get("openshift_cluster_id", None)
+
+    @openshift_cluster_id.setter
+    def openshift_cluster_id(self, openshift_cluster_id):
+        self.__data["openshift_cluster_id"] = openshift_cluster_id
+
     @classmethod
     def from_json(cls, d):
         return cls(json.loads(d))
