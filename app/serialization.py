@@ -175,6 +175,7 @@ def serialize_host(
         ),
         "host_type": lambda: host.host_type,
         "os_release": lambda: host.system_profile_facts.get("os_release", None),
+        "openshift_cluster_id": lambda: _serialize_uuid(host.openshift_cluster_id),
     }
 
     # Process each field dynamically

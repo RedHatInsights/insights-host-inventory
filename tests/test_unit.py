@@ -1118,6 +1118,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                     "updated": now().isoformat(),
                 },
             ],
+            "openshift_cluster_id": str(uuid4()),
         }
         host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
         result = deserialize_host({}, host_schema)
@@ -1148,6 +1149,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             mac_addresses=deserialize_canonical_facts.return_value.get("mac_addresses"),
             provider_id=deserialize_canonical_facts.return_value.get("provider_id"),
             provider_type=deserialize_canonical_facts.return_value.get("provider_type"),
+            openshift_cluster_id=host_input["openshift_cluster_id"],
         )
 
     def test_without_facts(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
@@ -1186,6 +1188,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                     "updated": now().isoformat(),
                 },
             ],
+            "openshift_cluster_id": str(uuid4()),
         }
         host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
 
@@ -1217,6 +1220,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             mac_addresses=deserialize_canonical_facts.return_value.get("mac_addresses"),
             provider_id=deserialize_canonical_facts.return_value.get("provider_id"),
             provider_type=deserialize_canonical_facts.return_value.get("provider_type"),
+            openshift_cluster_id=host_input["openshift_cluster_id"],
         )
 
     def test_without_tags(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
@@ -1255,6 +1259,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                     "updated": now().isoformat(),
                 },
             ],
+            "openshift_cluster_id": str(uuid4()),
         }
         host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
 
@@ -1286,6 +1291,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             mac_addresses=deserialize_canonical_facts.return_value.get("mac_addresses"),
             provider_id=deserialize_canonical_facts.return_value.get("provider_id"),
             provider_type=deserialize_canonical_facts.return_value.get("provider_type"),
+            openshift_cluster_id=host_input["openshift_cluster_id"],
         )
 
     def test_without_display_name(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
@@ -1327,6 +1333,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                     "updated": now().isoformat(),
                 },
             ],
+            "openshift_cluster_id": str(uuid4()),
         }
         host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
 
@@ -1358,6 +1365,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             mac_addresses=deserialize_canonical_facts.return_value.get("mac_addresses"),
             provider_id=deserialize_canonical_facts.return_value.get("provider_id"),
             provider_type=deserialize_canonical_facts.return_value.get("provider_type"),
+            openshift_cluster_id=host_input["openshift_cluster_id"],
         )
 
     def test_without_system_profile(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
@@ -1394,6 +1402,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                     "updated": now().isoformat(),
                 },
             ],
+            "openshift_cluster_id": str(uuid4()),
         }
         host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
 
@@ -1425,6 +1434,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             mac_addresses=deserialize_canonical_facts.return_value.get("mac_addresses"),
             provider_id=deserialize_canonical_facts.return_value.get("provider_id"),
             provider_type=deserialize_canonical_facts.return_value.get("provider_type"),
+            openshift_cluster_id=host_input["openshift_cluster_id"],
         )
 
     def test_without_groups(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
@@ -1449,6 +1459,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             },
             "stale_timestamp": now().isoformat(),
             "reporter": "some reporter",
+            "openshift_cluster_id": str(uuid4()),
         }
         host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
 
@@ -1480,6 +1491,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             mac_addresses=deserialize_canonical_facts.return_value.get("mac_addresses"),
             provider_id=deserialize_canonical_facts.return_value.get("provider_id"),
             provider_type=deserialize_canonical_facts.return_value.get("provider_type"),
+            openshift_cluster_id=host_input["openshift_cluster_id"],
         )
 
     @patch("app.serialization.ValidationError", new=ValidationError)
