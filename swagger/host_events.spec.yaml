@@ -405,7 +405,7 @@ $defs:
       - headers
     properties:
       key:
-        description: Kafka message key (host UUID)
+        description: Kafka message key. Host ID is used as a key to ensure that multiple simultaneous changes to a host are handled by the same Kafka partition
         type: string
         format: uuid
         example: "22cd8e39-13bb-4d02-8316-84b850dc5136"
