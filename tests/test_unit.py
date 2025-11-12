@@ -1616,7 +1616,6 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                     "org_id": "some org_id",
                     "account": None,
                     "reporter": "yupana",
-                    "openshift_cluster_id": str(uuid4()),
                 }
                 host_init_data = {
                     "stale_timestamp": now(),
@@ -1651,6 +1650,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                     "ansible_host": None,
                     "provider_id": None,
                     "provider_type": None,
+                    "openshift_cluster_id": None,
                     **unchanged_data,
                     "facts": [],
                     "groups": [],
