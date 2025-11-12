@@ -16,6 +16,13 @@ from app.models import MIN_CANONICAL_FACTS_VERSION
 from app.models import ZERO_MAC_ADDRESS
 from app.models import CanonicalFactsSchema
 from app.models import Host
+from app.models import HostAppDataAdvisor
+from app.models import HostAppDataCompliance
+from app.models import HostAppDataImageBuilder
+from app.models import HostAppDataMalware
+from app.models import HostAppDataPatch
+from app.models import HostAppDataRemediations
+from app.models import HostAppDataVulnerability
 from app.models import HostSchema
 from app.models import InputGroupSchema
 from app.models import LimitedHost
@@ -1859,3 +1866,331 @@ def test_update_canonical_facts_columns_uuid_comparison(db_create_host):
 
     # Verify the value is still the same
     assert str(host.insights_id) == insights_id_str
+
+
+def test_create_host_app_data_advisor(db_create_host):
+    """Test creating a HostAppDataAdvisor record."""
+    host = db_create_host()
+    current_time = now()
+
+    advisor_data = HostAppDataAdvisor(
+        org_id=host.org_id,
+        host_id=host.id,
+        last_updated=current_time,
+        recommendations=5,
+        incidents=2,
+    )
+
+    db.session.add(advisor_data)
+    db.session.commit()
+
+    # Retrieve and verify
+    retrieved = db.session.query(HostAppDataAdvisor).filter_by(org_id=host.org_id, host_id=host.id).first()
+
+    assert retrieved is not None
+    assert retrieved.org_id == host.org_id
+    assert retrieved.host_id == host.id
+    assert retrieved.recommendations == 5
+    assert retrieved.incidents == 2
+    assert retrieved.last_updated == current_time
+
+
+def test_create_host_app_data_vulnerability(db_create_host):
+    """Test creating a HostAppDataVulnerability record."""
+    host = db_create_host()
+    current_time = now()
+
+    vuln_data = HostAppDataVulnerability(
+        org_id=host.org_id,
+        host_id=host.id,
+        last_updated=current_time,
+        total_cves=150,
+        critical_cves=5,
+        high_severity_cves=20,
+        cves_with_security_rules=10,
+        cves_with_known_exploits=3,
+    )
+
+    db.session.add(vuln_data)
+    db.session.commit()
+
+    # Retrieve and verify
+    retrieved = db.session.query(HostAppDataVulnerability).filter_by(org_id=host.org_id, host_id=host.id).first()
+
+    assert retrieved is not None
+    assert retrieved.org_id == host.org_id
+    assert retrieved.host_id == host.id
+    assert retrieved.total_cves == 150
+    assert retrieved.critical_cves == 5
+    assert retrieved.high_severity_cves == 20
+    assert retrieved.cves_with_security_rules == 10
+    assert retrieved.cves_with_known_exploits == 3
+    assert retrieved.last_updated == current_time
+
+
+def test_create_host_app_data_patch(db_create_host):
+    """Test creating a HostAppDataPatch record."""
+    host = db_create_host()
+    current_time = now()
+
+    patch_data = HostAppDataPatch(
+        org_id=host.org_id,
+        host_id=host.id,
+        last_updated=current_time,
+        installable_advisories=25,
+        template="production-template",
+        rhsm_locked_version="9.2",
+    )
+
+    db.session.add(patch_data)
+    db.session.commit()
+
+    # Retrieve and verify
+    retrieved = db.session.query(HostAppDataPatch).filter_by(org_id=host.org_id, host_id=host.id).first()
+
+    assert retrieved is not None
+    assert retrieved.org_id == host.org_id
+    assert retrieved.host_id == host.id
+    assert retrieved.installable_advisories == 25
+    assert retrieved.template == "production-template"
+    assert retrieved.rhsm_locked_version == "9.2"
+    assert retrieved.last_updated == current_time
+
+
+def test_create_host_app_data_remediations(db_create_host):
+    """Test creating a HostAppDataRemediations record."""
+    host = db_create_host()
+    current_time = now()
+
+    remediation_data = HostAppDataRemediations(
+        org_id=host.org_id,
+        host_id=host.id,
+        last_updated=current_time,
+        remediations_plans=3,
+    )
+
+    db.session.add(remediation_data)
+    db.session.commit()
+
+    # Retrieve and verify
+    retrieved = db.session.query(HostAppDataRemediations).filter_by(org_id=host.org_id, host_id=host.id).first()
+
+    assert retrieved is not None
+    assert retrieved.org_id == host.org_id
+    assert retrieved.host_id == host.id
+    assert retrieved.remediations_plans == 3
+    assert retrieved.last_updated == current_time
+
+
+def test_create_host_app_data_compliance(db_create_host):
+    """Test creating a HostAppDataCompliance record."""
+    host = db_create_host()
+    current_time = now()
+    scan_time = now() - timedelta(days=1)
+
+    compliance_data = HostAppDataCompliance(
+        org_id=host.org_id,
+        host_id=host.id,
+        last_updated=current_time,
+        policies=4,
+        last_scan=scan_time,
+    )
+
+    db.session.add(compliance_data)
+    db.session.commit()
+
+    # Retrieve and verify
+    retrieved = db.session.query(HostAppDataCompliance).filter_by(org_id=host.org_id, host_id=host.id).first()
+
+    assert retrieved is not None
+    assert retrieved.org_id == host.org_id
+    assert retrieved.host_id == host.id
+    assert retrieved.policies == 4
+    assert retrieved.last_scan == scan_time
+    assert retrieved.last_updated == current_time
+
+
+def test_create_host_app_data_malware(db_create_host):
+    """Test creating a HostAppDataMalware record."""
+    host = db_create_host()
+    current_time = now()
+    scan_time = now() - timedelta(hours=2)
+
+    malware_data = HostAppDataMalware(
+        org_id=host.org_id,
+        host_id=host.id,
+        last_updated=current_time,
+        last_status="Not affected",
+        last_matches=0,
+        last_scan=scan_time,
+    )
+
+    db.session.add(malware_data)
+    db.session.commit()
+
+    # Retrieve and verify
+    retrieved = db.session.query(HostAppDataMalware).filter_by(org_id=host.org_id, host_id=host.id).first()
+
+    assert retrieved is not None
+    assert retrieved.org_id == host.org_id
+    assert retrieved.host_id == host.id
+    assert retrieved.last_status == "Not affected"
+    assert retrieved.last_matches == 0
+    assert retrieved.last_scan == scan_time
+    assert retrieved.last_updated == current_time
+
+
+def test_create_host_app_data_image_builder(db_create_host):
+    """Test creating a HostAppDataImageBuilder record."""
+    host = db_create_host()
+    current_time = now()
+
+    image_builder_data = HostAppDataImageBuilder(
+        org_id=host.org_id,
+        host_id=host.id,
+        last_updated=current_time,
+        image_name="rhel-9-base-image",
+        image_status="Ready",
+    )
+
+    db.session.add(image_builder_data)
+    db.session.commit()
+
+    # Retrieve and verify
+    retrieved = db.session.query(HostAppDataImageBuilder).filter_by(org_id=host.org_id, host_id=host.id).first()
+
+    assert retrieved is not None
+    assert retrieved.org_id == host.org_id
+    assert retrieved.host_id == host.id
+    assert retrieved.image_name == "rhel-9-base-image"
+    assert retrieved.image_status == "Ready"
+    assert retrieved.last_updated == current_time
+
+
+def test_update_host_app_data_advisor(db_create_host):
+    """Test updating a HostAppDataAdvisor record."""
+    host = db_create_host()
+    current_time = now()
+
+    advisor_data = HostAppDataAdvisor(
+        org_id=host.org_id,
+        host_id=host.id,
+        last_updated=current_time,
+        recommendations=5,
+        incidents=2,
+    )
+
+    db.session.add(advisor_data)
+    db.session.commit()
+
+    # Update the record
+    advisor_data.recommendations = 8
+    advisor_data.incidents = 3
+    new_time = now()
+    advisor_data.last_updated = new_time
+    db.session.commit()
+
+    # Verify the updates
+    retrieved = db.session.query(HostAppDataAdvisor).filter_by(org_id=host.org_id, host_id=host.id).first()
+
+    assert retrieved.recommendations == 8
+    assert retrieved.incidents == 3
+    assert retrieved.last_updated == new_time
+
+
+def test_multiple_app_data_records_same_host(db_create_host):
+    """Test that a single host can have multiple app data records."""
+    host = db_create_host()
+    current_time = now()
+
+    # Create records for different app data types
+    advisor_data = HostAppDataAdvisor(
+        org_id=host.org_id,
+        host_id=host.id,
+        last_updated=current_time,
+        recommendations=5,
+        incidents=2,
+    )
+
+    vuln_data = HostAppDataVulnerability(
+        org_id=host.org_id,
+        host_id=host.id,
+        last_updated=current_time,
+        total_cves=150,
+        critical_cves=5,
+    )
+
+    patch_data = HostAppDataPatch(
+        org_id=host.org_id,
+        host_id=host.id,
+        last_updated=current_time,
+        installable_advisories=25,
+    )
+
+    db.session.add_all([advisor_data, vuln_data, patch_data])
+    db.session.commit()
+
+    # Verify all records exist
+    advisor_retrieved = db.session.query(HostAppDataAdvisor).filter_by(org_id=host.org_id, host_id=host.id).first()
+    vuln_retrieved = db.session.query(HostAppDataVulnerability).filter_by(org_id=host.org_id, host_id=host.id).first()
+    patch_retrieved = db.session.query(HostAppDataPatch).filter_by(org_id=host.org_id, host_id=host.id).first()
+
+    assert advisor_retrieved is not None
+    assert vuln_retrieved is not None
+    assert patch_retrieved is not None
+    assert advisor_retrieved.recommendations == 5
+    assert vuln_retrieved.total_cves == 150
+    assert patch_retrieved.installable_advisories == 25
+
+
+def test_delete_all_app_data_types_on_host_delete(db_create_host):
+    """Test that deleting a host cascades to all app data types."""
+    host = db_create_host()
+    current_time = now()
+
+    # Create all types of app data
+    advisor_data = HostAppDataAdvisor(
+        org_id=host.org_id, host_id=host.id, last_updated=current_time, recommendations=5
+    )
+    vuln_data = HostAppDataVulnerability(
+        org_id=host.org_id, host_id=host.id, last_updated=current_time, total_cves=150
+    )
+    patch_data = HostAppDataPatch(
+        org_id=host.org_id, host_id=host.id, last_updated=current_time, installable_advisories=25
+    )
+    remediation_data = HostAppDataRemediations(
+        org_id=host.org_id, host_id=host.id, last_updated=current_time, remediations_plans=3
+    )
+    compliance_data = HostAppDataCompliance(org_id=host.org_id, host_id=host.id, last_updated=current_time, policies=4)
+    malware_data = HostAppDataMalware(
+        org_id=host.org_id, host_id=host.id, last_updated=current_time, last_status="Clean"
+    )
+    image_builder_data = HostAppDataImageBuilder(
+        org_id=host.org_id, host_id=host.id, last_updated=current_time, image_name="test-image"
+    )
+
+    db.session.add_all(
+        [
+            advisor_data,
+            vuln_data,
+            patch_data,
+            remediation_data,
+            compliance_data,
+            malware_data,
+            image_builder_data,
+        ]
+    )
+    db.session.commit()
+
+    # Delete the host
+    db.session.delete(host)
+    db.session.commit()
+
+    # Verify all app data records are deleted
+    assert db.session.query(HostAppDataAdvisor).filter_by(org_id=host.org_id, host_id=host.id).first() is None
+    assert db.session.query(HostAppDataVulnerability).filter_by(org_id=host.org_id, host_id=host.id).first() is None
+    assert db.session.query(HostAppDataPatch).filter_by(org_id=host.org_id, host_id=host.id).first() is None
+    assert db.session.query(HostAppDataRemediations).filter_by(org_id=host.org_id, host_id=host.id).first() is None
+    assert db.session.query(HostAppDataCompliance).filter_by(org_id=host.org_id, host_id=host.id).first() is None
+    assert db.session.query(HostAppDataMalware).filter_by(org_id=host.org_id, host_id=host.id).first() is None
+    assert db.session.query(HostAppDataImageBuilder).filter_by(org_id=host.org_id, host_id=host.id).first() is None
