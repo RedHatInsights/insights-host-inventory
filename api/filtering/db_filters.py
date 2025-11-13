@@ -93,15 +93,15 @@ def _extract_filter_fields(filter_dict):
     return fields
 
 
-def _needs_system_profile_joins(filter, system_type, registered_with):
+def _needs_system_profile_joins(filter, system_type):
     """
     Dynamically determine if system profile table joins are needed based on
     which fields are being filtered.
 
     Returns: (needs_static_join, needs_dynamic_join)
     """
-    # system_type and registered_with always use static profile fields
-    if system_type or registered_with:
+    # system_type always use static profile fields
+    if system_type:
         return True, False
 
     if not filter:
@@ -534,7 +534,7 @@ def query_filters(
     filters = [and_(Host.org_id == identity.org_id, *filters)]
 
     # Dynamically determine if we need system profile joins based on what fields are being filtered
-    needs_static_join, needs_dynamic_join = _needs_system_profile_joins(filter, system_type, registered_with)
+    needs_static_join, needs_dynamic_join = _needs_system_profile_joins(filter, system_type)
 
     # Allow explicit join requests to override dynamic detection
     needs_static_join = needs_static_join or join_static_profile
