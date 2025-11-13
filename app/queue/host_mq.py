@@ -67,6 +67,7 @@ from app.serialization import serialize_host
 from app.staleness_serialization import AttrDict
 from lib import group_repository
 from lib import host_repository
+from lib.db import session_guard
 from lib.feature_flags import FLAG_INVENTORY_REJECT_RHSM_PAYLOADS
 from lib.feature_flags import get_flag_value
 from utils.system_profile_log import extract_host_dict_sp_to_log
@@ -183,10 +184,10 @@ class HBIMessageConsumerBase:
 
     def event_loop(self, interrupt):
         with self.flask_app.app.app_context():
-            while not interrupt():
-                self.processed_rows = []
-                try:
-                    with db.session.no_autoflush:
+            try:
+                while not interrupt():
+                    self.processed_rows = []
+                    with session_guard(db.session, close=False), db.session.no_autoflush:
                         messages = self.consumer.consume(
                             num_messages=inventory_config().mq_db_batch_max_messages,
                             timeout=inventory_config().mq_db_batch_max_seconds,
@@ -222,11 +223,6 @@ class HBIMessageConsumerBase:
                                         "Unable to process message", extra={"incoming_message": msg.value()}
                                     )
 
-                    # Flush to trigger outbox event listeners before commit
-                    db.session.flush()
-                    # Commit before sending messages to ensure data consistency
-                    db.session.commit()
-
                     self.post_process_rows()
                     # Commit Kafka offsets after successful batch processing
                     # This ensures offsets are persisted immediately after DB commit and event production,
@@ -237,9 +233,8 @@ class HBIMessageConsumerBase:
                             logger.debug(f"Successfully committed offsets for {len(messages)} messages")
                         except Exception as e:
                             logger.exception(f"Failed to commit Kafka offsets: {e}")
-                except Exception:
-                    db.session.rollback()
-                    raise
+            finally:
+                db.session.close()
 
 
 class WorkspaceMessageConsumer(HBIMessageConsumerBase):
