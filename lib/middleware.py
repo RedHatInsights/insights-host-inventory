@@ -584,7 +584,7 @@ def get_rbac_default_workspace() -> UUID | None:
 
 
 def get_rbac_workspaces(
-    name: str | None, page: int, per_page: int, group_type: str | None
+    name: str | None, page: int, per_page: int, rbac_filter: dict | None, group_type: str | None
 ) -> tuple[list[dict], int] | None:
     if inventory_config().bypass_rbac:
         return None
@@ -620,10 +620,21 @@ def get_rbac_workspaces(
         logger.warning(f"Expected 'data' to be a list, got {type(data)}. Returning empty list.")
         data = []
 
+    # Apply rbac_filter if provided - filter to only include groups in the allowed set
+    if rbac_filter and "groups" in rbac_filter:
+        allowed_group_ids = rbac_filter["groups"]
+        original_count = len(data)
+        # Filter data to only include workspaces whose ID is in the allowed set
+        # Convert workspace ID to string for comparison since rbac_filter contains string UUIDs
+        data = [workspace for workspace in data if str(workspace.get("id", "")) in allowed_group_ids]
+        filtered_count = len(data)
+        if original_count != filtered_count:
+            logger.debug(f"Filtered workspaces from {original_count} to {filtered_count} based on rbac_filter")
+
     count = response.get("meta", {}).get("count", 0)
-    if not isinstance(count, int):
-        logger.warning(f"Expected 'count' to be an integer, got {type(count)}. Using 0.")
-        count = 0
+    # Update count to reflect filtered results if rbac_filter was applied
+    if rbac_filter and "groups" in rbac_filter:
+        count = len(data)
 
     return data, count
 
