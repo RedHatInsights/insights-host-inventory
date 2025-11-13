@@ -2574,6 +2574,10 @@
               "last_check_in": {
                 "type": "string",
                 "format": "date-time"
+              },
+              "openshift_cluster_id": {
+                "description": "The OpenShift cluster ID that the host belongs to, if any.",
+                "$ref": "#/components/schemas/HyphenatedUuid"
               }
             },
             "required": [

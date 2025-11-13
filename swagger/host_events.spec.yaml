@@ -1,0 +1,472 @@
+---
+$id: host_events.spec.yaml
+$schema: http://json-schema.org/draft-04/schema#
+$defs:
+  HostEventMetadata:
+    description: Metadata associated with a host event
+    type: object
+    required:
+      - request_id
+    properties:
+      request_id:
+        description: The request ID that originated this event, or null if not from a request
+        type: string
+        example: "550e8400-e29b-41d4-a716-446655440000, 6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+        maxLength: 36
+
+  PlatformMetadata:
+    description: Platform metadata associated with the host event (identity, s3 url, request_id, etc)
+    type: object
+    properties:
+      b64_identity:
+        description: Base64-encoded identity information
+        type: string
+      url:
+        description: S3 URL where the full payload is stored
+        type: string
+        format: uri
+      request_id:
+        description: Request identifier
+        type: string
+
+  HostTag:
+    description: Representation of a host tag in structured format
+    type: object
+    required:
+      - namespace
+      - key
+      - value
+    properties:
+      namespace:
+        description: Tag namespace
+        type: string
+        maxLength: 255
+        example: "insights-client, satellite, custom"
+      key:
+        description: Tag key
+        type: string
+        maxLength: 255
+        example: "environment, region, app"
+      value:
+        description: Tag value
+        type: string
+        maxLength: 255
+        example: "production, us-east-1, web-server"
+
+  HostFacts:
+    description: Representation of host facts
+    type: object
+    required:
+      - namespace
+      - facts
+    properties:
+      namespace:
+        description: Facts namespace
+        type: string
+        maxLength: 255
+        example: "insights-client, satellite, rhsm"
+      facts:
+        description: Dictionary of facts for this namespace
+        type: object
+        additionalProperties:
+          type: string
+
+  PerReporterStaleness:
+    description: Per-reporter staleness configuration
+    type: object
+    additionalProperties:
+      type: object
+      properties:
+        last_check_in:
+          description: The last check-in date for this reporter
+          type: string
+          format: date-time
+        stale_timestamp:
+          description: When the host becomes stale for this reporter
+          type: string
+          format: date-time
+        check_in_succeeded:
+          description: Whether the last check-in succeeded
+          type: boolean
+
+  HostGroup:
+    description: Representation of a host group
+    type: object
+    required:
+      - id
+      - name
+    properties:
+      id:
+        description: The unique identifier of the group
+        type: string
+        format: uuid
+        example: "5ef6f06e-b400-4979-83f2-b9071fe4e754, 123e4567-e89b-12d3-a456-426614174000"
+      name:
+        description: The name of the group
+        type: string
+        maxLength: 255
+        example: "production-servers, database-tier, web-tier"
+
+  Host:
+    description: Complete host representation
+    type: object
+    required:
+      - id
+      - org_id
+    properties:
+      id:
+        description: Unique identifier for the host
+        type: string
+        format: uuid
+        example: "22cd8e39-13bb-4d02-8316-84b850dc5136, ffdfd200-f5b9-4e57-b080-f5e257349df0"
+      account:
+        description: Account number (legacy, may be null)
+        type: string
+        maxLength: 10
+        example: "1234567, 7654321"
+      org_id:
+        description: Organization ID
+        type: string
+        maxLength: 36
+        example: "1234567, 7654321, 9876543"
+      display_name:
+        description: User-defined display name for the host
+        type: string
+        maxLength: 200
+        example: "my-host.example.com, web-server-01, db-primary"
+      ansible_host:
+        description: Ansible host name
+        type: string
+        maxLength: 255
+        example: "my-host.ansible.local, ansible-node-1"
+      fqdn:
+        description: Fully qualified domain name
+        type: string
+        maxLength: 255
+        example: "my-host.example.com, server01.prod.example.com"
+      insights_id:
+        description: Insights client UUID
+        type: string
+        format: uuid
+        example: "22cd8e39-13bb-4d02-8316-84b850dc5136, 33cd8e39-13bb-4d02-8316-84b850dc5136"
+      subscription_manager_id:
+        description: Subscription manager UUID
+        type: string
+        format: uuid
+        example: "22cd8e39-13bb-4d02-8316-84b850dc5136, 44cd8e39-13bb-4d02-8316-84b850dc5136"
+      satellite_id:
+        description: Satellite identifier
+        type: string
+        maxLength: 255
+        example: "sat-host-001, satellite-123"
+      bios_uuid:
+        description: BIOS UUID
+        type: string
+        format: uuid
+        example: "22cd8e39-13bb-4d02-8316-84b850dc5136, 55cd8e39-13bb-4d02-8316-84b850dc5136"
+      ip_addresses:
+        description: List of IP addresses associated with the host
+        type: array
+        items:
+          type: string
+          example: "192.168.1.100, 10.0.0.5, 172.16.0.10"
+      mac_addresses:
+        description: List of MAC addresses associated with the host
+        type: array
+        items:
+          type: string
+          pattern: "^([A-Fa-f0-9]{2}[:-]){5}[A-Fa-f0-9]{2}$|^([A-Fa-f0-9]{4}[.]){2}[A-Fa-f0-9]{4}$|^[A-Fa-f0-9]{12}$|^([A-Fa-f0-9]{2}[:-]){19}[A-Fa-f0-9]{2}$|^[A-Fa-f0-9]{40}$"
+          example: "00:11:22:33:44:55, AA:BB:CC:DD:EE:FF"
+      facts:
+        description: List of facts organized by namespace
+        type: array
+        items:
+          $ref: '#/$defs/HostFacts'
+      provider_id:
+        description: Cloud provider instance ID
+        type: string
+        maxLength: 255
+        example: "i-0123456789abcdef0, vm-instance-id-123"
+      provider_type:
+        description: Cloud provider type
+        type: string
+        maxLength: 100
+        enum: [aws, azure, gcp, alibaba, ibm]
+        example: "aws, azure, gcp"
+      created:
+        description: Timestamp when the host was created
+        type: string
+        format: date-time
+        example: "2025-01-10T12:00:00Z, 2024-12-15T09:30:00Z"
+      updated:
+        description: Timestamp when the host was last updated
+        type: string
+        format: date-time
+        example: "2025-01-10T12:00:00Z, 2024-12-15T09:30:00Z"
+      last_check_in:
+        description: Timestamp of the last check-in
+        type: string
+        format: date-time
+        example: "2025-01-10T12:00:00Z, 2024-12-15T09:30:00Z"
+      stale_timestamp:
+        description: Timestamp when the host becomes stale
+        type: string
+        format: date-time
+        example: "2025-01-17T12:00:00Z, 2024-12-22T09:30:00Z"
+      stale_warning_timestamp:
+        description: Timestamp when stale warning is triggered
+        type: string
+        format: date-time
+        example: "2025-01-24T12:00:00Z, 2024-12-29T09:30:00Z"
+      culled_timestamp:
+        description: Timestamp when the host will be culled
+        type: string
+        format: date-time
+        example: "2025-01-31T12:00:00Z, 2025-01-05T09:30:00Z"
+      reporter:
+        description: Reporter that sent the host data
+        type: string
+        maxLength: 255
+        example: "puptoo, yupana, rhsm-conduit, cloud-connector"
+      tags:
+        description: List of tags associated with the host
+        type: array
+        items:
+          $ref: '#/$defs/HostTag'
+      system_profile:
+        description: |
+          System profile data for the host.
+
+          The structure conforms to the SystemProfile schema defined in system_profile.spec.yaml,
+          validated during ingestion.
+
+          For detailed field definitions, see: system_profile.spec.yaml#/$defs/SystemProfile
+        allOf:
+          - $ref: 'system_profile.spec.yaml#/$defs/SystemProfile'
+          - type: object
+            additionalProperties: true
+      per_reporter_staleness:
+        description: Per-reporter staleness information
+        $ref: '#/$defs/PerReporterStaleness'
+      groups:
+        description: List of groups the host belongs to
+        type: array
+        items:
+          $ref: '#/$defs/HostGroup'
+
+  KafkaMessageHeaders:
+    description: Headers included in the Kafka message
+    type: object
+    properties:
+      event_type:
+        description: Type of the event (created, updated, or delete)
+        type: string
+        enum: [created, updated, delete]
+        example: "created, updated, delete"
+      request_id:
+        description: Request ID that originated this event, or null if not from a request
+        oneOf:
+          - type: string
+          - type: "null"
+        example: "550e8400-e29b-41d4-a716-446655440000"
+      producer:
+        description: Hostname of the pod that produced the message
+        type: string
+        example: "inventory-mq-pod-123, inventory-api-pod-456"
+      insights_id:
+        description: Insights ID of the host, or null if not available
+        oneOf:
+          - type: string
+          - type: "null"
+        example: "22cd8e39-13bb-4d02-8316-84b850dc5136"
+      os_name:
+        description: Name of the operating system, or null if not available
+        oneOf:
+          - type: string
+          - type: "null"
+        example: "RHEL, CentOS, CentOS Linux"
+      reporter:
+        description: Reporter that sent HBI the payload, or null if not available
+        oneOf:
+          - type: string
+          - type: "null"
+        example: "puptoo, yupana, rhsm-conduit, cloud-connector"
+      host_type:
+        description: Set to 'edge' for immutable hosts, null otherwise
+        oneOf:
+          - type: string
+          - type: "null"
+        example: "edge, cluster"
+      is_bootc:
+        description: Indicates whether the host uses bootc
+        type: string
+        enum: ["True", "False"]
+        example: "True, False"
+
+  HostCreateUpdateEvent:
+    description: Event produced when a host is created or updated
+    type: object
+    required:
+      - type
+      - timestamp
+      - host
+      - metadata
+    properties:
+      type:
+        description: Event type identifier
+        type: string
+        enum: [created, updated]
+        example: "created, updated"
+      timestamp:
+        description: ISO 8601 timestamp when the event was produced
+        type: string
+        format: date-time
+        example: "2025-01-10T12:00:00Z, 2024-12-15T09:30:00.123Z"
+      host:
+        description: The complete host data (full representation, even unchanged fields)
+        $ref: '#/$defs/Host'
+      platform_metadata:
+        description: Platform metadata associated with the host (may be null in some cases)
+        oneOf:
+          - $ref: '#/$defs/PlatformMetadata'
+          - type: "null"
+      metadata:
+        description: Event metadata
+        $ref: '#/$defs/HostEventMetadata'
+
+  HostDeleteEvent:
+    description: Event produced when a host is deleted
+    type: object
+    required:
+      - type
+      - id
+      - timestamp
+      - org_id
+      - metadata
+    properties:
+      type:
+        description: Event type identifier
+        type: string
+        enum: [delete]
+        example: "delete"
+      id:
+        description: Inventory host ID of the deleted host
+        type: string
+        format: uuid
+        example: "22cd8e39-13bb-4d02-8316-84b850dc5136, ffdfd200-f5b9-4e57-b080-f5e257349df0"
+      timestamp:
+        description: ISO 8601 timestamp when the host was deleted
+        type: string
+        format: date-time
+        example: "2025-01-10T12:00:00Z, 2024-12-15T09:30:00.123Z"
+      account:
+        description: Account number of the deleted host
+        type: string
+        maxLength: 10
+        example: "1234567, 7654321"
+      org_id:
+        description: Organization ID of the deleted host
+        type: string
+        maxLength: 36
+        example: "1234567, 7654321"
+      insights_id:
+        description: Insights ID of the deleted host
+        type: string
+        format: uuid
+        example: "22cd8e39-13bb-4d02-8316-84b850dc5136"
+      request_id:
+        description: Request ID that removed the host, if applicable
+        type: string
+        example: "550e8400-e29b-41d4-a716-446655440000"
+      subscription_manager_id:
+        description: Subscription manager ID of the deleted host
+        type: string
+        format: uuid
+        example: "22cd8e39-13bb-4d02-8316-84b850dc5136"
+      initiated_by_frontend:
+        description: Whether the delete was initiated by the frontend
+        type: boolean
+        example: true
+      platform_metadata:
+        description: Platform metadata (contains b64_identity when deleted via API, may be null for system-initiated deletes)
+        oneOf:
+          - $ref: '#/$defs/PlatformMetadata'
+          - type: "null"
+      metadata:
+        description: Event metadata
+        $ref: '#/$defs/HostEventMetadata'
+
+  KafkaMessage:
+    description: Complete Kafka message structure including headers and event payload
+    type: object
+    required:
+      - key
+      - value
+      - headers
+    properties:
+      key:
+        description: Kafka message key. Host ID is used as a key to ensure that multiple simultaneous changes to a host are handled by the same Kafka partition
+        type: string
+        format: uuid
+        example: "22cd8e39-13bb-4d02-8316-84b850dc5136"
+      value:
+        description: Kafka message value (event payload)
+        oneOf:
+          - $ref: '#/$defs/HostCreateUpdateEvent'
+          - $ref: '#/$defs/HostDeleteEvent'
+      headers:
+        description: Kafka message headers
+        $ref: '#/$defs/KafkaMessageHeaders'
+      topic:
+        description: Kafka topic name
+        type: string
+        example: "platform.inventory.events"
+      partition:
+        description: Kafka partition number
+        type: integer
+        example: 0
+      offset:
+        description: Kafka message offset
+        type: integer
+        example: 12345
+
+title: HostEvents
+description: |
+  Schema specification for events produced by Host-Based Inventory (HBI) when
+  consuming create/update host Kafka messages.
+
+  ## Overview
+
+  When HBI consumes host data from Kafka topics (e.g., host ingress, system profile updates),
+  it processes the data and produces events to the `platform.inventory.events` topic.
+
+  ## Event Types
+
+  1. **created** / **updated** - Produced when a host record is created or updated (both use the same schema structure)
+  2. **delete** - Produced when a host record is deleted
+
+  ## Message Structure
+
+  Each event is a Kafka message with:
+  - **Key**: The host UUID
+  - **Value**: JSON event payload (schema varies by event type)
+  - **Headers**: Metadata about the event (event_type, request_id, producer, etc.)
+
+  ## Usage
+
+  Downstream consumers subscribe to `platform.inventory.events` to:
+  - Track host lifecycle changes
+  - Maintain synchronized host data
+  - Trigger workflows based on host state changes
+
+  ## Notes
+
+  - Updated events contain the full host representation, not just changed fields
+  - Platform metadata may vary depending on the source (API vs. message queue)
+  - System profile structure references system_profile.spec.yaml
+  - All timestamps are in ISO 8601 format with UTC timezone
+
+type: object
+oneOf:
+  - $ref: '#/$defs/HostCreateUpdateEvent'
+  - $ref: '#/$defs/HostDeleteEvent'

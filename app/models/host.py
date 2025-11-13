@@ -75,6 +75,7 @@ class LimitedHost(db.Model):
         mac_addresses=None,
         provider_id=None,
         provider_type=None,
+        openshift_cluster_id=None,
     ):
         if id:
             self.id = id
@@ -110,6 +111,7 @@ class LimitedHost(db.Model):
         self.mac_addresses = mac_addresses
         self.provider_id = provider_id
         self.provider_type = provider_type
+        self.openshift_cluster_id = openshift_cluster_id
 
     def _update_ansible_host(self, ansible_host):
         if ansible_host is not None:
@@ -209,7 +211,7 @@ class LimitedHost(db.Model):
     mac_addresses = db.Column(JSONB)
     provider_id = db.Column(db.String(500))
     provider_type = db.Column(db.String(50))
-
+    openshift_cluster_id = db.Column(UUID(as_uuid=True))
     system_profile_facts = db.Column(JSONB)
     groups = db.Column(MutableList.as_mutable(JSONB), default=lambda: [])
     host_type = column_property(system_profile_facts["host_type"])
@@ -256,6 +258,7 @@ class Host(LimitedHost):
         mac_addresses=None,
         provider_id=None,
         provider_type=None,
+        openshift_cluster_id=None,
     ):
         if tags is None:
             tags = {}
@@ -299,6 +302,7 @@ class Host(LimitedHost):
             mac_addresses,
             provider_id,
             provider_type,
+            openshift_cluster_id,
         )
         self.reporter = reporter
         if display_name:
