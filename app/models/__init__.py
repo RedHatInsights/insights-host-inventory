@@ -36,6 +36,7 @@ from app.models.schemas import NetworkInterfaceSchema
 from app.models.schemas import OperatingSystemSchema
 from app.models.schemas import PatchHostSchema
 from app.models.schemas import RhsmSchema
+from app.models.schemas import StalenessData
 from app.models.schemas import StalenessSchema
 from app.models.schemas import TagsSchema
 from app.models.schemas import YumRepoSchema
@@ -90,6 +91,7 @@ __all__ = [
     "HostSchema",
     "PatchHostSchema",
     "InputGroupSchema",
+    "StalenessData",
     "StalenessSchema",
     "_get_staleness_obj",
     "_set_display_name_on_save",
