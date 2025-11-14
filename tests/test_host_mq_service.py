@@ -2866,6 +2866,7 @@ def test_write_add_update_event_message(mocker):
         created_on = datetime.now()
         modified_on = datetime.now()
         last_check_in = datetime.now()
+        openshift_cluster_id = str(generate_uuid())
 
     result = OperationResult(
         row=FakeHostRow(),

@@ -307,6 +307,7 @@ def assert_patch_event_is_valid(
             "last_check_in": host.last_check_in.isoformat(),
             "provider_id": host.canonical_facts.get("provider_id"),
             "provider_type": host.canonical_facts.get("provider_type"),
+            "openshift_cluster_id": host.canonical_facts.get("openshift_cluster_id"),
         },
         "platform_metadata": {"b64_identity": to_auth_header(Identity(obj=identity))},
         "metadata": {"request_id": expected_request_id},

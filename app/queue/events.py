@@ -55,6 +55,7 @@ class SerializedHostSchema(Schema):
     system_profile = fields.Dict()
     per_reporter_staleness = fields.Dict()
     groups = fields.List(fields.Dict())
+    openshift_cluster_id = fields.UUID()
 
 
 class HostEventMetadataSchema(Schema):
