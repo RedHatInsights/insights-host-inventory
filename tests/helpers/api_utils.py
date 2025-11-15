@@ -18,7 +18,9 @@ from urllib.parse import urlunsplit
 from uuid import UUID
 
 import dateutil.parser
+from requests import Request
 from requests import Response
+from requests.structures import CaseInsensitiveDict
 
 from app.auth.identity import IdentityType
 from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
@@ -694,5 +696,9 @@ def mocked_patch_workspace_name_exists(kessel_response_status: int, _self: Any, 
     response = Response()
     response.url = url
     response.status_code = kessel_response_status
-    response._content = b"Can't patch workspace with same name within same parent workspace"
+    response._content = b'{"detail": "Can\'t patch workspace with same name within same parent workspace"}'
+    response.headers = CaseInsensitiveDict({"content-type": "application/json"})
+    # Set the response.request attribute which is needed for raise_for_status
+
+    response.request = Request("PATCH", url).prepare()
     return response
