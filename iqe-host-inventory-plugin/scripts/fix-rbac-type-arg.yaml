@@ -1,0 +1,11 @@
+# https://ast-grep.github.io
+id: fix-rbac_setup_resources_for_granular_rbac
+language: python
+rule:
+  all:
+    - pattern: rbac_setup_resources_for_granular_rbac
+    - inside:
+        all:
+        - kind: parameters
+fix:
+  "rbac_setup_resources_for_granular_rbac: RBacResources"
