@@ -11,6 +11,8 @@ From the Host-Based Inventory (HBI) perspective, **hosts**, **staleness**, and *
 
 ## Impact on Authorization
 
+[← Back to Impact on Authorization](kessel-effects-on-hbi.md#impact-on-authorization)
+
 The primary effect of Kessel on Host Inventory is how it interacts with RBAC (Role-Based Access Control):
 
 ### Text Description
@@ -61,6 +63,8 @@ flowchart LR
 
 ### Host Creation
 
+[← Back to Host Creation (Before Kessel)](kessel-effects-on-hbi.md#host-creation-flowchart)
+
 #### Process Description
 1. Hosts were created upon receiving MQ (Kafka) messages
 2. Host Inventory created hosts for the account from which the message was received
@@ -84,6 +88,8 @@ flowchart TD
 ---
 
 ### Group Creation
+
+[← Back to Group Creation](kessel-effects-on-hbi.md#group-creation-flowchart)
 
 #### Process Description
 1. Groups were created, updated, and deleted via REST API
@@ -111,6 +117,8 @@ flowchart TD
 ---
 
 ### Host Addition to Group
+
+[← Back to Host Addition to Group](kessel-effects-on-hbi.md#host-addition-to-group-flowchart)
 
 #### Process Description
 1. RBAC v1 was checked for permission to modify the group
@@ -140,6 +148,8 @@ flowchart TD
 ---
 
 ### Host Removal from Group
+
+[← Back to Host Removal from Group](kessel-effects-on-hbi.md#host-removal-from-group-flowchart)
 
 #### Process Description
 - When a host was removed from a group, the `groups` column was left blank
@@ -204,6 +214,8 @@ flowchart TD
 
 ### Host Creation Workflow
 
+[← Back to Host Creation (With Kessel)](kessel-effects-on-hbi.md#host-creation-flowchart-1)
+
 #### Process Description
 1. Host Inventory creates the host and saves it to the database with blank `groups` column
 2. Host Inventory requests the `workspace_id` for "Ungrouped Hosts" from RBAC v2
@@ -242,6 +254,8 @@ flowchart TD
 ---
 
 ### Removing Host from Group
+
+[← Back to Removing Host from Group](kessel-effects-on-hbi.md#removing-host-from-group-flowchart)
 
 #### Process Description
 When a host is removed from a group:
