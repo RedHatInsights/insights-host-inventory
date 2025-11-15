@@ -1,0 +1,18 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: kcat
+spec:
+  containers:
+    - resources:
+        limits:
+          cpu: '1'
+          memory: 1Gi
+        requests:
+          cpu: 500m
+          memory: 512Mi
+      name: kcat
+      imagePullPolicy: IfNotPresent
+      tty: true
+      command: ["cat"]
+      image: 'docker.io/edenhill/kcat:1.7.1'

@@ -1,0 +1,6 @@
+[flake8]
+ignore =W503,W504,E203
+max-line-length = 100
+# linting generated source is a waste of time
+exclude =
+	iqe_host_inventory_api/**
