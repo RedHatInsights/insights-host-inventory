@@ -9,7 +9,7 @@ This document describes how the integration of Kessel impacts the Host-Based Inv
 
 From the HBI perspective, **hosts**, **staleness**, and **groups** are the resources that Kessel maintains inventory of.
 
-## Impact on Authorization ([Flowchart](kessel-effects-complete.md#impact-on-authorization))
+## Impact on Authorization
 
 The primary effect of Kessel on Host Inventory is how it interacts with RBAC (Role-Based Access Control):
 
@@ -21,20 +21,22 @@ The primary effect of Kessel on Host Inventory is how it interacts with RBAC (Ro
 
 ## Before Kessel
 
-### Host Creation ([Flowchart](kessel-effects-complete.md#host-creation))
+[**→ View Complete Flowchart: Before Kessel**](kessel-effects-combined.md#complete-workflow---before-kessel)
+
+### Host Creation
 1. Hosts were created upon receiving MQ (Kafka) messages
 2. Host Inventory created hosts for the account from which the message was received
 3. After creation, the `groups` column was blank or contained `[]`
 4. Host data was stored in the `hosts` table
 
-### Group Creation ([Flowchart](kessel-effects-complete.md#group-creation))
+### Group Creation
 1. Groups were created, updated, and deleted via REST API
 2. When a group creation request was received:
    - Host Inventory checked with RBAC v1 for user permissions
    - If permission granted, the group was created
    - Group data was stored in the `groups` table
 
-### Host Addition to Group ([Flowchart](kessel-effects-complete.md#host-addition-to-group))
+### Host Addition to Group
 1. RBAC v1 was checked for permission to modify the group
 2. If permission granted:
    - New group record added to the `groups` table
@@ -42,7 +44,7 @@ The primary effect of Kessel on Host Inventory is how it interacts with RBAC (Ro
    - Host's `groups` column updated
    - Group's host count updated (counted from `hosts_groups` table)
 
-### Host Removal from Group ([Flowchart](kessel-effects-complete.md#host-removal-from-group))
+### Host Removal from Group
 - When a host was removed from a group, the `groups` column was left blank
 
 ### Key Characteristics (Pre-Kessel)
@@ -51,13 +53,15 @@ The primary effect of Kessel on Host Inventory is how it interacts with RBAC (Ro
 
 ## With Kessel
 
+[**→ View Complete Flowchart: With Kessel**](kessel-effects-combined.md#complete-workflow---with-kessel)
+
 ### Authorization Changes
 - Kessel Authz holds permissions (view, update, or delete) for hosts and statelenesst
 
 ### Automatic Group Association
 **Every host must be associated with a group.** When not explicitly assigned to a group, hosts are automatically associated with the **"Ungrouped Hosts"** group.
 
-### Host Creation ([Flowchart](kessel-effects-complete.md#host-creation-workflow))
+### Host Creation
 1. Host Inventory creates the host and saves it to the database with blank `groups` column
 2. Host Inventory requests the `workspace_id` for "Ungrouped Hosts" from RBAC v2
 3. If the account doesn't have an "Ungrouped Hosts" group:
@@ -69,7 +73,7 @@ The primary effect of Kessel on Host Inventory is how it interacts with RBAC (Ro
    - Updates the `groups` value for the host in `hosts` table
    - Updates the `hosts_groups` table
 
-### Removing Host from Group ([Flowchart](kessel-effects-complete.md#removing-host-from-group))
+### Removing Host from Group
 When a host is removed from a group:
 1. Host is automatically added to the "Ungrouped Hosts" group
 2. All relevant tables are updated:
