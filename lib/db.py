@@ -4,7 +4,7 @@ from app.models import db
 
 
 @contextmanager
-def session_guard(session):
+def session_guard(session, close=True):
     try:
         yield session
         session.flush()
@@ -13,7 +13,8 @@ def session_guard(session):
         session.rollback()
         raise
     finally:
-        session.close()
+        if close:
+            session.close()
 
 
 @contextmanager
