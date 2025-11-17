@@ -5,6 +5,7 @@
 This document describes how the integration of Kessel impacts the Host-Based Inventory (HBI) service, focusing on changes to authorization models, automatic group assignment, and hosts synchronization workflows, and where the groups data is stored.  In Kessel, groups are called workspaces.
 
 ### What is [Kessel](https://project-kessel.github.io/):
+In Kessel own words:
 > "In the simplest terms, Kessel is an inventory of resources, how they relate to one another, and how they change over time. A resource can be anything: a file, a virtual white board, a Linux host, a Kubernetes cluster, and so on."
 
 From the HBI perspective, **hosts**, **staleness**, and **groups** are the resources that Kessel maintains inventory of.
