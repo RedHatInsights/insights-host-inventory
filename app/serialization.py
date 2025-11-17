@@ -80,6 +80,7 @@ DEFAULT_FIELDS = (
     "updated",
     "groups",
     "last_check_in",
+    "openshift_cluster_id",
 )
 
 ADDITIONAL_HOST_MQ_FIELDS = (
@@ -358,7 +359,7 @@ def _deserialize_datetime(s):
 
 
 def _serialize_uuid(u):
-    return str(u)
+    return str(u) if u else None
 
 
 def _deserialize_tags(tags):
