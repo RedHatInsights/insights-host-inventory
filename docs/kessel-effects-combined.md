@@ -8,6 +8,22 @@ This document presents consolidated flowcharts showing all major workflows befor
 
 ---
 
+## Side-by-Side Comparison
+
+| Aspect | Before Kessel | With Kessel |
+|--------|--------------|-------------|
+| **Authorization** | Single source (RBAC v1) | Hybrid (Kessel Authz + RBAC v1/v2) |
+| **Host Grouping** | Optional - can be ungrouped | Mandatory - always in a group |
+| **Ungrouped Hosts** | Blank `groups` column allowed | Auto-assigned to "Ungrouped Hosts" workspace |
+| **Workflow Pattern** | Synchronous, direct DB updates | Asynchronous, event-driven (Kafka) |
+| **Workspace Management** | N/A | RBAC v2 auto-creates workspaces |
+| **Group Validation** | Check in HBI DB only | Check in RBAC v2 DB (source of truth) |
+| **Host Data Storage** | HBI DB only | HBI DB (RBAC v2 has no host knowledge) |
+| **Event Topics** | None | `outbox.event.workspace` |
+| **Complexity** | Simple, straightforward | Complex, with wait states |
+
+---
+
 ## Before Kessel
 
 [← Back to Before Kessel Section](kessel-effects-on-hbi.md#before-kessel)
@@ -31,7 +47,7 @@ flowchart TD
     Start[Host Inventory System]
     Start --> Entry{Entry Point}
 
-    Entry -->|Kafka Message| HC1[Receive Kafka MQ Message]
+    Entry -->|Kafka Message to Create Host| HC1[Receive Kafka MQ Message]
     Entry -->|API: Create Group| GC1[REST API Request]
     Entry -->|API: Add Host to Group| HG1[Add Host to Group Request]
     Entry -->|API: Remove Host| RG1[Remove Host from Group Request]
@@ -47,30 +63,38 @@ flowchart TD
     GC1 --> GC2[Host Inventory Service]
     GC2 --> GC3{Check RBAC v1<br/>Create Permission}
     GC3 -->|Denied| GC4[✗ Return Error]
-    GC3 -->|Granted| GC5[Create Group]
-    GC5 --> GC6[Store in groups table]
-    GC6 --> GC7[✓ Group Created]
+    GC3 -->|Granted| GC5{Check if<br/>Group Exists}
+    GC5 -->|Exists| GC8[✗ Return Error<br/>Group Already Exists]
+    GC5 -->|Not Exists| GC6[Create Group]
+    GC6 --> GC7[Store in groups table]
+    GC7 --> GC9[✓ Group Created]
 
     %% Add Host to Group Flow
     HG1 --> HG2{Check RBAC v1<br/>Modify Permission}
     HG2 -->|Denied| HG3[✗ Return Error]
-    HG2 -->|Granted| HG4[Add to groups table]
-    HG4 --> HG5[Update hosts_groups table]
-    HG5 --> HG6[Update groups column in hosts]
-    HG6 --> HG7[Update group host count]
-    HG7 --> HG8[✓ Host Added to Group]
+    HG2 -->|Granted| HG4{Check if<br/>Group Exists}
+    HG4 -->|Not Exists| HG9[✗ Return Error<br/>Group Not Found]
+    HG4 -->|Exists| HG5[Add to groups table]
+    HG5 --> HG6[Update hosts_groups table]
+    HG6 --> HG7[Update groups column in hosts]
+    HG7 --> HG8[Update group host count]
+    HG8 --> HG10[✓ Host Added to Group]
 
     %% Remove Host from Group Flow
-    RG1 --> RG2[Remove Host-Group Association]
-    RG2 --> RG3[Set groups = blank]
-    RG3 --> RG4[✓ Host Removed<br/>No Group]
+    RG1 --> RG2{Check RBAC v1<br/>Modify Permission}
+    RG2 -->|Denied| RG7[✗ Return Error]
+    RG2 -->|Granted| RG3{Check if<br/>Group Exists}
+    RG3 -->|Not Exists| RG5[✗ Return Error<br/>Group Not Found]
+    RG3 -->|Exists| RG4[Remove Host-Group Association]
+    RG4 --> RG5B[Set groups = blank]
+    RG5B --> RG6[✓ Host Removed<br/>No Group]
 ```
 
 ### Key Characteristics - Before Kessel
 
 - **Single Authorization Source**: RBAC v1 handles all permissions (hosts, staleness, groups)
 - **Optional Group Membership**: Hosts can exist without being in a group (blank `groups` column)
-- **Synchronous Operations**: Direct database updates without event-driven coordination
+- **Synchronous Operations**: Direct DB updates without event-driven coordination
 - **Simple Workflows**: Straightforward request-response patterns
 - **Four Main Entry Points**:
   1. **Kafka Message** → Host Creation (ungrouped)
@@ -107,50 +131,57 @@ flowchart TD
     Start[Host Inventory System]
     Start --> Entry{Entry Point}
 
-    Entry -->|Kafka Message| KC1[Receive Kafka MQ Message]
+    Entry -->|Kafka Message to Create Host| KC1[Receive Kafka MQ Message]
     Entry -->|API: Create Group| KGC1[REST API Request]
     Entry -->|API: Add Host to Group| KHG1[Add Host to Group Request]
     Entry -->|API: Remove Host| KRG1[Remove Host from Group Request]
 
     %% Host Creation Flow - Always Grouped
     KC1 --> KC2[Host Inventory Service]
-    KC2 --> KC3[Create Host in DB<br/>groups = blank initially]
-    KC3 --> KC4[Request workspace_id for<br/>Ungrouped Hosts from RBAC v2]
-    KC4 --> KC5{Does Ungrouped Hosts<br/>Workspace Exist?}
+    KC2 --> KC3[Create Host in HBI DB<br/>groups = blank initially]
+    KC3 --> KC4[Check RBAC v2 DB<br/>Request workspace_id for<br/>Ungrouped Hosts]
+    KC4 --> KC5{Does Ungrouped Hosts<br/>Workspace Exist in RBAC v2?}
     KC5 -->|No| KC6[⚡ RBAC v2 Auto-Creates<br/>Ungrouped Hosts Workspace]
-    KC5 -->|Yes| KC7[Get workspace_id]
+    KC5 -->|Yes| KC7[Get workspace_id from RBAC v2]
     KC6 --> KC8[⏳ Wait for Kafka Event<br/>outbox.event.workspace]
     KC8 --> KC9[Receive Workspace Event]
     KC7 --> KC9
-    KC9 --> KC10[Create Group in HBI Database]
-    KC10 --> KC11[Update groups column in hosts]
+    KC9 --> KC10[Create Group in HBI DB]
+    KC10 --> KC11[Update groups column<br/>in hosts table]
     KC11 --> KC12[Update hosts_groups table]
-    KC12 --> KC13[✓ Host Created<br/>In Ungrouped Hosts]
+    KC12 --> KC13[✓ Host Added <br/>to Ungrouped Hosts]
 
     %% Group Creation Flow
     KGC1 --> KGC2[Host Inventory Service]
     KGC2 --> KGC3{Check RBAC v1<br/>Create Permission}
     KGC3 -->|Denied| KGC4[✗ Return Error]
-    KGC3 -->|Granted| KGC5[Create Group]
-    KGC5 --> KGC6[Store in groups table]
-    KGC6 --> KGC7[✓ Group Created]
+    KGC3 -->|Granted| KGC5{Check RBAC v2 DB<br/>Does Group Exist?}
+    KGC5 -->|Yes| KGC8[✗ Return Error<br/>Group Already Exists]
+    KGC5 -->|No| KGC6[Create Group in RBAC v2]
+    KGC6 --> KGC7[Store in HBI groups table]
+    KGC7 --> KGC9[✓ Group Created]
 
     %% Add Host to Group Flow
     KHG1 --> KHG2{Check RBAC v1<br/>Modify Permission}
     KHG2 -->|Denied| KHG3[✗ Return Error]
-    KHG2 -->|Granted| KHG4[Add to groups table]
-    KHG4 --> KHG5[Update hosts_groups table]
-    KHG5 --> KHG6[Update groups column in hosts]
-    KHG6 --> KHG7[Update group host count]
-    KHG7 --> KHG8[✓ Host Moved to Group]
+    KHG2 -->|Granted| KHG4{Check RBAC v2 DB<br/>Does Group Exist?}
+    KHG4 -->|No| KHG9[✗ Return Error<br/>Group Not Found]
+    KHG4 -->|Yes| KHG5[Update hosts_groups table<br/>in HBI DB]
+    KHG5 --> KHG6[Update groups column<br/>in hosts table]
+    KHG6 --> KHG7[Update group host count<br/>in HBI groups table]
+    KHG7 --> KHG10[✓ Host Moved to Group]
 
     %% Remove Host from Group Flow - Auto Ungrouped
-    KRG1 --> KRG2[Remove from Current Group]
-    KRG2 --> KRG3[⚡ Auto-Add to<br/>Ungrouped Hosts]
-    KRG3 --> KRG4[Update hosts table]
-    KRG4 --> KRG5[Update groups table]
-    KRG5 --> KRG6[Update hosts_groups table]
-    KRG6 --> KRG7[✓ Host Removed<br/>Now in Ungrouped Hosts]
+    KRG1 --> KRG2{Check RBAC v1<br/>Modify Permission}
+    KRG2 -->|Denied| KRG10[✗ Return Error]
+    KRG2 -->|Granted| KRG3{Check RBAC v2 DB<br/>Does Group Exist?}
+    KRG3 -->|No| KRG8[✗ Return Error<br/>Group Not Found]
+    KRG3 -->|Yes| KRG4[Remove from Current Group<br/>in HBI DB]
+    KRG4 --> KRG5[⚡ Auto-Add to<br/>Ungrouped Hosts]
+    KRG5 --> KRG6[Update hosts table<br/>groups column]
+    KRG6 --> KRG7[Update HBI groups table<br/>host count]
+    KRG7 --> KRG8B[Update hosts_groups table]
+    KRG8B --> KRG9[✓ Host Removed<br/>Now in Ungrouped Hosts]
 ```
 
 ### Key Characteristics - With Kessel
@@ -159,46 +190,14 @@ flowchart TD
 - **Mandatory Group Membership**: Every host must belong to a group at all times
 - **Event-Driven Architecture**: Asynchronous updates via Kafka topic `outbox.event.workspace`
 - **Automatic Workspace Creation**: RBAC v2 auto-creates "Ungrouped Hosts" workspace when needed
+- **RBAC v2 as Source of Truth**: All group existence validation checks RBAC v2 DB (returns Yes/No)
+- **Separation of Concerns**: RBAC v2 manages groups/workspaces but has no knowledge of hosts; HBI DB stores all host data
 - **Complex Workflows**: Event-driven patterns with wait states for coordination
 - **Four Main Entry Points**:
   1. **Kafka Message** → Host Creation (always in a group - Ungrouped Hosts if not specified)
-  2. **API: Create Group** → Group Creation
-  3. **API: Add Host to Group** → Host moves between groups
-  4. **API: Remove Host** → Host automatically moves to Ungrouped Hosts
-
----
-
-## Side-by-Side Comparison
-
-| Aspect | Before Kessel | With Kessel |
-|--------|--------------|-------------|
-| **Authorization** | Single source (RBAC v1) | Hybrid (Kessel Authz + RBAC v1/v2) |
-| **Host Grouping** | Optional - can be ungrouped | Mandatory - always in a group |
-| **Ungrouped Hosts** | Blank `groups` column allowed | Auto-assigned to "Ungrouped Hosts" workspace |
-| **Workflow Pattern** | Synchronous, direct DB updates | Asynchronous, event-driven (Kafka) |
-| **Workspace Management** | N/A | RBAC v2 auto-creates workspaces |
-| **Event Topics** | None | `outbox.event.workspace` |
-| **Complexity** | Simple, straightforward | Complex, with wait states |
-
----
-
-## Key Differences in Workflows
-
-### 1. Host Creation
-- **Before**: Simple 5-step process, host exists without group
-- **After**: Complex 13-step process with RBAC v2 interaction, Kafka events, and mandatory group assignment
-
-### 2. Group Creation
-- **Before**: 7 steps with RBAC v1 check
-- **After**: Same 7 steps (unchanged workflow)
-
-### 3. Add Host to Group
-- **Before**: 8 steps with RBAC v1 check
-- **After**: 8 steps (similar workflow, but host is moving from one group to another)
-
-### 4. Remove Host from Group
-- **Before**: 4 steps, host becomes ungrouped
-- **After**: 7 steps, host automatically assigned to "Ungrouped Hosts" workspace
+  2. **API: Create Group** → Group Creation (RBAC v2 DB check, then dual storage)
+  3. **API: Add Host to Group** → Host moves between groups (RBAC v2 DB validation, HBI DB updates)
+  4. **API: Remove Host** → Host automatically moves to Ungrouped Hosts (RBAC v2 DB validation, HBI DB updates)
 
 ---
 
