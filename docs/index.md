@@ -71,6 +71,7 @@ HBI expects the host ingress messages to comply with the following format:
       "tags": {<tags>},
       "system_profile": {<system_profile>},
       "reporter": "<reporter>",
+      "openshift_cluster_id": "<openshift_cluster_id>",
    }
 }
 ```
@@ -296,7 +297,8 @@ The `created` event is produced any time a new host record is created.
       "groups": [{
         "id": <group_id>,
         "name": <group_name>
-      }]
+      }],
+      "openshift_cluster_id": "<openshift_cluster_id>",
    }
 }
 ```
