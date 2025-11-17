@@ -227,10 +227,10 @@ class HBIMessageConsumerBase:
                     # Commit Kafka offsets after successful batch processing
                     # This ensures offsets are persisted immediately after DB commit and event production,
                     # preventing duplicate message processing on service restart
-                    if len(messages) > 0:
+                    if len(self.processed_rows) > 0:
                         try:
                             self.consumer.commit(asynchronous=False)
-                            logger.debug(f"Successfully committed offsets for {len(messages)} messages")
+                            logger.debug(f"Successfully committed offsets for {len(self.processed_rows)} messages")
                         except Exception as e:
                             logger.exception(f"Failed to commit Kafka offsets: {e}")
             finally:
