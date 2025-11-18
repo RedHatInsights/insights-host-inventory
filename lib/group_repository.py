@@ -60,7 +60,6 @@ def _update_hosts_for_group_changes(host_id_list: list[str], group_id_list: list
     hosts = db.session.query(Host).filter(Host.id.in_(host_id_list), Host.org_id == identity.org_id).all()
     for host in hosts:
         host.groups = serialized_groups
-    db.session.flush()
 
     return serialized_groups, host_id_list
 
