@@ -1547,6 +1547,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "org_id": "3340851",
             "reporter": "insights",
             "groups": [],
+            "openshift_cluster_id": str(uuid4()),
         }
         host_init_data = {
             "canonical_facts": canonical_facts,
@@ -1649,6 +1650,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                     "ansible_host": None,
                     "provider_id": None,
                     "provider_type": None,
+                    "openshift_cluster_id": None,
                     **unchanged_data,
                     "facts": [],
                     "groups": [],
@@ -1739,6 +1741,7 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
             "org_id": "3340851",
             "reporter": "some reporter",
             "groups": [],
+            "openshift_cluster_id": str(uuid4()),
         }
         host_init_data = {
             "canonical_facts": canonical_facts,

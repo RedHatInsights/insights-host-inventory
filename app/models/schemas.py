@@ -188,7 +188,7 @@ class LimitedHostSchema(CanonicalFactsSchema):
     tags = fields.Raw()
     tags_alt = fields.Raw()
     groups = fields.List(fields.Dict())
-    openshift_cluster_id = fields.UUID(allow_none=True)
+    openshift_cluster_id = fields.Str(validate=verify_uuid_format, allow_none=True)
 
     def __init__(self, system_profile_schema=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
