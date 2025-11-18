@@ -13,7 +13,7 @@ FLAG_INVENTORY_KESSEL_PHASE_1 = "hbi.api.kessel-phase-1"
 FLAG_INVENTORY_USE_NEW_SYSTEM_PROFILE_TABLES = "hbi.use_new_system_profile_tables"
 FLAG_INVENTORY_REJECT_RHSM_PAYLOADS = "hbi.api.reject-rhsm-payloads"
 FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY = "hbi.workloads_fields_backward_compatibility"
-FLAG_INVENTORY_KESSEL_GROUPS="hbi.api.kessel-groups"
+FLAG_INVENTORY_KESSEL_GROUPS = "hbi.api.kessel-groups"
 
 
 FLAG_FALLBACK_VALUES = {
