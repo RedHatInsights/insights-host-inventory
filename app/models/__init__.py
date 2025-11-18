@@ -21,6 +21,13 @@ from app.models.database import migrate
 from app.models.group import Group
 from app.models.host import Host
 from app.models.host import LimitedHost
+from app.models.host_app_data import HostAppDataAdvisor
+from app.models.host_app_data import HostAppDataCompliance
+from app.models.host_app_data import HostAppDataImageBuilder
+from app.models.host_app_data import HostAppDataMalware
+from app.models.host_app_data import HostAppDataPatch
+from app.models.host_app_data import HostAppDataRemediations
+from app.models.host_app_data import HostAppDataVulnerability
 from app.models.host_group_assoc import HostGroupAssoc
 from app.models.host_inventory_metadata import HostInventoryMetadata
 from app.models.outbox import Outbox
@@ -76,6 +83,13 @@ __all__ = [
     "Outbox",
     "Staleness",
     "HostInventoryMetadata",
+    "HostAppDataAdvisor",
+    "HostAppDataCompliance",
+    "HostAppDataImageBuilder",
+    "HostAppDataMalware",
+    "HostAppDataPatch",
+    "HostAppDataRemediations",
+    "HostAppDataVulnerability",
     "DiskDeviceSchema",
     "RhsmSchema",
     "OperatingSystemSchema",
