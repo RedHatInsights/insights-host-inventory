@@ -2260,9 +2260,9 @@ parameters:
 - name: KAFKA_SASL_MECHANISM
   value: 'PLAIN'
 - name: KAFKA_PRODUCER_ACKS
-  value: 'all'
+  value: '1'
 - name: KAFKA_PRODUCER_RETRIES
-  value: '8'
+  value: '0'
 - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
   value: '100'
 - name: KAFKA_CONSUMER_SESSION_TIMEOUT_MS
