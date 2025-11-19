@@ -19,7 +19,9 @@ from marshmallow import fields
 from psycopg2.errors import UniqueViolation
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm.exc import StaleDataError
 
 from api.cache import delete_cached_system_keys
 from api.cache import set_cached_system
@@ -187,52 +189,64 @@ class HBIMessageConsumerBase:
             try:
                 while not interrupt():
                     self.processed_rows = []
-                    with session_guard(db.session, close=False), db.session.no_autoflush:
-                        messages = self.consumer.consume(
-                            num_messages=inventory_config().mq_db_batch_max_messages,
-                            timeout=inventory_config().mq_db_batch_max_seconds,
-                        )
+                    try:
+                        with session_guard(db.session, close=False), db.session.no_autoflush:
+                            messages = self.consumer.consume(
+                                num_messages=inventory_config().mq_db_batch_max_messages,
+                                timeout=inventory_config().mq_db_batch_max_seconds,
+                            )
 
-                        for msg in messages:
-                            if msg is None:
-                                continue
-                            elif msg.error():
-                                # This error is raised by the first consumer.consume() on a newly started Kafka.
-                                # msg.error() produces:
-                                # KafkaError{code=UNKNOWN_TOPIC_OR_PART,val=3,str="Subscribed topic not available:
-                                #   platform.inventory.host-ingress: Broker: Unknown topic or partition"}
-                                logger.error(f"Message received but has an error, which is {str(msg.error())}")
-                                metrics.ingress_message_handler_failure.inc()
-                            else:
-                                logger.debug("Message received")
-
-                                try:
-                                    self.processed_rows.append(self.handle_message(msg.value()))
-                                    metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
-                                    metrics.ingress_message_handler_success.inc()
-                                except OperationalError as oe:
-                                    """sqlalchemy.exc.OperationalError: This error occurs when an
-                                    authentication failure occurs or the DB is not accessible.
-                                    Exit the process to restart the pod
-                                    """
-                                    logger.error(f"Could not access DB {str(oe)}")
-                                    sys.exit(3)
-                                except Exception:
+                            for msg in messages:
+                                if msg is None:
+                                    continue
+                                elif msg.error():
+                                    # This error is raised by the first consumer.consume() on a newly started Kafka.
+                                    # msg.error() produces:
+                                    # KafkaError{code=UNKNOWN_TOPIC_OR_PART,val=3,str="Subscribed topic not available:
+                                    #   platform.inventory.host-ingress: Broker: Unknown topic or partition"}
+                                    logger.error(f"Message received but has an error, which is {str(msg.error())}")
                                     metrics.ingress_message_handler_failure.inc()
-                                    logger.exception(
-                                        "Unable to process message", extra={"incoming_message": msg.value()}
-                                    )
+                                else:
+                                    logger.debug("Message received")
 
-                    self.post_process_rows()
-                    # Commit Kafka offsets after successful batch processing
-                    # This ensures offsets are persisted immediately after DB commit and event production,
-                    # preventing duplicate message processing on service restart
-                    if len(self.processed_rows) > 0:
-                        try:
-                            self.consumer.commit(asynchronous=False)
-                            logger.debug(f"Successfully committed offsets for {len(self.processed_rows)} messages")
-                        except Exception as e:
-                            logger.exception(f"Failed to commit Kafka offsets: {e}")
+                                    try:
+                                        self.processed_rows.append(self.handle_message(msg.value()))
+                                        metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
+                                        metrics.ingress_message_handler_success.inc()
+                                    except OperationalError as oe:
+                                        """sqlalchemy.exc.OperationalError: This error occurs when an
+                                        authentication failure occurs or the DB is not accessible.
+                                        Exit the process to restart the pod
+                                        """
+                                        logger.error(f"Could not access DB {str(oe)}")
+                                        sys.exit(3)
+                                    except Exception:
+                                        metrics.ingress_message_handler_failure.inc()
+                                        logger.exception(
+                                            "Unable to process message", extra={"incoming_message": msg.value()}
+                                        )
+
+                        self.post_process_rows()
+                        # Commit Kafka offsets after successful batch processing
+                        # This ensures offsets are persisted immediately after DB commit and event production,
+                        # preventing duplicate message processing on service restart
+                        if len(self.processed_rows) > 0:
+                            try:
+                                self.consumer.commit(asynchronous=False)
+                                logger.debug(f"Successfully committed offsets for {len(self.processed_rows)} messages")
+                            except Exception as e:
+                                logger.exception(f"Failed to commit Kafka offsets: {e}")
+                    except (InvalidRequestError, StaleDataError) as e:
+                        """Handle database session errors gracefully to prevent pod crashes.
+                        InvalidRequestError includes PendingRollbackError which occurs when the session
+                        is in an invalid state. StaleDataError occurs when trying to update data that
+                        has been modified by another transaction.
+                        """
+                        metrics.ingress_message_handler_failure.inc()
+                        logger.exception(
+                            "Database session error during batch processing, continuing with next batch",
+                            exc_info=e,
+                        )
             finally:
                 db.session.close()
 
