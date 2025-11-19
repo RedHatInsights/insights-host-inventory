@@ -14,9 +14,9 @@ This document presents consolidated flowcharts showing all major workflows befor
 |--------|--------------|-------------|
 | **Authorization** | Single source (RBAC v1) | Hybrid (Kessel Authz + RBAC v1/v2) |
 | **Host Grouping** | Optional - can be ungrouped | Mandatory - always in a group |
-| **Ungrouped Hosts** | Blank `groups` column allowed | Auto-assigned to "Ungrouped Hosts" workspace |
-| **Workflow Pattern** | Synchronous, direct DB updates | Asynchronous, event-driven (Kafka) |
-| **Workspace Management** | N/A | RBAC v2 auto-creates workspaces |
+| **Ungrouped Hosts** | `groups` column set to `[]` | Auto-assigned to "Ungrouped Hosts" workspace |
+| **Workflow Pattern** | HBI creates groups itself | Kessel creates the workspace, provides details to HBI to write to its DB |
+| **Workspace Management** | HBI owned group creation and save to its DB | Kessel/RBAC v2 auto-create workspaces. HBI tells Kessel to created "Ungrouped Hosts |
 | **Group Validation** | Check in HBI DB only | Check in RBAC v2 DB (source of truth) |
 | **Host Data Storage** | HBI DB only | HBI DB (RBAC v2 has no host knowledge) |
 | **Event Topics** | None | `outbox.event.workspace` |

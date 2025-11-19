@@ -22,7 +22,7 @@ From the HBI perspective, **hosts**, **staleness**, and **groups** are the resou
 | **Ungrouped Hosts** | Blank `groups` column allowed | Auto-assigned to "Ungrouped Hosts" workspace |
 | **Group Validation** | Check in HBI DB only | Check in RBAC v2 DB (source of truth) |
 | **Host Data Storage** | HBI DB only | HBI DB (RBAC v2 has no host knowledge) |
-| **Workflow Pattern** | Synchronous, direct DB updates | Asynchronous, event-driven (Kafka) |
+| **Workflow Pattern** | HBI creates groups itself | Kessel creates the workspace, provides details to HBI to write to its DB  |
 | **Event Topics** | None | `outbox.event.workspace` |
 | **Complexity** | Simple, straightforward | Complex, with wait states |
 | **Host Synchronization** | No external synchronization | Automatic sync with Kessel Inventory via outbox pattern |
