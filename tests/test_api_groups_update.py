@@ -486,7 +486,7 @@ def test_patch_group_existing_name_same_org(db_create_group, db_get_group_by_id,
     assert updated_group.name.lower() == original_group.name.lower()
 
 
-@pytest.mark.usefixtures("enable_kessel")
+@pytest.mark.usefixtures("enable_kessel", "enable_rbac")
 @pytest.mark.parametrize("kessel_response_status", [400, 401, 403])
 def test_patch_group_kessel_workspace_same_name_error(
     db_create_group, db_get_group_by_id, api_patch_group, kessel_response_status, mocker
