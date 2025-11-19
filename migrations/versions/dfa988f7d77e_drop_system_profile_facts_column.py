@@ -1,4 +1,4 @@
-"""Drop system_profile_facts column from hosts table
+"""Drop system_profile_facts and canonical_facts columns from hosts table
 
 Revision ID: dfa988f7d77e
 Revises: 014a85b6e197
@@ -30,8 +30,22 @@ def upgrade():
     # - idx_hosts_system_profiles_workloads_gin
     op.drop_column("hosts", "system_profile_facts", schema="hbi")
 
+    # Drop the canonical_facts column from hosts table
+    # Note: PostgreSQL automatically drops dependent indexes:
+    # - idxinsightsid
+    # - idxgincanonicalfacts
+    # - hosts_subscription_manager_id_index
+    op.drop_column("hosts", "canonical_facts", schema="hbi")
+
 
 def downgrade():
+    # Restore the canonical_facts column to hosts table
+    op.add_column(
+        "hosts",
+        sa.Column("canonical_facts", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        schema="hbi",
+    )
+
     # Restore the system_profile_facts column to hosts table
     op.add_column(
         "hosts",
