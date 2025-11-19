@@ -525,8 +525,8 @@ def _add_workloads_backward_compatibility(system_profile: dict) -> dict:
     return system_profile
 
 
-def _serialize_per_reporter_staleness(host, staleness, staleness_timestamps):
-    result = {}
+def _serialize_per_reporter_staleness(host: Host, staleness: dict[str, int], staleness_timestamps: Timestamps) -> dict:
+    result: dict[str, dict] = {}
 
     for reporter, value in host.per_reporter_staleness.items():
         # Extract last_check_in from both formats (flat: string, nested: dict with last_check_in key)
