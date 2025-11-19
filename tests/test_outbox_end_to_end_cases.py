@@ -1585,3 +1585,79 @@ class TestOutboxE2ECases:
             # Verify outbox entry was created and immediately deleted (new behavior)
             # The write_event_to_outbox should have been called automatically during host creation
             assert_outbox_empty(db, host_id)
+
+    def test_session_isolation_for_outbox_operations(self, flask_app):
+        """
+        Test that outbox operations are isolated per session.
+
+        This test verifies the fix for the critical session mismatch bug where
+        Session A could write outbox entries for hosts created in Session B,
+        leading to orphan outbox entries or missing entries if sessions rollback.
+
+        The fix ensures that _collect_pending_ops_for_session() only returns
+        operations for the current session, not all sessions.
+        """
+        from lib.host_outbox_events import _collect_pending_ops_for_session, _pending_outbox_ops
+        from sqlalchemy.orm import Session as SQLASession
+
+        # Clear any existing pending ops
+        _pending_outbox_ops.clear()
+
+        # Create two separate database sessions to simulate concurrent requests
+        engine = db.get_engine()
+        session_a = SQLASession(bind=engine)
+        session_b = SQLASession(bind=engine)
+
+        try:
+            # Get session IDs
+            session_a_id = session_a.hash_key
+            session_b_id = session_b.hash_key
+
+            # Verify sessions are different
+            assert session_a_id != session_b_id, "Sessions must have different IDs"
+
+            # Simulate ops being tracked in both sessions
+            _pending_outbox_ops[session_a_id] = [
+                ("created", str(uuid.uuid4())),
+                ("updated", str(uuid.uuid4()))
+            ]
+            _pending_outbox_ops[session_b_id] = [
+                ("created", str(uuid.uuid4())),
+                ("deleted", str(uuid.uuid4()))
+            ]
+
+            # Test: session_a should only get its own ops
+            ops_a, returned_session_id_a = _collect_pending_ops_for_session(session_a)
+            assert returned_session_id_a == session_a_id, "Should return session_a's ID"
+            assert len(ops_a) == 2, f"Session A should have 2 ops, got {len(ops_a)}"
+            assert ops_a[0][0] == "created", "First op should be 'created'"
+            assert ops_a[1][0] == "updated", "Second op should be 'updated'"
+
+            # Test: session_b should only get its own ops
+            ops_b, returned_session_id_b = _collect_pending_ops_for_session(session_b)
+            assert returned_session_id_b == session_b_id, "Should return session_b's ID"
+            assert len(ops_b) == 2, f"Session B should have 2 ops, got {len(ops_b)}"
+            assert ops_b[0][0] == "created", "First op should be 'created'"
+            assert ops_b[1][0] == "deleted", "Second op should be 'deleted'"
+
+            # Critical test: Verify no cross-session contamination
+            session_a_host_ids = {op[1] for op in ops_a}
+            session_b_host_ids = {op[1] for op in ops_b}
+            assert session_a_host_ids.isdisjoint(session_b_host_ids), \
+                "Session A and Session B should have completely different host IDs"
+
+            # Verify session_a ops are not in session_b results
+            for op_type, host_id in ops_a:
+                assert host_id not in session_b_host_ids, \
+                    f"Session B should not see Session A's host {host_id}"
+
+            # Verify session_b ops are not in session_a results
+            for op_type, host_id in ops_b:
+                assert host_id not in session_a_host_ids, \
+                    f"Session A should not see Session B's host {host_id}"
+
+        finally:
+            # Clean up sessions
+            session_a.close()
+            session_b.close()
+            _pending_outbox_ops.clear()

@@ -178,8 +178,27 @@ def _process_outbox_ops_list(session, ops):
             raise OutboxSaveException(f"Unexpected error creating outbox entry: {str(e)}") from e
 
 
+def _collect_pending_ops_for_session(session):
+    """
+    Collect pending ops for the CURRENT session only.
+
+    This ensures that we only process outbox entries for hosts that were
+    modified in the same session that's about to commit, preventing session
+    mismatch issues where Session A tries to write outbox entries for hosts
+    created/updated in Session B.
+    """
+    session_id = _get_session_id(session)
+    ops_to_process = _pending_outbox_ops.get(session_id, [])
+    return ops_to_process, session_id
+
+
 def _collect_all_pending_ops():
-    """Collect all pending ops from all sessions and return (ops_list, session_ids_set)."""
+    """
+    Collect all pending ops from all sessions and return (ops_list, session_ids_set).
+
+    DEPRECATED: This function is kept for backwards compatibility but should not be used.
+    Use _collect_pending_ops_for_session() instead to avoid session mismatch issues.
+    """
     ops_to_process = []
     processed_session_ids = set()
     for sid, ops in list(_pending_outbox_ops.items()):
@@ -190,45 +209,49 @@ def _collect_all_pending_ops():
 
 
 @event.listens_for(Session, "before_commit", propagate=True)
-def _process_pending_outbox_ops_before_commit(session):  # noqa: ARG001
+def _process_pending_outbox_ops_before_commit(session):
     """
     Process pending outbox operations before commit.
 
-    Note: With Flask-SQLAlchemy, operations may be tracked during commit's internal flush,
-    which happens AFTER this hook fires. Those ops will be processed in after_commit.
+    CRITICAL: Only processes operations for the CURRENT session to ensure
+    that outbox writes and host/group writes happen in the same transaction.
+
+    This prevents:
+    - Session A writing outbox entries for hosts created in Session B
+    - Orphan outbox entries if Session B rolls back
+    - Missing outbox entries if Session A rolls back
     """
-    ops_to_process, processed_session_ids = _collect_all_pending_ops()
+    ops_to_process, session_id = _collect_pending_ops_for_session(session)
 
     if ops_to_process:
-        session_id = _get_session_id(session)
         logger.debug(f"before_commit for session {session_id} with {len(ops_to_process)} pending ops")
-        logger.debug(f"Processing {len(ops_to_process)} pending outbox operations")
+        logger.debug(f"Processing {len(ops_to_process)} pending outbox operations for current session")
         try:
             _process_outbox_ops_list(session, ops_to_process)
-            for sid in processed_session_ids:
-                _pending_outbox_ops.pop(sid, None)
+            # Only clear the current session's ops
+            _pending_outbox_ops.pop(session_id, None)
         except Exception as e:
             logger.error(f"Error processing outbox ops in before_commit: {e}", exc_info=True)
+            # Re-raise to ensure transaction rollback
+            raise
 
 
 @event.listens_for(Session, "after_commit", propagate=True)
-def _clear_pending_outbox_ops_after_commit(session):  # noqa: ARG001
+def _clear_pending_outbox_ops_after_commit(session):
     """Clear pending outbox operations after commit."""
     session_id = _get_session_id(session)
 
-    # Check for any remaining unprocessed ops (added during commit's flush, after before_commit)
+    # Check for any remaining unprocessed ops for THIS session only
+    # (added during commit's flush, after before_commit)
     # Note: We CANNOT process these here because the session is in 'committed' state
     # and no further SQL can be emitted. These operations were tracked too late.
-    ops_to_clear, session_ids = _collect_all_pending_ops()
-    if ops_to_clear:
+    ops_remaining = _pending_outbox_ops.get(session_id, [])
+    if ops_remaining:
         logger.warning(
-            f"Found {len(ops_to_clear)} outbox ops that were tracked during commit's flush. "
+            f"Found {len(ops_remaining)} outbox ops for session {session_id} that were tracked during commit's flush. "
             "These operations were tracked too late to be processed. "
             "This typically happens when hosts are modified without an explicit flush before commit."
         )
-        # Clear them to prevent memory leaks
-        for sid in session_ids:
-            _pending_outbox_ops.pop(sid, None)
 
     # Clear remaining ops for this session
     _pending_outbox_ops.pop(session_id, None)
