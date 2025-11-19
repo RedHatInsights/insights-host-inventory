@@ -579,21 +579,22 @@ def _get_identity(host, metadata) -> Identity:
 # When identity_type is System, set owner_id if missing from the host system_profile
 def _set_owner(host: Host, identity: Identity) -> Host:
     cn = identity.system.get("cn")
-    if host.system_profile_facts is None:
-        host.system_profile_facts = {}
-        host.system_profile_facts["owner_id"] = cn
-    elif not host.system_profile_facts.get("owner_id"):
-        host.system_profile_facts["owner_id"] = cn
-    else:
-        reporter = host.reporter
-        if (
-            reporter in ["rhsm-conduit", "rhsm-system-profile-bridge"]
-            and "subscription_manager_id" in host.canonical_facts
-        ):
-            host.system_profile_facts["owner_id"] = _formatted_uuid(host.canonical_facts["subscription_manager_id"])
-        else:
-            if host.system_profile_facts["owner_id"] != cn:
-                raise ValidationException("The owner in host does not match the owner in identity")
+    # DISABLED - system_profile_facts field being removed
+    # if host.system_profile_facts is None:
+    #     host.system_profile_facts = {}
+    #     host.system_profile_facts["owner_id"] = cn
+    # elif not host.system_profile_facts.get("owner_id"):
+    #     host.system_profile_facts["owner_id"] = cn
+    # else:
+    #     reporter = host.reporter
+    #     if (
+    #         reporter in ["rhsm-conduit", "rhsm-system-profile-bridge"]
+    #         and "subscription_manager_id" in host.canonical_facts
+    #     ):
+    #         host.system_profile_facts["owner_id"] = _formatted_uuid(host.canonical_facts["subscription_manager_id"])
+    #     else:
+    #         if host.system_profile_facts["owner_id"] != cn:
+    #             raise ValidationException("The owner in host does not match the owner in identity")
 
     # Also set the owner_id in static_system_profile
     if host.static_system_profile is None:
