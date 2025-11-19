@@ -526,33 +526,41 @@ def _add_workloads_backward_compatibility(system_profile: dict) -> dict:
 
 
 def _serialize_per_reporter_staleness(host, staleness, staleness_timestamps):
-    for reporter in host.per_reporter_staleness:
-        # For hosts that should stay fresh forever, use far-future timestamps
+    result = {}
+
+    for reporter, value in host.per_reporter_staleness.items():
+        # Extract last_check_in from both formats (flat: string, nested: dict with last_check_in key)
+        last_check_in_str = value if isinstance(value, str) else value["last_check_in"]
+
+        # Calculate timestamps uniformly for both formats
         if should_host_stay_fresh_forever(host):
             stale_timestamp = FAR_FUTURE_STALE_TIMESTAMP
             stale_warning_timestamp = FAR_FUTURE_STALE_TIMESTAMP
             delete_timestamp = FAR_FUTURE_STALE_TIMESTAMP
         else:
+            last_check_in = _deserialize_datetime(last_check_in_str)
             stale_timestamp = staleness_timestamps.stale_timestamp(
-                _deserialize_datetime(host.per_reporter_staleness[reporter]["last_check_in"]),
+                last_check_in,
                 staleness["conventional_time_to_stale"],
             )
             stale_warning_timestamp = staleness_timestamps.stale_timestamp(
-                _deserialize_datetime(host.per_reporter_staleness[reporter]["last_check_in"]),
+                last_check_in,
                 staleness["conventional_time_to_stale_warning"],
             )
             delete_timestamp = staleness_timestamps.stale_timestamp(
-                _deserialize_datetime(host.per_reporter_staleness[reporter]["last_check_in"]),
+                last_check_in,
                 staleness["conventional_time_to_delete"],
             )
 
-        host.per_reporter_staleness[reporter]["stale_timestamp"] = _serialize_staleness_to_string(stale_timestamp)
-        host.per_reporter_staleness[reporter]["stale_warning_timestamp"] = _serialize_staleness_to_string(
-            stale_warning_timestamp
-        )
-        host.per_reporter_staleness[reporter]["culled_timestamp"] = _serialize_staleness_to_string(delete_timestamp)
+        result[reporter] = {
+            "last_check_in": last_check_in_str,
+            "stale_timestamp": _serialize_staleness_to_string(stale_timestamp),
+            "stale_warning_timestamp": _serialize_staleness_to_string(stale_warning_timestamp),
+            "culled_timestamp": _serialize_staleness_to_string(delete_timestamp),
+            "check_in_succeeded": True,
+        }
 
-    return host.per_reporter_staleness
+    return result
 
 
 def build_rhel_version_str(system_profile: dict) -> str:
