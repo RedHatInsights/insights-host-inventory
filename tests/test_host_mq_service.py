@@ -104,7 +104,6 @@ def test_event_loop_with_error_message_handling(handle_message_mock, mocker, eve
     assert handle_message_mock.call_count == 2
 
 
-@mock.patch.object(IngressMessageConsumer, "handle_message", return_value=None)
 def test_event_loop_handles_invalid_request_error_gracefully(mocker, event_producer, flask_app):
     """
     Test to ensure that InvalidRequestError (including PendingRollbackError) during
@@ -147,7 +146,6 @@ def test_event_loop_handles_invalid_request_error_gracefully(mocker, event_produ
     assert commit_mock.call_count >= 2
 
 
-@mock.patch.object(IngressMessageConsumer, "handle_message", return_value=None)
 def test_event_loop_handles_stale_data_error_gracefully(mocker, event_producer, flask_app):
     """
     Test to ensure that StaleDataError during session commit is handled gracefully
