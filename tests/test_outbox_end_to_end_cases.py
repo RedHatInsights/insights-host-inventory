@@ -17,6 +17,7 @@ from unittest.mock import patch
 import pytest
 from marshmallow import ValidationError as MarshmallowValidationError
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session as SQLASession
 
 from app.exceptions import OutboxSaveException
 from app.models import Group
@@ -28,6 +29,8 @@ from app.models.schemas import OutboxSchema
 from app.queue.events import EventType
 from app.queue.host_mq import IngressMessageConsumer
 from app.queue.host_mq import WorkspaceMessageConsumer
+from lib.host_outbox_events import _collect_pending_ops_for_session
+from lib.host_outbox_events import _pending_outbox_ops
 from lib.outbox_repository import _create_update_event_payload
 from lib.outbox_repository import remove_event_from_outbox
 from lib.outbox_repository import write_event_to_outbox
@@ -671,8 +674,8 @@ class TestOutboxE2ECases:
         db_get_group_by_id,
     ):
         """
-        Test complete MQ group update flow - group name changes do NOT trigger outbox entries
-        since only group_id is in outbox payload.
+        Test complete MQ group update flow - group name changes DO trigger outbox entries
+        because the group name is part of the host's group information in the outbox payload.
         """
 
         # Create a group with one host for simpler validation
@@ -680,7 +683,7 @@ class TestOutboxE2ECases:
         group_id = str(group.id)
         hosts = db_get_hosts_for_group(group.id)
         host = hosts[0]
-        _ = str(host.id)
+        host_id = str(host.id)
 
         # Verify initial state
         assert len(host.groups) == 1
@@ -695,9 +698,9 @@ class TestOutboxE2ECases:
         captured_payloads = []
         original_write_outbox = None
 
-        def capture_outbox_payload(event_type, host_id_param, host_obj):
+        def capture_outbox_payload(event_type, host_id_param, host_obj, session=None, **kwargs):
             # Call the original function to get the real behavior
-            result = original_write_outbox(event_type, host_id_param, host_obj)
+            result = original_write_outbox(event_type, host_id_param, host_obj, session=session, **kwargs)
 
             # Manually create the payload to validate the common field
             if host_obj and len(host_obj.groups) > 0:
@@ -730,11 +733,16 @@ class TestOutboxE2ECases:
                 updated_group = db_get_group_by_id(group_id)
                 assert updated_group.name == new_name
 
-                # Verify NO outbox operation occurred since group name change doesn't affect outbox payload
-                mock_success_metric.inc.assert_not_called()
+                # Verify outbox operation occurred since group name change affects host's group information
+                mock_success_metric.inc.assert_called_once()
 
-                # Verify NO outbox payloads were captured
-                assert len(captured_payloads) == 0
+                # Verify outbox payloads were captured with updated group name
+                assert len(captured_payloads) == 1
+                assert captured_payloads[0]["event_type"] == EventType.updated
+                assert captured_payloads[0]["host_id"] == host_id
+                assert captured_payloads[0]["group_id"] == group_id
+                assert captured_payloads[0]["group_name"] == new_name
+                assert captured_payloads[0]["common"]["workspace_id"] == group_id
 
     @pytest.mark.usefixtures("event_producer_mock")
     def test_host_update_via_patch_endpoint_display_name_no_outbox(
@@ -1586,7 +1594,7 @@ class TestOutboxE2ECases:
             # The write_event_to_outbox should have been called automatically during host creation
             assert_outbox_empty(db, host_id)
 
-    def test_session_isolation_for_outbox_operations(self, flask_app):
+    def test_session_isolation_for_outbox_operations(self):
         """
         Test that outbox operations are isolated per session.
 
@@ -1597,9 +1605,6 @@ class TestOutboxE2ECases:
         The fix ensures that _collect_pending_ops_for_session() only returns
         operations for the current session, not all sessions.
         """
-        from lib.host_outbox_events import _collect_pending_ops_for_session, _pending_outbox_ops
-        from sqlalchemy.orm import Session as SQLASession
-
         # Clear any existing pending ops
         _pending_outbox_ops.clear()
 
@@ -1617,14 +1622,8 @@ class TestOutboxE2ECases:
             assert session_a_id != session_b_id, "Sessions must have different IDs"
 
             # Simulate ops being tracked in both sessions
-            _pending_outbox_ops[session_a_id] = [
-                ("created", str(uuid.uuid4())),
-                ("updated", str(uuid.uuid4()))
-            ]
-            _pending_outbox_ops[session_b_id] = [
-                ("created", str(uuid.uuid4())),
-                ("deleted", str(uuid.uuid4()))
-            ]
+            _pending_outbox_ops[session_a_id] = [("created", str(uuid.uuid4())), ("updated", str(uuid.uuid4()))]
+            _pending_outbox_ops[session_b_id] = [("created", str(uuid.uuid4())), ("deleted", str(uuid.uuid4()))]
 
             # Test: session_a should only get its own ops
             ops_a, returned_session_id_a = _collect_pending_ops_for_session(session_a)
@@ -1643,18 +1642,17 @@ class TestOutboxE2ECases:
             # Critical test: Verify no cross-session contamination
             session_a_host_ids = {op[1] for op in ops_a}
             session_b_host_ids = {op[1] for op in ops_b}
-            assert session_a_host_ids.isdisjoint(session_b_host_ids), \
+            assert session_a_host_ids.isdisjoint(session_b_host_ids), (
                 "Session A and Session B should have completely different host IDs"
+            )
 
             # Verify session_a ops are not in session_b results
-            for op_type, host_id in ops_a:
-                assert host_id not in session_b_host_ids, \
-                    f"Session B should not see Session A's host {host_id}"
+            for _op_type, host_id in ops_a:
+                assert host_id not in session_b_host_ids, f"Session B should not see Session A's host {host_id}"
 
             # Verify session_b ops are not in session_a results
-            for op_type, host_id in ops_b:
-                assert host_id not in session_a_host_ids, \
-                    f"Session A should not see Session B's host {host_id}"
+            for _op_type, host_id in ops_b:
+                assert host_id not in session_a_host_ids, f"Session A should not see Session B's host {host_id}"
 
         finally:
             # Clean up sessions
