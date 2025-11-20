@@ -77,6 +77,7 @@ from utils.system_profile_log import extract_host_dict_sp_to_log
 logger = get_logger(__name__)
 
 CONSUMER_POLL_TIMEOUT_SECONDS = 0.5
+MAX_RETRIES = 5
 SYSTEM_IDENTITY = {"auth_type": "cert-auth", "system": {"cert_type": "system"}, "type": "System"}
 
 
@@ -184,69 +185,90 @@ class HBIMessageConsumerBase:
     def post_process_rows(self) -> None:
         pass  # No action is taken by default
 
+    def _process_batch(self) -> None:
+        """Process a single batch of messages from Kafka.
+
+        Raises:
+            InvalidRequestError: When the database session is in an invalid state
+            StaleDataError: When trying to update data modified by another transaction
+        """
+        with session_guard(db.session, close=False), db.session.no_autoflush:
+            messages = self.consumer.consume(
+                num_messages=inventory_config().mq_db_batch_max_messages,
+                timeout=inventory_config().mq_db_batch_max_seconds,
+            )
+
+            for msg in messages:
+                if msg is None:
+                    continue
+                elif msg.error():
+                    # This error is raised by the first consumer.consume() on a newly started Kafka.
+                    # msg.error() produces:
+                    # KafkaError{code=UNKNOWN_TOPIC_OR_PART,val=3,str="Subscribed topic not available:
+                    #   platform.inventory.host-ingress: Broker: Unknown topic or partition"}
+                    logger.error(f"Message received but has an error, which is {str(msg.error())}")
+                    metrics.ingress_message_handler_failure.inc()
+                else:
+                    logger.debug("Message received")
+
+                    try:
+                        self.processed_rows.append(self.handle_message(msg.value()))
+                        metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
+                        metrics.ingress_message_handler_success.inc()
+                    except OperationalError as oe:
+                        """sqlalchemy.exc.OperationalError: This error occurs when an
+                        authentication failure occurs or the DB is not accessible.
+                        Exit the process to restart the pod
+                        """
+                        logger.error(f"Could not access DB {str(oe)}")
+                        sys.exit(3)
+                    except Exception:
+                        metrics.ingress_message_handler_failure.inc()
+                        logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
+
+        self.post_process_rows()
+        # Commit Kafka offsets after successful batch processing
+        # This ensures offsets are persisted immediately after DB commit and event production,
+        # preventing duplicate message processing on service restart
+        if len(self.processed_rows) > 0:
+            try:
+                self.consumer.commit(asynchronous=False)
+                logger.debug(f"Successfully committed offsets for {len(self.processed_rows)} messages")
+            except Exception as e:
+                logger.exception(f"Failed to commit Kafka offsets: {e}")
+
     def event_loop(self, interrupt):
         with self.flask_app.app.app_context():
             try:
                 while not interrupt():
-                    self.processed_rows = []
-                    try:
-                        with session_guard(db.session, close=False), db.session.no_autoflush:
-                            messages = self.consumer.consume(
-                                num_messages=inventory_config().mq_db_batch_max_messages,
-                                timeout=inventory_config().mq_db_batch_max_seconds,
-                            )
+                    for attempt in range(1, MAX_RETRIES + 1):
+                        self.processed_rows = []
+                        try:
+                            self._process_batch()
+                            break  # Success, exit retry loop
+                        except (InvalidRequestError, StaleDataError) as e:
+                            """Handle database session errors with retry logic.
+                            InvalidRequestError includes PendingRollbackError which occurs when the session
+                            is in an invalid state. StaleDataError occurs when trying to update data that
+                            has been modified by another transaction.
+                            Note: session_guard already calls rollback() when an exception occurs.
+                            """
+                            metrics.ingress_message_handler_failure.inc()
 
-                            for msg in messages:
-                                if msg is None:
-                                    continue
-                                elif msg.error():
-                                    # This error is raised by the first consumer.consume() on a newly started Kafka.
-                                    # msg.error() produces:
-                                    # KafkaError{code=UNKNOWN_TOPIC_OR_PART,val=3,str="Subscribed topic not available:
-                                    #   platform.inventory.host-ingress: Broker: Unknown topic or partition"}
-                                    logger.error(f"Message received but has an error, which is {str(msg.error())}")
-                                    metrics.ingress_message_handler_failure.inc()
-                                else:
-                                    logger.debug("Message received")
-
-                                    try:
-                                        self.processed_rows.append(self.handle_message(msg.value()))
-                                        metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
-                                        metrics.ingress_message_handler_success.inc()
-                                    except OperationalError as oe:
-                                        """sqlalchemy.exc.OperationalError: This error occurs when an
-                                        authentication failure occurs or the DB is not accessible.
-                                        Exit the process to restart the pod
-                                        """
-                                        logger.error(f"Could not access DB {str(oe)}")
-                                        sys.exit(3)
-                                    except Exception:
-                                        metrics.ingress_message_handler_failure.inc()
-                                        logger.exception(
-                                            "Unable to process message", extra={"incoming_message": msg.value()}
-                                        )
-
-                        self.post_process_rows()
-                        # Commit Kafka offsets after successful batch processing
-                        # This ensures offsets are persisted immediately after DB commit and event production,
-                        # preventing duplicate message processing on service restart
-                        if len(self.processed_rows) > 0:
-                            try:
-                                self.consumer.commit(asynchronous=False)
-                                logger.debug(f"Successfully committed offsets for {len(self.processed_rows)} messages")
-                            except Exception as e:
-                                logger.exception(f"Failed to commit Kafka offsets: {e}")
-                    except (InvalidRequestError, StaleDataError) as e:
-                        """Handle database session errors gracefully to prevent pod crashes.
-                        InvalidRequestError includes PendingRollbackError which occurs when the session
-                        is in an invalid state. StaleDataError occurs when trying to update data that
-                        has been modified by another transaction.
-                        """
-                        metrics.ingress_message_handler_failure.inc()
-                        logger.exception(
-                            "Database session error during batch processing, continuing with next batch",
-                            exc_info=e,
-                        )
+                            if attempt < MAX_RETRIES:
+                                logger.warning(
+                                    "Database session error during batch processing"
+                                    f"(attempt {attempt}/{MAX_RETRIES}), retrying",
+                                    exc_info=e,
+                                )
+                                # Reset processed_rows for retry
+                                self.processed_rows = []
+                            else:
+                                logger.exception(
+                                    "Database session error during batch processing failed after"
+                                    f"{MAX_RETRIES} attempts, continuing with next batch",
+                                    exc_info=e,
+                                )
             finally:
                 db.session.close()
 
