@@ -15,6 +15,7 @@ import pytest
 from connexion import FlaskApp
 from pytest_mock import MockerFixture
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.exc import StaleDataError
 
@@ -104,25 +105,29 @@ def test_event_loop_with_error_message_handling(handle_message_mock, mocker, eve
     assert handle_message_mock.call_count == 2
 
 
-def test_event_loop_handles_invalid_request_error_gracefully(mocker, event_producer, flask_app):
+@pytest.mark.parametrize("error_type", (InvalidRequestError, StaleDataError))
+def test_event_loop_handles_invalid_request_error_gracefully(
+    mocker: MockerFixture,
+    event_producer: EventProducer,
+    notification_event_producer: EventProducer,
+    flask_app: FlaskApp,
+    error_type: type[BaseException],
+):
     """
-    Test to ensure that InvalidRequestError (including PendingRollbackError) during
-    session commit is handled gracefully and does not cause the pod to crash.
+    Test to ensure that InvalidRequestErrors and StaleDataErrors during
+    session commit are handled gracefully and do not cause the pod to crash.
     The failure metric should be incremented and the loop should continue processing.
     """
-    from sqlalchemy.exc import InvalidRequestError
-
     # Create a fake consumer that returns messages for two iterations
     fake_consumer = mocker.Mock(**{"consume.side_effect": [[FakeMessage()], [FakeMessage()], []]})
-    fake_notification_event_producer = None
-    consumer = IngressMessageConsumer(fake_consumer, flask_app, event_producer, fake_notification_event_producer)
+    consumer = IngressMessageConsumer(fake_consumer, flask_app, event_producer, notification_event_producer)
 
     # Mock the session commit to raise InvalidRequestError on first batch, succeed on second
     # Add extra None values for any additional cleanup/teardown calls
     commit_mock = mocker.patch(
         "app.queue.host_mq.db.session.commit",
         side_effect=[
-            InvalidRequestError("This Session's transaction has been rolled back"),
+            error_type("This Session's transaction has been rolled back"),
             None,
             None,
             None,
@@ -139,48 +144,6 @@ def test_event_loop_handles_invalid_request_error_gracefully(mocker, event_produ
     consumer.event_loop(mocker.Mock(side_effect=[False, False, False, True]))
 
     # Verify that the failure metric was incremented for the InvalidRequestError
-    assert metrics_mock.call_count >= 1
-    # Verify that rollback was called when the error occurred
-    assert rollback_mock.call_count >= 1
-    # Verify that the event loop continued and processed the second batch
-    assert commit_mock.call_count >= 2
-
-
-def test_event_loop_handles_stale_data_error_gracefully(mocker, event_producer, flask_app):
-    """
-    Test to ensure that StaleDataError during session commit is handled gracefully
-    and does not cause the pod to crash. The failure metric should be incremented
-    and the loop should continue processing.
-    """
-    from sqlalchemy.orm.exc import StaleDataError
-
-    # Create a fake consumer that returns messages for two iterations
-    fake_consumer = mocker.Mock(**{"consume.side_effect": [[FakeMessage()], [FakeMessage()], []]})
-    fake_notification_event_producer = None
-    consumer = IngressMessageConsumer(fake_consumer, flask_app, event_producer, fake_notification_event_producer)
-
-    # Mock the session commit to raise StaleDataError on first batch, succeed on second
-    # Add extra None values for any additional cleanup/teardown calls
-    commit_mock = mocker.patch(
-        "app.queue.host_mq.db.session.commit",
-        side_effect=[
-            StaleDataError("UPDATE statement on table 'hosts' expected to update 1 row(s)"),
-            None,
-            None,
-            None,
-            None,
-            None,
-        ],
-    )
-    rollback_mock = mocker.patch("app.queue.host_mq.db.session.rollback")
-
-    # Mock the metrics to verify it's called
-    metrics_mock = mocker.patch("app.queue.host_mq.metrics.ingress_message_handler_failure.inc")
-
-    # Run the event loop for 3 iterations (first fails with StaleDataError, second succeeds, third exits)
-    consumer.event_loop(mocker.Mock(side_effect=[False, False, False, True]))
-
-    # Verify that the failure metric was incremented for the StaleDataError
     assert metrics_mock.call_count >= 1
     # Verify that rollback was called when the error occurred
     assert rollback_mock.call_count >= 1
