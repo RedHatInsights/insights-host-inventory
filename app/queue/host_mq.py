@@ -261,8 +261,6 @@ class HBIMessageConsumerBase:
                                     f"(attempt {attempt}/{MAX_RETRIES}), retrying",
                                     exc_info=e,
                                 )
-                                # Reset processed_rows for retry
-                                self.processed_rows = []
                             else:
                                 logger.exception(
                                     "Database session error during batch processing failed after"
