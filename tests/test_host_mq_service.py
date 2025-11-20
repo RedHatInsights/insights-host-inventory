@@ -31,6 +31,7 @@ from app.models import Host
 from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 from app.queue.event_producer import EventProducer
 from app.queue.events import EventType
+from app.queue.host_mq import MAX_RETRIES
 from app.queue.host_mq import IngressMessageConsumer
 from app.queue.host_mq import OperationResult
 from app.queue.host_mq import SystemProfileMessageConsumer
@@ -116,20 +117,16 @@ def test_event_loop_handles_invalid_request_error_gracefully(
     """
     Test to ensure that InvalidRequestErrors and StaleDataErrors during
     session commit are handled gracefully with retry logic and do not cause the pod to crash.
-    The batch should be retried up to 5 times before giving up and moving to the next batch.
+    The batch should be retried up to MAX_RETRIES times before giving up and moving to the next batch.
     """
     # Create a fake consumer that returns messages for:
-    # - 5 retry attempts for first batch (each retry calls consume())
+    # - MAX_RETRIES attempts for first batch (each retry calls consume())
     # - 1 attempt for second batch
     # - empty list to exit
     fake_consumer = mocker.Mock(
         **{
             "consume.side_effect": [
-                [FakeMessage()],  # First batch, attempt 1
-                [FakeMessage()],  # First batch, attempt 2 (retry)
-                [FakeMessage()],  # First batch, attempt 3 (retry)
-                [FakeMessage()],  # First batch, attempt 4 (retry)
-                [FakeMessage()],  # First batch, attempt 5 (retry)
+                *[[FakeMessage()] for _ in range(MAX_RETRIES)],  # First batch attempts
                 [FakeMessage()],  # Second batch
                 [],  # Exit
             ]
@@ -141,17 +138,13 @@ def test_event_loop_handles_invalid_request_error_gracefully(
     # that would add extra metric increments
     mocker.patch.object(consumer, "handle_message", return_value=None)
 
-    # Mock the session commit to raise error 5 times for first batch (all retries fail),
+    # Mock the session commit to raise error MAX_RETRIES times for first batch (all retries fail),
     # then succeed on second batch, with extra None values for potential teardown calls
     commit_mock = mocker.patch(
         "app.queue.host_mq.db.session.commit",
         side_effect=[
-            # First batch: fail 5 times (all retries exhausted)
-            error_type("This Session's transaction has been rolled back"),
-            error_type("This Session's transaction has been rolled back"),
-            error_type("This Session's transaction has been rolled back"),
-            error_type("This Session's transaction has been rolled back"),
-            error_type("This Session's transaction has been rolled back"),
+            # First batch: fail MAX_RETRIES times (all retries exhausted)
+            *[error_type("This Session's transaction has been rolled back") for _ in range(MAX_RETRIES)],
             # Second batch: succeed
             None,
             # Extra None values for potential additional calls (teardown, etc.)
