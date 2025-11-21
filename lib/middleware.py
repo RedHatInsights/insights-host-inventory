@@ -94,23 +94,26 @@ def _execute_rbac_http_request(
     request_headers: dict,
     request_data: dict | None = None,
     request_params: dict | None = None,
-) -> Any:
+    skip_not_found: bool = False,
+) -> dict | None:
     """
     Generic RBAC request handler that consolidates common functionality.
 
+    NOTE: This function does NOT check bypass flags (bypass_rbac or bypass_kessel).
+    Callers are responsible for checking the appropriate bypass flag before calling
+    this function to maintain clear separation of concerns.
+
     Args:
-        method: HTTP method ('GET' or 'POST')
+        method: HTTP method ('GET', 'POST', 'DELETE', or 'PATCH')
         rbac_endpoint: The RBAC endpoint URL
         request_headers: Headers for the request
-        request_data: JSON data for POST requests
+        request_data: JSON data for POST/PATCH requests
         request_params: Query parameters for GET requests
+        skip_not_found: If True, 404 errors raise ResourceNotFoundException instead of aborting
 
     Returns:
-        Parsed response data or None if RBAC is bypassed
+        Parsed JSON response data from the RBAC endpoint
     """
-    if inventory_config().bypass_rbac:
-        return None
-
     request_session = Session()
     retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
     request_session.mount(rbac_endpoint, HTTPAdapter(max_retries=retry_config))
@@ -153,16 +156,18 @@ def _execute_rbac_http_request(
                 raise ValueError(f"Unsupported method: {method}")
 
             rbac_response.raise_for_status()
+            return rbac_response.json()
     except HTTPError as e:
         status_code = e.response.status_code
-        if status_code == 404:
-            # For 404 errors, raise ResourceNotFoundException instead of aborting
-            # This allows the calling code to handle missing resources gracefully
+        if status_code == 404 and skip_not_found:
+            # For 404 errors with skip_not_found=True, raise ResourceNotFoundException
+            # instead of aborting. This allows the calling code to handle missing
+            # resources gracefully (e.g., when deleting a workspace that may not exist)
             try:
                 detail = e.response.json().get("detail", e.response.text)
             except Exception:
                 detail = e.response.text  # fallback if JSON can't be parsed
-            logger.warning(f"RBAC client error: {status_code} - {detail}")
+            logger.info(f"RBAC 404 not found (skip_not_found=True): {detail}")
             raise ResourceNotFoundException(detail) from e
         elif 400 <= status_code < 500:
             try:
@@ -184,6 +189,9 @@ def _execute_rbac_http_request(
 def rbac_get_request_using_endpoint_and_headers(
     rbac_endpoint: str, request_headers: dict, request_params: dict | None = None
 ):
+    if inventory_config().bypass_rbac:
+        return None
+
     return _execute_rbac_http_request(
         method="GET",
         rbac_endpoint=rbac_endpoint,
@@ -495,6 +503,7 @@ def delete_rbac_workspace_using_endpoint_and_headers(rbac_endpoint: str, request
         method="DELETE",
         rbac_endpoint=rbac_endpoint,
         request_headers=request_headers,
+        skip_not_found=True,  # 404s should raise ResourceNotFoundException for graceful handling
     )
 
 
