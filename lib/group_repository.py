@@ -54,16 +54,12 @@ def _update_hosts_for_group_changes(host_id_list: list[str], group_id_list: list
         serialize_group(get_group_by_id_from_db(group_id, identity.org_id)) for group_id in group_id_list
     ]
 
-    # Extract group IDs from serialized groups for comparison
-    new_group_ids = {group["id"] for group in serialized_groups}
-
     # Update groups data on each host record
     # Use ORM update (not bulk update) to trigger event listeners
+    # The _has_outbox_relevant_changes function will determine if outbox event is needed
+    # (only when group IDs change, not just names)
     hosts = db.session.query(Host).filter(Host.id.in_(host_id_list), Host.org_id == identity.org_id).all()
     for host in hosts:
-        # Always update host.groups to ensure SQLAlchemy tracks the change
-        # The _has_outbox_relevant_changes function will determine if outbox event is needed
-        # (only when group IDs change, not just names)
         host.groups = serialized_groups
 
     # Flush to ensure outbox events are tracked before commit

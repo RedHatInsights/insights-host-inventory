@@ -88,7 +88,7 @@ def _extract_group_ids(groups_list):
     if not isinstance(groups_list, (list, tuple)):
         # If it's still not a list/tuple, it might be a single MutableList wrapper
         # Try to get the underlying list
-        groups_list = list(groups_list) if hasattr(groups_list, '__iter__') else []
+        groups_list = list(groups_list) if hasattr(groups_list, "__iter__") else []
 
     # Now iterate over the actual list of group dictionaries
     return {group.get("id") for group in groups_list if group and isinstance(group, dict) and group.get("id")}
@@ -116,14 +116,21 @@ def _has_outbox_relevant_changes(host: Host) -> bool:
                     # For MutableList, history.deleted contains the old value and history.added contains the new value
                     # Extract group IDs from old and new values
                     old_group_ids = _extract_group_ids(history.deleted) if history.deleted else set()
-                    new_group_ids = _extract_group_ids(history.added) if history.added else _extract_group_ids(getattr(host, "groups", []))
+                    new_group_ids = (
+                        _extract_group_ids(history.added)
+                        if history.added
+                        else _extract_group_ids(getattr(host, "groups", []))
+                    )
 
                     # Only trigger if group IDs changed (not just names)
                     if old_group_ids != new_group_ids:
                         logger.debug(f"Group IDs changed for host {host.id}: {old_group_ids} -> {new_group_ids}")
                         return True
                     else:
-                        logger.debug(f"Groups field changed for host {host.id} but group IDs unchanged (likely name change only)")
+                        logger.debug(
+                            f"Groups field changed for host {host.id} \
+                                but group IDs unchanged (likely name change only)"
+                        )
                         continue
 
                 logger.debug(f"Field {field_name} changed for host {host.id}")
