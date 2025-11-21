@@ -88,7 +88,7 @@ def _build_rbac_request_headers(identity_header: str | None = None, request_id_h
     return request_headers
 
 
-def _make_rbac_request(
+def _execute_rbac_http_request(
     method: str,
     rbac_endpoint: str,
     request_headers: dict,
@@ -184,7 +184,7 @@ def _make_rbac_request(
 def rbac_get_request_using_endpoint_and_headers(
     rbac_endpoint: str, request_headers: dict, request_params: dict | None = None
 ):
-    return _make_rbac_request(
+    return _execute_rbac_http_request(
         method="GET",
         rbac_endpoint=rbac_endpoint,
         request_headers=request_headers,
@@ -482,7 +482,7 @@ def post_rbac_workspace(name) -> UUID | None:
 def post_rbac_workspace_using_endpoint_and_headers(
     request_data: dict | None, rbac_endpoint: str, request_headers: dict
 ) -> UUID | None:
-    return _make_rbac_request(
+    return _execute_rbac_http_request(
         method="POST",
         rbac_endpoint=rbac_endpoint,
         request_headers=request_headers,
@@ -491,7 +491,7 @@ def post_rbac_workspace_using_endpoint_and_headers(
 
 
 def delete_rbac_workspace_using_endpoint_and_headers(rbac_endpoint: str, request_headers: dict) -> UUID | None:
-    return _make_rbac_request(
+    return _execute_rbac_http_request(
         method="DELETE",
         rbac_endpoint=rbac_endpoint,
         request_headers=request_headers,
@@ -505,7 +505,7 @@ def patch_rbac_workspace_using_endpoint_and_headers(
     Patch RBAC workspace. Raises HTTPException via abort() on error.
     Does not return a value on success.
     """
-    _make_rbac_request(
+    _execute_rbac_http_request(
         method="PATCH",
         rbac_endpoint=rbac_endpoint,
         request_headers=request_headers,
