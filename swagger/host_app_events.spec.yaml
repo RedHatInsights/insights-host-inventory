@@ -1,0 +1,221 @@
+---
+$id: host_app_events.spec.yaml
+$schema: http://json-schema.org/draft-04/schema#
+$defs:
+  HostAppMessageHeaders:
+    description: Headers included in the Kafka message
+    type: object
+    required:
+      - application
+      - request_id
+    properties:
+      application:
+        description: Identifies the source service. Used for routing.
+        type: string
+        enum: [advisor, vulnerability, patch, image_builder, remediations, compliance, malware]
+        example: "advisor"
+      request_id:
+        description: The ID from the original ingress event, enabling full distributed tracing
+        type: string
+        example: "550e8400-e29b-41d4-a716-446655440000"
+
+  AdvisorData:
+    description: Advisor application data
+    type: object
+    properties:
+      recommendations:
+        type: integer
+        description: Number of recommendations
+      incidents:
+        type: integer
+        description: Number of incidents
+
+  VulnerabilityData:
+    description: Vulnerability application data
+    type: object
+    properties:
+      total_cves:
+        type: integer
+        description: Total number of CVEs
+      critical_cves:
+        type: integer
+        description: Number of critical CVEs
+      high_severity_cves:
+        type: integer
+        description: Number of high severity CVEs
+      cves_with_security_rules:
+        type: integer
+        description: Number of CVEs with security rules
+      cves_with_known_exploits:
+        type: integer
+        description: Number of CVEs with known exploits
+
+  PatchData:
+    description: Patch application data
+    type: object
+    properties:
+      installable_advisories:
+        type: integer
+        description: Number of installable advisories
+      template:
+        type: string
+        maxLength: 255
+        description: Patch template name
+      rhsm_locked_version:
+        type: string
+        maxLength: 50
+        description: RHSM locked version
+
+  RemediationsData:
+    description: Remediations application data
+    type: object
+    properties:
+      remediations_plans:
+        type: integer
+        description: Number of remediation plans
+
+  ComplianceData:
+    description: Compliance application data
+    type: object
+    properties:
+      policies:
+        type: integer
+        description: Number of policies
+      last_scan:
+        type: string
+        format: date-time
+        description: Timestamp of the last scan
+
+  MalwareData:
+    description: Malware application data
+    type: object
+    properties:
+      last_status:
+        type: string
+        maxLength: 50
+        description: Last scan status
+      last_matches:
+        type: integer
+        description: Number of matches found
+      last_scan:
+        type: string
+        format: date-time
+        description: Timestamp of the last scan
+
+  ImageBuilderData:
+    description: Image Builder application data
+    type: object
+    properties:
+      image_name:
+        type: string
+        maxLength: 255
+        description: Name of the image
+      image_status:
+        type: string
+        maxLength: 50
+        description: Status of the image
+
+  HostAppItem:
+    description: Application specific data for a single host
+    type: object
+    required:
+      - id
+      - data
+    properties:
+      id:
+        description: The primary key of the host
+        type: string
+        format: uuid
+        example: "22cd8e39-13bb-4d02-8316-84b850dc5136"
+      data:
+        description: The application-specific JSON blob
+        oneOf:
+          - $ref: '#/$defs/AdvisorData'
+          - $ref: '#/$defs/VulnerabilityData'
+          - $ref: '#/$defs/PatchData'
+          - $ref: '#/$defs/RemediationsData'
+          - $ref: '#/$defs/ComplianceData'
+          - $ref: '#/$defs/MalwareData'
+          - $ref: '#/$defs/ImageBuilderData'
+
+  HostAppEvent:
+    description: Event payload containing application data for hosts in an organization
+    type: object
+    required:
+      - org_id
+      - timestamp
+      - hosts
+    properties:
+      org_id:
+        description: Multi-tenant isolation key
+        type: string
+        maxLength: 36
+        example: "1234567"
+      timestamp:
+        description: Time when the downstream service generated the data
+        type: string
+        format: date-time
+        example: "2025-01-10T12:00:00Z"
+      hosts:
+        description: A list of hosts and their application data
+        type: array
+        items:
+          $ref: '#/$defs/HostAppItem'
+
+  KafkaMessage:
+    description: Complete Kafka message structure including headers and event payload
+    type: object
+    required:
+      - key
+      - value
+      - headers
+    properties:
+      key:
+        description: Kafka message key. Org ID is used to ensure partition ordering per organization.
+        type: string
+        example: "1234567"
+      value:
+        description: Kafka message value (event payload)
+        $ref: '#/$defs/HostAppEvent'
+      headers:
+        description: Kafka message headers
+        $ref: '#/$defs/HostAppMessageHeaders'
+      topic:
+        description: Kafka topic name
+        type: string
+        example: "platform.inventory.host-apps"
+      partition:
+        description: Kafka partition number
+        type: integer
+        example: 0
+      offset:
+        description: Kafka message offset
+        type: integer
+        example: 12345
+
+title: HostAppEvents
+description: |
+  Schema specification for events consumed by Host-Based Inventory (HBI) from
+  downstream services (Advisor, Vulnerability, Patch, etc.) to populate
+  Inventory Views.
+
+  ## Overview
+
+  This schema defines the contract for the `platform.inventory.host-apps` topic.
+  Downstream services produce messages to this topic to update their specific
+  data columns in the Inventory read-model tables.
+
+  ## Message Structure
+
+  Each event is a Kafka message with:
+  - **Key**: The Organization ID (string)
+  - **Value**: JSON event payload containing the list of hosts and data
+  - **Headers**: Metadata including the application name (routing key)
+
+  ## Usage
+
+  HBI consumes this topic and routes data to the appropriate table based on the
+  `application` header.
+
+type: object
+$ref: '#/$defs/HostAppEvent'
