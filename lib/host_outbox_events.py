@@ -67,12 +67,42 @@ def _get_pending_ops(session):
     return _pending_outbox_ops[session_id]
 
 
+def _extract_group_ids(groups_list):
+    """Extract group IDs from a groups list, handling None and empty cases."""
+    # SQLAlchemy history can return:
+    # - A tuple containing the list: ([...],)
+    # - A list containing the list: [[...]]
+    # - Just the list: [...]
+    # Extract the actual list first
+    if isinstance(groups_list, (tuple, list)) and groups_list and len(groups_list) == 1:
+        # Check if this is a wrapper (tuple or list) containing the actual list
+        inner = groups_list[0]
+        if isinstance(inner, (list, tuple)):
+            groups_list = inner
+
+    # Now check if empty (after extracting from wrapper)
+    if not groups_list:
+        return set()
+
+    # Handle MutableList or regular list - ensure we have an iterable
+    if not isinstance(groups_list, (list, tuple)):
+        # If it's still not a list/tuple, it might be a single MutableList wrapper
+        # Try to get the underlying list
+        groups_list = list(groups_list) if hasattr(groups_list, '__iter__') else []
+
+    # Now iterate over the actual list of group dictionaries
+    return {group.get("id") for group in groups_list if group and isinstance(group, dict) and group.get("id")}
+
+
 def _has_outbox_relevant_changes(host: Host) -> bool:
     """
     Check if any outbox-relevant fields have changed.
 
     Returns True if any of the tracked fields (satellite_id, subscription_manager_id,
-    insights_id, ansible_host, or groups) have been modified.
+    insights_id, ansible_host, or group IDs) have been modified.
+
+    Note: For groups field, only group ID changes trigger outbox events, not group name changes,
+    since the outbox payload only includes workspace_id (group ID), not the group name.
 
     Note: This function should be called when change history is available (after_update or before_flush).
     """
@@ -81,6 +111,21 @@ def _has_outbox_relevant_changes(host: Host) -> bool:
         if field_name in inspected.attrs:
             history = inspected.attrs[field_name].history
             if history.has_changes():
+                # Special handling for groups field: only trigger if group IDs changed
+                if field_name == "groups":
+                    # For MutableList, history.deleted contains the old value and history.added contains the new value
+                    # Extract group IDs from old and new values
+                    old_group_ids = _extract_group_ids(history.deleted) if history.deleted else set()
+                    new_group_ids = _extract_group_ids(history.added) if history.added else _extract_group_ids(getattr(host, "groups", []))
+
+                    # Only trigger if group IDs changed (not just names)
+                    if old_group_ids != new_group_ids:
+                        logger.debug(f"Group IDs changed for host {host.id}: {old_group_ids} -> {new_group_ids}")
+                        return True
+                    else:
+                        logger.debug(f"Groups field changed for host {host.id} but group IDs unchanged (likely name change only)")
+                        continue
+
                 logger.debug(f"Field {field_name} changed for host {host.id}")
                 return True
     return False

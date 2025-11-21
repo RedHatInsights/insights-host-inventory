@@ -674,8 +674,8 @@ class TestOutboxE2ECases:
         db_get_group_by_id,
     ):
         """
-        Test complete MQ group update flow - group name changes DO trigger outbox entries
-        because the group name is part of the host's group information in the outbox payload.
+        Test complete MQ group update flow - group name changes should NOT trigger outbox entries
+        since only group_id is in outbox payload.
         """
 
         # Create a group with one host for simpler validation
@@ -683,7 +683,7 @@ class TestOutboxE2ECases:
         group_id = str(group.id)
         hosts = db_get_hosts_for_group(group.id)
         host = hosts[0]
-        host_id = str(host.id)
+        _ = str(host.id)
 
         # Verify initial state
         assert len(host.groups) == 1
@@ -733,16 +733,11 @@ class TestOutboxE2ECases:
                 updated_group = db_get_group_by_id(group_id)
                 assert updated_group.name == new_name
 
-                # Verify outbox operation occurred since group name change affects host's group information
-                mock_success_metric.inc.assert_called_once()
+                # Verify NO outbox operation occurred since tgroup name change doesn't affect outbox payload.
+                mock_success_metric.inc.assert_not_called()
 
-                # Verify outbox payloads were captured with updated group name
-                assert len(captured_payloads) == 1
-                assert captured_payloads[0]["event_type"] == EventType.updated
-                assert captured_payloads[0]["host_id"] == host_id
-                assert captured_payloads[0]["group_id"] == group_id
-                assert captured_payloads[0]["group_name"] == new_name
-                assert captured_payloads[0]["common"]["workspace_id"] == group_id
+                # Verify NO outbox payloads were captured since group name change doesn't affect outbox payload.
+                assert len(captured_payloads) == 0
 
     @pytest.mark.usefixtures("event_producer_mock")
     def test_host_update_via_patch_endpoint_display_name_no_outbox(
@@ -1594,7 +1589,7 @@ class TestOutboxE2ECases:
             # The write_event_to_outbox should have been called automatically during host creation
             assert_outbox_empty(db, host_id)
 
-    def test_session_isolation_for_outbox_operations(self):
+    def test_session_isolation_for_outbox_operations(self, request):
         """
         Test that outbox operations are isolated per session.
 
@@ -1613,49 +1608,50 @@ class TestOutboxE2ECases:
         session_a = SQLASession(bind=engine)
         session_b = SQLASession(bind=engine)
 
-        try:
-            # Get session IDs
-            session_a_id = session_a.hash_key
-            session_b_id = session_b.hash_key
-
-            # Verify sessions are different
-            assert session_a_id != session_b_id, "Sessions must have different IDs"
-
-            # Simulate ops being tracked in both sessions
-            _pending_outbox_ops[session_a_id] = [("created", str(uuid.uuid4())), ("updated", str(uuid.uuid4()))]
-            _pending_outbox_ops[session_b_id] = [("created", str(uuid.uuid4())), ("deleted", str(uuid.uuid4()))]
-
-            # Test: session_a should only get its own ops
-            ops_a, returned_session_id_a = _collect_pending_ops_for_session(session_a)
-            assert returned_session_id_a == session_a_id, "Should return session_a's ID"
-            assert len(ops_a) == 2, f"Session A should have 2 ops, got {len(ops_a)}"
-            assert ops_a[0][0] == "created", "First op should be 'created'"
-            assert ops_a[1][0] == "updated", "Second op should be 'updated'"
-
-            # Test: session_b should only get its own ops
-            ops_b, returned_session_id_b = _collect_pending_ops_for_session(session_b)
-            assert returned_session_id_b == session_b_id, "Should return session_b's ID"
-            assert len(ops_b) == 2, f"Session B should have 2 ops, got {len(ops_b)}"
-            assert ops_b[0][0] == "created", "First op should be 'created'"
-            assert ops_b[1][0] == "deleted", "Second op should be 'deleted'"
-
-            # Critical test: Verify no cross-session contamination
-            session_a_host_ids = {op[1] for op in ops_a}
-            session_b_host_ids = {op[1] for op in ops_b}
-            assert session_a_host_ids.isdisjoint(session_b_host_ids), (
-                "Session A and Session B should have completely different host IDs"
-            )
-
-            # Verify session_a ops are not in session_b results
-            for _op_type, host_id in ops_a:
-                assert host_id not in session_b_host_ids, f"Session B should not see Session A's host {host_id}"
-
-            # Verify session_b ops are not in session_a results
-            for _op_type, host_id in ops_b:
-                assert host_id not in session_a_host_ids, f"Session A should not see Session B's host {host_id}"
-
-        finally:
-            # Clean up sessions
+        # Register cleanup finalizer
+        def cleanup():
             session_a.close()
             session_b.close()
             _pending_outbox_ops.clear()
+
+        request.addfinalizer(cleanup)
+
+        # Get session IDs
+        session_a_id = session_a.hash_key
+        session_b_id = session_b.hash_key
+
+        # Verify sessions are different
+        assert session_a_id != session_b_id, "Sessions must have different IDs"
+
+        # Simulate ops being tracked in both sessions
+        _pending_outbox_ops[session_a_id] = [("created", str(uuid.uuid4())), ("updated", str(uuid.uuid4()))]
+        _pending_outbox_ops[session_b_id] = [("created", str(uuid.uuid4())), ("deleted", str(uuid.uuid4()))]
+
+        # Test: session_a should only get its own ops
+        ops_a, returned_session_id_a = _collect_pending_ops_for_session(session_a)
+        assert returned_session_id_a == session_a_id, "Should return session_a's ID"
+        assert len(ops_a) == 2, f"Session A should have 2 ops, got {len(ops_a)}"
+        assert ops_a[0][0] == "created", "First op should be 'created'"
+        assert ops_a[1][0] == "updated", "Second op should be 'updated'"
+
+        # Test: session_b should only get its own ops
+        ops_b, returned_session_id_b = _collect_pending_ops_for_session(session_b)
+        assert returned_session_id_b == session_b_id, "Should return session_b's ID"
+        assert len(ops_b) == 2, f"Session B should have 2 ops, got {len(ops_b)}"
+        assert ops_b[0][0] == "created", "First op should be 'created'"
+        assert ops_b[1][0] == "deleted", "Second op should be 'deleted'"
+
+        # Critical test: Verify no cross-session contamination
+        session_a_host_ids = {op[1] for op in ops_a}
+        session_b_host_ids = {op[1] for op in ops_b}
+        assert session_a_host_ids.isdisjoint(session_b_host_ids), (
+            "Session A and Session B should have completely different host IDs"
+        )
+
+        # Verify session_a ops are not in session_b results
+        for _op_type, host_id in ops_a:
+            assert host_id not in session_b_host_ids, f"Session B should not see Session A's host {host_id}"
+
+        # Verify session_b ops are not in session_a results
+        for _op_type, host_id in ops_b:
+            assert host_id not in session_a_host_ids, f"Session A should not see Session B's host {host_id}"
