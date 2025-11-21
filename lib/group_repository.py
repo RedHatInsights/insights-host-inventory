@@ -1,4 +1,5 @@
 import time
+from collections.abc import Sequence
 from uuid import UUID
 
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
@@ -35,6 +36,7 @@ from app.serialization import serialize_host
 from app.staleness_serialization import AttrDict
 from lib.db import session_guard
 from lib.host_repository import get_host_list_by_id_list_from_db
+from lib.host_repository import get_non_culled_hosts_count_for_groups
 from lib.host_repository import get_non_culled_hosts_count_in_group
 from lib.host_repository import host_query
 from lib.metrics import delete_group_count
@@ -50,10 +52,9 @@ def _update_hosts_for_group_changes(host_id_list: list[str], group_id_list: list
     if group_id_list is None:
         group_id_list = []
 
-    serialized_groups = [
-        serialize_group(get_group_by_id_from_db(group_id, identity.org_id), identity.org_id)
-        for group_id in group_id_list
-    ]
+    # Fetch all groups at once and serialize them in batch
+    groups = [get_group_by_id_from_db(group_id, identity.org_id) for group_id in group_id_list]
+    serialized_groups = serialize_groups(groups, identity.org_id)
 
     # Update groups data on each host record
     # Use ORM update (not bulk update) to trigger event listeners
@@ -522,3 +523,33 @@ def get_ungrouped_group(identity: Identity) -> Group:
 def serialize_group(group: Group | dict, org_id: str) -> dict:
     host_count = get_non_culled_hosts_count_in_group(group, org_id)
     return serialize_group_with_host_count(group, host_count, org_id)
+
+
+def serialize_groups(groups: Sequence[Group | dict], org_id: str) -> list[dict]:
+    """
+    Serialize multiple groups efficiently using batch query for host counts.
+    This avoids the N+1 query problem when serializing multiple groups.
+
+    Args:
+        groups: List of Group objects or dicts (from RBAC v2)
+        org_id: Organization ID
+
+    Returns:
+        List of serialized group dictionaries
+    """
+    if not groups:
+        return []
+
+    # Extract group IDs from both Group objects and dicts
+    group_ids = [str(group["id"] if isinstance(group, dict) else group.id) for group in groups]
+
+    # Get all host counts in a single query
+    host_counts = get_non_culled_hosts_count_for_groups(group_ids, org_id)
+
+    # Serialize each group with its pre-fetched host count
+    return [
+        serialize_group_with_host_count(
+            group, host_counts[str(group["id"] if isinstance(group, dict) else group.id)], org_id
+        )
+        for group in groups
+    ]

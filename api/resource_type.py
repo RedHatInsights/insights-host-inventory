@@ -14,7 +14,7 @@ from app.instrumentation import log_get_group_list_succeeded
 from app.instrumentation import log_get_resource_type_list_failed
 from app.instrumentation import log_get_resource_type_list_succeeded
 from app.logging import get_logger
-from lib.group_repository import serialize_group
+from lib.group_repository import serialize_groups
 from lib.middleware import rbac
 
 logger = get_logger(__name__)
@@ -66,5 +66,6 @@ def get_resource_type_groups_list(
 
     log_get_group_list_succeeded(logger, group_list)
     org_id = get_current_identity().org_id
-    serialized_groups = [serialize_group(group, org_id) for group in group_list]
+    # Use batch serialization to avoid N+1 query problem
+    serialized_groups = serialize_groups(group_list, org_id)
     return flask_json_response(build_paginated_resource_list_response(total, page, per_page, serialized_groups))

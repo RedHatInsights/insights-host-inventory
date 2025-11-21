@@ -176,12 +176,15 @@ def _execute_rbac_http_request(
                 detail = e.response.text  # fallback if JSON can't be parsed
             logger.warning(f"RBAC client error: {status_code} - {detail}")
             abort(status_code, f"RBAC client error: {detail}")
+            return None  # Never reached, but satisfies mypy
         else:
             logger.error(f"RBAC server error: {status_code} - {e.response.text}")
             abort(503, "RBAC server error, request cannot be fulfilled")
+            return None  # Never reached, but satisfies mypy
     except Exception as e:
         rbac_failure(logger, e)
         abort(503, "Failed to reach RBAC endpoint, request cannot be fulfilled")
+        return None  # Never reached, but satisfies mypy
     finally:
         request_session.close()
 
@@ -484,12 +487,23 @@ def post_rbac_workspace(name) -> UUID | None:
     request_headers = _build_rbac_request_headers(request.headers[IDENTITY_HEADER], threadctx.request_id)
     request_data = {"name": name}
 
-    return post_rbac_workspace_using_endpoint_and_headers(request_data, rbac_endpoint, request_headers)
+    resp_data = post_rbac_workspace_using_endpoint_and_headers(request_data, rbac_endpoint, request_headers)
+
+    if resp_data is None:
+        return None
+
+    try:
+        workspace_id = resp_data["id"]
+    except KeyError as e:
+        rbac_failure(logger, e)
+        abort(503, "Failed to parse RBAC response, request cannot be fulfilled")
+
+    return workspace_id
 
 
 def post_rbac_workspace_using_endpoint_and_headers(
     request_data: dict | None, rbac_endpoint: str, request_headers: dict
-) -> UUID | None:
+) -> dict | None:
     return _execute_rbac_http_request(
         method="POST",
         rbac_endpoint=rbac_endpoint,
@@ -498,7 +512,7 @@ def post_rbac_workspace_using_endpoint_and_headers(
     )
 
 
-def delete_rbac_workspace_using_endpoint_and_headers(rbac_endpoint: str, request_headers: dict) -> UUID | None:
+def delete_rbac_workspace_using_endpoint_and_headers(rbac_endpoint: str, request_headers: dict) -> dict | None:
     return _execute_rbac_http_request(
         method="DELETE",
         rbac_endpoint=rbac_endpoint,

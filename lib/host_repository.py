@@ -400,6 +400,41 @@ def get_non_culled_hosts_count_in_group(group: Group | dict, org_id: str) -> int
     return find_non_culled_hosts(query, org_id).count()
 
 
+def get_non_culled_hosts_count_for_groups(group_ids: list[str], org_id: str) -> dict[str, int]:
+    """
+    Get host counts for multiple groups in a single query to avoid N+1 query problem.
+
+    Args:
+        group_ids: List of group IDs (as strings)
+        org_id: Organization ID
+
+    Returns:
+        Dictionary mapping group_id -> host_count
+    """
+    from sqlalchemy import func
+
+    if not group_ids:
+        return {}
+
+    # Build query to get counts per group
+    query = (
+        db.session.query(HostGroupAssoc.group_id, func.count(func.distinct(Host.id)).label("host_count"))
+        .join(Host, HostGroupAssoc.host_id == Host.id)
+        .filter(HostGroupAssoc.group_id.in_(group_ids), HostGroupAssoc.org_id == org_id)
+        .group_by(HostGroupAssoc.group_id)
+    )
+
+    # Apply non-culled filter
+    query = find_non_culled_hosts(query, org_id)
+
+    # Execute and build result dictionary
+    results = query.all()
+    count_map = {str(group_id): count for group_id, count in results}
+
+    # Fill in zeros for groups with no hosts
+    return {group_id: count_map.get(group_id, 0) for group_id in group_ids}
+
+
 # Ensures that the query is filtered by org_id
 def host_query(
     org_id: str,

@@ -8,6 +8,7 @@ from app.models import Group
 from app.models import HostGroupAssoc
 from app.models import db
 from lib.group_repository import serialize_group
+from lib.group_repository import serialize_groups
 
 logger = get_logger(__name__)
 
@@ -133,7 +134,8 @@ def get_filtered_group_list_db(group_name, page, per_page, order_by, order_how, 
 def build_paginated_group_list_response(total, page, per_page, group_list):
     # group resource provided by rbac_v2 does not have org_id
     org_id = get_current_identity().org_id
-    json_group_list = [serialize_group(group, org_id) for group in group_list]
+    # Use batch serialization to avoid N+1 query problem
+    json_group_list = serialize_groups(group_list, org_id)
     return {
         "total": total,
         "count": len(json_group_list),
