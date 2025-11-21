@@ -4,7 +4,6 @@ import inspect
 from functools import partial
 from functools import wraps
 from http import HTTPStatus
-from json import JSONDecodeError
 from typing import Any
 from uuid import UUID
 
@@ -16,7 +15,7 @@ from flask import request
 from requests import Session
 from requests.adapters import HTTPAdapter
 from requests.exceptions import HTTPError
-from requests.packages.urllib3.util.retry import Retry
+from urllib3.util.retry import Retry
 
 from api.metrics import outbound_http_response_time
 from app import IDENTITY_HEADER
@@ -89,29 +88,32 @@ def _build_rbac_request_headers(identity_header: str | None = None, request_id_h
     return request_headers
 
 
-def _make_rbac_request(
+def _execute_rbac_http_request(
     method: str,
     rbac_endpoint: str,
     request_headers: dict,
     request_data: dict | None = None,
     request_params: dict | None = None,
-) -> Any:
+    skip_not_found: bool = False,
+) -> dict | None:
     """
     Generic RBAC request handler that consolidates common functionality.
 
+    NOTE: This function does NOT check bypass flags (bypass_rbac or bypass_kessel).
+    Callers are responsible for checking the appropriate bypass flag before calling
+    this function to maintain clear separation of concerns.
+
     Args:
-        method: HTTP method ('GET' or 'POST')
+        method: HTTP method ('GET', 'POST', 'DELETE', or 'PATCH')
         rbac_endpoint: The RBAC endpoint URL
         request_headers: Headers for the request
-        request_data: JSON data for POST requests
+        request_data: JSON data for POST/PATCH requests
         request_params: Query parameters for GET requests
+        skip_not_found: If True, 404 errors raise ResourceNotFoundException instead of aborting
 
     Returns:
-        Parsed response data or None if RBAC is bypassed
+        Parsed JSON response data from the RBAC endpoint
     """
-    if inventory_config().bypass_rbac:
-        return None
-
     request_session = Session()
     retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
     request_session.mount(rbac_endpoint, HTTPAdapter(max_retries=retry_config))
@@ -151,19 +153,21 @@ def _make_rbac_request(
                     verify=LoadedConfig.tlsCAPath,
                 )
             else:
-                raise ValueError(f"Unsupported HTTP method: {method}")
+                raise ValueError(f"Unsupported method: {method}")
 
             rbac_response.raise_for_status()
+            return rbac_response.json()
     except HTTPError as e:
         status_code = e.response.status_code
-        if status_code == 404:
-            # For 404 errors, raise ResourceNotFoundException instead of aborting
-            # This allows the calling code to handle missing resources gracefully
+        if status_code == 404 and skip_not_found:
+            # For 404 errors with skip_not_found=True, raise ResourceNotFoundException
+            # instead of aborting. This allows the calling code to handle missing
+            # resources gracefully (e.g., when deleting a workspace that may not exist)
             try:
                 detail = e.response.json().get("detail", e.response.text)
             except Exception:
                 detail = e.response.text  # fallback if JSON can't be parsed
-            logger.warning(f"RBAC client error: {status_code} - {detail}")
+            logger.info(f"RBAC 404 not found (skip_not_found=True): {detail}")
             raise ResourceNotFoundException(detail) from e
         elif 400 <= status_code < 500:
             try:
@@ -181,21 +185,14 @@ def _make_rbac_request(
     finally:
         request_session.close()
 
-    try:
-        resp_data = rbac_response.json()
-        logger.debug("RBAC Data", extra={"resp_data": resp_data})
-        return resp_data
-    except (JSONDecodeError, KeyError) as e:
-        rbac_failure(logger, e)
-        abort(503, "Failed to parse RBAC response, request cannot be fulfilled")
-    finally:
-        request_session.close()
-
 
 def rbac_get_request_using_endpoint_and_headers(
     rbac_endpoint: str, request_headers: dict, request_params: dict | None = None
 ):
-    return _make_rbac_request(
+    if inventory_config().bypass_rbac:
+        return None
+
+    return _execute_rbac_http_request(
         method="GET",
         rbac_endpoint=rbac_endpoint,
         request_headers=request_headers,
@@ -493,7 +490,7 @@ def post_rbac_workspace(name) -> UUID | None:
 def post_rbac_workspace_using_endpoint_and_headers(
     request_data: dict | None, rbac_endpoint: str, request_headers: dict
 ) -> UUID | None:
-    return _make_rbac_request(
+    return _execute_rbac_http_request(
         method="POST",
         rbac_endpoint=rbac_endpoint,
         request_headers=request_headers,
@@ -502,17 +499,22 @@ def post_rbac_workspace_using_endpoint_and_headers(
 
 
 def delete_rbac_workspace_using_endpoint_and_headers(rbac_endpoint: str, request_headers: dict) -> UUID | None:
-    return _make_rbac_request(
+    return _execute_rbac_http_request(
         method="DELETE",
         rbac_endpoint=rbac_endpoint,
         request_headers=request_headers,
+        skip_not_found=True,  # 404s should raise ResourceNotFoundException for graceful handling
     )
 
 
 def patch_rbac_workspace_using_endpoint_and_headers(
     request_data: dict | None, rbac_endpoint: str, request_headers: dict
-) -> UUID | None:
-    return _make_rbac_request(
+) -> None:
+    """
+    Patch RBAC workspace. Raises HTTPException via abort() on error.
+    Does not return a value on success.
+    """
+    _execute_rbac_http_request(
         method="PATCH",
         rbac_endpoint=rbac_endpoint,
         request_headers=request_headers,
@@ -545,7 +547,7 @@ def rbac_create_ungrouped_hosts_workspace(identity: Identity) -> UUID | None:
     return workspace_id
 
 
-def delete_rbac_workspace(workspace_id: str) -> bool:
+def delete_rbac_workspace(workspace_id: str):
     if inventory_config().bypass_kessel:
         return True
 
@@ -642,7 +644,7 @@ def get_rbac_workspaces(
 def get_rbac_workspace_using_endpoint_and_headers(
     request_data: dict | None, rbac_endpoint: str, request_headers: dict
 ) -> dict[Any, Any] | None:
-    return _make_rbac_request(
+    return _execute_rbac_http_request(
         method="GET",
         rbac_endpoint=rbac_endpoint,
         request_headers=request_headers,

@@ -484,13 +484,14 @@ def test_patch_group_existing_name_same_org(db_create_group, db_get_group_by_id,
     assert updated_group.name.lower() == original_group.name.lower()
 
 
-@pytest.mark.usefixtures("enable_kessel", "event_producer")
-@pytest.mark.parametrize("kessel_response_status", [400, 401, 403])
+@pytest.mark.usefixtures("enable_kessel", "enable_rbac")
+@pytest.mark.parametrize("kessel_response_status", [400, 401, 403, 404])
 def test_patch_group_kessel_workspace_same_name_error(
     db_create_group, db_get_group_by_id, api_patch_group, kessel_response_status, mocker
 ):
     """
-    Test that patching a group fails when the Kessel API request returns a 400 error.
+    Test that patching a group fails when the Kessel API request returns a 4xx error.
+    This includes 404 to verify workspace-not-found scenarios are handled correctly.
     """
     # Create 2 groups
     existing_group = db_create_group("original_group_name")
