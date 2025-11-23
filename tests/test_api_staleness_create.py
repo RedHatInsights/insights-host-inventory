@@ -151,3 +151,65 @@ def test_create_staleness_ignores_immutable_fields(api_create_staleness, db_get_
     assert saved_data.conventional_time_to_stale == input_data["conventional_time_to_stale"]
     assert saved_data.conventional_time_to_stale_warning == input_data["conventional_time_to_stale_warning"]
     assert saved_data.conventional_time_to_delete == input_data["conventional_time_to_delete"]
+
+
+@pytest.mark.parametrize(
+    "input_data",
+    (
+        # Exactly at defaults
+        {
+            "conventional_time_to_stale": CONVENTIONAL_TIME_TO_STALE_SECONDS,
+            "conventional_time_to_stale_warning": CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS,
+            "conventional_time_to_delete": CONVENTIONAL_TIME_TO_DELETE_SECONDS,
+        },
+        # Within tolerance (60 seconds) of defaults
+        {
+            "conventional_time_to_stale": CONVENTIONAL_TIME_TO_STALE_SECONDS + 30,
+            "conventional_time_to_stale_warning": CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS - 30,
+            "conventional_time_to_delete": CONVENTIONAL_TIME_TO_DELETE_SECONDS + 60,
+        },
+        # At the edge of tolerance
+        {
+            "conventional_time_to_stale": CONVENTIONAL_TIME_TO_STALE_SECONDS + 60,
+            "conventional_time_to_stale_warning": CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS - 60,
+            "conventional_time_to_delete": CONVENTIONAL_TIME_TO_DELETE_SECONDS,
+        },
+        # Only one field within tolerance
+        {
+            "conventional_time_to_stale": CONVENTIONAL_TIME_TO_STALE_SECONDS + 10,
+        },
+    ),
+)
+def test_create_staleness_with_values_close_to_defaults(api_create_staleness, db_get_staleness_culling, input_data):
+    """Test that creating staleness with values close to defaults returns 200 and doesn't create a DB record."""
+    response_status, response_data = api_create_staleness(input_data)
+    # Should return 200 (not 201) since no custom staleness was created
+    assert_response_status(response_status, 200)
+
+    # Verify the response contains system defaults
+    assert response_data["conventional_time_to_stale"] == CONVENTIONAL_TIME_TO_STALE_SECONDS
+    assert response_data["conventional_time_to_stale_warning"] == CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
+    assert response_data["conventional_time_to_delete"] == CONVENTIONAL_TIME_TO_DELETE_SECONDS
+
+    # Verify no custom staleness record was created in the database
+    saved_org_id = response_data["org_id"]
+    saved_data = db_get_staleness_culling(saved_org_id)
+    assert saved_data is None
+
+
+def test_create_staleness_just_outside_tolerance(api_create_staleness, db_get_staleness_culling):
+    """Test that creating staleness just outside tolerance does create a DB record."""
+    input_data = {
+        "conventional_time_to_stale": CONVENTIONAL_TIME_TO_STALE_SECONDS + 61,  # Just outside 60 second tolerance
+        "conventional_time_to_stale_warning": CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS,
+        "conventional_time_to_delete": CONVENTIONAL_TIME_TO_DELETE_SECONDS,
+    }
+    response_status, response_data = api_create_staleness(input_data)
+    # Should return 201 since this is outside tolerance
+    assert_response_status(response_status, 201)
+
+    # Verify custom staleness record was created in the database
+    saved_org_id = response_data["org_id"]
+    saved_data = db_get_staleness_culling(saved_org_id)
+    assert saved_data is not None
+    assert saved_data.conventional_time_to_stale == input_data["conventional_time_to_stale"]
