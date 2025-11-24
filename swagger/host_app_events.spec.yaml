@@ -1,6 +1,31 @@
 ---
 $id: host_app_events.spec.yaml
 $schema: http://json-schema.org/draft-04/schema#
+title: HostAppEvents
+description: |
+  Schema specification for events consumed by Host-Based Inventory (HBI) from
+  downstream services (Advisor, Vulnerability, Patch, etc.) to populate
+  Inventory Views.
+
+  ## Overview
+
+  This schema defines the contract for the `platform.inventory.host-apps` topic.
+  Downstream services produce messages to this topic to update their specific
+  data columns in the Inventory read-model tables.
+
+  ## Message Structure
+
+  Each event is a Kafka message with:
+  - **Key**: The Organization ID (string)
+  - **Value**: JSON event payload containing the list of hosts and data
+  - **Headers**: Metadata including the application name (routing key)
+
+  ## Usage
+
+  HBI consumes this topic and routes data to the appropriate table based on the
+  `application` header.
+
+$ref: '#/$defs/KafkaMessage'
 $defs:
   HostAppMessageHeaders:
     description: Headers included in the Kafka message
@@ -192,30 +217,3 @@ $defs:
         description: Kafka message offset
         type: integer
         example: 12345
-
-title: HostAppEvents
-description: |
-  Schema specification for events consumed by Host-Based Inventory (HBI) from
-  downstream services (Advisor, Vulnerability, Patch, etc.) to populate
-  Inventory Views.
-
-  ## Overview
-
-  This schema defines the contract for the `platform.inventory.host-apps` topic.
-  Downstream services produce messages to this topic to update their specific
-  data columns in the Inventory read-model tables.
-
-  ## Message Structure
-
-  Each event is a Kafka message with:
-  - **Key**: The Organization ID (string)
-  - **Value**: JSON event payload containing the list of hosts and data
-  - **Headers**: Metadata including the application name (routing key)
-
-  ## Usage
-
-  HBI consumes this topic and routes data to the appropriate table based on the
-  `application` header.
-
-type: object
-$ref: '#/$defs/HostAppEvent'
