@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "6ab882c68f2a50bcc8ada1788a941e1dbca16de38a80bb4706bf278466d4a379"
+            "sha256": "7d5e6c0285b574a92ce34953315e22568d2074eeb9debf81ac9219067812b862"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -684,12 +684,12 @@
         },
         "kessel-sdk": {
             "hashes": [
-                "sha256:6e5274363a4326b76c9ab1e45dd2308de6d8e8f83618a6a4eef2b4adb4c41ec0",
-                "sha256:ca1510a490c243afb0eee6d6b409e3a401e4d9ae01c4d573f112861c9810572e"
+                "sha256:6f4e269757ffd7d322fb1ccc2a4be414c34901489ee0fa0b11bdbad3c8449fc4",
+                "sha256:c527b80c70ec0eeb9aa6d6cbd2d83da3b5372ebd10615569a91f2d60a2d13597"
             ],
             "index": "pypi",
             "markers": "python_version >= '3.11'",
-            "version": "==2.0.0"
+            "version": "==2.1.0"
         },
         "lazy-object-proxy": {
             "hashes": [
@@ -1611,11 +1611,11 @@
         },
         "types-protobuf": {
             "hashes": [
-                "sha256:22ba6133d142d11cc34d3788ad6dead2732368ebb0406eaa7790ea6ae46c8d0b",
-                "sha256:44ce0ae98475909ca72379946ab61a4435eec2a41090821e713c17e8faf5b88f"
+                "sha256:641002611ff87dd9fedc38a39a29cacb9907ae5ce61489b53e99ca2074bef764",
+                "sha256:a15109d38f7cfefd2539ef86d3f93a6a41c7cad53924f8aa1a51eaddbb72a660"
             ],
             "markers": "python_version >= '3.9'",
-            "version": "==6.32.1.20250918"
+            "version": "==6.32.1.20251105"
         },
         "typing-extensions": {
             "hashes": [
