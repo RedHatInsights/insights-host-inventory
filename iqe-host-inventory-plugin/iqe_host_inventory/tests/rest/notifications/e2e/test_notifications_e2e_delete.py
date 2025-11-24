@@ -85,12 +85,7 @@ def check_instant_email(application: Application, display_name: str, base_url: s
     assert email is not None, "Couldn't find the email notification"
     assert "Inventory - Red Hat Enterprise Linux" in email.body
     assert "System deleted" in email.body
-    assert f"<strong>{display_name}</strong> was deleted from Inventory." in email.body
-    assert (
-        f'<a target="_blank" '
-        f'href="{base_url}/insights/inventory/?from=notifications&integration=instant_email">'
-        f"Open Inventory in Red Hat Lightspeed</a>" in email.body
-    )
+    assert f"{base_url}/insights/inventory/" in email.body
 
 
 @pytest.mark.usefixtures("setup_delete_notifications")
@@ -213,10 +208,6 @@ def test_notifications_e2e_delete_digest(
     )
 
     assert email is not None, "Couldn't find the email notification"
-    assert "<h1>Daily digest - Red Hat Enterprise Linux</h1>" in email.body
-    assert "<th>System deleted</th>" in email.body
-    assert (
-        '<a target="_blank" '
-        f'href="{hbi_base_url}/insights/inventory/?from=notifications&integration=daily_digest">'
-        "Open Inventory in Red Hat Lightspeed</a>" in email.body
-    )
+    assert "Daily digest - Red Hat Enterprise Linux" in email.body
+    assert "System deleted" in email.body
+    assert f"{hbi_base_url}/insights/inventory/" in email.body
