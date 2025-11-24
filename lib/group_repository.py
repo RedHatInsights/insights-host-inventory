@@ -351,9 +351,7 @@ def delete_group_list(group_id_list: list[str], identity: Identity, event_produc
 
         serialized_groups, host_id_list = _update_hosts_for_group_changes(deleted_host_ids, new_group_list, identity)
 
-        db.session.commit()
-        db.session.expunge_all()
-
+    # session_guard commits and closes the session above this line
     _process_host_changes(host_id_list, serialized_groups, staleness, identity, event_producer)
     return deletion_count
 
