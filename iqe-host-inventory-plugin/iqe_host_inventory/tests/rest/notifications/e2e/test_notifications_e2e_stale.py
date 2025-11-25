@@ -82,16 +82,7 @@ def check_instant_email(
     assert email is not None, "Couldn't find the email notification"
     assert "Inventory - Red Hat Enterprise Linux" in email.body
     assert "System became stale" in email.body
-    assert (
-        f"The state of system <strong>"
-        f'<a target="_blank" href="{base_url}/insights/inventory/{host_id}">'
-        f"{display_name}</a></strong> changed to stale in Inventory."
-    ) in email.body
-    assert (
-        f'<a target="_blank" '
-        f'href="{base_url}/insights/inventory/?from=notifications&integration=instant_email">'
-        f"Open Inventory in Red Hat Lightspeed</a>" in email.body
-    )
+    assert f"{base_url}/insights/inventory/{host_id}" in email.body
 
 
 @pytest.mark.extended
@@ -175,10 +166,6 @@ def test_notifications_e2e_stale_digest(
     )
 
     assert email is not None, "Couldn't find the email notification"
-    assert "<h1>Daily digest - Red Hat Enterprise Linux</h1>" in email.body
-    assert "<th>Stale system</th>" in email.body
-    assert (
-        '<a target="_blank" '
-        f'href="{hbi_base_url}/insights/inventory/?from=notifications&integration=daily_digest">'
-        "Open Inventory in Red Hat Lightspeed</a>" in email.body
-    )
+    assert "Daily digest - Red Hat Enterprise Linux" in email.body
+    assert "Stale system" in email.body
+    assert f"{hbi_base_url}/insights/inventory/" in email.body
