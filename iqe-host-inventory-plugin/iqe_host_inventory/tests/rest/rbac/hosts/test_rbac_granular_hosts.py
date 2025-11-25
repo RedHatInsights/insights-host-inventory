@@ -20,7 +20,6 @@ from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.datagen_utils import generate_uuid
 from iqe_host_inventory.utils.datagen_utils import get_default_operating_system
 from iqe_host_inventory.utils.rbac_utils import RBACInventoryPermission
-from iqe_host_inventory_api import HostOut
 
 pytestmark = [
     pytest.mark.backend,
