@@ -25,6 +25,7 @@ from app.auth import get_current_identity
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
 from app.auth.rbac import KesselPermission
+from app.auth.rbac import KesselResourceType
 from app.auth.rbac import KesselResourceTypes
 from app.auth.rbac import RbacPermission
 from app.auth.rbac import RbacResourceType
@@ -288,6 +289,38 @@ def get_kessel_filter(
         return True, {"groups": workspaces}
 
 
+def _check_resource_exists(resource_type: KesselResourceType, ids: list[str]) -> bool:
+    """
+    Check if a resource exists in the database.
+
+    Args:
+        resource_type: The Kessel resource type
+        ids: List of resource IDs to check
+
+    Returns:
+        True if all resources exist, False otherwise
+    """
+    from lib.group_repository import get_groups_by_id_list_from_db
+    from lib.host_repository import find_existing_hosts_by_id_list
+
+    if not ids:
+        return True
+
+    current_identity = get_current_identity()
+
+    # Check based on resource type
+    if resource_type.name == "host":
+        # Check if all hosts exist
+        return len(find_existing_hosts_by_id_list(current_identity, ids)) == len(ids)
+    elif resource_type.name == "workspace":
+        # Check if all groups/workspaces exist
+        return len(get_groups_by_id_list_from_db(ids, current_identity.org_id)) == len(ids)
+    else:
+        # For other resource types, we can't check existence, so return True
+        # (assume they exist to preserve original 403 behavior)
+        return True
+
+
 def rbac(resource_type: RbacResourceType, required_permission: RbacPermission, permission_base: str = "inventory"):
     def other_func(func):
         @wraps(func)
@@ -342,12 +375,15 @@ def access(permission: KesselPermission, id_param: str = ""):
 
             allowed = None
             rbac_filter = None
+            ids = []
+            # Extract resource IDs if an id_param is provided
+            if id_param:
+                ids = permission.resource_type.get_resource_id(kwargs, id_param)
+
             if get_flag_value(
                 FLAG_INVENTORY_KESSEL_PHASE_1
             ):  # Workspace permissions aren't part of HBI in V2, fallback to rbac for now.
                 kessel_client = get_kessel_client(current_app)
-                ids = permission.resource_type.get_resource_id(kwargs, id_param)
-
                 allowed, rbac_filter = get_kessel_filter(kessel_client, current_identity, permission, ids)
             else:
                 allowed, rbac_filter = get_rbac_filter(
@@ -363,6 +399,10 @@ def access(permission: KesselPermission, id_param: str = ""):
                     kwargs["rbac_filter"] = rbac_filter
                 return func(*args, **kwargs)
             else:
+                # When permission is denied and we have an id_param, check if the resource exists
+                # If it doesn't exist, return 404 instead of 403
+                if id_param and ids and not _check_resource_exists(permission.resource_type, ids):
+                    abort(HTTPStatus.NOT_FOUND)
                 abort(HTTPStatus.FORBIDDEN)
 
         return modified_func
