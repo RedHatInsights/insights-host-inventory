@@ -90,8 +90,7 @@ class HostsApi:
         for key, val in local_var_params["kwargs"].items():
             if key not in all_params:
                 raise ApiTypeError(
-                    f"Got an unexpected keyword argument '{key}'"
-                    " to method api_host_delete_all_hosts"
+                    f"Got an unexpected keyword argument '{key}' to method api_host_delete_all_hosts"
                 )
             local_var_params[key] = val
         del local_var_params["kwargs"]
@@ -199,8 +198,7 @@ class HostsApi:
         for key, val in local_var_params["kwargs"].items():
             if key not in all_params:
                 raise ApiTypeError(
-                    f"Got an unexpected keyword argument '{key}'"
-                    " to method api_host_delete_host_by_id"
+                    f"Got an unexpected keyword argument '{key}' to method api_host_delete_host_by_id"
                 )
             local_var_params[key] = val
         del local_var_params["kwargs"]
@@ -363,8 +361,7 @@ class HostsApi:
         for key, val in local_var_params["kwargs"].items():
             if key not in all_params:
                 raise ApiTypeError(
-                    f"Got an unexpected keyword argument '{key}'"
-                    " to method api_host_delete_hosts_by_filter"
+                    f"Got an unexpected keyword argument '{key}' to method api_host_delete_hosts_by_filter"
                 )
             local_var_params[key] = val
         del local_var_params["kwargs"]
@@ -665,8 +662,7 @@ class HostsApi:
         for key, val in local_var_params["kwargs"].items():
             if key not in all_params:
                 raise ApiTypeError(
-                    f"Got an unexpected keyword argument '{key}'"
-                    " to method api_host_get_host_exists"
+                    f"Got an unexpected keyword argument '{key}' to method api_host_get_host_exists"
                 )
             local_var_params[key] = val
         del local_var_params["kwargs"]
@@ -1030,8 +1026,7 @@ class HostsApi:
         for key, val in local_var_params["kwargs"].items():
             if key not in all_params:
                 raise ApiTypeError(
-                    f"Got an unexpected keyword argument '{key}'"
-                    " to method api_host_get_host_system_profile_by_id"
+                    f"Got an unexpected keyword argument '{key}' to method api_host_get_host_system_profile_by_id"
                 )
             local_var_params[key] = val
         del local_var_params["kwargs"]
@@ -1165,8 +1160,7 @@ class HostsApi:
         for key, val in local_var_params["kwargs"].items():
             if key not in all_params:
                 raise ApiTypeError(
-                    f"Got an unexpected keyword argument '{key}'"
-                    " to method api_host_get_host_tag_count"
+                    f"Got an unexpected keyword argument '{key}' to method api_host_get_host_tag_count"
                 )
             local_var_params[key] = val
         del local_var_params["kwargs"]
@@ -1687,8 +1681,7 @@ class HostsApi:
         for key, val in local_var_params["kwargs"].items():
             if key not in all_params:
                 raise ApiTypeError(
-                    f"Got an unexpected keyword argument '{key}'"
-                    " to method api_host_patch_host_by_id"
+                    f"Got an unexpected keyword argument '{key}' to method api_host_patch_host_by_id"
                 )
             local_var_params[key] = val
         del local_var_params["kwargs"]

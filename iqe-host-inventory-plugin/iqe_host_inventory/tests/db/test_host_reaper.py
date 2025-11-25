@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 def execute_reaper():
-    reaper_file = str(get_data_path_for_plugin("host_inventory").joinpath("start-reaper.yaml"))  # type: ignore[union-attr]
+    reaper_file = str(get_data_path_for_plugin("host_inventory").joinpath("start-reaper.yaml"))
     logger.info("Executing the host reaper...")
     job_invocation = oc("apply", "-f", reaper_file, "-o", "name").stdout.decode("utf-8").strip()
     logger.info("Getting the host reaper job name")

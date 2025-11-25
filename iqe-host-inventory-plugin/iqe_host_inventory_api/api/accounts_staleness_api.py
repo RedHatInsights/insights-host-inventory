@@ -90,8 +90,7 @@ class AccountsStalenessApi:
         for key, val in local_var_params["kwargs"].items():
             if key not in all_params:
                 raise ApiTypeError(
-                    f"Got an unexpected keyword argument '{key}'"
-                    " to method api_staleness_create_staleness"
+                    f"Got an unexpected keyword argument '{key}' to method api_staleness_create_staleness"
                 )
             local_var_params[key] = val
         del local_var_params["kwargs"]
@@ -207,8 +206,7 @@ class AccountsStalenessApi:
         for key, val in local_var_params["kwargs"].items():
             if key not in all_params:
                 raise ApiTypeError(
-                    f"Got an unexpected keyword argument '{key}'"
-                    " to method api_staleness_delete_staleness"
+                    f"Got an unexpected keyword argument '{key}' to method api_staleness_delete_staleness"
                 )
             local_var_params[key] = val
         del local_var_params["kwargs"]
@@ -307,8 +305,7 @@ class AccountsStalenessApi:
         for key, val in local_var_params["kwargs"].items():
             if key not in all_params:
                 raise ApiTypeError(
-                    f"Got an unexpected keyword argument '{key}'"
-                    " to method api_staleness_get_default_staleness"
+                    f"Got an unexpected keyword argument '{key}' to method api_staleness_get_default_staleness"
                 )
             local_var_params[key] = val
         del local_var_params["kwargs"]
@@ -410,8 +407,7 @@ class AccountsStalenessApi:
         for key, val in local_var_params["kwargs"].items():
             if key not in all_params:
                 raise ApiTypeError(
-                    f"Got an unexpected keyword argument '{key}'"
-                    " to method api_staleness_get_staleness"
+                    f"Got an unexpected keyword argument '{key}' to method api_staleness_get_staleness"
                 )
             local_var_params[key] = val
         del local_var_params["kwargs"]
@@ -515,8 +511,7 @@ class AccountsStalenessApi:
         for key, val in local_var_params["kwargs"].items():
             if key not in all_params:
                 raise ApiTypeError(
-                    f"Got an unexpected keyword argument '{key}'"
-                    " to method api_staleness_update_staleness"
+                    f"Got an unexpected keyword argument '{key}' to method api_staleness_update_staleness"
                 )
             local_var_params[key] = val
         del local_var_params["kwargs"]

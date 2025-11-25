@@ -30,30 +30,30 @@ class HBICleanupRegistry:
 
 
 @pytest.fixture(scope="session")
-def hbi_cleanup_session() -> Generator[HBICleanupRegistry]:
+def hbi_cleanup_session() -> Generator[HBICleanupRegistry, None, None]:
     with HBICleanupRegistry("session") as cleanup:
         yield cleanup
 
 
 @pytest.fixture(scope="package")
-def hbi_cleanup_package() -> Generator[HBICleanupRegistry]:
+def hbi_cleanup_package() -> Generator[HBICleanupRegistry, None, None]:
     with HBICleanupRegistry("package") as cleanup:
         yield cleanup
 
 
 @pytest.fixture(scope="module")
-def hbi_cleanup_module() -> Generator[HBICleanupRegistry]:
+def hbi_cleanup_module() -> Generator[HBICleanupRegistry, None, None]:
     with HBICleanupRegistry("module") as cleanup:
         yield cleanup
 
 
 @pytest.fixture(scope="class")
-def hbi_cleanup_class() -> Generator[HBICleanupRegistry]:
+def hbi_cleanup_class() -> Generator[HBICleanupRegistry, None, None]:
     with HBICleanupRegistry("class") as cleanup:
         yield cleanup
 
 
 @pytest.fixture(scope="function")
-def hbi_cleanup_function() -> Generator[HBICleanupRegistry]:
+def hbi_cleanup_function() -> Generator[HBICleanupRegistry, None, None]:
     with HBICleanupRegistry("function") as cleanup:
         yield cleanup

@@ -83,7 +83,7 @@ def setup_ui_empty_workspace_module(
     workspaces_collection: WorkspaceCollection,
     hbi_application_frontend: Generator[Application, None, None],
 ) -> Generator[Workspace, None, None]:
-    with hbi_application_frontend.context.use(ViaREST):  # type: ignore[attr-defined]
+    with hbi_application_frontend.context.use(ViaREST):
         workspace = workspaces_collection.create(generate_workspace_name(), cleanup_scope="module")
 
     yield workspace
@@ -94,7 +94,7 @@ def setup_ui_empty_workspace(
     workspaces_collection: WorkspaceCollection,
     hbi_application_frontend: Generator[Application, None, None],
 ) -> Generator[Workspace, None, None]:
-    with hbi_application_frontend.context.use(ViaREST):  # type: ignore[attr-defined]
+    with hbi_application_frontend.context.use(ViaREST):
         workspace = workspaces_collection.create(generate_workspace_name())
 
     yield workspace
@@ -168,7 +168,7 @@ def setup_ui_workspace_with_multiple_hosts(
         hosts_data=hosts_data, cleanup_scope="module"
     )
 
-    with hbi_application_frontend.context.use(ViaREST):  # type: ignore[attr-defined]
+    with hbi_application_frontend.context.use(ViaREST):
         workspace = workspaces_collection.create(
             generate_workspace_name(UNIQUE_UI_ID), systems=systems, cleanup_scope="module"
         )

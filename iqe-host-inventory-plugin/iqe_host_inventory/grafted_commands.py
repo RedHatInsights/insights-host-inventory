@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import Any
 
 import click
-import requests.exceptions  # type: ignore[import-untyped]
+import requests.exceptions
 from iqe.base.application import Application
 
 from iqe_host_inventory import ApplicationHostInventory

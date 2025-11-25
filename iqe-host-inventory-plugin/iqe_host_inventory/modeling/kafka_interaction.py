@@ -517,7 +517,7 @@ class HBIKafkaActions(BaseEntity):
         )
 
     def _walk_events(self, *, timeout: int) -> Iterator[Message]:
-        yield from self._consumer.walk_messages(timeout=timeout, wrap=False)  # type: ignore[call-overload]
+        yield from self._consumer.walk_messages(timeout=timeout, wrap=False)
 
     def _walk_events_with_wrappers(
         self, *, timeout: int

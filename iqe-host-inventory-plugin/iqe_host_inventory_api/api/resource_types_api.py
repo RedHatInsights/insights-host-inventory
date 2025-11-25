@@ -207,8 +207,7 @@ class ResourceTypesApi:
         for key, val in local_var_params["kwargs"].items():
             if key not in all_params:
                 raise ApiTypeError(
-                    f"Got an unexpected keyword argument '{key}'"
-                    " to method api_resource_type_get_resource_type_list"
+                    f"Got an unexpected keyword argument '{key}' to method api_resource_type_get_resource_type_list"
                 )
             local_var_params[key] = val
         del local_var_params["kwargs"]
