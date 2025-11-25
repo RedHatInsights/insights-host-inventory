@@ -32,18 +32,11 @@ POD=$(bonfire deploy-iqe-cji $COMPONENT_NAME \
     --cji-name "iqe-local-${IMAGE_TAG}" \
     ${IQE_PLUGINS:+--plugins "$IQE_PLUGINS"} \
     ${IQE_IMAGE_TAG:+--image-tag "$IQE_IMAGE_TAG"} \
-    -n "$NAMESPACE" 2>&1 | grep -oP '(?<=Pod name: ).*' || echo "")
+    -n "$NAMESPACE")
 
 if [ -z "$POD" ]; then
-    echo "ERROR: Failed to get POD name from bonfire deploy-iqe-cji command"
-    echo "Trying alternative method to find the pod..."
-    sleep 5
-    POD=$(oc get pods -n $NAMESPACE -l job-name --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1:].metadata.name}')
-
-    if [ -z "$POD" ]; then
-        echo "ERROR: Still could not find the pod"
-        exit 1
-    fi
+    echo "ERROR: Failed to deploy the IQE CJI pod"
+    exit 1
 fi
 
 echo "CJI Pod: $POD"
