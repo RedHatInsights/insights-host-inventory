@@ -74,7 +74,7 @@ echo "Running tests with local plugin..."
 echo "========================================================"
 
 # Build the IQE test command
-IQE_CMD="iqe tests plugin host_inventory -m \"$IQE_MARKER_EXPRESSION\""
+IQE_CMD="iqe tests plugin host_inventory -vvv -m \"$IQE_MARKER_EXPRESSION\""
 if [ -n "$IQE_FILTER_EXPRESSION" ]; then
     IQE_CMD="$IQE_CMD -k \"$IQE_FILTER_EXPRESSION\""
 fi
