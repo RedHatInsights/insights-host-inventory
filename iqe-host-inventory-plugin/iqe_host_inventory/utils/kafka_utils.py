@@ -25,6 +25,7 @@ from iqe_host_inventory.modeling.wrappers import HostMessageWrapper
 from iqe_host_inventory.modeling.wrappers import HostWrapper
 from iqe_host_inventory.modeling.wrappers import KafkaMessageNotFoundError
 from iqe_host_inventory.utils import assert_datetimes_equal
+from iqe_host_inventory.utils.datagen_utils import HOST_FIELDS
 from iqe_host_inventory.utils.datagen_utils import generate_user_identity
 from iqe_host_inventory.utils.datagen_utils import generate_uuid
 from iqe_host_inventory.utils.staleness_utils import validate_staleness_timestamps
@@ -405,15 +406,6 @@ def check_mq_create_or_update_event_host_data(
     else:
         assert event_host_data.pop("id") == host_id
 
-    if expected_host_data.get("insights_id") is None:
-        assert event_host_data.pop("insights_id") is None
-    if expected_host_data.get("provider_id") is None:
-        assert event_host_data.pop("provider_id") is None
-    if expected_host_data.get("provider_type") is None:
-        assert event_host_data.pop("provider_type") is None
-    if expected_host_data.get("openshift_cluster_id") is None:
-        assert event_host_data.pop("openshift_cluster_id") is None
-
     # Compare the main group data, but not the timestamps
     event_group_list = event_host_data.pop("groups")
 
@@ -428,7 +420,11 @@ def check_mq_create_or_update_event_host_data(
         # If no groups are provided, the host should be in the ungrouped group
         assert event_group_list[0].get("ungrouped") is True
 
-    assert event_host_data == expected_host_data
+    for field in HOST_FIELDS:
+        if expected_host_data.get(field.name) is None:
+            assert event_host_data.pop(field.name, None) is None
+
+    assert event_host_data == expected_host_data, f"{event_host_data} != {expected_host_data}"
 
 
 def is_uuid(value: str) -> bool:

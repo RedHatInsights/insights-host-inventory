@@ -1298,16 +1298,19 @@ def create_host_data(
         data["org_id"] = org_id
     if account_number is not None:
         data["account"] = account_number
+
     # host_type has only one valid value; ignore everything else for now
     if host_type is not None and host_type == "edge":
         assert include_sp, "Setting 'host_type' requires 'include_sp' to be True"
         data["system_profile"]["host_type"] = host_type  # type: ignore[index]
-    for uuid_key in (x for x in HOST_FIELDS if "uuid" in x.type):
-        data[uuid_key.name] = identifiers
+
+    for field in ("insights_id", "subscription_manager_id"):
+        data[field] = identifiers
 
     data["display_name"] = generate_display_name(name_prefix)
     data["ansible_host"] = fake.hostname()
     data["fqdn"] = generate_fqdn(name_prefix)
+    data["bios_uuid"] = generate_uuid()
 
     data["ip_addresses"] = generate_ips()
     data["mac_addresses"] = generate_macs()
