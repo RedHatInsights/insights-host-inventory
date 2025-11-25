@@ -409,6 +409,13 @@ def get_group_by_id_from_db(group_id: str, org_id: str, session: Session | None 
     return query.one_or_none()
 
 
+def get_groups_by_id_list_from_db(
+    group_id_list: list[str], org_id: str, session: Session | None = None
+) -> list[Group]:
+    session = session or db.session
+    return session.query(Group).filter(Group.org_id == org_id, Group.id.in_(group_id_list)).all()
+
+
 def patch_group(group: Group, patch_data: dict, identity: Identity, event_producer: EventProducer):
     group_id = group.id
     host_id_data = patch_data.get("host_ids")

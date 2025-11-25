@@ -300,8 +300,8 @@ def _check_resource_exists(resource_type: KesselResourceType, ids: list[str]) ->
     Returns:
         True if all resources exist, False otherwise
     """
-    from lib.group_repository import get_group_by_id_from_db
-    from lib.host_repository import find_existing_host_by_id
+    from lib.group_repository import get_groups_by_id_list_from_db
+    from lib.host_repository import find_existing_hosts_by_id_list
 
     if not ids:
         return True
@@ -311,10 +311,10 @@ def _check_resource_exists(resource_type: KesselResourceType, ids: list[str]) ->
     # Check based on resource type
     if resource_type.name == "host":
         # Check if all hosts exist
-        return all(find_existing_host_by_id(current_identity, host_id) for host_id in ids)
+        return len(find_existing_hosts_by_id_list(current_identity, ids)) == len(ids)
     elif resource_type.name == "workspace":
         # Check if all groups/workspaces exist
-        return all(get_group_by_id_from_db(group_id, current_identity.org_id) for group_id in ids)
+        return len(get_groups_by_id_list_from_db(ids, current_identity.org_id)) == len(ids)
     else:
         # For other resource types, we can't check existence, so return True
         # (assume they exist to preserve original 403 behavior)
