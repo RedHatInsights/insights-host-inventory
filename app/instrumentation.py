@@ -356,3 +356,10 @@ def log_update_group_via_mq(logger, group_id):
 
 def log_delete_groups_via_mq(logger, num_deleted, group_id):
     logger.info(f"{num_deleted} groups deleted via MQ with ID: {group_id}")
+
+
+def log_host_app_data_upsert_via_mq(logger, application, org_id, host_ids):
+    logger.info(
+        f"Successfully processed host app data from {application}",
+        extra={"application": application, "org_id": org_id, "host_ids": host_ids},
+    )

@@ -6,6 +6,7 @@ import sys
 import uuid
 from collections.abc import Callable
 from copy import deepcopy
+from datetime import datetime
 from functools import partial
 from typing import Any
 from uuid import UUID
@@ -41,6 +42,7 @@ from app.instrumentation import log_add_update_host_succeeded
 from app.instrumentation import log_create_group_via_mq
 from app.instrumentation import log_db_access_failure
 from app.instrumentation import log_delete_groups_via_mq
+from app.instrumentation import log_host_app_data_upsert_via_mq
 from app.instrumentation import log_update_group_via_mq
 from app.instrumentation import log_update_system_profile_failure
 from app.instrumentation import log_update_system_profile_success
@@ -49,6 +51,8 @@ from app.logging import threadctx
 from app.models import Host
 from app.models import LimitedHostSchema
 from app.models import db
+from app.models import host_app_data
+from app.models import schemas as model_schemas
 from app.models.system_profile_static import HostStaticSystemProfile
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
@@ -68,6 +72,7 @@ from app.serialization import remove_null_canonical_facts
 from app.serialization import serialize_host
 from app.staleness_serialization import AttrDict
 from lib import group_repository
+from lib import host_app_repository
 from lib import host_repository
 from lib.db import session_guard
 from lib.feature_flags import FLAG_INVENTORY_REJECT_RHSM_PAYLOADS
@@ -142,6 +147,17 @@ class DebeziumEnvelopeSchema(Schema):
     payload = fields.Str(required=True)
 
 
+class HostAppDataSchema(Schema):
+    id = fields.UUID(required=True)
+    data = fields.Dict(required=True)
+
+
+class HostAppOperationSchema(Schema):
+    org_id = fields.Str(required=True)
+    timestamp = fields.DateTime(required=True)
+    hosts = fields.List(fields.Nested(HostAppDataSchema), required=True)
+
+
 # Helper class to facilitate batch operations
 class OperationResult:
     def __init__(
@@ -175,11 +191,32 @@ class HBIMessageConsumerBase:
         self.notification_event_producer = notification_event_producer
         self.processed_rows: list[OperationResult] = []
 
+    @property
+    def success_metric(self):
+        """
+        Property that returns the success counter metric for this consumer.
+        Subclasses can override to use consumer-specific metrics.
+        """
+        return metrics.ingress_message_handler_success
+
+    @property
+    def failure_metric(self):
+        """
+        Property that returns the failure counter metric for this consumer.
+        Subclasses can override to use consumer-specific metrics.
+        """
+        return metrics.ingress_message_handler_failure
+
     def process_message(self, *args, **kwargs):
         raise NotImplementedError("Not implemented in the HBIMessageConsumerBase class")
 
-    @metrics.ingress_message_handler_time.time()
-    def handle_message(self, *args, **kwargs) -> OperationResult | None:
+    def handle_message(self, message: str | bytes, headers: list[tuple[str, bytes]] | None = None) -> OperationResult:
+        """
+        Process a message from Kafka.
+
+        Subclasses must override this method and should apply their own
+        timing metric decorator (e.g., @metrics.ingress_message_handler_time.time())
+        """
         raise NotImplementedError("Not implemented in the HBIMessageConsumerBase class")
 
     def post_process_rows(self) -> None:
@@ -207,14 +244,14 @@ class HBIMessageConsumerBase:
                     # KafkaError{code=UNKNOWN_TOPIC_OR_PART,val=3,str="Subscribed topic not available:
                     #   platform.inventory.host-ingress: Broker: Unknown topic or partition"}
                     logger.error(f"Message received but has an error, which is {str(msg.error())}")
-                    metrics.ingress_message_handler_failure.inc()
+                    self.failure_metric.inc()
                 else:
                     logger.debug("Message received")
 
                     try:
-                        self.processed_rows.append(self.handle_message(msg.value()))
+                        self.processed_rows.append(self.handle_message(msg.value(), headers=msg.headers()))
                         metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
-                        metrics.ingress_message_handler_success.inc()
+                        self.success_metric.inc()
                     except OperationalError as oe:
                         """sqlalchemy.exc.OperationalError: This error occurs when an
                         authentication failure occurs or the DB is not accessible.
@@ -223,7 +260,7 @@ class HBIMessageConsumerBase:
                         logger.error(f"Could not access DB {str(oe)}")
                         sys.exit(3)
                     except Exception:
-                        metrics.ingress_message_handler_failure.inc()
+                        self.failure_metric.inc()
                         logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
 
         self.post_process_rows()
@@ -253,7 +290,7 @@ class HBIMessageConsumerBase:
                             has been modified by another transaction.
                             Note: session_guard already calls rollback() when an exception occurs.
                             """
-                            metrics.ingress_message_handler_failure.inc()
+                            self.failure_metric.inc()
 
                             if attempt < MAX_RETRIES:
                                 logger.warning(
@@ -273,7 +310,7 @@ class HBIMessageConsumerBase:
 
 class WorkspaceMessageConsumer(HBIMessageConsumerBase):
     @metrics.ingress_message_handler_time.time()
-    def handle_message(self, message: str | bytes):
+    def handle_message(self, message: str | bytes, headers: list[tuple[str, bytes]] | None = None):
         payload_schema = parse_operation_message(message, DebeziumEnvelopeSchema)
         validated_operation_msg = parse_operation_message(payload_schema["payload"], WorkspaceOperationSchema)
         initialize_thread_local_storage(None)  # No request_id for workspace MQ
@@ -354,7 +391,7 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
 
 class HostMessageConsumer(HBIMessageConsumerBase):
     @metrics.ingress_message_handler_time.time()
-    def handle_message(self, message: str | bytes) -> OperationResult:
+    def handle_message(self, message: str | bytes, headers: list[tuple[str, bytes]] | None = None) -> OperationResult:
         validated_operation_msg = parse_operation_message(message, HostOperationSchema)
         platform_metadata = validated_operation_msg.get("platform_metadata", {})
 
@@ -520,6 +557,208 @@ class SystemProfileMessageConsumer(HostMessageConsumer):
             raise
 
 
+class HostAppMessageConsumer(HBIMessageConsumerBase):
+    """Consumer for host application data from downstream services (Advisor, Vulnerability, Patch, etc.)."""
+
+    # Mapping of application names to their corresponding model and schema classes
+    APPLICATION_MAP = {
+        "advisor": ("HostAppDataAdvisor", "AdvisorDataSchema"),
+        "vulnerability": ("HostAppDataVulnerability", "VulnerabilityDataSchema"),
+        "patch": ("HostAppDataPatch", "PatchDataSchema"),
+        "remediations": ("HostAppDataRemediations", "RemediationsDataSchema"),
+        "compliance": ("HostAppDataCompliance", "ComplianceDataSchema"),
+        "malware": ("HostAppDataMalware", "MalwareDataSchema"),
+        "image_builder": ("HostAppDataImageBuilder", "ImageBuilderDataSchema"),
+    }
+
+    @metrics.host_app_message_handler_time.time()
+    def handle_message(self, message: str | bytes, headers: list[tuple[str, bytes]]) -> OperationResult:
+        application, request_id = self._extract_headers(headers)
+
+        if not application:
+            logger.error("Missing 'application' in Kafka message headers")
+            metrics.host_app_data_validation_failure.labels(
+                application="unknown", reason="missing_application_header"
+            ).inc()
+            raise ValidationException("Missing 'application' field in Kafka message headers")
+
+        if application not in self.APPLICATION_MAP:
+            logger.error(f"Unknown application: {application}")
+            metrics.host_app_data_validation_failure.labels(
+                application=application, reason="unknown_application"
+            ).inc()
+            raise ValidationException(f"Unknown application: {application}")
+
+        initialize_thread_local_storage(request_id)
+
+        try:
+            validated_msg = parse_operation_message(message, HostAppOperationSchema)
+        except (json.JSONDecodeError, UnicodeEncodeError):
+            metrics.host_app_data_parsing_failure.labels(application=application).inc()
+            raise
+        except ValidationError as e:
+            logger.exception(
+                f"Schema validation failed for application {application}",
+                extra={"application": application, "error": str(e)},
+            )
+            metrics.host_app_data_validation_failure.labels(
+                application=application, reason="schema_validation_error"
+            ).inc()
+            raise
+        except Exception as e:
+            logger.exception(
+                f"Unexpected error during validation for application {application}",
+                extra={"application": application, "error": str(e)},
+            )
+            metrics.host_app_data_processing_failure.labels(
+                application=application, reason="unexpected_validation_error"
+            ).inc()
+            raise
+
+        return self.process_message(application, validated_msg)
+
+    def process_message(self, application: str, validated_msg: dict[str, Any]) -> OperationResult:
+        org_id = validated_msg["org_id"]
+        timestamp = validated_msg["timestamp"]
+        hosts = validated_msg["hosts"]
+
+        logger.info(
+            f"Processing host app data message from {application}",
+            extra={"application": application, "org_id": org_id, "host_count": len(hosts)},
+        )
+
+        model_class, schema_class = self._get_app_classes(application)
+        valid_hosts_list = self._validate_and_prepare_hosts(hosts, schema_class, application, org_id, timestamp)
+
+        if not valid_hosts_list:
+            logger.warning(f"No valid hosts to process for application {application}")
+            return OperationResult(
+                None,
+                None,
+                None,
+                None,
+                None,
+                partial(log_host_app_data_upsert_via_mq, logger, application, org_id, []),
+            )
+
+        self._upsert_hosts(model_class, application, org_id, valid_hosts_list)
+
+        host_ids = [str(host["host_id"]) for host in valid_hosts_list]
+        return OperationResult(
+            None,
+            None,
+            None,
+            None,
+            None,
+            partial(log_host_app_data_upsert_via_mq, logger, application, org_id, host_ids),
+        )
+
+    def _extract_headers(self, headers: list[tuple[str, bytes]]) -> tuple[str | None, str | None]:
+        application = None
+        request_id = None
+
+        if headers:
+            for key, value in headers:
+                if key == "application":
+                    application = value.decode("utf-8") if isinstance(value, bytes) else value
+                elif key == "request_id":
+                    request_id = value.decode("utf-8") if isinstance(value, bytes) else value
+
+        return application, request_id
+
+    def _get_app_classes(self, application: str) -> tuple[type, type]:
+        model_class_name, schema_class_name = self.APPLICATION_MAP[application]
+        model_class = getattr(host_app_data, model_class_name)
+        schema_class = getattr(model_schemas, schema_class_name)
+        return model_class, schema_class
+
+    def _validate_and_prepare_hosts(
+        self,
+        hosts: list[dict],
+        schema_class: type,
+        application: str,
+        org_id: str,
+        timestamp: datetime,
+    ) -> list[dict]:
+        valid_hosts_list = []
+
+        for host_item in hosts:
+            host_id = host_item["id"]
+            host_data = host_item["data"]
+
+            try:
+                validated_data = schema_class().load(host_data)
+            except ValidationError as e:
+                logger.error(
+                    f"Data validation error for host {host_id} from {application}",
+                    extra={"host_id": host_id, "application": application, "errors": e.messages},
+                )
+                metrics.host_app_data_validation_failure.labels(
+                    application=application, reason="invalid_host_data"
+                ).inc()
+                continue
+            except Exception as e:
+                logger.exception(
+                    f"Unexpected error validating data for host {host_id} from {application}",
+                    extra={"host_id": host_id, "application": application, "error": str(e)},
+                )
+                metrics.host_app_data_validation_failure.labels(
+                    application=application, reason="unexpected_data_validation_error"
+                ).inc()
+                continue
+
+            # Prepare row for upsert
+            row_data = {
+                "org_id": org_id,
+                "host_id": host_id,
+                "last_updated": timestamp,
+                **validated_data,
+            }
+            valid_hosts_list.append(row_data)
+
+        return valid_hosts_list
+
+    def _upsert_hosts(self, model_class: type, application: str, org_id: str, hosts_data: list[dict]) -> None:
+        try:
+            success_count = host_app_repository.upsert_host_app_data(
+                model_class=model_class,
+                application=application,
+                org_id=org_id,
+                hosts_data=hosts_data,
+            )
+            metrics.host_app_data_processing_success.labels(application=application, org_id=org_id).inc(success_count)
+
+        except OperationalError as e:
+            logger.exception(
+                f"Database operational error while upserting host app data for {application}",
+                extra={"application": application, "org_id": org_id, "error": str(e)},
+            )
+            metrics.host_app_data_processing_failure.labels(
+                application=application, reason="db_operational_error"
+            ).inc()
+            raise
+        except IntegrityError as e:
+            logger.exception(
+                f"Database integrity error while upserting host app data for {application}",
+                extra={"application": application, "org_id": org_id, "error": str(e)},
+            )
+            metrics.host_app_data_processing_failure.labels(application=application, reason="db_integrity_error").inc()
+            raise
+        except Exception as e:
+            logger.exception(
+                f"Unexpected error while upserting host app data for {application}",
+                extra={"application": application, "org_id": org_id, "error": str(e)},
+            )
+            metrics.host_app_data_processing_failure.labels(application=application, reason="unexpected_error").inc()
+            raise
+
+    def post_process_rows(self) -> None:
+        """Process the results after batch commit - call success loggers."""
+        for processed_row in self.processed_rows:
+            if processed_row and hasattr(processed_row, "success_logger") and callable(processed_row.success_logger):
+                processed_row.success_logger()
+
+
 def _pg_notify_workspace(operation: str, id: str):
     conn = db.session.connection().connection
     conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
@@ -632,32 +871,51 @@ def _validate_json_object_for_utf8(json_object):
         pass
 
 
-@metrics.ingress_message_parsing_time.time()
-def parse_operation_message(message: str | bytes, schema: type[Schema]):
-    parsed_message = common_message_parser(message)
+def parse_operation_message(
+    message: str | bytes,
+    schema: type[Schema],
+    parsing_time_metric=metrics.ingress_message_parsing_time,
+    parsing_failure_metric=metrics.ingress_message_parsing_failure,
+):
+    """
+    Parse and validate an operation message.
 
-    try:
-        _validate_json_object_for_utf8(parsed_message)
-    except UnicodeEncodeError:
-        logger.exception("Invalid Unicode sequence in message from message queue", extra={"incoming_message": message})
-        metrics.ingress_message_parsing_failure.labels("invalid").inc()
-        raise
+    Args:
+        message: The message to parse (JSON string or bytes)
+        schema: The Marshmallow schema to validate against
+        parsing_time_metric: Optional Summary metric for timing (default: ingress_message_parsing_time)
+        parsing_failure_metric: Optional Counter metric for failures (default: ingress_message_parsing_failure)
 
-    try:
-        parsed_operation = schema().load(parsed_message)
-    except ValidationError as e:
-        logger.error(
-            "Input validation error while parsing operation message:%s", e, extra={"operation": parsed_message}
-        )  # logger.error is used to avoid printing out the same traceback twice
-        metrics.ingress_message_parsing_failure.labels("invalid").inc()
-        raise
-    except Exception:
-        logger.exception("Error parsing operation message", extra={"operation": parsed_message})
-        metrics.ingress_message_parsing_failure.labels("error").inc()
-        raise
+    Returns:
+        Parsed and validated operation dictionary
+    """
+    with parsing_time_metric.time():
+        parsed_message = common_message_parser(message)
 
-    logger.debug("parsed_message: %s", parsed_operation)
-    return parsed_operation
+        try:
+            _validate_json_object_for_utf8(parsed_message)
+        except UnicodeEncodeError:
+            logger.exception(
+                "Invalid Unicode sequence in message from message queue", extra={"incoming_message": message}
+            )
+            parsing_failure_metric.labels("invalid").inc()
+            raise
+
+        try:
+            parsed_operation = schema().load(parsed_message)
+        except ValidationError as e:
+            logger.error(
+                "Input validation error while parsing operation message:%s", e, extra={"operation": parsed_message}
+            )  # logger.error is used to avoid printing out the same traceback twice
+            parsing_failure_metric.labels("invalid").inc()
+            raise
+        except Exception:
+            logger.exception("Error parsing operation message", extra={"operation": parsed_message})
+            parsing_failure_metric.labels("error").inc()
+            raise
+
+        logger.debug("parsed_message: %s", parsed_operation)
+        return parsed_operation
 
 
 def sync_event_message(message, session, event_producer):
