@@ -370,7 +370,6 @@ class Host(LimitedHost):
         self.update_canonical_facts(canonical_facts)
         self.update_canonical_facts_columns(canonical_facts)
 
-        # Derive host_type from system profile
         self._update_derived_host_type()
 
     def save(self):
@@ -397,8 +396,6 @@ class Host(LimitedHost):
 
         if update_system_profile:
             self.update_system_profile(input_host.system_profile_facts)
-            # Update derived host_type after system profile update
-            self._update_derived_host_type()
 
         self._update_last_check_in_date()
         self._update_per_reporter_staleness(input_host.reporter)
