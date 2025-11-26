@@ -34,44 +34,35 @@ def upsert_host_app_data(
     Returns:
         Number of hosts successfully upserted
     """
-    try:
-        # Create INSERT statement with all host data
-        stmt = insert(model_class).values(hosts_data)
+    if not hosts_data:
+        logger.info(f"No hosts to upsert for {application}", extra={"application": application, "org_id": org_id})
+        return 0
 
-        # Create update dictionary excluding primary key columns (org_id, host_id)
-        # On conflict, update all other columns with the new values
-        update_dict = {col: stmt.excluded[col] for col in hosts_data[0].keys() if col not in ["org_id", "host_id"]}
+    # Create INSERT statement with all host data
+    stmt = insert(model_class).values(hosts_data)
 
-        # Add ON CONFLICT clause to perform upsert
-        stmt = stmt.on_conflict_do_update(
-            index_elements=["org_id", "host_id"],
-            set_=update_dict,
-        )
+    # Create update dictionary excluding primary key columns (org_id, host_id)
+    # On conflict, update all other columns with the new values
+    update_dict = {col: stmt.excluded[col] for col in hosts_data[0].keys() if col not in ["org_id", "host_id"]}
 
-        # Execute the statement
-        db.session.execute(stmt)
-        db.session.flush()
+    # Add ON CONFLICT clause to perform upsert
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["org_id", "host_id"],
+        set_=update_dict,
+    )
 
-        success_count = len(hosts_data)
-        logger.info(
-            f"Successfully upserted {success_count} host records for {application}",
-            extra={
-                "application": application,
-                "org_id": org_id,
-                "success_count": success_count,
-            },
-        )
+    # Execute the statement
+    db.session.execute(stmt)
+    db.session.flush()
 
-        return success_count
+    success_count = len(hosts_data)
+    logger.info(
+        f"Successfully upserted {success_count} host records for {application}",
+        extra={
+            "application": application,
+            "org_id": org_id,
+            "success_count": success_count,
+        },
+    )
 
-    except Exception as e:
-        logger.exception(
-            f"Database error while upserting host app data for {application}",
-            extra={
-                "application": application,
-                "org_id": org_id,
-                "error": str(e),
-                "host_count": len(hosts_data),
-            },
-        )
-        raise
+    return success_count

@@ -562,13 +562,13 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
 
     # Mapping of application names to their corresponding model and schema classes
     APPLICATION_MAP = {
-        "advisor": ("HostAppDataAdvisor", "AdvisorDataSchema"),
-        "vulnerability": ("HostAppDataVulnerability", "VulnerabilityDataSchema"),
-        "patch": ("HostAppDataPatch", "PatchDataSchema"),
-        "remediations": ("HostAppDataRemediations", "RemediationsDataSchema"),
-        "compliance": ("HostAppDataCompliance", "ComplianceDataSchema"),
-        "malware": ("HostAppDataMalware", "MalwareDataSchema"),
-        "image_builder": ("HostAppDataImageBuilder", "ImageBuilderDataSchema"),
+        "advisor": (host_app_data.HostAppDataAdvisor, model_schemas.AdvisorDataSchema),
+        "vulnerability": (host_app_data.HostAppDataVulnerability, model_schemas.VulnerabilityDataSchema),
+        "patch": (host_app_data.HostAppDataPatch, model_schemas.PatchDataSchema),
+        "remediations": (host_app_data.HostAppDataRemediations, model_schemas.RemediationsDataSchema),
+        "compliance": (host_app_data.HostAppDataCompliance, model_schemas.ComplianceDataSchema),
+        "malware": (host_app_data.HostAppDataMalware, model_schemas.MalwareDataSchema),
+        "image_builder": (host_app_data.HostAppDataImageBuilder, model_schemas.ImageBuilderDataSchema),
     }
 
     @metrics.host_app_message_handler_time.time()
@@ -667,10 +667,8 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
         return application, request_id
 
     def _get_app_classes(self, application: str) -> tuple[type, type]:
-        model_class_name, schema_class_name = self.APPLICATION_MAP[application]
-        model_class = getattr(host_app_data, model_class_name)
-        schema_class = getattr(model_schemas, schema_class_name)
-        return model_class, schema_class
+        """Get the model and schema classes for a given application."""
+        return self.APPLICATION_MAP[application]
 
     def _validate_and_prepare_hosts(
         self,
