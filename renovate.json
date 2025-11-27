@@ -7,9 +7,6 @@
     "Pipfile"
   ],
   "tekton": {
-    "includePaths": [
-      "pipelines/**"
-    ],
     "schedule": [
       "at any time"
     ]
