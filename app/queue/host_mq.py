@@ -572,7 +572,7 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
     }
 
     @metrics.host_app_message_handler_time.time()
-    def handle_message(self, message: str | bytes, headers: list[tuple[str, bytes]]) -> OperationResult:
+    def handle_message(self, message: str | bytes, headers: list[tuple[str, bytes]] | None = None) -> OperationResult:
         application, request_id = self._extract_headers(headers)
 
         if not application:
@@ -653,7 +653,7 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
             partial(log_host_app_data_upsert_via_mq, logger, application, org_id, host_ids),
         )
 
-    def _extract_headers(self, headers: list[tuple[str, bytes]]) -> tuple[str | None, str | None]:
+    def _extract_headers(self, headers: list[tuple[str, bytes]] | None = None) -> tuple[str | None, str | None]:
         application = None
         request_id = None
 
