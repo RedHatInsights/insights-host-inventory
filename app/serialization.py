@@ -137,7 +137,7 @@ def deserialize_canonical_facts(raw_data, all=False):
 
 # Removes any null canonical facts from a serialized host.
 def remove_null_canonical_facts(serialized_host: dict):
-    for field_name in [f for f in _CANONICAL_FACTS_FIELDS if serialized_host[f] is None]:
+    for field_name in [f for f in _CANONICAL_FACTS_FIELDS if f in serialized_host and serialized_host[f] is None]:
         del serialized_host[field_name]
 
 
@@ -173,7 +173,6 @@ def _build_system_profile_from_normalized(host, system_profile_fields=None) -> d
 
                 value = getattr(host.static_system_profile, field_name, None)
                 if value is not None:
-                    # Convert UUID to string
                     if field_name in UUID_FIELDS:
                         system_profile[field_name] = serialize_uuid(value)
                     else:
@@ -199,9 +198,8 @@ def _build_system_profile_from_normalized(host, system_profile_fields=None) -> d
 
                 value = getattr(host.dynamic_system_profile, field_name, None)
                 if value is not None:
-                    # Convert datetime to ISO string with 'Z' suffix (matching test fixtures format)
                     if field_name in DATETIME_FIELDS:
-                        system_profile[field_name] = _serialize_datetime(value).replace("+00:00", "Z")
+                        system_profile[field_name] = _serialize_datetime(value)
                     else:
                         system_profile[field_name] = value
     except DetachedInstanceError:
