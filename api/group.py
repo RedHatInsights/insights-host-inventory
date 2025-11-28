@@ -116,10 +116,12 @@ def create_group(body, rbac_filter=None):
                 return json_error_response("Workspace creation failure", message, HTTPStatus.BAD_REQUEST)
 
             # Wait for the MQ to notify us of the workspace creation
-            try:
-                wait_for_workspace_event(workspace_id, EventType.created, inventory_config().rbac_timeout)
-            except TimeoutError:
-                abort(HTTPStatus.SERVICE_UNAVAILABLE, "Timed out waiting for a message from RBAC v2.")
+            # Check if the group already exists (MQ message may have been processed before we started listening)
+            if get_group_by_id_from_db(workspace_id, get_current_identity().org_id) is None:
+                try:
+                    wait_for_workspace_event(workspace_id, EventType.created, inventory_config().rbac_timeout)
+                except TimeoutError:
+                    abort(HTTPStatus.SERVICE_UNAVAILABLE, "Timed out waiting for a message from RBAC v2.")
 
             add_hosts_to_group(
                 workspace_id,

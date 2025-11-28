@@ -284,3 +284,72 @@ def test_create_group_same_name_kessel_phase1_enabled(api_create_group, db_get_g
 
     # The successful 201 response indicates the second group was created
     # without the uniqueness constraint being enforced when Kessel Phase 1 is enabled
+
+
+@pytest.mark.usefixtures("enable_kessel")
+def test_create_group_skips_wait_when_group_already_exists(flask_client, db_create_group, mocker):
+    """Test that wait_for_workspace_event is skipped if the group already exists in the database."""
+    # Create a group directly in the database first
+    existing_group = db_create_group("existing_group")
+    workspace_id = str(existing_group.id)
+
+    # Mock post_rbac_workspace to return the existing group's ID (simulating a race condition
+    # where the MQ message was processed before we started listening)
+    mocker.patch("api.group.post_rbac_workspace", return_value=workspace_id)
+    mocker.patch("lib.group_repository.rbac_create_ungrouped_hosts_workspace", return_value=generate_uuid())
+
+    # Mock wait_for_workspace_event to track if it's called
+    wait_mock = mocker.patch("api.group.wait_for_workspace_event")
+
+    group_data = {"name": "existing_group", "host_ids": []}
+    response = flask_client.post(
+        "/api/inventory/v1/groups",
+        data=json.dumps(group_data),
+        headers={"x-rh-identity": to_auth_header(Identity(obj=USER_IDENTITY)), "Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 201
+    # wait_for_workspace_event should NOT have been called since the group already exists
+    wait_mock.assert_not_called()
+
+
+@pytest.mark.usefixtures("enable_kessel")
+def test_create_group_calls_wait_when_group_does_not_exist(flask_client, db_create_group, mocker):
+    """Test that wait_for_workspace_event is called when the group doesn't exist yet."""
+    # Create a group in the database that will be returned after wait_for_workspace_event
+    existing_group = db_create_group("new_group")
+    workspace_id = str(existing_group.id)
+
+    # Mock post_rbac_workspace to return the workspace ID
+    mocker.patch("api.group.post_rbac_workspace", return_value=workspace_id)
+    mocker.patch("lib.group_repository.rbac_create_ungrouped_hosts_workspace", return_value=generate_uuid())
+
+    # Mock wait_for_workspace_event to prevent actual waiting
+    wait_mock = mocker.patch("api.group.wait_for_workspace_event")
+
+    # Mock get_group_by_id_from_db:
+    # - First call (check before wait): return None (group doesn't exist yet)
+    # - Second call (after wait): return the real group from DB
+    original_get_group = __import__(
+        "lib.group_repository", fromlist=["get_group_by_id_from_db"]
+    ).get_group_by_id_from_db
+    call_count = {"count": 0}
+
+    def mock_get_group(group_id, org_id, session=None):
+        call_count["count"] += 1
+        if call_count["count"] == 1:
+            return None  # First call: group doesn't exist yet
+        return original_get_group(group_id, org_id, session)  # Subsequent calls: return real group
+
+    mocker.patch("api.group.get_group_by_id_from_db", side_effect=mock_get_group)
+
+    group_data = {"name": "new_group", "host_ids": []}
+    response = flask_client.post(
+        "/api/inventory/v1/groups",
+        data=json.dumps(group_data),
+        headers={"x-rh-identity": to_auth_header(Identity(obj=USER_IDENTITY)), "Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 201
+    # wait_for_workspace_event SHOULD have been called since the group didn't exist on first check
+    wait_mock.assert_called_once()
