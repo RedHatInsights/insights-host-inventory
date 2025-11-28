@@ -329,8 +329,19 @@ def test_create_group_calls_wait_when_group_does_not_exist(flask_client, db_crea
 
     # Mock get_group_by_id_from_db to return None on first call (group doesn't exist yet).
     # Since wait_for_workspace_event doesn't raise TimeoutError, the second check in the
-    # exception handler won't be called, so we only need to handle the first call.
-    mocker.patch("api.group.get_group_by_id_from_db", side_effect=[None, existing_group, existing_group])
+    # exception handler won't be called - only the first call needs to return None.
+    original_get_group = __import__(
+        "lib.group_repository", fromlist=["get_group_by_id_from_db"]
+    ).get_group_by_id_from_db
+    call_count = {"count": 0}
+
+    def mock_get_group(group_id, org_id, session=None):
+        call_count["count"] += 1
+        if call_count["count"] == 1:
+            return None  # First call: group doesn't exist yet
+        return original_get_group(group_id, org_id, session)  # Subsequent calls: return real group
+
+    mocker.patch("api.group.get_group_by_id_from_db", side_effect=mock_get_group)
 
     group_data = {"name": "new_group", "host_ids": []}
     response = flask_client.post(
