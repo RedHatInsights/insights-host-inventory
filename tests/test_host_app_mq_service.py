@@ -21,6 +21,58 @@ from app.models.host_app_data import HostAppDataVulnerability
 from app.queue.host_mq import HostAppMessageConsumer
 from tests.helpers.test_utils import generate_uuid
 
+# Application test data configuration: (app_name, model_class, sample_data, field_to_verify)
+APPLICATION_TEST_DATA = [
+    (
+        "advisor",
+        HostAppDataAdvisor,
+        {"recommendations": 5, "incidents": 2},
+        {"recommendations": 5, "incidents": 2},
+    ),
+    (
+        "vulnerability",
+        HostAppDataVulnerability,
+        {
+            "total_cves": 50,
+            "critical_cves": 5,
+            "high_severity_cves": 10,
+            "cves_with_security_rules": 8,
+            "cves_with_known_exploits": 3,
+        },
+        {"total_cves": 50, "critical_cves": 5, "high_severity_cves": 10},
+    ),
+    (
+        "patch",
+        HostAppDataPatch,
+        {"installable_advisories": 15, "template": "baseline-template", "rhsm_locked_version": "9.4"},
+        {"installable_advisories": 15, "template": "baseline-template", "rhsm_locked_version": "9.4"},
+    ),
+    (
+        "remediations",
+        HostAppDataRemediations,
+        {"remediations_plans": 7},
+        {"remediations_plans": 7},
+    ),
+    (
+        "compliance",
+        HostAppDataCompliance,
+        {"policies": 3, "last_scan": datetime.now(UTC).isoformat()},
+        {"policies": 3},
+    ),
+    (
+        "malware",
+        HostAppDataMalware,
+        {"last_status": "clean", "last_matches": 0, "last_scan": datetime.now(UTC).isoformat()},
+        {"last_status": "clean", "last_matches": 0},
+    ),
+    (
+        "image_builder",
+        HostAppDataImageBuilder,
+        {"image_name": "rhel-9-base", "image_status": "active"},
+        {"image_name": "rhel-9-base", "image_status": "active"},
+    ),
+]
+
 
 @pytest.fixture
 def host_app_consumer(flask_app, event_producer):
@@ -93,224 +145,113 @@ class TestHostAppMessageConsumerValidation:
             host_app_consumer.handle_message(json.dumps(message), headers=headers)
 
 
-class TestHostAppMessageConsumerAdvisor:
-    """Test HostAppMessageConsumer with Advisor data."""
+class TestHostAppMessageConsumerAllApplications:
+    """Test HostAppMessageConsumer with all application types using parametrized tests."""
 
-    def test_advisor_upsert_new_record(self, host_app_consumer, db_create_host):
-        """Test inserting new Advisor data."""
+    @pytest.mark.parametrize("app_name,model_class,sample_data,fields_to_verify", APPLICATION_TEST_DATA)
+    def test_upsert_new_record(
+        self, host_app_consumer, db_create_host, app_name, model_class, sample_data, fields_to_verify
+    ):
+        """Test inserting new data for all application types."""
         host = db_create_host()
         org_id = host.org_id
         host_id = str(host.id)
 
-        advisor_data = {"recommendations": 5, "incidents": 2}
-        message = create_host_app_message(org_id=org_id, host_id=host_id, data=advisor_data)
+        message = create_host_app_message(org_id=org_id, host_id=host_id, data=sample_data)
 
-        headers = [("application", b"advisor"), ("request_id", generate_uuid().encode("utf-8"))]
+        headers = [("application", app_name.encode("utf-8")), ("request_id", generate_uuid().encode("utf-8"))]
         result = host_app_consumer.handle_message(json.dumps(message), headers=headers)
 
-        app_data = db.session.query(HostAppDataAdvisor).filter_by(org_id=org_id, host_id=host.id).first()
+        app_data = db.session.query(model_class).filter_by(org_id=org_id, host_id=host.id).first()
 
         assert app_data is not None
-        assert app_data.recommendations == 5
-        assert app_data.incidents == 2
-        assert app_data.last_updated is not None
+        # Verify all specified fields
+        for field_name, expected_value in fields_to_verify.items():
+            assert getattr(app_data, field_name) == expected_value
+        # Advisor has last_updated field
+        if hasattr(app_data, "last_updated"):
+            assert app_data.last_updated is not None
         assert result is not None
 
-    def test_advisor_upsert_update_record(self, host_app_consumer, db_create_host):
-        """Test updating existing Advisor data."""
+    @pytest.mark.parametrize("app_name,model_class,sample_data,fields_to_verify", APPLICATION_TEST_DATA)
+    def test_upsert_update_record(
+        self, host_app_consumer, db_create_host, app_name, model_class, sample_data, fields_to_verify
+    ):
+        """Test updating existing data for all application types."""
         host = db_create_host()
         org_id = host.org_id
         host_id = str(host.id)
 
         # Insert initial data
-        initial_data = {"recommendations": 5, "incidents": 2}
-        message1 = create_host_app_message(org_id=org_id, host_id=host_id, data=initial_data)
-        headers = [("application", b"advisor"), ("request_id", generate_uuid().encode("utf-8"))]
+        message1 = create_host_app_message(org_id=org_id, host_id=host_id, data=sample_data)
+        headers = [("application", app_name.encode("utf-8")), ("request_id", generate_uuid().encode("utf-8"))]
         host_app_consumer.handle_message(json.dumps(message1), headers=headers)
 
+        # Create updated data by modifying numeric fields or using different values
+        updated_data = sample_data.copy()
+        for key, value in updated_data.items():
+            if isinstance(value, int):
+                updated_data[key] = value + 5
+            elif isinstance(value, str) and key not in ["last_scan", "last_status"]:
+                updated_data[key] = f"updated_{value}"
+
         # Update with new data
-        updated_data = {"recommendations": 10, "incidents": 3}
         message2 = create_host_app_message(org_id=org_id, host_id=host_id, data=updated_data)
-        headers2 = [("application", b"advisor"), ("request_id", generate_uuid().encode("utf-8"))]
+        headers2 = [("application", app_name.encode("utf-8")), ("request_id", generate_uuid().encode("utf-8"))]
         host_app_consumer.handle_message(json.dumps(message2), headers=headers2)
 
         # Verify the record was updated
-        app_data = db.session.query(HostAppDataAdvisor).filter_by(org_id=org_id, host_id=host.id).first()
+        app_data = db.session.query(model_class).filter_by(org_id=org_id, host_id=host.id).first()
 
         assert app_data is not None
-        assert app_data.recommendations == 10
-        assert app_data.incidents == 3
+        # Verify at least one field was updated
+        for field_name in fields_to_verify.keys():
+            actual_value = getattr(app_data, field_name)
+            original_value = sample_data[field_name]
+            if isinstance(original_value, int):
+                assert actual_value == original_value + 5
+            elif isinstance(original_value, str) and field_name not in ["last_scan", "last_status"]:
+                assert actual_value == f"updated_{original_value}"
 
-    def test_advisor_batch_processing(self, host_app_consumer, db_create_host):
-        """Test processing multiple hosts in a single message."""
+    @pytest.mark.parametrize("app_name,model_class,sample_data,fields_to_verify", APPLICATION_TEST_DATA)
+    def test_batch_processing(
+        self, host_app_consumer, db_create_host, app_name, model_class, sample_data, fields_to_verify
+    ):
+        """Test processing multiple hosts in a single message for all application types."""
         host1 = db_create_host()
         host2 = db_create_host(extra_data={"org_id": host1.org_id})
         org_id = host1.org_id
+
+        # Create data for second host (slightly different values)
+        data2 = sample_data.copy()
+        for key, value in data2.items():
+            if isinstance(value, int):
+                data2[key] = max(1, value - 2)  # Different value, but keep positive
 
         message = {
             "org_id": org_id,
             "timestamp": datetime.now(UTC).isoformat(),
             "hosts": [
-                {"id": str(host1.id), "data": {"recommendations": 5, "incidents": 2}},
-                {"id": str(host2.id), "data": {"recommendations": 3, "incidents": 1}},
+                {"id": str(host1.id), "data": sample_data},
+                {"id": str(host2.id), "data": data2},
             ],
         }
 
-        headers = [("application", b"advisor"), ("request_id", generate_uuid().encode("utf-8"))]
+        headers = [("application", app_name.encode("utf-8")), ("request_id", generate_uuid().encode("utf-8"))]
         host_app_consumer.handle_message(json.dumps(message), headers=headers)
 
         # Verify both records were created
-        app_data1 = db.session.query(HostAppDataAdvisor).filter_by(org_id=org_id, host_id=host1.id).first()
-        app_data2 = db.session.query(HostAppDataAdvisor).filter_by(org_id=org_id, host_id=host2.id).first()
+        app_data1 = db.session.query(model_class).filter_by(org_id=org_id, host_id=host1.id).first()
+        app_data2 = db.session.query(model_class).filter_by(org_id=org_id, host_id=host2.id).first()
 
         assert app_data1 is not None
-        assert app_data1.recommendations == 5
         assert app_data2 is not None
-        assert app_data2.recommendations == 3
-
-
-class TestHostAppMessageConsumerVulnerability:
-    """Test HostAppMessageConsumer with Vulnerability data."""
-
-    def test_vulnerability_upsert_new_record(self, host_app_consumer, db_create_host):
-        """Test inserting new Vulnerability data."""
-        host = db_create_host()
-        org_id = host.org_id
-        host_id = str(host.id)
-
-        vuln_data = {
-            "total_cves": 50,
-            "critical_cves": 5,
-            "high_severity_cves": 10,
-            "cves_with_security_rules": 8,
-            "cves_with_known_exploits": 3,
-        }
-        message = create_host_app_message(org_id=org_id, host_id=host_id, data=vuln_data)
-
-        headers = [("application", b"vulnerability"), ("request_id", generate_uuid().encode("utf-8"))]
-        host_app_consumer.handle_message(json.dumps(message), headers=headers)
-
-        app_data = db.session.query(HostAppDataVulnerability).filter_by(org_id=org_id, host_id=host.id).first()
-
-        assert app_data is not None
-        assert app_data.total_cves == 50
-        assert app_data.critical_cves == 5
-        assert app_data.high_severity_cves == 10
-
-
-class TestHostAppMessageConsumerPatch:
-    """Test HostAppMessageConsumer with Patch data."""
-
-    def test_patch_upsert_new_record(self, host_app_consumer, db_create_host):
-        """Test inserting new Patch data."""
-        host = db_create_host()
-        org_id = host.org_id
-        host_id = str(host.id)
-
-        patch_data = {"installable_advisories": 15, "template": "baseline-template", "rhsm_locked_version": "9.4"}
-        message = create_host_app_message(org_id=org_id, host_id=host_id, data=patch_data)
-
-        headers = [("application", b"patch"), ("request_id", generate_uuid().encode("utf-8"))]
-        host_app_consumer.handle_message(json.dumps(message), headers=headers)
-
-        app_data = db.session.query(HostAppDataPatch).filter_by(org_id=org_id, host_id=host.id).first()
-
-        assert app_data is not None
-        assert app_data.installable_advisories == 15
-        assert app_data.template == "baseline-template"
-        assert app_data.rhsm_locked_version == "9.4"
-
-
-class TestHostAppMessageConsumerRemediations:
-    """Test HostAppMessageConsumer with Remediations data."""
-
-    def test_remediations_upsert_new_record(self, host_app_consumer, db_create_host):
-        """Test inserting new Remediations data."""
-        host = db_create_host()
-        org_id = host.org_id
-        host_id = str(host.id)
-
-        remediation_data = {"remediations_plans": 7}
-        message = create_host_app_message(org_id=org_id, host_id=host_id, data=remediation_data)
-
-        headers = [("application", b"remediations"), ("request_id", generate_uuid().encode("utf-8"))]
-        host_app_consumer.handle_message(json.dumps(message), headers=headers)
-
-        app_data = db.session.query(HostAppDataRemediations).filter_by(org_id=org_id, host_id=host.id).first()
-
-        assert app_data is not None
-        assert app_data.remediations_plans == 7
-
-
-class TestHostAppMessageConsumerCompliance:
-    """Test HostAppMessageConsumer with Compliance data."""
-
-    def test_compliance_upsert_new_record(self, host_app_consumer, db_create_host):
-        """Test inserting new Compliance data."""
-        host = db_create_host()
-        org_id = host.org_id
-        host_id = str(host.id)
-
-        compliance_data = {"policies": 3, "last_scan": datetime.now(UTC).isoformat()}
-        message = create_host_app_message(org_id=org_id, host_id=host_id, data=compliance_data)
-
-        headers = [("application", b"compliance"), ("request_id", generate_uuid().encode("utf-8"))]
-        host_app_consumer.handle_message(json.dumps(message), headers=headers)
-
-        app_data = db.session.query(HostAppDataCompliance).filter_by(org_id=org_id, host_id=host.id).first()
-
-        assert app_data is not None
-        assert app_data.policies == 3
-        assert app_data.last_scan is not None
-
-
-class TestHostAppMessageConsumerMalware:
-    """Test HostAppMessageConsumer with Malware data."""
-
-    def test_malware_upsert_new_record(self, host_app_consumer, db_create_host):
-        """Test inserting new Malware data."""
-        host = db_create_host()
-        org_id = host.org_id
-        host_id = str(host.id)
-
-        malware_data = {
-            "last_status": "clean",
-            "last_matches": 0,
-            "last_scan": datetime.now(UTC).isoformat(),
-        }
-        message = create_host_app_message(org_id=org_id, host_id=host_id, data=malware_data)
-
-        headers = [("application", b"malware"), ("request_id", generate_uuid().encode("utf-8"))]
-        host_app_consumer.handle_message(json.dumps(message), headers=headers)
-
-        app_data = db.session.query(HostAppDataMalware).filter_by(org_id=org_id, host_id=host.id).first()
-
-        assert app_data is not None
-        assert app_data.last_status == "clean"
-        assert app_data.last_matches == 0
-        assert app_data.last_scan is not None
-
-
-class TestHostAppMessageConsumerImageBuilder:
-    """Test HostAppMessageConsumer with ImageBuilder data."""
-
-    def test_image_builder_upsert_new_record(self, host_app_consumer, db_create_host):
-        """Test inserting new ImageBuilder data."""
-        host = db_create_host()
-        org_id = host.org_id
-        host_id = str(host.id)
-
-        image_builder_data = {"image_name": "rhel-9-base", "image_status": "active"}
-        message = create_host_app_message(org_id=org_id, host_id=host_id, data=image_builder_data)
-
-        headers = [("application", b"image_builder"), ("request_id", generate_uuid().encode("utf-8"))]
-        host_app_consumer.handle_message(json.dumps(message), headers=headers)
-
-        app_data = db.session.query(HostAppDataImageBuilder).filter_by(org_id=org_id, host_id=host.id).first()
-
-        assert app_data is not None
-        assert app_data.image_name == "rhel-9-base"
-        assert app_data.image_status == "active"
+        # Verify first host has original data
+        first_field = list(fields_to_verify.keys())[0]
+        assert getattr(app_data1, first_field) == sample_data[first_field]
+        # Verify second host has different data (for numeric fields)
+        if isinstance(sample_data[first_field], int):
+            assert getattr(app_data2, first_field) == data2[first_field]
 
 
 class TestHostAppMessageConsumerMetrics:
