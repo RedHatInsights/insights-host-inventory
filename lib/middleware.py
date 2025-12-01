@@ -524,38 +524,8 @@ def post_rbac_workspace(name) -> UUID | None:
     request_headers = _build_rbac_request_headers(request.headers[IDENTITY_HEADER], threadctx.request_id)
     request_data = {"name": name}
 
-    return post_rbac_workspace_using_endpoint_and_headers(request_data, rbac_endpoint, request_headers)
-
-
-def post_rbac_workspace_using_endpoint_and_headers(
-    request_data: dict | None, rbac_endpoint: str, request_headers: dict
-) -> UUID | None:
     return _execute_rbac_http_request(
         method="POST",
-        rbac_endpoint=rbac_endpoint,
-        request_headers=request_headers,
-        request_data=request_data,
-    )
-
-
-def delete_rbac_workspace_using_endpoint_and_headers(rbac_endpoint: str, request_headers: dict) -> UUID | None:
-    return _execute_rbac_http_request(
-        method="DELETE",
-        rbac_endpoint=rbac_endpoint,
-        request_headers=request_headers,
-        skip_not_found=True,  # 404s should raise ResourceNotFoundException for graceful handling
-    )
-
-
-def patch_rbac_workspace_using_endpoint_and_headers(
-    request_data: dict | None, rbac_endpoint: str, request_headers: dict
-) -> None:
-    """
-    Patch RBAC workspace. Raises HTTPException via abort() on error.
-    Does not return a value on success.
-    """
-    _execute_rbac_http_request(
-        method="PATCH",
         rbac_endpoint=rbac_endpoint,
         request_headers=request_headers,
         request_data=request_data,
@@ -594,8 +564,12 @@ def delete_rbac_workspace(workspace_id: str):
     rbac_endpoint = _get_rbac_workspace_url(workspace_id)
     request_headers = _build_rbac_request_headers()
 
-    delete_rbac_workspace_using_endpoint_and_headers(rbac_endpoint, request_headers)
-    return True
+    _execute_rbac_http_request(
+        method="DELETE",
+        rbac_endpoint=rbac_endpoint,
+        request_headers=request_headers,
+        skip_not_found=True,  # 404s should raise ResourceNotFoundException for graceful handling
+    )
 
 
 def patch_rbac_workspace(workspace_id: str, name: str | None = None) -> None:
@@ -609,7 +583,12 @@ def patch_rbac_workspace(workspace_id: str, name: str | None = None) -> None:
     if name is not None:
         request_data.update({"name": name})
 
-    patch_rbac_workspace_using_endpoint_and_headers(request_data, rbac_endpoint, request_headers)
+    _execute_rbac_http_request(
+        method="PATCH",
+        rbac_endpoint=rbac_endpoint,
+        request_headers=request_headers,
+        request_data=request_data,
+    )
 
 
 def get_rbac_default_workspace() -> UUID | None:
