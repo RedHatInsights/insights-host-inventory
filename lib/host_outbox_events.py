@@ -16,6 +16,7 @@ are created when:
 
 from sqlalchemy import event
 from sqlalchemy import inspect
+from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import object_session
 
@@ -67,28 +68,25 @@ def _get_pending_ops(session):
     return _pending_outbox_ops[session_id]
 
 
-def _extract_group_ids(groups_list):
+def _extract_group_ids(groups_list: list[MutableList[dict]]) -> set[str]:
     """Extract group IDs from a groups list, handling None and empty cases."""
+    # groups_list is a list of MutableList of group dictionaries
+
     # SQLAlchemy history can return:
-    # - A tuple containing the list: ([...],)
-    # - A list containing the list: [[...]]
-    # - Just the list: [...]
+    # - An empty list: []
+    # - A list of MutableList objects: [MutableList, ...]
+
     # Extract the actual list first
     if isinstance(groups_list, (tuple, list)) and groups_list and len(groups_list) == 1:
         # Check if this is a wrapper (tuple or list) containing the actual list
         inner = groups_list[0]
         if isinstance(inner, (list, tuple)):
-            groups_list = inner
+            # Convert to list to match the type annotation
+            groups_list = list(inner) if isinstance(inner, tuple) else inner
 
     # Now check if empty (after extracting from wrapper)
     if not groups_list:
         return set()
-
-    # Handle MutableList or regular list - ensure we have an iterable
-    if not isinstance(groups_list, (list, tuple)):
-        # If it's still not a list/tuple, it might be a single MutableList wrapper
-        # Try to get the underlying list
-        groups_list = list(groups_list) if hasattr(groups_list, "__iter__") else []
 
     # Now iterate over the actual list of group dictionaries
     return {group.get("id") for group in groups_list if group and isinstance(group, dict) and group.get("id")}
@@ -297,8 +295,7 @@ def _clear_pending_outbox_ops_after_commit(session):
     # (added during commit's flush, after before_commit)
     # Note: We CANNOT process these here because the session is in 'committed' state
     # and no further SQL can be emitted. These operations were tracked too late.
-    ops_remaining = _pending_outbox_ops.get(session_id, [])
-    if ops_remaining:
+    if ops_remaining := _pending_outbox_ops.get(session_id, []):
         logger.warning(
             f"Found {len(ops_remaining)} outbox ops for session {session_id} that were tracked during commit's flush. "
             "These operations were tracked too late to be processed. "
