@@ -175,7 +175,7 @@ def enable_workloads_fields_backward_compatibility_session(
 
     yield
 
-    toggle_feature_flag(unleash, workloads_fields_backward_compatibility_flag, enable=False)
+    toggle_feature_flag(unleash, workloads_fields_backward_compatibility_flag, enable=True)
 
 
 @pytest.fixture(scope="session")

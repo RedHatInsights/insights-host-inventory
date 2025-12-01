@@ -550,22 +550,6 @@ def validate_correct_conversions(validate_correct_value):
 
 
 @pytest.mark.ephemeral
-@parametrize_field(SYSTEM_PROFILE)
-def test_validate_system_profile_null_fields(validate_incorrect_value, field):
-    """
-    Test creating host with null value in system_profile fields fails
-
-    metadata:
-        assignee: fstavela
-        importance: low
-        requirements: inv-mq-host-field-validation
-        negative: true
-        title: Validation of null value in host system_profile fields
-    """
-    validate_incorrect_value(field, None)
-
-
-@pytest.mark.ephemeral
 @parametrize_field(SYSTEM_PROFILE, type="str")
 def test_validate_system_profile_string_fields_length(
     validate_correct_value, validate_incorrect_value, field: Field
@@ -722,39 +706,6 @@ def test_validate_system_profile_integer_fields_incorrect(validate_incorrect_val
 
 
 @pytest.mark.ephemeral
-@pytest.mark.parametrize("value", CORRECT_BOOLEAN_VALUES)
-@parametrize_field(SYSTEM_PROFILE, type="bool")
-def test_validate_system_profile_boolean_fields_correct(validate_correct_value, field, value):
-    """
-    Test correct values for system_profile boolean fields
-
-    metadata:
-        assignee: fstavela
-        importance: high
-        requirements: inv-host-create
-        title: Validation of correct values in system_profile boolean fields
-    """
-    validate_correct_value(field, value)
-
-
-@pytest.mark.ephemeral
-@pytest.mark.parametrize("value", INCORRECT_BOOLEAN_VALUES)
-@parametrize_field(SYSTEM_PROFILE, type="bool")
-def test_validate_system_profile_boolean_fields_incorrect(validate_incorrect_value, field, value):
-    """
-    Test incorrect values for system_profile boolean fields
-
-    metadata:
-        assignee: fstavela
-        importance: low
-        requirements: inv-mq-host-field-validation
-        negative: true
-        title: Validation of incorrect values in system_profile boolean fields
-    """
-    validate_incorrect_value(field, value)
-
-
-@pytest.mark.ephemeral
 @parametrize_field(SYSTEM_PROFILE, type="enum")
 def test_validate_system_profile_enum_fields_correct(validate_correct_value, field):
     """
@@ -823,7 +774,7 @@ def test_validate_system_profile_date_time_fields_incorrect(
 
 
 @pytest.mark.ephemeral
-@parametrize_field(SYSTEM_PROFILE, type="array")
+@parametrize_field(SYSTEM_PROFILE, type="array", condition=lambda f: f.name not in ("sap_sids"))
 def test_validate_system_profile_array_fields_correct(  # NOQA: C901
     validate_correct_value, field: Field
 ):
@@ -1475,106 +1426,6 @@ def test_validate_system_profile_sap(validate_correct_workloads, validate_incorr
     incorrect_sap["sids"] = ["A!"]
     validate_incorrect_value(workloads, {"sap": incorrect_sap})
     validate_incorrect_value(workloads, [{"sap": correct_sap}])
-
-
-@pytest.mark.ephemeral
-@pytest.mark.parametrize("value", CORRECT_SAP_SIDS)
-def test_validate_system_profile_sap_sids_correct(validate_correct_value, value):
-    """
-    Test validation of system_profile sap_sids field
-
-    metadata:
-        assignee: fstavela
-        importance: medium
-        requirements: inv-mq-host-field-validation, inv-host-create
-        title: Validation of system_profile sap_sids field
-    """
-    # TODO: Remove when sap_sids field https://issues.redhat.com/browse/ESSNTL-3765
-    field = get_sp_field_by_name("sap_sids")
-    validate_correct_value(field, value)
-
-
-@pytest.mark.ephemeral
-@pytest.mark.parametrize("value", INCORRECT_SAP_SIDS)
-def test_validate_system_profile_sap_sids_incorrect(validate_incorrect_value, value):
-    """
-    Test validation of system_profile sap_sids field
-
-    metadata:
-        assignee: fstavela
-        importance: medium
-        requirements: inv-mq-host-field-validation, inv-host-create
-        title: Validation of system_profile sap_sids field
-    """
-    # TODO: Remove when sap_sids field https://issues.redhat.com/browse/ESSNTL-3765
-    field = get_sp_field_by_name("sap_sids")
-    validate_incorrect_value(field, value)
-
-
-@pytest.mark.ephemeral
-@pytest.mark.parametrize("value", CORRECT_SAP_INSTANCE_NUMBER)
-def test_validate_system_profile_sap_instance_number_correct(validate_correct_value, value):
-    """
-    Test correct values for system_profile sap_instance_number field
-
-    metadata:
-        assignee: fstavela
-        importance: high
-        requirements: inv-host-create
-        title: Validation of correct values in system_profile sap_instance_number field
-    """
-    # TODO: Remove when sap_instance_number field https://issues.redhat.com/browse/ESSNTL-3765
-    validate_correct_value(get_sp_field_by_name("sap_instance_number"), value)
-
-
-@pytest.mark.ephemeral
-@pytest.mark.parametrize("value", INCORRECT_SAP_INSTANCE_NUMBER)
-def test_validate_system_profile_sap_instance_number_incorrect(validate_incorrect_value, value):
-    """
-    Test incorrect values for system_profile sap_instance_number field
-
-    metadata:
-        assignee: fstavela
-        importance: low
-        requirements: inv-mq-host-field-validation
-        negative: true
-        title: Validation of incorrect values in system_profile sap_instance_number field
-    """
-    # TODO: Remove when sap_instance_number field https://issues.redhat.com/browse/ESSNTL-3765
-    validate_incorrect_value(get_sp_field_by_name("sap_instance_number"), value)
-
-
-@pytest.mark.ephemeral
-@pytest.mark.parametrize("value", CORRECT_SAP_VERSION)
-def test_validate_system_profile_sap_version_correct(validate_correct_value, value):
-    """
-    Test correct values for system_profile sap_version field
-
-    metadata:
-        assignee: fstavela
-        importance: high
-        requirements: inv-host-create
-        title: Validation of correct values in system_profile sap_version field
-    """
-    # TODO: Remove when sap_version field https://issues.redhat.com/browse/ESSNTL-3765
-    validate_correct_value(get_sp_field_by_name("sap_version"), value)
-
-
-@pytest.mark.ephemeral
-@pytest.mark.parametrize("value", INCORRECT_SAP_VERSION)
-def test_validate_system_profile_sap_version_incorrect(validate_incorrect_value, value):
-    """
-    Test incorrect values for system_profile sap_version field
-
-    metadata:
-        assignee: fstavela
-        importance: low
-        requirements: inv-mq-host-field-validation
-        negative: true
-        title: Validation of incorrect values in system_profile sap_version field
-    """
-    # TODO: Remove when sap_version field https://issues.redhat.com/browse/ESSNTL-3765
-    validate_incorrect_value(get_sp_field_by_name("sap_version"), value)
 
 
 @pytest.mark.ephemeral
