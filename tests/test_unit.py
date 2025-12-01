@@ -1524,6 +1524,11 @@ class SerializationSerializeHostBaseTestCase(TestCase):
 
 
 class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseTestCase):
+    # NOTE: Tests in this class compute expected per_reporter_staleness to support both
+    # flat (string) and nested (dict) formats during the migration to RHINENG-21703.
+    # When RHINENG-21703 is complete, the expected_per_reporter_staleness computation
+    # can be kept as-is (it will be the standard format) and this comment can be removed.
+
     @staticmethod
     def _add_seconds(stale_timestamp, seconds):
         return stale_timestamp + timedelta(seconds=seconds)
@@ -1639,6 +1644,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                 staleness_offset = staleness_timestamps()
                 staleness = get_sys_default_staleness()
                 actual = serialize_host(host, staleness_offset, False, ("tags",), staleness=staleness)
+
                 expected = {
                     **host_init_data["canonical_facts"],
                     "insights_id": None,
@@ -1718,6 +1724,11 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
 @patch("app.serialization.serialize_facts")
 @patch("app.serialization.serialize_canonical_facts")
 class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTestCase):
+    # NOTE: Tests in this class compute expected per_reporter_staleness to support both
+    # flat (string) and nested (dict) formats during the migration to RHINENG-21703.
+    # When RHINENG-21703 is complete, the expected_per_reporter_staleness computation
+    # can be kept as-is (it will be the standard format) and this comment can be removed.
+
     def test_with_all_fields(self, serialize_canonical_facts, serialize_facts, serialize_tags):
         canonical_facts = {"insights_id": str(uuid4()), "fqdn": "some fqdn"}
         serialize_canonical_facts.return_value = canonical_facts
@@ -1768,6 +1779,7 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
         staleness_offset = staleness_timestamps()
         staleness = get_sys_default_staleness()
         actual = serialize_host(host, staleness_offset, False, ("tags",), staleness=staleness)
+
         expected = {
             **canonical_facts,
             **unchanged_data,
@@ -1795,6 +1807,80 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
         serialize_canonical_facts.assert_called_with(host_init_data["canonical_facts"])
         serialize_facts.assert_called_with(host_init_data["facts"])
         serialize_tags.assert_called_with(host_init_data["tags"])
+
+    # RHINENG-21703: Test both flat and nested per_reporter_staleness formats
+    # These tests can be removed when the migration to flat format is complete
+    def test_per_reporter_staleness_flat_format(self, _serialize_canonical_facts, _serialize_facts, _serialize_tags):
+        """Test _serialize_per_reporter_staleness with flat format (just timestamp string)"""
+        from unittest.mock import Mock
+
+        from app.serialization import _serialize_per_reporter_staleness
+
+        # Create a mock host object
+        host = Mock()
+        last_check_in = now()
+
+        # Explicitly set flat format per_reporter_staleness
+        host.per_reporter_staleness = {
+            "puptoo": last_check_in.isoformat()  # Flat format: just the timestamp string
+        }
+
+        staleness = {
+            "conventional_time_to_stale": CONVENTIONAL_TIME_TO_STALE_SECONDS,
+            "conventional_time_to_stale_warning": CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS,
+            "conventional_time_to_delete": CONVENTIONAL_TIME_TO_DELETE_SECONDS,
+        }
+        config = CullingConfig(stale_warning_offset_delta=timedelta(days=7), culled_offset_delta=timedelta(days=14))
+        staleness_timestamps = Timestamps(config)
+
+        actual = _serialize_per_reporter_staleness(host, staleness, staleness_timestamps)
+
+        # Verify the serialized per_reporter_staleness has all fields computed from flat format
+        assert "puptoo" in actual
+        assert actual["puptoo"]["last_check_in"] == last_check_in.isoformat()
+        assert "stale_timestamp" in actual["puptoo"]
+        assert "stale_warning_timestamp" in actual["puptoo"]
+        assert "culled_timestamp" in actual["puptoo"]
+        assert actual["puptoo"]["check_in_succeeded"] is True
+
+    def test_per_reporter_staleness_nested_format(self, _serialize_canonical_facts, _serialize_facts, _serialize_tags):
+        """Test _serialize_per_reporter_staleness with nested format (dict with all fields)"""
+        from unittest.mock import Mock
+
+        from app.serialization import _serialize_per_reporter_staleness
+
+        # Create a mock host object
+        host = Mock()
+        last_check_in = now()
+
+        # Explicitly set nested format per_reporter_staleness
+        host.per_reporter_staleness = {
+            "yupana": {
+                "last_check_in": last_check_in.isoformat(),
+                "stale_timestamp": (last_check_in + timedelta(days=1)).isoformat(),
+                "stale_warning_timestamp": (last_check_in + timedelta(days=7)).isoformat(),
+                "culled_timestamp": (last_check_in + timedelta(days=14)).isoformat(),
+                "check_in_succeeded": True,
+            }
+        }
+
+        staleness = {
+            "conventional_time_to_stale": CONVENTIONAL_TIME_TO_STALE_SECONDS,
+            "conventional_time_to_stale_warning": CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS,
+            "conventional_time_to_delete": CONVENTIONAL_TIME_TO_DELETE_SECONDS,
+        }
+        config = CullingConfig(stale_warning_offset_delta=timedelta(days=7), culled_offset_delta=timedelta(days=14))
+        staleness_timestamps = Timestamps(config)
+
+        actual = _serialize_per_reporter_staleness(host, staleness, staleness_timestamps)
+
+        # Verify per_reporter_staleness has all fields (timestamps recalculated from nested format)
+        assert "yupana" in actual
+        assert actual["yupana"]["last_check_in"] == last_check_in.isoformat()
+        assert "stale_timestamp" in actual["yupana"]
+        assert "stale_warning_timestamp" in actual["yupana"]
+        assert "culled_timestamp" in actual["yupana"]
+        assert actual["yupana"]["check_in_succeeded"] is True
 
 
 class SerializationSerializeHostSystemProfileTestCase(TestCase):
