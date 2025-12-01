@@ -631,7 +631,7 @@ def test_delete_hosts_filter_by_reporter_state(host_inventory: ApplicationHostIn
 
             # If we get this far, the correct hosts were deleted.  Make sure no
             # other hosts were also deleted.
-            response = host_inventory.apis.hosts.get_hosts_by_id(list(all_host_ids))
+            response = host_inventory.apis.hosts.get_hosts_by_id(list(to_be_deleted))
             assert len(response) == len(to_be_deleted)
 
 
