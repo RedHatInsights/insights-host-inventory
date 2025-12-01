@@ -14,6 +14,8 @@ are created when:
   - groups (group_id)
 """
 
+from typing import Any
+
 from sqlalchemy import event
 from sqlalchemy import inspect
 from sqlalchemy.ext.mutable import MutableList
@@ -45,28 +47,56 @@ def _get_pending_ops(session):
     return session.info["pending_ops"]
 
 
-def _extract_group_ids(groups_list: list[MutableList[dict]]) -> set[str]:
-    """Extract group IDs from a groups list, handling None and empty cases."""
-    # groups_list is a list of MutableList of group dictionaries
+def _extract_group_ids(groups_list: list[Any] | tuple[Any, ...] | MutableList | None) -> set[str]:
+    """
+    Extract group IDs from a groups list, handling various SQLAlchemy history formats.
 
-    # SQLAlchemy history can return:
-    # - An empty list: []
-    # - A list of MutableList objects: [MutableList, ...]
+    SQLAlchemy history can return groups in different formats:
+    - An empty list: []
+    - A tuple containing the list: ([...],)
+    - A list containing the list: [[...]]
+    - Just the list: [...]
+    - A list of MutableList objects: [MutableList([dict]), MutableList([dict]), ...] (for multiple groups)
+      Each MutableList typically contains a single dict, but can contain multiple
 
-    # Extract the actual list first
-    if isinstance(groups_list, (tuple, list)) and groups_list and len(groups_list) == 1:
-        # Check if this is a wrapper (tuple or list) containing the actual list
-        inner = groups_list[0]
-        if isinstance(inner, (list, tuple)):
-            # Convert to list to match the type annotation
-            groups_list = list(inner) if isinstance(inner, tuple) else inner
+    Args:
+        groups_list: The groups list from SQLAlchemy history (deleted/added)
 
-    # Now check if empty (after extracting from wrapper)
+    Returns:
+        A set of group ID strings extracted from the groups list
+    """
     if not groups_list:
         return set()
 
-    # Now iterate over the actual list of group dictionaries
-    return {group.get("id") for group in groups_list if group and isinstance(group, dict) and group.get("id")}
+    # Handle wrapper cases: tuple/list containing a single list
+    if isinstance(groups_list, (tuple, list)) and len(groups_list) == 1:
+        inner = groups_list[0]
+        if isinstance(inner, (list, tuple, MutableList)):
+            # Unwrap: ([...],) or [[...]] -> [...]
+            groups_list = inner
+
+    # Ensure we have an iterable list
+    if not isinstance(groups_list, (list, tuple, MutableList)):
+        # If it's a single item, wrap it in a list
+        groups_list = [groups_list] if groups_list else []
+
+    # Extract group IDs, handling both dicts and MutableList objects
+    group_ids = set()
+    for item in groups_list:
+        if isinstance(item, dict):
+            # Direct dict: extract ID
+            if "id" in item:
+                group_ids.add(str(item["id"]))
+        elif isinstance(item, MutableList):
+            # MutableList wrapper: iterate through it to find dicts
+            for sub_item in item:
+                if isinstance(sub_item, dict) and "id" in sub_item:
+                    group_ids.add(str(sub_item["id"]))
+        elif isinstance(item, (list, tuple)):
+            # Nested list/tuple: recursively extract
+            group_ids.update(_extract_group_ids(item))
+
+    return group_ids
 
 
 def _has_outbox_relevant_changes(host: Host) -> bool:
