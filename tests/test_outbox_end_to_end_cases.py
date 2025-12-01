@@ -30,7 +30,6 @@ from app.queue.events import EventType
 from app.queue.host_mq import IngressMessageConsumer
 from app.queue.host_mq import WorkspaceMessageConsumer
 from lib.host_outbox_events import _collect_pending_ops_for_session
-from lib.host_outbox_events import _pending_outbox_ops
 from lib.outbox_repository import _create_update_event_payload
 from lib.outbox_repository import remove_event_from_outbox
 from lib.outbox_repository import write_event_to_outbox
@@ -1600,9 +1599,6 @@ class TestOutboxE2ECases:
         The fix ensures that _collect_pending_ops_for_session() only returns
         operations for the current session, not all sessions.
         """
-        # Clear any existing pending ops
-        _pending_outbox_ops.clear()
-
         # Create two separate database sessions to simulate concurrent requests
         engine = db.get_engine()
         session_a = SQLASession(bind=engine)
@@ -1612,31 +1608,24 @@ class TestOutboxE2ECases:
         def cleanup():
             session_a.close()
             session_b.close()
-            _pending_outbox_ops.clear()
 
         request.addfinalizer(cleanup)
 
-        # Get session IDs
-        session_a_id = session_a.hash_key
-        session_b_id = session_b.hash_key
-
         # Verify sessions are different
-        assert session_a_id != session_b_id, "Sessions must have different IDs"
+        assert session_a.hash_key != session_b.hash_key, "Sessions must have different IDs"
 
-        # Simulate ops being tracked in both sessions
-        _pending_outbox_ops[session_a_id] = [("created", str(uuid.uuid4())), ("updated", str(uuid.uuid4()))]
-        _pending_outbox_ops[session_b_id] = [("created", str(uuid.uuid4())), ("deleted", str(uuid.uuid4()))]
+        # Simulate ops being tracked in both sessions using session.info
+        session_a.info["pending_ops"] = [("created", str(uuid.uuid4())), ("updated", str(uuid.uuid4()))]
+        session_b.info["pending_ops"] = [("created", str(uuid.uuid4())), ("deleted", str(uuid.uuid4()))]
 
         # Test: session_a should only get its own ops
-        ops_a, returned_session_id_a = _collect_pending_ops_for_session(session_a)
-        assert returned_session_id_a == session_a_id, "Should return session_a's ID"
+        ops_a = _collect_pending_ops_for_session(session_a)
         assert len(ops_a) == 2, f"Session A should have 2 ops, got {len(ops_a)}"
         assert ops_a[0][0] == "created", "First op should be 'created'"
         assert ops_a[1][0] == "updated", "Second op should be 'updated'"
 
         # Test: session_b should only get its own ops
-        ops_b, returned_session_id_b = _collect_pending_ops_for_session(session_b)
-        assert returned_session_id_b == session_b_id, "Should return session_b's ID"
+        ops_b = _collect_pending_ops_for_session(session_b)
         assert len(ops_b) == 2, f"Session B should have 2 ops, got {len(ops_b)}"
         assert ops_b[0][0] == "created", "First op should be 'created'"
         assert ops_b[1][0] == "deleted", "Second op should be 'deleted'"

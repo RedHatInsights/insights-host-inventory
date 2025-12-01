@@ -37,35 +37,12 @@ OUTBOX_TRIGGER_FIELDS = {
     "groups",
 }
 
-# Track pending outbox operations per session using a dictionary keyed by session.hash_key
-# Flask-SQLAlchemy's scoped session proxy doesn't reliably preserve attributes or id()
-# We use session.hash_key which is stable across proxy objects for the same logical session
-# We use weak references conceptually by only storing host_id strings, not Host objects
-_pending_outbox_ops = {}
-
-
-def _get_session_id(session):
-    """
-    Get a stable identifier for a session.
-
-    Handles both scoped_session proxies and regular Session objects.
-    For scoped_session, we need to call it as a function to get the actual session.
-    """
-    # Check if this is a scoped_session (has registry attribute)
-    if hasattr(session, "registry"):
-        # This is a scoped_session proxy, get the actual session
-        actual_session = session()
-        return actual_session.hash_key
-    # Regular Session object
-    return session.hash_key
-
 
 def _get_pending_ops(session):
     """Get or create pending outbox operations list for a session."""
-    session_id = _get_session_id(session)
-    if session_id not in _pending_outbox_ops:
-        _pending_outbox_ops[session_id] = []
-    return _pending_outbox_ops[session_id]
+    if "pending_ops" not in session.info:
+        session.info["pending_ops"] = []
+    return session.info["pending_ops"]
 
 
 def _extract_group_ids(groups_list: list[MutableList[dict]]) -> set[str]:
@@ -152,6 +129,7 @@ def _track_operation(session, event_type: str, host_id: str):
     return False
 
 
+# Event handler callback: registered with SQLAlchemy, not called directly
 @event.listens_for(Host, "after_insert", propagate=True)
 def _track_host_created(mapper, connection, host: Host):  # noqa: ARG001
     """Track that a host was created - will write outbox entry before commit."""
@@ -159,6 +137,7 @@ def _track_host_created(mapper, connection, host: Host):  # noqa: ARG001
     _track_operation(session, "created", str(host.id))
 
 
+# Event handler callback: registered with SQLAlchemy, not called directly
 @event.listens_for(Host, "after_update", propagate=True)
 def _track_host_updated(mapper, connection, host: Host):  # noqa: ARG001
     """Track host updates when relevant fields change."""
@@ -167,6 +146,7 @@ def _track_host_updated(mapper, connection, host: Host):  # noqa: ARG001
         _track_operation(session, "updated", str(host.id))
 
 
+# Event handler callback: registered with SQLAlchemy, not called directly
 @event.listens_for(Session, "before_flush", propagate=True)
 def _check_host_changes_before_flush(session, flush_context, instances):  # noqa: ARG001
     """
@@ -178,6 +158,7 @@ def _check_host_changes_before_flush(session, flush_context, instances):  # noqa
             _track_operation(session, "updated", str(instance.id))
 
 
+# Event handler callback: registered with SQLAlchemy, not called directly
 @event.listens_for(Host, "before_delete", propagate=True)
 def _track_host_deleted(mapper, connection, host: Host):  # noqa: ARG001
     """Track that a host was deleted - will write outbox entry before commit."""
@@ -237,27 +218,10 @@ def _collect_pending_ops_for_session(session):
     mismatch issues where Session A tries to write outbox entries for hosts
     created/updated in Session B.
     """
-    session_id = _get_session_id(session)
-    ops_to_process = _pending_outbox_ops.get(session_id, [])
-    return ops_to_process, session_id
+    return session.info.get("pending_ops", [])
 
 
-def _collect_all_pending_ops():
-    """
-    Collect all pending ops from all sessions and return (ops_list, session_ids_set).
-
-    DEPRECATED: This function is kept for backwards compatibility but should not be used.
-    Use _collect_pending_ops_for_session() instead to avoid session mismatch issues.
-    """
-    ops_to_process = []
-    processed_session_ids = set()
-    for sid, ops in list(_pending_outbox_ops.items()):
-        if ops:
-            ops_to_process.extend(ops)
-            processed_session_ids.add(sid)
-    return ops_to_process, processed_session_ids
-
-
+# Event handler callback: registered with SQLAlchemy, not called directly
 @event.listens_for(Session, "before_commit", propagate=True)
 def _process_pending_outbox_ops_before_commit(session):
     """
@@ -271,48 +235,43 @@ def _process_pending_outbox_ops_before_commit(session):
     - Orphan outbox entries if Session B rolls back
     - Missing outbox entries if Session A rolls back
     """
-    ops_to_process, session_id = _collect_pending_ops_for_session(session)
+    ops_to_process = _collect_pending_ops_for_session(session)
 
     if ops_to_process:
-        logger.debug(f"before_commit for session {session_id} with {len(ops_to_process)} pending ops")
+        logger.debug(f"before_commit for session with {len(ops_to_process)} pending ops")
         logger.debug(f"Processing {len(ops_to_process)} pending outbox operations for current session")
         try:
             _process_outbox_ops_list(session, ops_to_process)
-            # Only clear the current session's ops
-            _pending_outbox_ops.pop(session_id, None)
+            # Clear the current session's ops after processing
+            session.info.pop("pending_ops", None)
         except Exception as e:
             logger.error(f"Error processing outbox ops in before_commit: {e}", exc_info=True)
             # Re-raise to ensure transaction rollback
             raise
 
 
+# Event handler callback: registered with SQLAlchemy, not called directly
 @event.listens_for(Session, "after_commit", propagate=True)
 def _clear_pending_outbox_ops_after_commit(session):
     """Clear pending outbox operations after commit."""
-    session_id = _get_session_id(session)
-
     # Check for any remaining unprocessed ops for THIS session only
     # (added during commit's flush, after before_commit)
     # Note: We CANNOT process these here because the session is in 'committed' state
     # and no further SQL can be emitted. These operations were tracked too late.
-    if ops_remaining := _pending_outbox_ops.get(session_id, []):
+    if ops_remaining := session.info.get("pending_ops", []):
         logger.warning(
-            f"Found {len(ops_remaining)} outbox ops for session {session_id} that were tracked during commit's flush. "
+            f"Found {len(ops_remaining)} outbox ops for session that were tracked during commit's flush. "
             "These operations were tracked too late to be processed. "
             "This typically happens when hosts are modified without an explicit flush before commit."
         )
 
     # Clear remaining ops for this session
-    _pending_outbox_ops.pop(session_id, None)
+    session.info.pop("pending_ops", None)
 
 
+# Event handler callback: registered with SQLAlchemy, not called directly
 @event.listens_for(Session, "after_rollback", propagate=True)
 def _clear_pending_outbox_ops_after_rollback(session):  # noqa: ARG001
     """Clear pending outbox operations after rollback to prevent memory leaks."""
-    session_id = _get_session_id(session)
-    _pending_outbox_ops.pop(session_id, None)
-
-    # Safety net: if dict grows very large, clear all entries
-    if len(_pending_outbox_ops) > 1000:
-        logger.warning(f"Clearing {len(_pending_outbox_ops)} pending outbox ops to prevent resource leak")
-        _pending_outbox_ops.clear()
+    # Data is automatically cleaned up when session is garbage collected
+    session.info.pop("pending_ops", None)
