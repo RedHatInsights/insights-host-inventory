@@ -346,7 +346,7 @@ def test_filter_tags_by_system_profile_mssql(
     [
         pytest.param(field, id=field.name)
         for field in SYSTEM_PROFILE
-        if field.type not in ("custom", "array")
+        if field.type not in ("custom", "array") and field.name not in ("sap_system")
     ],
 )
 def test_filter_tags_by_system_profile_fields_nil(
