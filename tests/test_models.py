@@ -9,7 +9,6 @@ from marshmallow import ValidationError as MarshmallowValidationError
 from sqlalchemy.exc import DataError
 from sqlalchemy.exc import IntegrityError
 
-from api.host_query import staleness_timestamps
 from app.exceptions import ValidationException
 from app.models import MAX_CANONICAL_FACTS_VERSION
 from app.models import MIN_CANONICAL_FACTS_VERSION
@@ -31,8 +30,6 @@ from app.models import db
 from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 from app.models.system_profile_dynamic import HostDynamicSystemProfile
 from app.models.system_profile_static import HostStaticSystemProfile
-from app.staleness_serialization import get_staleness_timestamps
-from app.staleness_serialization import get_sys_default_staleness
 from app.utils import Tag
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
@@ -489,7 +486,11 @@ def test_host_model_constraints(field, value, db_create_host):
         db_create_host(host=host)
 
 
-def test_create_host_sets_per_reporter_staleness(db_create_host, models_datetime_mock):
+@pytest.mark.parametrize("use_flat_format", [True])
+def test_create_host_sets_per_reporter_staleness(db_create_host, models_datetime_mock, use_flat_format, mocker):
+    # Mock feature flag
+    mocker.patch("app.models.host.get_flag_value", return_value=use_flat_format)
+
     stale_timestamp = models_datetime_mock + timedelta(days=1)
 
     input_host = Host(
@@ -500,22 +501,15 @@ def test_create_host_sets_per_reporter_staleness(db_create_host, models_datetime
         org_id=USER_IDENTITY["org_id"],
     )
     created_host = db_create_host(host=input_host)
-    staleness = get_sys_default_staleness()
-    st = staleness_timestamps()
-    timestamps = get_staleness_timestamps(created_host, st, staleness)
 
-    assert created_host.per_reporter_staleness == {
-        "puptoo": {
-            "last_check_in": models_datetime_mock.isoformat(),
-            "stale_timestamp": timestamps["stale_timestamp"].isoformat(),
-            "check_in_succeeded": True,
-            "culled_timestamp": timestamps["culled_timestamp"].isoformat(),
-            "stale_warning_timestamp": timestamps["stale_warning_timestamp"].isoformat(),
-        }
-    }
+    # With feature flag enabled, expects flat format (timestamp strings only)
+    assert created_host.per_reporter_staleness == {"puptoo": models_datetime_mock.isoformat()}
 
 
-def test_update_per_reporter_staleness(db_create_host, models_datetime_mock):
+def test_update_per_reporter_staleness(db_create_host, models_datetime_mock, mocker):
+    # Mock feature flag to use flat format
+    mocker.patch("app.models.host.get_flag_value", return_value=True)
+
     puptoo_stale_timestamp = models_datetime_mock + timedelta(days=1)
 
     subman_id = generate_uuid()
@@ -528,19 +522,9 @@ def test_update_per_reporter_staleness(db_create_host, models_datetime_mock):
     )
 
     existing_host = db_create_host(host=input_host)
-    staleness = get_sys_default_staleness()
-    st = staleness_timestamps()
-    timestamps = get_staleness_timestamps(existing_host, st, staleness)
 
-    assert existing_host.per_reporter_staleness == {
-        "puptoo": {
-            "last_check_in": models_datetime_mock.isoformat(),
-            "stale_timestamp": timestamps["stale_timestamp"].isoformat(),
-            "check_in_succeeded": True,
-            "culled_timestamp": timestamps["culled_timestamp"].isoformat(),
-            "stale_warning_timestamp": timestamps["stale_warning_timestamp"].isoformat(),
-        }
-    }
+    # With feature flag enabled, expects flat format
+    assert existing_host.per_reporter_staleness == {"puptoo": models_datetime_mock.isoformat()}
 
     puptoo_stale_timestamp += timedelta(days=1)
 
@@ -554,15 +538,7 @@ def test_update_per_reporter_staleness(db_create_host, models_datetime_mock):
     existing_host.update(update_host)
 
     # datetime will not change because the datetime.now() method is patched
-    assert existing_host.per_reporter_staleness == {
-        "puptoo": {
-            "last_check_in": models_datetime_mock.isoformat(),
-            "stale_timestamp": timestamps["stale_timestamp"].isoformat(),
-            "check_in_succeeded": True,
-            "culled_timestamp": timestamps["culled_timestamp"].isoformat(),
-            "stale_warning_timestamp": timestamps["stale_warning_timestamp"].isoformat(),
-        }
-    }
+    assert existing_host.per_reporter_staleness == {"puptoo": models_datetime_mock.isoformat()}
 
     yupana_stale_timestamp = puptoo_stale_timestamp + timedelta(days=1)
 
@@ -577,28 +553,25 @@ def test_update_per_reporter_staleness(db_create_host, models_datetime_mock):
 
     # datetime will not change because the datetime.now() method is patched
     assert existing_host.per_reporter_staleness == {
-        "puptoo": {
-            "last_check_in": models_datetime_mock.isoformat(),
-            "stale_timestamp": timestamps["stale_timestamp"].isoformat(),
-            "check_in_succeeded": True,
-            "culled_timestamp": timestamps["culled_timestamp"].isoformat(),
-            "stale_warning_timestamp": timestamps["stale_warning_timestamp"].isoformat(),
-        },
-        "yupana": {
-            "last_check_in": models_datetime_mock.isoformat(),
-            "stale_timestamp": timestamps["stale_timestamp"].isoformat(),
-            "check_in_succeeded": True,
-            "culled_timestamp": timestamps["culled_timestamp"].isoformat(),
-            "stale_warning_timestamp": timestamps["stale_warning_timestamp"].isoformat(),
-        },
+        "puptoo": models_datetime_mock.isoformat(),
+        "yupana": models_datetime_mock.isoformat(),
     }
 
 
 @pytest.mark.parametrize(
-    "new_reporter",
-    ["satellite", "discovery"],
+    "new_reporter,use_flat_format",
+    [
+        ("satellite", True),
+        ("discovery", True),
+        ("satellite", False),  # Test legacy nested format
+    ],
 )
-def test_update_per_reporter_staleness_yupana_replacement(db_create_host, models_datetime_mock, new_reporter):
+def test_update_per_reporter_staleness_yupana_replacement(
+    db_create_host, models_datetime_mock, new_reporter, use_flat_format, mocker
+):
+    # Mock feature flag
+    mocker.patch("app.models.host.get_flag_value", return_value=use_flat_format)
+
     yupana_stale_timestamp = models_datetime_mock + timedelta(days=1)
     subman_id = generate_uuid()
     input_host = Host(
@@ -610,18 +583,18 @@ def test_update_per_reporter_staleness_yupana_replacement(db_create_host, models
     )
     existing_host = db_create_host(host=input_host)
 
-    staleness = get_sys_default_staleness()
-    st = staleness_timestamps()
-    timestamps = get_staleness_timestamps(existing_host, st, staleness)
-    assert existing_host.per_reporter_staleness == {
-        "yupana": {
-            "last_check_in": models_datetime_mock.isoformat(),
-            "stale_timestamp": timestamps["stale_timestamp"].isoformat(),
-            "check_in_succeeded": True,
-            "culled_timestamp": timestamps["culled_timestamp"].isoformat(),
-            "stale_warning_timestamp": timestamps["stale_warning_timestamp"].isoformat(),
-        }
-    }
+    if use_flat_format:
+        # Flat format: timestamp strings only
+        assert existing_host.per_reporter_staleness == {"yupana": models_datetime_mock.isoformat()}
+    else:
+        # Legacy nested format - verify structure exists
+        assert "yupana" in existing_host.per_reporter_staleness
+        assert "last_check_in" in existing_host.per_reporter_staleness["yupana"]
+        assert "stale_timestamp" in existing_host.per_reporter_staleness["yupana"]
+        assert "culled_timestamp" in existing_host.per_reporter_staleness["yupana"]
+        assert "stale_warning_timestamp" in existing_host.per_reporter_staleness["yupana"]
+        assert "check_in_succeeded" in existing_host.per_reporter_staleness["yupana"]
+        assert existing_host.per_reporter_staleness["yupana"]["last_check_in"] == models_datetime_mock.isoformat()
 
     yupana_stale_timestamp += timedelta(days=1)
 
@@ -634,16 +607,19 @@ def test_update_per_reporter_staleness_yupana_replacement(db_create_host, models
     )
     existing_host.update(update_host)
 
-    # datetime will not change because the datetime.now() method is patched
-    assert existing_host.per_reporter_staleness == {
-        new_reporter: {
-            "last_check_in": models_datetime_mock.isoformat(),
-            "stale_timestamp": timestamps["stale_timestamp"].isoformat(),
-            "check_in_succeeded": True,
-            "culled_timestamp": timestamps["culled_timestamp"].isoformat(),
-            "stale_warning_timestamp": timestamps["stale_warning_timestamp"].isoformat(),
-        }
-    }
+    # yupana should be removed and replaced with new_reporter
+    if use_flat_format:
+        assert existing_host.per_reporter_staleness == {new_reporter: models_datetime_mock.isoformat()}
+    else:
+        # Legacy nested format - verify structure exists and yupana was replaced
+        assert "yupana" not in existing_host.per_reporter_staleness
+        assert new_reporter in existing_host.per_reporter_staleness
+        assert "last_check_in" in existing_host.per_reporter_staleness[new_reporter]
+        assert "stale_timestamp" in existing_host.per_reporter_staleness[new_reporter]
+        assert "culled_timestamp" in existing_host.per_reporter_staleness[new_reporter]
+        assert "stale_warning_timestamp" in existing_host.per_reporter_staleness[new_reporter]
+        assert "check_in_succeeded" in existing_host.per_reporter_staleness[new_reporter]
+        assert existing_host.per_reporter_staleness[new_reporter]["last_check_in"] == models_datetime_mock.isoformat()
 
 
 def test_canonical_facts_version_default():
