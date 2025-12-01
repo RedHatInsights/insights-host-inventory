@@ -177,9 +177,13 @@ def _execute_rbac_http_request(  # type: ignore[return]
 def rbac_get_request_using_endpoint_and_headers(
     rbac_endpoint: str, request_headers: dict, request_params: dict | None = None
 ):
-    if inventory_config().bypass_rbac:
-        return None
+    """
+    Execute a GET request to an RBAC endpoint.
 
+    NOTE: This function does NOT check bypass flags (bypass_rbac or bypass_kessel).
+    Callers are responsible for checking the appropriate bypass flag before calling
+    this function to maintain clear separation of concerns.
+    """
     return _execute_rbac_http_request(
         method="GET",
         rbac_endpoint=rbac_endpoint,
@@ -189,6 +193,9 @@ def rbac_get_request_using_endpoint_and_headers(
 
 
 def get_rbac_permissions(app: str, request_header: dict):
+    if inventory_config().bypass_rbac:
+        return None
+
     resp_data = rbac_get_request_using_endpoint_and_headers(get_rbac_url(app), request_header)
     logger.debug("Fetched RBAC Data", extra={"resp_data": resp_data})
     return resp_data["data"]
