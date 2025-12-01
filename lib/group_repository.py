@@ -351,9 +351,7 @@ def delete_group_list(group_id_list: list[str], identity: Identity, event_produc
 
         serialized_groups, host_id_list = _update_hosts_for_group_changes(deleted_host_ids, new_group_list, identity)
 
-        db.session.commit()
-        db.session.expunge_all()
-
+    # session_guard commits and closes the session above this line
     _process_host_changes(host_id_list, serialized_groups, staleness, identity, event_producer)
     return deletion_count
 
@@ -409,6 +407,13 @@ def get_group_by_id_from_db(group_id: str, org_id: str, session: Session | None 
     session = session or db.session
     query = session.query(Group).filter(Group.org_id == org_id, Group.id == group_id)
     return query.one_or_none()
+
+
+def get_groups_by_id_list_from_db(
+    group_id_list: list[str], org_id: str, session: Session | None = None
+) -> list[Group]:
+    session = session or db.session
+    return session.query(Group).filter(Group.org_id == org_id, Group.id.in_(group_id_list)).all()
 
 
 def patch_group(group: Group, patch_data: dict, identity: Identity, event_producer: EventProducer):

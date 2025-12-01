@@ -1,0 +1,48 @@
+repos:
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v6.0.0
+  hooks:
+  - id: trailing-whitespace
+  - id: end-of-file-fixer
+  - id: check-yaml
+  - id: debug-statements
+- repo: https://github.com/tox-dev/pyproject-fmt
+  rev: v2.11.1
+  hooks:
+  - id: pyproject-fmt
+- repo: https://github.com/pre-commit/mirrors-mypy
+  rev: 'v1.19.0'
+  hooks:
+  - id: mypy
+    additional_dependencies:
+    - types-requests
+    - types-python-dateutil
+    - attrs
+    - iqe-core>=24.0
+    - --index-url=https://nexus.corp.redhat.com/repository/cqt-pypi/simple
+- repo: https://github.com/asottile/pyupgrade
+  rev: v3.21.2
+  hooks:
+  - id: pyupgrade
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: v0.14.6
+  hooks:
+  - id: ruff
+    args: [--fix, --exit-non-zero-on-fix]
+  - id: ruff-format
+
+- repo: https://gitlab.cee.redhat.com/infosec-public/developer-workbench/tools
+  rev: rh-pre-commit-2.3.2
+  hooks:
+  # If you have not run this hook on your system before, it may prompt you to
+  # log in for patterns, and you will need to try again.
+  # To enabe rh-pre-commit hook, users need to execute `pre-commit install`
+  # Docs:
+  # https://source.redhat.com/departments/it/it-information-security/leaktk/leaktk_components/rh_pre_commit
+  - id: rh-pre-commit
+  - id: rh-pre-commit.commit-msg # Optional for commit-msg attestation
+- repo: https://gitlab.cee.redhat.com/insights-qe/iqe-pre-commit-hooks
+  rev: v25.10.17.0
+  hooks:
+  - id: iqe-checks
+  - id: iqe-tests-metadata

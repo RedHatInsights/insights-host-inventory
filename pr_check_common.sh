@@ -14,6 +14,8 @@ cat /etc/redhat-release
 export COMPONENT_NAME="host-inventory"  # name of app-sre "resourceTemplate" in deploy.yaml for this component
 export COMPONENTS_W_RESOURCES="host-inventory"  # this gives us resources defined in app-sre, otherwise we run low on memory
 export IQE_PLUGINS="host_inventory"
+export IQE_INSTALL_LOCAL_PLUGIN="true"  # Install the local IQE plugin instead of from Nexus
+export IQE_LOCAL_PLUGIN_PATH="$APP_ROOT/iqe-host-inventory-plugin"  # Path to local IQE plugin
 
 # Get bonfire helper scripts
 CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
