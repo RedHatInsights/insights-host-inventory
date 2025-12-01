@@ -89,7 +89,7 @@ def _build_rbac_request_headers(identity_header: str | None = None, request_id_h
     return request_headers
 
 
-def _execute_rbac_http_request(
+def _execute_rbac_http_request(  # type: ignore[return]
     method: str,
     rbac_endpoint: str,
     request_headers: dict,
@@ -122,39 +122,26 @@ def _execute_rbac_http_request(
 
     try:
         with outbound_http_response_time.labels("rbac").time():
-            if method.upper() == "GET":
-                rbac_response = request_session.get(
-                    url=rbac_endpoint,
-                    params=request_params,
-                    headers=request_headers,
-                    timeout=timeout,
-                    verify=LoadedConfig.tlsCAPath,
-                )
-            elif method.upper() == "POST":
-                rbac_response = request_session.post(
-                    url=rbac_endpoint,
-                    headers=request_headers,
-                    json=request_data,
-                    timeout=timeout,
-                    verify=LoadedConfig.tlsCAPath,
-                )
-            elif method.upper() == "DELETE":
-                rbac_response = request_session.delete(
-                    url=rbac_endpoint,
-                    headers=request_headers,
-                    timeout=timeout,
-                    verify=LoadedConfig.tlsCAPath,
-                )
-            elif method.upper() == "PATCH":
-                rbac_response = request_session.patch(
-                    url=rbac_endpoint,
-                    headers=request_headers,
-                    json=request_data,
-                    timeout=timeout,
-                    verify=LoadedConfig.tlsCAPath,
-                )
-            else:
+            # Build common parameters shared by all HTTP methods
+            common_kwargs = {
+                "url": rbac_endpoint,
+                "headers": request_headers,
+                "timeout": timeout,
+                "verify": LoadedConfig.tlsCAPath,
+            }
+
+            # Add method-specific parameters
+            method_upper = method.upper()
+            if method_upper == "GET":
+                common_kwargs["params"] = request_params
+            elif method_upper in ("POST", "PATCH"):
+                common_kwargs["json"] = request_data
+            elif method_upper != "DELETE":
                 raise ValueError(f"Unsupported method: {method}")
+
+            # Dynamically call the appropriate HTTP method
+            http_method = getattr(request_session, method_upper.lower())
+            rbac_response = http_method(**common_kwargs)
 
             rbac_response.raise_for_status()
             return rbac_response.json()
@@ -516,7 +503,7 @@ def rbac_group_id_check(rbac_filter: dict, requested_ids: set) -> None:
             abort(HTTPStatus.FORBIDDEN, f"You do not have access to the the following groups: {joined_ids}")
 
 
-def post_rbac_workspace(name) -> UUID | None:
+def post_rbac_workspace(name) -> UUID | None:  # type: ignore[return]
     if inventory_config().bypass_kessel:
         return None
 
@@ -524,12 +511,21 @@ def post_rbac_workspace(name) -> UUID | None:
     request_headers = _build_rbac_request_headers(request.headers[IDENTITY_HEADER], threadctx.request_id)
     request_data = {"name": name}
 
-    return _execute_rbac_http_request(
+    resp_data = _execute_rbac_http_request(
         method="POST",
         rbac_endpoint=rbac_endpoint,
         request_headers=request_headers,
         request_data=request_data,
     )
+
+    if resp_data is None:
+        return None
+
+    try:
+        return UUID(resp_data["id"])
+    except (KeyError, ValueError, TypeError) as e:
+        rbac_failure(logger, e)
+        abort(503, "Failed to parse RBAC response, request cannot be fulfilled")
 
 
 def rbac_create_ungrouped_hosts_workspace(identity: Identity) -> UUID | None:
