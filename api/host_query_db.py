@@ -619,7 +619,8 @@ def get_sparse_system_profile(
     }
 
     # Track if we need to fetch workloads for backward compatibility
-    requested_sp_fields = fields.get("system_profile", []) if fields else []
+    requested_sp_fields_dict: dict[str, bool] = fields.get("system_profile", {}) if fields else {}  # type: ignore[assignment]
+    requested_sp_fields = list(requested_sp_fields_dict.keys()) if isinstance(requested_sp_fields_dict, dict) else []
     workloads_requested = "workloads" in requested_sp_fields
     workloads_needed_for_compat = (
         get_flag_value(FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY)
