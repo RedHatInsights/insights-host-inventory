@@ -251,7 +251,7 @@ class Config:
         # https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md
         self.kafka_consumer = {
             "auto.offset.reset": os.environ.get("KAFKA_CONSUMER_AUTO_OFFSET_RESET", "latest"),
-            "auto.commit.interval.ms": int(os.environ.get("KAFKA_CONSUMER_AUTO_COMMIT_INTERVAL_MS", "5000")),
+            "enable.auto.commit": False,
             "partition.assignment.strategy": "cooperative-sticky",
             **self.base_consumer_config,
         }
