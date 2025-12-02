@@ -53,6 +53,42 @@ def test_remove_hosts_from_nonexistent_group(db_create_host, api_remove_hosts_fr
     assert event_producer.write_event.call_count == 0
 
 
+@pytest.mark.usefixtures("enable_rbac")
+def test_remove_hosts_from_group_RBAC_denied(
+    subtests, mocker, db_create_group, db_create_host, api_remove_hosts_from_group
+):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    group_id = str(db_create_group("new_group").id)
+
+    for response_file in GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+            host_id_list = [db_create_host().id for _ in range(3)]
+            response_status, _ = api_remove_hosts_from_group(group_id, [str(host) for host in host_id_list[0:2]])
+
+            assert_response_status(response_status, 403)
+
+
+@pytest.mark.usefixtures("enable_rbac")
+def test_remove_hosts_from_group_RBAC_denied_missing_group(
+    subtests, mocker, db_create_host, api_remove_hosts_from_group
+):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    group_id = str(generate_uuid())
+
+    for response_file in GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+            host_id_list = [db_create_host().id for _ in range(3)]
+            response_status, _ = api_remove_hosts_from_group(group_id, [str(host) for host in host_id_list[0:2]])
+
+            assert_response_status(response_status, 404)
+
+
 def test_remove_hosts_from_someone_elses_group(
     db_create_group,
     db_create_host,

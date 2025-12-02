@@ -50,6 +50,22 @@ def test_add_host_to_group_RBAC_denied(
             assert_response_status(response_status, 403)
 
 
+@pytest.mark.usefixtures("enable_rbac")
+def test_add_host_to_group_RBAC_denied_missing_group(subtests, mocker, db_create_host, api_add_hosts_to_group):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    group_id = str(generate_uuid())
+
+    for response_file in GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+            host_id_list = [db_create_host().id for _ in range(3)]
+            response_status, _ = api_add_hosts_to_group(group_id, [str(host) for host in host_id_list[0:2]])
+
+            assert_response_status(response_status, 404)
+
+
 @pytest.mark.usefixtures("enable_rbac", "event_producer")
 def test_add_host_to_group_RBAC_allowed_specific_groups(
     mocker,
