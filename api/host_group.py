@@ -28,7 +28,7 @@ logger = get_logger(__name__)
 
 @api_operation
 @access(
-    KesselResourceTypes.WORKSPACE.move_host
+    KesselResourceTypes.WORKSPACE.move_host, id_param="group_id"
 )  # NOTE: this -could- use the group_id param to check the group and the body to check the hosts by id instead
 # of doing a lookupresources, but it's being kept this way for now for backward comaptibility
 # (V1 doesn't require any host permissions to move a host but does require write group permission on the origin
@@ -66,7 +66,7 @@ def add_host_list_to_group(group_id, host_id_list, rbac_filter=None):
 
 @api_operation
 @access(
-    KesselResourceTypes.WORKSPACE.move_host
+    KesselResourceTypes.WORKSPACE.move_host, id_param="group_id"
 )  # NOTE: this -could- use the group_id param to check the group and the body to check the hosts by id instead
 # of doing a lookupresources, but it's being kept this way for now for backward comaptibility
 # (V1 doesn't require any host permissions to move a host but does require write group permission on the
