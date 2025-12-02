@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from flask_unleash import Unleash
-from UnleashClient.strategies import Strategy
 
 from app.logging import get_logger
 
@@ -13,6 +12,7 @@ FLAG_INVENTORY_KESSEL_PHASE_1 = "hbi.api.kessel-phase-1"
 FLAG_INVENTORY_USE_NEW_SYSTEM_PROFILE_TABLES = "hbi.use_new_system_profile_tables"
 FLAG_INVENTORY_REJECT_RHSM_PAYLOADS = "hbi.api.reject-rhsm-payloads"
 FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY = "hbi.workloads_fields_backward_compatibility"
+FLAG_INVENTORY_KESSEL_GROUPS = "hbi.api.kessel-groups"
 
 
 FLAG_FALLBACK_VALUES = {
@@ -22,17 +22,33 @@ FLAG_FALLBACK_VALUES = {
     FLAG_INVENTORY_USE_NEW_SYSTEM_PROFILE_TABLES: False,
     FLAG_INVENTORY_REJECT_RHSM_PAYLOADS: False,
     FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY: False,
+    FLAG_INVENTORY_KESSEL_GROUPS: False,
 }
 
 
-class SchemaStrategy(Strategy):
-    def load_provisioning(self) -> list:
-        return self.parameters["schema-name"].split(",")
+class SchemaStrategy:
+    """
+    Custom strategy for unleashclient 6.x+
+    In version 6.x, custom strategies must implement an apply method
+    that takes two parameters: parameters (dict) and context (dict)
+    """
 
-    def apply(self, context) -> bool:
+    def apply(self, parameters: dict, context: dict) -> bool:
+        """
+        Evaluate the strategy based on parameters and context.
+
+        Args:
+            parameters: Strategy parameters from Unleash (e.g., {"schema-name": "schema1,schema2"})
+            context: Context from the application (e.g., {"schema": "schema1"})
+
+        Returns:
+            bool: True if the strategy condition is met, False otherwise
+        """
         default_value = False
         if "schema" in context and context["schema"] is not None:
-            default_value = context["schema"] in self.parsed_provisioning
+            # Parse schema names from parameters
+            schema_names = parameters.get("schema-name", "").split(",")
+            default_value = context["schema"] in schema_names
         return default_value
 
 
