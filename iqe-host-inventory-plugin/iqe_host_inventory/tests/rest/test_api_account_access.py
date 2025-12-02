@@ -60,7 +60,7 @@ def test_access_host_from_another_account(
 
     # Fetch the host using the secondary account
     if is_kessel_phase_1_enabled:
-        with raises_apierror(403):
+        with raises_apierror(404):
             host_inventory_secondary.apis.hosts.get_hosts_by_id_response(host.id)
     else:
         response = host_inventory_secondary.apis.hosts.get_hosts_by_id_response(host.id)
@@ -84,7 +84,6 @@ def test_delete_multiple_accounts(
     host_inventory: ApplicationHostInventory,
     host_inventory_secondary: ApplicationHostInventory,
     operating_system: str,
-    is_kessel_phase_1_enabled: bool,
 ) -> None:
     """
     Test deletion from another account.
@@ -111,8 +110,7 @@ def test_delete_multiple_accounts(
     prim_hosts = host_inventory.apis.hosts.get_hosts_by_id_response(host_ids)
     assert len(prim_hosts.results) == n
 
-    error_code = 403 if is_kessel_phase_1_enabled else 404
-    with raises_apierror(error_code):
+    with raises_apierror(404):
         host_inventory_secondary.apis.hosts.delete_by_id_raw(host_ids)
 
     host_inventory.apis.hosts.verify_not_deleted(hosts)
@@ -145,7 +143,7 @@ def test_access_other_orgs_with_org_id_header(
         assert host.id not in [h.id for h in response_hosts]
 
     if is_kessel_phase_1_enabled:
-        with raises_apierror(403):
+        with raises_apierror(404):
             host_inventory_secondary.apis.hosts.get_hosts_by_id(host)
     else:
         response_hosts = host_inventory_secondary.apis.hosts.get_hosts_by_id(host)

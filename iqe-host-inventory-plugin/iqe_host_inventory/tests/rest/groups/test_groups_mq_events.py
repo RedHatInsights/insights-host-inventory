@@ -741,7 +741,6 @@ def test_groups_mq_events_not_produce_remove_hosts_bad_id(
 def test_groups_mq_events_not_produce_remove_hosts_from_bad_group(
     host_inventory: ApplicationHostInventory,
     bad_id: str,
-    is_kessel_phase_1_enabled: bool,
 ):
     """
     https://issues.redhat.com/browse/ESSNTL-3855
@@ -761,7 +760,7 @@ def test_groups_mq_events_not_produce_remove_hosts_from_bad_group(
     insights_ids = [host.insights_id for host in hosts]
     host_inventory.kafka.wait_for_filtered_host_messages(HostWrapper.insights_id, insights_ids)
 
-    error_codes = (400, 403) if is_kessel_phase_1_enabled else (400, 404)
+    error_codes = (400, 404)
     with raises_apierror(error_codes):
         with api_disabled_validation(host_inventory.apis.groups.raw_api) as api:
             api.api_host_group_delete_hosts_from_group(bad_id, [host.id for host in hosts])
@@ -883,7 +882,6 @@ def test_groups_mq_events_not_produce_add_hosts_bad_id(host_inventory: Applicati
 def test_groups_mq_events_not_produce_add_hosts_to_bad_group(
     host_inventory: ApplicationHostInventory,
     bad_id: str,
-    is_kessel_phase_1_enabled: bool,
 ):
     """
     https://issues.redhat.com/browse/ESSNTL-4377
@@ -903,7 +901,7 @@ def test_groups_mq_events_not_produce_add_hosts_to_bad_group(
     insights_ids = [hosts[0].insights_id]
     host_inventory.kafka.wait_for_filtered_host_messages(HostWrapper.insights_id, insights_ids)
 
-    error_codes = (400, 403) if is_kessel_phase_1_enabled else (400, 404)
+    error_codes = (400, 404)
     with raises_apierror(error_codes):
         with api_disabled_validation(host_inventory.apis.groups.raw_api) as api:
             api.api_host_group_add_host_list_to_group(bad_id, [hosts[1].id])

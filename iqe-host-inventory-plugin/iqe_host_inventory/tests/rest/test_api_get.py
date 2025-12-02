@@ -159,7 +159,9 @@ class TestGetHosts:
         assert host.org_id == hbi_default_org_id
 
     @pytest.mark.usefixtures("hbi_upload_prepare_host_class")
-    def test_get_host_by_not_exist_id(self, host_inventory: ApplicationHostInventory):
+    def test_get_host_by_not_exist_id(
+        self, host_inventory: ApplicationHostInventory, is_kessel_phase_1_enabled: bool
+    ):
         """
         Test GET host using a non-existent ID.
 
@@ -177,9 +179,13 @@ class TestGetHosts:
             title: Inventory: test GET of host w/ non-existent id
         """
         fake_id = generate_uuid()
-        response = host_inventory.apis.hosts.get_hosts_by_id_response(fake_id)
 
-        assert response.count == 0
+        if is_kessel_phase_1_enabled:
+            with raises_apierror(404):
+                host_inventory.apis.hosts.get_hosts_by_id_response(fake_id)
+        else:
+            response = host_inventory.apis.hosts.get_hosts_by_id_response(fake_id)
+            assert response.count == 0
 
     def test_branch_id_parameter(
         self, host_inventory: ApplicationHostInventory, hbi_upload_prepare_host_class: HostOut

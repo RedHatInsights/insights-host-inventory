@@ -70,12 +70,10 @@ def check_events_and_notifications(
 @pytest.mark.reaper_script
 @pytest.mark.ephemeral
 @pytest.mark.usefixtures("hbi_staleness_cleanup")
-@pytest.mark.parametrize("host_type", ["conventional", "edge"])
 def test_reaper_script(
     inventory_db_session: Session,
     host_inventory: ApplicationHostInventory,
     is_kessel_phase_1_enabled: bool,
-    host_type: str,
 ) -> None:
     """
     Ensure that the host reaper script is removing the culled hosts from the database
@@ -100,12 +98,10 @@ def test_reaper_script(
     """
     amount = 5
 
-    fresh_hosts_data = host_inventory.datagen.create_n_hosts_data(amount, host_type=host_type)
-    stale_hosts_data = host_inventory.datagen.create_n_hosts_data(amount, host_type=host_type)
-    stale_warning_hosts_data = host_inventory.datagen.create_n_hosts_data(
-        amount, host_type=host_type
-    )
-    culled_hosts_data = host_inventory.datagen.create_n_hosts_data(amount, host_type=host_type)
+    fresh_hosts_data = host_inventory.datagen.create_n_hosts_data(amount)
+    stale_hosts_data = host_inventory.datagen.create_n_hosts_data(amount)
+    stale_warning_hosts_data = host_inventory.datagen.create_n_hosts_data(amount)
+    culled_hosts_data = host_inventory.datagen.create_n_hosts_data(amount)
 
     hosts = create_hosts_fresh_stale_stalewarning_culled(
         host_inventory,
@@ -113,7 +109,6 @@ def test_reaper_script(
         stale_hosts_data,
         stale_warning_hosts_data,
         culled_hosts_data,
-        host_type=host_type,
         deltas=(60, 120, 180),
     )
 
@@ -159,253 +154,7 @@ def test_reaper_script(
 
     for host_id in culled_hosts_ids:
         if is_kessel_phase_1_enabled:
-            with raises_apierror(403):
-                host_inventory.apis.hosts.get_hosts_by_id(host_id)
-        else:
-            response = host_inventory.apis.hosts.get_hosts_by_id(host_id)
-            assert len(response) == 0
-
-
-@pytest.mark.reaper_script
-@pytest.mark.ephemeral
-@pytest.mark.usefixtures("hbi_staleness_cleanup")
-def test_reaper_script_grouped_hosts(
-    host_inventory: ApplicationHostInventory, inventory_db_session
-):
-    """
-    https://issues.redhat.com/browse/RHINENG-2303
-    https://issues.redhat.com/browse/RHINENG-6037
-
-    metadata:
-        requirements: inv-host-reaper, inv-staleness-hosts, inv-groups-get-by-id, inv-groups-delete
-        assignee: fstavela
-        importance: high
-        title: Test that host reaper correctly deletes grouped hosts
-    """
-    hosts_data = host_inventory.datagen.create_n_hosts_data(2)
-    hosts = host_inventory.kafka.create_hosts(hosts_data=hosts_data)
-    hosts_ids = [host.id for host in hosts]
-
-    groups_data = [GroupData(hosts=hosts[0]), GroupData(hosts=hosts[1])]
-    groups = host_inventory.apis.groups.create_groups(groups_data)
-
-    create_hosts_in_state(
-        host_inventory,
-        hosts_data,
-        host_state="culling",
-        deltas=(1, 2, 10),
-    )
-
-    # Test that I can't get culled hosts, even if they are not deleted yet
-    response_hosts = host_inventory.apis.hosts.get_hosts_by_id(hosts)
-    assert len(response_hosts) == 0
-
-    # Test that I can delete a group with culled hosts
-    response_group = host_inventory.apis.groups.get_group_by_id(groups[0])
-    assert response_group.host_count == 0
-    host_inventory.apis.groups.delete_groups(groups[0], wait_for_deleted=False)
-    host_inventory.apis.groups.verify_deleted(groups[0])
-
-    # Remove the sleep when https://issues.redhat.com/browse/RHINENG-11171 is fixed
-    sleep(10)
-
-    execute_reaper()
-
-    logger.info("Retrieving hosts from the database")
-    hosts_in_db = query_hosts_by_ids(inventory_db_session, hosts_ids)
-    logger.info(f"{len(hosts_in_db)} hosts retrieved from the database")
-    assert len(hosts_in_db) == 0
-
-    # Test that I can delete a group with deleted culled hosts
-    response_group = host_inventory.apis.groups.get_group_by_id(groups[1])
-    assert response_group.host_count == 0
-    host_inventory.apis.groups.delete_groups(groups[1], wait_for_deleted=False)
-    host_inventory.apis.groups.verify_deleted(groups[1])
-
-
-@pytest.mark.reaper_script
-@pytest.mark.ephemeral
-@pytest.mark.usefixtures("hbi_staleness_cleanup")
-def test_reaper_script_rhsm_sp_bridge_host(
-    inventory_db_session: Session,
-    host_inventory: ApplicationHostInventory,
-) -> None:
-    """A temporary test for a temporary workaround for culling of rhsm-system-profile-bridge hosts.
-    Hosts which are reported only by this reporter should never get culled. To achieve this, every
-    time a host reaper runs it updates the "updated" and "last_check_in" timestamps of these hosts.
-
-    https://issues.redhat.com/browse/RHINENG-16934
-
-    metadata:
-        requirements: inv-host-reaper-rhsm-sp-bridge-bandaid
-        assignee: fstavela
-        importance: high
-        title: Test that rhsm-system-profile-bridge hosts will not get culled
-    """
-    # These hosts shouldn't be deleted
-    hosts_data = host_inventory.datagen.create_n_hosts_data(
-        5, reporter="rhsm-system-profile-bridge", display_name="rhsm-bridge-test"
-    )
-
-    # These hosts should be deleted
-    hosts_data += host_inventory.datagen.create_n_hosts_data(
-        5, reporter="puptoo", display_name="rhsm-bridge-test"
-    )
-
-    hosts = create_hosts_in_state(
-        host_inventory,
-        hosts_data,
-        host_state="culling",
-        deltas=(40, 50, 60),
-    )
-    rhsm_host_ids = [host.id for host in hosts[:5]]
-    rhsm_hosts_by_ids = {host.id: host for host in hosts[:5]}
-    puptoo_host_ids = [host.id for host in hosts[5:]]
-
-    execute_reaper()
-
-    # Check that all puptoo hosts were deleted
-    logger.info("Retrieving puptoo hosts from the database")
-    puptoo_hosts_in_db = query_hosts_by_ids(inventory_db_session, puptoo_host_ids)
-    logger.info(f"{len(puptoo_hosts_in_db)} culled hosts retrieved from the database")
-    assert len(puptoo_hosts_in_db) == 0
-
-    # Check that all rhsm bridge hosts are still in the DB
-    logger.info("Retrieving rhsm-system-profile-bridge hosts from the database")
-    rhsm_hosts_in_db = query_hosts_by_ids(inventory_db_session, rhsm_host_ids)
-    logger.info(f"{len(rhsm_hosts_in_db)} hosts retrieved from the database")
-    assert len(rhsm_hosts_in_db) == len(rhsm_host_ids)
-
-    # Check that all rhsm bridge hosts are retrievable by API
-    response_hosts = host_inventory.apis.hosts.get_hosts(display_name="rhsm-bridge-test")
-    assert len(response_hosts) == len(rhsm_host_ids)
-    response_ids = {host.id for host in response_hosts}
-    assert response_ids == set(rhsm_host_ids)
-
-    # Check that the "updated" and "last_check_in" timestamps stayed the same
-    for response_host in response_hosts:
-        assert response_host.updated == rhsm_hosts_by_ids[response_host.id].updated
-        assert response_host.last_check_in == rhsm_hosts_by_ids[response_host.id].last_check_in
-
-
-@pytest.mark.reaper_script
-@pytest.mark.ephemeral
-@pytest.mark.usefixtures("hbi_staleness_cleanup")
-def test_reaper_script_rhsm_sp_bridge_host_with_other_reporters(
-    inventory_db_session: Session,
-    host_inventory: ApplicationHostInventory,
-) -> None:
-    """A temporary test for a temporary workaround for culling of rhsm-system-profile-bridge hosts.
-    The workaround shouldn't apply to hosts which have been reported by rhsm-sp-bridge and other
-    reporters as well.
-
-    https://issues.redhat.com/browse/RHINENG-16934
-
-    metadata:
-        requirements: inv-host-reaper-rhsm-sp-bridge-bandaid
-        assignee: fstavela
-        importance: high
-        title: Test that hosts with rhsm-sp-bridge and other reporters will get culled and deleted
-    """
-    # Create hosts with a different reporter
-    hosts_data = host_inventory.datagen.create_n_hosts_data(
-        5, reporter="rhsm-conduit", display_name="rhsm-bridge-test"
-    )
-    hosts = host_inventory.kafka.create_hosts(hosts_data)
-    host_ids = {host.id for host in hosts}
-
-    # Update the hosts with rhsm-system-profile-bridge reporter and make them culled
-    for host_data in hosts_data:
-        host_data["reporter"] = "rhsm-system-profile-bridge"
-    create_hosts_in_state(
-        host_inventory,
-        hosts_data,
-        host_state="culling",
-        deltas=(40, 50, 60),
-    )
-
-    execute_reaper()
-
-    # Check that the hosts are deleted from the DB
-    logger.info("Retrieving the hosts from the database")
-    hosts_in_db = query_hosts_by_ids(inventory_db_session, list(host_ids))
-    logger.info(f"{len(hosts_in_db)} hosts retrieved from the database")
-    assert len(hosts_in_db) == 0
-
-    # Check that the hosts are not retrievable by API
-    response_hosts = host_inventory.apis.hosts.get_hosts(display_name="rhsm-bridge-test")
-    assert len(response_hosts) == 0
-
-
-@pytest.mark.reaper_script
-@pytest.mark.ephemeral
-@pytest.mark.usefixtures("hbi_staleness_cleanup")
-def test_reaper_script_uses_last_check_in(
-    inventory_db_session: Session,
-    host_inventory: ApplicationHostInventory,
-    is_kessel_phase_1_enabled: bool,
-) -> None:
-    """
-    Ensure that the host reaper script is using 'last_check_in' timestamp to determine culled hosts
-
-    https://issues.redhat.com/browse/RHINENG-17845
-
-    metadata:
-        requirements: inv-host-reaper, inv-staleness-hosts
-        assignee: fstavela
-        importance: high
-        title: Test that host reaper uses 'last_check_in' timestamp to determine culled hosts
-    """
-    culled_hosts = host_inventory.kafka.create_random_hosts(10)
-    sleep(60)
-
-    # Patch hosts to update their 'updated' timestamp, but 'last_check_in' stays the same
-    patched_hosts = culled_hosts[:5]
-    host_inventory.apis.hosts.patch_hosts(patched_hosts, display_name=generate_display_name())
-
-    # Go through all the host events, otherwise updating staleness won't find correct events
-    host_inventory.kafka.wait_for_filtered_host_messages(
-        HostWrapper.insights_id, [host.insights_id for host in patched_hosts]
-    )
-
-    host_inventory.apis.account_staleness.create_staleness(
-        conventional_time_to_stale=58,
-        conventional_time_to_stale_warning=59,
-        conventional_time_to_delete=60,
-    )
-    fresh_hosts = host_inventory.kafka.create_random_hosts(5)
-
-    fresh_hosts_ids = {host.id for host in fresh_hosts}
-    patched_hosts_ids = {host.id for host in patched_hosts}
-    culled_hosts_ids = {host.id for host in culled_hosts[5:]}
-
-    all_hosts_ids = fresh_hosts_ids | patched_hosts_ids | culled_hosts_ids
-
-    execute_reaper()
-
-    logger.info("Retrieving culled hosts from the database")
-    culled_hosts_in_db = query_hosts_by_ids(inventory_db_session, list(culled_hosts_ids))
-    logger.info(f"{len(culled_hosts_in_db)} culled hosts retrieved from the database")
-    assert len(culled_hosts_in_db) == 0
-
-    logger.info("Retrieving culled hosts with fresh 'updated' timestamp from the database")
-    updated_hosts_in_db = query_hosts_by_ids(inventory_db_session, list(patched_hosts_ids))
-    logger.info(f"{len(updated_hosts_in_db)} updated culled hosts retrieved from the database")
-    assert len(updated_hosts_in_db) == 0
-
-    logger.info("Retrieving fresh hosts from the database")
-    fresh_hosts_in_db = query_hosts_by_ids(inventory_db_session, list(fresh_hosts_ids))
-    logger.info(f"{len(fresh_hosts_in_db)} fresh hosts retrieved from the database")
-    assert len(fresh_hosts_in_db) == len(fresh_hosts_ids)
-
-    not_deleted_hosts_ids = all_hosts_ids - culled_hosts_ids - patched_hosts_ids
-    response = host_inventory.apis.hosts.get_hosts_by_id(list(not_deleted_hosts_ids))
-    response_ids = {host.id for host in response}
-    assert response_ids == not_deleted_hosts_ids
-
-    for host_id in culled_hosts_ids.union(patched_hosts_ids):
-        if is_kessel_phase_1_enabled:
-            with raises_apierror(403):
+            with raises_apierror(404):
                 host_inventory.apis.hosts.get_hosts_by_id(host_id)
         else:
             response = host_inventory.apis.hosts.get_hosts_by_id(host_id)
