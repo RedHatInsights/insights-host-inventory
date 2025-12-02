@@ -2,10 +2,10 @@
 
 ## Overview
 
-This document describes how the integration of Kessel impacts the Host-Based Inventory (HBI) service, focusing on changes to authorization models, automatic group assignment, and hosts synchronization workflows, and where the groups data is stored.  In Kessel, groups are called workspaces.
+This document describes how the integration of Kessel impacts the Host-Based Inventory (HBI) service, focusing on changes to authorization models, automatic group assignment, and hosts synchronization workflows, and where the groups data is stored.
 
 ### What is [Kessel](https://project-kessel.github.io/):
-In Kessel own words:
+In Kessel's own words?
 > "In the simplest terms, Kessel is an inventory of resources, how they relate to one another, and how they change over time. A resource can be anything: a file, a virtual white board, a Linux host, a Kubernetes cluster, and so on."
 
 From the HBI perspective, **hosts**, **staleness**, and **groups** are the resources that Kessel maintains inventory of.
@@ -17,15 +17,14 @@ From the HBI perspective, **hosts**, **staleness**, and **groups** are the resou
 | **Authorization** | Single source (RBAC v1) | Hybrid (Kessel Authz + RBAC v1/v2) |
 | **Host Permissions** | RBAC v1 | Kessel Authz |
 | **Group Permissions** | RBAC v1 | RBAC v1 |
-| **Workspace Management** | N/A | RBAC v2 auto-creates workspaces |
+| **Workspace Management** | Not automatic | RBAC v2 auto-creates workspaces |
 | **Host Grouping** | Optional - can be ungrouped | Mandatory - always in a group |
-| **Ungrouped Hosts** | Blank `groups` column allowed | Auto-assigned to "Ungrouped Hosts" workspace |
+| **Ungrouped Hosts** | Allowed to not be in a group | Auto-assigned to "Ungrouped Hosts" workspace |
 | **Group Validation** | Check in HBI DB only | Check in RBAC v2 DB (source of truth) |
-| **Host Data Storage** | HBI DB only | HBI DB (RBAC v2 has no host knowledge) |
+| **Host Data Storage** | HBI DB only | **HBI DB** holds complete data about each host.  <br/>**RBAC DB** hosts workspaces data, and <br/>**Kessel Inventory DB** is aware of each host, by its ID, and which workspace each host is associated with.|
 | **Workflow Pattern** | HBI creates groups itself | Kessel creates the workspace, provides details to HBI to write to its DB  |
-| **Event Topics** | None | `outbox.event.workspace` |
-| **Complexity** | Simple, straightforward | Complex, with wait states |
-| **Host Synchronization** | No external synchronization | Automatic sync with Kessel Inventory via outbox pattern |
+**Event Topics** | `platform.inventory.events` | `platform.inventory.events` and `outbox.event.workspace` |
+| **Host Synchronization** | Host Synchronization via Cyndi by producding Kafka events| Automatic sync with Kessel Inventory via outbox pattern |
 | **Sync Trigger Fields** | N/A | `satellite_id`, `subscription_manager_id`, `insights_id`, `ansible_host`, `groups` |
 
 ## Impact on Authorization
