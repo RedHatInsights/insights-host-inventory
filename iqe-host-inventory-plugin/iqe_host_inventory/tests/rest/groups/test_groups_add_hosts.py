@@ -499,7 +499,6 @@ def test_groups_add_hosts_to_different_account_group(
     host_inventory: ApplicationHostInventory,
     host_inventory_secondary: ApplicationHostInventory,
     added_hosts: str,
-    is_kessel_phase_1_enabled: bool,
 ):
     """
     https://issues.redhat.com/browse/ESSNTL-4377
@@ -527,8 +526,7 @@ def test_groups_add_hosts_to_different_account_group(
 
     with host_inventory.apis.groups.verify_group_count_not_changed():
         with host_inventory_secondary.apis.groups.verify_group_count_not_changed():
-            error_code = 403 if is_kessel_phase_1_enabled else 404
-            with raises_apierror(error_code):
+            with raises_apierror(404):
                 host_inventory.apis.groups.add_hosts_to_group(
                     group_secondary, hosts=updated_hosts, wait_for_added=False
                 )
@@ -547,7 +545,6 @@ def test_groups_add_hosts_to_different_account_group(
 def test_groups_add_hosts_not_existing_group(
     host_inventory: ApplicationHostInventory,
     group_id: str,
-    is_kessel_phase_1_enabled: bool,
 ):
     """
     https://issues.redhat.com/browse/ESSNTL-4377
@@ -564,8 +561,7 @@ def test_groups_add_hosts_not_existing_group(
     data = [host.id for host in hosts]
     with host_inventory.apis.groups.verify_group_count_not_changed():
         with api_disabled_validation(host_inventory.apis.groups.raw_api) as api:
-            error_code = 403 if is_kessel_phase_1_enabled else 404
-            with raises_apierror(error_code):
+            with raises_apierror(404):
                 api.api_host_group_add_host_list_to_group(group_id, data)
 
 

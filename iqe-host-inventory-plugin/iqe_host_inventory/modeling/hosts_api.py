@@ -1058,10 +1058,10 @@ class HostsAPIWrapper(BaseEntity):
     ) -> list[HostIdOut]:
         host_ids = []
 
+        # With Kessel, there may be a short delay before hosts are available.
+        # During this window, if the hosts are not yet created in HBI, it will respond with a 404.
+        # If the hosts are in HBI, but not synced to Kessel yet, Kessel will respond with a 403.
         for insights_id in insights_ids:
-            # With Kessel, if the hosts are already deleted from Kessel,
-            # it will respond with a 403. If the hosts are deleted from HBI,
-            # but still available in Kessel, it will respond with a 404.
             while retries > 0:
                 try:
                     response = self.get_host_exists(insights_id=insights_id)
@@ -1462,11 +1462,6 @@ class HostsAPIWrapper(BaseEntity):
                     logger.info(
                         f"Couldn't delete host {host_ids[0]}, because it was not found in HBI."
                     )
-                elif err.status == 403:
-                    logger.info(
-                        f"Couldn't delete host {host_ids[0]}, because it was not found in Kessel,"
-                        f" or you don't have needed permissions (response code {err.status})."
-                    )
                 else:
                     raise err
             finally:
@@ -1498,9 +1493,7 @@ class HostsAPIWrapper(BaseEntity):
 
         host_ids = _ids_from_hosts(hosts)
 
-        # With Kessel, if the hosts are already deleted from Kessel, it will respond with a 403.
-        # If the hosts are deleted from HBI, but still available in Kessel,
-        # it will return an empty list.
+        # With Kessel, there may a short delay before hosts are deleted.
         def get_hosts() -> list[HostOut]:
             not_deleted_hosts = []
             for host_id in deepcopy(host_ids):
@@ -1512,7 +1505,7 @@ class HostsAPIWrapper(BaseEntity):
                     else:
                         host_ids.remove(host_id)
                 except ApiException as exc:
-                    assert exc.status == 403
+                    assert exc.status == 404
                     host_ids.remove(host_id)
             return not_deleted_hosts
 

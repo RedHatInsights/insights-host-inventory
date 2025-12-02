@@ -282,7 +282,8 @@ def test_groups_remove_host_from_group_with_invalid_id(
     ids=["random uuid", "random uuid upper"],
 )
 def test_groups_remove_host_from_non_existing_group(
-    host_inventory: ApplicationHostInventory, group_id: str, is_kessel_phase_1_enabled: bool
+    host_inventory: ApplicationHostInventory,
+    group_id: str,
 ):
     """
     https://issues.redhat.com/browse/ESSNTL-3853
@@ -297,8 +298,7 @@ def test_groups_remove_host_from_non_existing_group(
     host = host_inventory.kafka.create_host()
     response_hosts_before = host_inventory.apis.hosts.get_hosts_response().total
 
-    error_code = 403 if is_kessel_phase_1_enabled else 404
-    with raises_apierror(error_code):
+    with raises_apierror(404):
         host_inventory.apis.groups.remove_hosts_from_group(group_id, host, wait_for_removed=False)
 
     # ensure same amount of host left after failed request
@@ -375,7 +375,6 @@ def test_groups_remove_hosts_from_different_account(
 def test_groups_remove_hosts_from_group_with_different_account(
     host_inventory: ApplicationHostInventory,
     host_inventory_secondary: ApplicationHostInventory,
-    is_kessel_phase_1_enabled: bool,
 ):
     """
     metadata:
@@ -394,8 +393,7 @@ def test_groups_remove_hosts_from_group_with_different_account(
     )
     group_primary = host_inventory.apis.groups.create_group(group_name)
 
-    error_code = 403 if is_kessel_phase_1_enabled else 404
-    with raises_apierror(error_code):
+    with raises_apierror(404):
         host_inventory.apis.groups.remove_hosts_from_group(
             group_secondary, hosts_secondary, wait_for_removed=False
         )

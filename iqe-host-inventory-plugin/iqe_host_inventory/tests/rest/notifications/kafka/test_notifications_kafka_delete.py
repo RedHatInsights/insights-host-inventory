@@ -201,7 +201,7 @@ def test_notifications_kafka_delete_multiple_hosts(host_inventory: ApplicationHo
 
 @pytest.mark.ephemeral
 def test_notifications_kafka_delete_by_id_dont_produce(
-    host_inventory: ApplicationHostInventory, is_kessel_phase_1_enabled: bool
+    host_inventory: ApplicationHostInventory,
 ):
     """
     https://issues.redhat.com/browse/RHINENG-7911
@@ -214,7 +214,7 @@ def test_notifications_kafka_delete_by_id_dont_produce(
         title: Unsuccessful deletion via DELETE /hosts/<hosts_ids> doesn't trigger a notification
     """
     host_id = generate_uuid()
-    with raises_apierror(403 if is_kessel_phase_1_enabled else 404):
+    with raises_apierror(404):
         with temp_headers(
             host_inventory.apis.hosts.raw_api, {"x-rh-insights-request-id": generate_uuid()}
         ):
