@@ -42,10 +42,10 @@ kessel-sdk = "~=2.1.0"
 googleapis-common-protos = "*"
 # pinning versions of transitive dependencies to avoid hermetic build issues
 unleashclient = "==5.12.2"
-rpds-py = "==0.29.0"
+rpds-py = "==0.30.0"
 
 [dev-packages]
-pytest = "~=8.4.1"
+pytest = "~=9.0.1"
 pytest-cov = "~=7.0.0"
 pytest-mock = "~=3.15.1"
 pytest-subtests = "~=0.15.0"
