@@ -732,7 +732,7 @@ class TestOutboxE2ECases:
                 updated_group = db_get_group_by_id(group_id)
                 assert updated_group.name == new_name
 
-                # Verify NO outbox operation occurred since tgroup name change doesn't affect outbox payload.
+                # Verify NO outbox operation occurred since the group name change doesn't affect outbox payload.
                 mock_success_metric.inc.assert_not_called()
 
                 # Verify NO outbox payloads were captured since group name change doesn't affect outbox payload.
