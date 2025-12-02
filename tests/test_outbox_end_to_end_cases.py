@@ -17,6 +17,7 @@ from unittest.mock import patch
 import pytest
 from marshmallow import ValidationError as MarshmallowValidationError
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session as SQLASession
 
 from app.exceptions import OutboxSaveException
 from app.models import Group
@@ -28,6 +29,7 @@ from app.models.schemas import OutboxSchema
 from app.queue.events import EventType
 from app.queue.host_mq import IngressMessageConsumer
 from app.queue.host_mq import WorkspaceMessageConsumer
+from lib.host_outbox_events import _collect_pending_ops_for_session
 from lib.outbox_repository import _create_update_event_payload
 from lib.outbox_repository import remove_event_from_outbox
 from lib.outbox_repository import write_event_to_outbox
@@ -671,7 +673,7 @@ class TestOutboxE2ECases:
         db_get_group_by_id,
     ):
         """
-        Test complete MQ group update flow - group name changes do NOT trigger outbox entries
+        Test complete MQ group update flow - group name changes should NOT trigger outbox entries
         since only group_id is in outbox payload.
         """
 
@@ -695,9 +697,9 @@ class TestOutboxE2ECases:
         captured_payloads = []
         original_write_outbox = None
 
-        def capture_outbox_payload(event_type, host_id_param, host_obj):
+        def capture_outbox_payload(event_type, host_id_param, host_obj, session=None, **kwargs):
             # Call the original function to get the real behavior
-            result = original_write_outbox(event_type, host_id_param, host_obj)
+            result = original_write_outbox(event_type, host_id_param, host_obj, session=session, **kwargs)
 
             # Manually create the payload to validate the common field
             if host_obj and len(host_obj.groups) > 0:
@@ -730,10 +732,10 @@ class TestOutboxE2ECases:
                 updated_group = db_get_group_by_id(group_id)
                 assert updated_group.name == new_name
 
-                # Verify NO outbox operation occurred since group name change doesn't affect outbox payload
+                # Verify NO outbox operation occurred since the group name change doesn't affect outbox payload.
                 mock_success_metric.inc.assert_not_called()
 
-                # Verify NO outbox payloads were captured
+                # Verify NO outbox payloads were captured since group name change doesn't affect outbox payload.
                 assert len(captured_payloads) == 0
 
     @pytest.mark.usefixtures("event_producer_mock")
@@ -1585,3 +1587,60 @@ class TestOutboxE2ECases:
             # Verify outbox entry was created and immediately deleted (new behavior)
             # The write_event_to_outbox should have been called automatically during host creation
             assert_outbox_empty(db, host_id)
+
+    def test_session_isolation_for_outbox_operations(self, request):
+        """
+        Test that outbox operations are isolated per session.
+
+        This test verifies the fix for the critical session mismatch bug where
+        Session A could write outbox entries for hosts created in Session B,
+        leading to orphan outbox entries or missing entries if sessions rollback.
+
+        The fix ensures that _collect_pending_ops_for_session() only returns
+        operations for the current session, not all sessions.
+        """
+        # Create two separate database sessions to simulate concurrent requests
+        engine = db.get_engine()
+        session_a = SQLASession(bind=engine)
+        session_b = SQLASession(bind=engine)
+
+        # Register cleanup finalizer
+        def cleanup():
+            session_a.close()
+            session_b.close()
+
+        request.addfinalizer(cleanup)
+
+        # Verify sessions are different
+        assert session_a.hash_key != session_b.hash_key, "Sessions must have different IDs"
+
+        # Simulate ops being tracked in both sessions using session.info
+        session_a.info["pending_ops"] = [("created", str(uuid.uuid4())), ("updated", str(uuid.uuid4()))]
+        session_b.info["pending_ops"] = [("created", str(uuid.uuid4())), ("deleted", str(uuid.uuid4()))]
+
+        # Test: session_a should only get its own ops
+        ops_a = _collect_pending_ops_for_session(session_a)
+        assert len(ops_a) == 2, f"Session A should have 2 ops, got {len(ops_a)}"
+        assert ops_a[0][0] == "created", "First op should be 'created'"
+        assert ops_a[1][0] == "updated", "Second op should be 'updated'"
+
+        # Test: session_b should only get its own ops
+        ops_b = _collect_pending_ops_for_session(session_b)
+        assert len(ops_b) == 2, f"Session B should have 2 ops, got {len(ops_b)}"
+        assert ops_b[0][0] == "created", "First op should be 'created'"
+        assert ops_b[1][0] == "deleted", "Second op should be 'deleted'"
+
+        # Critical test: Verify no cross-session contamination
+        session_a_host_ids = {op[1] for op in ops_a}
+        session_b_host_ids = {op[1] for op in ops_b}
+        assert session_a_host_ids.isdisjoint(session_b_host_ids), (
+            "Session A and Session B should have completely different host IDs"
+        )
+
+        # Verify session_a ops are not in session_b results
+        for _op_type, host_id in ops_a:
+            assert host_id not in session_b_host_ids, f"Session B should not see Session A's host {host_id}"
+
+        # Verify session_b ops are not in session_a results
+        for _op_type, host_id in ops_b:
+            assert host_id not in session_a_host_ids, f"Session A should not see Session B's host {host_id}"
