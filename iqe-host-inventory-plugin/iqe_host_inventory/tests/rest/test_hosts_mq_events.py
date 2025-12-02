@@ -276,7 +276,7 @@ def test_hosts_mq_events_produce_delete_hosts_by_ids(
 
 @pytest.mark.ephemeral
 def test_hosts_mq_events_not_produce_delete_hosts_by_ids(
-    host_inventory: ApplicationHostInventory, is_kessel_phase_1_enabled: bool
+    host_inventory: ApplicationHostInventory,
 ):
     """
     https://issues.redhat.com/browse/ESSNTL-5471
@@ -290,7 +290,7 @@ def test_hosts_mq_events_not_produce_delete_hosts_by_ids(
     """
     not_existing_host_id = generate_uuid()
     host = HostWrapper({"id": not_existing_host_id})
-    with raises_apierror(403 if is_kessel_phase_1_enabled else 404):
+    with raises_apierror(404):
         host_inventory.apis.hosts.raw_api.api_host_delete_host_by_id([not_existing_host_id])
 
     host_inventory.kafka.verify_host_messages_not_produced([host], field=HostWrapper.id)

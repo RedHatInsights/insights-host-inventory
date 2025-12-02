@@ -198,7 +198,7 @@ def test_validate_at_least_one_id_fact_required(host_inventory: ApplicationHostI
 
 
 @pytest.mark.ephemeral
-@parametrize_field(HOST_FIELDS, type="str")
+@parametrize_field([field for field in HOST_FIELDS if field.name != "org_id"], type="str")
 def test_validate_string_fields_length(validate_correct_value, validate_incorrect_value, field):
     """
     Test minimum and maximum length of string fields

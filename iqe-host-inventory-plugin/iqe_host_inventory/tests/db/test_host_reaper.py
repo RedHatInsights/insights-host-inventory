@@ -154,7 +154,7 @@ def test_reaper_script(
 
     for host_id in culled_hosts_ids:
         if is_kessel_phase_1_enabled:
-            with raises_apierror(403):
+            with raises_apierror(404):
                 host_inventory.apis.hosts.get_hosts_by_id(host_id)
         else:
             response = host_inventory.apis.hosts.get_hosts_by_id(host_id)

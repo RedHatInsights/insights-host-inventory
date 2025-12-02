@@ -106,8 +106,8 @@ def test_delete_existing_and_non_existent_hosts(
     bad_host_list[1] = generate_uuid()
 
     if is_kessel_phase_1_enabled:
-        # Issue DELETE and expect a 403
-        with raises_apierror(403):
+        # Issue DELETE and expect a 404
+        with raises_apierror(404):
             host_inventory.apis.hosts.delete_by_id_raw(bad_host_list)
         host_inventory.apis.hosts.verify_not_deleted(hosts_for_negative_tests)
     else:
@@ -141,7 +141,7 @@ def test_delete_multiple_hosts(host_inventory: ApplicationHostInventory):
 
 
 def test_delete_non_existent_host(
-    host_inventory: ApplicationHostInventory, is_kessel_phase_1_enabled: bool
+    host_inventory: ApplicationHostInventory,
 ):
     """
     Test Deletion of Non-existent Host.
@@ -157,7 +157,7 @@ def test_delete_non_existent_host(
     """
     unused_uuid = generate_uuid()
 
-    with raises_apierror(403 if is_kessel_phase_1_enabled else 404):
+    with raises_apierror(404):
         host_inventory.apis.hosts.delete_by_id_raw(unused_uuid)
 
 

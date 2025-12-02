@@ -273,7 +273,7 @@ def test_kessel_repl_delete_hosts_by_filter(
     hosts_data = host_inventory.datagen.create_n_hosts_data(3)
     if host_count > 1:
         for host_data in hosts_data[1:]:
-            host_data["insights_id"] = hosts_data[0]["insights_id"]
+            host_data["display_name"] = hosts_data[0]["display_name"]
     hosts = host_inventory.kafka.create_hosts(
         hosts_data=hosts_data, field_to_match=HostWrapper.subscription_manager_id
     )
@@ -284,7 +284,7 @@ def test_kessel_repl_delete_hosts_by_filter(
         hbi_kessel_relations_grpc.verify_created_or_updated(host, ungrouped_group)
         # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
 
-    host_inventory.apis.hosts.delete_filtered(insights_id=hosts_data[0]["insights_id"])
+    host_inventory.apis.hosts.delete_filtered(display_name=hosts_data[0]["display_name"])
 
     for host in hosts[:host_count]:
         hbi_kessel_relations_grpc.verify_deleted(host)
