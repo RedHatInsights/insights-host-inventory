@@ -158,7 +158,7 @@ def test_system_ui_information_tab(
     system_profile = convert_system_profile_when_not_available(system.system_profile)
     system.ansible_host = system.fqdn
 
-    view: SystemInformationTab = navigate_to(system, "SystemInformation")  # type: ignore[assignment]
+    view: SystemInformationTab = navigate_to(system, "SystemInformation")
     assert view.is_package_based_system
     assert view.is_displayed
     assert view.title.text == system.display_name

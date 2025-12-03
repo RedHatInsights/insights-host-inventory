@@ -373,7 +373,7 @@ def test_legacy_paths_ephemeral(
         account_number=hbi_default_account_number
     )
     host_data["facts"] = [{"namespace": FACTS_NAMESPACE, "facts": FACTS_FACTS}]
-    sys_conf = test_host_inventory.application.user.get("identity").get("system")  # type: ignore[union-attr]
+    sys_conf = test_host_inventory.application.user.get("identity").get("system")
     if sys_conf:  # This is needed for cert auth (system test)
         host_data["system_profile"]["owner_id"] = sys_conf.get("cn")
 

@@ -418,7 +418,7 @@ def create_host_data_for_notification_tests(
 
 def execute_stale_host_notification():
     yaml_file = str(
-        get_data_path_for_plugin("host_inventory").joinpath("start-stale-host-notification.yaml")  # type: ignore[union-attr]
+        get_data_path_for_plugin("host_inventory").joinpath("start-stale-host-notification.yaml")
     )
 
     logger.info("Executing the stale host notification job...")

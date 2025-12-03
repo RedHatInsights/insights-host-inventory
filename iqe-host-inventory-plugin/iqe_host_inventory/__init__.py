@@ -78,10 +78,10 @@ class ApplicationHostInventory(ApplicationPlugin):
 class StalenessAndDeletion(IQENavigateStep):
     """Staleness and Deletion step"""
 
-    VIEW = StalenessAndDeletionPage  # type: ignore[assignment]
+    VIEW = StalenessAndDeletionPage
     prerequisite = NavigateToAttribute("application.platform_ui", "Insights")
 
     def step(self, *args, **kwargs):
-        self.prerequisite_view.navigation.select(  # type: ignore[attr-defined]
+        self.prerequisite_view.navigation.select(
             "Inventory", "System Configuration", "Staleness and Deletion", force=True
         )

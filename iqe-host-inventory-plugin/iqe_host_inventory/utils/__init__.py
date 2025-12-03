@@ -40,7 +40,7 @@ def get_account_number(application: Application, given_account_number: str | Non
     if given_account_number is not None:
         return given_account_number
     try:
-        return str(application.user.get("identity").account_number)  # type: ignore[union-attr]
+        return str(application.user.get("identity").account_number)
     except BoxKeyError:
         raise InvalidConfigurationParameterError(
             "Missing primary_user account_number in your settings.local.yaml file"

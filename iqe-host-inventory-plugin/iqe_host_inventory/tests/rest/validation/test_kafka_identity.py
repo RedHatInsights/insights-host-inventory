@@ -496,9 +496,9 @@ def test_mq_update_system_host_different_owner_id(
     updated_host_data = dict(host_data, display_name=new_display_name)
     cn = system_identity_correct["identity"]["system"]["cn"]
     if updated_owner_id is None and original_owner_id is not None:
-        del updated_host_data["system_profile"]["owner_id"]  # type: ignore
+        del updated_host_data["system_profile"]["owner_id"]
     if updated_owner_id == "cn":
-        updated_host_data["system_profile"]["owner_id"] = cn  # type: ignore
+        updated_host_data["system_profile"]["owner_id"] = cn
     updated_host = host_inventory.kafka.create_host(metadata=metadata, host_data=updated_host_data)
     assert host.id == updated_host.id
 

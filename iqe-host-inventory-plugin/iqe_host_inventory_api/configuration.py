@@ -386,8 +386,7 @@ class Configuration:
             server = servers[index]
         except IndexError:
             raise ValueError(
-                f"Invalid index {index} when selecting the host settings. "
-                f"Must be less than {len(servers)}"
+                f"Invalid index {index} when selecting the host settings. Must be less than {len(servers)}"
             )
 
         url = server["url"]
