@@ -21,11 +21,10 @@ From the HBI perspective, **hosts**, **staleness**, and **groups** are the resou
 | **Host Grouping** | Optional - can be ungrouped | Mandatory - always in a group |
 | **Ungrouped Hosts** | Allowed to not be in a group | Auto-assigned to "Ungrouped Hosts" workspace |
 | **Group Validation** | Check in HBI DB only | Check in RBAC v2 DB (source of truth) |
-| **Host Data Storage** | HBI DB only | **HBI DB** holds complete data about each host.  <br/>**RBAC DB** hosts workspaces data, and <br/>**Kessel Inventory DB** is aware of each host, by its ID, and which workspace each host is associated with.|
+| **Host Data Storage** | HBI DB only | **HBI DB** holds complete data about each host.  <br/>**RBAC DB** hosts workspaces data, and <br/>**Kessel Inventory DB** is aware of each host, by its ID, and which workspace each host is associated with.  It also holds the host data specified in the Kessel's inventory-api [schema](https://github.com/project-kessel/inventory-api/blob/main/data/schema/resources/host/reporters/hbi/host.json).|
 | **Workflow Pattern** | HBI creates groups itself | Kessel creates the workspace, provides details to HBI to write to its DB  |
 **Event Topics** | `platform.inventory.events` | `platform.inventory.events` and `outbox.event.workspace` |
 | **Host Synchronization** | Host Synchronization via Cyndi by producding Kafka events| Automatic sync with Kessel Inventory via outbox pattern |
-| **Sync Trigger Fields** | N/A | `satellite_id`, `subscription_manager_id`, `insights_id`, `ansible_host`, `groups` |
 
 ## Impact on Authorization
 
