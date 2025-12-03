@@ -58,8 +58,8 @@ def step_obj(
 def navigate_to_systems_page(
     systems_collection: SystemCollection, request: pytest.FixtureRequest
 ) -> Generator[SystemsPage, None, None]:
-    view: SystemsPage = navigate_to(systems_collection, "Systems")  # type: ignore[assignment]
-    wait_for(lambda: view.column_selector.is_displayed, timeout=10)  # type: ignore[attr-defined]
+    view: SystemsPage = navigate_to(systems_collection, "Systems")
+    wait_for(lambda: view.column_selector.is_displayed, timeout=10)
 
     yield view
 
@@ -87,7 +87,7 @@ class TestUIFilteringSystemsbyLastSeen:
         """
         ORDER = ["ascending", "descending"]
         view = navigate_to(host_inventory_secondary.collections.systems, "Systems")
-        wait_for(lambda: view.column_selector.is_displayed, timeout=10)  # type: ignore[attr-defined]
+        wait_for(lambda: view.column_selector.is_displayed, timeout=10)
         request.addfinalizer(view.reset_filters)
 
         view.search(last_seen, column="Last seen")

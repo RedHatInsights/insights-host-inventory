@@ -321,7 +321,7 @@ def raises_apierror(
     expected_status: int | tuple[int, ...], match_message: str | tuple[str, ...] | None = None
 ) -> Generator[ExceptionInfo[ApiException_V4] | ExceptionInfo[ApiException_V7]]:
     exc: ExceptionInfo[ApiException_V4] | ExceptionInfo[ApiException_V7]
-    with pytest.raises((ApiException_V4, ApiException_V7)) as exc:  # type: ignore[assignment]
+    with pytest.raises((ApiException_V4, ApiException_V7)) as exc:
         yield exc
 
     api_error = exc.value

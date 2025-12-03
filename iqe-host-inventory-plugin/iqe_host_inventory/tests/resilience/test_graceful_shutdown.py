@@ -11,7 +11,7 @@ import pytest
 from ocdeployer.utils import oc
 from ocdeployer.utils import wait_for_ready
 from sqlalchemy.orm import Session
-from urllib3.exceptions import HTTPError  # type: ignore[import-untyped]
+from urllib3.exceptions import HTTPError
 from wait_for import wait_for
 
 from iqe_host_inventory import ApplicationHostInventory

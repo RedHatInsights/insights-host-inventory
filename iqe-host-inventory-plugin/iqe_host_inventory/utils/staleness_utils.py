@@ -210,6 +210,11 @@ def validate_host_timestamps(
     logger.info(f"Host stale warning timestamp: {host.stale_warning_timestamp}")
     logger.info(f"Host culled timestamp: {host.culled_timestamp}")
 
+    assert host.last_check_in is not None, "last_check_in must not be None"
+    assert host.stale_timestamp is not None, "stale_timestamp must not be None"
+    assert host.stale_warning_timestamp is not None, "stale_warning_timestamp must not be None"
+    assert host.culled_timestamp is not None, "culled_timestamp must not be None"
+
     validate_staleness_timestamps(
         host.last_check_in,
         stale_timestamp=host.stale_timestamp,

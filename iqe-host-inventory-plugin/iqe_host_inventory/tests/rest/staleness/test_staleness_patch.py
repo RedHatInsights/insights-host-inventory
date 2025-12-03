@@ -194,9 +194,9 @@ def test_staleness_update_invalid_field(host_inventory: ApplicationHostInventory
     with api_disabled_validation(host_inventory.apis.account_staleness.raw_api) as api:
         # TODO: Uncomment this when https://issues.redhat.com/browse/RHINENG-14003 is done
         # with raises_apierror(400, match_message="Unknown field"):
-        #    api.api_staleness_update_staleness(test_data)  # type: ignore[arg-type]
+        #    api.api_staleness_update_staleness(test_data)
         # TODO: And delete these 3 lines (temporary replacement for above)
-        api.api_staleness_update_staleness(test_data)  # type: ignore[arg-type]
+        api.api_staleness_update_staleness(test_data)
         settings = host_inventory.apis.account_staleness.get_staleness()
         assert "bad_field" not in settings
 
@@ -237,7 +237,7 @@ def test_staleness_update_invalid_value(
     with api_disabled_validation(host_inventory.apis.account_staleness.raw_api) as api:
         with raises_apierror(400, match_message=match_message):
             # todo: figure mypy confusion, maybe create intentionally invalid instance directly
-            api.api_staleness_update_staleness(staleness_in)  # type: ignore[arg-type]
+            api.api_staleness_update_staleness(staleness_in)
 
 
 @pytest.mark.usefixtures("hbi_staleness_secondary_cleanup")

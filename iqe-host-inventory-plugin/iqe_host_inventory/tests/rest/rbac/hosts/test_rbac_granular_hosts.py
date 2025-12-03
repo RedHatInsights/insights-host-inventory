@@ -862,7 +862,7 @@ def test_rbac_granular_hosts_read_permission_null_group(
         title: Test that users with granular RBAC null group can access only not assigned hosts
     """
     ungrouped_groups = ungrouped_host_groups(host_inventory)
-    hbi_groups = [ungrouped_groups[0]["id"]] if len(ungrouped_groups) > 0 else [None]  # type: ignore[index]
+    hbi_groups = [ungrouped_groups[0]["id"]] if len(ungrouped_groups) > 0 else [None]
 
     # Setup
     hbi_non_org_admin_user_rbac_setup(
@@ -896,7 +896,7 @@ def test_rbac_granular_hosts_write_permission_null_group(
         title: Test that users with granular RBAC null group can edit not assigned hosts
     """
     ungrouped_groups = ungrouped_host_groups(host_inventory)
-    hbi_groups = [ungrouped_groups[0]["id"]] if len(ungrouped_groups) > 0 else [None]  # type: ignore[index]
+    hbi_groups = [ungrouped_groups[0]["id"]] if len(ungrouped_groups) > 0 else [None]
 
     # Setup
     hbi_non_org_admin_user_rbac_setup(
@@ -932,7 +932,7 @@ def test_rbac_granular_hosts_write_permission_null_group_wrong(
         title: Test that users with granular RBAC null group can't edit assigned hosts
     """
     ungrouped_groups = ungrouped_host_groups(host_inventory)
-    hbi_groups = [ungrouped_groups[0]["id"]] if len(ungrouped_groups) > 0 else [None]  # type: ignore[index]
+    hbi_groups = [ungrouped_groups[0]["id"]] if len(ungrouped_groups) > 0 else [None]
 
     # Setup
     hbi_non_org_admin_user_rbac_setup(
@@ -968,7 +968,7 @@ def test_rbac_granular_hosts_read_permission_null_and_normal_group(
     groups = rbac_setup_resources_for_granular_rbac.groups
 
     ungrouped_groups = ungrouped_host_groups(host_inventory)
-    hbi_groups = [groups[0], ungrouped_groups[0]["id"] if len(ungrouped_groups) > 0 else None]  # type: ignore[index]
+    hbi_groups = [groups[0], ungrouped_groups[0]["id"] if len(ungrouped_groups) > 0 else None]
 
     hbi_non_org_admin_user_rbac_setup(
         permissions=[RBACInventoryPermission.HOSTS_READ], hbi_groups=hbi_groups
@@ -1008,7 +1008,7 @@ def test_rbac_granular_hosts_write_permission_null_and_normal_group(
     groups = rbac_setup_resources_for_granular_rbac[1]
 
     ungrouped_groups = ungrouped_host_groups(host_inventory)
-    hbi_groups = [groups[0], ungrouped_groups[0]["id"] if len(ungrouped_groups) > 0 else None]  # type: ignore[index]
+    hbi_groups = [groups[0], ungrouped_groups[0]["id"] if len(ungrouped_groups) > 0 else None]
 
     hbi_non_org_admin_user_rbac_setup(
         permissions=[RBACInventoryPermission.HOSTS_WRITE], hbi_groups=hbi_groups
@@ -1054,7 +1054,7 @@ def test_rbac_granular_hosts_write_permission_null_and_normal_group_wrong(
     groups = rbac_setup_resources_for_granular_rbac[1]
 
     ungrouped_groups = ungrouped_host_groups(host_inventory)
-    hbi_groups = [groups[0], ungrouped_groups[0]["id"] if len(ungrouped_groups) > 0 else None]  # type: ignore[index]
+    hbi_groups = [groups[0], ungrouped_groups[0]["id"] if len(ungrouped_groups) > 0 else None]
 
     hbi_non_org_admin_user_rbac_setup(
         permissions=[RBACInventoryPermission.HOSTS_WRITE], hbi_groups=hbi_groups
@@ -1067,4 +1067,4 @@ def test_rbac_granular_hosts_write_permission_null_and_normal_group_wrong(
         host_inventory_non_org_admin.apis.hosts.patch_hosts(
             host.id, display_name=new_name, wait_for_updated=False
         )
-    host_inventory.apis.hosts.verify_not_updated(host.id, display_name=host.display_name)  # type: ignore[index]
+    host_inventory.apis.hosts.verify_not_updated(host.id, display_name=host.display_name)

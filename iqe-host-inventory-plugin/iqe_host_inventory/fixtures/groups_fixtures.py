@@ -35,7 +35,7 @@ class HBIGroupCleanupRegistry:
 
 
 @pytest.fixture(scope="function")
-def hbi_groups_cleanup_function() -> Generator[HBIGroupCleanupRegistry]:
+def hbi_groups_cleanup_function() -> Generator[HBIGroupCleanupRegistry, None, None]:
     warnings.warn(DEPRECATE_PRIMARY_GROUPS_CLEANUP_FUNCTION, stacklevel=2)
     with HBIGroupCleanupRegistry("function") as cleanup:
         yield cleanup
