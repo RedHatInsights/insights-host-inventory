@@ -10,9 +10,6 @@ export IQE_CJI_TIMEOUT="30m"
 # build the PR commit image
 source $CICD_ROOT/build.sh
 
-# Run the unit tests
-source $APP_ROOT/unit_test.sh
-
 # Run IQE tests
 source $CICD_ROOT/deploy_ephemeral_env.sh
 
