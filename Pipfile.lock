@@ -1449,12 +1449,12 @@
         },
         "segment-analytics-python": {
             "hashes": [
-                "sha256:ea2b6432bef1c017d24f69bf5f778e45c2385ec9df527242e2b42ee6cefd7367",
-                "sha256:f188e864cc0fed9fb141aff73c21bfaab783a1dd1b97ab1eff44340aed68f50b"
+                "sha256:139f111ce0d6f5ec04ac881014f62ac238b8a74d8dacb81ab69822d428f8219e",
+                "sha256:eedaf6290e95025adf11cb73769dac662370ca2187fecdc6c66ddd96c508255a"
             ],
             "index": "pypi",
             "markers": "python_full_version >= '3.9.0'",
-            "version": "==2.3.4"
+            "version": "==2.3.5"
         },
         "semver": {
             "hashes": [
