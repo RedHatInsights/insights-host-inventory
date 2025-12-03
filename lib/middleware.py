@@ -666,7 +666,7 @@ def get_rbac_workspaces(
 def get_rbac_workspace_using_endpoint_and_headers(
     request_data: dict | None, rbac_endpoint: str, request_headers: dict
 ) -> dict[Any, Any] | None:
-    return _make_rbac_request(
+    return _execute_rbac_http_request(
         method="GET",
         rbac_endpoint=rbac_endpoint,
         request_headers=request_headers,

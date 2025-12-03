@@ -19,9 +19,7 @@ from urllib.parse import urlunsplit
 from uuid import UUID
 
 import dateutil.parser
-from requests import Request
 from requests import Response
-from requests.structures import CaseInsensitiveDict
 
 from app.auth.identity import IdentityType
 from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
