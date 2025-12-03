@@ -509,4 +509,5 @@ def prevent_kafka_error[T](
     if hosts is None:
         pytest.fail("https://issues.redhat.com/browse/RHINENG-9763")
 
+    assert hosts is not None  # for mypy
     return hosts

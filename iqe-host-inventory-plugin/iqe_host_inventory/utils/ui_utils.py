@@ -87,9 +87,9 @@ def get_last_seen_column_values(view, first_row=False, workspace_date=False):
         while tries < MAX_TRIES:
             try:
                 if workspace_date:
-                    data.append(re.search(pattern, row.last_modified.widget.text).group(0))  # type: ignore[union-attr]
+                    data.append(re.search(pattern, row.last_modified.widget.text).group(0))
                 else:
-                    data.append(re.search(pattern, row.last_seen.widget.text).group(0))  # type: ignore[union-attr]
+                    data.append(re.search(pattern, row.last_seen.widget.text).group(0))
                 break
             except AttributeError:
                 view.browser.move_to_element(row.name)

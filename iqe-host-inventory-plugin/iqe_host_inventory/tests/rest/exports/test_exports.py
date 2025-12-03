@@ -75,7 +75,7 @@ class TestExports:
 
         report = host_inventory.apis.exports.export_hosts()
         host_ids = host_inventory.apis.exports.validate_export_report(
-            hosts + new_hosts_from_api,  # type: ignore[operator]
+            hosts + new_hosts_from_api,
             report,
         ).keys()
 
@@ -102,7 +102,7 @@ class TestExports:
         new_hosts_from_api = host_inventory.apis.hosts.get_hosts_by_id(new_hosts)
 
         report = host_inventory.apis.exports.export_hosts()
-        host_inventory.apis.exports.validate_export_report(hosts + new_hosts_from_api, report)  # type: ignore[operator]
+        host_inventory.apis.exports.validate_export_report(hosts + new_hosts_from_api, report)
 
         host_inventory.apis.hosts.delete_by_id(new_hosts)
 

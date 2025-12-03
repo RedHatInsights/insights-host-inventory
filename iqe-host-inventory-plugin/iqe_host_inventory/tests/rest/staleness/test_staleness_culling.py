@@ -163,22 +163,22 @@ def test_host_stale_warning_to_fresh(
 
     # Verify the host state is stale_warning
     response_hosts = host_inventory.apis.hosts.get_hosts(staleness=["stale_warning"])
-    assert host.id in [host.id for host in response_hosts]  # type: ignore
+    assert host.id in [host.id for host in response_hosts]
 
     # Update the host
     updated_host_data = deepcopy(host_data)
     updated_host_data["display_name"] = generate_display_name()
     host = host_inventory.kafka.create_host(updated_host_data)
     logger.info(
-        f"Host id={host.id}, updated={host.updated}, display_name={host.display_name}, stale_timestamp={host.stale_timestamp}"  # type: ignore  # noqa
+        f"Host id={host.id}, updated={host.updated}, display_name={host.display_name}, stale_timestamp={host.stale_timestamp}"  # noqa
     )
     host_inventory.apis.hosts.wait_for_updated(
         host, display_name=updated_host_data["display_name"]
-    )  # type: ignore[type-var]
+    )
 
     # Verify the host is fresh
     response_hosts = host_inventory.apis.hosts.get_hosts(staleness=["fresh"])
-    assert host.id in [host.id for host in response_hosts]  # type: ignore
+    assert host.id in [host.id for host in response_hosts]
 
 
 @pytest.mark.ephemeral
@@ -215,22 +215,22 @@ def test_host_stale_to_fresh(
 
     # Verify the host is stale
     response_hosts = host_inventory.apis.hosts.get_hosts(staleness=["stale"])
-    assert host.id in [host.id for host in response_hosts]  # type: ignore
+    assert host.id in [host.id for host in response_hosts]
 
     # Update the host
     updated_host_data = deepcopy(host_data)
     updated_host_data["display_name"] = generate_display_name()
     host = host_inventory.kafka.create_host(updated_host_data)
     logger.info(
-        f"Host id={host.id}, updated={host.updated}, display_name={host.display_name}, stale_timestamp={host.stale_timestamp}"  # type: ignore # noqa
+        f"Host id={host.id}, updated={host.updated}, display_name={host.display_name}, stale_timestamp={host.stale_timestamp}"  # noqa
     )
     host_inventory.apis.hosts.wait_for_updated(
         host, display_name=updated_host_data["display_name"]
-    )  # type: ignore[type-var]
+    )
 
     # Verify the host is fresh
     response_hosts = host_inventory.apis.hosts.get_hosts(staleness=["fresh"])
-    assert host.id in [host.id for host in response_hosts]  # type: ignore
+    assert host.id in [host.id for host in response_hosts]
 
 
 @pytest.mark.ephemeral
@@ -267,14 +267,14 @@ def test_host_stale_warning_to_culled(
     )[0]
 
     response_hosts = host_inventory.apis.hosts.get_hosts(staleness=["stale_warning"])
-    assert host.id in [host.id for host in response_hosts]  # type: ignore
+    assert host.id in [host.id for host in response_hosts]
 
     delay = 5
     logger.info(f"Waiting {delay} seconds for host to become culled")
     sleep(delay)
 
     response_hosts = host_inventory.apis.hosts.get_hosts(staleness=["stale_warning"])
-    assert host.id not in [host.id for host in response_hosts]  # type: ignore
+    assert host.id not in [host.id for host in response_hosts]
 
     culled_hosts = host_inventory.apis.hosts.get_hosts_by_id_response(host)
     assert culled_hosts.total == 0
