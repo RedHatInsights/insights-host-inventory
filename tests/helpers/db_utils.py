@@ -70,7 +70,6 @@ def db_host_with_custom_canonical_facts_dict(**values) -> dict[str, Any]:
 def minimal_db_host_dict(**values) -> dict[str, Any]:
     data = {
         "canonical_facts": {"insights_id": generate_uuid()},
-        "stale_timestamp": (now() + timedelta(days=randint(1, 7))),
         "reporter": "test-reporter",
         **values,
     }

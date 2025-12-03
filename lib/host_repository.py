@@ -172,6 +172,12 @@ def find_existing_host_by_id(identity: Identity, host_id: str) -> Host | None:
     return find_non_culled_hosts(query).order_by(Host.modified_on.desc()).first()
 
 
+def find_existing_hosts_by_id_list(identity: Identity, host_id_list: list[str]) -> list[Host]:
+    query = host_query(identity.org_id).filter(Host.id.in_(host_id_list))
+    query = update_query_for_owner_id(identity, query)
+    return find_non_culled_hosts(query).all()
+
+
 def _find_host_by_multiple_facts_in_db_or_in_memory(
     identity: Identity, canonical_facts: dict[str, str], from_hosts: list[Host] | None = None
 ) -> Host | None:

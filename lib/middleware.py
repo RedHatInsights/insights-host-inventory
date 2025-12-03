@@ -4,7 +4,6 @@ import inspect
 from functools import partial
 from functools import wraps
 from http import HTTPStatus
-from json import JSONDecodeError
 from typing import Any
 from uuid import UUID
 
@@ -16,7 +15,7 @@ from flask import request
 from requests import Session
 from requests.adapters import HTTPAdapter
 from requests.exceptions import HTTPError
-from requests.packages.urllib3.util.retry import Retry
+from urllib3.util.retry import Retry
 
 from api.metrics import outbound_http_response_time
 from app import IDENTITY_HEADER
@@ -25,6 +24,7 @@ from app.auth import get_current_identity
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
 from app.auth.rbac import KesselPermission
+from app.auth.rbac import KesselResourceType
 from app.auth.rbac import KesselResourceTypes
 from app.auth.rbac import RbacPermission
 from app.auth.rbac import RbacResourceType
@@ -58,6 +58,25 @@ def get_rbac_v2_url(endpoint: str) -> str:
     return inventory_config().rbac_endpoint + RBAC_V2_ROUTE + endpoint
 
 
+def _get_rbac_workspace_url(workspace_id: str | None = None, query_params: dict | None = None) -> str:
+    """
+    Build RBAC v2 workspace URL with optional workspace ID and query parameters.
+
+    Args:
+        workspace_id: Optional workspace ID for specific workspace operations
+        query_params: Optional query parameters (e.g., {"type": "default", "limit": 1})
+
+    Returns:
+        Complete RBAC v2 workspace URL
+    """
+    endpoint = f"workspaces/{workspace_id}/" if workspace_id else "workspaces/"
+    if query_params:
+        param_string = "&".join([f"{k}={v}" for k, v in query_params.items()])
+        endpoint += f"?{param_string}"
+
+    return get_rbac_v2_url(endpoint)
+
+
 def get_rbac_private_url() -> str:
     return inventory_config().rbac_endpoint + RBAC_PRIVATE_UNGROUPED_ROUTE
 
@@ -70,43 +89,113 @@ def _build_rbac_request_headers(identity_header: str | None = None, request_id_h
     return request_headers
 
 
-def rbac_get_request_using_endpoint_and_headers(
-    rbac_endpoint: str, request_headers: dict, request_params: dict | None = None
-):
-    if inventory_config().bypass_rbac:
-        return None
+def _execute_rbac_http_request(  # type: ignore[return]
+    method: str,
+    rbac_endpoint: str,
+    request_headers: dict,
+    request_data: dict | None = None,
+    request_params: dict | None = None,
+    skip_not_found: bool = False,
+) -> dict | None:
+    """
+    Generic RBAC request handler that consolidates common functionality.
 
+    NOTE: This function does NOT check bypass flags (bypass_rbac or bypass_kessel).
+    Callers are responsible for checking the appropriate bypass flag before calling
+    this function to maintain clear separation of concerns.
+
+    Args:
+        method: HTTP method ('GET', 'POST', 'DELETE', or 'PATCH')
+        rbac_endpoint: The RBAC endpoint URL
+        request_headers: Headers for the request
+        request_data: JSON data for POST/PATCH requests
+        request_params: Query parameters for GET requests
+        skip_not_found: If True, 404 errors raise ResourceNotFoundException instead of aborting
+
+    Returns:
+        Parsed JSON response data from the RBAC endpoint
+    """
     request_session = Session()
     retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
     request_session.mount(rbac_endpoint, HTTPAdapter(max_retries=retry_config))
+    timeout = inventory_config().rbac_timeout
 
     try:
         with outbound_http_response_time.labels("rbac").time():
-            rbac_response = request_session.get(
-                url=rbac_endpoint,
-                params=request_params,
-                headers=request_headers,
-                timeout=inventory_config().rbac_timeout,
-                verify=LoadedConfig.tlsCAPath,
-            )
+            # Build common parameters shared by all HTTP methods
+            common_kwargs = {
+                "url": rbac_endpoint,
+                "headers": request_headers,
+                "timeout": timeout,
+                "verify": LoadedConfig.tlsCAPath,
+            }
+
+            # Add method-specific parameters
+            method_upper = method.upper()
+            if method_upper == "GET":
+                common_kwargs["params"] = request_params
+            elif method_upper in ("POST", "PATCH"):
+                common_kwargs["json"] = request_data
+            elif method_upper != "DELETE":
+                raise ValueError(f"Unsupported method: {method}")
+
+            # Dynamically call the appropriate HTTP method
+            http_method = getattr(request_session, method_upper.lower())
+            rbac_response = http_method(**common_kwargs)
+
+            rbac_response.raise_for_status()
+            return rbac_response.json()
+    except HTTPError as e:
+        status_code = e.response.status_code
+        if status_code == 404 and skip_not_found:
+            # For 404 errors with skip_not_found=True, raise ResourceNotFoundException
+            # instead of aborting. This allows the calling code to handle missing
+            # resources gracefully (e.g., when deleting a workspace that may not exist)
+            try:
+                detail = e.response.json().get("detail", e.response.text)
+            except Exception:
+                detail = e.response.text  # fallback if JSON can't be parsed
+            logger.info(f"RBAC 404 not found (skip_not_found=True): {detail}")
+            raise ResourceNotFoundException(detail) from e
+        elif 400 <= status_code < 500:
+            try:
+                detail = e.response.json().get("detail", e.response.text)
+            except Exception:
+                detail = e.response.text  # fallback if JSON can't be parsed
+            logger.warning(f"RBAC client error: {status_code} - {detail}")
+            abort(status_code, f"RBAC client error: {detail}")
+        else:
+            logger.error(f"RBAC server error: {status_code} - {e.response.text}")
+            abort(503, "RBAC server error, request cannot be fulfilled")
     except Exception as e:
         rbac_failure(logger, e)
         abort(503, "Failed to reach RBAC endpoint, request cannot be fulfilled")
     finally:
         request_session.close()
 
-    try:
-        resp_data = rbac_response.json()
-    except JSONDecodeError as e:
-        rbac_failure(logger, e)
-        abort(503, "Failed to parse RBAC response, request cannot be fulfilled")
-    finally:
-        request_session.close()
 
-    return resp_data
+def rbac_get_request_using_endpoint_and_headers(
+    rbac_endpoint: str, request_headers: dict, request_params: dict | None = None
+):
+    """
+    Execute a GET request to an RBAC endpoint.
+
+    NOTE: This function does NOT check bypass flags (bypass_rbac or bypass_kessel).
+    Callers are responsible for checking the appropriate bypass flag before calling
+    this function to maintain clear separation of concerns.
+    """
+    return _execute_rbac_http_request(
+        method="GET",
+        rbac_endpoint=rbac_endpoint,
+        request_headers=request_headers,
+        request_params=request_params,
+    )
 
 
 def get_rbac_permissions(app: str, request_header: dict):
+    if inventory_config().bypass_rbac:
+        return None
+
     resp_data = rbac_get_request_using_endpoint_and_headers(get_rbac_url(app), request_header)
     logger.debug("Fetched RBAC Data", extra={"resp_data": resp_data})
     return resp_data["data"]
@@ -288,6 +377,38 @@ def get_kessel_filter(
         return True, {"groups": workspaces}
 
 
+def _check_resource_exists(resource_type: KesselResourceType, ids: list[str]) -> bool:
+    """
+    Check if a resource exists in the database.
+
+    Args:
+        resource_type: The Kessel resource type
+        ids: List of resource IDs to check
+
+    Returns:
+        True if all resources exist, False otherwise
+    """
+    from lib.group_repository import get_groups_by_id_list_from_db
+    from lib.host_repository import find_existing_hosts_by_id_list
+
+    if not ids:
+        return True
+
+    current_identity = get_current_identity()
+
+    # Check based on resource type
+    if resource_type.name == "host":
+        # Check if all hosts exist
+        return len(find_existing_hosts_by_id_list(current_identity, ids)) == len(ids)
+    elif resource_type.name == "workspace":
+        # Check if all groups/workspaces exist
+        return len(get_groups_by_id_list_from_db(ids, current_identity.org_id)) == len(ids)
+    else:
+        # For other resource types, we can't check existence, so return True
+        # (assume they exist to preserve original 403 behavior)
+        return True
+
+
 def rbac(resource_type: RbacResourceType, required_permission: RbacPermission, permission_base: str = "inventory"):
     def other_func(func):
         @wraps(func)
@@ -342,12 +463,15 @@ def access(permission: KesselPermission, id_param: str = ""):
 
             allowed = None
             rbac_filter = None
+            ids = []
+            # Extract resource IDs if an id_param is provided
+            if id_param:
+                ids = permission.resource_type.get_resource_id(kwargs, id_param)
+
             if get_flag_value(
                 FLAG_INVENTORY_KESSEL_PHASE_1
             ):  # Workspace permissions aren't part of HBI in V2, fallback to rbac for now.
                 kessel_client = get_kessel_client(current_app)
-                ids = permission.resource_type.get_resource_id(kwargs, id_param)
-
                 allowed, rbac_filter = get_kessel_filter(kessel_client, current_identity, permission, ids)
             else:
                 allowed, rbac_filter = get_rbac_filter(
@@ -363,6 +487,10 @@ def access(permission: KesselPermission, id_param: str = ""):
                     kwargs["rbac_filter"] = rbac_filter
                 return func(*args, **kwargs)
             else:
+                # When permission is denied and we have an id_param, check if the resource exists
+                # If it doesn't exist, return 404 instead of 403
+                if id_param and ids and not _check_resource_exists(permission.resource_type, ids):
+                    abort(HTTPStatus.NOT_FOUND)
                 abort(HTTPStatus.FORBIDDEN)
 
         return modified_func
@@ -382,7 +510,7 @@ def rbac_group_id_check(rbac_filter: dict, requested_ids: set) -> None:
             abort(HTTPStatus.FORBIDDEN, f"You do not have access to the the following groups: {joined_ids}")
 
 
-def post_rbac_workspace(name) -> UUID | None:
+def post_rbac_workspace(name) -> UUID | None:  # type: ignore[return]
     if inventory_config().bypass_kessel:
         return None
 
@@ -390,60 +518,21 @@ def post_rbac_workspace(name) -> UUID | None:
     request_headers = _build_rbac_request_headers(request.headers[IDENTITY_HEADER], threadctx.request_id)
     request_data = {"name": name}
 
-    return post_rbac_workspace_using_endpoint_and_headers(request_data, rbac_endpoint, request_headers)
+    resp_data = _execute_rbac_http_request(
+        method="POST",
+        rbac_endpoint=rbac_endpoint,
+        request_headers=request_headers,
+        request_data=request_data,
+    )
 
-
-def post_rbac_workspace_using_endpoint_and_headers(
-    request_data: dict | None, rbac_endpoint: str, request_headers: dict
-) -> UUID | None:
-    if inventory_config().bypass_kessel:
+    if resp_data is None:
         return None
 
-    request_session = Session()
-    retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
-    request_session.mount(rbac_endpoint, HTTPAdapter(max_retries=retry_config))
-
     try:
-        with outbound_http_response_time.labels("rbac").time():
-            rbac_response = request_session.post(
-                url=rbac_endpoint,
-                headers=request_headers,
-                json=request_data,
-                timeout=inventory_config().rbac_timeout,
-                verify=LoadedConfig.tlsCAPath,
-            )
-            rbac_response.raise_for_status()
-    except HTTPError as e:
-        status_code = e.response.status_code
-        if 400 <= status_code < 500:
-            try:
-                detail = e.response.json().get("detail", e.response.text)
-            except Exception:
-                detail = e.response.text  # fallback if JSON can't be parsed
-            logger.warning(f"RBAC client error: {status_code} - {detail}")
-            abort(status_code, f"RBAC client error: {detail}")
-        else:
-            logger.error(f"RBAC server error: {status_code} - {e.response.text}")
-            abort(503, "RBAC server error, request cannot be fulfilled")
-    except Exception as e:
-        error_message = f"Unexpected error: {e.__class__.__name__}: {str(e)}"
-        logger.error(error_message)
-        abort(500, error_message)
-    finally:
-        request_session.close()
-
-    workspace_id = None
-    try:
-        resp_data = rbac_response.json()
-        workspace_id = resp_data["id"]
-        logger.debug("POSTED RBAC Data", extra={"resp_data": resp_data})
-    except (JSONDecodeError, KeyError) as e:
+        return UUID(resp_data["id"])
+    except (KeyError, ValueError, TypeError) as e:
         rbac_failure(logger, e)
         abort(503, "Failed to parse RBAC response, request cannot be fulfilled")
-    finally:
-        request_session.close()
-
-    return workspace_id
 
 
 def rbac_create_ungrouped_hosts_workspace(identity: Identity) -> UUID | None:
@@ -471,88 +560,38 @@ def rbac_create_ungrouped_hosts_workspace(identity: Identity) -> UUID | None:
     return workspace_id
 
 
-def _handle_rbac_error(
-    e: HTTPError,
-    workspace_id: str,
-    action: str,
-):
-    status = e.response.status_code
-    try:
-        detail = e.response.json().get("detail", e.response.text)
-    except Exception:
-        detail = e.response.text
-
-    if status == 404 and action == "deleting":
-        logger.info(f"404 {action} RBAC workspace {workspace_id}: {detail}")
-        raise ResourceNotFoundException(f"Workspace {workspace_id} not found in RBAC; skipping deletion")
-
-    if 400 <= status < 500:
-        logger.warning(f"RBAC client error {status} {action} {workspace_id}: {detail}")
-        abort(status, f"RBAC client error: {detail}")
-
-    logger.error(f"RBAC server error {status} {action} {workspace_id}: {detail}")
-    abort(503, "RBAC server error, request cannot be fulfilled")
-
-
 def delete_rbac_workspace(workspace_id: str):
     if inventory_config().bypass_kessel:
         return True
 
-    workspace_endpoint = f"workspaces/{workspace_id}/"
-    request_session = Session()
-    retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
-    request_session.mount(get_rbac_v2_url(endpoint=workspace_endpoint), HTTPAdapter(max_retries=retry_config))
+    rbac_endpoint = _get_rbac_workspace_url(workspace_id)
     request_headers = _build_rbac_request_headers()
 
-    try:
-        with outbound_http_response_time.labels("rbac").time():
-            rbac_response = request_session.delete(
-                url=get_rbac_v2_url(endpoint=workspace_endpoint),
-                headers=request_headers,
-                timeout=inventory_config().rbac_timeout,
-                verify=LoadedConfig.tlsCAPath,
-            )
-            rbac_response.raise_for_status()
-    except HTTPError as e:
-        _handle_rbac_error(e, workspace_id, "deleting")
-    except Exception as e:
-        rbac_failure(logger, e)
-        abort(503, "Failed to reach RBAC endpoint, request cannot be fulfilled")
-    finally:
-        request_session.close()
+    _execute_rbac_http_request(
+        method="DELETE",
+        rbac_endpoint=rbac_endpoint,
+        request_headers=request_headers,
+        skip_not_found=True,  # 404s should raise ResourceNotFoundException for graceful handling
+    )
 
 
 def patch_rbac_workspace(workspace_id: str, name: str | None = None) -> None:
     if inventory_config().bypass_kessel:
         return None
 
-    workspace_endpoint = f"workspaces/{workspace_id}/"
-    request_session = Session()
-    retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
-    request_session.mount(get_rbac_v2_url(endpoint=workspace_endpoint), HTTPAdapter(max_retries=retry_config))
+    rbac_endpoint = _get_rbac_workspace_url(workspace_id)
     request_headers = _build_rbac_request_headers()
 
     request_data = {}
     if name is not None:
         request_data.update({"name": name})
 
-    try:
-        with outbound_http_response_time.labels("rbac").time():
-            rbac_response = request_session.patch(
-                url=get_rbac_v2_url(endpoint=workspace_endpoint),
-                headers=request_headers,
-                json=request_data,
-                timeout=inventory_config().rbac_timeout,
-                verify=LoadedConfig.tlsCAPath,
-            )
-            rbac_response.raise_for_status()
-    except HTTPError as e:
-        _handle_rbac_error(e, workspace_id, "patching")
-    except Exception as e:
-        rbac_failure(logger, e)
-        abort(503, "Failed to reach RBAC endpoint, request cannot be fulfilled")
-    finally:
-        request_session.close()
+    _execute_rbac_http_request(
+        method="PATCH",
+        rbac_endpoint=rbac_endpoint,
+        request_headers=request_headers,
+        request_data=request_data,
+    )
 
 
 def get_rbac_default_workspace() -> UUID | None:
