@@ -182,5 +182,3 @@ This ensures that Kessel Inventory maintains an accurate, real-time view of the 
 ## Related Resources
 
 - [Kessel Project Documentation](https://project-kessel.github.io/)
-- RBAC v1 and v2 integration documentation
-- Kafka topic: `outbox.event.workspace` - Workspace lifecycle events

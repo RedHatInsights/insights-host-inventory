@@ -16,7 +16,7 @@ This document presents consolidated flowcharts showing all major workflows befor
 | **Host Grouping** | Optional - can be ungrouped | Mandatory - always in a group |
 | **Ungrouped Hosts** | `groups` column set to `[]` | Auto-assigned to "Ungrouped Hosts" workspace |
 | **Workflow Pattern** | HBI creates groups itself | Kessel creates the workspace, provides details to HBI to write to its DB |
-| **Workspace Management** | HBI owned group creation and save to its DB | Kessel/RBAC v2 auto-create workspaces. HBI tells Kessel to created "Ungrouped Hosts |
+| **Workspace Management** | HBI owns group creation and saves to its DB | Kessel/RBAC v2 creates workspaces. HBI tells Kessel to create "Ungrouped Hosts |
 | **Group Validation** | Check in HBI DB only | Check in RBAC v2 DB (source of truth) |
 | **Host Data Storage** | HBI DB only | HBI DB (RBAC v2 has no host knowledge) |
 | **Event Topics** | `platform.inventory.events` | `platform.inventory.events` and `outbox.event.workspace` |
@@ -83,8 +83,8 @@ flowchart TD
     RG2 -->|Granted| RG3{Check if<br/>Group Exists}
     RG3 -->|Not Exists| RG5[✗ Return Error<br/>Group Not Found]
     RG3 -->|Exists| RG4[Remove Host-Group Association]
-    RG4 --> RG5B[Update Groups column in hosts to blank]    
-    RG5B --> RG6[Update group host count for hosts still in the group]    
+    RG4 --> RG5B[Update Groups column in hosts to blank]
+    RG5B --> RG6[Update group host count for hosts still in the group]
     RG6 --> RG7B[✓ Host Removed<br/>No Group]
 ```
 
@@ -182,15 +182,15 @@ flowchart TD
 
 ### Key Characteristics - With Kessel
 
-- **Hybrid Authorization**: 
-    + *Kessel Authz* deals with hosts/staleness permissions 
+- **Hybrid Authorization**:
+    + *Kessel Authz* deals with hosts/staleness permissions
     + *RBAC v1* deals with groups permissions
     + *RBAC v2* does not deal with workspace permissions.  It is used for CRUD operations.
 - **Mandatory Group Membership**: Every host must belong to a group at all times
 - **Event-Driven Architecture**: Asynchronous updates via Kafka topic `outbox.event.workspace`
 - **Automatic Workspace Creation**: HBI checks if "Ungrouped Hosts" workspace exists, if not RBAC v2 creates it via RBAC v2 API.
 - **RBAC v2 as Source of Truth**: All group/workspace existence validation checks RBAC v2 DB (returns Yes/No). It also validates if the workspace name is not a duplicate under the same workspace immediate parent.
-- **Separation of Concerns**: RBAC v2 manages groups/workspaces and the knowledge of each  host and its associateed group/workspace.  However, RBAC_V2 does not know about the details of each host; HBI database stores each host details.
+- **Separation of Concerns**: RBAC v2 manages groups/workspaces and the knowledge of each  host and its associated group/workspace.  However, RBAC_V2 does not know about the details of each host; HBI database stores each host's details.
 - **Complex Workflows**: Event-driven patterns with wait states for coordination
 - **Four Main Entry Points**:
   1. **Kafka Message** → Host Creation (always in a group - Ungrouped Hosts if not specified)
@@ -203,4 +203,3 @@ flowchart TD
 ## Related Resources
 
 - [Kessel Project Documentation](https://project-kessel.github.io/)
-- RBAC v1 and v2 integration documentation
