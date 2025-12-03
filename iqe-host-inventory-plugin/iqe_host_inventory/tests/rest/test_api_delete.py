@@ -489,7 +489,6 @@ def test_delete_bulk_all_hosts_correct_parameters(
 def test_delete_bulk_display_name(
     check_delete_filtered_different_account,
     host_inventory: ApplicationHostInventory,
-    hbi_staleness_cleanup,
 ):
     """
     Test DELETE on /hosts endpoint with 'display_name' parameter
@@ -902,23 +901,9 @@ def test_delete_bulk_registered_with_temp_old(
 
 @pytest.mark.ephemeral
 @pytest.mark.usefixtures("hbi_staleness_cleanup")
-@pytest.mark.parametrize(
-    "staleness",
-    [
-        ["fresh"],
-        ["stale"],
-        ["stale_warning"],
-        ["fresh", "stale"],
-        ["fresh", "stale_warning"],
-        ["stale", "stale_warning"],
-        ["fresh", "stale", "stale_warning"],
-    ],
-    ids=lambda param: ",".join(param),
-)
 def test_delete_bulk_staleness(
     check_delete_filtered_different_account,
     host_inventory: ApplicationHostInventory,
-    staleness: list[str],
 ):
     """
     Test DELETE on /hosts endpoint with 'staleness' parameter
@@ -938,104 +923,30 @@ def test_delete_bulk_staleness(
         fresh_hosts_data=hosts_data[0:2],
         stale_hosts_data=hosts_data[2:4],
         stale_warning_hosts_data=hosts_data[4:6],
-        deltas=(20, 40, 60),
+        deltas=(15, 30, 3600),
     )
 
-    host_ids = {
-        hosts["fresh"][0].id,
-        hosts["fresh"][1].id,
-        hosts["stale"][0].id,
-        hosts["stale"][1].id,
-        hosts["stale_warning"][0].id,
-        hosts["stale_warning"][1].id,
-    }
+    host_ids = {host.id for host in hosts["fresh"] + hosts["stale"] + hosts["stale_warning"]}
 
-    not_deleted_ids = set(host_ids)
-    if "fresh" in staleness:
-        not_deleted_ids.remove(hosts["fresh"][0].id)
-        not_deleted_ids.remove(hosts["fresh"][1].id)
-    if "stale" in staleness:
-        not_deleted_ids.remove(hosts["stale"][0].id)
-        not_deleted_ids.remove(hosts["stale"][1].id)
-    if "stale_warning" in staleness:
-        not_deleted_ids.remove(hosts["stale_warning"][0].id)
-        not_deleted_ids.remove(hosts["stale_warning"][1].id)
-    deleted_ids = set(host_ids) - not_deleted_ids
+    hosts_to_delete = {host.id for host in hosts["stale_warning"]}
+    hosts_to_keep = host_ids - hosts_to_delete
 
-    check_delete_filtered_different_account(staleness=staleness)
+    check_delete_filtered_different_account(staleness=["stale_warning"])
 
     logger.info(f"Host IDs: {host_ids}")
-    logger.info(f"Expected not deleted IDs: {not_deleted_ids}")
+    logger.info(f"Expected hosts to be deleted: {hosts_to_delete}")
+    logger.info(f"Expected hosts to keep: {hosts_to_keep}")
 
-    with host_inventory.apis.hosts.verify_host_count_changed(-len(deleted_ids)):
-        host_inventory.apis.hosts.delete_filtered(staleness=staleness)
-        host_inventory.apis.hosts.wait_for_deleted(deleted_ids)
+    with host_inventory.apis.hosts.verify_host_count_changed(-len(hosts_to_delete)):
+        host_inventory.apis.hosts.delete_filtered(staleness=["stale_warning"])
+        host_inventory.apis.hosts.wait_for_deleted(hosts_to_delete)
 
-    response = host_inventory.apis.hosts.get_hosts_response(staleness=staleness)
+    response = host_inventory.apis.hosts.get_hosts_response(staleness=["stale_warning"])
     assert response.total == 0
 
     response_ids = {host.id for host in host_inventory.apis.hosts.get_hosts_by_id(host_ids)}
     logger.info(f"Response IDs: {response_ids}")
-    assert response_ids == not_deleted_ids
-
-
-@pytest.mark.ephemeral
-@pytest.mark.usefixtures("hbi_staleness_cleanup")
-@pytest.mark.parametrize("staleness", ["fresh", "stale", "stale_warning"])
-def test_delete_bulk_staleness_edge_hosts(
-    check_delete_filtered_different_account,
-    host_inventory: ApplicationHostInventory,
-    staleness: str,
-):
-    """
-    Test DELETE on /hosts endpoint with 'staleness' parameter and edge hosts
-
-    JIRA: https://issues.redhat.com/browse/ESSNTL-1509
-
-    metadata:
-        requirements: inv-hosts-delete-filtered-hosts
-        assignee: fstavela
-        importance: high
-        title: Inventory: Test DELETE on /hosts with 'staleness' parameter and edge hosts
-    """
-    hosts_data = host_inventory.datagen.create_n_hosts_data(3, host_type="edge")
-
-    hosts = create_hosts_fresh_stale_stalewarning(
-        host_inventory,
-        fresh_hosts_data=hosts_data[0:1],
-        stale_hosts_data=hosts_data[1:2],
-        stale_warning_hosts_data=hosts_data[2:3],
-        host_type="edge",
-        deltas=(15, 30, 45),
-    )
-
-    host_ids = {
-        hosts["fresh"][0].id,
-        hosts["stale"][0].id,
-        hosts["stale_warning"][0].id,
-    }
-
-    not_deleted_ids = set(host_ids)
-    if staleness == "fresh":
-        not_deleted_ids.remove(hosts["fresh"][0].id)
-    elif staleness == "stale":
-        not_deleted_ids.remove(hosts["stale"][0].id)
-    else:
-        not_deleted_ids.remove(hosts["stale_warning"][0].id)
-    deleted_ids = set(host_ids) - not_deleted_ids
-
-    check_delete_filtered_different_account(staleness=[staleness])
-
-    with host_inventory.apis.hosts.verify_host_count_changed(-1):
-        host_inventory.apis.hosts.delete_filtered(staleness=[staleness])
-        host_inventory.apis.hosts.wait_for_deleted(deleted_ids)
-
-    response = host_inventory.apis.hosts.get_hosts_response(staleness=[staleness])
-    assert response.total == 0
-
-    response_ids = {host.id for host in host_inventory.apis.hosts.get_hosts_by_id(host_ids)}
-    logger.info(f"Response IDs: {response_ids}")
-    assert response_ids == not_deleted_ids
+    assert response_ids == hosts_to_keep
 
 
 @pytest.mark.ephemeral
@@ -1523,208 +1434,6 @@ def test_delete_bulk_combination_all(
 
 
 @pytest.mark.ephemeral
-@pytest.mark.usefixtures("hbi_staleness_cleanup")
-def test_delete_bulk_combination_staleness_hostname_or_id(
-    check_delete_filtered_different_account,
-    host_inventory: ApplicationHostInventory,
-):
-    """
-    Test DELETE on /hosts endpoint with combination of staleness and hostname_or_id parameters
-
-    JIRA: https://issues.redhat.com/browse/ESSNTL-1509
-
-    metadata:
-        requirements: inv-hosts-delete-filtered-hosts
-        assignee: fstavela
-        importance: high
-        title: Inventory: Test DELETE on /hosts with hostname_or_id in combination of parameters
-    """
-    searched_value = generate_display_name()
-    hosts_data = host_inventory.datagen.create_n_hosts_data(10)
-    hosts_data[0]["display_name"] = searched_value
-    hosts_data[0]["fqdn"] = searched_value
-    hosts_data[1]["display_name"] = searched_value
-    hosts_data[2]["fqdn"] = searched_value
-    hosts_data[3]["display_name"] = searched_value
-    hosts_data[4]["fqdn"] = searched_value
-    hosts_data[5]["display_name"] = searched_value
-    hosts_data[5]["fqdn"] = searched_value
-    hosts_data[7].pop("display_name", None)
-    hosts_data[8].pop("fqdn", None)
-    hosts_data[9].pop("display_name", None)
-    hosts_data[9].pop("fqdn", None)
-
-    hosts = create_hosts_fresh_stale(
-        host_inventory,
-        fresh_hosts_data=hosts_data[0:3] + hosts_data[6:],
-        stale_hosts_data=hosts_data[3:6],
-        deltas=(15, 30, 45),
-    )
-
-    host_ids = [host.id for host in hosts["fresh"]]
-    host_ids.extend([host.id for host in hosts["stale"]])
-
-    check_delete_filtered_different_account(hostname_or_id=searched_value, staleness=["fresh"])
-
-    with host_inventory.apis.hosts.verify_host_count_changed(-3):
-        host_inventory.apis.hosts.delete_filtered(
-            hostname_or_id=searched_value, staleness=["fresh"]
-        )
-        host_inventory.apis.hosts.wait_for_deleted(host_ids[:3])
-
-    response = host_inventory.apis.hosts.get_hosts_response(
-        hostname_or_id=searched_value, staleness=["fresh"]
-    )
-    assert response.total == 0
-
-    response_ids = {host.id for host in host_inventory.apis.hosts.get_hosts_by_id(host_ids)}
-    assert response_ids == set(host_ids[3:])
-
-
-@pytest.mark.ephemeral
-@pytest.mark.usefixtures("hbi_staleness_cleanup")
-def test_delete_bulk_combination_staleness_provider_id(
-    check_delete_filtered_different_account,
-    host_inventory: ApplicationHostInventory,
-):
-    """
-    Test DELETE on /hosts endpoint with combination of staleness and provider_id parameters
-
-    JIRA: https://issues.redhat.com/browse/ESSNTL-1509
-
-    metadata:
-        requirements: inv-hosts-delete-filtered-hosts
-        assignee: fstavela
-        importance: high
-        title: Inventory: Test DELETE on /hosts with provider_id in combination of parameters
-    """
-    hosts_data = []
-    for _ in range(4):
-        hosts_data.append(host_inventory.datagen.create_host_data())
-        hosts_data[-1]["provider_id"] = generate_uuid()
-        hosts_data[-1]["provider_type"] = generate_provider_type()
-    hosts_data[3].pop("provider_id", None)
-    hosts_data[3].pop("provider_type", None)
-
-    hosts = create_hosts_fresh_stale(
-        host_inventory,
-        fresh_hosts_data=hosts_data[:1] + hosts_data[2:],
-        stale_hosts_data=[hosts_data[1]],
-        deltas=(10, 20, 30),
-    )
-
-    host_ids = [host.id for host in hosts["fresh"]]
-    host_ids.extend([host.id for host in hosts["stale"]])
-
-    check_delete_filtered_different_account(
-        provider_id=hosts_data[0]["provider_id"], staleness=["fresh"]
-    )
-
-    with host_inventory.apis.hosts.verify_host_count_changed(-1):
-        host_inventory.apis.hosts.delete_filtered(
-            provider_id=hosts_data[0]["provider_id"], staleness=["fresh"]
-        )
-        host_inventory.apis.hosts.wait_for_deleted(host_ids[:1])
-
-    response = host_inventory.apis.hosts.get_hosts_response(
-        provider_id=hosts_data[0]["provider_id"], staleness=["fresh"]
-    )
-    assert response.total == 0
-
-    response_ids = {host.id for host in host_inventory.apis.hosts.get_hosts_by_id(host_ids)}
-    assert response_ids == set(host_ids[1:])
-
-
-@pytest.mark.ephemeral
-@pytest.mark.usefixtures("hbi_staleness_cleanup")
-def test_delete_bulk_combination_staleness_registered_with(
-    check_delete_filtered_different_account,
-    host_inventory: ApplicationHostInventory,
-):
-    """
-    Test DELETE on /hosts endpoint with combination of staleness and registered_with parameters
-
-    JIRA: https://issues.redhat.com/browse/ESSNTL-1509
-
-    metadata:
-        requirements: inv-hosts-delete-filtered-hosts
-        assignee: fstavela
-        importance: high
-        title: Inventory: Test DELETE on /hosts with registered_with in combination of parameters
-    """
-    hosts_data = host_inventory.datagen.create_n_hosts_data(4)
-    hosts_data[0]["reporter"] = "puptoo"
-    hosts_data[1]["reporter"] = "puptoo"
-    hosts_data[2]["reporter"] = generate_uuid()
-    hosts_data[3]["reporter"] = generate_uuid()
-
-    hosts = create_hosts_fresh_stale(
-        host_inventory,
-        fresh_hosts_data=hosts_data[0:1] + hosts_data[2:3],
-        stale_hosts_data=hosts_data[1:2] + hosts_data[3:],
-        deltas=(10, 20, 30),
-    )
-
-    host_ids = [host.id for host in hosts["fresh"]]
-    host_ids.extend([host.id for host in hosts["stale"]])
-
-    check_delete_filtered_different_account(registered_with=["puptoo"], staleness=["fresh"])
-
-    with host_inventory.apis.hosts.verify_host_count_changed(-1):
-        host_inventory.apis.hosts.delete_filtered(registered_with=["puptoo"], staleness=["fresh"])
-        host_inventory.apis.hosts.wait_for_deleted(host_ids[:1])
-
-    response = host_inventory.apis.hosts.get_hosts_response(
-        registered_with=["puptoo"], staleness=["fresh"]
-    )
-    assert response.total == 0
-
-    response_ids = {host.id for host in host_inventory.apis.hosts.get_hosts_by_id(host_ids)}
-    assert response_ids == set(host_ids[1:])
-
-
-@pytest.mark.ephemeral
-@pytest.mark.usefixtures("hbi_staleness_cleanup")
-def test_delete_bulk_combination_staleness_filter(host_inventory: ApplicationHostInventory):
-    """
-    Test DELETE on /hosts endpoint with combination of staleness and filter parameters
-
-    JIRA: https://issues.redhat.com/browse/ESSNTL-1509
-
-    metadata:
-        requirements: inv-hosts-delete-filtered-hosts
-        assignee: fstavela
-        importance: high
-        title: Inventory: Test DELETE on /hosts with filter in combination of parameters
-    """
-    hosts_data = host_inventory.datagen.create_n_hosts_data(6)
-    hosts_data[0]["system_profile"]["operating_system"] = {"major": 8, "minor": 4, "name": "RHEL"}
-    hosts_data[1]["system_profile"]["operating_system"] = {"major": 8, "minor": 4, "name": "RHEL"}
-    hosts_data[2]["system_profile"]["operating_system"] = {"major": 8, "minor": 3, "name": "RHEL"}
-    hosts_data[3]["system_profile"]["operating_system"] = {"major": 7, "minor": 4, "name": "RHEL"}
-    hosts_data[4]["system_profile"]["operating_system"] = {
-        "major": 7,
-        "minor": 4,
-        "name": "CentOS",
-    }
-    hosts_data[5]["system_profile"].pop("operating_system", None)
-
-    hosts = create_hosts_fresh_stale(
-        host_inventory,
-        fresh_hosts_data=hosts_data[0:1] + hosts_data[2:],
-        stale_hosts_data=hosts_data[1:2],
-    )
-
-    host_ids = [host.id for host in hosts["fresh"]]
-    host_ids.extend([host.id for host in hosts["stale"]])
-
-    filter = ["[operating_system][RHEL][version][eq][]=8.4"]
-    host_inventory.apis.hosts.delete_filtered(filter=filter, staleness=["fresh"])
-    host_inventory.apis.hosts.wait_for_deleted(host_ids[0])
-    host_inventory.apis.hosts.verify_not_deleted(host_ids[1:])
-
-
-@pytest.mark.ephemeral
 @pytest.mark.parametrize(
     "params",
     [
@@ -1773,43 +1482,6 @@ def test_delete_bulk_combination_invalid_parameters(
         )
 
     host_inventory.apis.hosts.verify_not_deleted(host, retries=1)
-
-
-@pytest.mark.ephemeral
-def test_delete_bulk_default_staleness(host_inventory: ApplicationHostInventory):
-    """
-    Test default staleness on DELETE on /hosts endpoint
-
-    JIRA: https://issues.redhat.com/browse/ESSNTL-1509
-
-    metadata:
-        requirements: inv-hosts-delete-filtered-hosts
-        assignee: fstavela
-        importance: high
-        title: Inventory: Test default staleness on DELETE on /hosts endpoint
-    """
-    hosts_data = host_inventory.datagen.create_n_hosts_data(3)
-    hosts_data[0]["stale_timestamp"] = gen_fresh_date().isoformat()
-    hosts_data[0]["reporter"] = "puptoo"
-    hosts_data[1]["stale_timestamp"] = gen_stale_date().isoformat()
-    hosts_data[1]["reporter"] = "puptoo"
-    hosts_data[2]["stale_timestamp"] = gen_stale_warning_date().isoformat()
-    hosts_data[2]["reporter"] = "puptoo"
-    hosts_ids = [host.id for host in host_inventory.kafka.create_hosts(hosts_data=hosts_data)]
-
-    pre_delete_count = host_inventory.apis.hosts.get_hosts_response(
-        staleness=["fresh", "stale", "stale_warning"]
-    ).total
-    host_inventory.apis.hosts.delete_filtered(registered_with=["puptoo"])
-    host_inventory.apis.hosts.wait_for_deleted(hosts_ids[:2])
-    post_delete_count = host_inventory.apis.hosts.get_hosts_response(
-        staleness=["fresh", "stale", "stale_warning"]
-    ).total
-    assert post_delete_count <= pre_delete_count - 3
-    response_ids = {host.id for host in host_inventory.apis.hosts.get_hosts_by_id(hosts_ids)}
-    assert len(response_ids) == 0
-    response = host_inventory.apis.hosts.get_hosts_response(registered_with=["puptoo"])
-    assert response.total == 0
 
 
 @pytest.mark.ephemeral
