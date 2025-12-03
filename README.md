@@ -263,6 +263,39 @@ pytest tests/test_api_auth.py::test_validate_valid_identity
 
 - Note: Ensure DB-related environment variables are set before running tests.
 
+#### IQE Integration Tests
+
+The repository now includes the IQE (Insights QE) test suite in the `iqe-host-inventory-plugin/` directory. These are comprehensive integration tests that cover:
+- REST API endpoints (backend tests)
+- UI tests (frontend tests)
+- Database tests
+- Resilience tests
+- RBAC tests
+- Notifications tests
+
+**Running IQE Tests Locally:**
+
+The IQE tests require special dependencies and configuration. For detailed instructions on running IQE tests locally, see the [IQE README](iqe-host-inventory-plugin/README.md).
+
+**PR Checks:**
+
+The IQE smoke tests are automatically run as part of the PR check pipeline. When `IQE_INSTALL_LOCAL_PLUGIN=true` (default), the pr_check.sh script:
+1. Builds the PR commit image
+2. Runs unit tests
+3. Deploys to an ephemeral environment
+4. Deploys a CJI (ClowdJobInvocation) pod with `--debug-pod` option
+5. Copies the local IQE plugin from `iqe-host-inventory-plugin/` to the CJI pod
+6. Installs the plugin in editable mode inside the pod
+7. Runs IQE smoke tests (tests marked with `backend and smoke`) with your local changes
+8. Collects test artifacts
+
+This ensures that every PR is tested with the exact IQE test code in the repository, not the version from Nexus. The local IQE plugin deployment is controlled by the `IQE_INSTALL_LOCAL_PLUGIN` environment variable set in `pr_check_common.sh`.
+
+**How it works:**
+- `deploy_ephemeral_env.sh`: Creates the ephemeral namespace and deploys HBI
+- `run_cji_with_local_plugin.sh`: Deploys the CJI pod, copies local plugin, installs it, and runs tests
+- `post_test_results.sh`: Collects and publishes test results
+
 ## Running the webserver locally
 
 When running the web server locally for development, the Prometheus configuration is done automatically.

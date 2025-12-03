@@ -154,11 +154,11 @@ def test_get_system_profile_RBAC_allowed(mocker, subtests, api_get):
 
 
 @pytest.mark.usefixtures("enable_rbac")
-def test_get_system_profile_RBAC_denied(mocker, subtests, api_get):
+def test_get_system_profile_RBAC_denied(mocker, db_create_host, subtests, api_get):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     get_sparse_system_profile_mock = mocker.patch("api.host.get_sparse_system_profile")
 
-    host_id = generate_uuid()
+    host_id = str(db_create_host().id)
 
     for response_file in HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)

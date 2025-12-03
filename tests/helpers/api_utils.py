@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import math
+import types
 from base64 import b64encode
 from collections.abc import Callable
 from datetime import timedelta
@@ -693,12 +694,22 @@ def mocked_post_workspace_not_found(_self: Any, url: str, **_: Any) -> Response:
 
 
 def mocked_patch_workspace_name_exists(kessel_response_status: int, _self: Any, url: str, **_: Any) -> Response:
+    error_message = "Can't patch workspace with same name within same parent workspace"
+
+    # Create a mock response - Response.raise_for_status() will automatically raise HTTPError
+    # for non-2xx status codes, so we don't need to override it
     response = Response()
     response.url = url
     response.status_code = kessel_response_status
-    response._content = b'{"detail": "Can\'t patch workspace with same name within same parent workspace"}'
-    response.headers = CaseInsensitiveDict({"content-type": "application/json"})
-    # Set the response.request attribute which is needed for raise_for_status
+    response._content = error_message.encode()
 
-    response.request = Request("PATCH", url).prepare()
+    # Add json() method for error handling code that tries to parse JSON
+    def json(self) -> dict[str, str]:  # noqa: ARG001
+        return {"detail": error_message}
+
+    response.json = types.MethodType(json, response)  # type: ignore[method-assign]
+
+    # Note: We don't override raise_for_status() because Response.raise_for_status()
+    # already raises HTTPError for non-2xx status codes, which is what we want
+
     return response

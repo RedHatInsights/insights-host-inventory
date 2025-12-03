@@ -22,7 +22,7 @@ def test_add_host_to_group(db_create_group, db_create_host, db_get_hosts_for_gro
     group_id = db_create_group("test_group").id
     host_id_list = [db_create_host().id for _ in range(3)]
 
-    response_status, _ = api_add_hosts_to_group(group_id, [str(host) for host in host_id_list[0:2]])
+    response_status, _ = api_add_hosts_to_group(group_id, [str(host) for host in host_id_list[:2]])
     assert response_status == 200
 
     # Confirm that the group now only contains  2 hosts
@@ -45,9 +45,25 @@ def test_add_host_to_group_RBAC_denied(
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
             host_id_list = [db_create_host().id for _ in range(3)]
-            response_status, _ = api_add_hosts_to_group(group_id, [str(host) for host in host_id_list[0:2]])
+            response_status, _ = api_add_hosts_to_group(group_id, [str(host) for host in host_id_list[:2]])
 
             assert_response_status(response_status, 403)
+
+
+@pytest.mark.usefixtures("enable_rbac")
+def test_add_host_to_group_RBAC_denied_missing_group(subtests, mocker, db_create_host, api_add_hosts_to_group):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    group_id = str(generate_uuid())
+
+    for response_file in GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+            host_id_list = [db_create_host().id for _ in range(3)]
+            response_status, _ = api_add_hosts_to_group(group_id, [str(host) for host in host_id_list[:2]])
+
+            assert_response_status(response_status, 404)
 
 
 @pytest.mark.usefixtures("enable_rbac", "event_producer")
@@ -74,7 +90,7 @@ def test_add_host_to_group_RBAC_allowed_specific_groups(
 
     host_id_list = [db_create_host().id for _ in range(3)]
 
-    response_status, _ = api_add_hosts_to_group(group_id, [str(host) for host in host_id_list[0:2]])
+    response_status, _ = api_add_hosts_to_group(group_id, [str(host) for host in host_id_list[:2]])
 
     # Should be allowed
     assert_response_status(response_status, 200)
@@ -99,7 +115,7 @@ def test_add_host_to_group_RBAC_denied_specific_groups(
 
     host_id_list = [db_create_host().id for _ in range(3)]
 
-    response_status, _ = api_add_hosts_to_group(group_id, [str(host) for host in host_id_list[0:2]])
+    response_status, _ = api_add_hosts_to_group(group_id, [str(host) for host in host_id_list[:2]])
 
     # Access was not granted
     assert_response_status(response_status, 403)
@@ -293,7 +309,7 @@ def test_group_with_culled_hosts(
 
     host_id_list = [db_create_host().id for _ in range(3)]
 
-    response_status, _ = api_add_hosts_to_group(group_id, [str(host) for host in host_id_list[0:3]])
+    response_status, _ = api_add_hosts_to_group(group_id, [str(host) for host in host_id_list[:3]])
     assert response_status == 200
 
     # Confirm that the group contains 3 hosts
@@ -307,7 +323,7 @@ def test_group_with_culled_hosts(
 
     culled_host.deletion_timestamp = datetime.now(tz=UTC) - timedelta(minutes=5)
 
-    _, response_data = api_get(GROUP_URL + "/" + ",".join([str(group_id)]))
+    _, response_data = api_get(f"{GROUP_URL}/" + ",".join([str(group_id)]))
     host_count = response_data["results"][0]["host_count"]
     assert host_count == 2
 

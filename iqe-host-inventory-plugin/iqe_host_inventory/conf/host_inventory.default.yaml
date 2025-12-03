@@ -1,0 +1,702 @@
+default:
+  api_path: "api"
+  api_name: "inventory"
+  api_v1_root: "v1"
+  inv_mq_pmin_deploy_name: "host-inventory-mq-pmin"
+  inv_mq_p1_deploy_name: "host-inventory-mq-p1"
+  inv_api_deploy_name: "host-inventory-service"
+  kafka:
+    ingress_topic: platform.inventory.host-ingress
+    events_topic: platform.inventory.events
+    system_profile_topic: platform.inventory.system-profile
+    notifications_topic: platform.notifications.ingress
+    events_timeout: 10
+  service_objects:
+    api:
+      type: rest
+      config:
+        module_name: iqe_host_inventory_api
+        path: api/inventory/v1
+        generator_version: 4.3.1
+    api_v7:
+      type: rest
+      config:
+        module_name: iqe_host_inventory_api_v7
+        path: api/inventory/v1
+        generator_version: 7.6.0
+  metadata:
+    default_fields:
+      component: host_inventory
+      automation_status: automated
+
+prod:
+  legacy_hostname: "api.access.redhat.com"
+  default_user: insights_inventory_qe
+  non_org_admin_user: insights_inventory_qe_2
+  secondary_user: insights_qa
+  frontend_user: inventory_ui_account
+  frontend_non_org_admin_user: inventory_ui_account_2
+  users:
+    insights_inventory_qe:
+      auth:
+        username:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: username
+        password:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: password
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: refresh_token
+      cert_auth:
+        cert:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: cert
+        key:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: key
+      identity:
+        account_number:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_2:
+      auth:
+        username:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe_2
+          vault_key: username
+        password:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe_2
+          vault_key: password
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe_2
+          vault_key: refresh_token
+      cert_auth:
+        cert:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe_2
+          vault_key: cert
+        key:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe_2
+          vault_key: key
+      identity:
+        account_number:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe_2
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe_2
+          vault_key: org_id
+    inventory_service_account:
+      auth:
+        jwt_grant_type: client_credentials
+        client_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: svc_acc_all_perms_id
+        client_secret:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: svc_acc_all_perms_secret
+        username:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: svc_acc_all_perms_username
+      identity:
+        account_number:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    inventory_service_account_2:
+      auth:
+        jwt_grant_type: client_credentials
+        client_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: svc_acc_none_perms_id
+        client_secret:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: svc_acc_none_perms_secret
+        username:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: svc_acc_none_perms_username
+      identity:
+        account_number:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    inventory_ui_account:
+      auth:
+        username:
+          vault_path: secrets/qe/prod/users/qe-ui-inventory
+          vault_key: username
+        password:
+          vault_path: secrets/qe/prod/users/qe-ui-inventory
+          vault_key: password
+        refresh_token:
+          vault_path: secrets/qe/prod/users/qe-ui-inventory
+          vault_key: refresh_token
+      identity:
+        account_number:
+          vault_path: secrets/qe/prod/users/qe-ui-inventory
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/prod/users/qe-ui-inventory
+          vault_key: org_id
+    inventory_ui_account_2:
+      auth:
+        username:
+          vault_path: secrets/qe/prod/users/qe-ui-inventory-1
+          vault_key: username
+        password:
+          vault_path: secrets/qe/prod/users/qe-ui-inventory-1
+          vault_key: password
+        refresh_token:
+          vault_path: secrets/qe/prod/users/qe-ui-inventory-1
+          vault_key: refresh_token
+      identity:
+        account_number:
+          vault_path: secrets/qe/prod/users/qe-ui-inventory-1
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/prod/users/qe-ui-inventory-1
+          vault_key: org_id
+
+
+itl_int:
+  legacy_hostname: "api.access.stage.redhat.com"
+  default_user: insights_inventory_qe
+  secondary_user: insights_inventory_qe_2
+  non_org_admin_user: insights_inventory_qe_2
+  frontend_user: inventory_ui_account
+  frontend_non_org_admin_user: inventory_ui_account_2
+  users:
+    insights_inventory_qe:
+      auth:
+        jwt_grant_type: authorization_code
+        username:
+          vault_path: secrets/qe/int/users/insights-qa
+          vault_key: username
+        password:
+          vault_path: secrets/qe/int/users/insights-qa
+          vault_key: password
+      identity:
+        account_number:
+          vault_path: secrets/qe/int/users/insights-qa
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/int/users/insights-qa
+          vault_key: org_id
+    insights_inventory_qe_2:
+      auth:
+        jwt_grant_type: authorization_code
+        username:
+          vault_path: secrets/qe/int/users/insights-qe-int-2
+          vault_key: username
+        password:
+          vault_path: secrets/qe/int/users/insights-qe-int-2
+          vault_key: password
+      identity:
+        account_number:
+          vault_path: secrets/qe/int/users/insights-qe-int-2
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/int/users/insights-qe-int-2
+          vault_key: org_id
+    inventory_ui_account:
+      auth:
+        jwt_grant_type: authorization_code
+        username:
+          vault_path: secrets/qe/int/users/qe-ui-inventory
+          vault_key: username
+        password:
+          vault_path: secrets/qe/int/users/qe-ui-inventory
+          vault_key: password
+        refresh_token:
+          vault_path: secrets/qe/int/users/qe-ui-inventory
+          vault_key: refresh_token
+      identity:
+        account_number:
+          vault_path: secrets/qe/int/users/qe-ui-inventory
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/int/users/qe-ui-inventory
+          vault_key: org_id
+    inventory_ui_account_2:
+      auth:
+        jwt_grant_type: authorization_code
+        username:
+          vault_path: secrets/qe/prod/users/qe-ui-inventory-1
+          vault_key: username
+        password:
+          vault_path: secrets/qe/prod/users/qe-ui-inventory-1
+          vault_key: password
+        refresh_token:
+          vault_path: secrets/qe/prod/users/qe-ui-inventory-1
+          vault_key: refresh_token
+
+itl_stage:
+  legacy_hostname: "api.access.stage.redhat.com"
+  default_user: insights_inventory_qe
+  secondary_user: insights_inventory_qe_2
+  non_org_admin_user: insights_inventory_qe_2
+  frontend_user: inventory_ui_account
+  frontend_non_org_admin_user: inventory_ui_account_2
+  users:
+    insights_inventory_qe:
+      auth:
+        jwt_grant_type: authorization_code
+        username:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: username
+        password:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: password
+      identity:
+        account_number:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_2:
+      auth:
+        jwt_grant_type: authorization_code
+        username:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe_2
+          vault_key: username
+        password:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe_2
+          vault_key: password
+      identity:
+        account_number:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe_2
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe_2
+          vault_key: org_id
+    inventory_ui_account:
+      auth:
+        jwt_grant_type: authorization_code
+        username:
+          vault_path: secrets/qe/stage/users/qe-ui-inventory
+          vault_key: username
+        password:
+          vault_path: secrets/qe/stage/users/qe-ui-inventory
+          vault_key: password
+        refresh_token:
+          vault_path: secrets/qe/stage/users/qe-ui-inventory
+          vault_key: refresh_token
+      identity:
+        account_number:
+          vault_path: secrets/qe/stage/users/qe-ui-inventory
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/stage/users/qe-ui-inventory
+          vault_key: org_id
+    inventory_ui_account_2:
+      auth:
+        jwt_grant_type: authorization_code
+        username:
+          vault_path: secrets/qe/prod/users/qe-ui-inventory-1
+          vault_key: username
+        password:
+          vault_path: secrets/qe/prod/users/qe-ui-inventory-1
+          vault_key: password
+        refresh_token:
+          vault_path: secrets/qe/prod/users/qe-ui-inventory-1
+          vault_key: refresh_token
+
+stage: &stage
+  legacy_hostname: "api.access.stage.redhat.com"
+  default_user: insights_inventory_qe
+  non_org_admin_user: insights_inventory_qe_2
+  secondary_user: insights_qa
+  frontend_user: inventory_ui_account
+  frontend_non_org_admin_user: inventory_ui_account_2
+  users:
+    insights_inventory_qe:
+      auth:
+        username:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: username
+        password:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: password
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: refresh_token
+      cert_auth:
+        cert:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: cert
+        key:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: key
+      identity:
+        account_number:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_2:
+      auth:
+        username:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe_2
+          vault_key: username
+        password:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe_2
+          vault_key: password
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe_2
+          vault_key: refresh_token
+      cert_auth:
+        cert:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe_2
+          vault_key: cert
+        key:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe_2
+          vault_key: key
+      identity:
+        account_number:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe_2
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe_2
+          vault_key: org_id
+    inventory_xjoin_migration:
+      auth:
+        username:
+          vault_path: secrets/qe/stage/users/inventory_xjoin_migration
+          vault_key: username
+        password:
+          vault_path: secrets/qe/stage/users/inventory_xjoin_migration
+          vault_key: password
+        refresh_token:
+          vault_path: secrets/qe/stage/users/inventory_xjoin_migration
+          vault_key: refresh_token
+      cert_auth:
+        cert:
+          vault_path: secrets/qe/stage/users/inventory_xjoin_migration
+          vault_key: cert
+        key:
+          vault_path: secrets/qe/stage/users/inventory_xjoin_migration
+          vault_key: key
+      identity:
+        account_number:
+          vault_path: secrets/qe/stage/users/inventory_xjoin_migration
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/stage/users/inventory_xjoin_migration
+          vault_key: org_id
+    inventory_xjoin_migration_2:
+      auth:
+        username:
+          vault_path: secrets/qe/stage/users/inventory_xjoin_migration_2
+          vault_key: username
+        password:
+          vault_path: secrets/qe/stage/users/inventory_xjoin_migration_2
+          vault_key: password
+        refresh_token:
+          vault_path: secrets/qe/stage/users/inventory_xjoin_migration_2
+          vault_key: refresh_token
+      cert_auth:
+        cert:
+          vault_path: secrets/qe/stage/users/inventory_xjoin_migration_2
+          vault_key: cert
+        key:
+          vault_path: secrets/qe/stage/users/inventory_xjoin_migration_2
+          vault_key: key
+      identity:
+        account_number:
+          vault_path: secrets/qe/stage/users/inventory_xjoin_migration_2
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/stage/users/inventory_xjoin_migration_2
+          vault_key: org_id
+    inventory_service_account:
+      auth:
+        jwt_grant_type: client_credentials
+        client_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: svc_acc_all_perms_id
+        client_secret:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: svc_acc_all_perms_secret
+        username:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: svc_acc_all_perms_username
+      identity:
+        account_number:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    inventory_service_account_2:
+      auth:
+        jwt_grant_type: client_credentials
+        client_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: svc_acc_none_perms_id
+        client_secret:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: svc_acc_none_perms_secret
+        username:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: svc_acc_none_perms_username
+      identity:
+        account_number:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    inventory_ui_account:
+      auth:
+        username:
+          vault_path: secrets/qe/stage/users/qe-ui-inventory
+          vault_key: username
+        password:
+          vault_path: secrets/qe/stage/users/qe-ui-inventory
+          vault_key: password
+        refresh_token:
+          vault_path: secrets/qe/stage/users/qe-ui-inventory
+          vault_key: refresh_token
+      identity:
+        account_number:
+          vault_path: secrets/qe/stage/users/qe-ui-inventory
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/stage/users/qe-ui-inventory
+          vault_key: org_id
+    inventory_ui_account_2:
+      auth:
+        username:
+          vault_path: secrets/qe/stage/users/qe-ui-inventory-1
+          vault_key: username
+        password:
+          vault_path: secrets/qe/stage/users/qe-ui-inventory-1
+          vault_key: password
+        refresh_token:
+          vault_path: secrets/qe/stage/users/qe-ui-inventory-1
+          vault_key: refresh_token
+      identity:
+        account_number:
+          vault_path: secrets/qe/stage/users/qe-ui-inventory-1
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/stage/users/qe-ui-inventory-1
+          vault_key: org_id
+
+stage_proxy: *stage
+
+smoke:
+  service_objects:
+    api:
+      config:
+        hostname: insights-inventory
+        scheme: http
+        port: 8080
+    api_v7:
+      config:
+        hostname: insights-inventory
+        scheme: http
+        port: 8080
+  db:
+    hostname: "inventory-db"
+    database: "insights"
+    username: "insights"
+    password: "insights"
+    port: 5432
+  default_user: insights_inventory_qe
+  non_org_admin_user: insights_inventory_qe_2
+  secondary_user: secondary_user
+  users: &smoke-users
+    insights_inventory_qe:
+      identity:
+        account_number: &smoke-primary-account "0369233"
+        org_id: &smoke-primary-org "3340851"
+        type: User
+        auth_type: basic-auth
+        user:
+          username: &smoke-primary-username "insights_inventory_qe"
+          email: insights_inventory_qe@redhat.com
+          first_name: Insights
+          last_name: Inventory
+          is_active: true
+          is_org_admin: true
+          is_internal: false
+          locale: en_US
+          user_id: &smoke-primary-user-id "23233"
+        internal:
+          org_id: *smoke-primary-org
+          auth_time: 6300
+      entitlements:
+        insights:
+          is_entitled: true
+    insights_inventory_qe_2:
+      identity:
+        account_number: *smoke-primary-account
+        org_id: *smoke-primary-org
+        type: User
+        auth_type: basic-auth
+        user:
+          username: insights_inventory_qe_2
+          email: insights_inventory_qe_2@redhat.com
+          first_name: Insights
+          last_name: Inventory 2
+          is_active: true
+          is_org_admin: false
+          is_internal: false
+          locale: en_US
+          user_id: "98999"
+        internal:
+          org_id: *smoke-primary-org
+          auth_time: 6300
+      entitlements:
+        insights:
+          is_entitled: true
+    secondary_user:
+      identity:
+        account_number: "6212377"
+        org_id: &smoke-secondary-org "12383032"
+        type: User
+        auth_type: basic-auth
+        user:
+          username: insights-qa
+          email: test@redhat.com
+          first_name: Insights
+          last_name: QA
+          is_active: true
+          is_org_admin: true
+          is_internal: false
+          locale: en_US
+          user_id: "54555"
+        internal:
+          org_id: *smoke-secondary-org
+          auth_time: 6300
+      entitlements:
+        insights:
+          is_entitled: true
+    identity_auth_user:
+      identity:
+        account_number: *smoke-primary-account
+        org_id: *smoke-primary-org
+        type: User
+        auth_type: basic-auth
+        user:
+          username: *smoke-primary-username
+          user_id: *smoke-primary-user-id
+    identity_auth_system:
+      identity:
+        account_number: *smoke-primary-account
+        org_id: *smoke-primary-org
+        type: System
+        auth_type: cert-auth
+        system:
+          cn: ca01d910-4d00-4080-aff4-ae17a8c46547
+          cert_type: system
+    identity_auth_service_account:
+      identity:
+        org_id: *smoke-primary-org
+        type: ServiceAccount
+        auth_type: jwt-auth
+        service_account:
+          client_id: b69eaf9e-e6a6-4f9e-805e-02987daddfbd
+          username: iqe-hbi-service-account
+    identity_auth_x509_rhsm:
+      identity:
+        type: X509
+        auth_type: X509
+        x509:
+          subject_dn: "/O=mpaas/OU=serviceaccounts/UID=mpp:rhsm:prod-errata-notifications"
+          issuer_dn: "/O=Red Hat/OU=prod/CN=2023 Certificate Authority RHCSv2"
+
+
+clowder_smoke:
+  kafka:
+    ingress_topic: "@jinja {{ env_parser.get_kafka_topic('host-inventory', 'platform.inventory.host-ingress') }}"
+    events_topic: "@jinja {{ env_parser.get_kafka_topic('host-inventory', 'platform.inventory.events') }}"
+    system_profile_topic: "@jinja {{ env_parser.get_kafka_topic('host-inventory', 'platform.inventory.system-profile') }}"
+    notifications_topic: "@jinja {{ env_parser.get_kafka_topic('host-inventory', 'platform.notifications.ingress') }}"
+    events_timeout: 10
+  service_objects:
+    api:
+      config:
+        hostname: "@jinja {{ env_parser.get_hostname('host-inventory', 'service') }}"
+        scheme: http
+        port: "@jinja {{ env_parser.get_port('host-inventory', 'service') }}"
+    api_v7:
+      config:
+        hostname: "@jinja {{ env_parser.get_hostname('host-inventory', 'service') }}"
+        scheme: http
+        port: "@jinja {{ env_parser.get_port('host-inventory', 'service') }}"
+  db:
+    hostname: "@jinja {{ env_parser.get_db_config('host-inventory').hostname }}"
+    database: "@jinja {{ env_parser.get_db_config('host-inventory').name }}"
+    username: "@jinja {{ env_parser.get_db_config('host-inventory').username }}"
+    password: "@jinja {{ env_parser.get_db_config('host-inventory').password }}"
+    port: "@jinja {{ env_parser.get_db_config('host-inventory').port }}"
+  default_user: insights_inventory_qe
+  non_org_admin_user: insights_inventory_qe_2
+  secondary_user: secondary_user
+  users: *smoke-users
+
+ephemeral:
+  frontend_user: inventory_ui_account
+  value_getters:
+    env_parser:
+      enabled: true
+  ephemeral: true
+  users:
+    inventory_ui_account:
+      attributes:
+        type: User
+        account_number: "0369233"
+        email: "inventory_ui_account@acme.com"
+        first_name: "John"
+        last_name: "Doe"
+        is_active: true
+        is_org_admin: true
+        is_internal: false
+        locale: "en_US"
+      identity:
+        org_id: "3340851"
+        account_number: "0369233"
+      auth:
+        jwt_grant_type: password
+        username: "ephemeral-user"
+        password: "redhat"
+        idp_username: "ephemeral-user"
+        idp_password: "redhat"
+      entitlements:
+        insights:
+          is_entitled: true
+
+stage_post_deploy:
+  DEFAULT_USER: insights-qa
+  kafka:
+    ingress_topic: "@jinja {{ env_parser.get_kafka_topic('host-inventory', 'platform.inventory.host-ingress') }}"
+    events_topic: "@jinja {{ env_parser.get_kafka_topic('host-inventory', 'platform.inventory.events') }}"
+    system_profile_topic: "@jinja {{ env_parser.get_kafka_topic('host-inventory', 'platform.inventory.system-profile') }}"
+    notifications_topic: "@jinja {{ env_parser.get_kafka_topic('host-inventory', 'platform.notifications.ingress') }}"
+    events_timeout: 10
+  service_objects:
+    api:
+      config:
+        hostname: "@jinja {{ env_parser.get_hostname('host-inventory', 'service') }}"
+        scheme: http
+        port: "@jinja {{ env_parser.get_port('host-inventory', 'service') }}"
+    api_v7:
+      config:
+        hostname: "@jinja {{ env_parser.get_hostname('host-inventory', 'service') }}"
+        scheme: http
+        port: "@jinja {{ env_parser.get_port('host-inventory', 'service') }}"
+  db:
+    hostname: "@jinja {{ env_parser.get_db_config('host-inventory').hostname }}"
+    database: "@jinja {{ env_parser.get_db_config('host-inventory').name }}"
+    username: "@jinja {{ env_parser.get_db_config('host-inventory').username }}"
+    password: "@jinja {{ env_parser.get_db_config('host-inventory').password }}"
+    port: "@jinja {{ env_parser.get_db_config('host-inventory').port }}"

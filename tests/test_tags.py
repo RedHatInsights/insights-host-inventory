@@ -202,7 +202,7 @@ def test_get_host_tags_with_RBAC_allowed(subtests, mocker, api_get):
 
 
 @pytest.mark.usefixtures("enable_rbac")
-def test_get_host_tags_with_RBAC_denied(subtests, mocker, api_get):
+def test_get_host_tags_with_RBAC_denied(subtests, db_create_host, mocker, api_get):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     get_host_tags_list_mock = mocker.patch("api.host.get_host_tags_list_by_id_list")
 
@@ -211,7 +211,8 @@ def test_get_host_tags_with_RBAC_denied(subtests, mocker, api_get):
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
-            url = build_host_tags_url(host_list_or_id=generate_uuid())
+            host_id = str(db_create_host().id)
+            url = build_host_tags_url(host_list_or_id=host_id)
             response_status, _ = api_get(url)
 
             assert_response_status(response_status, 403)

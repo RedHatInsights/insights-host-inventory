@@ -84,3 +84,30 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = "tabulate"
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# Generated API code in IQE plugin
+module = [
+    "iqe_host_inventory_api",
+    "iqe_host_inventory_api.*",
+    "iqe_host_inventory_api_v7",
+    "iqe_host_inventory_api_v7.*",
+]
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+# IQE files that import from generated API modules (attr-defined errors)
+# TODO: Stop ignoring mypy errors on IQE: https://issues.redhat.com/browse/RHINENG-22478
+module = [
+    "iqe_host_inventory.schemas",
+    "iqe_host_inventory.pytest_plugin",
+    "iqe_host_inventory.utils.tag_utils",
+    "iqe_host_inventory.utils.api_utils",
+    "iqe_host_inventory.utils.staleness_utils",
+    "iqe_host_inventory.utils.notifications_utils",
+    "iqe_host_inventory.modeling.*",
+    "iqe_host_inventory.fixtures.*",
+    "iqe_host_inventory.tests.ui.*",
+    "iqe_host_inventory.tests.rest.*",
+]
+ignore_errors = true

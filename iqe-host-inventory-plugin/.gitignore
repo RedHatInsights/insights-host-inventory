@@ -1,0 +1,80 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+# C extensions
+*.so
+
+# Distribution / packaging
+bin/
+build/
+develop-eggs/
+dist/
+eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+.tox/
+.coverage
+.cache
+nosetests.xml
+coverage.xml
+
+# Sphinx documentation
+iqe_host_inventory/iqe_host_inventory_api/docs/_build/
+
+.ipynb_checkpoints
+*.log
+iqe/conf
+.pytest_cache
+.env/
+
+.idea/
+.eggs/
+
+
+.hypothesis/
+
+# virtual environment
+venv/
+venv
+
+# prevent accidental push of local settings
+# (override with `git add -f <file>`)
+iqe_host_inventory/conf/settings.local.yaml
+
+# For now, ignore package lock
+package-lock.json
+
+# Files produced by polarion plugin
+input.xml
+duplicates.log
+tests_data.json
+
+# openapi generator
+.openapi-generator*
+
+# SonarQube
+.scannerwork/
+junit.xml
+
+# Ibutsu
+.last-ibutsu-run-id
+.last-ibutsu-run-url
+/.pod-state/cache/lastfailed
+/.pod-state/cache/nodeids
+/.pod-state/cache/stepwise
+
+# VSCode
+.vscode/
