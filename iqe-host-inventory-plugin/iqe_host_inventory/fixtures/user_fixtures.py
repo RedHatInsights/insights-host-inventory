@@ -74,9 +74,9 @@ def hbi_maybe_non_org_admin_user_data(
 def hbi_non_org_admin_user_data(
     application: Application, hbi_non_org_admin_user: str | None
 ) -> DynaBox:
-    if hbi_non_org_admin_user is None:
-        pytest.fail("User 'non_org_admin_user' doesn't have a defined name in the config")
-    assert hbi_non_org_admin_user is not None  # for mypy
+    assert hbi_non_org_admin_user is not None, (
+        "User 'non_org_admin_user' doesn't have a defined name in the config"
+    )
     return require_user(application, hbi_non_org_admin_user)
 
 
@@ -108,9 +108,9 @@ def hbi_maybe_secondary_user_data(
 
 @pytest.fixture(scope="session")
 def hbi_secondary_user_data(application: Application, hbi_secondary_user: str | None) -> DynaBox:
-    if hbi_secondary_user is None:
-        pytest.fail("User 'secondary_user' doesn't have a defined name in the config")
-    assert hbi_secondary_user is not None  # for mypy
+    assert hbi_secondary_user is not None, (
+        "User 'secondary_user' doesn't have a defined name in the config"
+    )
     return require_user(application, hbi_secondary_user)
 
 
@@ -135,9 +135,9 @@ def hbi_maybe_frontend_user_data(
 
 @pytest.fixture(scope="session")
 def hbi_frontend_user_data(application: Application, hbi_frontend_user: str | None) -> DynaBox:
-    if hbi_frontend_user is None:
-        pytest.fail("User 'frontend_user' doesn't have a defined name in the config")
-    assert hbi_frontend_user is not None  # for mypy
+    assert hbi_frontend_user is not None, (
+        "User 'frontend_user' doesn't have a defined name in the config"
+    )
     return require_user(application, hbi_frontend_user)
 
 
@@ -164,9 +164,9 @@ def hbi_maybe_frontend_non_org_admin_user_data(
 def hbi_frontend_non_org_admin_user_data(
     application: Application, hbi_frontend_non_org_admin_user: str | None
 ) -> DynaBox:
-    if hbi_frontend_non_org_admin_user is None:
-        pytest.fail("User 'frontend_non_org_admin_user' doesn't have a defined name in the config")
-    assert hbi_frontend_non_org_admin_user is not None  # for mypy
+    assert hbi_frontend_non_org_admin_user is not None, (
+        "User 'frontend_non_org_admin_user' doesn't have a defined name in the config"
+    )
     return require_user(application, hbi_frontend_non_org_admin_user)
 
 

@@ -1,5 +1,4 @@
 import logging
-from time import sleep
 
 import pytest
 from iqe.base.datafiles import get_data_path_for_plugin
@@ -7,17 +6,14 @@ from ocdeployer.utils import oc
 from sqlalchemy.orm import Session
 
 from iqe_host_inventory import ApplicationHostInventory
-from iqe_host_inventory.modeling.groups_api import GroupData
 from iqe_host_inventory.modeling.wrappers import DeleteNotificationWrapper
 from iqe_host_inventory.modeling.wrappers import HostMessageWrapper
 from iqe_host_inventory.modeling.wrappers import HostWrapper
 from iqe_host_inventory.utils.api_utils import raises_apierror
-from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.db_utils import query_hosts_by_ids
 from iqe_host_inventory.utils.notifications_utils import check_delete_notifications_data
 from iqe_host_inventory.utils.notifications_utils import check_delete_notifications_headers
 from iqe_host_inventory.utils.staleness_utils import create_hosts_fresh_stale_stalewarning_culled
-from iqe_host_inventory.utils.staleness_utils import create_hosts_in_state
 
 pytestmark = [pytest.mark.backend]
 logger = logging.getLogger(__name__)

@@ -96,12 +96,8 @@ module = [
 ignore_errors = true
 
 [[tool.mypy.overrides]]
-# IQE test files that import from non-existent test modules
-module = "iqe_host_inventory.fixtures.identity_fixtures"
-ignore_errors = true
-
-[[tool.mypy.overrides]]
 # IQE files that import from generated API modules (attr-defined errors)
+# TODO: Stop ignoring mypy errors on IQE: https://issues.redhat.com/browse/RHINENG-22478
 module = [
     "iqe_host_inventory.schemas",
     "iqe_host_inventory.pytest_plugin",
