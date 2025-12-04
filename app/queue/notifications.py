@@ -212,7 +212,7 @@ def build_base_notification_obj(notification_type: str, host: dict):
     if notification_type == NotificationType.validation_error.value:
         return base_obj
 
-    canonical_facts = host.get("canonical_facts", deserialize_canonical_facts(host))
+    canonical_facts = deserialize_canonical_facts(host)
 
     system_profile = host.get("system_profile_facts", host.get("system_profile", {}))
 
@@ -235,7 +235,7 @@ def populate_events(base_notification_obj, host_list, extra_fields=None):
         extra_fields = []
 
     for host in host_list:
-        canonical_facts = host.get("canonical_facts", deserialize_canonical_facts(host))
+        canonical_facts = deserialize_canonical_facts(host)
 
         event_output_obj = {
             "metadata": {},
