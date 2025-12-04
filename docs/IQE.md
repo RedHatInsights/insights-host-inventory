@@ -47,6 +47,16 @@ export PIPENV_PIPFILE=Pipfile.iqe
 pipenv shell
 ```
 
+### IQE dependency update
+
+Unfortunatelly the IQE dependencies mostly live in a Red Hat private repo.
+
+To update them manually please run the following command and push the changes to the lockfile as PR.
+
+```bash
+PIPENV_PIPFILE=Pipfile.iqe pipenv update --dev
+```
+
 ## Running Tests
 
 ### Run a Single Test
@@ -65,9 +75,6 @@ ENV_FOR_DYNACONF=stage_proxy iqe tests plugin host_inventory -m 'backend and smo
 
 # All backend tests (takes ~1 hour)
 ENV_FOR_DYNACONF=stage_proxy iqe tests plugin host_inventory -m 'backend and not ephemeral'
-
-# Skip secondary account setup (faster for development)
-iqe tests plugin host_inventory --skip-data-setup -k test_create_single_host
 ```
 
 ### Environment Options
