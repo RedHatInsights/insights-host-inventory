@@ -4,7 +4,6 @@ import inspect
 from functools import partial
 from functools import wraps
 from http import HTTPStatus
-from json import JSONDecodeError
 from typing import Any
 from uuid import UUID
 
@@ -145,11 +144,7 @@ def _execute_rbac_http_request(  # type: ignore[return]
             rbac_response = http_method(**common_kwargs)
 
             rbac_response.raise_for_status()
-            try:
-                parsed_response = rbac_response.json()
-            except JSONDecodeError:
-                parsed_response = rbac_response.text
-            return parsed_response
+            return rbac_response.json() if rbac_response.text else None
     except HTTPError as e:
         status_code = e.response.status_code
         if status_code == 404 and skip_not_found:
