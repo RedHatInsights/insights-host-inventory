@@ -246,11 +246,12 @@ class HBIMessageConsumerBase:
                         try:
                             self._process_batch()
                             break  # Success, exit retry loop
-                        except (InvalidRequestError, StaleDataError) as e:
+                        except (InvalidRequestError, StaleDataError, IntegrityError, UniqueViolation) as e:
                             """Handle database session errors with retry logic.
                             InvalidRequestError includes PendingRollbackError which occurs when the session
                             is in an invalid state. StaleDataError occurs when trying to update data that
-                            has been modified by another transaction.
+                            has been modified by another transaction. IntegrityError and UniqueViolation can
+                            occur when a unique constraint is violated.
                             Note: session_guard already calls rollback() when an exception occurs.
                             """
                             metrics.ingress_message_handler_failure.inc()

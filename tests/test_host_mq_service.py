@@ -13,6 +13,7 @@ from unittest.mock import patch
 import marshmallow
 import pytest
 from connexion import FlaskApp
+from psycopg2.errors import UniqueViolation
 from pytest_mock import MockerFixture
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.exc import InvalidRequestError
@@ -106,7 +107,7 @@ def test_event_loop_with_error_message_handling(handle_message_mock, mocker, eve
     assert handle_message_mock.call_count == 2
 
 
-@pytest.mark.parametrize("error_type", (InvalidRequestError, StaleDataError))
+@pytest.mark.parametrize("error_type", (InvalidRequestError, StaleDataError, UniqueViolation))
 def test_event_loop_handles_invalid_request_error_gracefully(
     mocker: MockerFixture,
     event_producer: EventProducer,
