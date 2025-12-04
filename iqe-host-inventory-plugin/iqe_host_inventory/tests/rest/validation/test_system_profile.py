@@ -284,7 +284,7 @@ INCORRECT_MAC_ADDRESSES = (
 def validate_correct_value(  # NOQA: C901
     host_inventory: ApplicationHostInventory,
 ):
-    def _validate(field: Field, value, expected_value=None):
+    def _validate(field: Field, value, expected_value=None):  # NOQA: C901
         value = _unpack_param(value)
         host_data = host_inventory.datagen.create_host_data()
         host_data["system_profile"][field.name] = value
