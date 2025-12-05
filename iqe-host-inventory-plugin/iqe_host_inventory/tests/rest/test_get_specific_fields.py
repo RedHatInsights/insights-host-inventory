@@ -72,7 +72,26 @@ def endpoint_func(request):
 
 
 @pytest.mark.ephemeral
-@parametrize_field(SYSTEM_PROFILE)
+@parametrize_field(
+    SYSTEM_PROFILE,
+    condition=lambda f: f.name
+    not in (
+        # Legacy SAP fields migrated to workloads.sap.*
+        "sap",
+        "sap_system",
+        "sap_sids",
+        "sap_instance_number",
+        "sap_version",
+        # Legacy Ansible fields migrated to workloads.ansible.*
+        "ansible",
+        # Legacy InterSystems fields migrated to workloads.intersystems.*
+        "intersystems",
+        # Legacy MSSQL fields migrated to workloads.mssql.*
+        "mssql",
+        # Legacy CrowdStrike fields migrated to workloads.crowdstrike.*
+        "third_party_services",
+    ),
+)
 def test_get_specific_fields(
     host_inventory: ApplicationHostInventory,
     host_for_fields_tests,

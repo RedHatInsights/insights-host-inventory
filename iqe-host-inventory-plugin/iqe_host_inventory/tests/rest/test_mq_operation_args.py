@@ -25,6 +25,21 @@ logger = logging.getLogger(__name__)
 pytestmark = [pytest.mark.backend]
 
 
+def _populate_legacy_workload_fields(normalized: dict, workloads: dict) -> None:
+    """Populate legacy workload fields from workloads.* for backward compatibility."""
+    # Map workloads data to legacy fields
+    legacy_mappings = {
+        "ansible": ("ansible", lambda w: w),
+        "intersystems": ("intersystems", lambda w: w),
+        "mssql": ("mssql", lambda w: w),
+        "third_party_services": ("crowdstrike", lambda w: {"crowdstrike": w}),
+    }
+
+    for legacy_field, (workload_key, transform) in legacy_mappings.items():
+        if normalized.get(legacy_field) is None and workloads.get(workload_key):
+            normalized[legacy_field] = transform(workloads[workload_key])
+
+
 def normalize_system_profile(system_profile: dict) -> dict:
     normalized = deepcopy(system_profile)
 
@@ -35,6 +50,11 @@ def normalize_system_profile(system_profile: dict) -> dict:
             normalized[key] = value
         except (TypeError, ValueError):
             pass
+
+    # Populate legacy workload fields from workloads.* (RHINENG-21482)
+    workloads = normalized.get("workloads", {})
+    if workloads:
+        _populate_legacy_workload_fields(normalized, workloads)
 
     # Add missing fields
     for field in SYSTEM_PROFILE:
