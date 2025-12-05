@@ -208,6 +208,11 @@ class RBACAPIWrapper(BaseEntity):
 
         self.add_roles_to_a_group(roles, group.uuid)
 
+        # TODO: Uncomment when Kessel Phase 1 is enabled
+        # https://issues.redhat.com/browse/RHCLOUD-43684
+        # logger.info("Waiting 21 seconds for RBAC -> Kessel sync...")
+        # sleep(21)
+
         return group, roles
 
     def get_rbac_admin_role(self) -> RoleWithAccess:
