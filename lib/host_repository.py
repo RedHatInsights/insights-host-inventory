@@ -86,7 +86,8 @@ def add_host(
         matched_host = find_existing_host(identity, input_host.canonical_facts)
 
     group = get_or_create_ungrouped_hosts_group_for_identity(identity)
-    input_host.groups = [serialize_group(group)]
+    # TODO: Update this to serialize the group with the org_id
+    input_host.groups = [serialize_group(group, identity.org_id)]
 
     if matched_host:
         defer_to_reporter = operation_args.get("defer_to_reporter")
@@ -265,7 +266,10 @@ def find_hosts_sys_default_staleness(staleness_types):
     return or_(False, *staleness_conditions)
 
 
-def find_non_culled_hosts(query: Query) -> Query:
+def find_non_culled_hosts(query: Query, org_id: str | None = None) -> Query:
+    if org_id:
+        query = query.filter(Host.org_id == org_id)
+
     host_staleness_states_filters = HostStalenessStatesDbFilters()
     return query.filter(not_(host_staleness_states_filters.culled()))
 
@@ -389,15 +393,17 @@ def get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter=None, c
     return find_non_culled_hosts(update_query_for_owner_id(identity, query))
 
 
-def get_non_culled_hosts_count_in_group(group: Group, org_id: str) -> int:
+def get_non_culled_hosts_count_in_group(group: Group | dict, org_id: str) -> int:
+    # rbac_v2 returns a dict, rbac_v1 returns a Group object
+    group_id = group["id"] if isinstance(group, dict) else group.id
+
     query = (
         db.session.query(Host)
         .join(HostGroupAssoc)
-        .filter(HostGroupAssoc.group_id == group.id, HostGroupAssoc.org_id == org_id)
+        .filter(HostGroupAssoc.group_id == group_id, HostGroupAssoc.org_id == org_id)
         .group_by(Host.id, Host.org_id)
     )
-
-    return find_non_culled_hosts(query).count()
+    return find_non_culled_hosts(query, org_id).count()
 
 
 # Ensures that the query is filtered by org_id
