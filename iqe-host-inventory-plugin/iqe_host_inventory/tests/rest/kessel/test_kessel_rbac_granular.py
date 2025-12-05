@@ -36,8 +36,9 @@ logger = logging.getLogger(__name__)
 def test_kessel_rbac_granular_hosts_read_permission_ungrouped_group(
     rbac_setup_resources_for_granular_rbac: RBacResources,
     hbi_non_org_admin_user_rbac_setup,
-    host_inventory_non_org_admin,
-    host_inventory,
+    host_inventory_non_org_admin: ApplicationHostInventory,
+    host_inventory: ApplicationHostInventory,
+    is_kessel_phase_1_enabled: bool,
 ):
     """
     metadata:
@@ -56,12 +57,20 @@ def test_kessel_rbac_granular_hosts_read_permission_ungrouped_group(
     # Test
     hosts = flatten(rbac_setup_resources_for_granular_rbac[0])
     correct_hosts_ids = {host.id for host in rbac_setup_resources_for_granular_rbac[0][3]}
+    other_hosts_ids = {host.id for host in hosts if host.id not in correct_hosts_ids}
 
-    response = host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(hosts)
+    response = host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(
+        correct_hosts_ids if is_kessel_phase_1_enabled else hosts
+    )
     response_hosts_ids = {host.id for host in response.results}
     assert response.count == len(correct_hosts_ids)
     assert response.total == len(correct_hosts_ids)
     assert response_hosts_ids == correct_hosts_ids
+
+    if is_kessel_phase_1_enabled:
+        for host_id in other_hosts_ids:
+            with raises_apierror(403):
+                host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(host_id)
 
 
 def test_kessel_rbac_granular_hosts_write_permission_ungrouped_group(
@@ -100,6 +109,7 @@ def test_kessel_rbac_granular_hosts_write_permission_ungrouped_group_wrong(
     hbi_non_org_admin_user_rbac_setup,
     host_inventory_non_org_admin: ApplicationHostInventory,
     host_inventory: ApplicationHostInventory,
+    is_kessel_phase_1_enabled: bool,
 ):
     """
     metadata:
@@ -118,7 +128,7 @@ def test_kessel_rbac_granular_hosts_write_permission_ungrouped_group_wrong(
     # Test
     host = rbac_setup_resources_for_granular_rbac[0][2][0]
     new_name = generate_display_name()
-    with raises_apierror(404):
+    with raises_apierror(403 if is_kessel_phase_1_enabled else 404):
         host_inventory_non_org_admin.apis.hosts.patch_hosts(
             host.id, display_name=new_name, wait_for_updated=False
         )
@@ -128,8 +138,9 @@ def test_kessel_rbac_granular_hosts_write_permission_ungrouped_group_wrong(
 def test_kessel_rbac_granular_hosts_read_permission_ungrouped_and_normal_group(
     rbac_setup_resources_for_granular_rbac: RBacResources,
     hbi_non_org_admin_user_rbac_setup,
-    host_inventory_non_org_admin,
-    host_inventory,
+    host_inventory_non_org_admin: ApplicationHostInventory,
+    host_inventory: ApplicationHostInventory,
+    is_kessel_phase_1_enabled: bool,
 ):
     """
     metadata:
@@ -153,12 +164,20 @@ def test_kessel_rbac_granular_hosts_read_permission_ungrouped_and_normal_group(
         for host in rbac_setup_resources_for_granular_rbac[0][0]
         + rbac_setup_resources_for_granular_rbac[0][3]
     }
+    other_hosts_ids = {host.id for host in hosts if host.id not in correct_hosts_ids}
 
-    response = host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(hosts)
+    response = host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(
+        correct_hosts_ids if is_kessel_phase_1_enabled else hosts
+    )
     response_hosts_ids = {host.id for host in response.results}
     assert response.count == len(correct_hosts_ids)
     assert response.total == len(correct_hosts_ids)
     assert response_hosts_ids == correct_hosts_ids
+
+    if is_kessel_phase_1_enabled:
+        for host_id in other_hosts_ids:
+            with raises_apierror(403):
+                host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(host_id)
 
 
 def test_kessel_rbac_granular_hosts_write_permission_ungrouped_and_normal_group(
@@ -207,6 +226,7 @@ def test_kessel_rbac_granular_hosts_write_permission_ungrouped_and_normal_group_
     hbi_non_org_admin_user_rbac_setup,
     host_inventory_non_org_admin: ApplicationHostInventory,
     host_inventory: ApplicationHostInventory,
+    is_kessel_phase_1_enabled: bool,
 ):
     """
     metadata:
@@ -227,7 +247,7 @@ def test_kessel_rbac_granular_hosts_write_permission_ungrouped_and_normal_group_
     # Test
     host = rbac_setup_resources_for_granular_rbac[0][2][0]
     new_name = generate_display_name()
-    with raises_apierror(404):
+    with raises_apierror(403 if is_kessel_phase_1_enabled else 404):
         host_inventory_non_org_admin.apis.hosts.patch_hosts(
             host.id, display_name=new_name, wait_for_updated=False
         )

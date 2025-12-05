@@ -1,7 +1,6 @@
 import logging
 
 import pytest
-from iqe.utils.blockers import iqe_blocker
 from pytest_lazy_fixtures import lf
 
 from iqe_host_inventory import ApplicationHostInventory
@@ -18,7 +17,6 @@ pytestmark = [
 ]
 
 
-@iqe_blocker(iqe_blocker.jira("RHCLOUD-35891", category=iqe_blocker.PRODUCT_ISSUE, env=["prod"]))
 @pytest.mark.parametrize(
     "role",
     [
@@ -42,6 +40,7 @@ def test_rbac_inventory_with_rhel_roles(
     RHEL viewer has only inventory read permissions.
 
     https://issues.redhat.com/browse/RHINENG-16109
+    https://issues.redhat.com/browse/RHCLOUD-35891
 
     metadata:
         importance: high
