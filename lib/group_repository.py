@@ -47,6 +47,9 @@ logger = get_logger(__name__)
 
 
 def _update_hosts_for_group_changes(host_id_list: list[str], group_id_list: list[str], identity: Identity):
+    if not host_id_list:
+        return [], []
+
     if group_id_list is None:
         group_id_list = []
 
@@ -352,7 +355,9 @@ def delete_group_list(group_id_list: list[str], identity: Identity, event_produc
                 else:
                     log_group_delete_failed(logger, group_id, get_control_rule())
 
-        new_group_list = [str(get_or_create_ungrouped_hosts_group_for_identity(identity).id)]
+        new_group_list = (
+            [str(get_or_create_ungrouped_hosts_group_for_identity(identity).id)] if deleted_host_ids else []
+        )
 
         serialized_groups, host_id_list = _update_hosts_for_group_changes(deleted_host_ids, new_group_list, identity)
 
