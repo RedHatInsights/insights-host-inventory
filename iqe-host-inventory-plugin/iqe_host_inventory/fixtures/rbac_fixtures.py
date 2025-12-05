@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Generator
+from time import sleep
 from typing import NamedTuple
 
 import pytest
@@ -606,25 +607,49 @@ def rbac_setup_group_with_member(
         group.delete_if_exists()
 
 
+def wait_for_kessel_sync(
+    is_kessel_phase_1_enabled: bool,
+    wait_seconds: int = 21,
+) -> None:
+    """
+    Wait for RBAC -> Kessel synchronization if the Kessel Phase 1 feature flag is enabled.
+    """
+    if is_kessel_phase_1_enabled:
+        logger.info(f"Waiting {wait_seconds} seconds for RBAC -> Kessel sync...")
+        sleep(wait_seconds)
+
+
 @pytest.fixture
-def rbac_setup_user_with_rhel_admin_role(rbac_setup_group_with_member) -> str:
+def rbac_setup_user_with_rhel_admin_role(
+    rbac_setup_group_with_member, is_kessel_phase_1_enabled: bool
+) -> str:
     group, app = rbac_setup_group_with_member
     update_group_with_roles(app, group, [RBACRoles.RHEL_ADMIN])
+
+    wait_for_kessel_sync(is_kessel_phase_1_enabled)
 
     return RBACRoles.RHEL_ADMIN
 
 
 @pytest.fixture
-def rbac_setup_user_with_rhel_operator_role(rbac_setup_group_with_member) -> str:
+def rbac_setup_user_with_rhel_operator_role(
+    rbac_setup_group_with_member, is_kessel_phase_1_enabled: bool
+) -> str:
     group, app = rbac_setup_group_with_member
     update_group_with_roles(app, group, [RBACRoles.RHEL_OPERATOR])
+
+    wait_for_kessel_sync(is_kessel_phase_1_enabled)
 
     return RBACRoles.RHEL_OPERATOR
 
 
 @pytest.fixture
-def rbac_setup_user_with_rhel_viewer_role(rbac_setup_group_with_member) -> str:
+def rbac_setup_user_with_rhel_viewer_role(
+    rbac_setup_group_with_member, is_kessel_phase_1_enabled: bool
+) -> str:
     group, app = rbac_setup_group_with_member
     update_group_with_roles(app, group, [RBACRoles.RHEL_VIEWER])
+
+    wait_for_kessel_sync(is_kessel_phase_1_enabled)
 
     return RBACRoles.RHEL_VIEWER

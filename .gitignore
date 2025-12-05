@@ -21,6 +21,8 @@ sonarqube/
 
 .claude/
 
+.vscode/
+
 tools/simple-test/output.json
 
 # IQE test suite
