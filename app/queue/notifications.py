@@ -235,7 +235,11 @@ def populate_events(base_notification_obj, host_list, extra_fields=None):
         extra_fields = []
 
     for host in host_list:
-        canonical_facts = host.get("canonical_facts", deserialize_canonical_facts(host))
+        canonical_facts = (
+            deserialize_canonical_facts(host)
+            if not host.get("canonical_facts")
+            else {deserialize_canonical_facts(host), host["canonical_facts"]}
+        )
 
         event_output_obj = {
             "metadata": {},

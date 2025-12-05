@@ -58,6 +58,7 @@ from app.queue.event_producer import EventProducer
 from app.queue.events import HOST_EVENT_TYPE_CREATED
 from app.queue.events import EventType
 from app.queue.events import build_event
+from app.queue.events import extract_system_profile_fields_for_headers
 from app.queue.events import message_headers
 from app.queue.events import operation_results_to_event_type
 from app.queue.mq_common import common_message_parser
@@ -66,6 +67,7 @@ from app.queue.notifications import send_notification
 from app.serialization import deserialize_host
 from app.serialization import remove_null_canonical_facts
 from app.serialization import serialize_host
+from app.serialization import serialize_uuid
 from app.staleness_serialization import AttrDict
 from lib import group_repository
 from lib import host_repository
@@ -585,11 +587,8 @@ def _set_owner(host: Host, identity: Identity) -> Host:
         host.system_profile_facts["owner_id"] = cn
     else:
         reporter = host.reporter
-        if (
-            reporter in ["rhsm-conduit", "rhsm-system-profile-bridge"]
-            and "subscription_manager_id" in host.canonical_facts
-        ):
-            host.system_profile_facts["owner_id"] = _formatted_uuid(host.canonical_facts["subscription_manager_id"])
+        if reporter in ["rhsm-conduit", "rhsm-system-profile-bridge"] and host.subscription_manager_id:
+            host.system_profile_facts["owner_id"] = _formatted_uuid(host.subscription_manager_id)
         else:
             if host.system_profile_facts["owner_id"] != cn:
                 raise ValidationException("The owner in host does not match the owner in identity")
@@ -602,11 +601,8 @@ def _set_owner(host: Host, identity: Identity) -> Host:
         host.static_system_profile.owner_id = cn
     else:
         reporter = host.reporter
-        if (
-            reporter in ["rhsm-conduit", "rhsm-system-profile-bridge"]
-            and "subscription_manager_id" in host.canonical_facts
-        ):
-            host.static_system_profile.owner_id = _formatted_uuid(host.canonical_facts["subscription_manager_id"])
+        if reporter in ["rhsm-conduit", "rhsm-system-profile-bridge"] and host.subscription_manager_id:
+            host.static_system_profile.owner_id = _formatted_uuid(host.subscription_manager_id)
         else:
             if str(host.static_system_profile.owner_id) != cn:
                 raise ValidationException("The owner in host does not match the owner in identity")
@@ -669,13 +665,14 @@ def sync_event_message(message, session, event_producer):
             host = deserialize_host({k: v for k, v in message["host"].items() if v}, schema=LimitedHostSchema)
             host.id = host_id
             event = build_event(EventType.delete, host)
+            host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(host.static_system_profile)
             headers = message_headers(
                 EventType.delete,
-                host.canonical_facts.get("insights_id"),
+                serialize_uuid(host.insights_id),
                 message["host"].get("reporter"),
-                host.system_profile_facts.get("host_type"),
-                host.system_profile_facts.get("operating_system", {}).get("name"),
-                str(host.system_profile_facts.get("bootc_status", {}).get("booted") is not None),
+                host_type,
+                os_name,
+                bootc_booted,
             )
             # add back "wait=True", if needed.
             event_producer.write_event(event, host.id, headers, wait=True)
@@ -690,17 +687,18 @@ def write_delete_event_message(event_producer: EventProducer, result: OperationR
         platform_metadata=result.platform_metadata,
         initiated_by_frontend=initiated_by_frontend,
     )
+    host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(result.row.static_system_profile)
     headers = message_headers(
         EventType.delete,
-        result.row.canonical_facts.get("insights_id"),
+        serialize_uuid(result.row.insights_id),
         result.row.reporter,
-        result.row.system_profile_facts.get("host_type"),
-        result.row.system_profile_facts.get("operating_system", {}).get("name"),
-        str(result.row.system_profile_facts.get("bootc_status", {}).get("booted") is not None),
+        host_type,
+        os_name,
+        bootc_booted,
     )
     event_producer.write_event(event, str(result.row.id), headers, wait=True)
-    insights_id = result.row.canonical_facts.get("insights_id")
-    owner_id = result.row.system_profile_facts.get("owner_id")
+    insights_id = serialize_uuid(result.row.insights_id)
+    owner_id = result.row.static_system_profile.owner_id if result.row.static_system_profile else None
     if insights_id and owner_id:
         delete_cached_system_keys(insights_id=insights_id, org_id=result.row.org_id, owner_id=owner_id, spawn=True)
     result.success_logger()
@@ -726,7 +724,7 @@ def write_add_update_event_message(
         inventory_id=result.row.id,
     ):
         output_host = serialize_host(result.row, result.staleness_timestamps, staleness=result.staleness_object)
-        insights_id = result.row.canonical_facts.get("insights_id")
+        insights_id = serialize_uuid(result.row.insights_id)
         event = build_event(result.event_type, output_host, platform_metadata=result.platform_metadata)
 
         headers = message_headers(

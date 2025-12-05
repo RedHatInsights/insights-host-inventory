@@ -54,13 +54,13 @@ from app.serialization import _deserialize_tags
 from app.serialization import _deserialize_tags_dict
 from app.serialization import _deserialize_tags_list
 from app.serialization import _serialize_datetime
-from app.serialization import _serialize_uuid
 from app.serialization import deserialize_canonical_facts
 from app.serialization import deserialize_host
 from app.serialization import serialize_canonical_facts
 from app.serialization import serialize_facts
 from app.serialization import serialize_host
 from app.serialization import serialize_host_system_profile
+from app.serialization import serialize_uuid
 from app.staleness_serialization import get_sys_default_staleness
 from app.utils import Tag
 from lib import host_kafka
@@ -1716,11 +1716,9 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
 
 @patch("app.serialization._serialize_tags")
 @patch("app.serialization.serialize_facts")
-@patch("app.serialization.serialize_canonical_facts")
 class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTestCase):
-    def test_with_all_fields(self, serialize_canonical_facts, serialize_facts, serialize_tags):
+    def test_with_all_fields(self, serialize_facts, serialize_tags):
         canonical_facts = {"insights_id": str(uuid4()), "fqdn": "some fqdn"}
-        serialize_canonical_facts.return_value = canonical_facts
         facts = [
             {"namespace": "some namespace", "facts": {"some key": "some value"}},
             {"namespace": "another namespace", "facts": {"another key": "another value"}},
@@ -1752,6 +1750,7 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
                 "some namespace": {"some key": ["some value", "another value"], "another key": ["value"]},
                 "another namespace": {"key": ["value"]},
             },
+            "insights_id": canonical_facts["insights_id"],
         }
         host = Host(**host_init_data)
 
@@ -1769,7 +1768,6 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
         staleness = get_sys_default_staleness()
         actual = serialize_host(host, staleness_offset, False, ("tags",), staleness=staleness)
         expected = {
-            **canonical_facts,
             **unchanged_data,
             "facts": serialize_facts.return_value,
             "tags": serialize_tags.return_value,
@@ -1787,12 +1785,20 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
                 host_attr_data["last_check_in"] + timedelta(seconds=CONVENTIONAL_TIME_TO_DELETE_SECONDS)
             ),
             "per_reporter_staleness": host_attr_data["per_reporter_staleness"],
+            "insights_id": canonical_facts["insights_id"],
+            "fqdn": canonical_facts["fqdn"],
+            "bios_uuid": None,
+            "ip_addresses": None,
+            "mac_addresses": None,
+            "provider_id": None,
+            "provider_type": None,
+            "satellite_id": None,
+            "subscription_manager_id": None,
         }
 
         self.assertEqual(expected, actual)
 
         # It is called twice, because we have 2 test cases
-        serialize_canonical_facts.assert_called_with(host_init_data["canonical_facts"])
         serialize_facts.assert_called_with(host_init_data["facts"])
         serialize_tags.assert_called_with(host_init_data["tags"])
 
@@ -2012,11 +2018,11 @@ class SerializationSerializeDatetime(TestCase):
 class SerializationSerializeUuid(TestCase):
     def test_uuid_has_hyphens_computed(self):
         u = uuid4()
-        self.assertEqual(str(u), _serialize_uuid(u))
+        self.assertEqual(str(u), serialize_uuid(u))
 
     def test_uuid_has_hyphens_literal(self):
         u = "4950e534-bbef-4432-bde2-aa3dd2bd0a52"
-        self.assertEqual(u, _serialize_uuid(UUID(u)))
+        self.assertEqual(u, serialize_uuid(UUID(u)))
 
 
 class SerializationDeserializeTags(TestCase):
