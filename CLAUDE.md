@@ -33,9 +33,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This eliminates the need to manually restart containers during development. Simply save your files and the web service will automatically reload.
 
 ### Environment Setup
+
+#### Main Development Environment
 - `pipenv install --dev` - Install dependencies
 - `pipenv shell` - Activate virtual environment
 - `docker compose -f dev.yml up -d` - Start dependent services (PostgreSQL, Kafka, etc.)
+
+#### IQE Test Environment
+The IQE test suite is maintained in the `iqe-host-inventory-plugin/` subdirectory and uses a separate Pipenv environment with dependencies from Red Hat Nexus.
+
+See `docs/IQE.md` for complete setup and usage instructions.
 
 ### Schema Management
 - `make update-schema` - Update system profile schema from inventory-schemas repo

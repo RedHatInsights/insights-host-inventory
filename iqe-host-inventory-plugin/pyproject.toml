@@ -1,12 +1,12 @@
 [build-system]
 build-backend = "hatchling.build"
 requires = [
-  "hatch-vcs",
   "hatchling",
 ]
 
 [project]
 name = "iqe-host-inventory-plugin"
+version = "25.99.1.dev1"
 readme = "README.md"
 maintainers = [
   { name = "Frantisek Stavela", email = "fstavela@redhat.com" },
@@ -20,9 +20,6 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
-]
-dynamic = [
-  "version",
 ]
 dependencies = [
   "click",
@@ -51,9 +48,6 @@ entry-points.pytest11.iqe_host_inventory_plugin = "iqe_host_inventory.pytest_plu
 
 [tool.hatch.build]
 packages = [ "iqe_host_inventory", "iqe_host_inventory_api", "iqe_host_inventory_api_v7" ]
-[tool.hatch.version]
-source = "vcs"
-raw-options.version_scheme = "calver-by-date"
 
 [tool.hatch.envs.default.env-vars]
 PIP_INDEX = "https://nexus.corp.redhat.com/repository/cqt-pypi/pypi"

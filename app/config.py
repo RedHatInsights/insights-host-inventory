@@ -273,6 +273,7 @@ class Config:
 
         self.kafka_producer = {
             "acks": self._from_dict(PRODUCER_ACKS, "KAFKA_PRODUCER_ACKS", "1"),
+            "enable.idempotence": "false",
             "retries": int(os.environ.get("KAFKA_PRODUCER_RETRIES", "0")),
             "batch.size": int(os.environ.get("KAFKA_PRODUCER_BATCH.SIZE", "65536")),
             "linger.ms": int(os.environ.get("KAFKA_PRODUCER_LINGER.MS", "0")),

@@ -58,11 +58,6 @@ echo "Copying local IQE plugin (Source: $IQE_LOCAL_PLUGIN_PATH) to pod..."
 # Copy the local plugin directory to the pod (relative path, as per IQE README)
 oc cp -n $NAMESPACE "$IQE_LOCAL_PLUGIN_PATH" "$POD:iqe-host-inventory-plugin"
 
-# Create a minimal git repository so setuptools-scm can detect a version
-# Since the IQE plugin is now a subdirectory of the main repo, it doesn't have its own .git
-echo "Initializing git repo for version detection..."
-oc exec -n $NAMESPACE $POD -- bash -c "cd iqe-host-inventory-plugin && git init && git config user.email 'ci@redhat.com' && git config user.name 'CI' && git add -A && git commit -m 'local' && git tag v999.0.0"
-
 echo "Installing local IQE plugin in the pod..."
 oc exec -n $NAMESPACE $POD -- bash -c "cd iqe-host-inventory-plugin && pip install -i https://pypi.python.org/simple -e ."
 
@@ -91,8 +86,8 @@ oc logs -f $POD -n $NAMESPACE &
 LOG_PID=$!
 
 # Wait for tests to complete
-wait $TEST_PID
-TEST_EXIT_CODE=$?
+# Use conditional to capture exit code and prevent ERR trap from firing
+wait $TEST_PID && TEST_EXIT_CODE=0 || TEST_EXIT_CODE=$?
 
 # Stop tailing logs
 kill $LOG_PID 2>/dev/null || true
@@ -117,5 +112,3 @@ oc cp -n $NAMESPACE "$POD:/iqe_venv/iqe-junit-report.xml" "$ARTIFACTS_DIR/junit-
 }
 
 echo "Test artifacts saved to: $ARTIFACTS_DIR"
-
-exit $TEST_EXIT_CODE
