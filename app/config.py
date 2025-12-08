@@ -86,7 +86,7 @@ class Config:
                 port = endpoint.tlsPort if cfg.tlsCAPath else endpoint.port
                 self.rbac_endpoint = f"{protocol}://{endpoint.hostname}:{port}"
                 break
-            if endpoint.app == "kessel-inventory-api":
+            if endpoint.app == "kessel-inventory":
                 self.kessel_target_url = f"{endpoint.hostname}:{endpoint.port}"
                 break
 
