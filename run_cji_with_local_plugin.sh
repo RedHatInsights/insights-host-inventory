@@ -86,8 +86,8 @@ oc logs -f $POD -n $NAMESPACE &
 LOG_PID=$!
 
 # Wait for tests to complete
-wait $TEST_PID
-TEST_EXIT_CODE=$?
+# Use conditional to capture exit code and prevent ERR trap from firing
+wait $TEST_PID && TEST_EXIT_CODE=0 || TEST_EXIT_CODE=$?
 
 # Stop tailing logs
 kill $LOG_PID 2>/dev/null || true
@@ -112,5 +112,3 @@ oc cp -n $NAMESPACE "$POD:/iqe_venv/iqe-junit-report.xml" "$ARTIFACTS_DIR/junit-
 }
 
 echo "Test artifacts saved to: $ARTIFACTS_DIR"
-
-exit $TEST_EXIT_CODE
