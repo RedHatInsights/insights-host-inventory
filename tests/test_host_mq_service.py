@@ -13,6 +13,7 @@ from unittest.mock import patch
 import marshmallow
 import pytest
 from connexion import FlaskApp
+from psycopg2.errors import UniqueViolation
 from pytest_mock import MockerFixture
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.exc import InvalidRequestError
@@ -106,13 +107,21 @@ def test_event_loop_with_error_message_handling(handle_message_mock, mocker, eve
     assert handle_message_mock.call_count == 2
 
 
-@pytest.mark.parametrize("error_type", (InvalidRequestError, StaleDataError))
+@pytest.mark.parametrize(
+    "error_factory",
+    [
+        pytest.param(InvalidRequestError, id="InvalidRequestError"),
+        pytest.param(StaleDataError, id="StaleDataError"),
+        pytest.param(UniqueViolation, id="UniqueViolation"),
+        pytest.param(lambda msg: IntegrityError(None, None, Exception(msg)), id="IntegrityError"),
+    ],
+)
 def test_event_loop_handles_invalid_request_error_gracefully(
     mocker: MockerFixture,
     event_producer: EventProducer,
     notification_event_producer: EventProducer,
     flask_app: FlaskApp,
-    error_type: type[BaseException],
+    error_factory: Callable[[str], BaseException],
 ):
     """
     Test to ensure that InvalidRequestErrors and StaleDataErrors during
@@ -144,7 +153,7 @@ def test_event_loop_handles_invalid_request_error_gracefully(
         "app.queue.host_mq.db.session.commit",
         side_effect=[
             # First batch: fail MAX_RETRIES times (all retries exhausted)
-            *[error_type("This Session's transaction has been rolled back") for _ in range(MAX_RETRIES)],
+            *[error_factory("This Session's transaction has been rolled back") for _ in range(MAX_RETRIES)],
             # Second batch: succeed
             None,
             # Extra None values for potential additional calls (teardown, etc.)
