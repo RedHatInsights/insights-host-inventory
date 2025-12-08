@@ -86,6 +86,9 @@ class Config:
                 port = endpoint.tlsPort if cfg.tlsCAPath else endpoint.port
                 self.rbac_endpoint = f"{protocol}://{endpoint.hostname}:{port}"
                 break
+            if endpoint.app == "kessel-inventory-api":
+                self.kessel_target_url = f"{endpoint.hostname}:{endpoint.port}"
+                break
 
         self.export_service_endpoint = ""
         for endpoint in cfg.privateEndpoints:
@@ -156,6 +159,7 @@ class Config:
         self._db_port = os.getenv("INVENTORY_DB_PORT", 5432)
         self._db_name = os.getenv("INVENTORY_DB_NAME", "insights")
         self.rbac_endpoint = os.environ.get("RBAC_ENDPOINT", "http://localhost:8111")
+        self.kessel_target_url = os.getenv("KESSEL_TARGET_URL", "localhost:9000")
         self.export_service_endpoint = os.environ.get("EXPORT_SERVICE_ENDPOINT", "http://localhost:10010")
         self.host_ingress_topic = os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress")
         self.additional_validation_topic = os.environ.get(
@@ -327,7 +331,6 @@ class Config:
         self.sp_authorized_users = os.getenv("SP_AUTHORIZED_USERS", "tuser@redhat.com").split()
         self.mq_db_batch_max_messages = int(os.getenv("MQ_DB_BATCH_MAX_MESSAGES", "1"))
         self.mq_db_batch_max_seconds = float(os.getenv("MQ_DB_BATCH_MAX_SECONDS", "0.5"))
-        self.kessel_target_url = os.getenv("KESSEL_TARGET_URL", "localhost:9000")
 
         self.s3_access_key_id = os.getenv("S3_AWS_ACCESS_KEY_ID")
         self.s3_secret_access_key = os.getenv("S3_AWS_SECRET_ACCESS_KEY")
