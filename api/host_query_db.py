@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterator
+from copy import deepcopy
 from itertools import islice
 from typing import Any
 
@@ -37,7 +38,10 @@ from app.models import HostDynamicSystemProfile
 from app.models import HostGroupAssoc
 from app.models import db
 from app.models.system_profile_static import HostStaticSystemProfile
+from app.serialization import _add_workloads_backward_compatibility
 from app.serialization import serialize_host_for_export_svc
+from lib.feature_flags import FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY
+from lib.feature_flags import get_flag_value
 
 __all__ = (
     "get_all_hosts",
@@ -601,16 +605,40 @@ def get_sparse_system_profile(
     fields: dict[str, list[str]],
     rbac_filter: dict,
 ) -> tuple[int, list[dict[str, str | dict]]]:
+    # Define legacy workload fields that may need backward compatibility
+    legacy_workload_fields = {
+        "sap",
+        "sap_system",
+        "sap_sids",
+        "sap_instance_number",
+        "sap_version",
+        "ansible",
+        "intersystems",
+        "mssql",
+        "third_party_services",
+    }
+
+    # Track if we need to fetch workloads for backward compatibility
+    requested_sp_fields = fields.get("system_profile", []) if fields else []
+    workloads_requested = "workloads" in requested_sp_fields
+    workloads_needed_for_compat = (
+        get_flag_value(FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY)
+        and requested_sp_fields
+        and any(field in legacy_workload_fields for field in requested_sp_fields)
+    )
+
     if fields and fields.get("system_profile"):
+        # If backward compatibility is enabled and legacy fields are requested,
+        # also fetch workloads field so we can populate legacy fields from it
+        fields_to_fetch = deepcopy(requested_sp_fields)
+        if workloads_needed_for_compat and not workloads_requested:
+            fields_to_fetch.append("workloads")
+
         columns = [
             Host.id,
             func.jsonb_strip_nulls(
                 func.jsonb_build_object(
-                    *[
-                        kv
-                        for key in fields["system_profile"]
-                        for kv in (key, Host.system_profile_facts[key].label(key))
-                    ]
+                    *[kv for key in fields_to_fetch for kv in (key, Host.system_profile_facts[key].label(key))]
                 ).label("system_profile_facts")
             ),
         ]
@@ -628,7 +656,28 @@ def get_sparse_system_profile(
     query_results = sp_query.paginate(page=page, per_page=per_page, error_out=True)
     db.session.close()
 
-    return query_results.total, [{"id": str(item[0]), "system_profile": item[1]} for item in query_results.items]
+    # Build the result list
+    result_list = [{"id": str(item[0]), "system_profile": item[1]} for item in query_results.items]
+
+    # Apply backward compatibility logic if the flag is enabled
+    if get_flag_value(FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY):
+        for host_data in result_list:
+            if host_data["system_profile"]:
+                # Apply backward compatibility to populate legacy fields from workloads.*
+                host_data["system_profile"] = _add_workloads_backward_compatibility(host_data["system_profile"])
+
+                # If specific fields were requested, filter the response
+                if requested_sp_fields:
+                    # Remove workloads if it was only fetched for backward compatibility
+                    if workloads_needed_for_compat and not workloads_requested:
+                        host_data["system_profile"].pop("workloads", None)
+
+                    # Remove legacy fields that weren't explicitly requested
+                    for field in legacy_workload_fields:
+                        if field in host_data["system_profile"] and field not in requested_sp_fields:
+                            del host_data["system_profile"][field]
+
+    return query_results.total, result_list
 
 
 def get_host_ids_list(
