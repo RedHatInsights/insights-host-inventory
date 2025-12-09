@@ -187,12 +187,16 @@ def wait_for_workspace_event(workspace_id: str, event_type: EventType, org_id: s
     try:
         # It's possible that the MQ message may have already been processed,
         # so we check if the group already exists first.
+        logger.debug(f"Checking if workspace {workspace_id} exists in org {org_id}")
         if get_group_by_id_from_db(workspace_id, org_id) is not None:
+            logger.debug(f"Workspace {workspace_id} found in org {org_id}")
             return
 
+        logger.debug(f"Waiting for workspace {workspace_id} to be created via MQ event")
         while time.time() < timeout_start + timeout:
             conn.poll()
             for notify in conn.notifies:
+                logger.debug(f"Notify received for workspace {notify.payload}")
                 if str(notify.payload) == workspace_id:
                     return
 
