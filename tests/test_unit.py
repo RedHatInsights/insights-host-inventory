@@ -859,7 +859,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
 
         actual = deserialize_host(full_input)
         expected = {
-            "canonical_facts": canonical_facts,
+            **canonical_facts,
             **unchanged_input,
             "facts": {item["namespace"]: item["facts"] for item in full_input["facts"]},
             "system_profile_facts": full_input["system_profile"],
@@ -873,7 +873,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
         org_id = "some org_id"
         stale_timestamp = now()
         reporter = "puptoo"
-        canonical_facts = {"subscription_manager_id": generate_uuid()}
+        subscription_manager_id = generate_uuid()
 
         with self.subTest(schema=HostSchema):
             host = deserialize_host(
@@ -881,12 +881,11 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
                     "org_id": org_id,
                     "stale_timestamp": stale_timestamp.isoformat(),
                     "reporter": reporter,
-                    **canonical_facts,
+                    "subscription_manager_id": subscription_manager_id,
                 }
             )
 
             self.assertIs(Host, type(host))
-            self.assertEqual(canonical_facts, host.canonical_facts)
             self.assertIsNone(host.display_name)
             self.assertIsNone(host.ansible_host)
             self.assertEqual(org_id, host.org_id)
@@ -1019,7 +1018,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
         with self.subTest(schema=HostSchema):
             actual = deserialize_host(full_input)
             expected = {
-                "canonical_facts": canonical_facts,
+                **canonical_facts,
                 **unchanged_input,
                 "facts": {item["namespace"]: item["facts"] for item in full_input["facts"]},
                 "system_profile_facts": full_input["system_profile"],
@@ -1616,10 +1615,10 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                     "org_id": "some org_id",
                     "account": None,
                     "reporter": "yupana",
+                    "subscription_manager_id": generate_uuid(),
                 }
                 host_init_data = {
                     "stale_timestamp": now(),
-                    "canonical_facts": {"subscription_manager_id": generate_uuid()},
                     **unchanged_data,
                     "facts": {},
                 }
@@ -1640,7 +1639,6 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                 staleness = get_sys_default_staleness()
                 actual = serialize_host(host, staleness_offset, False, ("tags",), staleness=staleness)
                 expected = {
-                    **host_init_data["canonical_facts"],
                     "insights_id": None,
                     "fqdn": None,
                     "satellite_id": None,
@@ -1688,7 +1686,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             ):
                 stale_timestamp = now() + timedelta(days=1)
                 host = Host(
-                    {"subscription_manager_id": generate_uuid()},
+                    subscription_manager_id=generate_uuid(),
                     facts={},
                     stale_timestamp=stale_timestamp,
                     reporter="some reporter",
@@ -1744,7 +1742,7 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
             "openshift_cluster_id": str(uuid4()),
         }
         host_init_data = {
-            "canonical_facts": canonical_facts,
+            **canonical_facts,
             **unchanged_data,
             "facts": facts,
             "stale_timestamp": stale_timestamp,
@@ -1792,7 +1790,7 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
         self.assertEqual(expected, actual)
 
         # It is called twice, because we have 2 test cases
-        serialize_canonical_facts.assert_called_with(host_init_data["canonical_facts"])
+        serialize_canonical_facts.assert_called_with(host_init_data)
         serialize_facts.assert_called_with(host_init_data["facts"])
         serialize_tags.assert_called_with(host_init_data["tags"])
 
@@ -1806,7 +1804,7 @@ class SerializationSerializeHostSystemProfileTestCase(TestCase):
             "system_memory_bytes": 4,
         }
         host = Host(
-            canonical_facts={"subscription_manager_id": generate_uuid()},
+            subscription_manager_id=generate_uuid(),
             display_name="some display name",
             system_profile_facts=system_profile_facts,
             stale_timestamp=now(),
@@ -1821,7 +1819,7 @@ class SerializationSerializeHostSystemProfileTestCase(TestCase):
 
     def test_empty_profile_is_empty_dict(self):
         host = Host(
-            canonical_facts={"subscription_manager_id": generate_uuid()},
+            subscription_manager_id=generate_uuid(),
             display_name="some display name",
             stale_timestamp=now(),
             reporter="yupana",

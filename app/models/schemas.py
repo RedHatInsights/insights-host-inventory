@@ -249,7 +249,6 @@ class LimitedHostSchema(CanonicalFactsSchema):
     @staticmethod
     def build_model(data, canonical_facts, facts, tags, tags_alt=None):
         return LimitedHost(
-            canonical_facts=canonical_facts,
             display_name=data.get("display_name"),
             ansible_host=data.get("ansible_host"),
             account=data.get("account"),
@@ -305,7 +304,6 @@ class HostSchema(LimitedHostSchema):
         if tags_alt is None:
             tags_alt = []
         return Host(
-            canonical_facts,
             data.get("display_name"),
             data.get("ansible_host"),
             data.get("account"),

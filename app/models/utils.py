@@ -32,7 +32,7 @@ def _get_staleness_obj(org_id):
 def _set_display_name_on_save(context):
     params = context.get_current_parameters()
     if not params["display_name"] or params["display_name"] == str(params["id"]):
-        return params["canonical_facts"].get("fqdn") or params["id"]
+        return params["fqdn"] or params["id"]
 
 
 def _time_now():

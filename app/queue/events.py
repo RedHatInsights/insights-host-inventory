@@ -13,7 +13,6 @@ from app.logging import threadctx
 from app.models import FactsSchema
 from app.models import TagsSchema
 from app.queue.metrics import event_serialization_time
-from app.serialization import serialize_canonical_facts
 
 logger = logging.getLogger(__name__)
 
@@ -122,7 +121,6 @@ def host_delete_event(event_type, host, initiated_by_frontend=False, platform_me
         "timestamp": datetime.now(UTC),
         "type": event_type.name,
         "id": host.id,
-        **serialize_canonical_facts(host.canonical_facts),
         "org_id": host.org_id,
         "account": host.account,
         "initiated_by_frontend": initiated_by_frontend,

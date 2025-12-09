@@ -2,14 +2,14 @@ import uuid
 from contextlib import suppress
 
 from dateutil.parser import isoparse
-from flask import current_app
+
+# from flask import current_app
 from sqlalchemy import Index
 from sqlalchemy import String
 from sqlalchemy import case
 from sqlalchemy import cast
 from sqlalchemy import func
 from sqlalchemy import orm
-from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -17,7 +17,7 @@ from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy.orm import column_property
 from sqlalchemy.orm import relationship
 
-from app.config import ID_FACTS
+# from app.config import ID_FACTS
 from app.culling import should_host_stay_fresh_forever
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
@@ -43,10 +43,10 @@ DISPLAY_NAME_PRIORITY_REPORTERS = {"puptoo", "API"}
 class LimitedHost(db.Model):
     __tablename__ = "hosts"
     __table_args__ = (
-        Index("idxinsightsid", text("(canonical_facts ->> 'insights_id')")),
-        Index("idxgincanonicalfacts", "canonical_facts"),
+        # Index("idxinsightsid", text("(canonical_facts ->> 'insights_id')")),
+        # Index("idxgincanonicalfacts", "canonical_facts"),
         Index("idxorgid", "org_id"),
-        Index("hosts_subscription_manager_id_index", text("(canonical_facts ->> 'subscription_manager_id')")),
+        # Index("hosts_subscription_manager_id_index", text("(canonical_facts ->> 'subscription_manager_id')")),
         Index("idxdisplay_name", "display_name"),
         Index("idxsystem_profile_facts", "system_profile_facts", postgresql_using="gin"),
         Index("idxgroups", "groups", postgresql_using="gin"),
@@ -55,7 +55,6 @@ class LimitedHost(db.Model):
 
     def __init__(
         self,
-        canonical_facts=None,
         display_name=None,
         ansible_host=None,
         account=None,
@@ -87,8 +86,6 @@ class LimitedHost(db.Model):
         if groups is None:
             groups = []
 
-        self.canonical_facts = canonical_facts
-
         if display_name:
             self.display_name = display_name
         self._update_ansible_host(ansible_host)
@@ -101,6 +98,7 @@ class LimitedHost(db.Model):
         self._add_or_update_normalized_system_profiles(system_profile_facts)
         self.groups = groups or []
         self.last_check_in = _time_now()
+        self.openshift_cluster_id = openshift_cluster_id
         # canonical facts
         self.insights_id = insights_id
         self.subscription_manager_id = subscription_manager_id
@@ -111,7 +109,6 @@ class LimitedHost(db.Model):
         self.mac_addresses = mac_addresses
         self.provider_id = provider_id
         self.provider_type = provider_type
-        self.openshift_cluster_id = openshift_cluster_id
 
     def _update_ansible_host(self, ansible_host):
         if ansible_host is not None:
@@ -199,7 +196,6 @@ class LimitedHost(db.Model):
     facts = db.Column(JSONB)
     tags = db.Column(JSONB)
     tags_alt = db.Column(JSONB)
-    canonical_facts = db.Column(JSONB)
 
     # canonical facts
     insights_id = db.Column(UUID(as_uuid=True), nullable=False, default="00000000-0000-0000-0000-000000000000")
@@ -235,7 +231,6 @@ class Host(LimitedHost):
 
     def __init__(
         self,
-        canonical_facts,
         display_name=None,
         ansible_host=None,
         account=None,
@@ -266,15 +261,6 @@ class Host(LimitedHost):
         if groups is None:
             groups = []
 
-        if not canonical_facts:
-            raise ValidationException("At least one of the canonical fact fields must be present.")
-
-        if all(id_fact not in canonical_facts for id_fact in ID_FACTS):
-            raise ValidationException(f"At least one of the ID fact fields must be present: {ID_FACTS}")
-
-        if current_app.config["USE_SUBMAN_ID"] and "subscription_manager_id" in canonical_facts:
-            id = canonical_facts["subscription_manager_id"]
-
         if not reporter:
             raise ValidationException("The reporter field must be present.")
 
@@ -282,7 +268,6 @@ class Host(LimitedHost):
             raise ValidationException("The tags field cannot be null.")
 
         super().__init__(
-            canonical_facts,
             display_name,
             ansible_host,
             account,
@@ -315,21 +300,12 @@ class Host(LimitedHost):
         if not per_reporter_staleness:
             self._update_per_reporter_staleness(reporter)
 
-        self.update_canonical_facts(canonical_facts)
-        self.update_canonical_facts_columns(canonical_facts)
-
     def save(self):
         self._cleanup_tags()
         db.session.add(self)
 
     def update(self, input_host: "Host", update_system_profile: bool = False) -> None:
-        self.update_display_name(
-            input_host.display_name, input_host.reporter, input_fqdn=input_host.canonical_facts.get("fqdn")
-        )
-
-        self.update_canonical_facts(input_host.canonical_facts)
-
-        self.update_canonical_facts_columns(input_host.canonical_facts)
+        self.update_display_name(input_host.display_name, input_host.reporter, input_fqdn=input_host.fqdn)
 
         self._update_ansible_host(input_host.ansible_host)
 
@@ -364,12 +340,8 @@ class Host(LimitedHost):
         return input_reporter in RHSM_REPORTERS and self.display_name_reporter in DISPLAY_NAME_PRIORITY_REPORTERS
 
     def _apply_display_name_fallback(self, input_fqdn: str | None) -> None:
-        if (
-            not self.display_name
-            or self.display_name == self.canonical_facts.get("fqdn")
-            or self.display_name == str(self.id)
-        ):
-            self.display_name = input_fqdn or self.canonical_facts.get("fqdn") or self.id
+        if not self.display_name or self.display_name == self.fqdn or self.display_name == str(self.id):
+            self.display_name = input_fqdn or self.id
 
     def update_display_name(
         self, input_display_name: str | None, input_reporter: str, *, input_fqdn: str | None = None
@@ -385,33 +357,6 @@ class Host(LimitedHost):
             self.display_name_reporter = input_reporter
         else:
             self._apply_display_name_fallback(input_fqdn)
-
-    def update_canonical_facts(self, canonical_facts):
-        logger.debug(
-            "Updating host's (id=%s) canonical_facts (%s) with input canonical_facts=%s",
-            self.id,
-            self.canonical_facts,
-            canonical_facts,
-        )
-        self.canonical_facts.update(canonical_facts)  # Field being removed in the future
-        logger.debug("Host (id=%s) has updated canonical_facts (%s)", self.id, self.canonical_facts)
-        orm.attributes.flag_modified(self, "canonical_facts")  # Field being removed in the future
-
-    def update_canonical_facts_columns(self, canonical_facts):
-        try:
-            for key, value in canonical_facts.items():
-                current_value = getattr(self, key)
-                # Handle type conversion for comparison (e.g., UUID vs string)
-                # Convert both to strings for comparison to avoid false positives
-                current_value_str = str(current_value) if current_value is not None else None
-                value_str = str(value) if value is not None else None
-
-                if current_value_str != value_str:
-                    setattr(self, key, value)
-                    orm.attributes.flag_modified(self, key)
-        except AttributeError as e:
-            logger.warning("Error updating canonical facts column %s: %s", key, str(e))
-            raise e
 
     def update_facts(self, facts_dict):
         if facts_dict:
@@ -604,5 +549,4 @@ class Host(LimitedHost):
     def __repr__(self):
         return (
             f"<Host id='{self.id}' account='{self.account}' org_id='{self.org_id}' display_name='{self.display_name}' "
-            f"canonical_facts={self.canonical_facts}>"
         )

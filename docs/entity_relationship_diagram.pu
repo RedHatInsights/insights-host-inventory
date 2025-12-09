@@ -20,7 +20,6 @@ table(hbi.hosts) {
   column(modified_on): timestamp with time zone <<not null>>
   jsonb(facts): jsonb
   jsonb(tags): jsonb
-  jsonb(canonical_facts): jsonb <<not null>>
   jsonb(system_profile_facts): jsonb
   column(ansible_host): varchar(255)
   column(stale_timestamp): timestamp with time zone

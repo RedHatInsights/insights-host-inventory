@@ -143,7 +143,7 @@ def test_create_then_delete_without_insights_id(
     event_datetime_mock, event_producer_mock, db_create_host, api_delete_host
 ):
     host = db_host()
-    del host.canonical_facts["insights_id"]
+    del host.insights_id
 
     db_create_host(host=host)
 
@@ -164,7 +164,7 @@ def test_delete_hosts_filtered_by_subscription_manager_id(
     db_create_host(host=db_host())
     host = db_create_host(host=db_host())
     response_status, response_data = api_delete_filtered_hosts(
-        query_parameters={"subscription_manager_id": host.canonical_facts["subscription_manager_id"]}
+        query_parameters={"subscription_manager_id": host.subscription_manager_id}
     )
     assert response_data["hosts_found"] == 1
     assert response_data["hosts_deleted"] == 1
@@ -618,7 +618,7 @@ def test_postgres_delete_filtered_hosts(
     host_3_id = db_create_host(extra_data={"display_name": "asdf", "reporter": "puptoo"}).id
 
     # Create another host that we don't want to be deleted
-    not_deleted_host_id = str(db_create_host(extra_data={"canonical_facts": {"insights_id": generate_uuid()}}).id)
+    not_deleted_host_id = str(db_create_host(extra_data={"insights_id": generate_uuid()}).id)
 
     # Delete the first two hosts using the bulk deletion endpoint
     response_status, response_data = api_delete_filtered_hosts(request_body)
@@ -654,16 +654,10 @@ def test_delete_hosts_by_subman_id_internal_rhsm_request(
     that they make when a host is unregistered from RHSM, to delete it from Insights Inventory.
     """
     searched_subman_id = generate_uuid()
-    matching_host_id = str(
-        db_create_host(extra_data={"canonical_facts": {"subscription_manager_id": searched_subman_id}}).id
-    )
-    not_matching_host_id = str(
-        db_create_host(extra_data={"canonical_facts": {"subscription_manager_id": generate_uuid()}}).id
-    )
+    matching_host_id = str(db_create_host(extra_data={"subscription_manager_id": searched_subman_id}).id)
+    not_matching_host_id = str(db_create_host(extra_data={"subscription_manager_id": generate_uuid()}).id)
     different_org_host_id = str(
-        db_create_host(
-            extra_data={"canonical_facts": {"subscription_manager_id": searched_subman_id}, "org_id": "12345"}
-        ).id
+        db_create_host(extra_data={"subscription_manager_id": searched_subman_id, "org_id": "12345"}).id
     )
 
     # Delete the host using the bulk deletion endpoint
@@ -697,7 +691,7 @@ def test_delete_hosts_by_subman_id_internal_rhsm_request(
 @pytest.mark.usefixtures("event_producer_mock")
 def test_postgres_delete_filtered_hosts_nomatch(db_create_host, api_get, api_delete_filtered_hosts):
     # Create a host that we don't want to be deleted
-    not_deleted_host_id = str(db_create_host(extra_data={"canonical_facts": {"insights_id": generate_uuid()}}).id)
+    not_deleted_host_id = str(db_create_host(extra_data={"insights_id": generate_uuid()}).id)
 
     # Call the delete endpoint when no hosts match the criteria
     response_status, response_data = api_delete_filtered_hosts({"insights_id": generate_uuid()})
@@ -742,7 +736,7 @@ def test_log_create_delete(
 
 @pytest.mark.usefixtures("notification_event_producer_mock")
 def test_delete_with_ui_host(db_create_host, api_delete_host, event_datetime_mock, event_producer_mock):
-    host = db_create_host(extra_data={"canonical_facts": {"subscription_manager_id": generate_uuid()}})
+    host = db_create_host(extra_data={"subscription_manager_id": generate_uuid()})
     headers = {"x-rh-frontend-origin": "hcc"}
 
     response_status, _ = api_delete_host(host.id, extra_headers=headers)

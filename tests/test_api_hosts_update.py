@@ -10,6 +10,7 @@ import pytest
 from app.auth.identity import from_auth_header
 from app.queue.event_producer import MessageDetails
 from app.serialization import deserialize_canonical_facts
+from app.serialization import extract_canonical_facts_from_host
 from tests.helpers.api_utils import HOST_WRITE_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import RBACFilterOperation
@@ -62,7 +63,7 @@ def test_update_fields(patch_doc, db_create_host, db_get_host, api_patch):
 
 
 @pytest.mark.parametrize(
-    "canonical_facts", [{"insights_id": generate_uuid()}, {"insights_id": generate_uuid(), "fqdn": generate_uuid()}]
+    "extra_data", [{"insights_id": generate_uuid()}, {"insights_id": generate_uuid(), "fqdn": generate_uuid()}]
 )
 def test_checkin_canonical_facts(
     event_datetime_mock,
@@ -70,11 +71,11 @@ def test_checkin_canonical_facts(
     db_create_host,
     db_get_host,
     api_post,
-    canonical_facts,
+    extra_data,
 ):
-    created_host = db_create_host(extra_data={"canonical_facts": canonical_facts})
+    created_host = db_create_host(extra_data=extra_data)
 
-    post_doc = created_host.canonical_facts
+    post_doc = extract_canonical_facts_from_host(created_host)
     updated_time = created_host.modified_on
 
     response_status, _ = api_post(
@@ -99,14 +100,13 @@ def test_checkin_canonical_facts(
 
 @pytest.mark.usefixtures("event_producer_mock")
 def test_checkin_checkin_frequency_valid(db_create_host, api_post, mocker):
-    canonical_facts = {"insights_id": generate_uuid()}
-    created_host = db_create_host(extra_data={"canonical_facts": canonical_facts})
+    created_host = db_create_host(extra_data={"insights_id": generate_uuid()})
 
     deserialize_canonical_facts_mock = mocker.patch(
         "api.host.deserialize_canonical_facts", wraps=deserialize_canonical_facts
     )
 
-    post_doc = {**created_host.canonical_facts, "checkin_frequency": 720}
+    post_doc = {**extract_canonical_facts_from_host(created_host), "checkin_frequency": 720}
     response_status, _ = api_post(
         build_host_checkin_url(), post_doc, extra_headers={"x-rh-insights-request-id": "123456"}
     )
@@ -118,10 +118,9 @@ def test_checkin_checkin_frequency_valid(db_create_host, api_post, mocker):
 @pytest.mark.usefixtures("event_producer_mock")
 @pytest.mark.parametrize(("checkin_frequency",), ((-1,), (0,), (2881,), ("not a number",)))
 def test_checkin_checkin_frequency_invalid(db_create_host, api_post, checkin_frequency):
-    canonical_facts = {"insights_id": generate_uuid()}
-    created_host = db_create_host(extra_data={"canonical_facts": canonical_facts})
+    created_host = db_create_host(extra_data={"insights_id": generate_uuid()})
 
-    post_doc = {**created_host.canonical_facts, "checkin_frequency": checkin_frequency}
+    post_doc = {**extract_canonical_facts_from_host(created_host), "checkin_frequency": checkin_frequency}
     response_status, _ = api_post(
         build_host_checkin_url(), post_doc, extra_headers={"x-rh-insights-request-id": "123456"}
     )
@@ -279,7 +278,7 @@ def test_patch_produces_update_event_no_insights_id(
     event_datetime_mock, event_producer_mock, db_create_host, api_patch
 ):
     host = db_host()
-    del host.canonical_facts["insights_id"]
+    del host.insights_id
 
     created_host = db_create_host(host=host)
 

@@ -51,15 +51,15 @@ def test_delete_duplicate_host(
         "insights_id": generate_uuid(),
         "subscription_manager_id": generate_uuid(),
     }
-    old_host = minimal_db_host(canonical_facts=canonical_facts)
-    new_host = minimal_db_host(canonical_facts=canonical_facts)
+    old_host = minimal_db_host(**canonical_facts)
+    new_host = minimal_db_host(**canonical_facts)
 
     created_old_host = db_create_host(host=old_host)
     created_new_host = db_create_host(host=new_host)
 
     assert created_old_host.id != created_new_host.id
     old_host_id = created_old_host.id
-    assert created_old_host.canonical_facts["provider_id"] == created_new_host.canonical_facts["provider_id"]
+    assert created_old_host.provider_id == created_new_host.provider_id
 
     Session = init_db(inventory_config)
     session = Session()
@@ -219,7 +219,7 @@ def test_delete_duplicates_id_facts_matching(
     for _ in range(host_count):
         canonical_facts = _gen_canonical_facts()
         canonical_facts[tested_id] = elevated_id
-        host = minimal_db_host(canonical_facts=canonical_facts)
+        host = minimal_db_host(**canonical_facts)
         created_hosts.append(db_create_host(host=host))
 
     # Hosts with less canonical facts
@@ -228,7 +228,7 @@ def test_delete_duplicates_id_facts_matching(
             canonical_facts = {"provider_type": "aws", tested_id: elevated_id}
         else:
             canonical_facts = {tested_id: elevated_id}
-        host = minimal_db_host(canonical_facts=canonical_facts)
+        host = minimal_db_host(**canonical_facts)
         created_hosts.append(db_create_host(host=host))
 
     # Hosts with more canonical facts
@@ -236,7 +236,7 @@ def test_delete_duplicates_id_facts_matching(
         canonical_facts = _gen_canonical_facts()
         canonical_facts[tested_id] = elevated_id
         canonical_facts["ip_addresses"] = [f"10.0.0.{randint(1, 255)}"]
-        host = minimal_db_host(canonical_facts=canonical_facts)
+        host = minimal_db_host(**canonical_facts)
         created_hosts.append(db_create_host(host=host))
 
     for host in created_hosts:
@@ -293,20 +293,20 @@ def test_delete_duplicates_id_facts_not_matching(
     # Hosts with the same amount of canonical facts
     for _ in range(host_count):
         canonical_facts[tested_id] = generate_uuid()
-        host = minimal_db_host(canonical_facts=canonical_facts)
+        host = minimal_db_host(**canonical_facts)
         created_hosts.append(db_create_host(host=host))
 
     # Hosts with less canonical facts
     for _ in range(host_count):
         facts = {tested_id: generate_uuid()}
-        host = minimal_db_host(canonical_facts=facts)
+        host = minimal_db_host(**facts)
         created_hosts.append(db_create_host(host=host))
 
     # Hosts with more canonical facts
     for _ in range(host_count):
         canonical_facts[tested_id] = generate_uuid()
         canonical_facts["ip_addresses"] = ["10.0.0.10"]
-        host = minimal_db_host(canonical_facts=canonical_facts)
+        host = minimal_db_host(**canonical_facts)
         created_hosts.append(db_create_host(host=host))
 
     for host in created_hosts:
@@ -352,7 +352,7 @@ def test_delete_duplicates_last_checked_in(
     }
     host_count = 100
 
-    hosts = [minimal_db_host(canonical_facts=canonical_facts) for _ in range(host_count)]
+    hosts = [minimal_db_host(**canonical_facts) for _ in range(host_count)]
     created_hosts = db_create_multiple_hosts(hosts=hosts)
     host_ids = [host.id for host in created_hosts]
     updated_host = created_hosts[50]
@@ -398,9 +398,9 @@ def test_delete_duplicates_multiple_org_ids(
         "satellite_id": generate_uuid(),
         "fqdn": generate_random_string(),
     }
-    host1 = minimal_db_host(canonical_facts=canonical_facts, org_id="111111")
+    host1 = minimal_db_host(**canonical_facts, org_id="111111")
     created_host1 = db_create_host(host=host1).id
-    host2 = minimal_db_host(canonical_facts=canonical_facts, org_id="222222")
+    host2 = minimal_db_host(**canonical_facts, org_id="222222")
     created_host2 = db_create_host(host=host2).id
 
     Session = init_db(no_dry_run_config)
@@ -437,7 +437,6 @@ def test_canonical_facts_column_updates_via_mq(
     # Validate host was added correctly
     retrieved_host = db_get_host(host_id)
     assert retrieved_host is not None
-    assert retrieved_host.canonical_facts["bios_uuid"] == initial_bios_uuid
     assert retrieved_host.bios_uuid == initial_bios_uuid
 
     # Update the host via MQ with new bios_uuid
@@ -449,5 +448,4 @@ def test_canonical_facts_column_updates_via_mq(
     # Validate the update worked correctly
     retrieved_host = db_get_host(host_id)
     assert retrieved_host is not None
-    assert retrieved_host.canonical_facts["bios_uuid"] == updated_bios_uuid
     assert retrieved_host.bios_uuid == updated_bios_uuid

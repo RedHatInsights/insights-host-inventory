@@ -291,7 +291,7 @@ def test_handle_message_happy_path(
     result = ingress_message_consumer_mock.handle_message(json.dumps(message))
 
     assert result.event_type == EventType.created
-    assert result.row.canonical_facts["insights_id"] == expected_insights_id
+    assert result.row.insights_id == expected_insights_id
     assert len(result.row.groups) == 1
     assert result.row.groups[0]["name"] == existing_group_name if existing_ungrouped else "Ungrouped Hosts"
     assert result.row.groups[0]["ungrouped"] is True
@@ -401,7 +401,7 @@ def test_handle_message_existing_ungrouped_workspace(mocker, db_create_group):
     result = consumer.handle_message(json.dumps(message))
 
     assert result.event_type == EventType.created
-    assert result.row.canonical_facts["insights_id"] == expected_insights_id
+    assert result.row.insights_id == expected_insights_id
 
     assert result.row.groups[0]["name"] == "kessel-test"
     assert result.row.groups[0]["id"] == str(group_id)
@@ -553,7 +553,8 @@ def test_handle_message_verify_message_headers(mocker, add_host_result, mq_creat
 
     db_host = db_create_host(
         extra_data={
-            "canonical_facts": {"insights_id": insights_id, "subscription_manager_id": subscription_manager_id},
+            "insights_id": insights_id,
+            "subscription_manager_id": subscription_manager_id,
             "reporter": "rhsm-conduit",
         }
     )
@@ -1928,7 +1929,7 @@ def test_update_system_profile(mq_create_or_update_host, db_get_host, id_type):
     first_host_from_db = db_get_host(first_host_from_event.id)
     expected_ids["id"] = str(first_host_from_db.id)
 
-    assert str(first_host_from_db.canonical_facts["insights_id"]) == expected_ids["insights_id"]
+    assert str(first_host_from_db.insights_id) == expected_ids["insights_id"]
     assert first_host_from_db.system_profile_facts.get("number_of_cpus") == 1
 
     input_host = base_host(
@@ -1948,7 +1949,7 @@ def test_update_system_profile(mq_create_or_update_host, db_get_host, id_type):
     # The second host should have the same ID and insights ID,
     # and the system profile should have updated with the new values.
     assert str(second_host_from_db.id) == first_host_from_event.id
-    assert str(second_host_from_db.canonical_facts["insights_id"]) == expected_ids["insights_id"]
+    assert str(second_host_from_db.insights_id) == expected_ids["insights_id"]
 
     # Verify core fields are updated correctly
     assert second_host_from_db.system_profile_facts["owner_id"] == OWNER_ID
@@ -2299,7 +2300,7 @@ def test_add_host_with_canonical_facts_MAC_address_valid_formats(mq_create_or_up
     created_host = mq_create_or_update_host(host)
     host_from_db = db_get_host(created_host.id)
 
-    assert created_host.mac_addresses == host_from_db.canonical_facts["mac_addresses"]
+    assert created_host.mac_addresses == host_from_db.mac_addresses
 
 
 @pytest.mark.usefixtures("event_datetime_mock")
@@ -2330,7 +2331,7 @@ def test_groups_not_overwritten_for_existing_hosts(
     group_id = str(group.id)
     host_id = str(host.id)
 
-    update_data = minimal_host(insights_id=host.canonical_facts["insights_id"], ansible_host="updated.ansible.host")
+    update_data = minimal_host(insights_id=host.insights_id, ansible_host="updated.ansible.host")
     created_key, created_event, _ = mq_create_or_update_host(update_data, return_all_data=True)
 
     assert created_key == host_id
@@ -2455,8 +2456,8 @@ def test_batch_mq_do_dedup_within_batch(
     # Check that only 1 host was created and it contains data from both messages
     db_hosts = db_get_hosts_by_subman_id(subman_id)
     assert len(db_hosts) == 1
-    assert db_hosts[0].canonical_facts["fqdn"] == host1["fqdn"]
-    assert db_hosts[0].canonical_facts["satellite_id"] == host2["satellite_id"]
+    assert db_hosts[0].fqdn == host1["fqdn"]
+    assert db_hosts[0].satellite_id == host2["satellite_id"]
 
 
 def test_batch_mq_two_different_hosts(
@@ -2500,10 +2501,7 @@ def test_batch_mq_two_different_hosts(
     db_hosts = db_get_hosts_by_display_name(display_name)
     assert len(db_hosts) == 2
     assert db_hosts[0].id != db_hosts[1].id
-    assert (
-        db_hosts[0].canonical_facts["subscription_manager_id"]
-        != db_hosts[1].canonical_facts["subscription_manager_id"]
-    )
+    assert db_hosts[0].subscription_manager_id != db_hosts[1].subscription_manager_id
 
 
 def test_batch_mq_do_dedup_in_db(
@@ -2521,7 +2519,8 @@ def test_batch_mq_do_dedup_in_db(
     subman_id = generate_uuid()
     display_name = generate_random_string()
     existing_host_data = minimal_db_host(
-        canonical_facts={"subscription_manager_id": subman_id, "fqdn": generate_random_string()},
+        subscription_manager_id=subman_id,
+        fqdn=generate_random_string(),
         display_name=display_name,
     )
     existing_host = db_create_host(host=existing_host_data)
@@ -2556,8 +2555,8 @@ def test_batch_mq_do_dedup_in_db(
     # Check that there is still only 1 host in DB with the same subman_id and it was properly updated
     db_hosts = db_get_hosts_by_subman_id(subman_id)
     assert len(db_hosts) == 1
-    assert db_hosts[0].canonical_facts["fqdn"] == existing_host.canonical_facts["fqdn"]
-    assert db_hosts[0].canonical_facts["satellite_id"] == msg_host2["satellite_id"]
+    assert db_hosts[0].fqdn == existing_host.fqdn
+    assert db_hosts[0].satellite_id == msg_host2["satellite_id"]
 
 
 def test_batch_mq_header_request_id_updates(mocker, flask_app):
@@ -2701,7 +2700,7 @@ def test_add_host_logs(identity, mocker, caplog):
     result = consumer.handle_message(json.dumps(message))
 
     assert result.event_type == EventType.created
-    assert result.row.canonical_facts["insights_id"] == expected_insights_id
+    assert result.row.insights_id == expected_insights_id
     assert caplog.records[0].input_host["system_profile"] == "{}"
     mock_notification_event_producer.write_event.assert_not_called()
 
@@ -2715,7 +2714,7 @@ def test_log_update_system_profile(mq_create_or_update_host, db_get_host, id_typ
     first_host_from_db = db_get_host(first_host_from_event.id)
     expected_ids["id"] = str(first_host_from_db.id)
 
-    assert str(first_host_from_db.canonical_facts["insights_id"]) == expected_ids["insights_id"]
+    assert str(first_host_from_db.insights_id) == expected_ids["insights_id"]
     assert first_host_from_db.system_profile_facts.get("number_of_cpus") == 1
 
     input_host = base_host(
@@ -2729,7 +2728,7 @@ def test_log_update_system_profile(mq_create_or_update_host, db_get_host, id_typ
     # The second host should have the same ID and insights ID,
     # and the system profile should have updated with the new values.
     assert str(second_host_from_db.id) == first_host_from_event.id
-    assert str(second_host_from_db.canonical_facts["insights_id"]) == expected_ids["insights_id"]
+    assert str(second_host_from_db.insights_id) == expected_ids["insights_id"]
     assert second_host_from_db.system_profile_facts == {
         "owner_id": OWNER_ID,
         "number_of_cpus": 4,
@@ -3010,7 +3009,7 @@ def test_write_add_update_event_message(mocker):
         id = "host-id"
         org_id = "org-id"
         account = "acct"
-        canonical_facts = {"insights_id": str(generate_uuid())}
+        insights_id = str(generate_uuid())
         reporter = "puptoo"
         system_profile_facts = {"owner_id": "owner-id"}
         groups = [serialized_group]
@@ -3069,8 +3068,8 @@ def test_add_host_with_provider_types(
 
     # Verify host was created in database with correct provider_type
     created_host: Host = db_get_host(key)
-    assert created_host.canonical_facts["provider_type"] == provider_type
-    assert created_host.canonical_facts["provider_id"] == provider_id
+    assert created_host.provider_type == provider_type
+    assert created_host.provider_id == provider_id
 
 
 @pytest.mark.parametrize("invalid_provider_type", ["invalid_provider", "discovery-system", "unknown", ""])

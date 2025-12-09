@@ -34,6 +34,7 @@ __all__ = (
     "serialize_host",
     "serialize_host_system_profile",
     "serialize_canonical_facts",
+    "extract_canonical_facts_from_host",
 )
 
 
@@ -125,12 +126,6 @@ def deserialize_canonical_facts(raw_data, all=False):
     return _deserialize_canonical_facts(validated_data)
 
 
-# Removes any null canonical facts from a serialized host.
-def remove_null_canonical_facts(serialized_host: dict):
-    for field_name in [f for f in _CANONICAL_FACTS_FIELDS if serialized_host[f] is None]:
-        del serialized_host[field_name]
-
-
 def serialize_host(
     host,
     staleness_timestamps,
@@ -150,7 +145,7 @@ def serialize_host(
         fields += ADDITIONAL_HOST_MQ_FIELDS
 
     # Base serialization
-    serialized_host = {**serialize_canonical_facts(host.canonical_facts)}
+    serialized_host = extract_canonical_facts_from_host(host)
 
     # Define field mapping to avoid repeated "if" conditions
     field_mapping = {
@@ -569,3 +564,26 @@ def serialize_host_with_params(host, additional_fields=tuple(), system_profile_f
     identity = get_current_identity()
     staleness = get_staleness_obj(identity.org_id)
     return serialize_host(host, timestamps, False, additional_fields, staleness, system_profile_fields)
+
+
+def extract_canonical_facts_from_host(host: Host | LimitedHost) -> dict:
+    """
+    Extract canonical facts fields directly from a host object.
+
+    This function extracts the canonical facts fields from the host's individual
+    attributes and returns them as a dictionary. This replaces the old
+    host.canonical_facts field which no longer exists.
+    Only fields with values (not None, not empty) are included in the result.
+
+    Args:
+        host: A Host or LimitedHost instance
+
+    Returns:
+        A dictionary containing the canonical facts fields that have values
+    """
+    canonical_facts = {}
+    for field in _CANONICAL_FACTS_FIELDS:
+        value = getattr(host, field, None)
+        if value:
+            canonical_facts[field] = value
+    return canonical_facts
