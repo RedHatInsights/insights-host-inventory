@@ -178,13 +178,18 @@ def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str):
     log_host_group_add_succeeded(logger, host_id_list, group_id)
 
 
-def wait_for_workspace_event(workspace_id: str, event_type: EventType, timeout: int = 5):
+def wait_for_workspace_event(workspace_id: str, event_type: EventType, org_id: str, *, timeout: int = 5):
     conn = db.session.connection().connection
     conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
     cursor = conn.cursor()
     cursor.execute(f"LISTEN workspace_{event_type.name};")
     timeout_start = time.time()
     try:
+        # It's possible that the MQ message may have already been processed,
+        # so we check if the group already exists first.
+        if get_group_by_id_from_db(workspace_id, org_id) is not None:
+            return
+
         while time.time() < timeout_start + timeout:
             conn.poll()
             for notify in conn.notifies:
