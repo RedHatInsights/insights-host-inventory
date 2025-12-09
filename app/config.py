@@ -80,17 +80,12 @@ class Config:
             self._cache_port = cfg.inMemoryDb.port
 
         self.rbac_endpoint = ""
-        self.kessel_inventory_endpoint = ""
         self.kessel_relations_endpoint = ""
         for endpoint in cfg.endpoints:
             if endpoint.app == "rbac":
                 protocol = "https" if cfg.tlsCAPath else "http"
                 port = endpoint.tlsPort if cfg.tlsCAPath else endpoint.port
                 self.rbac_endpoint = f"{protocol}://{endpoint.hostname}:{port}"
-                break
-            elif endpoint.app == "kessel-inventory":
-                hostname = endpoint.hostname
-                self.kessel_inventory_endpoint = f"{hostname}:9000"
                 break
             elif endpoint.app == "kessel-relations":
                 hostname = endpoint.hostname
@@ -166,7 +161,6 @@ class Config:
         self._db_port = os.getenv("INVENTORY_DB_PORT", 5432)
         self._db_name = os.getenv("INVENTORY_DB_NAME", "insights")
         self.rbac_endpoint = os.environ.get("RBAC_ENDPOINT", "http://localhost:8111")
-        self.kessel_inventory_endpoint = os.environ.get("KESSEL_INVENTORY_ENDPOINT", "localhost:9000")
         self.kessel_relations_endpoint = os.environ.get("KESSEL_RELATIONS_ENDPOINT", "localhost:9000")
         self.export_service_endpoint = os.environ.get("EXPORT_SERVICE_ENDPOINT", "http://localhost:10010")
         self.host_ingress_topic = os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress")

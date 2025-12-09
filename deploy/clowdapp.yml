@@ -153,7 +153,6 @@ objects:
       iqePlugin: host-inventory
     dependencies:
       - rbac
-      - kessel-inventory
       - kessel-relations
       - ingress
       - export-service
