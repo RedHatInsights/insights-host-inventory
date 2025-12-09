@@ -86,6 +86,14 @@ class Config:
                 port = endpoint.tlsPort if cfg.tlsCAPath else endpoint.port
                 self.rbac_endpoint = f"{protocol}://{endpoint.hostname}:{port}"
                 break
+            elif endpoint.app == "kessel-inventory":
+                hostname = endpoint.hostname
+                self.kessel_inventory_endpoint = f"{hostname}:9000"
+                break
+            elif endpoint.app == "kessel-relations":
+                hostname = endpoint.hostname
+                self.kessel_relations_endpoint = f"{hostname}:9000"
+                break
 
         self.export_service_endpoint = ""
         for endpoint in cfg.privateEndpoints:
@@ -94,12 +102,6 @@ class Config:
                 port = endpoint.tlsPort if cfg.tlsCAPath else endpoint.port
                 self.export_service_endpoint = f"{protocol}://{endpoint.hostname}:{port}"
                 break
-
-        # Kessel endpoints
-        hostname = cfg.endpoints["kessel-inventory"]["api"].hostname
-        self.kessel_inventory_endpoint = f"{hostname}:9000"
-        hostname = cfg.endpoints["kessel-relations"]["api"].hostname
-        self.kessel_relations_endpoint = f"{hostname}:9000"
 
         self.export_service_token = os.environ.get("EXPORT_SERVICE_TOKEN", "testing-a-psk")
 
