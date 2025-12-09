@@ -96,9 +96,9 @@ class Config:
                 break
 
         # Kessel endpoints
-        hostname = cfg.dependencyEndpoints["kessel-inventory"]["api"].hostname
+        hostname = cfg.endpoints["kessel-inventory"]["api"].hostname
         self.kessel_inventory_endpoint = f"{hostname}:9000"
-        hostname = cfg.dependencyEndpoints["kessel-relations"]["api"].hostname
+        hostname = cfg.endpoints["kessel-relations"]["api"].hostname
         self.kessel_relations_endpoint = f"{hostname}:9000"
 
         self.export_service_token = os.environ.get("EXPORT_SERVICE_TOKEN", "testing-a-psk")
