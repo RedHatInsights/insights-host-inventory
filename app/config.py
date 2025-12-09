@@ -80,6 +80,8 @@ class Config:
             self._cache_port = cfg.inMemoryDb.port
 
         self.rbac_endpoint = ""
+        self.kessel_inventory_endpoint = ""
+        self.kessel_relations_endpoint = ""
         for endpoint in cfg.endpoints:
             if endpoint.app == "rbac":
                 protocol = "https" if cfg.tlsCAPath else "http"
