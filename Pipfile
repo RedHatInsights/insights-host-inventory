@@ -45,7 +45,7 @@ unleashclient = "==6.4.1"
 rpds-py = "==0.30.0"
 
 [dev-packages]
-pytest = "~=9.0.1"
+pytest = "~=9.0.2"
 pytest-cov = "~=7.0.0"
 pytest-mock = "~=3.15.1"
 pytest-subtests = "~=0.15.0"
