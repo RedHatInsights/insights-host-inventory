@@ -153,6 +153,7 @@ objects:
       iqePlugin: host-inventory
     dependencies:
       - rbac
+      - kessel-relations
       - ingress
       - export-service
     deployments:
@@ -245,8 +246,6 @@ objects:
             value: ${BYPASS_RBAC}
           - name: BYPASS_KESSEL
             value: ${BYPASS_KESSEL}
-          - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
           - name: KAFKA_PRODUCER_ACKS
             value: ${KAFKA_PRODUCER_ACKS}
           - name: KAFKA_PRODUCER_RETRIES
@@ -347,8 +346,6 @@ objects:
             value: ${BYPASS_RBAC}
           - name: BYPASS_KESSEL
             value: ${BYPASS_KESSEL}
-          - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
           - name: KAFKA_PRODUCER_ACKS
             value: ${KAFKA_PRODUCER_ACKS}
           - name: KAFKA_PRODUCER_RETRIES
@@ -449,8 +446,6 @@ objects:
             value: ${BYPASS_RBAC}
           - name: BYPASS_KESSEL
             value: ${BYPASS_KESSEL}
-          - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
           - name: KAFKA_PRODUCER_ACKS
             value: ${KAFKA_PRODUCER_ACKS}
           - name: KAFKA_PRODUCER_RETRIES
@@ -582,8 +577,6 @@ objects:
             value: inventory-mq-service
           - name: PAYLOAD_TRACKER_ENABLED
             value: 'true'
-          - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
           - name: MQ_DB_BATCH_MAX_MESSAGES
             value: ${MQ_DB_BATCH_MAX_MESSAGES}
           - name: KAFKA_CONSUMER_TOPIC
@@ -671,8 +664,6 @@ objects:
             value: inventory-mq-service
           - name: PAYLOAD_TRACKER_ENABLED
             value: 'true'
-          - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
           - name: MQ_DB_BATCH_MAX_MESSAGES
             value: ${MQ_DB_BATCH_MAX_MESSAGES}
           - name: KAFKA_CONSUMER_TOPIC
@@ -757,8 +748,6 @@ objects:
             value: inventory-mq-service
           - name: PAYLOAD_TRACKER_ENABLED
             value: 'true'
-          - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
           - name: MQ_DB_BATCH_MAX_MESSAGES
             value: ${MQ_DB_BATCH_MAX_MESSAGES}
           - name: KAFKA_CONSUMER_TOPIC
@@ -961,8 +950,6 @@ objects:
             value: ${PROMETHEUS_PUSHGATEWAY}
           - name: REPLICA_NAMESPACE
             value: ${REPLICA_NAMESPACE}
-          - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
           - name: PAYLOAD_TRACKER_KAFKA_TOPIC
             value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
           - name: PAYLOAD_TRACKER_SERVICE_NAME
@@ -1041,8 +1028,6 @@ objects:
             value: ${REPLICA_NAMESPACE}
           - name: CONNEXION_LOG_LEVEL
             value: ${CONNEXION_LOG_LEVEL}
-          - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
           - name: CONSOLEDOT_HOSTNAME
             value: ${CONSOLEDOT_HOSTNAME}
         resources:
@@ -1178,8 +1163,6 @@ objects:
               secretKeyRef:
                 key: user
                 name: dippy-bot
-          - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
           - name: PAYLOAD_TRACKER_KAFKA_TOPIC
             value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
           - name: PAYLOAD_TRACKER_SERVICE_NAME
@@ -1315,8 +1298,6 @@ objects:
             value: ${PROMETHEUS_PUSHGATEWAY}
           - name: REPLICA_NAMESPACE
             value: ${REPLICA_NAMESPACE}
-          - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
           - name: PAYLOAD_TRACKER_KAFKA_TOPIC
             value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
           - name: PAYLOAD_TRACKER_SERVICE_NAME
@@ -2367,8 +2348,6 @@ parameters:
   value: localhost
 - name: PROMETHEUS_PUSHGATEWAY
   value: 'localhost:9091'
-- name: KESSEL_TARGET_URL
-  value: 'localhost:20000'
 - name: URLLIB3_LOG_LEVEL
   value: WARNING
 - name: CONNEXION_LOG_LEVEL
