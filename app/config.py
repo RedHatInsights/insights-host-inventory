@@ -44,7 +44,7 @@ class Config:
 
         cfg = app_common_python.LoadedConfig
         kessel_relations_hostname = DependencyEndpoints["kessel-relations"]["api"].hostname
-        self.kessel_relations_endpoint = f"{kessel_relations_hostname}:9000"
+        self.kessel_relations_api_endpoint = f"{kessel_relations_hostname}:9000"
 
         self.is_clowder = True
         self.metrics_port = cfg.metricsPort
@@ -160,7 +160,7 @@ class Config:
         self._db_port = os.getenv("INVENTORY_DB_PORT", 5432)
         self._db_name = os.getenv("INVENTORY_DB_NAME", "insights")
         self.rbac_endpoint = os.environ.get("RBAC_ENDPOINT", "http://localhost:8111")
-        self.kessel_relations_endpoint = os.environ.get("KESSEL_RELATIONS_ENDPOINT", "localhost:9000")
+        self.kessel_relations_api_endpoint = os.environ.get("KESSEL_RELATIONS_API_ENDPOINT", "localhost:9000")
         self.export_service_endpoint = os.environ.get("EXPORT_SERVICE_ENDPOINT", "http://localhost:10010")
         self.host_ingress_topic = os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress")
         self.additional_validation_topic = os.environ.get(
