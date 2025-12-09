@@ -154,6 +154,7 @@ objects:
     dependencies:
       - rbac
       - kessel-inventory
+      - kessel-relations
       - ingress
       - export-service
     deployments:

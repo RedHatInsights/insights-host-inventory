@@ -86,9 +86,6 @@ class Config:
                 port = endpoint.tlsPort if cfg.tlsCAPath else endpoint.port
                 self.rbac_endpoint = f"{protocol}://{endpoint.hostname}:{port}"
                 break
-            if endpoint.app == "kessel-inventory":
-                self.kessel_target_url = f"{endpoint.hostname}:{endpoint.port}"
-                break
 
         self.export_service_endpoint = ""
         for endpoint in cfg.privateEndpoints:
@@ -97,6 +94,12 @@ class Config:
                 port = endpoint.tlsPort if cfg.tlsCAPath else endpoint.port
                 self.export_service_endpoint = f"{protocol}://{endpoint.hostname}:{port}"
                 break
+
+        # Kessel endpoints
+        hostname = cfg.dependencyEndpoints["kessel-inventory"]["api"].hostname
+        self.kessel_inventory_endpoint = f"{hostname}:9000"
+        hostname = cfg.dependencyEndpoints["kessel-relations"]["api"].hostname
+        self.kessel_relations_endpoint = f"{hostname}:9000"
 
         self.export_service_token = os.environ.get("EXPORT_SERVICE_TOKEN", "testing-a-psk")
 
@@ -159,7 +162,8 @@ class Config:
         self._db_port = os.getenv("INVENTORY_DB_PORT", 5432)
         self._db_name = os.getenv("INVENTORY_DB_NAME", "insights")
         self.rbac_endpoint = os.environ.get("RBAC_ENDPOINT", "http://localhost:8111")
-        self.kessel_target_url = os.getenv("KESSEL_TARGET_URL", "localhost:9000")
+        self.kessel_inventory_endpoint = os.environ.get("KESSEL_INVENTORY_ENDPOINT", "http://localhost:9000")
+        self.kessel_relations_endpoint = os.environ.get("KESSEL_RELATIONS_ENDPOINT", "http://localhost:9000")
         self.export_service_endpoint = os.environ.get("EXPORT_SERVICE_ENDPOINT", "http://localhost:10010")
         self.host_ingress_topic = os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress")
         self.additional_validation_topic = os.environ.get(
