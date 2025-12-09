@@ -6,6 +6,8 @@ import tempfile
 from datetime import timedelta
 from enum import Enum
 
+from app_common_python import DependencyEndpoints
+
 from app.common import get_build_version
 from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
@@ -41,6 +43,8 @@ class Config:
         import app_common_python
 
         cfg = app_common_python.LoadedConfig
+        kessel_relations_hostname = DependencyEndpoints["kessel-relations"]["api"].hostname
+        self.kessel_relations_endpoint = f"{kessel_relations_hostname}:9000"
 
         self.is_clowder = True
         self.metrics_port = cfg.metricsPort
@@ -80,16 +84,11 @@ class Config:
             self._cache_port = cfg.inMemoryDb.port
 
         self.rbac_endpoint = ""
-        self.kessel_relations_endpoint = ""
         for endpoint in cfg.endpoints:
             if endpoint.app == "rbac":
                 protocol = "https" if cfg.tlsCAPath else "http"
                 port = endpoint.tlsPort if cfg.tlsCAPath else endpoint.port
                 self.rbac_endpoint = f"{protocol}://{endpoint.hostname}:{port}"
-                break
-            elif endpoint.app == "kessel-relations":
-                hostname = endpoint.hostname
-                self.kessel_relations_endpoint = f"{hostname}:9000"
                 break
 
         self.export_service_endpoint = ""
