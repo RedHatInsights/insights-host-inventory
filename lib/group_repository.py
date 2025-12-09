@@ -197,7 +197,7 @@ def wait_for_workspace_event(workspace_id: str, event_type: EventType, org_id: s
             conn.poll()
             for notify in conn.notifies:
                 logger.debug(f"Notify received for workspace {notify.payload}")
-                if str(notify.payload) == workspace_id:
+                if str(notify.payload) == str(workspace_id):
                     return
 
             conn.notifies.clear()
@@ -290,7 +290,7 @@ def add_group_with_hosts(
     return get_group_by_id_from_db(created_group_id, identity.org_id)
 
 
-def create_group_from_payload(group_data: dict, event_producer: EventProducer, group_id: UUID) -> Group:
+def create_group_from_payload(group_data: dict, event_producer: EventProducer, group_id: UUID | None) -> Group:
     logger.debug("Creating a new group: %s", group_data)
     identity = get_current_identity()
     return add_group_with_hosts(

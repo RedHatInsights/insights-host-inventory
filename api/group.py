@@ -79,7 +79,7 @@ def get_group_list(
 @api_operation
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def create_group(body, rbac_filter=None):
+def create_group(body: dict, rbac_filter: dict | None = None) -> Response:
     # If there is an attribute filter on the RBAC permissions,
     # the user should not be allowed to create a group.
     if rbac_filter is not None:
@@ -110,7 +110,7 @@ def create_group(body, rbac_filter=None):
                 )
 
             workspace_id = post_rbac_workspace(group_name)
-            if not workspace_id:
+            if workspace_id is None:
                 message = f"Error while creating workspace for {group_name}"
                 logger.exception(message)
                 return json_error_response("Workspace creation failure", message, HTTPStatus.BAD_REQUEST)
@@ -118,7 +118,7 @@ def create_group(body, rbac_filter=None):
             # Wait for the MQ to notify us of the workspace creation.
             try:
                 wait_for_workspace_event(
-                    workspace_id,
+                    str(workspace_id),
                     EventType.created,
                     org_id=get_current_identity().org_id,
                     timeout=inventory_config().rbac_timeout,
@@ -127,12 +127,12 @@ def create_group(body, rbac_filter=None):
                 abort(HTTPStatus.SERVICE_UNAVAILABLE, "Timed out waiting for a message from RBAC v2.")
 
             add_hosts_to_group(
-                workspace_id,
+                str(workspace_id),
                 host_id_list,
                 get_current_identity(),
                 current_app.event_producer,
             )
-            created_group = get_group_by_id_from_db(workspace_id, get_current_identity().org_id)
+            created_group = get_group_by_id_from_db(str(workspace_id), get_current_identity().org_id)
         else:
             created_group = create_group_from_payload(validated_create_group_data, current_app.event_producer, None)
             create_group_count.inc()
