@@ -1,4 +1,6 @@
 import os
+import time
+from hashlib import md5
 
 from alembic import context
 from flask import current_app
@@ -33,6 +35,91 @@ target_metadata = current_app.extensions["migrate"].db.metadata
 # ... etc.
 
 schema_name = os.getenv("INVENTORY_DB_SCHEMA", "hbi")
+
+# Migration lock configuration
+# Convert a unique string to a numeric lock ID for PostgreSQL advisory locks
+# PostgreSQL advisory locks require a bigint (8-byte integer) as the lock ID
+MIGRATION_LOCK_ID = int.from_bytes(
+    md5(b"insights-host-inventory-migrations").digest()[:8], byteorder="big", signed=True
+)
+# Maximum time to wait for migration lock (in seconds)
+MIGRATION_LOCK_TIMEOUT = int(os.getenv("MIGRATION_LOCK_TIMEOUT", "1800"))  # 30 minutes default
+# Retry interval when lock is held by another pod (in seconds)
+MIGRATION_LOCK_RETRY_INTERVAL = int(os.getenv("MIGRATION_LOCK_RETRY_INTERVAL", "15"))
+
+
+def acquire_migration_lock(conn: Connection, timeout: int = MIGRATION_LOCK_TIMEOUT) -> bool:
+    """
+    Acquire a PostgreSQL advisory lock for running migrations.
+
+    This prevents multiple pods from running migrations simultaneously by using
+    PostgreSQL's advisory locking mechanism. The function will retry acquiring
+    the lock until the timeout is reached.
+
+    Args:
+        conn: SQLAlchemy connection object
+        timeout: Maximum time to wait for the lock (in seconds)
+
+    Returns:
+        True if lock was acquired, False if timeout was reached
+    """
+    start_time = time.time()
+    attempt = 0
+
+    while True:
+        attempt += 1
+        elapsed = time.time() - start_time
+
+        # Try to acquire the lock (non-blocking)
+        result = conn.execute(f"SELECT pg_try_advisory_lock({MIGRATION_LOCK_ID})").scalar()
+
+        if result:
+            logger.info(
+                f"Successfully acquired migration lock (ID: {MIGRATION_LOCK_ID}) "
+                f"after {attempt} attempt(s) and {elapsed:.1f} seconds"
+            )
+            return True
+
+        # Check if we've exceeded the timeout
+        if elapsed >= timeout:
+            logger.error(
+                f"Failed to acquire migration lock (ID: {MIGRATION_LOCK_ID}) "
+                f"after {timeout} seconds and {attempt} attempts. "
+                "Another pod may be running migrations or a previous migration may have hung. "
+                "Check for long-running migrations or increase MIGRATION_LOCK_TIMEOUT."
+            )
+            return False
+
+        # Log waiting status periodically (every 30 seconds)
+        if attempt == 1 or (elapsed % 30 < MIGRATION_LOCK_RETRY_INTERVAL):
+            logger.info(
+                f"Waiting for migration lock (ID: {MIGRATION_LOCK_ID})... "
+                f"Attempt {attempt}, elapsed: {elapsed:.1f}s, "
+                f"timeout: {timeout}s. Another pod is currently running migrations."
+            )
+
+        # Wait before retrying
+        time.sleep(MIGRATION_LOCK_RETRY_INTERVAL)
+
+
+def release_migration_lock(conn: Connection):
+    """
+    Release the PostgreSQL advisory lock for migrations.
+
+    Args:
+        conn: SQLAlchemy connection object
+    """
+    try:
+        result = conn.execute(f"SELECT pg_advisory_unlock({MIGRATION_LOCK_ID})").scalar()
+
+        if result:
+            logger.info(f"Successfully released migration lock (ID: {MIGRATION_LOCK_ID})")
+        else:
+            logger.warning(
+                f"Attempted to release migration lock (ID: {MIGRATION_LOCK_ID}) but lock was not held by this session"
+            )
+    except Exception as e:
+        logger.error(f"Error releasing migration lock (ID: {MIGRATION_LOCK_ID}): {e}")
 
 
 def run_migrations_offline():
@@ -105,22 +192,38 @@ def run_migrations_online():
     connection = engine.connect()
     create_schema_if_not_exists(engine, connection, schema_name)
 
-    # Get current revision
-    configure_context(connection, schema_name)
-    curr_revision = context.get_context().get_current_revision()
+    # Acquire migration lock BEFORE doing any migration work
+    # This ensures only one pod runs migrations at a time
+    lock_acquired = acquire_migration_lock(connection)
 
-    # If there is no current revision, we need to migrate the version_table
-    if curr_revision is None:
-        migrate_alembic_version_table(connection)
+    if not lock_acquired:
+        logger.error(
+            "Could not acquire migration lock. Exiting to prevent concurrent migrations. "
+            "This pod will not start until migrations are completed by another pod or the lock is released."
+        )
+        connection.close()
+        # Exit with error code to signal failure to container orchestrator
+        import sys
+
+        sys.exit(1)
 
     try:
+        # Get current revision
+        configure_context(connection, schema_name)
+        curr_revision = context.get_context().get_current_revision()
+
+        # If there is no current revision, we need to migrate the version_table
+        if curr_revision is None:
+            migrate_alembic_version_table(connection)
+
+        # Run migrations within a transaction
         with context.begin_transaction():
-            # Lock so multiple pods don't run the same migration simultaneously
-            context.execute("select pg_advisory_lock(1);")
+            logger.info("Starting database migrations...")
             context.run_migrations()
+            logger.info("Database migrations completed successfully")
     finally:
-        # Release the lock
-        context.execute("select pg_advisory_unlock(1);")
+        # Always release the lock, even if migrations fail
+        release_migration_lock(connection)
         connection.close()
 
 
