@@ -71,6 +71,7 @@ HBI expects the host ingress messages to comply with the following format:
       "tags": {<tags>},
       "system_profile": {<system_profile>},
       "reporter": "<reporter>",
+      "openshift_cluster_id": "<openshift_cluster_id>",
    }
 }
 ```
@@ -296,7 +297,8 @@ The `created` event is produced any time a new host record is created.
       "groups": [{
         "id": <group_id>,
         "name": <group_name>
-      }]
+      }],
+      "openshift_cluster_id": "<openshift_cluster_id>",
    }
 }
 ```
@@ -348,6 +350,8 @@ The `delete` event is produced when a host record is removed from HBI.
 * `subscription_manager_id`: the subscription manager id of the host that was deleted
 * `initiated_by_frontend`: indicates whether the delete operation was initiated by the frontend
 * `platform_metadata`: contains the `b64_identity` field. Only provided when the host was deleted via API request.
+
+The host events schema is documented [here](./../swagger/host_events.spec.yaml).
 
 ## REST Interface
 
@@ -1049,6 +1053,10 @@ It is recommended that applications log in to the database server using credenti
 
 Applications integrated with Cyndi can be developed locally without having to provision all of the Cyndi components in the local environment.
 This [seed script](https://github.com/RedHatInsights/inventory-syndication/blob/master/utils/seed-local.sql) can be extended to set up a Cyndi-like schema in the local database and seed it with sample host data.
+
+## Kessel Effects on Host Inventory
+
+Kessel introduces significant changes to HBI's authorization model, automatic group association, and event-driven synchronization of host data. For comprehensive details on how Kessel impacts host creation, group management, authorization, and data synchronization, see the [Kessel Effects on Host Inventory Service](./kessel-effects-on-hbi.md) documentation.
 
 ## Contributing
 

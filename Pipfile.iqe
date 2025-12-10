@@ -1,0 +1,22 @@
+[[source]]
+url = "https://nexus.corp.redhat.com/repository/cqt-pypi/simple"
+verify_ssl = true
+name = "rhnexus"
+
+[dev-packages]
+click = "*"
+faker = "*"
+iqe-core = {version = ">=24.11.29.1", index = "rhnexus"}
+iqe-export-service-plugin = "*"
+iqe-ingress-plugin = "*"
+iqe-kessel-sync-plugin = "*"
+iqe-mq-plugin = ">=24.11.29"
+iqe-notifications-plugin = "*"
+iqe-platform-ui-plugin = "*"
+iqe-rbac-plugin = "*"
+ocdeployer = "*"
+pytest-html = "*"
+pytest-lazy-fixtures = "*"
+
+[requires]
+python_version = "3.12"

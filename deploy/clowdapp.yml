@@ -153,6 +153,7 @@ objects:
       iqePlugin: host-inventory
     dependencies:
       - rbac
+      - kessel-inventory
       - ingress
       - export-service
     deployments:
@@ -243,8 +244,8 @@ objects:
             value: 'true'
           - name: BYPASS_RBAC
             value: ${BYPASS_RBAC}
-          - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
+          - name: BYPASS_KESSEL
+            value: ${BYPASS_KESSEL}
           - name: KAFKA_PRODUCER_ACKS
             value: ${KAFKA_PRODUCER_ACKS}
           - name: KAFKA_PRODUCER_RETRIES
@@ -343,8 +344,8 @@ objects:
             value: 'true'
           - name: BYPASS_RBAC
             value: ${BYPASS_RBAC}
-          - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
+          - name: BYPASS_KESSEL
+            value: ${BYPASS_KESSEL}
           - name: KAFKA_PRODUCER_ACKS
             value: ${KAFKA_PRODUCER_ACKS}
           - name: KAFKA_PRODUCER_RETRIES
@@ -443,8 +444,8 @@ objects:
             value: 'true'
           - name: BYPASS_RBAC
             value: ${BYPASS_RBAC}
-          - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
+          - name: BYPASS_KESSEL
+            value: ${BYPASS_KESSEL}
           - name: KAFKA_PRODUCER_ACKS
             value: ${KAFKA_PRODUCER_ACKS}
           - name: KAFKA_PRODUCER_RETRIES
@@ -558,6 +559,8 @@ objects:
             value: "${KAFKA_CONSUMER_SESSION_TIMEOUT_MS}"
           - name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
             value: "${KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS}"
+          - name: BYPASS_KESSEL
+            value: ${BYPASS_KESSEL}
           - name: UNLEASH_URL
             value: ${UNLEASH_URL}
           - <<: *unleashToken
@@ -574,8 +577,6 @@ objects:
             value: inventory-mq-service
           - name: PAYLOAD_TRACKER_ENABLED
             value: 'true'
-          - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
           - name: MQ_DB_BATCH_MAX_MESSAGES
             value: ${MQ_DB_BATCH_MAX_MESSAGES}
           - name: KAFKA_CONSUMER_TOPIC
@@ -627,6 +628,8 @@ objects:
             value: ${KAFKA_SECURITY_PROTOCOL}
           - name: KAFKA_SASL_MECHANISM
             value: ${KAFKA_SASL_MECHANISM}
+          - name: BYPASS_KESSEL
+            value: ${BYPASS_KESSEL}
           - name: CLOWDER_ENABLED
             value: "true"
           - name: INVENTORY_DB_SCHEMA
@@ -661,8 +664,6 @@ objects:
             value: inventory-mq-service
           - name: PAYLOAD_TRACKER_ENABLED
             value: 'true'
-          - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
           - name: MQ_DB_BATCH_MAX_MESSAGES
             value: ${MQ_DB_BATCH_MAX_MESSAGES}
           - name: KAFKA_CONSUMER_TOPIC
@@ -729,6 +730,8 @@ objects:
             value: "${KAFKA_CONSUMER_SESSION_TIMEOUT_MS}"
           - name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
             value: "${KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS}"
+          - name: BYPASS_KESSEL
+            value: ${BYPASS_KESSEL}
           - name: UNLEASH_URL
             value: ${UNLEASH_URL}
           - <<: *unleashToken
@@ -745,8 +748,6 @@ objects:
             value: inventory-mq-service
           - name: PAYLOAD_TRACKER_ENABLED
             value: 'true'
-          - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
           - name: MQ_DB_BATCH_MAX_MESSAGES
             value: ${MQ_DB_BATCH_MAX_MESSAGES}
           - name: KAFKA_CONSUMER_TOPIC
@@ -949,8 +950,6 @@ objects:
             value: ${PROMETHEUS_PUSHGATEWAY}
           - name: REPLICA_NAMESPACE
             value: ${REPLICA_NAMESPACE}
-          - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
           - name: PAYLOAD_TRACKER_KAFKA_TOPIC
             value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
           - name: PAYLOAD_TRACKER_SERVICE_NAME
@@ -1029,8 +1028,6 @@ objects:
             value: ${REPLICA_NAMESPACE}
           - name: CONNEXION_LOG_LEVEL
             value: ${CONNEXION_LOG_LEVEL}
-          - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
           - name: CONSOLEDOT_HOSTNAME
             value: ${CONSOLEDOT_HOSTNAME}
         resources:
@@ -1166,8 +1163,6 @@ objects:
               secretKeyRef:
                 key: user
                 name: dippy-bot
-          - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
           - name: PAYLOAD_TRACKER_KAFKA_TOPIC
             value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
           - name: PAYLOAD_TRACKER_SERVICE_NAME
@@ -1303,8 +1298,6 @@ objects:
             value: ${PROMETHEUS_PUSHGATEWAY}
           - name: REPLICA_NAMESPACE
             value: ${REPLICA_NAMESPACE}
-          - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
           - name: PAYLOAD_TRACKER_KAFKA_TOPIC
             value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
           - name: PAYLOAD_TRACKER_SERVICE_NAME
@@ -1646,6 +1639,63 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_UPDATE_RHSM_HOST_TIMESTAMPS_JOB}
             memory: ${MEMORY_REQUEST_UPDATE_RHSM_HOST_TIMESTAMPS_JOB}
+    - name: backfill-per-reporter-culled-timestamps
+      restartPolicy: Never
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: [ "./jobs/backfill_per_reporter_culled_timestamps.py" ]
+        env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: KAFKA_BOOTSTRAP_SERVERS
+            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
+            value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory-mq-service
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'true'
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - <<: *namespaceFieldRef
+            name: NAMESPACE
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: SCRIPT_CHUNK_SIZE
+            value: ${SCRIPT_CHUNK_SIZE}
+          - name: DRY_RUN
+            value: ${BACKFILL_PER_REPORTER_CULLED_TIMESTAMPS_DRY_RUN}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_BACKFILL_PER_REPORTER_CULLED_TIMESTAMPS_JOB}
+            memory: ${MEMORY_LIMIT_BACKFILL_PER_REPORTER_CULLED_TIMESTAMPS_JOB}
+          requests:
+            cpu: ${CPU_REQUEST_BACKFILL_PER_REPORTER_CULLED_TIMESTAMPS_JOB}
+            memory: ${MEMORY_REQUEST_BACKFILL_PER_REPORTER_CULLED_TIMESTAMPS_JOB}
     database:
       name: ${DB_NAME}
       version: 16
@@ -1805,11 +1855,11 @@ objects:
           SELECT
             "org_id",
             COUNT(*) FILTER (WHERE
-              "system_profile_facts"->'bootc_status'->>'image_digest' IS NOT NULL
-              AND "system_profile_facts"->'bootc_status'->>'image_digest' <> ''
+              "system_profile_facts"->'bootc_status'->'booted'->>'image_digest' IS NOT NULL
+              AND "system_profile_facts"->'bootc_status'->'booted'->>'image_digest' <> ''
             ) AS "image_mode_count",
             COUNT(*) FILTER (WHERE
-              "system_profile_facts"->'bootc_status'->>'image_digest' IS NULL
+              "system_profile_facts"->'bootc_status'->'booted'->>'image_digest' IS NULL
               AND "system_profile_facts"->>'host_type' IS NULL
             ) AS "package_mode_count",
             COUNT(*) FILTER (WHERE
@@ -2167,6 +2217,14 @@ parameters:
   value: 256Mi
 - name: MEMORY_LIMIT_UPDATE_RHSM_HOST_TIMESTAMPS_JOB
   value: 512Mi
+- name: CPU_REQUEST_BACKFILL_PER_REPORTER_CULLED_TIMESTAMPS_JOB
+  value: 250m
+- name: CPU_LIMIT_BACKFILL_PER_REPORTER_CULLED_TIMESTAMPS_JOB
+  value: 500m
+- name: MEMORY_REQUEST_BACKFILL_PER_REPORTER_CULLED_TIMESTAMPS_JOB
+  value: 256Mi
+- name: MEMORY_LIMIT_BACKFILL_PER_REPORTER_CULLED_TIMESTAMPS_JOB
+  value: 512Mi
 
 # =================================================================================
 # III. External Services & Dependencies
@@ -2183,9 +2241,9 @@ parameters:
 - name: KAFKA_SASL_MECHANISM
   value: 'PLAIN'
 - name: KAFKA_PRODUCER_ACKS
-  value: 'all'
+  value: '1'
 - name: KAFKA_PRODUCER_RETRIES
-  value: '8'
+  value: '0'
 - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
   value: '100'
 - name: KAFKA_CONSUMER_SESSION_TIMEOUT_MS
@@ -2290,14 +2348,15 @@ parameters:
   value: localhost
 - name: PROMETHEUS_PUSHGATEWAY
   value: 'localhost:9091'
-- name: KESSEL_TARGET_URL
-  value: 'localhost:20000'
 - name: URLLIB3_LOG_LEVEL
   value: WARNING
 - name: CONNEXION_LOG_LEVEL
   value: WARNING
 - description: disable RBAC middleware
   name: BYPASS_RBAC
+  value: 'false'
+- description: disable Kessel middleware
+  name: BYPASS_KESSEL
   value: 'false'
 
 # =================================================================================
@@ -2450,6 +2509,11 @@ parameters:
 # -- Update RHSM host timestamps Job --
 - name: UPDATE_RHSM_HOST_TIMESTAMPS_DRY_RUN
   description: Whether the update-rhsm-host-timestamps script should run in dry-run mode
+  value: 'true'
+
+# -- Backfill per-reporter culled timestamps Job --
+- name: BACKFILL_PER_REPORTER_CULLED_TIMESTAMPS_DRY_RUN
+  description: Whether the backfill-per-reporter-culled-timestamps script should run in dry-run mode
   value: 'true'
 
 # =================================================================================

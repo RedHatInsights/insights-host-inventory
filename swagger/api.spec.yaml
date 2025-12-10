@@ -1702,6 +1702,11 @@ components:
             last_check_in:
               type: string
               format: date-time
+            openshift_cluster_id:
+              description: >-
+                The OpenShift cluster ID that the host belongs to, if any.
+              type: string
+              nullable: true
           required:
             - org_id
     HostIdOut:

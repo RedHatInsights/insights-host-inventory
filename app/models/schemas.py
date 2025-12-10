@@ -32,6 +32,13 @@ from app.validators import verify_satellite_id
 from app.validators import verify_uuid_format
 
 
+def verify_uuid_format_not_empty_dict(value):
+    """Validate UUID format and reject empty dict."""
+    if isinstance(value, dict) and len(value) == 0:
+        raise MarshmallowValidationError("Value cannot be an empty dictionary")
+    return verify_uuid_format(value)
+
+
 class DiskDeviceSchema(MarshmallowSchema):
     device = fields.Str(validate=marshmallow_validate.Length(max=2048))
     label = fields.Str(validate=marshmallow_validate.Length(max=1024))
@@ -181,6 +188,7 @@ class LimitedHostSchema(CanonicalFactsSchema):
     tags = fields.Raw()
     tags_alt = fields.Raw()
     groups = fields.List(fields.Dict())
+    openshift_cluster_id = fields.Str(validate=verify_uuid_format, allow_none=True)
 
     def __init__(self, system_profile_schema=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -260,6 +268,7 @@ class LimitedHostSchema(CanonicalFactsSchema):
             mac_addresses=canonical_facts.get("mac_addresses"),
             provider_id=canonical_facts.get("provider_id"),
             provider_type=canonical_facts.get("provider_type"),
+            openshift_cluster_id=data.get("openshift_cluster_id"),
         )
 
     @pre_load
@@ -317,6 +326,7 @@ class HostSchema(LimitedHostSchema):
             mac_addresses=canonical_facts.get("mac_addresses"),
             provider_id=canonical_facts.get("provider_id"),
             provider_type=canonical_facts.get("provider_type"),
+            openshift_cluster_id=data.get("openshift_cluster_id"),
         )
 
 
@@ -328,9 +338,28 @@ class PatchHostSchema(MarshmallowSchema):
         super().__init__(*args, **kwargs)
 
 
-class InputGroupSchema(MarshmallowSchema):
+class HostIdListSchema(MarshmallowSchema):
+    host_ids = fields.List(fields.Str(validate=verify_uuid_format), required=False)
+
+    @validates("host_ids")
+    def validate_host_ids(self, host_ids, data_key):  # noqa: ARG002, required for marshmallow validator functions
+        if host_ids is not None and len(host_ids) != len(set(host_ids)):
+            raise MarshmallowValidationError("Host IDs must be unique.")
+
+
+class RequiredHostIdListSchema(HostIdListSchema):
+    host_ids = fields.List(fields.Str(validate=verify_uuid_format), required=True)
+
+    @validates("host_ids")
+    def validate_host_ids(self, host_ids, data_key):  # noqa: ARG002, required for marshmallow validator functions
+        if len(host_ids) == 0:
+            raise MarshmallowValidationError("Body content must be an array with system UUIDs, not an empty array")
+        # Call parent validation for duplicate checking
+        super().validate_host_ids(host_ids, data_key)
+
+
+class InputGroupSchema(HostIdListSchema):
     name = fields.Str(validate=marshmallow_validate.Length(min=1, max=255))
-    host_ids = fields.List(fields.Str(validate=verify_uuid_format))
 
     @pre_load
     def strip_whitespace_from_name(self, in_data, **kwargs):
@@ -380,7 +409,7 @@ class OutboxEventCommonSchema(MarshmallowSchema):
     class Meta:
         unknown = EXCLUDE
 
-    workspace_id = fields.Raw(validate=verify_uuid_format, allow_none=True)
+    workspace_id = fields.Raw(validate=verify_uuid_format_not_empty_dict, allow_none=False, required=True)
 
 
 class OutboxEventReporterSchema(MarshmallowSchema):
@@ -391,6 +420,13 @@ class OutboxEventReporterSchema(MarshmallowSchema):
     subscription_manager_id = fields.Str(validate=verify_uuid_format, allow_none=True)
     insights_id = fields.Raw(validate=verify_uuid_format, allow_none=True)
     ansible_host = fields.Str(validate=marshmallow_validate.Length(max=255), allow_none=True)
+
+    @validates_schema
+    def validate_at_least_one_field(self, data, **kwargs):
+        """Ensure at least one field has a non-none value."""
+        fields_to_check = ["satellite_id", "subscription_manager_id", "insights_id", "ansible_host"]
+        if all(data.get(field) is None for field in fields_to_check):
+            raise MarshmallowValidationError("At least one field must have a non-none value")
 
 
 class OutboxEventRepresentationsSchema(MarshmallowSchema):
@@ -454,7 +490,7 @@ class OutboxSchema(MarshmallowSchema):
         if operation and payload:
             if operation in ["created", "updated"]:
                 OutboxCreateUpdatePayloadSchema().load(payload)
-            elif operation == "deleted":
+            elif operation == "delete":
                 OutboxDeletePayloadSchema().load(payload)
             else:
                 # Allow other operation types but still validate payload structure if it matches known patterns

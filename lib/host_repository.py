@@ -24,21 +24,16 @@ from app.config import ID_FACTS
 from app.config import ID_FACTS_USE_SUBMAN_ID
 from app.config import IMMUTABLE_ID_FACTS
 from app.exceptions import InventoryException
-from app.exceptions import OutboxSaveException
 from app.logging import get_logger
 from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import LimitedHost
 from app.models import db
-from app.queue.events import EventType
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness
 from app.staleness_states import HostStalenessStatesDbFilters
 from lib import metrics
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
-from lib.feature_flags import get_flag_value
-from lib.outbox_repository import write_event_to_outbox
 
 __all__ = (
     "AddHostResult",
@@ -75,6 +70,10 @@ def add_host(
      It is documented here:
      https://inscope.corp.redhat.com/docs/default/Component/consoledot-pages/services/inventory/#expected-message-format
     """
+    # Import here to avoid circular import
+    from lib.group_repository import get_or_create_ungrouped_hosts_group_for_identity
+    from lib.group_repository import serialize_group
+
     if operation_args is None:
         operation_args = {}
 
@@ -86,6 +85,9 @@ def add_host(
         # If the list of existing hosts was not provided, or the match was not found, try querying DB
         matched_host = find_existing_host(identity, input_host.canonical_facts)
 
+    group = get_or_create_ungrouped_hosts_group_for_identity(identity)
+    input_host.groups = [serialize_group(group)]
+
     if matched_host:
         defer_to_reporter = operation_args.get("defer_to_reporter")
         if defer_to_reporter is not None:
@@ -94,27 +96,11 @@ def add_host(
                 logger.debug("host_repository.add_host: setting update_system_profile = False")
                 update_system_profile = False
 
-        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
-            # Import here to avoid circular import
-            from lib.group_repository import get_or_create_ungrouped_hosts_group_for_identity
-            from lib.group_repository import serialize_group
-
-            group = get_or_create_ungrouped_hosts_group_for_identity(identity)
-            input_host.groups = [serialize_group(group)]
-
         return update_existing_host(matched_host, input_host, update_system_profile)
     else:
-        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
-            # Import here to avoid circular import
-            from lib.group_repository import get_or_create_ungrouped_hosts_group_for_identity
-            from lib.group_repository import serialize_group
-
-            group = get_or_create_ungrouped_hosts_group_for_identity(identity)
-            input_host.groups = [serialize_group(group)]
-
-            # create a new host group association for the host
-            assoc = HostGroupAssoc(input_host.id, group.id, identity.org_id)
-            db.session.add(assoc)
+        # create a new host group association for the host
+        assoc = HostGroupAssoc(input_host.id, group.id, identity.org_id)
+        db.session.add(assoc)
 
         return create_new_host(input_host)
 
@@ -184,6 +170,12 @@ def find_existing_host_by_id(identity: Identity, host_id: str) -> Host | None:
     query = host_query(identity.org_id).filter(Host.id == host_id)
     query = update_query_for_owner_id(identity, query)
     return find_non_culled_hosts(query).order_by(Host.modified_on.desc()).first()
+
+
+def find_existing_hosts_by_id_list(identity: Identity, host_id_list: list[str]) -> list[Host]:
+    query = host_query(identity.org_id).filter(Host.id.in_(host_id_list))
+    query = update_query_for_owner_id(identity, query)
+    return find_non_culled_hosts(query).all()
 
 
 def _find_host_by_multiple_facts_in_db_or_in_memory(
@@ -284,16 +276,6 @@ def create_new_host(input_host: Host) -> tuple[Host, AddHostResult]:
 
     input_host.save()
 
-    try:
-        # write to the outbox table for synchronization with Kessel
-        result = write_event_to_outbox(EventType.created, (input_host.id), input_host)
-        if not result:
-            logger.error("Failed to write created event to outbox")
-            raise OutboxSaveException("Failed to write created host event to outbox")
-    except OutboxSaveException as ose:
-        logger.error("Failed to write created event to outbox: %s", str(ose))
-        raise ose
-
     metrics.create_host_count.inc()
     logger.debug("Created host (uncommitted):%s", input_host)
 
@@ -308,16 +290,6 @@ def update_existing_host(
     logger.debug(f"existing host = {existing_host}")
 
     existing_host.update(input_host, update_system_profile)
-
-    try:
-        # write to the outbox table for synchronization with Kessel
-        result = write_event_to_outbox(EventType.updated, str(input_host.id), input_host)
-        if not result:
-            logger.error("Failed to write updated event to outbox")
-            raise OutboxSaveException("Failed to write update event to outbox")
-    except OutboxSaveException as ose:
-        logger.error("Failed to write updated event to outbox: %s", str(ose))
-        raise ose
 
     metrics.update_host_count.inc()
     logger.debug("Updated host (uncommitted):%s", existing_host)

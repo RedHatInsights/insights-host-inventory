@@ -80,6 +80,7 @@ DEFAULT_FIELDS = (
     "updated",
     "groups",
     "last_check_in",
+    "openshift_cluster_id",
 )
 
 ADDITIONAL_HOST_MQ_FIELDS = (
@@ -175,6 +176,7 @@ def serialize_host(
         ),
         "host_type": lambda: host.host_type,
         "os_release": lambda: host.system_profile_facts.get("os_release", None),
+        "openshift_cluster_id": lambda: _serialize_uuid(host.openshift_cluster_id),
     }
 
     # Process each field dynamically
@@ -329,7 +331,7 @@ def _deserialize_datetime(s):
 
 
 def _serialize_uuid(u):
-    return str(u)
+    return str(u) if u else None
 
 
 def _deserialize_tags(tags):

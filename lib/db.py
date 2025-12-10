@@ -4,15 +4,17 @@ from app.models import db
 
 
 @contextmanager
-def session_guard(session):
+def session_guard(session, close=True):
     try:
         yield session
+        session.flush()
         session.commit()
     except Exception:
         session.rollback()
         raise
     finally:
-        session.close()
+        if close:
+            session.close()
 
 
 @contextmanager
@@ -20,6 +22,7 @@ def multi_session_guard(session_list):
     yield session_list
     for session in session_list:
         try:
+            session.flush()
             session.commit()
         except Exception:
             session.rollback()

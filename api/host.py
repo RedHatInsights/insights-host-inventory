@@ -30,7 +30,6 @@ from app.auth.identity import IdentityType
 from app.auth.identity import to_auth_header
 from app.auth.rbac import KesselResourceTypes
 from app.common import inventory_config
-from app.exceptions import OutboxSaveException
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_get_host_exists_succeeded
 from app.instrumentation import log_get_host_list_failed
@@ -62,7 +61,6 @@ from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.kessel import get_kessel_client
 from lib.middleware import access
 from lib.middleware import get_kessel_filter
-from lib.outbox_repository import write_event_to_outbox
 
 FactOperations = Enum("FactOperations", ("merge", "replace"))
 TAG_OPERATIONS = ("apply", "remove")
@@ -417,16 +415,7 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
         host.patch(validated_patch_host_data)
 
         if db.session.is_modified(host):
-            try:
-                # write to the outbox table for synchronization with Kessel
-                result = write_event_to_outbox(EventType.updated, str(host.id), host)
-                if not result:
-                    logger.error("Failed to write updated event to outbox")
-                    raise OutboxSaveException("Failed to write updated host event to outbox")
-            except OutboxSaveException as ose:
-                logger.error("Failed to write updated event to outbox: %s", str(ose))
-                raise ose
-
+            db.session.flush()  # Trigger outbox event listeners before commit
             db.session.commit()
             serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
             _emit_patch_event(serialized_host, host)
@@ -502,16 +491,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
             host.merge_facts_in_namespace(namespace, fact_dict)
 
         if db.session.is_modified(host):
-            try:
-                # write to the outbox table for synchronization with Kessel
-                result = write_event_to_outbox(EventType.updated, str(host.id), host)
-                if not result:
-                    logger.error("Failed to write updated event to outbox")
-                    raise OutboxSaveException("Failed to write updated host event to outbox")
-            except OutboxSaveException as ose:
-                logger.error("Failed to write updated event to outbox: %s", str(ose))
-                raise ose
-
+            db.session.flush()  # Trigger outbox event listeners before commit
             db.session.commit()
             serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
             _emit_patch_event(serialized_host, host)
@@ -564,6 +544,7 @@ def host_checkin(body, rbac_filter=None):  # noqa: ARG001, required for all API 
     if existing_host:
         existing_host._update_last_check_in_date()
         existing_host._update_staleness_timestamps()
+        db.session.flush()  # Trigger outbox event listeners before commit
         db.session.commit()
         serialized_host = serialize_host(existing_host, staleness_timestamps(), staleness=staleness)
         _emit_patch_event(serialized_host, existing_host)
@@ -586,7 +567,7 @@ def get_host_exists(insights_id, rbac_filter=None):
     if not host_id:
         flask.abort(404, f"No host found for Insights ID '{insights_id}'.")
     # Duplicated - I wonder if this could be factored back into middleware.py
-    if (not inventory_config().bypass_rbac) and get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1):
+    if (not inventory_config().bypass_kessel) and get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1):
         kessel_client = get_kessel_client(current_app)
         allowed, _ = get_kessel_filter(  # Kind of a duplicate Kessel call too
             kessel_client, current_identity, KesselResourceTypes.HOST.view, [host_id]

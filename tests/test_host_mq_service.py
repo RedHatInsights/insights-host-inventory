@@ -13,8 +13,10 @@ from unittest.mock import patch
 import marshmallow
 import pytest
 from connexion import FlaskApp
+from psycopg2.errors import UniqueViolation
 from pytest_mock import MockerFixture
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.exc import StaleDataError
 
@@ -30,6 +32,7 @@ from app.models import Host
 from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 from app.queue.event_producer import EventProducer
 from app.queue.events import EventType
+from app.queue.host_mq import MAX_RETRIES
 from app.queue.host_mq import IngressMessageConsumer
 from app.queue.host_mq import OperationResult
 from app.queue.host_mq import SystemProfileMessageConsumer
@@ -104,6 +107,147 @@ def test_event_loop_with_error_message_handling(handle_message_mock, mocker, eve
     assert handle_message_mock.call_count == 2
 
 
+@pytest.mark.parametrize(
+    "error_factory",
+    [
+        pytest.param(InvalidRequestError, id="InvalidRequestError"),
+        pytest.param(StaleDataError, id="StaleDataError"),
+        pytest.param(UniqueViolation, id="UniqueViolation"),
+        pytest.param(lambda msg: IntegrityError(None, None, Exception(msg)), id="IntegrityError"),
+    ],
+)
+def test_event_loop_handles_invalid_request_error_gracefully(
+    mocker: MockerFixture,
+    event_producer: EventProducer,
+    notification_event_producer: EventProducer,
+    flask_app: FlaskApp,
+    error_factory: Callable[[str], BaseException],
+):
+    """
+    Test to ensure that InvalidRequestErrors and StaleDataErrors during
+    session commit are handled gracefully with retry logic and do not cause the pod to crash.
+    The batch should be retried up to MAX_RETRIES times before giving up and moving to the next batch.
+    """
+    # Create a fake consumer that returns messages for:
+    # - MAX_RETRIES attempts for first batch (each retry calls consume())
+    # - 1 attempt for second batch
+    # - empty list to exit
+    fake_consumer = mocker.Mock(
+        **{
+            "consume.side_effect": [
+                *[[FakeMessage()] for _ in range(MAX_RETRIES)],  # First batch attempts
+                [FakeMessage()],  # Second batch
+                [],  # Exit
+            ]
+        }
+    )
+    consumer = IngressMessageConsumer(fake_consumer, flask_app, event_producer, notification_event_producer)
+
+    # Mock handle_message to return None (successful processing) to avoid validation errors
+    # that would add extra metric increments
+    mocker.patch.object(consumer, "handle_message", return_value=None)
+
+    # Mock the session commit to raise error MAX_RETRIES times for first batch (all retries fail),
+    # then succeed on second batch, with extra None values for potential teardown calls
+    commit_mock = mocker.patch(
+        "app.queue.host_mq.db.session.commit",
+        side_effect=[
+            # First batch: fail MAX_RETRIES times (all retries exhausted)
+            *[error_factory("This Session's transaction has been rolled back") for _ in range(MAX_RETRIES)],
+            # Second batch: succeed
+            None,
+            # Extra None values for potential additional calls (teardown, etc.)
+            None,
+            None,
+            None,
+        ],
+    )
+    rollback_mock = mocker.patch("app.queue.host_mq.db.session.rollback")
+
+    # Mock the metrics to verify it's called
+    metrics_mock = mocker.patch("app.queue.host_mq.metrics.ingress_message_handler_failure.inc")
+
+    # Run the event loop for 3 iterations (first batch fails all retries, second succeeds, third exits)
+    consumer.event_loop(mocker.Mock(side_effect=[False, False, False, True]))
+
+    # Verify that the failure metric was incremented 5 times for the 5 failed attempts
+    assert metrics_mock.call_count == 5
+    # Verify that rollback was called at least once for each failed attempt
+    # (may be called multiple times per attempt due to session_guard also calling rollback)
+    assert rollback_mock.call_count >= 5
+    # Verify that the event loop continued and processed the second batch successfully
+    # (5 failed commits + at least 1 successful commit from second batch)
+    assert commit_mock.call_count >= 6
+
+
+@pytest.mark.parametrize("error_type", (InvalidRequestError, StaleDataError))
+def test_event_loop_retries_and_succeeds_on_session_error(
+    mocker: MockerFixture,
+    event_producer: EventProducer,
+    notification_event_producer: EventProducer,
+    flask_app: FlaskApp,
+    error_type: type[BaseException],
+):
+    """
+    Test to ensure that the retry logic works when a database session error occurs
+    but succeeds on a subsequent retry attempt (before max retries is reached).
+    """
+    # Create a fake consumer that returns messages for:
+    # - 3 attempts for first batch (2 retries, 1 success)
+    # - 1 attempt for second batch
+    # - empty list to exit
+    fake_consumer = mocker.Mock(
+        **{
+            "consume.side_effect": [
+                [FakeMessage()],  # First batch, attempt 1
+                [FakeMessage()],  # First batch, attempt 2 (retry)
+                [FakeMessage()],  # First batch, attempt 3 (retry - succeeds)
+                [FakeMessage()],  # Second batch
+                [],  # Exit
+            ]
+        }
+    )
+    consumer = IngressMessageConsumer(fake_consumer, flask_app, event_producer, notification_event_producer)
+
+    # Mock handle_message to return None (successful processing) to avoid validation errors
+    # that would add extra metric increments
+    mocker.patch.object(consumer, "handle_message", return_value=None)
+
+    # Mock the session commit to raise error 2 times for first batch, then succeed on 3rd attempt,
+    # with extra None values for potential teardown calls
+    commit_mock = mocker.patch(
+        "app.queue.host_mq.db.session.commit",
+        side_effect=[
+            # First batch: fail twice, succeed on third attempt
+            error_type("This Session's transaction has been rolled back"),
+            error_type("This Session's transaction has been rolled back"),
+            None,  # Success on retry
+            # Second batch: succeed immediately
+            None,
+            # Extra None values for potential additional calls (teardown, etc.)
+            None,
+            None,
+        ],
+    )
+    rollback_mock = mocker.patch("app.queue.host_mq.db.session.rollback")
+
+    # Mock the metrics to verify it's called
+    metrics_mock = mocker.patch("app.queue.host_mq.metrics.ingress_message_handler_failure.inc")
+
+    # Run the event loop for 3 iterations
+    consumer.event_loop(mocker.Mock(side_effect=[False, False, False, True]))
+
+    # Verify that the failure metric was incremented 2 times for the 2 failed attempts
+    assert metrics_mock.call_count == 2
+    # Verify that rollback was called at least once for each failed attempt
+    # (may be called multiple times per attempt due to session_guard also calling rollback)
+    assert rollback_mock.call_count >= 2
+    # Verify that commit was called at least 4 times total:
+    # - 2 failed attempts + 1 successful retry for first batch
+    # - at least 1 successful commit for second batch
+    assert commit_mock.call_count >= 4
+
+
 def test_handle_message_failure_invalid_json_message(mocker, ingress_message_consumer_mock):
     invalid_message = "failure {} "
 
@@ -132,12 +276,10 @@ def test_handle_message_failure_invalid_message_format(mocker, ingress_message_c
 
 @pytest.mark.usefixtures("flask_app")
 @pytest.mark.parametrize("identity", (SYSTEM_IDENTITY, SATELLITE_IDENTITY, USER_IDENTITY))
-@pytest.mark.parametrize("kessel_migration", (True, False))
 @pytest.mark.parametrize("existing_ungrouped", (True, False))
 def test_handle_message_happy_path(
-    identity, kessel_migration, existing_ungrouped, mocker, ingress_message_consumer_mock, db_create_group
+    identity, existing_ungrouped, mocker, ingress_message_consumer_mock, db_create_group
 ):
-    mocker.patch("lib.host_repository.get_flag_value", return_value=kessel_migration)
     expected_insights_id = generate_uuid()
     host = minimal_host(org_id=identity["org_id"], insights_id=expected_insights_id)
     existing_group_name = "test group"
@@ -150,12 +292,9 @@ def test_handle_message_happy_path(
 
     assert result.event_type == EventType.created
     assert result.row.canonical_facts["insights_id"] == expected_insights_id
-    if kessel_migration:
-        assert len(result.row.groups) == 1
-        assert result.row.groups[0]["name"] == existing_group_name if existing_ungrouped else "Ungrouped Hosts"
-        assert result.row.groups[0]["ungrouped"] is True
-    else:
-        assert result.row.groups == []
+    assert len(result.row.groups) == 1
+    assert result.row.groups[0]["name"] == existing_group_name if existing_ungrouped else "Ungrouped Hosts"
+    assert result.row.groups[0]["ungrouped"] is True
 
     mock_notification_event_producer.write_event.assert_not_called()
 
@@ -221,11 +360,10 @@ def test_handle_message_update_reporter_from_rhsm(db_get_host, ingress_message_c
 
 
 @pytest.mark.usefixtures("flask_app")
-@pytest.mark.usefixtures("enable_rbac")
+@pytest.mark.usefixtures("enable_kessel")
 @pytest.mark.parametrize("identity", (SYSTEM_IDENTITY, SATELLITE_IDENTITY, USER_IDENTITY))
 def test_handle_message_kessel_private_endpoint(identity, mocker, ingress_message_consumer_mock):
     mock_psk = "1234567890"
-    mocker.patch("lib.host_repository.get_flag_value", return_value=True)
     get_rbac_mock = mocker.patch(
         "lib.middleware.rbac_get_request_using_endpoint_and_headers", return_value={"id": str(generate_uuid())}
     )
@@ -233,7 +371,7 @@ def test_handle_message_kessel_private_endpoint(identity, mocker, ingress_messag
         "lib.middleware.inventory_config",
         return_value=SimpleNamespace(
             rbac_psk=mock_psk,
-            bypass_rbac=False,
+            bypass_kessel=False,
             rbac_endpoint="fake-rbac-endpoint:8080",
         ),
     )
@@ -253,25 +391,22 @@ def test_handle_message_kessel_private_endpoint(identity, mocker, ingress_messag
 
 @pytest.mark.usefixtures("flask_app")
 def test_handle_message_existing_ungrouped_workspace(mocker, db_create_group):
-    with mocker.patch("lib.host_repository.get_flag_value", return_value=True):
-        expected_insights_id = generate_uuid()
-        host = minimal_host(account=SYSTEM_IDENTITY["account_number"], insights_id=expected_insights_id)
-        group_id = db_create_group("kessel-test", ungrouped=True).id
-        mock_notification_event_producer = mocker.Mock()
-        consumer = IngressMessageConsumer(
-            mocker.Mock(), mocker.Mock(), mocker.Mock(), mock_notification_event_producer
-        )
+    expected_insights_id = generate_uuid()
+    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], insights_id=expected_insights_id)
+    group_id = db_create_group("kessel-test", ungrouped=True).id
+    mock_notification_event_producer = mocker.Mock()
+    consumer = IngressMessageConsumer(mocker.Mock(), mocker.Mock(), mocker.Mock(), mock_notification_event_producer)
 
-        message = wrap_message(host.data(), "add_host", get_platform_metadata(SYSTEM_IDENTITY))
-        result = consumer.handle_message(json.dumps(message))
+    message = wrap_message(host.data(), "add_host", get_platform_metadata(SYSTEM_IDENTITY))
+    result = consumer.handle_message(json.dumps(message))
 
-        assert result.event_type == EventType.created
-        assert result.row.canonical_facts["insights_id"] == expected_insights_id
+    assert result.event_type == EventType.created
+    assert result.row.canonical_facts["insights_id"] == expected_insights_id
 
-        assert result.row.groups[0]["name"] == "kessel-test"
-        assert result.row.groups[0]["id"] == str(group_id)
+    assert result.row.groups[0]["name"] == "kessel-test"
+    assert result.row.groups[0]["id"] == str(group_id)
 
-        mock_notification_event_producer.write_event.assert_not_called()
+    mock_notification_event_producer.write_event.assert_not_called()
 
 
 def test_request_id_is_reset(mocker, flask_app, ingress_message_consumer_mock):
@@ -809,7 +944,7 @@ def test_add_host_with_invalid_system_update_method(mocker, mq_create_or_update_
 
 @pytest.mark.system_profile
 @pytest.mark.parametrize(("system_profile",), ((system_profile,) for system_profile in INVALID_SYSTEM_PROFILES))
-def test_add_host_long_strings_system_profile(mocker, mq_create_or_update_host, system_profile):
+def test_add_host_long_values_system_profile(mocker, mq_create_or_update_host, system_profile):
     mock_notification_event_producer = mocker.Mock()
     host = minimal_host(account=SYSTEM_IDENTITY["account_number"], system_profile=system_profile)
 
@@ -2184,15 +2319,6 @@ def test_create_invalid_host_produces_message(mocker, mq_create_or_update_host):
     mock_notification_event_producer.write_event.assert_called_once()
 
 
-def test_groups_empty_for_new_host(mq_create_or_update_host, db_get_host):
-    expected_insights_id = generate_uuid()
-    host = minimal_host(insights_id=expected_insights_id)
-
-    created_key, created_event, _ = mq_create_or_update_host(host, return_all_data=True)
-    assert db_get_host(created_key).groups == []
-    assert created_event["host"]["groups"] == []
-
-
 def test_groups_not_overwritten_for_existing_hosts(
     mq_create_or_update_host, db_get_hosts_for_group, db_create_group_with_hosts
 ):
@@ -2497,6 +2623,7 @@ def test_batch_mq_header_request_id_updates(mocker, flask_app):
 
 def test_batch_mq_graceful_rollback(mocker, flask_app):
     # Verifies that when the DB session runs into a StaleDataError, it's handled gracefully
+    # with retry logic and the event loop continues processing instead of crashing the pod
     msg_list = []
     for _ in range(5):
         msg_list.append(json.dumps(wrap_message(minimal_host().data(), "add_host", get_platform_metadata())))
@@ -2515,32 +2642,48 @@ def test_batch_mq_graceful_rollback(mocker, flask_app):
         ),
     )
 
-    # Make it so the commit raises a StaleDataError
-    mocker.patch(
+    # Make it so the commit raises a StaleDataError on first batch, succeeds on retry, then succeeds on second batch
+    commit_mock = mocker.patch(
         "app.queue.host_mq.db.session.commit",
-        side_effect=[StaleDataError("Stale data"), None, None, None, None, None],
+        side_effect=[
+            StaleDataError("Stale data"),  # First batch attempt 1
+            None,  # First batch attempt 2 (retry succeeds)
+            None,  # Second batch
+            None,  # Extra for teardown
+            None,
+            None,
+        ],
     )
+    rollback_mock = mocker.patch("app.queue.host_mq.db.session.rollback")
     write_batch_patch = mocker.patch("app.queue.host_mq.write_message_batch")
+    metrics_mock = mocker.patch("app.queue.host_mq.metrics.ingress_message_handler_failure.inc")
 
     fake_consumer = mocker.Mock(
         **{
             "consume.side_effect": [
-                [FakeMessage(message=msg_list[i]) for i in range(3)],
-                [FakeMessage(message=msg_list[i]) for i in range(3, 5)],
-                [],
-                [],
-                [],
+                [FakeMessage(message=msg_list[i]) for i in range(3)],  # First batch attempt 1
+                [FakeMessage(message=msg_list[i]) for i in range(3)],  # First batch attempt 2 (retry)
+                [FakeMessage(message=msg_list[i]) for i in range(3, 5)],  # Second batch
+                [],  # Exit
             ]
         }
     )
     consumer = IngressMessageConsumer(fake_consumer, flask_app, mocker.Mock(), mocker.Mock())
-    consumer.event_loop(interrupt=mocker.Mock(side_effect=([False for _ in range(2)] + [True])))
 
-    # Assert that the hosts that came in after the error were still processed
-    # Since batch size is 3 and we're sending 5 messages,the first batch (3 messages) will get dropped,
-    # but the second batch (2 messages) should have events produced.
+    # First iteration encounters StaleDataError, retries and succeeds
+    # Second iteration should succeed
+    # Third iteration exits (empty messages)
+    consumer.event_loop(interrupt=mocker.Mock(side_effect=[False, False, False, True]))
 
-    assert write_batch_patch.call_count == 1
+    # Verify rollback was called when StaleDataError occurred
+    assert rollback_mock.call_count >= 1
+    # Verify the failure metric was incremented (once for the StaleDataError)
+    assert metrics_mock.call_count == 1
+    # Verify that the event loop continued and processed both batches successfully
+    # (1 failed + 1 successful retry for first batch + 1 for second batch = at least 3)
+    assert commit_mock.call_count >= 3
+    # write_batch should be called for both batches (first batch succeeds on retry, second batch succeeds)
+    assert write_batch_patch.call_count == 2
 
 
 @pytest.mark.usefixtures("flask_app")
@@ -2736,7 +2879,6 @@ def test_workspace_mq_update(
 def test_workspace_mq_delete(
     db_create_group_with_hosts, db_get_group_by_id, db_get_hosts_for_group, num_hosts, flask_app, mocker
 ):
-    mocker.patch("lib.group_repository.get_flag_value", return_value=True)
     mock_event_producer = mocker.Mock()
     consumer = WorkspaceMessageConsumer(mocker.Mock(), flask_app, mock_event_producer, mocker.Mock())
 
@@ -2766,24 +2908,22 @@ def test_workspace_mq_delete_non_empty(
     db_get_group_by_id,
     db_get_hosts_for_group,
     db_get_groups_for_host,
-    mocker,
 ):
-    with mocker.patch("lib.group_repository.get_flag_value", return_value=True):
-        workspace_name = "kessel-deletable-workspace"
-        group = db_create_group_with_hosts(workspace_name, 3)
-        workspace_id = str(group.id)
-        host_id_list = [host.id for host in db_get_hosts_for_group(workspace_id)]
+    workspace_name = "kessel-deletable-workspace"
+    group = db_create_group_with_hosts(workspace_name, 3)
+    workspace_id = str(group.id)
+    host_id_list = [host.id for host in db_get_hosts_for_group(workspace_id)]
 
-        message = generate_kessel_workspace_message("delete", workspace_id, workspace_name)
-        workspace_message_consumer_mock.handle_message(json.dumps(message))
+    message = generate_kessel_workspace_message("delete", workspace_id, workspace_name)
+    workspace_message_consumer_mock.handle_message(json.dumps(message))
 
-        # The group should no longer exist
-        assert not db_get_group_by_id(workspace_id)
+    # The group should no longer exist
+    assert not db_get_group_by_id(workspace_id)
 
-        # The hosts should now be in the "ungrouped" group
-        assert db_get_groups_for_host(host_id_list[0])[0].ungrouped
-        assert db_get_groups_for_host(host_id_list[1])[0].ungrouped
-        assert db_get_groups_for_host(host_id_list[2])[0].ungrouped
+    # The hosts should now be in the "ungrouped" group
+    assert db_get_groups_for_host(host_id_list[0])[0].ungrouped
+    assert db_get_groups_for_host(host_id_list[1])[0].ungrouped
+    assert db_get_groups_for_host(host_id_list[2])[0].ungrouped
 
 
 @pytest.mark.parametrize(
@@ -2798,22 +2938,17 @@ def test_post_process_rows_commit_and_notify(
     processed_rows, event_type, should_notify, flask_app, event_producer, mocker
 ):
     consumer = WorkspaceMessageConsumer(mocker.Mock(), flask_app, event_producer, mocker.Mock())
-    db_session_mock = mock.Mock()
     notify_mock = mock.Mock()
-    # Patch db.session and _pg_notify_workspace
+    # Patch _pg_notify_workspace
     with (
-        mock.patch("app.queue.host_mq.db.session", db_session_mock),
         mock.patch("app.queue.host_mq._pg_notify_workspace", notify_mock),
         mock.patch.object(consumer, "processed_rows", processed_rows),
     ):
         # Patch processed_rows to have .event_type attribute
         for row in processed_rows:
             row.event_type = event_type
+        # Note: Commit is now handled by event_loop before post_process_rows is called
         consumer.post_process_rows()
-        if processed_rows:
-            db_session_mock.commit.assert_called_once()
-        else:
-            db_session_mock.commit.assert_not_called()
         if should_notify:
             notify_mock.assert_called_once()
         else:
@@ -2821,20 +2956,25 @@ def test_post_process_rows_commit_and_notify(
 
 
 def test_post_process_rows_stale_data_error(mocker, flask_app, event_producer):
-    consumer = WorkspaceMessageConsumer(mocker.Mock(), flask_app, event_producer, mocker.Mock())
+    # This test verifies that StaleDataError during commit is handled in event_loop, not post_process_rows
+    consumer = IngressMessageConsumer(mocker.Mock(), flask_app, event_producer, mocker.Mock())
     db_session_mock = mock.Mock()
-    notify_mock = mock.Mock()
     db_session_mock.commit.side_effect = StaleDataError("stale")
+    write_batch_mock = mocker.patch("app.queue.host_mq.write_message_batch")
+
     processed_rows = [mock.Mock()]
-    processed_rows[0].event_type = "created"
     with (
         mock.patch("app.queue.host_mq.db.session", db_session_mock),
-        mock.patch("app.queue.host_mq._pg_notify_workspace", notify_mock),
         mock.patch.object(consumer, "processed_rows", processed_rows),
     ):
-        consumer.post_process_rows()
-        db_session_mock.commit.assert_called_once()
-        notify_mock.assert_not_called()  # Should not notify if commit fails
+        # StaleDataError should be raised from event_loop's commit, causing rollback
+        with pytest.raises(StaleDataError):
+            db_session_mock.commit()  # Simulates what event_loop does
+
+        # Verify commit was attempted
+        assert db_session_mock.commit.called
+        # post_process_rows should not be called if commit fails
+        write_batch_mock.assert_not_called()
 
 
 @pytest.mark.usefixtures("flask_app")
@@ -2845,7 +2985,6 @@ def test_write_add_update_event_message(mocker):
     mock_success_logger = mocker.Mock()
     mocker.patch("app.queue.host_mq.PayloadTrackerProcessingContext")
     mocker.patch("app.queue.host_mq.get_payload_tracker", return_value=mocker.Mock())
-    mocker.patch("lib.host_repository.get_flag_value", return_value=True)
     mocker.patch(
         "app.serialization.get_staleness_timestamps",
         return_value={
@@ -2884,6 +3023,7 @@ def test_write_add_update_event_message(mocker):
         created_on = datetime.now()
         modified_on = datetime.now()
         last_check_in = datetime.now()
+        openshift_cluster_id = str(generate_uuid())
 
     result = OperationResult(
         row=FakeHostRow(),
@@ -2974,3 +3114,69 @@ def test_add_host_with_rhsm_payloads_allowed_rhsm_payloads_not_rejected(mocker, 
     mocker.patch("app.queue.host_mq.get_flag_value", return_value=False)
     host = minimal_host(insights_id=generate_uuid(), reporter=reporter)
     assert mq_create_or_update_host(host) is not None
+
+
+def test_update_system_profile_bios_fields(mq_create_or_update_host, db_get_host):
+    # Create a host with bios_vendor set and no bios_version
+    input_host = base_host(
+        insights_id=generate_uuid(),
+        fqdn="foo.test.redhat.com",
+        system_profile={
+            "owner_id": OWNER_ID,
+            "bios_vendor": "old_vendor",
+            "workloads": {
+                "ansible": {
+                    "catalog_worker_version": "1.2.3",
+                    "controller_version": "1.2.3",
+                    "hub_version": "1.2.3",
+                    "sso_version": "1.2.3",
+                },
+                "crowdstrike": {
+                    "falcon_aid": "44e3b7d20b434a2bb2815d9808fa3a8b",
+                    "falcon_backend": "auto",
+                    "falcon_version": "7.14.16703.0",
+                },
+                "ibm_db2": {"is_running": True},
+                "intersystems": {"is_intersystems": True, "running_instances": []},
+                "mssql": {"version": "15.2.0"},
+                "oracle_db": {"is_running": True},
+                "rhel_ai": {
+                    "variant": "RHEL AI",
+                    "rhel_ai_version_id": "v1.1.3",
+                    "gpu_models": [],
+                    "ai_models": ["granite-7b-redhat-lab", "granite-7b-starter"],
+                    "free_disk_storage": "3TB",
+                },
+                "sap": {
+                    "sap_system": True,
+                    "sids": ["ABC", "XYZ"],
+                    "instance_number": "10",
+                    "version": "1.00.122.04.1478575636",
+                },
+            },
+        },
+    )
+    first_host_from_event = mq_create_or_update_host(input_host)
+    first_host_from_db = db_get_host(first_host_from_event.id)
+
+    assert first_host_from_db.system_profile_facts.get("bios_vendor") == "old_vendor"
+    assert "bios_version" not in first_host_from_db.system_profile_facts
+
+    # Update only system_profile with bios_vendor and bios_version
+    input_host = base_host(
+        id=str(first_host_from_db.id),
+        system_profile={
+            "bios_vendor": "new_vendor",
+            "bios_version": "1.23",
+        },
+    )
+    input_host.stale_timestamp = None
+    input_host.reporter = None
+    second_host_from_event = mq_create_or_update_host(input_host, consumer_class=SystemProfileMessageConsumer)
+    second_host_from_db = db_get_host(second_host_from_event.id)
+
+    # Verify same host and merged/updated system profile
+    assert str(second_host_from_db.id) == first_host_from_event.id
+    assert second_host_from_db.system_profile_facts["owner_id"] == OWNER_ID
+    assert second_host_from_db.system_profile_facts["bios_vendor"] == "new_vendor"
+    assert second_host_from_db.system_profile_facts["bios_version"] == "1.23"

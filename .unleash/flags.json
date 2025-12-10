@@ -18,22 +18,6 @@
             "createdAt": "2024-01-10T20:18:18.842Z"
         },
         {
-            "name": "hbi.api.kessel-workspace-migration",
-            "description": "Gates the functionality for Phase 0 of the HBI Kessel migration (RHINENG-15827).",
-            "type": "release",
-            "project": "default",
-            "stale": false,
-            "enabled": false,
-            "strategies": [
-                {
-                    "name": "default",
-                    "parameters": {}
-                }
-            ],
-            "variants": [],
-            "createdAt": "2025-02-14T16:26:57.428Z"
-        },
-        {
             "name": "hbi.api.read-only",
             "description": "When turned ON, HBI's write endpoints (PUT/POST/PATCH) are disabled.",
             "type": "release",
@@ -66,6 +50,22 @@
             "createdAt": "2025-04-25T16:32:16.409Z"
         },
         {
+            "name": "hbi.api.kessel-groups",
+            "description": "Gates the groups API functionality for Kessel (RHINENG-21397).",
+            "type": "release",
+            "project": "default",
+            "stale": false,
+            "enabled": false,
+            "strategies": [
+                {
+                    "name": "default",
+                    "parameters": {}
+                }
+            ],
+            "variants": [],
+            "createdAt": "2025-11-18T20:58:51.167Z"
+        },
+        {
             "name": "hbi.use_new_system_profile_tables",
             "description": "When turned ON, HBI will use the new system profile tables.",
             "type": "release",
@@ -96,8 +96,8 @@
             ],
             "variants": [],
             "createdAt": "2025-10-12T16:29:19.146Z"
-          },
-          {
+        },
+        {
             "name": "hbi.workloads_fields_backward_compatibility",
             "description": "When turned ON, HBI will expose the legacy fields now present in the workloads fields in the kafka events (RHINENG-21211).",
             "type": "release",

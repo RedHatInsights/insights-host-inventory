@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import math
+import types
 from base64 import b64encode
 from collections.abc import Callable
 from datetime import timedelta
@@ -442,6 +443,13 @@ def build_expected_host_list(host_list):
 # doesn't work unless we're certain that the keys are going to be in the same order.
 def assert_host_lists_equal(expected_host_list, actual_host_list):
     for i in range(len(expected_host_list)):
+        # Don't compare host.groups, as serialized output will be different
+        if expected_host_list[i].get("groups"):
+            assert expected_host_list[i]["groups"][0]["id"] == actual_host_list[i]["groups"][0]["id"]
+            assert expected_host_list[i]["groups"][0]["ungrouped"] == actual_host_list[i]["groups"][0]["ungrouped"]
+            assert expected_host_list[i]["groups"][0]["name"] == actual_host_list[i]["groups"][0]["name"]
+        expected_host_list[i].pop("groups")
+        actual_host_list[i].pop("groups")
         assert expected_host_list[i] == actual_host_list[i]
 
 
@@ -680,4 +688,35 @@ def mocked_post_workspace_not_found(_self: Any, url: str, **_: Any) -> Response:
     response.url = url
     response.status_code = HTTPStatus.NOT_FOUND
     response._content = b"Workspace not found"
+    return response
+
+
+def mocked_delete_workspace_empty_response(_self: Any, url: str, **_: Any) -> Response:
+    response = Response()
+    response.url = url
+    response.status_code = HTTPStatus.NO_CONTENT
+    response._content = b""
+
+    return response
+
+
+def mocked_patch_workspace_name_exists(kessel_response_status: int, _self: Any, url: str, **_: Any) -> Response:
+    error_message = "Can't patch workspace with same name within same parent workspace"
+
+    # Create a mock response - Response.raise_for_status() will automatically raise HTTPError
+    # for non-2xx status codes, so we don't need to override it
+    response = Response()
+    response.url = url
+    response.status_code = kessel_response_status
+    response._content = error_message.encode()
+
+    # Add json() method for error handling code that tries to parse JSON
+    def json(self) -> dict[str, str]:  # noqa: ARG001
+        return {"detail": error_message}
+
+    response.json = types.MethodType(json, response)  # type: ignore[method-assign]
+
+    # Note: We don't override raise_for_status() because Response.raise_for_status()
+    # already raises HTTPError for non-2xx status codes, which is what we want
+
     return response

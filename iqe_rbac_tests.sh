@@ -7,7 +7,7 @@ export REF_ENV="insights-stage"
 export IQE_MARKER_EXPRESSION="backend and rbac_dependent and not cert_auth and not service_account"
 export IQE_FILTER_EXPRESSION=""
 export IQE_CJI_TIMEOUT="1h"
-export EXTRA_DEPLOY_ARGS="-p host-inventory/BYPASS_RBAC=false"
+export EXTRA_DEPLOY_ARGS="-p host-inventory/BYPASS_RBAC=false -p host-inventory/BYPASS_KESSEL=true"
 
 # Wait until the PR image is built
 check_image
@@ -19,5 +19,15 @@ fi
 
 # Deploy ephemeral env and run IQE tests
 source $CICD_ROOT/deploy_ephemeral_env.sh
-source $CICD_ROOT/cji_smoke_test.sh
+
+# If local IQE plugin is configured, use custom script to deploy and test
+# Otherwise, use the standard cji_smoke_test.sh
+if [ "$IQE_INSTALL_LOCAL_PLUGIN" = "true" ]; then
+    echo "Using local IQE plugin for CJI tests"
+    source $APP_ROOT/run_cji_with_local_plugin.sh
+else
+    echo "Using standard IQE plugin from Nexus for CJI tests"
+    source $CICD_ROOT/cji_smoke_test.sh
+fi
+
 source $CICD_ROOT/post_test_results.sh

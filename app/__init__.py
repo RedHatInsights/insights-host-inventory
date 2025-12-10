@@ -280,7 +280,7 @@ def create_app(runtime_environment) -> connexion.FlaskApp:
         flask_app.config["UNLEASH_ENVIRONMENT"] = "default"
         flask_app.config["UNLEASH_URL"] = app_config.unleash_url
         flask_app.config["UNLEASH_CUSTOM_HEADERS"] = {"Authorization": app_config.unleash_token}
-        flask_app.config["UNLEASH_CUSTOM_STRATEGIES"] = {"schema-strategy": SchemaStrategy}
+        flask_app.config["UNLEASH_CUSTOM_STRATEGIES"] = {"schema-strategy": SchemaStrategy()}
         flask_app.config["UNLEASH_REFRESH_INTERVAL"] = app_config.unleash_refresh_interval
         if hasattr(app_config, "unleash_cache_directory"):
             flask_app.config["UNLEASH_CACHE_DIRECTORY"] = app_config.unleash_cache_directory
@@ -355,5 +355,9 @@ def create_app(runtime_environment) -> connexion.FlaskApp:
     initialize_metrics(app_config)
 
     initialize_segmentio()
+
+    # Register automatic outbox event listeners for Host model
+    # This must be imported after db.init_app() is called
+    from lib import host_outbox_events  # noqa: F401
 
     return app

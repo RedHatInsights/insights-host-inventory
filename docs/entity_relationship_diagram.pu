@@ -42,6 +42,7 @@ table(hbi.hosts) {
   jsonb(mac_addresses): jsonb
   column(provider_id): varchar(500)
   column(provider_type): varchar(50)
+  column(openshift_cluster_id): uuid
 }
 
 table(hbi.groups) {

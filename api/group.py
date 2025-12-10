@@ -15,7 +15,6 @@ from api import json_error_response
 from api import metrics
 from api.group_query import build_group_response
 from api.group_query import build_paginated_group_list_response
-from api.group_query import does_group_with_name_exist
 from api.group_query import get_filtered_group_list_db
 from api.group_query import get_group_list_by_id_list_db
 from api.group_query import validate_patch_group_inputs
@@ -36,9 +35,6 @@ from app.instrumentation import log_patch_group_success
 from app.logging import get_logger
 from app.models import InputGroupSchema
 from app.queue.events import EventType
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION
-from lib.feature_flags import get_flag_value
 from lib.group_repository import add_hosts_to_group
 from lib.group_repository import create_group_from_payload
 from lib.group_repository import delete_group_list
@@ -87,7 +83,7 @@ def get_group_list(
 @api_operation
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def create_group(body, rbac_filter=None):
+def create_group(body: dict, rbac_filter: dict | None = None) -> Response:
     # If there is an attribute filter on the RBAC permissions,
     # the user should not be allowed to create a group.
     if rbac_filter is not None:
@@ -108,17 +104,7 @@ def create_group(body, rbac_filter=None):
         # Create group with validated data
         group_name = validated_create_group_data.get("name")
 
-        # check the group's existence and for Kessel Phase 1
-        if (
-            not get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1)
-            or get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION)
-        ) and does_group_with_name_exist(group_name, get_current_identity().org_id):
-            log_create_group_failed(logger, group_name)
-            return json_error_response(
-                "Integrity error", f"A group with name {group_name} already exists.", HTTPStatus.BAD_REQUEST
-            )
-
-        if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
+        if not inventory_config().bypass_kessel:
             # Validate whether the hosts can be added to the group
             if len(host_id_list := validated_create_group_data.get("host_ids", [])) > 0:
                 validate_add_host_list_to_group_for_group_create(
@@ -128,24 +114,29 @@ def create_group(body, rbac_filter=None):
                 )
 
             workspace_id = post_rbac_workspace(group_name)
-            if not workspace_id and not inventory_config().bypass_rbac:
+            if workspace_id is None:
                 message = f"Error while creating workspace for {group_name}"
                 logger.exception(message)
                 return json_error_response("Workspace creation failure", message, HTTPStatus.BAD_REQUEST)
 
-            # Wait for the MQ to notify us of the workspace creation
+            # Wait for the MQ to notify us of the workspace creation.
             try:
-                wait_for_workspace_event(workspace_id, EventType.created, inventory_config().rbac_timeout)
+                wait_for_workspace_event(
+                    str(workspace_id),
+                    EventType.created,
+                    org_id=get_current_identity().org_id,
+                    timeout=inventory_config().rbac_timeout,
+                )
             except TimeoutError:
                 abort(HTTPStatus.SERVICE_UNAVAILABLE, "Timed out waiting for a message from RBAC v2.")
 
             add_hosts_to_group(
-                workspace_id,
+                str(workspace_id),
                 host_id_list,
                 get_current_identity(),
                 current_app.event_producer,
             )
-            created_group = get_group_by_id_from_db(workspace_id, get_current_identity().org_id)
+            created_group = get_group_by_id_from_db(str(workspace_id), get_current_identity().org_id)
         else:
             created_group = create_group_from_payload(validated_create_group_data, current_app.event_producer, None)
             create_group_count.inc()
@@ -191,17 +182,7 @@ def patch_group_by_id(group_id: str, body: dict[str, Any], rbac_filter: dict[str
             log_patch_group_failed(logger, group_id)
             abort(HTTPStatus.BAD_REQUEST, "The 'ungrouped' group can not be modified.")
 
-        # only enforce uniqueness pre-Phase1
-        if (
-            new_name
-            and not get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1)
-            and (new_name != group_to_update.name and does_group_with_name_exist(new_name, identity.org_id))
-        ):
-            log_patch_group_failed(logger, group_id)
-            abort(HTTPStatus.BAD_REQUEST, f"Group with name '{new_name}' already exists.")
-
-        # merge both flag_paths into a single RBAC call
-        if new_name and new_name != group_to_update.name and get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
+        if new_name and new_name != group_to_update.name and not inventory_config().bypass_kessel:
             patch_rbac_workspace(group_id, name=new_name)
 
         # Separate out the host IDs because they're not stored on the Group
@@ -228,7 +209,7 @@ def patch_group_by_id(group_id: str, body: dict[str, Any], rbac_filter: dict[str
 def delete_groups(group_id_list, rbac_filter=None):
     rbac_group_id_check(rbac_filter, set(group_id_list))
 
-    if get_flag_value(FLAG_INVENTORY_KESSEL_WORKSPACE_MIGRATION):
+    if not inventory_config().bypass_kessel:
         # Write is not allowed for the ungrouped through API requests
         ungrouped_group = get_ungrouped_group(get_current_identity())
         ungrouped_group_id = str(ungrouped_group.id) if ungrouped_group else None
@@ -243,8 +224,8 @@ def delete_groups(group_id_list, rbac_filter=None):
         # Attempt to delete the RBAC workspaces
         for group_id in group_id_list:
             try:
-                if delete_rbac_workspace(group_id):
-                    delete_count += 1
+                delete_rbac_workspace(group_id)
+                delete_count += 1
             except ResourceNotFoundException:
                 # For workspaces that are missing from RBAC,
                 # we'll attempt to delete the groups on our side

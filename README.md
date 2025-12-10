@@ -3,7 +3,7 @@
 You've arrived at the repo for the backend of the Host Based Inventory (HBI).
 If you're looking for API, integration or user documentation for HBI
 please see the
-[Inventory section in our Platform Docs site](https://consoledot.pages.redhat.com/docs/dev/services/inventory.html).
+[Insights Inventory Documentation](https://url.corp.redhat.com/hbi).
 
 ## Table of contents
 
@@ -20,7 +20,6 @@ please see the
     - [Run the export service](#run-the-export-service)
     - [Testing](#testing)
 - [Running the webserver locally](#running-the-webserver-locally)
-- [Running all services locally](#running-all-services-locally)
 - [Legacy Support](#legacy-support)
 - [Identity](#identity)
     - [API requests](#api-requests)
@@ -32,6 +31,7 @@ please see the
 - [Schema dumps (for replication subscribers)](#schema-dumps-for-replication-subscribers)
 - [Docker builds](#docker-builds)
 - [Metrics](#metrics)
+- [Documentation] (#documentation)
 - [Release process](#release-process)
     - [Pull request](#1-pull-request)
     - [Latest image and smoke tests](#2-latest-image-and-smoke-tests)
@@ -91,6 +91,7 @@ cat > ${PWD}/.env<<EOF
 PROMETHEUS_MULTIPROC_DIR=/tmp
 BYPASS_RBAC="true"
 BYPASS_UNLEASH="true"
+BYPASS_KESSEL="true"
 # Optional legacy prefix configuration
 # PATH_PREFIX="/r/insights/platform"
 APP_NAME="inventory"
@@ -143,12 +144,14 @@ If using a different directory, update the `volumes` section in [dev.yml](dev.ym
 ### Start dependent services
 
 All dependent services are managed by Docker Compose and are listed in the [dev.yml](dev.yml) file.
+This includes the web server, MQ server, database, Kafka, and other infrastructure services.
 Start them with the following command:
 
 ```bash
 docker compose -f dev.yml up -d
 ```
 
+The web and MQ servers will automatically start when this command is run.
 By default, the database container will use a bit of local storage so that data you enter will persist across multiple
 starts of the container.
 If you want to destroy that data do the following:
@@ -239,6 +242,8 @@ By default, it will send a json format request. To modify the data format, use:
 make sample-request-create-export format=[json|csv]
 ```
 
+**Want to learn more?** See the [Export Service documentation](https://url.corp.redhat.com/export-service) for details on how the export service works.
+
 ### Testing
 
 You can run the tests using pytest:
@@ -258,40 +263,49 @@ pytest tests/test_api_auth.py::test_validate_valid_identity
 
 - Note: Ensure DB-related environment variables are set before running tests.
 
+#### IQE Integration Tests
+
+The repository now includes the IQE (Insights QE) test suite in the `iqe-host-inventory-plugin/` directory. These are comprehensive integration tests that cover:
+- REST API endpoints (backend tests)
+- UI tests (frontend tests)
+- Database tests
+- Resilience tests
+- RBAC tests
+- Notifications tests
+
+**Running IQE Tests Locally:**
+
+The IQE tests require special dependencies and configuration. For detailed instructions on running IQE tests locally, see the [IQE README](iqe-host-inventory-plugin/README.md).
+
+**PR Checks:**
+
+The IQE smoke tests are automatically run as part of the PR check pipeline. When `IQE_INSTALL_LOCAL_PLUGIN=true` (default), the pr_check.sh script:
+1. Builds the PR commit image
+2. Runs unit tests
+3. Deploys to an ephemeral environment
+4. Deploys a CJI (ClowdJobInvocation) pod with `--debug-pod` option
+5. Copies the local IQE plugin from `iqe-host-inventory-plugin/` to the CJI pod
+6. Installs the plugin in editable mode inside the pod
+7. Runs IQE smoke tests (tests marked with `backend and smoke`) with your local changes
+8. Collects test artifacts
+
+This ensures that every PR is tested with the exact IQE test code in the repository, not the version from Nexus. The local IQE plugin deployment is controlled by the `IQE_INSTALL_LOCAL_PLUGIN` environment variable set in `pr_check_common.sh`.
+
+**How it works:**
+- `deploy_ephemeral_env.sh`: Creates the ephemeral namespace and deploys HBI
+- `run_cji_with_local_plugin.sh`: Deploys the CJI pod, copies local plugin, installs it, and runs tests
+- `post_test_results.sh`: Collects and publishes test results
+
 ## Running the webserver locally
 
-Prometheus was designed to run in a multithreaded
-environment whereas gunicorn uses a multiprocess
-architecture. As a result, there is some work
-to be done to make prometheus integrate with
-gunicorn.
-
-A temp directory for prometheus needs to be created
-before the server starts. The PROMETHEUS_MULTIPROC_DIR
-environment needs to point to this directory. The
-contents of this directory need to be removed between
-runs.
-
-If running the server in a cluster, you can use this command:
-
-```bash
-gunicorn -c gunicorn.conf.py run
-```
-
-When running the server locally for development, the Prometheus configuration is done automatically.
-You can run the server locally using this command:
+When running the web server locally for development, the Prometheus configuration is done automatically.
+You can run the web server directly using this command:
 
 ```bash
 python3 run_gunicorn.py
 ```
 
-## Running all services locally
-
-Use Honcho to run MQ and web services at once:
-
-```bash
-honcho start
-```
+Note: If you started services with `docker compose -f dev.yml up -d`, the web server is already running in the `hbi-web` container.
 
 ## Legacy support
 
@@ -422,6 +436,8 @@ x-rh-identity: eyJpZGVudGl0eSI6eyJvcmdfaWQiOiAidGVzdCIsICJhdXRoX3R5cGUiOiAiY2Vyd
 
 For Kafka messages, the Identity must be set in the `platform_metadata.b64_identity` field.
 
+**Want to learn more?** For comprehensive documentation on message formats, validation, and the host insertion and update flow, see [Host Insertion](https://url.corp.redhat.com/hbi-host-insertion) in the HBI documentation.
+
 ### Identity Enforcement
 
 The Identity provided limits access to specific hosts.
@@ -489,6 +505,12 @@ Prometheus integration provides monitoring endpoints:
 Cron jobs (`reaper`, `sp-validator`) push metrics to
 a [Prometheus Pushgateway](https://github.com/prometheus/pushgateway/) at `PROMETHEUS_PUSHGATEWAY` (default:
 `localhost:9091`).
+
+## Documentation
+
+The source of the [HBI documentation](https://url.corp.redhat.com/hbi) is located in the [docs/ folder](docs/). Any change to service behavior must also be reflected in the documentation to keep it up to date.
+
+New files added to the folder will be accessible on the InScope HBI page, but renaming existing files can break direct links.
 
 ## Release process
 
@@ -649,12 +671,12 @@ This logging helps with debugging hosts in Kibana.
 There may be a job `ClowdJobInvocation` which requires using a special image that is different
 from the one used by the parent application, i.e. host-inventory.
 Clowder out-of-the-box does not allow it.
-[Running a Special Job](docs/running_special_job.md) describes how to accomplish it.
+[Running a Special Job](https://url.corp.redhat.com/running-special-job) describes how to accomplish it.
 
 ### Debugging local code with services deployed into Kubernetes namespaces
 
 Making local code work with the services running in Kubernetes requires some actions
-provided [here](docs/debug_local_code_targeting_ephemeral_namespace.md).
+provided in [Debugging Local Code with Services Deployed into Kubernetes Namespaces](docs/debug_local_code_k8s.md).
 
 ## Contributing
 

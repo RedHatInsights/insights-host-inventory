@@ -19,6 +19,7 @@ from marshmallow import fields
 from psycopg2.errors import UniqueViolation
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.exc import StaleDataError
 
@@ -76,6 +77,7 @@ from utils.system_profile_log import extract_host_dict_sp_to_log
 logger = get_logger(__name__)
 
 CONSUMER_POLL_TIMEOUT_SECONDS = 0.5
+MAX_RETRIES = 5
 SYSTEM_IDENTITY = {"auth_type": "cert-auth", "system": {"cert_type": "system"}, "type": "System"}
 
 
@@ -183,45 +185,91 @@ class HBIMessageConsumerBase:
     def post_process_rows(self) -> None:
         pass  # No action is taken by default
 
+    def _process_batch(self) -> None:
+        """Process a single batch of messages from Kafka.
+
+        Raises:
+            InvalidRequestError: When the database session is in an invalid state
+            StaleDataError: When trying to update data modified by another transaction
+        """
+        with session_guard(db.session, close=False), db.session.no_autoflush:
+            messages = self.consumer.consume(
+                num_messages=inventory_config().mq_db_batch_max_messages,
+                timeout=inventory_config().mq_db_batch_max_seconds,
+            )
+
+            for msg in messages:
+                if msg is None:
+                    continue
+                elif msg.error():
+                    # This error is raised by the first consumer.consume() on a newly started Kafka.
+                    # msg.error() produces:
+                    # KafkaError{code=UNKNOWN_TOPIC_OR_PART,val=3,str="Subscribed topic not available:
+                    #   platform.inventory.host-ingress: Broker: Unknown topic or partition"}
+                    logger.error(f"Message received but has an error, which is {str(msg.error())}")
+                    metrics.ingress_message_handler_failure.inc()
+                else:
+                    logger.debug("Message received")
+
+                    try:
+                        self.processed_rows.append(self.handle_message(msg.value()))
+                        metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
+                        metrics.ingress_message_handler_success.inc()
+                    except OperationalError as oe:
+                        """sqlalchemy.exc.OperationalError: This error occurs when an
+                        authentication failure occurs or the DB is not accessible.
+                        Exit the process to restart the pod
+                        """
+                        logger.error(f"Could not access DB {str(oe)}")
+                        sys.exit(3)
+                    except Exception:
+                        metrics.ingress_message_handler_failure.inc()
+                        logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
+
+        self.post_process_rows()
+        # Commit Kafka offsets after successful batch processing
+        # This ensures offsets are persisted immediately after DB commit and event production,
+        # preventing duplicate message processing on service restart
+        if len(self.processed_rows) > 0:
+            try:
+                self.consumer.commit(asynchronous=False)
+                logger.debug(f"Successfully committed offsets for {len(self.processed_rows)} messages")
+            except Exception as e:
+                logger.exception(f"Failed to commit Kafka offsets: {e}")
+
     def event_loop(self, interrupt):
         with self.flask_app.app.app_context():
-            while not interrupt():
-                self.processed_rows = []
-                with session_guard(db.session), db.session.no_autoflush:
-                    messages = self.consumer.consume(
-                        num_messages=inventory_config().mq_db_batch_max_messages,
-                        timeout=inventory_config().mq_db_batch_max_seconds,
-                    )
-
-                    for msg in messages:
-                        if msg is None:
-                            continue
-                        elif msg.error():
-                            # This error is raised by the first consumer.consume() on a newly started Kafka.
-                            # msg.error() produces:
-                            # KafkaError{code=UNKNOWN_TOPIC_OR_PART,val=3,str="Subscribed topic not available:
-                            #   platform.inventory.host-ingress: Broker: Unknown topic or partition"}
-                            logger.error(f"Message received but has an error, which is {str(msg.error())}")
+            try:
+                while not interrupt():
+                    for attempt in range(1, MAX_RETRIES + 1):
+                        self.processed_rows = []
+                        try:
+                            self._process_batch()
+                            break  # Success, exit retry loop
+                        except (InvalidRequestError, StaleDataError, IntegrityError, UniqueViolation) as e:
+                            """Handle database session errors with retry logic.
+                            InvalidRequestError includes PendingRollbackError which occurs when the session
+                            is in an invalid state. StaleDataError occurs when trying to update data that
+                            has been modified by another transaction. IntegrityError and UniqueViolation can
+                            occur when a unique constraint is violated.
+                            Note: session_guard already calls rollback() when an exception occurs.
+                            """
                             metrics.ingress_message_handler_failure.inc()
-                        else:
-                            logger.debug("Message received")
 
-                            try:
-                                self.processed_rows.append(self.handle_message(msg.value()))
-                                metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
-                                metrics.ingress_message_handler_success.inc()
-                            except OperationalError as oe:
-                                """sqlalchemy.exc.OperationalError: This error occurs when an
-                                authentication failure occurs or the DB is not accessible.
-                                Exit the process to restart the pod
-                                """
-                                logger.error(f"Could not access DB {str(oe)}")
-                                sys.exit(3)
-                            except Exception:
-                                metrics.ingress_message_handler_failure.inc()
-                                logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
-
-                    self.post_process_rows()
+                            if attempt < MAX_RETRIES:
+                                logger.warning(
+                                    "Database session error during batch processing"
+                                    f"(attempt {attempt}/{MAX_RETRIES}), retrying",
+                                    exc_info=e,
+                                )
+                            else:
+                                logger.exception(
+                                    "Database session error during batch processing failed after"
+                                    f"{MAX_RETRIES} attempts, continuing with next batch",
+                                    exc_info=e,
+                                )
+            finally:
+                db.session.close()
 
 
 class WorkspaceMessageConsumer(HBIMessageConsumerBase):
@@ -294,26 +342,15 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
             raise ValidationError("Operation must be 'create', 'update', or 'delete'.")
 
     def post_process_rows(self) -> None:
-        try:
-            if len(self.processed_rows) > 0:
-                db.session.commit()
+        # Note: Commit happens in event_loop before this is called
+        for processed_row in self.processed_rows:
+            # Invoke OperationResult success logger for each processed row
+            if hasattr(processed_row, "success_logger") and callable(processed_row.success_logger):
+                processed_row.success_logger()
 
-            for processed_row in self.processed_rows:
-                # Invoke OperationResult success logger for each processed row
-                if hasattr(processed_row, "success_logger") and callable(processed_row.success_logger):
-                    processed_row.success_logger()
-
-                # PG Notify for each processed workspace
-                if processed_row and processed_row.event_type and processed_row.row:
-                    _pg_notify_workspace(processed_row.event_type.name, str(processed_row.row.id))
-
-        except StaleDataError as exc:
-            metrics.ingress_message_handler_failure.inc(amount=len(self.processed_rows))
-            logger.error(
-                f"Session data is stale; failed to commit data from {len(self.processed_rows)} payloads.",
-                exc_info=exc,
-            )
-            db.session.rollback()
+            # PG Notify for each processed workspace
+            if processed_row and processed_row.event_type and processed_row.row:
+                _pg_notify_workspace(processed_row.event_type.name, str(processed_row.row.id))
 
 
 class HostMessageConsumer(HBIMessageConsumerBase):
@@ -379,20 +416,9 @@ class HostMessageConsumer(HBIMessageConsumerBase):
                 raise
 
     def post_process_rows(self) -> None:
-        try:
-            if len(self.processed_rows) > 0:
-                db.session.commit()
-                # The above session is automatically committed or rolled back.
-                # Now we need to send out messages for the batch of hosts we just processed.
-                write_message_batch(self.event_producer, self.notification_event_producer, self.processed_rows)
-
-        except StaleDataError as exc:
-            metrics.ingress_message_handler_failure.inc(amount=len(self.processed_rows))
-            logger.error(
-                f"Session data is stale; failed to commit data from {len(self.processed_rows)} payloads.",
-                exc_info=exc,
-            )
-            db.session.rollback()
+        # Note: Commit happens in event_loop before this is called
+        if len(self.processed_rows) > 0:
+            write_message_batch(self.event_producer, self.notification_event_producer, self.processed_rows)
 
 
 class IngressMessageConsumer(HostMessageConsumer):
@@ -500,6 +526,7 @@ def _pg_notify_workspace(operation: str, id: str):
     conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
     cursor = conn.cursor()
     cursor.execute(f"NOTIFY workspace_{operation}, '{id}';")
+    logger.debug(f"DB notification 'workspace_{operation}' sent for workspace: {id}")
 
 
 # input is a base64 encoded utf-8 string. b64decode returns bytes, which
