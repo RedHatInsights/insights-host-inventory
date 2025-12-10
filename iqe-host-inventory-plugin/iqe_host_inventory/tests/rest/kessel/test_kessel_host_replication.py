@@ -13,6 +13,7 @@ from iqe_host_inventory.tests.db.test_host_reaper import execute_reaper
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.datagen_utils import generate_uuid
 from iqe_host_inventory.utils.staleness_utils import set_staleness
+from iqe_host_inventory_api import HostOut
 
 """
 These tests test HBI -> Kessel host replication. The workflows are:
@@ -62,7 +63,11 @@ pytestmark = [pytest.mark.backend]
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.ephemeral
+@pytest.fixture(scope="module")
+def prepare_hosts(host_inventory: ApplicationHostInventory) -> list[HostOut]:
+    return host_inventory.upload.create_hosts(8, cleanup_scope="module")
+
+
 def test_kessel_repl_create_hosts(
     host_inventory: ApplicationHostInventory, hbi_kessel_relations_grpc: HBIKesselRelationsGRPC
 ) -> None:
@@ -75,7 +80,7 @@ def test_kessel_repl_create_hosts(
       importance: high
       title: Verify that host info is replicated to kessel
     """
-    hosts = host_inventory.kafka.create_random_hosts(3)
+    hosts = host_inventory.upload.create_hosts(3)
 
     ungrouped_group = host_inventory.apis.groups.get_groups(group_type="ungrouped-hosts")[0]
 
@@ -218,7 +223,6 @@ def test_kessel_repl_update_host_via_api(
     # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
 
 
-@pytest.mark.ephemeral
 @pytest.mark.parametrize("host_count", [1, 3])
 def test_kessel_repl_delete_hosts_by_id(
     host_inventory: ApplicationHostInventory,
@@ -234,7 +238,7 @@ def test_kessel_repl_delete_hosts_by_id(
       importance: high
       title: Verify that deleted hosts by ID are reflected in Kessel
     """
-    hosts = host_inventory.kafka.create_random_hosts(3)
+    hosts = host_inventory.upload.create_hosts(3)
 
     ungrouped_group = host_inventory.apis.groups.get_groups(group_type="ungrouped-hosts")[0]
 
@@ -296,9 +300,10 @@ def test_kessel_repl_delete_hosts_by_filter(
         # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
 
 
-@pytest.mark.ephemeral
-def test_kessel_repl_create_grouped_hosts(
-    host_inventory: ApplicationHostInventory, hbi_kessel_relations_grpc: HBIKesselRelationsGRPC
+def test_kessel_repl_create_group_with_hosts(
+    host_inventory: ApplicationHostInventory,
+    hbi_kessel_relations_grpc: HBIKesselRelationsGRPC,
+    prepare_hosts: list[HostOut],
 ) -> None:
     """
     https://issues.redhat.com/browse/RHINENG-19245
@@ -309,7 +314,7 @@ def test_kessel_repl_create_grouped_hosts(
       importance: high
       title: Verify that grouped hosts' info is replicated to kessel
     """
-    hosts = host_inventory.kafka.create_random_hosts(3)
+    hosts = prepare_hosts[:3]
 
     group_name = generate_display_name()
     group = host_inventory.apis.groups.create_group(group_name, hosts=hosts)
@@ -319,9 +324,10 @@ def test_kessel_repl_create_grouped_hosts(
         # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
 
 
-@pytest.mark.ephemeral
 def test_kessel_repl_add_hosts_to_group(
-    host_inventory: ApplicationHostInventory, hbi_kessel_relations_grpc: HBIKesselRelationsGRPC
+    host_inventory: ApplicationHostInventory,
+    hbi_kessel_relations_grpc: HBIKesselRelationsGRPC,
+    prepare_hosts: list[HostOut],
 ) -> None:
     """
     https://issues.redhat.com/browse/RHINENG-19245
@@ -332,7 +338,7 @@ def test_kessel_repl_add_hosts_to_group(
       importance: high
       title: Verify that addings hosts to groups are reflected correctly in kessel
     """
-    hosts = host_inventory.kafka.create_random_hosts(3)
+    hosts = prepare_hosts[:3]
     group_name = generate_display_name()
     group = host_inventory.apis.groups.create_group(group_name)
 
@@ -350,9 +356,10 @@ def test_kessel_repl_add_hosts_to_group(
         # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
 
 
-@pytest.mark.ephemeral
 def test_kessel_repl_remove_hosts_from_group(
-    host_inventory: ApplicationHostInventory, hbi_kessel_relations_grpc: HBIKesselRelationsGRPC
+    host_inventory: ApplicationHostInventory,
+    hbi_kessel_relations_grpc: HBIKesselRelationsGRPC,
+    prepare_hosts: list[HostOut],
 ) -> None:
     """
     https://issues.redhat.com/browse/RHINENG-19245
@@ -363,7 +370,7 @@ def test_kessel_repl_remove_hosts_from_group(
       importance: high
       title: Verify that deleting hosts from group is reflected correctly in kessel
     """
-    hosts = host_inventory.kafka.create_random_hosts(3)
+    hosts = prepare_hosts[:3]
     group_name = generate_display_name()
     group = host_inventory.apis.groups.create_group(group_name, hosts=hosts)
 
@@ -382,9 +389,10 @@ def test_kessel_repl_remove_hosts_from_group(
         # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
 
 
-@pytest.mark.ephemeral
 def test_kessel_repl_remove_hosts_from_multiple_groups(
-    host_inventory: ApplicationHostInventory, hbi_kessel_relations_grpc: HBIKesselRelationsGRPC
+    host_inventory: ApplicationHostInventory,
+    hbi_kessel_relations_grpc: HBIKesselRelationsGRPC,
+    prepare_hosts: list[HostOut],
 ) -> None:
     """
     https://issues.redhat.com/browse/RHINENG-19245
@@ -395,7 +403,7 @@ def test_kessel_repl_remove_hosts_from_multiple_groups(
       importance: high
       title: Verify that deleting hosts from multiple groups is reflected correctly in kessel
     """
-    hosts = host_inventory.kafka.create_random_hosts(5)
+    hosts = prepare_hosts[:5]
     group1 = host_inventory.apis.groups.create_group(generate_display_name(), hosts=hosts[:2])
     group2 = host_inventory.apis.groups.create_group(generate_display_name(), hosts=hosts[2:4])
     ungrouped_group = host_inventory.apis.groups.get_groups(group_type="ungrouped-hosts")[0]
@@ -414,9 +422,10 @@ def test_kessel_repl_remove_hosts_from_multiple_groups(
         # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
 
 
-@pytest.mark.ephemeral
 def test_kessel_repl_patch_group_add_hosts(
-    host_inventory: ApplicationHostInventory, hbi_kessel_relations_grpc: HBIKesselRelationsGRPC
+    host_inventory: ApplicationHostInventory,
+    hbi_kessel_relations_grpc: HBIKesselRelationsGRPC,
+    prepare_hosts: list[HostOut],
 ) -> None:
     """
     https://issues.redhat.com/browse/RHINENG-19245
@@ -427,7 +436,7 @@ def test_kessel_repl_patch_group_add_hosts(
       importance: high
       title: Verify that adding hosts to group via PATCH is reflected correctly in kessel
     """
-    hosts = host_inventory.kafka.create_random_hosts(3)
+    hosts = prepare_hosts[:3]
     group = host_inventory.apis.groups.create_group(generate_display_name())
 
     host_inventory.apis.groups.patch_group(group, hosts=hosts)
@@ -437,9 +446,10 @@ def test_kessel_repl_patch_group_add_hosts(
         # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
 
 
-@pytest.mark.ephemeral
 def test_kessel_repl_patch_group_remove_hosts(
-    host_inventory: ApplicationHostInventory, hbi_kessel_relations_grpc: HBIKesselRelationsGRPC
+    host_inventory: ApplicationHostInventory,
+    hbi_kessel_relations_grpc: HBIKesselRelationsGRPC,
+    prepare_hosts: list[HostOut],
 ) -> None:
     """
     https://issues.redhat.com/browse/RHINENG-19245
@@ -450,7 +460,7 @@ def test_kessel_repl_patch_group_remove_hosts(
       importance: high
       title: Verify that removing hosts from group via PATCH is reflected correctly in kessel
     """
-    hosts = host_inventory.kafka.create_random_hosts(3)
+    hosts = prepare_hosts[:3]
     group = host_inventory.apis.groups.create_group(generate_display_name(), hosts=hosts)
     ungrouped_group = host_inventory.apis.groups.get_groups(group_type="ungrouped-hosts")[0]
 
@@ -467,7 +477,9 @@ def test_kessel_repl_patch_group_remove_hosts(
 
 @pytest.mark.ephemeral
 def test_kessel_repl_patch_group_change_hosts(
-    host_inventory: ApplicationHostInventory, hbi_kessel_relations_grpc: HBIKesselRelationsGRPC
+    host_inventory: ApplicationHostInventory,
+    hbi_kessel_relations_grpc: HBIKesselRelationsGRPC,
+    prepare_hosts: list[HostOut],
 ) -> None:
     """
     https://issues.redhat.com/browse/RHINENG-19245
@@ -478,7 +490,7 @@ def test_kessel_repl_patch_group_change_hosts(
       importance: high
       title: Verify that changing hosts in group via PATCH is reflected correctly in kessel
     """
-    hosts = host_inventory.kafka.create_random_hosts(8)
+    hosts = prepare_hosts
 
     # Add first 4 hosts to group
     group = host_inventory.apis.groups.create_group(generate_display_name(), hosts=hosts[:4])
@@ -504,9 +516,10 @@ def test_kessel_repl_patch_group_change_hosts(
         # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
 
 
-@pytest.mark.ephemeral
 def test_kessel_repl_delete_group(
-    host_inventory: ApplicationHostInventory, hbi_kessel_relations_grpc: HBIKesselRelationsGRPC
+    host_inventory: ApplicationHostInventory,
+    hbi_kessel_relations_grpc: HBIKesselRelationsGRPC,
+    prepare_hosts: list[HostOut],
 ) -> None:
     """
     https://issues.redhat.com/browse/RHINENG-19245
@@ -517,7 +530,7 @@ def test_kessel_repl_delete_group(
       importance: high
       title: Verify that deleting group is reflected correctly in kessel
     """
-    hosts = host_inventory.kafka.create_random_hosts(3)
+    hosts = prepare_hosts[:3]
     group = host_inventory.apis.groups.create_group(generate_display_name(), hosts=hosts)
     ungrouped_group = host_inventory.apis.groups.get_groups(group_type="ungrouped-hosts")[0]
 
