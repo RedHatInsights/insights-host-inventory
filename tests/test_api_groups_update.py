@@ -576,10 +576,10 @@ def test_patch_group_with_mixed_valid_invalid_hosts(
     patch_doc = {"host_ids": new_host_id_list}
     response_status, response_data = api_patch_group(group_id, patch_doc)
 
-    # Step 8: Test should fail stating "host with id host.id not found"
+    # Step 8: Test should fail stating that host could not be found
     assert_response_status(response_status, 400)
     assert str(random_uuid) in response_data["detail"]
-    assert "not found" in response_data["detail"]
+    assert "not find" in response_data["detail"] or "not found" in response_data["detail"]
 
     # Step 9: Validate that the group remains unchanged and the host_count is unchanged
     group_hosts_after_failed_patch = db_get_hosts_for_group(group_id)

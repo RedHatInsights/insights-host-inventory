@@ -1,5 +1,4 @@
 import time
-from http import HTTPStatus
 from uuid import UUID
 
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
@@ -35,7 +34,6 @@ from app.serialization import serialize_group_with_host_count
 from app.serialization import serialize_host
 from app.staleness_serialization import AttrDict
 from lib.db import session_guard
-from lib.host_repository import find_existing_host_by_id
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.host_repository import get_non_culled_hosts_count_in_group
 from lib.host_repository import host_query
@@ -154,20 +152,8 @@ def validate_add_host_list_to_group(host_id_list: list[str], group_id: str, org_
 
 
 def _add_hosts_to_group(group_id: str, host_id_list: list[str], identity: Identity):
-    # First, validate that all host IDs exist using find_existing_host_by_id
-    invalid_host_ids = []
-    for host_id in host_id_list:
-        existing_host = find_existing_host_by_id(identity, host_id)
-        if not existing_host:
-            invalid_host_ids.append(host_id)
-    if len(invalid_host_ids) > 0:
-        raise InventoryException(
-            status=HTTPStatus.BAD_REQUEST,
-            title="Hosts not found",
-            detail=f"IDs of hosts not found: {invalid_host_ids}",
-        )
-
-    # Then, validate that the hosts can even be added to the group
+    # Validate that the hosts exist and can be added to the group
+    # This must happen BEFORE any database modifications to ensure clean rollback on failure
     validate_add_host_list_to_group(host_id_list, group_id, identity.org_id)
 
     # Filter out hosts that are already in the group
@@ -246,7 +232,7 @@ def add_hosts_to_group(
 ):
     staleness = get_staleness_obj(identity.org_id)
     with session_guard(db.session):
-        _add_hosts_to_group(group_id, host_id_list, identity.org_id)
+        _add_hosts_to_group(group_id, host_id_list, identity)
         serialized_groups, host_id_list = _update_hosts_for_group_changes(
             host_id_list, group_id_list=[group_id], identity=identity
         )
@@ -327,7 +313,7 @@ def _remove_all_hosts_from_group(group: Group, identity: Identity):
     _remove_hosts_from_group(group.id, host_ids, identity.org_id)
     # If Kessel flag is on, assign hosts to "ungrouped" group
     ungrouped_id = get_or_create_ungrouped_hosts_group_for_identity(identity).id
-    _add_hosts_to_group(ungrouped_id, [str(host_id) for host_id in host_ids], identity.org_id)
+    _add_hosts_to_group(ungrouped_id, [str(host_id) for host_id in host_ids], identity)
 
 
 def _delete_host_group_assoc(session, assoc):
@@ -400,7 +386,7 @@ def remove_hosts_from_group(group_id, host_id_list, identity, event_producer):
         removed_host_ids = _remove_hosts_from_group(group_id, host_id_list, identity.org_id)
         # Add hosts to the "ungrouped" group
         ungrouped_group_id = str(get_or_create_ungrouped_hosts_group_for_identity(identity).id)
-        _add_hosts_to_group(ungrouped_group_id, [str(host_id) for host_id in removed_host_ids], identity.org_id)
+        _add_hosts_to_group(ungrouped_group_id, [str(host_id) for host_id in removed_host_ids], identity)
         group_id_list = [ungrouped_group_id]
 
         serialized_groups, host_id_list = _update_hosts_for_group_changes(removed_host_ids, group_id_list, identity)
@@ -473,11 +459,11 @@ def patch_group(group: Group, patch_data: dict, identity: Identity, event_produc
         # Update host list, if provided
         if new_host_ids is not None:
             _remove_hosts_from_group(group_id, list(existing_host_ids - new_host_ids), identity.org_id)
-            _add_hosts_to_group(group_id, list(new_host_ids - existing_host_ids), identity.org_id)
+            _add_hosts_to_group(group_id, list(new_host_ids - existing_host_ids), identity)
             # Add hosts to the "ungrouped" group
             ungrouped_group = get_or_create_ungrouped_hosts_group_for_identity(identity)
             removed_group_id_list = [str(ungrouped_group.id)]
-            _add_hosts_to_group(str(ungrouped_group.id), list(existing_host_ids - new_host_ids), identity.org_id)
+            _add_hosts_to_group(str(ungrouped_group.id), list(existing_host_ids - new_host_ids), identity)
 
         # Process host changes within the same session to ensure write_event_to_outbox works
         if group_patched and host_id_data is None:
