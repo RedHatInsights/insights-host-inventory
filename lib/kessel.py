@@ -22,8 +22,8 @@ REPORTER_TYPE_RBAC = "rbac"
 
 class Kessel:
     def __init__(self, config: Config):
-        # Configure gRPC channel with timeout
-        self.channel = grpc.insecure_channel(config.kessel_target_url)
+        # Configure gRPC channel with proper timeout and retry settings
+        self.channel = grpc.insecure_channel(config.kessel_inventory_api_endpoint)
         self.inventory_svc = inventory_service_pb2_grpc.KesselInventoryServiceStub(self.channel)
         self.timeout = getattr(config, "kessel_timeout", 10.0)  # Default 10 second timeout
 

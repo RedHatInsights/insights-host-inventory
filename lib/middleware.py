@@ -510,7 +510,7 @@ def rbac_group_id_check(rbac_filter: dict, requested_ids: set) -> None:
             abort(HTTPStatus.FORBIDDEN, f"You do not have access to the the following groups: {joined_ids}")
 
 
-def post_rbac_workspace(name) -> UUID | None:  # type: ignore[return]
+def post_rbac_workspace(name) -> UUID | None:
     if inventory_config().bypass_kessel:
         return None
 
@@ -533,6 +533,7 @@ def post_rbac_workspace(name) -> UUID | None:  # type: ignore[return]
     except (KeyError, ValueError, TypeError) as e:
         rbac_failure(logger, e)
         abort(503, "Failed to parse RBAC response, request cannot be fulfilled")
+        return None  # Satisfy mypy
 
 
 def rbac_create_ungrouped_hosts_workspace(identity: Identity) -> UUID | None:

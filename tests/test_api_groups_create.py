@@ -1,13 +1,19 @@
 import contextlib
 import json
+from collections.abc import Callable
 from copy import deepcopy
+from unittest.mock import MagicMock
 
 import pytest
 from dateutil import parser
+from pytest_mock import MockerFixture
 from sqlalchemy.exc import IntegrityError
+from starlette.testclient import TestClient
 
 from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
+from app.config import Config
+from app.models import Group
 from tests.helpers.api_utils import GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import assert_group_response
 from tests.helpers.api_utils import assert_response_status
@@ -286,20 +292,44 @@ def test_create_group_same_name_kessel_phase1_enabled(api_create_group, db_get_g
     # without the uniqueness constraint being enforced when Kessel Phase 1 is enabled
 
 
-@pytest.mark.usefixtures("enable_kessel")
-def test_create_group_skips_wait_when_group_already_exists(flask_client, db_create_group, mocker):
-    """Test that wait_for_workspace_event is skipped if the group already exists in the database."""
+@pytest.fixture
+def mock_pg_listen_connection(mocker: MockerFixture) -> MagicMock:
+    """Fixture to mock the PostgreSQL LISTEN/NOTIFY connection used by wait_for_workspace_event."""
+    mock_cursor = mocker.MagicMock()
+    mock_conn = mocker.MagicMock()
+    mock_conn.cursor.return_value = mock_cursor
+    mock_conn.notifies = []
+
+    # Mock db.session.connection().connection to return our mock connection
+    mock_sa_conn = mocker.MagicMock()
+    mock_sa_conn.connection = mock_conn
+    mocker.patch("lib.group_repository.db.session.connection", return_value=mock_sa_conn)
+
+    return mock_conn
+
+
+@pytest.mark.usefixtures("enable_kessel", "event_producer")
+def test_wait_for_workspace_event_returns_early_when_db_check_finds_group(
+    flask_client: TestClient,
+    db_create_group: Callable[..., Group],
+    mocker: MockerFixture,
+    mock_pg_listen_connection: MagicMock,
+) -> None:
+    """Test that wait_for_workspace_event returns early if the DB check finds the group.
+
+    This tests the race condition handling: if the NOTIFY was sent before we started
+    listening, the group already exists in the DB, and we return immediately.
+    """
     # Create a group directly in the database first
     existing_group = db_create_group("existing_group")
     workspace_id = str(existing_group.id)
 
-    # Mock post_rbac_workspace to return the existing group's ID (simulating a race condition
-    # where the MQ message was processed before we started listening)
+    # Mock post_rbac_workspace to return the existing group's ID
     mocker.patch("api.group.post_rbac_workspace", return_value=workspace_id)
     mocker.patch("lib.group_repository.rbac_create_ungrouped_hosts_workspace", return_value=generate_uuid())
 
-    # Mock wait_for_workspace_event to track if it's called
-    wait_mock = mocker.patch("api.group.wait_for_workspace_event")
+    # The real get_group_by_id_from_db will find the group we created above,
+    # so wait_for_workspace_event should return early without polling
 
     group_data = {"name": "existing_group", "host_ids": []}
     response = flask_client.post(
@@ -309,13 +339,22 @@ def test_create_group_skips_wait_when_group_already_exists(flask_client, db_crea
     )
 
     assert response.status_code == 201
-    # wait_for_workspace_event should NOT have been called since the group already exists
-    wait_mock.assert_not_called()
+    # poll() should NOT have been called since we found the group via DB check
+    mock_pg_listen_connection.poll.assert_not_called()
 
 
-@pytest.mark.usefixtures("enable_kessel")
-def test_create_group_calls_wait_when_group_does_not_exist(flask_client, db_create_group, mocker):
-    """Test that wait_for_workspace_event is called when the group doesn't exist yet."""
+@pytest.mark.usefixtures("enable_kessel", "event_producer")
+def test_wait_for_workspace_event_succeeds_when_notify_received(
+    flask_client: TestClient,
+    db_create_group: Callable[..., Group],
+    mocker: MockerFixture,
+    mock_pg_listen_connection: MagicMock,
+) -> None:
+    """Test that wait_for_workspace_event succeeds when NOTIFY is received.
+
+    This tests the normal flow: DB check doesn't find the group (it's being created),
+    but we receive the NOTIFY event and succeed.
+    """
     # Create a group in the database that will be returned after wait_for_workspace_event
     existing_group = db_create_group("new_group")
     workspace_id = str(existing_group.id)
@@ -324,24 +363,27 @@ def test_create_group_calls_wait_when_group_does_not_exist(flask_client, db_crea
     mocker.patch("api.group.post_rbac_workspace", return_value=workspace_id)
     mocker.patch("lib.group_repository.rbac_create_ungrouped_hosts_workspace", return_value=generate_uuid())
 
-    # Mock wait_for_workspace_event to prevent actual waiting
-    wait_mock = mocker.patch("api.group.wait_for_workspace_event")
-
-    # Mock get_group_by_id_from_db to return None on first call (group doesn't exist yet).
-    # Since wait_for_workspace_event doesn't raise TimeoutError, the second check in the
-    # exception handler won't be called - only the first call needs to return None.
+    # Mock the internal DB check to return None (group not found yet)
+    # This is the check inside wait_for_workspace_event
     original_get_group = __import__(
         "lib.group_repository", fromlist=["get_group_by_id_from_db"]
     ).get_group_by_id_from_db
     call_count = {"count": 0}
 
-    def mock_get_group(group_id, org_id, session=None):
+    def mock_get_group_for_wait(group_id: str, org_id: str, session: None = None) -> Group | None:
         call_count["count"] += 1
+        # First call is the check inside wait_for_workspace_event - return None
         if call_count["count"] == 1:
-            return None  # First call: group doesn't exist yet
-        return original_get_group(group_id, org_id, session)  # Subsequent calls: return real group
+            return None
+        # Subsequent calls (e.g., after waiting) should return the real group
+        return original_get_group(group_id, org_id, session)
 
-    mocker.patch("api.group.get_group_by_id_from_db", side_effect=mock_get_group)
+    mocker.patch("lib.group_repository.get_group_by_id_from_db", side_effect=mock_get_group_for_wait)
+
+    # Simulate receiving the NOTIFY event
+    mock_notify = mocker.MagicMock()
+    mock_notify.payload = workspace_id
+    mock_pg_listen_connection.notifies = [mock_notify]
 
     group_data = {"name": "new_group", "host_ids": []}
     response = flask_client.post(
@@ -351,44 +393,36 @@ def test_create_group_calls_wait_when_group_does_not_exist(flask_client, db_crea
     )
 
     assert response.status_code == 201
-    # wait_for_workspace_event SHOULD have been called since the group didn't exist on first check
-    wait_mock.assert_called_once()
+    # poll() SHOULD have been called since DB check returned None
+    mock_pg_listen_connection.poll.assert_called_once()
 
 
 @pytest.mark.usefixtures("enable_kessel")
-def test_create_group_succeeds_when_group_exists_after_timeout(flask_client, db_create_group, mocker):
-    """Test that group creation succeeds if timeout occurs but group exists after second check.
+def test_wait_for_workspace_event_times_out_when_both_checks_fail(
+    flask_client: TestClient,
+    mocker: MockerFixture,
+    mock_pg_listen_connection: MagicMock,
+    inventory_config: Config,
+) -> None:
+    """Test that wait_for_workspace_event times out when both DB check and NOTIFY fail.
 
-    There is a slight window between getting the group and starting the wait when we still
-    could have missed the event. This test verifies we check again after timeout to catch
-    these instances.
+    This tests the failure scenario: DB check doesn't find the group AND no NOTIFY
+    is received within the timeout period.
     """
-    # Create a group in the database
-    existing_group = db_create_group("timeout_group")
-    workspace_id = str(existing_group.id)
+    workspace_id = str(generate_uuid())
 
     # Mock post_rbac_workspace to return the workspace ID
     mocker.patch("api.group.post_rbac_workspace", return_value=workspace_id)
     mocker.patch("lib.group_repository.rbac_create_ungrouped_hosts_workspace", return_value=generate_uuid())
 
-    # Mock wait_for_workspace_event to raise TimeoutError
-    mocker.patch("api.group.wait_for_workspace_event", side_effect=TimeoutError)
+    # Mock the internal DB check to always return None (group never found)
+    mocker.patch("lib.group_repository.get_group_by_id_from_db", return_value=None)
 
-    # Mock get_group_by_id_from_db:
-    # - First call (check before wait): return None (group doesn't exist yet)
-    # - Second call (check after timeout): return the real group from DB
-    original_get_group = __import__(
-        "lib.group_repository", fromlist=["get_group_by_id_from_db"]
-    ).get_group_by_id_from_db
-    call_count = {"count": 0}
+    # No notifications will be received (empty list)
+    mock_pg_listen_connection.notifies = []
 
-    def mock_get_group(group_id, org_id, session=None):
-        call_count["count"] += 1
-        if call_count["count"] == 1:
-            return None  # First call: group doesn't exist yet
-        return original_get_group(group_id, org_id, session)  # Second call: return real group
-
-    mocker.patch("api.group.get_group_by_id_from_db", side_effect=mock_get_group)
+    # Use a very short timeout to speed up the test
+    inventory_config.rbac_timeout = 0.1
 
     group_data = {"name": "timeout_group", "host_ids": []}
     response = flask_client.post(
@@ -397,5 +431,7 @@ def test_create_group_succeeds_when_group_exists_after_timeout(flask_client, db_
         headers={"x-rh-identity": to_auth_header(Identity(obj=USER_IDENTITY)), "Content-Type": "application/json"},
     )
 
-    # Should succeed because group exists on the second check after timeout
-    assert response.status_code == 201
+    # Should return 503 Service Unavailable on timeout
+    assert response.status_code == 503
+    # poll() SHOULD have been called (we tried to wait for notifications)
+    mock_pg_listen_connection.poll.assert_called()
