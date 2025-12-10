@@ -526,6 +526,7 @@ def _pg_notify_workspace(operation: str, id: str):
     conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
     cursor = conn.cursor()
     cursor.execute(f"NOTIFY workspace_{operation}, '{id}';")
+    logger.debug(f"DB notification 'workspace_{operation}' sent for workspace: {id}")
 
 
 # input is a base64 encoded utf-8 string. b64decode returns bytes, which

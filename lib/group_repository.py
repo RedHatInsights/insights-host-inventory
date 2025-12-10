@@ -178,17 +178,26 @@ def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str):
     log_host_group_add_succeeded(logger, host_id_list, group_id)
 
 
-def wait_for_workspace_event(workspace_id: str, event_type: EventType, timeout: int = 5):
+def wait_for_workspace_event(workspace_id: str, event_type: EventType, org_id: str, *, timeout: int = 5):
     conn = db.session.connection().connection
     conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
     cursor = conn.cursor()
     cursor.execute(f"LISTEN workspace_{event_type.name};")
     timeout_start = time.time()
     try:
+        # It's possible that the MQ message may have already been processed,
+        # so we check if the group already exists first.
+        logger.debug(f"Checking if workspace {workspace_id} exists in org {org_id}")
+        if get_group_by_id_from_db(workspace_id, org_id) is not None:
+            logger.debug(f"Workspace {workspace_id} found in org {org_id}")
+            return
+
+        logger.debug(f"Waiting for workspace {workspace_id} to be created via MQ event")
         while time.time() < timeout_start + timeout:
             conn.poll()
             for notify in conn.notifies:
-                if str(notify.payload) == workspace_id:
+                logger.debug(f"Notify received for workspace {notify.payload}")
+                if str(notify.payload) == str(workspace_id):
                     return
 
             conn.notifies.clear()
@@ -281,7 +290,7 @@ def add_group_with_hosts(
     return get_group_by_id_from_db(created_group_id, identity.org_id)
 
 
-def create_group_from_payload(group_data: dict, event_producer: EventProducer, group_id: UUID) -> Group:
+def create_group_from_payload(group_data: dict, event_producer: EventProducer, group_id: UUID | None) -> Group:
     logger.debug("Creating a new group: %s", group_data)
     identity = get_current_identity()
     return add_group_with_hosts(
