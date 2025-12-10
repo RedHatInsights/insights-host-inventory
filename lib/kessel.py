@@ -1,4 +1,5 @@
 import grpc
+from grpc import StatusCode
 from kessel.inventory.v1beta2 import allowed_pb2
 from kessel.inventory.v1beta2 import check_request_pb2
 from kessel.inventory.v1beta2 import inventory_service_pb2_grpc
@@ -15,10 +16,6 @@ from app.logging import get_logger
 
 logger = get_logger(__name__)
 
-# Constants
-PLATFORM_PREFIX = "redhat"
-REPORTER_TYPE_RBAC = "rbac"
-
 
 class Kessel:
     def __init__(self, config: Config):
@@ -26,6 +23,22 @@ class Kessel:
         self.channel = grpc.insecure_channel(config.kessel_inventory_api_endpoint)
         self.inventory_svc = inventory_service_pb2_grpc.KesselInventoryServiceStub(self.channel)
         self.timeout = getattr(config, "kessel_timeout", 10.0)  # Default 10 second timeout
+
+    def _handle_grpc_error(self, e: grpc.RpcError, operation: str) -> bool:
+        """Handle gRPC errors with appropriate logging and fallback behavior."""
+        if e.code() == StatusCode.UNAVAILABLE:
+            logger.error(f"Kessel service unavailable for {operation}: {e.details()}")
+        elif e.code() == StatusCode.DEADLINE_EXCEEDED:
+            logger.error(f"Kessel timeout for {operation}: {e.details()}")
+        elif e.code() == StatusCode.PERMISSION_DENIED:
+            logger.warning(f"Kessel permission denied for {operation}: {e.details()}")
+            return False  # Explicit denial
+        elif e.code() == StatusCode.UNAUTHENTICATED:
+            logger.error(f"Kessel authentication failed for {operation}: {e.details()}")
+        else:
+            logger.error(f"Kessel gRPC error for {operation}: {e.code()} - {e.details()}")
+
+        return False  # Fail closed by default
 
     def check(self, current_identity: Identity, permission: KesselPermission, ids: list[str]) -> bool:
         """
@@ -48,8 +61,7 @@ class Kessel:
                 return False
 
         except grpc.RpcError as e:
-            logger.error(f"Kessel Check gRPC error: {e.code()} - {e.details()}")
-            return False
+            return self._handle_grpc_error(e, "Check")
         except Exception as e:
             logger.error(f"Kessel Check failed: {str(e)}", exc_info=True)
             return False
@@ -75,8 +87,7 @@ class Kessel:
                 return False
 
         except grpc.RpcError as e:
-            logger.error(f"Kessel check_for_update gRPC error: {e.code()} - {e.details()}")
-            return False
+            return self._handle_grpc_error(e, "check_for_update")
         except Exception as e:
             logger.error(f"Kessel check_for_update failed: {str(e)}", exc_info=True)
             return False
@@ -100,8 +111,8 @@ class Kessel:
 
         subject_ref = resource_reference_pb2.ResourceReference(
             resource_type="principal",
-            resource_id=f"{PLATFORM_PREFIX}/{user_id}",
-            reporter=reporter_reference_pb2.ReporterReference(type=REPORTER_TYPE_RBAC),
+            resource_id=f"redhat/{user_id}",  # Platform/IdP prefix
+            reporter=reporter_reference_pb2.ReporterReference(type="rbac"),
         )
 
         return subject_reference_pb2.SubjectReference(resource=subject_ref)
@@ -115,7 +126,7 @@ class Kessel:
             resource_id=resource_id,
             reporter=reporter_reference_pb2.ReporterReference(
                 type=permission.resource_type.namespace,  # e.g., "hbi"
-                instance_id=PLATFORM_PREFIX,
+                instance_id="redhat",
             ),
         )
 
@@ -149,7 +160,7 @@ class Kessel:
             resource_type=permission.resource_type.name,
             resource_id=resource_id,
             reporter=reporter_reference_pb2.ReporterReference(
-                type=permission.resource_type.namespace, instance_id=PLATFORM_PREFIX
+                type=permission.resource_type.namespace, instance_id="redhat"
             ),
         )
 
@@ -188,7 +199,7 @@ class Kessel:
         try:
             object_type = representation_type_pb2.RepresentationType(
                 resource_type="workspace",
-                reporter_type=REPORTER_TYPE_RBAC,
+                reporter_type="rbac",
             )
 
             # Use the shared subject reference builder
@@ -208,7 +219,7 @@ class Kessel:
             return workspaces
 
         except grpc.RpcError as e:
-            logger.error(f"Kessel list_allowed_workspaces gRPC error: {e.code()} - {e.details()}")
+            self._handle_grpc_error(e, "list_allowed_workspaces")
             return []
         except Exception as e:
             logger.error(f"Kessel list_allowed_workspaces failed: {str(e)}", exc_info=True)
