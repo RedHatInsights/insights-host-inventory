@@ -10,6 +10,7 @@ iqe-core = {version = ">=24.11.29.1", index = "rhnexus"}
 iqe-export-service-plugin = "*"
 iqe-ingress-plugin = "*"
 iqe-kessel-sync-plugin = "*"
+iqe-turnpike-plugin = "*"
 iqe-mq-plugin = ">=24.11.29"
 iqe-notifications-plugin = "*"
 iqe-platform-ui-plugin = "*"
