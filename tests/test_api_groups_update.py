@@ -1,7 +1,5 @@
-import contextlib
 import json
 from copy import deepcopy
-from unittest import mock
 
 import pytest
 from dateutil import parser
@@ -11,7 +9,6 @@ from app.auth.identity import to_auth_header
 from tests.helpers.api_utils import assert_group_response
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
-from tests.helpers.api_utils import mocked_patch_workspace_name_exists
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
