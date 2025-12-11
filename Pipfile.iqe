@@ -18,6 +18,7 @@ iqe-rbac-plugin = "*"
 ocdeployer = "*"
 pytest-html = "*"
 pytest-lazy-fixtures = "*"
+crc-bonfire = "*"
 
 [requires]
 python_version = "3.12"
