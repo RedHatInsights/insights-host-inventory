@@ -2400,7 +2400,7 @@ def test_system_type_filter_invalid_types(api_get, invalid_system_type):
     "query_filter_param,matching_host_indexes",
     (
         ("?system_type=conventional", [0]),
-        ("?system_type=bootc", [1, 4]),
+        ("?system_type=bootc", [1]),
         ("?system_type=edge", [2, 4]),
         ("?system_type=cluster", [3]),
         ("?system_type=bootc&system_type=edge", [1, 2, 4]),
