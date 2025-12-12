@@ -8,6 +8,7 @@ from iqe.base.http import RobustSession
 from iqe_turnpike.tests.config_wrappers import get_primary_turnpike_user
 from kessel.relations.v1beta1.relation_tuples_pb2_grpc import KesselTupleServiceStub
 
+from iqe_host_inventory.modeling.kessel_relations import GRPC_ENVS
 from iqe_host_inventory.modeling.kessel_relations import HBIKesselRelationsGRPC
 
 
@@ -15,12 +16,12 @@ from iqe_host_inventory.modeling.kessel_relations import HBIKesselRelationsGRPC
 def hbi_turnpike_http_client(
     application: Application,
 ) -> Generator[RobustSession | None, None, None]:
-    if application.config.current_env.lower() in ("clowder_smoke", "ephemeral", "smoke"):
+    if application.config.current_env.lower() in GRPC_ENVS:
         yield None
         return
 
     with application.copy_using(
-        user=get_primary_turnpike_user(application), auth_type="cert"
+        user=get_primary_turnpike_user(application), auth_type="cert-auth"
     ) as app:
         yield app.http_client
 
@@ -30,9 +31,11 @@ def hbi_kessel_relations_grpc(
     application: Application,
     relations_tuples_grpc: KesselTupleServiceStub,
     hbi_turnpike_http_client: RobustSession | None,
+    hbi_turnpike_base_url: str | None,
 ) -> HBIKesselRelationsGRPC:
     return HBIKesselRelationsGRPC(
         env=application.config.current_env,
         grpc_service=relations_tuples_grpc,
         turnpike_http_client=hbi_turnpike_http_client,
+        turnpike_base_url=hbi_turnpike_base_url,
     )
