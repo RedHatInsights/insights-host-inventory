@@ -2,6 +2,7 @@
 
 import logging
 import uuid
+from os import getenv
 from time import sleep
 
 import pytest
@@ -59,7 +60,14 @@ To run in the EE:
 2. Run the tests with --kessel option
 """
 
-pytestmark = [pytest.mark.backend]
+pytestmark = [
+    pytest.mark.backend,
+    pytest.mark.skipif(
+        getenv("ENV_FOR_DYNACONF", "stage_proxy").lower() == "prod",
+        reason="The HBI -> Kessel data migration is not yet complete in Prod",
+    ),
+]
+
 logger = logging.getLogger(__name__)
 
 
@@ -475,7 +483,6 @@ def test_kessel_repl_patch_group_remove_hosts(
         # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
 
 
-@pytest.mark.ephemeral
 def test_kessel_repl_patch_group_change_hosts(
     host_inventory: ApplicationHostInventory,
     hbi_kessel_relations_grpc: HBIKesselRelationsGRPC,

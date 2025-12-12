@@ -23,7 +23,8 @@ from iqe_host_inventory.modeling.hosts_api import _id_from_host
 from iqe_host_inventory.utils.api_utils import accept_when
 
 HOST_NOT_SYNCED_ERROR = Exception("Host changes weren't successfully synced to Kessel Relations")
-TURNPIKE_BASE_URL = "https://mtls.internal.console.stage.redhat.com/api/rbac"
+
+GRPC_ENVS = ("clowder_smoke", "ephemeral", "smoke")
 
 logger = logging.getLogger(__name__)
 
@@ -100,14 +101,16 @@ class HBIKesselRelationsGRPC:
         env: str,
         grpc_service: KesselTupleServiceStub | None = None,
         turnpike_http_client: RobustSession | None = None,
+        turnpike_base_url: str | None = None,
     ):
         self.env = env
         self.grpc_service = grpc_service
         self.turnpike_http_client = turnpike_http_client
+        self.turnpike_base_url = turnpike_base_url
 
     @cached_property
-    def is_ephemeral_env(self) -> bool:
-        return self.env.lower() in ("clowder_smoke", "ephemeral", "smoke")
+    def is_grpc_env(self) -> bool:
+        return self.env.lower() in GRPC_ENVS
 
     def read_tuples_turnpike_response(self, filter: RelationTupleFilter) -> Response:
         filter_dict = filter_to_dict(filter)
@@ -115,7 +118,7 @@ class HBIKesselRelationsGRPC:
             f"Reading tuples from Kessel Relations via Turnpike with filter:\n{filter_dict}"
         )
         return self.turnpike_http_client.post(
-            f"{TURNPIKE_BASE_URL}/relations/read_tuples/", json={"filter": filter_dict}
+            f"{self.turnpike_base_url}/relations/read_tuples/", json={"filter": filter_dict}
         )
 
     def read_tuples_turnpike(self, filter: RelationTupleFilter) -> list[Relationship]:
@@ -157,7 +160,7 @@ class HBIKesselRelationsGRPC:
         if workspace_id is not None:
             filter.subject_filter.subject_id = workspace_id
 
-        if self.is_ephemeral_env:
+        if self.is_grpc_env:
             return self.read_tuples_grpc(filter)
         return self.read_tuples_turnpike(filter)
 
