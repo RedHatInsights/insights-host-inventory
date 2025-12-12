@@ -55,7 +55,7 @@ class LimitedHost(db.Model):
 
     def __init__(
         self,
-        canonical_facts=None,
+        _canonical_facts=None,
         display_name=None,
         ansible_host=None,
         account=None,
@@ -87,7 +87,7 @@ class LimitedHost(db.Model):
         if groups is None:
             groups = []
 
-        self.canonical_facts = canonical_facts
+        # self.canonical_facts = canonical_facts  # Field being removed
 
         if display_name:
             self.display_name = display_name
@@ -97,7 +97,7 @@ class LimitedHost(db.Model):
         self.facts = facts or {}
         self.tags = tags
         self.tags_alt = tags_alt
-        self.system_profile_facts = system_profile_facts or {}
+        # self.system_profile_facts = system_profile_facts or {}  # Field being removed
         self._add_or_update_normalized_system_profiles(system_profile_facts)
         self.groups = groups or []
         self.last_check_in = _time_now()
@@ -393,9 +393,9 @@ class Host(LimitedHost):
             self.canonical_facts,
             canonical_facts,
         )
-        self.canonical_facts.update(canonical_facts)  # Field being removed in the future
+        # self.canonical_facts.update(canonical_facts)  # Field being removed
         logger.debug("Host (id=%s) has updated canonical_facts (%s)", self.id, self.canonical_facts)
-        orm.attributes.flag_modified(self, "canonical_facts")  # Field being removed in the future
+        # orm.attributes.flag_modified(self, "canonical_facts")  # Field being removed
 
     def update_canonical_facts_columns(self, canonical_facts):
         try:
@@ -547,16 +547,16 @@ class Host(LimitedHost):
     def update_system_profile(self, input_system_profile: dict):
         logger.debug("Updating host's (id=%s) system profile", self.id)
 
-        # Update the existing JSONB column (backward compatibility)
-        if not self.system_profile_facts:
-            self.system_profile_facts = input_system_profile
-        else:
-            for key, value in input_system_profile.items():
-                if key in ["rhsm", "workloads"]:
-                    self.system_profile_facts[key] = {**self.system_profile_facts.get(key, {}), **value}
-                else:
-                    self.system_profile_facts[key] = value
-        orm.attributes.flag_modified(self, "system_profile_facts")
+        # Update the existing JSONB column (backward compatibility) - DISABLED - Field being removed
+        # if not self.system_profile_facts:
+        #     self.system_profile_facts = input_system_profile
+        # else:
+        #     for key, value in input_system_profile.items():
+        #         if key in ["rhsm", "workloads"]:
+        #             self.system_profile_facts[key] = {**self.system_profile_facts.get(key, {}), **value}
+        #         else:
+        #             self.system_profile_facts[key] = value
+        # orm.attributes.flag_modified(self, "system_profile_facts")
 
         # Update the normalized system profile tables
         try:
