@@ -37,7 +37,7 @@ from app.queue.host_mq import IngressMessageConsumer
 from app.queue.host_mq import OperationResult
 from app.queue.host_mq import SystemProfileMessageConsumer
 from app.queue.host_mq import WorkspaceMessageConsumer
-from app.queue.host_mq import _validate_json_object_for_utf8
+from app.queue.host_mq import _sanitize_json_object_for_postgres
 from app.queue.host_mq import write_add_update_event_message
 from app.utils import Tag
 from lib.host_repository import AddHostResult
@@ -1819,19 +1819,19 @@ def test_add_host_stale_timestamp_invalid_culling_fields(mocker, additional_data
 
 
 def test_valid_string_is_ok():
-    _validate_json_object_for_utf8("naïve fiancé 👰🏻")
-    assert True
+    result = _sanitize_json_object_for_postgres("naïve fiancé 👰🏻")
+    assert result == "naïve fiancé 👰🏻"
 
 
 def test_invalid_string_raises_exception():
     with pytest.raises(UnicodeEncodeError):
-        _validate_json_object_for_utf8("hello\udce2\udce2")
+        _sanitize_json_object_for_postgres("hello\udce2\udce2")
 
 
 def test_dicts_are_traversed(mocker):
-    mock = mocker.patch("app.queue.host_mq._validate_json_object_for_utf8")
+    mock = mocker.patch("app.queue.host_mq._sanitize_json_object_for_postgres", side_effect=lambda x: x)
 
-    _validate_json_object_for_utf8({"first": "item", "second": "value"})
+    _sanitize_json_object_for_postgres({"first": "item", "second": "value"})
 
     mock.assert_has_calls(
         (mocker.call("first"), mocker.call("item"), mocker.call("second"), mocker.call("value")), any_order=True
@@ -1839,9 +1839,9 @@ def test_dicts_are_traversed(mocker):
 
 
 def test_lists_are_traversed(mocker):
-    mock = mocker.patch("app.queue.host_mq._validate_json_object_for_utf8")
+    mock = mocker.patch("app.queue.host_mq._sanitize_json_object_for_postgres", side_effect=lambda x: x)
 
-    _validate_json_object_for_utf8(["first", "second"])
+    _sanitize_json_object_for_postgres(["first", "second"])
 
     mock.assert_has_calls((mocker.call("first"), mocker.call("second")), any_order=True)
 
@@ -1857,7 +1857,7 @@ def test_lists_are_traversed(mocker):
 )
 def test_invalid_string_is_found_in_dict_value(obj):
     with pytest.raises(UnicodeEncodeError):
-        _validate_json_object_for_utf8(obj)
+        _sanitize_json_object_for_postgres(obj)
 
 
 @pytest.mark.parametrize(
@@ -1871,7 +1871,7 @@ def test_invalid_string_is_found_in_dict_value(obj):
 )
 def test_invalid_string_is_found_in_dict_key(obj):
     with pytest.raises(UnicodeEncodeError):
-        _validate_json_object_for_utf8(obj)
+        _sanitize_json_object_for_postgres(obj)
 
 
 @pytest.mark.parametrize(
@@ -1885,13 +1885,60 @@ def test_invalid_string_is_found_in_dict_key(obj):
 )
 def test_invalid_string_is_found_in_list_item(obj):
     with pytest.raises(UnicodeEncodeError):
-        _validate_json_object_for_utf8(obj)
+        _sanitize_json_object_for_postgres(obj)
 
 
 @pytest.mark.parametrize("value", (1.23, 0, 123, -123, True, False, None))
 def test_other_values_are_ignored(value):
-    _validate_json_object_for_utf8(value)
-    assert True
+    result = _sanitize_json_object_for_postgres(value)
+    assert result == value
+
+
+# NULL byte sanitization tests
+@pytest.mark.parametrize(
+    "input_obj,expected_output",
+    (
+        # Simple string with NULL byte
+        ("hello\x00world", "helloworld"),
+        # Multiple NULL bytes in string
+        ("hel\x00lo\x00wor\x00ld", "helloworld"),
+        # String with only NULL bytes
+        ("\x00\x00\x00", ""),
+        # Dictionary with NULL byte in value
+        ({"first": "hello\x00world", "second": "normal"}, {"first": "helloworld", "second": "normal"}),
+        # Dictionary with NULL byte in key
+        ({"hello\x00world": "value"}, {"helloworld": "value"}),
+        # List with NULL byte
+        (["hello\x00world", "normal"], ["helloworld", "normal"]),
+        # Nested structure with NULL bytes
+        (
+            {
+                "deep": ["deeper", {"deepest": ["Mariana\x00trench", {"Earth\x00core": "center\x00"}]}],
+                "simple": "test\x00value",
+            },
+            {
+                "deep": ["deeper", {"deepest": ["Marianatrench", {"Earthcore": "center"}]}],
+                "simple": "testvalue",
+            },
+        ),
+    ),
+)
+def test_null_bytes_are_sanitized(input_obj, expected_output):
+    """Test that NULL bytes are removed from various data structures"""
+    result = _sanitize_json_object_for_postgres(input_obj)
+    assert result == expected_output
+
+
+def test_null_byte_in_host_message(mq_create_or_update_host, db_get_host):
+    """Integration test: NULL bytes in host data should be sanitized"""
+    host = minimal_host(display_name="test\x00host", fqdn="example\x00.com")
+    created_host = mq_create_or_update_host(host)
+
+    retrieved_host = db_get_host(created_host.id)
+    assert "\x00" not in retrieved_host.display_name
+    assert retrieved_host.display_name == "testhost"
+    assert "\x00" not in retrieved_host.canonical_facts.get("fqdn", "")
+    assert retrieved_host.canonical_facts.get("fqdn") == "example.com"
 
 
 def test_host_account_using_mq(mq_create_or_update_host, db_get_host, db_get_hosts):
