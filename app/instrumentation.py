@@ -292,10 +292,6 @@ def log_patch_group_failed(logger, group_id, message="Group not found."):
     logger.error(f"Failed to patch group with id {group_id}: {message}")
 
 
-def log_remove_hosts_from_group_failed(logger, group_id, message="Hosts in the group not found."):
-    logger.error(f"Failed to remove hosts from group with id {group_id}: {message}")
-
-
 def rbac_failure(logger, error_message=None):
     logger.error("Failed to fetch RBAC permissions: %s", error_message)
     rbac_fetching_failure.inc()

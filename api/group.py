@@ -17,7 +17,6 @@ from api.group_query import build_group_response
 from api.group_query import build_paginated_group_list_response
 from api.group_query import get_filtered_group_list_db
 from api.group_query import get_group_list_by_id_list_db
-from api.group_query import validate_patch_group_inputs
 from app.auth import get_current_identity
 from app.auth.rbac import RbacPermission
 from app.auth.rbac import RbacResourceType
@@ -53,6 +52,47 @@ from lib.middleware import rbac
 from lib.middleware import rbac_group_id_check
 
 logger = get_logger(__name__)
+
+
+def _validate_patch_group_inputs(group_id: str, body: dict[str, Any], identity: Any) -> tuple[dict[str, Any], Any]:
+    """
+    Validate inputs for group patching:
+    - Group exists
+    - Request body is valid
+
+    Note: Host validation is handled by the repository layer (lib/group_repository.py)
+    to avoid duplication and ensure validation happens at the correct point in the
+    transaction lifecycle.
+
+    Args:
+        group_id: The ID of the group to patch
+        body: The request body containing patch data
+        identity: The current user's identity object
+
+    Returns:
+        tuple: (validated_patch_group_data, group_to_update)
+    """
+
+    # First, get the group
+    found_group = get_group_by_id_from_db(group_id, identity.org_id)
+
+    if not found_group:
+        log_patch_group_failed(logger, group_id)
+        abort(HTTPStatus.NOT_FOUND)
+
+    try:
+        validated_patch_group_data = InputGroupSchema().load(body)
+    except ValidationError as e:
+        logger.exception(f"Input validation error while patching group: {group_id} - {body}")
+        abort(HTTPStatus.BAD_REQUEST, str(e.messages))
+
+    return validated_patch_group_data, found_group
+
+
+
+
+
+
 
 
 @api_operation
@@ -171,7 +211,7 @@ def patch_group_by_id(group_id: str, body: dict[str, Any], rbac_filter: dict[str
     identity = get_current_identity()
 
     # Validate all inputs
-    validated_patch_group_data, group_to_update = validate_patch_group_inputs(group_id, body, identity)
+    validated_patch_group_data, group_to_update = _validate_patch_group_inputs(group_id, body, identity)
 
     # Extract validated data
     new_name = validated_patch_group_data.get("name")

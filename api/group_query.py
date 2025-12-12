@@ -153,38 +153,3 @@ def build_paginated_group_list_response(total, page, per_page, group_list):
 
 def build_group_response(group):
     return serialize_group(group)
-
-
-def validate_patch_group_inputs(group_id: str, body: dict[str, Any], identity: Any) -> tuple[dict[str, Any], Any]:
-    """
-    Validate inputs for group patching:
-    - Group exists
-    - Request body is valid
-
-    Note: Host validation is handled by the repository layer (lib/group_repository.py)
-    to avoid duplication and ensure validation happens at the correct point in the
-    transaction lifecycle.
-
-    Args:
-        group_id: The ID of the group to patch
-        body: The request body containing patch data
-        identity: The current user's identity object
-
-    Returns:
-        tuple: (validated_patch_group_data, group_to_update)
-    """
-
-    # First, get the group and update it
-    group_to_update = get_group_by_id_from_db(group_id, identity.org_id)
-
-    if not group_to_update:
-        log_patch_group_failed(logger, group_id)
-        abort(HTTPStatus.NOT_FOUND)
-
-    try:
-        validated_patch_group_data = InputGroupSchema().load(body)
-    except ValidationError as e:
-        logger.exception(f"Input validation error while patching group: {group_id} - {body}")
-        abort(HTTPStatus.BAD_REQUEST, str(e.messages))
-
-    return validated_patch_group_data, group_to_update

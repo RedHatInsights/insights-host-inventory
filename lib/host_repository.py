@@ -378,7 +378,7 @@ def get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter=None, c
                 ]
             )
 
-        filters.append(or_(*rbac_group_filters))
+        filters += (or_(*rbac_group_filters),)
 
     query = (
         Host.query.join(HostGroupAssoc, isouter=True)
