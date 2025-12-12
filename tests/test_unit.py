@@ -54,13 +54,13 @@ from app.serialization import _deserialize_tags
 from app.serialization import _deserialize_tags_dict
 from app.serialization import _deserialize_tags_list
 from app.serialization import _serialize_datetime
-from app.serialization import _serialize_uuid
 from app.serialization import deserialize_canonical_facts
 from app.serialization import deserialize_host
 from app.serialization import serialize_canonical_facts
 from app.serialization import serialize_facts
 from app.serialization import serialize_host
 from app.serialization import serialize_host_system_profile
+from app.serialization import serialize_uuid
 from app.staleness_serialization import get_sys_default_staleness
 from app.utils import Tag
 from lib import host_kafka
@@ -2012,11 +2012,11 @@ class SerializationSerializeDatetime(TestCase):
 class SerializationSerializeUuid(TestCase):
     def test_uuid_has_hyphens_computed(self):
         u = uuid4()
-        self.assertEqual(str(u), _serialize_uuid(u))
+        self.assertEqual(str(u), serialize_uuid(u))
 
     def test_uuid_has_hyphens_literal(self):
         u = "4950e534-bbef-4432-bde2-aa3dd2bd0a52"
-        self.assertEqual(u, _serialize_uuid(UUID(u)))
+        self.assertEqual(u, serialize_uuid(UUID(u)))
 
 
 class SerializationDeserializeTags(TestCase):
