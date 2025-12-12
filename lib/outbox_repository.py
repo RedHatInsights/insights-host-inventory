@@ -12,6 +12,7 @@ from app.models.host import Host
 from app.models.outbox import Outbox
 from app.models.schemas import OutboxSchema
 from app.queue.events import EventType
+from app.serialization import serialize_uuid
 from lib.metrics import outbox_save_failure
 from lib.metrics import outbox_save_success
 
@@ -45,9 +46,9 @@ def _create_update_event_payload(host: Host) -> dict:
     common = {"workspace_id": groups[0]["id"]} if len(groups) > 0 else {}
 
     reporter = {
-        "satellite_id": str(host.satellite_id) if host.satellite_id else None,
-        "subscription_manager_id": str(host.subscription_manager_id) if host.subscription_manager_id else None,
-        "insights_id": str(host.insights_id) if host.insights_id else None,
+        "satellite_id": serialize_uuid(host.satellite_id),
+        "subscription_manager_id": serialize_uuid(host.subscription_manager_id),
+        "insights_id": serialize_uuid(host.insights_id),
         "ansible_host": str(host.ansible_host) if host.ansible_host else None,
     }
 
