@@ -50,7 +50,6 @@ __all__ = (
 logger = get_logger(__name__)
 
 DEFAULT_COLUMNS = [
-    Host.canonical_facts,
     Host.id,
     Host.account,
     Host.org_id,

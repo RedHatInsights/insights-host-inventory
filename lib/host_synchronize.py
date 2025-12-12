@@ -66,7 +66,7 @@ def _synchronize_hosts_for_org(org_hosts_query, custom_staleness_dict, event_pro
             event = build_event(EventType.updated, serialized_host)
             headers = message_headers(
                 EventType.updated,
-                host.canonical_facts.get("insights_id"),
+                host.get("insights_id"),
                 host.reporter,
                 host.system_profile_facts.get("host_type"),
                 host.system_profile_facts.get("operating_system", {}).get("name"),

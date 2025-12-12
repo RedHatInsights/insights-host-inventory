@@ -33,12 +33,12 @@ def run(logger: Logger, session: Session, application: FlaskApp):
                     deletion_timestamp AS culled_timestamp,
                     tags_alt as tags,
                     system_profile_facts as system_profile,
-                    (canonical_facts ->> 'insights_id')::uuid as insights_id,
+                    insights_id,
                     reporter,
                     per_reporter_staleness,
                     org_id,
                     groups
-                FROM hbi.hosts WHERE (canonical_facts->'insights_id' IS NOT NULL);
+                FROM hbi.hosts WHERE insights_id IS NOT NULL;
         """
         session.execute(text(CREATE_SCHEMA_SQL))
         session.execute(text(CREATE_VIEW_SQL))

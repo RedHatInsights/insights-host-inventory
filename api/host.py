@@ -48,7 +48,7 @@ from app.payload_tracker import get_payload_tracker
 from app.queue.events import EventType
 from app.queue.events import build_event
 from app.queue.events import message_headers
-from app.serialization import deserialize_canonical_facts
+from app.serialization import extract_canonical_facts_from_host
 from app.serialization import serialize_host
 from app.serialization import serialize_host_with_params
 from app.utils import Tag
@@ -380,7 +380,7 @@ def get_host_system_profile_by_id(
 def _emit_patch_event(serialized_host, host):
     headers = message_headers(
         EventType.updated,
-        host.canonical_facts.get("insights_id"),
+        host.insights_id,
         host.reporter,
         host.system_profile_facts.get("host_type"),
         host.system_profile_facts.get("operating_system", {}).get("name"),
@@ -419,7 +419,7 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
             db.session.commit()
             serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
             _emit_patch_event(serialized_host, host)
-            insights_id = host.canonical_facts.get("insights_id")
+            insights_id = host.insights_id
             owner_id = host.system_profile_facts.get("owner_id")
             if insights_id and owner_id:
                 delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id, owner_id=owner_id)
@@ -495,7 +495,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
             db.session.commit()
             serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
             _emit_patch_event(serialized_host, host)
-            insights_id = host.canonical_facts.get("insights_id")
+            insights_id = host.insights_id
             owner_id = host.system_profile_facts.get("owner_id")
             if insights_id and owner_id:
                 delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id, owner_id=owner_id)
@@ -538,7 +538,8 @@ def _build_paginated_host_tags_response(total, page, per_page, tags_list):
 @metrics.api_request_time.time()
 def host_checkin(body, rbac_filter=None):  # noqa: ARG001, required for all API endpoints, not needed for host checkins
     current_identity = get_current_identity()
-    canonical_facts = deserialize_canonical_facts(body)
+    # canonical_facts = deserialize_canonical_facts(body)
+    canonical_facts = extract_canonical_facts_from_host(body)
     existing_host = find_existing_host(current_identity, canonical_facts)
     staleness = get_staleness_obj(current_identity.org_id)
     if existing_host:
@@ -548,7 +549,7 @@ def host_checkin(body, rbac_filter=None):  # noqa: ARG001, required for all API 
         db.session.commit()
         serialized_host = serialize_host(existing_host, staleness_timestamps(), staleness=staleness)
         _emit_patch_event(serialized_host, existing_host)
-        insights_id = existing_host.canonical_facts.get("insights_id")
+        insights_id = existing_host.insights_id
         owner_id = existing_host.system_profile_facts.get("owner_id")
         if insights_id and owner_id:
             delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id, owner_id=owner_id)

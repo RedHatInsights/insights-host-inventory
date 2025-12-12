@@ -184,7 +184,7 @@ def assert_delete_event_is_valid(
 
     assert event["type"] == "delete"
 
-    assert host.canonical_facts.get("insights_id") == event["insights_id"]
+    assert host.insights_id == event["insights_id"]
 
     assert event["initiated_by_frontend"] is initiated_by_frontend
 
@@ -195,7 +195,7 @@ def assert_delete_event_is_valid(
     assert event_producer.headers == expected_headers(
         "delete",
         event["request_id"],
-        host.canonical_facts.get("insights_id"),
+        host.insights_id,
         host.reporter,
         host.system_profile_facts.get("host_type"),
         host.system_profile_facts.get("operating_system", {}).get("name"),
@@ -229,7 +229,7 @@ def assert_delete_notification_is_valid(notification_event_producer, host):
 
     assert event["event_type"] == "system-deleted"
 
-    assert host.canonical_facts.get("insights_id") == event["events"][0]["payload"]["insights_id"]
+    assert host.insights_id == event["events"][0]["payload"]["insights_id"]
 
 
 def assert_stale_notification_is_valid(notification_event_producer, host):
@@ -250,7 +250,7 @@ def assert_stale_notification_is_valid(notification_event_producer, host):
 
     assert event["event_type"] == "system-became-stale"
 
-    assert host.canonical_facts.get("insights_id") == event["events"][0]["payload"]["insights_id"]
+    assert host.insights_id == event["events"][0]["payload"]["insights_id"]
 
 
 def assert_patch_event_is_valid(
@@ -287,15 +287,15 @@ def assert_patch_event_is_valid(
             "account": host.account,
             "display_name": display_name,
             "ansible_host": host.ansible_host,
-            "fqdn": host.canonical_facts.get("fqdn"),
+            "fqdn": host.fqdn,
             "groups": host.groups,
-            "insights_id": host.canonical_facts.get("insights_id"),
-            "bios_uuid": host.canonical_facts.get("bios_uuid"),
-            "ip_addresses": host.canonical_facts.get("ip_addresses"),
-            "mac_addresses": host.canonical_facts.get("mac_addresses"),
+            "insights_id": host.insights_id,
+            "bios_uuid": host.bios_uuid,
+            "ip_addresses": host.ip_addresses,
+            "mac_addresses": host.mac_addresses,
             "facts": serialize_facts(host.facts),
-            "satellite_id": host.canonical_facts.get("satellite_id"),
-            "subscription_manager_id": host.canonical_facts.get("subscription_manager_id"),
+            "satellite_id": host.satellite_id,
+            "subscription_manager_id": host.subscription_manager_id,
             "system_profile": host.system_profile_facts,
             "per_reporter_staleness": host.per_reporter_staleness,
             "tags": [tag.data() for tag in Tag.create_tags_from_nested(host.tags)],
@@ -305,9 +305,9 @@ def assert_patch_event_is_valid(
             "culled_timestamp": culled_timestamp,
             "created": host.created_on.astimezone(UTC).isoformat(),
             "last_check_in": host.last_check_in.isoformat(),
-            "provider_id": host.canonical_facts.get("provider_id"),
-            "provider_type": host.canonical_facts.get("provider_type"),
-            "openshift_cluster_id": host.canonical_facts.get("openshift_cluster_id"),
+            "provider_id": host.provider_id,
+            "provider_type": host.provider_type,
+            "openshift_cluster_id": host.openshift_cluster_id,
         },
         "platform_metadata": {"b64_identity": to_auth_header(Identity(obj=identity))},
         "metadata": {"request_id": expected_request_id},
@@ -322,7 +322,7 @@ def assert_patch_event_is_valid(
     assert event_producer.headers == expected_headers(
         "updated",
         expected_request_id,
-        host.canonical_facts.get("insights_id"),
+        host.insights_id,
         host.reporter,
         host.system_profile_facts.get("host_type"),
         host.system_profile_facts.get("operating_system", {}).get("name"),
@@ -413,7 +413,7 @@ def assert_synchronize_event_is_valid(
     assert set(event.keys()) == expected_keys
     assert timestamp.replace(tzinfo=UTC).isoformat() == event["timestamp"]
     assert event["type"] == "updated"
-    assert host.canonical_facts.get("insights_id") == event["host"]["insights_id"]
+    assert host.insights_id == event["host"]["insights_id"]
     assert str(host.id) in event_producer.key
 
     # Assert groups data
@@ -427,7 +427,7 @@ def assert_synchronize_event_is_valid(
     assert event_producer.headers == expected_headers(
         "updated",
         event["metadata"]["request_id"],
-        host.canonical_facts.get("insights_id"),
+        host.insights_id,
         host.reporter,
         host.system_profile_facts.get("host_type"),
         host.system_profile_facts.get("operating_system", {}).get("name"),

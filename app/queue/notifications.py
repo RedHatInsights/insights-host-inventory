@@ -212,14 +212,12 @@ def build_base_notification_obj(notification_type: str, host: dict):
     if notification_type == NotificationType.validation_error.value:
         return base_obj
 
-    canonical_facts = host.get("canonical_facts", deserialize_canonical_facts(host))
-
     system_profile = host.get("system_profile_facts", host.get("system_profile", {}))
 
     complete_base_obj: dict[str, Any] = {
         "context": {
             "inventory_id": host.get("id"),
-            "hostname": canonical_facts.get("fqdn", ""),
+            "hostname": host.get("fqdn"),
             "display_name": host.get("display_name"),
             "rhel_version": build_rhel_version_str(system_profile),
             "tags": _deserialize_tags(host.get("tags")),
@@ -235,14 +233,12 @@ def populate_events(base_notification_obj, host_list, extra_fields=None):
         extra_fields = []
 
     for host in host_list:
-        canonical_facts = host.get("canonical_facts", deserialize_canonical_facts(host))
-
         event_output_obj = {
             "metadata": {},
             "payload": {
-                "insights_id": canonical_facts.get("insights_id", ""),
-                "subscription_manager_id": canonical_facts.get("subscription_manager_id", ""),
-                "satellite_id": canonical_facts.get("satellite_id", ""),
+                "insights_id": host.get("insights_id", ""),
+                "subscription_manager_id": host.get("subscription_manager_id", ""),
+                "satellite_id": host.get("satellite_id", ""),
                 "groups": [{"id": group.get("id"), "name": group.get("name")} for group in host.get("groups", [])],
             },
         }
