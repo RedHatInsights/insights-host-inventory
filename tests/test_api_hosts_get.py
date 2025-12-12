@@ -11,6 +11,7 @@ import pytest
 from pytest_mock import MockerFixture
 from pytest_subtests import SubTests
 
+from app import db  # type: ignore[attr-defined]
 from app.models.host import Host
 from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
@@ -2620,3 +2621,97 @@ def test_api_hosts_get_system_profile_multiple_values_without_brackets(api_get):
     response_status, response_data = api_get(url)
     assert response_status == 400
     assert "Param filter must be appended with [] to accept multiple values." in response_data["detail"]
+
+
+# RHINENG-21703: Test per_reporter_staleness serialization with flat format
+# This test can be removed when the migration to flat format is complete
+def test_get_host_with_flat_per_reporter_staleness(db_create_host, api_get):
+    """
+    Test that a host with flat format per_reporter_staleness (just timestamp string)
+    is correctly serialized in the API response with full nested structure.
+    """
+
+    # Create a host
+    host = db_create_host(extra_data={"reporter": "puptoo"})
+
+    # Manually update per_reporter_staleness to flat format in the DB
+    host.per_reporter_staleness = {
+        "puptoo": host.last_check_in.isoformat()  # Flat format: just the timestamp string
+    }
+    db.session.commit()
+
+    # Fetch the host via API
+    url = build_hosts_url(host_list_or_id=host.id)
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
+
+    result = response_data["results"][0]
+
+    # Verify per_reporter_staleness is in the response with full structure
+    assert "per_reporter_staleness" in result
+    assert "puptoo" in result["per_reporter_staleness"]
+
+    prs = result["per_reporter_staleness"]["puptoo"]
+
+    # Verify all required fields are present (computed from flat format)
+    assert "last_check_in" in prs
+    assert "stale_timestamp" in prs
+    assert "stale_warning_timestamp" in prs
+    assert "culled_timestamp" in prs
+    assert "check_in_succeeded" in prs
+
+    # Verify last_check_in is present and valid (don't check exact value due to timezone handling)
+    assert prs["check_in_succeeded"] is True
+    # Verify timestamps are in the correct format
+    datetime.fromisoformat(prs["last_check_in"])
+    datetime.fromisoformat(prs["stale_timestamp"])
+    datetime.fromisoformat(prs["stale_warning_timestamp"])
+    datetime.fromisoformat(prs["culled_timestamp"])
+
+
+# RHINENG-21703: Test per_reporter_staleness serialization with nested format
+# This test can be removed when the migration to flat format is complete
+def test_get_host_with_nested_per_reporter_staleness(db_create_host, api_get):
+    """
+    Test that a host with nested format per_reporter_staleness (dict with all fields)
+    is correctly serialized in the API response.
+    """
+
+    # Create a host
+    host = db_create_host(extra_data={"reporter": "yupana"})
+
+    # Manually update per_reporter_staleness to nested format in the DB
+    # (This is the current format, so this should already be the case)
+    db.session.commit()
+
+    # Fetch the host via API
+    url = build_hosts_url(host_list_or_id=host.id)
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
+
+    result = response_data["results"][0]
+
+    # Verify per_reporter_staleness is in the response with full structure
+    assert "per_reporter_staleness" in result
+    assert "yupana" in result["per_reporter_staleness"]
+
+    prs = result["per_reporter_staleness"]["yupana"]
+
+    # Verify all required fields are present (from nested format)
+    assert "last_check_in" in prs
+    assert "stale_timestamp" in prs
+    assert "stale_warning_timestamp" in prs
+    assert "culled_timestamp" in prs
+    assert "check_in_succeeded" in prs
+
+    # Verify last_check_in is present and valid (don't check exact value due to timezone handling)
+    assert prs["check_in_succeeded"] is True
+    # Verify timestamps are in the correct format
+    datetime.fromisoformat(prs["last_check_in"])
+    datetime.fromisoformat(prs["stale_timestamp"])
+    datetime.fromisoformat(prs["stale_warning_timestamp"])
+    datetime.fromisoformat(prs["culled_timestamp"])

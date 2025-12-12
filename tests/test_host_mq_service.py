@@ -20,11 +20,14 @@ from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.exc import StaleDataError
 
+from app import db  # type: ignore[attr-defined]
 from app.auth.identity import Identity
 from app.auth.identity import create_mock_identity_with_org_id
+from app.common import inventory_config
 from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
+from app.culling import Timestamps
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import threadctx
@@ -39,6 +42,8 @@ from app.queue.host_mq import SystemProfileMessageConsumer
 from app.queue.host_mq import WorkspaceMessageConsumer
 from app.queue.host_mq import _sanitize_json_object_for_postgres
 from app.queue.host_mq import write_add_update_event_message
+from app.serialization import serialize_host
+from app.staleness_serialization import get_sys_default_staleness
 from app.utils import Tag
 from lib.host_repository import AddHostResult
 from tests.helpers.db_utils import create_reference_host_in_db
@@ -3227,3 +3232,69 @@ def test_update_system_profile_bios_fields(mq_create_or_update_host, db_get_host
     assert second_host_from_db.system_profile_facts["owner_id"] == OWNER_ID
     assert second_host_from_db.system_profile_facts["bios_vendor"] == "new_vendor"
     assert second_host_from_db.system_profile_facts["bios_version"] == "1.23"
+
+
+# RHINENG-21703: Test per_reporter_staleness serialization with flat format
+# This test can be removed when the migration to flat format is complete
+def test_mq_host_with_flat_per_reporter_staleness_serializes_correctly(
+    mq_create_or_update_host: Callable, db_get_host: Callable[[str], Host]
+) -> None:
+    """
+    Test that when per_reporter_staleness is in flat format, it serializes correctly via API.
+    """
+    # Create a host via MQ
+    input_host = minimal_host(reporter="puptoo")
+    created_host = mq_create_or_update_host(input_host)
+    host_id = created_host.id
+
+    # Get the host from DB and manually set per_reporter_staleness to flat format
+    host = db_get_host(host_id)
+    host.per_reporter_staleness = {
+        "puptoo": host.last_check_in.isoformat()  # Flat format: just the timestamp string
+    }
+    db.session.commit()
+
+    # Serialize the host (this is what the API does)
+    staleness_timestamps = Timestamps.from_config(inventory_config())
+    staleness = get_sys_default_staleness()
+    serialized = serialize_host(host, staleness_timestamps, False, ("tags",), staleness=staleness)
+
+    # Verify per_reporter_staleness has all fields computed from flat format
+    assert "per_reporter_staleness" in serialized
+    assert "puptoo" in serialized["per_reporter_staleness"]
+    assert "last_check_in" in serialized["per_reporter_staleness"]["puptoo"]
+    assert "stale_timestamp" in serialized["per_reporter_staleness"]["puptoo"]
+    assert "stale_warning_timestamp" in serialized["per_reporter_staleness"]["puptoo"]
+    assert "culled_timestamp" in serialized["per_reporter_staleness"]["puptoo"]
+    assert "check_in_succeeded" in serialized["per_reporter_staleness"]["puptoo"]
+
+
+# RHINENG-21703: Test per_reporter_staleness serialization with nested format
+# This test can be removed when the migration to flat format is complete
+def test_mq_host_with_nested_per_reporter_staleness_serializes_correctly(
+    mq_create_or_update_host: Callable, db_get_host: Callable[[str], Host]
+) -> None:
+    """
+    Test that when per_reporter_staleness is in nested format, it serializes correctly.
+    """
+    # Create a host via MQ (this creates nested format by default)
+    input_host = minimal_host(reporter="yupana")
+    created_host = mq_create_or_update_host(input_host)
+    host_id = created_host.id
+
+    # Get the host from DB
+    host = db_get_host(host_id)
+
+    # Serialize the host (this is what the API does)
+    staleness_timestamps = Timestamps.from_config(inventory_config())
+    staleness = get_sys_default_staleness()
+    serialized = serialize_host(host, staleness_timestamps, False, ("tags",), staleness=staleness)
+
+    # Verify per_reporter_staleness has all fields from nested format
+    assert "per_reporter_staleness" in serialized
+    assert "yupana" in serialized["per_reporter_staleness"]
+    assert "last_check_in" in serialized["per_reporter_staleness"]["yupana"]
+    assert "stale_timestamp" in serialized["per_reporter_staleness"]["yupana"]
+    assert "stale_warning_timestamp" in serialized["per_reporter_staleness"]["yupana"]
+    assert "culled_timestamp" in serialized["per_reporter_staleness"]["yupana"]
+    assert "check_in_succeeded" in serialized["per_reporter_staleness"]["yupana"]
