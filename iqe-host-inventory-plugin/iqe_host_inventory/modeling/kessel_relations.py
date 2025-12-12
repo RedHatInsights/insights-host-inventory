@@ -3,14 +3,18 @@
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass
+from functools import cached_property
 
+from iqe.base.http import RobustSession
 from kessel.relations.v1beta1.common_pb2 import Relationship
 from kessel.relations.v1beta1.relation_tuples_pb2 import ReadTuplesRequest
 from kessel.relations.v1beta1.relation_tuples_pb2 import ReadTuplesResponse
 from kessel.relations.v1beta1.relation_tuples_pb2 import RelationTupleFilter
 from kessel.relations.v1beta1.relation_tuples_pb2 import SubjectFilter
 from kessel.relations.v1beta1.relation_tuples_pb2_grpc import KesselTupleServiceStub
+from requests.models import Response
 
 from iqe_host_inventory.modeling.groups_api import GROUP_OR_ID
 from iqe_host_inventory.modeling.groups_api import _id_from_group
@@ -20,7 +24,42 @@ from iqe_host_inventory.utils.api_utils import accept_when
 
 HOST_NOT_SYNCED_ERROR = Exception("Host changes weren't successfully synced to Kessel Relations")
 
+GRPC_ENVS = ("clowder_smoke", "ephemeral", "smoke")
+
 logger = logging.getLogger(__name__)
+
+
+def camel_to_snake(name):
+    """Convert a camelCase string to snake_case."""
+    # Insert underscore before uppercase letters and convert to lowercase
+    s1 = re.sub(r"(.)([A-Z][a-z]+)", r"\1_\2", name)
+    return re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
+
+
+def convert_keys_to_snake_case(obj):
+    """Recursively convert all dictionary keys from camelCase to snake_case."""
+    if isinstance(obj, dict):
+        return {
+            camel_to_snake(key): convert_keys_to_snake_case(value) for key, value in obj.items()
+        }
+    elif isinstance(obj, list):
+        return [convert_keys_to_snake_case(item) for item in obj]
+    else:
+        return obj
+
+
+def filter_to_dict(filter: RelationTupleFilter) -> dict[str, str]:
+    return {
+        "resource_namespace": filter.resource_namespace,
+        "resource_type": filter.resource_type,
+        "resource_id": filter.resource_id,
+        "relation": filter.relation,
+        "subject_filter": {
+            "subject_namespace": filter.subject_filter.subject_namespace,
+            "subject_type": filter.subject_filter.subject_type,
+            "subject_id": filter.subject_filter.subject_id,
+        },
+    }
 
 
 @dataclass(order=False)
@@ -56,15 +95,53 @@ class HBIKesselRelationsGRPC:
     }
     """
 
-    def __init__(self, grpc_service: KesselTupleServiceStub):
+    def __init__(
+        self,
+        *,
+        env: str,
+        grpc_service: KesselTupleServiceStub | None = None,
+        turnpike_http_client: RobustSession | None = None,
+        turnpike_base_url: str | None = None,
+    ):
+        self.env = env
         self.grpc_service = grpc_service
+        self.turnpike_http_client = turnpike_http_client
+        self.turnpike_base_url = turnpike_base_url
 
-    def read_tuples_response(self, filter: RelationTupleFilter) -> list[ReadTuplesResponse]:
+    @cached_property
+    def is_grpc_env(self) -> bool:
+        return self.env.lower() in GRPC_ENVS
+
+    def read_tuples_turnpike_response(self, filter: RelationTupleFilter) -> Response:
+        filter_dict = filter_to_dict(filter)
+        logger.info(
+            f"Reading tuples from Kessel Relations via Turnpike with filter:\n{filter_dict}"
+        )
+        return self.turnpike_http_client.post(
+            f"{self.turnpike_base_url}/relations/read_tuples/", json={"filter": filter_dict}
+        )
+
+    def read_tuples_turnpike(self, filter: RelationTupleFilter) -> list[Relationship]:
+        # Turnpike returns camelCase keys, so we need to convert them to snake_case
+        tuples: list[dict] = convert_keys_to_snake_case(
+            self.read_tuples_turnpike_response(filter).json()["tuples"]
+        )
+        grpc_responses = [
+            ReadTuplesResponse(
+                tuple=tuple["tuple"],
+                pagination=tuple["pagination"],
+                consistency_token=tuple["consistency_token"],
+            )
+            for tuple in tuples
+        ]
+        return [response.tuple for response in grpc_responses]
+
+    def read_tuples_grpc_response(self, filter: RelationTupleFilter) -> list[ReadTuplesResponse]:
         logger.info(f"Reading tuples from Kessel Relations via gRPC with filter:\n{filter}")
         return list(self.grpc_service.ReadTuples(ReadTuplesRequest(filter=filter)))
 
-    def read_tuples(self, filter: RelationTupleFilter) -> list[Relationship]:
-        return [response.tuple for response in self.read_tuples_response(filter)]
+    def read_tuples_grpc(self, filter: RelationTupleFilter) -> list[Relationship]:
+        return [response.tuple for response in self.read_tuples_grpc_response(filter)]
 
     def get_host_workspace_tuples_raw(
         self, host: HOST_OR_ID | None = None, workspace: GROUP_OR_ID | None = None
@@ -82,7 +159,10 @@ class HBIKesselRelationsGRPC:
             filter.resource_id = host_id
         if workspace_id is not None:
             filter.subject_filter.subject_id = workspace_id
-        return self.read_tuples(filter)
+
+        if self.is_grpc_env:
+            return self.read_tuples_grpc(filter)
+        return self.read_tuples_turnpike(filter)
 
     def get_host_workspace_tuples(
         self, host: HOST_OR_ID | None = None, workspace: GROUP_OR_ID | None = None

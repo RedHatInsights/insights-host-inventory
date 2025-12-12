@@ -56,6 +56,11 @@ def hbi_base_url(application: Application, hbi_ephemeral_base_url: str) -> str:
     return f"https://{application.config.MAIN.hostname}"
 
 
+@pytest.fixture(scope="session")
+def hbi_turnpike_base_url(application: Application) -> str | None:
+    return application.host_inventory.config.get("turnpike_base_url")
+
+
 @pytest.fixture
 def hbi_empty_database(openapi_client: HostsApi) -> None:
     response = openapi_client.api_host_get_host_list(staleness=["fresh", "stale", "stale_warning"])
