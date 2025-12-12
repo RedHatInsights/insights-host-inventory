@@ -243,7 +243,13 @@ def _find_hosts_entities_query(query=None, columns: list[ColumnElement] | None =
         identity = get_current_identity()
 
     if query is None:
-        query = db.session.query(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
+        query = (
+            db.session.query(Host)
+            .join(HostGroupAssoc, isouter=True)
+            .join(Group, isouter=True)
+            .join(HostStaticSystemProfile, isouter=True)
+            .join(HostDynamicSystemProfile, isouter=True)
+        )
         query = query.filter(Host.org_id == identity.org_id)
 
     if columns:
