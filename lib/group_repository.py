@@ -152,7 +152,8 @@ def validate_add_host_list_to_group(host_id_list: list[str], group_id: str, org_
 
 
 def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str):
-    # First, validate that the hosts can even be added to the group
+    # Validate that the hosts exist and can be added to the group
+    # This must happen BEFORE any database modifications to ensure clean rollback on failure
     validate_add_host_list_to_group(host_id_list, group_id, org_id)
 
     # Filter out hosts that are already in the group
