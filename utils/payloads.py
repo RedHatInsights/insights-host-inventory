@@ -28,6 +28,33 @@ IDENTITY = {
     },
 }
 
+# # The identity used by "insights_service_delivery."  Having this identity here makes life a lot easier w
+# # hen creating hosts.
+# org_id = "12345"
+# IDENTITY = {
+#   "identity": {
+#     "org_id": org_id,
+#     "type": "User",
+#     "auth_type": "basic-auth",
+#     "user": {
+#       "username": "jdoe",
+#       "email": "jdoe@redhat.com",
+#       "first_name": "John",
+#       "last_name": "Doe",
+#       "is_active": "true",
+#       "is_org_admin": "true",
+#       "is_internal": "true",
+#       "locale": "en_US",
+#       "user_id": "12345",
+#       "account_number": "1234567890"
+#     },
+#     "internal": {
+#       "org_id": org_id
+#     },
+#     "account_number": "1234567890"
+#   }
+# }
+
 # complete system identity
 # IDENTITY = {
 #     "org_id": "test",
