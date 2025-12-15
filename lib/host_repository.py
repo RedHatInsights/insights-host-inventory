@@ -30,6 +30,7 @@ from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import LimitedHost
 from app.models import db
+from app.serialization import extract_canonical_facts_from_host
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness
 from app.staleness_states import HostStalenessStatesDbFilters
@@ -78,12 +79,14 @@ def add_host(
         operation_args = {}
 
     matched_host = None
+    input_host_canonical_facts = extract_canonical_facts_from_host(input_host)
+
     if existing_hosts:
         # First, try to match the host in memory - from the provided list of existing hosts
-        matched_host = find_existing_host(identity, input_host.canonical_facts, existing_hosts)
+        matched_host = find_existing_host(identity, input_host_canonical_facts, existing_hosts)
     if matched_host is None:
         # If the list of existing hosts was not provided, or the match was not found, try querying DB
-        matched_host = find_existing_host(identity, input_host.canonical_facts)
+        matched_host = find_existing_host(identity, input_host_canonical_facts)
 
     group = get_or_create_ungrouped_hosts_group_for_identity(identity)
     input_host.groups = [serialize_group(group)]
@@ -333,7 +336,7 @@ def matches_at_least_one_canonical_fact_filter(canonical_facts: dict[str, Any]) 
 
 
 def matches_at_least_one_canonical_fact_filter_in_memory(host: Host, canonical_facts: dict[str, Any]) -> bool:
-    return any(host.canonical_facts.get(key) == value for key, value in canonical_facts.items())
+    return any(host.get(key) == value for key, value in canonical_facts.items())
 
 
 def update_system_profile(input_host: Host | LimitedHost, identity: Identity):
@@ -345,7 +348,8 @@ def update_system_profile(input_host: Host | LimitedHost, identity: Identity):
     if input_host.id:
         existing_host = find_existing_host_by_id(identity, input_host.id)
     else:
-        existing_host = find_existing_host(identity, input_host.canonical_facts)
+        input_host_canonical_facts = extract_canonical_facts_from_host(input_host)
+        existing_host = find_existing_host(identity, input_host_canonical_facts)
 
     if existing_host:
         logger.debug("Updating system profile on an existing host")

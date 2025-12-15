@@ -222,13 +222,11 @@ class TestOutboxE2ECases:
     def test_host_without_id_error(self, db_create_host):  # noqa: ARG002
         """Test error handling when host object has no ID."""
         # Create a host object without setting the ID
-        host_data = {
-            "canonical_facts": {
-                "insights_id": generate_uuid(),
-                "subscription_manager_id": generate_uuid(),
-            }
+        canonical_facts = {
+            "insights_id": generate_uuid(),
+            "subscription_manager_id": generate_uuid(),
         }
-        host_without_id = Host(canonical_facts=host_data["canonical_facts"], reporter="test-reporter")
+        host_without_id = Host(**canonical_facts, reporter="test-reporter")
         host_without_id.id = None  # Explicitly set to None
 
         with pytest.raises(OutboxSaveException) as exc_info:
@@ -245,13 +243,11 @@ class TestOutboxE2ECases:
 
     def test_invalid_host_id_format_error(self):
         """Test error handling for invalid host_id format."""
-        host_data = {
-            "canonical_facts": {
-                "insights_id": generate_uuid(),
-                "subscription_manager_id": generate_uuid(),
-            }
+        canonical_facts = {
+            "insights_id": generate_uuid(),
+            "subscription_manager_id": generate_uuid(),
         }
-        host = Host(canonical_facts=host_data["canonical_facts"], reporter="test-reporter")
+        host = Host(**canonical_facts, reporter="test-reporter")
         host.id = uuid.uuid4()
 
         with pytest.raises(OutboxSaveException) as exc_info:

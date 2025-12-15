@@ -9,6 +9,7 @@ from marshmallow import ValidationError
 from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
 from app.common import inventory_config
+from app.config import CANONICAL_FACTS_FIELDS
 from app.culling import Conditions
 from app.culling import Timestamps
 from app.culling import should_host_stay_fresh_forever
@@ -34,6 +35,7 @@ __all__ = (
     "serialize_host",
     "serialize_host_system_profile",
     "serialize_canonical_facts",
+    "extract_canonical_facts_from_host",
 )
 
 
@@ -51,18 +53,6 @@ _EXPORT_SERVICE_FIELDS = [
     "tags",
     "host_type",
 ]
-
-_CANONICAL_FACTS_FIELDS = (
-    "insights_id",
-    "subscription_manager_id",
-    "satellite_id",
-    "bios_uuid",
-    "ip_addresses",
-    "fqdn",
-    "mac_addresses",
-    "provider_id",
-    "provider_type",
-)
 
 DEFAULT_FIELDS = (
     "id",
@@ -110,7 +100,9 @@ def deserialize_host(
     facts = _deserialize_facts(validated_data.get("facts"))
     tags = _deserialize_tags(validated_data.get("tags"))
     tags_alt = validated_data.get("tags_alt", [])
-    return schema.build_model(validated_data, canonical_facts, facts, tags, tags_alt)
+
+    validated_data_with_cf = {**validated_data, **canonical_facts}
+    return schema.build_model(validated_data_with_cf, facts, tags, tags_alt)
 
 
 def deserialize_canonical_facts(raw_data, all=False):
@@ -127,7 +119,7 @@ def deserialize_canonical_facts(raw_data, all=False):
 
 # Removes any null canonical facts from a serialized host.
 def remove_null_canonical_facts(serialized_host: dict):
-    for field_name in [f for f in _CANONICAL_FACTS_FIELDS if serialized_host[f] is None]:
+    for field_name in [f for f in CANONICAL_FACTS_FIELDS if serialized_host[f] is None]:
         del serialized_host[field_name]
 
 
@@ -150,13 +142,14 @@ def serialize_host(
         fields += ADDITIONAL_HOST_MQ_FIELDS
 
     # Base serialization
-    serialized_host = {**serialize_canonical_facts(host.canonical_facts)}
+    serialized_host = {**serialize_canonical_facts(extract_canonical_facts_from_host(host))}
 
     # Define field mapping to avoid repeated "if" conditions
     field_mapping = {
         "id": lambda: _serialize_uuid(host.id),
         "account": lambda: host.account,
         "org_id": lambda: host.org_id,
+        "insights_id": lambda: host.insights_id,
         "display_name": lambda: host.display_name,
         "ansible_host": lambda: host.ansible_host,
         "facts": lambda: serialize_facts(host.facts),
@@ -278,15 +271,15 @@ def _recursive_casefold(field_data):
 
 
 def _deserialize_canonical_facts(data):
-    return {field: _recursive_casefold(data[field]) for field in _CANONICAL_FACTS_FIELDS if data.get(field)}
+    return {field: _recursive_casefold(data[field]) for field in CANONICAL_FACTS_FIELDS if data.get(field)}
 
 
 def _deserialize_all_canonical_facts(data):
-    return {field: _recursive_casefold(data[field]) if data.get(field) else None for field in _CANONICAL_FACTS_FIELDS}
+    return {field: _recursive_casefold(data[field]) if data.get(field) else None for field in CANONICAL_FACTS_FIELDS}
 
 
 def serialize_canonical_facts(canonical_facts):
-    return {field: canonical_facts.get(field) for field in _CANONICAL_FACTS_FIELDS}
+    return {field: canonical_facts.get(field) for field in CANONICAL_FACTS_FIELDS}
 
 
 def _deserialize_facts(data):
@@ -569,3 +562,31 @@ def serialize_host_with_params(host, additional_fields=tuple(), system_profile_f
     identity = get_current_identity()
     staleness = get_staleness_obj(identity.org_id)
     return serialize_host(host, timestamps, False, additional_fields, staleness, system_profile_fields)
+
+
+def extract_canonical_facts_from_host(host: Host | LimitedHost) -> dict:
+    """
+    Extract canonical facts fields directly from a host object.
+
+    This function extracts the canonical facts fields from the host's individual
+    attributes and returns them as a dictionary. This replaces the old
+    host.canonical_facts field which no longer exists.
+
+    Args:
+        host: A Host or LimitedHost instance
+
+    Returns:
+        A dictionary containing all canonical facts fields (with None for missing values)
+    """
+    # Build a dict from the host object, filtering out None/empty values
+    canonical_facts = {}
+    for field in CANONICAL_FACTS_FIELDS:
+        value = getattr(host, field, None)
+        if value:
+            # Convert non-string values to strings
+            # Keep lists as lists
+            if isinstance(value, (list, str)):
+                canonical_facts[field] = value
+            else:
+                canonical_facts[field] = str(value)
+    return canonical_facts

@@ -81,7 +81,7 @@ def test_update_existing_host_fix_display_name_using_existing_fqdn(db_create_hos
 
     # Update the host
     input_host = Host(
-        {"insights_id": insights_id},
+        insights_id=insights_id,
         display_name="",
         reporter="puptoo",
         stale_timestamp=now(),
@@ -108,7 +108,8 @@ def test_update_existing_host_display_name_changing_fqdn(db_create_host):
 
     # Update the host
     input_host = Host(
-        {"fqdn": new_fqdn, "insights_id": insights_id},
+        fqdn=new_fqdn,
+        insights_id=insights_id,
         display_name="",
         reporter="puptoo",
         stale_timestamp=now(),
@@ -130,7 +131,8 @@ def test_update_existing_host_update_display_name_from_id_using_existing_fqdn(db
 
     # Update the host
     input_host = Host(
-        {"insights_id": insights_id, "fqdn": expected_fqdn},
+        insights_id=insights_id,
+        fqdn=expected_fqdn,
         reporter="puptoo",
         stale_timestamp=now(),
         org_id=USER_IDENTITY["org_id"],
@@ -157,7 +159,8 @@ def test_update_existing_host_fix_display_name_using_input_fqdn(db_create_host):
     # Update the host
     expected_fqdn = "different.domain1.com"
     input_host = Host(
-        {"fqdn": expected_fqdn, "subscription_manager_id": subman_id},
+        fqdn=expected_fqdn,
+        subscription_manager_id=subman_id,
         display_name="",
         reporter="puptoo",
         stale_timestamp=now(),
@@ -188,7 +191,7 @@ def test_update_existing_host_fix_display_name_using_id(db_create_host):
 
     # Update the host
     input_host = Host(
-        {"insights_id": insights_id},
+        insights_id=insights_id,
         display_name="",
         reporter="puptoo",
         stale_timestamp=now(),
@@ -376,7 +379,7 @@ def test_host_model_assigned_values(db_create_host, db_get_host):
 def test_host_model_invalid_openshift_cluster_id(db_create_host):
     host = Host(
         account=USER_IDENTITY["account_number"],
-        canonical_facts={"subscription_manager_id": generate_uuid()},
+        subscription_manager_id=generate_uuid(),
         reporter="yupana",
         org_id=USER_IDENTITY["org_id"],
         openshift_cluster_id="invalid-uuid",
@@ -388,7 +391,7 @@ def test_host_model_invalid_openshift_cluster_id(db_create_host):
 def test_host_model_no_openshift_cluster_id_allowed(db_create_host):
     host = Host(
         account=USER_IDENTITY["account_number"],
-        canonical_facts={"subscription_manager_id": generate_uuid()},
+        subscription_manager_id=generate_uuid(),
         reporter="yupana",
         org_id=USER_IDENTITY["org_id"],
         openshift_cluster_id=None,
@@ -399,7 +402,7 @@ def test_host_model_no_openshift_cluster_id_allowed(db_create_host):
 def test_host_model_default_id(db_create_host):
     host = Host(
         account=USER_IDENTITY["account_number"],
-        canonical_facts={"subscription_manager_id": generate_uuid()},
+        subscription_manager_id=generate_uuid(),
         reporter="yupana",
         stale_timestamp=now(),
         org_id=USER_IDENTITY["org_id"],
@@ -412,7 +415,7 @@ def test_host_model_default_id(db_create_host):
 def test_host_model_default_timestamps(db_create_host):
     host = Host(
         account=USER_IDENTITY["account_number"],
-        canonical_facts={"subscription_manager_id": generate_uuid()},
+        subscription_manager_id=generate_uuid(),
         reporter="yupana",
         stale_timestamp=now(),
         org_id=USER_IDENTITY["org_id"],
@@ -431,7 +434,7 @@ def test_host_model_default_timestamps(db_create_host):
 def test_host_model_updated_timestamp(db_create_host):
     host = Host(
         account=USER_IDENTITY["account_number"],
-        canonical_facts={"subscription_manager_id": generate_uuid()},
+        subscription_manager_id=generate_uuid(),
         reporter="yupana",
         stale_timestamp=now(),
         org_id=USER_IDENTITY["org_id"],
@@ -453,7 +456,7 @@ def test_host_model_updated_timestamp(db_create_host):
 def test_host_model_timestamp_timezones(db_create_host):
     host = Host(
         account=USER_IDENTITY["account_number"],
-        canonical_facts={"subscription_manager_id": generate_uuid()},
+        subscription_manager_id=generate_uuid(),
         stale_timestamp=now(),
         reporter="ingress",
         org_id=USER_IDENTITY["org_id"],
@@ -473,7 +476,7 @@ def test_host_model_timestamp_timezones(db_create_host):
 def test_host_model_constraints(field, value, db_create_host):
     values = {
         "account": USER_IDENTITY["account_number"],
-        "canonical_facts": {"subscription_manager_id": generate_uuid()},
+        "subscription_manager_id": generate_uuid(),
         "stale_timestamp": now(),
         "org_id": USER_IDENTITY["org_id"],
         **{field: value},
@@ -492,7 +495,7 @@ def test_create_host_sets_per_reporter_staleness(db_create_host, models_datetime
     stale_timestamp = models_datetime_mock + timedelta(days=1)
 
     input_host = Host(
-        {"subscription_manager_id": generate_uuid()},
+        subscription_manager_id=generate_uuid(),
         display_name="display_name",
         reporter="puptoo",
         stale_timestamp=stale_timestamp,
@@ -519,7 +522,7 @@ def test_update_per_reporter_staleness(db_create_host, models_datetime_mock):
 
     subman_id = generate_uuid()
     input_host = Host(
-        {"subscription_manager_id": subman_id},
+        subscription_manager_id=subman_id,
         display_name="display_name",
         reporter="puptoo",
         stale_timestamp=puptoo_stale_timestamp,
@@ -544,7 +547,7 @@ def test_update_per_reporter_staleness(db_create_host, models_datetime_mock):
     puptoo_stale_timestamp += timedelta(days=1)
 
     update_host = Host(
-        {"subscription_manager_id": subman_id},
+        subscription_manager_id=subman_id,
         display_name="display_name",
         reporter="puptoo",
         stale_timestamp=puptoo_stale_timestamp,
@@ -566,7 +569,7 @@ def test_update_per_reporter_staleness(db_create_host, models_datetime_mock):
     yupana_stale_timestamp = puptoo_stale_timestamp + timedelta(days=1)
 
     update_host = Host(
-        {"subscription_manager_id": subman_id},
+        subscription_manager_id=subman_id,
         display_name="display_name",
         reporter="yupana",
         stale_timestamp=yupana_stale_timestamp,
@@ -601,7 +604,7 @@ def test_update_per_reporter_staleness_yupana_replacement(db_create_host, models
     yupana_stale_timestamp = models_datetime_mock + timedelta(days=1)
     subman_id = generate_uuid()
     input_host = Host(
-        {"subscription_manager_id": subman_id},
+        subscription_manager_id=subman_id,
         display_name="display_name",
         reporter="yupana",
         stale_timestamp=yupana_stale_timestamp,
@@ -625,7 +628,7 @@ def test_update_per_reporter_staleness_yupana_replacement(db_create_host, models
     yupana_stale_timestamp += timedelta(days=1)
 
     update_host = Host(
-        {"subscription_manager_id": subman_id},
+        subscription_manager_id=subman_id,
         display_name="display_name",
         reporter=new_reporter,
         stale_timestamp=yupana_stale_timestamp,
@@ -1321,7 +1324,7 @@ def test_create_host_rhsm_only_sets_far_future_timestamps(db_create_host):
     stale_timestamp = datetime.now() + timedelta(days=1)
 
     input_host = Host(
-        {"subscription_manager_id": generate_uuid()},
+        subscription_manager_id=generate_uuid(),
         display_name="display_name",
         reporter="rhsm-system-profile-bridge",
         stale_timestamp=stale_timestamp,
@@ -1347,7 +1350,7 @@ def test_host_with_rhsm_and_other_reporters_normal_behavior(db_create_host, mode
     stale_timestamp = models_datetime_mock + timedelta(days=1)
 
     input_host = Host(
-        {"subscription_manager_id": generate_uuid()},
+        subscription_manager_id=generate_uuid(),
         display_name="display_name",
         reporter="puptoo",
         stale_timestamp=stale_timestamp,

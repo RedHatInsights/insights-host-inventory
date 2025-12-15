@@ -25,6 +25,18 @@ ID_FACTS = ("provider_id", "subscription_manager_id", "insights_id")
 # This elevated fact is to be used when the USE_SUBMAN_ID env is True
 ID_FACTS_USE_SUBMAN_ID = ("subscription_manager_id",)
 
+CANONICAL_FACTS_FIELDS = (
+    "insights_id",
+    "subscription_manager_id",
+    "satellite_id",
+    "bios_uuid",
+    "ip_addresses",
+    "fqdn",
+    "mac_addresses",
+    "provider_id",
+    "provider_type",
+)
+
 COMPOUND_ID_FACTS_MAP = {"provider_id": "provider_type"}
 COMPOUND_ID_FACTS = tuple(COMPOUND_ID_FACTS_MAP.values())
 IMMUTABLE_ID_FACTS = ("provider_id",)

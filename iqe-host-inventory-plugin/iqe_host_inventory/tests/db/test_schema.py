@@ -10,7 +10,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.base import NO_VALUE
 
 from iqe_host_inventory.utils.datagen_utils import create_system_profile_facts
-from iqe_host_inventory.utils.datagen_utils import generate_canonical_facts
 from iqe_host_inventory.utils.datagen_utils import generate_facts
 from iqe_host_inventory.utils.datagen_utils import generate_per_reporter_staleness
 from iqe_host_inventory.utils.datagen_utils import generate_string_of_length
@@ -184,7 +183,6 @@ def test_db_schema_hosts_max_len(inventory_db_session):
         facts=generate_facts(),
         tags=tags,
         tags_alt=convert_tag_from_nested_to_structured(tags),
-        canonical_facts=generate_canonical_facts(),
         system_profile_facts=create_system_profile_facts(),
         groups=groups,
         reporter=reporter,

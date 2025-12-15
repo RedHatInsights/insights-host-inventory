@@ -17,6 +17,7 @@ from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy.orm import column_property
 from sqlalchemy.orm import relationship
 
+from app.config import CANONICAL_FACTS_FIELDS
 from app.config import ID_FACTS
 from app.culling import should_host_stay_fresh_forever
 from app.exceptions import InventoryException
@@ -101,6 +102,7 @@ class LimitedHost(db.Model):
         self._add_or_update_normalized_system_profiles(system_profile_facts)
         self.groups = groups or []
         self.last_check_in = _time_now()
+        self.openshift_cluster_id = openshift_cluster_id
         # canonical facts
         self.insights_id = insights_id
         self.subscription_manager_id = subscription_manager_id
@@ -111,7 +113,6 @@ class LimitedHost(db.Model):
         self.mac_addresses = mac_addresses
         self.provider_id = provider_id
         self.provider_type = provider_type
-        self.openshift_cluster_id = openshift_cluster_id
 
     def _update_ansible_host(self, ansible_host):
         if ansible_host is not None:
@@ -235,7 +236,7 @@ class Host(LimitedHost):
 
     def __init__(
         self,
-        canonical_facts,
+        canonical_facts=None,
         display_name=None,
         ansible_host=None,
         account=None,
@@ -266,14 +267,20 @@ class Host(LimitedHost):
         if groups is None:
             groups = []
 
-        if not canonical_facts:
+        constructed_canonical_facts = {}
+        for field in CANONICAL_FACTS_FIELDS:
+            value = locals().get(field)
+            if value is not None:
+                constructed_canonical_facts[field] = value
+
+        if not constructed_canonical_facts:
             raise ValidationException("At least one of the canonical fact fields must be present.")
 
-        if all(id_fact not in canonical_facts for id_fact in ID_FACTS):
+        if all(id_fact not in constructed_canonical_facts for id_fact in ID_FACTS):
             raise ValidationException(f"At least one of the ID fact fields must be present: {ID_FACTS}")
 
-        if current_app.config["USE_SUBMAN_ID"] and "subscription_manager_id" in canonical_facts:
-            id = canonical_facts["subscription_manager_id"]
+        if current_app.config["USE_SUBMAN_ID"] and "subscription_manager_id" in constructed_canonical_facts:
+            id = constructed_canonical_facts["subscription_manager_id"]
 
         if not reporter:
             raise ValidationException("The reporter field must be present.")
@@ -314,22 +321,16 @@ class Host(LimitedHost):
         self.per_reporter_staleness = per_reporter_staleness or {}
         if not per_reporter_staleness:
             self._update_per_reporter_staleness(reporter)
-
-        self.update_canonical_facts(canonical_facts)
-        self.update_canonical_facts_columns(canonical_facts)
+        self.update_canonical_facts_columns(constructed_canonical_facts)
 
     def save(self):
         self._cleanup_tags()
         db.session.add(self)
 
     def update(self, input_host: "Host", update_system_profile: bool = False) -> None:
-        self.update_display_name(
-            input_host.display_name, input_host.reporter, input_fqdn=input_host.canonical_facts.get("fqdn")
-        )
+        self.update_display_name(input_host.display_name, input_host.reporter, input_fqdn=input_host.get("fqdn"))
 
-        self.update_canonical_facts(input_host.canonical_facts)
-
-        self.update_canonical_facts_columns(input_host.canonical_facts)
+        self.update_canonical_facts_columns(input_host)
 
         self._update_ansible_host(input_host.ansible_host)
 
@@ -386,27 +387,12 @@ class Host(LimitedHost):
         else:
             self._apply_display_name_fallback(input_fqdn)
 
-    def update_canonical_facts(self, canonical_facts):
-        logger.debug(
-            "Updating host's (id=%s) canonical_facts (%s) with input canonical_facts=%s",
-            self.id,
-            self.canonical_facts,
-            canonical_facts,
-        )
-        self.canonical_facts.update(canonical_facts)  # Field being removed in the future
-        logger.debug("Host (id=%s) has updated canonical_facts (%s)", self.id, self.canonical_facts)
-        orm.attributes.flag_modified(self, "canonical_facts")  # Field being removed in the future
-
-    def update_canonical_facts_columns(self, canonical_facts):
+    def update_canonical_facts_columns(self, host):
         try:
-            for key, value in canonical_facts.items():
-                current_value = getattr(self, key)
-                # Handle type conversion for comparison (e.g., UUID vs string)
-                # Convert both to strings for comparison to avoid false positives
-                current_value_str = str(current_value) if current_value is not None else None
-                value_str = str(value) if value is not None else None
-
-                if current_value_str != value_str:
+            for key, value in host.items():
+                if key in CANONICAL_FACTS_FIELDS:
+                    # Always set the value to ensure it's properly tracked by SQLAlchemy
+                    # This is important for new instances where values might not be tracked yet
                     setattr(self, key, value)
                     orm.attributes.flag_modified(self, key)
         except AttributeError as e:
@@ -604,5 +590,4 @@ class Host(LimitedHost):
     def __repr__(self):
         return (
             f"<Host id='{self.id}' account='{self.account}' org_id='{self.org_id}' display_name='{self.display_name}' "
-            f"canonical_facts={self.canonical_facts}>"
         )

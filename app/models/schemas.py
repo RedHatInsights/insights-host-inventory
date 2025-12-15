@@ -244,9 +244,8 @@ class LimitedHostSchema(CanonicalFactsSchema):
         return {**data, "system_profile": system_profile}
 
     @staticmethod
-    def build_model(data, canonical_facts, facts, tags, tags_alt=None):
+    def build_model(data, facts, tags, tags_alt=None):
         return LimitedHost(
-            canonical_facts=canonical_facts,
             display_name=data.get("display_name"),
             ansible_host=data.get("ansible_host"),
             account=data.get("account"),
@@ -256,15 +255,15 @@ class LimitedHostSchema(CanonicalFactsSchema):
             tags_alt=tags_alt if tags_alt else [],
             system_profile_facts=data.get("system_profile", {}),
             groups=data.get("groups", []),
-            insights_id=canonical_facts.get("insights_id"),
-            subscription_manager_id=canonical_facts.get("subscription_manager_id"),
-            satellite_id=canonical_facts.get("satellite_id"),
-            fqdn=canonical_facts.get("fqdn"),
-            bios_uuid=canonical_facts.get("bios_uuid"),
-            ip_addresses=canonical_facts.get("ip_addresses"),
-            mac_addresses=canonical_facts.get("mac_addresses"),
-            provider_id=canonical_facts.get("provider_id"),
-            provider_type=canonical_facts.get("provider_type"),
+            insights_id=data.get("insights_id"),
+            subscription_manager_id=data.get("subscription_manager_id"),
+            satellite_id=data.get("satellite_id"),
+            fqdn=data.get("fqdn"),
+            bios_uuid=data.get("bios_uuid"),
+            ip_addresses=data.get("ip_addresses"),
+            mac_addresses=data.get("mac_addresses"),
+            provider_id=data.get("provider_id"),
+            provider_type=data.get("provider_type"),
             openshift_cluster_id=data.get("openshift_cluster_id"),
         )
 
@@ -298,31 +297,31 @@ class HostSchema(LimitedHostSchema):
     reporter = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=255))
 
     @staticmethod
-    def build_model(data, canonical_facts, facts, tags, tags_alt=None):
+    def build_model(data, facts, tags, tags_alt=None):
         if tags_alt is None:
             tags_alt = []
         return Host(
-            canonical_facts,
-            data.get("display_name"),
-            data.get("ansible_host"),
-            data.get("account"),
-            data.get("org_id"),
-            facts,
-            tags,
-            tags_alt,
-            data.get("system_profile", {}),
-            data.get("stale_timestamp"),
-            data["reporter"],
-            data.get("groups", []),
-            insights_id=canonical_facts.get("insights_id"),
-            subscription_manager_id=canonical_facts.get("subscription_manager_id"),
-            satellite_id=canonical_facts.get("satellite_id"),
-            fqdn=canonical_facts.get("fqdn"),
-            bios_uuid=canonical_facts.get("bios_uuid"),
-            ip_addresses=canonical_facts.get("ip_addresses"),
-            mac_addresses=canonical_facts.get("mac_addresses"),
-            provider_id=canonical_facts.get("provider_id"),
-            provider_type=canonical_facts.get("provider_type"),
+            canonical_facts=None,
+            display_name=data.get("display_name"),
+            ansible_host=data.get("ansible_host"),
+            account=data.get("account"),
+            org_id=data.get("org_id"),
+            facts=facts,
+            tags=tags,
+            tags_alt=tags_alt,
+            system_profile_facts=data.get("system_profile", {}),
+            stale_timestamp=data.get("stale_timestamp"),
+            reporter=data.get("reporter"),
+            groups=data.get("groups", []),
+            insights_id=data.get("insights_id"),
+            subscription_manager_id=data.get("subscription_manager_id"),
+            satellite_id=data.get("satellite_id"),
+            fqdn=data.get("fqdn"),
+            bios_uuid=data.get("bios_uuid"),
+            ip_addresses=data.get("ip_addresses"),
+            mac_addresses=data.get("mac_addresses"),
+            provider_id=data.get("provider_id"),
+            provider_type=data.get("provider_type"),
             openshift_cluster_id=data.get("openshift_cluster_id"),
         )
 

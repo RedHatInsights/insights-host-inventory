@@ -124,7 +124,6 @@ def minimal_db_host(empty_strings: bool = False, **fields: Any) -> dict[str, Any
         "created_on": datetime.now(UTC),
         "modified_on": datetime.now(UTC),
         "last_check_in": datetime.now(UTC),
-        "canonical_facts": {},
         "groups": [],
         "stale_timestamp": datetime.now(UTC),
         "reporter": "" if empty_strings else "iqe-hbi",

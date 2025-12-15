@@ -80,7 +80,7 @@ def db_get_hosts(flask_app: FlaskApp) -> Callable[[list[str], str | None], Query
 def db_get_host_by_insights_id(flask_app):  # noqa: ARG001
     def _db_get_host_by_insights_id(insights_id, org_id: str | None = None):
         org_id = org_id or SYSTEM_IDENTITY["org_id"]
-        return host_query(org_id).filter(Host.canonical_facts["insights_id"].astext == insights_id).one()
+        return host_query(org_id).filter(Host.insights_id == insights_id).one()
 
     return _db_get_host_by_insights_id
 
@@ -89,7 +89,7 @@ def db_get_host_by_insights_id(flask_app):  # noqa: ARG001
 def db_get_hosts_by_subman_id(flask_app: FlaskApp) -> Callable[[str], list[Host]]:  # noqa: ARG001
     def _db_get_hosts_by_insights_id(subman_id: str, org_id: str | None = None) -> list[Host]:
         org_id = org_id or SYSTEM_IDENTITY["org_id"]
-        return host_query(org_id).filter(Host.canonical_facts["subscription_manager_id"].astext == subman_id).all()
+        return host_query(org_id).filter(Host.subscription_manager_id == subman_id).all()
 
     return _db_get_hosts_by_insights_id
 
