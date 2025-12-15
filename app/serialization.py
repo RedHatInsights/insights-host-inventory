@@ -5,6 +5,7 @@ from typing import TypedDict
 
 from dateutil.parser import isoparse
 from marshmallow import ValidationError
+from sqlalchemy.orm.exc import DetachedInstanceError
 
 from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
@@ -81,6 +82,15 @@ DEFAULT_FIELDS = (
     "groups",
     "last_check_in",
     "openshift_cluster_id",
+    "insights_id",
+    "subscription_manager_id",
+    "satellite_id",
+    "fqdn",
+    "bios_uuid",
+    "ip_addresses",
+    "mac_addresses",
+    "provider_id",
+    "provider_type",
 )
 
 ADDITIONAL_HOST_MQ_FIELDS = (
@@ -127,8 +137,76 @@ def deserialize_canonical_facts(raw_data, all=False):
 
 # Removes any null canonical facts from a serialized host.
 def remove_null_canonical_facts(serialized_host: dict):
-    for field_name in [f for f in _CANONICAL_FACTS_FIELDS if serialized_host[f] is None]:
+    for field_name in [f for f in _CANONICAL_FACTS_FIELDS if f in serialized_host and serialized_host[f] is None]:
         del serialized_host[field_name]
+
+
+def _build_system_profile_from_normalized(host, system_profile_fields=None) -> dict:
+    """
+    Build system profile dict from static and dynamic tables.
+
+    This replaces host.system_profile_facts.
+    """
+    system_profile = {}
+
+    # UUID fields that need string conversion
+    UUID_FIELDS = {"owner_id", "rhc_client_id", "rhc_config_state", "virtual_host_uuid"}
+    # Datetime fields that need ISO string conversion
+    DATETIME_FIELDS = {"captured_date", "last_boot_time"}
+    # Fields to exclude (metadata, not system profile data)
+    EXCLUDE_FIELDS = {"org_id", "host_id"}
+
+    # Build system profile from static table
+    # Use try/except to handle DetachedInstanceError if relationship not loaded
+    try:
+        if host.static_system_profile:
+            for column in host.static_system_profile.__table__.columns:
+                field_name = column.name
+
+                # Skip metadata fields
+                if field_name in EXCLUDE_FIELDS:
+                    continue
+
+                # Skip if filtering and this field not requested
+                if system_profile_fields and field_name not in system_profile_fields:
+                    continue
+
+                value = getattr(host.static_system_profile, field_name, None)
+                if value is not None:
+                    if field_name in UUID_FIELDS:
+                        system_profile[field_name] = serialize_uuid(value)
+                    else:
+                        system_profile[field_name] = value
+    except DetachedInstanceError:
+        # Relationship not loaded - skip
+        pass
+
+    # Build system profile from dynamic table
+    # Use try/except to handle DetachedInstanceError if relationship not loaded
+    try:
+        if host.dynamic_system_profile:
+            for column in host.dynamic_system_profile.__table__.columns:
+                field_name = column.name
+
+                # Skip metadata fields
+                if field_name in EXCLUDE_FIELDS:
+                    continue
+
+                # Skip if filtering and this field not requested
+                if system_profile_fields and field_name not in system_profile_fields:
+                    continue
+
+                value = getattr(host.dynamic_system_profile, field_name, None)
+                if value is not None:
+                    if field_name in DATETIME_FIELDS:
+                        system_profile[field_name] = _serialize_datetime(value)
+                    else:
+                        system_profile[field_name] = value
+    except DetachedInstanceError:
+        # Relationship not loaded - skip
+        pass
+
+    return system_profile
 
 
 def serialize_host(
@@ -150,15 +228,24 @@ def serialize_host(
         fields += ADDITIONAL_HOST_MQ_FIELDS
 
     # Base serialization
-    serialized_host = {**serialize_canonical_facts(host.canonical_facts)}
+    serialized_host = {}
 
     # Define field mapping to avoid repeated "if" conditions
     field_mapping = {
-        "id": lambda: _serialize_uuid(host.id),
+        "id": lambda: serialize_uuid(host.id),
         "account": lambda: host.account,
         "org_id": lambda: host.org_id,
         "display_name": lambda: host.display_name,
         "ansible_host": lambda: host.ansible_host,
+        "insights_id": lambda: serialize_uuid(host.insights_id),
+        "subscription_manager_id": lambda: serialize_uuid(host.subscription_manager_id),
+        "satellite_id": lambda: host.satellite_id,
+        "fqdn": lambda: host.fqdn,
+        "bios_uuid": lambda: host.bios_uuid,
+        "ip_addresses": lambda: host.ip_addresses,
+        "mac_addresses": lambda: host.mac_addresses,
+        "provider_id": lambda: host.provider_id,
+        "provider_type": lambda: host.provider_type,
         "facts": lambda: serialize_facts(host.facts),
         "reporter": lambda: host.reporter,
         "per_reporter_staleness": lambda: _serialize_per_reporter_staleness(host, staleness, staleness_timestamps),
@@ -175,8 +262,8 @@ def serialize_host(
             stale_warning_timestamp=timestamps["stale_warning_timestamp"],
         ),
         "host_type": lambda: host.host_type,
-        "os_release": lambda: host.system_profile_facts.get("os_release", None),
-        "openshift_cluster_id": lambda: _serialize_uuid(host.openshift_cluster_id),
+        "os_release": lambda: host.static_system_profile.os_release if host.static_system_profile else None,
+        "openshift_cluster_id": lambda: serialize_uuid(host.openshift_cluster_id),
     }
 
     # Process each field dynamically
@@ -184,11 +271,7 @@ def serialize_host(
 
     # Handle system_profile separately due to its complexity
     if "system_profile" in fields:
-        serialized_host["system_profile"] = (
-            {k: v for k, v in host.system_profile_facts.items() if k in system_profile_fields}
-            if host.system_profile_facts and system_profile_fields
-            else host.system_profile_facts or {}
-        )
+        serialized_host["system_profile"] = _build_system_profile_from_normalized(host, system_profile_fields)
 
         # Add backward compatibility for workload fields (only for Kafka events)
         if (
@@ -200,12 +283,12 @@ def serialize_host(
                 serialized_host["system_profile"]
             )
 
-        if (
-            system_profile_fields
-            and system_profile_fields.count("host_type") < 2
-            and serialized_host["system_profile"].get("host_type")
-        ):
-            del serialized_host["system_profile"]["host_type"]
+        # Map host_type for backward compatibility with downstream apps (cyndi)
+        # Downstream apps only recognize "edge" vs empty values
+        if for_mq and serialized_host["system_profile"].get("host_type"):
+            serialized_host["system_profile"]["host_type"] = _map_host_type_for_backward_compatibility(
+                serialized_host["system_profile"]["host_type"]
+            )
 
     # Handle groups separately
     if "groups" in fields:
@@ -230,7 +313,7 @@ def serialize_host_for_export_svc(
         host, staleness_timestamps=staleness_timestamps, staleness=staleness, additional_fields=("os_release", "state")
     )
 
-    serialized_host["host_id"] = _serialize_uuid(host.id)
+    serialized_host["host_id"] = serialize_uuid(host.id)
     serialized_host["hostname"] = host.display_name
     if host.groups:
         serialized_host["group_id"] = host.groups[0]["id"]  # Assuming just one group per host
@@ -250,7 +333,7 @@ def serialize_host_for_export_svc(
 
 def serialize_group_without_host_count(group: Group) -> dict:
     return {
-        "id": _serialize_uuid(group.id),
+        "id": serialize_uuid(group.id),
         "org_id": group.org_id,
         "account": group.account,
         "name": group.name,
@@ -265,7 +348,8 @@ def serialize_group_with_host_count(group: Group, host_count: int) -> dict:
 
 
 def serialize_host_system_profile(host):
-    return {"id": _serialize_uuid(host.id), "system_profile": host.system_profile_facts or {}}
+    system_profile = _build_system_profile_from_normalized(host)
+    return {"id": serialize_uuid(host.id), "system_profile": system_profile}
 
 
 def _recursive_casefold(field_data):
@@ -330,7 +414,7 @@ def _deserialize_datetime(s):
     return dt.astimezone(UTC)
 
 
-def _serialize_uuid(u):
+def serialize_uuid(u):
     return str(u) if u else None
 
 
@@ -403,7 +487,7 @@ def _serialize_tags(tags):
 
 def serialize_staleness_response(staleness):
     return {
-        "id": _serialize_uuid(staleness.id),
+        "id": serialize_uuid(staleness.id),
         "org_id": staleness.org_id,
         "conventional_time_to_stale": staleness.conventional_time_to_stale,
         "conventional_time_to_stale_warning": staleness.conventional_time_to_stale_warning,
@@ -434,6 +518,29 @@ class _WorkloadCompatConfig(TypedDict, total=False):
     path: list[str]
     fields: dict[str, str]
     flat_fields: dict[str, str]
+
+
+def _map_host_type_for_backward_compatibility(host_type: str | None) -> str:
+    """
+    Map host_type values for backward compatibility with downstream apps.
+
+    Downstream applications only recognize 'edge' as a special value.
+    All other values (bootc, conventional, cluster) should be mapped to empty string
+    to maintain backward compatibility.
+
+    Args:
+        host_type: The host_type value from the database/system profile
+
+    Returns:
+        str: Backward-compatible host_type value:
+            - "edge" for actual edge systems (only explicit "edge")
+            - "" (empty string) for all other types (bootc, conventional, cluster, etc.)
+
+    Note:
+        This mapping is only applied to Kafka events, not API responses.
+        API responses return the actual database values.
+    """
+    return "edge" if host_type == "edge" else ""
 
 
 def _add_workloads_backward_compatibility(system_profile: dict) -> dict:

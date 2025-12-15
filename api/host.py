@@ -47,10 +47,12 @@ from app.payload_tracker import PayloadTrackerProcessingContext
 from app.payload_tracker import get_payload_tracker
 from app.queue.events import EventType
 from app.queue.events import build_event
+from app.queue.events import extract_system_profile_fields_for_headers
 from app.queue.events import message_headers
 from app.serialization import deserialize_canonical_facts
 from app.serialization import serialize_host
 from app.serialization import serialize_host_with_params
+from app.serialization import serialize_uuid
 from app.utils import Tag
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
 from lib.feature_flags import get_flag_value
@@ -378,13 +380,14 @@ def get_host_system_profile_by_id(
 
 
 def _emit_patch_event(serialized_host, host):
+    host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(host.static_system_profile)
     headers = message_headers(
         EventType.updated,
-        host.canonical_facts.get("insights_id"),
+        serialize_uuid(host.insights_id),
         host.reporter,
-        host.system_profile_facts.get("host_type"),
-        host.system_profile_facts.get("operating_system", {}).get("name"),
-        str(host.system_profile_facts.get("bootc_status", {}).get("booted") is not None),
+        host_type,
+        os_name,
+        bootc_booted,
     )
     metadata = {"b64_identity": to_auth_header(get_current_identity())}
     event = build_event(EventType.updated, serialized_host, platform_metadata=metadata)
@@ -419,8 +422,8 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
             db.session.commit()
             serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
             _emit_patch_event(serialized_host, host)
-            insights_id = host.canonical_facts.get("insights_id")
-            owner_id = host.system_profile_facts.get("owner_id")
+            insights_id = serialize_uuid(host.insights_id)
+            owner_id = host.static_system_profile.owner_id if host.static_system_profile else None
             if insights_id and owner_id:
                 delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id, owner_id=owner_id)
 
@@ -495,8 +498,8 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
             db.session.commit()
             serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
             _emit_patch_event(serialized_host, host)
-            insights_id = host.canonical_facts.get("insights_id")
-            owner_id = host.system_profile_facts.get("owner_id")
+            insights_id = serialize_uuid(host.insights_id)
+            owner_id = host.static_system_profile.owner_id if host.static_system_profile else None
             if insights_id and owner_id:
                 delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id, owner_id=owner_id)
 
@@ -548,8 +551,8 @@ def host_checkin(body, rbac_filter=None):  # noqa: ARG001, required for all API 
         db.session.commit()
         serialized_host = serialize_host(existing_host, staleness_timestamps(), staleness=staleness)
         _emit_patch_event(serialized_host, existing_host)
-        insights_id = existing_host.canonical_facts.get("insights_id")
-        owner_id = existing_host.system_profile_facts.get("owner_id")
+        insights_id = existing_host.insights_id
+        owner_id = existing_host.static_system_profile.owner_id if existing_host.static_system_profile else None
         if insights_id and owner_id:
             delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id, owner_id=owner_id)
         return flask_json_response(serialized_host, 201)
