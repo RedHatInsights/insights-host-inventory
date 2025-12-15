@@ -28,8 +28,8 @@ IDENTITY = {
     },
 }
 
-# # The identity used by "insights_service_delivery."  Having this identity here makes life a lot easier w
-# # hen creating hosts.
+# # The identity used by "insights_service_delivery." Having this identity here makes life a lot easier
+# # when creating hosts.
 # org_id = "12345"
 # IDENTITY = {
 #   "identity": {
