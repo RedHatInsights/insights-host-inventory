@@ -16,6 +16,7 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy.orm import relationship
 
+from app.config import CANONICAL_FACTS_FIELDS
 from app.config import ID_FACTS
 from app.culling import should_host_stay_fresh_forever
 from app.exceptions import InventoryException
@@ -260,6 +261,7 @@ class LimitedHost(db.Model):
     mac_addresses = db.Column(JSONB)
     provider_id = db.Column(db.String(500))
     provider_type = db.Column(db.String(50))
+
     openshift_cluster_id = db.Column(UUID(as_uuid=True))
     host_type = db.Column(db.String(12))  # Denormalized from system_profiles_static for performance
     system_profile_facts = db.Column(JSONB)
@@ -284,7 +286,7 @@ class Host(LimitedHost):
 
     def __init__(
         self,
-        canonical_facts,
+        canonical_facts=None,
         display_name=None,
         ansible_host=None,
         account=None,
@@ -315,14 +317,24 @@ class Host(LimitedHost):
         if groups is None:
             groups = []
 
-        if not canonical_facts:
+        # Leaving canonical_facts to avoid changing too much of the code at once
+        local_vars = locals()
+        fact_fields = tuple(local_vars[field] for field in CANONICAL_FACTS_FIELDS)
+        if not canonical_facts and all(field is None for field in fact_fields):
             raise ValidationException("At least one of the canonical fact fields must be present.")
 
-        if all(id_fact not in canonical_facts for id_fact in ID_FACTS):
+        id_fact_fields = tuple(local_vars[field] for field in ID_FACTS)
+        if (
+            canonical_facts
+            and not any(id_fact in canonical_facts for id_fact in ID_FACTS)
+            and all(field is None for field in id_fact_fields)
+        ):
             raise ValidationException(f"At least one of the ID fact fields must be present: {ID_FACTS}")
 
-        if current_app.config["USE_SUBMAN_ID"] and "subscription_manager_id" in canonical_facts:
-            id = canonical_facts["subscription_manager_id"]
+        if current_app.config["USE_SUBMAN_ID"] and (
+            canonical_facts and "subscription_manager_id" in canonical_facts or subscription_manager_id is not None
+        ):
+            id = subscription_manager_id or canonical_facts["subscription_manager_id"]
 
         if not reporter:
             raise ValidationException("The reporter field must be present.")
@@ -363,9 +375,9 @@ class Host(LimitedHost):
         self.per_reporter_staleness = per_reporter_staleness or {}
         if not per_reporter_staleness:
             self._update_per_reporter_staleness(reporter)
-
-        self.update_canonical_facts(canonical_facts)
-        self.update_canonical_facts_columns(canonical_facts)
+        if canonical_facts:
+            self.update_canonical_facts(canonical_facts)
+            self.update_canonical_facts_columns(canonical_facts)
 
         self._update_derived_host_type()
 
@@ -376,9 +388,31 @@ class Host(LimitedHost):
     def update(self, input_host: "Host", update_system_profile: bool = False) -> None:
         self.update_display_name(input_host.display_name, input_host.reporter, input_fqdn=input_host.fqdn)
 
-        self.update_canonical_facts(input_host.canonical_facts)
+        # Build canonical_facts from both the dict and individual fields
+        # This ensures all canonical facts (like provider_id) are included even if they're
+        # not in the canonical_facts dict but are set as individual fields
+        canonical_facts_to_update = {}
+        if input_host.canonical_facts:
+            # Convert UUID objects to strings for JSON serialization
+            for key, value in input_host.canonical_facts.items():
+                if isinstance(value, uuid.UUID):
+                    canonical_facts_to_update[key] = str(value)
+                else:
+                    canonical_facts_to_update[key] = value
 
-        self.update_canonical_facts_columns(input_host.canonical_facts)
+        # Also include canonical facts from individual fields
+        for field in CANONICAL_FACTS_FIELDS:
+            value = getattr(input_host, field, None)
+            if value is not None:
+                # Convert UUID objects to strings for JSON serialization
+                if isinstance(value, uuid.UUID):
+                    canonical_facts_to_update[field] = str(value)
+                else:
+                    canonical_facts_to_update[field] = value
+
+        if canonical_facts_to_update:
+            self.update_canonical_facts(canonical_facts_to_update)
+            self.update_canonical_facts_columns(canonical_facts_to_update)
 
         self._update_ansible_host(input_host.ansible_host)
 
@@ -649,5 +683,5 @@ class Host(LimitedHost):
     def __repr__(self):
         return (
             f"<Host id='{self.id}' account='{self.account}' org_id='{self.org_id}' display_name='{self.display_name}' "
-            f"canonical_facts={self.canonical_facts}>"
+            f"insights_id='{self.insights_id}'>"
         )
