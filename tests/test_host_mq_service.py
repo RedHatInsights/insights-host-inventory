@@ -2568,7 +2568,7 @@ def test_batch_mq_do_dedup_in_db(
     subman_id = generate_uuid()
     display_name = generate_random_string()
     existing_host_data = minimal_db_host(
-        canonical_facts={"subscription_manager_id": subman_id, "fqdn": generate_random_string()},
+        **{"subscription_manager_id": subman_id, "fqdn": generate_random_string()},
         display_name=display_name,
     )
     existing_host = db_create_host(host=existing_host_data)

@@ -742,7 +742,7 @@ def write_add_update_event_message(
         inventory_id=result.row.id,
     ):
         output_host = serialize_host(result.row, result.staleness_timestamps, staleness=result.staleness_object)
-        insights_id = result.row.canonical_facts.get("insights_id")
+        insights_id = str(result.row.insights_id)
         event = build_event(result.event_type, output_host, platform_metadata=result.platform_metadata)
 
         headers = message_headers(

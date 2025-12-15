@@ -1550,7 +1550,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "openshift_cluster_id": str(uuid4()),
         }
         host_init_data = {
-            "canonical_facts": canonical_facts,
+            **canonical_facts,
             **unchanged_data,
             "facts": {
                 "some namespace": {"some key": "some value"},
@@ -1619,7 +1619,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                 }
                 host_init_data = {
                     "stale_timestamp": now(),
-                    "canonical_facts": {"subscription_manager_id": generate_uuid()},
+                    "subscription_manager_id": generate_uuid(),
                     **unchanged_data,
                     "facts": {},
                 }
@@ -1688,7 +1688,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             ):
                 stale_timestamp = now() + timedelta(days=1)
                 host = Host(
-                    {"subscription_manager_id": generate_uuid()},
+                    subscription_manager_id=generate_uuid(),
                     facts={},
                     stale_timestamp=stale_timestamp,
                     reporter="some reporter",
@@ -1744,7 +1744,7 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
             "openshift_cluster_id": str(uuid4()),
         }
         host_init_data = {
-            "canonical_facts": canonical_facts,
+            **canonical_facts,
             **unchanged_data,
             "facts": facts,
             "stale_timestamp": stale_timestamp,
@@ -1806,7 +1806,7 @@ class SerializationSerializeHostSystemProfileTestCase(TestCase):
             "system_memory_bytes": 4,
         }
         host = Host(
-            canonical_facts={"subscription_manager_id": generate_uuid()},
+            subscription_manager_id=generate_uuid(),
             display_name="some display name",
             system_profile_facts=system_profile_facts,
             stale_timestamp=now(),
@@ -1821,7 +1821,7 @@ class SerializationSerializeHostSystemProfileTestCase(TestCase):
 
     def test_empty_profile_is_empty_dict(self):
         host = Host(
-            canonical_facts={"subscription_manager_id": generate_uuid()},
+            subscription_manager_id=generate_uuid(),
             display_name="some display name",
             stale_timestamp=now(),
             reporter="yupana",

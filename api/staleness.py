@@ -149,7 +149,7 @@ def _update_hosts_staleness_async(identity: Identity, app: Flask, staleness: Sta
 def _build_host_updated_event_params(serialized_host: dict, host: Host, identity: Identity):
     headers = message_headers(
         EventType.updated,
-        host.canonical_facts.get("insights_id"),
+        str(host.insights_id),
         host.reporter,
         host.system_profile_facts.get("host_type"),
         host.system_profile_facts.get("operating_system", {}).get("name"),
