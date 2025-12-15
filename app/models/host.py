@@ -133,8 +133,7 @@ class LimitedHost(db.Model):
         major = 0
         minor = 0
 
-        if self.static_system_profile and self.static_system_profile.operating_system:
-            os = self.static_system_profile.operating_system
+        if self.static_system_profile and (os := self.static_system_profile.operating_system):
             name = os.get("name", "")
             major = os.get("major", 0)
             minor = os.get("minor", 0)
@@ -176,10 +175,8 @@ class LimitedHost(db.Model):
         Returns:
             str: The derived host type ('cluster', 'edge', 'bootc', or 'conventional')
         """
-        if not self.static_system_profile:
+        if not (static := self.static_system_profile):
             return "conventional"
-
-        static = self.static_system_profile
 
         if static.host_type in {"edge", "cluster"}:
             return static.host_type
